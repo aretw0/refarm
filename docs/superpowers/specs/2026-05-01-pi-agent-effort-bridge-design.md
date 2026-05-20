@@ -14,7 +14,7 @@ plugin function can be dispatched as a task.
 
 Pi-agent (the sovereign AI plugin) is not yet reachable via this pipeline because:
 
-1. Its `integration` WIT interface has no callable function that returns the LLM response.
+1. Its `integration` WIT interface has no callable function that returns the MODEL response.
    `on_event("user:prompt", prompt)` writes to CRDT and returns void — unusable as a task result.
 2. Farmhand only loads plugins via `PluginRoute` CRDT nodes — no auto-boot from installed plugins.
 3. `refarm-plugin-host.wit` exists as a manual copy in both `packages/pi-agent/wit/` and
@@ -115,7 +115,7 @@ for audit trail and conversational history. The return value is a normalized cop
 
 ### Error path
 
-LLM failure or budget block → `Err(plugin-error::internal("..."))` → task executor maps to
+MODEL failure or budget block → `Err(plugin-error::internal("..."))` → task executor maps to
 `TaskResult { status: "error", error: "..." }`. No changes to the task executor needed.
 
 ### Why the executor needs zero changes
@@ -181,7 +181,7 @@ refarm task run pi-agent respond --args '{"prompt":"o que é CRDT?"}' --directio
       → tractor.plugins.get("pi-agent")          ← loaded at boot
       → instance.call("respond", '{"prompt":"..."}')
         → pi-agent Rust: respond(payload)
-          → runs LLM pipeline
+          → runs MODEL pipeline
           → writes UserPrompt + AgentResponse to CRDT
           → returns { content, model, provider, usage }
       → TaskResult { status: "ok", result: { content, model, ... } }
@@ -198,10 +198,10 @@ refarm task status <effortId>
 
 ### Rust — pi-agent (`extensibility_contract`)
 
-- New axiom **A6 — respond returns complete structure**: mock `llm-bridge` returns fixed response;
+- New axiom **A6 — respond returns complete structure**: mock `model-bridge` returns fixed response;
   verify `respond` returns JSON with `content`, `model`, `provider`, `usage` present.
 - Verify `UserPrompt` + `AgentResponse` CRDT writes occur as side effects.
-- Verify `respond` returns `Err` when LLM bridge returns error.
+- Verify `respond` returns `Err` when model bridge returns error.
 
 ### TypeScript — Farmhand (Vitest)
 
@@ -212,7 +212,7 @@ refarm task status <effortId>
 ### Smoke gate extension
 
 `scripts/ci/smoke-task-execution-loop.mjs` gains a `pi-agent respond` scenario using a
-stub LLM (env `LLM_PROVIDER=stub` or similar) that returns a fixed response without a real
+stub MODEL (env `MODEL_PROVIDER=stub` or similar) that returns a fixed response without a real
 API call. Verifies `TaskResult.result` contains `content` + `usage`.
 
 ---
@@ -222,4 +222,4 @@ API call. Verifies `TaskResult.result` contains `content` + `usage`.
 - Streaming responses via effort queue (future — implement `subscribe` on transport)
 - Multi-turn conversations across efforts (Slice 6.2 scope)
 - Demand-load (C) implementation (building blocks ready; full impl is future)
-- Real LLM call in smoke gate (covered by existing pi-agent Rust tests)
+- Real MODEL call in smoke gate (covered by existing pi-agent Rust tests)

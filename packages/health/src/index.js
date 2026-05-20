@@ -1,5 +1,5 @@
 /**
- * HealthCore: The sovereign health orchestrator.
+ * HealthCore: generic health orchestrator.
  * Acts as a registry for multiple health auditors (Project, User, Org).
  * Supports stratified auditing where layers can build on each other.
  */
@@ -20,8 +20,8 @@ export class HealthCore {
     }
 
     /**
-     * Loads a health policy from the Sovereign Graph to guide the auditors.
-     * Positioned for Phase 7+ where policies are encoded as Graph Nodes.
+     * Loads a health policy from an external graph context to guide auditors.
+     * Positioned for future use where policies are encoded as graph nodes.
      */
     async loadPolicy(policyNodeId) {
         if (!this.#graphContext) {
@@ -85,6 +85,6 @@ export class HealthCore {
 }
 
 import { FileSystemAuditor } from "./auditors/generic.js";
-import { RefarmProjectAuditor } from "./auditors/project.js";
+import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
 
-export { FileSystemAuditor, RefarmProjectAuditor };
+export { FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };

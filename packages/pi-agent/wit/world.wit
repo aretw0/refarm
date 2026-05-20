@@ -4,7 +4,7 @@ package refarm:plugin@0.1.0;
 // so the exported interface remains `refarm:plugin/integration@0.1.0`.
 world pi-agent {
     import tractor-bridge;
-    import llm-bridge;
+    import model-bridge;
     import agent-fs;
     import agent-shell;
     import structured-io;

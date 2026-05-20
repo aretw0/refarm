@@ -1,12 +1,12 @@
 //! Pi Agent — sovereign AI agent for edge nodes and Raspberry Pi.
 //!
 //! # Provider selection (env vars)
-//!   LLM_PROVIDER=anthropic|openai|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
-//!   LLM_DEFAULT_PROVIDER=<name>            (user's sovereign default, overrides ollama floor)
-//!   LLM_MODEL=<model-id>                   (provider-specific default if unset)
-//!   LLM_BASE_URL=<url>                     (optional override for any provider)
+//!   MODEL_PROVIDER=anthropic|openai|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
+//!   MODEL_DEFAULT_PROVIDER=<name>            (user's sovereign default, overrides ollama floor)
+//!   MODEL_ID=<model-id>                      (provider-specific default if unset)
+//!   MODEL_BASE_URL=<url>                     (optional override for any provider)
 //!   ANTHROPIC_API_KEY=sk-ant-...
-//!   OPENAI_API_KEY=sk-...                  (openai; also fallback for unknown compat providers)
+//!   OPENAI_API_KEY=sk-...                    (openai; also fallback for unknown compat providers)
 //!   GROQ_API_KEY=gsk_...
 //!   MISTRAL_API_KEY=...
 //!   XAI_API_KEY=xai-...
@@ -14,24 +14,24 @@
 //!   TOGETHER_API_KEY=...
 //!   OPENROUTER_API_KEY=sk-or-...
 //!   GEMINI_API_KEY=AIza...
-//!   LLM_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
-//!   LLM_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
-//!   LLM_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. LLM_BUDGET_ANTHROPIC_USD=5.0)
-//!   LLM_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
-//!   LLM_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
-//!   LLM_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
-//!   LLM_STREAM_RESPONSES=1|true|yes|on     (opt into partial AgentResponse streaming chunks)
-//!   LLM_SYSTEM=<string>                    (system prompt override; distros inject persona/role here)
-//!                                           pipeline: strip ANSI → dedup repeated lines → truncate
+//!   MODEL_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
+//!   MODEL_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
+//!   MODEL_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. MODEL_BUDGET_ANTHROPIC_USD=5.0)
+//!   MODEL_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
+//!   MODEL_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
+//!   MODEL_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
+//!   MODEL_STREAM_RESPONSES=1|true|yes|on     (opt into partial AgentResponse streaming chunks)
+//!   MODEL_SYSTEM=<string>                    (system prompt override; distros inject persona/role here)
+//!                                             pipeline: strip ANSI → dedup repeated lines → truncate
 //!
 //! Ollama: no key needed; defaults to http://localhost:11434
 //!
 //! # Pipeline
 //!   on-event("user:prompt", prompt)
-//!     → guard: LLM_MAX_CONTEXT_TOKENS
-//!     → guard: LLM_BUDGET_<PROVIDER>_USD (reads UsageRecord CRDT nodes)
+//!     → guard: MODEL_MAX_CONTEXT_TOKENS
+//!     → guard: MODEL_BUDGET_<PROVIDER>_USD (reads UsageRecord CRDT nodes)
 //!     → provider::complete()  — dispatches to Anthropic or OpenAI-compat wire format
-//!     → on error/budget block: retry via LLM_FALLBACK_PROVIDER
+//!     → on error/budget block: retry via MODEL_FALLBACK_PROVIDER
 //!     → store AgentResponse + UsageRecord nodes (triggers reactive CRDT push)
 
 wit_bindgen::generate!({
@@ -197,8 +197,8 @@ fn build_respond_json(
 #[cfg(target_arch = "wasm32")]
 fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let turns_str = req.history_turns.map(|n| n.to_string());
-    let _session = EnvGuard::maybe_set("LLM_SESSION_ID", req.session_id.as_deref());
-    let _turns = EnvGuard::maybe_set("LLM_HISTORY_TURNS", turns_str.as_deref());
+    let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
+    let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
 
     let outcome = runtime::execute_prompt(&req.prompt, req.system.as_deref())
         .ok_or_else(|| {
@@ -225,9 +225,9 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
 #[cfg(not(target_arch = "wasm32"))]
 fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let turns_str = req.history_turns.map(|n| n.to_string());
-    let _system = EnvGuard::maybe_set("LLM_SYSTEM", req.system.as_deref());
-    let _session = EnvGuard::maybe_set("LLM_SESSION_ID", req.session_id.as_deref());
-    let _turns = EnvGuard::maybe_set("LLM_HISTORY_TURNS", turns_str.as_deref());
+    let _system = EnvGuard::maybe_set("MODEL_SYSTEM", req.system.as_deref());
+    let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
+    let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
 
     let (
         content,
@@ -279,7 +279,7 @@ impl IntegrationGuest for PiAgent {
             required_capabilities: vec![
                 "agent-fs".to_string(),
                 "agent-shell".to_string(),
-                "llm-bridge".to_string(),
+                "model-bridge".to_string(),
             ],
         }
     }
@@ -318,8 +318,8 @@ mod tests;
 //
 //   A1 — Provider agnosticism:  any unknown name → OpenAI compat, zero code changes
 //   A2 — Zero-config boot:      no env vars → agent responds, no panic
-//   A3 — Context opt-in:        LLM_HISTORY_TURNS absent/0 → no CRDT reads for history
-//   A4 — Budget opt-out:        no LLM_BUDGET_* → no blocking, feature is truly opt-in
+//   A3 — Context opt-in:        MODEL_HISTORY_TURNS absent/0 → no CRDT reads for history
+//   A4 — Budget opt-out:        no MODEL_BUDGET_* → no blocking, feature is truly opt-in
 //   A5 — CRDT schema freedom:   any @type stores and queries without prior registration
 //        (validated in tractor/src/storage/sqlite.rs::store_and_query_node)
 

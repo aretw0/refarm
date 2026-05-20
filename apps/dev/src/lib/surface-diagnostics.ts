@@ -1,4 +1,4 @@
-import type { PluginInstance } from "@refarm.dev/tractor";
+import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	createScopedHomesteadSurfaceActionHandler,
@@ -33,7 +33,7 @@ export type StudioSurfaceDiagnosticsTelemetry = (
  */
 export function createStudioSurfaceDiagnosticsPlugins(
 	emitTelemetry: StudioSurfaceDiagnosticsTelemetry = () => {},
-): PluginInstance[] {
+): RuntimePluginHandle[] {
 	return [
 		createHomesteadSurfacePluginHandle({
 			id: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,

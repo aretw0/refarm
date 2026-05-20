@@ -45,7 +45,7 @@ and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonica
    **When** `refarm task status <effortId>` is run  
    **Then** `TaskResult.result` contains `content`, `model`, `provider`, and `usage`
 
-4. **Given** the LLM call fails or budget is exceeded  
+4. **Given** the model call fails or budget is exceeded  
    **When** `respond` is invoked  
    **Then** `TaskResult` has `status: "error"` with a descriptive error message
 
@@ -123,15 +123,15 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 **Unit tests (TDD):**
 
-- [x] `respond` returns complete structure — mock LLM bridge, verify JSON fields
-- [x] `respond` returns `Err` on LLM failure
+- [x] `respond` returns complete structure — mock model bridge, verify JSON fields
+- [x] `respond` returns `Err` on model failure
 - [x] `respond` writes `UserPrompt` + `AgentResponse` to CRDT as side effects (axiom A6)
 - [x] `loadInstalledPlugins` — valid plugin loads, invalid skips with warning
 - [x] `loadInstalledPlugins` — missing `plugins/` dir is silently ignored
 
 **Smoke gate extension:**
 
-- [x] `pi-agent respond` effort round-trip with stub LLM — `TaskResult.result` has `content` + `usage`
+- [x] `pi-agent respond` effort round-trip with stub model — `TaskResult.result` has `content` + `usage`
 
 ---
 
@@ -161,7 +161,7 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 - [x] Implement `fn respond` in `packages/pi-agent/src/lib.rs`
 - [x] Implement `loadInstalledPlugins` in `apps/farmhand/src/index.ts`
 - [x] Wire `loadInstalledPlugins` in `main()`
-- [x] Smoke gate: verify end-to-end with stub LLM
+- [x] Smoke gate: verify end-to-end with stub model
 
 ---
 

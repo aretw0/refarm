@@ -1,38 +1,56 @@
 {
-  "name": "@refarm.dev/farmhand",
-  "version": "0.1.0",
-  "description": "Refarm Farmhand \u2014 headless Node.js daemon for always-on sync",
-  "type": "module",
-  "main": "./dist/index.js",
-  "scripts": {
-    "start": "node --experimental-strip-types --experimental-transform-types --import ../../scripts/farmhand-node-register-loader.mjs src/index.ts",
-    "dev": "node --watch --experimental-strip-types --experimental-transform-types --import ../../scripts/farmhand-node-register-loader.mjs src/index.ts",
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "lint": "eslint src"
-  },
-  "dependencies": {
-    "@refarm.dev/effort-contract-v1": "*",
-    "@refarm.dev/file-stream-transport": "*",
-    "@refarm.dev/identity-contract-v1": "*",
-    "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/sse-stream-transport": "*",
-    "@refarm.dev/storage-contract-v1": "*",
-    "@refarm.dev/stream-contract-v1": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/task-contract-v1": "*",
-    "@refarm.dev/tractor": "*",
-    "@refarm.dev/ws-stream-transport": "*",
-    "ws": "^8.20.0"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@types/node": "^25.6.0",
-    "@types/ws": "^8.18.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
-  },
-  "license": "AGPL-3.0-only"
+	"name": "@refarm.dev/farmhand",
+	"version": "0.1.0",
+	"description": "Refarm Farmhand — headless Node.js daemon for always-on sync",
+	"type": "module",
+	"main": "./dist/index.js",
+	"exports": {
+		".": {
+			"import": "./dist/index.js"
+		},
+		"./test-harness": {
+			"import": "./dist/test-harness.js",
+			"types": "./dist/test-harness.d.ts"
+		}
+	},
+	"scripts": {
+		"start": "node --experimental-strip-types --experimental-transform-types --import ../../scripts/farmhand-node-register-loader.mjs src/index.ts",
+		"dev": "node --watch --experimental-strip-types --experimental-transform-types --import ../../scripts/farmhand-node-register-loader.mjs src/index.ts",
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"test:driver": "vitest run src/transports/sessions.test.ts src/transports/effort-chat.integration.test.ts",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/automation-contract-v1": "workspace:*",
+		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/effort-contract-v1": "workspace:*",
+		"@refarm.dev/file-stream-transport": "workspace:*",
+		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/pi-agent": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*",
+		"@refarm.dev/silo": "workspace:*",
+		"@refarm.dev/sse-stream-transport": "workspace:*",
+		"@refarm.dev/storage-contract-v1": "workspace:*",
+		"@refarm.dev/storage-sqlite": "workspace:*",
+		"@refarm.dev/stream-contract-v1": "workspace:*",
+		"@refarm.dev/sync-loro": "workspace:*",
+		"@refarm.dev/task-contract-v1": "workspace:*",
+		"@refarm.dev/tractor": "workspace:*",
+		"@refarm.dev/ws-stream-transport": "workspace:*",
+		"ws": "catalog:"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@types/node": "catalog:",
+		"@types/ws": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/deps": "workspace:*",
+		"@refarm.dev/model-mock": "workspace:*"
+	},
+	"license": "AGPL-3.0-only"
 }

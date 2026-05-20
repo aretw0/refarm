@@ -28,7 +28,7 @@ jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: REFARM_DIAGRAM_SYNC_STRICT=0 npm run diagrams:check -- --ci
+      validation-command: REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check -- --ci
       validation-name: Diagrams
       validation-cache-files: |
         docs/**/*.mermaid
@@ -36,9 +36,11 @@ jobs:
         specs/diagrams/mermaid.config.json
         scripts/check-diagrams.mjs
         scripts/puppeteer-no-sandbox.json
-        package-lock.json
+        pnpm-lock.yaml
         .github/workflows/validate-diagrams.yml
         .github/workflows/reusable-validate-docs.yml
       create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
       issue-title: "Mermaid diagram validation failed"
       issue-labels: "documentation,diagrams,validation"
+      is-pr: ${{ github.event_name == 'pull_request' }}
+      pr-number: ${{ github.event.pull_request.number }}

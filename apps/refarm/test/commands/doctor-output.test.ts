@@ -14,6 +14,14 @@ function makeReport() {
 		failures: [] as string[],
 		warnings: [] as string[],
 		informational: ["renderer:non-interactive"],
+		recommendations: [
+			{
+				diagnostic: "renderer:non-interactive",
+				severity: "info" as const,
+				summary: "The selected renderer is non-interactive.",
+				action: "Use a web or TUI renderer when the workflow requires interactive controls.",
+			},
+		],
 		host: {
 			app: "apps/refarm",
 			command: "refarm",
@@ -67,6 +75,7 @@ describe("formatRefarmDoctorReportJson", () => {
 		const output = formatRefarmDoctorReportJson(makeReport());
 		expect(output).toContain('"host"');
 		expect(output).toContain('"status"');
+		expect(output).toContain('"recommendations"');
 		expect(output).toContain('"version": "1.2.3"');
 	});
 });
@@ -82,6 +91,54 @@ describe("printRefarmDoctorReport", () => {
 		expect(log).toHaveBeenCalledWith(expect.stringContaining("Renderer:"));
 		expect(log).toHaveBeenCalledWith(expect.stringContaining("Runtime:"));
 		expect(log).toHaveBeenCalledWith("Info:");
+	});
+
+	it("prints recommendations for failures and warnings", () => {
+		const log = vi.fn();
+		const report = {
+			...makeReport(),
+			ok: false,
+			failureCount: 1,
+			warningCount: 1,
+			failures: ["runtime:not-ready"],
+			warnings: ["trust:warnings-present"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure" as const,
+					summary: "The runtime reported that it is not ready.",
+					action: "Start or repair the configured runtime, then rerun `refarm doctor --json`.",
+				},
+				{
+					diagnostic: "trust:warnings-present",
+					severity: "warning" as const,
+					summary: "Trust warnings are present.",
+					action: "Inspect trust warnings and decide whether they should block this workflow.",
+				},
+				{
+					diagnostic: "renderer:non-interactive",
+					severity: "info" as const,
+					summary: "The selected renderer is non-interactive.",
+					action: "Use a web or TUI renderer when the workflow requires interactive controls.",
+				},
+			],
+		};
+
+		printRefarmDoctorReport(report, log);
+
+		expect(log).toHaveBeenCalledWith("Recommendations:");
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining("runtime:not-ready"),
+		);
+		const recommendationStart = log.mock.calls.findIndex(
+			([message]) => message === "Recommendations:",
+		);
+		const recommendationLines = log.mock.calls
+			.slice(recommendationStart)
+			.map(([message]) => String(message));
+		expect(recommendationLines.join("\n")).not.toContain(
+			"renderer:non-interactive",
+		);
 	});
 });
 

@@ -47,7 +47,7 @@ Key points:
 ### Positive Consequences
 
 - Reusability: any producer writing `StreamChunk` CRDT nodes feeds all registered
-  transports — LLM tokens, build logs, test progress, background jobs.
+  transports — model tokens, build logs, test progress, background jobs.
 - Testability: each transport has a clear, narrow interface and isolated unit tests.
 - Extensibility: new transports (gRPC, MQTT, Kafka) require no changes to Farmhand
   internals; register and dispatch.
@@ -73,6 +73,6 @@ Key points:
 ## References
 
 - [ADR-054: Generic Stream Observations and AgentResponse Projection](ADR-054-generic-stream-observations.md)
-- [ADR-053: Host-Proxied LLM Streaming Boundary](ADR-053-host-proxied-llm-streaming.md)
+- [ADR-053: Host-Proxied Model Streaming Boundary](ADR-053-host-proxied-model-streaming.md)
 - [ADR-018: Capability Contracts and Observability Gates](ADR-018-capability-contracts-and-observability-gates.md)
 - [stream-contract-v1 feature spec](../../specs/features/stream-contract-v1.md)

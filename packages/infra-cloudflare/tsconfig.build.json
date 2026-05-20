@@ -1,9 +1,14 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "outDir": "dist",
-    "rootDir": "src"
-  },
-  "exclude": ["src/**/*.test.ts", "src/services/*/worker/**/*"]
+	"extends": [
+		"./tsconfig.json",
+		"@refarm.dev/tsconfig/build.json"
+	],
+	"compilerOptions": {
+		"rootDir": "src",
+		"outDir": "dist"
+	},
+	"exclude": [
+		"src/**/*.test.ts",
+		"src/services/*/worker/**/*"
+	]
 }

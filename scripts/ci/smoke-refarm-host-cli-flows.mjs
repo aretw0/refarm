@@ -12,13 +12,13 @@ import {
 const LOGGER_PREFIX = "[refarm-host-cli-smoke]";
 const REPO_ROOT = process.cwd();
 const REFARM_DIST_ENTRY = path.join(REPO_ROOT, "apps/refarm/dist/index.js");
-const REFARM_ESM_LOADER = path.join(
+const REFARM_ESM_REGISTER = path.join(
 	REPO_ROOT,
-	"scripts/ci/esm-extension-loader.mjs",
+	"scripts/ci/esm-extension-register.mjs",
 );
 const REFARM_NODE_ARGS_PREFIX = [
-	"--experimental-loader",
-	REFARM_ESM_LOADER,
+	"--import",
+	REFARM_ESM_REGISTER,
 	REFARM_DIST_ENTRY,
 ];
 const ACTION_AFFORDANCES = [
@@ -403,7 +403,7 @@ async function main() {
 			);
 		} else {
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
+			await runSubprocess("pnpm", ["-C", "apps/refarm", "run", "build"], {
 				env: process.env,
 			});
 		}
@@ -897,6 +897,24 @@ async function main() {
 			["doctor", "--input", warningStatusPath, "--fail-on-warnings"],
 			"Doctor: FAIL",
 		);
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm check --json`);
+		const checkJsonRun = await runRefarmCommand(["check", "--json"]);
+		const checkJson = parseCommandJsonOutput("check --json", checkJsonRun);
+		if (checkJson?.ok !== true) {
+			throw new Error(
+				`Expected check JSON ok=true, got: ${JSON.stringify(checkJson?.ok)}`,
+			);
+		}
+		if (
+			checkJson?.checks?.health?.ok !== true ||
+			checkJson?.checks?.doctor?.ok !== true ||
+			!Array.isArray(checkJson?.recommendations)
+		) {
+			throw new Error(
+				`Expected check JSON to include passing health/doctor checks and recommendations, got: ${JSON.stringify(checkJson)}`,
+			);
+		}
 
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when farmhand is down`,

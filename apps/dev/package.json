@@ -1,38 +1,38 @@
 {
-  "name": "@refarm.dev/app",
-  "version": "0.1.0",
-  "description": "Refarm Dev App \u2014 in-browser IDE for developing, testing and publishing Refarm plugins",
-  "type": "module",
-  "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro:check": "astro check",
-    "lint": "eslint src",
-    "lint:prepush": "npm run astro:check",
-    "type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
-    "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest",
-    "clean": "rm -rf dist .astro"
-  },
-  "dependencies": {
-    "@astrojs/check": "^0.9.9",
-    "@refarm.dev/ds": "*",
-    "@refarm.dev/homestead": "*",
-    "@refarm.dev/scarecrow": "*",
-    "@refarm.dev/sower": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/tractor": "*",
-    "@refarm.me/identity-nostr": "*",
-    "astro": "^6.1.8"
-  },
-  "devDependencies": {
-    "@refarm.dev/config": "*",
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
-    "typescript": "^6.0.3"
-  },
-  "license": "MIT"
+	"name": "@refarm.dev/app",
+	"version": "0.1.0",
+	"description": "Refarm Dev App — in-browser IDE for developing, testing and publishing Refarm plugins",
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"astro:check": "astro check",
+		"lint": "eslint src",
+		"lint:prepush": "pnpm run astro:check",
+		"type-check": "pnpm run astro:check && tsc --project tsconfig.json --noEmit",
+		"type-check:dist": "pnpm run astro:check && tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run --pool=threads",
+		"test:watch": "vitest",
+		"clean": "rm -rf dist .astro"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*",
+		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*",
+		"@refarm.dev/scarecrow": "workspace:*",
+		"@refarm.dev/sower": "workspace:*",
+		"@refarm.dev/storage-sqlite": "workspace:*",
+		"@refarm.dev/sync-loro": "workspace:*",
+		"@refarm.me/identity-nostr": "workspace:*",
+		"astro": "^6.2.2"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.9",
+		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:"
+	},
+	"license": "MIT"
 }

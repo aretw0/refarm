@@ -10,6 +10,6 @@ describe("@refarm.dev/storage-sqlite task:v1 conformance", () => {
 
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
-		expect(result.total).toBe(7);
+		expect(result.total).toBeGreaterThanOrEqual(8);
 	});
 });

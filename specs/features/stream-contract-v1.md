@@ -20,7 +20,7 @@ style from CLI polling to live browser UIs.
 ## User Stories
 
 **As a** Refarm developer  
-**I want** to subscribe to a `stream_ref` and receive LLM tokens as they arrive  
+**I want** to subscribe to a `stream_ref` and receive model tokens as they arrive  
 **So that** I can see pi-agent's response in real time without waiting for completion
 
 **As a** third-party plugin author  
@@ -29,7 +29,7 @@ style from CLI polling to live browser UIs.
 
 **As a** Refarm developer  
 **I want** `StreamChunk` nodes written by any producer to reach all registered transports  
-**So that** build logs, test progress, and LLM tokens all share the same downstream path
+**So that** build logs, test progress, and model tokens all share the same downstream path
 
 **As a** Refarm developer  
 **I want** a conformance test harness included in `stream-contract-v1`  
@@ -223,7 +223,7 @@ export class StreamRegistry {
 
 - [Design doc](../../docs/superpowers/specs/2026-05-02-stream-contract-v1-design.md)
 - [ADR-054: Generic Stream Observations](../ADRs/ADR-054-generic-stream-observations.md)
-- [ADR-053: Host-Proxied LLM Streaming](../ADRs/ADR-053-host-proxied-llm-streaming.md)
+- [ADR-053: Host-Proxied Model Streaming](../ADRs/ADR-053-host-proxied-model-streaming.md)
 - [ADR-018: Capability Contracts and Observability Gates](../ADRs/ADR-018-capability-contracts-and-observability-gates.md)
 - [Farmhand Task Execution spec](./farmhand-task-execution.md)
 - [Pi-Agent Effort Bridge spec](./pi-agent-effort-bridge.md)

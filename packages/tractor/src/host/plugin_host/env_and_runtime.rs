@@ -1,22 +1,22 @@
-fn is_forwardable_llm_env_value(value: &str) -> bool {
-    crate::host::sensitive_aliases::is_forwardable_llm_env_value(value)
+fn is_forwardable_model_env_value(value: &str) -> bool {
+    crate::host::sensitive_aliases::is_forwardable_model_env_value(value)
 }
 
 /// Build plugin env vars with project config override semantics:
-/// process LLM_* vars first, then `.refarm/config.json` overwrites them.
+/// process MODEL_* vars first, then `.refarm/config.json` overwrites them.
 fn plugin_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
-    merge_plugin_env_vars(forwarded_llm_env_vars(), refarm_config_env_vars_from(base))
+    merge_plugin_env_vars(forwarded_model_env_vars(), refarm_config_env_vars_from(base))
 }
 
 fn merge_plugin_env_vars(
-    llm_vars: Vec<(String, String)>,
+    model_vars: Vec<(String, String)>,
     config_vars: Vec<(String, String)>,
 ) -> Vec<(String, String)> {
     const MAX_PLUGIN_ENV_VARS: usize = 192;
     const MAX_PLUGIN_ENV_TOTAL_BYTES: usize = 96 * 1024;
 
     let mut merged = std::collections::BTreeMap::<String, String>::new();
-    for (k, v) in llm_vars {
+    for (k, v) in model_vars {
         merged.insert(k, v);
     }
     for (k, v) in config_vars {
@@ -52,10 +52,10 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
         return vec![];
     };
     let mut vars: Vec<(String, String)> = Vec::new();
-    push_trimmed_lower_env_var(&mut vars, "LLM_PROVIDER", cfg["provider"].as_str());
-    push_trimmed_env_var(&mut vars, "LLM_MODEL", cfg["model"].as_str());
-    push_trimmed_lower_env_var(&mut vars, "LLM_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
-    push_bool_env_var(&mut vars, "LLM_STREAM_RESPONSES", cfg["stream_responses"].as_bool());
+    push_trimmed_lower_env_var(&mut vars, "MODEL_PROVIDER", cfg["provider"].as_str());
+    push_trimmed_env_var(&mut vars, "MODEL_ID", cfg["model"].as_str());
+    push_trimmed_lower_env_var(&mut vars, "MODEL_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
+    push_bool_env_var(&mut vars, "MODEL_STREAM_RESPONSES", cfg["stream_responses"].as_bool());
     if let Some(budgets) = cfg["budgets"].as_object() {
         for (provider, amount) in budgets.iter().take(MAX_CONFIG_BUDGET_VARS) {
             let Some(provider_token) = sanitize_budget_provider_for_env(provider) else {
@@ -65,7 +65,7 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
                 if usd < 0.0 {
                     continue;
                 }
-                let key = format!("LLM_BUDGET_{}_USD", provider_token);
+                let key = format!("MODEL_BUDGET_{}_USD", provider_token);
                 upsert_env_var_vec(&mut vars, key, usd.to_string());
             }
         }
@@ -283,7 +283,7 @@ fn refarm_config_node_payload(
         "workspace": base.to_string_lossy(),
         "config_path": base.join(".refarm/config.json").to_string_lossy(),
         "timestamp_ns": timestamp_ns,
-        "llm_env": serde_json::Value::Object(env_map),
+        "model_env": serde_json::Value::Object(env_map),
         "config_json": config_json.cloned().unwrap_or(serde_json::Value::Null),
     })
 }

@@ -20,16 +20,16 @@ Responds to `user:prompt` events via any LLM provider and persists results in th
 
 ```
 on-event("user:prompt", prompt)
-  → guard: LLM_MAX_CONTEXT_TOKENS          — blocks oversized prompts before any API call
-  → guard: LLM_BUDGET_<PROVIDER>_USD       — rolling 30-day spend cap per provider
-  → history: LLM_HISTORY_TURNS             — opt-in conversational memory from CRDT
+  → guard: MODEL_MAX_CONTEXT_TOKENS        — blocks oversized prompts before any API call
+  → guard: MODEL_BUDGET_<PROVIDER>_USD     — rolling 30-day spend cap per provider
+  → history: MODEL_HISTORY_TURNS           — opt-in conversational memory from CRDT
   → provider::complete()                   — Anthropic or OpenAI-compat wire format
-    → agentic tool loop (up to LLM_TOOL_CALL_MAX_ITER)
+    → agentic tool loop (up to MODEL_TOOL_CALL_MAX_ITER)
       → read_file / write_file / edit_file (agent-fs)
       → list_dir (agent-shell: ls -1)
       → bash (agent-shell, structured argv — no shell injection)
-      → compress_tool_output() (opt-in via LLM_TOOL_OUTPUT_MAX_LINES)
-  → on error / budget block: LLM_FALLBACK_PROVIDER
+      → compress_tool_output() (opt-in via MODEL_TOOL_OUTPUT_MAX_LINES)
+  → on error / budget block: MODEL_FALLBACK_PROVIDER
   → store AgentResponse node  (content, tool_calls, timestamp_ns)
   → store UsageRecord node    (tokens, estimated_usd, usage_raw, provider)
 ```
@@ -38,7 +38,7 @@ on-event("user:prompt", prompt)
 
 ## Environment variables
 
-LLM variables are injected by the tractor host (forwarded `LLM_*` only). A `.refarm/config.json` file
+Model variables are injected by the tractor host (forwarded `MODEL_*` only). A `.refarm/config.json` file
 at project root can set them declaratively — values there override process env:
 
 ```json
@@ -57,48 +57,48 @@ The file is optional — missing file is silently ignored.
 <!-- {=config_fields} -->
 | Field | Maps to | Description |
 |---|---|---|
-| `provider` | `LLM_PROVIDER` | Active provider for this project |
-| `model` | `LLM_MODEL` | Model ID override |
-| `default_provider` | `LLM_DEFAULT_PROVIDER` | Sovereign default when provider unset |
-| `stream_responses` | `LLM_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
-| `budgets.<provider>` | `LLM_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
+| `provider` | `MODEL_PROVIDER` | Active provider for this project |
+| `model` | `MODEL_ID` | Model ID override |
+| `default_provider` | `MODEL_DEFAULT_PROVIDER` | Sovereign default when provider unset |
+| `stream_responses` | `MODEL_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
+| `budgets.<provider>` | `MODEL_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
 | `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `agent-shell` |
 <!-- {/config_fields} -->
 
 <!-- {=env_vars} -->
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
-| `LLM_DEFAULT_PROVIDER` | — | Personal sovereign default when `LLM_PROVIDER` unset |
-| `LLM_MODEL` | provider default | Model ID override |
-| `LLM_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
-| `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
-| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai`; fallback for unknown compat providers |
-| `GROQ_API_KEY` | — | Required when `LLM_PROVIDER=groq` |
-| `MISTRAL_API_KEY` | — | Required when `LLM_PROVIDER=mistral` |
-| `XAI_API_KEY` | — | Required when `LLM_PROVIDER=xai` |
-| `DEEPSEEK_API_KEY` | — | Required when `LLM_PROVIDER=deepseek` |
-| `TOGETHER_API_KEY` | — | Required when `LLM_PROVIDER=together` |
-| `OPENROUTER_API_KEY` | — | Required when `LLM_PROVIDER=openrouter` |
-| `GEMINI_API_KEY` | — | Required when `LLM_PROVIDER=gemini` |
-| `LLM_MAX_CONTEXT_TOKENS` | unlimited | Block prompts estimated above this token count |
-| `LLM_FALLBACK_PROVIDER` | — | Retry with this provider on primary error or budget block |
-| `LLM_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `LLM_BUDGET_ANTHROPIC_USD=5.0` |
-| `LLM_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
-| `LLM_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
-| `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
-| `LLM_SHELL_ALLOWLIST` | unset (permissive) | Comma-separated allowlist for `agent_shell::spawn`; if set, commands outside list are rejected with `[blocked: <cmd> not in allowlist]` |
-| `LLM_FS_ROOT` | unset (permissive) | Restrict `agent_fs::{read,write,edit}` to this subtree; paths outside are rejected with `[blocked: path outside LLM_FS_ROOT]` |
-| `LLM_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
-| `LLM_SESSION_ID` | — | Pin the active session by CRDT `@id`; auto-selects most recent session when unset |
+| `MODEL_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
+| `MODEL_DEFAULT_PROVIDER` | — | Personal sovereign default when `MODEL_PROVIDER` unset |
+| `MODEL_ID` | provider default | Model ID override |
+| `MODEL_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
+| `ANTHROPIC_API_KEY` | — | Required when `MODEL_PROVIDER=anthropic` |
+| `OPENAI_API_KEY` | — | Required when `MODEL_PROVIDER=openai`; fallback for unknown compat providers |
+| `GROQ_API_KEY` | — | Required when `MODEL_PROVIDER=groq` |
+| `MISTRAL_API_KEY` | — | Required when `MODEL_PROVIDER=mistral` |
+| `XAI_API_KEY` | — | Required when `MODEL_PROVIDER=xai` |
+| `DEEPSEEK_API_KEY` | — | Required when `MODEL_PROVIDER=deepseek` |
+| `TOGETHER_API_KEY` | — | Required when `MODEL_PROVIDER=together` |
+| `OPENROUTER_API_KEY` | — | Required when `MODEL_PROVIDER=openrouter` |
+| `GEMINI_API_KEY` | — | Required when `MODEL_PROVIDER=gemini` |
+| `MODEL_MAX_CONTEXT_TOKENS` | unlimited | Block prompts estimated above this token count |
+| `MODEL_FALLBACK_PROVIDER` | — | Retry with this provider on primary error or budget block |
+| `MODEL_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `MODEL_BUDGET_ANTHROPIC_USD=5.0` |
+| `MODEL_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
+| `MODEL_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
+| `MODEL_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
+| `MODEL_SHELL_ALLOWLIST` | unset (permissive) | Comma-separated allowlist for `agent_shell::spawn`; if set, commands outside list are rejected with `[blocked: <cmd> not in allowlist]` |
+| `MODEL_FS_ROOT` | unset (permissive) | Restrict `agent_fs::{read,write,edit}` to this subtree; paths outside are rejected with `[blocked: path outside MODEL_FS_ROOT]` |
+| `MODEL_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
+| `MODEL_SESSION_ID` | — | Pin the active session by CRDT `@id`; auto-selects most recent session when unset |
 <!-- {/env_vars} -->
 
 **Provider resolution order** (first wins):
-1. `LLM_PROVIDER` — explicit per-run choice
-2. `LLM_DEFAULT_PROVIDER` — user's personal sovereign default
+1. `MODEL_PROVIDER` — explicit per-run choice
+2. `MODEL_DEFAULT_PROVIDER` — user's personal sovereign default
 3. `ollama` — last resort: local, free, no key needed
 
-**Any unknown provider name** routes to the OpenAI-compat path via `LLM_BASE_URL` —
+**Any unknown provider name** routes to the OpenAI-compat path via `MODEL_BASE_URL` —
 Groq, Mistral, Perplexity, Together, etc. all work with zero code changes.
 
 ---
@@ -122,10 +122,10 @@ Requires [`cargo-component`](https://github.com/bytecodealliance/cargo-component
 After building, start the tractor daemon with pi-agent loaded:
 
 ```bash
-# From repo root — set your LLM provider via env vars (LLM_* are forwarded to the plugin)
+# From repo root — set your model provider via env vars (MODEL_* are forwarded to the plugin)
 export ANTHROPIC_API_KEY=sk-ant-...           # if using Anthropic
-export LLM_PROVIDER=anthropic                 # or: ollama (no key needed, requires local Ollama)
-export LLM_MODEL=claude-sonnet-4-6            # optional model override
+export MODEL_PROVIDER=anthropic               # or: ollama (no key needed, requires local Ollama)
+export MODEL_ID=claude-sonnet-4-6             # optional model override
 
 TRACTOR=packages/tractor/target/release/tractor
 WASM=packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
@@ -143,8 +143,8 @@ $TRACTOR watch
 **Important**: `--agent` must be `pi_agent` (underscore), matching the `.wasm` filename stem.
 
 **Note on `.refarm/config.json`**: The `provider`/`model` fields there document intent but
-LLM routing uses environment variables (`LLM_PROVIDER`, `LLM_MODEL`). Set those before
-starting the daemon. The `LLM_FS_ROOT` and `LLM_SHELL_ALLOWLIST` fields ARE loaded from
+model routing uses environment variables (`MODEL_PROVIDER`, `MODEL_ID`). Set those before
+starting the daemon. The `MODEL_FS_ROOT` and `MODEL_SHELL_ALLOWLIST` fields ARE loaded from
 config.json by the `agent-tools` policy layer.
 
 ---
@@ -189,8 +189,8 @@ This is the "let the plugin be the plugin" model from
 
 `Provider::from_env()` selects the implementation at runtime. `Provider::from_provider_name(name)`
 allows explicit provider selection (used by fallback flow) without mutating process env.
-Adding a new OpenAI-compat provider requires zero code: set `LLM_PROVIDER=groq` +
-`LLM_BASE_URL=https://api.groq.com`.
+Adding a new OpenAI-compat provider requires zero code: set `MODEL_PROVIDER=groq` +
+`MODEL_BASE_URL=https://api.groq.com`.
 
 ```
 Anthropic ──┐
@@ -249,8 +249,8 @@ Four axioms are enforced as named tests in `extensibility_contract`:
 
 - **A1** Any unknown provider name works via OpenAI compat — no code change
 - **A2** Zero env vars → agent boots and responds
-- **A3** `LLM_HISTORY_TURNS` absent/0 → no CRDT reads for context
-- **A4** No `LLM_BUDGET_*` → no budget blocking
+- **A3** `MODEL_HISTORY_TURNS` absent/0 → no CRDT reads for context
+- **A4** No `MODEL_BUDGET_*` → no budget blocking
 
 ---
 

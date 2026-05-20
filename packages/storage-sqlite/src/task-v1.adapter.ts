@@ -130,8 +130,14 @@ function createFallbackStorageProvider(): StorageProvider {
 		async put(record) {
 			rows.set(record.id, record);
 		},
+		async putMany(records) {
+			for (const record of records) rows.set(record.id, record);
+		},
 		async delete(id) {
 			rows.delete(id);
+		},
+		async deleteMany(ids) {
+			for (const id of ids) rows.delete(id);
 		},
 		async query(query) {
 			let values = [...rows.values()];
@@ -208,6 +214,16 @@ export function createTaskV1StorageAdapter(
 				updatedAt: new Date().toISOString(),
 			});
 			return updated;
+		},
+
+		async delete(id) {
+			await provider.delete(id);
+			const eventRecords = await provider.query({ type: TASK_EVENT_RECORD_TYPE });
+			const eventIds = eventRecords
+				.map((r) => asTaskEvent(parsePayload<TaskEvent>(r)))
+				.filter((e): e is TaskEvent => e !== null && e.task_id === id)
+				.map((e) => e["@id"]);
+			await provider.deleteMany(eventIds);
 		},
 
 		async appendEvent(eventInput) {

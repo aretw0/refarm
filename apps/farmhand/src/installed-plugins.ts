@@ -4,16 +4,7 @@ import {
 	assertValidPluginManifest,
 	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
-
-interface PluginLoaderTarget {
-	registry: {
-		register(manifest: PluginManifest): Promise<void>;
-		trust(pluginId: string): Promise<void>;
-	};
-	plugins: {
-		load(manifest: PluginManifest): Promise<void>;
-	};
-}
+import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 
 interface LoggerLike {
 	info(...args: unknown[]): void;
@@ -61,9 +52,27 @@ function findPluginDirs(pluginsDir: string): string[] {
 	return found;
 }
 
+export function listInstalledPluginIds(baseDir: string): string[] {
+	const pluginsDir = path.join(baseDir, "plugins");
+	if (!fs.existsSync(pluginsDir)) return [];
+
+	const pluginDirs = findPluginDirs(pluginsDir);
+	const ids: string[] = [];
+	for (const pluginDir of pluginDirs) {
+		try {
+			const manifest = readManifestFromDir(pluginDir);
+			ids.push(manifest.id);
+		} catch {
+			// skip unreadable manifests silently
+		}
+	}
+	return ids;
+}
+
 export async function loadInstalledPlugins(
-	tractor: PluginLoaderTarget,
+	tractor: RuntimePluginLoaderTarget,
 	baseDir: string,
+	options?: { pluginFilter?: string[] },
 	logger: LoggerLike = console,
 ): Promise<{ loaded: number; skipped: number }> {
 	const pluginsDir = path.join(baseDir, "plugins");
@@ -78,6 +87,9 @@ export async function loadInstalledPlugins(
 	for (const pluginDir of pluginDirs) {
 		try {
 			const manifest = readManifestFromDir(pluginDir);
+			if (options?.pluginFilter && !options.pluginFilter.includes(manifest.id)) {
+				continue;
+			}
 			await tractor.registry.register(manifest);
 			await tractor.registry.trust(manifest.id);
 			await tractor.plugins.load(manifest);

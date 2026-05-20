@@ -5,7 +5,8 @@ export type SessionEntryKind =
 	| "agent"
 	| "tool_call"
 	| "tool_result"
-	| "system";
+	| "system"
+	| "error";
 
 export interface Session {
 	"@type": "Session";
@@ -44,6 +45,7 @@ export interface SessionContractAdapter {
 		id: string,
 		patch: Partial<Omit<Session, "@id" | "@type">>,
 	): Promise<Session>;
+	delete(id: string): Promise<void>;
 	appendEntry(
 		entry: Omit<SessionEntry, "@id" | "timestamp_ns">,
 	): Promise<SessionEntry>;

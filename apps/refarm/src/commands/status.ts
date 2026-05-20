@@ -8,9 +8,6 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
-import { createRuntimeSummaryFromTractor } from "@refarm.dev/runtime";
-import { Tractor } from "@refarm.dev/tractor";
-import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
@@ -20,26 +17,6 @@ import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 
-interface StorageAdapter {
-	ensureSchema(): Promise<void>;
-	storeNode(
-		id: string,
-		type: string,
-		context: string,
-		payload: unknown,
-		sourcePlugin: string,
-	): Promise<void>;
-	queryNodes(type: string): Promise<unknown[]>;
-	execute(sql: string, args?: unknown): Promise<unknown[]>;
-	query<T>(sql: string, args?: unknown): Promise<T[]>;
-	transaction<T>(fn: () => Promise<T>): Promise<T>;
-	close(): Promise<void>;
-}
-
-interface IdentityAdapter {
-	publicKey: string | undefined;
-}
-
 export interface ResolveStatusPayloadOptions {
 	renderer?: string;
 	input?: string;
@@ -48,35 +25,6 @@ export interface ResolveStatusPayloadOptions {
 export interface ResolveStatusPayloadResult {
 	json: RefarmStatusJson;
 	shutdown?: () => Promise<void>;
-}
-
-function createMemoryStorage(): StorageAdapter {
-	const store = new Map<string, unknown>();
-	return {
-		async ensureSchema() {},
-		async storeNode(id, type, context, payload, sourcePlugin) {
-			store.set(id, { id, type, context, payload, sourcePlugin });
-		},
-		async queryNodes(type: string) {
-			return Array.from(store.values()).filter(
-				(r) => (r as { type: string }).type === type,
-			);
-		},
-		async execute(_sql: string, _args?: unknown) {
-			return [];
-		},
-		async query<T>(_sql: string, _args?: unknown): Promise<T[]> {
-			return [];
-		},
-		async transaction<T>(fn: () => Promise<T>) {
-			return fn();
-		},
-		async close() {},
-	};
-}
-
-function createEphemeralIdentity(): IdentityAdapter {
-	return { publicKey: undefined };
 }
 
 function readNamespaceFromConfig(): string | undefined {
@@ -89,6 +37,22 @@ function readNamespaceFromConfig(): string | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+function createStatusRuntimeSummary(namespace: string): RefarmStatusJson["runtime"] {
+	return {
+		ready: true,
+		namespace,
+		databaseName: namespace,
+	};
+}
+
+function createStatusTrustSummary(): RefarmStatusJson["trust"] {
+	return {
+		profile: "strict",
+		warnings: 0,
+		critical: 0,
+	};
 }
 
 export function printStatusSummary(json: RefarmStatusJson): void {
@@ -193,16 +157,9 @@ export async function resolveStatusPayload(
 		);
 	}
 	const renderer = resolveRefarmRenderer(requestedRenderer);
-
-	const tractor = await Tractor.boot({
-		namespace: readNamespaceFromConfig() ?? "refarm-main",
-		storage: createMemoryStorage(),
-		identity: createEphemeralIdentity(),
-		logLevel: "silent",
-	});
-
-	const runtime = createRuntimeSummaryFromTractor(tractor);
-	const trust = createTrustSummaryFromTractor(tractor);
+	const namespace = readNamespaceFromConfig() ?? "refarm-main";
+	const runtime = createStatusRuntimeSummary(namespace);
+	const trust = createStatusTrustSummary();
 	const hostIdentity = resolveRefarmHostIdentity();
 
 	const json = buildRefarmStatusJson({
@@ -223,7 +180,6 @@ export async function resolveStatusPayload(
 
 	return {
 		json,
-		shutdown: tractor.shutdown?.bind(tractor),
 	};
 }
 

@@ -1,43 +1,40 @@
 {
-  "context": "Checkpoint 2026-05-01T03:34Z before likely compaction. Continued atomic CLI/host lane after user confirmed the CLI command should be named `refarm`. Created durable focus text and docs-first CLI/status contracts. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
-  "timestamp": "2026-05-01T03:34:00.000Z",
-  "current_phase": 34,
+  "context": "Checkpoint 2026-05-12 (sessão 3 — parte 2). ADR-065 ACCEPTED: farmhand transparent lifecycle. refarm sow agora coleta LLM credentials (mascaradas via secretInput, salvas via SiloCore). Farmhand injeta credenciais do Silo em env vars no boot. detectProvider() corrigido para checar home + CWD. Próximo passo: implementar autoStartFarmhand() em session-launch.ts.",
+  "timestamp": "2026-05-12T14:30:00.000Z",
+  "current_phase": 12,
   "current_tasks": [
-    "Latest commits before this handoff: 55622c40 `docs(cli): define refarm status output`; 3ec91804 `docs(cli): outline refarm distro focus`; 9e7bb585 `chore(project): checkpoint renderer consumer proofs`; 8420833a `refactor(app-me): advertise citizen web renderer`; ee6ab311 `refactor(app-dev): centralize studio renderer catalog`; 81c8f36f `feat(app-dev): add headless renderer snapshot`.",
-    "User confirmed: the CLI should be called `refarm`. Docs now assume future distro path `apps/refarm` unless a later product constraint forces rename. The product command/distro stays in `apps/`; packages remain reusable blocks.",
-    "3ec91804 added `docs/REFARM_CLI_DISTRO.md` and `docs/REFARM_WORK_FOCUS.md`. CLI distro doc defines the first boring command shape: `refarm web`, `refarm headless`, `refarm status`, `refarm doctor`; it keeps CLI UX/defaults/profiles/release packaging in `apps/refarm` and reusable runtime/render/trust/telemetry mechanics in packages. Work focus doc gives short/medium/long restart focus.",
-    "55622c40 added `docs/REFARM_STATUS_OUTPUT.md`, defining the initial canonical JSON shape for `refarm status --json`: schemaVersion, host, renderer, runtime, plugins, trust, streams, diagnostics. It also defines stable initial diagnostic string codes and says status must not depend on Astro, DOM, or TUI.",
-    "`.project/decisions.json` includes DEC-033: plan the `refarm` CLI as a docs-first distro in `apps/refarm` before scaffolding executable code. `docs/REFARM_HOST_MODEL.md` links the CLI distro doc.",
-    "Validation for docs slices: `npm run project:validate --silent` and `git diff --check` passed. No app/package build was necessary because changes were docs/board-only.",
-    "Current state before this handoff commit: `develop...origin/develop [ahead 40]`. Disk has dropped from ~14GB to ~13GB free, still 98% used."
+    "refarm chat / refarm session / bare refarm → runSessionLaunchFlow() convergência implementada.",
+    "POST /plugins/reload no farmhand via addRouteHandler — tests passing.",
+    "Onboarding first-run + readiness check (providerConfigured, farmhandRunning) implementados.",
+    "init idempotente: guard existsSync(configPath || identityPath) + --force flag. Tests cobrindo re-run e --force.",
+    "Branding cleanup: 'sovereign' removido de logs/CLI, mantido em ADRs/docs com parcimônia.",
+    "ADR-064: TokenAuthError contract — erro de credencial deve carregar provider + reason + rotationUrl para qualquer superfície renderizar graciosamente.",
+    "packages/pi-agent (Rust): 16 ferramentas definidas (read_file, write_file, edit_file, bash, search_files, list_dir, read_structured, write_structured, LSP, sessões). packages/agent-tools: WASM component executando as ferramentas."
   ],
-  "blockers": [
-    "Do not push/watch GitHub Actions after every small slice; batch meaningful work and observe CI once.",
-    "Disk remains constrained at about 13GB free on /workspaces/refarm, 98% used. Use `npm run clean:light --silent` only if generated artifacts grow significantly or free space drops near 2-3GB.",
-    "Project requirements append tooling still fails because older REQ-AGENT entries use schema-invalid `source: user-insight` and extra `rationale`; avoid broad normalization unless explicitly planned.",
-    "Avoid broad markdown autoformat churn in large docs. If editing `docs/ARCHITECTURE.md`, use surgical insertion.",
-    "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary."
-  ],
+  "blockers": [],
   "next_actions": [
-    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`. Expect ahead 41 if this handoff commit is present, or ahead 40 before it.",
-    "Best next atomic slice: implement a tiny source-level status snapshot helper (probably in `apps/dev` first or a future `apps/refarm` skeleton only if explicitly desired) that returns the `docs/REFARM_STATUS_OUTPUT.md` JSON shape using existing renderer/headless snapshot proofs. Keep it DOM-free and tested.",
-    "Alternative next slice: scaffold the smallest `apps/refarm` package with a non-executable or minimal command stub that can print static `refarm status --json` from composed blocks. Only do this if user wants code scaffold; otherwise keep proving in app/dev first.",
-    "Alternative next slice: add a shared Homestead status type/schema only if multiple consumers need it; avoid premature package extraction.",
-    "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once."
+    "[EM ANDAMENTO] autoStartFarmhand() em session-launch.ts: LaunchDeps interface, Y/n confirm, spawn detached, poll GET /efforts/summary cada 300ms max 10s. ADR-065 Phase 1.",
+    "[PRÓXIMO] Verificar se farmhand→LLM funciona end-to-end: refarm sow → API key → refarm → resposta LLM.",
+    "Spinner durante geração no REPL — readline fica mudo enquanto LLM processa.",
+    "Histórico de input (↑) no readline — historySize não configurado.",
+    "TokenAuthError: implementar a classe no layer de credenciais (ADR-064 escrito, não codificado).",
+    "[Phase 2] /sow, /keys como REPL commands — readline pause/resume pattern."
   ],
   "open_questions": [
-    "Should the first status snapshot helper live in `apps/dev` as another proof, or should we now scaffold `apps/refarm`?",
-    "Should `refarm status --json` get TypeScript types in Homestead, app-level types in `apps/refarm`, or stay docs-only until implementation pressure?",
-    "Should TUI primitives live in a generic `packages/tui` block, a Homestead-aware renderer package, or both?",
-    "What minimum agent loop is required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?"
+    "refarm configure github: escopo redefinido — não é gh secret set automático, é diagnóstico de saúde de tokens (expiração Cloudflare via API, GitHub detectável só no 401). ADR-064 cobre o contrato.",
+    "Spinner UX: simples setInterval com chalk, ou integrar com o stream NDJSON para saber quando o LLM começou a responder?"
   ],
-  "key_decisions_pending": [
-    "DEC-031 accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
-    "DEC-032 accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
-    "DEC-033 accepted: plan CLI `refarm` docs-first in `apps/refarm` before scaffolding code.",
-    "Continue enforcing Astro-first UI, Homestead semantic runtime contracts, DS visual primitives, and apps as product/workbench distros."
+  "key_decisions_active": [
+    "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
+    "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
+    "DEC-034: artefatos WASM Rust devem ser copiados para dist/ durante build.",
+    "DEC-035: provision para, configure ainda não existe — silo é o ponto de integração.",
+    "DEC-036 [DECIDED]: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand.",
+    "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
+    "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
   ],
   "files_in_flux": [
-    ".project/handoff.json"
+    ".project/handoff.json",
+    ".project/phases/P12-Daily-Driver-TUI.json"
   ]
 }

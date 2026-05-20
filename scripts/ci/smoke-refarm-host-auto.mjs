@@ -19,6 +19,10 @@ const PROFILE_SCRIPT = {
 	"tree-farmhand": "refarm:tree:farmhand:test",
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
+	openapi: "openapi:check",
+	sidecar: "refarm:sidecar:verify",
+	"driver-tasks": "refarm:driver:tasks:verify",
+	check: "refarm:check:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
 	ci: "refarm:host:smoke:ci",
@@ -228,6 +232,39 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
+export function isOpenApiProtocolFile(file) {
+	return (
+		file === "scripts/ci/check-openapi-specs.mjs" ||
+		file === "specs/protocols/README.md" ||
+		file.startsWith("specs/protocols/http/")
+	);
+}
+
+export function isRefarmDriverTaskFile(file) {
+	return (
+		file === "apps/farmhand/src/transports/tasks.ts" ||
+		file === "apps/farmhand/src/transports/tasks.test.ts" ||
+		file === "apps/refarm/src/commands/tasks.ts" ||
+		file === "apps/refarm/test/commands/tasks.test.ts" ||
+		file === "specs/protocols/http/farmhand-sidecar.openapi.v1.json"
+	);
+}
+
+export function isFarmhandSidecarFile(file) {
+	return (
+		file === "apps/farmhand/src/index.ts" ||
+		file === "apps/farmhand/src/transports/http.ts" ||
+		file === "apps/farmhand/src/transports/http.test.ts" ||
+		file === "apps/farmhand/src/transports/plugins.ts" ||
+		file === "apps/farmhand/src/transports/plugins.test.ts" ||
+		file === "apps/farmhand/src/transports/sessions.ts" ||
+		file === "apps/farmhand/src/transports/sessions.test.ts" ||
+		file === "apps/farmhand/src/transports/tasks.ts" ||
+		file === "apps/farmhand/src/transports/tasks.test.ts" ||
+		file === "specs/protocols/http/farmhand-sidecar.openapi.v1.json"
+	);
+}
+
 export function isRefarmTreeFile(file) {
 	return (
 		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
@@ -236,6 +273,7 @@ export function isRefarmTreeFile(file) {
 		file.startsWith("apps/refarm/test/commands/tree") ||
 		file === "apps/farmhand/src/transports/sessions.ts" ||
 		file === "apps/farmhand/src/transports/sessions.test.ts" ||
+		file === "apps/farmhand/src/transports/effort-chat.integration.test.ts" ||
 		file === "docs/REFARM_TREE_PRIMITIVE.md"
 	);
 }
@@ -265,6 +303,22 @@ export function isRefarmActionReadinessFile(file) {
 	);
 }
 
+export function isRefarmCheckGateFile(file) {
+	return (
+		file === "refarm.config.json" ||
+		file === "packages/health/package.json" ||
+		file === "packages/health/tsconfig.json" ||
+		file === "packages/health/tsconfig.build.json" ||
+		file.startsWith("packages/health/src/") ||
+		file === "apps/refarm/src/commands/check.ts" ||
+		file === "apps/refarm/src/commands/health.ts" ||
+		file === "apps/refarm/src/commands/diagnostic-recommendations.ts" ||
+		file === "apps/refarm/test/commands/check.test.ts" ||
+		file === "apps/refarm/test/commands/health.test.ts" ||
+		file === "docs/REFARM_CLI_DISTRO.md"
+	);
+}
+
 export function decideProfile(inputFiles) {
 	const files = normalizeChangedFiles(inputFiles);
 	if (files.length === 0) {
@@ -275,10 +329,64 @@ export function decideProfile(inputFiles) {
 		};
 	}
 
+	if (
+		files.some((file) => isOpenApiProtocolFile(file)) &&
+		files.every((file) => isOpenApiProtocolFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "openapi",
+			reason:
+				"Protocol contract delta; run focused OpenAPI validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isRefarmDriverTaskFile(file)) &&
+		files.every(
+			(file) =>
+				isRefarmDriverTaskFile(file) ||
+				isOpenApiProtocolFile(file) ||
+				isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "driver-tasks",
+			reason:
+				"Driver task-memory delta; run farmhand, CLI consumer, type-check, and OpenAPI contract lane.",
+		};
+	}
+
+	if (
+		files.some((file) => isFarmhandSidecarFile(file)) &&
+		files.every(
+			(file) =>
+				isFarmhandSidecarFile(file) ||
+				isOpenApiProtocolFile(file) ||
+				isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "sidecar",
+			reason:
+				"Farmhand sidecar delta; run focused sidecar handler, type-check, and OpenAPI contract lane.",
+		};
+	}
+
 	if (files.every((file) => isDocsOnlyFile(file))) {
 		return {
 			profile: "skip",
 			reason: "Docs-only delta; host smoke execution is not required.",
+		};
+	}
+
+	if (
+		files.some((file) => isRefarmCheckGateFile(file)) &&
+		files.every((file) => isRefarmCheckGateFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "check",
+			reason:
+				"Composite check/health gate delta; run health tests, focused command tests, type-check, and built check gate.",
 		};
 	}
 
@@ -447,7 +555,7 @@ async function main() {
 		return;
 	}
 
-	await runSubprocess("npm", ["run", command], { env: process.env });
+	await runSubprocess("pnpm", ["run", command], { env: process.env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

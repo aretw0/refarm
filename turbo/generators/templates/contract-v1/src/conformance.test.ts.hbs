@@ -1,0 +1,19 @@
+import { describe, expect, it } from "vitest";
+import { run{{pascalName}}V1Conformance } from "./conformance.js";
+import { createInMemory{{pascalName}}Adapter } from "./in-memory.js";
+
+describe("run{{pascalName}}V1Conformance", () => {
+  it("passes with in-memory adapter", async () => {
+    const adapter = createInMemory{{pascalName}}Adapter();
+    const result = await run{{pascalName}}V1Conformance(adapter);
+    expect(result.pass).toBe(true);
+    expect(result.failed).toBe(0);
+    expect(result.failures).toEqual([]);
+  });
+
+  it("total covers all mandatory checks", async () => {
+    const adapter = createInMemory{{pascalName}}Adapter();
+    const result = await run{{pascalName}}V1Conformance(adapter);
+    expect(result.total).toBeGreaterThanOrEqual(4);
+  });
+});

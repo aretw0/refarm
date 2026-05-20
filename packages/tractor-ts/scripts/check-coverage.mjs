@@ -53,7 +53,7 @@ async function main() {
         console.log(`\n✅ [coverage] QUALITY GATE PASSED: Coverage increased by ${diff}%!`);
         console.log(`   Previous: ${baseline.lines.pct}%`);
         console.log(`   Current:  ${current}%\n`);
-        console.log(`   🎉 Great job! Please run 'npm run coverage:save' to lock in this new high score for the repository.`);
+        console.log(`   🎉 Great job! Please run 'pnpm run coverage:save' to lock in this new high score for the repository.`);
 
         // Output payload for GitHub Actions to pick up and comment on the PR
         if (process.env.GITHUB_ACTIONS) {

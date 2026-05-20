@@ -10,9 +10,20 @@ export interface Task {
 export type EffortStatus =
 	| "pending"
 	| "in-progress"
-	| "done"
-	| "failed"
+	| "done"       // all tasks ok
+	| "partial"    // some tasks ok, some error/timeout
+	| "failed"     // all tasks failed, or effort failed before any task ran
+	| "timed-out"  // effort expired during execution
 	| "cancelled";
+
+/** Terminal states — no further transitions except via retry(). */
+export const EFFORT_TERMINAL_STATES: ReadonlySet<EffortStatus> = new Set([
+	"done",
+	"partial",
+	"failed",
+	"timed-out",
+	"cancelled",
+]);
 
 export interface Effort {
 	id: string;
@@ -21,12 +32,23 @@ export interface Effort {
 	source?: string;
 	context?: unknown;
 	submittedAt: string;
+	/** Relative ordering hint. Lower number = higher priority. */
+	priority?: number;
+	/** Arbitrary categorisation labels. */
+	tags?: string[];
 }
+
+export type TaskResultStatus =
+	| "ok"
+	| "error"
+	| "timeout"    // task individually timed out
+	| "skipped"    // never attempted — effort was cancelled/timed-out before this task ran
+	| "cancelled"; // task was running when effort was cancelled
 
 export interface TaskResult {
 	taskId: string;
 	effortId: string;
-	status: "ok" | "error" | "cancelled";
+	status: TaskResultStatus;
 	result?: unknown;
 	error?: string;
 	attempts?: number;
@@ -55,8 +77,11 @@ export interface EffortLogEntry {
 		| "task_attempt_started"
 		| "task_attempt_succeeded"
 		| "task_attempt_failed"
+		| "task_attempt_timed_out"
+		| "task_skipped"
 		| "retry_requested"
 		| "cancel_requested"
+		| "timed_out"
 		| "processing_finished";
 	message: string;
 	taskId?: string;
@@ -69,7 +94,9 @@ export interface EffortSummary {
 	pending: number;
 	inProgress: number;
 	done: number;
+	partial: number;
 	failed: number;
+	timedOut: number;
 	cancelled: number;
 }
 

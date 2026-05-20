@@ -8,26 +8,16 @@ import {
 
 const {
 	mockAssertRefarmStatusJson,
-	mockBoot,
 	mockBuildRefarmStatusJson,
 	mockFormatRefarmStatusJson,
 	mockFormatRefarmStatusMarkdown,
 	mockParseRefarmStatusJson,
-	mockShutdown,
 } = vi.hoisted(() => ({
 	mockAssertRefarmStatusJson: vi.fn(),
-	mockBoot: vi.fn(),
 	mockBuildRefarmStatusJson: vi.fn(),
 	mockFormatRefarmStatusJson: vi.fn(),
 	mockFormatRefarmStatusMarkdown: vi.fn(),
 	mockParseRefarmStatusJson: vi.fn(),
-	mockShutdown: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock("@refarm.dev/tractor", () => ({
-	Tractor: {
-		boot: mockBoot,
-	},
 }));
 
 vi.mock("@refarm.dev/cli/status", () => ({
@@ -62,11 +52,6 @@ describe("statusCommand", () => {
 			streams: { active: 0, terminal: 0 },
 			diagnostics: [],
 		}));
-		mockBoot.mockResolvedValue({
-			namespace: "refarm-main",
-			defaultSecurityMode: "strict",
-			shutdown: mockShutdown,
-		});
 		mockFormatRefarmStatusJson.mockImplementation(() =>
 			JSON.stringify({ schemaVersion: 1 }, null, 2),
 		);
@@ -103,16 +88,18 @@ describe("statusCommand", () => {
 		});
 	});
 
-	it("boots Tractor with logLevel silent", async () => {
+	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
-		expect(mockBoot).toHaveBeenCalledWith(
-			expect.objectContaining({ logLevel: "silent" }),
+		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect.objectContaining({
+				runtime: {
+					ready: true,
+					namespace: "refarm-main",
+					databaseName: "refarm-main",
+				},
+				trust: { profile: "strict", warnings: 0, critical: 0 },
+			}),
 		);
-	});
-
-	it("calls tractor.shutdown after producing output", async () => {
-		await statusCommand.parseAsync(["--json"], { from: "user" });
-		expect(mockShutdown).toHaveBeenCalled();
 	});
 
 	it("outputs valid JSON with schemaVersion:1 when --json is passed", async () => {
@@ -233,7 +220,6 @@ describe("statusCommand", () => {
 				},
 			},
 		});
-		expect(mockShutdown).toHaveBeenCalled();
 		spy.mockRestore();
 	});
 
@@ -295,7 +281,6 @@ describe("statusCommand", () => {
 				from: "user",
 			}),
 		).rejects.toThrow(/--action cannot be combined with --json or --markdown/);
-		expect(mockBoot).not.toHaveBeenCalled();
 	});
 
 	it("rejects live status action invocation from input artifacts", async () => {
@@ -304,7 +289,6 @@ describe("statusCommand", () => {
 				from: "user",
 			}),
 		).rejects.toThrow(/--action cannot be combined with --input/);
-		expect(mockBoot).not.toHaveBeenCalled();
 		expect(mockParseRefarmStatusJson).not.toHaveBeenCalled();
 	});
 
@@ -314,7 +298,6 @@ describe("statusCommand", () => {
 				from: "user",
 			}),
 		).rejects.toThrow(/Invalid renderer kind/);
-		expect(mockBoot).not.toHaveBeenCalled();
 	});
 
 	it("outputs markdown when --markdown is requested", async () => {
@@ -329,10 +312,9 @@ describe("statusCommand", () => {
 		await expect(
 			statusCommand.parseAsync(["--json", "--markdown"], { from: "user" }),
 		).rejects.toThrow(/Choose only one output format/);
-		expect(mockBoot).not.toHaveBeenCalled();
 	});
 
-	it("reads status payload from --input without booting Tractor", async () => {
+	it("reads status payload from --input without building a live snapshot", async () => {
 		const readSpy = vi
 			.spyOn(fs, "readFileSync")
 			.mockImplementation((filePath: fs.PathOrFileDescriptor) => {
@@ -345,7 +327,6 @@ describe("statusCommand", () => {
 			from: "user",
 		});
 
-		expect(mockBoot).not.toHaveBeenCalled();
 		expect(mockBuildRefarmStatusJson).not.toHaveBeenCalled();
 		expect(mockParseRefarmStatusJson).toHaveBeenCalledWith(
 			'{"schemaVersion":1}',
@@ -386,7 +367,6 @@ describe("statusCommand", () => {
 			from: "user",
 		});
 
-		expect(mockBoot).not.toHaveBeenCalled();
 		expect(mockParseRefarmStatusJson).toHaveBeenCalledWith(
 			'{"schemaVersion":1}',
 		);

@@ -155,7 +155,7 @@ describe("refarm sessions", () => {
 			expect.stringContaining("Session creation endpoint is unavailable"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Restart/update backend"),
+			expect.stringContaining("Restart or update backend"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});

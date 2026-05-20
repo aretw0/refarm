@@ -55,7 +55,7 @@ export class WindmillEngine {
         console.log("🚀 [Windmill] Starting infrastructure synchronization...");
         
         // 0. Pull current state for context
-        const currentState = await this.pull();
+        await this.pull();
 
         // 1. GitHub Reconciliation (Mirroring/Audit)
         if (this.config.infrastructure?.gitHost === "github") {

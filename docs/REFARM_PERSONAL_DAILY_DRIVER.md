@@ -13,7 +13,7 @@
 - 🤖 **Automation** — workflows, scripts, reminders that serve your needs
 - 🔐 **Identity** — your cryptographic keys, signed work, portable provenance
 - 📱 **Mobility** — works without cloud sync, across devices (desktop, tablets, Pi)
-- 🧠 **Intelligence** — local AI queries over your graph, LLM-backed reasoning
+- 🧠 **Intelligence** — local AI queries over your graph, MODEL-backed reasoning
 
 ---
 
@@ -169,7 +169,7 @@ Daily-driver implementations and examples:
    - Personal at first, genericizable later
    - **Keep private** until v0.2.0
 
-6. **`packages/plugin-tem`** (AI/LLM reasoning)
+6. **`packages/plugin-tem`** (AI/MODEL reasoning)
 
    - Tightly coupled to your reasoning preferences (Claude, local models, etc.)
    - Personal tool

@@ -92,12 +92,12 @@ struct DaemonArgs {
     #[arg(long, default_value_t = false)]
     require_plugin_ingest: bool,
 
-    /// Opt loaded LLM plugins into host-proxied provider streaming.
+    /// Opt loaded model plugins into host-proxied provider streaming.
     ///
-    /// This sets LLM_STREAM_RESPONSES=1 before startup plugins are loaded.
+    /// This sets MODEL_STREAM_RESPONSES=1 before startup plugins are loaded.
     /// Existing process environments can still opt in without this flag.
     #[arg(long, default_value_t = false)]
-    llm_stream_responses: bool,
+    model_stream_responses: bool,
 
     /// HTTP sidecar port (ADR-060 effort protocol). Set to 0 to disable.
     #[arg(long, default_value_t = 42001)]
@@ -390,9 +390,9 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     tracing::info!(namespace = %args.namespace, port = args.port, "Starting tractor daemon");
 
-    if args.llm_stream_responses {
-        std::env::set_var("LLM_STREAM_RESPONSES", "1");
-        tracing::info!("LLM_STREAM_RESPONSES=1 enabled for startup plugins");
+    if args.model_stream_responses {
+        std::env::set_var("MODEL_STREAM_RESPONSES", "1");
+        tracing::info!("MODEL_STREAM_RESPONSES=1 enabled for startup plugins");
     }
 
     let tractor = TractorNative::boot(config.clone()).await?;
@@ -1221,11 +1221,11 @@ mod tests {
     }
 
     #[test]
-    fn daemon_cli_accepts_llm_stream_responses_flag() {
-        let cli = Cli::try_parse_from(["tractor", "--llm-stream-responses"])
+    fn daemon_cli_accepts_model_stream_responses_flag() {
+        let cli = Cli::try_parse_from(["tractor", "--model-stream-responses"])
             .expect("cli parse");
 
-        assert!(cli.daemon.llm_stream_responses);
+        assert!(cli.daemon.model_stream_responses);
     }
 
     #[test]

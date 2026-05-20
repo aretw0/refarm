@@ -140,6 +140,59 @@ describe("FileTransportAdapter", () => {
 		expect(summary.pending).toBeGreaterThanOrEqual(1);
 	});
 
+	describe("FileTransportAdapter — lifecycle hooks", () => {
+		it("calls onEffortStart with effortId and all plugin ids", async () => {
+			const onEffortStart = vi.fn();
+			const hookAdapter = new FileTransportAdapter(
+				path.join(TEST_BASE, "hooks-start"),
+				executor as unknown as TaskExecutorFn,
+				{ onEffortStart },
+			);
+			const effort = makeEffort({
+				id: "hooks-e1",
+				tasks: [
+					{ id: "t1", pluginId: "plugin-a", fn: "f", args: {} },
+					{ id: "t2", pluginId: "plugin-b", fn: "g", args: {} },
+				],
+			});
+			await hookAdapter.process(effort);
+			expect(onEffortStart).toHaveBeenCalledTimes(1);
+			expect(onEffortStart).toHaveBeenCalledWith("hooks-e1", ["plugin-a", "plugin-b"]);
+		});
+
+		it("calls onEffortEnd with effortId after processing", async () => {
+			const onEffortEnd = vi.fn();
+			const hookAdapter = new FileTransportAdapter(
+				path.join(TEST_BASE, "hooks-end"),
+				executor as unknown as TaskExecutorFn,
+				{ onEffortEnd },
+			);
+			const effort = makeEffort({ id: "hooks-e2" });
+			await hookAdapter.process(effort);
+			expect(onEffortEnd).toHaveBeenCalledTimes(1);
+			expect(onEffortEnd).toHaveBeenCalledWith("hooks-e2");
+		});
+
+		it("calls onEffortEnd even when executor throws", async () => {
+			const throwingExecutor = vi.fn().mockRejectedValue(new Error("boom"));
+			const onEffortEnd = vi.fn();
+			const hookAdapter = new FileTransportAdapter(
+				path.join(TEST_BASE, "hooks-throw"),
+				throwingExecutor as unknown as TaskExecutorFn,
+				{ onEffortEnd },
+			);
+			const effort = makeEffort({ id: "hooks-e3" });
+			await hookAdapter.process(effort);
+			expect(onEffortEnd).toHaveBeenCalledTimes(1);
+			expect(onEffortEnd).toHaveBeenCalledWith("hooks-e3");
+		});
+
+		it("works with no hooks option provided", async () => {
+			const effort = makeEffort({ id: "hooks-e4" });
+			await expect(adapter.process(effort)).resolves.toBeUndefined();
+		});
+	});
+
 	it("telemetryWindow() reports recent status and failure rate", async () => {
 		const resultsDir = path.join(TEST_BASE, "task-results");
 		const now = Date.now();

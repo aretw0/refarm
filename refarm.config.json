@@ -30,5 +30,19 @@
     }
   },
   "mode": "persistent",
-  "storage": "opfs"
+  "storage": "opfs",
+  "health": {
+    "workspaceRoots": ["packages", "apps"],
+    "exemptPackageIds": [
+      "packages/deps",
+      "packages/heartwood",
+      "packages/tsconfig"
+    ],
+    "ignoredGitVisibilityPatterns": [
+      "**/*.d.ts",
+      "packages/pi-agent/src/bindings.rs"
+    ],
+    "title": "Refarm Monorepo Health"
+  },
+  "plugins": { "autoInstall": [] }
 }

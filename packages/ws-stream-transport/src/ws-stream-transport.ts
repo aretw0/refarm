@@ -94,4 +94,9 @@ export class WsStreamTransport implements StreamTransportAdapter {
 		this.inProcess.set(stream_ref, set);
 		return () => set.delete(onChunk);
 	}
+
+	cancel(stream_ref: string): void {
+		this.wsSubscribers.delete(stream_ref);
+		this.inProcess.delete(stream_ref);
+	}
 }

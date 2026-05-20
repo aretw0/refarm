@@ -102,6 +102,14 @@ export function createInMemorySessionAdapter(
 			return updated;
 		},
 
+		async delete(id) {
+			if (!sessions.has(id)) {
+				throw new Error(`Session not found: ${id}`);
+			}
+			sessions.delete(id);
+			entriesBySession.delete(id);
+		},
+
 		async appendEntry(entryInput) {
 			if (!sessions.has(entryInput.session_id)) {
 				throw new Error(

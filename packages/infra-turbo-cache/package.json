@@ -1,29 +1,32 @@
 {
-  "name": "@refarm.dev/infra-turbo-cache",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Provider-neutral Turborepo Remote Cache service block",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "clean": "rm -rf dist",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@refarm.dev/infra-contract-v1": "*"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
-  }
+	"name": "@refarm.dev/infra-turbo-cache",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Provider-neutral Turborepo Remote Cache service block",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"clean": "rm -rf dist",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/infra-contract-v1": "workspace:*",
+		"@refarm.dev/policy-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
 }

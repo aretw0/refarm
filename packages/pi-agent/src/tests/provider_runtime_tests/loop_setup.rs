@@ -31,10 +31,10 @@ fn provider_runtime_openai_loop_state_prepends_system_message() {
 #[test]
 fn provider_runtime_anthropic_loop_plan_reads_max_iter_and_initializes_state() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "7");
+    std::env::set_var("MODEL_TOOL_CALL_MAX_ITER", "7");
     let msgs = vec![("user".to_string(), "hi".to_string())];
     let plan = crate::provider_runtime::anthropic_loop_plan(&msgs);
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
 
     assert_eq!(plan.max_iter, 7);
     assert_eq!(plan.state.wire_msgs.len(), 1);
@@ -53,7 +53,7 @@ fn provider_runtime_provider_loop_plan_with_max_iter_applies_explicit_limit() {
 #[test]
 fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let plan = crate::provider_runtime::openai_loop_plan("sys", &msgs);
 
@@ -81,10 +81,10 @@ fn provider_runtime_provider_runner_common_config_keeps_model_headers_and_plan()
 #[test]
 fn provider_runtime_anthropic_runner_config_builds_headers_and_plan() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "4");
+    std::env::set_var("MODEL_TOOL_CALL_MAX_ITER", "4");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let cfg = crate::provider_runtime::anthropic_runner_config("m", "s", &msgs);
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
 
     assert_eq!(cfg.common.model, "m");
     assert_eq!(cfg.system, "s");
@@ -94,7 +94,7 @@ fn provider_runtime_anthropic_runner_config_builds_headers_and_plan() {
 #[test]
 fn provider_runtime_openai_runner_config_builds_headers_and_plan() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "6");
+    std::env::set_var("MODEL_TOOL_CALL_MAX_ITER", "6");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let cfg = crate::provider_runtime::openai_runner_config(
         "openai",
@@ -103,7 +103,7 @@ fn provider_runtime_openai_runner_config_builds_headers_and_plan() {
         "sys",
         &msgs,
     );
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
 
     assert_eq!(cfg.provider, "openai");
     assert_eq!(cfg.base_url, "http://localhost:11434");

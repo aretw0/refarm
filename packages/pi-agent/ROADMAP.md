@@ -36,7 +36,7 @@ Context engineering follows the pi-test-harness model:
 ### Multi-provider LLM (2C.1)
 
 - [x] Anthropic (`/v1/messages`) and OpenAI-compat (`/v1/chat/completions`) wire formats
-- [x] Provider selection: `LLM_PROVIDER` → `LLM_DEFAULT_PROVIDER` → `ollama` (sovereign default)
+- [x] Provider selection: `MODEL_PROVIDER` → `MODEL_DEFAULT_PROVIDER` → `ollama` (sovereign default)
 - [x] Any unknown provider name routes to OpenAI-compat path — zero code for Groq, Mistral, etc.
 
 ### Usage tracking (2D)
@@ -47,32 +47,32 @@ Context engineering follows the pi-test-harness model:
 
 ### Guards and resilience (2D-ext, 2D-ext2)
 
-- [x] `LLM_MAX_CONTEXT_TOKENS` — blocks oversized prompts before any API call
-- [x] `LLM_FALLBACK_PROVIDER` — automatic retry on primary provider error
+- [x] `MODEL_MAX_CONTEXT_TOKENS` — blocks oversized prompts before any API call
+- [x] `MODEL_FALLBACK_PROVIDER` — automatic retry on primary provider error
 
 ### Provider sovereignty (feat)
 
 - [x] Invert default: Anthropic is explicit-only, Ollama is the last-resort sovereign default
-- [x] `LLM_DEFAULT_PROVIDER` — user configures their own floor without touching `LLM_PROVIDER`
+- [x] `MODEL_DEFAULT_PROVIDER` — user configures their own floor without touching `MODEL_PROVIDER`
 
 ### Budget check (2E)
 
 - [x] `sum_provider_spend_usd()` — pure function, reads `UsageRecord` CRDT nodes
 - [x] Rolling 30-day window via `timestamp_ns`
-- [x] `LLM_BUDGET_<PROVIDER>_USD` — opt-in cap per provider
-- [x] Budget block feeds into `LLM_FALLBACK_PROVIDER` path — zero extra code
+- [x] `MODEL_BUDGET_<PROVIDER>_USD` — opt-in cap per provider
+- [x] Budget block feeds into `MODEL_FALLBACK_PROVIDER` path — zero extra code
 
 ### Conversational memory (2F)
 
 - [x] `history_from_nodes()` — pure function, sorts by `timestamp_ns`, caps at `max_turns`
-- [x] `LLM_HISTORY_TURNS` — opt-in (default 0 = disabled), Pi-aligned: no silent CRDT reads
+- [x] `MODEL_HISTORY_TURNS` — opt-in (default 0 = disabled), Pi-aligned: no silent CRDT reads
 - [x] `Provider::complete()` accepts full messages slice — multi-turn wire format for both providers
 
 ### Agentic tool use
 
 - [x] `dispatch_tool()` — `read_file`, `write_file`, `bash` via `agent_fs`/`agent_shell` WIT imports
 - [x] Full agentic loop inside each provider (format-aware): tool_use blocks → dispatch → next request
-- [x] `LLM_TOOL_CALL_MAX_ITER` — configurable loop cap (default 5)
+- [x] `MODEL_TOOL_CALL_MAX_ITER` — configurable loop cap (default 5)
 - [x] Tool calls logged in `CompletionResult.tool_calls` → stored in `AgentResponse.tool_calls` CRDT
 
 ### Extensibility contract
@@ -164,7 +164,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `tractor store-node --payload <JSON>` — store raw CRDT node (no daemon)
 - [x] `npm run agent:daemon` — start tractor in background with PID file
 - [x] `npm run agent:stop` — graceful stop via PID file
-- [x] `npm run agent:status` — health check: daemon, keys, WASM age, LLM config, LLM_FS_ROOT safety
+- [x] `npm run agent:status` — health check: daemon, keys, WASM age, LLM config, MODEL_FS_ROOT safety
 - [x] `npm run agent:repl` — interactive multi-turn REPL with history, `/tree`, `/sessions`, `/fork`, `/navigate`
   - ANSI stripping + 200-line output truncation per response
   - Soft rate limit warning from CRDT UsageRecord nodes (yellow >20/h, red >40/h)
@@ -174,7 +174,7 @@ Context engineering follows the pi-test-harness model:
 ### Streaming token output
 
 - [x] Response-node schema supports partial/final chunks via configurable `is_final` and `sequence` fields
-- [x] Streaming is opt-in via `LLM_STREAM_RESPONSES=1|true|yes|on`; missing/unknown values stay disabled
+- [x] Streaming is opt-in via `MODEL_STREAM_RESPONSES=1|true|yes|on`; missing/unknown values stay disabled
 - [x] Persistence seam can store AgentResponse chunks separately from final session append
 - [x] Chunk policy codifies monotonic `sequence` and keeps partial chunks out of session history
 - [x] Prompt handler reads streaming opt-in and routes final response sequence through the chunk policy seam
@@ -189,7 +189,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Runtime persistence can store SSE-derived partial chunks and return the last emitted sequence
 - [x] Provider `stream: true` requests are gated on both opt-in policy and streaming transport readiness
 - [x] WASM HTTP request layer has a callback seam for future streaming bytes without changing buffered JSON path
-- [x] Provider request paths route through the callback seam and use host-proxied streaming when `LLM_STREAM_RESPONSES` is explicitly enabled
+- [x] Provider request paths route through the callback seam and use host-proxied streaming when `MODEL_STREAM_RESPONSES` is explicitly enabled
 - [x] Provider runtime has an active stream sink context (`prompt_ref`, `model`, `last_sequence`) so callbacks can persist SSE-derived partial chunks once transport streaming is enabled
 - [x] Fallback provider attempts update the active stream sink model before emitting future partial chunks
 - [x] Final response sequencing reads the stream sink's last successfully stored partial sequence before storing the terminal `AgentResponse`
@@ -205,7 +205,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Tractor records a final generic `StreamChunk` marker (`is_final: true`, `payload_kind: final_text|final_tool_call|final_empty`) when provider stream assembly completes
 - [x] Tractor synthesizes parser-compatible final provider JSON from stored SSE text deltas and streamed tool-call/tool-use deltas for OpenAI-compatible and Anthropic response shapes
 - [x] Tractor preserves streamed usage counts in synthesized final provider JSON when providers emit usage SSE events
-- [x] End-to-end harness proves `LLM_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, stores a final response with sequence after the last partial, and preserves streamed tool-call round trips
+- [x] End-to-end harness proves `MODEL_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, stores a final response with sequence after the last partial, and preserves streamed tool-call round trips
 - [x] Tractor CLI plain output renders partial chunks as deltas and avoids reprinting the full final content after streamed partials
 - [x] Tractor CLI can query and watch generic `StreamChunk` / `StreamSession` nodes with `stream_ref` filters
 - [x] `@refarm.dev/tractor` exports a TypeScript `AgentResponse` stream accumulator for structured clients that consume partial/final events
@@ -214,7 +214,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `@refarm.dev/tractor` exports stream ordering, terminality, status, kind, and final-payload helpers for UI clients
 - [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
 - [x] Tractor daemon exposes `--llm-stream-responses` as a governed CLI opt-in for startup plugins
-- [x] `.refarm/config.json` can govern streaming via `stream_responses: true|false`, mapped to `LLM_STREAM_RESPONSES`
+- [x] `.refarm/config.json` can govern streaming via `stream_responses: true|false`, mapped to `MODEL_STREAM_RESPONSES`
 - [x] ADR-054 defines conservative retention posture: no implicit `StreamChunk`/`StreamSession` compaction before a governed delete/compact primitive exists
 - [x] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client accumulators
 
@@ -232,7 +232,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, agents-lab curated)
 - [x] `list_dir` — directory listing via `bash ls -1`
 - [x] `search_files` — grep: `{pattern, path, glob?}` → `file:line` matches
-- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeeze pipeline: strip ANSI → dedup → truncate
+- [x] `MODEL_TOOL_OUTPUT_MAX_LINES` — squeeze pipeline: strip ANSI → dedup → truncate
 - [x] `read_structured` — parse JSON/TOML/YAML with `page_size`/`page_offset` pagination
 - [x] `write_structured` — validate JSON/TOML/YAML then write atomically (rejects invalid before touching file)
 - [x] `list_sessions` / `current_session` — LLM can inspect its own session tree
@@ -242,12 +242,12 @@ Context engineering follows the pi-test-harness model:
 
 - [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged
 - [x] Fallback scenario: anthropic fails → ollama mock serves
-- [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns in request
-- [x] `.refarm/config.json` scenario: write config to temp dir, assert `LLM_PROVIDER` injected into plugin
+- [x] Multi-turn scenario: `MODEL_HISTORY_TURNS=2`, capturing mock asserts prior turns in request
+- [x] `.refarm/config.json` scenario: write config to temp dir, assert `MODEL_PROVIDER` injected into plugin
 - [x] Session wiring scenario: two prompts → leaf_entry_id advances, SessionEntry count grows
 - [x] write_structured scenario: mock tool call → file created on disk with valid JSON
 - [x] read_structured scenario: mock tool call → pagination header in tool result
-- [x] LLM_AGENT_ID scenario: all new_id() nodes carry `urn:farmhand:<id>:` prefix
+- [x] MODEL_AGENT_ID scenario: all new_id() nodes carry `urn:farmhand:<id>:` prefix
 
 ---
 
@@ -337,7 +337,7 @@ interface code-ops {
 - [ ] `refarm-stack` package in `aretw0/agents-lab` uses farmhand as engine
 - [ ] Porting pi-stack behaviors to Refarm CRDT primitives with minimal friction
 - [ ] Validate that distros (`.dev`, `.me`, `.social`) can compose farmhand without core changes
-- [x] Contract: farmhand exposes no domain opinion — distros provide system prompts via `LLM_SYSTEM` env var
+- [x] Contract: farmhand exposes no domain opinion — distros provide system prompts via `MODEL_SYSTEM` env var
 
 ### Generalization backlog (cross-plugin primitives first)
 
@@ -352,8 +352,8 @@ interface code-ops {
 
 ### Multi-agent (swarm)
 
-- [x] `LLM_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:<hex>`) (T-NEXT-282)
-  - `new_id()` prefixes with agent namespace when `LLM_AGENT_ID` is set; backward-compatible
+- [x] `MODEL_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:<hex>`) (T-NEXT-282)
+  - `new_id()` prefixes with agent namespace when `MODEL_AGENT_ID` is set; backward-compatible
   - A5 extensibility axiom: 3 tests covering absent/set/uniqueness cases
   - Harness scenario verifying Session/SessionEntry @id carry agent namespace (T-NEXT-283)
 - [x] Multiple farmhand instances in the same tractor process — demonstrated in swarm harness (T-NEXT-290)
@@ -422,8 +422,8 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
 | Surface                    | Today                                     | Risk                                                      |
 | -------------------------- | ----------------------------------------- | --------------------------------------------------------- |
 | `ANTHROPIC_API_KEY` in env | Host-only (plugin calls `llm-bridge`)     | Residual risk only in host process, not in plugin sandbox |
-| `agent_shell::spawn`       | allowlist-capable (`LLM_SHELL_ALLOWLIST`) | Misconfig/empty policy can still block or allow too much  |
-| `agent_fs::read/write`     | root-capable (`LLM_FS_ROOT`)              | Misconfigured root may still expose broad subtree         |
+| `agent_shell::spawn`       | allowlist-capable (`MODEL_SHELL_ALLOWLIST`) | Misconfig/empty policy can still block or allow too much  |
+| `agent_fs::read/write`     | root-capable (`MODEL_FS_ROOT`)              | Misconfigured root may still expose broad subtree         |
 | `wasi:http` egress         | removed from pi-agent LLM path            | Other plugins may still require separate egress policy    |
 
 ### Mitigations to design (inspired by Gondolin)
@@ -437,18 +437,18 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
   - Host injects provider auth headers (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) outside plugin sandbox
   - Follow-up: tighten provider/base-url policy centrally in tractor (allowlist/validator)
 
-- [x] **`LLM_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
+- [x] **`MODEL_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
 
-  - e.g. `LLM_SHELL_ALLOWLIST=ls,grep,cat,git` — host blocks commands outside allowlist
+  - e.g. `MODEL_SHELL_ALLOWLIST=ls,grep,cat,git` — host blocks commands outside allowlist
   - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: checks `argv[0]` (basename-aware) before spawn and returns `[blocked: <cmd> not in allowlist]`
   - Semantics: env var **unset** = permissive (backward compatible); env var set empty/whitespace = block all
   - Gondolin equivalent: `allowedHosts` for network; same pattern for commands
 
-- [x] **`LLM_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
+- [x] **`MODEL_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
 
-  - e.g. `LLM_FS_ROOT=/workspaces/myproject` — all paths outside rejected at host boundary
+  - e.g. `MODEL_FS_ROOT=/workspaces/myproject` — all paths outside rejected at host boundary
   - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: enforces guard on `read`, `write`, and `edit`
-  - Path policy resolves absolute path against nearest existing ancestor before prefix check; rejects outside paths with `[blocked: path outside LLM_FS_ROOT]`
+  - Path policy resolves absolute path against nearest existing ancestor before prefix check; rejects outside paths with `[blocked: path outside MODEL_FS_ROOT]`
   - Semantics: env var **unset** = permissive (backward compatible)
   - Gondolin equivalent: VFS mounts with readonly/cow modes
 

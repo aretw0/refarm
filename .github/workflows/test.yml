@@ -135,12 +135,12 @@ jobs:
           fi
 
           code_changes=false
-          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|package-lock\.json$|tsconfig\.json$)'; then
+          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|tsconfig\.json$)'; then
             code_changes=true
           fi
 
           tractor_gates=false
-          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|package-lock\.json$)'; then
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs|scripts/ci/carry-forward-status.*\.mjs)'; then
             tractor_gates=true
           fi
 
@@ -149,12 +149,12 @@ jobs:
           # Turbo and owns any build dependencies it needs in the E2E runner.
           run_build=false
           run_e2e=false
-          if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|package-lock\.json$)'; then
+          if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|pnpm-lock\.yaml$)'; then
             run_e2e=true
           fi
 
           run_task_smoke=false
-          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/esm-extension-register\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|pnpm-lock\.yaml$|\.github/workflows/test\.yml$)'; then
             run_task_smoke=true
           fi
 
@@ -201,7 +201,7 @@ jobs:
           .github/actions
           .github/workflows/test.yml
           package.json
-          package-lock.json
+          pnpm-lock.yaml
           turbo.json
           tsconfig.json
           .cargo/config.toml
@@ -219,7 +219,7 @@ jobs:
           .github/workflows/test.yml
           scripts/ci/content-signature.mjs
           package.json
-          package-lock.json
+          pnpm-lock.yaml
           turbo.json
           tsconfig.json
           .cargo/config.toml
@@ -234,6 +234,20 @@ jobs:
             --name test-e2e \
             --output e2e_key \
             --patterns-file /tmp/refarm-e2e-signature-patterns.txt
+
+  validate-scaffold:
+    name: Validate package scaffold and action pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: changes
+    if: needs.changes.outputs.code_changes == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Validate package scaffold
+        run: node scripts/validate-packages.mjs
+      - name: Validate GitHub Action pins
+        run: node scripts/ci/check-github-action-pins.mjs
 
   quality:
     runs-on: ubuntu-latest
@@ -260,7 +274,7 @@ jobs:
         run: echo "::notice::Reusing previous successful Test & Quality validation for unchanged inputs."
 
       - name: Validate .project cross-block consistency
-        run: npm run project:validate --silent
+        run: node scripts/ci/project-block-consistency.mjs
 
       - name: Setup
         id: setup
@@ -269,6 +283,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       # Turbo Cache is now handled in ./.github/actions/setup
       # - name: Cache Turbo
@@ -279,11 +295,11 @@ jobs:
 
       - name: Security audit
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level=high
 
       - name: TSConfig preflight
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
-        run: npm run tsconfig:guard
+        run: pnpm run tsconfig:guard
 
       - name: Carry-forward policy unit tests
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.ci_changes == 'true'
@@ -291,17 +307,17 @@ jobs:
 
       - name: Farmhand task execution smoke (CLI ↔ sidecar)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
-        run: npm run task:execution:smoke
+        run: pnpm run task:execution:smoke
 
       - name: Farmhand pi-agent respond smoke (effort round-trip)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
-        run: npm run task:execution:smoke:pi-agent
+        run: pnpm run task:execution:smoke:pi-agent
 
       - name: Telemetry strict gate (blocking on develop + PR -> main)
         id: telemetry_gate
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
         continue-on-error: ${{ !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop')) }}
-        run: npm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
+        run: pnpm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
 
       - name: Telemetry gate warning (non-blocking branches)
         if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true' && steps.telemetry_gate.outcome == 'failure' && !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop'))
@@ -315,19 +331,19 @@ jobs:
 
       - name: Tractor health probe smoke
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm run test:smoke:health -w @refarm.dev/tractor-rs
+        run: pnpm --filter @refarm.dev/tractor-rs run test:smoke:health
 
       - name: Browser runtime descriptor gate (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm --prefix packages/tractor-ts run runtime-module:ci
+        run: pnpm -C packages/tractor-ts run runtime-module:ci
 
       - name: Runtime descriptor release-path smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+        run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
       - name: Revocation diagnostics report smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm run runtime-descriptor:revocation-report:sample
+        run: pnpm run runtime-descriptor:revocation-report:sample
 
       - name: Revocation diagnostics baseline lookup (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
@@ -344,17 +360,17 @@ jobs:
       - name: Revocation diagnostics history smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: |
-          npm run runtime-descriptor:revocation-history -- \
+          pnpm run runtime-descriptor:revocation-history -- \
             --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
             --out-dir .artifacts/runtime-descriptor-revocation-history
 
       - name: Verify (Full Turbo)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
-        run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
 
       - name: Verify (Full Turbo fallback)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
-        run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
 
       - name: Verify (Full Turbo) skipped
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
@@ -382,20 +398,25 @@ jobs:
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
 
-          # Generate baseline from main
+          # Generate baseline from main (best-effort — skipped if main is on an
+          # older package-manager config that pnpm can't handle).
           git fetch origin main || true
           # Use -f to ensure we can switch branches even if npm ci modified tracked files
           git checkout -f origin/main || git checkout -f main || true
-          npm ci
-          cd packages/tractor
-          npm run bench:save
-          cd ../..
+          if [ -f "pnpm-workspace.yaml" ]; then
+            pnpm install --frozen-lockfile
+            cd packages/tractor
+            pnpm run bench:save
+            cd ../..
+          else
+            echo "::warning::Benchmark baseline skipped — main branch uses older package-manager config (no pnpm-workspace.yaml)"
+          fi
 
-          # Return to PR commit and test
+          # Return to current commit and benchmark
           git checkout -f $CURRENT_BRANCH
-          npm ci
+          pnpm install --frozen-lockfile
           cd packages/tractor
-          npm run bench:check
+          pnpm run bench:check
 
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "benchmarks/gha-payload.json" ]; then
@@ -445,7 +466,7 @@ jobs:
               body += `- **Threshold Required:** +${threshold}%\n`;
               body += `- **Previous High-Water Mark:** +${highWaterMark}%\n`;
               body += `- **Current PR Speedup:** +**${diff}%** Average Improvement\n\n`;
-              body += `> *Note: Please remember to run \`npm run bench:save\` locally to re-calibrate your development baseline, though the repository baseline is generated dynamically from main.*`;
+              body += `> *Note: Please remember to run \`pnpm run bench:save\` locally to re-calibrate your development baseline, though the repository baseline is generated dynamically from main.*`;
               
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -462,7 +483,7 @@ jobs:
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: |
           cd packages/tractor
-          npm run coverage:check
+          pnpm run coverage:check
 
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "coverage/gha-payload.json" ]; then
@@ -519,7 +540,7 @@ jobs:
               if (currentCoverage >= 100) {
                 body += `\n\n🎉 **PERFECT COVERAGE!** 💯 You've reached the holy grail.`;
               } else {
-                 body += `\n> *Note: Please remember to run \`npm run coverage:save\` and commit the new baseline so your changes protect the project moving forward.*`;
+                 body += `\n> *Note: Please remember to run \`pnpm run coverage:save\` and commit the new baseline so your changes protect the project moving forward.*`;
               }
               
               await github.rest.issues.createComment({
@@ -585,14 +606,16 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Build (affected)
         if: needs.changes.outputs.turbo_filter != ''
-        run: npx turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
 
       - name: Build (full fallback)
         if: needs.changes.outputs.turbo_filter == ''
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload build artifacts
         if: success()
@@ -637,6 +660,8 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Check E2E script status
         id: e2e_check
@@ -674,11 +699,11 @@ jobs:
 
       - name: Run E2E Tests (affected)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'affected'
-        run: npx turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
 
       - name: Run E2E Tests (full fallback)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'full'
-        run: npx turbo run test:e2e --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --cache-dir=.turbo
 
       - name: Upload Playwright report
         if: always() && steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_check.outputs.enabled == 'true'
@@ -712,9 +737,11 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Deep regression (full stack)
-        run: npx turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
 
   audit-moderate:
     runs-on: ubuntu-latest
@@ -732,6 +759,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Audit moderate report (non-blocking)
         id: audit_report

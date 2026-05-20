@@ -15,10 +15,13 @@
     "test": "vitest run",
     "lint": "eslint src"
   },
+  "dependencies": {
+    "@refarm.dev/plugin-manifest": "workspace:*"
+  },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
-    "@refarm.dev/vtconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
   },
   "license": "MIT",
   "publishConfig": {

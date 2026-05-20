@@ -6,6 +6,12 @@ import path from "node:path";
  * No knowledge of Refarm or Node.js structures.
  */
 export class FileSystemAuditor {
+    #ignoredGitVisibilityPatterns;
+
+    constructor(options = {}) {
+        this.#ignoredGitVisibilityPatterns = options.ignoredGitVisibilityPatterns || [];
+    }
+
     get id() { return "generic_fs"; }
     get title() { return "Generic FileSystem & Git Visibility"; }
 
@@ -45,6 +51,8 @@ export class FileSystemAuditor {
                 if (!FileSystemAuditor.#SOURCE_EXTENSIONS.has(ext)) continue;
 
                 const relativePath = path.relative(rootDir, file);
+                if (this.#matchesIgnoredGitVisibilityPattern(relativePath)) continue;
+
                 const ignored = await git.isIgnored({
                     fs,
                     dir: rootDir,
@@ -63,6 +71,24 @@ export class FileSystemAuditor {
             console.error(`[Health:Generic] Git visibility check failed: ${e.message}`);
         }
         return issues;
+    }
+
+    #matchesIgnoredGitVisibilityPattern(relativePath) {
+        const normalized = relativePath.split(path.sep).join("/");
+        return this.#ignoredGitVisibilityPatterns.some((pattern) =>
+            FileSystemAuditor.#matchesPattern(normalized, pattern)
+        );
+    }
+
+    static #matchesPattern(value, pattern) {
+        const normalizedPattern = pattern.split(path.sep).join("/");
+        if (normalizedPattern.startsWith("**/*")) {
+            return value.endsWith(normalizedPattern.slice(4));
+        }
+        if (normalizedPattern.endsWith("/**")) {
+            return value.startsWith(normalizedPattern.slice(0, -2));
+        }
+        return value === normalizedPattern;
     }
 
     /**

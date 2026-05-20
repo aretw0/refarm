@@ -74,7 +74,7 @@ new SessionEntry gets `parent_entry_id = current leaf` (which is an ancestor, no
 original tip). This creates a natural branch — the old path is untouched in the CRDT.
 
 **History walk**: To reconstruct context for an LLM call, walk the `parent_entry_id`
-chain starting from `Session.leaf_entry_id`, collecting up to `LLM_HISTORY_TURNS` entries.
+chain starting from `Session.leaf_entry_id`, collecting up to `MODEL_HISTORY_TURNS` entries.
 This replaces the previous timestamp-sort approach and correctly handles branches.
 
 ---

@@ -9,7 +9,7 @@
  *   - feature branches: warning-only mode
  *   - test:unit and security are advisory locally (enforced in CI)
  *
- * Usage: npm run hooks:install
+ * Usage: pnpm run hooks:install
  */
 
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "fs";
@@ -22,7 +22,7 @@ const rootDir = join(__dirname, "..");
 
 const hookContent = `#!/bin/sh
 # Pre-push hook: valida qualidade antes de push
-# Installed by: npm run hooks:install
+# Installed by: pnpm run hooks:install
 # Mode: context-aware (strict on main/develop, permissive on other branches)
 # Strategy: selective workspace checks + commit cache to avoid re-running
 
@@ -117,7 +117,6 @@ NEEDS_TYPECHECK=0
 NEEDS_UNIT_TESTS=0
 FORCE_GLOBAL_LINT=0
 FORCE_GLOBAL_TYPECHECK=0
-FORCE_GLOBAL_UNIT_TESTS=0
 NEEDS_QUALITY_GATE=0
 NEEDS_SECURITY_AUDIT=0
 CHANGED_WORKSPACES=""
@@ -157,7 +156,7 @@ do
   printf '%s\\n' "$CHANGED_FILES" >> "$CHANGED_FILES_ALL"
 
   # Lint/type-check/unit-tests are triggered by source or build/lint config changes.
-  # Dependency-only manifest bumps (package-lock/package.json) stay CI-driven.
+  # Dependency-only manifest bumps (pnpm-lock.yaml/package.json) stay CI-driven.
   if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     NEEDS_LINT=1
   fi
@@ -167,17 +166,24 @@ do
     NEEDS_UNIT_TESTS=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '^(turbo\\.json|eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
+  # turbo.json is a pipeline config — it doesn't affect what ESLint or tsc check.
+  # Including it in FORCE_GLOBAL_* would cold-invalidate Turbo's entire cache
+  # (turbo.json is a global cache key) and trigger Rust rebuilds, reliably
+  # exceeding the fallback timeouts on protected branches.
+  # Unit tests stay scoped and advisory locally; CI remains the global test gate.
+  if echo "$CHANGED_FILES" | grep -Eq '^(eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
     FORCE_GLOBAL_LINT=1
+  fi
+
+  if echo "$CHANGED_FILES" | grep -Eq '^tsconfig(\\.[^/]*)?\\.json$'; then
     FORCE_GLOBAL_TYPECHECK=1
-    FORCE_GLOBAL_UNIT_TESTS=1
   fi
 
   if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*(/src/|/test/|\\.test\\.|\\.spec\\.|\\.wit$)|(^|/)specs/'; then
     NEEDS_QUALITY_GATE=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '(^|/)package\\.json$|(^|/)package-lock\\.json$'; then
+  if echo "$CHANGED_FILES" | grep -Eq '(^|/)package\\.json$|(^|/)pnpm-lock\\.yaml$'; then
     NEEDS_SECURITY_AUDIT=1
   fi
 done < "$REFS_FILE"
@@ -194,7 +200,9 @@ CHANGED_WORKSPACES=$(awk -F/ '
 done | sort -u | tr '\\n' ' ' | xargs)
 
 CACHE_FILE=".git/.refarm-prepush-validated-shas"
+LANE_CACHE_FILE=".git/.refarm-prepush-validated-lanes"
 touch "$CACHE_FILE"
+touch "$LANE_CACHE_FILE"
 UNTESTED_SHAS=""
 for sha in $PUSH_SHAS; do
   [ -z "$sha" ] && continue
@@ -213,6 +221,34 @@ if [ -n "$PUSH_SHAS" ] && [ -z "$(echo "$UNTESTED_SHAS" | xargs)" ]; then
   echo "🚀 Push allowed"
   exit 0
 fi
+
+TURBO_FILTER_ARGS=""
+for ws in $CHANGED_WORKSPACES; do
+  [ -z "$ws" ] && continue
+  TURBO_FILTER_ARGS="$TURBO_FILTER_ARGS --filter=./$ws"
+done
+
+lane_validated() {
+  lane="$1"
+  [ -z "$(echo "$PUSH_SHAS" | xargs)" ] && return 1
+  for sha in $PUSH_SHAS; do
+    [ -z "$sha" ] && continue
+    if ! grep -q "^$sha $lane$" "$LANE_CACHE_FILE" 2>/dev/null; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+mark_lane_validated() {
+  lane="$1"
+  [ -z "$(echo "$PUSH_SHAS" | xargs)" ] && return 0
+  for sha in $PUSH_SHAS; do
+    [ -z "$sha" ] && continue
+    echo "$sha $lane" >> "$LANE_CACHE_FILE"
+  done
+  sort -u "$LANE_CACHE_FILE" -o "$LANE_CACHE_FILE" 2>/dev/null || true
+}
 
 echo "🧭 Change profile: lint=$NEEDS_LINT type-check=$NEEDS_TYPECHECK unit-tests=$NEEDS_UNIT_TESTS qgate=$NEEDS_QUALITY_GATE audit=$NEEDS_SECURITY_AUDIT"
 if [ -n "$CHANGED_WORKSPACES" ]; then
@@ -241,52 +277,46 @@ WARNINGS=0
 echo "📝 Checking lint..."
 if [ $NEEDS_LINT -eq 0 ]; then
   echo "   ⏭️  Lint skipped (no workspace lint-relevant file changes in push range)"
+elif lane_validated "lint"; then
+  echo "   ⚡ Lint skipped (already validated for this push SHA)"
 else
   LINT_FAILED=0
 
   if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
-    echo "   🔎 Scoped lint for changed workspaces"
-    for ws in $CHANGED_WORKSPACES; do
-      [ -f "$ws/package.json" ] || continue
-
-      LINT_SCRIPT=$(pick_lint_script "$ws" || true)
-      if [ -z "$LINT_SCRIPT" ]; then
-        continue
-      fi
-
-      LINT_TIMEOUT=$(workspace_lint_timeout "$ws")
-
-      if timeout "$LINT_TIMEOUT" env CI=1 npm --prefix "$ws" run "$LINT_SCRIPT" --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-        echo "   ✅ Lint passed ($ws:$LINT_SCRIPT)"
-      else
-        LINT_STATUS=$?
-        if [ "$LINT_STATUS" -eq 124 ]; then
-          echo "   ⏱️  Lint timed out after \${LINT_TIMEOUT}s ($ws:$LINT_SCRIPT)"
-          WARNINGS=1
-        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-          echo "   ❌ Lint failed ($ws:$LINT_SCRIPT)"
-          tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
-          LINT_FAILED=1
-        else
-          echo "   ⚠️  Lint failed ($ws:$LINT_SCRIPT)"
-          WARNINGS=1
-        fi
-      fi
-    done
-  else
-    if timeout 90 env CI=1 npm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-      echo "   ✅ Lint passed"
+    echo "   🔎 Turbo scoped lint for changed workspaces"
+    if timeout 360 env CI=1 pnpm exec turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      echo "   ✅ Turbo lint passed"
+      mark_lane_validated "lint"
     else
       LINT_STATUS=$?
       if [ "$LINT_STATUS" -eq 124 ]; then
-        echo "   ⏱️  Lint timed out after 90s (non-blocking local warning; CI enforces full lint)"
+        echo "   ⏱️  Turbo lint timed out after 360s (non-blocking local warning; CI enforces full lint)"
         WARNINGS=1
       elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-        echo "   ❌ Lint failed (blocking in strict mode)"
+        echo "   ❌ Turbo lint failed (blocking in strict mode)"
+        tail -n 60 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
+        tail -n 60 /tmp/prepush-lint.out 2>/dev/null | filter_vite_warning || true
+        LINT_FAILED=1
+      else
+        echo "   ⚠️  Turbo lint failed (warning in permissive mode)"
+        WARNINGS=1
+      fi
+    fi
+  else
+    if timeout 360 env CI=1 pnpm exec turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      echo "   ✅ Global Turbo lint passed"
+      mark_lane_validated "lint"
+    else
+      LINT_STATUS=$?
+      if [ "$LINT_STATUS" -eq 124 ]; then
+        echo "   ⏱️  Turbo lint timed out after 360s (non-blocking local warning; CI enforces full lint)"
+        WARNINGS=1
+      elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+        echo "   ❌ Turbo lint failed (blocking in strict mode)"
         tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
         LINT_FAILED=1
       else
-        echo "   ⚠️  Lint failed (warning in permissive mode)"
+        echo "   ⚠️  Turbo lint failed (warning in permissive mode)"
         WARNINGS=1
       fi
     fi
@@ -302,8 +332,10 @@ echo ""
 echo "🔤 Checking types..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
   echo "   ⏭️  Type-check preflight skipped (no TS/JS workspace changes in push range)"
+elif lane_validated "type-check"; then
+  echo "   ⚡ Type-check skipped (already validated for this push SHA)"
 else
-  if timeout 120 env CI=1 npm run tsconfig:guard --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+  if timeout 120 env CI=1 pnpm run --silent tsconfig:guard >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
     echo "   ✅ TSConfig guard passed"
   else
     TYPECHECK_STATUS=$?
@@ -336,38 +368,34 @@ else
     TYPECHECK_FAILED=0
 
     if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_TYPECHECK -eq 0 ]; then
-      echo "   🔎 Scoped type-check for changed workspaces"
-      for ws in $CHANGED_WORKSPACES; do
-        [ -f "$ws/package.json" ] || continue
-        if ! has_npm_script "type-check" "$ws"; then
-          continue
-        fi
-
-        if timeout 90 env CI=1 npm --prefix "$ws" run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
-          echo "   ✅ Type-check passed ($ws)"
-        else
-          TC_STATUS=$?
-          if [ "$TC_STATUS" -eq 124 ]; then
-            if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-              echo "   ❌ Type-check timed out ($ws)"
-              TYPECHECK_FAILED=1
-            else
-              echo "   ⚠️  Type-check timed out ($ws)"
-              WARNINGS=1
-            fi
-          elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-            echo "   ❌ Type-check failed ($ws)"
-            tail -n 40 /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true
+      echo "   🔎 Turbo scoped type-check for changed workspaces"
+      if timeout 300 env CI=1 pnpm exec turbo run type-check $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        echo "   ✅ Turbo type-check passed"
+        mark_lane_validated "type-check"
+      else
+        TC_STATUS=$?
+        if [ "$TC_STATUS" -eq 124 ]; then
+          if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+            echo "   ❌ Turbo type-check timed out"
             TYPECHECK_FAILED=1
           else
-            echo "   ⚠️  Type-check failed ($ws)"
+            echo "   ⚠️  Turbo type-check timed out"
             WARNINGS=1
           fi
+        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+          echo "   ❌ Turbo type-check failed"
+          tail -n 60 /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-typecheck.out 2>/dev/null | filter_vite_warning || true
+          TYPECHECK_FAILED=1
+        else
+          echo "   ⚠️  Turbo type-check failed"
+          WARNINGS=1
         fi
-      done
+      fi
     else
-      if timeout 120 env CI=1 npm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
-        echo "   ✅ Global type-check passed"
+      if timeout 300 env CI=1 pnpm exec turbo run type-check --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        echo "   ✅ Global Turbo type-check passed"
+        mark_lane_validated "type-check"
       else
         TC_STATUS=$?
         if [ "$TC_STATUS" -eq 124 ]; then
@@ -400,42 +428,37 @@ echo ""
 echo "🧪 Running unit tests (advisory local check)..."
 if [ $NEEDS_UNIT_TESTS -eq 0 ]; then
   echo "   ⏭️  Unit tests skipped (no TS/JS workspace changes in push range)"
+elif lane_validated "test"; then
+  echo "   ⚡ Unit tests skipped (already validated for this push SHA)"
 else
   UNIT_WARN=0
 
-  if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_UNIT_TESTS -eq 0 ]; then
-    echo "   🔎 Scoped tests for changed workspaces"
-    for ws in $CHANGED_WORKSPACES; do
-      [ -f "$ws/package.json" ] || continue
-
-      TEST_SCRIPT=$(pick_test_script "$ws" || true)
-      if [ -z "$TEST_SCRIPT" ]; then
-        continue
-      fi
-
-      TEST_TIMEOUT=$(workspace_test_timeout "$ws")
-
-      if timeout "$TEST_TIMEOUT" env CI=1 npm --prefix "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-        echo "   ✅ Tests passed ($ws:$TEST_SCRIPT)"
-      else
-        UNIT_STATUS=$?
-        if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Tests timed out after \${TEST_TIMEOUT}s ($ws:$TEST_SCRIPT)"
-        else
-          echo "   ⚠️  Tests failed ($ws:$TEST_SCRIPT)"
-        fi
-        UNIT_WARN=1
-      fi
-    done
-  else
-    if timeout 120 env CI=1 npm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-      echo "   ✅ Unit tests passed"
+  if [ -n "$CHANGED_WORKSPACES" ]; then
+    echo "   🔎 Turbo scoped tests for changed workspaces"
+    if timeout 300 env CI=1 pnpm exec turbo run test --concurrency=4 $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      echo "   ✅ Turbo tests passed"
+      mark_lane_validated "test"
     else
       UNIT_STATUS=$?
       if [ "$UNIT_STATUS" -eq 124 ]; then
-        echo "   ⚠️  Unit tests timed out (non-blocking local warning)"
+        echo "   ⚠️  Turbo tests timed out after 300s (non-blocking local warning)"
       else
-        echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+        echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
+        tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
+        tail -n 60 /tmp/prepush-unit.out 2>/dev/null | filter_vite_warning || true
+      fi
+      UNIT_WARN=1
+    fi
+  else
+    if timeout 300 env CI=1 pnpm exec turbo run test --concurrency=4 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      echo "   ✅ Global Turbo tests passed"
+      mark_lane_validated "test"
+    else
+      UNIT_STATUS=$?
+      if [ "$UNIT_STATUS" -eq 124 ]; then
+        echo "   ⚠️  Turbo tests timed out (non-blocking local warning)"
+      else
+        echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
       fi
       UNIT_WARN=1
     fi
@@ -449,7 +472,7 @@ echo ""
 
 # 4a. Task smoke build-order integrity (always runs — fast graph walk, catches new packages missing from TASK_SMOKE_TS_BUILD_ORDER)
 echo "📋 Checking task smoke build-order integrity..."
-if timeout 30 npm run task:build-order:check --silent 2>/tmp/prepush-buildorder.err; then
+if timeout 30 pnpm run --silent task:build-order:check 2>/tmp/prepush-buildorder.err; then
   echo "   ✅ Build-order integrity OK"
 else
   BO_STATUS=$?
@@ -463,6 +486,28 @@ else
     BLOCKING_FAILED=1
   else
     echo "   ⚠️  Build-order integrity failed: $BO_MSG"
+    WARNINGS=1
+  fi
+fi
+echo ""
+
+# 4b. Vitest config phantom dep check (always runs — fast file scan, catches missing devDeps that work locally via hoisting but fail in CI)
+echo "📦 Checking vitest.config.ts dependencies..."
+if timeout 15 pnpm run --silent deps:vitest-config-check 2>/tmp/prepush-vitestdeps.err; then
+  echo "   ✅ No phantom vitest deps"
+else
+  VD_STATUS=$?
+  VD_MSG=$(cat /tmp/prepush-vitestdeps.err 2>/dev/null || true)
+  if [ "$VD_STATUS" -eq 124 ]; then
+    echo "   ⚠️  Vitest dep check timed out (non-blocking)"
+    WARNINGS=1
+  elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+    echo "   ❌ Phantom vitest deps found (blocking in strict mode)"
+    echo "$VD_MSG"
+    BLOCKING_FAILED=1
+  else
+    echo "   ⚠️  Phantom vitest deps found (warning — will fail in CI)"
+    echo "$VD_MSG"
     WARNINGS=1
   fi
 fi
@@ -495,7 +540,7 @@ echo "🔒 Checking security (advisory local check)..."
 if [ $NEEDS_SECURITY_AUDIT -eq 0 ]; then
   echo "   ⏭️  Security audit skipped (no manifest/lockfile changes in push range)"
 else
-  if timeout 120 npm audit --audit-level=high --silent 2>/dev/null; then
+  if timeout 120 pnpm audit --audit-level=high --silent 2>/dev/null; then
     echo "   ✅ No high/critical vulnerabilities"
   else
     AUDIT_STATUS=$?
@@ -538,7 +583,7 @@ exit 0
 
 const postCheckoutHookContent = `#!/bin/sh
 # Post-checkout hook: warns/generates tractor baselines when switching branches
-# Installed by: npm run hooks:install
+# Installed by: pnpm run hooks:install
 
 # Keep branch changes non-blocking even when optional baselines are not implemented yet.
 cleanup_transient_artifacts() {
@@ -569,7 +614,7 @@ try_generate_baseline() {
     return 0
   fi
 
-  if npm run "$script_name"; then
+  if pnpm run "$script_name"; then
     if [ -f "$target_file" ]; then
       echo "✅ Baseline generated: $target_file"
     else

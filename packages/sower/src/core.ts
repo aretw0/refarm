@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /**
- * SowerCore: The seeding engine of Refarm.
+ * SowerCore: public onboarding, workspace scaffold, and import helpers.
  * Handles templates, interactive flows, and initial project structure.
  * Designed to be runtime-neutral (CLI, Browser, or Server).
  */
@@ -18,7 +18,7 @@ export interface SowerScaffoldConfig {
 }
 
 export interface SowerScaffoldResult {
-	tier: "citizen";
+	tier: "persistent";
 	template: string;
 	config: SowerScaffoldConfig;
 	identity: { hostingPath: string };
@@ -30,8 +30,8 @@ export class SowerCore {
 	 */
 	getOnboardingFlow() {
 		return {
-			name: "Cultivate your Soil",
-			description: "Choose your level of engagement with the sovereign web.",
+			name: "Set up your workspace",
+			description: "Choose how this Refarm workspace should persist data.",
 			options: [
 				{
 					id: "guest",
@@ -41,11 +41,11 @@ export class SowerCore {
 					intent: "switch-to-guest",
 				},
 				{
-					id: "citizen",
-					label: "Sovereign Citizen",
+					id: "persistent",
+					label: "Persistent Workspace",
 					description:
-						"Full ownership. Sovereign identity (Keys) and persistent storage.",
-					intent: "switch-to-citizen",
+						"Persistent identity and local storage for ongoing work.",
+					intent: "switch-to-persistent",
 				},
 			],
 		};
@@ -97,7 +97,7 @@ export class SowerCore {
 	): Promise<SowerScaffoldResult> {
 		console.log(`[sower-core] Scaffolding template: ${templateId}`, options);
 
-		const name = (options["name"] as string | undefined) || "My Sovereign Farm";
+		const name = (options["name"] as string | undefined) || "My Workspace";
 		const config: SowerScaffoldConfig = {
 			mode: "persistent",
 			storage: "opfs",
@@ -116,7 +116,7 @@ export class SowerCore {
 
 		// Template specific adjustments
 		let templateSubPath = "typescript"; // Default
-		if (templateId === "courier") {
+		if (templateId === "workspace") {
 			config.type = "app";
 		} else if (templateId === "rust-plugin") {
 			config.type = "plugin";
@@ -145,7 +145,7 @@ export class SowerCore {
 		}
 
 		return {
-			tier: "citizen",
+			tier: "persistent",
 			template: templateId,
 			config,
 			identity: {
@@ -197,7 +197,7 @@ export class SowerCore {
 	}
 
 	/**
-	 * Hydrates a configuration from a remote Sovereign Graph node.
+	 * Hydrates a configuration from a remote graph node.
 	 */
 	async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<unknown> {
 		console.log(

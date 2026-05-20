@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TelemetryDeps } from "../../src/commands/telemetry.js";
-import { createTelemetryCommand } from "../../src/commands/telemetry.js";
+import {
+	buildTelemetryRecommendations,
+	createTelemetryCommand,
+} from "../../src/commands/telemetry.js";
 
 function makeDeps(overrides: Partial<TelemetryDeps> = {}): TelemetryDeps {
 	return {
@@ -68,10 +71,18 @@ describe("refarm telemetry", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			diagnostics?: string[];
+			recommendations?: Array<{ diagnostic: string }>;
 		};
 		expect(payload.diagnostics).toContain("saturation:queue");
 		expect(payload.diagnostics).toContain("saturation:inflight");
 		expect(payload.diagnostics).toContain("reliability:failures-present");
+		expect(payload.recommendations?.map((item) => item.diagnostic)).toEqual(
+			expect.arrayContaining([
+				"saturation:queue",
+				"saturation:inflight",
+				"reliability:failures-present",
+			]),
+		);
 	});
 
 	it("uses profile thresholds and window diagnostics", async () => {
@@ -193,5 +204,58 @@ describe("refarm telemetry", () => {
 		expect(exitSpy).not.toHaveBeenCalled();
 
 		exitSpy.mockRestore();
+	});
+
+	it("prints recommendations in summary mode when diagnostics are present", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 0,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 0,
+				done: 10,
+				failed: 0,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--queue-warn", "5"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Recommendations");
+		expect(output).toContain("saturation:queue");
+	});
+});
+
+describe("buildTelemetryRecommendations", () => {
+	it("creates stable recommendations for telemetry diagnostics", () => {
+		expect(
+			buildTelemetryRecommendations([
+				"saturation:queue",
+				"reliability:failure-rate",
+				"custom:diagnostic",
+			]),
+		).toEqual([
+			{
+				diagnostic: "saturation:queue",
+				summary: "The task queue is above the configured warning threshold.",
+				action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+			},
+			{
+				diagnostic: "reliability:failure-rate",
+				summary: "Recent failure rate is above the configured warning threshold.",
+				action: "Pause non-essential automation and investigate the dominant failing tasks.",
+			},
+			{
+				diagnostic: "custom:diagnostic",
+				summary: "Telemetry diagnostic custom:diagnostic is present.",
+				action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+			},
+		]);
 	});
 });

@@ -1,187 +1,235 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// vi.hoisted() runs before vi.mock() hoisting
-const { mockResolveRemote, mockListPlugins, mockGetPlugin, mockDeactivatePlugin, mockExecFileSync } = vi.hoisted(() => ({
-  mockResolveRemote: vi.fn(),
-  mockListPlugins: vi.fn().mockReturnValue([]),
-  mockGetPlugin: vi.fn(),
-  mockDeactivatePlugin: vi.fn(),
-  mockExecFileSync: vi.fn(),
-}));
-
-vi.mock("@refarm.dev/registry", () => ({
-  SovereignRegistry: vi.fn().mockImplementation(function () {
-    return {
-      resolveRemote: mockResolveRemote,
-      listPlugins: mockListPlugins,
-      getPlugin: mockGetPlugin,
-      deactivatePlugin: mockDeactivatePlugin,
-    };
-  }),
-}));
-
-vi.mock("node:child_process", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:child_process")>();
-  return {
-    ...actual,
-    execFileSync: mockExecFileSync,
-    default: {
-      ...actual,
-      execFileSync: mockExecFileSync,
-    }
-  };
+// Hoisted mocks — must be defined before any imports that use these modules
+const {
+	mockReadFileSync,
+	mockExistsSync,
+	mockCopyFileSync,
+	mockReadFile,
+	mockWriteFile,
+	mockMkdir,
+	mockRequireResolve,
+	mockDigest,
+	mockExecFileSync,
+} = vi.hoisted(() => {
+	const mockDigest = vi.fn().mockReturnValue("abc123");
+	return {
+		mockReadFileSync: vi.fn(),
+		mockExistsSync: vi.fn(),
+		mockCopyFileSync: vi.fn(),
+		mockReadFile: vi.fn(),
+		mockWriteFile: vi.fn().mockResolvedValue(undefined),
+		mockMkdir: vi.fn().mockResolvedValue(undefined),
+		mockRequireResolve: vi.fn(),
+		mockDigest,
+		mockExecFileSync: vi.fn(),
+	};
 });
+
+vi.mock("node:fs", () => ({
+	readFileSync: mockReadFileSync,
+	existsSync: mockExistsSync,
+	copyFileSync: mockCopyFileSync,
+}));
+
+vi.mock("node:fs/promises", () => ({
+	readFile: mockReadFile,
+	writeFile: mockWriteFile,
+	mkdir: mockMkdir,
+}));
+
+vi.mock("node:crypto", () => ({
+	createHash: vi.fn().mockReturnValue({
+		update: vi.fn().mockReturnThis(),
+		digest: mockDigest,
+	}),
+}));
+
+vi.mock("node:module", () => ({
+	createRequire: vi.fn().mockReturnValue(
+		Object.assign(
+			vi.fn().mockImplementation((id: string) => {
+				if (id.endsWith("/package.json")) return `/fake/node_modules/${id}`;
+				throw new Error(`unexpected require(${id})`);
+			}),
+			{
+				resolve: mockRequireResolve,
+			},
+		),
+	),
+}));
+
+vi.mock("node:child_process", () => ({ execFileSync: mockExecFileSync }));
 
 import { pluginCommand } from "../../src/commands/plugin.js";
 
-describe("pluginCommand", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockListPlugins.mockReturnValue([]);
-    mockGetPlugin.mockReturnValue(undefined);
-    mockDeactivatePlugin.mockResolvedValue(undefined);
-  });
+async function run(...args: string[]) {
+	await pluginCommand.parseAsync(args, { from: "user" });
+}
 
-  async function runPlugin(...args: string[]) {
-    await pluginCommand.parseAsync(args, { from: "user" });
-  }
+describe("plugin install", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockWriteFile.mockResolvedValue(undefined);
+		mockMkdir.mockResolvedValue(undefined);
+	});
 
-  describe("plugin install <id>", () => {
-    it("calls registry.resolveRemote with id and default URL", async () => {
-      const mockEntry = {
-        manifest: { id: "my-plugin", version: "0.1.0" },
-        status: "registered"
-      };
-      mockResolveRemote.mockResolvedValue(mockEntry);
+	it("reports failure when npm package cannot be resolved", async () => {
+		mockRequireResolve.mockImplementation(() => {
+			throw new Error("MODULE_NOT_FOUND");
+		});
+		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await runPlugin("install", "my-plugin");
+		await run("install");
 
-      expect(mockResolveRemote).toHaveBeenCalledWith(
-        "my-plugin",
-        "https://registry.refarm.dev/plugins/my-plugin.json"
-      );
-    });
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("not found in node_modules"),
+		);
+		consoleSpy.mockRestore();
+	});
 
-    it("calls registry.resolveRemote with custom source URL when --source is provided", async () => {
-      const mockEntry = {
-        manifest: { id: "my-plugin", version: "0.1.0" },
-        status: "registered"
-      };
-      mockResolveRemote.mockResolvedValue(mockEntry);
+	it("reports failure when WASM file is missing", async () => {
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
+		mockReadFile.mockRejectedValue(new Error("ENOENT")); // no sentinel → needs install
+		mockExistsSync.mockReturnValue(false); // WASM not built
 
-      await runPlugin("install", "my-plugin", "--source", "https://custom.example.com/plugin.json");
+		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      expect(mockResolveRemote).toHaveBeenCalledWith(
-        "my-plugin",
-        "https://custom.example.com/plugin.json"
-      );
-    });
+		await run("install");
 
-    it("sets process.exitCode = 1 when resolveRemote throws", async () => {
-      mockResolveRemote.mockRejectedValue(new Error("Network error"));
-      const originalExitCode = process.exitCode;
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("WASM not found"),
+		);
+		consoleSpy.mockRestore();
+	});
 
-      await runPlugin("install", "bad-plugin");
+	it("skips install when already up-to-date (no --force)", async () => {
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
+		mockReadFile.mockResolvedValue("0.4.1"); // sentinel matches
 
-      expect(process.exitCode).toBe(1);
-      process.exitCode = originalExitCode; // restore
-    });
-  });
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-  describe("plugin list", () => {
-    it("calls registry.listPlugins()", async () => {
-      await runPlugin("list");
-      expect(mockListPlugins).toHaveBeenCalled();
-    });
+		await run("update"); // update = install with force=false
 
-    it("handles a non-empty registry", async () => {
-      mockListPlugins.mockReturnValue([
-        { manifest: { id: "plugin-a", version: "1.0.0" }, status: "active" }
-      ]);
-      // Should not throw
-      await expect(runPlugin("list")).resolves.not.toThrow();
-    });
-  });
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("already up-to-date"),
+		);
+		expect(mockCopyFileSync).not.toHaveBeenCalled();
+		consoleSpy.mockRestore();
+	});
 
-  describe("plugin remove <id>", () => {
-    it("sets process.exitCode = 1 when plugin not found", async () => {
-      mockGetPlugin.mockReturnValue(undefined);
-      const originalExitCode = process.exitCode;
+	it("reinstalls when --force is passed even if up-to-date", async () => {
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockReadFileSync
+			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" })) // package.json version
+			.mockReturnValueOnce(Buffer.from("wasm-bytes")) // WASM file bytes
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" })); // manifest
+		mockReadFile.mockResolvedValue("0.4.1"); // sentinel = same version
+		mockExistsSync.mockReturnValue(true);
+		mockDigest.mockReturnValue("deadbeef");
 
-      await runPlugin("remove", "unknown-plugin");
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-      expect(process.exitCode).toBe(1);
-      process.exitCode = originalExitCode;
-    });
+		await run("install", "--force");
 
-    it("calls deactivatePlugin when plugin is active", async () => {
-      mockGetPlugin.mockReturnValue({ manifest: { id: "active-plugin" }, status: "active" });
+		expect(mockCopyFileSync).toHaveBeenCalled();
+		consoleSpy.mockRestore();
+	});
+});
 
-      await runPlugin("remove", "active-plugin");
+describe("plugin list", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
 
-      expect(mockDeactivatePlugin).toHaveBeenCalledWith("active-plugin");
-    });
+	it("shows installed version from sentinel", async () => {
+		mockReadFile.mockResolvedValue("0.4.1");
 
-    it("does NOT call deactivatePlugin when plugin is not active", async () => {
-      mockGetPlugin.mockReturnValue({ manifest: { id: "idle-plugin" }, status: "registered" });
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-      await runPlugin("remove", "idle-plugin");
+		await run("list");
 
-      expect(mockDeactivatePlugin).not.toHaveBeenCalled();
-    });
-  });
+		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+		expect(output).toContain("@refarm/pi-agent");
+		expect(output).toContain("0.4.1");
+		consoleSpy.mockRestore();
+	});
 
-  describe("plugin search <query>", () => {
-    it("completes without error", async () => {
-      await expect(runPlugin("search", "weather")).resolves.not.toThrow();
-    });
-  });
+	it("shows 'not installed' when sentinel is missing", async () => {
+		mockReadFile.mockRejectedValue(new Error("ENOENT"));
 
-  describe("plugin bundle <input>", () => {
-    beforeEach(() => {
-      mockExecFileSync.mockReturnValue(undefined);
-    });
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    it("calls jco transpile with correct arguments", async () => {
-      await runPlugin("bundle", "my-plugin.wasm", "-o", "./out");
+		await run("list");
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        "npx",
-        expect.arrayContaining(["jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
-        expect.objectContaining({ stdio: "inherit" })
-      );
-    });
+		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+		expect(output).toContain("not installed");
+		consoleSpy.mockRestore();
+	});
+});
 
-    it("uses input filename as plugin name when --name not provided", async () => {
-      await runPlugin("bundle", "my-plugin.wasm");
+describe("plugin bundle", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockExecFileSync.mockReturnValue(undefined);
+	});
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        "npx",
-        expect.arrayContaining(["--name", "my-plugin"]),
-        expect.any(Object)
-      );
-    });
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
 
-    it("uses provided --name when given", async () => {
-      await runPlugin("bundle", "my-plugin.wasm", "--name", "custom-name");
+	it("calls jco transpile with correct arguments", async () => {
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        "npx",
-        expect.arrayContaining(["--name", "custom-name"]),
-        expect.any(Object)
-      );
-    });
+		await run("bundle", "my-plugin.wasm", "-o", "./out");
 
-    it("sets process.exitCode = 1 when execFileSync throws", async () => {
-      mockExecFileSync.mockImplementation(() => {
-        throw new Error("jco not found");
-      });
-      const originalExitCode = process.exitCode;
+		expect(mockExecFileSync).toHaveBeenCalledWith(
+			"jco",
+			expect.arrayContaining(["transpile", "my-plugin.wasm", "-o", "./out"]),
+			expect.objectContaining({ stdio: "inherit" }),
+		);
+		consoleSpy.mockRestore();
+	});
 
-      await runPlugin("bundle", "bad-plugin.wasm");
+	it("derives plugin name from filename when --name not provided", async () => {
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-      expect(process.exitCode).toBe(1);
-      process.exitCode = originalExitCode;
-    });
-  });
+		await run("bundle", "my-plugin.wasm");
+
+		expect(mockExecFileSync).toHaveBeenCalledWith(
+			"jco",
+			expect.arrayContaining(["--name", "my-plugin"]),
+			expect.any(Object),
+		);
+		consoleSpy.mockRestore();
+	});
+
+	it("uses --name when provided", async () => {
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("bundle", "my-plugin.wasm", "--name", "custom-name");
+
+		expect(mockExecFileSync).toHaveBeenCalledWith(
+			"jco",
+			expect.arrayContaining(["--name", "custom-name"]),
+			expect.any(Object),
+		);
+		consoleSpy.mockRestore();
+	});
+
+	it("sets process.exitCode = 1 when jco fails", async () => {
+		mockExecFileSync.mockImplementation(() => {
+			throw new Error("jco not found");
+		});
+		const originalExitCode = process.exitCode;
+		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("bundle", "bad-plugin.wasm");
+
+		expect(process.exitCode).toBe(1);
+		process.exitCode = originalExitCode;
+		consoleSpy.mockRestore();
+	});
 });

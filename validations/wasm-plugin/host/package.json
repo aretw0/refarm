@@ -22,8 +22,8 @@
     "@bytecodealliance/preview2-shim": "^0.17.9"
   },
   "devDependencies": {
-    "@refarm.dev/hello-world-plugin": "*",
-    "@refarm.dev/vtconfig": "*",
+    "@refarm.dev/hello-world-plugin": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*",
     "@playwright/test": "^1.59.1",
     "serve": "^14.2.6",
     "typescript": "^6.0.3",

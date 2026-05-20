@@ -16,6 +16,7 @@ Refarm is a unified architecture that manifests as distinct sub-ecosystems depen
 
 | Name | Role | Status |
 | :--- | :--- | :--- |
+| **Root** | Runtime environment detection primitives. Answers "where are we running?" (container, WSL, CI, TTY). | Active |
 | **Tractor** | The Core Engine / Microkernel. Orchestrates all plugins. | Stable |
 | **Homestead** | The primary user interface / Dashboard application. | Active |
 | **Sower** | Data Seeder / Provisioner. Handles initial state and migrations. | Active |
@@ -44,7 +45,6 @@ Refarm is a unified architecture that manifests as distinct sub-ecosystems depen
 | **Radio** | Two-way communication, broadcasting, tuning into frequencies. | Sync / Transport / PubSub |
 | **Pigeon** | Reliable, old-school message carrier. | Fallback Transport |
 | **Well** | The source of truth for the local environment. | Storage Facade |
-| **Root** | The deep connection to the underlying OS/Filesystem. | Low-level Adapter |
 
 ---
 

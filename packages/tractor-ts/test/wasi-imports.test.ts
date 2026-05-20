@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WasiImports } from "../src/lib/wasi-imports";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
@@ -259,21 +262,57 @@ describe("WasiImports — versioned WASI keys", () => {
 });
 
 // ---------------------------------------------------------------------------
-// LLM bridge behavior (mock opt-in + fail-closed credentials)
+// Drift prevention: every refarm:plugin/* import in the transpiled pi-agent
+// artifact must have a matching key registered by WasiImports.generate().
+// Skips when pi-agent hasn't been built yet (fresh checkout, CI pre-build).
+// To build: npm run build --workspace=@refarm.dev/pi-agent
 // ---------------------------------------------------------------------------
-describe("WasiImports — refarm:plugin/llm-bridge", () => {
+describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
+  it("every refarm:plugin/* import in _refarm_pi_agent.js has a host registration", () => {
+    const require = createRequire(import.meta.url);
+    const piAgentDir = dirname(require.resolve("@refarm.dev/pi-agent/package.json"));
+    const artifactPath = resolve(piAgentDir, "dist/jco/_refarm_pi_agent.js");
+
+    if (!existsSync(artifactPath)) {
+      console.warn("[drift-prevention] Skipping: pi-agent dist/jco not built. Run: npm run build --workspace=@refarm.dev/pi-agent");
+      return;
+    }
+
+    const js = readFileSync(artifactPath, "utf-8");
+
+    // Extract all unique 'refarm:plugin/X' strings from import statements.
+    const imported = new Set<string>();
+    for (const m of js.matchAll(/from\s+'(refarm:plugin\/[^']+)'/g)) {
+      imported.add(m[1]!.replace(/@[\d.]+$/, "")); // strip version suffix
+    }
+
+    const emit = vi.fn();
+    const logger = { debug: vi.fn(), warn: vi.fn(), info: vi.fn(), error: vi.fn() };
+    const wasi = new WasiImports("drift-check", logger, emit);
+    const generated = wasi.generate(createMockManifest(), "strict") as Record<string, unknown>;
+
+    for (const key of imported) {
+      expect(generated, `Host is missing registration for '${key}' — WIT was renamed but wasi-imports.ts was not updated`).toHaveProperty(key);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Model bridge behavior (mock opt-in + fail-closed credentials)
+// ---------------------------------------------------------------------------
+describe("WasiImports — refarm:plugin/model-bridge", () => {
   beforeEach(() => {
-    delete process.env.REFARM_MOCK_LLM_BODY;
+    delete process.env.REFARM_MOCK_MODEL_BODY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
   });
 
   it("fails closed when non-ollama provider has no credentials", () => {
     const { imports } = makeImports("strict");
-    const llmBridge = imports["refarm:plugin/llm-bridge"]!;
+    const modelBridge = imports["refarm:plugin/model-bridge"]!;
 
     expect(() =>
-      llmBridge["complete-http"]!(
+      modelBridge["complete-http"]!(
         "openai",
         "https://api.openai.com",
         "/v1/chat/completions",
@@ -283,17 +322,17 @@ describe("WasiImports — refarm:plugin/llm-bridge", () => {
     ).toThrow(/No credentials configured for provider "openai"/i);
   });
 
-  it("uses explicit REFARM_MOCK_LLM_BODY when provided", () => {
-    process.env.REFARM_MOCK_LLM_BODY = JSON.stringify({
+  it("uses explicit REFARM_MOCK_MODEL_BODY when provided", () => {
+    process.env.REFARM_MOCK_MODEL_BODY = JSON.stringify({
       id: "t1",
       choices: [{ message: { role: "assistant", content: "mocked from env" } }],
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
     });
 
     const { imports } = makeImports("strict");
-    const llmBridge = imports["refarm:plugin/llm-bridge"]!;
+    const modelBridge = imports["refarm:plugin/model-bridge"]!;
 
-    const bytes = llmBridge["complete-http"]!(
+    const bytes = modelBridge["complete-http"]!(
       "openai",
       "https://api.openai.com",
       "/v1/chat/completions",

@@ -2,15 +2,15 @@ use super::*;
 
 #[test]
 fn react_blocks_prompt_over_context_limit() {
-    std::env::set_var("LLM_MAX_CONTEXT_TOKENS", "1");
+    std::env::set_var("MODEL_MAX_CONTEXT_TOKENS", "1");
     let (content, _, tokens_in, _, _, _, model, _) = react("este prompt tem muitos tokens");
     assert!(
-        content.contains("LLM_MAX_CONTEXT_TOKENS"),
+        content.contains("MODEL_MAX_CONTEXT_TOKENS"),
         "deve mencionar o guard: {content}"
     );
     assert_eq!(tokens_in, 0);
     assert_eq!(model, "blocked");
-    std::env::remove_var("LLM_MAX_CONTEXT_TOKENS");
+    std::env::remove_var("MODEL_MAX_CONTEXT_TOKENS");
 }
 
 #[test]

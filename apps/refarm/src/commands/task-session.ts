@@ -152,7 +152,6 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 	) {
 		this.sessionsDir = path.join(baseDir, "sessions");
 		this.sessionFilePath = path.join(this.sessionsDir, "task-session.v1.json");
-		fs.mkdirSync(this.sessionsDir, { recursive: true });
 	}
 
 	rememberRun(input: { effort: Effort; transport: string }): void {
@@ -290,6 +289,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 	}
 
 	private writeState(state: TaskSessionCheckpoint): void {
+		fs.mkdirSync(this.sessionsDir, { recursive: true });
 		fs.writeFileSync(
 			this.sessionFilePath,
 			JSON.stringify(state, null, 2),

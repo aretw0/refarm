@@ -72,10 +72,24 @@ export class NodeSqliteStorageProvider implements StorageProvider {
 			);
 	}
 
+	async putMany(records: StorageRecord[]): Promise<void> {
+		for (const record of records) {
+			await this.put(record);
+		}
+	}
+
 	async delete(id: string): Promise<void> {
 		this.db
 			.prepare("DELETE FROM storage_records WHERE id = ?")
 			.run(id);
+	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		if (ids.length === 0) return;
+		const placeholders = ids.map(() => "?").join(", ");
+		this.db
+			.prepare(`DELETE FROM storage_records WHERE id IN (${placeholders})`)
+			.run(...ids);
 	}
 
 	async query(query: StorageQuery): Promise<StorageRecord[]> {

@@ -1,4 +1,4 @@
-import type { Tractor } from "@refarm.dev/tractor";
+import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 
 const FARMHAND_PLUGIN_ID = "farmhand";
 
@@ -11,7 +11,7 @@ export interface TaskExecutorInput {
 }
 
 export async function executeTask(
-	tractor: Pick<Tractor, "plugins" | "storeNode">,
+	tractor: RuntimeTaskTarget,
 	{ taskId, effortId, pluginId, fn, args }: TaskExecutorInput,
 ): Promise<void> {
 	const resultId = `urn:farmhand:task:result:${taskId}`;

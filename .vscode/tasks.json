@@ -1,0 +1,53 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "refarm: watch CLI",
+			"type": "shell",
+			"command": "npm run cli:dev",
+			"group": "build",
+			"isBackground": true,
+			"presentation": {
+				"label": "refarm watch",
+				"group": "dev",
+				"reveal": "silent",
+				"panel": "dedicated",
+				"showReuseMessage": false
+			},
+			"problemMatcher": {
+				"owner": "typescript",
+				"source": "ts",
+				"applyTo": "closedDocuments",
+				"fileLocation": ["relative", "${workspaceFolder}/apps/refarm"],
+				"pattern": {
+					"regexp": "^(.+)\\((\\d+),(\\d+)\\):\\s+(error|warning)\\s+(TS\\d+):\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"code": 5,
+					"message": 6
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "Starting compilation in watch mode",
+					"endsPattern": "Found 0 errors\\. Watching for file changes\\."
+				}
+			},
+			"runOptions": {
+				"runOn": "folderOpen"
+			}
+		},
+		{
+			"label": "refarm: build CLI once",
+			"type": "shell",
+			"command": "npm run cli:build",
+			"group": "build",
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			},
+			"problemMatcher": ["$tsc"]
+		}
+	]
+}

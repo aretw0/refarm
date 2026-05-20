@@ -115,7 +115,7 @@ function validateDiagrams() {
         }
         console.error("");
         console.error("To fix, run locally:");
-        console.error("  npm run diagrams:fix\n");
+        console.error("  pnpm run diagrams:fix\n");
         console.error("Then commit the regenerated .svg files.");
         if (!STRICT_SVG_SYNC) {
           console.warn("⚠️  SVG sync drift is advisory for this run (REFARM_DIAGRAM_SYNC_STRICT=0).");

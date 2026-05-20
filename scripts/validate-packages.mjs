@@ -1,0 +1,449 @@
+#!/usr/bin/env node
+// Validates that every package/* conforms to its canonical scaffold type.
+// Classification is automatic (no extra fields needed) with one escape hatch:
+//   "scaffold": { "type": "exempt", "reason": "..." } in package.json
+
+import { readdirSync, existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+
+const ROOT = resolve(import.meta.dirname, "..");
+const PACKAGES_DIR = join(ROOT, "packages");
+
+function readJson(path) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    throw new Error(`Failed to parse ${path}: ${err.message}`);
+  }
+}
+
+function classifyPackage(pkgDir) {
+  const pkg = readJson(join(pkgDir, "package.json"));
+  if (!pkg) return { type: "no-package-json" };
+
+  const scaffold = pkg.scaffold;
+  if (scaffold?.type === "exempt") return { type: "exempt", reason: scaffold.reason ?? "(no reason given)" };
+
+  const hasCargo = existsSync(join(pkgDir, "Cargo.toml"));
+  const scripts = pkg.scripts ?? {};
+  const main = pkg.main ?? "";
+  const exports = pkg.exports ?? {};
+
+  if (hasCargo && scripts["build:wasm"] && scripts["build:jco"]) return { type: "wasm-jco-component", pkg };
+  if (hasCargo && scripts["build:wasm"]) return { type: "wasm-component", pkg };
+  if (hasCargo) return { type: "rust-only" };
+
+  const buildScript = scripts.build ?? "";
+
+  // Behavioral contracts own a conformance suite definition (src/conformance.ts).
+  // Adapter packages run test:conformance against imported suites — they classify as buildable.
+  // Structural contracts are private type-shape packages without a runtime adapter surface.
+  const hasOwnConformanceDef =
+    existsSync(join(pkgDir, "src/conformance.ts")) || existsSync(join(pkgDir, "src/conformance.js"));
+  if (main.startsWith("./dist/") && hasOwnConformanceDef && buildScript.includes("tsc")) return { type: "contract-v1", pkg };
+  if (
+    pkg.private === true &&
+    typeof pkg.name === "string" &&
+    pkg.name.endsWith("-contract-v1") &&
+    main.startsWith("./dist/") &&
+    buildScript.includes("tsc") &&
+    !scripts["test:conformance"]
+  ) {
+    return { type: "structural-contract-v1", pkg };
+  }
+
+  if (/^\.\/src\/.+\.ts$/.test(main)) return { type: "source-only", pkg };
+  if (/^\.\/src\/.+\.(mjs|js)$/.test(main)) return { type: "js-tool", pkg };
+
+  if (
+    main.startsWith("./dist/src/") &&
+    buildScript.includes("tsc") &&
+    existsSync(join(pkgDir, "tsconfig.build.json"))
+  ) {
+    return { type: "hybrid-bindings-package", pkg };
+  }
+
+  const hasStylesExport = Object.keys(exports).some((k) => k.startsWith("./styles/"));
+  if (hasStylesExport && main.startsWith("./dist/")) return { type: "ui-library", pkg };
+
+  if ((main.startsWith("./dist/") || exportsToDist(exports)) && buildScript.includes("tsc")) {
+    return { type: "buildable", pkg };
+  }
+
+  if (!main && !buildScript) return { type: "config-pkg", pkg };
+
+  return { type: "unknown", pkg };
+}
+
+function exportsToDist(exports) {
+  if (typeof exports === "string") return exports.startsWith("./dist/");
+  if (typeof exports === "object") {
+    return Object.values(exports).some((v) =>
+      typeof v === "string"
+        ? v.startsWith("./dist/")
+        : v !== null && typeof v === "object" && Object.values(v).some((vv) => typeof vv === "string" && vv.startsWith("./dist/"))
+    );
+  }
+  return false;
+}
+
+function usesVtconfig(pkgDir, pkg) {
+  const devDeps = pkg.devDependencies ?? {};
+  return "@refarm.dev/vtconfig" in devDeps;
+}
+
+function hasWorkspaceDependency(pkg, name) {
+  const deps = pkg.dependencies ?? {};
+  const devDeps = pkg.devDependencies ?? {};
+  return name in deps || name in devDeps;
+}
+
+function hasScript(pkg, ...names) {
+  const scripts = pkg.scripts ?? {};
+  return names.every((n) => n in scripts);
+}
+
+function validateTestScriptRequiresTests(pkg) {
+  const violations = [];
+  const testScript = pkg.scripts?.test ?? "";
+  if (testScript.includes("--passWithNoTests")) {
+    violations.push('script "test" must not use --passWithNoTests unless package.json declares scaffold.type="exempt"');
+  }
+  return violations;
+}
+
+function noRawVitestDep(pkg) {
+  const devDeps = pkg.devDependencies ?? {};
+  return !("vitest" in devDeps);
+}
+
+function hasTestFiles(pkgDir) {
+  function scan(dir) {
+    if (!existsSync(dir)) return false;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === "dist") continue;
+      if (entry.isDirectory() && scan(join(dir, entry.name))) return true;
+      if (entry.isFile() && /\.(test|spec)\.(ts|js|tsx|jsx)$/.test(entry.name)) return true;
+    }
+    return false;
+  }
+  return scan(pkgDir);
+}
+
+function validateBuildable(pkgDir, pkg) {
+  const violations = [];
+
+  const tsconfig = readJson(join(pkgDir, "tsconfig.json"));
+  if (!tsconfig) {
+    violations.push("tsconfig.json missing");
+  } else {
+    const ext = [tsconfig.extends].flat();
+    if (!ext.some((e) => e?.includes("buildable.json"))) {
+      violations.push("tsconfig.json does not extend @refarm.dev/tsconfig/buildable.json");
+    }
+  }
+
+  const tsconfigBuild = readJson(join(pkgDir, "tsconfig.build.json"));
+  if (!tsconfigBuild) {
+    violations.push("tsconfig.build.json missing");
+  } else {
+    const ext = [tsconfigBuild.extends].flat();
+    if (!ext.some((e) => e?.includes("build.json"))) {
+      violations.push("tsconfig.build.json does not extend @refarm.dev/tsconfig/build.json");
+    }
+  }
+
+  if (!(pkg.scripts?.build ?? "").includes("tsc")) {
+    violations.push('script "build" must invoke tsc');
+  }
+
+  if (!hasWorkspaceDependency(pkg, "@refarm.dev/tsconfig")) {
+    violations.push('dependencies/devDependencies missing @refarm.dev/tsconfig');
+  }
+
+  const dot = pkg.exports?.["."];
+  if (!dot || typeof dot !== "object") {
+    violations.push('exports["."] must be an object with "import" and "types" fields');
+  } else {
+    if (!dot.import?.startsWith("./dist/")) violations.push('exports["."].import must point to dist/');
+    if (!dot.types?.startsWith("./dist/")) violations.push('exports["."].types must point to dist/');
+  }
+
+  const withTests = hasTestFiles(pkgDir);
+  if (!hasScript(pkg, "test")) violations.push('script "test" missing');
+  if (!hasScript(pkg, "lint")) violations.push('script "lint" missing');
+  if (withTests && !usesVtconfig(pkgDir, pkg)) violations.push('has test files but devDependencies missing @refarm.dev/vtconfig');
+  if (!noRawVitestDep(pkg)) violations.push('devDependencies has raw "vitest" — use @refarm.dev/vtconfig instead');
+
+  return violations;
+}
+
+function validateContractV1(pkgDir, pkg) {
+  // Contract-v1 is a buildable with extra script requirements
+  const violations = validateBuildable(pkgDir, pkg);
+
+  if (!hasScript(pkg, "test:unit")) violations.push('script "test:unit" missing (should run conformance.test.ts)');
+  if (!hasScript(pkg, "test:conformance")) violations.push('script "test:conformance" missing');
+
+  const inMemorySrc = existsSync(join(pkgDir, "src/in-memory.ts")) || existsSync(join(pkgDir, "src/in-memory.js"));
+  if (!inMemorySrc) violations.push("src/in-memory.ts missing (reference adapter required for contract-v1)");
+
+  return violations;
+}
+
+function validateStructuralContractV1(pkgDir, pkg) {
+  const violations = validateBuildable(pkgDir, pkg);
+
+  if (hasScript(pkg, "test:conformance")) {
+    violations.push('script "test:conformance" must not be declared for structural-contract-v1');
+  }
+
+  const hasOwnConformanceDef =
+    existsSync(join(pkgDir, "src/conformance.ts")) || existsSync(join(pkgDir, "src/conformance.js"));
+  if (hasOwnConformanceDef) {
+    violations.push("src/conformance.* present — use contract-v1 scaffold instead");
+  }
+
+  return violations;
+}
+
+function validateSourceOnly(pkgDir, pkg) {
+  const violations = [];
+
+  if (!existsSync(join(pkgDir, "tsconfig.json"))) {
+    violations.push("tsconfig.json missing");
+  }
+  if (existsSync(join(pkgDir, "tsconfig.build.json"))) {
+    violations.push("should not have tsconfig.build.json (source-only packages do not build)");
+  }
+  const buildScript = pkg.scripts?.build ?? "";
+  if (buildScript && buildScript.includes("tsc")) {
+    violations.push('script "build" should not compile TypeScript (source-only package)');
+  }
+
+  const withTests = hasTestFiles(pkgDir);
+  if (!hasScript(pkg, "test")) violations.push('script "test" missing');
+  if (withTests && !usesVtconfig(pkgDir, pkg)) violations.push('has test files but devDependencies missing @refarm.dev/vtconfig');
+  if (!noRawVitestDep(pkg)) violations.push('devDependencies has raw "vitest" — use @refarm.dev/vtconfig instead');
+
+  return violations;
+}
+
+function validateWasmComponent(pkgDir, pkg) {
+  const violations = [];
+
+  if (!existsSync(join(pkgDir, "Cargo.toml"))) violations.push("Cargo.toml missing");
+  if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
+  if (!pkg.scripts?.["build:transpile"]) violations.push('script "build:transpile" missing');
+  if (!pkg.scripts?.build) violations.push('script "build" missing');
+
+  return violations;
+}
+
+function validateWasmJcoComponent(pkgDir, pkg) {
+  const violations = [];
+
+  if (!existsSync(join(pkgDir, "Cargo.toml"))) violations.push("Cargo.toml missing");
+  if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
+  if (!pkg.scripts?.["build:jco"]) violations.push('script "build:jco" missing');
+  if (!pkg.scripts?.build) violations.push('script "build" missing');
+  if (!pkg.scripts?.test) violations.push('script "test" missing');
+  if (!pkg.scripts?.["test:unit"]) violations.push('script "test:unit" missing');
+
+  return violations;
+}
+
+function validateHybridBindingsPackage(pkgDir, pkg) {
+  const violations = [];
+  const tsconfig = readJson(join(pkgDir, "tsconfig.json"));
+  const tsconfigBuild = readJson(join(pkgDir, "tsconfig.build.json"));
+
+  if (!tsconfig) {
+    violations.push("tsconfig.json missing");
+  } else if (tsconfig.compilerOptions?.rootDir !== "..") {
+    violations.push('tsconfig.json compilerOptions.rootDir must be ".."');
+  }
+
+  if (!tsconfigBuild) {
+    violations.push("tsconfig.build.json missing");
+  } else {
+    if (tsconfigBuild.compilerOptions?.rootDir !== ".") {
+      violations.push('tsconfig.build.json compilerOptions.rootDir must be "."');
+    }
+    const includes = Array.isArray(tsconfigBuild.include) ? tsconfigBuild.include : [];
+    if (!includes.includes("src/**/*")) {
+      violations.push('tsconfig.build.json include missing "src/**/*"');
+    }
+    if (!includes.includes("test/test-utils.ts")) {
+      violations.push('tsconfig.build.json include missing "test/test-utils.ts"');
+    }
+  }
+
+  if (!pkg.main?.startsWith("./dist/src/")) {
+    violations.push("main must point to dist/src/");
+  }
+  if (!pkg.types?.startsWith("./dist/src/")) {
+    violations.push("types must point to dist/src/");
+  }
+
+  const dot = pkg.exports?.["."];
+  if (!dot || typeof dot !== "object") {
+    violations.push('exports["."] must be an object with "import" and "types" fields');
+  } else {
+    if (!dot.import?.startsWith("./dist/src/")) violations.push('exports["."].import must point to dist/src/');
+    if (!dot.types?.startsWith("./dist/src/")) violations.push('exports["."].types must point to dist/src/');
+  }
+
+  const testUtils = pkg.exports?.["./test/test-utils"];
+  if (!testUtils || typeof testUtils !== "object") {
+    violations.push('exports["./test/test-utils"] must be declared');
+  } else {
+    if (!testUtils.default?.startsWith("./dist/test/")) {
+      violations.push('exports["./test/test-utils"].default must point to dist/test/');
+    }
+    if (!testUtils.types?.startsWith("./dist/test/")) {
+      violations.push('exports["./test/test-utils"].types must point to dist/test/');
+    }
+  }
+
+  for (const script of ["build", "lint", "type-check", "type-check:dist", "test", "test:unit"]) {
+    if (!hasScript(pkg, script)) violations.push(`script "${script}" missing`);
+  }
+  if (!(pkg.scripts?.build ?? "").includes("tsc")) {
+    violations.push('script "build" must invoke tsc');
+  }
+  if (!hasWorkspaceDependency(pkg, "@refarm.dev/tsconfig")) {
+    violations.push('dependencies/devDependencies missing @refarm.dev/tsconfig');
+  }
+  if (!hasWorkspaceDependency(pkg, "@refarm.dev/vtconfig")) {
+    violations.push('dependencies/devDependencies missing @refarm.dev/vtconfig');
+  }
+  if (!noRawVitestDep(pkg)) violations.push('devDependencies has raw "vitest" — use @refarm.dev/vtconfig instead');
+
+  return violations;
+}
+
+function validateJsTool(pkgDir, pkg) {
+  const violations = [];
+
+  if (!pkg.main?.startsWith("./src/")) {
+    violations.push("main must point to src/");
+  }
+  if (existsSync(join(pkgDir, "tsconfig.build.json"))) {
+    violations.push("should not have tsconfig.build.json");
+  }
+
+  return violations;
+}
+
+function validateConfigPkg(pkgDir, pkg) {
+  const violations = [];
+
+  if (exportsToDist(pkg.exports ?? {})) {
+    violations.push("exports must not point to dist/ for config packages");
+  }
+  if (existsSync(join(pkgDir, "tsconfig.build.json"))) {
+    violations.push("should not have tsconfig.build.json");
+  }
+
+  return violations;
+}
+
+const APPS_DIR = join(ROOT, "apps");
+
+function validateApp(pkgDir, pkg) {
+  const violations = [];
+  const devDeps = pkg.devDependencies ?? {};
+  if (devDeps["vitest"] && !devDeps["@refarm.dev/vtconfig"]) {
+    violations.push('raw "vitest" devDep without @refarm.dev/vtconfig — use vtconfig for swap-readiness');
+  }
+  return violations;
+}
+
+const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
+  .filter((d) => d.isDirectory())
+  .map((d) => join(PACKAGES_DIR, d.name));
+
+const appDirs = existsSync(APPS_DIR)
+  ? readdirSync(APPS_DIR, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => join(APPS_DIR, d.name))
+  : [];
+
+let violations = 0;
+let exemptions = 0;
+
+console.log(`Validating ${packageDirs.length} packages, ${appDirs.length} apps...\n`);
+
+for (const pkgDir of packageDirs) {
+  const name = pkgDir.split("/").at(-1);
+  const { type, pkg, reason } = classifyPackage(pkgDir);
+
+  if (type === "exempt") {
+    console.log(`  ~ ${name.padEnd(30)} exempt — ${reason}`);
+    exemptions++;
+    continue;
+  }
+  if (type === "rust-only" || type === "no-package-json") {
+    continue;
+  }
+  if (type === "unknown") {
+    console.log(`  ? ${name.padEnd(30)} unknown type — cannot classify`);
+    violations++;
+    continue;
+  }
+
+  let pkgViolations = [];
+  if (type === "contract-v1") pkgViolations = validateContractV1(pkgDir, pkg);
+  else if (type === "structural-contract-v1") pkgViolations = validateStructuralContractV1(pkgDir, pkg);
+  else if (type === "buildable" || type === "ui-library") pkgViolations = validateBuildable(pkgDir, pkg);
+  else if (type === "source-only") pkgViolations = validateSourceOnly(pkgDir, pkg);
+  else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
+  else if (type === "wasm-jco-component") pkgViolations = validateWasmJcoComponent(pkgDir, pkg);
+  else if (type === "hybrid-bindings-package") pkgViolations = validateHybridBindingsPackage(pkgDir, pkg);
+  else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
+  else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
+  pkgViolations.push(...validateTestScriptRequiresTests(pkg));
+
+  if (pkgViolations.length === 0) {
+    console.log(`  ✓ ${name.padEnd(30)} ${type}`);
+  } else {
+    for (const v of pkgViolations) {
+      console.log(`  ✗ ${name.padEnd(30)} ${type} — ${v}`);
+      violations++;
+    }
+  }
+}
+
+for (const appDir of appDirs) {
+  const name = "apps/" + appDir.split("/").at(-1);
+  const pkg = readJson(join(appDir, "package.json"));
+  if (!pkg) continue;
+  if (pkg.scaffold?.type === "exempt") {
+    console.log(`  ~ ${name.padEnd(30)} exempt — ${pkg.scaffold.reason ?? "(no reason given)"}`);
+    exemptions++;
+    continue;
+  }
+  const appViolations = [
+    ...validateApp(appDir, pkg),
+    ...validateTestScriptRequiresTests(pkg),
+  ];
+  if (appViolations.length === 0) {
+    console.log(`  ✓ ${name.padEnd(30)} app`);
+  } else {
+    for (const v of appViolations) {
+      console.log(`  ✗ ${name.padEnd(30)} app — ${v}`);
+      violations++;
+    }
+  }
+}
+
+console.log();
+if (violations > 0) {
+  console.log(`${violations} violation(s) found.`);
+  console.log(`Run \`pnpm turbo gen package\` to scaffold new packages correctly.`);
+  process.exit(1);
+} else {
+  console.log(`All packages conform to their scaffold type. ${exemptions > 0 ? `(${exemptions} exempt)` : ""}`);
+}

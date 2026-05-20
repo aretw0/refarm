@@ -42,7 +42,9 @@ function createMockAdapter(overrides: Partial<MockTaskAdapter> = {}) {
 			pending: 0,
 			inProgress: 0,
 			done: 0,
+			partial: 0,
 			failed: 0,
+			timedOut: 0,
 			cancelled: 0,
 		} satisfies EffortSummary),
 	};
@@ -210,7 +212,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 				pending: 1,
 				inProgress: 0,
 				done: 0,
+				partial: 0,
 				failed: 0,
+				timedOut: 0,
 				cancelled: 0,
 			} satisfies EffortSummary),
 			list: vi.fn().mockResolvedValue([

@@ -1,8 +1,6 @@
-import type Tractor from "@refarm.dev/tractor";
+import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 import { describe, expect, it, vi } from "vitest";
 import { executeTask } from "./task-executor.js";
-
-type TractorForTask = Pick<Tractor, "plugins" | "storeNode">;
 
 const makeInstance = (callResult: unknown = { ok: true }) => ({
 	call: vi.fn().mockResolvedValue(callResult),
@@ -18,7 +16,7 @@ describe("executeTask", () => {
 		const instance = makeInstance({ value: 42 });
 		const tractor = makeTractor(instance);
 
-		await executeTask(tractor as unknown as TractorForTask, {
+		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t1",
 			effortId: "e1",
 			pluginId: "my-plugin",
@@ -39,7 +37,7 @@ describe("executeTask", () => {
 	it("writes error result when plugin is not loaded", async () => {
 		const tractor = makeTractor(undefined);
 
-		await executeTask(tractor as unknown as TractorForTask, {
+		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t2",
 			effortId: "e2",
 			pluginId: "missing-plugin",
@@ -59,7 +57,7 @@ describe("executeTask", () => {
 		const instance = { call: vi.fn().mockRejectedValue(new Error("boom")) };
 		const tractor = makeTractor(instance);
 
-		await executeTask(tractor as unknown as TractorForTask, {
+		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t3",
 			effortId: "e3",
 			pluginId: "p",
@@ -79,7 +77,7 @@ describe("executeTask", () => {
 		const instance = makeInstance({ content: "ok" });
 		const tractor = makeTractor(instance);
 
-		await executeTask(tractor as unknown as TractorForTask, {
+		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t4",
 			effortId: "e4",
 			pluginId: "pi-agent",

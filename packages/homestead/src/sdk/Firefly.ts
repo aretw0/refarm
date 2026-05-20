@@ -1,5 +1,10 @@
 /// <reference lib="dom" />
-import type { Tractor, TelemetryEvent } from "@refarm.dev/tractor";
+import { createHomesteadL8n, type L8nHost } from "./l8n-host.js";
+import type { StudioHost, StudioHostTelemetryEvent } from "./studio-host.js";
+
+export interface FireflyPluginOptions {
+	l8n?: L8nHost;
+}
 
 /**
  * Firefly Plugin (O Vagalume)
@@ -9,26 +14,32 @@ import type { Tractor, TelemetryEvent } from "@refarm.dev/tractor";
  * - Spotlight (Element focus for tutorials)
  */
 export class FireflyPlugin {
-  constructor(private tractor: Tractor) {
+  private readonly l8n: L8nHost;
+
+  constructor(private tractor: StudioHost, options: FireflyPluginOptions = {}) {
+    this.l8n = options.l8n ?? createHomesteadL8n();
     this.setupListeners();
     this.injectStyles();
   }
 
   private setupListeners() {
-    this.tractor.observe((data: TelemetryEvent) => {
+    this.tractor.observe((data: StudioHostTelemetryEvent) => {
       const payload = recordTelemetryPayload(data.payload);
       // Listen for system alerts
       if (data.event === "system:alert") {
-        this.showToast(String(payload.reason || "System Alert"), payload.severity === "error");
+        this.showToast(
+          String(payload.reason || this.l8n.t("refarm:core/system_alert")),
+          payload.severity === "error",
+        );
       }
 
       // Listen for update notifications (wired by Herald)
       if (data.event === "system:update_available") {
-        this.showToast("A new sovereign update is being prepared...");
+        this.showToast(this.l8n.t("refarm:core/update_available"));
       }
 
       if (data.event === "system:update_ready") {
-        this.showToast("Update ready. Cultivate now?", true);
+        this.showToast(this.l8n.t("refarm:core/update_ready"), true);
       }
 
       // Listen for guidance/spotlight events
@@ -109,7 +120,7 @@ export class FireflyPlugin {
           color: white; border: none; padding: 0.5rem 1rem;
           border-radius: 8px; cursor: pointer; font-weight: 600;
           font-size: 0.8rem;
-        ">Refresh</button>
+        ">${this.l8n.t("refarm:core/refresh")}</button>
       ` : `<div style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.1); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite;"></div>`}
     `;
 

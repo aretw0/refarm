@@ -348,7 +348,7 @@ describe("refarm tree list", () => {
 			expect.stringContaining("farmhand sidecar is not running"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("npm run farmhand:daemon"),
+			expect.stringContaining("refarm doctor"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});

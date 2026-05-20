@@ -59,12 +59,14 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
       - name: Ensure tests fail (Red Phase)
         run: |
           echo "🔍 Verifying Red Phase: Integration tests should FAIL."
           # We run only integration tests and expect them to exit with non-zero
           # If they PASS, it means the 'new' behavior isn't actually missing or a regression isn't being caught.
-          npm run test:integration && (echo "::error::Tests passed but were expected to FAIL in BDD Red Phase." && exit 1) || (echo "✅ Tests failed as expected for Red Phase." && exit 0)
+          pnpm run test:integration && (echo "::error::Tests passed but were expected to FAIL in BDD Red Phase." && exit 1) || (echo "✅ Tests failed as expected for Red Phase." && exit 0)
 
   tdd-gate:
     needs: phase-gates-summary
@@ -76,10 +78,12 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
       - name: Unit Tests and Coverage
         run: |
           # Enforce unit tests pass and check coverage
-          npm run test:unit -- --coverage
+          pnpm run test:unit -- --coverage
           # The coverage report should exist. Higher level thresholds are handled in vitest/turbo config.
 
   ddd-gate:

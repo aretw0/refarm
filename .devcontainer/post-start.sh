@@ -3,11 +3,55 @@ set -euo pipefail
 
 echo "[refarm-devcontainer] Post-start sanity check..."
 
+repair_owned_dir() {
+  local dir="$1"
+  mkdir -p "$dir" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      sudo mkdir -p "$dir"
+    else
+      return 0
+    fi
+  }
+  if [ ! -w "$dir" ] && command -v sudo >/dev/null 2>&1; then
+    sudo chown -R "$(id -u):$(id -g)" "$dir" || true
+  fi
+}
+
+ensure_pnpm() {
+  local pnpm_home="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+  repair_owned_dir /home/vscode/.local
+  repair_owned_dir /home/vscode/.local/state
+  repair_owned_dir /home/vscode/.local/share
+  repair_owned_dir "$pnpm_home"
+  repair_owned_dir "$pnpm_home/store"
+  repair_owned_dir /home/vscode/.config
+  repair_owned_dir /home/vscode/.cache
+
+  corepack prepare --activate || true
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    cat > "$pnpm_home/pnpm" <<'SH'
+#!/usr/bin/env bash
+exec corepack pnpm "$@"
+SH
+    chmod +x "$pnpm_home/pnpm"
+  fi
+}
+
 ensure_hooks() {
   if [ -d .git ] && [ ! -x .git/hooks/pre-push ]; then
     echo "[refarm-devcontainer] Installing git hooks..."
-    npm run hooks:install >/dev/null 2>&1 || true
+    pnpm run hooks:install >/dev/null 2>&1 || true
   fi
+}
+
+ensure_refarm_cli() {
+  if command -v refarm >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "[refarm-devcontainer] Installing missing refarm CLI shim..."
+  pnpm run cli:install >/dev/null 2>&1 || echo "[refarm-devcontainer][warn] Could not install refarm CLI shim. Run: pnpm run cli:install"
 }
 
 ensure_git_transport() {
@@ -66,9 +110,6 @@ check_rust_baseline() {
 check_agent_env() {
   local missing=()
 
-  if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-    missing+=("ANTHROPIC_API_KEY  → pi /login  ou  claude /login")
-  fi
   if [ -z "${GH_TOKEN:-}" ] && ! gh auth status >/dev/null 2>&1; then
     missing+=("GH_TOKEN           → gh auth login")
   fi
@@ -84,9 +125,34 @@ check_agent_env() {
   fi
 }
 
+check_coding_agent_tools() {
+  local missing=()
+
+  for tool in bwrap fd rg jq shellcheck shfmt pi; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      missing+=("$tool")
+    fi
+  done
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo "[refarm-devcontainer][warn] Missing coding-agent tools: ${missing[*]}"
+    echo "[refarm-devcontainer][warn] Rebuild the devcontainer so Dockerfile tool installs are applied."
+  fi
+
+  if command -v bwrap >/dev/null 2>&1; then
+    if ! bwrap --ro-bind / / true >/dev/null 2>&1; then
+      echo "[refarm-devcontainer][warn] bubblewrap is installed but cannot create namespaces."
+      echo "[refarm-devcontainer][warn] Rebuild/reopen with devcontainer runArgs, or enable unprivileged user namespaces on the host."
+    fi
+  fi
+}
+
+ensure_pnpm
 ensure_hooks
+ensure_refarm_cli
 ensure_git_transport
 check_rust_baseline
+check_coding_agent_tools
 check_agent_env
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

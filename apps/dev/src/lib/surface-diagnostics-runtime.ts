@@ -2,7 +2,7 @@ import { registerStudioPluginManifest } from "@refarm.dev/homestead/sdk/plugin-h
 import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 import type { HomesteadSurfaceTelemetryEvent } from "@refarm.dev/homestead/sdk/surface-inspector";
-import type { PluginInstance } from "@refarm.dev/tractor";
+import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import {
 	createStudioSurfaceDiagnosticsActionHandler,
 	createStudioSurfaceDiagnosticsContextProvider,
@@ -116,7 +116,7 @@ async function registerSurfaceDiagnosticsPlugins(
 				{ status: "validated" },
 			);
 		}
-		tractor.plugins.registerInternal(plugin as PluginInstance);
+		tractor.plugins.registerInternal(plugin as RuntimePluginHandle);
 	}
 }
 

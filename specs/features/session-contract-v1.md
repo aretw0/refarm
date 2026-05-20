@@ -10,9 +10,9 @@
 
 Graduates `Session` and `SessionEntry` out of pi-agent's private namespace
 (`urn:pi-agent:*`) into a formal platform capability contract. `session-contract-v1`
-is the base contract for conversation threads — agnostic of LLM branching semantics —
-consumable by LLM agents, messaging integrations (Telegram, Signal), and A2A
-coordination (ADR-052). Pi-agent extends the base with LLM-specific fields without
+is the base contract for conversation threads — agnostic of model branching semantics —
+consumable by model agents, messaging integrations (Telegram, Signal), and A2A
+coordination (ADR-052). Pi-agent extends the base with model-specific fields without
 coupling the contract: since CRDT nodes are schema-free (Extensibility Axiom A5),
 base consumers safely ignore the extra fields.
 
@@ -54,7 +54,7 @@ integrations that also consume sessions
    **Then** a `SessionEntry` node is written with the correct `parent_entry_id` chain  
    and the entry survives a session restart
 
-4. **Given** pi-agent stores LLM-specific fields (`leaf_entry_id`, `name`) alongside
+4. **Given** pi-agent stores model-specific fields (`leaf_entry_id`, `name`) alongside
    the base contract fields  
    **When** a base-contract consumer reads the same `Session` node  
    **Then** it receives only the base fields and does not error on the extra CRDT fields
@@ -107,7 +107,7 @@ consumers (implement the adapter):
 **Key decisions:**
 
 - The base contract covers the minimum required by any thread consumer: create, get,
-  update, appendEntry. LLM-specific features (branching, leaf tracking, naming) are
+  update, appendEntry. Model-specific features (branching, leaf tracking, naming) are
   pi-agent's concern, not the contract's.
 - `SessionEntry` is append-only (no update/delete) and linked via `parent_entry_id`
   for branch-safe history walks — a linked list that works correctly under CRDT

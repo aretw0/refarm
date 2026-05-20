@@ -42,7 +42,16 @@ export function withWasmBrowserConfig(overrides = {}) {
 }
 
 /**
- * Helper to generate aliases for Vitest based on current environment (src vs dist).
+ * Generate Vitest resolve aliases switching between src and dist.
+ *
+ * Env vars (must be declared in turbo.json `env` for cache correctness):
+ *   VITEST_USE_DIST=true          — all workspace packages resolve via dist/
+ *   VITEST_FORCE_DIST=pkg1,pkg2   — only the listed packages resolve via dist/
+ *
+ * Use cases:
+ *   VITEST_USE_DIST=true pnpm -C packages/foo run test   # test against built artifacts
+ *   VITEST_FORCE_DIST=@refarm.dev/barn pnpm run test     # isolate one published dep
+ *
  * @param {string} root - The root directory of the monorepo.
  */
 export function getAliases(root) {

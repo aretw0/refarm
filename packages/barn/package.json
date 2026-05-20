@@ -1,20 +1,27 @@
 {
-  "name": "@refarm.dev/barn",
-  "version": "0.1.0",
-  "description": "Barn: Machinery Manager for the Refarm ecosystem.",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run",
-    "lint": "eslint src"
-  },
-  "dependencies": {
-    "@refarm.dev/tractor": "*",
-    "@refarm.dev/plugin-manifest": "*"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
-  }
+	"name": "@refarm.dev/barn",
+	"version": "0.1.0",
+	"description": "Barn: Machinery Manager for the Refarm ecosystem.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/plugin-manifest": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

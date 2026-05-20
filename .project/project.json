@@ -84,27 +84,32 @@
 		}
 	],
 	"progress_snapshot": {
-		"id": "SNAPSHOT-2026-04-24-B",
-		"window": "checkpoint-lote-next",
+		"id": "SNAPSHOT-2026-05-12",
+		"window": "post-PR22-daily-driver-cycle",
 		"tasks": {
 			"planned": 0,
 			"in_progress": 0,
-			"completed": 90
+			"completed": 373
 		},
-		"verification": {
-			"passed": 114,
-			"partial": 17,
-			"failed": 0,
-			"skipped": 1
-		},
+		"milestones_reached": [
+			"PR #22 merged: develop == main (342 commits squashed)",
+			"refarm provision cloudflare turbo-cache: end-to-end funcional",
+			"Remote Turborepo cache ativo em CI (TURBO_API + TURBO_TOKEN)",
+			"CI hardening: smoke build-order check no pre-push hook",
+			"WASM turbo cache: artefatos copiados para dist/ em todos pacotes Rust",
+			"0 vulnerabilidades (mermaid CVE resolvido)",
+			"health auditor: 0 falsos positivos, branding neutro"
+		],
 		"risks": [
-			"DEC-026 permanece em revisit até enforcement técnico da política offline de revogação.",
-			"Novo ciclo técnico deve abrir tasks frescas para evitar backlog zerado artificial."
+			"DEC-036 pendente: arquitetura TUI ainda nao decidida antes de scaffoldar.",
+			"refarm configure github nao construido — usuarios ainda rodam gh secret set manualmente.",
+			"coverage em storage-sqlite e context-provider-v1 ainda ausente."
 		],
 		"next_steps": [
-			"Executar compactação e retomar com lote técnico novo (~10 slices) partindo do plano publicado.",
-			"Abrir tasks de implementação para policy offline revocation e migração progressiva pi→Refarm.",
-			"Monitorar CI pós-push com ritual curto e registrar evidência no handoff."
+			"Spec TUI daily driver: specs/features/tui-daily-driver.md + ADR DEC-036",
+			"Implementar refarm tui: REPL interativo com streaming e reload",
+			"refarm configure github: le silo, aplica gh secret set",
+			"Coverage: storage-sqlite e context-provider-v1 (50% minimo)"
 		]
 	},
 	"status": "development",

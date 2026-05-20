@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { describe, expect, it, vi } from "vitest";
 import type { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
@@ -133,10 +132,92 @@ describe("refarm.me runtime", () => {
 });
 
 function createMeDocument(): Document {
+	const document = createDocumentFixture();
 	const loading = document.createElement("div");
 	loading.id = REFARM_ME_LOADING_ID;
 	document.body.replaceChildren(loading);
+	return document as unknown as Document;
+}
+
+function createDocumentFixture() {
+	const elementsById = new Map<string, ElementFixture>();
+	const document = {
+		body: undefined as unknown as ElementFixture,
+		createElement: (tagName: string) => createElementFixture(tagName),
+		getElementById: (id: string) => {
+			const element = elementsById.get(id);
+			return element && element.parent ? element : null;
+		},
+		registerElement: (element: ReturnType<typeof createElementFixture>) => {
+			if (element.id) elementsById.set(element.id, element);
+			for (const child of element.children) document.registerElement(child);
+		},
+	};
+	document.body = createElementFixture("body", document.registerElement);
 	return document;
+}
+
+interface ElementFixture {
+	tagName: string;
+	className: string;
+	style: Record<string, string>;
+	parent: ElementFixture | null;
+	children: ElementFixture[];
+	appendChild(child: ElementFixture): ElementFixture;
+	replaceChildren(...nextChildren: ElementFixture[]): void;
+	remove(): void;
+	textContent: string;
+	id: string;
+}
+
+function createElementFixture(
+	tagName: string,
+	onChildrenChanged?: (element: ElementFixture) => void,
+): ElementFixture {
+	let elementId = "";
+	let ownText = "";
+	const children: ElementFixture[] = [];
+	const element: ElementFixture = {
+		tagName: tagName.toUpperCase(),
+		className: "",
+		style: {} as Record<string, string>,
+		parent: null,
+		children,
+		appendChild: (child: ElementFixture) => {
+			child.parent = element;
+			children.push(child);
+			onChildrenChanged?.(element);
+			return child;
+		},
+		replaceChildren: (...nextChildren: ElementFixture[]) => {
+			children.splice(0, children.length);
+			for (const child of nextChildren) {
+				child.parent = element;
+				children.push(child);
+			}
+			onChildrenChanged?.(element);
+		},
+		remove: () => {
+			if (!element.parent) return;
+			const siblings = element.parent.children;
+			const index = siblings.indexOf(element);
+			if (index >= 0) siblings.splice(index, 1);
+			element.parent = null;
+		},
+		get textContent() {
+			return ownText + children.map((child) => child.textContent).join("");
+		},
+		set textContent(value: string) {
+			ownText = value;
+		},
+		get id() {
+			return elementId;
+		},
+		set id(value: string) {
+			elementId = value;
+		},
+	};
+	return element;
 }
 
 function createTractorFixture() {

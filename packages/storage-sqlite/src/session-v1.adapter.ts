@@ -110,8 +110,14 @@ function createFallbackStorageProvider(): StorageProvider {
 		async put(record) {
 			rows.set(record.id, record);
 		},
+		async putMany(records) {
+			for (const record of records) rows.set(record.id, record);
+		},
 		async delete(id) {
 			rows.delete(id);
+		},
+		async deleteMany(ids) {
+			for (const id of ids) rows.delete(id);
 		},
 		async query(query) {
 			let values = [...rows.values()];
@@ -185,6 +191,16 @@ export function createSessionV1StorageAdapter(
 				updatedAt: new Date().toISOString(),
 			});
 			return updated;
+		},
+
+		async delete(id) {
+			await provider.delete(id);
+			const entryRecords = await provider.query({ type: SESSION_ENTRY_RECORD_TYPE });
+			const entryIds = entryRecords
+				.map((r) => asSessionEntry(parsePayload<SessionEntry>(r)))
+				.filter((e): e is SessionEntry => e !== null && e.session_id === id)
+				.map((e) => e["@id"]);
+			await provider.deleteMany(entryIds);
 		},
 
 		async appendEntry(entryInput) {

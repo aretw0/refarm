@@ -16,8 +16,10 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
+    "coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",
     "clean": "rm -rf dist"
   },
   "keywords": [
@@ -41,7 +43,8 @@
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
   }
 }

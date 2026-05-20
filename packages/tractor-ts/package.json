@@ -32,8 +32,8 @@
 		"lint": "eslint src",
 		"type-check": "tsc --project tsconfig.json --noEmit",
 		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-		"test": "npm run test:unit",
-		"test:unit": "vitest run --passWithNoTests",
+		"test": "vitest run",
+		"test:unit": "vitest run test/smoke.test.ts",
 		"coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
 		"coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",
 		"bench": "vitest bench test/stress.bench.ts",
@@ -44,21 +44,26 @@
 		"runtime-module:descriptor": "node scripts/generate-browser-runtime-module-descriptor.mjs",
 		"runtime-module:verify": "node scripts/verify-browser-runtime-module-descriptor.mjs",
 		"runtime-module:smoke": "node scripts/smoke-browser-runtime-module-descriptor.mjs",
-		"runtime-module:ci": "npm run runtime-module:smoke"
+		"runtime-module:ci": "pnpm run runtime-module:smoke"
 	},
 	"dependencies": {
-		"@noble/ed25519": "^3.1.0",
-		"@refarm.dev/identity-contract-v1": "*",
-		"@refarm.dev/plugin-manifest": "*",
-		"@refarm.dev/registry": "*",
-		"@refarm.dev/storage-contract-v1": "*",
-		"@refarm.dev/sync-contract-v1": "*"
+		"@bytecodealliance/jco": "catalog:",
+		"@bytecodealliance/preview2-shim": "^0.17.3",
+		"@noble/ed25519": "catalog:",
+		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/registry": "workspace:*",
+		"@refarm.dev/storage-contract-v1": "workspace:*",
+		"@refarm.dev/sync-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
-		"@refarm.dev/hello-world-plugin": "*",
-		"@refarm.dev/eslint-config": "*",
-		"@refarm.dev/tsconfig": "*",
-		"nostr-tools": "^2.23.3"
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/hello-world-plugin": "workspace:*",
+		"@refarm.dev/pi-agent": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"nostr-tools": "catalog:",
+		"@refarm.dev/deps": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",
 	"publishConfig": {

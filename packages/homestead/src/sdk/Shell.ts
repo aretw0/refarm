@@ -1,22 +1,31 @@
 import {
 	applyStreamChunkEventToMap,
 	applyStreamSessionEventToMap,
-	L8nHost,
-	TRACTOR_LOG_PRIORITY,
-} from "@refarm.dev/tractor";
+	type StreamChunkEvent,
+	type StreamChunkStateMap,
+	type StreamSessionEvent,
+	type StreamSessionStateMap,
+} from "./stream-state.js";
 import type {
-	StreamChunkEvent,
-	StreamChunkStateMap,
-	StreamSessionEvent,
-	StreamSessionStateMap,
-	Tractor,
-	PluginInstance,
-	SovereignNode,
-	TelemetryEvent,
-} from "@refarm.dev/tractor";
+	StudioHost,
+	StudioHostNode,
+	StudioHostPlugin,
+	StudioHostTelemetryEvent,
+} from "./studio-host.js";
 type ViteImportMeta = ImportMeta & { env?: { BASE_URL?: string } };
 
+type HomesteadLogLevel = "silent" | "error" | "warn" | "info" | "debug";
+
+const HOMESTEAD_LOG_PRIORITY: Record<HomesteadLogLevel, number> = {
+	silent: 0,
+	error: 1,
+	warn: 2,
+	info: 3,
+	debug: 4,
+};
+
 import { A11yGuard } from "./A11yGuard.js";
+import { createHomesteadL8n, L8nHost } from "./l8n-host.js";
 import {
 	resolveHomesteadSurfaceActivationPlan,
 	type HomesteadSurfaceMount,
@@ -39,9 +48,6 @@ import {
 	type HomesteadSurfaceRenderResult,
 } from "./surface-renderer.js";
 
-import en from "@refarm.dev/locales/en.json";
-import ptBR from "@refarm.dev/locales/pt-BR.json";
-
 export interface ShellSlot {
 	id: string;
 	element: HTMLElement;
@@ -63,30 +69,21 @@ export class StudioShell {
 	private streamChunks: StreamChunkStateMap = {};
 
 	constructor(
-		private tractor: Tractor,
+		private tractor: StudioHost,
 		private options: StudioShellOptions = {},
 	) {
-		this.l8n = new L8nHost();
-		this.setupL8n();
+		this.l8n = createHomesteadL8n();
 		this.discoverSlots();
 	}
 
-	private setupL8n() {
-		// 1. Detect Browser Locale
-		const locale = navigator.language.split("-")[0] || "en";
-		this.l8n.setLocale(locale);
-
-		// 2. Register Bootloader Bundle (PT/EN)
-		this.l8n.registerKeys("refarm:core", en);
-
-		if (locale === "pt") {
-			this.l8n.registerKeys("refarm:core", ptBR);
-		}
-	}
-
 	private shouldLog(level: "info" | "warn" | "error"): boolean {
+		const logLevel = this.tractor.logLevel;
+		const current =
+			logLevel && logLevel in HOMESTEAD_LOG_PRIORITY
+				? (logLevel as HomesteadLogLevel)
+				: "info";
 		return (
-			TRACTOR_LOG_PRIORITY[this.tractor.logLevel] >= TRACTOR_LOG_PRIORITY[level]
+			HOMESTEAD_LOG_PRIORITY[current] >= HOMESTEAD_LOG_PRIORITY[level]
 		);
 	}
 
@@ -120,7 +117,7 @@ export class StudioShell {
 		this.updateStatus(this.l8n.t("refarm:core/loading"));
 
 		// Listen for system events
-		this.tractor.observe((data: TelemetryEvent) => {
+		this.tractor.observe((data: StudioHostTelemetryEvent) => {
 			const payload = recordTelemetryPayload(data.payload);
 			if (data.event === "system:switch-tier") {
 				const tier = typeof payload.tier === "string" ? payload.tier : "";
@@ -177,7 +174,7 @@ export class StudioShell {
 		this.updateStatus(this.l8n.t("refarm:core/status_ready"));
 	}
 
-	private resolveSurfaceTrustStatus(plugin: PluginInstance) {
+	private resolveSurfaceTrustStatus(plugin: StudioHostPlugin) {
 		const entry = plugin.manifest.entry ?? "";
 		if (entry.startsWith("internal:")) {
 			return { trusted: true, source: "internal-entry" };
@@ -218,7 +215,7 @@ export class StudioShell {
 	}
 
 	private setupStreamObservationSubscriber() {
-		this.tractor.onNode("StreamSession", async (node: SovereignNode) => {
+		this.tractor.onNode("StreamSession", async (node: StudioHostNode) => {
 			this.streamSessions = applyStreamSessionEventToMap(
 				this.streamSessions,
 				node as StreamSessionEvent,
@@ -226,7 +223,7 @@ export class StudioShell {
 			this.renderStreamObservationPanel();
 		});
 
-		this.tractor.onNode("StreamChunk", async (node: SovereignNode) => {
+		this.tractor.onNode("StreamChunk", async (node: StudioHostNode) => {
 			this.streamChunks = applyStreamChunkEventToMap(
 				this.streamChunks,
 				node as StreamChunkEvent,
@@ -252,7 +249,10 @@ export class StudioShell {
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamObserver = "true";
-				panel.setAttribute("aria-label", "Live agent streams");
+				panel.setAttribute(
+					"aria-label",
+					this.l8n.t("refarm:core/live_agent_streams"),
+				);
 				panel.style.display = "inline-flex";
 				panel.style.gap = "0.5rem";
 				panel.style.marginLeft = "1rem";
@@ -262,7 +262,7 @@ export class StudioShell {
 			}
 
 			panel.hidden = views.length === 0;
-			panel.innerHTML = renderStreamStatusbarHtml(views);
+			panel.innerHTML = renderStreamStatusbarHtml(views, this.l8n);
 		}
 
 		if (streamSlot) {
@@ -272,12 +272,15 @@ export class StudioShell {
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamPanel = "true";
-				panel.setAttribute("aria-label", "Live agent stream panel");
+				panel.setAttribute(
+					"aria-label",
+					this.l8n.t("refarm:core/live_agent_stream_panel"),
+				);
 				streamSlot.appendChild(panel);
 			}
 
 			panel.hidden = views.length === 0;
-			panel.innerHTML = renderStreamPanelHtml(views);
+			panel.innerHTML = renderStreamPanelHtml(views, this.l8n);
 			streamSlot.hidden =
 				views.length === 0 &&
 				!streamSlot.querySelector("[data-refarm-plugin-id]");
@@ -291,7 +294,7 @@ export class StudioShell {
 		const helpNodes = await this.tractor.getHelpNodes();
 		const seedNode =
 			helpNodes.find(
-				(n: SovereignNode) => n["refarm:renderType"] === "landing",
+				(n: StudioHostNode) => n["refarm:renderType"] === "landing",
 			) || helpNodes[0];
 		if (!seedNode) return;
 
@@ -307,15 +310,15 @@ export class StudioShell {
           
           <div class="landing-actions" style="display: flex; gap: 1.5rem; justify-content: center;">
             <a href="${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
-              Cultivate your soil
+              ${this.l8n.t("refarm:core/get_started")}
             </a>
             <button id="try-guest-mode" class="btn-secondary" style="padding: 1rem 2.5rem; background: transparent; color: var(--refarm-text-primary); border: 2px solid var(--refarm-border-default); border-radius: 50px; font-weight: 600; cursor: pointer;">
-              Try Guest Mode
+              ${this.l8n.t("refarm:core/try_guest_mode")}
             </button>
           </div>
 
           <div class="semantic-preview" style="margin-top: 6rem; text-align: left; padding: 2rem; border-radius: 20px; background: rgba(0,0,0,0.03); border: 1px dashed var(--refarm-border-default);">
-            <small style="text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5;">Sovereign Node Raw Data</small>
+            <small style="text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5;">${this.l8n.t("refarm:core/raw_node_data")}</small>
             <pre style="margin-top: 1rem; font-size: 0.8rem; color: var(--refarm-accent-secondary); overflow: auto;">${JSON.stringify(seedNode, null, 2)}</pre>
           </div>
         </div>
@@ -359,8 +362,8 @@ export class StudioShell {
 				card.addEventListener("click", () => {
 					const intent = card.getAttribute("data-intent");
 					if (intent === "switch-to-guest") this.tractor.switchTier("guest");
-					if (intent === "switch-to-citizen")
-						this.tractor.switchTier("citizen");
+					if (intent === "switch-to-persistent")
+						this.tractor.switchTier("persistent");
 				});
 			});
 
@@ -376,11 +379,11 @@ export class StudioShell {
         <div class="help-grid" style="display: grid; gap: 1.5rem;">
           ${helpNodes
 						.map(
-							(node: SovereignNode) => `
+							(node: StudioHostNode) => `
             <div class="help-card" style="padding: 1.5rem; border: 1px solid var(--refarm-border-default); border-radius: 12px; background: var(--refarm-bg-secondary);">
               <h3 style="margin-bottom: 0.5rem; color: var(--refarm-accent-primary);">${node.name}</h3>
               <p style="font-size: 0.9rem; color: var(--refarm-text-secondary);">${node.text}</p>
-              <small style="display: block; margin-top: 1rem; opacity: 0.5;">Source: ${node["refarm:sourcePlugin"]}</small>
+              <small style="display: block; margin-top: 1rem; opacity: 0.5;">${this.l8n.t("refarm:core/source_label", { source: String(node["refarm:sourcePlugin"] ?? "") })}</small>
             </div>
           `,
 						)
@@ -459,7 +462,7 @@ export class StudioShell {
 			const locale = this.l8n.getLocale();
 
 			// Automatic i18n Registration
-			if (plugin?.manifest.i18n) {
+			if (plugin?.manifest?.i18n) {
 				const bundle = plugin.manifest.i18n;
 
 				if (typeof bundle === "object") {
@@ -522,7 +525,7 @@ export class StudioShell {
 
 			const api = this.tractor.plugins.findByApi?.(`${pluginId}:ui`);
 			if (api) {
-				pluginWrap.innerHTML = `<small>Plugin ${pluginId} active in ${slotId}</small>`;
+				pluginWrap.innerHTML = `<small>${this.l8n.t("refarm:core/plugin_active_in_slot", { pluginId, slotId })}</small>`;
 			}
 		} catch (e) {
 			this.logError(`[shell] Failed to render plugin ${pluginId}`, e);
@@ -675,7 +678,7 @@ function recordTelemetryPayload(payload: unknown): Record<string, unknown> {
 }
 
 export async function setupStudioShell(
-	tractor: Tractor,
+	tractor: StudioHost,
 	options: StudioShellOptions = {},
 ): Promise<StudioShell> {
 	const shell = new StudioShell(tractor, options);

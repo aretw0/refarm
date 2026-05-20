@@ -202,8 +202,20 @@ export class StorageSqliteV1Provider implements StorageProvider {
     this.rows.set(record.id, record);
   }
 
+  async putMany(records: StorageRecord[]): Promise<void> {
+    for (const record of records) {
+      this.rows.set(record.id, record);
+    }
+  }
+
   async delete(id: string): Promise<void> {
     this.rows.delete(id);
+  }
+
+  async deleteMany(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      this.rows.delete(id);
+    }
   }
 
   async query(query: StorageQuery): Promise<StorageRecord[]> {

@@ -17,7 +17,7 @@ Two memory primitives are missing:
 
 - **Durable work items** — tasks that outlive a single agent session, usable by both human
   users and agents from the same base schema.
-- **Conversation threads** — session context shared across LLM agents, messaging integrations
+- **Conversation threads** — session context shared across MODEL agents, messaging integrations
   (Telegram, Signal), and future A2A coordination (ADR-052).
 
 `pi-agent` currently owns both (`Session`/`SessionEntry` CRDT nodes) under the `urn:pi-agent:*`
@@ -184,8 +184,8 @@ export function runTaskV1Conformance(
 
 **Location**: `packages/session-contract-v1`  
 **Capability constant**: `"session:v1"`  
-**Scope**: Conversation threads — LLM agents, messaging integrations, A2A coordination.
-The base contract is agnostic of LLM branching semantics.
+**Scope**: Conversation threads — MODEL agents, messaging integrations, A2A coordination.
+The base contract is agnostic of MODEL branching semantics.
 
 ### Node schemas
 
@@ -286,7 +286,7 @@ export function runSessionV1Conformance(
 
 ## Pi-agent migration
 
-Pi-agent extends `session-contract-v1` with LLM-specific fields without coupling the contract:
+Pi-agent extends `session-contract-v1` with MODEL-specific fields without coupling the contract:
 
 ```
 // session-contract-v1 base (platform)

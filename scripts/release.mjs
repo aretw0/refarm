@@ -70,7 +70,7 @@ async function main() {
   let newVersion;
   if (["patch", "minor", "major"].includes(versionBump)) {
     console.log(`   Bumping: ${versionBump}`);
-    const { stdout } = await execAsync(`npm version ${versionBump} --no-git-tag-version`, {
+    const { stdout } = await execAsync(`pnpm version ${versionBump} --no-git-tag-version`, {
       cwd: packageDir,
     });
     newVersion = stdout.trim().replace(/^v/, "");
@@ -92,16 +92,16 @@ async function main() {
 
   try {
     console.log("   - Type checking...");
-    await execAsync("npm run type-check", { cwd: packageDir });
+    await execAsync("pnpm run type-check", { cwd: packageDir });
 
     console.log("   - Building...");
-    await execAsync("npm run build", { cwd: packageDir });
+    await execAsync("pnpm run build", { cwd: packageDir });
 
     console.log("   - Testing conformance...");
-    await execAsync("npm run test:capabilities", { cwd: process.cwd() });
+    await execAsync("pnpm run test:capabilities", { cwd: process.cwd() });
 
     console.log("   - Dry-run publish...");
-    await execAsync("npm publish --dry-run", { cwd: packageDir });
+    await execAsync("pnpm publish --dry-run", { cwd: packageDir });
   } catch (error) {
     console.error("\n❌ Validation failed:");
     console.error(error.stdout || error.stderr || error.message);

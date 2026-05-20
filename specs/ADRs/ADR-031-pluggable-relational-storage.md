@@ -20,7 +20,7 @@ Previously, the focus was primarily on a single SQLite-backed engine with applic
 **Current Challenges**:
 
 - **Innovation Velocity**: New technologies like `cr-sqlite` (native SQLite CRDT extension) and `PGLite` (Postgres in WASM) offer powerful alternatives but require different integration strategies.
-- **AI/LLM Integration**: Future support for `WebLLM` and `WebGPU` requires efficient vector storage and embedding management, which might be better suited for specific engines (e.g., PGLite for vector extensions).
+- **AI/Model Integration**: Future support for `WebLLM` and `WebGPU` requires efficient vector storage and embedding management, which might be better suited for specific engines (e.g., PGLite for vector extensions).
 - **Vendor Lock-in**: Hard-coding the kernel to a specific storage engine limits the ability to pivot or allow developers to choose the best engine for their plugins.
 
 ---
@@ -52,7 +52,7 @@ Key aspects of this decision:
 **Cons:** "Mathematical nightmare" of manual reconciliation, harder to optimize for complex graph queries.
 
 ### Chosen: Pluggable Multi-Engine Architecture
-**Rationale**: Future-proofs the platform for WebGPU/WebLLM integration and allows the project to benefit from the best-in-class storage technologies as they evolve.
+**Rationale**: Future-proofs the platform for WebGPU/model integration and allows the project to benefit from the best-in-class storage technologies as they evolve.
 
 ---
 

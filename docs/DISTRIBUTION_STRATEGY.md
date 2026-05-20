@@ -61,9 +61,6 @@ Para evitar isso, o projeto passa a assumir explicitamente dois registros comple
 1. docs/DEVELOPMENT_RESOLUTION.md
    - regra canonica de como e por que a resolucao funciona
 
-2. docs/RESOLUTION_MATRIX.md
-   - snapshot do estado atual e superficie alvo de cada classe de pacote
-
 Essa separacao existe para que a transicao futura para publish nao exija redescobrir o significado de cada alias, export ou excecao.
 
 ---
@@ -120,4 +117,3 @@ Em fluxos de desenvolvimento continuo, o uso de dev/watch continua sendo o meio 
 - specs/ADRs/ADR-001-monorepo-structure.md
 - specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md
 - docs/DEVELOPMENT_RESOLUTION.md
-- docs/RESOLUTION_MATRIX.md

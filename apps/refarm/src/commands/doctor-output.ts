@@ -20,6 +20,7 @@ export function formatRefarmDoctorReportJson(
 			failures: report.failures,
 			warnings: report.warnings,
 			informational: report.informational,
+			recommendations: report.recommendations,
 			host: report.host,
 			status: JSON.parse(formatRefarmStatusJson(report.status)),
 		},
@@ -60,6 +61,17 @@ export function printRefarmDoctorReport(
 		log("Info:");
 		for (const code of report.informational) {
 			log(`  - ${code}`);
+		}
+	}
+
+	const blockingRecommendations = report.recommendations.filter(
+		(item) => item.severity !== "info",
+	);
+	if (blockingRecommendations.length > 0) {
+		log("Recommendations:");
+		for (const item of blockingRecommendations) {
+			log(`  - ${item.diagnostic}: ${item.summary}`);
+			log(`    ${item.action}`);
 		}
 	}
 }

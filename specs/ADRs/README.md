@@ -65,7 +65,7 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 | [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+      | Manifest schema + PolicyManager + PerformanceMonitor implementation |
 | [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0 | ConflictDetector + GraphMonitor + UI implementation                 |
 | [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+      | LockManager + UI patterns + merge strategies implementation         |
-| [053](ADR-053-host-proxied-llm-streaming.md)              | Host-Proxied LLM Streaming Boundary                             | Accepted    | v0.1.x       | Initial host-proxied text and tool-call streaming implemented       |
+| [053](ADR-053-host-proxied-model-streaming.md)           | Host-Proxied Model Streaming Boundary                           | Accepted    | v0.1.x       | Initial host-proxied text and tool-call streaming implemented       |
 | [054](ADR-054-generic-stream-observations.md)             | Generic Stream Observations and AgentResponse Projection        | Accepted    | v0.1.x       | Generic stream dual-write; governed compaction guardrails pending   |
 
 ---

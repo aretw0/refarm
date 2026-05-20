@@ -23,7 +23,7 @@ function maskWithTail(value: string, visible: number): string {
  * real-time — matching the convention used by tools like Claude Code.
  * The full value is captured silently; only the tail is displayed.
  */
-export const secretInput = createPrompt<string, SecretInputConfig>(
+export const secretInput: ReturnType<typeof createPrompt<string, SecretInputConfig>> = createPrompt<string, SecretInputConfig>(
 	(config, done) => {
 		const visible = config.visibleTail ?? 4;
 		const theme = makeTheme({});

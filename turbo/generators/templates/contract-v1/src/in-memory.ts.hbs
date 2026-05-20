@@ -1,0 +1,30 @@
+import type { {{pascalName}}ContractAdapter, {{pascalName}}Item } from "./types.js";
+
+function defaultId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Reference in-memory adapter for {{name}}.
+ * Used by the conformance suite and as a test double in downstream packages.
+ * Not intended for production use.
+ */
+export function createInMemory{{pascalName}}Adapter(): {{pascalName}}ContractAdapter {
+  const store = new Map<string, {{pascalName}}Item>();
+
+  return {
+    async create(item) {
+      const entry: {{pascalName}}Item = { ...item, "@id": defaultId() };
+      store.set(entry["@id"], entry);
+      return entry;
+    },
+
+    async get(id) {
+      return store.get(id) ?? null;
+    },
+
+    async delete(id) {
+      store.delete(id);
+    },
+  };
+}

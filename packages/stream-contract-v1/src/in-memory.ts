@@ -8,8 +8,10 @@ export class InMemoryStreamTransport implements StreamTransportAdapter {
 		string,
 		Set<(chunk: StreamChunk) => void>
 	>();
+	private readonly cancelled = new Set<string>();
 
 	write(chunk: StreamChunk): void {
+		if (this.cancelled.has(chunk.stream_ref)) return;
 		const stream = this.stored.get(chunk.stream_ref) ?? [];
 		stream.push(chunk);
 		this.stored.set(chunk.stream_ref, stream);
@@ -29,5 +31,10 @@ export class InMemoryStreamTransport implements StreamTransportAdapter {
 		set.add(onChunk);
 		this.subscribers.set(stream_ref, set);
 		return () => set.delete(onChunk);
+	}
+
+	cancel(stream_ref: string): void {
+		this.cancelled.add(stream_ref);
+		this.subscribers.get(stream_ref)?.clear();
 	}
 }

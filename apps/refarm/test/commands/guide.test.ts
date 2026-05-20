@@ -36,7 +36,7 @@ describe("guideCommand", () => {
     await guideCommand.parseAsync([], { from: "user" });
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       expect.stringContaining(".md"),
-      expect.stringContaining("# Sovereign"),
+      expect.stringContaining("# Setup Audit"),
     );
   });
 

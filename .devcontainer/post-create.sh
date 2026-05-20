@@ -24,6 +24,35 @@ retry() {
   done
 }
 
+repair_owned_dir() {
+  local dir="$1"
+  mkdir -p "$dir" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      sudo mkdir -p "$dir"
+    else
+      return 0
+    fi
+  }
+  if [ ! -w "$dir" ] && command -v sudo >/dev/null 2>&1; then
+    sudo chown -R "$(id -u):$(id -g)" "$dir" || true
+  fi
+}
+
+ensure_pnpm() {
+  local pnpm_home="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+  repair_owned_dir "$pnpm_home"
+
+  corepack prepare --activate || warn "corepack prepare failed"
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    cat > "$pnpm_home/pnpm" <<'SH'
+#!/usr/bin/env bash
+exec corepack pnpm "$@"
+SH
+    chmod +x "$pnpm_home/pnpm"
+  fi
+}
+
 log "Starting post-create setup..."
 
 # 0) Git symlink support — must run before any checkout/npm ci
@@ -34,20 +63,33 @@ log "Ensuring git core.symlinks=true for Linux devcontainer..."
 git config core.symlinks true
 git ls-files -s | awk '/^120000/ {print $4}' | xargs -r git checkout -- 2>/dev/null || true
 
+log "Configuring git encoding for PT-BR filenames..."
+git config core.quotepath false
+git config i18n.commitEncoding UTF-8
+git config i18n.logOutputEncoding UTF-8
+
 # 1) Cache and tool directories
 log "Preparing cache directories and permissions..."
 for dir in \
-  /home/vscode/.npm \
+  /home/vscode/.local \
+  /home/vscode/.local/state \
+  /home/vscode/.local/share \
+  /home/vscode/.local/share/pnpm \
+  /home/vscode/.local/share/pnpm/store \
+  /home/vscode/.config \
   /home/vscode/.npm-global \
   /home/vscode/.npm-global/bin \
+  /home/vscode/.refarm \
+  /home/vscode/.pi \
+  /home/vscode/.claude \
+  /home/vscode/.codex \
   /home/vscode/.turbo \
   /home/vscode/.cache \
   /home/vscode/.cache/ms-playwright \
   /home/vscode/.cache/puppeteer \
   /home/vscode/.cargo-target
   do
-  mkdir -p "$dir"
-  sudo chown -R vscode:vscode "$dir"
+  repair_owned_dir "$dir"
 done
 
 # Cargo/Rustup volumes may mount with non-vscode ownership; ensure toolchain is writable
@@ -77,12 +119,13 @@ if gh auth status -h github.com >/dev/null 2>&1; then
 fi
 
 # 2) Node dependencies
-if [ -f package-lock.json ]; then
-  log "Running npm ci..."
-  npm ci
+ensure_pnpm
+if [ -f pnpm-lock.yaml ]; then
+  log "Running pnpm install --frozen-lockfile..."
+  pnpm install --frozen-lockfile --config.confirm-modules-purge=false
 else
-  log "No package-lock.json found, running npm install..."
-  npm install
+  log "No pnpm-lock.yaml found, running pnpm install..."
+  pnpm install --config.confirm-modules-purge=false
 fi
 
 # 3) Rust baseline parity for local/CI checks
@@ -98,9 +141,6 @@ log "Installing Playwright browsers and AI agent tools in parallel..."
 retry 2 npx playwright install --with-deps &
 PW_PID=$!
 
-retry 2 npm install -g @anthropic-ai/claude-code &
-CLAUDE_PID=$!
-
 retry 2 npm install -g @mermaid-js/mermaid-cli &
 MMDC_PID=$!
 
@@ -108,24 +148,25 @@ retry 2 cargo install mdt_cli --locked --version 0.7.0 &
 MDT_PID=$!
 
 (
-  retry 2 npm install -g @mariozechner/pi-coding-agent || { warn "Pi install failed. Run: npm install -g @mariozechner/pi-coding-agent"; exit 0; }
+  retry 2 pnpm add -g @earendil-works/pi-coding-agent || { warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"; exit 0; }
   retry 2 npm install -g @aretw0/pi-stack || { warn "pi-stack install failed. Run: npm install -g @aretw0/pi-stack"; exit 0; }
   if command -v pi >/dev/null 2>&1; then
-    # Run install.mjs directly to avoid IS_MAIN=false when invoked via bin symlink
     node "$(npm root -g)/@aretw0/pi-stack/install.mjs" || warn "pi-stack setup failed. Run: node \$(npm root -g)/@aretw0/pi-stack/install.mjs"
   fi
 ) &
 PI_PID=$!
 
 wait $PW_PID     || warn "Playwright browser installation failed. Retry: npx playwright install --with-deps"
-wait $CLAUDE_PID || warn "Claude Code install failed. Run: npm install -g @anthropic-ai/claude-code"
 wait $MMDC_PID   || warn "mermaid-cli install failed. Run: npm install -g @mermaid-js/mermaid-cli"
 wait $MDT_PID    || warn "mdt_cli install failed. Run: cargo install mdt_cli --locked --version 0.7.0"
-wait $PI_PID     || true
+wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"
 
 # 5) Finalize
+log "Installing refarm CLI shim..."
+pnpm run cli:install || warn "Could not install refarm CLI shim. Retry: pnpm run cli:install"
+
 log "Installing git hooks..."
-npm run hooks:install || warn "Could not install git hooks automatically"
+pnpm run hooks:install || warn "Could not install git hooks automatically"
 
 if [ -f scripts/factory-preflight.mjs ]; then
   log "Running factory preflight..."
@@ -134,15 +175,21 @@ fi
 
 log "Tool versions:"
 node --version || true
-npm --version || true
+pnpm --version || true
 rustc --version || true
 cargo --version || true
 cargo-component --version || true
 wasm-tools --version || true
 npx playwright --version || true
 gh --version 2>/dev/null | head -1 || true
+rg --version 2>/dev/null | head -1 || true
+fd --version 2>/dev/null || true
+bwrap --version 2>/dev/null || true
+jq --version 2>/dev/null || true
+shellcheck --version 2>/dev/null | head -1 || true
+shfmt --version 2>/dev/null || true
+hyperfine --version 2>/dev/null || true
 pi --version 2>/dev/null || true
-claude --version 2>/dev/null || true
 mmdc --version 2>/dev/null || true
 
 log "Post-create setup complete."

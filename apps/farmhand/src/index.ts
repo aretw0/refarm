@@ -10,9 +10,10 @@
  *  - FarmhandTask nodes → execute the plugin function, write result back to graph
  */
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { SiloCore } from "@refarm.dev/silo";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
@@ -22,20 +23,32 @@ import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
+import { loadConfigAsync } from "@refarm.dev/config";
+import type {
+	RuntimeHost,
+	RuntimePluginLoaderTarget,
+} from "@refarm.dev/runtime";
+import { autoInstallPlugins } from "./auto-install-plugins.js";
+import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
+import { LocalExtensionRegistry } from "./local-extensions.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
+import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import {
 	FileTransportAdapter,
 	type TaskExecutorFn,
 } from "./transports/file.js";
 import { HttpSidecar } from "./transports/http.js";
+import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
+import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
+const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
 const FARMHAND_PLUGIN_ID = "farmhand";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -94,7 +107,7 @@ function createEphemeralIdentity(): IdentityAdapter {
  * loads the plugin into the Tractor instance.
  */
 async function handlePluginRoute(
-	tractor: Tractor,
+	tractor: RuntimePluginLoaderTarget,
 	node: Record<string, unknown>,
 ): Promise<void> {
 	const assignedTo = node["plugin:assignedTo"] as string | undefined;
@@ -136,7 +149,7 @@ async function handlePluginRoute(
  * After execution you should write a FarmhandTaskResult node via tractor.storeNode().
  */
 async function handleFarmhandTask(
-	tractor: Tractor,
+	tractor: RuntimeHost,
 	node: Record<string, unknown>,
 ): Promise<void> {
 	const assignedTo = node["task:assignedTo"] as string | undefined;
@@ -152,8 +165,132 @@ async function handleFarmhandTask(
 	});
 }
 
+const MODEL_ENV_KEY: Record<string, string> = {
+	anthropic: "ANTHROPIC_API_KEY",
+	openai: "OPENAI_API_KEY",
+	groq: "GROQ_API_KEY",
+	mistral: "MISTRAL_API_KEY",
+	xai: "XAI_API_KEY",
+	deepseek: "DEEPSEEK_API_KEY",
+	together: "TOGETHER_API_KEY",
+	openrouter: "OPENROUTER_API_KEY",
+	gemini: "GEMINI_API_KEY",
+};
+
+interface OAuthCreds { access: string; refresh: string; expires: number }
+
+const OAUTH_TOKEN_URLS: Record<string, string> = {
+	anthropic: "https://platform.claude.com/v1/oauth/token",
+	"openai-codex": "https://auth.openai.com/oauth/token",
+};
+const OAUTH_CLIENT_IDS: Record<string, string> = {
+	anthropic: "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+	"openai-codex": "app_EMoamEEZ73f0CkXaXp7hrann",
+};
+
+async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
+	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
+	const clientId = OAUTH_CLIENT_IDS[oauthProvider];
+	if (!tokenUrl || !clientId) return null;
+	try {
+		const isOpenAI = oauthProvider === "openai-codex";
+		const body = isOpenAI
+			? new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, refresh_token: creds.refresh })
+			: JSON.stringify({ grant_type: "refresh_token", client_id: clientId, refresh_token: creds.refresh });
+		const headers = isOpenAI
+			? { "content-type": "application/x-www-form-urlencoded" }
+			: { "content-type": "application/json", accept: "application/json" };
+		const res = await fetch(tokenUrl, { method: "POST", headers, body, signal: AbortSignal.timeout(15_000) });
+		if (!res.ok) return null;
+		const d = isOpenAI
+			? (await res.json()) as { access_token: string; refresh_token: string; expires_in: number }
+			: JSON.parse(await res.text()) as { access_token: string; refresh_token: string; expires_in: number };
+		return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000 - 300_000 };
+	} catch {
+		return null;
+	}
+}
+
+async function injectSiloModelEnv(): Promise<void> {
+	try {
+		const silo = new SiloCore();
+		const tokens = (await silo.loadTokens()) as Record<string, unknown>;
+		const provider = tokens.modelProvider as string | undefined;
+		const oauthProvider = tokens.oauthProvider as string | undefined;
+
+		if (provider && !process.env.MODEL_PROVIDER) {
+			process.env.MODEL_PROVIDER = provider;
+		}
+
+		// OAuth path: use (and possibly refresh) stored OAuth token
+		if (oauthProvider) {
+			const allOAuth = (tokens.oauthCredentials ?? {}) as Record<string, OAuthCreds>;
+			let creds = allOAuth[oauthProvider];
+			if (creds) {
+				if (Date.now() >= creds.expires) {
+					const refreshed = await refreshOAuthToken(oauthProvider, creds);
+					if (refreshed) {
+						creds = refreshed;
+						await silo.saveTokens({
+							oauthCredentials: { ...allOAuth, [oauthProvider]: refreshed },
+						});
+					} else {
+						console.warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} — agent may fail`);
+						return; // Don't inject an expired token
+					}
+				}
+				const envKey = MODEL_ENV_KEY[provider ?? oauthProvider];
+				if (envKey && !process.env[envKey]) {
+					process.env[envKey] = creds.access;
+				}
+				return;
+			}
+		}
+
+		// API key fallback
+		const apiKey = tokens.modelApiKey as string | undefined;
+		if (apiKey && provider) {
+			const envKey = MODEL_ENV_KEY[provider];
+			if (envKey && !process.env[envKey]) {
+				process.env[envKey] = apiKey;
+			}
+		}
+	} catch {
+		// Silo unavailable — farmhand-start.sh .env fallback still applies
+	}
+}
+
+async function injectConfigEnv(): Promise<void> {
+	try {
+		const cfgPath = path.join(os.homedir(), ".refarm", "config.json");
+		const raw = await readFile(cfgPath, "utf8").catch(() => null);
+		if (!raw) return;
+		const cfg = JSON.parse(raw) as Record<string, unknown>;
+
+		const envMap: Record<string, string> = {
+			MODEL_FS_ROOT:            "MODEL_FS_ROOT",
+			MODEL_SHELL_ALLOWLIST:    "MODEL_SHELL_ALLOWLIST",
+			MODEL_HISTORY_TURNS:      "MODEL_HISTORY_TURNS",
+			MODEL_TOOL_CALL_MAX_ITER: "MODEL_TOOL_CALL_MAX_ITER",
+			MODEL_STREAM_RESPONSES:   "MODEL_STREAM_RESPONSES",
+			MODEL_SYSTEM:             "MODEL_SYSTEM",
+		};
+
+		for (const [cfgKey, envKey] of Object.entries(envMap)) {
+			const v = cfg[cfgKey];
+			if (v !== undefined && v !== null && !process.env[envKey]) {
+				process.env[envKey] = String(v);
+			}
+		}
+	} catch {
+		// config injection is best-effort
+	}
+}
+
 async function main() {
 	console.log(`[farmhand] Booting (id=${FARMHAND_ID})...`);
+	await injectSiloModelEnv();
+	await injectConfigEnv();
 
 	// CQRS: LoroDoc is the write model; memoryStorage is the read model.
 	// LoroCRDTStorage implements both StorageAdapter and SyncAdapter.
@@ -169,13 +306,63 @@ async function main() {
 		logLevel: "info",
 		forceGuestMode: true,
 	});
+	const runtime = tractor as unknown as RuntimeHost;
 
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
-	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
+	const farmhandBaseDir = process.env.FARMHAND_DATA_DIR ?? path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
+
+	const config = await loadConfigAsync().catch((err: unknown) => {
+		console.warn("[farmhand] Failed to load config, skipping auto-install:", err instanceof Error ? err.message : String(err));
+		return {};
+	});
+	const autoEntries: unknown[] = Array.isArray(config?.plugins?.autoInstall)
+		? (config.plugins.autoInstall as unknown[])
+		: [];
+
+	const pluginsDir = path.join(farmhandBaseDir, "plugins");
+	await mkdir(pluginsDir, { recursive: true });
+
+	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
+	// Loaded first so project-local extensions can override bundled plugins like pi-agent.
+	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
+	const localExtSummary = await localExtRegistry.load(runtime);
+	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
+		console.log(
+			`[farmhand] Local extensions: loaded=${localExtSummary.loaded} skipped=${localExtSummary.skipped}`,
+		);
+	}
+
+	// Phase 1: Bundled plugins — auto-install from co-located npm packages
+	const defaultBundled: BundledEntry[] = [
+		{
+			id: "@refarm/pi-agent",
+			package: "@refarm.dev/pi-agent",
+			wasmFile: "dist/pi_agent.wasm",
+		},
+	];
+	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)
+		? (config.plugins.bundled as BundledEntry[])
+		: [];
+	const bundledEntries = process.env.FARMHAND_SKIP_BUNDLED_INSTALL === "1"
+		? []
+		: [...defaultBundled, ...configBundled];
+	const bundledSummary = await bundleInstallPlugins(bundledEntries, pluginsDir);
+	console.log(
+		`[farmhand] Bundled install: installed=${bundledSummary.installed} cached=${bundledSummary.cached} failed=${bundledSummary.failed}`,
+	);
+
+	// Phase 2: Auto-install from URLs (config.plugins.autoInstall)
+	if (autoEntries.length > 0) {
+		const autoSummary = await autoInstallPlugins(autoEntries, pluginsDir);
+		console.log(
+			`[farmhand] Auto-install: installed=${autoSummary.installed} cached=${autoSummary.cached} failed=${autoSummary.failed}`,
+		);
+	}
+
 	const loadSummary = await loadInstalledPlugins(
-		tractor as unknown as Parameters<typeof loadInstalledPlugins>[0],
+		runtime,
 		farmhandBaseDir,
 	);
 	if (loadSummary.loaded > 0 || loadSummary.skipped > 0) {
@@ -185,10 +372,11 @@ async function main() {
 	}
 
 	const taskDbPath = path.join(farmhandBaseDir, "task-memory.db");
+	const taskMemoryAdapter = createTaskV1StorageAdapter({
+		provider: createNodeSqliteStorageProvider(taskDbPath),
+	});
 	const taskMemoryBridge = createTaskMemoryBridge({
-		adapter: createTaskV1StorageAdapter({
-			provider: createNodeSqliteStorageProvider(taskDbPath),
-		}),
+		adapter: taskMemoryAdapter,
 		actorUrn: `urn:refarm:farmhand:${FARMHAND_ID}`,
 	});
 	console.log(`[farmhand] Task memory persisted to ${taskDbPath}`);
@@ -210,7 +398,7 @@ async function main() {
 		}
 
 		const captureTractor = {
-			plugins: tractor.plugins,
+			plugins: runtime.plugins,
 			storeNode: async (node: Record<string, unknown>) => {
 				status = node["task:status"] as "ok" | "error";
 				const rawResult = node["task:result"];
@@ -227,7 +415,7 @@ async function main() {
 			},
 		};
 
-		await executeTask(captureTractor as unknown as Parameters<typeof executeTask>[0], {
+		await executeTask(captureTractor, {
 			taskId: task.id,
 			effortId,
 			pluginId: task.pluginId,
@@ -249,15 +437,22 @@ async function main() {
 		return { status, result, error };
 	};
 
+	const pluginTracker = new PluginUsageTracker();
 	const fileTransport = new FileTransportAdapter(
 		farmhandBaseDir,
 		taskExecutorFn,
+		{
+			onEffortStart: (effortId, pluginIds) => pluginTracker.registerEffort(effortId, pluginIds),
+			onEffortEnd:   (effortId)            => pluginTracker.releaseEffort(effortId),
+		},
 	);
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
-	const httpSidecar = new HttpSidecar(42001, fileTransport);
-	httpSidecar.addRouteHandler(createSessionsRouteHandler(tractor));
+	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport);
+	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
+	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
+	httpSidecar.addRouteHandler(createPluginsRouteHandler(runtime, farmhandBaseDir, pluginTracker, localExtRegistry));
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
 
@@ -274,7 +469,7 @@ async function main() {
 	streamRegistry.register(fileStreamTransport);
 	streamRegistry.register(sseStreamTransport);
 	streamRegistry.register(wsStreamTransport);
-	tractor.onNode("StreamChunk", async (node) => {
+	runtime.onNode("StreamChunk", async (node) => {
 		streamRegistry.dispatch(toStreamChunk(node as Record<string, unknown>));
 	});
 	console.log(
@@ -282,7 +477,7 @@ async function main() {
 	);
 
 	// Write initial presence node (goes into LoroDoc, projected to read model)
-	await tractor.storeNode({
+	await runtime.storeNode({
 		"@context": "https://schema.refarm.dev/",
 		"@type": "FarmhandPresence",
 		"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
@@ -306,13 +501,13 @@ async function main() {
 	storage.onUpdate((bytes) => transport.broadcast(bytes));
 
 	// Subscribe to CRDT node changes via the high-level reactive API
-	tractor.onNode("PluginRoute", (node) => handlePluginRoute(tractor, node));
-	tractor.onNode("FarmhandTask", (node) => handleFarmhandTask(tractor, node));
+	runtime.onNode("PluginRoute", (node) => handlePluginRoute(runtime, node));
+	runtime.onNode("FarmhandTask", (node) => handleFarmhandTask(runtime, node));
 
 	// Periodic heartbeat: refresh FarmhandPresence every 30 seconds
 	const heartbeatTimer = setInterval(async () => {
 		try {
-			await tractor.storeNode({
+			await runtime.storeNode({
 				"@context": "https://schema.refarm.dev/",
 				"@type": "FarmhandPresence",
 				"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
@@ -333,7 +528,7 @@ async function main() {
 		stopFileWatcher();
 		await httpSidecar.stop();
 		await transport.disconnect();
-		await tractor.shutdown?.();
+		await runtime.shutdown?.();
 		process.exit(0);
 	}
 

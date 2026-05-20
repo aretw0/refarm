@@ -9,7 +9,7 @@
 
 ## O que é o Pi Agent neste contexto
 
-Pi é o agente coding mínimo — terminal-first, zero overhead de UI. Expõe exatamente 4 ferramentas atômicas ao LLM:
+Pi é o agente coding mínimo — terminal-first, zero overhead de UI. Expõe exatamente 4 ferramentas atômicas ao MODEL:
 
 | Tool | Semântica |
 |------|-----------|

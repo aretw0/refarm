@@ -1,5 +1,5 @@
 {
-  "_note": "Template only — entry and integrity are injected by scripts/pi-agent-install.mjs at install time",
+  "_note": "Template only — farmhand auto-installs pi-agent on boot via bundleInstallPlugin. For manual install: refarm agent install. Entry and integrity are injected at install time.",
   "id": "@refarm/pi-agent",
   "name": "Pi Agent",
   "version": "0.1.0",

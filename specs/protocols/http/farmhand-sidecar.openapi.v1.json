@@ -1,0 +1,1091 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Farmhand Sidecar API",
+		"version": "1.0.0",
+		"description": "HTTP protocol implemented by the local farmhand sidecar and consumed by refarm CLI commands."
+	},
+	"servers": [
+		{
+			"url": "http://127.0.0.1:42001",
+			"description": "Default local sidecar"
+		}
+	],
+	"paths": {
+		"/efforts": {
+			"post": {
+				"operationId": "submitEffort",
+				"summary": "Submit an effort for asynchronous processing",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/Effort"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Effort accepted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["effortId"],
+									"properties": {
+										"effortId": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			},
+			"get": {
+				"operationId": "listEfforts",
+				"summary": "List known effort results",
+				"responses": {
+					"200": {
+						"description": "Effort result list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/EffortResult"
+									}
+								}
+							}
+						}
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/efforts/summary": {
+			"get": {
+				"operationId": "getEffortSummary",
+				"summary": "Get aggregate effort status counts",
+				"responses": {
+					"200": {
+						"description": "Effort summary",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EffortSummary"
+								}
+							}
+						}
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/efforts/{effortId}": {
+			"get": {
+				"operationId": "getEffort",
+				"summary": "Get a single effort result",
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/EffortId"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Effort result",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/EffortResult"
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/efforts/{effortId}/logs": {
+			"get": {
+				"operationId": "getEffortLogs",
+				"summary": "Get log entries for an effort",
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/EffortId"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Effort log entries",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/EffortLogEntry"
+									}
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/efforts/{effortId}/retry": {
+			"post": {
+				"operationId": "retryEffort",
+				"summary": "Request retry for an effort",
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/EffortId"
+					}
+				],
+				"responses": {
+					"202": {
+						"$ref": "#/components/responses/Accepted"
+					},
+					"409": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/efforts/{effortId}/cancel": {
+			"post": {
+				"operationId": "cancelEffort",
+				"summary": "Request cancellation for an effort",
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/EffortId"
+					}
+				],
+				"responses": {
+					"202": {
+						"$ref": "#/components/responses/Accepted"
+					},
+					"409": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/sessions": {
+			"get": {
+				"operationId": "listSessions",
+				"summary": "List session nodes",
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 200
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Session list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["sessions"],
+									"properties": {
+										"sessions": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/SessionNode"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/Error"
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			},
+			"post": {
+				"operationId": "createSession",
+				"summary": "Create a session node",
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Created session",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["session"],
+									"properties": {
+										"session": {
+											"$ref": "#/components/schemas/SessionNode"
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/Error"
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/tasks": {
+			"get": {
+				"operationId": "listTasks",
+				"summary": "List persisted agent tasks",
+				"parameters": [
+					{
+						"name": "status",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"$ref": "#/components/schemas/TaskStatus"
+						}
+					},
+					{
+						"name": "session_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 200
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Task list",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["tasks"],
+									"properties": {
+										"tasks": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/TaskNode"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/Error"
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/tasks/{taskId}": {
+			"get": {
+				"operationId": "getTask",
+				"summary": "Get a task and its events by ID or unique prefix",
+				"parameters": [
+					{
+						"name": "taskId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Task detail",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": ["task", "events"],
+									"properties": {
+										"task": {
+											"$ref": "#/components/schemas/TaskNode"
+										},
+										"events": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/TaskEvent"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/Error"
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"409": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/telemetry": {
+			"get": {
+				"operationId": "getTelemetry",
+				"summary": "Get runtime telemetry snapshot when supported",
+				"responses": {
+					"200": {
+						"description": "Runtime telemetry snapshot",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/telemetry/window": {
+			"get": {
+				"operationId": "getTelemetryWindow",
+				"summary": "Get rolling telemetry window when supported",
+				"parameters": [
+					{
+						"name": "minutes",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 60
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Runtime telemetry window",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": true
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/plugins/reload": {
+			"post": {
+				"operationId": "reloadPlugins",
+				"summary": "Reload installed or local plugins",
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"pluginIds": {
+										"type": "array",
+										"items": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Reload request status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PluginReloadResponse"
+								}
+							}
+						}
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/plugins/install": {
+			"post": {
+				"operationId": "installPlugin",
+				"summary": "Install and load a plugin artifact",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["pluginId", "wasmUrl", "integrity", "manifest"],
+								"properties": {
+									"pluginId": {
+										"type": "string"
+									},
+									"wasmUrl": {
+										"type": "string"
+									},
+									"integrity": {
+										"type": "string"
+									},
+									"manifest": {
+										"type": "object",
+										"additionalProperties": true
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Installed plugin artifact",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"pluginId",
+										"wasmHash",
+										"byteLength",
+										"artifactKind"
+									],
+									"properties": {
+										"pluginId": {
+											"type": "string"
+										},
+										"wasmHash": {
+											"type": "string"
+										},
+										"byteLength": {
+											"type": "integer",
+											"minimum": 0
+										},
+										"artifactKind": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/Error"
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
+		"/plugins/reload/status/{reloadId}": {
+			"get": {
+				"operationId": "getPluginReloadStatus",
+				"summary": "Get deferred plugin reload status",
+				"parameters": [
+					{
+						"name": "reloadId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Reload status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/PluginReloadStatus"
+								}
+							}
+						}
+					},
+					"404": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"parameters": {
+			"EffortId": {
+				"name": "effortId",
+				"in": "path",
+				"required": true,
+				"schema": {
+					"type": "string"
+				}
+			}
+		},
+		"responses": {
+			"Accepted": {
+				"description": "Request accepted",
+				"content": {
+					"application/json": {
+						"schema": {
+							"type": "object",
+							"required": ["accepted"],
+							"properties": {
+								"accepted": {
+									"type": "boolean",
+									"const": true
+								}
+							}
+						}
+					}
+				}
+			},
+			"Error": {
+				"description": "Error response",
+				"content": {
+					"application/json": {
+						"schema": {
+							"$ref": "#/components/schemas/Error"
+						}
+					}
+				}
+			}
+		},
+		"schemas": {
+			"Error": {
+				"type": "object",
+				"required": ["error"],
+				"properties": {
+					"error": {
+						"type": "string"
+					}
+				}
+			},
+			"Task": {
+				"type": "object",
+				"required": ["id", "pluginId", "fn"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"pluginId": {
+						"type": "string"
+					},
+					"fn": {
+						"type": "string"
+					},
+					"args": true
+				}
+			},
+			"Effort": {
+				"type": "object",
+				"required": ["id", "direction", "tasks", "submittedAt"],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"direction": {
+						"type": "string"
+					},
+					"tasks": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/Task"
+						}
+					},
+					"source": {
+						"type": "string"
+					},
+					"context": true,
+					"submittedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"priority": {
+						"type": "number"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"TaskResult": {
+				"type": "object",
+				"required": ["taskId", "effortId", "status", "completedAt"],
+				"properties": {
+					"taskId": {
+						"type": "string"
+					},
+					"effortId": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["ok", "error", "timeout", "skipped", "cancelled"]
+					},
+					"result": true,
+					"error": {
+						"type": "string"
+					},
+					"attempts": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"startedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"completedAt": {
+						"type": "string",
+						"format": "date-time"
+					}
+				}
+			},
+			"EffortResult": {
+				"type": "object",
+				"required": ["effortId", "status", "results"],
+				"properties": {
+					"effortId": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"pending",
+							"in-progress",
+							"done",
+							"partial",
+							"failed",
+							"timed-out",
+							"cancelled"
+						]
+					},
+					"results": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TaskResult"
+						}
+					},
+					"submittedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"startedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"attemptCount": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"lastUpdatedAt": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"completedAt": {
+						"type": "string",
+						"format": "date-time"
+					}
+				}
+			},
+			"EffortLogEntry": {
+				"type": "object",
+				"required": ["effortId", "timestamp", "level", "event", "message"],
+				"properties": {
+					"effortId": {
+						"type": "string"
+					},
+					"timestamp": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"level": {
+						"type": "string",
+						"enum": ["info", "warn", "error"]
+					},
+					"event": {
+						"type": "string",
+						"enum": [
+							"submitted",
+							"processing_started",
+							"task_attempt_started",
+							"task_attempt_succeeded",
+							"task_attempt_failed",
+							"task_attempt_timed_out",
+							"task_skipped",
+							"retry_requested",
+							"cancel_requested",
+							"timed_out",
+							"processing_finished"
+						]
+					},
+					"message": {
+						"type": "string"
+					},
+					"taskId": {
+						"type": "string"
+					},
+					"attempt": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"meta": {
+						"type": "object",
+						"additionalProperties": true
+					}
+				}
+			},
+			"EffortSummary": {
+				"type": "object",
+				"required": [
+					"total",
+					"pending",
+					"inProgress",
+					"done",
+					"partial",
+					"failed",
+					"timedOut",
+					"cancelled"
+				],
+				"properties": {
+					"total": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"pending": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"inProgress": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"done": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"partial": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"failed": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"timedOut": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"cancelled": {
+						"type": "integer",
+						"minimum": 0
+					}
+				}
+			},
+			"SessionNode": {
+				"type": "object",
+				"required": [
+					"@type",
+					"@id",
+					"name",
+					"leaf_entry_id",
+					"parent_session_id",
+					"created_at_ns"
+				],
+				"properties": {
+					"@type": {
+						"type": "string",
+						"const": "Session"
+					},
+					"@id": {
+						"type": "string"
+					},
+					"name": {
+						"type": ["string", "null"]
+					},
+					"leaf_entry_id": {
+						"type": "null"
+					},
+					"parent_session_id": {
+						"type": "null"
+					},
+					"created_at_ns": {
+						"type": "number"
+					}
+				}
+			},
+			"TaskStatus": {
+				"type": "string",
+				"enum": [
+					"pending",
+					"active",
+					"blocked",
+					"done",
+					"failed",
+					"cancelled",
+					"deferred"
+				]
+			},
+			"TaskNode": {
+				"type": "object",
+				"required": [
+					"@type",
+					"@id",
+					"title",
+					"status",
+					"created_by",
+					"assigned_to",
+					"context_id",
+					"parent_task_id",
+					"created_at_ns",
+					"updated_at_ns"
+				],
+				"properties": {
+					"@type": {
+						"type": "string",
+						"const": "Task"
+					},
+					"@id": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"status": {
+						"$ref": "#/components/schemas/TaskStatus"
+					},
+					"created_by": {
+						"type": ["string", "null"]
+					},
+					"assigned_to": {
+						"type": ["string", "null"]
+					},
+					"context_id": {
+						"type": ["string", "null"]
+					},
+					"parent_task_id": {
+						"type": ["string", "null"]
+					},
+					"due_at_ns": {
+						"type": "number"
+					},
+					"created_at_ns": {
+						"type": "number"
+					},
+					"updated_at_ns": {
+						"type": "number"
+					}
+				}
+			},
+			"TaskEvent": {
+				"type": "object",
+				"required": [
+					"@type",
+					"@id",
+					"task_id",
+					"event",
+					"actor",
+					"payload",
+					"timestamp_ns"
+				],
+				"properties": {
+					"@type": {
+						"type": "string",
+						"const": "TaskEvent"
+					},
+					"@id": {
+						"type": "string"
+					},
+					"task_id": {
+						"type": "string"
+					},
+					"event": {
+						"type": "string",
+						"enum": [
+							"created",
+							"status_changed",
+							"assigned",
+							"noted",
+							"linked",
+							"blocked_by",
+							"unblocked"
+						]
+					},
+					"actor": {
+						"type": "string"
+					},
+					"payload": {
+						"type": "object",
+						"additionalProperties": true
+					},
+					"timestamp_ns": {
+						"type": "number"
+					}
+				}
+			},
+			"PluginReloadResponse": {
+				"type": "object",
+				"required": ["reloadId", "reloaded", "deferred", "skipped"],
+				"properties": {
+					"reloadId": {
+						"type": "string"
+					},
+					"reloaded": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"deferred": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"skipped": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"PluginReloadStatus": {
+				"type": "object",
+				"required": ["reloadId", "pending", "completed", "failed"],
+				"properties": {
+					"reloadId": {
+						"type": "string"
+					},
+					"pending": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"completed": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"failed": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			}
+		}
+	}
+}

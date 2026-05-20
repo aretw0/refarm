@@ -29,7 +29,9 @@ Refarm is composed of multiple packages with different responsibilities:
 
 ## Decision
 
-**We adopt Turborepo with npm workspaces and enforce strict dependency boundaries.**
+**We adopt Turborepo with pnpm workspaces and enforce strict dependency boundaries.**
+
+> **Updated 2026-05-15:** Migrated from npm workspaces to pnpm workspaces (see pnpm-workspace.yaml). Workspace deps use `"workspace:*"` specifiers. Package manager pinned to `pnpm@11.1.2` via `packageManager` field + corepack.
 
 ### Workspace Structure
 
@@ -196,7 +198,7 @@ refarm/
 - Cross-package refactors become painful
 - Loses "radical ejection" principle (packages should be easily extractable)
 
-**Chosen: Turborepo** balances speed (caching), simplicity (extends npm workspaces), and extraction capability.
+**Chosen: Turborepo** balances speed (caching), simplicity (extends pnpm workspaces), and extraction capability.
 
 ---
 
@@ -205,7 +207,7 @@ refarm/
 ### Positive
 
 1. **Fast incremental builds**: Turborepo caches unchanged packages
-2. **Simple mental model**: npm workspaces + pipeline orchestration
+2. **Simple mental model**: pnpm workspaces + pipeline orchestration
 3. **Primitive independence**: Packages have zero Refarm-specific deps
 4. **Easy extraction**: Copy `packages/storage-sqlite/` → new repo, works immediately
 5. **Shared tooling**: One `tsconfig.json`, one linting config, one CI workflow
@@ -213,7 +215,7 @@ refarm/
 ### Negative
 
 1. **Build order awareness**: Developers must understand dependency graph
-2. **Workspace hoisting**: npm hoists dependencies, can cause version conflicts (mitigated by `package-lock.json`)
+2. **Workspace isolation**: pnpm uses non-hoisted layout by default (`shamefully-hoist=false`), eliminating phantom dependency bugs; lockfile is `pnpm-lock.yaml`
 3. **Monorepo size**: Checkout downloads all packages (minor issue with Git sparse checkout)
 
 ### Neutral

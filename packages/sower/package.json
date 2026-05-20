@@ -1,41 +1,43 @@
 {
-  "name": "@refarm.dev/sower",
-  "version": "0.1.0",
-  "description": "The Sower (O Semeador) \u2014 Initial Seed & Onboarding Plugin",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "node": "./dist/index.js",
-      "browser": "./dist/index.browser.js",
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aretw0/refarm.git",
-    "directory": "packages/sower"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@refarm.dev/silo": "*",
-    "@refarm.dev/tractor": "*",
-    "@refarm.dev/windmill": "*"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
-  }
+	"name": "@refarm.dev/sower",
+	"version": "0.1.0",
+	"description": "Refarm onboarding, workspace scaffold, and import engine",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"node": "./dist/index.js",
+			"browser": "./dist/index.browser.js",
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/sower"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@refarm.dev/runtime": "workspace:*",
+		"@refarm.dev/silo": "workspace:*",
+		"@refarm.dev/windmill": "workspace:*"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

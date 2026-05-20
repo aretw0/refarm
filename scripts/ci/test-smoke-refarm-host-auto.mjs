@@ -7,6 +7,10 @@ import {
 	decideProfile,
 	formatSmokeProfileList,
 	formatUnknownSmokeProfileMessage,
+	isFarmhandSidecarFile,
+	isOpenApiProtocolFile,
+	isRefarmCheckGateFile,
+	isRefarmDriverTaskFile,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
@@ -53,7 +57,76 @@ test("detects tree timeline files", () => {
 		true,
 	);
 	assert.equal(
+		isRefarmTreeFile(
+			"apps/farmhand/src/transports/effort-chat.integration.test.ts",
+		),
+		true,
+	);
+	assert.equal(
 		isRefarmTreeFile("apps/refarm/src/commands/action-affordances.ts"),
+		false,
+	);
+});
+
+test("detects OpenAPI protocol files", () => {
+	assert.equal(
+		isOpenApiProtocolFile(
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		),
+		true,
+	);
+	assert.equal(
+		isOpenApiProtocolFile(
+			"scripts/ci/check-openapi-specs.mjs",
+		),
+		true,
+	);
+	assert.equal(
+		isOpenApiProtocolFile(
+			"specs/ADRs/ADR-060-tractor-http-sidecar-protocol.md",
+		),
+		false,
+	);
+});
+
+test("detects driver task files", () => {
+	assert.equal(
+		isRefarmDriverTaskFile("apps/farmhand/src/transports/tasks.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmDriverTaskFile("apps/refarm/test/commands/tasks.test.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmDriverTaskFile(
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		),
+		true,
+	);
+	assert.equal(
+		isRefarmDriverTaskFile("apps/refarm/src/commands/tree.ts"),
+		false,
+	);
+});
+
+test("detects farmhand sidecar files", () => {
+	assert.equal(
+		isFarmhandSidecarFile("apps/farmhand/src/index.ts"),
+		true,
+	);
+	assert.equal(
+		isFarmhandSidecarFile("apps/farmhand/src/transports/plugins.ts"),
+		true,
+	);
+	assert.equal(
+		isFarmhandSidecarFile(
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		),
+		true,
+	);
+	assert.equal(
+		isFarmhandSidecarFile("apps/refarm/src/commands/tree.ts"),
 		false,
 	);
 });
@@ -74,13 +147,17 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree-farmhand",
 		"tree-dist",
 		"tree",
+		"openapi",
+		"sidecar",
+		"driver-tasks",
+		"check",
 		"quick",
 		"dev",
 		"ci",
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, check, quick, dev, ci",
 	);
 });
 
@@ -143,6 +220,10 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree-farmhand", script: "refarm:tree:farmhand:test" },
 			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
 			{ profile: "tree", script: "refarm:tree:verify" },
+			{ profile: "openapi", script: "openapi:check" },
+			{ profile: "sidecar", script: "refarm:sidecar:verify" },
+			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
+			{ profile: "check", script: "refarm:check:verify" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
 			{ profile: "ci", script: "refarm:host:smoke:ci" },
@@ -190,9 +271,36 @@ test("maps profiles to npm scripts", () => {
 	);
 	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
+	assert.equal(resolveProfileScript("openapi"), "openapi:check");
+	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
+	assert.equal(
+		resolveProfileScript("driver-tasks"),
+		"refarm:driver:tasks:verify",
+	);
+	assert.equal(resolveProfileScript("check"), "refarm:check:verify");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
 	assert.equal(resolveProfileScript("ci"), "refarm:host:smoke:ci");
+});
+
+test("detects composite check gate files", () => {
+	assert.equal(
+		isRefarmCheckGateFile("apps/refarm/src/commands/check.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmCheckGateFile("apps/refarm/src/commands/health.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmCheckGateFile("packages/health/src/auditors/project.js"),
+		true,
+	);
+	assert.equal(isRefarmCheckGateFile("refarm.config.json"), true);
+	assert.equal(
+		isRefarmCheckGateFile("apps/refarm/src/commands/status.ts"),
+		false,
+	);
 });
 
 test("routes action-readiness-only deltas to focused actions lane", () => {
@@ -206,15 +314,76 @@ test("routes action-readiness-only deltas to focused actions lane", () => {
 	);
 });
 
+test("routes composite check gate deltas to focused check lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/check.ts",
+			"apps/refarm/test/commands/check.test.ts",
+			"docs/REFARM_CLI_DISTRO.md",
+		]).profile,
+		"check",
+	);
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/health.ts",
+			"apps/refarm/test/commands/health.test.ts",
+		]).profile,
+		"check",
+	);
+	assert.equal(
+		decideProfile([
+			"packages/health/src/auditors/generic.js",
+			"packages/health/src/auditors/generic.test.js",
+			"refarm.config.json",
+		]).profile,
+		"check",
+	);
+});
+
 test("routes tree-only deltas to focused tree lane", () => {
 	assert.equal(
 		decideProfile([
 			"apps/refarm/src/commands/tree.ts",
 			"apps/refarm/test/commands/tree.test.ts",
 			"apps/farmhand/src/transports/sessions.test.ts",
+			"apps/farmhand/src/transports/effort-chat.integration.test.ts",
 			"docs/REFARM_TREE_PRIMITIVE.md",
 		]).profile,
 		"tree",
+	);
+});
+
+test("routes OpenAPI protocol deltas to focused OpenAPI lane", () => {
+	assert.equal(
+		decideProfile([
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+			"specs/protocols/README.md",
+		]).profile,
+		"openapi",
+	);
+});
+
+test("routes driver task deltas to focused driver task lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/farmhand/src/transports/tasks.ts",
+			"apps/farmhand/src/transports/tasks.test.ts",
+			"apps/refarm/test/commands/tasks.test.ts",
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		]).profile,
+		"driver-tasks",
+	);
+});
+
+test("routes farmhand sidecar deltas to focused sidecar lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/farmhand/src/transports/http.ts",
+			"apps/farmhand/src/transports/plugins.ts",
+			"apps/farmhand/src/index.ts",
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		]).profile,
+		"sidecar",
 	);
 });
 

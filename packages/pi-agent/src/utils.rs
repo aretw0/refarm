@@ -43,7 +43,7 @@ static SEQ: AtomicU64 = AtomicU64::new(0);
 pub(crate) fn new_id() -> String {
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     let hex = format!("{:016x}{:04x}", now_ns(), seq);
-    match std::env::var("LLM_AGENT_ID") {
+    match std::env::var("MODEL_AGENT_ID") {
         Ok(agent_id) if !agent_id.is_empty() => format!("urn:farmhand:{agent_id}:{hex}"),
         _ => hex,
     }

@@ -1,10 +1,10 @@
 /// Resolves the active provider name with full user control:
-///   LLM_PROVIDER          — explicit choice for this run
-///   LLM_DEFAULT_PROVIDER  — user's personal sovereign default (fallback when LLM_PROVIDER unset)
+///   MODEL_PROVIDER          — explicit choice for this run
+///   MODEL_DEFAULT_PROVIDER  — user's personal sovereign default (fallback when MODEL_PROVIDER unset)
 ///   hardcoded "ollama"    — last resort: local, free, no key needed
 pub(crate) fn provider_name_from_env() -> String {
-    std::env::var("LLM_PROVIDER")
-        .or_else(|_| std::env::var("LLM_DEFAULT_PROVIDER"))
+    std::env::var("MODEL_PROVIDER")
+        .or_else(|_| std::env::var("MODEL_DEFAULT_PROVIDER"))
         .unwrap_or_else(|_| "ollama".into())
 }
 
@@ -105,7 +105,7 @@ pub(crate) fn history_from_tree(
 /// `leaf_entry_id`: current tip of the conversation tree (None for empty session).
 /// `parent_session_id`: set when this session is a fork of another (None for root).
 fn default_session_participant() -> String {
-    match std::env::var("LLM_AGENT_ID") {
+    match std::env::var("MODEL_AGENT_ID") {
         Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
         _ => "urn:refarm:agent:pi-agent".to_string(),
     }

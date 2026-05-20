@@ -1,5 +1,5 @@
 import type { HomesteadSurfaceRenderHostContext } from "@refarm.dev/homestead/sdk/surface-renderer";
-import type Tractor from "@refarm.dev/tractor";
+import type { RuntimeNodeStoreTarget } from "@refarm.dev/runtime";
 import { describe, expect, it, vi } from "vitest";
 import {
 	createStudioStreamSurfaceActionHandler,
@@ -39,7 +39,7 @@ describe("Studio stream demo seeding", () => {
 	it("stores demo nodes without requiring signing", async () => {
 		const storeNode = vi.fn().mockResolvedValue(undefined);
 
-		await seedStudioStreamDemo({ storeNode } as unknown as Tractor);
+		await seedStudioStreamDemo({ storeNode } as unknown as RuntimeNodeStoreTarget);
 
 		expect(storeNode).toHaveBeenCalledTimes(3);
 		expect(storeNode).toHaveBeenCalledWith(

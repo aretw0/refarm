@@ -40,35 +40,48 @@ export class MainThreadRunner implements PluginRunner {
 		let componentInstance: unknown = null;
 
 		try {
-			const [jco, fs, path] = await Promise.all([
-				import("@bytecodealliance/jco"),
+			const [fs, path] = await Promise.all([
 				import("node:fs/promises"),
 				import("node:path"),
 			]);
 
-			const opts = { name: pluginId.replace(/[^a-z0-9]/gi, "_") };
-			const { files } = await jco.transpile(
-				new Uint8Array(wasmBuffer),
-				opts as Parameters<typeof jco.transpile>[1],
-			);
-
-			const distDir = path.resolve(this.distBase, pluginId);
-			await fs.mkdir(distDir, { recursive: true });
-
 			const jcoName = pluginId.replace(/[^a-z0-9]/gi, "_");
+			const distDir = path.resolve(this.distBase, pluginId);
+
 			let entryPoint = "";
+			// files is only populated on cache-miss (transpile path). On cache-hit it stays empty
+			// because JCO default output self-fetches its WASM via fetchCompile(new URL(..., import.meta.url))
+			// and never calls the instantiate() callback. If a plugin is ever transpiled with
+			// { instantiation: true }, the cache-hit path must read .wasm files from distDir here.
+			let files: Record<string, string | Uint8Array> = {};
 
-			for (const [filename, content] of Object.entries(files)) {
-				const filePath = path.join(distDir, filename);
-				await fs.mkdir(path.dirname(filePath), { recursive: true });
-				await fs.writeFile(filePath, content as string | Uint8Array);
-				if (filename === `${jcoName}.js`) entryPoint = filePath;
-			}
+			// Use cached transpile output when available — avoids loading JCO on every boot.
+			// Check both the JS entry and its WASM sidecar to guard against partial cache.
+			const cachedEntry = path.join(distDir, `${jcoName}.js`);
+			const cachedWasm = path.join(distDir, `${jcoName}.core.wasm`);
+			try {
+				await Promise.all([fs.access(cachedEntry), fs.access(cachedWasm)]);
+				entryPoint = cachedEntry;
+			} catch {
+				// Cache miss — transpile now
+				const jco = await import("@bytecodealliance/jco");
+				const result = await jco.transpile(new Uint8Array(wasmBuffer), { name: jcoName });
+				files = result.files;
 
-			if (!entryPoint) {
-				const items = await fs.readdir(distDir);
-				const rootJs = items.find((f) => f.endsWith(".js"));
-				if (rootJs) entryPoint = path.join(distDir, rootJs);
+				await fs.mkdir(distDir, { recursive: true });
+
+				for (const [filename, content] of Object.entries(files)) {
+					const filePath = path.join(distDir, filename);
+					await fs.mkdir(path.dirname(filePath), { recursive: true });
+					await fs.writeFile(filePath, content as string | Uint8Array);
+					if (filename === `${jcoName}.js`) entryPoint = filePath;
+				}
+
+				if (!entryPoint) {
+					const items = await fs.readdir(distDir);
+					const rootJs = items.find((f) => f.endsWith(".js"));
+					if (rootJs) entryPoint = path.join(distDir, rootJs);
+				}
 			}
 
 			if (!entryPoint) {

@@ -55,8 +55,8 @@ needed.
 ### `session-contract-v1` — Conversation threads
 
 A capability contract for conversation threads, graduating `Session`/`SessionEntry` out of
-pi-agent's namespace. The base contract is agnostic of LLM branching semantics — it covers
-the minimum required by any thread consumer (LLM agents, messaging integrations, A2A).
+pi-agent's namespace. The base contract is agnostic of model branching semantics — it covers
+the minimum required by any thread consumer (model agents, messaging integrations, A2A).
 
 Pi-agent extends the base contract by storing extra CRDT fields (`leaf_entry_id`,
 `parent_session_id`, `name`) alongside the base fields. Since CRDT nodes are schema-free

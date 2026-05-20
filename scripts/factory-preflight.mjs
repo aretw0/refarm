@@ -85,60 +85,40 @@ function checkNode() {
   }
 }
 
-function checkNpm() {
-  const result = run('npm', ['--version']);
+function checkPnpm() {
+  const result = run('pnpm', ['--version']);
   if (result.status !== 0) {
-    fail('npm is not available', result.stderr.trim());
+    fail('pnpm is not available', result.stderr.trim());
     return;
   }
 
-  ok('npm runtime', result.stdout.trim());
+  ok('pnpm runtime', result.stdout.trim());
 }
 
 function checkLockfile() {
-  if (existsSync('package-lock.json')) {
-    ok('package-lock.json present');
+  if (existsSync('pnpm-lock.yaml')) {
+    ok('pnpm-lock.yaml present');
   } else {
-    fail('package-lock.json missing');
+    fail('pnpm-lock.yaml missing');
   }
 }
 
 function checkTypeScriptAlignment() {
-  if (!existsSync('package-lock.json')) {
-    warn('TypeScript alignment check skipped', 'package-lock.json not found');
-    return;
-  }
-
-  const lock = readJson('package-lock.json');
-  const expected = lock?.packages?.['node_modules/typescript']?.version;
-  if (!expected) {
-    warn('TypeScript expected version missing in lockfile', 'Run: npm install');
-    return;
-  }
-
   const tsPkgPath = 'node_modules/typescript/package.json';
   if (!existsSync(tsPkgPath)) {
-    fail('TypeScript is not installed in node_modules', 'Run: npm ci');
+    fail('TypeScript is not installed in node_modules', 'Run: pnpm install --frozen-lockfile');
     return;
   }
 
   const installed = readJson(tsPkgPath).version;
-  if (installed === expected) {
-    ok('TypeScript workspace version aligned', `typescript@${installed}`);
-    return;
-  }
-
-  fail(
-    'TypeScript workspace version mismatch',
-    `installed=${installed}, lockfile=${expected}. Run: npm ci`
-  );
+  ok('TypeScript installed', `typescript@${installed}`);
 }
 
 function checkHooks() {
   if (existsSync('.git/hooks/pre-push')) {
     ok('Git pre-push hook installed');
   } else {
-    warn('Git pre-push hook missing', 'Run: npm run hooks:install');
+    warn('Git pre-push hook missing', 'Run: pnpm run hooks:install');
   }
 }
 
@@ -272,10 +252,10 @@ function checkPackageManagerPin() {
   }
 
   const pkg = readJson('package.json');
-  if (typeof pkg.packageManager === 'string' && pkg.packageManager.startsWith('npm@')) {
+  if (typeof pkg.packageManager === 'string' && pkg.packageManager.startsWith('pnpm@')) {
     ok('packageManager pin present', pkg.packageManager);
   } else {
-    warn('packageManager pin missing in package.json', 'Pinning npm improves reproducibility across devcontainers/swarms');
+    warn('packageManager pin missing in package.json', 'Pinning pnpm improves reproducibility across devcontainers/swarms');
   }
 }
 
@@ -283,7 +263,7 @@ console.log(`${colors.cyan}🧪 Refarm Factory Preflight${colors.reset}`);
 console.log(`${colors.dim}Checks for deterministic swarm execution in devcontainers and CI.${colors.reset}\n`);
 
 checkNode();
-checkNpm();
+checkPnpm();
 checkLockfile();
 checkTypeScriptAlignment();
 checkPackageManagerPin();

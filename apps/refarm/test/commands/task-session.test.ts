@@ -20,6 +20,21 @@ afterEach(() => {
 });
 
 describe("FileTaskSessionRecorder", () => {
+	it("defers creating the sessions store until state is recorded", () => {
+		const parentDir = createTempDir();
+		const baseDir = path.join(parentDir, "missing-refarm-home");
+
+		const recorder = new FileTaskSessionRecorder(baseDir);
+
+		expect(recorder.getCheckpoint()).toBeNull();
+		expect(fs.existsSync(path.join(baseDir, "sessions"))).toBe(false);
+		recorder.rememberList({
+			transport: "file",
+			efforts: [{ effortId: "pending-1", status: "pending", results: [] }],
+		});
+		expect(fs.existsSync(path.join(baseDir, "sessions"))).toBe(true);
+	});
+
 	it("records dispatched efforts with resume links", () => {
 		const baseDir = createTempDir();
 		const recorder = new FileTaskSessionRecorder(baseDir);

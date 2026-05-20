@@ -8,13 +8,13 @@
 
 ## Context
 
-ADR-053 delivered host-proxied LLM streaming: Tractor reads SSE from providers, persists
+ADR-053 delivered host-proxied MODEL streaming: Tractor reads SSE from providers, persists
 `StreamChunk` CRDT nodes (sequence + payload_kind + content), and synthesises a final
 `AgentResponse` for guest parsers.
 
 ADR-054 generalised the model: `StreamChunk` and `StreamSession` are now the canonical
-host-owned observation primitive, independent of LLM semantics. Any long-running producer —
-LLM tokens, build logs, test progress, background jobs, sync progress — should emit
+host-owned observation primitive, independent of MODEL semantics. Any long-running producer —
+MODEL tokens, build logs, test progress, background jobs, sync progress — should emit
 `StreamChunk` nodes.
 
 What neither ADR specified is the **TypeScript-level transport layer** that makes
@@ -34,7 +34,7 @@ protocol to receive ordered chunks as they arrive. This slice fills that gap.
    the architecture works for every integration style.
 4. Conformance test harness with `InMemoryStreamTransport` so third-party adapters can
    validate before shipping.
-5. Maximum generality: any `stream_ref` producer (LLM, build, test runner, pi-agent)
+5. Maximum generality: any `stream_ref` producer (MODEL, build, test runner, pi-agent)
    feeds the same downstream consumers.
 
 ---
@@ -193,7 +193,7 @@ export function runConformanceTests(
 
 ```
 pi-agent respond (via effort queue)
-  → Tractor LLM bridge: stream:true
+  → Tractor model bridge: stream:true
   → Tractor writes StreamChunk CRDT nodes (sequence 0..N, is_final on last)
 
 Farmhand tractor.onNode("StreamChunk", node)
@@ -238,8 +238,8 @@ apps/farmhand/
 - **ADR-054**: stream-contract-v1 is the TypeScript-layer materialisation of ADR-054's
   `StreamChunk`/`StreamSession` CRDT primitives. The CRDT records are the source of
   truth; the transports are subscribers.
-- **ADR-053**: stream-contract-v1 is LLM-agnostic — it subscribes to whatever the host
-  writes as `StreamChunk` nodes, whether those come from LLM streaming (ADR-053) or
+- **ADR-053**: stream-contract-v1 is MODEL-agnostic — it subscribes to whatever the host
+  writes as `StreamChunk` nodes, whether those come from MODEL streaming (ADR-053) or
   any other producer.
 - **ADR-018**: `stream-contract-v1` follows the capability contract model exactly —
   versioned API, functional semantics, error model, conformance tests.

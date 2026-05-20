@@ -96,7 +96,7 @@ export async function bootStudioDashboardWorkbench(
 
 	const runtime = await (options.bootRuntime ?? bootStudioRuntime)({
 		databaseName: resolveStudioRuntimeDatabaseName({
-			mode,
+			mode: mode === "citizen" ? "persistent" : mode,
 			persistentName: "refarm-main",
 			temporaryPrefix: "refarm-temp",
 		}),

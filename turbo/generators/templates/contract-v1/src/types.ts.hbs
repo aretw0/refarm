@@ -1,0 +1,27 @@
+export const {{constantName}}_CAPABILITY = "{{name}}" as const;
+
+export interface {{pascalName}}ConformanceResult {
+  pass: boolean;
+  total: number;
+  failed: number;
+  failures: string[];
+}
+
+/**
+ * Replace with the actual resource shape for this contract.
+ * Keep @type and @id as the identity layer — adapters must preserve them.
+ */
+export interface {{pascalName}}Item {
+  "@type": "{{pascalName}}Item";
+  "@id": string;
+}
+
+/**
+ * The contract surface that every adapter for {{name}} must implement.
+ * Add optional APIs with `?:` — the conformance suite will test them when present.
+ */
+export interface {{pascalName}}ContractAdapter {
+  create(item: Omit<{{pascalName}}Item, "@id">): Promise<{{pascalName}}Item>;
+  get(id: string): Promise<{{pascalName}}Item | null>;
+  delete(id: string): Promise<void>;
+}

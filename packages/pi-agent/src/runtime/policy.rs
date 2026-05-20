@@ -7,14 +7,14 @@ const DEFAULT_SYSTEM_PROMPT: &str =
 
 pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
     let estimated_tokens = (prompt.len() / 4).max(1) as u32;
-    let max_tokens = std::env::var("LLM_MAX_CONTEXT_TOKENS")
+    let max_tokens = std::env::var("MODEL_MAX_CONTEXT_TOKENS")
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(u32::MAX);
 
     if estimated_tokens > max_tokens {
         return Some(blocked_result(format!(
-            "[pi-agent] prompt excede LLM_MAX_CONTEXT_TOKENS ({estimated_tokens} > {max_tokens} tokens estimados)"
+            "[pi-agent] prompt excede MODEL_MAX_CONTEXT_TOKENS ({estimated_tokens} > {max_tokens} tokens estimados)"
         )));
     }
 
@@ -23,7 +23,7 @@ pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
 
 #[cfg(target_arch = "wasm32")]
 fn task_context_for_prompt() -> Option<String> {
-    let n = std::env::var("LLM_TASK_CONTEXT_TURNS")
+    let n = std::env::var("MODEL_TASK_CONTEXT_TURNS")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(0);
@@ -40,7 +40,7 @@ fn task_context_for_prompt() -> Option<String> {
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn resolve_system_prompt() -> String {
-    let base = std::env::var("LLM_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM_PROMPT.to_owned());
+    let base = std::env::var("MODEL_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM_PROMPT.to_owned());
     match task_context_for_prompt() {
         Some(ctx) => format!("{base}{ctx}"),
         None => base,

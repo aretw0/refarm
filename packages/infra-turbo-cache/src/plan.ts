@@ -2,6 +2,10 @@ import type {
 	ManagedResourceRequirement,
 	ManagedServicePlan,
 } from "@refarm.dev/infra-contract-v1";
+import {
+	DEFAULT_RETENTION_POLICY,
+	type RetentionPolicy,
+} from "@refarm.dev/policy-contract-v1";
 import { turboCacheManifest } from "./manifest.js";
 
 export type TurboCacheRequirementKind =
@@ -9,8 +13,8 @@ export type TurboCacheRequirementKind =
 	| "http-endpoint"
 	| "bearer-auth";
 
-export interface TurboCacheRequirement
-	extends ManagedResourceRequirement<TurboCacheRequirementKind> {}
+export type TurboCacheRequirement =
+	ManagedResourceRequirement<TurboCacheRequirementKind>;
 
 export interface TurboCacheServicePlan
 	extends ManagedServicePlan<
@@ -19,22 +23,31 @@ export interface TurboCacheServicePlan
 		(typeof turboCacheManifest.ciSecrets)[number]
 	> {
 	readonly team: string;
+	readonly retention: RetentionPolicy;
 	readonly ciSecrets: typeof turboCacheManifest.ciSecrets;
 }
 
+export { DEFAULT_RETENTION_POLICY, type RetentionPolicy };
+
 export interface TurboCacheServicePlanInput {
 	readonly team?: string;
+	readonly retention?: Partial<RetentionPolicy>;
 }
 
 export function createTurboCacheServicePlan(
 	input: TurboCacheServicePlanInput = {},
 ): TurboCacheServicePlan {
 	const team = input.team ?? "refarm";
+	const retention: RetentionPolicy = {
+		...DEFAULT_RETENTION_POLICY,
+		...input.retention,
+	};
 
 	return {
 		serviceId: turboCacheManifest.id,
 		displayName: turboCacheManifest.displayName,
 		team,
+		retention,
 		requirements: [
 			{
 				kind: "artifact-storage",

@@ -185,7 +185,7 @@ refarm ask "o que é CRDT?"
     → effortId + stream_ref
 
   FileStreamTransport.subscribe(stream_ref, onChunk)
-    → prints tokens as StreamChunk nodes arrive from pi-agent LLM call
+    → prints tokens as StreamChunk nodes arrive from pi-agent MODEL call
 
   is_final=true
     → prints usage footer
@@ -234,7 +234,7 @@ apps/refarm/
 ### Smoke gate
 
 `scripts/ci/smoke-task-execution-loop.mjs` gains an `ask` scenario:
-- `refarm ask "what is 2+2?"` with stub LLM
+- `refarm ask "what is 2+2?"` with stub MODEL
 - Verifies tokens appear on stdout
 - Verifies usage footer after final chunk
 

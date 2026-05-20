@@ -76,8 +76,8 @@ fi
 # ── load .refarm/.env (or explain when it is optional) ──────────────────────
 
 detect_provider() {
-  if [ -n "${LLM_PROVIDER:-}" ]; then
-    printf "%s" "$LLM_PROVIDER"
+  if [ -n "${MODEL_PROVIDER:-}" ]; then
+    printf "%s" "$MODEL_PROVIDER"
     return 0
   fi
 

@@ -1,25 +1,27 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
+import { sidecarUrl } from "./sidecar-url.js";
 
-const SIDECAR_URL = "http://127.0.0.1:42001";
-
-interface TaskNode {
-	"@id": string;
-	"@type": string;
-	title?: string;
-	status?: string;
-	context_id?: string | null;
-	created_at_ns?: number;
-	updated_at_ns?: number;
+interface TaskListJson {
+	schemaVersion: 1;
+	command: "tasks";
+	operation: "list";
+	filters: {
+		status?: string;
+		session_id?: string;
+		limit?: number;
+	};
+	tasks: Task[];
 }
 
-interface TaskEvent {
-	"@id": string;
-	task_id: string;
-	event: string;
-	actor?: string;
-	timestamp_ns?: number;
-	payload?: Record<string, unknown>;
+interface TaskShowJson {
+	schemaVersion: 1;
+	command: "tasks";
+	operation: "show";
+	prefix: string;
+	task: Task;
+	events: TaskEvent[];
 }
 
 function formatTaskId(id: string): string {
@@ -72,15 +74,15 @@ function statusLabel(status: string | undefined): string {
 
 async function fetchTasks(
 	params: { status?: string; session_id?: string; limit?: number } = {},
-): Promise<TaskNode[]> {
+): Promise<Task[]> {
 	const query = new URLSearchParams();
 	if (params.status) query.set("status", params.status);
 	if (params.session_id) query.set("session_id", params.session_id);
 	if (params.limit) query.set("limit", String(params.limit));
 	const qs = query.toString() ? `?${query}` : "";
-	const response = await fetch(`${SIDECAR_URL}/tasks${qs}`);
+	const response = await fetch(sidecarUrl(`/tasks${qs}`));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
-	const body = (await response.json()) as { tasks: TaskNode[] };
+	const body = (await response.json()) as { tasks: Task[] };
 	return body.tasks ?? [];
 }
 
@@ -88,8 +90,9 @@ async function listTasks(opts: {
 	status?: string;
 	session?: string;
 	limit?: number;
+	json?: boolean;
 }): Promise<void> {
-	let tasks: TaskNode[];
+	let tasks: Task[];
 	try {
 		tasks = await fetchTasks({
 			status: opts.status,
@@ -100,11 +103,27 @@ async function listTasks(opts: {
 		const msg = err instanceof Error ? err.message : String(err);
 		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
 			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+			console.error(chalk.dim("   Diagnose:  refarm doctor"));
 		} else {
 			console.error(chalk.red(`✗  ${msg}`));
 		}
 		process.exit(1);
+	}
+
+	if (opts.json) {
+		const body: TaskListJson = {
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "list",
+			filters: {
+				status: opts.status,
+				session_id: opts.session,
+				limit: opts.limit,
+			},
+			tasks,
+		};
+		console.log(JSON.stringify(body, null, 2));
+		return;
 	}
 
 	if (tasks.length === 0) {
@@ -134,11 +153,11 @@ async function listTasks(opts: {
 	);
 }
 
-async function showTask(prefix: string): Promise<void> {
-	let body: { task: TaskNode; events: TaskEvent[] };
+async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<void> {
+	let body: { task: Task; events: TaskEvent[] };
 	try {
 		const response = await fetch(
-			`${SIDECAR_URL}/tasks/${encodeURIComponent(prefix)}`,
+			sidecarUrl(`/tasks/${encodeURIComponent(prefix)}`),
 		);
 		const parsed = (await response.json()) as typeof body & {
 			error?: string;
@@ -171,6 +190,20 @@ async function showTask(prefix: string): Promise<void> {
 	}
 
 	const { task, events } = body;
+
+	if (opts.json) {
+		const output: TaskShowJson = {
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			prefix,
+			task,
+			events,
+		};
+		console.log(JSON.stringify(output, null, 2));
+		return;
+	}
+
 	const short = formatTaskId(task["@id"]);
 
 	console.log(chalk.bold(`\n  Task ${chalk.cyan(short)}`));
@@ -209,19 +242,22 @@ export function createTasksCommand(): Command {
 		.option("-s, --status <status>", "Filter by status (done/active/failed/blocked)")
 		.option("--session <id>", "Filter by session ID")
 		.option("-n, --limit <n>", "Max tasks to show", "20")
+		.option("--json", "Output machine-readable JSON")
 		.addCommand(
 			new Command("show")
 				.description("Show details and events for a task")
 				.argument("<id>", "Task ID or unique prefix")
-				.action(async (prefix: string) => {
-					await showTask(prefix);
+				.option("--json", "Output machine-readable JSON")
+				.action(async (prefix: string, opts: { json?: boolean }) => {
+					await showTask(prefix, { json: opts.json });
 				}),
 		)
-		.action(async (opts: { status?: string; session?: string; limit?: string }) => {
+		.action(async (opts: { status?: string; session?: string; limit?: string; json?: boolean }) => {
 			await listTasks({
 				status: opts.status,
 				session: opts.session,
 				limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
+				json: opts.json,
 			});
 		});
 }

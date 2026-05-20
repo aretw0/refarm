@@ -1,4 +1,11 @@
-import { SovereignNode, Tractor } from "@refarm.dev/tractor";
+import type {
+  RuntimeNode,
+  RuntimeObserverTarget,
+  RuntimePluginStateTarget,
+  RuntimeQueryTarget,
+  RuntimeTelemetryEvent,
+  RuntimeTelemetryTarget,
+} from "@refarm.dev/runtime";
 
 /**
  * The Scarecrow (O Espantalho) — System Auditor Plugin.
@@ -14,6 +21,12 @@ export interface ScarecrowConfig {
   strobeDetectionEnabled: boolean;
 }
 
+export type ScarecrowHost =
+  & RuntimeObserverTarget
+  & RuntimePluginStateTarget
+  & RuntimeQueryTarget
+  & RuntimeTelemetryTarget;
+
 /**
  * The Scarecrow (O Espantalho) — System Auditor Plugin.
  */
@@ -25,7 +38,7 @@ export class ScarecrowPlugin {
     strobeDetectionEnabled: true
   };
 
-  constructor(private tractor: Tractor) {
+  constructor(private host: ScarecrowHost) {
     this.setupObserver();
     this.loadConfig();
   }
@@ -36,7 +49,7 @@ export class ScarecrowPlugin {
   private async loadConfig() {
     try {
       // Query for a specific configuration node for Scarecrow
-      const nodes = await this.tractor.queryNodes<SovereignNode>("ScarecrowConfig");
+      const nodes = await this.host.queryNodes<RuntimeNode>("ScarecrowConfig");
       if (nodes.length > 0) {
         const remoteConfig = nodes[0] as unknown as Partial<ScarecrowConfig>;
         this._config = { ...this._config, ...remoteConfig };
@@ -48,7 +61,7 @@ export class ScarecrowPlugin {
   }
 
   private setupObserver() {
-    this.tractor.observe((data) => {
+    this.host.observe((data: RuntimeTelemetryEvent) => {
       const payload = data.payload as Record<string, unknown> | undefined;
       // 1. Monitor Performance
       const updateVelocity = payload?.updateVelocity as number | undefined;
@@ -57,10 +70,10 @@ export class ScarecrowPlugin {
         this.emitAlert(pluginId, `Excessive DOM updates (${updateVelocity}/sec, threshold: ${this._config.maxUpdateVelocity})`);
         
         // Active Enforcement via Headless States
-        this.tractor.setPluginState(pluginId, "throttled");
+        this.host.setPluginState(pluginId, "throttled");
         
         setTimeout(() => {
-          this.tractor.setPluginState(pluginId, "running");
+          this.host.setPluginState(pluginId, "running");
         }, 2000);
       }
 
@@ -90,7 +103,7 @@ export class ScarecrowPlugin {
     console.warn(`[scarecrow] Alert for ${pluginId}: ${reason}`);
 
     // Emit a system telemetry event that the Shell can catch for Toast notifications
-    this.tractor.emitTelemetry({
+    this.host.emitTelemetry({
       event: "system:alert",
       pluginId,
       payload: { reason, severity: "warn" }

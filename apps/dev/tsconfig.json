@@ -7,7 +7,6 @@
 		"rootDir": "../..",
 		"paths": {
 			"@refarm.dev/locales/*": ["../../locales/*"],
-			"@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
 			"@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"],
 			"@refarm.dev/homestead/ui": ["../../packages/homestead/src/ui/index.ts"],
 			"@refarm.dev/homestead/sdk": ["../../packages/homestead/src/sdk/index.ts"],
@@ -37,9 +36,8 @@
 	"exclude": ["node_modules", "dist"],
 	"include": ["src/**/*", ".astro/types.d.ts"],
 	"references": [
-		{ "path": "../../packages/identity-contract-v1" },
-		{ "path": "../../packages/storage-contract-v1" },
-		{ "path": "../../packages/sync-contract-v1" },
-		{ "path": "../../packages/tractor-ts/tsconfig.build.json" }
+		{ "path": "../../packages/identity-contract-v1/tsconfig.build.json" },
+		{ "path": "../../packages/storage-contract-v1/tsconfig.build.json" },
+		{ "path": "../../packages/sync-contract-v1/tsconfig.build.json" }
 	]
 }

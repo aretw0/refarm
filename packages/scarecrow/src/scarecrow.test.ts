@@ -1,36 +1,45 @@
-import type Tractor from "@refarm.dev/tractor";
-import { createTractorMock } from "@refarm.dev/tractor/test/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import type { ScarecrowHost } from "./index";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ScarecrowPlugin } from "./index";
 
 describe("ScarecrowPlugin", () => {
-  let tractor: ReturnType<typeof createTractorMock>;
+  let host: {
+    emitTelemetry: ReturnType<typeof vi.fn>;
+    observe: ReturnType<typeof vi.fn>;
+    queryNodes: ReturnType<typeof vi.fn>;
+    setPluginState: ReturnType<typeof vi.fn>;
+  };
   let scarecrow: ScarecrowPlugin;
 
   beforeEach(() => {
-    tractor = createTractorMock();
-    scarecrow = new ScarecrowPlugin(tractor as unknown as Tractor);
+    host = {
+      emitTelemetry: vi.fn(),
+      observe: vi.fn(),
+      queryNodes: vi.fn().mockResolvedValue([]),
+      setPluginState: vi.fn(),
+    };
+    scarecrow = new ScarecrowPlugin(host as ScarecrowHost);
   });
 
   it("should monitor update velocity and transition state if too high", () => {
     // Simulate telemetry callback
-    const callback = tractor.observe.mock.calls[0]![0];
+    const callback = host.observe.mock.calls[0]![0];
 
     callback({
       event: "ui:performance",
-      pluginId: "gremlin-plugin",
+      pluginId: "busy-plugin",
       payload: { updateVelocity: 100, slotId: "sidebar" },
     });
 
-    expect(tractor.setPluginState).toHaveBeenCalledWith(
-      "gremlin-plugin",
+    expect(host.setPluginState).toHaveBeenCalledWith(
+      "busy-plugin",
       "throttled",
     );
     expect(scarecrow.getSystemHealth()).toBeLessThan(1.0);
   });
 
   it("should monitor a11yScore and alert if too low", () => {
-    const callback = tractor.observe.mock.calls[0]![0];
+    const callback = host.observe.mock.calls[0]![0];
 
     callback({
       event: "ui:a11y_audit",
@@ -38,7 +47,7 @@ describe("ScarecrowPlugin", () => {
       payload: { a11yScore: 0.5 },
     });
 
-    expect(tractor.emitTelemetry).toHaveBeenCalledWith(
+    expect(host.emitTelemetry).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "system:alert",
         payload: {
