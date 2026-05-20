@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "suite": "tractor-native-sync",
+  "node_count": 500,
+  "threshold_pct": 20.0,
+  "metrics": [
+    {
+      "name": "store_nodes",
+      "value": 6299313,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "export_update",
+      "value": 462264,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "apply_update",
+      "value": 5187991,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "query_nodes",
+      "value": 311156,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "total",
+      "value": 12260724,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "update_bytes",
+      "value": 95767,
+      "unit": "bytes",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "queried_nodes",
+      "value": 500,
+      "unit": "count",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
+    }
+  ]
+}
