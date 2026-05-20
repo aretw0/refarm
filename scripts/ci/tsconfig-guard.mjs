@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repoRoot = process.cwd();
-const tscBin = path.join(repoRoot, "node_modules", ".bin", "tsc");
+const tscBin = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
 
 function readJson(file) {
 	return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -122,8 +122,8 @@ function runShowConfig(tsconfigPath) {
 	const rel = path.relative(repoRoot, tsconfigPath);
 	const command = exists(tscBin)
 		? {
-				cmd: tscBin,
-				args: ["--project", rel, "--showConfig", "--pretty", "false"],
+				cmd: process.execPath,
+				args: [tscBin, "--project", rel, "--showConfig", "--pretty", "false"],
 			}
 		: {
 				cmd: "npx",

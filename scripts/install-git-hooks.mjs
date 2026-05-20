@@ -284,13 +284,13 @@ else
 
   if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
     echo "   🔎 Turbo scoped lint for changed workspaces"
-    if timeout 240 env CI=1 pnpm exec turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 360 env CI=1 pnpm exec turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Turbo lint passed"
       mark_lane_validated "lint"
     else
       LINT_STATUS=$?
       if [ "$LINT_STATUS" -eq 124 ]; then
-        echo "   ⏱️  Turbo lint timed out after 240s (non-blocking local warning; CI enforces full lint)"
+        echo "   ⏱️  Turbo lint timed out after 360s (non-blocking local warning; CI enforces full lint)"
         WARNINGS=1
       elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
         echo "   ❌ Turbo lint failed (blocking in strict mode)"
@@ -303,13 +303,13 @@ else
       fi
     fi
   else
-    if timeout 240 env CI=1 pnpm exec turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 360 env CI=1 pnpm exec turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Global Turbo lint passed"
       mark_lane_validated "lint"
     else
       LINT_STATUS=$?
       if [ "$LINT_STATUS" -eq 124 ]; then
-        echo "   ⏱️  Turbo lint timed out after 240s (non-blocking local warning; CI enforces full lint)"
+        echo "   ⏱️  Turbo lint timed out after 360s (non-blocking local warning; CI enforces full lint)"
         WARNINGS=1
       elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
         echo "   ❌ Turbo lint failed (blocking in strict mode)"

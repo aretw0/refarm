@@ -7,7 +7,7 @@
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"lint": "eslint src",
-		"test": "vitest run"
+		"test": "vitest run --pool=threads"
 	},
 	"dependencies": {
 		"@refarm.dev/plugin-manifest": "workspace:*",
