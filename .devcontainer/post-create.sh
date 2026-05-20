@@ -53,6 +53,41 @@ SH
   fi
 }
 
+clean_stale_wizer_optionals() {
+  [ -d node_modules/.pnpm ] || return 0
+
+  case "$(uname -s):$(uname -m)" in
+    Linux:x86_64|Linux:amd64)
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  local stale=(
+    "@bytecodealliance+wizer-darwin-arm64@*"
+    "@bytecodealliance+wizer-darwin-x64@*"
+    "@bytecodealliance+wizer-linux-arm64@*"
+    "@bytecodealliance+wizer-linux-s390x@*"
+    "@bytecodealliance+wizer-win32-x64@*"
+  )
+
+  log "Removing stale non-linux-x64 Wizer optional package artifacts..."
+  find node_modules/.pnpm -maxdepth 1 -type d \( \
+    -name "${stale[0]}" -o \
+    -name "${stale[1]}" -o \
+    -name "${stale[2]}" -o \
+    -name "${stale[3]}" -o \
+    -name "${stale[4]}" \
+  \) -prune -exec rm -rf {} +
+
+  find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-darwin-arm64" -exec rm -rf {} + 2>/dev/null || true
+  find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-darwin-x64" -exec rm -rf {} + 2>/dev/null || true
+  find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-linux-arm64" -exec rm -rf {} + 2>/dev/null || true
+  find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-linux-s390x" -exec rm -rf {} + 2>/dev/null || true
+  find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-win32-x64" -exec rm -rf {} + 2>/dev/null || true
+}
+
 log "Starting post-create setup..."
 
 # 0) Git symlink support — must run before any checkout/npm ci
@@ -120,6 +155,7 @@ fi
 
 # 2) Node dependencies
 ensure_pnpm
+clean_stale_wizer_optionals
 if [ -f pnpm-lock.yaml ]; then
   log "Running pnpm install --frozen-lockfile..."
   pnpm install --frozen-lockfile --config.confirm-modules-purge=false
@@ -138,7 +174,7 @@ retry 2 rustup component add rust-src clippy rustfmt \
 # 4) Playwright browsers + AI agent tools (parallel — independent network downloads)
 log "Installing Playwright browsers and AI agent tools in parallel..."
 
-retry 2 npx playwright install --with-deps &
+retry 2 pnpm -C validations/sqlite-benchmark/browser exec playwright install --with-deps &
 PW_PID=$!
 
 retry 2 npm install -g @mermaid-js/mermaid-cli &
@@ -156,7 +192,7 @@ MDT_PID=$!
 ) &
 PI_PID=$!
 
-wait $PW_PID     || warn "Playwright browser installation failed. Retry: npx playwright install --with-deps"
+wait $PW_PID     || warn "Playwright browser installation failed. Retry: pnpm -C validations/sqlite-benchmark/browser exec playwright install --with-deps"
 wait $MMDC_PID   || warn "mermaid-cli install failed. Run: npm install -g @mermaid-js/mermaid-cli"
 wait $MDT_PID    || warn "mdt_cli install failed. Run: cargo install mdt_cli --locked --version 0.7.0"
 wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"
@@ -180,7 +216,7 @@ rustc --version || true
 cargo --version || true
 cargo-component --version || true
 wasm-tools --version || true
-npx playwright --version || true
+pnpm -C validations/sqlite-benchmark/browser exec playwright --version || true
 gh --version 2>/dev/null | head -1 || true
 rg --version 2>/dev/null | head -1 || true
 fd --version 2>/dev/null || true
