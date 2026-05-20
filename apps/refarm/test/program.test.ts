@@ -7,6 +7,7 @@ describe("refarm program", () => {
 		const names = program.commands.map((command) => command.name());
 		expect(names).toContain("init");
 		expect(names).toContain("sow");
+		expect(names).toContain("model");
 		expect(names).toContain("status");
 		expect(names).toContain("headless");
 		expect(names).toContain("web");

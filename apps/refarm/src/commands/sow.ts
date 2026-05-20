@@ -10,44 +10,13 @@ import {
 	modelCredentialProvider,
 } from "../credentials/index.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
+import { parseModelRef } from "../model-routing.js";
 
 interface SowOptions {
 	model?: string;
 	github?: boolean;
 	cloudflare?: boolean;
 	all?: boolean;
-}
-
-function inferProviderFromModelId(modelId: string): string | undefined {
-	const normalized = modelId.trim().toLowerCase();
-	if (normalized.startsWith("gpt-") || normalized.startsWith("o")) return "openai";
-	if (normalized.startsWith("claude-")) return "anthropic";
-	if (normalized.startsWith("grok-")) return "xai";
-	if (normalized.startsWith("gemini-")) return "gemini";
-	if (normalized.startsWith("mistral-")) return "mistral";
-	if (normalized.startsWith("deepseek-")) return "deepseek";
-	return undefined;
-}
-
-function parseModelRef(
-	value: string | undefined,
-	storedProvider: string | undefined,
-): { provider?: string; modelId: string } | null {
-	const ref = value?.trim();
-	if (!ref) return null;
-
-	const slash = ref.indexOf("/");
-	if (slash > 0 && slash < ref.length - 1) {
-		return {
-			provider: ref.slice(0, slash).trim(),
-			modelId: ref.slice(slash + 1).trim(),
-		};
-	}
-
-	return {
-		provider: storedProvider ?? inferProviderFromModelId(ref),
-		modelId: ref,
-	};
 }
 
 export const sowCommand = new Command("sow")

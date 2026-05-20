@@ -1,0 +1,148 @@
+import { Command } from "commander";
+import chalk from "chalk";
+import { SiloCore } from "@refarm.dev/silo";
+import {
+	defaultModelForProvider,
+	defaultModelForScope,
+	formatModelRef,
+	isModelScope,
+	type ModelScope,
+	parseModelRef,
+} from "../model-routing.js";
+
+interface ModelTokens {
+	modelProvider?: string;
+	modelId?: string;
+	modelRoutes?: Partial<Record<ModelScope, string>>;
+	model?: string;
+	oauthProvider?: string;
+}
+
+export interface ModelCommandDeps {
+	loadTokens(): Promise<ModelTokens>;
+	saveTokens(tokens: {
+		modelProvider: string;
+		modelId: string;
+		modelRoutes?: Partial<Record<ModelScope, string>>;
+	}): Promise<unknown>;
+}
+
+function defaultDeps(): ModelCommandDeps {
+	const silo = new SiloCore();
+	return {
+		loadTokens: () => silo.loadTokens() as Promise<ModelTokens>,
+		saveTokens: (tokens) => silo.saveTokens(tokens),
+	};
+}
+
+function printCurrent(tokens: ModelTokens): void {
+	const provider = process.env.MODEL_PROVIDER ?? tokens.modelProvider;
+	const modelId = process.env.MODEL_ID ?? tokens.modelId ?? tokens.model;
+	const resolvedModel = modelId ?? defaultModelForProvider(provider);
+	const ref = formatModelRef(provider, resolvedModel);
+
+	console.log(chalk.bold("Model routing"));
+	console.log(`  current: ${chalk.cyan(ref)}`);
+	if (provider) console.log(`  provider: ${provider}`);
+	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
+	const workerRoute =
+		tokens.modelRoutes?.worker ??
+		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);
+	if (workerRoute) console.log(`  worker:   ${workerRoute}`);
+	if (process.env.MODEL_PROVIDER || process.env.MODEL_ID) {
+		console.log(chalk.dim("  source:   environment overrides are active"));
+	} else if (tokens.modelProvider || tokens.modelId || tokens.model) {
+		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
+	} else {
+		console.log(chalk.dim("  source:   built-in defaults"));
+		console.log(chalk.dim("  set one:  refarm model set openai/gpt-5.5"));
+	}
+}
+
+function scopedTokenUpdate(
+	scope: ModelScope,
+	provider: string,
+	modelId: string,
+	tokens: ModelTokens,
+): { modelProvider: string; modelId: string; modelRoutes?: Partial<Record<ModelScope, string>> } {
+	if (scope === "default") {
+		return { modelProvider: provider, modelId };
+	}
+	return {
+		modelProvider: tokens.modelProvider ?? provider,
+		modelId: tokens.modelId ?? defaultModelForProvider(tokens.modelProvider ?? provider) ?? modelId,
+		modelRoutes: {
+			...(tokens.modelRoutes ?? {}),
+			[scope]: `${provider}/${modelId}`,
+		},
+	};
+}
+
+async function setModel(
+	ref: string,
+	scope: ModelScope,
+	deps: ModelCommandDeps,
+): Promise<void> {
+	const tokens = await deps.loadTokens();
+	const parsed = parseModelRef(ref, tokens.modelProvider);
+	if (!parsed) {
+		console.error(chalk.red("✗  model ref cannot be empty."));
+		process.exit(1);
+	}
+	if (!parsed.provider) {
+		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
+		console.error(chalk.dim("   Use provider/model, for example: refarm model set ollama/llama3.2"));
+		process.exit(1);
+	}
+
+	await deps.saveTokens(scopedTokenUpdate(scope, parsed.provider, parsed.modelId, tokens));
+	const label = scope === "default" ? "Default model" : `${scope} model`;
+	console.log(chalk.green(`✓  ${label} set: ${parsed.provider}/${parsed.modelId}`));
+}
+
+export function createModelCommand(deps: ModelCommandDeps = defaultDeps()): Command {
+	const command = new Command("model")
+		.description("Inspect and change the active model route")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model current
+  $ refarm model set openai/gpt-5.5
+  $ refarm model set --scope worker openai/gpt-5.3-codex-spark
+  $ refarm model set anthropic/claude-sonnet-4-6
+  $ refarm model set ollama/llama3.2
+
+Notes:
+  Model routes are saved in ~/.refarm/identity.json and applied when Farmhand
+  starts. Restart Farmhand after changing the model for a running session.
+  For OpenAI workers, the default scoped route is openai/gpt-5.3-codex-spark.
+`,
+		);
+
+	command
+		.command("current", { isDefault: true })
+		.description("Show the currently configured provider/model")
+		.action(async () => {
+			printCurrent(await deps.loadTokens());
+		});
+
+	command
+		.command("set")
+		.description("Set the default model route")
+		.argument("<ref>", "provider/model, or model for the current provider")
+		.option("--scope <scope>", "Route scope: default, worker, or monitor", "default")
+		.action(async (ref: string, opts: { scope?: string }) => {
+			if (!isModelScope(opts.scope)) {
+				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
+				console.error(chalk.dim("   Use: default, worker, or monitor"));
+				process.exit(1);
+			}
+			await setModel(ref, opts.scope, deps);
+		});
+
+	return command;
+}
+
+export const modelCommand = createModelCommand();
