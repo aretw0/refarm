@@ -132,8 +132,13 @@ Use this after a fresh setup or intentional reset:
 
 ```bash
 refarm sow --cloudflare
-refarm provision cloudflare turbo-cache
+refarm provision cloudflare turbo-cache --github-secrets
 ```
+
+Use `--github-secrets` for normal operator runs. It writes
+`TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` through `gh secret set` without
+printing the cache bearer token to stdout. `--print-secrets` exists only for
+private, local recovery sessions where manual copying is unavoidable.
 
 ## Refarm CLI Availability
 

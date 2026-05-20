@@ -5,11 +5,13 @@ const {
 	mockCreateCloudflareTurboCacheProvisionPlan,
 	mockLoadTokens,
 	mockProvision,
+	mockSpawnSync,
 	mockSiloCore,
 	mockTurboCacheProvisioner,
 } = vi.hoisted(() => {
 	const mockLoadTokens = vi.fn();
 	const mockProvision = vi.fn();
+	const mockSpawnSync = vi.fn();
 	return {
 		mockCreateCloudflareProvider: vi.fn(),
 		mockCreateCloudflareTurboCacheProvisionPlan: vi.fn((input) => ({
@@ -42,6 +44,7 @@ const {
 		})),
 		mockLoadTokens,
 		mockProvision,
+		mockSpawnSync,
 		mockSiloCore: vi.fn().mockImplementation(function () {
 			return { loadTokens: mockLoadTokens };
 		}),
@@ -50,6 +53,10 @@ const {
 		}),
 	};
 });
+
+vi.mock("node:child_process", () => ({
+	spawnSync: mockSpawnSync,
+}));
 
 vi.mock("@refarm.dev/silo", () => ({
 	SiloCore: mockSiloCore,
@@ -71,6 +78,7 @@ import { provisionCommand } from "../../src/commands/provision.js";
 describe("provision command", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockSpawnSync.mockReturnValue({ status: 0, stdout: "", stderr: "" });
 		provisionCommand.commands
 			.find((command) => command.name() === "cloudflare")
 			?.setOptionValue("dryRun", undefined);
@@ -215,6 +223,71 @@ describe("provision command", () => {
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("TURBO_CACHE_TOKEN"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("<redacted>"),
+		);
+		expect(logSpy).not.toHaveBeenCalledWith(
+			expect.stringContaining("generated-token"),
+		);
+		expect(mockSpawnSync).not.toHaveBeenCalled();
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("writes produced Cloudflare turbo-cache secrets to GitHub without printing the token", async () => {
+		const provider = { accountId: "account-1" };
+		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
+		mockCreateCloudflareProvider.mockResolvedValue(provider);
+		mockProvision.mockResolvedValue({
+			workerUrl: "https://refarm-cache.example.workers.dev",
+			authToken: "generated-token",
+			bucketName: "refarm-cache-test",
+			plan: { provider: "cloudflare", serviceId: "turbo-cache" },
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			[
+				"cloudflare",
+				"turbo-cache",
+				"--bucket",
+				"refarm-cache-test",
+				"--team",
+				"garden",
+				"--github-secrets",
+			],
+			{ from: "user" },
+		);
+
+		expect(mockProvision).toHaveBeenCalledWith({
+			bucketName: "refarm-cache-test",
+			team: "garden",
+		});
+		expect(mockSpawnSync).toHaveBeenCalledWith(
+			"gh",
+			["secret", "set", "TURBO_CACHE_API_URL"],
+			expect.objectContaining({
+				input: "https://refarm-cache.example.workers.dev",
+				stdio: ["pipe", "pipe", "pipe"],
+			}),
+		);
+		expect(mockSpawnSync).toHaveBeenCalledWith(
+			"gh",
+			["secret", "set", "TURBO_CACHE_TOKEN"],
+			expect.objectContaining({
+				input: "generated-token",
+				stdio: ["pipe", "pipe", "pipe"],
+			}),
+		);
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("GitHub secret TURBO_CACHE_TOKEN set"),
+		);
+		expect(logSpy).not.toHaveBeenCalledWith(
+			expect.stringContaining("generated-token"),
 		);
 
 		logSpy.mockRestore();
