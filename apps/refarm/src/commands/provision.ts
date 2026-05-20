@@ -34,10 +34,19 @@ function renderProvisionCatalog(): void {
 function renderCloudflareCatalog(): void {
 	console.log(chalk.bold("Cloudflare services:"));
 	console.log(`  - turbo-cache ${chalk.gray("Worker + R2 materialization")}`);
+	console.log("");
+	console.log(
+		chalk.gray(
+			"Run a service subcommand to provision resources; provider-only mode prints this guide.",
+		),
+	);
 }
 
 function renderProvisionNextSteps(): void {
 	console.log(chalk.bold("Next steps:"));
+	console.log(
+		`  ${chalk.cyan("refarm sow --cloudflare")} ${chalk.gray("# configure Cloudflare token")}`,
+	);
 	console.log(
 		`  ${chalk.cyan("refarm provision cloudflare turbo-cache --dry-run")}`,
 	);
@@ -91,6 +100,7 @@ const cloudflareCommand = new Command("cloudflare")
 		[
 			"",
 			"Examples:",
+			"  $ refarm sow --cloudflare",
 			"  $ refarm provision cloudflare --dry-run",
 			"  $ refarm provision cloudflare turbo-cache --dry-run",
 			"  $ refarm provision cloudflare turbo-cache --github-secrets",
@@ -120,6 +130,7 @@ const cloudflareCommand = new Command("cloudflare")
 				[
 					"",
 					"Examples:",
+					"  $ refarm sow --cloudflare",
 					"  $ refarm provision cloudflare turbo-cache --dry-run",
 					"  $ refarm provision cloudflare turbo-cache --github-secrets",
 					"  $ refarm provision cloudflare turbo-cache --bucket refarm-turbo-cache --team refarm",
@@ -163,7 +174,10 @@ const cloudflareCommand = new Command("cloudflare")
 
 				if (!tokens?.cloudflareToken) {
 					console.error(
-						chalk.red("No Cloudflare token found. Run `refarm sow` first."),
+						chalk.red("No Cloudflare token found. Run `refarm sow --cloudflare` first."),
+					);
+					console.error(
+						chalk.dim("Then retry: refarm provision cloudflare turbo-cache --dry-run"),
 					);
 					process.exit(1);
 				}

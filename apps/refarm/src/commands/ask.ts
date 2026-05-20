@@ -378,8 +378,8 @@ function printAskError(message: string): void {
 			console.error(chalk.dim("   Start Ollama:  ollama serve"));
 			console.error(chalk.dim("   Or switch provider:  refarm sow"));
 		} else {
-			console.error(chalk.dim("   Check your API key:  refarm sow --status"));
-			console.error(chalk.dim("   Reconfigure:         refarm sow"));
+			console.error(chalk.dim("   Reconfigure/login:  refarm sow"));
+			console.error(chalk.dim("   Switch model:       refarm model set openai/gpt-5.5"));
 		}
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
