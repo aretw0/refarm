@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { routeForScope, withModelRouteEnv } from "./model-routes.js";
+import {
+	createModelRouteResolver,
+	routeForScope,
+	withModelRouteEnv,
+} from "./model-routes.js";
 
 describe("model routes", () => {
 	afterEach(() => {
@@ -51,5 +55,25 @@ describe("model routes", () => {
 
 		expect(process.env.MODEL_PROVIDER).toBe("openai");
 		expect(process.env.MODEL_ID).toBe("gpt-5.5");
+	});
+
+	it("refreshes route tokens and keeps last known value on load failure", async () => {
+		let fail = false;
+		const resolver = createModelRouteResolver({
+			async loadTokens() {
+				if (fail) throw new Error("silo unavailable");
+				return { modelProvider: "openai", modelId: "gpt-5.5" };
+			},
+		});
+
+		await expect(resolver.refreshTokens()).resolves.toEqual({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+		fail = true;
+		await expect(resolver.refreshTokens()).resolves.toEqual({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
 	});
 });

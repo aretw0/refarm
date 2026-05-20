@@ -75,6 +75,30 @@ export function routeForScope(
 	};
 }
 
+export interface ModelRouteStore {
+	loadTokens(): Promise<ModelRouteTokens>;
+}
+
+export function createModelRouteResolver(store: ModelRouteStore): {
+	currentTokens(): ModelRouteTokens;
+	refreshTokens(): Promise<ModelRouteTokens>;
+} {
+	let cachedTokens: ModelRouteTokens = {};
+	return {
+		currentTokens() {
+			return cachedTokens;
+		},
+		async refreshTokens() {
+			try {
+				cachedTokens = await store.loadTokens();
+			} catch {
+				// Keep the last known-good routing data if Silo is temporarily unavailable.
+			}
+			return cachedTokens;
+		},
+	};
+}
+
 export function withModelRouteEnv<T>(
 	route: EffectiveModelRoute,
 	fn: () => Promise<T>,

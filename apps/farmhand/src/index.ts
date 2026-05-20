@@ -32,7 +32,11 @@ import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
-import { routeForScope, withModelRouteEnv, type ModelRouteTokens } from "./model-routes.js";
+import {
+	createModelRouteResolver,
+	routeForScope,
+	withModelRouteEnv,
+} from "./model-routes.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
@@ -189,7 +193,10 @@ const OAUTH_CLIENT_IDS: Record<string, string> = {
 	"openai-codex": "app_EMoamEEZ73f0CkXaXp7hrann",
 };
 
-let siloModelTokens: ModelRouteTokens = {};
+const silo = new SiloCore();
+const modelRouteResolver = createModelRouteResolver({
+	loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
+});
 
 async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
 	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
@@ -216,9 +223,7 @@ async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Prom
 
 async function injectSiloModelEnv(): Promise<void> {
 	try {
-		const silo = new SiloCore();
-		const tokens = (await silo.loadTokens()) as Record<string, unknown>;
-		siloModelTokens = tokens;
+		const tokens = await modelRouteResolver.refreshTokens() as Record<string, unknown>;
 		const provider = tokens.modelProvider as string | undefined;
 		const oauthProvider = tokens.oauthProvider as string | undefined;
 
@@ -428,7 +433,8 @@ async function main() {
 			effort.source === "refarm-ask" || effort.source === "refarm-chat"
 				? "default"
 				: "worker";
-		const route = routeForScope(siloModelTokens, scope);
+		const tokens = await modelRouteResolver.refreshTokens();
+		const route = routeForScope(tokens, scope);
 		await withModelRouteEnv(route, () =>
 			executeTask(captureTractor, {
 				taskId: task.id,
