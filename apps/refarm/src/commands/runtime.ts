@@ -72,6 +72,7 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	}
 	console.log("");
 	console.log(chalk.dim("  Select engine:  refarm config set tractor.engine auto"));
+	console.log(chalk.dim("  Autostart:      refarm config set runtime.autostart always"));
 	console.log(chalk.dim("  Full status:    refarm status --json"));
 }
 
@@ -89,10 +90,13 @@ Examples:
   $ refarm runtime
   $ refarm runtime --json
   $ refarm config set tractor.engine rust
+  $ refarm config set runtime.autostart always
 
 Notes:
   tractor.engine=auto prefers the Rust Tractor daemon when its local binary is
   available, and otherwise falls back to the TypeScript Farmhand runtime.
+  runtime.autostart controls whether CLI flows ask before starting the selected
+  runtime, start it automatically, or never start it.
 `,
 		)
 		.action((opts: { json?: boolean }) => {

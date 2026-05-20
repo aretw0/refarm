@@ -24,7 +24,32 @@ describe("runtime command", () => {
 		expect(output).toContain("active:     rust");
 		expect(output).toContain("autostart:  always");
 		expect(output).toContain("refarm config set tractor.engine auto");
+		expect(output).toContain("refarm config set runtime.autostart always");
 		logSpy.mockRestore();
+	});
+
+	it("documents autostart in command help", () => {
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm config set runtime.autostart always");
+		expect(help).toContain("runtime.autostart controls");
 	});
 
 	it("outputs JSON payload", async () => {
