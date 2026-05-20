@@ -109,6 +109,34 @@ describe("config command", () => {
 		);
 	});
 
+	it("sets tractor engine preference", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["set", "tractor.engine", "rust"], {
+			from: "user",
+		});
+
+		const saved = JSON.parse(
+			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
+		) as { tractor?: { engine?: string } };
+		expect(saved.tractor?.engine).toBe("rust");
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("tractor.engine=rust"),
+		);
+	});
+
+	it("prints default tractor engine preference", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "tractor.engine"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("tractor.engine=auto");
+		expect(output).toContain("source=default");
+	});
+
 	it("rejects invalid autostart modes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi
@@ -125,6 +153,26 @@ describe("config command", () => {
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Invalid farmhand.autostart"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
+
+	it("rejects invalid tractor engine preferences", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		await expect(
+			command().parseAsync(["set", "tractor.engine", "python"], {
+				from: "user",
+			}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Invalid tractor.engine"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});

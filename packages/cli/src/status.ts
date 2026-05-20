@@ -16,11 +16,23 @@ export interface RefarmStatusSurfaceAction {
 	intent?: string;
 }
 
+export type RefarmTractorEngineMode = "auto" | "rust" | "ts";
+export type RefarmActiveTractorEngine = "rust" | "ts" | "unknown";
+
+export interface RefarmRuntimeEngineSummary {
+	configuredEngine?: RefarmTractorEngineMode;
+	activeEngine?: RefarmActiveTractorEngine;
+}
+
+export type RefarmRuntimeStatusSummary = RuntimeSummary & {
+	engine?: RefarmRuntimeEngineSummary;
+};
+
 export interface RefarmStatusJson {
 	schemaVersion: typeof REFARM_STATUS_SCHEMA_VERSION;
 	host: { app: string; command: string; profile: string; mode: string };
 	renderer: { id: string; kind: string; capabilities: readonly string[] };
-	runtime: RuntimeSummary;
+	runtime: RefarmRuntimeStatusSummary;
 	plugins: {
 		installed: number;
 		active: number;
@@ -36,7 +48,7 @@ export interface RefarmStatusJson {
 export interface RefarmStatusOptions {
 	host: { app: string; command: string; profile: string; mode: string };
 	renderer: HomesteadHostRendererDescriptor;
-	runtime: RuntimeSummary;
+	runtime: RefarmRuntimeStatusSummary;
 	trust: TrustSummary;
 	streams?: HomesteadHostStreamState;
 	plugins?: {
@@ -141,6 +153,11 @@ export function isRefarmStatusJson(value: unknown): value is RefarmStatusJson {
 		typeof runtime.ready !== "boolean" ||
 		typeof runtime.namespace !== "string" ||
 		typeof runtime.databaseName !== "string"
+	)
+		return false;
+	if (
+		typeof runtime.engine !== "undefined" &&
+		!isRefarmRuntimeEngineSummary(runtime.engine)
 	)
 		return false;
 
@@ -314,6 +331,19 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
 		`  ready: ${json.runtime.ready}`,
 		`  namespace: ${JSON.stringify(json.runtime.namespace)}`,
 		`  databaseName: ${JSON.stringify(json.runtime.databaseName)}`,
+		...(json.runtime.engine
+			? [
+					"  engine:",
+					...(json.runtime.engine.configuredEngine
+						? [
+								`    configured: ${JSON.stringify(json.runtime.engine.configuredEngine)}`,
+							]
+						: []),
+					...(json.runtime.engine.activeEngine
+						? [`    active: ${JSON.stringify(json.runtime.engine.activeEngine)}`]
+						: []),
+				]
+			: []),
 		"trust:",
 		`  profile: ${JSON.stringify(json.trust.profile)}`,
 		`  warnings: ${json.trust.warnings}`,
@@ -338,7 +368,7 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
 		`- Schema: v${json.schemaVersion}`,
 		`- Host: ${json.host.app} (${json.host.mode})`,
 		`- Renderer: ${json.renderer.id} (${json.renderer.kind})`,
-		`- Runtime: ${json.runtime.ready ? "ready" : "not ready"} (${json.runtime.namespace})`,
+		`- Runtime: ${json.runtime.ready ? "ready" : "not ready"} (${json.runtime.namespace})${formatRuntimeEngineSuffix(json.runtime.engine)}`,
 		`- Trust: ${json.trust.profile} (warnings: ${json.trust.warnings}, critical: ${json.trust.critical})`,
 		`- Plugins: ${json.plugins.installed} installed, ${json.plugins.active} active`,
 		`- Surfaces: ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
@@ -356,7 +386,7 @@ export function formatRefarmStatusSummary(json: RefarmStatusJson): string {
 	const lines = [
 		`Host:      ${json.host.app} (${json.host.mode})`,
 		`Renderer:  ${json.renderer.id} (${json.renderer.kind})`,
-		`Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}`,
+		`Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}${formatRuntimeEngineSuffix(json.runtime.engine)}`,
 		`Trust:     ${json.trust.profile} — warnings: ${json.trust.warnings}, critical: ${json.trust.critical}`,
 		`Plugins:   ${json.plugins.installed} installed, ${json.plugins.active} active`,
 		`Surfaces:  ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
@@ -434,6 +464,7 @@ function toCanonicalRefarmStatusJson(json: RefarmStatusJson): RefarmStatusJson {
 			ready: json.runtime.ready,
 			databaseName: json.runtime.databaseName,
 			namespace: json.runtime.namespace,
+			...(json.runtime.engine ? { engine: { ...json.runtime.engine } } : {}),
 		},
 		plugins: {
 			installed: json.plugins.installed,
@@ -480,6 +511,34 @@ function isRefarmStatusSurfaceActions(
 			);
 		})
 	);
+}
+
+function isRefarmRuntimeEngineSummary(
+	value: unknown,
+): value is RefarmRuntimeEngineSummary {
+	if (!isRecord(value)) return false;
+	return (
+		(typeof value.configuredEngine === "undefined" ||
+			value.configuredEngine === "auto" ||
+			value.configuredEngine === "rust" ||
+			value.configuredEngine === "ts") &&
+		(typeof value.activeEngine === "undefined" ||
+			value.activeEngine === "rust" ||
+			value.activeEngine === "ts" ||
+			value.activeEngine === "unknown")
+	);
+}
+
+function formatRuntimeEngineSuffix(
+	engine: RefarmRuntimeEngineSummary | undefined,
+): string {
+	if (!engine) return "";
+	const active = engine.activeEngine ? `engine: ${engine.activeEngine}` : "engine: unknown";
+	const configured =
+		engine.configuredEngine && engine.configuredEngine !== engine.activeEngine
+			? `, configured: ${engine.configuredEngine}`
+			: "";
+	return ` (${active}${configured})`;
 }
 
 function isFiniteNumber(value: unknown): value is number {

@@ -183,6 +183,27 @@ describe("buildRefarmStatusJson", () => {
 		});
 	});
 
+	it("preserves optional tractor engine runtime details", () => {
+		const result = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			runtime: {
+				ready: true,
+				databaseName: "refarm-main",
+				namespace: "refarm-main",
+				engine: {
+					configuredEngine: "auto",
+					activeEngine: "ts",
+				},
+			},
+		});
+
+		expect(result.runtime.engine).toEqual({
+			configuredEngine: "auto",
+			activeEngine: "ts",
+		});
+		expect(formatRefarmStatusJson(result)).toContain('"engine": {');
+	});
+
 	it("flags trust, plugin, and stream pressure diagnostics", () => {
 		const diagnostics = buildRefarmStatusJson({
 			...BASE_OPTIONS,
@@ -238,6 +259,32 @@ describe("status contract validation", () => {
 				plugins: {
 					...json.plugins,
 					availableActions: [{ id: "open-node" }],
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("validates optional tractor engine details", () => {
+		const json = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			runtime: {
+				ready: true,
+				databaseName: "refarm-main",
+				namespace: "refarm-main",
+				engine: {
+					configuredEngine: "rust",
+					activeEngine: "ts",
+				},
+			},
+		});
+
+		expect(isRefarmStatusJson(json)).toBe(true);
+		expect(
+			isRefarmStatusJson({
+				...json,
+				runtime: {
+					...json.runtime,
+					engine: { configuredEngine: "python" },
 				},
 			}),
 		).toBe(false);
@@ -406,6 +453,27 @@ describe("formatRefarmStatusSummary", () => {
 		expect(summary).toContain("Surfaces:  0 rejected, 0 actions");
 		expect(summary).toContain("Diagnostics:");
 		expect(summary).toContain("  - runtime:not-ready");
+	});
+
+	it("renders tractor engine details in human summaries", () => {
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				runtime: {
+					ready: true,
+					databaseName: "refarm-main",
+					namespace: "refarm-main",
+					engine: {
+						configuredEngine: "rust",
+						activeEngine: "ts",
+					},
+				},
+			}),
+		);
+
+		expect(summary).toContain(
+			"Runtime:   ready — refarm-main (engine: ts, configured: rust)",
+		);
 	});
 
 	it("renders available action details in human summaries", () => {

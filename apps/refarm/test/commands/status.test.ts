@@ -1,6 +1,8 @@
 import type { RefarmStatusOptions } from "@refarm.dev/cli/status";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
 	HOMESTEAD_HOST_RENDERER_KINDS,
 	requiredHomesteadHostRendererCapabilities,
@@ -35,7 +37,14 @@ import {
 } from "../../src/commands/status-surfaces.js";
 
 describe("statusCommand", () => {
+	let cwd: string;
+	let home: string;
+
 	beforeEach(() => {
+		cwd = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cwd-"));
+		home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-home-"));
+		vi.spyOn(process, "cwd").mockReturnValue(cwd);
+		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.clearAllMocks();
 		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
 			schemaVersion: 1,
@@ -88,6 +97,10 @@ describe("statusCommand", () => {
 		});
 	});
 
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
 		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
@@ -96,8 +109,34 @@ describe("statusCommand", () => {
 					ready: true,
 					namespace: "refarm-main",
 					databaseName: "refarm-main",
+					engine: {
+						configuredEngine: "auto",
+						activeEngine: "ts",
+					},
 				},
 				trust: { profile: "strict", warnings: 0, critical: 0 },
+			}),
+		);
+	});
+
+	it("reports project tractor engine preference in live status", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+			"utf-8",
+		);
+
+		await statusCommand.parseAsync(["--json"], { from: "user" });
+
+		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect.objectContaining({
+				runtime: expect.objectContaining({
+					engine: {
+						configuredEngine: "rust",
+						activeEngine: "ts",
+					},
+				}),
 			}),
 		);
 	});

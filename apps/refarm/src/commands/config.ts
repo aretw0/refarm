@@ -5,13 +5,20 @@ import chalk from "chalk";
 import { Command } from "commander";
 import type { AutostartMode } from "./session-launch.js";
 
-type ConfigKey = "farmhand.autostart" | "operator.openExternalLinks";
+type ConfigKey =
+	| "farmhand.autostart"
+	| "operator.openExternalLinks"
+	| "tractor.engine";
 type OpenExternalLinksMode = "auto" | "never";
+type TractorEngineMode = "auto" | "rust" | "ts";
 
 interface RefarmCliConfig {
 	autostart?: string;
 	operator?: {
 		openExternalLinks?: string | boolean;
+	};
+	tractor?: {
+		engine?: string;
 	};
 }
 
@@ -23,9 +30,11 @@ interface ConfigDeps {
 const CONFIG_KEYS: readonly ConfigKey[] = [
 	"farmhand.autostart",
 	"operator.openExternalLinks",
+	"tractor.engine",
 ];
 const AUTOSTART_MODES: readonly AutostartMode[] = ["ask", "always", "never"];
 const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
+const TRACTOR_ENGINE_MODES: readonly TractorEngineMode[] = ["auto", "rust", "ts"];
 
 function defaultDeps(): ConfigDeps {
 	return {
@@ -74,6 +83,14 @@ function parseOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | nul
 	return null;
 }
 
+function parseTractorEngineMode(value: unknown): TractorEngineMode | null {
+	if (typeof value !== "string") return null;
+	const normalized = value.trim().toLowerCase();
+	return normalized === "auto" || normalized === "rust" || normalized === "ts"
+		? normalized
+		: null;
+}
+
 function resolveAutostartMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
@@ -89,6 +106,21 @@ function resolveAutostartMode(
 		if (mode) return { value: mode, source: filePath };
 	}
 	return { value: "ask", source: "default" };
+}
+
+function resolveTractorEngineMode(
+	deps: ConfigDeps,
+	opts: { local?: boolean },
+): { value: TractorEngineMode; source: string } {
+	const paths = opts.local
+		? [configPath(deps, { local: true })]
+		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
+	let resolved: { value: TractorEngineMode; source: string } | null = null;
+	for (const filePath of paths) {
+		const mode = parseTractorEngineMode(readConfig(filePath).tractor?.engine);
+		if (mode) resolved = { value: mode, source: filePath };
+	}
+	return resolved ?? { value: "auto", source: "default" };
 }
 
 function assertConfigKey(value: string): asserts value is ConfigKey {
@@ -112,6 +144,13 @@ function assertOpenExternalLinksMode(value: string): asserts value is OpenExtern
 	process.exit(1);
 }
 
+function assertTractorEngineMode(value: string): asserts value is TractorEngineMode {
+	if ((TRACTOR_ENGINE_MODES as readonly string[]).includes(value)) return;
+	console.error(chalk.red(`✗  Invalid tractor.engine: ${value}`));
+	console.error(chalk.dim(`   Use: ${TRACTOR_ENGINE_MODES.join(", ")}`));
+	process.exit(1);
+}
+
 function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
 	if (key === "farmhand.autostart") {
 		const effective = resolveAutostartMode(deps, opts);
@@ -124,6 +163,12 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 		const mode = parseOpenExternalLinksMode(readConfig(filePath).operator?.openExternalLinks) ?? "auto";
 		console.log(`${key}=${mode}`);
 		console.log(chalk.dim(`source=${mode === "auto" ? "default" : filePath}`));
+		return;
+	}
+	if (key === "tractor.engine") {
+		const effective = resolveTractorEngineMode(deps, opts);
+		console.log(`${key}=${effective.value}`);
+		console.log(chalk.dim(`source=${effective.source}`));
 	}
 }
 
@@ -154,6 +199,19 @@ function setConfigValue(
 		writeConfig(filePath, config);
 		console.log(chalk.green(`✓  ${key}=${value}`));
 		console.log(chalk.dim(`   ${filePath}`));
+		return;
+	}
+	if (key === "tractor.engine") {
+		assertTractorEngineMode(value);
+		const filePath = configPath(deps, opts);
+		const config = readConfig(filePath);
+		config.tractor = {
+			...(config.tractor ?? {}),
+			engine: value,
+		};
+		writeConfig(filePath, config);
+		console.log(chalk.green(`✓  ${key}=${value}`));
+		console.log(chalk.dim(`   ${filePath}`));
 	}
 }
 
@@ -169,11 +227,13 @@ Examples:
   $ refarm config get farmhand.autostart
   $ refarm config set farmhand.autostart always
   $ refarm config set operator.openExternalLinks never
+  $ refarm config set tractor.engine auto
   $ refarm config set farmhand.autostart never --local
 
 Keys:
   farmhand.autostart  ask | always | never
   operator.openExternalLinks  auto | never
+  tractor.engine  auto | rust | ts
 
 Notes:
   Without a subcommand, config currently prints this guide. It is reserved for
@@ -187,6 +247,7 @@ Notes:
 			console.log(chalk.dim("  refarm config get farmhand.autostart"));
 			console.log(chalk.dim("  refarm config set farmhand.autostart always"));
 			console.log(chalk.dim("  refarm config set operator.openExternalLinks never"));
+			console.log(chalk.dim("  refarm config set tractor.engine auto"));
 		})
 		.addCommand(
 			new Command("get")
