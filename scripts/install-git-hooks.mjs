@@ -606,13 +606,13 @@ try_generate_baseline() {
     return 0
   fi
 
-  echo "$missing_message"
-
   if ! has_npm_script "$script_name"; then
-    echo "⚠️  Script '$script_name' is unavailable for this package. Skipping."
+    echo "ℹ️  Optional script '$script_name' is unavailable for this package. Skipping baseline."
     cleanup_transient_artifacts
     return 0
   fi
+
+  echo "$missing_message"
 
   if pnpm run "$script_name"; then
     if [ -f "$target_file" ]; then
