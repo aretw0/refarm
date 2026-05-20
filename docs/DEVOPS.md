@@ -266,7 +266,7 @@ pnpm run test:unit
 
 - **Root cause:** `uses:` does not support runtime expressions for action version refs in workflow syntax. The ref must be static at parse time.
 - **Fix applied (Mar 6, 2026):** Replaced expression-based refs with local wrapper actions:
-  - `./.github/actions/upload-artifact` (internally pinned to `actions/upload-artifact@v7.0.0`)
+  - `./.github/actions/upload-artifact` (internally pinned to `actions/upload-artifact@v7.0.1`)
   - `./.github/actions/codecov-upload` (internally pinned to `codecov/codecov-action@v5.5.2`)
   - `./.github/actions/github-script` (internally pinned to `actions/github-script@v7`)
   - `./.github/actions/create-pr` (internally pinned to `peter-evans/create-pull-request@v8.1.0`)
