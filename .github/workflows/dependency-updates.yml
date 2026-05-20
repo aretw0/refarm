@@ -28,7 +28,7 @@ jobs:
       pr-body-template: |
         ## 🔄 Atualização Automática de Dependências
 
-        Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `pnpm run deps:check`**.
+        Este PR consolida atualizações de dependências identificadas pelo fluxo automatizado de manutenção.
 
         O relatório detalhado pode ser discutido na Issue: {{ISSUE_URL}}
 

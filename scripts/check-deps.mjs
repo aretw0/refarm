@@ -16,7 +16,7 @@ async function main() {
     let reportContent = '# 🔄 Relatório de Atualização de Dependências\n\n';
 
     if (!upgraded || Object.keys(upgraded).length === 0) {
-      reportContent += '✅ **Nenhuma dependência desatualizada!** Tudo está na versão mais recente.\n';
+      reportContent += 'Nenhuma dependência desatualizada foi identificada.\n';
       fs.writeFileSync(reportPath, reportContent);
       console.log('✅ Tudo atualizado. Relatório gerado.');
       return;
@@ -41,14 +41,14 @@ async function main() {
     }
 
     if (!hasUpdates) {
-      reportContent += '✅ **Nenhuma dependência desatualizada!**\n';
+      reportContent += 'Nenhuma dependência desatualizada foi identificada.\n';
     }
     
     reportContent += '\n---\n';
     reportContent += '> 🤖 **Nota:** Relatório gerado automaticamente por `pnpm run deps:check`.\n';
     
     if (isUpdate) {
-      reportContent += '> ⚠️ **Ação Executada:** Os arquivos `package.json` foram modificados com as novas versões. As mudanças estão prontas para o PR.\n';
+      reportContent += '> Atualização aplicada: os arquivos `package.json` foram modificados com as versões propostas.\n';
     } else {
       reportContent += '> 💡 Execute `pnpm run deps:update` para aplicar as atualizações localmente se preferir antes de criar o PR.\n';
     }

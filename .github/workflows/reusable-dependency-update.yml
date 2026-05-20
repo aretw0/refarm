@@ -57,7 +57,7 @@ on:
         default: |
           ## 🔄 Atualização Automática de Dependências
 
-          Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `pnpm run deps:check`**.
+          Este PR consolida atualizações de dependências identificadas pelo fluxo automatizado de manutenção.
 
           O relatório detalhado pode ser discutido na Issue: {{ISSUE_URL}}
 
@@ -159,9 +159,9 @@ jobs:
           echo -e "\n---\n" >> "$FINAL_REPORT"
           
           if [ "${{ steps.validation_gate.outcome }}" != "success" ]; then
-            echo -e "> [!CAUTION]\n> **Testes Falharam!** Esta atualização de dependências quebrou funcionalidades existentes. Verifique os logs do CI.\n" >> "$FINAL_REPORT"
+            echo -e "> [!CAUTION]\n> Validação padrão falhou. Verifique os logs do CI antes de integrar estas atualizações.\n" >> "$FINAL_REPORT"
           else
-            echo -e "✅ **Testes Passaram!** Nenhuma regressão funcional detectada.\n" >> "$FINAL_REPORT"
+            echo -e "Validação padrão concluída sem falhas nos gates executados.\n" >> "$FINAL_REPORT"
           fi
 
           if [ -f "packages/tractor/benchmarks/report.md" ]; then
