@@ -25,6 +25,14 @@ export interface SessionReadiness {
 }
 
 export type AutostartMode = "always" | "ask" | "never";
+export type TractorEngineMode = "auto" | "rust" | "ts";
+export type LaunchRuntimeEngine = "rust" | "ts";
+
+export interface LaunchRuntimeSelection {
+	configuredEngine: TractorEngineMode;
+	activeEngine: LaunchRuntimeEngine;
+	reason: "configured-rust" | "configured-ts" | "auto-rust-available" | "auto-ts-fallback";
+}
 
 export interface LaunchDeps {
 	operator: OperatorChannel;
@@ -129,6 +137,73 @@ function parseAutostartMode(value: string | undefined): AutostartMode | null {
 	return null;
 }
 
+export function readTractorEngineMode(): TractorEngineMode {
+	let resolved: TractorEngineMode | null = null;
+	for (const base of refarmSearchDirs()) {
+		const configFile = path.join(base, "config.json");
+		if (!fs.existsSync(configFile)) continue;
+		try {
+			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
+				tractor?: { engine?: string };
+			};
+			const configMode = parseTractorEngineMode(config.tractor?.engine);
+			if (configMode) resolved = configMode;
+		} catch {
+			// ignore malformed config
+		}
+	}
+	return resolved ?? "auto";
+}
+
+function parseTractorEngineMode(value: string | undefined): TractorEngineMode | null {
+	if (value === "auto" || value === "rust" || value === "ts") return value;
+	return null;
+}
+
+function tractorBinaryPath(repoRoot: string): string {
+	const targetDir = process.env.CARGO_TARGET_DIR
+		? path.resolve(process.env.CARGO_TARGET_DIR)
+		: path.join(repoRoot, "packages", "tractor", "target");
+	return path.join(targetDir, "release", process.platform === "win32" ? "tractor.exe" : "tractor");
+}
+
+export function resolveLaunchRuntime(
+	repoRoot: string,
+	configuredEngine: TractorEngineMode = readTractorEngineMode(),
+): LaunchRuntimeSelection {
+	if (configuredEngine === "ts") {
+		return {
+			configuredEngine,
+			activeEngine: "ts",
+			reason: "configured-ts",
+		};
+	}
+	if (configuredEngine === "rust") {
+		if (!fs.existsSync(tractorBinaryPath(repoRoot))) {
+			throw new Error(
+				`tractor.engine=rust but the Rust tractor binary is not built at ${tractorBinaryPath(repoRoot)}. Build it with: pnpm --filter @refarm.dev/tractor-rs run build`,
+			);
+		}
+		return {
+			configuredEngine,
+			activeEngine: "rust",
+			reason: "configured-rust",
+		};
+	}
+	if (fs.existsSync(tractorBinaryPath(repoRoot))) {
+		return {
+			configuredEngine,
+			activeEngine: "rust",
+			reason: "auto-rust-available",
+		};
+	}
+	return {
+		configuredEngine,
+		activeEngine: "ts",
+		reason: "auto-ts-fallback",
+	};
+}
+
 /** Compute the monorepo root from this file's location. */
 export function findRepoRoot(): string {
 	const __filename = fileURLToPath(import.meta.url);
@@ -142,13 +217,20 @@ export function defaultLaunchDeps(): LaunchDeps {
 		operator: createStdioOperatorChannel(),
 
 		spawnFarmhand(repoRoot) {
-			const scriptPath = path.join(repoRoot, "scripts", "farmhand-start.sh");
+			const runtime = resolveLaunchRuntime(repoRoot);
+			const scriptName =
+				runtime.activeEngine === "rust" ? "tractor-start.sh" : "farmhand-start.sh";
+			const scriptPath = path.join(repoRoot, "scripts", scriptName);
+			const fallbackCommand =
+				runtime.activeEngine === "rust" ? "tractor" : "farmhand";
+			const fallbackArgs =
+				runtime.activeEngine === "rust" ? [] : ["--background"];
 			const child = fs.existsSync(scriptPath)
 				? spawn("bash", [scriptPath, "--background"], {
 						detached: true,
 						stdio: "ignore",
 					})
-				: spawn("farmhand", ["--background"], {
+				: spawn(fallbackCommand, fallbackArgs, {
 						detached: true,
 						stdio: "ignore",
 					});
@@ -191,18 +273,19 @@ export async function autoStartFarmhand(
 	const mode = deps.autostartMode ?? "ask";
 
 	if (mode === "never") {
-		process.stderr.write(chalk.red("✗  Farmhand is not running.\n"));
+		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
 		console.error(chalk.dim("   Start now:        refarm"));
 		console.error(
 			chalk.dim(
-				"   Local dev start:  bash scripts/farmhand-start.sh --background",
+				"   Local TS start:   bash scripts/farmhand-start.sh --background",
 			),
 		);
+		console.error(chalk.dim("   Local Rust start: bash scripts/tractor-start.sh --background"));
 		console.error(chalk.dim("   Diagnose:         refarm doctor"));
 		return false;
 	}
 
-	process.stderr.write(chalk.red("✗  Farmhand is not running.\n\n"));
+	process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n\n"));
 
 	if (mode === "ask") {
 		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
@@ -213,7 +296,7 @@ export async function autoStartFarmhand(
 		}
 	}
 
-	process.stdout.write(chalk.dim("   → Starting farmhand..."));
+	process.stdout.write(chalk.dim("   → Starting refarm runtime..."));
 	try {
 		deps.spawnFarmhand(repoRoot);
 	} catch (error) {
@@ -237,9 +320,10 @@ export async function autoStartFarmhand(
 	console.error(chalk.dim("   Run `refarm doctor` for diagnostics."));
 	console.error(
 		chalk.dim(
-			"   Local dev fallback:  bash scripts/farmhand-start.sh --background",
+			"   Local TS fallback:    bash scripts/farmhand-start.sh --background",
 		),
 	);
+	console.error(chalk.dim("   Local Rust fallback:  bash scripts/tractor-start.sh --background"));
 	return false;
 }
 
@@ -288,7 +372,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	}
 
 	if (!r.farmhandRunning) {
-		console.error(chalk.red("✗  Farmhand is not running.\n"));
+		console.error(chalk.red("✗  Refarm runtime is not running.\n"));
 		console.error(
 			chalk.dim("   Diagnose:  ") + chalk.cyan("refarm doctor"),
 		);
@@ -304,7 +388,7 @@ export function printOnboarding(): void {
 	console.log(
 		"  " + chalk.cyan("2.") + "  Then run:               " + chalk.cyan("refarm"),
 	);
-	console.log(chalk.dim("\n  Farmhand starts automatically on first use."));
+	console.log(chalk.dim("\n  The Refarm runtime starts automatically on first use."));
 	console.log();
 	console.log(chalk.dim("Need help?  ") + chalk.cyan("refarm doctor"));
 }

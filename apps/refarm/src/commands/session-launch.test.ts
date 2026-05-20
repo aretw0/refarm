@@ -10,6 +10,8 @@ import {
 	checkSessionReadiness,
 	autoStartFarmhand,
 	readAutostartMode,
+	readTractorEngineMode,
+	resolveLaunchRuntime,
 	type LaunchDeps,
 } from "./session-launch.js";
 
@@ -325,6 +327,115 @@ describe("readAutostartMode", () => {
 			expect(readAutostartMode()).toBe("ask");
 		} finally {
 			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("readTractorEngineMode", () => {
+	const originalHome = process.env.HOME;
+	let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+	});
+
+	afterEach(() => {
+		process.env.HOME = originalHome;
+		cwdSpy.mockRestore();
+	});
+
+	it("returns auto when no tractor engine preference exists", () => {
+		expect(readTractorEngineMode()).toBe("auto");
+	});
+
+	it("lets project-local tractor engine override home preference", () => {
+		const homeBase = join(tmpdir(), `refarm-tractor-home-${Date.now()}`);
+		const cwdBase = join(tmpdir(), `refarm-tractor-cwd-${Date.now()}`);
+		mkdirSync(join(homeBase, ".refarm"), { recursive: true });
+		mkdirSync(join(cwdBase, ".refarm"), { recursive: true });
+		writeFileSync(
+			join(homeBase, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "ts" } }),
+		);
+		writeFileSync(
+			join(cwdBase, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+		);
+		process.env.HOME = homeBase;
+		cwdSpy.mockReturnValue(cwdBase);
+
+		try {
+			expect(readTractorEngineMode()).toBe("rust");
+		} finally {
+			rmSync(homeBase, { recursive: true, force: true });
+			rmSync(cwdBase, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("resolveLaunchRuntime", () => {
+	const originalCargoTargetDir = process.env.CARGO_TARGET_DIR;
+
+	beforeEach(() => {
+		delete process.env.CARGO_TARGET_DIR;
+	});
+
+	afterEach(() => {
+		if (originalCargoTargetDir === undefined) {
+			delete process.env.CARGO_TARGET_DIR;
+		} else {
+			process.env.CARGO_TARGET_DIR = originalCargoTargetDir;
+		}
+	});
+
+	it("uses TS when explicitly configured", () => {
+		expect(resolveLaunchRuntime("/fake/root", "ts")).toMatchObject({
+			activeEngine: "ts",
+			reason: "configured-ts",
+		});
+	});
+
+	it("uses TS in auto mode when the Rust tractor binary is absent", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-no-rust-${Date.now()}`);
+		mkdirSync(repoRoot, { recursive: true });
+
+		try {
+			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
+				activeEngine: "ts",
+				reason: "auto-ts-fallback",
+			});
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("uses Rust in auto mode when the Rust tractor binary exists", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-${Date.now()}`);
+		const binDir = join(repoRoot, "packages", "tractor", "target", "release");
+		mkdirSync(binDir, { recursive: true });
+		writeFileSync(join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"), "");
+
+		try {
+			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			});
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("fails early when Rust is explicitly configured but the binary is absent", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-missing-${Date.now()}`);
+		mkdirSync(repoRoot, { recursive: true });
+
+		try {
+			expect(() => resolveLaunchRuntime(repoRoot, "rust")).toThrow(
+				/tractor\.engine=rust but the Rust tractor binary is not built/,
+			);
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
 		}
 	});
 });

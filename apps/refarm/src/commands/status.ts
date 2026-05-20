@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import {
 	assertRefarmStatusJson,
@@ -7,11 +6,15 @@ import {
 	formatRefarmStatusSummary,
 	parseRefarmStatusJson,
 	type RefarmStatusJson,
-	type RefarmTractorEngineMode,
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
+import {
+	findRepoRoot,
+	readTractorEngineMode,
+	resolveLaunchRuntime,
+} from "./session-launch.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
@@ -41,42 +44,22 @@ function readNamespaceFromConfig(): string | undefined {
 	}
 }
 
-function parseTractorEngineMode(value: unknown): RefarmTractorEngineMode | null {
-	if (typeof value !== "string") return null;
-	const normalized = value.trim().toLowerCase();
-	return normalized === "auto" || normalized === "rust" || normalized === "ts"
-		? normalized
-		: null;
-}
-
-function readTractorEnginePreference(): RefarmTractorEngineMode {
-	const paths = [
-		path.join(os.homedir(), ".refarm", "config.json"),
-		path.join(process.cwd(), ".refarm", "config.json"),
-	];
-	let resolved: RefarmTractorEngineMode | null = null;
-	for (const filePath of paths) {
-		try {
-			const config = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
-				tractor?: { engine?: string };
-			};
-			const mode = parseTractorEngineMode(config.tractor?.engine);
-			if (mode) resolved = mode;
-		} catch {
-			// Missing or malformed preference files should not block status output.
-		}
-	}
-	return resolved ?? "auto";
-}
-
 function createStatusRuntimeSummary(namespace: string): RefarmStatusJson["runtime"] {
+	const configuredEngine = readTractorEngineMode();
+	const activeEngine = (() => {
+		try {
+			return resolveLaunchRuntime(findRepoRoot(), configuredEngine).activeEngine;
+		} catch {
+			return "unknown";
+		}
+	})();
 	return {
 		ready: true,
 		namespace,
 		databaseName: namespace,
 		engine: {
-			configuredEngine: readTractorEnginePreference(),
-			activeEngine: "ts",
+			configuredEngine,
+			activeEngine,
 		},
 	};
 }

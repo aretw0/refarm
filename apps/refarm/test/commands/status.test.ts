@@ -39,10 +39,15 @@ import {
 describe("statusCommand", () => {
 	let cwd: string;
 	let home: string;
+	let cargoTargetDir: string;
+	let originalCargoTargetDir: string | undefined;
 
 	beforeEach(() => {
 		cwd = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cwd-"));
 		home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-home-"));
+		cargoTargetDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cargo-"));
+		originalCargoTargetDir = process.env.CARGO_TARGET_DIR;
+		process.env.CARGO_TARGET_DIR = cargoTargetDir;
 		vi.spyOn(process, "cwd").mockReturnValue(cwd);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.clearAllMocks();
@@ -98,6 +103,11 @@ describe("statusCommand", () => {
 	});
 
 	afterEach(() => {
+		if (originalCargoTargetDir === undefined) {
+			delete process.env.CARGO_TARGET_DIR;
+		} else {
+			process.env.CARGO_TARGET_DIR = originalCargoTargetDir;
+		}
 		vi.restoreAllMocks();
 	});
 
@@ -134,7 +144,7 @@ describe("statusCommand", () => {
 				runtime: expect.objectContaining({
 					engine: {
 						configuredEngine: "rust",
-						activeEngine: "ts",
+						activeEngine: "unknown",
 					},
 				}),
 			}),
