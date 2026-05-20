@@ -5,10 +5,11 @@ export function isSidecarUnavailable(message: string): boolean {
 }
 
 export function printSidecarUnavailable(): void {
-	console.error(chalk.red("✗  Farmhand is not running."));
+	console.error(chalk.red("✗  Refarm runtime is not running."));
 	console.error(chalk.dim("   Start now:  refarm"));
 	console.error(chalk.dim("   Diagnose:   refarm doctor"));
 	console.error(chalk.dim("   Always:     refarm config set farmhand.autostart always"));
+	console.error(chalk.dim("   Engine:     refarm config set tractor.engine auto"));
 }
 
 export function printSidecarError(message: string): void {

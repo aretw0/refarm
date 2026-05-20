@@ -362,7 +362,7 @@ function printAskError(message: string): void {
 		message.includes("curl: (7)");
 
 	if (isFarmhandDown) {
-		console.error(chalk.red("\n✗  Farmhand is not running."));
+		console.error(chalk.red("\n✗  Refarm runtime is not running."));
 		console.error(chalk.dim("   Start now:  refarm"));
 		console.error(chalk.dim("   Diagnose:   refarm doctor"));
 		console.error(
@@ -370,6 +370,7 @@ function printAskError(message: string): void {
 				"   Always:     refarm config set farmhand.autostart always",
 			),
 		);
+		console.error(chalk.dim("   Engine:     refarm config set tractor.engine auto"));
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";
@@ -435,13 +436,14 @@ Examples:
   $ refarm ask "start fresh" --new
 
 Runtime:
-  refarm ask uses Farmhand. If credentials are configured and Farmhand is stopped,
-  refarm can start it before submitting the question.
+  refarm ask uses the Refarm runtime. If credentials are configured and the
+  runtime is stopped, refarm can start it before submitting the question.
 
   Configure credentials:  refarm sow
   Diagnose runtime:       refarm doctor
   Always autostart:       refarm config set farmhand.autostart always
   Disable autostart:      refarm config set farmhand.autostart never
+  Select runtime engine:  refarm config set tractor.engine auto
   One-shot override:      REFARM_FARMHAND_AUTOSTART=always refarm ask "hello"
 `,
 		)
