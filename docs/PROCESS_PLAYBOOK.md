@@ -24,6 +24,9 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 
 ```bash
 pnpm run farm:status        # unified status: both services, ports, artifacts, MODEL
+refarm runtime              # selected runtime engine + autostart policy
+refarm config set tractor.engine auto      # auto | rust | ts
+refarm config set runtime.autostart ask    # ask | always | never
 refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
 pnpm run refarm:telemetry:gate:ci      # strict fail-closed gate (recommended CI policy)
 pnpm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
@@ -57,6 +60,28 @@ refarm tree fork --scope git <commit> --name <branch> # create branch without sw
 pnpm run refarm:actions:verify # closeout lane for action-readiness changes
 pnpm run refarm:tree:verify # closeout lane for tree stabilization changes
 ```
+
+---
+
+## CLI runtime controls
+
+`refarm` now owns the daily-driver runtime selection path. Use the manual
+`pnpm run agent:*` and `pnpm run farmhand:*` commands below when you are
+debugging the backends directly.
+
+```bash
+refarm runtime                         # show configured/active engine
+refarm runtime --json                  # machine-readable runtime status
+refarm config set tractor.engine auto  # prefer Rust tractor, fall back to TS farmhand
+refarm config set tractor.engine rust  # require Rust tractor; fail early if missing
+refarm config set tractor.engine ts    # force TypeScript farmhand
+refarm config set runtime.autostart always  # ask | always | never
+```
+
+`runtime.autostart` is the canonical autostart key for CLI flows. The legacy
+`farmhand.autostart` key still reads and writes the same stored value for
+compatibility. `REFARM_RUNTIME_AUTOSTART` is the preferred environment override;
+`REFARM_FARMHAND_AUTOSTART` remains a legacy fallback.
 
 ---
 
