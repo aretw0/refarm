@@ -221,6 +221,10 @@ async function injectSiloModelEnv(): Promise<void> {
 		if (provider && !process.env.MODEL_PROVIDER) {
 			process.env.MODEL_PROVIDER = provider;
 		}
+		const modelId = tokens.modelId ?? tokens.model;
+		if (typeof modelId === "string" && modelId.trim().length > 0 && !process.env.MODEL_ID) {
+			process.env.MODEL_ID = modelId.trim();
+		}
 
 		// OAuth path: use (and possibly refresh) stored OAuth token
 		if (oauthProvider) {
@@ -274,6 +278,7 @@ async function injectConfigEnv(): Promise<void> {
 			MODEL_TOOL_CALL_MAX_ITER: "MODEL_TOOL_CALL_MAX_ITER",
 			MODEL_STREAM_RESPONSES:   "MODEL_STREAM_RESPONSES",
 			MODEL_SYSTEM:             "MODEL_SYSTEM",
+			MODEL_ID:                 "MODEL_ID",
 		};
 
 		for (const [cfgKey, envKey] of Object.entries(envMap)) {

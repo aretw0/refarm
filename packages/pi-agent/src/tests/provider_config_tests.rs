@@ -17,7 +17,7 @@ fn provider_config_choose_model_falls_back_to_default() {
 fn provider_config_openai_compat_defaults_known_provider() {
     let (base, model) = openai_compat_defaults("openai");
     assert_eq!(base, "https://api.openai.com");
-    assert_eq!(model, "gpt-4o-mini");
+    assert_eq!(model, "gpt-5.5");
 }
 
 #[test]

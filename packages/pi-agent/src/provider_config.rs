@@ -8,7 +8,7 @@ pub(crate) fn choose_model(explicit_model: &str, default_model: &'static str) ->
 
 pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static str) {
     match provider {
-        "openai" => ("https://api.openai.com", "gpt-4o-mini"),
+        "openai" => ("https://api.openai.com", "gpt-5.5"),
         "groq" => ("https://api.groq.com", "llama-3.3-70b-versatile"),
         "mistral" => ("https://api.mistral.ai", "mistral-large-latest"),
         "xai" => ("https://api.x.ai", "grok-3"),
