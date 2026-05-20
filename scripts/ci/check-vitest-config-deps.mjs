@@ -101,6 +101,7 @@ const allErrors = [
   ...checkDir(PACKAGES_DIR),
   ...checkDir(APPS_DIR),
   ...checkRootConfig("eslint.config.mjs"),
+  ...checkRootConfig("vitest.config.js"),
 ];
 
 if (allErrors.length === 0) {

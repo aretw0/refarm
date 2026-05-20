@@ -180,6 +180,7 @@
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/silo": "workspace:*",
 		"@refarm.dev/thresher": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
 		"@refarm.dev/windmill": "workspace:*",
 		"@turbo/gen": "^2.9.14",
 		"@types/node": "^25.6.0",

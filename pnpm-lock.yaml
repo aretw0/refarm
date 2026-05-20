@@ -62,6 +62,9 @@ importers:
       '@refarm.dev/thresher':
         specifier: workspace:*
         version: link:packages/thresher
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:packages/vtconfig
       '@refarm.dev/windmill':
         specifier: workspace:*
         version: link:packages/windmill
