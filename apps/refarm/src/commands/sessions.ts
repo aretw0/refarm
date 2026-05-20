@@ -7,6 +7,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { exitForSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
@@ -137,14 +138,7 @@ async function listSessions(): Promise<void> {
 	try {
 		sessions = await fetchSessions();
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	if (sessions.length === 0) {
@@ -222,14 +216,7 @@ async function createSession(opts: { name?: string }): Promise<void> {
 		}
 		created = parsed.session;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	writeActiveSessionOrExit(created["@id"]);
@@ -247,9 +234,7 @@ async function useSession(prefix: string): Promise<void> {
 	try {
 		sessions = await fetchSessions();
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		console.error(chalk.red(`✗  ${msg}`));
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	const matches = findSessionIdPrefixMatches(prefix, sessions);
@@ -316,14 +301,7 @@ async function forkSession(
 		}
 		fork = parsed.session;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	// Auto-switch to the new fork.
@@ -370,14 +348,7 @@ async function showSession(prefix: string): Promise<void> {
 		}
 		history = body;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	const session = history.session;

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
+import { exitForSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface TaskListJson {
@@ -100,14 +101,7 @@ async function listTasks(opts: {
 			limit: opts.limit,
 		});
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	if (opts.json) {
@@ -180,13 +174,7 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		}
 		body = parsed;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		exitForSidecarError(err);
 	}
 
 	const { task, events } = body;

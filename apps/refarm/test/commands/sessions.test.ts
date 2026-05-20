@@ -123,7 +123,10 @@ describe("refarm sessions", () => {
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("tractor is not running"),
+			expect.stringContaining("Farmhand is not running"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Start now:  refarm"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -173,9 +174,8 @@ export function buildTelemetryRecommendations(
 }
 
 function printConnectionFailure(message: string): never {
-	if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
-		console.error(chalk.red("✗  farmhand is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+	if (isSidecarUnavailable(message)) {
+		printSidecarUnavailable();
 	} else if (message.includes("telemetry endpoint not available")) {
 		console.error(
 			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),

@@ -15,6 +15,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { exitForSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
@@ -110,17 +111,6 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
 		process.exit(1);
 	}
 	return body;
-}
-
-function exitForSidecarError(err: unknown): never {
-	const msg = err instanceof Error ? err.message : String(err);
-	if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-		console.error(chalk.red("✗  farmhand sidecar is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
-	} else {
-		console.error(chalk.red(`✗  ${msg}`));
-	}
-	process.exit(1);
 }
 
 export async function getSessionTimelineNodes(
