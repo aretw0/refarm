@@ -93,6 +93,22 @@ describe("config command", () => {
 		expect(output).toContain("interactive config is reserved");
 	});
 
+	it("sets operator external-link mode", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["set", "operator.openExternalLinks", "never"], {
+			from: "user",
+		});
+
+		const saved = JSON.parse(
+			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
+		) as { operator?: { openExternalLinks?: string } };
+		expect(saved.operator?.openExternalLinks).toBe("never");
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("operator.openExternalLinks=never"),
+		);
+	});
+
 	it("rejects invalid autostart modes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi

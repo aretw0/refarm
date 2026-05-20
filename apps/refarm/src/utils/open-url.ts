@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { execFile } from "node:child_process";
 import {
 	openHostBrowserUrl,
@@ -34,6 +37,9 @@ function resolveOpenExternalLinksMode(): OpenExternalLinksMode {
 	const envMode = normalizeOpenExternalLinksMode(process.env["REFARM_OPEN_EXTERNAL_LINKS"]);
 	if (envMode) return envMode;
 
+	const cliConfigMode = readOperatorCliOpenExternalLinksMode();
+	if (cliConfigMode) return cliConfigMode;
+
 	try {
 		const config = loadConfig() as RefarmOpenLinkConfig;
 		const configured = config.operator?.openExternalLinks;
@@ -43,6 +49,24 @@ function resolveOpenExternalLinksMode(): OpenExternalLinksMode {
 	} catch {
 		return "auto";
 	}
+}
+
+function readOperatorCliOpenExternalLinksMode(): OpenExternalLinksMode | null {
+	for (const base of [
+		path.join(os.homedir(), ".refarm"),
+		path.join(process.cwd(), ".refarm"),
+	]) {
+		const configPath = path.join(base, "config.json");
+		if (!fs.existsSync(configPath)) continue;
+		try {
+			const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmOpenLinkConfig;
+			const mode = normalizeOpenExternalLinksMode(config.operator?.openExternalLinks);
+			if (mode) return mode;
+		} catch {
+			// Ignore malformed operator config and keep the best-effort opener path.
+		}
+	}
+	return null;
 }
 
 function normalizeOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | null {

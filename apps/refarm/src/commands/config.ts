@@ -5,10 +5,14 @@ import chalk from "chalk";
 import { Command } from "commander";
 import type { AutostartMode } from "./session-launch.js";
 
-type ConfigKey = "farmhand.autostart";
+type ConfigKey = "farmhand.autostart" | "operator.openExternalLinks";
+type OpenExternalLinksMode = "auto" | "never";
 
 interface RefarmCliConfig {
 	autostart?: string;
+	operator?: {
+		openExternalLinks?: string | boolean;
+	};
 }
 
 interface ConfigDeps {
@@ -16,8 +20,12 @@ interface ConfigDeps {
 	home(): string;
 }
 
-const CONFIG_KEYS: readonly ConfigKey[] = ["farmhand.autostart"];
+const CONFIG_KEYS: readonly ConfigKey[] = [
+	"farmhand.autostart",
+	"operator.openExternalLinks",
+];
 const AUTOSTART_MODES: readonly AutostartMode[] = ["ask", "always", "never"];
+const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
 
 function defaultDeps(): ConfigDeps {
 	return {
@@ -52,6 +60,20 @@ function parseAutostartMode(value: string | undefined): AutostartMode | null {
 		: null;
 }
 
+function parseOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | null {
+	if (value === false) return "never";
+	if (value === true) return "auto";
+	if (typeof value !== "string") return null;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === "0" || normalized === "false" || normalized === "off" || normalized === "never") {
+		return "never";
+	}
+	if (normalized === "1" || normalized === "true" || normalized === "on" || normalized === "auto") {
+		return "auto";
+	}
+	return null;
+}
+
 function resolveAutostartMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
@@ -83,11 +105,25 @@ function assertAutostartMode(value: string): asserts value is AutostartMode {
 	process.exit(1);
 }
 
+function assertOpenExternalLinksMode(value: string): asserts value is OpenExternalLinksMode {
+	if ((OPEN_EXTERNAL_LINKS_MODES as readonly string[]).includes(value)) return;
+	console.error(chalk.red(`✗  Invalid operator.openExternalLinks: ${value}`));
+	console.error(chalk.dim(`   Use: ${OPEN_EXTERNAL_LINKS_MODES.join(", ")}`));
+	process.exit(1);
+}
+
 function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
 	if (key === "farmhand.autostart") {
 		const effective = resolveAutostartMode(deps, opts);
 		console.log(`${key}=${effective.value}`);
 		console.log(chalk.dim(`source=${effective.source}`));
+		return;
+	}
+	if (key === "operator.openExternalLinks") {
+		const filePath = configPath(deps, opts);
+		const mode = parseOpenExternalLinksMode(readConfig(filePath).operator?.openExternalLinks) ?? "auto";
+		console.log(`${key}=${mode}`);
+		console.log(chalk.dim(`source=${mode === "auto" ? "default" : filePath}`));
 	}
 }
 
@@ -105,6 +141,19 @@ function setConfigValue(
 		writeConfig(filePath, config);
 		console.log(chalk.green(`✓  ${key}=${value}`));
 		console.log(chalk.dim(`   ${filePath}`));
+		return;
+	}
+	if (key === "operator.openExternalLinks") {
+		assertOpenExternalLinksMode(value);
+		const filePath = configPath(deps, opts);
+		const config = readConfig(filePath);
+		config.operator = {
+			...(config.operator ?? {}),
+			openExternalLinks: value,
+		};
+		writeConfig(filePath, config);
+		console.log(chalk.green(`✓  ${key}=${value}`));
+		console.log(chalk.dim(`   ${filePath}`));
 	}
 }
 
@@ -119,10 +168,12 @@ Examples:
   $ refarm config
   $ refarm config get farmhand.autostart
   $ refarm config set farmhand.autostart always
+  $ refarm config set operator.openExternalLinks never
   $ refarm config set farmhand.autostart never --local
 
 Keys:
   farmhand.autostart  ask | always | never
+  operator.openExternalLinks  auto | never
 
 Notes:
   Without a subcommand, config currently prints this guide. It is reserved for
@@ -135,6 +186,7 @@ Notes:
 			console.log("");
 			console.log(chalk.dim("  refarm config get farmhand.autostart"));
 			console.log(chalk.dim("  refarm config set farmhand.autostart always"));
+			console.log(chalk.dim("  refarm config set operator.openExternalLinks never"));
 		})
 		.addCommand(
 			new Command("get")
