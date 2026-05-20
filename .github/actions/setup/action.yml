@@ -34,6 +34,10 @@ inputs:
     description: "Pull request number (used for scoped cache key when is-pr=true)"
     required: false
     default: ""
+  cache-mode:
+    description: "Cache trust mode. Use 'off' for privileged publish/deploy jobs."
+    required: false
+    default: "auto"
 
 runs:
   using: "composite"
@@ -50,27 +54,32 @@ runs:
       with:
         run_install: false
 
-    - name: Setup Node.js ${{ inputs.node-version }}
+    - name: Setup Node.js ${{ inputs.node-version }} with pnpm cache
+      if: ${{ inputs.cache-mode != 'off' && inputs.is-pr != 'true' }}
       uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
       with:
         node-version: ${{ inputs.node-version }}
         cache: "pnpm"
+
+    - name: Setup Node.js ${{ inputs.node-version }} without dependency cache
+      if: ${{ inputs.cache-mode == 'off' || inputs.is-pr == 'true' }}
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ inputs.node-version }}
 
     # SECURITY: Turbo cache is scoped by context (PR vs push) to prevent cache poisoning.
     # PRs write to turbo-pr-* namespace; push builds write to turbo-push-* namespace.
     # These are disjoint: main/develop cannot restore a PR's poisoned Turbo cache.
     # See: docs/security/ci-cache-hardening.md
     - name: Cache Turbo — PR
-      if: ${{ inputs.turbo-cache-api == '' && inputs.is-pr == 'true' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api == '' && inputs.is-pr == 'true' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
         key: ${{ runner.os }}-turbo-pr-${{ inputs.pr-number }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}
-        restore-keys: |
-          ${{ runner.os }}-turbo-pr-${{ inputs.pr-number }}-
 
     - name: Cache Turbo — push
-      if: ${{ inputs.turbo-cache-api == '' && inputs.is-pr != 'true' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api == '' && inputs.is-pr != 'true' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
@@ -79,7 +88,7 @@ runs:
           ${{ runner.os }}-turbo-push-
 
     - name: Configure Turbo remote cache
-      if: ${{ inputs.turbo-cache-api != '' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api != '' && inputs.is-pr != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -110,7 +119,7 @@ runs:
         fi
 
     - name: Cache Playwright browsers
-      if: ${{ inputs.playwright-setup == 'true' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.playwright-setup == 'true' }}
       id: cache-playwright
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
@@ -143,7 +152,7 @@ runs:
         targets: ${{ inputs.rust-target }}
 
     - name: Cache cargo-component
-      if: ${{ inputs.rust-target != '' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.rust-target != '' }}
       id: cache-cargo-component
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
@@ -151,7 +160,7 @@ runs:
         key: ${{ runner.os }}-cargo-component-0.21.1
 
     - name: Install cargo-component
-      if: ${{ inputs.rust-target != '' && steps.cache-cargo-component.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.rust-target != '' && (inputs.cache-mode == 'off' || steps.cache-cargo-component.outputs.cache-hit != 'true') }}
       shell: bash
       run: |
         if cargo component --version >/dev/null 2>&1; then
@@ -161,7 +170,7 @@ runs:
         fi
 
     - name: Rust cache
-      if: ${{ inputs.rust-target != '' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.rust-target != '' }}
       uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       with:
         workspaces: |

@@ -33,6 +33,8 @@ jobs:
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
+        with:
+          cache-mode: "off"
 
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
