@@ -58,6 +58,26 @@ describe("sowCommand — default (no flags)", () => {
 		);
 	});
 
+	it("sets provider/model without prompting when a full model ref is passed", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
+		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+	});
+
+	it("sets provider/model without prompting even when no provider is configured", async () => {
+		await sowCommand.parseAsync(["--model", "ollama/llama3.2"], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "ollama", modelId: "llama3.2" });
+	});
+
+	it("uses the configured provider when --model receives only a model id", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
+		await sowCommand.parseAsync(["--model", "gpt-5.5"], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+	});
+
 	it("saves only modelProvider when ollama is selected (no key)", async () => {
 		mockModelCollect.mockResolvedValue({ provider: "ollama", apiKey: null });
 		await sowCommand.parseAsync([], { from: "user" });
@@ -78,22 +98,21 @@ describe("sowCommand — default (no flags)", () => {
 	});
 });
 
-describe("sowCommand — --model flag", () => {
+describe("sowCommand — --all flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
+		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
 		mockModelCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
 	});
 
-	it("reconfigures model provider even when already set", async () => {
-		await sowCommand.parseAsync(["--model"], { from: "user" });
-		expect(mockModelCollect).toHaveBeenCalledOnce();
-	});
-
-	it("saves updated modelProvider", async () => {
-		await sowCommand.parseAsync(["--model"], { from: "user" });
+	it("can also pin a provider/model ref without affecting credential collection", async () => {
+		await sowCommand.parseAsync(["--all", "--model", "openai/gpt-5.5"], { from: "user" });
 		expect(mockSaveTokens).toHaveBeenCalledWith(
-			expect.objectContaining({ modelProvider: "openai", modelApiKey: "sk-openai-test" }),
+			expect.objectContaining({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
 		);
 	});
 });
@@ -140,7 +159,7 @@ describe("sowCommand — --cloudflare flag", () => {
 	});
 });
 
-describe("sowCommand — --all flag", () => {
+describe("sowCommand — --all credentials", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });

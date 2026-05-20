@@ -12,30 +12,89 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 
 interface SowOptions {
-	model?: boolean;
+	model?: string;
 	github?: boolean;
 	cloudflare?: boolean;
 	all?: boolean;
 }
 
+function inferProviderFromModelId(modelId: string): string | undefined {
+	const normalized = modelId.trim().toLowerCase();
+	if (normalized.startsWith("gpt-") || normalized.startsWith("o")) return "openai";
+	if (normalized.startsWith("claude-")) return "anthropic";
+	if (normalized.startsWith("grok-")) return "xai";
+	if (normalized.startsWith("gemini-")) return "gemini";
+	if (normalized.startsWith("mistral-")) return "mistral";
+	if (normalized.startsWith("deepseek-")) return "deepseek";
+	return undefined;
+}
+
+function parseModelRef(
+	value: string | undefined,
+	storedProvider: string | undefined,
+): { provider?: string; modelId: string } | null {
+	const ref = value?.trim();
+	if (!ref) return null;
+
+	const slash = ref.indexOf("/");
+	if (slash > 0 && slash < ref.length - 1) {
+		return {
+			provider: ref.slice(0, slash).trim(),
+			modelId: ref.slice(slash + 1).trim(),
+		};
+	}
+
+	return {
+		provider: storedProvider ?? inferProviderFromModelId(ref),
+		modelId: ref,
+	};
+}
+
 export const sowCommand = new Command("sow")
 	.description("Configure refarm credentials (default: model provider only)")
-	.option("--model", "Reconfigure the model provider")
+	.option("--model <ref>", "Set the default model as provider/model, or model for the current provider")
 	.option("--github", "Configure GitHub credentials")
 	.option("--cloudflare", "Configure Cloudflare credentials")
 	.option("--all", "Configure or reconfigure all credentials")
+	.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ refarm sow
+  $ refarm sow --model openai/gpt-5.5
+  $ refarm sow --model anthropic/claude-sonnet-4-6
+  $ refarm sow --model ollama/llama3.2
+  $ refarm sow --model gpt-5.5
+
+Notes:
+  --model changes the saved provider/model routing. It does not collect a new
+  API key or OAuth login; run plain refarm sow to configure credentials.
+`,
+	)
 	.action(async (opts: SowOptions) => {
 		try {
 			const silo = new SiloCore();
 			const stored = (await silo.loadTokens()) as Record<string, string | undefined>;
 			const ctx = { tryOpenUrl };
+			const modelRef = parseModelRef(opts.model, stored.modelProvider);
+			if (opts.model !== undefined && !modelRef) {
+				console.error(chalk.red("✗  --model cannot be empty."));
+				process.exit(1);
+			}
+			if (modelRef && !modelRef.provider) {
+				console.error(chalk.red(`✗  Could not infer provider for model "${modelRef.modelId}".`));
+				console.error(chalk.dim("   Use provider/model, for example: refarm sow --model ollama/llama3.2"));
+				process.exit(1);
+			}
 
 			const needsModel = !stored.modelProvider;
-			const configureModel = needsModel || Boolean(opts.model) || Boolean(opts.all);
+			const configureModelRef = modelRef !== null;
+			const configureModel = (needsModel && !configureModelRef) || Boolean(opts.all);
 			const configureGithub = Boolean(opts.github) || Boolean(opts.all);
 			const configureCloudflare = Boolean(opts.cloudflare) || Boolean(opts.all);
 
-			if (!configureModel && !configureGithub && !configureCloudflare) {
+			if (!configureModel && !configureModelRef && !configureGithub && !configureCloudflare) {
 				console.log(chalk.green("✓  All credentials already configured.\n"));
 				console.log(
 					chalk.dim("   Use --model, --github, --cloudflare, or --all to reconfigure."),
@@ -67,8 +126,16 @@ export const sowCommand = new Command("sow")
 						oauthProvider: undefined,
 					});
 				}
-			} else {
+			} else if (!configureModelRef) {
 				console.log(chalk.dim(`  Model: already configured (${stored.modelProvider}) — skipped`));
+			}
+
+			if (configureModelRef) {
+				await silo.saveTokens({
+					modelProvider: modelRef.provider,
+					modelId: modelRef.modelId,
+				});
+				console.log(chalk.green(`  ✓ Default model set: ${modelRef.provider}/${modelRef.modelId}`));
 			}
 
 			if (configureGithub) {

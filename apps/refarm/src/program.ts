@@ -36,6 +36,7 @@ interface LazyCommandConfig<TOptions extends Record<string, unknown>> {
 	description: string;
 	argument?: { flags: string; description: string; defaultValue?: string };
 	options?: LazyCommandOption[];
+	helpText?: string;
 	load: () => Promise<Command>;
 	toArgs: (argument: string | undefined, options: TOptions) => string[];
 }
@@ -53,6 +54,9 @@ function createLazyCommand<TOptions extends Record<string, unknown>>(
 	}
 	for (const option of config.options ?? []) {
 		command.option(option.flags, option.description);
+	}
+	if (config.helpText) {
+		command.addHelpText("after", config.helpText);
 	}
 	return command.action(async (...actionArgs: unknown[]) => {
 		const invokedCommand = actionArgs.at(-1) as Command;
@@ -91,7 +95,7 @@ program.addCommand(
 );
 program.addCommand(
 	createLazyCommand<{
-		model?: boolean;
+		model?: string;
 		github?: boolean;
 		cloudflare?: boolean;
 		all?: boolean;
@@ -99,14 +103,27 @@ program.addCommand(
 		name: "sow",
 		description: "Configure refarm credentials (default: model provider only)",
 		options: [
-			{ flags: "--model", description: "Reconfigure the model provider" },
+			{ flags: "--model <ref>", description: "Set the default model as provider/model, or model for the current provider" },
 			{ flags: "--github", description: "Configure GitHub credentials" },
 			{ flags: "--cloudflare", description: "Configure Cloudflare credentials" },
 			{ flags: "--all", description: "Configure or reconfigure all credentials" },
 		],
+		helpText: `
+
+Examples:
+  $ refarm sow
+  $ refarm sow --model openai/gpt-5.5
+  $ refarm sow --model anthropic/claude-sonnet-4-6
+  $ refarm sow --model ollama/llama3.2
+  $ refarm sow --model gpt-5.5
+
+Notes:
+  --model changes the saved provider/model routing. It does not collect a new
+  API key or OAuth login; run plain refarm sow to configure credentials.
+`,
 		load: async () => (await import("./commands/sow.js")).sowCommand,
 		toArgs: (_unused, opts) => [
-			...(opts.model ? ["--model"] : []),
+			...(opts.model ? ["--model", opts.model] : []),
 			...(opts.github ? ["--github"] : []),
 			...(opts.cloudflare ? ["--cloudflare"] : []),
 			...(opts.all ? ["--all"] : []),
