@@ -2,8 +2,10 @@ import chalk from "chalk";
 import { Command } from "commander";
 import {
 	findRepoRoot,
+	readAutostartMode,
 	readTractorEngineMode,
 	resolveLaunchRuntime,
+	type AutostartMode,
 	type LaunchRuntimeEngine,
 	type LaunchRuntimeSelection,
 	type TractorEngineMode,
@@ -12,6 +14,7 @@ import {
 interface RuntimeCommandDeps {
 	repoRoot(): string;
 	readEngine(): TractorEngineMode;
+	readAutostart(): AutostartMode;
 	resolveRuntime(
 		repoRoot: string,
 		configuredEngine: TractorEngineMode,
@@ -21,6 +24,7 @@ interface RuntimeCommandDeps {
 interface RuntimeStatusPayload {
 	configuredEngine: TractorEngineMode;
 	activeEngine: LaunchRuntimeEngine | "unknown";
+	autostart: AutostartMode;
 	reason: LaunchRuntimeSelection["reason"] | "configured-rust-missing-binary";
 	issue?: string;
 }
@@ -29,17 +33,20 @@ function defaultDeps(): RuntimeCommandDeps {
 	return {
 		repoRoot: findRepoRoot,
 		readEngine: readTractorEngineMode,
+		readAutostart: readAutostartMode,
 		resolveRuntime: resolveLaunchRuntime,
 	};
 }
 
 function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
 	const configuredEngine = deps.readEngine();
+	const autostart = deps.readAutostart();
 	try {
 		const selection = deps.resolveRuntime(deps.repoRoot(), configuredEngine);
 		return {
 			configuredEngine,
 			activeEngine: selection.activeEngine,
+			autostart,
 			reason: selection.reason,
 		};
 	} catch (error) {
@@ -47,6 +54,7 @@ function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
 		return {
 			configuredEngine,
 			activeEngine: "unknown",
+			autostart,
 			reason: "configured-rust-missing-binary",
 			issue: message,
 		};
@@ -57,6 +65,7 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	console.log(chalk.bold("Refarm runtime"));
 	console.log(`  configured: ${payload.configuredEngine}`);
 	console.log(`  active:     ${payload.activeEngine}`);
+	console.log(`  autostart:  ${payload.autostart}`);
 	console.log(`  reason:     ${payload.reason}`);
 	if (payload.issue) {
 		console.log(chalk.yellow(`  issue:      ${payload.issue}`));

@@ -8,6 +8,7 @@ describe("runtime command", () => {
 		const command = createRuntimeCommand({
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
+			readAutostart: () => "always",
 			resolveRuntime: () => ({
 				configuredEngine: "auto",
 				activeEngine: "rust",
@@ -21,6 +22,7 @@ describe("runtime command", () => {
 		expect(output).toContain("Refarm runtime");
 		expect(output).toContain("configured: auto");
 		expect(output).toContain("active:     rust");
+		expect(output).toContain("autostart:  always");
 		expect(output).toContain("refarm config set tractor.engine auto");
 		logSpy.mockRestore();
 	});
@@ -35,6 +37,7 @@ describe("runtime command", () => {
 		const command = createRuntimeCommand({
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
+			readAutostart: () => "never",
 			resolveRuntime: () => selection,
 		});
 
@@ -43,6 +46,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toEqual({
 			configuredEngine: "ts",
 			activeEngine: "ts",
+			autostart: "never",
 			reason: "configured-ts",
 		});
 		logSpy.mockRestore();
@@ -53,6 +57,7 @@ describe("runtime command", () => {
 		const command = createRuntimeCommand({
 			repoRoot: () => "/repo",
 			readEngine: () => "rust",
+			readAutostart: () => "ask",
 			resolveRuntime: () => {
 				throw new Error("tractor.engine=rust but the Rust tractor binary is not built");
 			},
@@ -63,6 +68,7 @@ describe("runtime command", () => {
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
 			configuredEngine: "rust",
 			activeEngine: "unknown",
+			autostart: "ask",
 			reason: "configured-rust-missing-binary",
 			issue: expect.stringContaining("Rust tractor binary is not built"),
 		});
