@@ -367,7 +367,7 @@ function printAskError(message: string): void {
 		console.error(chalk.dim("   Diagnose:   refarm doctor"));
 		console.error(
 			chalk.dim(
-				"   Autostart:  REFARM_FARMHAND_AUTOSTART=always refarm ask \"hello\"",
+				"   Always:     refarm config set farmhand.autostart always",
 			),
 		);
 	} else if (isProviderError) {
@@ -440,8 +440,9 @@ Runtime:
 
   Configure credentials:  refarm sow
   Diagnose runtime:       refarm doctor
-  Always autostart:       REFARM_FARMHAND_AUTOSTART=always refarm ask "hello"
-  Disable autostart:      REFARM_FARMHAND_AUTOSTART=never refarm ask "hello"
+  Always autostart:       refarm config set farmhand.autostart always
+  Disable autostart:      refarm config set farmhand.autostart never
+  One-shot override:      REFARM_FARMHAND_AUTOSTART=always refarm ask "hello"
 `,
 		)
 		.action(
