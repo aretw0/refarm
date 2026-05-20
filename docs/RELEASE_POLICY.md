@@ -34,13 +34,13 @@ Plugins are where the ecosystem breathes. Because Tractor enforces capability co
 - **Versioning**: Up to the plugin author.
 - **Release Security**: Handled by the developer. Refarm Homestead will provide a `Publish Plugin` button that signs the WASM blob with the developer's Nostr key, creating a verifiably authentic release on the decentralised registry.
 
-## Security of `npm run release`
-Our local `npm run release` script is a **Preparation Tool**, not a deployment tool.
+## Security of `pnpm run release`
+Our local `pnpm run release` script is a **Preparation Tool**, not a deployment tool.
 
 1. It blocks execution if the git working tree is dirty.
 2. It bumps the version locally.
 3. It runs `type-check`, `build`, and `test:capabilities` (checking backwards compatibility).
-4. It runs `npm publish --dry-run` to ensure the package configuration is valid.
+4. It runs `pnpm publish --dry-run` to ensure the package configuration is valid.
 5. If anything fails, it automatically rolls back the `package.json`.
 6. If successful, it commits and tags the code, instructing the developer to `git push origin <tag>`.
 

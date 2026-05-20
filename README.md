@@ -83,15 +83,15 @@ Categorized entry points for users, developers, and auditors.
 ## Getting Started
 
 ```bash
-npm install
+pnpm install
 
 # Development
-npm run dev       # Watch mode for all apps
-npm run build     # Build all packages
-npm test          # Run tests
+pnpm run dev       # Watch mode for all apps
+pnpm run build     # Build all packages
+pnpm test          # Run tests
 
 # Contribution workflow
-npm run changeset # Create version changelog entry
+pnpm run changeset # Create version changelog entry
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.

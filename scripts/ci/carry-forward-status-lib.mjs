@@ -85,7 +85,7 @@ export function evaluateCarryForwardResults({
 			});
 		} else {
 			messages.push({
-				level: "warning",
+				level: "log",
 				text: `Gate '${gate.key}' was skipped and no prior executed result was found.`,
 			});
 		}

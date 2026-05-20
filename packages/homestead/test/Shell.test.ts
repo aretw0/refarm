@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
-import type Tractor from "@refarm.dev/tractor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setupStudioShell, StudioShell } from "../src/sdk/Shell";
+import type { StudioHost } from "../src/sdk/studio-host";
 
 interface MockTractor {
     plugins: { getAllPlugins: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
@@ -10,6 +10,7 @@ interface MockTractor {
     onNode: ReturnType<typeof vi.fn>;
     emitTelemetry: ReturnType<typeof vi.fn>;
     getHelpNodes: ReturnType<typeof vi.fn>;
+    switchTier: ReturnType<typeof vi.fn>;
 }
 
 describe("StudioShell Orchestrator", () => {
@@ -47,12 +48,13 @@ describe("StudioShell Orchestrator", () => {
                 return vi.fn();
             }),
             emitTelemetry: vi.fn(),
-            getHelpNodes: vi.fn().mockResolvedValue([{ "refarm:renderType": "landing", name: "Test Landing Node", text: "Welcome" }])
+            getHelpNodes: vi.fn().mockResolvedValue([{ "refarm:renderType": "landing", name: "Test Landing Node", text: "Welcome" }]),
+            switchTier: vi.fn(),
         };
     });
 
     it("should discover all available slots in the DOM", () => {
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         // Accessing private map for verification (via cast)
         const slots = (shell as unknown as { slots: Map<string, Element> }).slots;
         expect(slots.has("header")).toBe(true);
@@ -61,7 +63,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should set up and return the shell through the shared helper", async () => {
-        const shell = await setupStudioShell(tractorMock as unknown as Tractor);
+        const shell = await setupStudioShell(tractorMock as unknown as StudioHost);
 
         expect(shell).toBeInstanceOf(StudioShell);
         expect(tractorMock.observe).toHaveBeenCalledTimes(1);
@@ -71,7 +73,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should inject a plugin into its preferred slot", async () => {
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         const statusbar = document.getElementById("refarm-slot-statusbar");
@@ -110,7 +112,7 @@ describe("StudioShell Orchestrator", () => {
             },
         ]);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
@@ -162,7 +164,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
@@ -235,7 +237,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor, { surfaceContext });
+        const shell = new StudioShell(tractorMock as unknown as StudioHost, { surfaceContext });
         await shell.setup();
 
         expect(surfaceContext).toHaveBeenCalledWith({
@@ -305,7 +307,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor, {
+        const shell = new StudioShell(tractorMock as unknown as StudioHost, {
             surfaceContext,
             surfaceAction,
         });
@@ -379,7 +381,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
@@ -438,7 +440,7 @@ describe("StudioShell Orchestrator", () => {
             },
         ]);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
@@ -519,7 +521,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         const streams = document.getElementById("refarm-slot-streams");
@@ -547,7 +549,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should update system status during orchestration", async () => {
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         const statusEl = document.getElementById("system-status");
@@ -556,7 +558,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should render live stream observations from typed node subscribers", async () => {
-        const shell = new StudioShell(tractorMock as unknown as Tractor);
+        const shell = new StudioShell(tractorMock as unknown as StudioHost);
         await shell.setup();
 
         await nodeHandlers.StreamSession({
@@ -586,7 +588,7 @@ describe("StudioShell Orchestrator", () => {
         expect(statusbar?.textContent).toContain("active");
         expect(statusbar?.textContent).toContain("hello from the stream");
         expect(streams?.hidden).toBe(false);
-        expect(streams?.textContent).toContain("Live soil telemetry");
+        expect(streams?.textContent).toContain("Live stream telemetry");
         expect(streams?.textContent).toContain("hello from the stream");
     });
 });

@@ -1,0 +1,8 @@
+import { describe, it, expect } from "vitest";
+import { {{constantName}}_CAPABILITY } from "./index.js";
+
+describe("{{name}}", () => {
+  it("exports capability marker", () => {
+    expect({{constantName}}_CAPABILITY).toBe("{{name}}:v1");
+  });
+});

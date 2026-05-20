@@ -151,7 +151,7 @@ pub(crate) fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), S
 /// Read-only version of active session ID — never creates a new session.
 /// Used for display purposes (e.g., list_sessions showing which is active).
 pub(crate) fn get_or_create_session_id_readonly() -> String {
-    if let Ok(id) = std::env::var("LLM_SESSION_ID") {
+    if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
         if !id.is_empty() {
             return id;
         }
@@ -162,15 +162,15 @@ pub(crate) fn get_or_create_session_id_readonly() -> String {
 /// Return the active session ID for this agent instance.
 ///
 /// Priority:
-///   1. `LLM_SESSION_ID` env var — explicit override (e.g. tractor passes it per-call)
+///   1. `MODEL_SESSION_ID` env var — explicit override (e.g. tractor passes it per-call)
 ///   2. Most recently created Session node in the CRDT — resume across restarts
 ///   3. Create a fresh Session — first run in this namespace
 ///
-/// When `LLM_SESSION_ID` names a session not yet in the CRDT (first call on a
+/// When `MODEL_SESSION_ID` names a session not yet in the CRDT (first call on a
 /// CLI-generated ID), the Session node is created here so `append_to_session`
 /// can maintain the `leaf_entry_id` chain.
 pub(crate) fn get_or_create_session() -> String {
-    if let Ok(id) = std::env::var("LLM_SESSION_ID") {
+    if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
         if !id.is_empty() {
             if tractor_bridge::get_node(&id).is_err() {
                 let node = session_node(&id, None, None, None, now_ns());
@@ -221,10 +221,10 @@ fn query_history_from_session(max_turns: usize) -> Option<Vec<(String, String)>>
 }
 
 /// Fetch conversation history from the CRDT store.
-/// Controlled by LLM_HISTORY_TURNS env var (default: 0 = disabled).
+/// Controlled by MODEL_HISTORY_TURNS env var (default: 0 = disabled).
 /// Returns up to that many (role, content) pairs, oldest first.
 pub(crate) fn query_history() -> Vec<(String, String)> {
-    let max_turns = std::env::var("LLM_HISTORY_TURNS")
+    let max_turns = std::env::var("MODEL_HISTORY_TURNS")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(0);
@@ -244,10 +244,10 @@ pub(crate) fn query_history() -> Vec<(String, String)> {
     history_from_nodes(&nodes, max_turns)
 }
 
-/// Returns true when `LLM_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
+/// Returns true when `MODEL_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
 /// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
 pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {
-    let budget_key = format!("LLM_BUDGET_{}_USD", provider_name.to_uppercase());
+    let budget_key = format!("MODEL_BUDGET_{}_USD", provider_name.to_uppercase());
     let Ok(budget_str) = std::env::var(&budget_key) else {
         return false;
     };

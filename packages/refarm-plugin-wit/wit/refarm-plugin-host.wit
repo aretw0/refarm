@@ -52,11 +52,11 @@ interface tractor-bridge {
     emit-telemetry:     func(event: string, payload: option<string>);
 }
 
-/// Host-proxied LLM completion bridge.
+/// Host-proxied model completion bridge.
 ///
 /// Plugins pass provider + HTTP request payload and receive raw response bytes.
 /// Credentials stay in the host process (plugin never reads provider API keys).
-interface llm-bridge {
+interface model-bridge {
     record stream-response-metadata {
         prompt-ref: string,
         model: string,
@@ -216,7 +216,7 @@ interface code-ops {
 /// Use world "refarm-plugin" in refarm-sdk.wit for plugin authors.
 world refarm-plugin-host {
     import tractor-bridge;
-    import llm-bridge;
+    import model-bridge;
     import agent-fs;
     import agent-shell;
     import structured-io;

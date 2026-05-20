@@ -12,12 +12,12 @@ interface MigrateConfig {
 }
 
 export const migrateCommand = new Command("migrate")
-  .description("Activate the Escape Hatch: Mirror your project to a sovereign target")
+  .description("Mirror your project to another Git remote")
   .option("--target <url>", "Target Git URL for mirroring")
   .option("--dry-run", "Simulate the migration without pushing")
   .action(async (options) => {
-    console.log(chalk.red.bold("\n🚨 ESCAPE HATCH ACTIVATED"));
-    console.log(chalk.yellow("This process will mirror your entire repository to a new sovereign home.\n"));
+    console.log(chalk.red.bold("\nRepository mirror"));
+    console.log(chalk.yellow("This process will mirror your entire repository to another Git remote.\n"));
 
     let targetUrl = options.target;
 
@@ -83,7 +83,7 @@ export const migrateCommand = new Command("migrate")
 
     if (result.status === "success") {
         console.log(chalk.green.bold("\n✨ MIGRATION COMPLETE"));
-        console.log(chalk.gray(`Your sovereign farm has been mirrored to: ${targetUrl}`));
+        console.log(chalk.gray(`Your repository has been mirrored to: ${targetUrl}`));
     } else if (result.status === "dry-run") {
         console.log(chalk.yellow.bold("\n✨ DRY RUN SUCCESSFUL"));
         console.log(chalk.gray(`Would have mirrored to: ${targetUrl}`));

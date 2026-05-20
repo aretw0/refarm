@@ -1,17 +1,25 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "noEmit": false,
-    "rootDir": "src",
-    "outDir": "dist",
-    "paths": {
-      "@refarm.dev/storage-contract-v1": ["./packages/storage-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/task-contract-v1": ["./packages/task-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/session-contract-v1": ["./packages/session-contract-v1/dist/index.d.ts"]
-    }
-  },
-  "include": ["src/**/*"]
+	"extends": [
+		"./tsconfig.json",
+		"@refarm.dev/tsconfig/build.json"
+	],
+	"compilerOptions": {
+		"rootDir": "src",
+		"composite": true,
+		"outDir": "dist",
+		"paths": {
+			"@refarm.dev/storage-contract-v1": [
+				"./packages/storage-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/task-contract-v1": [
+				"./packages/task-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/session-contract-v1": [
+				"./packages/session-contract-v1/dist/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	]
 }

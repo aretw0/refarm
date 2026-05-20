@@ -50,4 +50,8 @@ export class FileStreamTransport implements StreamTransportAdapter {
 			.filter(Boolean)
 			.map((line) => JSON.parse(line) as StreamChunk);
 	}
+
+	cancel(stream_ref: string): void {
+		this.subscribers.delete(stream_ref);
+	}
 }

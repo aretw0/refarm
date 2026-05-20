@@ -1,5 +1,9 @@
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
-import type { PluginInstance } from "@refarm.dev/tractor";
+import type {
+	RuntimePluginHandle,
+	RuntimePluginManifest,
+	RuntimePluginState,
+} from "@refarm.dev/runtime";
 
 export type StudioPluginTelemetryEmitter = (
 	event: string,
@@ -11,11 +15,11 @@ export interface CreateStudioPluginHandleOptions {
 	name: string;
 	version?: string;
 	entry?: string;
-	manifest?: Partial<PluginInstance["manifest"]>;
-	call?: PluginInstance["call"];
+	manifest?: Partial<RuntimePluginManifest>;
+	call?: RuntimePluginHandle["call"];
 	emitTelemetry?: StudioPluginTelemetryEmitter;
-	state?: PluginInstance["state"];
-	terminate?: PluginInstance["terminate"];
+	state?: RuntimePluginState;
+	terminate?: RuntimePluginHandle["terminate"];
 }
 
 export type HomesteadSurfaceDeclarationInput = Omit<
@@ -41,7 +45,7 @@ export interface StudioPluginRegistryEntryLike {
 }
 
 export interface StudioPluginRegistryLike {
-	register(manifest: PluginInstance["manifest"]): string | Promise<string>;
+	register(manifest: RuntimePluginManifest): string | Promise<string>;
 	getPlugin(id: string): StudioPluginRegistryEntryLike | undefined;
 }
 
@@ -50,7 +54,7 @@ export interface RegisterStudioPluginManifestOptions {
 }
 
 /**
- * Create a local Studio plugin handle without repeating PluginInstance boilerplate.
+ * Create a local Studio plugin handle without repeating runtime handle boilerplate.
  *
  * Internal Studio experiments should keep the default `internal:<id>` entry so
  * Homestead's surface trust gate can distinguish explicit internal fixtures from
@@ -58,7 +62,7 @@ export interface RegisterStudioPluginManifestOptions {
  */
 export function createStudioPluginHandle(
 	options: CreateStudioPluginHandleOptions,
-): PluginInstance {
+): RuntimePluginHandle {
 	const version = options.version ?? "0.1.0";
 	const entry = options.entry ?? `internal:${options.id}`;
 	return {
@@ -71,7 +75,7 @@ export function createStudioPluginHandle(
 			version,
 			entry,
 			capabilities: options.manifest?.capabilities ?? {},
-		} as PluginInstance["manifest"],
+		} as RuntimePluginManifest,
 		call: options.call ?? (async () => null),
 		terminate: options.terminate ?? (() => {}),
 		emitTelemetry: options.emitTelemetry ?? (() => {}),
@@ -88,7 +92,7 @@ export function createStudioPluginHandle(
  */
 export function createHomesteadSurfacePluginHandle(
 	options: CreateHomesteadSurfacePluginHandleOptions,
-): PluginInstance {
+): RuntimePluginHandle {
 	const homesteadSurfaces = options.surfaces.map((surface) => ({
 		...surface,
 		layer: "homestead" as const,
@@ -117,7 +121,7 @@ export function createHomesteadSurfacePluginHandle(
  */
 export async function registerStudioPluginManifest(
 	registry: StudioPluginRegistryLike,
-	plugin: PluginInstance,
+	plugin: RuntimePluginHandle,
 	options: RegisterStudioPluginManifestOptions = {},
 ): Promise<void> {
 	await registry.register(plugin.manifest);

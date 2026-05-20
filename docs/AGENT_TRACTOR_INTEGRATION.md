@@ -25,16 +25,16 @@ Este documento descreve o fluxo completo de como um agente (pi-agent ou qualquer
 │  pi-agent WASM plugin                                        │
 │  parse_respond_payload → provider::complete → tool loop      │
 └────────┬───────────────────────────────────────┬─────────────┘
-         │ LLM request (host-proxied)            │ tractor_bridge
+         │ MODEL request (host-proxied)            │ tractor_bridge
          ▼                                       ▼
 ┌─────────────────┐                   ┌──────────────────────┐
-│  LLM Provider   │                   │  Tractor (host)      │
+│  MODEL Provider   │                   │  Tractor (host)      │
 │  (Anthropic,    │                   │  storeNode / CRDT    │
 │   OpenAI-compat)│                   │  StreamRegistry      │
 └─────────────────┘                   └──────────────────────┘
 ```
 
-**Princípio-chave**: credenciais do LLM nunca saem do Tractor (ADR-053). O plugin WASM faz chamadas via WIT `complete-http-stream` — o host (Tractor) é quem faz o HTTP request real.
+**Princípio-chave**: credenciais do MODEL nunca saem do Tractor (ADR-053). O plugin WASM faz chamadas via WIT `complete-http-stream` — o host (Tractor) é quem faz o HTTP request real.
 
 ---
 
@@ -68,7 +68,7 @@ interface EffortResult {
 
 | Node type | Quando | Campos relevantes |
 |---|---|---|
-| `UserPrompt` | antes do LLM call | `content`, `session_id`, `timestamp_ns` |
+| `UserPrompt` | antes do MODEL call | `content`, `session_id`, `timestamp_ns` |
 | `AgentResponse` | após cada delta (streaming) ou completo | `content`, `is_final`, `sequence`, `model`, `provider` |
 | `UsageRecord` | após resposta final | `tokens_in`, `tokens_out`, `estimated_usd`, `provider` |
 | `StreamChunk` | para cada delta de streaming | `stream_ref`, `content`, `sequence`, `is_final` |
@@ -126,13 +126,13 @@ tractor.onNode("FarmhandTaskResult", (result) => { ... });
 5. Tractor invoca plugin.respond(payload: string)
 6. Plugin: parse_respond_payload(payload) → { prompt, system }
 7. Plugin verifica guards:
-   - LLM_MAX_CONTEXT_TOKENS (limite de tokens)
-   - LLM_BUDGET_<PROVIDER>_USD (cap de gasto 30 dias)
-   - LLM_HISTORY_TURNS (janela de histórico conversacional)
+   - MODEL_MAX_CONTEXT_TOKENS (limite de tokens)
+   - MODEL_BUDGET_<PROVIDER>_USD (cap de gasto 30 dias)
+   - MODEL_HISTORY_TURNS (janela de histórico conversacional)
 8. Plugin chama provider::complete(messages[])
-   → Se LLM_STREAM_RESPONSES=1: usa complete-http-stream WIT (host-proxied)
+   → Se MODEL_STREAM_RESPONSES=1: usa complete-http-stream WIT (host-proxied)
    → Senão: chamada síncrona única
-9. Tool loop (se o LLM retornar tool_calls):
+9. Tool loop (se o MODEL retornar tool_calls):
    - agent-fs: read_file, write_file, edit_file, list_dir, search_files
    - agent-shell: bash (com timeout 30s, argv obrigatório)
    - CRDT tools: list_sessions, current_session, navigate, fork
@@ -145,16 +145,16 @@ tractor.onNode("FarmhandTaskResult", (result) => { ... });
 
 ---
 
-## 4. Fluxo de streaming LLM → browser
+## 4. Fluxo de streaming MODEL → browser
 
-Ativo apenas quando `LLM_STREAM_RESPONSES=1`:
+Ativo apenas quando `MODEL_STREAM_RESPONSES=1`:
 
 ```
 1. Plugin chama WIT complete-http-stream (Tractor faz o HTTP)
 2. Provider envia SSE chunks: data: {"delta":{"type":"text","text":"..."}}\n
 3. Tractor lê cada frame SSE e persiste:
    - StreamChunk com sequence++ e is_final=false
-   - AgentResponse parcial (projeção LLM, ADR-054)
+   - AgentResponse parcial (projeção MODEL, ADR-054)
 4. No chunk final: StreamChunk com is_final=true
 5. StreamRegistry.dispatch(chunk) → todos os transportes:
    ├─ FileStreamTransport → ~/.refarm/streams/<stream_ref>.ndjson
@@ -168,7 +168,7 @@ Ativo apenas quando `LLM_STREAM_RESPONSES=1`:
    - UI renderiza tokens conforme chegam
 ```
 
-**stream_ref** tem o formato `llm:<prompt_ref>` — usado para correlacionar chunks com a sessão de prompt.
+**stream_ref** tem o formato `model:<prompt_ref>` — usado para correlacionar chunks com a sessão de prompt.
 
 ---
 
@@ -178,14 +178,14 @@ Variáveis de ambiente relevantes (definidas no host Tractor):
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `LLM_PROVIDER` | `anthropic` | `anthropic` ou `openai-compat` |
+| `MODEL_PROVIDER` | `anthropic` | `anthropic` ou `openai-compat` |
 | `ANTHROPIC_API_KEY` | — | Credencial (fica no Tractor, nunca no plugin) |
-| `LLM_MODEL` | `claude-sonnet-4-6` | Modelo a usar |
-| `LLM_STREAM_RESPONSES` | `0` | `1` para streaming via SSE/WS |
-| `LLM_MAX_CONTEXT_TOKENS` | — | Limite de tokens no contexto |
-| `LLM_BUDGET_ANTHROPIC_USD` | — | Cap de gasto mensal (USD) |
-| `LLM_HISTORY_TURNS` | `10` | Quantas turns do histórico incluir |
-| `LLM_FALLBACK_PROVIDER` | — | Provider alternativo se principal falhar |
+| `MODEL_ID` | `claude-sonnet-4-6` | Modelo a usar |
+| `MODEL_STREAM_RESPONSES` | `0` | `1` para streaming via SSE/WS |
+| `MODEL_MAX_CONTEXT_TOKENS` | — | Limite de tokens no contexto |
+| `MODEL_BUDGET_ANTHROPIC_USD` | — | Cap de gasto mensal (USD) |
+| `MODEL_HISTORY_TURNS` | `10` | Quantas turns do histórico incluir |
+| `MODEL_FALLBACK_PROVIDER` | — | Provider alternativo se principal falhar |
 
 ---
 
@@ -241,7 +241,7 @@ Estrutura esperada em `~/.refarm/plugins/`:
 ## Referências
 
 - [ADR-052](../specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md) — rendezvous CRDT entre agentes
-- [ADR-053](../specs/ADRs/ADR-053-host-proxied-llm-streaming.md) — credenciais no host, streaming proxied
+- [ADR-053](../specs/ADRs/ADR-053-host-proxied-model-streaming.md) — credenciais no host, streaming proxied
 - [ADR-054](../specs/ADRs/ADR-054-generic-stream-observations.md) — StreamChunk como substrato genérico
 - [ADR-055](../specs/ADRs/ADR-055-stream-contract-v1-transport-layer.md) — família de transportes
 - [specs/features/farmhand-task-execution.md](../specs/features/farmhand-task-execution.md)

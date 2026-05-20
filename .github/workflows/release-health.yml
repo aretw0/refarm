@@ -13,8 +13,8 @@ jobs:
   health:
     uses: ./.github/workflows/reusable-release-health.yml
     with:
-      quality-command: "npm run lint && npm run type-check"
-      build-command: npm run build
+      quality-command: "pnpm run lint && pnpm run type-check"
+      build-command: pnpm run build
       security-audit-level: high
       report-file: release-health.md
       artifact-name: release-health-report

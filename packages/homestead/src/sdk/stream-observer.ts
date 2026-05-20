@@ -3,7 +3,11 @@ import {
 	type StreamChunkStateMap,
 	type StreamObservationView,
 	type StreamSessionStateMap,
-} from "@refarm.dev/tractor";
+} from "./stream-state.js";
+
+export interface StreamObserverTranslator {
+	t(key: string, params?: Record<string, string>): string;
+}
 
 export function sortedStreamObservationViews(
 	sessions: StreamSessionStateMap,
@@ -17,11 +21,19 @@ export function sortedStreamObservationViews(
 
 export function renderStreamObservationPill(
 	view: StreamObservationView,
+	translator?: StreamObserverTranslator,
 ): string {
-	const label = view.promptRef ?? view.streamRef ?? "stream";
-	const status = view.status ?? (view.isTerminal ? "completed" : "observed");
+	const label = view.promptRef ?? view.streamRef ?? streamText(translator, "stream_label");
+	const status =
+		view.status ??
+		(view.isTerminal
+			? streamText(translator, "stream_completed")
+			: streamText(translator, "stream_observed"));
 	const content =
-		view.content || (view.isActive ? "Streaming…" : "Waiting for content…");
+		view.content ||
+		(view.isActive
+			? streamText(translator, "streaming")
+			: streamText(translator, "waiting_for_content"));
 	const tone = view.isActive ? "🟢" : view.isTerminal ? "✅" : "🟡";
 
 	return `
@@ -36,34 +48,55 @@ export function renderStreamObservationPill(
 
 export function renderStreamStatusbarHtml(
 	views: StreamObservationView[],
+	translator?: StreamObserverTranslator,
 ): string {
-	return views.map((view) => renderStreamObservationPill(view)).join("");
+	return views
+		.map((view) => renderStreamObservationPill(view, translator))
+		.join("");
 }
 
-export function renderStreamPanelHtml(views: StreamObservationView[]): string {
+export function renderStreamPanelHtml(
+	views: StreamObservationView[],
+	translator?: StreamObserverTranslator,
+): string {
 	if (views.length === 0) return "";
 
 	return `
-    <section class="refarm-surface refarm-surface-tinted refarm-panel" aria-label="Live agent stream panel">
+    <section class="refarm-surface refarm-surface-tinted refarm-panel" aria-label="${escapeHtml(streamText(translator, "live_agent_stream_panel"))}">
       <header class="refarm-panel-header">
         <div>
-          <p class="refarm-eyebrow">Live soil telemetry</p>
-          <h2 style="font-size: 1rem; margin: 0;">Agent streams</h2>
+          <p class="refarm-eyebrow">${escapeHtml(streamText(translator, "live_stream_telemetry"))}</p>
+          <h2 style="font-size: 1rem; margin: 0;">${escapeHtml(streamText(translator, "agent_streams"))}</h2>
         </div>
-        <span class="refarm-pill-meta" style="font-size: 0.75rem;">${views.length} observed</span>
+        <span class="refarm-pill-meta" style="font-size: 0.75rem;">${escapeHtml(streamText(translator, "streams_observed_count", { count: String(views.length) }))}</span>
       </header>
       <div class="refarm-stack">
-        ${views.map((view) => renderStreamPanelCard(view)).join("")}
+        ${views.map((view) => renderStreamPanelCard(view, translator)).join("")}
       </div>
     </section>
   `;
 }
 
-function renderStreamPanelCard(view: StreamObservationView): string {
-	const label = view.promptRef ?? view.streamRef ?? "stream";
-	const status = view.status ?? (view.isTerminal ? "completed" : "observed");
-	const content = view.content || (view.isActive ? "Streaming…" : "Waiting for content…");
-	const tone = view.isActive ? "Active" : view.isTerminal ? "Complete" : "Observed";
+function renderStreamPanelCard(
+	view: StreamObservationView,
+	translator?: StreamObserverTranslator,
+): string {
+	const label = view.promptRef ?? view.streamRef ?? streamText(translator, "stream_label");
+	const status =
+		view.status ??
+		(view.isTerminal
+			? streamText(translator, "stream_completed")
+			: streamText(translator, "stream_observed"));
+	const content =
+		view.content ||
+		(view.isActive
+			? streamText(translator, "streaming")
+			: streamText(translator, "waiting_for_content"));
+	const tone = view.isActive
+		? streamText(translator, "stream_active")
+		: view.isTerminal
+			? streamText(translator, "stream_complete")
+			: streamText(translator, "stream_observed");
 
 	return `
     <article class="refarm-surface-card" data-stream-ref="${escapeHtml(view.streamRef ?? "")}">
@@ -87,4 +120,45 @@ function escapeHtml(value: string): string {
 		.replace(/>/g, "&gt;")
 		.replace(/\"/g, "&quot;")
 		.replace(/'/g, "&#39;");
+}
+
+function streamText(
+	translator: StreamObserverTranslator | undefined,
+	key: string,
+	params?: Record<string, string>,
+): string {
+	if (translator) return translator.t(`refarm:core/${key}`, params);
+	return fallbackStreamText(key, params);
+}
+
+function fallbackStreamText(
+	key: string,
+	params?: Record<string, string>,
+): string {
+	switch (key) {
+		case "agent_streams":
+			return "Agent streams";
+		case "live_agent_stream_panel":
+			return "Live agent stream panel";
+		case "live_stream_telemetry":
+			return "Live stream telemetry";
+		case "stream_active":
+			return "Active";
+		case "stream_complete":
+			return "Complete";
+		case "stream_completed":
+			return "completed";
+		case "stream_label":
+			return "stream";
+		case "stream_observed":
+			return "observed";
+		case "streaming":
+			return "Streaming…";
+		case "streams_observed_count":
+			return `${params?.count ?? "0"} observed`;
+		case "waiting_for_content":
+			return "Waiting for content…";
+		default:
+			return key;
+	}
 }

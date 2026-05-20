@@ -14,6 +14,6 @@ describe("runTaskV1Conformance", () => {
 	it("includes optional checks when adapter exposes optional APIs", async () => {
 		const adapter = createInMemoryTaskAdapter();
 		const result = await runTaskV1Conformance(adapter);
-		expect(result.total).toBe(7);
+		expect(result.total).toBeGreaterThanOrEqual(8);
 	});
 });

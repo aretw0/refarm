@@ -1,9 +1,18 @@
 import { vi } from "vitest";
+import type { Mock } from "vitest";
 
 /**
  * Creates a reusable mock of the Tractor engine for testing plugins and adapters.
  */
-export function createTractorMock() {
+export function createTractorMock(): {
+  observe: Mock;
+  emitTelemetry: Mock;
+  emit: Mock;
+  setPluginState: Mock;
+  queryNodes: Mock;
+  l8n: { t: Mock };
+  plugins: { getAllPlugins: Mock };
+} {
   return {
     observe: vi.fn(),
     emitTelemetry: vi.fn(),
@@ -11,7 +20,7 @@ export function createTractorMock() {
     setPluginState: vi.fn(),
     queryNodes: vi.fn().mockResolvedValue([]),
     l8n: {
-      t: vi.fn((key: string) => key), // identity fallback for tests
+      t: vi.fn((key: string) => key),
     },
     plugins: {
       getAllPlugins: vi.fn(() => []),
@@ -38,7 +47,7 @@ export class MockStorageAdapter implements StorageAdapter {
     this.nodes.push({ id, type, context, payload: data });
   }
   
-  queryNodes = vi.fn().mockImplementation(async (query: string) => {
+  queryNodes: Mock = vi.fn().mockImplementation(async (query: string) => {
     // If it's a type query (like "WebPage")
     if (!query.includes("SELECT")) {
       return this.nodes.filter(n => n.type === query);
@@ -58,8 +67,8 @@ export class MockStorageAdapter implements StorageAdapter {
     return [];
   });
   
-  execute = vi.fn().mockResolvedValue(null);
-  query = vi.fn().mockImplementation(async (sql: string) => {
+  execute: Mock = vi.fn().mockResolvedValue(null);
+  query: Mock = vi.fn().mockImplementation(async (sql: string) => {
     // A fallback mock for direct SQL queries mapping to our nodes via URL path
     if (sql.includes("SELECT * WHERE url =")) {
       const match = sql.match(/url = '([^']+)'/);

@@ -1,4 +1,6 @@
 export { runEffortV1Conformance } from "./conformance.js";
+export { createInMemoryEffortAdapter } from "./in-memory.js";
+export type { InMemoryEffortOptions } from "./in-memory.js";
 export type {
 	Effort,
 	EffortConformanceResult,

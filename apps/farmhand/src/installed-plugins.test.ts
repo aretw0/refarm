@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadInstalledPlugins } from "./installed-plugins.js";
+import { listInstalledPluginIds, loadInstalledPlugins } from "./installed-plugins.js";
 
 const tempDirs: string[] = [];
 
@@ -39,7 +39,7 @@ describe("loadInstalledPlugins", () => {
 		const tractor = createTractorStub();
 		const logger = { info: vi.fn(), warn: vi.fn() };
 
-		const summary = await loadInstalledPlugins(tractor, baseDir, logger);
+		const summary = await loadInstalledPlugins(tractor, baseDir, undefined, logger);
 
 		expect(summary).toEqual({ loaded: 0, skipped: 0 });
 		expect(tractor.registry.register).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe("loadInstalledPlugins", () => {
 
 		const tractor = createTractorStub();
 		const logger = { info: vi.fn(), warn: vi.fn() };
-		const summary = await loadInstalledPlugins(tractor, baseDir, logger);
+		const summary = await loadInstalledPlugins(tractor, baseDir, undefined, logger);
 
 		expect(summary.loaded).toBe(1);
 		expect(summary.skipped).toBe(1);
@@ -112,7 +112,7 @@ describe("loadInstalledPlugins", () => {
 		const tractor = createTractorStub();
 		const logger = { info: vi.fn(), warn: vi.fn() };
 
-		const summary = await loadInstalledPlugins(tractor, baseDir, logger);
+		const summary = await loadInstalledPlugins(tractor, baseDir, undefined, logger);
 
 		expect(summary).toEqual({ loaded: 1, skipped: 0 });
 		expect(tractor.registry.register).toHaveBeenCalledWith(
@@ -123,5 +123,94 @@ describe("loadInstalledPlugins", () => {
 			expect.objectContaining({ id: "@refarm/pi-agent" }),
 		);
 		expect(logger.warn).not.toHaveBeenCalled();
+	});
+});
+
+describe("listInstalledPluginIds", () => {
+	it("returns empty array when plugins directory does not exist", () => {
+		const baseDir = createTempDir();
+		expect(listInstalledPluginIds(baseDir)).toEqual([]);
+	});
+
+	it("returns ids of all installed plugins", () => {
+		const baseDir = createTempDir();
+		const pluginsDir = path.join(baseDir, "plugins");
+		fs.mkdirSync(pluginsDir, { recursive: true });
+
+		const pluginIds = ["@refarm/plugin-a", "@refarm/plugin-b"];
+		for (const id of pluginIds) {
+			const dir = path.join(pluginsDir, id.replace("/", "-"));
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(
+				path.join(dir, "plugin.json"),
+				JSON.stringify(createMockManifest({ id, entry: `plugin.wasm` })),
+				"utf-8",
+			);
+		}
+
+		const ids = listInstalledPluginIds(baseDir);
+		expect(ids).toHaveLength(2);
+		expect(ids).toContain("@refarm/plugin-a");
+		expect(ids).toContain("@refarm/plugin-b");
+	});
+
+	it("silently skips invalid manifests", () => {
+		const baseDir = createTempDir();
+		const pluginsDir = path.join(baseDir, "plugins");
+		fs.mkdirSync(pluginsDir, { recursive: true });
+
+		const dir = path.join(pluginsDir, "broken");
+		fs.mkdirSync(dir, { recursive: true });
+		fs.writeFileSync(path.join(dir, "plugin.json"), "not-json", "utf-8");
+
+		expect(listInstalledPluginIds(baseDir)).toEqual([]);
+	});
+});
+
+describe("loadInstalledPlugins — pluginFilter", () => {
+	it("loads only plugins whose id appears in pluginFilter", async () => {
+		const baseDir = createTempDir();
+		const pluginsDir = path.join(baseDir, "plugins");
+		fs.mkdirSync(pluginsDir, { recursive: true });
+
+		const pluginIds = ["@refarm/plugin-a", "@refarm/plugin-b"];
+		for (const id of pluginIds) {
+			const dir = path.join(pluginsDir, id.replace("/", "-"));
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(
+				path.join(dir, "plugin.json"),
+				JSON.stringify(createMockManifest({ id, entry: "plugin.wasm" })),
+				"utf-8",
+			);
+		}
+
+		const tractor = createTractorStub();
+		await loadInstalledPlugins(tractor, baseDir, { pluginFilter: ["@refarm/plugin-a"] });
+
+		expect(tractor.plugins.load).toHaveBeenCalledOnce();
+		expect(tractor.plugins.load).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "@refarm/plugin-a" }),
+		);
+	});
+
+	it("loads all plugins when pluginFilter is absent", async () => {
+		const baseDir = createTempDir();
+		const pluginsDir = path.join(baseDir, "plugins");
+		fs.mkdirSync(pluginsDir, { recursive: true });
+
+		const pluginIds = ["@refarm/plugin-a", "@refarm/plugin-b"];
+		for (const id of pluginIds) {
+			const dir = path.join(pluginsDir, id.replace("/", "-"));
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(
+				path.join(dir, "plugin.json"),
+				JSON.stringify(createMockManifest({ id, entry: "plugin.wasm" })),
+				"utf-8",
+			);
+		}
+
+		const tractor = createTractorStub();
+		await loadInstalledPlugins(tractor, baseDir);
+		expect(tractor.plugins.load).toHaveBeenCalledTimes(2);
 	});
 });

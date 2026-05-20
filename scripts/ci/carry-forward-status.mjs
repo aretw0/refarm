@@ -212,7 +212,11 @@ async function run() {
 	const evaluated = evaluateCarryForwardResults({ tracked, results });
 
 	for (const message of evaluated.messages) {
-		console.log(`::${message.level}::${message.text}`);
+		if (message.level === "log") {
+			console.log(message.text);
+		} else {
+			console.log(`::${message.level}::${message.text}`);
+		}
 	}
 
 	await writeOutput("has_failure", evaluated.hasFailure ? "true" : "false");

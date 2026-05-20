@@ -1,66 +1,73 @@
 {
-  "name": "@refarm.dev/homestead",
-  "version": "0.1.0",
-  "description": "Refarm Homestead \u2014 Shared Shell SDK and UI Primitives",
-  "type": "module",
-  "exports": {
-    "./sdk": {
-      "types": "./dist/sdk/index.d.ts",
-      "import": "./dist/sdk/index.js"
-    },
-    "./sdk/custom-element": {
-      "types": "./dist/sdk/custom-element.d.ts",
-      "import": "./dist/sdk/custom-element.js"
-    },
-    "./sdk/host-renderer": {
-      "types": "./dist/sdk/host-renderer.d.ts",
-      "import": "./dist/sdk/host-renderer.js"
-    },
-    "./sdk/plugin-handle": {
-      "types": "./dist/sdk/plugin-handle.d.ts",
-      "import": "./dist/sdk/plugin-handle.js"
-    },
-    "./sdk/runtime": {
-      "types": "./dist/sdk/runtime.d.ts",
-      "import": "./dist/sdk/runtime.js"
-    },
-    "./sdk/shell": {
-      "types": "./dist/sdk/Shell.d.ts",
-      "import": "./dist/sdk/Shell.js"
-    },
-    "./sdk/surface-inspector": {
-      "types": "./dist/sdk/surface-inspector.d.ts",
-      "import": "./dist/sdk/surface-inspector.js"
-    },
-    "./sdk/surface-renderer": {
-      "types": "./dist/sdk/surface-renderer.d.ts",
-      "import": "./dist/sdk/surface-renderer.js"
-    },
-    "./ui": {
-      "types": "./dist/ui/index.d.ts",
-      "import": "./dist/ui/index.js"
-    },
-    "./styles/*": "./dist/styles/*"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --project tsconfig.json --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run",
-    "lint": "eslint src"
-  },
-  "dependencies": {
-    "@refarm.dev/ds": "*",
-    "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/tractor": "*",
-    "astro": "^6.1.8"
-  },
-  "devDependencies": {
-    "@refarm.dev/config": "*",
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
-  },
-  "license": "MIT"
+	"name": "@refarm.dev/homestead",
+	"version": "0.1.0",
+	"description": "Refarm Homestead — Shared Shell SDK and UI Primitives",
+	"type": "module",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./sdk": {
+			"types": "./dist/sdk/index.d.ts",
+			"import": "./dist/sdk/index.js"
+		},
+		"./sdk/custom-element": {
+			"types": "./dist/sdk/custom-element.d.ts",
+			"import": "./dist/sdk/custom-element.js"
+		},
+		"./sdk/host-renderer": {
+			"types": "./dist/sdk/host-renderer.d.ts",
+			"import": "./dist/sdk/host-renderer.js"
+		},
+		"./sdk/plugin-handle": {
+			"types": "./dist/sdk/plugin-handle.d.ts",
+			"import": "./dist/sdk/plugin-handle.js"
+		},
+		"./sdk/runtime": {
+			"types": "./dist/sdk/runtime.d.ts",
+			"import": "./dist/sdk/runtime.js"
+		},
+		"./sdk/shell": {
+			"types": "./dist/sdk/Shell.d.ts",
+			"import": "./dist/sdk/Shell.js"
+		},
+		"./sdk/surface-inspector": {
+			"types": "./dist/sdk/surface-inspector.d.ts",
+			"import": "./dist/sdk/surface-inspector.js"
+		},
+		"./sdk/surface-renderer": {
+			"types": "./dist/sdk/surface-renderer.d.ts",
+			"import": "./dist/sdk/surface-renderer.js"
+		},
+		"./ui": {
+			"types": "./dist/ui/index.d.ts",
+			"import": "./dist/ui/index.js"
+		},
+		"./styles/*": "./dist/styles/*"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --project tsconfig.json --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*",
+		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*",
+		"@refarm.dev/storage-sqlite": "workspace:*",
+		"@refarm.dev/sync-loro": "workspace:*",
+		"@refarm.dev/tractor": "workspace:*",
+		"astro": "^6.2.2"
+	},
+	"devDependencies": {
+		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"license": "MIT"
 }

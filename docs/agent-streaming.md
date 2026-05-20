@@ -1,24 +1,24 @@
 # pi-agent streaming responses
 
 `pi-agent` supports opt-in provider SSE streaming through Tractor's host-owned
-`llm-bridge::complete-http-stream` boundary.
+`model-bridge::complete-http-stream` boundary.
 
 Streaming is disabled by default. Enable it per process/session with:
 
 ```bash
-LLM_STREAM_RESPONSES=1
+MODEL_STREAM_RESPONSES=1
 ```
 
 For startup plugins loaded by the Tractor daemon, the equivalent governed CLI
 entrypoint is:
 
 ```bash
-tractor --llm-stream-responses --plugin ./packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
+tractor --model-stream-responses --plugin ./packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
 ```
 
 Project config can also govern startup plugin streaming. `.refarm/config.json`
 may set `"stream_responses": true` (or explicit `false`, which maps to
-`LLM_STREAM_RESPONSES=0` and overrides process env for the plugin).
+`MODEL_STREAM_RESPONSES=0` and overrides process env for the plugin).
 
 When enabled, pi-agent requests provider-level `stream: true`; Tractor keeps
 provider credentials and route enforcement in the host, reads the SSE response,
@@ -51,7 +51,7 @@ guest.
 
 Stream persistence is append-only by default. Do not add implicit write-path
 cleanup for `StreamChunk` or `StreamSession` rows: those observations may be the
-only audit trail for partial output or future non-LLM progress streams.
+only audit trail for partial output or future non-MODEL progress streams.
 
 Future compaction should be a separate governed operation with a dry-run. It
 should require an explicit namespace and stream scope, operate only on terminal

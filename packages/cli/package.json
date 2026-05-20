@@ -1,41 +1,43 @@
 {
-  "name": "@refarm.dev/cli",
-  "version": "0.1.0",
-  "description": "Refarm CLI library \u2014 status builder and shared types.",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./status": {
-      "types": "./dist/status.d.ts",
-      "import": "./dist/status.js"
-    },
-    "./browser-open": {
-      "types": "./dist/browser-open.d.ts",
-      "import": "./dist/browser-open.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@refarm.dev/homestead": "*",
-    "@refarm.dev/trust": "*",
-    "@refarm.dev/runtime": "*"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
-  }
+	"name": "@refarm.dev/cli",
+	"version": "0.1.0",
+	"description": "Refarm CLI library \u2014 status builder and shared types.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./status": {
+			"types": "./dist/status.d.ts",
+			"import": "./dist/status.js"
+		},
+		"./browser-open": {
+			"types": "./dist/browser-open.d.ts",
+			"import": "./dist/browser-open.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/trust": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

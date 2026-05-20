@@ -1,4 +1,4 @@
-import { type Tractor } from "@refarm.dev/tractor";
+import type { RuntimeQueryTarget } from "@refarm.dev/runtime";
 
 export interface AntennaOptions {
   fallbackRoute?: string;
@@ -6,11 +6,11 @@ export interface AntennaOptions {
 }
 
 export class AntennaPlugin {
-  private tractor: Tractor;
+  private host: RuntimeQueryTarget;
   private options: AntennaOptions;
 
-  constructor(tractor: Tractor, options: AntennaOptions = {}) {
-    this.tractor = tractor;
+  constructor(host: RuntimeQueryTarget, options: AntennaOptions = {}) {
+    this.host = host;
     this.options = { fallbackRoute: "/", enableEasterEggs: true, ...options };
   }
 
@@ -26,7 +26,7 @@ export class AntennaPlugin {
     }
 
     try {
-      const nodes = await this.tractor.queryNodes(`SELECT * WHERE url = '${path}'`);
+      const nodes = await this.host.queryNodes(`SELECT * WHERE url = '${path}'`);
       if (!nodes || nodes.length === 0) return new Response("404 - Not Found", { status: 404 });
       
       const html = await this.materializeHtml(nodes[0]!);

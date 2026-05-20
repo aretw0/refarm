@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
-
-const SIDECAR_URL = "http://127.0.0.1:42001";
+import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
 
@@ -56,6 +56,8 @@ export interface RuntimeTelemetryWindow {
 	cancelled: number;
 }
 
+export type RuntimeTelemetryRecommendation = DiagnosticRecommendation;
+
 export interface TelemetryDeps {
 	fetchTelemetry(): Promise<RuntimeTelemetrySnapshot>;
 	fetchTelemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow | null>;
@@ -86,7 +88,7 @@ function isThresholdProfileName(raw: string): raw is ThresholdProfileName {
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
-	const response = await fetch(`${SIDECAR_URL}/telemetry`);
+	const response = await fetch(sidecarUrl("/telemetry"));
 	if (!response.ok) {
 		if (response.status === 404) {
 			throw new Error("telemetry endpoint not available");
@@ -100,7 +102,7 @@ async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
 ): Promise<RuntimeTelemetryWindow | null> {
 	const response = await fetch(
-		`${SIDECAR_URL}/telemetry/window?minutes=${minutes}`,
+		sidecarUrl(`/telemetry/window?minutes=${minutes}`),
 	);
 	if (!response.ok) {
 		if (response.status === 404) {
@@ -125,10 +127,55 @@ function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
 	];
 }
 
+export function buildTelemetryRecommendations(
+	diagnostics: string[],
+): RuntimeTelemetryRecommendation[] {
+	return diagnostics.map((diagnostic) => {
+		switch (diagnostic) {
+			case "saturation:queue":
+				return {
+					diagnostic,
+					summary: "The task queue is above the configured warning threshold.",
+					action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+				};
+			case "saturation:inflight":
+				return {
+					diagnostic,
+					summary: "In-flight effort count is above the configured warning threshold.",
+					action: "Wait for active efforts to settle or increase worker capacity before starting more work.",
+				};
+			case "reliability:failures-present":
+				return {
+					diagnostic,
+					summary: "Failed efforts are present in the current telemetry snapshot.",
+					action: "Inspect failed effort logs and retry only after the failure cause is understood.",
+				};
+			case "reliability:failures-recent":
+				return {
+					diagnostic,
+					summary: "Recent telemetry window includes failed efforts.",
+					action: "Inspect recent failures before continuing automated execution.",
+				};
+			case "reliability:failure-rate":
+				return {
+					diagnostic,
+					summary: "Recent failure rate is above the configured warning threshold.",
+					action: "Pause non-essential automation and investigate the dominant failing tasks.",
+				};
+			default:
+				return {
+					diagnostic,
+					summary: `Telemetry diagnostic ${diagnostic} is present.`,
+					action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+				};
+		}
+	});
+}
+
 function printConnectionFailure(message: string): never {
 	if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
 		console.error(chalk.red("✗  farmhand is not running."));
-		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
 	} else if (message.includes("telemetry endpoint not available")) {
 		console.error(
 			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),
@@ -246,6 +293,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 						? diagnostics.filter((code) => strictTargets.includes(code))
 						: [...diagnostics];
 				const strictPassed = !opts.strict || strictMatches.length === 0;
+				const recommendations = buildTelemetryRecommendations(diagnostics);
 
 				const payload = {
 					snapshot,
@@ -256,6 +304,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 						...thresholds,
 					},
 					diagnostics,
+					recommendations,
 					strict: {
 						enabled: !!opts.strict,
 						targets: strictTargets,
@@ -311,6 +360,11 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 				console.log(chalk.yellow("\n  ⚠ pressure signals detected:"));
 				for (const item of diagnostics) {
 					console.log(chalk.yellow(`    - ${item}`));
+				}
+				console.log(chalk.bold("\nRecommendations"));
+				for (const item of recommendations) {
+					console.log(chalk.gray(`  - ${item.diagnostic}: ${item.summary}`));
+					console.log(chalk.gray(`    ${item.action}`));
 				}
 
 				if (!strictPassed) {

@@ -68,7 +68,7 @@ Focus on the **Sovereign Microkernel** (Tractor) and stable storage. Ensuring th
 
 ### Phase 2: Hybrid Connectivity (Cognition)
 Introduction of **Hybrid Sync** (Matrix/HTTP/P2P) and local AI (via **WebLLM**). The engine becomes capable of structured JSON generation, transforming raw inputs into semantic nodes automatically.
-→ Core ADRs: [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md) (Loro CRDT), [ADR-012](../specs/ADRs/README.md#planned-future-adrs) *(planned: LLM strategy)*
+→ Core ADRs: [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md) (Loro CRDT), [ADR-012](../specs/ADRs/README.md#planned-future-adrs) *(planned: MODEL strategy)*
 
 ### Phase 3: Sovereign Agent (Autonomy)
 Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system transitions from a database to an autonomous assistant (like Claude Code) capable of **Runtime Synthesis**—generating interfaces, plugins, and entire distros on the fly based on natural language. See **[Vision 2026](./proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)**.
@@ -99,7 +99,7 @@ refarm/
 │   │   ├── effort-contract-v1/       # Task dispatch contract (transport layer)
 │   │   ├── stream-contract-v1/       # Streaming transport contract
 │   │   ├── task-contract-v1/         # Durable work items (memory layer — human + agent)
-│   │   └── session-contract-v1/      # Conversation threads (LLM, messaging, A2A)
+│   │   └── session-contract-v1/      # Conversation threads (MODEL, messaging, A2A)
 │   │
 │   ├── [adapters]                    # Contract implementations
 │   │   ├── storage-sqlite/           # SQLite/OPFS + Loro CRDT state
@@ -143,7 +143,7 @@ Each package under `packages/` is a **standalone library** (see [ADR-046](../spe
 - **`@refarm.dev/sync-loro`** — Loro CRDT engine: binary deltas, state vectors, snapshot import/export, CQRS projector. Wirable to any transport. (→ [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md): Loro CRDT adoption)
 - **`@refarm.dev/plugin-courier`** — The dynamic "Courier/Router". It abstracts the network layer, automatically figuring out if peers are on the same local network (mDNS/WebRTC) or if it needs to bounce signals off Public/Private Relays. Anyone running Refarm can operate their own Relay. It provides location-agnostic peer discovery and transport routing.
 - **`@refarm.dev/task-contract-v1`** — Durable work items persisted in the CRDT graph. Usable by agents and humans from the same base schema. Composes with `effort-contract-v1` for dispatch. (→ [design spec](./superpowers/specs/2026-05-03-task-session-contracts-design.md))
-- **`@refarm.dev/session-contract-v1`** — Conversation thread primitive for LLM agents, messaging integrations, and A2A coordination. Pi-agent extends with LLM-specific fields; base contract is agnostic. (→ [design spec](./superpowers/specs/2026-05-03-task-session-contracts-design.md))
+- **`@refarm.dev/session-contract-v1`** — Conversation thread primitive for MODEL agents, messaging integrations, and A2A coordination. Pi-agent extends with MODEL-specific fields; base contract is agnostic. (→ [design spec](./superpowers/specs/2026-05-03-task-session-contracts-design.md))
 
 **Crucial Distinction on Independence:**
 While the *plugins* you write for Refarm are tightly coupled to the Tractor's WASM Sandbox (they don't make sense without the engine), the core primitives listed above (`storage-sqlite`, core `identity`, and `sync-loro`) are designed as agnostic libraries. If the Refarm UI disappears, you can still import these specific packages into a standard Node.js/Browser project and continue reading your local data or syncing via CRDTs.

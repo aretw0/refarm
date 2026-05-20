@@ -51,7 +51,7 @@ fn store_node(node: &serde_json::Value) -> bool {
 }
 
 fn task_memory_enabled_from_env() -> bool {
-    match std::env::var("LLM_TASK_MEMORY") {
+    match std::env::var("MODEL_TASK_MEMORY") {
         Ok(value) => {
             let normalized = value.trim().to_ascii_lowercase();
             matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
@@ -61,7 +61,7 @@ fn task_memory_enabled_from_env() -> bool {
 }
 
 fn task_actor_urn() -> String {
-    match std::env::var("LLM_AGENT_ID") {
+    match std::env::var("MODEL_AGENT_ID") {
         Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
         _ => "urn:refarm:agent:pi-agent".to_string(),
     }

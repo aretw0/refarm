@@ -89,6 +89,14 @@ export function createInMemoryTaskAdapter(
 			return updated;
 		},
 
+		async delete(id) {
+			if (!tasks.has(id)) {
+				throw new Error(`Task not found: ${id}`);
+			}
+			tasks.delete(id);
+			eventsByTask.delete(id);
+		},
+
 		async appendEvent(eventInput) {
 			if (!tasks.has(eventInput.task_id)) {
 				throw new Error(
@@ -130,6 +138,30 @@ export function createInMemoryTaskAdapter(
 			if (filter.parent_task_id !== undefined) {
 				items = items.filter(
 					(task) => task.parent_task_id === filter.parent_task_id,
+				);
+			}
+
+			if (filter.created_by !== undefined) {
+				items = items.filter((task) => task.created_by === filter.created_by);
+			}
+
+			if (filter.created_after_ns !== undefined) {
+				items = items.filter((task) => task.created_at_ns > filter.created_after_ns!);
+			}
+
+			if (filter.created_before_ns !== undefined) {
+				items = items.filter((task) => task.created_at_ns < filter.created_before_ns!);
+			}
+
+			if (filter.due_before_ns !== undefined) {
+				items = items.filter(
+					(task) => task.due_at_ns !== undefined && task.due_at_ns < filter.due_before_ns!,
+				);
+			}
+
+			if (filter.tags !== undefined && filter.tags.length > 0) {
+				items = items.filter((task) =>
+					filter.tags!.every((tag) => task.tags?.includes(tag)),
 				);
 			}
 

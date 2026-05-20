@@ -60,10 +60,10 @@ export function resolveWebLaunchSpec(
 	mode: RefarmWebLauncherMode,
 ): WebLaunchSpec {
 	if (mode === "preview") {
-		return createLaunchProcessSpec("npm --prefix apps/dev run preview");
+		return createLaunchProcessSpec("pnpm -C apps/dev run preview");
 	}
 
-	return createLaunchProcessSpec("npm --prefix apps/dev run dev");
+	return createLaunchProcessSpec("pnpm -C apps/dev run dev");
 }
 
 export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {

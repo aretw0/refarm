@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
 const workspacePackages = JSON.parse(
-	execSync("npm query .workspace", { cwd: ROOT_DIR }).toString(),
+	execSync("pnpm ls -r --json --depth 0", { cwd: ROOT_DIR }).toString(),
 );
 
 function findWorkspacePackage(pkgName) {
@@ -18,7 +18,7 @@ function findWorkspacePackage(pkgName) {
 
 function npmPackageExists(pkgName) {
 	try {
-		execSync(`npm view ${pkgName}@latest version --silent`, {
+		execSync(`pnpm view ${pkgName}@latest version --silent`, {
 			cwd: ROOT_DIR,
 			stdio: "pipe",
 		});
@@ -82,7 +82,7 @@ function pickValidationScript(pkg) {
 function getChangedPackages() {
 	try {
 		const output = execSync(
-			"npx turbo run test --filter=...[origin/main] --dry-run=json",
+			"pnpm exec turbo run test --filter=...[origin/main] --dry-run=json",
 			{ cwd: ROOT_DIR },
 		).toString();
 		const turboData = JSON.parse(output);
@@ -150,14 +150,25 @@ function runForward(pkgName) {
 		);
 		return;
 	}
+	// Copy package to an isolated dir outside the workspace so pnpm treats it
+	// as a standalone project and resolves all deps from the registry.
+	// In-place mutation of package.json inside the workspace is fragile: pnpm
+	// creates a local pnpm-lock.yaml and node_modules/ that git restore misses.
+	const slug = pkgName.replace(/[@/]/g, "__");
+	const testDir = `/tmp/refarm-forward-compat/${slug}`;
 	try {
-		// Replace local workspace dependencies with their published registry baseline.
-		rewriteWorkspaceDepsToLatest(join(pkgDir, "package.json"));
-		execSync("npm install --no-workspaces --package-lock=false", {
-			cwd: pkgDir,
+		rmSync(testDir, { recursive: true, force: true });
+		mkdirSync(testDir, { recursive: true });
+		execSync(`cp -r "${pkgDir}/." "${testDir}"`, { stdio: "pipe" });
+		for (const artifact of ["node_modules", "dist", ".turbo"]) {
+			rmSync(join(testDir, artifact), { recursive: true, force: true });
+		}
+		rewriteWorkspaceDepsToLatest(join(testDir, "package.json"));
+		execSync("pnpm install --no-frozen-lockfile", {
+			cwd: testDir,
 			stdio: "inherit",
 		});
-		execSync(`npm run ${validationScript}`, { cwd: pkgDir, stdio: "inherit" });
+		execSync(`pnpm run ${validationScript}`, { cwd: testDir, stdio: "inherit" });
 		console.log(
 			`✅ Forward compat passed for ${pkgName} (${validationScript})`,
 		);
@@ -166,9 +177,7 @@ function runForward(pkgName) {
 		console.error(err instanceof Error ? err.message : String(err));
 		process.exit(1);
 	} finally {
-		// Restore state using git
-		execSync(`git checkout package.json`, { cwd: pkgDir });
-		execSync(`npm install`, { cwd: ROOT_DIR });
+		rmSync(testDir, { recursive: true, force: true });
 	}
 }
 
@@ -187,8 +196,8 @@ function runBackward(pkgName, consumerName) {
 	const testDir = join(ROOT_DIR, ".turbo", "matrix-test", consumerSlug);
 
 	try {
-		execSync("npm run build", { cwd: pkgDir, stdio: "inherit" });
-		const tarOutput = execSync(`npm pack --pack-destination /tmp`, {
+		execSync("pnpm run build", { cwd: pkgDir, stdio: "inherit" });
+		const tarOutput = execSync(`pnpm pack --pack-destination /tmp`, {
 			cwd: pkgDir,
 		})
 			.toString()
@@ -198,14 +207,14 @@ function runBackward(pkgName, consumerName) {
 		rmSync(testDir, { recursive: true, force: true });
 		mkdirSync(testDir, { recursive: true });
 
-		execSync("npm init -y", { cwd: testDir });
+		execSync("pnpm init", { cwd: testDir });
 		// Install the published consumer
-		execSync(`npm install ${consumerName}@latest --no-save`, {
+		execSync(`pnpm add ${consumerName}@latest`, {
 			cwd: testDir,
 			stdio: "inherit",
 		});
 		// Overwrite the specific child dependency with our local altered tarball
-		execSync(`npm install ${tarballPath} --no-save`, {
+		execSync(`pnpm add ${tarballPath}`, {
 			cwd: testDir,
 			stdio: "inherit",
 		});

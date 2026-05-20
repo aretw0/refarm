@@ -88,9 +88,9 @@ pub(crate) fn execute_prompt(
     let task_memory_id =
         prompt_persistence::open_prompt_task(&ctx.session_id, &ctx.prompt_ref, prompt);
 
-    let previous_system = std::env::var("LLM_SYSTEM").ok();
+    let previous_system = std::env::var("MODEL_SYSTEM").ok();
     if let Some(system) = system_override {
-        std::env::set_var("LLM_SYSTEM", system);
+        std::env::set_var("MODEL_SYSTEM", system);
     }
 
     let t0 = crate::now_ns();
@@ -111,8 +111,8 @@ pub(crate) fn execute_prompt(
         crate::streaming_chunks::final_response_sequence(streaming_enabled, last_partial_sequence);
 
     match (system_override, previous_system) {
-        (Some(_), Some(previous)) => std::env::set_var("LLM_SYSTEM", previous),
-        (Some(_), None) => std::env::remove_var("LLM_SYSTEM"),
+        (Some(_), Some(previous)) => std::env::set_var("MODEL_SYSTEM", previous),
+        (Some(_), None) => std::env::remove_var("MODEL_SYSTEM"),
         (None, _) => {}
     }
 
@@ -183,8 +183,8 @@ pub(crate) fn handle_prompt(payload: String) {
             let session_id = v.get("session_id").and_then(|s| s.as_str()).map(|s| s.to_owned());
             let history_turns = v.get("history_turns").and_then(|n| n.as_u64()).map(|n| n as usize);
             let turns_str = history_turns.map(|n| n.to_string());
-            let _session = crate::EnvGuard::maybe_set("LLM_SESSION_ID", session_id.as_deref());
-            let _turns = crate::EnvGuard::maybe_set("LLM_HISTORY_TURNS", turns_str.as_deref());
+            let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
+            let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
             let _ = execute_prompt(prompt, system);
             return;
         }

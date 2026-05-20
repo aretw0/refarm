@@ -81,7 +81,7 @@ function ensureRefarmCliShim() {
   const loaderEntry = path.join(ROOT, "scripts/farmhand-node-register-loader.mjs");
 
   console.log("[pi-agent-install] Building refarm CLI distro...");
-  const build = spawnSync("npm", ["--prefix", "apps/refarm", "run", "build"], {
+  const build = spawnSync("pnpm", ["-C", "apps/refarm", "run", "build"], {
     cwd: ROOT,
     stdio: "inherit",
   });

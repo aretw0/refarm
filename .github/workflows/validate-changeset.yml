@@ -20,6 +20,9 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Check for skip label
         id: skip-check
@@ -90,7 +93,7 @@ jobs:
             ### 📋 To add a changeset:
 
             \`\`\`bash
-            npm run changeset
+            pnpm run changeset
             # Follow the prompts:
             # - Select packages changed
             # - Choose version bump (patch/minor/major)

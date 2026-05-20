@@ -19,6 +19,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pnpm-store/
 
 # ─── Build Outputs ────────────────────────────────────────────────────────────
 dist/
@@ -98,12 +99,17 @@ playwright/.cache/
 packages/**/dist/
 packages/**/build/
 packages/**/.turbo/
+# JS/declaration files never belong in src/ — guard against tsc emitting without outDir
+packages/**/src/**/*.d.ts
+packages/**/src/**/*.d.ts.map
+packages/**/src/**/*.js.map
 
 # ─── Editor & IDE ─────────────────────────────────────────────────────────────
 .claude/agents/
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
+!.vscode/tasks.json
 .idea/
 *.swp
 *.swo
@@ -134,6 +140,7 @@ deps-report.md
 # Ignore export plans
 *_plan*.md
 *prompt*.md
+!docs/superpowers/**/*.md
 
 # Python bytecode
 __pycache__/
@@ -142,6 +149,7 @@ __pycache__/
 
 # Coding Agents
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 .workflows/
 
 # PI Lens cache

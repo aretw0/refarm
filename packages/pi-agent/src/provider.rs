@@ -1,4 +1,4 @@
-use crate::refarm::plugin::llm_bridge;
+use crate::refarm::plugin::model_bridge;
 
 pub struct CompletionResult {
     pub content: String,
@@ -24,7 +24,7 @@ pub enum Provider {
 
 impl Provider {
     pub fn from_provider_name(provider_name: &str) -> Self {
-        let explicit_model = std::env::var("LLM_MODEL").unwrap_or_default();
+        let explicit_model = std::env::var("MODEL_ID").unwrap_or_default();
 
         if provider_name == "anthropic" {
             return Provider::Anthropic {
@@ -33,7 +33,7 @@ impl Provider {
         }
 
         let (default_base, default_model) = crate::openai_compat_defaults(provider_name);
-        let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
+        let base_url = std::env::var("MODEL_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
         Provider::OpenAiCompat {
             provider: provider_name.to_owned(),
             base_url,
@@ -82,7 +82,7 @@ pub(crate) fn http_post_via_host(
     headers: &[(String, String)],
     body: &[u8],
 ) -> Result<Vec<u8>, String> {
-    llm_bridge::complete_http(provider, base_url, path, headers, body)
+    model_bridge::complete_http(provider, base_url, path, headers, body)
 }
 
 #[allow(dead_code)]
@@ -109,13 +109,13 @@ pub(crate) fn http_post_stream_via_host(
     body: &[u8],
     metadata: HostStreamRequestMetadata<'_>,
 ) -> Result<HostStreamResponse, String> {
-    let response = llm_bridge::complete_http_stream(
+    let response = model_bridge::complete_http_stream(
         provider,
         base_url,
         path,
         headers,
         body,
-        &llm_bridge::StreamResponseMetadata {
+        &model_bridge::StreamResponseMetadata {
             prompt_ref: metadata.prompt_ref.to_owned(),
             model: metadata.model.to_owned(),
             provider_family: metadata.provider_family.to_owned(),

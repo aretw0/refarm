@@ -93,4 +93,9 @@ export class SseStreamTransport implements StreamTransportAdapter {
 			return true;
 		};
 	}
+
+	cancel(stream_ref: string): void {
+		this.connections.delete(stream_ref);
+		this.inProcess.delete(stream_ref);
+	}
 }

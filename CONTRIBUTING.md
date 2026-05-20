@@ -21,16 +21,15 @@ We follow a structured **SDD → BDD → TDD → DDD** workflow with quality gat
 ### 1. Installation
 
 ```bash
-npm install
-npm run dev      # Start all apps in watch mode
+pnpm install
+pnpm run dev      # Start all apps in watch mode
 ```
 
 ### 2. Making Changes
 
 - Create a feature branch from `develop`
-- Use branch naming padrão: `task/<TASK-ID>-<slug>` (ex.: `task/T-PLAN-05-branch-policy`)
-- Keep 1 task primária por branch/PR para facilitar rastreabilidade
-- Make your changes across one or more packages
+- Use branch naming pattern: `task/<TASK-ID>-<slug>` (e.g. `task/T-PLAN-05-branch-policy`)
+- Keep 1 primary task per branch/PR for traceability
 - Test your changes locally
 
 ### Quality Gates (Local + CI)
@@ -40,77 +39,45 @@ Refarm enforces quality with a two-mode pre-push hook and CI checks:
 - **Feature branches**: permissive mode (warns, can continue)
 - **`main` and `develop`**: strict mode (blocks push on `lint` and `type-check` failures)
 - **`test:unit` and security audit**: advisory locally, enforced in CI
-- **CI always validates again** on PRs and pushes
 
 Install/update hooks locally:
 
 ```bash
-npm run hooks:install
+pnpm run hooks:install
 ```
 
-Useful references:
-
-- Governance policy: `docs/PR_QUALITY_GOVERNANCE.md`
-- Branch protection setup: `docs/BRANCH_PROTECTION_SETUP.md`
-- Colony playbook: `docs/COLONY_PLAYBOOK.md`
+Useful references: `docs/PR_QUALITY_GOVERNANCE.md`, `docs/BRANCH_PROTECTION_SETUP.md`
 
 ### Smoke + Full gates
 
-Comandos operacionais:
-
 ```bash
-npm run gate:smoke:foundation
-npm run gate:smoke:contracts
-npm run gate:smoke:runtime
-npm run gate:full:colony
+pnpm run gate:smoke:foundation
+pnpm run gate:smoke:contracts
+pnpm run gate:smoke:runtime
+pnpm run gate:full:colony
 ```
 
-Regra:
-- PR atômico: smoke do domínio alterado.
-- Consolidação de lote: full gate obrigatório.
-
-### Atomic Commit Pattern
-
-- Prefer small commits with Conventional Commits format
-- Keep each commit tied to a single intent (fix/refactor/test/docs)
-- Include task ID in PR description even when not in commit subject
+Rule: atomic PR → smoke the affected domain. Batch consolidation → full gate required.
 
 ### 3. Version Management with Changesets
 
-We use [Changesets](https://github.com/changesets/changesets) to manage versioning and publishing. This ensures:
-
-- ✅ Clear changelog entries
-- ✅ Semantic versioning across packages
-- ✅ Coordinated releases
-
-**For each change, create a changeset:**
-
 ```bash
-npm run changeset
+pnpm run changeset
 ```
 
-This will prompt you to:
-
-1. Select which packages changed
-2. Choose a version bump type (major/minor/patch)
-3. Summarize your changes
-
-A markdown file will be created in `.changeset/` — include it in your PR.
+This prompts you to select changed packages, choose a version bump type, and summarize changes. Include the resulting `.changeset/` file in your PR.
 
 ### 4. Pull Request
 
-- Create a PR with your changes and the changeset file
-- If you're fixing a known issue, reference it (closes #123)
-- Ensure all tests pass: `npm run test`
+- Reference any related issue (`closes #123`)
+- Ensure all tests pass: `pnpm run test`
 
 ### 5. Versioning & Release (Maintainers Only)
 
-When ready to release:
-
 ```bash
-npm run build
-npm run changeset:version   # Bump versions + update CHANGELOGs
-npm run changeset:publish   # Publish to npm
+pnpm run build
+pnpm run changeset:version   # Bump versions + update CHANGELOGs
+pnpm run changeset:publish   # Publish to npm
 ```
 
 ---
@@ -119,275 +86,55 @@ npm run changeset:publish   # Publish to npm
 
 ### Code Quality
 
-- **TypeScript**: Use strict mode (`tsconfig.json`)
-- **Linting**: `npm run lint` before committing
-- **Testing**: Add tests for new features
-- **Build**: `npm run build` should succeed
-
-### Package Independence
-
-Each package should be:
-
-- **Self-contained**: Minimal external dependencies
-- **Portable**: Works independently if needed
-- **Well-documented**: Clear README per package
+- **TypeScript**: strict mode (`tsconfig.json`)
+- **Linting**: `pnpm run lint` before committing
+- **Build**: `pnpm run build` should succeed
 
 ### Commit Messages
 
-Use descriptive commit messages:
+Conventional Commits format. One intent per commit (fix/refactor/test/docs).
 
-- ✅ Good: "Add CRDT vector clock implementation"
-- ❌ Avoid: "Fix stuff", "WIP", "asdf"
-
-### Agentic Engineering & Rigor
-
-This project is designed for human-AI collaboration. AI Agents (like Antigravity) are expected to follow specific rules of engagement to maintain monorepo integrity:
-
-- **Artifact Sovereignty**: Never manually edit build artifacts/generated files (`dist/`, `.turbo/`, etc.). Edits must always happen in `src/`.
-- **Cycle Awareness**: If you change a dependency package, you must run its build script before verifying consuming packages.
-- **Sovereign Knowledge**: Transition technical decisions and session knowledge into the project's documentation files.
-
-For detailed AI engineering constraints, see [AGENTS.md](AGENTS.md).
+- ✅ `feat(storage): add CRDT vector clock implementation`
+- ❌ `Fix stuff`, `WIP`
 
 ### Diagrams
 
-Diagrams are stored as Mermaid source files (`.mermaid`) with auto-generated SVG renderings.
+Diagrams are Mermaid source files (`.mermaid`) with auto-generated SVG renderings. Global styling lives in `specs/diagrams/mermaid.config.json`.
 
-Global styling is centralized in `specs/diagrams/mermaid.config.json`.
-
-**When you edit a `.mermaid` file:**
-
-1. Regenerate the SVG:
-
-   ```bash
-   npm run diagrams:fix
-   ```
-
-  This command applies the global Mermaid design system automatically.
-
-1. Commit both the `.mermaid` source AND the `.svg` rendering:
-
-   ```bash
-
-  git add docs/**/*.mermaid docs/**/*.svg specs/diagrams/**/*.mermaid specs/diagrams/**/*.svg
-   git commit -m "docs: update diagram"
-
-   ```
-
-3. The CI will verify that SVG files match their source on PRs.
-
-**Why?**
-
-- `.mermaid` is the source of truth (easy to edit, version control-friendly)
-- `.svg` is the rendered output (displays correctly on GitHub without extra dependencies)
-- Keeping them in sync prevents stale diagrams in documentation
-
-If `npm run diagrams:fix` fails due missing Chromium shared libraries in the devcontainer, do not install ad-hoc only in the running container. Update:
-- `.devcontainer/Dockerfile` (image baseline)
-- `docs/DEVOPS.md` (dependency tracking section)
-
----
-
-## Accessibility (a11y)
-
-Refarm targets **WCAG 2.2 Level AA** as a baseline. Accessibility is not an afterthought—build it in from the start.
-
-### Guidelines
-
-**Semantic HTML**:
-
-```html
-<!-- ✅ Good -->
-<nav>
-  <a href="/">Home</a>
-</nav>
-<main role="main">
-  <article>
-    <h1>Title</h1>
-    <p>Content</p>
-  </article>
-</main>
-
-<!-- ❌ Avoid -->
-<div class="nav">
-  <span onclick="...">Home</span>
-</div>
-```
-
-**ARIA for Web Components**:
-
-```typescript
-// Use ARIA labels and roles
-render() {
-  return html`
-    <button aria-label="Close dialog" @click=${this.close}>×</button>
-    <div role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-      <h1 id="dialog-title">Confirm Action</h1>
-    </div>
-  `;
-}
-```
-
-**Keyboard Navigation**:
-
-- ✅ All interactive elements must be keyboard accessible
-- ✅ Focus must be visible (outline, underline, or highlight)
-- ✅ Tab order should be logical (use native elements when possible)
-- ✅ Support Escape key for modals/popovers
-
-**Color & Contrast**:
-
-- ✅ Text contrast ratio ≥ 4.5:1 (WCAG AA)
-- ✅ Don't rely on color alone to convey information
-- ✅ Test with color blindness simulators
-
-### Testing
-
-Before submitting a PR with UI changes, run accessibility checks:
+When you edit a `.mermaid` file:
 
 ```bash
-# Testing with axe-core
-npm run test:a11y
-
-# Manual testing
-# - Screen reader: NVDA (Windows), VoiceOver (Mac/iOS)
-# - Keyboard: Tab through entire page
-# - Visual: Check focus states and color contrast
+pnpm run diagrams:fix   # regenerates SVG with global design system applied
+git add docs/**/*.mermaid docs/**/*.svg
+git commit -m "docs: update diagram"
 ```
 
-### Resources
+CI verifies SVG files match their source on PRs.
 
-- [WCAG 2.2 Checklist](https://www.w3.org/WAI/WCAG22/Techniques/)
-- [ARIA Authoring Practices Guide (APG)](https://www.w3.org/WAI/ARIA/apg/)
-- [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)
+If `pnpm run diagrams:fix` fails due to missing Chromium shared libraries, update `.devcontainer/Dockerfile` — not a one-off apt install.
+
+### AI Engineering
+
+AI agents contributing to this repo must follow the rules in [AGENTS.md](AGENTS.md): never edit build artifacts, run builds after dependency changes, and commit session knowledge to docs. See also [docs/PROCESS_PLAYBOOK.md](docs/PROCESS_PLAYBOOK.md) for daily operational commands.
 
 ---
 
-## Internationalization (i18n)
-
-Refarm is designed for a global audience. All user-facing text must support multiple languages from day one.
-
-**Phase 1 Languages**: Portuguese (pt-BR), English (en), Spanish (es)
-
-### Workflow
-
-**1. Add translations to locale files**:
-
-```json
-// locales/pt-BR.json
-{
-  "studio.welcome": "Bem-vindo ao Refarm Studio",
-  "studio.plugins.count": "{count, plural, one {# plugin} other {# plugins}}"
-}
-```
-
-**2. Use translations in Astro components**:
-
-```astro
----
-import { useTranslation } from "astro-i18next";
-
-const { t, i18n } = useTranslation();
-const currentLocale = i18n.language;
----
-
-<h1>{t("studio.welcome")}</h1>
-<p>{t("studio.plugins.count", { count: 5 })}</p>
-```
-
-**3. Web Components with @lit/localize**:
-
-```typescript
-import { msg, str } from '@lit/localize';
-
-render() {
-  return html`
-    <h1>${msg("Welcome to Refarm")}</h1>
-    <p>${msg(str`You have ${this.count} plugins`)}</p>
-  `;
-}
-```
-
-### Best Practices
-
-- ✅ **Never hardcode text** — Always use translation keys
-- ✅ **Plan for expansion** — English text often expands 20-30% in translation
-- ✅ **Context matters** — Provide context comments for translators:
-
-  ```json
-  {
-    "studio.save": "Save",  // Button label (keep short)
-    "action.save": "Save this change"  // Help text (can be longer)
-  }
-  ```
-
-- ✅ **Use ICU MessageFormat** for plurals, numbers, dates
-- ✅ **Support RTL** for Arabic, Hebrew (CSS `direction: rtl`)
-- ✅ **Format dates/numbers** using `Intl` API:
-
-  ```typescript
-  new Intl.DateTimeFormat('pt-BR').format(new Date())
-  new Intl.NumberFormat('pt-BR', { currency: 'BRL' }).format(123.45)
-  ```
-
-### Testing
-
-```bash
-# Verify all keys are translated
-npm run i18n:check
-
-# Build with all locales
-npm run build
-```
-
-### Translation Guidelines
-
-- Keep keys hierarchical: `section.subsection.key`
-- Use present tense, active voice
-- Avoid idioms (hard to translate)
-- Mark HTML/variables clearly: `{value}`, `<br />`
-
-### Resources
-
-- [astro-i18next Documentation](https://astro-i18next.pages.dev/)
-- [@lit/localize Guide](https://lit.dev/docs/localization/overview/)
-- [ICU MessageFormat Syntax](https://unicode-org.github.io/icu/userguide/format_parse/messages/)
-
----
-
-## Architecture
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for:
-
-- System design overview
-- Data flow diagrams  
-- Plugin development guide
-- JSON-LD schema details
-
-See [docs/WORKFLOW.md](docs/WORKFLOW.md) for:
-
-- Development process (SDD → BDD → TDD → DDD)
-- Quality gates between phases
-- When to write specs vs tests vs code
-- CI/CD enforcement strategies
-
-### Accessibility & Internationalization
+## Accessibility & i18n
 
 See [docs/A11Y_I18N_GUIDE.md](docs/A11Y_I18N_GUIDE.md) for:
 
-- Detailed a11y implementation patterns
+- WCAG 2.2 Level AA standards and patterns
 - i18n setup and translation workflow
-- WCAG 2.2 Level AA standards
-- Testing procedures
+- Testing procedures (`pnpm run test:a11y`, `pnpm run i18n:check`)
 
 ---
 
 ## Testing
 
 ```bash
-npm run test      # Run all tests
-npm run build     # Verify build
-npm run lint      # Type check & linting
+pnpm run test      # Run all tests
+pnpm run build     # Verify build
+pnpm run lint      # Type check & linting
 ```
 
 ---
@@ -402,4 +149,14 @@ npm run lint      # Type check & linting
 
 ## License
 
-By contributing to Refarm, you agree that your contributions will be licensed under the [AGPL-3.0 License](LICENSE), with additional brand protection and namespace protection clauses detailed in the license itself.
+Refarm uses a **multi-tier licensing model** — the license that applies to your contribution depends on which package you're touching:
+
+| Package type | License | Examples |
+|---|---|---|
+| Core apps & kernel | AGPL-3.0 | `apps/dev`, `packages/tractor`, `packages/sower` |
+| Contracts, SDKs, WIT interfaces | MIT / Apache 2.0 | `*-contract-v1`, `packages/plugin-manifest`, `templates/*` |
+| Brand assets & docs | CC-BY-SA 4.0 | SVGs, design files |
+
+This intentional split keeps the core copyleft (preventing cloud enclosure) while allowing third-party plugins to be MIT, commercial, or closed-source without license contamination.
+
+See [docs/LICENSING_POLICY.md](docs/LICENSING_POLICY.md) for the full rationale and the decision rule for new packages.

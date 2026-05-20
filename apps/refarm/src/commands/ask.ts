@@ -14,12 +14,14 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -40,14 +42,12 @@ export interface AskDeps {
 	persistActiveSessionId?(id: string): void;
 }
 
-const SIDECAR_URL = "http://127.0.0.1:42001";
-
 interface SessionNode {
 	"@id": string;
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch(`${SIDECAR_URL}/efforts`, {
+	const response = await fetch(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -299,15 +299,25 @@ function newSessionId(): string {
 }
 
 function detectConfiguredProvider(): string | null {
-	if (process.env.LLM_PROVIDER) return process.env.LLM_PROVIDER;
+	if (process.env.MODEL_PROVIDER) return process.env.MODEL_PROVIDER;
 
 	const envFile = path.join(os.homedir(), ".refarm", ".env");
 	if (fs.existsSync(envFile)) {
 		const content = fs.readFileSync(envFile, "utf-8");
-		const match = content.match(/^\s*LLM_PROVIDER\s*=\s*(\S+)/m);
+		const match = content.match(/^\s*MODEL_PROVIDER\s*=\s*(\S+)/m);
 		if (match) return match[1]!;
-		// .env exists but no explicit provider — user ran `refarm keys`, ollama is valid default
-		return "ollama";
+	}
+
+	const siloFile = path.join(os.homedir(), ".refarm", "identity.json");
+	if (fs.existsSync(siloFile)) {
+		try {
+			const silo = JSON.parse(fs.readFileSync(siloFile, "utf-8")) as {
+				tokens?: { modelProvider?: string };
+			};
+			if (silo.tokens?.modelProvider) return silo.tokens.modelProvider;
+		} catch {
+			// ignore malformed silo
+		}
 	}
 
 	const configFile = path.join(os.homedir(), ".refarm", "config.json");
@@ -330,7 +340,7 @@ async function resolveSessionIdPrefixFromSidecar(
 ): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
-	const response = await fetch(`${SIDECAR_URL}/sessions`);
+	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -377,24 +387,23 @@ function printAskError(message: string): void {
 		message.includes("Farmhand HTTP");
 
 	const isProviderError =
-		message.includes("llm-bridge request failed") ||
+		message.includes("model-bridge request failed") ||
 		message.includes("Couldn't connect to server") ||
 		message.includes("curl: (7)");
 
 	if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
-		console.error(chalk.dim("   Status:    npm run farm:status"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";
-		console.error(chalk.red(`\n✗  LLM provider unavailable: ${provider}`));
+		console.error(chalk.red(`\n✗  Model provider unavailable: ${provider}`));
 		if (provider === "ollama") {
 			console.error(chalk.dim("   Start Ollama:  ollama serve"));
-			console.error(chalk.dim("   Or switch provider:  refarm keys"));
+			console.error(chalk.dim("   Or switch provider:  refarm sow"));
 		} else {
-			console.error(chalk.dim("   Check your API key:  refarm keys --status"));
-			console.error(chalk.dim("   Reconfigure:         refarm keys"));
+			console.error(chalk.dim("   Check your API key:  refarm sow --status"));
+			console.error(chalk.dim("   Reconfigure:         refarm sow"));
 		}
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
@@ -421,11 +430,11 @@ export function createAskCommand(deps?: AskDeps): Command {
 				opts: { files?: string; new?: boolean; session?: string },
 			) => {
 				if (!deps && detectConfiguredProvider() === null) {
-					console.error(chalk.red("\n✗  No LLM provider configured."));
-					console.error(chalk.dim("   Set up a provider:  refarm keys"));
+					console.error(chalk.red("\n✗  No model provider configured."));
+					console.error(chalk.dim("   Set up a provider:  refarm sow"));
 					console.error(
 						chalk.dim(
-							"   Or use Ollama:      ollama serve  (then refarm keys)",
+							"   Or use Ollama:      ollama serve  (then refarm sow)",
 						),
 					);
 					process.exit(1);
@@ -493,25 +502,13 @@ export function createAskCommand(deps?: AskDeps): Command {
 				const entries = await registry.collect({ cwd: process.cwd(), query });
 				const system = buildSystemPrompt(entries);
 
-				const effort: Effort = {
-					id: crypto.randomUUID(),
-					direction: "ask",
-					tasks: [
-						{
-							id: crypto.randomUUID(),
-							pluginId: "@refarm/pi-agent",
-							fn: "respond",
-							args: {
-								prompt: query,
-								system,
-								session_id: sessionId,
-								history_turns: DEFAULT_HISTORY_TURNS,
-							},
-						},
-					],
+				const effort = createPiAgentRespondEffort({
+					prompt: query,
+					system,
+					sessionId,
 					source: "refarm-ask",
-					submittedAt: new Date().toISOString(),
-				};
+					historyTurns: DEFAULT_HISTORY_TURNS,
+				});
 
 				console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
 

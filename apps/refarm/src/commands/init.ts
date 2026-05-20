@@ -8,10 +8,21 @@ import * as path from "node:path";
 
 
 export const initCommand = new Command("init")
-  .description("Scaffold a new Sovereign Farm")
-  .argument("[name]", "Project name", "my-sovereign-farm")
-  .action(async (name) => {
-    console.log(chalk.green(`🌱 Seeding your farm: ${name}...`));
+  .description("Initialize a new Refarm workspace")
+  .argument("[name]", "Project name", "my-workspace")
+  .option("--force", "Reinitialize even if already initialized (destructive)")
+  .action(async (name, opts: { force?: boolean }) => {
+    const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
+    const configPath = path.join(projectDir, "refarm.config.json");
+    const identityPath = path.join(projectDir, ".refarm", "identity.json");
+
+    if (!opts.force && (existsSync(configPath) || existsSync(identityPath))) {
+      console.log(chalk.yellow(`Already initialized at ${projectDir}.`));
+      console.log(chalk.dim("Use --force to reinitialize (destructive)."));
+      process.exit(0);
+    }
+
+    console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));
 
     const answers = await inquirer.prompt([
       {
@@ -19,14 +30,13 @@ export const initCommand = new Command("init")
         name: "template",
         message: "Choose a template to start with:",
         choices: [
-          { name: "Courier (Default App)", value: "courier" },
+          { name: "Workspace App", value: "workspace" },
           { name: "Rust Plugin (Heartwood)", value: "rust-plugin" }
         ]
       }
     ]);
-    
+
     const core = new SowerCore();
-    const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
     
     if (!existsSync(projectDir)) {
         mkdirSync(projectDir, { recursive: true });
@@ -36,27 +46,26 @@ export const initCommand = new Command("init")
 
     if (result) {
       const refarmDir = path.join(projectDir, ".refarm");
-      // 1. Create Directories
+      // 1. Create directories
       if (!existsSync(refarmDir)) {
         mkdirSync(refarmDir, { recursive: true });
       }
       
-      // 2. Bootstrap Real Identity via Silo (SOVEREIGN IMPROVEMENT)
-      console.log(chalk.blue("🔑 Silo: Generating your Sovereign Master Key..."));
+      console.log(chalk.blue("Generating workspace identity..."));
       const silo = new SiloCore();
       const identity = await silo.bootstrapIdentity();
 
 
-      // 3. Write Identity Metadata (Security Transparency - Public)
+      // 3. Write identity metadata
       const identityMetadata = {
         publicKey: identity.publicKey,
         bootstrappedAt: identity.timestamp,
         name
       };
       writeFileSync(path.join(refarmDir, "identity.json"), JSON.stringify(identityMetadata, null, 2));
-      console.log(chalk.gray(`  - .refarm/identity.json (Public Identity Created)`));
+      console.log(chalk.gray(`  - .refarm/identity.json (identity metadata)`));
 
-      // 4. Write Config
+      // 4. Write config
       const config = {
         ...result.config,
         brand: { name, slug: name.toLowerCase().replace(/\s+/g, "-") }
@@ -65,7 +74,6 @@ export const initCommand = new Command("init")
       console.log(chalk.gray(`  - refarm.config.json`));
     }
 
-    console.log(chalk.blue("\n✨ Project structure seeded."));
-    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to provide your nutrients.`);
+    console.log(chalk.blue("\nProject structure initialized."));
+    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to configure services.`);
   });
-

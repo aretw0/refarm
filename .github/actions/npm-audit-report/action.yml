@@ -1,5 +1,5 @@
 name: "NPM Audit Report"
-description: "Generate npm audit JSON and Markdown reports, plus vulnerability counters"
+description: "Generate pnpm audit JSON and Markdown reports with per-vulnerability details and prod/dev separation"
 
 inputs:
   json-output:
@@ -13,17 +13,29 @@ inputs:
 
 outputs:
   total:
-    description: "Total vulnerabilities"
+    description: "Total vulnerabilities (all deps)"
     value: ${{ steps.generate.outputs.total }}
   moderate:
-    description: "Moderate vulnerabilities"
+    description: "Moderate vulnerabilities (all deps)"
     value: ${{ steps.generate.outputs.moderate }}
   high:
-    description: "High vulnerabilities"
+    description: "High vulnerabilities (all deps)"
     value: ${{ steps.generate.outputs.high }}
   critical:
-    description: "Critical vulnerabilities"
+    description: "Critical vulnerabilities (all deps)"
     value: ${{ steps.generate.outputs.critical }}
+  prod-total:
+    description: "Total vulnerabilities (prod deps only)"
+    value: ${{ steps.generate.outputs.prod_total }}
+  prod-moderate:
+    description: "Moderate vulnerabilities (prod deps only)"
+    value: ${{ steps.generate.outputs.prod_moderate }}
+  prod-high:
+    description: "High vulnerabilities (prod deps only)"
+    value: ${{ steps.generate.outputs.prod_high }}
+  prod-critical:
+    description: "Critical vulnerabilities (prod deps only)"
+    value: ${{ steps.generate.outputs.prod_critical }}
 
 runs:
   using: "composite"
@@ -32,26 +44,99 @@ runs:
       id: generate
       shell: bash
       run: |
+        set -euo pipefail
         JSON_OUT="${{ inputs.json-output }}"
+        JSON_PROD_OUT="${JSON_OUT%.json}-prod.json"
         MD_OUT="${{ inputs.markdown-output }}"
 
-        npm audit --json > "$JSON_OUT" || true
+        pnpm audit --json > "$JSON_OUT" || true
+        pnpm audit --json --prod > "$JSON_PROD_OUT" || true
 
+        # Counters — all deps
         MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' "$JSON_OUT")
         HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' "$JSON_OUT")
         CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' "$JSON_OUT")
         TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' "$JSON_OUT")
 
+        # Counters — prod deps only
+        PROD_MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' "$JSON_PROD_OUT")
+        PROD_HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' "$JSON_PROD_OUT")
+        PROD_CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' "$JSON_PROD_OUT")
+        PROD_TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' "$JSON_PROD_OUT")
+
+        echo "moderate=$MODERATE"         >> "$GITHUB_OUTPUT"
+        echo "high=$HIGH"                 >> "$GITHUB_OUTPUT"
+        echo "critical=$CRITICAL"         >> "$GITHUB_OUTPUT"
+        echo "total=$TOTAL"               >> "$GITHUB_OUTPUT"
+        echo "prod_moderate=$PROD_MODERATE" >> "$GITHUB_OUTPUT"
+        echo "prod_high=$PROD_HIGH"       >> "$GITHUB_OUTPUT"
+        echo "prod_critical=$PROD_CRITICAL" >> "$GITHUB_OUTPUT"
+        echo "prod_total=$PROD_TOTAL"     >> "$GITHUB_OUTPUT"
+
+        # ── Markdown report ────────────────────────────────────────────────
         {
           echo "# Security Audit Report"
           echo
-          echo "- Total: $TOTAL"
-          echo "- Moderate: $MODERATE"
-          echo "- High: $HIGH"
-          echo "- Critical: $CRITICAL"
-        } > "$MD_OUT"
+          echo "> Generated: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          echo
+          echo "## Summary"
+          echo
+          echo "| Scope | Moderate | High | Critical | Total |"
+          echo "|-------|----------|------|----------|-------|"
+          echo "| **Production** | $PROD_MODERATE | $PROD_HIGH | $PROD_CRITICAL | $PROD_TOTAL |"
+          echo "| All (incl. dev) | $MODERATE | $HIGH | $CRITICAL | $TOTAL |"
+          echo
+          DEV_TOTAL=$(( TOTAL - PROD_TOTAL ))
+          if [ "$DEV_TOTAL" -gt 0 ]; then
+            echo "> ℹ️  $(( DEV_TOTAL )) vulnerabilit$([ "$DEV_TOTAL" -eq 1 ] && echo y || echo ies) in dev-only dependencies (no prod impact)."
+            echo
+          fi
 
-        echo "moderate=$MODERATE" >> "$GITHUB_OUTPUT"
-        echo "high=$HIGH" >> "$GITHUB_OUTPUT"
-        echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
-        echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          # Per-vulnerability detail table
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "## Vulnerabilities"
+            echo
+            echo "| Package | Severity | Range | Fix | Scope | Path |"
+            echo "|---------|----------|-------|-----|-------|------|"
+            jq -r '
+              .vulnerabilities // {} | to_entries[] |
+              .key as $pkg |
+              .value |
+              . as $v |
+              ($v.effects // [] | length == 0) as $is_leaf |
+              ($v.via // [] | map(select(type == "object")) | first) as $advisory |
+              ($advisory.severity // $v.severity // "unknown") as $sev |
+              ($advisory.range // $v.range // "?") as $range |
+              ($advisory.url // "") as $url |
+              (if $v.fixAvailable == true then "✅ available"
+               elif ($v.fixAvailable | type) == "object" then "⚠️ breaking change"
+               else "❌ none" end) as $fix |
+              ($v.nodes // [] | map(ltrimstr("node_modules/")) | join(" › ")) as $path |
+              "| \($pkg) | \($sev) | \($range) | \($fix) | prod | \($path) |"
+            ' "$JSON_PROD_OUT" 2>/dev/null || true
+
+            # Dev-only vulns (in full report but not prod report)
+            PROD_PKGS=$(jq -r '.vulnerabilities // {} | keys | @json' "$JSON_PROD_OUT" 2>/dev/null || echo '[]')
+            jq -r --argjson prod "$PROD_PKGS" '
+              .vulnerabilities // {} | to_entries[] |
+              select(.key as $k | $prod | index($k) == null) |
+              .key as $pkg |
+              .value |
+              . as $v |
+              ($v.via // [] | map(select(type == "object")) | first) as $advisory |
+              ($advisory.severity // $v.severity // "unknown") as $sev |
+              ($advisory.range // $v.range // "?") as $range |
+              (if $v.fixAvailable == true then "✅ available"
+               elif ($v.fixAvailable | type) == "object" then "⚠️ breaking change"
+               else "❌ none" end) as $fix |
+              ($v.nodes // [] | map(ltrimstr("node_modules/")) | join(" › ")) as $path |
+              "| \($pkg) | \($sev) | \($range) | \($fix) | **dev only** | \($path) |"
+            ' "$JSON_OUT" 2>/dev/null || true
+          else
+            echo "✅ No vulnerabilities found."
+          fi
+
+          echo
+          echo "---"
+          echo "*Run \`pnpm run security:fix\` to attempt automated remediation.*"
+        } > "$MD_OUT"

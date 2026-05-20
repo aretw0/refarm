@@ -14,7 +14,6 @@ const BROWSER_ERROR =
  * Browser stub for WindmillEngine.
  */
 export class WindmillEngine {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(_config, _options = {}) {
     // no-op: allow construction in browser contexts
   }

@@ -1,0 +1,50 @@
+{
+  "id": "@refarm/pi-agent",
+  "name": "Pi Agent",
+  "version": "0.1.0",
+  "capabilities": {
+    "provides": [
+      "integration:v1"
+    ],
+    "requires": [],
+    "providesApi": [
+      "AgentRespond"
+    ],
+    "requiresApi": []
+  },
+  "permissions": [
+    "fs:read",
+    "fs:write",
+    "shell:spawn",
+    "network:outbound"
+  ],
+  "observability": {
+    "hooks": [
+      "onLoad",
+      "onInit",
+      "onRequest",
+      "onError",
+      "onTeardown"
+    ]
+  },
+  "targets": [
+    "server"
+  ],
+  "executionContext": {
+    "preferred": "node",
+    "allowed": [
+      "node"
+    ]
+  },
+  "certification": {
+    "license": "AGPL-3.0-only",
+    "a11yLevel": 0,
+    "languages": [
+      "en",
+      "pt"
+    ]
+  },
+  "trust": {
+    "profile": "strict"
+  }
+}

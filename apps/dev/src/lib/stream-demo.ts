@@ -1,8 +1,8 @@
 import type {
-	PluginInstance,
-	SovereignNode,
-	Tractor,
-} from "@refarm.dev/tractor";
+	RuntimeNode,
+	RuntimeNodeStoreTarget,
+	RuntimePluginHandle,
+} from "@refarm.dev/runtime";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	createScopedHomesteadSurfaceActionHandler,
@@ -44,7 +44,7 @@ export function shouldSeedStudioStreamDemo(
 
 export function studioStreamDemoNodes(
 	startedAt: Date = new Date(),
-): SovereignNode[] {
+): RuntimeNode[] {
 	const startedAtIso = startedAt.toISOString();
 	return [
 		{
@@ -91,7 +91,9 @@ export function studioStreamDemoNodes(
 	];
 }
 
-export async function seedStudioStreamDemo(tractor: Tractor): Promise<void> {
+export async function seedStudioStreamDemo(
+	tractor: RuntimeNodeStoreTarget,
+): Promise<void> {
 	for (const node of studioStreamDemoNodes()) {
 		await tractor.storeNode(node, "none");
 	}
@@ -187,7 +189,7 @@ export function createStudioStreamSurfaceActionHandler(
 
 export function createStudioStreamSurfaceDemoPlugin(
 	emitTelemetry: (event: string, payload?: unknown) => void = () => {},
-): PluginInstance {
+): RuntimePluginHandle {
 	return createHomesteadSurfacePluginHandle({
 		id: STUDIO_STREAM_SURFACE_PLUGIN_ID,
 		name: "Studio Stream Surface Demo",

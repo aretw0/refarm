@@ -118,8 +118,16 @@ class RestStorageV1Provider implements StorageProvider {
 		);
 	}
 
+	async putMany(records: StorageRecord[]): Promise<void> {
+		for (const record of records) await this.put(record);
+	}
+
 	async delete(id: string): Promise<void> {
 		await this.adapter.execute("DELETE FROM nodes WHERE id = ?", [id]);
+	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		for (const id of ids) await this.delete(id);
 	}
 
 	async query(query: StorageQuery): Promise<StorageRecord[]> {

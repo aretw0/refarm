@@ -6,6 +6,10 @@ import {
 	turboCacheManifest,
 } from "@refarm.dev/infra-turbo-cache";
 import type { TurboCacheServicePlan } from "@refarm.dev/infra-turbo-cache";
+import {
+	DEFAULT_RETENTION_POLICY,
+	type RetentionPolicy,
+} from "@refarm.dev/policy-contract-v1";
 import type { CloudflareProvider } from "../../provider.js";
 import type { CloudflareProvisionPlan } from "../../types.js";
 
@@ -19,11 +23,14 @@ export interface CloudflareTurboCacheProvisionInput {
 	workerName?: string;
 	team?: string;
 	authToken?: string;
+	/** Retention policy — overrides the defaults baked into wrangler.toml.
+	 *  Propagated as Worker vars so the policy is live without redeploying. */
+	retention?: RetentionPolicy;
 	dryRun?: boolean;
 }
 
-export interface CloudflareTurboCacheProvisionPlan
-	extends CloudflareProvisionPlan<TurboCacheServicePlan> {}
+export type CloudflareTurboCacheProvisionPlan =
+	CloudflareProvisionPlan<TurboCacheServicePlan>;
 
 export interface CloudflareTurboCacheProvisionOutput {
 	workerUrl: string;
@@ -84,9 +91,11 @@ export class CloudflareTurboCacheProvisioner {
 			return { workerUrl: "<dry-run>", authToken, bucketName, plan };
 		}
 
+		const retention = { ...DEFAULT_RETENTION_POLICY, ...input.retention };
+
 		await this.ensureBucket(bucketName);
 		await this.setSecret("AUTH_TOKEN", authToken);
-		const workerUrl = await this.deploy();
+		const workerUrl = await this.deploy(retention);
 
 		return { workerUrl, authToken, bucketName, plan };
 	}
@@ -116,7 +125,7 @@ export class CloudflareTurboCacheProvisioner {
 		const candidate = `cf-${this.provider.accountId.slice(0, 20)}`;
 		try {
 			await this.provider.registerWorkersSubdomain(candidate);
-		} catch (err) {
+		} catch (_err) {
 			// Name conflict (already taken globally) — ask the operator to pick one.
 			const url = `https://dash.cloudflare.com/${this.provider.accountId}/workers-and-pages`;
 			throw new Error(
@@ -126,9 +135,17 @@ export class CloudflareTurboCacheProvisioner {
 		}
 	}
 
-	private async deploy(): Promise<string> {
+	private async deploy(retention: RetentionPolicy): Promise<string> {
 		await this.ensureWorkersSubdomain();
-		const { stdout } = await this.provider.exec(["deploy"], WORKER_DIR);
+		// Push retention policy as Worker vars so they take effect immediately
+		// without editing wrangler.toml. The wrangler.toml defaults act as fallback.
+		const vars = [
+			`ARTIFACT_TTL_SECONDS:${retention.ttlSeconds}`,
+			`MAX_ARTIFACT_BYTES:${retention.maxAssetBytes}`,
+			`CLEANUP_DRY_RUN:${retention.dryRun}`,
+		];
+		const varArgs = vars.flatMap((v) => ["--var", v]);
+		const { stdout } = await this.provider.exec(["deploy", ...varArgs], WORKER_DIR);
 		const match = stdout.match(/https:\/\/[^\s]+\.workers\.dev/);
 		return match?.[0] ?? "<url-not-found>";
 	}

@@ -14,16 +14,15 @@ export interface ServiceManifest {
 export type CloudflareProvisionResourceKind = "r2-bucket" | "secret" | "worker";
 export type CloudflareProvisionResourceAction = "ensure" | "set" | "deploy";
 
-export interface CloudflareProvisionResource
-	extends ProviderProvisionResource<
+export type CloudflareProvisionResource = ProviderProvisionResource<
 		CloudflareProvisionResourceKind,
 		CloudflareProvisionResourceAction
-	> {}
+	>;
 
-export interface CloudflareProvisionPlan<
+export type CloudflareProvisionPlan<
 	ServicePlan extends ManagedServicePlan = ManagedServicePlan,
-> extends ProviderProvisionPlan<
+> = ProviderProvisionPlan<
 		"cloudflare",
 		ServicePlan,
 		CloudflareProvisionResource
-	> {}
+	>;

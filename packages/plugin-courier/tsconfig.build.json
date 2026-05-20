@@ -1,21 +1,19 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "paths": {
-      "@refarm.dev/tractor": [
-        "./packages/tractor/dist/index.d.ts"
-      ],
-      "@refarm.dev/plugin-manifest": [
-        "./packages/plugin-manifest/dist/index.d.ts"
-      ]
-    },
-    "noEmit": false
-  },
-  "include": [
-    "src/**/*"
-  ]
+	"extends": [
+		"./tsconfig.json",
+		"@refarm.dev/tsconfig/build.json"
+	],
+	"compilerOptions": {
+		"rootDir": "src",
+		"composite": true,
+		"outDir": "dist",
+		"paths": {
+			"@refarm.dev/plugin-manifest": [
+				"./packages/plugin-manifest/dist/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	]
 }

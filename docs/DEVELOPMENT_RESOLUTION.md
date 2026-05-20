@@ -7,7 +7,6 @@ Ele deve ser lido em conjunto com:
 - docs/STRATIFICATION.md para entender a diferenca entre TS-Strict e JS-Atomic.
 - docs/TYPESCRIPT_INFRASTRUCTURE.md para entender o papel do tsconfig.json raiz e dos paths.
 - docs/DISTRIBUTION_STRATEGY.md para entender a superficie alvo de distribuicao.
-- docs/RESOLUTION_MATRIX.md para ver o snapshot operacional atual.
 
 ---
 
@@ -214,7 +213,7 @@ Essas variaveis sao uteis quando voce quer validar uma combinacao mais proxima d
 
 ## 6. Snapshot operacional atual
 
-O snapshot detalhado fica em docs/RESOLUTION_MATRIX.md.
+
 
 Resumo operacional observado em 2026-04-09 via node scripts/reso.mjs status:
 
@@ -324,6 +323,5 @@ npm run gate:full:colony
 - docs/STRATIFICATION.md
 - docs/TYPESCRIPT_INFRASTRUCTURE.md
 - docs/DISTRIBUTION_STRATEGY.md
-- docs/RESOLUTION_MATRIX.md
 - packages/toolbox/src/reso.mjs
 - packages/vtconfig/src/index.js

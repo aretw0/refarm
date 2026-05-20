@@ -113,6 +113,19 @@ export async function runSessionV1Conformance(
 		}
 	}
 
+	// 6 — delete
+	if (created) {
+		total++;
+		try {
+			await adapter.delete(created["@id"]);
+			const afterDelete = await adapter.get(created["@id"]);
+			if (afterDelete !== null)
+				failures.push("delete() did not remove the session");
+		} catch (error) {
+			failures.push(`delete() threw: ${String(error)}`);
+		}
+	}
+
 	const failed = failures.length;
 	return { pass: failed === 0, total, failed, failures };
 }

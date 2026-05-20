@@ -16,8 +16,8 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:unit": "vitest run",
     "clean": "rm -rf dist"
   },
   "keywords": [
@@ -41,11 +41,11 @@
     "access": "public"
   },
   "dependencies": {
-    "@refarm.dev/stream-contract-v1": "*"
+    "@refarm.dev/stream-contract-v1": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
-    "@refarm.dev/vtconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
   }
 }

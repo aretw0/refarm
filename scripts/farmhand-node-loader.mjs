@@ -53,7 +53,7 @@ function refarmPluginModuleSource(specifier) {
 				"export const renameSymbol = (...args) => call('rename-symbol', args);",
 			);
 			break;
-		case "refarm:plugin/llm-bridge":
+		case "refarm:plugin/model-bridge":
 			lines.push(
 				"export const completeHttp = (...args) => call('complete-http', args);",
 				"export const completeHttpStream = (...args) => call('complete-http-stream', args);",

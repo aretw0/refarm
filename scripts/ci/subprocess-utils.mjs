@@ -3,8 +3,12 @@ import { access, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
 const TASK_SMOKE_TS_BUILD_ORDER = [
+	"packages/root",
 	"packages/effort-contract-v1",
+	"packages/artefact-contract-v1",
+	"packages/automation-contract-v1",
 	"packages/identity-contract-v1",
+	"packages/node-contract-v1",
 	"packages/storage-contract-v1",
 	"packages/task-contract-v1",
 	"packages/session-contract-v1",
@@ -19,14 +23,17 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/tractor-ts",
 	"packages/silo",
 	"packages/windmill",
+	"packages/runtime",
 	"packages/sower",
 	"packages/health",
-	"packages/runtime",
 	"packages/trust",
 	"packages/sync-loro",
 	"packages/ds",
 	"packages/homestead",
 	"packages/cli",
+	"packages/prompt-contract-v1",
+	"packages/infra-contract-v1",
+	"packages/policy-contract-v1",
 	"packages/infra-turbo-cache",
 	"packages/infra-cloudflare",
 	"apps/farmhand",
@@ -164,7 +171,7 @@ export async function ensureTaskSmokeTypeBuilds(
 		}
 		built += 1;
 		await resetTsBuildArtifacts(workspaceDir);
-		await runSubprocess("npm", ["--prefix", workspaceDir, "run", "build"], {
+		await runSubprocess("pnpm", ["-C", workspaceDir, "run", "build"], {
 			env,
 		});
 	}

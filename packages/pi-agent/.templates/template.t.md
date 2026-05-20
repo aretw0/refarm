@@ -20,38 +20,38 @@
 <!-- {@config_fields} -->
 | Field | Maps to | Description |
 |---|---|---|
-| `provider` | `LLM_PROVIDER` | Active provider for this project |
-| `model` | `LLM_MODEL` | Model ID override |
-| `default_provider` | `LLM_DEFAULT_PROVIDER` | Sovereign default when provider unset |
-| `stream_responses` | `LLM_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
-| `budgets.<provider>` | `LLM_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
+| `provider` | `MODEL_PROVIDER` | Active provider for this project |
+| `model` | `MODEL_ID` | Model ID override |
+| `default_provider` | `MODEL_DEFAULT_PROVIDER` | Sovereign default when provider unset |
+| `stream_responses` | `MODEL_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
+| `budgets.<provider>` | `MODEL_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
 | `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `agent-shell` |
 <!-- {/config_fields} -->
 
 <!-- {@env_vars} -->
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
-| `LLM_DEFAULT_PROVIDER` | — | Personal sovereign default when `LLM_PROVIDER` unset |
-| `LLM_MODEL` | provider default | Model ID override |
-| `LLM_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
-| `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
-| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai`; fallback for unknown compat providers |
-| `GROQ_API_KEY` | — | Required when `LLM_PROVIDER=groq` |
-| `MISTRAL_API_KEY` | — | Required when `LLM_PROVIDER=mistral` |
-| `XAI_API_KEY` | — | Required when `LLM_PROVIDER=xai` |
-| `DEEPSEEK_API_KEY` | — | Required when `LLM_PROVIDER=deepseek` |
-| `TOGETHER_API_KEY` | — | Required when `LLM_PROVIDER=together` |
-| `OPENROUTER_API_KEY` | — | Required when `LLM_PROVIDER=openrouter` |
-| `GEMINI_API_KEY` | — | Required when `LLM_PROVIDER=gemini` |
-| `LLM_MAX_CONTEXT_TOKENS` | unlimited | Block prompts estimated above this token count |
-| `LLM_FALLBACK_PROVIDER` | — | Retry with this provider on primary error or budget block |
-| `LLM_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `LLM_BUDGET_ANTHROPIC_USD=5.0` |
-| `LLM_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
-| `LLM_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
-| `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
-| `LLM_SHELL_ALLOWLIST` | unset (permissive) | Comma-separated allowlist for `agent_shell::spawn`; if set, commands outside list are rejected with `[blocked: <cmd> not in allowlist]` |
-| `LLM_FS_ROOT` | unset (permissive) | Restrict `agent_fs::{read,write,edit}` to this subtree; paths outside are rejected with `[blocked: path outside LLM_FS_ROOT]` |
-| `LLM_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
-| `LLM_SESSION_ID` | — | Pin the active session by CRDT `@id`; auto-selects most recent session when unset |
+| `MODEL_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
+| `MODEL_DEFAULT_PROVIDER` | — | Personal sovereign default when `MODEL_PROVIDER` unset |
+| `MODEL_ID` | provider default | Model ID override |
+| `MODEL_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
+| `ANTHROPIC_API_KEY` | — | Required when `MODEL_PROVIDER=anthropic` |
+| `OPENAI_API_KEY` | — | Required when `MODEL_PROVIDER=openai`; fallback for unknown compat providers |
+| `GROQ_API_KEY` | — | Required when `MODEL_PROVIDER=groq` |
+| `MISTRAL_API_KEY` | — | Required when `MODEL_PROVIDER=mistral` |
+| `XAI_API_KEY` | — | Required when `MODEL_PROVIDER=xai` |
+| `DEEPSEEK_API_KEY` | — | Required when `MODEL_PROVIDER=deepseek` |
+| `TOGETHER_API_KEY` | — | Required when `MODEL_PROVIDER=together` |
+| `OPENROUTER_API_KEY` | — | Required when `MODEL_PROVIDER=openrouter` |
+| `GEMINI_API_KEY` | — | Required when `MODEL_PROVIDER=gemini` |
+| `MODEL_MAX_CONTEXT_TOKENS` | unlimited | Block prompts estimated above this token count |
+| `MODEL_FALLBACK_PROVIDER` | — | Retry with this provider on primary error or budget block |
+| `MODEL_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `MODEL_BUDGET_ANTHROPIC_USD=5.0` |
+| `MODEL_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
+| `MODEL_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
+| `MODEL_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
+| `MODEL_SHELL_ALLOWLIST` | unset (permissive) | Comma-separated allowlist for `agent_shell::spawn`; if set, commands outside list are rejected with `[blocked: <cmd> not in allowlist]` |
+| `MODEL_FS_ROOT` | unset (permissive) | Restrict `agent_fs::{read,write,edit}` to this subtree; paths outside are rejected with `[blocked: path outside MODEL_FS_ROOT]` |
+| `MODEL_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
+| `MODEL_SESSION_ID` | — | Pin the active session by CRDT `@id`; auto-selects most recent session when unset |
 <!-- {/env_vars} -->

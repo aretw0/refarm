@@ -2,6 +2,20 @@
   "name": "@refarm.dev/tsconfig",
   "version": "0.1.0",
   "description": "Shared TypeScript Configurations for the Refarm Monorepo (Node, DOM, Libs).",
+  "exports": {
+    "./base.json": "./base.json",
+    "./build.json": "./build.json",
+    "./buildable.json": "./buildable.json",
+    "./dom.json": "./dom.json",
+    "./node.json": "./node.json"
+  },
+  "files": [
+    "base.json",
+    "build.json",
+    "buildable.json",
+    "dom.json",
+    "node.json"
+  ],
   "publishConfig": {
     "access": "public"
   }

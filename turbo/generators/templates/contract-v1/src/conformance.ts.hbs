@@ -1,0 +1,71 @@
+import type {
+  {{pascalName}}ConformanceResult,
+  {{pascalName}}ContractAdapter,
+} from "./types.js";
+
+/**
+ * Runs the {{name}} conformance suite against any adapter.
+ * Import this in adapter packages to validate they meet the contract.
+ *
+ * Example:
+ *   import { run{{pascalName}}V1Conformance } from "@refarm.dev/{{name}}";
+ *   const result = await run{{pascalName}}V1Conformance(myAdapter);
+ *   expect(result.pass).toBe(true);
+ */
+export async function run{{pascalName}}V1Conformance(
+  adapter: {{pascalName}}ContractAdapter,
+): Promise<{{pascalName}}ConformanceResult> {
+  const failures: string[] = [];
+  let total = 0;
+
+  // --- 1: create ---
+  total++;
+  let created: Awaited<ReturnType<{{pascalName}}ContractAdapter["create"]>> | undefined;
+  try {
+    created = await adapter.create({ "@type": "{{pascalName}}Item" });
+    if (!created["@id"]) failures.push("create() returned item without @id");
+    if (created["@type"] !== "{{pascalName}}Item") failures.push('create() returned wrong @type');
+  } catch (e) {
+    failures.push(`create() threw: ${String(e)}`);
+  }
+
+  // --- 2: get ---
+  total++;
+  if (created) {
+    try {
+      const fetched = await adapter.get(created["@id"]);
+      if (!fetched) failures.push(`get() returned null for id ${created["@id"]}`);
+      else if (fetched["@id"] !== created["@id"]) failures.push("get() returned item with wrong @id");
+    } catch (e) {
+      failures.push(`get() threw: ${String(e)}`);
+    }
+  }
+
+  // --- 3: get non-existent ---
+  total++;
+  try {
+    const missing = await adapter.get("urn:refarm:conformance:nonexistent");
+    if (missing !== null) failures.push("get() should return null for unknown id");
+  } catch (e) {
+    failures.push(`get() on missing id threw: ${String(e)}`);
+  }
+
+  // --- 4: delete ---
+  total++;
+  if (created) {
+    try {
+      await adapter.delete(created["@id"]);
+      const afterDelete = await adapter.get(created["@id"]);
+      if (afterDelete !== null) failures.push("delete() did not remove the item");
+    } catch (e) {
+      failures.push(`delete() threw: ${String(e)}`);
+    }
+  }
+
+  return {
+    pass: failures.length === 0,
+    total,
+    failed: failures.length,
+    failures,
+  };
+}

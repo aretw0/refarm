@@ -1,55 +1,57 @@
 {
-  "name": "@refarm.dev/session-contract-v1",
-  "version": "0.1.0",
-  "description": "Versioned session capability contract (session:v1) and conformance suite \u2014 conversation threads in the CRDT memory layer",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "plugin",
-    "capability",
-    "session",
-    "contract",
-    "conformance",
-    "crdt",
-    "memory"
-  ],
-  "author": "Refarm Contributors",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aretw0/refarm.git",
-    "directory": "packages/session-contract-v1"
-  },
-  "bugs": {
-    "url": "https://github.com/aretw0/refarm/issues"
-  },
-  "homepage": "https://refarm.dev.br",
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
-  }
+	"name": "@refarm.dev/session-contract-v1",
+	"version": "0.1.0",
+	"description": "Versioned session capability contract (session:v1) and conformance suite — conversation threads in the CRDT memory layer",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"test:conformance": "vitest run src/conformance.test.ts"
+	},
+	"keywords": [
+		"plugin",
+		"capability",
+		"session",
+		"contract",
+		"conformance",
+		"crdt",
+		"memory"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/session-contract-v1"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

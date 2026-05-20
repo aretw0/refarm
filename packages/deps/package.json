@@ -1,0 +1,37 @@
+{
+	"name": "@refarm.dev/deps",
+	"version": "0.1.0",
+	"description": "Curated external runtime dependencies for the Refarm ecosystem. Declares the canonical versions of primitives used across domain packages.",
+	"type": "module",
+	"peerDependencies": {
+		"@bytecodealliance/jco": "catalog:",
+		"@noble/ed25519": "catalog:",
+		"isomorphic-git": "catalog:",
+		"nostr-tools": "catalog:",
+		"ws": "catalog:"
+	},
+	"peerDependenciesMeta": {
+		"@bytecodealliance/jco": { "optional": true },
+		"@noble/ed25519": { "optional": true },
+		"isomorphic-git": { "optional": true },
+		"nostr-tools": { "optional": true },
+		"ws": { "optional": true }
+	},
+	"devDependencies": {},
+	"keywords": [
+		"refarm",
+		"deps",
+		"ecosystem",
+		"primitives"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/deps"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

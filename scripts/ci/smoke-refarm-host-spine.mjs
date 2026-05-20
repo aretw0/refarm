@@ -54,12 +54,12 @@ async function main() {
 	);
 
 	console.log(`${LOGGER_PREFIX} running smoke auto routing tests...`);
-	await runSubprocess("npm", ["run", "refarm:host:smoke:auto:test"], {
+	await runSubprocess("pnpm", ["run", "refarm:host:smoke:auto:test"], {
 		env,
 	});
 
 	console.log(`${LOGGER_PREFIX} running focused CLI smoke option tests...`);
-	await runSubprocess("npm", ["run", "refarm:host:smoke:cli:test"], {
+	await runSubprocess("pnpm", ["run", "refarm:host:smoke:cli:test"], {
 		env,
 	});
 
@@ -79,11 +79,11 @@ async function main() {
 	}
 
 	console.log(`${LOGGER_PREFIX} running focused host command smoke suite...`);
-	await runSubprocess("npm", ["run", "refarm:host:smoke"], { env });
+	await runSubprocess("pnpm", ["run", "refarm:host:smoke"], { env });
 
 	if (!skipCliFlows) {
 		console.log(`${LOGGER_PREFIX} running CLI flow smoke checks...`);
-		await runSubprocess("npm", ["run", "refarm:host:smoke:cli"], { env });
+		await runSubprocess("pnpm", ["run", "refarm:host:smoke:cli"], { env });
 	} else {
 		console.log(
 			`${LOGGER_PREFIX} skipping CLI flow smoke checks (REFARM_HOST_SMOKE_SKIP_CLI_FLOWS=1)`,
@@ -92,7 +92,7 @@ async function main() {
 
 	if (!skipDistActions) {
 		console.log(`${LOGGER_PREFIX} running dist action readiness smoke...`);
-		await runSubprocess("npm", ["run", "refarm:host:smoke:dist-actions"], {
+		await runSubprocess("pnpm", ["run", "refarm:host:smoke:dist-actions"], {
 			env,
 		});
 	} else {

@@ -171,7 +171,7 @@ refarm ask "<query>" [--files <file1,file2,...>]
 
 **Smoke gate:**
 
-- [x] `refarm ask "what is 2+2?"` with stub LLM prints streamed tokens and usage footer
+- [x] `refarm ask "what is 2+2?"` with stub model prints streamed tokens and usage footer
 
 ---
 
@@ -201,7 +201,7 @@ refarm ask "<query>" [--files <file1,file2,...>]
 - [x] Wire `refarm ask` in `apps/refarm/src/program.ts`
 - [x] Add `@refarm.dev/context-provider-v1` and `@refarm.dev/file-stream-transport`
   as dependencies in `apps/refarm/package.json`
-- [x] Smoke gate: verify end-to-end with stub LLM
+- [x] Smoke gate: verify end-to-end with stub model
 
 ---
 

@@ -54,6 +54,13 @@ state using the same contracts as the apps?
 - `refarm tree` (read-only session/git timeline rows and dry-run fork/branch previews)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures,
   including host metadata in human/JSON report output)
+- `refarm check` (cheap composite readiness gate over project health and host
+  doctor diagnostics for local pre-push loops)
+- `refarm health`, `refarm doctor`, and `refarm telemetry` now expose stable
+  `recommendations` arrays in JSON output for agents and CI wrappers. Each
+  recommendation uses at least `{ diagnostic, summary, action }`; commands may
+  add `severity` or `target` when useful. `refarm health` also keeps `issueType`
+  as a compatibility alias for its project-audit issue code.
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
@@ -113,7 +120,7 @@ npm run refarm:tree:verify
   guards, `refarm status --json --input`,
   `refarm headless --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
-  `refarm doctor --json`, `refarm doctor` (summary), and
+  `refarm doctor --json`, `refarm doctor` (summary), `refarm check --json`, and
   `refarm tui --launch --dry-run`) and verifies invalid launcher values,
   fail-closed doctor warnings (`doctor --fail-on-warnings`), and invalid
   output/launch/action guard combinations (`--open`/`--dry-run` without
@@ -150,15 +157,17 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | actions | tree | quick | dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | tree | check | quick | dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
-  `npm run refarm:actions:verify` and non-doc tree deltas route to
+  `npm run refarm:actions:verify`, composite check/health gate deltas
+  (`apps/refarm` command code, `packages/health` source, or project health
+  policy) route to `npm run refarm:check:verify`, and non-doc tree deltas route to
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
   docs-only deltas still skip smoke. Manual `--profile` overrides also accept
   granular lane names such as `actions-headless`, `actions-renderers`,
-  `actions-test`, `actions-type`, `actions-dist`, `tree-test`, `tree-smoke`,
+  `actions-test`, `actions-type`, `actions-dist`, `check`, `tree-test`, `tree-smoke`,
   `tree-type`, `tree-farmhand`, and `tree-dist` for one-command narrow loop
   previews/execution. Shared local helpers such as `execution-plan.ts` stay on
   the `dev` lane because they feed more than one host contract.

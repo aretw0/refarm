@@ -41,7 +41,7 @@ pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_js
         "is_final":     payload.is_final,
         "tool_calls":   payload.tool_calls,
         "timestamp_ns": crate::now_ns(),
-        "llm": {
+        "inference": {
             "model":       payload.model,
             "tokens_in":   payload.tokens_in,
             "tokens_out":  payload.tokens_out,

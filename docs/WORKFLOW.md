@@ -22,7 +22,7 @@
 To regenerate this diagram after editing the source:
 
 ```bash
-npm run diagrams:fix
+pnpm run diagrams:fix
 ```
 
 This will regenerate all `.svg` files from their corresponding `.mermaid` sources. See [CONTRIBUTING.md#diagrams](../CONTRIBUTING.md#diagrams) for details.
@@ -275,7 +275,7 @@ packages/storage-sqlite/
 - [ ] Code coverage meets target (≥80%)
 - [ ] No linting errors
 - [ ] Peer reviewed (code + architecture alignment with specs)
-- [ ] Changeset created (`npm run changeset`)
+- [ ] Changeset created (`pnpm run changeset`)
 
 **When to Skip**: Never. DDD is the final step where code is written.
 
@@ -400,7 +400,7 @@ export async function insert(
 
 ```bash
 # 1. Start a new task using the Developer Toolbox
-npm run task:start
+pnpm run task:start
 
 # > Select "Feature / Issue Mode"
 # > Enter GitHub Issue ID: 42
@@ -412,18 +412,18 @@ npm run task:start
 vim packages/identity-nostr/tests/integration/identity.spec.ts
 
 # 3. Verify Quality Gates (should FAIL / RED)
-npm run task:verify
+pnpm run task:verify
 
 # 4. Write unit tests & Implement (TDD & DDD)
 vim packages/identity-nostr/src/keypair.test.ts
 vim packages/identity-nostr/src/keypair.ts
 
 # 5. Verify Quality Gates (should PASS / GREEN)
-npm run task:verify
+pnpm run task:verify
 
 # 6. Finish Task
 # This automates running `task:verify`, changeset generation, commits, and pushes
-npm run task:finish
+pnpm run task:finish
 
 # 7. Open PR
 # The finish script suggests: gh pr create --title "finish: work on #42" --fill --body "Fixes #42"
@@ -431,10 +431,10 @@ npm run task:finish
 
 ### Comandos do Toolbox
 
-1. `npm run task:start` (Inicia uma branch BDD guiada)
-2. `npm run task:verify` (Roda os Lint/Tests/Crates Checks)
-3. `npm run task:finish` (Gera changesets e abre o Pull Request orgânico)
-4. `npm run task:rebrand` (Renomeia a marca e domínios em caso de necessidade extrema)
+1. `pnpm run task:start` (Inicia uma branch BDD guiada)
+2. `pnpm run task:verify` (Roda os Lint/Tests/Crates Checks)
+3. `pnpm run task:finish` (Gera changesets e abre o Pull Request orgânico)
+4. `pnpm run task:rebrand` (Renomeia a marca e domínios em caso de necessidade extrema)
 
 ---
 
@@ -463,39 +463,39 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'phase:bdd')
     steps:
       - name: Run integration tests
-        run: npm run test:integration
+        run: pnpm run test:integration
       
       - name: Ensure tests fail (red phase)
         run: |
-          npm run test:integration && exit 1 || exit 0
+          pnpm run test:integration && exit 1 || exit 0
   
   tdd-gate:
     if: contains(github.event.pull_request.labels.*.name, 'phase:tdd')
     steps:
       - name: Run unit tests
-        run: npm test
+        run: pnpm test
       
       - name: Check coverage ≥80%
-        run: npm run test:coverage -- --min-coverage=80
+        run: pnpm run test:coverage -- --min-coverage=80
   
   ddd-gate:
     if: contains(github.event.pull_request.labels.*.name, 'phase:ddd')
     steps:
       - name: Run all tests
-        run: npm test
+        run: pnpm test
       
       - name: Ensure tests pass (green phase)
-        run: npm test
+        run: pnpm test
       
       - name: Check changeset exists
         run: |
           test -n "$(ls .changeset/*.md 2>/dev/null | grep -v README)" || exit 1
       
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
       
       - name: Build
-        run: npm run build
+        run: pnpm run build
 ```
 
 ---
@@ -676,8 +676,8 @@ Antes de qualquer lote paralelo (colônia, swarm ou macro-refactor), execute:
 
 ```bash
 node scripts/reso.mjs status
-npm run project:validate
-npm run factory:preflight
+pnpm run project:validate
+pnpm run factory:preflight
 ```
 
 ### Preflight completo (quando tocar runtime/host security)
@@ -688,7 +688,7 @@ cargo check --quiet
 cargo test --lib agent_tools_bridge --quiet
 cargo test --lib plugin_host --quiet
 cargo test --lib wasi_bridge --quiet
-npm run test:smoke:ws
+pnpm run test:smoke:ws
 ```
 
 ### Critério de go/no-go
@@ -768,7 +768,7 @@ Exemplo mínimo:
 To avoid repository bloating and ensure reproducibility:
 - **Track Only Source**: `.ts`, `.wit`, `.ld.json`, `.md`.
 - **Ignore Derivatives**: `.js`, `.d.ts`, binary `.wasm` (managed by CI/build).
-- **Cleanup**: Run `npm run clean:derivatives` to purge ignored artifacts.
+- **Cleanup**: Run `pnpm run clean:derivatives` to purge ignored artifacts.
 
 ### 2. Dual-Mode Resolution (`reso.mjs`)
 The project supports a dynamic resolution switcher to balance speed and rigor:
@@ -790,8 +790,8 @@ node scripts/reso.mjs src
 
 # validação final
 node scripts/reso.mjs dist
-npm run type-check
-npm run test:unit
+pnpm run type-check
+pnpm run test:unit
 node scripts/reso.mjs status
 ```
 
@@ -908,7 +908,7 @@ node scripts/reso.mjs status
 node scripts/reso.mjs src
 # ...trabalho local...
 node scripts/reso.mjs dist
-npm run gate:smoke:foundation
+pnpm run gate:smoke:foundation
 node scripts/reso.mjs status
 ```
 

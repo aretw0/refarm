@@ -16,6 +16,11 @@ export type TaskExecutorFn = (
 	effortId: string,
 ) => Promise<{ status: "ok" | "error"; result?: unknown; error?: string }>;
 
+export interface FileTransportOptions {
+	onEffortStart?: (effortId: string, pluginIds: string[]) => void;
+	onEffortEnd?: (effortId: string) => void;
+}
+
 const DEFAULT_MAX_ATTEMPTS = 2;
 const TERMINAL_STATUSES = new Set<EffortStatus>(["done", "failed", "cancelled"]);
 
@@ -69,6 +74,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 	constructor(
 		baseDir: string,
 		private readonly executor: TaskExecutorFn,
+		private readonly options: FileTransportOptions = {},
 	) {
 		this.tasksDir = path.join(baseDir, "tasks");
 		this.resultsDir = path.join(baseDir, "task-results");
@@ -199,27 +205,21 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			pending: 0,
 			inProgress: 0,
 			done: 0,
+			partial: 0,
 			failed: 0,
+			timedOut: 0,
 			cancelled: 0,
 		};
 
 		for (const result of results) {
 			switch (result.status) {
-				case "pending":
-					summary.pending += 1;
-					break;
-				case "in-progress":
-					summary.inProgress += 1;
-					break;
-				case "done":
-					summary.done += 1;
-					break;
-				case "failed":
-					summary.failed += 1;
-					break;
-				case "cancelled":
-					summary.cancelled += 1;
-					break;
+				case "pending":       summary.pending += 1;    break;
+				case "in-progress":   summary.inProgress += 1; break;
+				case "done":          summary.done += 1;       break;
+				case "partial":       summary.partial += 1;    break;
+				case "failed":        summary.failed += 1;     break;
+				case "timed-out":     summary.timedOut += 1;   break;
+				case "cancelled":     summary.cancelled += 1;  break;
 			}
 		}
 
@@ -246,7 +246,9 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			pending: 0,
 			inProgress: 0,
 			done: 0,
+			partial: 0,
 			failed: 0,
+			timedOut: 0,
 			cancelled: 0,
 		};
 
@@ -258,26 +260,19 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 
 			windowSummary.total += 1;
 			switch (result.status) {
-				case "pending":
-					windowSummary.pending += 1;
-					break;
-				case "in-progress":
-					windowSummary.inProgress += 1;
-					break;
-				case "done":
-					windowSummary.done += 1;
-					break;
-				case "failed":
-					windowSummary.failed += 1;
-					break;
-				case "cancelled":
-					windowSummary.cancelled += 1;
-					break;
+				case "pending":       windowSummary.pending += 1;    break;
+				case "in-progress":   windowSummary.inProgress += 1; break;
+				case "done":          windowSummary.done += 1;       break;
+				case "partial":       windowSummary.partial += 1;    break;
+				case "failed":        windowSummary.failed += 1;     break;
+				case "timed-out":     windowSummary.timedOut += 1;   break;
+				case "cancelled":     windowSummary.cancelled += 1;  break;
 			}
 		}
 
 		const terminal =
-			windowSummary.done + windowSummary.failed + windowSummary.cancelled;
+			windowSummary.done + windowSummary.partial + windowSummary.failed +
+			windowSummary.timedOut + windowSummary.cancelled;
 		const failureRatePct =
 			terminal > 0
 				? Number(((windowSummary.failed / terminal) * 100).toFixed(2))
@@ -439,6 +434,8 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		let cancelled = this.cancelRequests.has(effort.id);
 
 		this.inFlightEfforts.add(effort.id);
+		const pluginIds = effort.tasks.map((t) => t.pluginId);
+		this.options.onEffortStart?.(effort.id, pluginIds);
 		this.writeEffortResult({
 			effortId: effort.id,
 			status: cancelled ? "cancelled" : "in-progress",
@@ -645,6 +642,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			});
 		} finally {
 			this.inFlightEfforts.delete(effort.id);
+			this.options.onEffortEnd?.(effort.id);
 			if (
 				TERMINAL_STATUSES.has(
 					this.readEffortResult(effort.id)?.status ?? "pending",

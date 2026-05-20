@@ -113,7 +113,7 @@ test("evaluateCarryForwardResults only fails on true failing statuses", () => {
 	assert.equal(
 		evaluated.messages.some(
 			(message) =>
-				message.level === "warning" &&
+				message.level === "log" &&
 				message.text.includes("no prior executed"),
 		),
 		true,

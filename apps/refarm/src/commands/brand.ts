@@ -5,7 +5,7 @@ export type RefarmLaunchExperience = "web" | "tui";
 const BANNER_LINES = [
 	"╭───────────────────────────────╮",
 	"│            REFARM             │",
-	"│        sovereign farm         │",
+	"│      workspace automation     │",
 	"╰───────────────────────────────╯",
 ] as const;
 

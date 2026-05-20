@@ -71,7 +71,7 @@ validations/
 ## Comandos Reproduziveis (da raiz do repo)
 
 ```bash
-npm run test:e2e       # Playwright E2E (wasm-plugin/host)
-npm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
-npm run test:repro     # Lint + type-check + unit + integration + e2e
+pnpm run test:e2e       # Playwright E2E (wasm-plugin/host)
+pnpm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
+pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ```

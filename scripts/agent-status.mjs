@@ -2,13 +2,14 @@
 /**
  * agent-status — health check for the pi-agent stack
  *
- * Shows: daemon state, configured keys, WASM freshness, LLM config, LLM_FS_ROOT safety.
- * Usage: npm run agent:status
+ * Shows: daemon state, configured keys, WASM freshness, model config, MODEL_FS_ROOT safety.
+ * Usage: pnpm run agent:status
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
+import os from 'node:os';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -59,6 +60,14 @@ function maskedKey(k) {
   return k.slice(0, 8) + '...' + k.slice(-4);
 }
 
+function readSiloTokens() {
+  try {
+    const p = join(os.homedir(), '.refarm', 'identity.json');
+    if (!existsSync(p)) return {};
+    return JSON.parse(readFileSync(p, 'utf8')).tokens ?? {};
+  } catch { return {}; }
+}
+
 function fileAge(path) {
   const mtime = statSync(path).mtime;
   const mins = Math.floor((Date.now() - mtime.getTime()) / 60000);
@@ -84,7 +93,7 @@ function checkDaemon() {
   }
 
   if (!existsSync(PID_FILE)) {
-    info('daemon', 'not running (no PID file) — start: npm run agent:daemon');
+    info('daemon', 'not running (no PID file) — start: pnpm run agent:daemon');
     return;
   }
 
@@ -107,7 +116,7 @@ function checkDaemon() {
       warn('daemon', `process alive (pid ${pid}) but WS not responding`);
     }
   } catch {
-    warn('daemon', `PID ${pid} not alive — stale PID file. Run: npm run agent:stop`);
+    warn('daemon', `PID ${pid} not alive — stale PID file. Run: pnpm run agent:stop`);
   }
 }
 
@@ -134,12 +143,20 @@ function checkKeys(envVars) {
 
   if (configured.length > 0) {
     ok('keys', configured.join('  '));
+    if (missing.length > 0) {
+      info('keys', `not configured: ${c.dim}${missing.join(', ')}${c.reset}`);
+    }
+    return;
   }
-  if (missing.length > 0) {
-    info('keys', `not configured: ${c.dim}${missing.join(', ')}${c.reset}`);
-  }
-  if (configured.length === 0) {
-    fail('keys', 'no API keys configured — run: npm run agent:keys');
+
+  const silo = readSiloTokens();
+  if (silo.modelApiKey) {
+    const label = silo.modelProvider ?? 'key';
+    ok('keys', `${label} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
+  } else if (silo.oauthProvider && silo.oauthCredentials?.[silo.oauthProvider]) {
+    ok('keys', `${silo.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+  } else {
+    fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
   }
 }
 
@@ -159,12 +176,13 @@ function checkTractorBinary() {
   }
 }
 
-function checkLlmConfig(envVars, config) {
-  const provider = envVars.LLM_PROVIDER || process.env.LLM_PROVIDER || config.provider || 'ollama';
-  const model    = envVars.LLM_MODEL    || process.env.LLM_MODEL    || config.model    || '(provider default)';
-  const history  = envVars.LLM_HISTORY_TURNS || process.env.LLM_HISTORY_TURNS || config.LLM_HISTORY_TURNS || '0';
-  const maxIter  = envVars.LLM_TOOL_CALL_MAX_ITER || process.env.LLM_TOOL_CALL_MAX_ITER || config.LLM_TOOL_CALL_MAX_ITER || '5';
-  const budget   = envVars[`LLM_BUDGET_${provider.toUpperCase()}_USD`] || (config.budgets?.[provider]) || '';
+function checkModelConfig(envVars, config) {
+  const silo = readSiloTokens();
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || silo.modelProvider || config.provider || '(not configured)';
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(provider default)';
+  const history  = envVars.MODEL_HISTORY_TURNS    || process.env.MODEL_HISTORY_TURNS    || config.MODEL_HISTORY_TURNS    || '0';
+  const maxIter  = envVars.MODEL_TOOL_CALL_MAX_ITER || process.env.MODEL_TOOL_CALL_MAX_ITER || config.MODEL_TOOL_CALL_MAX_ITER || '5';
+  const budget   = config.budgets?.[provider] || '';
 
   const parts = [
     `provider=${c.cyan}${provider}${c.reset}`,
@@ -173,13 +191,13 @@ function checkLlmConfig(envVars, config) {
     `max_iter=${c.dim}${maxIter}${c.reset}`,
   ];
   if (budget) parts.push(`budget=${c.dim}$${budget}/30d${c.reset}`);
-  info('llm', parts.join('  '));
+  info('model', parts.join('  '));
 }
 
 function checkFsRoot(envVars, config) {
-  const fsRoot = envVars.LLM_FS_ROOT || process.env.LLM_FS_ROOT || config.LLM_FS_ROOT;
+  const fsRoot = envVars.MODEL_FS_ROOT || process.env.MODEL_FS_ROOT || config.MODEL_FS_ROOT;
   if (!fsRoot) {
-    warn('fs_root', 'LLM_FS_ROOT not set — agent has unrestricted file access');
+    warn('fs_root', 'MODEL_FS_ROOT not set — agent has unrestricted file access');
     return;
   }
 
@@ -187,23 +205,23 @@ function checkFsRoot(envVars, config) {
   const rootResolved = resolve(ROOT);
 
   if (!existsSync(resolved)) {
-    fail('fs_root', `LLM_FS_ROOT=${fsRoot} does not exist`);
+    fail('fs_root', `MODEL_FS_ROOT=${fsRoot} does not exist`);
     return;
   }
 
   // Safety check: FS root should be a subdirectory of repo root or a reasonable location
   if (!resolved.startsWith('/') || resolved === '/') {
-    fail('fs_root', `LLM_FS_ROOT=${fsRoot} is unsafe (root or empty)`);
+    fail('fs_root', `MODEL_FS_ROOT=${fsRoot} is unsafe (root or empty)`);
     return;
   }
 
   ok('fs_root', `${c.dim}${resolved}${c.reset}`);
 
-  const allowlist = envVars.LLM_SHELL_ALLOWLIST || process.env.LLM_SHELL_ALLOWLIST || config.LLM_SHELL_ALLOWLIST;
+  const allowlist = envVars.MODEL_SHELL_ALLOWLIST || process.env.MODEL_SHELL_ALLOWLIST || config.MODEL_SHELL_ALLOWLIST;
   if (allowlist) {
     info('shell', `allowlist: ${c.dim}${allowlist}${c.reset}`);
   } else {
-    warn('shell', 'LLM_SHELL_ALLOWLIST not set — agent shell is unrestricted');
+    warn('shell', 'MODEL_SHELL_ALLOWLIST not set — agent shell is unrestricted');
   }
 }
 
@@ -218,7 +236,7 @@ checkDaemon();
 checkTractorBinary();
 checkWasm();
 checkKeys(envVars);
-checkLlmConfig(envVars, config);
+checkModelConfig(envVars, config);
 checkFsRoot(envVars, config);
 
 console.log('');

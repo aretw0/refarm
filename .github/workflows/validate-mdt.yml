@@ -50,6 +50,8 @@ jobs:
         uses: ./.github/actions/setup
         with:
           rust-target: "x86_64-unknown-linux-gnu"
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: MDT validation cache hit
         if: steps.validation-cache.outputs.cache-hit == 'true'

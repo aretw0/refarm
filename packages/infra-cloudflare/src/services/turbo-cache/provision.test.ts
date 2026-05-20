@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { CloudflareProvider, ExecResult } from "../../provider.js";
 import {
@@ -85,6 +85,11 @@ describe("createCloudflareTurboCacheProvisionPlan", () => {
 					},
 				],
 				ciSecrets: ["TURBO_CACHE_API_URL", "TURBO_CACHE_TOKEN"],
+				retention: {
+					dryRun: false,
+					maxAssetBytes: 52428800,
+					ttlSeconds: 2592000,
+				},
 			},
 			resources: [
 				{
@@ -131,6 +136,10 @@ describe("CloudflareTurboCacheProvisioner", () => {
 		const workerCwd = calls[0]!.cwd;
 		expect(existsSync(workerCwd), `WORKER_DIR not found on disk: ${workerCwd}`).toBe(true);
 		expect(existsSync(`${workerCwd}/wrangler.toml`), "wrangler.toml missing from WORKER_DIR").toBe(true);
+
+		const wranglerToml = readFileSync(`${workerCwd}/wrangler.toml`, "utf-8");
+		expect(wranglerToml).toContain("\n[triggers]\n");
+		expect(wranglerToml).not.toContain("[[triggers.crons]]");
 	});
 
 	it("returns a dry-run envelope without calling Cloudflare", async () => {
@@ -199,7 +208,16 @@ describe("CloudflareTurboCacheProvisioner", () => {
 				args: ["secret", "put", "AUTH_TOKEN"],
 				input: "provided-token",
 			},
-			{ kind: "exec", args: ["deploy"], input: undefined },
+			{
+				kind: "exec",
+				args: [
+					"deploy",
+					"--var", "ARTIFACT_TTL_SECONDS:2592000",
+					"--var", "MAX_ARTIFACT_BYTES:52428800",
+					"--var", "CLEANUP_DRY_RUN:false",
+				],
+				input: undefined,
+			},
 		]);
 	});
 

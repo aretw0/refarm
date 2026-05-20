@@ -139,6 +139,19 @@ export async function runTaskV1Conformance(
     }
   }
 
+  // 8 — delete
+  if (created) {
+    total++;
+    try {
+      await adapter.delete(created["@id"]);
+      const afterDelete = await adapter.get(created["@id"]);
+      if (afterDelete !== null)
+        failures.push("delete() did not remove the task");
+    } catch (e) {
+      failures.push(`delete() threw: ${String(e)}`);
+    }
+  }
+
 	const failed = failures.length;
 	return { pass: failed === 0, total, failed, failures };
 }

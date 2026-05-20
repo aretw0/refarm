@@ -13,11 +13,11 @@ interface DeployResult {
 }
 
 export const deployCommand = new Command("deploy")
-  .description("Automated Soil: Deploy artifacts to sovereign targets")
+  .description("Deploy artifacts to configured targets")
   .option("--target <target>", "Target platform (cloudflare, github, all)", "all")
   .option("--dry-run", "Simulate the deployment")
   .action(async (options) => {
-    console.log(chalk.bold.green("\n🌱 Starting Automated Soil Deployment..."));
+    console.log(chalk.bold.green("\nStarting deployment orchestration..."));
 
     try {
       const configPath = path.join(process.cwd(), "refarm.config.json");

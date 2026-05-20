@@ -36,18 +36,18 @@ pub(crate) fn is_shared_sensitive_env_namespace_segment(upper_env_key: &str) -> 
     env::is_shared_sensitive_env_namespace_segment(upper_env_key)
 }
 
-pub(crate) fn is_disallowed_llm_forward_env_upper(upper: &str) -> bool {
-    policy::is_disallowed_llm_forward_env_upper(upper)
+pub(crate) fn is_disallowed_model_forward_env_upper(upper: &str) -> bool {
+    policy::is_disallowed_model_forward_env_upper(upper)
 }
 
-/// Shared plugin-forwarding policy for `LLM_*` env keys.
-pub(crate) fn is_forwardable_llm_env_key(key: &str) -> bool {
-    policy::is_forwardable_llm_env_key(key)
+/// Shared plugin-forwarding policy for `MODEL_*` env keys.
+pub(crate) fn is_forwardable_model_env_key(key: &str) -> bool {
+    policy::is_forwardable_model_env_key(key)
 }
 
-/// Shared plugin-forwarding policy for `LLM_*` env values.
-pub(crate) fn is_forwardable_llm_env_value(value: &str) -> bool {
-    policy::is_forwardable_llm_env_value(value)
+/// Shared plugin-forwarding policy for `MODEL_*` env values.
+pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
+    policy::is_forwardable_model_env_value(value)
 }
 
 /// Shared spawn boundary env-key policy (exact keys + prefixes + shared alias catalogs).
@@ -111,9 +111,9 @@ mod tests {
     #[test]
     fn compact_env_alias_segment_matches_expected_keys() {
         let blocked = [
-            "LLM_FOO_GITLABTOKEN_BAR",
-            "LLM_FOO_CLOUDFLAREACCESSCLIENTSECRET_BAR",
-            "LLM_FOO_SLACKREQUESTTIMESTAMP_BAR",
+            "MODEL_FOO_GITLABTOKEN_BAR",
+            "MODEL_FOO_CLOUDFLAREACCESSCLIENTSECRET_BAR",
+            "MODEL_FOO_SLACKREQUESTTIMESTAMP_BAR",
         ];
         for key in blocked {
             assert!(
@@ -122,7 +122,7 @@ mod tests {
             );
         }
 
-        let allowed = ["LLM_FOO_GITLAB_TOKEN_BAR", "LLM_PROVIDER_BASE_URL"];
+        let allowed = ["MODEL_FOO_GITLAB_TOKEN_BAR", "MODEL_PROVIDER_BASE_URL"];
         for key in allowed {
             assert!(
                 !is_compact_sensitive_env_alias_suffix_or_segment(key),
@@ -151,10 +151,10 @@ mod tests {
         }
 
         let segment_blocked = [
-            "LLM_FOO_TOKEN_BAR",
-            "LLM_FOO_SECRET_BAR",
-            "LLM_FOO_PROXY_BAR",
-            "LLM_FOO_AUTHORIZATION_BAR",
+            "MODEL_FOO_TOKEN_BAR",
+            "MODEL_FOO_SECRET_BAR",
+            "MODEL_FOO_PROXY_BAR",
+            "MODEL_FOO_AUTHORIZATION_BAR",
         ];
         for key in segment_blocked {
             assert!(
@@ -163,7 +163,7 @@ mod tests {
             );
         }
 
-        let allowed = ["SERVICE_WEBHOOK_TOKEN", "TOKEN", "LLM_PROVIDER_BASE_URL"];
+        let allowed = ["SERVICE_WEBHOOK_TOKEN", "TOKEN", "MODEL_PROVIDER_BASE_URL"];
         for key in allowed {
             assert!(
                 !is_generic_sensitive_env_token_suffix_or_segment(key),
@@ -205,10 +205,10 @@ mod tests {
     #[test]
     fn shared_canonical_env_segment_matches_expected_keys() {
         let blocked = [
-            "LLM_FOO_WEBHOOK_SECRET_BAR",
-            "LLM_FOO_PROXY_AUTHORIZATION_BAR",
-            "LLM_FOO_DATABASE_URL_BAR",
-            "LLM_FOO_SSL_CLIENT_CERT_BAR",
+            "MODEL_FOO_WEBHOOK_SECRET_BAR",
+            "MODEL_FOO_PROXY_AUTHORIZATION_BAR",
+            "MODEL_FOO_DATABASE_URL_BAR",
+            "MODEL_FOO_SSL_CLIENT_CERT_BAR",
         ];
         for key in blocked {
             assert!(
@@ -217,7 +217,7 @@ mod tests {
             );
         }
 
-        let allowed = ["LLM_FOO_WEBHOOKSECRET_BAR", "LLM_PROVIDER_BASE_URL"];
+        let allowed = ["MODEL_FOO_WEBHOOKSECRET_BAR", "MODEL_PROVIDER_BASE_URL"];
         for key in allowed {
             assert!(
                 !is_shared_sensitive_env_canonical_suffix_or_segment(key),
@@ -236,7 +236,7 @@ mod tests {
             );
         }
 
-        let segment_blocked = ["LLM_FOO_AWS_BAR", "LLM_FOO_GITHUB_BAR", "LLM_FOO_KUBE_BAR"];
+        let segment_blocked = ["MODEL_FOO_AWS_BAR", "MODEL_FOO_GITHUB_BAR", "MODEL_FOO_KUBE_BAR"];
         for key in segment_blocked {
             assert!(
                 is_shared_sensitive_env_namespace_segment(key),
@@ -244,7 +244,7 @@ mod tests {
             );
         }
 
-        let allowed = ["LLM_FOO_AWSBAR_BAZ", "SERVICE_PROVIDER_BASE_URL"];
+        let allowed = ["MODEL_FOO_AWSBAR_BAZ", "SERVICE_PROVIDER_BASE_URL"];
         for key in allowed {
             assert!(
                 !is_shared_sensitive_env_namespace_segment(key),
@@ -254,61 +254,60 @@ mod tests {
     }
 
     #[test]
-    fn disallowed_llm_forward_env_helper_matches_expected_cases() {
+    fn disallowed_model_forward_env_helper_matches_expected_cases() {
         let blocked = [
-            "LLM_SHELL_ALLOWLIST",
-            "LLM_GITHUB_TOKEN",
-            "LLM_PROVIDER_WEBHOOK_SECRET",
-            "LLM_AWS_EC2_METADATA_TOKEN",
-            "LLM_AUTH_REQUEST_USER",
+            "MODEL_GITHUB_TOKEN",
+            "MODEL_PROVIDER_WEBHOOK_SECRET",
+            "MODEL_AWS_EC2_METADATA_TOKEN",
+            "MODEL_AUTH_REQUEST_USER",
         ];
         for key in blocked {
             assert!(
-                is_disallowed_llm_forward_env_upper(key),
-                "expected disallowed llm forward env key: {key}"
+                is_disallowed_model_forward_env_upper(key),
+                "expected disallowed model forward env key: {key}"
             );
         }
 
-        let allowed = ["LLM_MODEL", "LLM_PROVIDER_BASE_URL", "LLM_TEMPERATURE"];
+        let allowed = ["MODEL_ID", "MODEL_PROVIDER_BASE_URL", "MODEL_TEMPERATURE"];
         for key in allowed {
             assert!(
-                !is_disallowed_llm_forward_env_upper(key),
-                "expected allowed llm forward env key: {key}"
+                !is_disallowed_model_forward_env_upper(key),
+                "expected allowed model forward env key: {key}"
             );
         }
     }
 
     #[test]
-    fn llm_forwardable_helpers_match_expected_cases() {
-        let key_allowed = ["LLM_MODEL", "LLM_PROVIDER_BASE_URL", "LLM_TEMPERATURE"];
+    fn model_forwardable_helpers_match_expected_cases() {
+        let key_allowed = ["MODEL_ID", "MODEL_PROVIDER_BASE_URL", "MODEL_TEMPERATURE"];
         for key in key_allowed {
             assert!(
-                is_forwardable_llm_env_key(key),
-                "expected LLM env key to be forwardable: {key}"
+                is_forwardable_model_env_key(key),
+                "expected MODEL env key to be forwardable: {key}"
             );
         }
 
-        let key_blocked = ["LLM_GITHUB_TOKEN", "LLM_SHELL_ALLOWLIST", "LLM_AWS_FOO_BAR"];
+        let key_blocked = ["MODEL_GITHUB_TOKEN", "MODEL_USER", "MODEL_AWS_FOO_BAR"];
         for key in key_blocked {
             assert!(
-                !is_forwardable_llm_env_key(key),
-                "expected LLM env key to be blocked: {key}"
+                !is_forwardable_model_env_key(key),
+                "expected MODEL env key to be blocked: {key}"
             );
         }
 
         let value_allowed = ["gpt-4.1", "openai", "0.2"];
         for value in value_allowed {
             assert!(
-                is_forwardable_llm_env_value(value),
-                "expected LLM env value to be forwardable: {value}"
+                is_forwardable_model_env_value(value),
+                "expected MODEL env value to be forwardable: {value}"
             );
         }
 
         let value_blocked = ["", " has-space", "line\nfeed"];
         for value in value_blocked {
             assert!(
-                !is_forwardable_llm_env_value(value),
-                "expected LLM env value to be blocked: {value:?}"
+                !is_forwardable_model_env_value(value),
+                "expected MODEL env value to be blocked: {value:?}"
             );
         }
     }

@@ -3,13 +3,14 @@
  * farm-status — unified process and health status for the Refarm factory.
  *
  * Covers tractor (Rust WASM host) and farmhand (Node.js task orchestrator).
- * Run: npm run farm:status
+ * Run: pnpm run farm:status
  * See: docs/PROCESS_PLAYBOOK.md
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+import os from 'node:os';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -135,10 +136,12 @@ function checkTractor() {
 
   if (!pid || !isAlive(pid)) {
     const b42 = portBinding(42000);
-    if (b42.bound) {
+    // Port 42000 is also used by farmhand for CRDT — suppress false "stale?" if it's farmhand's pid
+    const farmhandPid = readPid(join(ROOT, '.refarm', 'farmhand.pid'));
+    if (b42.bound && b42.pid !== farmhandPid) {
       warn('tractor', `no PID file but port 42000 bound by PID ${b42.pid ?? '?'} (${b42.proc ?? 'unknown'}) — stale?`);
     } else {
-      info('tractor', `not running  ${c.dim}(start: npm run agent:daemon)${c.reset}`);
+      info('tractor', `not running  ${c.dim}(start: pnpm run agent:daemon)${c.reset}`);
     }
     return false;
   }
@@ -164,7 +167,7 @@ async function checkFarmhand() {
     } else if (b42.bound) {
       info('farmhand', `not running  (port 42000 held by ${b42.proc ?? 'pid=' + b42.pid})`);
     } else {
-      info('farmhand', `not running  ${c.dim}(start: npm run farmhand:daemon)${c.reset}`);
+      info('farmhand', `not running  ${c.dim}(start: pnpm run farmhand:daemon)${c.reset}`);
     }
     return false;
   }
@@ -211,13 +214,22 @@ function checkArtifacts() {
   }
 }
 
-function checkLlm() {
+function readSiloTokens() {
+  try {
+    const p = join(os.homedir(), '.refarm', 'identity.json');
+    if (!existsSync(p)) return {};
+    return JSON.parse(readFileSync(p, 'utf8')).tokens ?? {};
+  } catch { return {}; }
+}
+
+function checkModel() {
   const envFile = join(ROOT, '.refarm', '.env');
   const configFile = join(ROOT, '.refarm', 'config.json');
 
   const envVars = readEnvFile(envFile);
   let config = {};
   try { config = JSON.parse(readFileSync(configFile, 'utf8')); } catch { /* ok */ }
+  const silo = readSiloTokens();
 
   const KEY_LABELS = {
     ANTHROPIC_API_KEY:  'Anthropic', OPENAI_API_KEY: 'OpenAI',
@@ -231,13 +243,23 @@ function checkLlm() {
     .filter(([k]) => envVars[k] || process.env[k])
     .map(([k, label]) => `${label} ${c.dim}${maskedKey(envVars[k] || process.env[k])}${c.reset}`);
 
-  if (configured.length) ok('keys', configured.join('  '));
-  else fail('keys', 'no API keys — run: npm run agent:keys');
+  // Silo credentials (set via `refarm sow`) — API key or OAuth
+  if (configured.length === 0) {
+    if (silo.modelApiKey) {
+      const providerLabel = silo.modelProvider ?? 'key';
+      configured.push(`${providerLabel} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
+    } else if (silo.oauthProvider && silo.oauthCredentials?.[silo.oauthProvider]) {
+      configured.push(`${silo.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+    }
+  }
 
-  const provider = envVars.LLM_PROVIDER || process.env.LLM_PROVIDER || config.provider || 'ollama';
-  const model    = envVars.LLM_MODEL    || process.env.LLM_MODEL    || config.model    || '(default)';
+  if (configured.length) ok('keys', configured.join('  '));
+  else fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
+
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || silo.modelProvider || config.provider || '(not configured)';
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(default)';
   const budget   = config.budgets?.[provider] ?? null;
-  info('llm', [
+  info('model', [
     `provider=${c.cyan}${provider}${c.reset}`,
     `model=${c.dim}${model}${c.reset}`,
     budget ? `budget=${c.dim}$${budget}/30d${c.reset}` : null,
@@ -277,8 +299,8 @@ async function main() {
   section('ARTIFACTS');
   checkArtifacts();
 
-  section('LLM');
-  checkLlm();
+  section('MODEL');
+  checkModel();
 
   console.log('');
 }

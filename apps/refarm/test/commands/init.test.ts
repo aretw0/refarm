@@ -9,7 +9,7 @@ const {
   mockWriteFileSync,
   mockInquirerPrompt,
 } = vi.hoisted(() => ({
-  mockScaffold: vi.fn().mockResolvedValue({ config: { type: "app" }, tier: "citizen" }),
+  mockScaffold: vi.fn().mockResolvedValue({ config: { type: "app" }, tier: "persistent" }),
   mockBootstrapIdentity: vi.fn().mockResolvedValue({
     publicKey: "pk_test",
     timestamp: "2026-01-01T00:00:00.000Z",
@@ -17,7 +17,7 @@ const {
   mockExistsSync: vi.fn().mockReturnValue(false),
   mockMkdirSync: vi.fn(),
   mockWriteFileSync: vi.fn(),
-  mockInquirerPrompt: vi.fn().mockResolvedValue({ template: "courier" }),
+  mockInquirerPrompt: vi.fn().mockResolvedValue({ template: "workspace" }),
 }));
 
 vi.mock("inquirer", () => ({
@@ -55,15 +55,15 @@ describe("initCommand — mocked initialization flow", () => {
     vi.clearAllMocks();
     // Re-apply return values cleared by clearAllMocks()
     mockExistsSync.mockReturnValue(false);
-    mockScaffold.mockResolvedValue({ config: { type: "app" }, tier: "citizen" });
+    mockScaffold.mockResolvedValue({ config: { type: "app" }, tier: "persistent" });
     mockBootstrapIdentity.mockResolvedValue({
       publicKey: "pk_test",
       timestamp: "2026-01-01T00:00:00.000Z",
     });
-    mockInquirerPrompt.mockResolvedValue({ template: "courier" });
+    mockInquirerPrompt.mockResolvedValue({ template: "workspace" });
   });
 
-  async function runInit(name = "test-farm") {
+  async function runInit(name = "test-workspace") {
     // Invoke the action directly on the subcommand — from:"user" means no argv[0]/argv[1] stripping.
     await initCommand.parseAsync([name], { from: "user" });
   }
@@ -71,7 +71,7 @@ describe("initCommand — mocked initialization flow", () => {
   it("creates project and .refarm directories with { recursive: true }", async () => {
     await runInit();
     expect(mockMkdirSync).toHaveBeenCalledWith(
-      expect.stringContaining("test-farm"),
+      expect.stringContaining("test-workspace"),
       { recursive: true }
     );
     expect(mockMkdirSync).toHaveBeenCalledWith(
@@ -98,15 +98,32 @@ describe("initCommand — mocked initialization flow", () => {
     );
     expect(call).toBeDefined();
     const content = JSON.parse(call![1] as string);
-    expect(content.brand.name).toBe("test-farm");
-    expect(content.brand.slug).toBe("test-farm");
+    expect(content.brand.name).toBe("test-workspace");
+    expect(content.brand.slug).toBe("test-workspace");
   });
 
   it("passes the selected template as the first argument to scaffold", async () => {
     await runInit();
     expect(mockScaffold).toHaveBeenCalledWith(
-      "courier",
-      expect.objectContaining({ name: "test-farm" })
+      "workspace",
+      expect.objectContaining({ name: "test-workspace" })
     );
+  });
+
+  it("aborts re-run without --force when already initialized", async () => {
+    mockExistsSync.mockReturnValue(true);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(
+      (() => { throw new Error("exit:0"); }) as never,
+    );
+    await expect(runInit()).rejects.toThrow("exit:0");
+    expect(mockBootstrapIdentity).not.toHaveBeenCalled();
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
+  it("reinitializes when --force is passed even if already initialized", async () => {
+    mockExistsSync.mockReturnValue(true);
+    await initCommand.parseAsync(["test-workspace", "--force"], { from: "user" });
+    expect(mockBootstrapIdentity).toHaveBeenCalled();
   });
 });
