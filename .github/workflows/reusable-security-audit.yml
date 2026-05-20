@@ -54,7 +54,7 @@ jobs:
       # ── Tier 1: blocking gate — high/critical in prod deps ──────────────
       - name: Security gate (high/critical, prod deps only)
         id: audit_gate
-        run: pnpm audit --audit-level=high --omit=dev
+        run: pnpm audit --audit-level=high --prod
 
       # ── Tier 2: non-blocking gate — moderate in prod deps ───────────────
       # GHSA-48c2-rrv3-qjmp (yaml <2.8.3): ignored — exact version pin in
@@ -63,7 +63,7 @@ jobs:
       - name: Security gate (moderate, prod deps only — non-blocking)
         id: audit_gate_moderate
         if: always()
-        run: pnpm audit --audit-level=moderate --omit=dev
+        run: pnpm audit --audit-level=moderate --prod
         continue-on-error: true
 
       # ── Generate rich report (prod + all) ───────────────────────────────

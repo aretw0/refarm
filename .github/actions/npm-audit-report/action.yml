@@ -50,7 +50,7 @@ runs:
         MD_OUT="${{ inputs.markdown-output }}"
 
         pnpm audit --json > "$JSON_OUT" || true
-        pnpm audit --json --omit=dev > "$JSON_PROD_OUT" || true
+        pnpm audit --json --prod > "$JSON_PROD_OUT" || true
 
         # Counters — all deps
         MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' "$JSON_OUT")

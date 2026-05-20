@@ -190,7 +190,7 @@
 		"jest": "^30.3.0",
 		"jsdom": "^29.0.2",
 		"npm-check-updates": "^21.0.2",
-		"turbo": "^2.9.6",
+		"turbo": "^2.9.14",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.59.2",
 		"vitest": "^4.1.4"
