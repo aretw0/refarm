@@ -37,6 +37,10 @@ import {
 	routeForScope,
 	withModelRouteEnv,
 } from "./model-routes.js";
+import {
+	createSiloModelEnvInjector,
+	type OAuthCreds,
+} from "./silo-model-env.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
@@ -170,20 +174,6 @@ async function handleFarmhandTask(
 	});
 }
 
-const MODEL_ENV_KEY: Record<string, string> = {
-	anthropic: "ANTHROPIC_API_KEY",
-	openai: "OPENAI_API_KEY",
-	groq: "GROQ_API_KEY",
-	mistral: "MISTRAL_API_KEY",
-	xai: "XAI_API_KEY",
-	deepseek: "DEEPSEEK_API_KEY",
-	together: "TOGETHER_API_KEY",
-	openrouter: "OPENROUTER_API_KEY",
-	gemini: "GEMINI_API_KEY",
-};
-
-interface OAuthCreds { access: string; refresh: string; expires: number }
-
 const OAUTH_TOKEN_URLS: Record<string, string> = {
 	anthropic: "https://platform.claude.com/v1/oauth/token",
 	"openai-codex": "https://auth.openai.com/oauth/token",
@@ -196,6 +186,13 @@ const OAUTH_CLIENT_IDS: Record<string, string> = {
 const silo = new SiloCore();
 const modelRouteResolver = createModelRouteResolver({
 	loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
+});
+const siloModelEnvInjector = createSiloModelEnvInjector({
+	store: {
+		loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
+		saveTokens: (tokens) => silo.saveTokens(tokens),
+	},
+	refreshOAuthToken,
 });
 
 async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
@@ -222,55 +219,7 @@ async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Prom
 }
 
 async function injectSiloModelEnv(): Promise<void> {
-	try {
-		const tokens = await modelRouteResolver.refreshTokens() as Record<string, unknown>;
-		const provider = tokens.modelProvider as string | undefined;
-		const oauthProvider = tokens.oauthProvider as string | undefined;
-
-		if (provider && !process.env.MODEL_PROVIDER) {
-			process.env.MODEL_PROVIDER = provider;
-		}
-		const modelId = tokens.modelId ?? tokens.model;
-		if (typeof modelId === "string" && modelId.trim().length > 0 && !process.env.MODEL_ID) {
-			process.env.MODEL_ID = modelId.trim();
-		}
-
-		// OAuth path: use (and possibly refresh) stored OAuth token
-		if (oauthProvider) {
-			const allOAuth = (tokens.oauthCredentials ?? {}) as Record<string, OAuthCreds>;
-			let creds = allOAuth[oauthProvider];
-			if (creds) {
-				if (Date.now() >= creds.expires) {
-					const refreshed = await refreshOAuthToken(oauthProvider, creds);
-					if (refreshed) {
-						creds = refreshed;
-						await silo.saveTokens({
-							oauthCredentials: { ...allOAuth, [oauthProvider]: refreshed },
-						});
-					} else {
-						console.warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} — agent may fail`);
-						return; // Don't inject an expired token
-					}
-				}
-				const envKey = MODEL_ENV_KEY[provider ?? oauthProvider];
-				if (envKey && !process.env[envKey]) {
-					process.env[envKey] = creds.access;
-				}
-				return;
-			}
-		}
-
-		// API key fallback
-		const apiKey = tokens.modelApiKey as string | undefined;
-		if (apiKey && provider) {
-			const envKey = MODEL_ENV_KEY[provider];
-			if (envKey && !process.env[envKey]) {
-				process.env[envKey] = apiKey;
-			}
-		}
-	} catch {
-		// Silo unavailable — farmhand-start.sh .env fallback still applies
-	}
+	await siloModelEnvInjector.inject();
 }
 
 async function injectConfigEnv(): Promise<void> {
@@ -433,6 +382,7 @@ async function main() {
 			effort.source === "refarm-ask" || effort.source === "refarm-chat"
 				? "default"
 				: "worker";
+		await injectSiloModelEnv();
 		const tokens = await modelRouteResolver.refreshTokens();
 		const route = routeForScope(tokens, scope);
 		await withModelRouteEnv(route, () =>
