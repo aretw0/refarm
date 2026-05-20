@@ -14,6 +14,10 @@ inputs:
     description: "Rust targets install (e.g. wasm32-wasip1). Multiple targets can be separated by commas."
     required: false
     default: "wasm32-wasip1,x86_64-unknown-linux-gnu"
+  rust-coverage:
+    description: "Whether to install cargo-llvm-cov for Rust coverage gates."
+    required: false
+    default: "false"
   turbo-cache-api:
     description: "Turbo remote cache API URL (TURBO_API). When set, remote cache is used instead of local GHA cache."
     required: false
@@ -167,6 +171,24 @@ runs:
           echo "cargo-component already installed"
         else
           cargo install --locked cargo-component --version 0.21.1
+        fi
+
+    - name: Cache cargo-llvm-cov
+      if: ${{ inputs.cache-mode != 'off' && inputs.rust-coverage == 'true' }}
+      id: cache-cargo-llvm-cov
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ~/.cargo/bin/cargo-llvm-cov
+        key: ${{ runner.os }}-cargo-llvm-cov-0.8.7
+
+    - name: Install cargo-llvm-cov
+      if: ${{ inputs.rust-coverage == 'true' && (inputs.cache-mode == 'off' || steps.cache-cargo-llvm-cov.outputs.cache-hit != 'true') }}
+      shell: bash
+      run: |
+        if cargo llvm-cov --version >/dev/null 2>&1; then
+          echo "cargo-llvm-cov already installed"
+        else
+          cargo install --locked cargo-llvm-cov --version 0.8.7
         fi
 
     - name: Rust cache

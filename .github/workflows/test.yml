@@ -285,6 +285,7 @@ jobs:
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
+          rust-coverage: ${{ needs.changes.outputs.tractor_gates }}
 
       # Turbo Cache is now handled in ./.github/actions/setup
       # - name: Cache Turbo
@@ -557,7 +558,7 @@ jobs:
         if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         uses: ./.github/actions/codecov-upload
         with:
-          files: ./coverage/coverage-final.json
+          files: ./packages/tractor/coverage/lcov.info
           flags: unittests
           name: codecov-refarm
 

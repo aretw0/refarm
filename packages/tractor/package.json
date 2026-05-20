@@ -15,6 +15,7 @@
 		"test:integration": "pnpm run test:smoke:ws",
 		"bench:save": "RUSTUP_TOOLCHAIN=stable cargo run --release --bin tractor-bench -- save",
 		"bench:check": "RUSTUP_TOOLCHAIN=stable cargo run --release --bin tractor-bench -- check",
-		"coverage:check": "echo 'Coverage check not yet implemented for Rust core' && mkdir -p coverage && echo '{\"improved\": false, \"previous\": 0, \"current\": 0, \"diff\": \"0%\"}' > coverage/gha-payload.json"
+		"coverage:save": "node scripts/coverage.mjs save",
+		"coverage:check": "node scripts/coverage.mjs check"
 	}
 }
