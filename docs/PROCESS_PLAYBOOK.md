@@ -367,8 +367,8 @@ When something is wrong, work top-down:
 
 ## Long-term direction
 
-This playbook is an interim measure. The `apps/refarm` CLI (`refarm-task`, etc.) is
-evolving to abstract daemon lifecycle, task dispatch, and status into first-class
-commands. When those ship, the manual steps above become `refarm start`, `refarm stop`,
-and `refarm status`. Until then, this doc and `pnpm run farm:status` are the canonical
-operator interface.
+This playbook is an interim measure. The `apps/refarm` CLI is evolving to
+abstract daemon lifecycle, runtime selection, task dispatch, and status into
+first-class commands. `refarm runtime`, `refarm status`, and `refarm ask`
+already cover the daily-driver path; use this doc and `pnpm run farm:status`
+when you need lower-level backend diagnostics.
