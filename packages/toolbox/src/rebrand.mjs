@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { packageInstallCommand } from './package-manager.mjs';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -112,11 +113,12 @@ async function main() {
         replaceInFile(file, replacements);
     }
 
-    console.log("\n📦 Relinking Turborepo dependencies (npm install)...");
+    const installCommand = packageInstallCommand();
+    console.log(`\n📦 Relinking Turborepo dependencies (${installCommand.display})...`);
     try {
-        execSync('npm install', { stdio: 'inherit' });
+        execSync(installCommand.command, { stdio: 'inherit' });
     } catch (err) {
-        console.error("npm install failed, you may need to resolve some manual package name conflicts in package.json");
+        console.error(`${installCommand.display} failed, you may need to resolve some manual package name conflicts in package.json`);
     }
 
     console.log("\n✅ Rebrand protocol complete. Please review the git diff carefully.");

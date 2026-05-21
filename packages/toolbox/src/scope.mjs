@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import { packageInstallCommand } from "./package-manager.mjs";
 
 const DEP_KEYS = [
     "dependencies",
@@ -498,7 +499,7 @@ async function main() {
     if (args.setActive) {
         console.log(`   - Active scope profile updated to: ${profile.name}`);
     }
-    console.log("\nNext: run 'npm install' to refresh lockfile/workspace links.");
+    console.log(`\nNext: run '${packageInstallCommand({ cwd: rootDir }).display}' to refresh lockfile/workspace links.`);
 }
 
 main().catch((error) => {
