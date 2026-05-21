@@ -30,6 +30,20 @@ export function createOpenUrlCommand(deps?: Partial<OpenUrlDeps>): Command {
 		)
 		.argument("<url>", "URL to open")
 		.option("--dry-run", "Print opener candidates without executing them")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ refarm open-url https://platform.openai.com/auth
+  $ refarm open-url https://dash.cloudflare.com --dry-run
+  $ refarm config set operator.openExternalLinks never
+
+Notes:
+  Used by auth and provisioning flows to hand official links from a devcontainer to the host browser.
+  --dry-run prints the available opener candidates and does not open a browser.
+  Set operator.openExternalLinks=never to keep flows headless and print URLs instead.
+`,
+		)
 		.action(async (url: string, options: OpenUrlOptions) => {
 			if (options.dryRun) {
 				console.log(openDryRunMessage(url));

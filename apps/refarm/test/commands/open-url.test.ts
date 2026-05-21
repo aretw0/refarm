@@ -7,6 +7,26 @@ describe("open-url command", () => {
 		process.exitCode = undefined;
 	});
 
+	it("documents devcontainer browser handoff workflows", () => {
+		const command = createOpenUrlCommand();
+		let help = "";
+		command.configureOutput({
+			writeOut: (chunk) => {
+				help += chunk;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm open-url https://platform.openai.com/auth");
+		expect(help).toContain(
+			"refarm open-url https://dash.cloudflare.com --dry-run",
+		);
+		expect(help).toContain("operator.openExternalLinks never");
+		expect(help).toContain("devcontainer to the host browser");
+		expect(help).toContain("flows headless and print URLs instead");
+	});
+
 	it("prints opener candidates in dry-run mode", async () => {
 		const open = vi.fn();
 		const command = createOpenUrlCommand({ open });
