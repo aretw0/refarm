@@ -3,13 +3,14 @@
  * agent-status — health check for the pi-agent stack
  *
  * Shows: daemon state, configured keys, WASM freshness, model config, MODEL_FS_ROOT safety.
- * Usage: pnpm run agent:status
+ * Usage: run the agent:status package script with the configured package manager.
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import os from 'node:os';
+import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -36,6 +37,7 @@ function ok(label, msg)   { console.log(`  ${c.green}[+]${c.reset} ${c.bold}${la
 function warn(label, msg) { console.log(`  ${c.yellow}[!]${c.reset} ${c.bold}${label.padEnd(12)}${c.reset} ${c.yellow}${msg}${c.reset}`); }
 function fail(label, msg) { console.log(`  ${c.red}[x]${c.reset} ${c.bold}${label.padEnd(12)}${c.reset} ${c.red}${msg}${c.reset}`); }
 function info(label, msg) { console.log(`  ${c.dim}[o]${c.reset} ${c.bold}${label.padEnd(12)}${c.reset} ${c.dim}${msg}${c.reset}`); }
+function scriptCommand(script) { return packageScriptCommand(script, { cwd: ROOT }).display; }
 
 function readEnv() {
   if (!existsSync(ENV_FILE)) return {};
@@ -93,7 +95,7 @@ function checkDaemon() {
   }
 
   if (!existsSync(PID_FILE)) {
-    info('daemon', 'not running (no PID file) — start: pnpm run agent:daemon');
+    info('daemon', `not running (no PID file) — start: ${scriptCommand('agent:daemon')}`);
     return;
   }
 
@@ -116,7 +118,7 @@ function checkDaemon() {
       warn('daemon', `process alive (pid ${pid}) but WS not responding`);
     }
   } catch {
-    warn('daemon', `PID ${pid} not alive — stale PID file. Run: pnpm run agent:stop`);
+    warn('daemon', `PID ${pid} not alive — stale PID file. Run: ${scriptCommand('agent:stop')}`);
   }
 }
 
