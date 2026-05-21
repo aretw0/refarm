@@ -18,6 +18,18 @@ const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
+const MODEL_CREDENTIAL_ENV: Record<string, string> = {
+	openai: "OPENAI_API_KEY",
+	anthropic: "ANTHROPIC_API_KEY",
+	groq: "GROQ_API_KEY",
+	mistral: "MISTRAL_API_KEY",
+	gemini: "GEMINI_API_KEY",
+	xai: "XAI_API_KEY",
+	deepseek: "DEEPSEEK_API_KEY",
+	together: "TOGETHER_API_KEY",
+	openrouter: "OPENROUTER_API_KEY",
+};
+
 export interface ModelTokens {
 	modelProvider?: string;
 	modelId?: string;
@@ -54,6 +66,8 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	console.log(`  current: ${chalk.cyan(ref)}`);
 	if (provider) console.log(`  provider: ${provider}`);
 	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
+	const credentialEnv = provider ? MODEL_CREDENTIAL_ENV[provider.trim().toLowerCase()] : undefined;
+	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
 	const workerRoute =
 		tokens.modelRoutes?.worker ??
 		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);

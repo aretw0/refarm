@@ -47,6 +47,7 @@ describe("modelCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("openai/gpt-5.5");
+		expect(output).toContain("key env:  OPENAI_API_KEY");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
 		expect(output).toContain("monitor:  openai/gpt-5.5");
 
@@ -93,6 +94,7 @@ describe("modelCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("gemini/gemini-3-flash-preview");
+		expect(output).toContain("key env:  GEMINI_API_KEY");
 		expect(output).toContain("source:   environment overrides are active");
 
 		logSpy.mockRestore();
