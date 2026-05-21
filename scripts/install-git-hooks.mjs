@@ -33,12 +33,15 @@ filter_vite_warning() {
 }
 
 detect_package_manager() {
-  if [ -n "\${REFARM_PACKAGE_MANAGER:-}" ]; then
-    printf "%s" "\${REFARM_PACKAGE_MANAGER%%@*}"
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  helper="$repo_root/scripts/package-manager.sh"
+  if [ -f "$helper" ]; then
+    . "$helper"
+    resolve_package_manager "$repo_root"
     return
   fi
 
-  node -e 'const fs=require("fs");const path=require("path");let dir=process.cwd();while(true){const pkg=path.join(dir,"package.json");if(fs.existsSync(pkg)){try{const pm=(JSON.parse(fs.readFileSync(pkg,"utf8")).packageManager||"npm").split("@")[0];process.stdout.write(pm);process.exit(0)}catch{}}const parent=path.dirname(dir);if(parent===dir)break;dir=parent}process.stdout.write("npm")' 2>/dev/null || printf "npm"
+  printf "npm"
 }
 
 PACKAGE_MANAGER=$(detect_package_manager)
@@ -662,12 +665,15 @@ has_npm_script() {
 }
 
 detect_package_manager() {
-  if [ -n "\${REFARM_PACKAGE_MANAGER:-}" ]; then
-    printf "%s" "\${REFARM_PACKAGE_MANAGER%%@*}"
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  helper="$repo_root/scripts/package-manager.sh"
+  if [ -f "$helper" ]; then
+    . "$helper"
+    resolve_package_manager "$repo_root"
     return
   fi
 
-  node -e 'const fs=require("fs");const path=require("path");let dir=process.cwd();while(true){const pkg=path.join(dir,"package.json");if(fs.existsSync(pkg)){try{const pm=(JSON.parse(fs.readFileSync(pkg,"utf8")).packageManager||"npm").split("@")[0];process.stdout.write(pm);process.exit(0)}catch{}}const parent=path.dirname(dir);if(parent===dir)break;dir=parent}process.stdout.write("npm")' 2>/dev/null || printf "npm"
+  printf "npm"
 }
 
 PACKAGE_MANAGER=$(detect_package_manager)

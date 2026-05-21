@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 resolve_package_manager() {
-  local root="$1"
+  root="$1"
 
   if [ -n "${REFARM_PACKAGE_MANAGER:-}" ]; then
     printf "%s" "${REFARM_PACKAGE_MANAGER%%@*}"
@@ -17,8 +17,8 @@ resolve_package_manager() {
 }
 
 script_command_for_package_manager() {
-  local package_manager="$1"
-  local script="$2"
+  package_manager="$1"
+  script="$2"
 
   case "$package_manager" in
     pnpm) printf "pnpm run %s" "$script" ;;
