@@ -47,10 +47,17 @@ export interface AskDeps {
 	readActiveSessionId?(): string | null;
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
+	readPluginState?(): Promise<PluginState | null>;
 }
 
 interface SessionNode {
 	"@id": string;
+}
+
+interface PluginState {
+	installed: string[];
+	loaded: string[];
+	known: string[];
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
@@ -64,6 +71,21 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
+}
+
+async function readPluginStateViaHttp(): Promise<PluginState | null> {
+	try {
+		const response = await fetch(sidecarUrl("/plugins"));
+		if (!response.ok) return null;
+		const payload = (await response.json()) as Partial<PluginState>;
+		return {
+			installed: Array.isArray(payload.installed) ? payload.installed : [],
+			loaded: Array.isArray(payload.loaded) ? payload.loaded : [],
+			known: Array.isArray(payload.known) ? payload.known : [],
+		};
+	} catch {
+		return null;
+	}
 }
 
 function followStreamFile(
@@ -336,6 +358,7 @@ function defaultDeps(): AskDeps {
 		readActiveSessionId,
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
+		readPluginState: readPluginStateViaHttp,
 	};
 }
 
@@ -351,6 +374,11 @@ function usageLine(metadata: Record<string, unknown>): string {
 }
 
 function printAskError(message: string): void {
+	const isPiAgentMissing =
+		message.includes("@refarm/pi-agent not loaded") ||
+		message.includes("pi-agent not loaded") ||
+		message.includes('Plugin "@refarm/pi-agent" is not loaded');
+
 	const isFarmhandDown =
 		message.includes("ECONNREFUSED") ||
 		message.includes("fetch failed") ||
@@ -361,7 +389,13 @@ function printAskError(message: string): void {
 		message.includes("Couldn't connect to server") ||
 		message.includes("curl: (7)");
 
-	if (isFarmhandDown) {
+	if (isPiAgentMissing) {
+		console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
+		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
+		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
+		console.error(chalk.dim("   Or restart runtime:       refarm"));
+		console.error(chalk.dim("   Diagnose:                 refarm doctor"));
+	} else if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Refarm runtime is not running."));
 		console.error(chalk.dim("   Start now:  refarm"));
 		console.error(chalk.dim("   Diagnose:   refarm doctor"));
@@ -412,6 +446,27 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 	return true;
 }
 
+async function ensurePiAgentReady(
+	readPluginState: (() => Promise<PluginState | null>) | undefined,
+): Promise<boolean> {
+	if (!readPluginState) return true;
+	const state = await readPluginState();
+	if (!state) return true;
+	if (state.loaded.includes("@refarm/pi-agent")) return true;
+
+	console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
+	if (!state.installed.includes("@refarm/pi-agent")) {
+		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
+	}
+	if (state.known.includes("@refarm/pi-agent")) {
+		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
+	} else {
+		console.error(chalk.dim("   Restart runtime:          refarm"));
+	}
+	console.error(chalk.dim("   Diagnose:                 refarm doctor"));
+	return false;
+}
+
 export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
@@ -457,6 +512,9 @@ Runtime:
 						launchDeps ?? defaultLaunchDeps(),
 					);
 					if (!ready) {
+						process.exit(1);
+					}
+					if (!(await ensurePiAgentReady(resolved.readPluginState))) {
 						process.exit(1);
 					}
 				}
