@@ -159,6 +159,21 @@ describe("actionsCommand", () => {
 		});
 	});
 
+	it("documents dry-run host action workflows in help", () => {
+		let help = "";
+		const command = createActionsCommand({ resolveStatusPayload });
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm actions --renderer web");
+		expect(help).toContain("does not execute actions");
+		expect(help).toContain("refarm headless --action-request");
+	});
+
 	it("prints host action rows without executing actions", async () => {
 		const command = createActionsCommand({ resolveStatusPayload });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

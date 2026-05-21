@@ -57,6 +57,22 @@ describe("refarm program", () => {
 		expect(help).toContain("The Refarm runtime reloads Silo credentials");
 	});
 
+	it("documents common operator workflows in root help", () => {
+		let help = "";
+		program.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		program.outputHelp();
+
+		expect(help).toContain("refarm ask \"hello\"");
+		expect(help).toContain("refarm runtime");
+		expect(help).toContain("refarm config set runtime.autostart always");
+		expect(help).toContain("Inside the interactive session");
+	});
+
 	it("uses shared runtime metadata resolver for CLI version", () => {
 		expect(program.version()).toBe(resolveRefarmVersion());
 	});

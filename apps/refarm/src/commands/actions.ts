@@ -102,6 +102,22 @@ export function createActionsCommand(deps?: Partial<ActionsDeps>): Command {
 		.description(
 			"List available host surface actions without executing product behavior",
 		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm actions",
+				"  $ refarm actions --renderer web",
+				"  $ refarm actions --select 1",
+				"  $ refarm actions --select open-status-report --json",
+				"",
+				"Notes:",
+				"  This command emits dry-run action metadata only; it does not execute actions.",
+				"  Use renderer-specific commands for live surfaces: refarm web --actions or refarm tui --actions.",
+				"  Use refarm headless --action-request <id-or-index> for automation envelopes.",
+			].join("\n"),
+		)
 		.option(
 			"--input <path>",
 			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",

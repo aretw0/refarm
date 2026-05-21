@@ -74,6 +74,26 @@ program
 	.name("refarm")
 	.description("Refarm CLI")
 	.version(resolveRefarmVersion())
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Common workflows:",
+			"  $ refarm                         Start or resume the interactive agent session",
+			"  $ refarm ask \"hello\"             Send one prompt and exit",
+			"  $ refarm sow                     Configure credentials and model provider",
+			"  $ refarm runtime                 Inspect selected runtime engine and autostart",
+			"  $ refarm health                  Audit project structure and package alignment",
+			"  $ refarm doctor                  Diagnose host/runtime readiness",
+			"",
+			"Runtime controls:",
+			"  $ refarm config set runtime.autostart always",
+			"  $ refarm config set tractor.engine auto",
+			"  $ refarm model openai/gpt-5.5",
+			"",
+			"Inside the interactive session, use /help for /model, /login, /reload, and session commands.",
+		].join("\n"),
+	)
 	.action(async () => {
 		await runSessionLaunchFlow();
 	});
