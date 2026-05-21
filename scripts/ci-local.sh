@@ -150,7 +150,7 @@ fi
 # ── 4. TSConfig preflight ────────────────────────────────────────────────────
 step "TSConfig Preflight"
 if [ "$code_changes" = "true" ]; then
-  run_step "tsconfig:guard" pnpm run tsconfig:guard
+  run_step "tsconfig:guard" node scripts/ci/run-root-scripts.mjs tsconfig:guard
 else
   skip_step "tsconfig:guard" "no code changes"
 fi
@@ -191,7 +191,7 @@ if [ "$tractor_gates" = "true" ]; then
   skip_step "Benchmark Quality Gate" "requires checkout of origin/main — run manually if needed"
   skip_step "Coverage Quality Gate" "requires coverage:save baseline — run manually if needed"
   echo "  → tractor health probe smoke (best-effort — requires compiled Rust binary)"
-  if pnpm --filter @refarm.dev/tractor-rs run test:smoke:health 2>&1; then
+  if node scripts/ci/run-workspace-script.mjs packages/tractor test:smoke:health 2>&1; then
     ok "tractor:test:smoke:health"
     (( PASS++ )) || true
   else
