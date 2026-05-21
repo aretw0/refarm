@@ -28,3 +28,48 @@ script_command_for_package_manager() {
     *) printf "%s run %s" "$package_manager" "$script" ;;
   esac
 }
+
+run_script_for_package_manager() {
+  package_manager="$1"
+  script="$2"
+  shift 2
+
+  case "$package_manager" in
+    pnpm|npm|yarn|bun) "$package_manager" run "$script" "$@" ;;
+    *) "$package_manager" run "$script" "$@" ;;
+  esac
+}
+
+workspace_exec_command_for_package_manager() {
+  package_manager="$1"
+  workspace="$2"
+  binary="$3"
+  shift 3
+
+  case "$package_manager" in
+    pnpm) printf "pnpm -C %s exec %s" "$workspace" "$binary" ;;
+    npm) printf "npm --prefix %s exec -- %s" "$workspace" "$binary" ;;
+    yarn) printf "yarn --cwd %s %s" "$workspace" "$binary" ;;
+    bun) printf "bun --cwd %s x %s" "$workspace" "$binary" ;;
+    *) printf "%s exec %s" "$package_manager" "$binary" ;;
+  esac
+
+  for arg in "$@"; do
+    printf " %s" "$arg"
+  done
+}
+
+workspace_exec_for_package_manager() {
+  package_manager="$1"
+  workspace="$2"
+  binary="$3"
+  shift 3
+
+  case "$package_manager" in
+    pnpm) pnpm -C "$workspace" exec "$binary" "$@" ;;
+    npm) npm --prefix "$workspace" exec -- "$binary" "$@" ;;
+    yarn) yarn --cwd "$workspace" "$binary" "$@" ;;
+    bun) bun --cwd "$workspace" x "$binary" "$@" ;;
+    *) "$package_manager" exec "$binary" "$@" ;;
+  esac
+}

@@ -4,6 +4,8 @@ set -euo pipefail
 
 export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
 export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 
 log() {
   echo "[refarm-devcontainer] $*"
@@ -91,6 +93,15 @@ clean_stale_wizer_optionals() {
   find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-linux-s390x" -exec rm -rf {} + 2>/dev/null || true
   find node_modules/.pnpm -path "*/node_modules/@bytecodealliance/wizer-win32-x64" -exec rm -rf {} + 2>/dev/null || true
 }
+
+if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
+  warn "Package manager helper not found: $PACKAGE_MANAGER_HELPER"
+  exit 1
+else
+  # shellcheck disable=SC1090
+  source "$PACKAGE_MANAGER_HELPER"
+  PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
+fi
 
 log "Starting post-create setup..."
 
@@ -180,7 +191,7 @@ retry 2 rustup component add rust-src clippy rustfmt \
 # 4) Playwright browsers + AI agent tools (parallel — independent network downloads)
 log "Installing Playwright browsers and AI agent tools in parallel..."
 
-retry 2 pnpm -C validations/sqlite-benchmark/browser exec playwright install --with-deps &
+retry 2 workspace_exec_for_package_manager "$PACKAGE_MANAGER" validations/sqlite-benchmark/browser playwright install --with-deps &
 PW_PID=$!
 
 retry 2 npm install -g @mermaid-js/mermaid-cli &
@@ -198,17 +209,18 @@ MDT_PID=$!
 ) &
 PI_PID=$!
 
-wait $PW_PID     || warn "Playwright browser installation failed. Retry: pnpm -C validations/sqlite-benchmark/browser exec playwright install --with-deps"
+PW_RETRY="$(workspace_exec_command_for_package_manager "$PACKAGE_MANAGER" validations/sqlite-benchmark/browser playwright install --with-deps)"
+wait $PW_PID     || warn "Playwright browser installation failed. Retry: $PW_RETRY"
 wait $MMDC_PID   || warn "mermaid-cli install failed. Run: npm install -g @mermaid-js/mermaid-cli"
 wait $MDT_PID    || warn "mdt_cli install failed. Run: cargo install mdt_cli --locked --version 0.7.0"
 wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"
 
 # 5) Finalize
 log "Installing refarm CLI shim..."
-pnpm run cli:install || warn "Could not install refarm CLI shim. Retry: pnpm run cli:install"
+run_script_for_package_manager "$PACKAGE_MANAGER" cli:install || warn "Could not install refarm CLI shim. Retry: $(script_command_for_package_manager "$PACKAGE_MANAGER" cli:install)"
 
 log "Installing git hooks..."
-pnpm run hooks:install || warn "Could not install git hooks automatically"
+run_script_for_package_manager "$PACKAGE_MANAGER" hooks:install || warn "Could not install git hooks automatically"
 
 if [ -f scripts/factory-preflight.mjs ]; then
   log "Running factory preflight..."
@@ -222,7 +234,7 @@ rustc --version || true
 cargo --version || true
 cargo-component --version || true
 wasm-tools --version || true
-pnpm -C validations/sqlite-benchmark/browser exec playwright --version || true
+workspace_exec_for_package_manager "$PACKAGE_MANAGER" validations/sqlite-benchmark/browser playwright --version || true
 gh --version 2>/dev/null | head -1 || true
 rg --version 2>/dev/null | head -1 || true
 fd --version 2>/dev/null || true

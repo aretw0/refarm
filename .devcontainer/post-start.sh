@@ -3,8 +3,19 @@ set -euo pipefail
 
 export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
 export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 
 echo "[refarm-devcontainer] Post-start sanity check..."
+
+if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
+  echo "[refarm-devcontainer][warn] Package manager helper not found: $PACKAGE_MANAGER_HELPER"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$PACKAGE_MANAGER_HELPER"
+PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
 
 repair_owned_dir() {
   local dir="$1"
@@ -46,7 +57,7 @@ SH
 ensure_hooks() {
   if [ -d .git ] && [ ! -x .git/hooks/pre-push ]; then
     echo "[refarm-devcontainer] Installing git hooks..."
-    pnpm run hooks:install >/dev/null 2>&1 || true
+    run_script_for_package_manager "$PACKAGE_MANAGER" hooks:install >/dev/null 2>&1 || true
   fi
 }
 
@@ -56,7 +67,7 @@ ensure_refarm_cli() {
   fi
 
   echo "[refarm-devcontainer] Installing missing refarm CLI shim..."
-  pnpm run cli:install >/dev/null 2>&1 || echo "[refarm-devcontainer][warn] Could not install refarm CLI shim. Run: pnpm run cli:install"
+  run_script_for_package_manager "$PACKAGE_MANAGER" cli:install >/dev/null 2>&1 || echo "[refarm-devcontainer][warn] Could not install refarm CLI shim. Run: $(script_command_for_package_manager "$PACKAGE_MANAGER" cli:install)"
 }
 
 ensure_git_transport() {
