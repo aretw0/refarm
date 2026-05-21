@@ -6,7 +6,7 @@
  * with embedded Float32Array-compatible weight literals.
  *
  * Usage:
- *   npx tem-codegen --weights ./checkpoint-bundle.json --out ./src/core/generated/weights.ts
+ *   <package-manager> exec tem-codegen --weights ./checkpoint-bundle.json --out ./src/core/generated/weights.ts
  *
  * The input JSON must conform to the WeightsBundle interface from core/weights.ts.
  * Generate one from a torch_tem checkpoint using the Python export script:

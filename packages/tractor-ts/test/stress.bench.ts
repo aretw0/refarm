@@ -4,7 +4,7 @@
  * Performance benchmarks to establish baselines for the Tractor core.
  * These run via `vitest bench` and produce measurable throughput numbers.
  *
- * Run: npx vitest bench test/stress.bench.ts
+ * Run: <package-manager> exec vitest bench test/stress.bench.ts
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
