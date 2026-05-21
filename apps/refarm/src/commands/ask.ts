@@ -68,7 +68,7 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 		body: JSON.stringify(effort),
 	});
 	if (!response.ok) {
-		throw new Error(`Farmhand HTTP ${response.status}`);
+		throw new Error(`Runtime HTTP ${response.status}`);
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
@@ -369,6 +369,7 @@ function printAskError(message: string): void {
 	const isFarmhandDown =
 		message.includes("ECONNREFUSED") ||
 		message.includes("fetch failed") ||
+		message.includes("Runtime HTTP") ||
 		message.includes("Farmhand HTTP");
 
 	const isProviderError =

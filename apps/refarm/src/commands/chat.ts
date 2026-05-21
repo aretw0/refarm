@@ -105,7 +105,7 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 		body: JSON.stringify(effort),
 	});
 	if (!response.ok) {
-		throw new Error(`Farmhand HTTP ${response.status}`);
+		throw new Error(`Runtime HTTP ${response.status}`);
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
@@ -277,7 +277,7 @@ export function defaultChatDeps(): ChatDeps {
 					);
 				},
 			});
-			if (!result) throw new Error("Farmhand runtime plugin reload is unavailable");
+			if (!result) throw new Error("Refarm runtime plugin reload is unavailable");
 			return result;
 		},
 		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
@@ -339,6 +339,7 @@ function usageLine(metadata: Record<string, unknown>): string {
 function printChatError(message: string): void {
 	const isFarmhandDown =
 		isSidecarUnavailable(message) ||
+		message.includes("Runtime HTTP") ||
 		message.includes("Farmhand HTTP");
 	if (isFarmhandDown) {
 		console.error();
