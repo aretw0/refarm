@@ -6,7 +6,8 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./astro": "./src/astro.js"
+    "./astro": "./src/astro.js",
+    "./model-routing": "./src/model-routing.js"
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",

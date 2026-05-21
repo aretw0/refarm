@@ -1,4 +1,6 @@
-export type ModelScope = "default" | "worker" | "monitor";
+import { defaultModelForScope, type ModelScope } from "@refarm.dev/config";
+
+export type { ModelScope } from "@refarm.dev/config";
 
 export interface ModelRouteTokens {
 	modelProvider?: unknown;
@@ -31,34 +33,6 @@ function parseRouteRef(value: unknown): EffectiveModelRoute | null {
 		provider: ref.slice(0, slash).trim(),
 		modelId: ref.slice(slash + 1).trim(),
 	};
-}
-
-export function defaultModelForScope(
-	provider: string | undefined,
-	scope: ModelScope,
-): string | undefined {
-	const normalized = provider?.trim().toLowerCase();
-	if (scope === "worker" && normalized === "openai") {
-		return "gpt-5.3-codex-spark";
-	}
-	switch (normalized) {
-		case "openai":
-			return "gpt-5.5";
-		case "anthropic":
-			return "claude-sonnet-4-20250514";
-		case "ollama":
-			return "llama3.2";
-		case "mistral":
-			return "mistral-medium-3-5";
-		case "gemini":
-			return "gemini-3-flash-preview";
-		case "xai":
-			return "grok-4.3";
-		case "deepseek":
-			return "deepseek-v4-flash";
-		default:
-			return undefined;
-	}
 }
 
 export function routeForScope(

@@ -1,5 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+export {
+    MODEL_SCOPES,
+    defaultModelForProvider,
+    defaultModelForScope,
+    inferProviderFromModelId,
+    isModelScope,
+} from "./model-routing.js";
 
 /**
  * Common configuration utility for Refarm.
