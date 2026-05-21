@@ -44,6 +44,14 @@ export function defaultModelForScope(
 			return "claude-sonnet-4-6";
 		case "ollama":
 			return "llama3.2";
+		case "mistral":
+			return "mistral-large-latest";
+		case "gemini":
+			return "gemini-2.0-flash";
+		case "xai":
+			return "grok-3";
+		case "deepseek":
+			return "deepseek-chat";
 		default:
 			return undefined;
 	}

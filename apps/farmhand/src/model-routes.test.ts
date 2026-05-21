@@ -18,6 +18,29 @@ describe("model routes", () => {
 		});
 	});
 
+	it("keeps provider defaults aligned with refarm CLI routing", () => {
+		expect(routeForScope({ modelProvider: "anthropic" }, "default")).toEqual({
+			provider: "anthropic",
+			modelId: "claude-sonnet-4-6",
+		});
+		expect(routeForScope({ modelProvider: "mistral" }, "default")).toEqual({
+			provider: "mistral",
+			modelId: "mistral-large-latest",
+		});
+		expect(routeForScope({ modelProvider: "gemini" }, "default")).toEqual({
+			provider: "gemini",
+			modelId: "gemini-2.0-flash",
+		});
+		expect(routeForScope({ modelProvider: "xai" }, "default")).toEqual({
+			provider: "xai",
+			modelId: "grok-3",
+		});
+		expect(routeForScope({ modelProvider: "deepseek" }, "default")).toEqual({
+			provider: "deepseek",
+			modelId: "deepseek-chat",
+		});
+	});
+
 	it("uses codex spark for OpenAI worker route by default", () => {
 		expect(routeForScope({ modelProvider: "openai" }, "worker")).toEqual({
 			provider: "openai",
