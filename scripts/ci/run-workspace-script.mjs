@@ -33,10 +33,10 @@ const command = createPackageScriptCommand({
 	script,
 });
 const args = forwardedArgs.length > 0
-	? [...command.args, "--", ...forwardedArgs]
+	? [...command.args, ...forwardedArgs]
 	: command.args;
 const display = forwardedArgs.length > 0
-	? `${command.display} -- ${forwardedArgs.join(" ")}`
+	? `${command.display} ${forwardedArgs.join(" ")}`
 	: command.display;
 
 if (plan) {
