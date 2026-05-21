@@ -8,6 +8,7 @@ import {
 describe("model routes", () => {
 	afterEach(() => {
 		delete process.env.MODEL_PROVIDER;
+		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.MODEL_ID;
 	});
 
@@ -90,6 +91,17 @@ describe("model routes", () => {
 		expect(
 			routeForScope({ modelProvider: "openai" }, "worker", {
 				env: { MODEL_PROVIDER: "gemini" },
+			}),
+		).toEqual({
+			provider: "gemini",
+			modelId: "gemini-3-flash-preview",
+		});
+	});
+
+	it("resolves provider defaults from the default provider environment", () => {
+		expect(
+			routeForScope({ modelProvider: "openai" }, "worker", {
+				env: { MODEL_DEFAULT_PROVIDER: "gemini" },
 			}),
 		).toEqual({
 			provider: "gemini",

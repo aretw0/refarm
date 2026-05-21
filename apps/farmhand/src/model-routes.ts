@@ -42,11 +42,12 @@ export function routeForScope(
 ): EffectiveModelRoute {
 	const env = options.env ?? process.env;
 	const envProvider = stringValue(env.MODEL_PROVIDER);
+	const envDefaultProvider = stringValue(env.MODEL_DEFAULT_PROVIDER);
 	const envModelId = stringValue(env.MODEL_ID);
-	const provider = envProvider ?? stringValue(tokens.modelProvider);
+	const provider = envProvider ?? envDefaultProvider ?? stringValue(tokens.modelProvider);
 	const defaultModelId =
 		envModelId ?? stringValue(tokens.modelId) ?? stringValue(tokens.model);
-	if (envProvider || envModelId) {
+	if (envProvider || envDefaultProvider || envModelId) {
 		return {
 			provider,
 			modelId: defaultModelId ?? defaultModelForScope(provider, scope),
