@@ -1,11 +1,12 @@
 import { EventEmitter } from "node:events";
+import { normalizePluginId } from "@refarm.dev/config";
 
 export class PluginUsageTracker extends EventEmitter {
   private readonly effortPlugins = new Map<string, Set<string>>();
   private readonly pluginEfforts = new Map<string, Set<string>>();
 
   registerEffort(effortId: string, pluginIds: string[]): void {
-    const plugins = new Set(pluginIds);
+    const plugins = new Set(pluginIds.map(normalizePluginId));
     this.effortPlugins.set(effortId, plugins);
     for (const pluginId of plugins) {
       let efforts = this.pluginEfforts.get(pluginId);
@@ -33,15 +34,16 @@ export class PluginUsageTracker extends EventEmitter {
   }
 
   isIdle(pluginId: string): boolean {
-    const efforts = this.pluginEfforts.get(pluginId);
+    const efforts = this.pluginEfforts.get(normalizePluginId(pluginId));
     return !efforts || efforts.size === 0;
   }
 
   onIdle(pluginId: string, callback: () => void): void {
-    if (this.isIdle(pluginId)) {
+    const normalizedPluginId = normalizePluginId(pluginId);
+    if (this.isIdle(normalizedPluginId)) {
       callback();
       return;
     }
-    this.once(`idle:${pluginId}`, callback);
+    this.once(`idle:${normalizedPluginId}`, callback);
   }
 }
