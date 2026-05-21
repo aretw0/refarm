@@ -16,6 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 ENV_FILE="$ROOT/.refarm/.env"
+IDENTITY_FILE="$ROOT/.refarm/identity.json"
 PID_FILE="$ROOT/.refarm/tractor.pid"
 LOG_FILE="$ROOT/.refarm/tractor.log"
 
@@ -133,6 +134,18 @@ if [ -z "${MODEL_PROVIDER:-}" ]; then
       export MODEL_PROVIDER="$PROVIDER_FROM_CONFIG"
     fi
   fi
+fi
+
+if [ -z "${MODEL_PROVIDER:-}" ]; then
+  if [ -f "$IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
+    PROVIDER_FROM_IDENTITY=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true)
+    if [ -n "$PROVIDER_FROM_IDENTITY" ]; then
+      export MODEL_PROVIDER="$PROVIDER_FROM_IDENTITY"
+    fi
+  fi
+fi
+
+if [ -z "${MODEL_PROVIDER:-}" ]; then
   MODEL_PROVIDER="${MODEL_PROVIDER:-ollama}"
   export MODEL_PROVIDER
 fi
