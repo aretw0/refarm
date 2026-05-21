@@ -19,11 +19,10 @@ import {
 	runtimeStartHelpLines,
 	startRuntimeProcess,
 } from "./runtime-launcher.js";
-import { sidecarUrl } from "./sidecar-url.js";
-
-const FARMHAND_PROBE_TIMEOUT_MS = 1_500;
-const AUTOSTART_POLL_INTERVAL_MS = 300;
-const AUTOSTART_TIMEOUT_MS = 10_000;
+import {
+	probeRuntimeReady,
+	waitForRuntimeReady,
+} from "./runtime-readiness.js";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -66,7 +65,7 @@ export function isFirstRun(): boolean {
 
 export async function checkSessionReadiness(): Promise<SessionReadiness> {
 	const providerConfigured = detectProvider();
-	const farmhandRunning = await probeFarmhand();
+	const farmhandRunning = await probeRuntimeReady();
 	return { providerConfigured, farmhandRunning };
 }
 
@@ -257,12 +256,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 		resolveRuntime: resolveLaunchRuntime,
 
 		async probeFarmhandUntilReady() {
-			const deadline = Date.now() + AUTOSTART_TIMEOUT_MS;
-			while (Date.now() < deadline) {
-				await new Promise((r) => setTimeout(r, AUTOSTART_POLL_INTERVAL_MS));
-				if (await probeFarmhand()) return true;
-			}
-			return false;
+			return waitForRuntimeReady();
 		},
 
 		async recoverProvider() {
@@ -350,23 +344,6 @@ export async function autoStartFarmhand(
 		console.error(chalk.dim(`   ${line.replace("start:", "fallback:")}`));
 	}
 	return false;
-}
-
-async function probeFarmhand(): Promise<boolean> {
-	try {
-		const controller = new AbortController();
-		const timer = setTimeout(
-			() => controller.abort(),
-			FARMHAND_PROBE_TIMEOUT_MS,
-		);
-		const response = await fetch(sidecarUrl("/efforts/summary"), {
-			signal: controller.signal,
-		});
-		clearTimeout(timer);
-		return response.ok;
-	} catch {
-		return false;
-	}
 }
 
 export function printSessionGuide(r: SessionReadiness): void {

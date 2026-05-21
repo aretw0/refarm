@@ -15,11 +15,7 @@ import {
 	startRuntimeProcess,
 	type RuntimeLaunchCommand,
 } from "./runtime-launcher.js";
-import { sidecarUrl } from "./sidecar-url.js";
-
-const RUNTIME_START_WAIT_TIMEOUT_MS = 10_000;
-const RUNTIME_START_WAIT_POLL_INTERVAL_MS = 250;
-const RUNTIME_START_PROBE_TIMEOUT_MS = 300;
+import { waitForRuntimeReady } from "./runtime-readiness.js";
 
 interface RuntimeCommandDeps {
 	repoRoot(): string;
@@ -50,36 +46,6 @@ function defaultDeps(): RuntimeCommandDeps {
 		resolveRuntime: resolveLaunchRuntime,
 		waitUntilReady: waitForRuntimeReady,
 	};
-}
-
-async function probeRuntime(): Promise<boolean> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		const controller = new AbortController();
-		timer = setTimeout(
-			() => controller.abort(),
-			RUNTIME_START_PROBE_TIMEOUT_MS,
-		);
-		const response = await fetch(sidecarUrl("/efforts/summary"), {
-			signal: controller.signal,
-		});
-		return response.ok;
-	} catch {
-		return false;
-	} finally {
-		if (timer) clearTimeout(timer);
-	}
-}
-
-async function waitForRuntimeReady(): Promise<boolean> {
-	const deadline = Date.now() + RUNTIME_START_WAIT_TIMEOUT_MS;
-	while (Date.now() < deadline) {
-		if (await probeRuntime()) return true;
-		await new Promise((resolve) =>
-			setTimeout(resolve, RUNTIME_START_WAIT_POLL_INTERVAL_MS),
-		);
-	}
-	return false;
 }
 
 function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
