@@ -186,6 +186,7 @@ Variáveis de ambiente relevantes (definidas no host Tractor):
 | `MODEL_BUDGET_ANTHROPIC_USD` | — | Cap de gasto mensal (USD) |
 | `MODEL_HISTORY_TURNS` | `10` | Quantas turns do histórico incluir |
 | `MODEL_FALLBACK_PROVIDER` | — | Provider alternativo se principal falhar |
+| `MODEL_FALLBACK_MODEL_ID` | default do provider | Modelo específico para o provider alternativo |
 
 ---
 
