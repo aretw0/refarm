@@ -44,7 +44,7 @@ at project root can set them declaratively — values there override process env
 ```json
 {
   "provider": "anthropic",
-  "model": "claude-sonnet-4-20250514",
+  "model": "claude-sonnet-4-6",
   "default_provider": "ollama",
   "stream_responses": true,
   "budgets": { "anthropic": 5.0 },
@@ -125,7 +125,7 @@ After building, start the tractor daemon with pi-agent loaded:
 # From repo root — set your model provider via env vars (MODEL_* are forwarded to the plugin)
 export ANTHROPIC_API_KEY=sk-ant-...           # if using Anthropic
 export MODEL_PROVIDER=anthropic               # or: ollama (no key needed, requires local Ollama)
-export MODEL_ID=claude-sonnet-4-20250514     # optional model override
+export MODEL_ID=claude-sonnet-4-6            # optional model override
 
 TRACTOR=packages/tractor/target/release/tractor
 WASM=packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm

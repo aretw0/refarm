@@ -170,14 +170,14 @@ describe("modelCommand", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await command.parseAsync(
-			["set", "--scope", "monitor", "anthropic/claude-sonnet-4-20250514"],
+			["set", "--scope", "monitor", "anthropic/claude-sonnet-4-6"],
 			{ from: "user" },
 		);
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelProvider: "openai",
 			modelId: "gpt-5.5",
-			modelRoutes: { monitor: "anthropic/claude-sonnet-4-20250514" },
+			modelRoutes: { monitor: "anthropic/claude-sonnet-4-6" },
 		});
 
 		logSpy.mockRestore();

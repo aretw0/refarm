@@ -27,7 +27,7 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 					onChunk(makeChunk("hello ", 0, false));
 					onChunk(
 						makeChunk("world", 1, true, {
-							model: "claude-sonnet-4-20250514",
+							model: "claude-sonnet-4-6",
 							tokens_in: 50,
 							tokens_out: 100,
 							estimated_usd: 0.0005,
@@ -153,7 +153,7 @@ describe("refarm ask", () => {
 
 		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(allLogs).toContain("model:");
-		expect(allLogs).toContain("claude-sonnet-4-20250514");
+		expect(allLogs).toContain("claude-sonnet-4-6");
 		expect(allLogs).toContain("50 in / 100 out");
 
 		logSpy.mockRestore();

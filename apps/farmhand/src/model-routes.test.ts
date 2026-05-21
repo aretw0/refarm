@@ -23,7 +23,7 @@ describe("model routes", () => {
 	it("keeps provider defaults aligned with refarm CLI routing", () => {
 		expect(routeForScope({ modelProvider: "anthropic" }, "default")).toEqual({
 			provider: "anthropic",
-			modelId: "claude-sonnet-4-20250514",
+			modelId: "claude-sonnet-4-6",
 		});
 		expect(routeForScope({ modelProvider: "mistral" }, "default")).toEqual({
 			provider: "mistral",
@@ -64,13 +64,13 @@ describe("model routes", () => {
 				{
 					modelProvider: "openai",
 					modelId: "gpt-5.5",
-					modelRoutes: { worker: "anthropic/claude-sonnet-4-20250514" },
+					modelRoutes: { worker: "anthropic/claude-sonnet-4-6" },
 				},
 				"worker",
 			),
 		).toEqual({
 			provider: "anthropic",
-			modelId: "claude-sonnet-4-20250514",
+			modelId: "claude-sonnet-4-6",
 		});
 	});
 
@@ -86,13 +86,13 @@ describe("model routes", () => {
 				{
 					env: {
 						MODEL_PROVIDER: "anthropic",
-						MODEL_ID: "claude-sonnet-4-20250514",
+						MODEL_ID: "claude-sonnet-4-6",
 					},
 				},
 			),
 		).toEqual({
 			provider: "anthropic",
-			modelId: "claude-sonnet-4-20250514",
+			modelId: "claude-sonnet-4-6",
 		});
 	});
 

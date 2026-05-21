@@ -15,7 +15,7 @@ fn provider_config_choose_model_falls_back_to_default() {
 
 #[test]
 fn provider_config_anthropic_default_is_shared() {
-    assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-sonnet-4-20250514");
+    assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-sonnet-4-6");
 }
 
 #[test]

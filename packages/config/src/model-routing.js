@@ -17,7 +17,7 @@ export function defaultModelForProvider(provider) {
         case "openai":
             return "gpt-5.5";
         case "anthropic":
-            return "claude-sonnet-4-20250514";
+            return "claude-sonnet-4-6";
         case "ollama":
             return "llama3.2";
         case "mistral":
