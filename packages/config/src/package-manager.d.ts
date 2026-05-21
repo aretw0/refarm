@@ -31,6 +31,13 @@ export interface PackageBinaryCommand {
     display: string;
 }
 
+export interface PackageSpawnCommand {
+    packageManager: PackageManagerName;
+    command: string;
+    args: string[];
+    display: string;
+}
+
 export const PACKAGE_MANAGERS: readonly PackageManagerName[];
 
 export function parsePackageManager(value: unknown): PackageManagerName | null;
@@ -49,6 +56,10 @@ export function packageScriptCommand(
 export function packageInstallCommand(
     options?: PackageManagerOptions,
 ): PackageCommandString;
+
+export function packageFrozenInstallCommand(
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
 
 export function packagePublishDryRunCommand(
     options?: PackageManagerOptions,

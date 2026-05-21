@@ -1,6 +1,7 @@
 export {
     detectPackageManager,
     packageBinaryCommand,
+    packageFrozenInstallCommand,
     packageInstallCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,

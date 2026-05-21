@@ -12,6 +12,7 @@ export {
     createPackageScriptCommand,
     detectPackageManager,
     packageBinaryCommand,
+    packageFrozenInstallCommand,
     packageInstallCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,

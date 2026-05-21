@@ -6,6 +6,7 @@ import {
     createPackageScriptCommand,
     detectPackageManager,
     packageBinaryCommand,
+    packageFrozenInstallCommand,
     packageInstallCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,
@@ -92,6 +93,29 @@ describe("package manager config", () => {
             command: "bun",
             args: ["x", "turbo", "gen", "package"],
             display: "bun x turbo gen package",
+        });
+    });
+
+    it("formats frozen install commands for each supported manager", () => {
+        expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: "pnpm",
+            args: ["install", "--frozen-lockfile"],
+            display: "pnpm install --frozen-lockfile",
+        });
+        expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: "npm",
+            args: ["ci"],
+            display: "npm ci",
+        });
+        expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: "yarn",
+            args: ["install", "--immutable"],
+            display: "yarn install --immutable",
+        });
+        expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: "bun",
+            args: ["install", "--frozen-lockfile"],
+            display: "bun install --frozen-lockfile",
         });
     });
 

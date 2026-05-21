@@ -108,6 +108,43 @@ export function packageInstallCommand({ cwd = process.cwd(), env = process.env }
     };
 }
 
+export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm":
+            return {
+                packageManager,
+                command: "pnpm",
+                args: ["install", "--frozen-lockfile"],
+                display: "pnpm install --frozen-lockfile",
+            };
+        case "npm":
+            return {
+                packageManager,
+                command: "npm",
+                args: ["ci"],
+                display: "npm ci",
+            };
+        case "yarn":
+            return {
+                packageManager,
+                command: "yarn",
+                args: ["install", "--immutable"],
+                display: "yarn install --immutable",
+            };
+        case "bun":
+            return {
+                packageManager,
+                command: "bun",
+                args: ["install", "--frozen-lockfile"],
+                display: "bun install --frozen-lockfile",
+            };
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
     const packageManager = detectPackageManager({ cwd, env });
 

@@ -129,22 +129,16 @@ run_step "project-block-consistency" node scripts/ci/project-block-consistency.m
 step "Missing dependency declarations"
 run_step "check-missing-deps" node scripts/check-missing-deps.mjs
 
-# ── 2. pnpm install --frozen-lockfile (mirrors setup action) ─────────────────
-step "Setup — pnpm install --frozen-lockfile"
-if [ ! -f pnpm-lock.yaml ]; then
-  fail "pnpm-lock.yaml is missing — CI would reject this."
-  (( FAIL++ )) || true
-  FAILED_STEPS+=("pnpm-lock.yaml exists")
-else
-  run_step "pnpm install --frozen-lockfile" pnpm install --frozen-lockfile
-fi
+# ── 2. Frozen dependency install (mirrors setup action) ──────────────────────
+step "Setup — frozen dependency install"
+run_step "frozen dependency install" node scripts/ci/run-frozen-install.mjs
 
 # ── 3. Security audit ────────────────────────────────────────────────────────
 step "Security Audit"
 if [ "$code_changes" = "true" ] || [ "$run_audit" = "true" ]; then
-  run_step "pnpm audit --audit-level=high" pnpm audit --audit-level=high
+  run_step "security:audit --level high" node scripts/security/audit.mjs --level high
 else
-  skip_step "pnpm audit" "no code changes"
+  skip_step "security:audit" "no code changes"
 fi
 
 # ── 4. TSConfig preflight ────────────────────────────────────────────────────
