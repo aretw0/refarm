@@ -59,6 +59,9 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	const credentialEnv = modelCredentialEnvKey(provider);
 	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
 	if (process.env.MODEL_BASE_URL) console.log(`  base url: ${process.env.MODEL_BASE_URL}`);
+	if (process.env.MODEL_FALLBACK_PROVIDER) {
+		console.log(`  fallback: ${process.env.MODEL_FALLBACK_PROVIDER}`);
+	}
 	const workerRoute =
 		tokens.modelRoutes?.worker ??
 		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);
@@ -164,6 +167,7 @@ Examples:
 Notes:
   Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
   them before each task, so the next ask/chat turn or worker task uses the new route.
+  MODEL_FALLBACK_PROVIDER can retry a different provider when the primary fails.
   For OpenAI workers, the default scoped route is ${OPENAI_WORKER_REF}.
   For OpenAI monitors, the default scoped route is ${OPENAI_MONITOR_REF}.
 `,

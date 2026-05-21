@@ -15,6 +15,7 @@ describe("modelCommand", () => {
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
 	const originalModelId = process.env.MODEL_ID;
 	const originalModelBaseUrl = process.env.MODEL_BASE_URL;
+	const originalFallbackProvider = process.env.MODEL_FALLBACK_PROVIDER;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -40,6 +41,11 @@ describe("modelCommand", () => {
 			delete process.env.MODEL_BASE_URL;
 		} else {
 			process.env.MODEL_BASE_URL = originalModelBaseUrl;
+		}
+		if (originalFallbackProvider === undefined) {
+			delete process.env.MODEL_FALLBACK_PROVIDER;
+		} else {
+			process.env.MODEL_FALLBACK_PROVIDER = originalFallbackProvider;
 		}
 		vi.restoreAllMocks();
 	});
@@ -110,6 +116,7 @@ describe("modelCommand", () => {
 		process.env.MODEL_PROVIDER = "vllm";
 		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
 		process.env.MODEL_BASE_URL = "http://127.0.0.1:8000";
+		process.env.MODEL_FALLBACK_PROVIDER = "ollama";
 		const command = createModelCommand(makeDeps());
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -118,6 +125,7 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("vllm/Qwen3-Coder-480B-A35B-Instruct");
 		expect(output).toContain("base url: http://127.0.0.1:8000");
+		expect(output).toContain("fallback: ollama");
 		expect(output).toContain("custom provider: set MODEL_BASE_URL");
 
 		logSpy.mockRestore();
@@ -135,6 +143,7 @@ describe("modelCommand", () => {
 		command.outputHelp();
 
 		expect(help).toContain("The Refarm runtime reloads");
+		expect(help).toContain("MODEL_FALLBACK_PROVIDER");
 		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
