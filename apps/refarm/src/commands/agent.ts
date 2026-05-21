@@ -29,4 +29,6 @@ Notes:
   Today, use runtime/status/doctor for the host, sow/model for credentials and
   routing, and plugin for installation.
 `,
-);
+).action(function (this: Command) {
+	this.outputHelp();
+});
