@@ -19,6 +19,13 @@ describe("splitLaunchCommand", () => {
 		});
 	});
 
+	it("preserves quoted launcher arguments", () => {
+		expect(splitLaunchCommand("runner --label 'Refarm Dev'")).toEqual({
+			command: "runner",
+			args: ["--label", "Refarm Dev"],
+		});
+	});
+
 	it("rejects empty launcher command", () => {
 		expect(() => splitLaunchCommand("   ")).toThrow(/Invalid launcher command/);
 	});

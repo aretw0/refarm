@@ -17,6 +17,10 @@
 		"./browser-open": {
 			"types": "./dist/browser-open.d.ts",
 			"import": "./dist/browser-open.js"
+		},
+		"./command-line": {
+			"types": "./dist/command-line.d.ts",
+			"import": "./dist/command-line.js"
 		}
 	},
 	"scripts": {

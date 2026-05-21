@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { splitCommandLine } from "@refarm.dev/cli/command-line";
 
 export interface LaunchProcessSpec {
 	command: string;
@@ -20,7 +21,7 @@ export function splitLaunchCommand(command: string): {
 	command: string;
 	args: string[];
 } {
-	const parts = command.trim().split(/\s+/).filter(Boolean);
+	const parts = splitCommandLine(command, "launcher command");
 	if (parts.length === 0) {
 		throw new Error("Invalid launcher command.");
 	}
