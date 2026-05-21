@@ -11,14 +11,15 @@ import {
 } from "../credentials/index.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import {
-	defaultProviderModelId,
 	defaultProviderModelRef,
 	parseModelRef,
 } from "../model-routing.js";
+import {
+	SOW_COMMAND_DESCRIPTION,
+	SOW_HELP_TEXT,
+	SOW_MODEL_OPTION_DESCRIPTION,
+} from "./sow-metadata.js";
 
-const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const OPENAI_DEFAULT_MODEL_ID = defaultProviderModelId("openai");
-const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 interface SowOptions {
@@ -29,32 +30,12 @@ interface SowOptions {
 }
 
 export const sowCommand = new Command("sow")
-	.description("Configure refarm credentials (default: model provider only)")
-	.option("--model <ref>", "Set the default model as provider/model, or model for the current provider")
+	.description(SOW_COMMAND_DESCRIPTION)
+	.option("--model <ref>", SOW_MODEL_OPTION_DESCRIPTION)
 	.option("--github", "Configure GitHub credentials")
 	.option("--cloudflare", "Configure Cloudflare credentials")
 	.option("--all", "Configure or reconfigure all credentials")
-	.addHelpText(
-		"after",
-		`
-
-Examples:
-  $ refarm sow
-  $ refarm sow --cloudflare
-  $ refarm sow --model ${OPENAI_DEFAULT_REF}
-  $ refarm sow --model ${ANTHROPIC_DEFAULT_REF}
-  $ refarm sow --model ${OLLAMA_DEFAULT_REF}
-  $ refarm sow --model ${OPENAI_DEFAULT_MODEL_ID}
-
-Notes:
-  --model changes the saved provider/model routing. It does not collect a new
-  API key or OAuth login; run plain refarm sow to configure credentials.
-  A slash means provider/model, so custom or self-hosted providers can be saved
-  directly, e.g. refarm sow --model vllm/Qwen3-Coder-480B-A35B-Instruct.
-  Inside the refarm REPL, use /login or /sow to reconfigure without leaving the
-  session. The Refarm runtime reloads Silo credentials before each task.
-`,
-	)
+	.addHelpText("after", SOW_HELP_TEXT)
 	.action(async (opts: SowOptions) => {
 		try {
 			const silo = new SiloCore();

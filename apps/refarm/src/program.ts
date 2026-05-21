@@ -26,14 +26,16 @@ import { tuiCommand } from "./commands/tui.js";
 import { telemetryCommand } from "./commands/telemetry.js";
 import { treeCommand } from "./commands/tree.js";
 import { webCommand } from "./commands/web.js";
-import { defaultProviderModelId, defaultProviderModelRef } from "./model-routing.js";
+import { defaultProviderModelRef } from "./model-routing.js";
+import {
+	SOW_COMMAND_DESCRIPTION,
+	SOW_HELP_TEXT,
+	SOW_MODEL_OPTION_DESCRIPTION,
+} from "./commands/sow-metadata.js";
 
 export const program = new Command();
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const OPENAI_DEFAULT_MODEL_ID = defaultProviderModelId("openai");
-const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
-const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 interface LazyCommandOption {
 	flags: string;
@@ -142,31 +144,14 @@ program.addCommand(
 		all?: boolean;
 	}>({
 		name: "sow",
-		description: "Configure refarm credentials (default: model provider only)",
+		description: SOW_COMMAND_DESCRIPTION,
 		options: [
-			{ flags: "--model <ref>", description: "Set the default model as provider/model, or model for the current provider" },
+			{ flags: "--model <ref>", description: SOW_MODEL_OPTION_DESCRIPTION },
 			{ flags: "--github", description: "Configure GitHub credentials" },
 			{ flags: "--cloudflare", description: "Configure Cloudflare credentials" },
 			{ flags: "--all", description: "Configure or reconfigure all credentials" },
 		],
-		helpText: `
-
-Examples:
-  $ refarm sow
-  $ refarm sow --cloudflare
-  $ refarm sow --model ${OPENAI_DEFAULT_REF}
-  $ refarm sow --model ${ANTHROPIC_DEFAULT_REF}
-  $ refarm sow --model ${OLLAMA_DEFAULT_REF}
-  $ refarm sow --model ${OPENAI_DEFAULT_MODEL_ID}
-
-Notes:
-  --model changes the saved provider/model routing. It does not collect a new
-  API key or OAuth login; run plain refarm sow to configure credentials.
-  A slash means provider/model, so custom or self-hosted providers can be saved
-  directly, e.g. refarm sow --model vllm/Qwen3-Coder-480B-A35B-Instruct.
-  Inside the refarm REPL, use /login or /sow to reconfigure without leaving the
-  session. The Refarm runtime reloads Silo credentials before each task.
-`,
+		helpText: SOW_HELP_TEXT,
 		load: async () => (await import("./commands/sow.js")).sowCommand,
 		toArgs: (_unused, opts) => [
 			...(opts.model ? ["--model", opts.model] : []),
