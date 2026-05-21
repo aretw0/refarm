@@ -19,9 +19,11 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { detectPackageManager } from "../../packages/config/src/package-manager.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DRY_RUN = process.argv.includes("--dry-run");
+const PACKAGE_MANAGER = detectPackageManager({ cwd: ROOT });
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,13 @@ async function workspacePackageFiles() {
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
+
+if (PACKAGE_MANAGER !== "pnpm") {
+	console.error(
+		`[security:audit-fix] Unsupported package manager "${PACKAGE_MANAGER}". This fixer edits pnpm.overrides and currently supports pnpm only.`,
+	);
+	process.exit(1);
+}
 
 const auditResult = run("pnpm", ["audit", "--json"]);
 const report = JSON.parse(auditResult.stdout || "{}");
