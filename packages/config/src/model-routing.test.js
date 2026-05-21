@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    DEFAULT_MODEL_PROVIDER,
     defaultModelForProvider,
     defaultModelForScope,
     inferProviderFromModelId,
@@ -7,6 +8,10 @@ import {
 } from "./model-routing.js";
 
 describe("model routing config", () => {
+    it("exposes the shared default provider", () => {
+        expect(DEFAULT_MODEL_PROVIDER).toBe("openai");
+    });
+
     it("resolves provider defaults used by refarm runtimes", () => {
         expect(defaultModelForProvider("openai")).toBe("gpt-5.5");
         expect(defaultModelForProvider("anthropic")).toBe("claude-sonnet-4-20250514");

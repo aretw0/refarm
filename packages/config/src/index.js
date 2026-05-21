@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 export {
+    DEFAULT_MODEL_PROVIDER,
     MODEL_SCOPES,
     defaultModelForProvider,
     defaultModelForScope,

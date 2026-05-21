@@ -1,4 +1,5 @@
 export {
+	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
 	defaultModelForScope,
 	inferProviderFromModelId,
@@ -7,13 +8,12 @@ export {
 	type ModelScope,
 } from "@refarm.dev/config";
 import {
+	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
 	defaultModelForScope,
 	inferProviderFromModelId,
 	type ModelScope,
 } from "@refarm.dev/config";
-
-export const DEFAULT_MODEL_PROVIDER = "openai";
 
 export interface ModelRef {
 	provider?: string;

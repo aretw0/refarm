@@ -1,4 +1,5 @@
 export const MODEL_SCOPES = ["default", "worker", "monitor"];
+export const DEFAULT_MODEL_PROVIDER = "openai";
 
 export function inferProviderFromModelId(modelId) {
     const normalized = modelId.trim().toLowerCase();

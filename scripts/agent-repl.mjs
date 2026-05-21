@@ -14,6 +14,7 @@ import { createInterface } from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { DEFAULT_MODEL_PROVIDER } from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -381,7 +382,7 @@ function handleSlashCommand(line) {
 async function main() {
   loadEnvFile();
 
-  const provider = process.env.MODEL_PROVIDER || 'ollama';
+  const provider = process.env.MODEL_PROVIDER || DEFAULT_MODEL_PROVIDER;
 
   // Check daemon is alive
   const daemonRunning = checkDaemon();
