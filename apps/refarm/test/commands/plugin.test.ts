@@ -74,6 +74,20 @@ describe("plugin install", () => {
 		mockMkdir.mockResolvedValue(undefined);
 	});
 
+	it("documents plugin install, status, and reload workflows in help", () => {
+		let help = "";
+		pluginCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		pluginCommand.outputHelp();
+
+		expect(help).toContain("refarm plugin status");
+		expect(help).toContain("/reload @refarm/pi-agent");
+		expect(help).toContain("refarm ask preflights pi-agent");
+	});
+
 	it("reports failure when npm package cannot be resolved", async () => {
 		mockRequireResolve.mockImplementation(() => {
 			throw new Error("MODULE_NOT_FOUND");
@@ -224,6 +238,8 @@ describe("plugin status", () => {
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
 		expect(output).toContain("pi-agent is not loaded");
 		expect(output).toContain("refarm plugin install");
+		expect(output).toContain("then run /reload @refarm/pi-agent");
+		expect(output).toContain("refarm ask hello");
 		consoleSpy.mockRestore();
 	});
 

@@ -190,18 +190,50 @@ async function printRuntimePluginStatus(): Promise<void> {
 		console.log("");
 		console.log("pi-agent is not loaded.");
 		console.log("  Install:  refarm plugin install");
-		console.log("  Reload:   /reload @refarm/pi-agent");
+		console.log("  Reload:   refarm");
+		console.log("            then run /reload @refarm/pi-agent");
+		console.log("  Ask:      refarm ask hello");
 		console.log("  Diagnose: refarm doctor");
 	}
 }
 
 export const pluginCommand = new Command("plugin").description(
 	"Manage refarm plugins",
+).addHelpText(
+	"after",
+	[
+		"",
+		"Examples:",
+		"  $ refarm plugin status",
+		"  $ refarm plugin install",
+		"  $ refarm plugin list",
+		"  $ refarm",
+		"  › /reload @refarm/pi-agent",
+		"  $ refarm plugin bundle ./plugin.wasm --name my-plugin",
+		"",
+		"Notes:",
+		"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
+		"  Status reads the active Refarm runtime; start it with refarm if unavailable.",
+		"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
+	].join("\n"),
 );
 
 pluginCommand
 	.command("install")
 	.description("Install (or force-reinstall) all bundled plugins from their npm packages")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm plugin install",
+			"  $ refarm plugin install --force",
+			"",
+			"Notes:",
+			"  If the bundled WASM is missing, build pi-agent first with the command printed by the error.",
+			"  After install, run refarm plugin status to confirm runtime load state.",
+		].join("\n"),
+	)
 	.option("-f, --force", "Reinstall even if already up-to-date", false)
 	.action(async (options: { force: boolean }) => {
 		console.log("Installing bundled plugins...");
@@ -234,6 +266,21 @@ pluginCommand
 pluginCommand
 	.command("status")
 	.description("Show runtime plugin install/load state")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm plugin status",
+			"  $ refarm runtime",
+			"  $ refarm",
+			"  › /reload @refarm/pi-agent",
+			"",
+			"Notes:",
+			"  This command requires the selected Refarm runtime sidecar.",
+			"  Use refarm runtime to see whether Rust Tractor or TypeScript Farmhand is selected.",
+		].join("\n"),
+	)
 	.action(printRuntimePluginStatus);
 
 pluginCommand
