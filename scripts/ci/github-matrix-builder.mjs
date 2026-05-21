@@ -46,7 +46,7 @@ function isDependencyOnlyChange(files) {
 
     const allowed = [
         /(^|\/)package\.json$/,
-        /(^|\/)pnpm-lock\.yaml$/,
+        /(^|\/)(?:pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|bun\.lockb?)$/,
         /^final-report\.md$/,
         /^\.changeset\/.*\.md$/,
         /^\.github\/workflows\/granular-tests\.yml$/,
