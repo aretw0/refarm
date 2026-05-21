@@ -70,6 +70,23 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.description(
 			"Report TUI renderer posture and optionally launch local terminal runtime",
 		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm tui",
+				"  $ refarm tui --launch",
+				"  $ refarm tui --launch --launcher prompt",
+				"  $ refarm tui --dry-run",
+				"  $ refarm tui --actions",
+				"",
+				"Notes:",
+				"  Without --launch, this runs a renderer preflight only.",
+				"  The TUI launcher uses the local tractor binary: tractor watch or tractor prompt.",
+				"  Use refarm runtime to inspect the selected runtime engine before launching.",
+			].join("\n"),
+		)
 		.option(
 			"--input <path>",
 			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",

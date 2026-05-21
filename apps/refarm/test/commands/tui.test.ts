@@ -70,6 +70,21 @@ describe("tuiCommand", () => {
 		launch.mockResolvedValue(0);
 	});
 
+	it("documents launch modes and runtime inspection in help", () => {
+		let help = "";
+		const command = createTuiCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm tui --launch --launcher prompt");
+		expect(help).toContain("tractor watch or tractor prompt");
+		expect(help).toContain("Use refarm runtime");
+	});
+
 	it("prints summary preflight by default", async () => {
 		const command = createTuiCommand({
 			resolveStatusPayload,

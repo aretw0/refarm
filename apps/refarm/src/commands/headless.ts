@@ -24,6 +24,22 @@ export const headlessCommand = new Command("headless")
 	.description(
 		"Emit a machine-readable host snapshot in headless renderer mode",
 	)
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm headless",
+			"  $ refarm headless --summary",
+			"  $ refarm headless --markdown",
+			"  $ refarm headless --action-request <id-or-index>",
+			"",
+			"Notes:",
+			"  Default output is JSON for automation.",
+			"  --action-request emits a dry-run action envelope; it does not open browsers or mutate state.",
+			"  Use refarm actions, refarm web --actions, or refarm tui --actions to inspect available IDs.",
+		].join("\n"),
+	)
 	.option(
 		"--input <path>",
 		"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",

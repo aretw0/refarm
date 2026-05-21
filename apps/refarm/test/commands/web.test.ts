@@ -126,6 +126,21 @@ describe("webCommand", () => {
 		}
 	});
 
+	it("documents launch, dry-run, and action workflows in help", () => {
+		let help = "";
+		const command = createWebCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm web --launch --open");
+		expect(help).toContain("refarm web --dry-run --launcher preview");
+		expect(help).toContain("--dry-run prints the resolved package-manager command");
+	});
+
 	it("prints summary preflight by default", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,

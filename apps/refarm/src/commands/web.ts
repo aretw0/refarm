@@ -87,6 +87,23 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.description(
 			"Report web renderer posture and optionally launch local web runtime",
 		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm web",
+				"  $ refarm web --launch",
+				"  $ refarm web --launch --open",
+				"  $ refarm web --dry-run --launcher preview",
+				"  $ refarm web --actions",
+				"",
+				"Notes:",
+				"  Without --launch, this runs a renderer preflight only.",
+				"  --dry-run prints the resolved package-manager command without starting it.",
+				"  --open follows operator.openExternalLinks; set it with refarm config.",
+			].join("\n"),
+		)
 		.option(
 			"--input <path>",
 			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",

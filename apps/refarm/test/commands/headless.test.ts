@@ -58,6 +58,20 @@ describe("headlessCommand", () => {
 		});
 	});
 
+	it("documents automation output and dry-run action requests in help", () => {
+		let help = "";
+		headlessCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		headlessCommand.outputHelp();
+
+		expect(help).toContain("refarm headless --action-request <id-or-index>");
+		expect(help).toContain("Default output is JSON for automation");
+		expect(help).toContain("it does not open browsers or mutate state");
+	});
+
 	it("outputs JSON by default", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
