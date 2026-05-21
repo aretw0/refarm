@@ -121,6 +121,22 @@ export function createSessionCommand(deps?: ChatDeps): Command {
 		.description(
 			"Start or resume an interactive session (the default when running bare `refarm`)",
 		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm session",
+				"  $ refarm session --new",
+				"  $ refarm session --session <id-prefix>",
+				"  $ refarm session \"continue daqui\"",
+				"",
+				"Notes:",
+				"  Bare refarm runs the same launch flow as refarm session.",
+				"  The launch flow configures credentials when missing and starts the selected runtime when allowed.",
+				"  Inside the REPL, use /help for runtime commands such as /model, /login, and /reload.",
+			].join("\n"),
+		)
 		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Resume a specific session ID or unique prefix")

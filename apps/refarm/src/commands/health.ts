@@ -237,6 +237,21 @@ export async function runHealthAudit(): Promise<HealthReport> {
 
 export const healthCommand = new Command("health")
   .description("Run deterministic diagnostics on the project")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Examples:",
+      "  $ refarm health",
+      "  $ refarm health --json",
+      "  $ refarm health --fail-on-issues",
+      "",
+      "Notes:",
+      "  Health audits filesystem source visibility, build configuration, and package entrypoint alignment.",
+      "  It does not require the Refarm runtime sidecar; use refarm doctor for host/runtime readiness.",
+      "  Project-specific policy can live under health in refarm.config.json.",
+    ].join("\n"),
+  )
   .option("--json", "Output machine-readable health report")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {

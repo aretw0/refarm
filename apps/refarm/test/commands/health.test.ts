@@ -116,6 +116,20 @@ describe("healthCommand", () => {
     expect(mockCheckResolutionStatus).toHaveBeenCalled();
   });
 
+  it("documents health policy and doctor handoff in help", () => {
+    let help = "";
+    healthCommand.configureOutput({
+      writeOut: (value) => {
+        help += value;
+      },
+    });
+    healthCommand.outputHelp();
+
+    expect(help).toContain("refarm health --fail-on-issues");
+    expect(help).toContain("use refarm doctor for host/runtime readiness");
+    expect(help).toContain("refarm.config.json");
+  });
+
   it("uses the Refarm preset when no project health policy exists", async () => {
     await healthCommand.parseAsync([], { from: "user" });
     expect(mockFileSystemAuditor).toHaveBeenCalledWith({
