@@ -139,6 +139,12 @@ const cloudflareCommand = new Command("cloudflare")
 					"  $ refarm provision cloudflare turbo-cache --dry-run",
 					"  $ refarm provision cloudflare turbo-cache --github-secrets",
 					"  $ refarm provision cloudflare turbo-cache --bucket refarm-turbo-cache --team refarm",
+					"",
+					"Notes:",
+					"  Requires a Cloudflare token saved by refarm sow --cloudflare before applying.",
+					"  --dry-run does not require credentials and prints the Worker/R2/secret plan.",
+					"  --github-secrets writes TURBO_CACHE_* via gh; run gh auth status if it fails.",
+					"  Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default.",
 				].join("\n"),
 			)
 			.option(

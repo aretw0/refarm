@@ -247,6 +247,28 @@ describe("provision command", () => {
 		expect(help).toContain("Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default");
 	});
 
+	it("documents credentials and GitHub secret requirements in turbo-cache help", () => {
+		const cloudflare = provisionCommand.commands.find(
+			(command) => command.name() === "cloudflare",
+		);
+		const turboCache = cloudflare?.commands.find(
+			(command) => command.name() === "turbo-cache",
+		);
+		let help = "";
+		turboCache?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		turboCache?.outputHelp();
+
+		expect(help).toContain("Requires a Cloudflare token saved by refarm sow --cloudflare");
+		expect(help).toContain("--dry-run does not require credentials");
+		expect(help).toContain("--github-secrets writes TURBO_CACHE_* via gh");
+		expect(help).toContain("Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default");
+	});
+
 	it("provisions Cloudflare turbo-cache with stored Cloudflare token", async () => {
 		const provider = { accountId: "account-1" };
 		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
