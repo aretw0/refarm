@@ -8,12 +8,31 @@ export {
 } from "@refarm.dev/config";
 import {
 	defaultModelForProvider,
+	defaultModelForScope,
 	inferProviderFromModelId,
+	type ModelScope,
 } from "@refarm.dev/config";
+
+export const DEFAULT_MODEL_PROVIDER = "openai";
 
 export interface ModelRef {
 	provider?: string;
 	modelId: string;
+}
+
+export function defaultProviderModelRef(provider = DEFAULT_MODEL_PROVIDER): string {
+	return formatModelRef(provider, defaultModelForProvider(provider));
+}
+
+export function defaultProviderModelId(provider = DEFAULT_MODEL_PROVIDER): string {
+	return defaultModelForProvider(provider) ?? provider;
+}
+
+export function defaultScopedModelRef(
+	scope: ModelScope,
+	provider = DEFAULT_MODEL_PROVIDER,
+): string {
+	return formatModelRef(provider, defaultModelForScope(provider, scope));
 }
 
 export function parseModelRef(

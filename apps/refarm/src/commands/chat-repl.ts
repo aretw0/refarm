@@ -3,7 +3,9 @@
  * All functions here are unit-testable without stubs.
  */
 
-import { isModelScope, type ModelScope } from "../model-routing.js";
+import { defaultProviderModelRef, isModelScope, type ModelScope } from "../model-routing.js";
+
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 
 export type ChatCommand =
 	| { kind: "message"; text: string }
@@ -108,7 +110,7 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 export const CHAT_HELP_TEXT = `Available commands:
   /reload [id...]   Hot-reload plugins in the Refarm runtime (all, or named plugin IDs)
   /model            Show the active model route
-  /model <ref>      Set the default model route, e.g. openai/gpt-5.5
+  /model <ref>      Set the default model route, e.g. ${OPENAI_DEFAULT_REF}
   /model worker <ref> Set the worker model route
   /login [args...]  Configure credentials without leaving the session
   /new              Start a fresh session

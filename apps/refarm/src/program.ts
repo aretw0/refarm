@@ -26,8 +26,14 @@ import { tuiCommand } from "./commands/tui.js";
 import { telemetryCommand } from "./commands/telemetry.js";
 import { treeCommand } from "./commands/tree.js";
 import { webCommand } from "./commands/web.js";
+import { defaultProviderModelId, defaultProviderModelRef } from "./model-routing.js";
 
 export const program = new Command();
+
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const OPENAI_DEFAULT_MODEL_ID = defaultProviderModelId("openai");
+const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
+const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 interface LazyCommandOption {
 	flags: string;
@@ -89,7 +95,7 @@ program
 			"Runtime controls:",
 			"  $ refarm config set runtime.autostart always",
 			"  $ refarm config set tractor.engine auto",
-			"  $ refarm model openai/gpt-5.5",
+			`  $ refarm model ${OPENAI_DEFAULT_REF}`,
 			"",
 			"Inside the interactive session, use /help for /model, /login, /reload, and session commands.",
 		].join("\n"),
@@ -148,10 +154,10 @@ program.addCommand(
 Examples:
   $ refarm sow
   $ refarm sow --cloudflare
-  $ refarm sow --model openai/gpt-5.5
-  $ refarm sow --model anthropic/claude-sonnet-4-20250514
-  $ refarm sow --model ollama/llama3.2
-  $ refarm sow --model gpt-5.5
+  $ refarm sow --model ${OPENAI_DEFAULT_REF}
+  $ refarm sow --model ${ANTHROPIC_DEFAULT_REF}
+  $ refarm sow --model ${OLLAMA_DEFAULT_REF}
+  $ refarm sow --model ${OPENAI_DEFAULT_MODEL_ID}
 
 Notes:
   --model changes the saved provider/model routing. It does not collect a new

@@ -35,6 +35,9 @@ import {
 	type LaunchDeps,
 } from "./session-launch.js";
 import { sidecarUrl } from "./sidecar-url.js";
+import { defaultProviderModelRef } from "../model-routing.js";
+
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -402,7 +405,7 @@ function printAskError(message: string): void {
 			console.error(chalk.dim("   Or switch provider:  refarm sow"));
 		} else {
 			console.error(chalk.dim("   Reconfigure/login:  refarm sow"));
-			console.error(chalk.dim("   Switch model:       refarm model openai/gpt-5.5"));
+			console.error(chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`));
 		}
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));

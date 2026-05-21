@@ -15,6 +15,7 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { defaultProviderModelRef, defaultScopedModelRef } from "../model-routing.js";
 import { parseChatLine, CHAT_HELP_TEXT } from "./chat-repl.js";
 import {
 	defaultModelDeps,
@@ -59,6 +60,8 @@ export interface ChatDeps {
 
 const DEFAULT_HISTORY_TURNS = 20;
 const MAX_CHAT_HISTORY_LINES = 500;
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -618,8 +621,8 @@ Examples:
 
 Runtime commands:
   /model                  Show the active model route
-  /model openai/gpt-5.5   Set the default model route
-  /model worker openai/gpt-5.3-codex-spark
+  /model ${OPENAI_DEFAULT_REF}   Set the default model route
+  /model worker ${OPENAI_WORKER_REF}
   /login                  Configure credentials without leaving the session
   /reload [id...]         Hot-reload plugins in the Refarm runtime
 `,

@@ -10,7 +10,16 @@ import {
 	modelCredentialProvider,
 } from "../credentials/index.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
-import { parseModelRef } from "../model-routing.js";
+import {
+	defaultProviderModelId,
+	defaultProviderModelRef,
+	parseModelRef,
+} from "../model-routing.js";
+
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const OPENAI_DEFAULT_MODEL_ID = defaultProviderModelId("openai");
+const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
+const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 interface SowOptions {
 	model?: string;
@@ -32,10 +41,10 @@ export const sowCommand = new Command("sow")
 Examples:
   $ refarm sow
   $ refarm sow --cloudflare
-  $ refarm sow --model openai/gpt-5.5
-  $ refarm sow --model anthropic/claude-sonnet-4-20250514
-  $ refarm sow --model ollama/llama3.2
-  $ refarm sow --model gpt-5.5
+  $ refarm sow --model ${OPENAI_DEFAULT_REF}
+  $ refarm sow --model ${ANTHROPIC_DEFAULT_REF}
+  $ refarm sow --model ${OLLAMA_DEFAULT_REF}
+  $ refarm sow --model ${OPENAI_DEFAULT_MODEL_ID}
 
 Notes:
   --model changes the saved provider/model routing. It does not collect a new
@@ -56,7 +65,7 @@ Notes:
 			}
 			if (modelRef && !modelRef.provider) {
 				console.error(chalk.red(`✗  Could not infer provider for model "${modelRef.modelId}".`));
-				console.error(chalk.dim("   Use provider/model, for example: refarm sow --model ollama/llama3.2"));
+				console.error(chalk.dim(`   Use provider/model, for example: refarm sow --model ${OLLAMA_DEFAULT_REF}`));
 				process.exit(1);
 			}
 

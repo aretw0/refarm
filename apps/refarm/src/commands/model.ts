@@ -2,13 +2,20 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { SiloCore } from "@refarm.dev/silo";
 import {
+	defaultProviderModelRef,
 	defaultModelForProvider,
 	defaultModelForScope,
+	defaultScopedModelRef,
 	formatModelRef,
 	isModelScope,
 	type ModelScope,
 	parseModelRef,
 } from "../model-routing.js";
+
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
+const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
+const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 export interface ModelTokens {
 	modelProvider?: string;
@@ -55,9 +62,9 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {
 		console.log(chalk.dim("  source:   built-in defaults"));
-		console.log(chalk.dim("  openai default: openai/gpt-5.5"));
-		console.log(chalk.dim("  openai worker:  openai/gpt-5.3-codex-spark"));
-		console.log(chalk.dim("  set one:        refarm model openai/gpt-5.5"));
+		console.log(chalk.dim(`  openai default: ${OPENAI_DEFAULT_REF}`));
+		console.log(chalk.dim(`  openai worker:  ${OPENAI_WORKER_REF}`));
+		console.log(chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`));
 		console.log(chalk.dim("  login:          refarm sow"));
 	}
 }
@@ -94,7 +101,7 @@ export async function setModelRoute(
 	}
 	if (!parsed.provider) {
 		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
-		console.error(chalk.dim("   Use provider/model, for example: refarm model ollama/llama3.2"));
+		console.error(chalk.dim(`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`));
 		process.exit(1);
 	}
 
@@ -113,16 +120,16 @@ export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()):
 
 Examples:
   $ refarm model current
-  $ refarm model openai/gpt-5.5
-  $ refarm model set openai/gpt-5.5
-  $ refarm model set --scope worker openai/gpt-5.3-codex-spark
-  $ refarm model set anthropic/claude-sonnet-4-20250514
-  $ refarm model set ollama/llama3.2
+  $ refarm model ${OPENAI_DEFAULT_REF}
+  $ refarm model set ${OPENAI_DEFAULT_REF}
+  $ refarm model set --scope worker ${OPENAI_WORKER_REF}
+  $ refarm model set ${ANTHROPIC_DEFAULT_REF}
+  $ refarm model set ${OLLAMA_DEFAULT_REF}
 
 Notes:
   Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
   them before each task, so the next ask/chat turn or worker task uses the new route.
-  For OpenAI workers, the default scoped route is openai/gpt-5.3-codex-spark.
+  For OpenAI workers, the default scoped route is ${OPENAI_WORKER_REF}.
 `,
 		)
 		.action(async (ref: string | undefined) => {
