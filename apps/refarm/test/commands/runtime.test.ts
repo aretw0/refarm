@@ -158,6 +158,85 @@ describe("runtime command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("waits for runtime readiness when requested", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const startRuntime = vi.fn();
+		const waitUntilReady = vi.fn().mockResolvedValue(true);
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "always",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+			startRuntime,
+			waitUntilReady,
+		});
+
+		await command.parseAsync(["start", "--wait"], { from: "user" });
+
+		expect(startRuntime).toHaveBeenCalledOnce();
+		expect(waitUntilReady).toHaveBeenCalledOnce();
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Started rust runtime.");
+		expect(output).toContain("Runtime ready.");
+		logSpy.mockRestore();
+	});
+
+	it("sets exitCode when runtime wait times out", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "always",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+			startRuntime: vi.fn(),
+			waitUntilReady: vi.fn().mockResolvedValue(false),
+		});
+
+		await command.parseAsync(["start", "--wait"], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Runtime did not become ready"),
+		);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports waited readiness in JSON mode", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime: vi.fn(),
+			waitUntilReady: vi.fn().mockResolvedValue(true),
+		});
+
+		await command.parseAsync(["start", "--wait", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			started?: boolean;
+			ready?: boolean;
+		};
+		expect(payload.started).toBe(true);
+		expect(payload.ready).toBe(true);
+		logSpy.mockRestore();
+	});
+
 	it("starts the selected runtime in the background", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();
