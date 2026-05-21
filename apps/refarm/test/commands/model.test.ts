@@ -112,9 +112,29 @@ describe("modelCommand", () => {
 		command.outputHelp();
 
 		expect(help).toContain("The Refarm runtime reloads");
+		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
 		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
+	});
+
+	it("lists known provider defaults", async () => {
+		const command = createModelCommand(makeDeps());
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["providers"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Known model providers");
+		expect(output).toContain("openai");
+		expect(output).toContain("default: gpt-5.5");
+		expect(output).toContain("worker:  gpt-5.3-codex-spark");
+		expect(output).toContain("key env: OPENAI_API_KEY");
+		expect(output).toContain("gemini");
+		expect(output).toContain("default: gemini-3-flash-preview");
+		expect(output).toContain("Custom/self-hosted providers are allowed");
+
+		logSpy.mockRestore();
 	});
 
 	it("documents model set examples in subcommand help", () => {

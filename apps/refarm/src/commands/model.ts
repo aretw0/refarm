@@ -9,6 +9,7 @@ import {
 	defaultScopedModelRef,
 	formatModelRef,
 	isModelScope,
+	MODEL_PROVIDERS,
 	type ModelScope,
 	parseModelRef,
 } from "../model-routing.js";
@@ -79,6 +80,24 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	}
 }
 
+export function printKnownModelProviders(): void {
+	console.log(chalk.bold("Known model providers"));
+	for (const provider of MODEL_PROVIDERS) {
+		const defaultModel = defaultModelForProvider(provider);
+		const workerModel = defaultModelForScope(provider, "worker");
+		const monitorModel = defaultModelForScope(provider, "monitor");
+		const credentialEnv = modelCredentialEnvKey(provider);
+		console.log(`  ${chalk.cyan(provider)}`);
+		if (defaultModel) console.log(`    default: ${defaultModel}`);
+		if (workerModel && workerModel !== defaultModel) console.log(`    worker:  ${workerModel}`);
+		if (monitorModel && monitorModel !== defaultModel) console.log(`    monitor: ${monitorModel}`);
+		if (credentialEnv) console.log(`    key env: ${credentialEnv}`);
+	}
+	console.log(chalk.dim(""));
+	console.log(chalk.dim("Custom/self-hosted providers are allowed with provider/model refs."));
+	console.log(chalk.dim("Set MODEL_BASE_URL when the provider does not have a built-in endpoint."));
+}
+
 function scopedTokenUpdate(
 	scope: ModelScope,
 	provider: string,
@@ -130,6 +149,7 @@ export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()):
 
 Examples:
   $ refarm model current
+  $ refarm model providers
   $ refarm model ${OPENAI_DEFAULT_REF}
   $ refarm model set ${OPENAI_DEFAULT_REF}
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
@@ -157,6 +177,27 @@ Notes:
 		.description("Show the currently configured provider/model")
 		.action(async () => {
 			printCurrentModel(await deps.loadTokens());
+		});
+
+	command
+		.command("providers")
+		.description("List known provider defaults and credential environment variables")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model providers
+  $ refarm sow --model ${OPENAI_DEFAULT_REF}
+  $ refarm model set --scope worker ${OPENAI_WORKER_REF}
+
+Notes:
+  This lists built-in defaults only. You can still use custom providers by
+  passing provider/model and setting MODEL_BASE_URL for OpenAI-compatible APIs.
+`,
+		)
+		.action(() => {
+			printKnownModelProviders();
 		});
 
 	command
