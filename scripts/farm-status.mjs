@@ -258,8 +258,8 @@ function checkModel() {
   if (configured.length) ok('keys', configured.join('  '));
   else fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
 
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || silo.modelProvider || config.provider || '(not configured)';
-  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(default)';
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || '(not configured)';
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model    || '(default)';
   const budget   = config.budgets?.[provider] ?? null;
   info('model', [
     `provider=${c.cyan}${provider}${c.reset}`,

@@ -180,8 +180,8 @@ function checkTractorBinary() {
 
 function checkModelConfig(envVars, config) {
   const silo = readSiloTokens();
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || silo.modelProvider || config.provider || '(not configured)';
-  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(provider default)';
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || '(not configured)';
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model    || '(provider default)';
   const history  = envVars.MODEL_HISTORY_TURNS    || process.env.MODEL_HISTORY_TURNS    || config.MODEL_HISTORY_TURNS    || '0';
   const maxIter  = envVars.MODEL_TOOL_CALL_MAX_ITER || process.env.MODEL_TOOL_CALL_MAX_ITER || config.MODEL_TOOL_CALL_MAX_ITER || '5';
   const budget   = config.budgets?.[provider] || '';
