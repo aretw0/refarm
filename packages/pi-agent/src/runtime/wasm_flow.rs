@@ -40,7 +40,9 @@ fn try_fallback_completion(
             "blocked".to_owned(),
         ));
     }
-    let fb = crate::provider::Provider::from_provider_name(&fallback_name);
+    let fallback_model = std::env::var("MODEL_FALLBACK_MODEL_ID").unwrap_or_default();
+    let fb =
+        crate::provider::Provider::from_provider_name_with_model(&fallback_name, &fallback_model);
     let fb_model = fb.model().to_owned();
     if crate::streaming_config::stream_responses_enabled_from_env() {
         super::streaming_sink::update_active_stream_response_sink_model(&fb_model);

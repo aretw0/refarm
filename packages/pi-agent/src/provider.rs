@@ -25,10 +25,13 @@ pub enum Provider {
 impl Provider {
     pub fn from_provider_name(provider_name: &str) -> Self {
         let explicit_model = std::env::var("MODEL_ID").unwrap_or_default();
+        Self::from_provider_name_with_model(provider_name, &explicit_model)
+    }
 
+    pub fn from_provider_name_with_model(provider_name: &str, explicit_model: &str) -> Self {
         if provider_name == "anthropic" {
             return Provider::Anthropic {
-                model: crate::choose_model(&explicit_model, crate::ANTHROPIC_DEFAULT_MODEL),
+                model: crate::choose_model(explicit_model, crate::ANTHROPIC_DEFAULT_MODEL),
             };
         }
 
@@ -37,7 +40,7 @@ impl Provider {
         Provider::OpenAiCompat {
             provider: provider_name.to_owned(),
             base_url,
-            model: crate::choose_model(&explicit_model, default_model),
+            model: crate::choose_model(explicit_model, default_model),
         }
     }
 

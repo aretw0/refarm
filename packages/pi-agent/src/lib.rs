@@ -16,6 +16,7 @@
 //!   GEMINI_API_KEY=AIza...
 //!   MODEL_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
 //!   MODEL_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
+//!   MODEL_FALLBACK_MODEL_ID=<model-id>       (optional model override for MODEL_FALLBACK_PROVIDER)
 //!   MODEL_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. MODEL_BUDGET_ANTHROPIC_USD=5.0)
 //!   MODEL_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   MODEL_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
