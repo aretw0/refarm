@@ -100,7 +100,12 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 			"--select <id-or-index>",
 			"Select an available TUI action ID or row index when used with --actions",
 		)
-		.option("--launcher <mode>", "Launcher mode: watch | prompt", "watch")
+		.option(
+			"--launcher <mode>",
+			"Launcher mode: watch | prompt",
+			(value) => resolveLaunchMode(value, TUI_LAUNCHER_MODES),
+			"watch",
+		)
 		.action(async (options: TuiOptions) => {
 			if (options.select && !options.actions) {
 				throw new Error("--select requires --actions.");

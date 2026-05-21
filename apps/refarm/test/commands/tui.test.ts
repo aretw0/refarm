@@ -437,6 +437,9 @@ describe("tuiCommand", () => {
 			printStatusSummary,
 			launch,
 		});
+		command.exitOverride((error) => {
+			throw error;
+		});
 
 		await expect(
 			command.parseAsync(["--launch", "--launcher", "invalid"], {

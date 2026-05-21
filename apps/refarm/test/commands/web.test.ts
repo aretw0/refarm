@@ -399,6 +399,9 @@ describe("webCommand", () => {
 			launch,
 			open,
 		});
+		command.exitOverride((error) => {
+			throw error;
+		});
 
 		await expect(
 			command.parseAsync(["--launch", "--launcher", "invalid"], {

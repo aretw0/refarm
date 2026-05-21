@@ -2,6 +2,7 @@ import {
 	classifyRefarmStatusDiagnostics,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
+import { InvalidArgumentError } from "commander";
 
 export function resolveLaunchMode<TMode extends string>(
 	input: unknown,
@@ -11,7 +12,7 @@ export function resolveLaunchMode<TMode extends string>(
 		return input as TMode;
 	}
 
-	throw new Error(
+	throw new InvalidArgumentError(
 		`Invalid --launcher value ${JSON.stringify(input)}. Use one of: ${allowed.join(", ")}.`,
 	);
 }

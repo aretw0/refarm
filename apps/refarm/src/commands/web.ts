@@ -123,7 +123,12 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			"Browser URL used with --open",
 			"http://127.0.0.1:4321",
 		)
-		.option("--launcher <mode>", "Launcher mode: dev | preview", "dev")
+		.option(
+			"--launcher <mode>",
+			"Launcher mode: dev | preview",
+			(value) => resolveLaunchMode(value, WEB_LAUNCHER_MODES),
+			"dev",
+		)
 		.action(async (options: WebOptions) => {
 			if (options.select && !options.actions) {
 				throw new Error("--select requires --actions.");
