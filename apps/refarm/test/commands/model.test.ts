@@ -16,6 +16,7 @@ describe("modelCommand", () => {
 	const originalModelId = process.env.MODEL_ID;
 	const originalModelBaseUrl = process.env.MODEL_BASE_URL;
 	const originalFallbackProvider = process.env.MODEL_FALLBACK_PROVIDER;
+	const originalFallbackModelId = process.env.MODEL_FALLBACK_MODEL_ID;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -46,6 +47,11 @@ describe("modelCommand", () => {
 			delete process.env.MODEL_FALLBACK_PROVIDER;
 		} else {
 			process.env.MODEL_FALLBACK_PROVIDER = originalFallbackProvider;
+		}
+		if (originalFallbackModelId === undefined) {
+			delete process.env.MODEL_FALLBACK_MODEL_ID;
+		} else {
+			process.env.MODEL_FALLBACK_MODEL_ID = originalFallbackModelId;
 		}
 		vi.restoreAllMocks();
 	});
@@ -125,8 +131,24 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("vllm/Qwen3-Coder-480B-A35B-Instruct");
 		expect(output).toContain("base url: http://127.0.0.1:8000");
-		expect(output).toContain("fallback: ollama");
+		expect(output).toContain("fallback: ollama/llama3.2");
 		expect(output).toContain("custom provider: set MODEL_BASE_URL");
+
+		logSpy.mockRestore();
+	});
+
+	it("prints fallback model override from environment", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.MODEL_ID = "gpt-5.5";
+		process.env.MODEL_FALLBACK_PROVIDER = "ollama";
+		process.env.MODEL_FALLBACK_MODEL_ID = "qwen2.5-coder";
+		const command = createModelCommand(makeDeps());
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("fallback: ollama/qwen2.5-coder");
 
 		logSpy.mockRestore();
 	});
@@ -144,6 +166,7 @@ describe("modelCommand", () => {
 
 		expect(help).toContain("The Refarm runtime reloads");
 		expect(help).toContain("MODEL_FALLBACK_PROVIDER");
+		expect(help).toContain("MODEL_FALLBACK_MODEL_ID");
 		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
