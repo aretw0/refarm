@@ -6,6 +6,7 @@ import {
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
+    modelCredentialEnvKey,
 } from "./model-routing.js";
 
 describe("model routing config", () => {
@@ -50,5 +51,13 @@ describe("model routing config", () => {
         expect(isModelScope("worker")).toBe(true);
         expect(isModelScope("monitor")).toBe(true);
         expect(isModelScope("other")).toBe(false);
+    });
+
+    it("resolves provider credential env keys", () => {
+        expect(modelCredentialEnvKey("openai")).toBe("OPENAI_API_KEY");
+        expect(modelCredentialEnvKey("openai-codex")).toBe("OPENAI_API_KEY");
+        expect(modelCredentialEnvKey("gemini")).toBe("GEMINI_API_KEY");
+        expect(modelCredentialEnvKey("ollama")).toBeUndefined();
+        expect(modelCredentialEnvKey("unknown")).toBeUndefined();
     });
 });

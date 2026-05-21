@@ -3,9 +3,11 @@ export type ModelScope = "default" | "worker" | "monitor";
 export const MODEL_SCOPES: readonly ModelScope[];
 export const DEFAULT_MODEL_PROVIDER: string;
 export const MODEL_PROVIDERS: readonly string[];
+export const MODEL_CREDENTIAL_ENV_KEYS: Readonly<Record<string, string>>;
 
 export function inferProviderFromModelId(modelId: string): string | undefined;
 export function isModelProvider(value: string | undefined): boolean;
+export function modelCredentialEnvKey(provider: string | undefined): string | undefined;
 
 export function defaultModelForProvider(
     provider: string | undefined,

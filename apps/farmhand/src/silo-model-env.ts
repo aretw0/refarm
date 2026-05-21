@@ -1,3 +1,5 @@
+import { modelCredentialEnvKey } from "@refarm.dev/config";
+
 export interface OAuthCreds {
 	access: string;
 	refresh: string;
@@ -27,19 +29,6 @@ export interface SiloModelEnvInjectorOptions {
 		creds: OAuthCreds,
 	) => Promise<OAuthCreds | null>;
 }
-
-export const MODEL_ENV_KEY: Record<string, string> = {
-	openai: "OPENAI_API_KEY",
-	"openai-codex": "OPENAI_API_KEY",
-	anthropic: "ANTHROPIC_API_KEY",
-	groq: "GROQ_API_KEY",
-	mistral: "MISTRAL_API_KEY",
-	xai: "XAI_API_KEY",
-	deepseek: "DEEPSEEK_API_KEY",
-	together: "TOGETHER_API_KEY",
-	openrouter: "OPENROUTER_API_KEY",
-	gemini: "GEMINI_API_KEY",
-};
 
 function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
@@ -124,7 +113,7 @@ export function createSiloModelEnvInjector(
 								return;
 							}
 						}
-						const envKey = MODEL_ENV_KEY[provider ?? oauthProvider];
+						const envKey = modelCredentialEnvKey(provider ?? oauthProvider);
 						if (envKey) setManagedEnv(envKey, effectiveCreds.access);
 						return;
 					}
@@ -132,7 +121,7 @@ export function createSiloModelEnvInjector(
 
 				const apiKey = stringValue(tokens.modelApiKey);
 				if (apiKey && provider) {
-					const envKey = MODEL_ENV_KEY[provider];
+					const envKey = modelCredentialEnvKey(provider);
 					if (envKey) setManagedEnv(envKey, apiKey);
 				}
 			} catch {

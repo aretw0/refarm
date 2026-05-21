@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 export {
     DEFAULT_MODEL_PROVIDER,
+    MODEL_CREDENTIAL_ENV_KEYS,
     MODEL_PROVIDERS,
     MODEL_SCOPES,
     defaultModelForProvider,
@@ -9,6 +10,7 @@ export {
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
+    modelCredentialEnvKey,
 } from "./model-routing.js";
 export {
     PI_AGENT_NPM_PACKAGE,

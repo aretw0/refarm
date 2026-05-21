@@ -13,6 +13,23 @@ export const MODEL_PROVIDERS = [
     "openrouter",
 ];
 
+export const MODEL_CREDENTIAL_ENV_KEYS = {
+    openai: "OPENAI_API_KEY",
+    "openai-codex": "OPENAI_API_KEY",
+    anthropic: "ANTHROPIC_API_KEY",
+    groq: "GROQ_API_KEY",
+    mistral: "MISTRAL_API_KEY",
+    gemini: "GEMINI_API_KEY",
+    xai: "XAI_API_KEY",
+    deepseek: "DEEPSEEK_API_KEY",
+    together: "TOGETHER_API_KEY",
+    openrouter: "OPENROUTER_API_KEY",
+};
+
+export function modelCredentialEnvKey(provider) {
+    return MODEL_CREDENTIAL_ENV_KEYS[provider?.trim().toLowerCase()];
+}
+
 export function inferProviderFromModelId(modelId) {
     const normalized = modelId.trim().toLowerCase();
     if (normalized.startsWith("gpt-") || normalized.startsWith("o")) return "openai";

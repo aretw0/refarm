@@ -1,6 +1,7 @@
 export type { ModelScope } from "./model-routing.js";
 export {
     DEFAULT_MODEL_PROVIDER,
+    MODEL_CREDENTIAL_ENV_KEYS,
     MODEL_PROVIDERS,
     MODEL_SCOPES,
     defaultModelForProvider,
@@ -8,6 +9,7 @@ export {
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
+    modelCredentialEnvKey,
 } from "./model-routing.js";
 export const PI_AGENT_PLUGIN_ID: "@refarm/pi-agent";
 export const PI_AGENT_NPM_PACKAGE: "@refarm.dev/pi-agent";
