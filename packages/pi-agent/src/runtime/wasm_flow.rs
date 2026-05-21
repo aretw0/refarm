@@ -31,6 +31,15 @@ fn try_fallback_completion(
     primary_err: &str,
 ) -> Option<ReactResult> {
     let fallback_name = std::env::var("MODEL_FALLBACK_PROVIDER").ok()?;
+    if crate::budget_exceeded_for_provider(&fallback_name) {
+        return Some(error_result(
+            format!(
+                "[pi-agent erro] primary: {primary_err}; fallback: [budget] MODEL_BUDGET_{}_USD exceeded - fallback provider blocked",
+                fallback_name.to_uppercase(),
+            ),
+            "blocked".to_owned(),
+        ));
+    }
     let fb = crate::provider::Provider::from_provider_name(&fallback_name);
     let fb_model = fb.model().to_owned();
     if crate::streaming_config::stream_responses_enabled_from_env() {
