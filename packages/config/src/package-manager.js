@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
@@ -13,9 +13,9 @@ function detectPackageManagerFromPackageJson(startDir) {
     let current = path.resolve(startDir);
     while (true) {
         const packageJsonPath = path.join(current, "package.json");
-        if (fs.existsSync(packageJsonPath)) {
+        if (existsSync(packageJsonPath)) {
             try {
-                const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+                const pkg = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
                 const detected = parsePackageManager(pkg.packageManager);
                 if (detected) return detected;
             } catch {
