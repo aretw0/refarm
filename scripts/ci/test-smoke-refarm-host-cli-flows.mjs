@@ -98,6 +98,27 @@ test("lists focused CLI smoke profiles deterministically", () => {
 	assert.equal(resolveOnlyProfileSkipBuildCommand("missing"), undefined);
 });
 
+test("lists focused CLI smoke package commands through package manager override", () => {
+	const previous = process.env.REFARM_PACKAGE_MANAGER;
+	try {
+		process.env.REFARM_PACKAGE_MANAGER = "npm";
+		assert.equal(
+			resolveOnlyProfilePackageCommand("action-seams"),
+			"npm run refarm:host:smoke:cli:action-seams",
+		);
+		assert.equal(
+			resolveOnlyProfileSkipBuildPackageCommand("action-seams"),
+			"npm run refarm:host:smoke:cli:action-seams:skip-build",
+		);
+	} finally {
+		if (previous === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = previous;
+		}
+	}
+});
+
 test("parses focused CLI smoke flags", () => {
 	assert.equal(parseOnlyProfile(["--only", "action-seams"]), "action-seams");
 	assert.equal(parseOnlyProfile([]), undefined);

@@ -285,6 +285,23 @@ test("maps profiles to package scripts", () => {
 	assert.equal(resolveProfileCommand("tree"), "pnpm run refarm:tree:verify");
 });
 
+test("maps profile command display through package manager override", () => {
+	const previous = process.env.REFARM_PACKAGE_MANAGER;
+	try {
+		process.env.REFARM_PACKAGE_MANAGER = "bun";
+		assert.equal(
+			resolveProfileCommand("tree"),
+			"bun run refarm:tree:verify",
+		);
+	} finally {
+		if (previous === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = previous;
+		}
+	}
+});
+
 test("detects composite check gate files", () => {
 	assert.equal(
 		isRefarmCheckGateFile("apps/refarm/src/commands/check.ts"),
