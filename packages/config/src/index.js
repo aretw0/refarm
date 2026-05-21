@@ -7,6 +7,14 @@ export {
     inferProviderFromModelId,
     isModelScope,
 } from "./model-routing.js";
+export {
+    PACKAGE_MANAGERS,
+    createPackageScriptCommand,
+    detectPackageManager,
+    packageInstallCommand,
+    packageScriptCommand,
+    parsePackageManager,
+} from "./package-manager.js";
 
 /**
  * Common configuration utility for Refarm.

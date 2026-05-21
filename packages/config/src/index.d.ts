@@ -6,6 +6,21 @@ export {
     inferProviderFromModelId,
     isModelScope,
 } from "./model-routing.js";
+export type {
+    PackageCommandString,
+    PackageManagerName,
+    PackageManagerOptions,
+    PackageScriptCommand,
+    PackageScriptCommandOptions,
+} from "./package-manager.js";
+export {
+    PACKAGE_MANAGERS,
+    createPackageScriptCommand,
+    detectPackageManager,
+    packageInstallCommand,
+    packageScriptCommand,
+    parsePackageManager,
+} from "./package-manager.js";
 
 export function findRefarmRoot(startDir?: string): string;
 export function loadConfig(root?: string): any;

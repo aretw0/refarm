@@ -1,0 +1,44 @@
+export type PackageManagerName = "pnpm" | "npm" | "yarn" | "bun";
+
+export interface PackageManagerOptions {
+    cwd?: string;
+    env?: Record<string, string | undefined>;
+}
+
+export interface PackageScriptCommandOptions extends PackageManagerOptions {
+    cwd: string;
+    script: string;
+    repoRoot?: string;
+}
+
+export interface PackageScriptCommand {
+    packageManager: PackageManagerName;
+    command: string;
+    args: string[];
+    display: string;
+}
+
+export interface PackageCommandString {
+    packageManager: PackageManagerName;
+    command: string;
+    display: string;
+}
+
+export const PACKAGE_MANAGERS: readonly PackageManagerName[];
+
+export function parsePackageManager(value: unknown): PackageManagerName | null;
+
+export function detectPackageManager(options?: PackageManagerOptions): PackageManagerName;
+
+export function createPackageScriptCommand(
+    options: PackageScriptCommandOptions,
+): PackageScriptCommand;
+
+export function packageScriptCommand(
+    script: string,
+    options?: PackageManagerOptions,
+): PackageCommandString;
+
+export function packageInstallCommand(
+    options?: PackageManagerOptions,
+): PackageCommandString;
