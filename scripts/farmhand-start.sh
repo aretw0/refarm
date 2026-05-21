@@ -17,6 +17,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 FARMHAND_ENTRY="$ROOT/apps/farmhand/src/index.ts"
 FARMHAND_LOADER_REGISTER="$ROOT/scripts/farmhand-node-register-loader.mjs"
 ENV_FILE="$ROOT/.refarm/.env"
@@ -26,31 +27,19 @@ LOG_FILE="$ROOT/.refarm/farmhand.log"
 WS_PORT=42000
 HTTP_PORT=42001
 
-resolve_package_manager() {
-  if [ -n "${REFARM_PACKAGE_MANAGER:-}" ]; then
-    printf "%s" "${REFARM_PACKAGE_MANAGER%%@*}"
-    return
-  fi
+if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
+  echo "❌  package manager helper not found: $PACKAGE_MANAGER_HELPER"
+  exit 1
+fi
 
-  if command -v node >/dev/null 2>&1; then
-    node -e "try{const p=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).packageManager||'npm';process.stdout.write(p.split('@')[0])}catch{process.stdout.write('npm')}" "$ROOT/package.json"
-    return
-  fi
+# shellcheck disable=SC1090
+source "$PACKAGE_MANAGER_HELPER"
 
-  printf "npm"
-}
-
-PACKAGE_MANAGER="$(resolve_package_manager)"
+PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
 
 script_command() {
   local script="$1"
-  case "$PACKAGE_MANAGER" in
-    pnpm) printf "pnpm run %s" "$script" ;;
-    npm) printf "npm run %s" "$script" ;;
-    yarn) printf "yarn run %s" "$script" ;;
-    bun) printf "bun run %s" "$script" ;;
-    *) printf "%s run %s" "$PACKAGE_MANAGER" "$script" ;;
-  esac
+  script_command_for_package_manager "$PACKAGE_MANAGER" "$script"
 }
 
 # ── flags ─────────────────────────────────────────────────────────────────────
