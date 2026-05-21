@@ -191,6 +191,25 @@ describe("autoStartFarmhand — mode: ask (default)", () => {
 		await autoStartFarmhand("/my/repo", deps);
 		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/my/repo");
 	});
+
+	it("prints the selected runtime engine and start command", async () => {
+		const deps = makeLaunchDeps({
+			resolveRuntime: vi.fn().mockReturnValue({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		await autoStartFarmhand("/fake/root", deps);
+
+		const output = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(output).toContain("Starting Rust Tractor");
+		expect(output).toContain("command:");
+		expect(output).toContain("tractor");
+	});
 });
 
 describe("autoStartFarmhand — mode: always", () => {

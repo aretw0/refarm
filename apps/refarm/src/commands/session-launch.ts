@@ -43,6 +43,7 @@ export interface LaunchDeps {
 	operator: OperatorChannel;
 	spawnFarmhand(repoRoot: string): void;
 	probeFarmhandUntilReady(): Promise<boolean>;
+	resolveRuntime?(repoRoot: string): LaunchRuntimeSelection;
 	/** How to handle farmhand auto-start. Reads from config.json; default "ask". */
 	autostartMode?: AutostartMode;
 	/** Called when no provider is configured — returns true if provider is now ready. */
@@ -241,6 +242,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 			});
 			child.unref();
 		},
+		resolveRuntime: resolveLaunchRuntime,
 
 		async probeFarmhandUntilReady() {
 			const deadline = Date.now() + AUTOSTART_TIMEOUT_MS;
@@ -298,8 +300,20 @@ export async function autoStartFarmhand(
 		}
 	}
 
-	process.stdout.write(chalk.dim("   → Starting refarm runtime..."));
 	try {
+		const runtime = deps.resolveRuntime?.(repoRoot);
+		const runtimeLabel = runtime
+			? runtime.activeEngine === "rust"
+				? "Rust Tractor"
+				: "TypeScript Farmhand"
+			: "selected runtime";
+		const startCommand = runtime
+			? resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine).display
+			: null;
+		process.stdout.write(chalk.dim(`   → Starting ${runtimeLabel}...`));
+		if (startCommand) {
+			process.stdout.write(chalk.dim(`\n   command: ${startCommand}\n`));
+		}
 		deps.spawnFarmhand(repoRoot);
 	} catch (error) {
 		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
