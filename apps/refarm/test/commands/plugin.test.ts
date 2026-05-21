@@ -261,23 +261,31 @@ describe("plugin status", () => {
 });
 
 describe("plugin bundle", () => {
+	const originalPackageManager = process.env.REFARM_PACKAGE_MANAGER;
+
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.env.REFARM_PACKAGE_MANAGER = "pnpm";
 		mockExecFileSync.mockReturnValue(undefined);
 	});
 
 	afterEach(() => {
+		if (originalPackageManager === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = originalPackageManager;
+		}
 		vi.restoreAllMocks();
 	});
 
-	it("calls jco transpile with correct arguments", async () => {
+	it("calls jco transpile through the detected package manager", async () => {
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await run("bundle", "my-plugin.wasm", "-o", "./out");
 
 		expect(mockExecFileSync).toHaveBeenCalledWith(
-			"jco",
-			expect.arrayContaining(["transpile", "my-plugin.wasm", "-o", "./out"]),
+			"pnpm",
+			expect.arrayContaining(["exec", "jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
 			expect.objectContaining({ stdio: "inherit" }),
 		);
 		consoleSpy.mockRestore();
@@ -289,7 +297,7 @@ describe("plugin bundle", () => {
 		await run("bundle", "my-plugin.wasm");
 
 		expect(mockExecFileSync).toHaveBeenCalledWith(
-			"jco",
+			"pnpm",
 			expect.arrayContaining(["--name", "my-plugin"]),
 			expect.any(Object),
 		);
@@ -302,7 +310,7 @@ describe("plugin bundle", () => {
 		await run("bundle", "my-plugin.wasm", "--name", "custom-name");
 
 		expect(mockExecFileSync).toHaveBeenCalledWith(
-			"jco",
+			"pnpm",
 			expect.arrayContaining(["--name", "custom-name"]),
 			expect.any(Object),
 		);

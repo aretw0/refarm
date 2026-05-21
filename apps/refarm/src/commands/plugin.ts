@@ -8,7 +8,10 @@ import { basename, extname } from "node:path";
 import path from "node:path";
 import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
-import { createPackageScriptCommand } from "./package-manager.js";
+import {
+	createPackageBinaryCommand,
+	createPackageScriptCommand,
+} from "./package-manager.js";
 import { readRuntimePluginState } from "./runtime-plugins.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
@@ -293,7 +296,16 @@ pluginCommand
 		const name = options.name ?? basename(input, extname(input));
 		console.log(`Bundling plugin ${name} from ${input}...`);
 		try {
-			execFileSync("jco", ["transpile", input, "-o", options.output, "--name", name], {
+			const command = createPackageBinaryCommand("jco", [
+				"transpile",
+				input,
+				"-o",
+				options.output,
+				"--name",
+				name,
+			]);
+			console.log(`  → ${command.display}`);
+			execFileSync(command.command, command.args, {
 				stdio: "inherit",
 			});
 			console.log(`  ✓ Plugin bundled to ${options.output}/${name}.js`);
