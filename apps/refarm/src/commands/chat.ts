@@ -62,6 +62,7 @@ const DEFAULT_HISTORY_TURNS = 20;
 const MAX_CHAT_HISTORY_LINES = 500;
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
+const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -623,6 +624,7 @@ Runtime commands:
   /model                  Show the active model route
   /model ${OPENAI_DEFAULT_REF}   Set the default model route
   /model worker ${OPENAI_WORKER_REF}
+  /model monitor ${OPENAI_MONITOR_REF}
   /login                  Configure credentials without leaving the session
   /reload [id...]         Hot-reload plugins in the Refarm runtime
 `,

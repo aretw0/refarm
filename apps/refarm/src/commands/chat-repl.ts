@@ -4,9 +4,16 @@
  */
 
 import { normalizePluginId } from "@refarm.dev/config";
-import { defaultProviderModelRef, isModelScope, type ModelScope } from "../model-routing.js";
+import {
+	defaultProviderModelRef,
+	defaultScopedModelRef,
+	isModelScope,
+	type ModelScope,
+} from "../model-routing.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
+const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 
 export type ChatCommand =
 	| { kind: "message"; text: string }
@@ -112,7 +119,8 @@ export const CHAT_HELP_TEXT = `Available commands:
   /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload pi-agent
   /model            Show the active model route
   /model <ref>      Set the default model route, e.g. ${OPENAI_DEFAULT_REF}
-  /model worker <ref> Set the worker model route
+  /model worker ${OPENAI_WORKER_REF}
+  /model monitor ${OPENAI_MONITOR_REF}
   /login [args...]  Configure credentials without leaving the session
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
