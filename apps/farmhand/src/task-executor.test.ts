@@ -90,4 +90,23 @@ describe("executeTask", () => {
 			JSON.stringify({ prompt: "hello" }),
 		);
 	});
+
+	it("resolves pi-agent task aliases to the canonical plugin id", async () => {
+		const instance = makeInstance({ content: "ok" });
+		const tractor = makeTractor(instance);
+
+		await executeTask(tractor as RuntimeTaskTarget, {
+			taskId: "t5",
+			effortId: "e5",
+			pluginId: "@refarm.dev/pi-agent",
+			fn: "respond",
+			args: { prompt: "hello" },
+		});
+
+		expect(tractor.plugins.get).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(instance.call).toHaveBeenCalledWith(
+			"respond",
+			JSON.stringify({ prompt: "hello" }),
+		);
+	});
 });
