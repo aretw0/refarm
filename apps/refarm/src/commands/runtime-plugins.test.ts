@@ -59,6 +59,29 @@ describe("runtime plugin client", () => {
 		);
 	});
 
+	it("normalizes runtime plugin reload request aliases", async () => {
+		const fetchSpy = vi.fn().mockResolvedValue({
+			ok: true,
+			json: vi.fn().mockResolvedValue({
+				reloaded: ["@refarm/pi-agent"],
+				deferred: [],
+				skipped: [],
+			}),
+		});
+		vi.stubGlobal("fetch", fetchSpy);
+
+		await reloadRuntimePlugins(["pi-agent", "@local/tool"]);
+
+		expect(fetchSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/plugins/reload"),
+			expect.objectContaining({
+				body: JSON.stringify({
+					pluginIds: ["@refarm/pi-agent", "@local/tool"],
+				}),
+			}),
+		);
+	});
+
 	it("waits for deferred plugin reloads to finish", async () => {
 		const fetchSpy = vi
 			.fn()

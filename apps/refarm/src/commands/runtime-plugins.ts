@@ -1,3 +1,4 @@
+import { normalizePluginId } from "@refarm.dev/config";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface RuntimePluginState {
@@ -26,7 +27,9 @@ function stringArray(value: unknown): string[] {
 }
 
 function reloadBody(pluginIds?: string[]): string | undefined {
-	return pluginIds ? JSON.stringify({ pluginIds }) : undefined;
+	return pluginIds
+		? JSON.stringify({ pluginIds: pluginIds.map(normalizePluginId) })
+		: undefined;
 }
 
 export async function readRuntimePluginState(): Promise<RuntimePluginState | null> {

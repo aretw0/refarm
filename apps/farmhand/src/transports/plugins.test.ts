@@ -201,6 +201,21 @@ describe("createPluginsRouteHandler", () => {
 			expect(listInstalledPluginIds).not.toHaveBeenCalled();
 		});
 
+		it("normalizes plugin id aliases from request body", async () => {
+			vi.mocked(loadInstalledPlugins).mockResolvedValueOnce({ loaded: 1, skipped: 0 });
+
+			const res = await request(port, "POST", "/plugins/reload", {
+				pluginIds: ["pi-agent"],
+			});
+
+			expect(res.status).toBe(200);
+			expect(loadInstalledPlugins).toHaveBeenCalledWith(
+				target,
+				"/tmp/test-refarm",
+				{ pluginFilter: ["@refarm/pi-agent"] },
+			);
+		});
+
 		it("returns 405 for GET /plugins/reload", async () => {
 			const res = await request(port, "GET", "/plugins/reload");
 			expect(res.status).toBe(405);

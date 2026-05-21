@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import type http from "node:http";
 import path from "node:path";
+import { normalizePluginId } from "@refarm.dev/config";
 import { installWasmArtifact, type PluginManifest } from "@refarm.dev/plugin-manifest";
 import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
@@ -218,7 +219,7 @@ export function createPluginsRouteHandler(
 				const pluginIds =
 					Array.isArray(body?.pluginIds) &&
 					(body.pluginIds as unknown[]).every((id) => typeof id === "string")
-						? (body.pluginIds as string[])
+						? (body.pluginIds as string[]).map(normalizePluginId)
 						: [
 								...listInstalledPluginIds(baseDir),
 								...(localExtensions?.getLoadedIds() ?? []),
