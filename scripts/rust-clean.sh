@@ -131,6 +131,6 @@ if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
 fi
 
 echo ""
-echo "Tip: npm run clean:light  # Rust incremental + .turbo"
-echo "Tip: npm run clean:heavy  # remove whole target/ dirs; requires rebuild"
+echo "Tip: <package-manager> run clean:light  # Rust incremental + .turbo"
+echo "Tip: <package-manager> run clean:heavy  # remove whole target/ dirs; requires rebuild"
 print_disk_free
