@@ -151,7 +151,7 @@ runs:
 
     - name: Setup Rust toolchain
       if: ${{ inputs.rust-target != '' }}
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       with:
         targets: ${{ inputs.rust-target }}
 
