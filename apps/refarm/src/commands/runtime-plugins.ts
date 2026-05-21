@@ -26,6 +26,10 @@ function stringArray(value: unknown): string[] {
 		: [];
 }
 
+function pluginIdArray(value: unknown): string[] {
+	return stringArray(value).map(normalizePluginId);
+}
+
 function reloadBody(pluginIds?: string[]): string | undefined {
 	return pluginIds
 		? JSON.stringify({ pluginIds: pluginIds.map(normalizePluginId) })
@@ -38,10 +42,10 @@ export async function readRuntimePluginState(): Promise<RuntimePluginState | nul
 		if (!response.ok) return null;
 		const payload = (await response.json()) as Partial<RuntimePluginState>;
 		return {
-			installed: stringArray(payload.installed),
-			loaded: stringArray(payload.loaded),
-			local: stringArray(payload.local),
-			known: stringArray(payload.known),
+			installed: pluginIdArray(payload.installed),
+			loaded: pluginIdArray(payload.loaded),
+			local: pluginIdArray(payload.local),
+			known: pluginIdArray(payload.known),
 		};
 	} catch {
 		return null;

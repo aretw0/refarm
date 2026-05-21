@@ -16,8 +16,8 @@ describe("runtime plugin client", () => {
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/pi-agent", 1],
-					loaded: ["@refarm/pi-agent"],
+					installed: ["@refarm.dev/pi-agent", 1],
+					loaded: ["pi-agent"],
 					local: [false, "@local/tool"],
 					known: ["@local/tool", "@refarm/pi-agent"],
 				}),
