@@ -48,9 +48,25 @@ describe("resolveBrowserOpenCandidates", () => {
 			"sensible-browser",
 			"x-www-browser",
 			"www-browser",
-			"code",
 		]);
 		expect(candidates[0]?.display).toContain("VS Code server openExternal");
+	});
+
+	it("does not use code --open-url as an implicit Linux fallback", () => {
+		const candidates = resolveBrowserOpenCandidates(
+			"https://example.test/auth",
+			{
+				platform: "linux",
+				env: {},
+			},
+		);
+
+		expect(candidates).not.toContainEqual(
+			expect.objectContaining({
+				command: "code",
+				args: ["--open-url", "https://example.test/auth"],
+			}),
+		);
 	});
 
 	it("allows an explicit REFARM_BROWSER_OPEN_COMMAND override", () => {

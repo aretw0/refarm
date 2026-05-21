@@ -100,8 +100,6 @@ export function resolveBrowserOpenCandidates(
 	add("x-www-browser", [url], `x-www-browser ${url}`);
 	add("www-browser", [url], `www-browser ${url}`);
 
-	add("code", ["--open-url", url], `code --open-url ${url}`);
-
 	return candidates;
 }
 
