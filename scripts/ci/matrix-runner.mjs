@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
 const workspacePackages = JSON.parse(
@@ -81,10 +82,14 @@ function pickValidationScript(pkg) {
 // 1. Identify changed packages
 function getChangedPackages() {
 	try {
-		const output = execSync(
-			"pnpm exec turbo run test --filter=...[origin/main] --dry-run=json",
+		const turbo = packageBinaryCommand(
+			"turbo",
+			["run", "test", "--filter=...[origin/main]", "--dry-run=json"],
 			{ cwd: ROOT_DIR },
-		).toString();
+		);
+		const output = execSync(`${turbo.command} ${turbo.args.join(" ")}`, {
+			cwd: ROOT_DIR,
+		}).toString();
 		const turboData = JSON.parse(output);
 		return (turboData.packages || []).filter((pkg) => pkg !== "//");
 	} catch (err) {

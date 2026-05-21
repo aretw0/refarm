@@ -13,6 +13,7 @@ import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
@@ -68,10 +69,15 @@ function getChangedPackages() {
         }
 
         // Use turbo's built-in dry-run to detect affected packages
-        const output = execSync(
-            "pnpm exec turbo run test --filter=...[origin/main] --dry-run=json",
-            { cwd: ROOT_DIR, encoding: "utf-8" }
+        const turbo = packageBinaryCommand(
+            "turbo",
+            ["run", "test", "--filter=...[origin/main]", "--dry-run=json"],
+            { cwd: ROOT_DIR },
         );
+        const output = execSync(`${turbo.command} ${turbo.args.join(" ")}`, {
+            cwd: ROOT_DIR,
+            encoding: "utf-8",
+        });
         const turboData = JSON.parse(output);
         
         // Filter out the root package marker
