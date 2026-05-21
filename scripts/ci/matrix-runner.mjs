@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -261,8 +261,7 @@ function runForward(pkgName) {
 	const testDir = `/tmp/refarm-forward-compat/${slug}`;
 	try {
 		rmSync(testDir, { recursive: true, force: true });
-		mkdirSync(testDir, { recursive: true });
-		execSync(`cp -r "${pkgDir}/." "${testDir}"`, { stdio: "pipe" });
+		cpSync(pkgDir, testDir, { recursive: true });
 		for (const artifact of ["node_modules", "dist", ".turbo"]) {
 			rmSync(join(testDir, artifact), { recursive: true, force: true });
 		}
