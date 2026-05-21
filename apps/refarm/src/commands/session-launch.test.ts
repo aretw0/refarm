@@ -365,6 +365,30 @@ describe("readAutostartMode", () => {
 		}
 	});
 
+	it("lets project-local autostart override home preference", () => {
+		const homeBase = join(tmpdir(), `refarm-autostart-home-${Date.now()}`);
+		const cwdBase = join(tmpdir(), `refarm-autostart-cwd-${Date.now()}`);
+		mkdirSync(join(homeBase, ".refarm"), { recursive: true });
+		mkdirSync(join(cwdBase, ".refarm"), { recursive: true });
+		writeFileSync(
+			join(homeBase, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "always" }),
+		);
+		writeFileSync(
+			join(cwdBase, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "never" }),
+		);
+		process.env.HOME = homeBase;
+		cwdSpy.mockReturnValue(cwdBase);
+
+		try {
+			expect(readAutostartMode()).toBe("never");
+		} finally {
+			rmSync(homeBase, { recursive: true, force: true });
+			rmSync(cwdBase, { recursive: true, force: true });
+		}
+	});
+
 	it("returns 'ask' when config.autostart has an unrecognized value", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");

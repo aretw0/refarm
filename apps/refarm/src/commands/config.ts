@@ -106,11 +106,12 @@ function resolveAutostartMode(
 	const paths = opts.local
 		? [configPath(deps, { local: true })]
 		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
+	let resolved: { value: AutostartMode; source: string } | null = null;
 	for (const filePath of paths) {
 		const mode = parseAutostartMode(readConfig(filePath).autostart);
-		if (mode) return { value: mode, source: filePath };
+		if (mode) resolved = { value: mode, source: filePath };
 	}
-	return { value: "ask", source: "default" };
+	return resolved ?? { value: "ask", source: "default" };
 }
 
 function resolveTractorEngineMode(

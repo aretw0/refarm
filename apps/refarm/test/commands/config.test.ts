@@ -125,6 +125,30 @@ describe("config command", () => {
 		expect(output).toContain("runtime.autostart=never");
 	});
 
+	it("lets local runtime autostart override home preference", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "always" }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "never" }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.autostart"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("runtime.autostart=never");
+		expect(output).toContain(path.join(cwd, ".refarm", "config.json"));
+	});
+
 	it("prints a guide when run without a subcommand", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

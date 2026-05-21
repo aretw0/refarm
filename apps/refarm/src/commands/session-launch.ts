@@ -125,6 +125,7 @@ export function readAutostartMode(): AutostartMode {
 	const farmhandEnvMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
 	if (farmhandEnvMode) return farmhandEnvMode;
 
+	let resolvedConfigMode: AutostartMode | null = null;
 	for (const base of refarmSearchDirs()) {
 		const configFile = path.join(base, "config.json");
 		if (!fs.existsSync(configFile)) continue;
@@ -133,12 +134,12 @@ export function readAutostartMode(): AutostartMode {
 				autostart?: string;
 			};
 			const configMode = parseAutostartMode(config.autostart);
-			if (configMode) return configMode;
+			if (configMode) resolvedConfigMode = configMode;
 		} catch {
 			// ignore malformed config
 		}
 	}
-	return "ask";
+	return resolvedConfigMode ?? "ask";
 }
 
 function parseAutostartMode(value: string | undefined): AutostartMode | null {
