@@ -101,7 +101,7 @@ package_audit_high() {
   $PACKAGE_AUDIT_HIGH
 }
 
-has_npm_script() {
+has_package_script() {
   script_name="$1"
   workspace_dir="$2"
   node -e 'const fs=require("fs");const path=require("path");const pkgPath=path.join(process.argv[2],"package.json");const pkg=JSON.parse(fs.readFileSync(pkgPath,"utf8"));process.exit(pkg.scripts&&pkg.scripts[process.argv[1]]?0:1);' "$script_name" "$workspace_dir" >/dev/null 2>&1
@@ -109,11 +109,11 @@ has_npm_script() {
 
 pick_lint_script() {
   workspace_dir="$1"
-  if has_npm_script "lint:prepush" "$workspace_dir"; then
+  if has_package_script "lint:prepush" "$workspace_dir"; then
     echo "lint:prepush"
     return 0
   fi
-  if has_npm_script "lint" "$workspace_dir"; then
+  if has_package_script "lint" "$workspace_dir"; then
     echo "lint"
     return 0
   fi
@@ -122,15 +122,15 @@ pick_lint_script() {
 
 pick_test_script() {
   workspace_dir="$1"
-  if has_npm_script "test:prepush" "$workspace_dir"; then
+  if has_package_script "test:prepush" "$workspace_dir"; then
     echo "test:prepush"
     return 0
   fi
-  if has_npm_script "test:unit" "$workspace_dir"; then
+  if has_package_script "test:unit" "$workspace_dir"; then
     echo "test:unit"
     return 0
   fi
-  if has_npm_script "test" "$workspace_dir"; then
+  if has_package_script "test" "$workspace_dir"; then
     echo "test"
     return 0
   fi
@@ -659,7 +659,7 @@ cleanup_transient_artifacts() {
   rm -f benchmarks/gha-payload.json coverage/gha-payload.json
 }
 
-has_npm_script() {
+has_package_script() {
   script_name="$1"
   node -e 'const fs = require("fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); process.exit(pkg.scripts && pkg.scripts[process.argv[1]] ? 0 : 1)' "$script_name"
 }
@@ -698,7 +698,7 @@ try_generate_baseline() {
     return 0
   fi
 
-  if ! has_npm_script "$script_name"; then
+  if ! has_package_script "$script_name"; then
     echo "ℹ️  Optional script '$script_name' is unavailable for this package. Skipping baseline."
     cleanup_transient_artifacts
     return 0
