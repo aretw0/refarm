@@ -215,6 +215,21 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 			"--strict-on <codes>",
 			"Comma-separated diagnostic codes to enforce in strict mode (default: all diagnostics)",
 		)
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm telemetry
+  $ refarm telemetry --profile conservative
+  $ refarm telemetry --json --strict
+  $ refarm telemetry --json --strict-on saturation:queue,reliability:failure-rate
+
+Notes:
+  Use --strict in automation when telemetry pressure should fail the current step.
+  Run refarm runtime or refarm doctor if telemetry cannot reach the local runtime.
+`,
+		)
 		.action(
 			async (opts: {
 				json?: boolean;

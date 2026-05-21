@@ -44,6 +44,21 @@ describe("refarm telemetry", () => {
 		expect(output).toContain("no pressure signals");
 	});
 
+	it("documents strict telemetry gate usage in help", () => {
+		const command = createTelemetryCommand(makeDeps());
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm telemetry --json --strict");
+		expect(help).toContain("refarm runtime or refarm doctor");
+	});
+
 	it("emits core diagnostics in --json mode", async () => {
 		const deps = makeDeps({
 			fetchTelemetry: vi.fn().mockResolvedValue({
