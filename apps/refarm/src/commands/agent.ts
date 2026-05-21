@@ -16,6 +16,9 @@ Runtime commands:
 Agent usage:
   $ refarm ask "hello"          Send one prompt through the configured runtime
   $ refarm                     Start or resume an interactive session
+  $ refarm sow                  Configure credentials without editing files
+  $ refarm model current        Inspect provider/model routing
+  $ refarm model openai/gpt-5.5 Switch the default route
 
 Plugin lifecycle:
   $ refarm plugin list          Show bundled plugin install state
@@ -23,6 +26,7 @@ Plugin lifecycle:
 
 Notes:
   This command is kept as the stable namespace for future agent runtime controls.
-  Today, use runtime/status/doctor for the host and plugin for installation.
+  Today, use runtime/status/doctor for the host, sow/model for credentials and
+  routing, and plugin for installation.
 `,
 );
