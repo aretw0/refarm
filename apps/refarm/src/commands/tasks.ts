@@ -231,6 +231,23 @@ export function createTasksCommand(): Command {
 		.option("--session <id>", "Filter by session ID")
 		.option("-n, --limit <n>", "Max tasks to show", "20")
 		.option("--json", "Output machine-readable JSON")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm tasks",
+				"  $ refarm tasks --status active",
+				"  $ refarm tasks --session <session-id>",
+				"  $ refarm tasks show <task-id-prefix>",
+				"  $ refarm tasks --json",
+				"",
+				"Notes:",
+				"  Tasks are created by runtime-backed flows such as refarm ask and refarm task run.",
+				"  Use refarm runtime when the task sidecar is unavailable.",
+				"  Use refarm task for dispatch/retry/cancel operations.",
+			].join("\n"),
+		)
 		.addCommand(
 			new Command("show")
 				.description("Show details and events for a task")

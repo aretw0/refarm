@@ -20,6 +20,21 @@ describe("refarm tasks", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("documents task inspection and task command handoff in help", () => {
+		let help = "";
+		const command = createTasksCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm tasks --status active");
+		expect(help).toContain("refarm tasks show <task-id-prefix>");
+		expect(help).toContain("Use refarm task for dispatch/retry/cancel operations");
+	});
+
 	it("lists tasks from the sidecar with filters", async () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			jsonResponse({

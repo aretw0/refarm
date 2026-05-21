@@ -13,6 +13,21 @@ describe("refarm sessions", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("documents the common session workflows in help", () => {
+		let help = "";
+		const command = createSessionsCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm sessions new --name planning");
+		expect(help).toContain("refarm sessions fork <id-prefix> --name experiment");
+		expect(help).toContain("Use refarm ask --new");
+	});
+
 	it("sessions new creates session via sidecar and switches active session", async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,

@@ -57,6 +57,23 @@ function formatAge(createdAtNs: number | undefined): string {
 export function createSessionsCommand(): Command {
 	return new Command("sessions")
 		.description("List and manage conversation sessions")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm sessions",
+				"  $ refarm sessions new --name planning",
+				"  $ refarm sessions use <id-prefix>",
+				"  $ refarm sessions show <id-prefix>",
+				"  $ refarm sessions fork <id-prefix> --name experiment",
+				"",
+				"Notes:",
+				"  Sessions are stored in the active Refarm runtime.",
+				"  Prefixes must be unique; list sessions first when a prefix is ambiguous.",
+				"  Use refarm ask --new for a one-shot fresh session without naming it.",
+			].join("\n"),
+		)
 		.addCommand(
 			new Command("list")
 				.description("List recent sessions (default)")

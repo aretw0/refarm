@@ -314,6 +314,24 @@ async function switchTree(
 export function createTreeCommand(): Command {
 	return new Command("tree")
 		.description("Inspect and preview substrate-agnostic Refarm timelines")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm tree list --scope all",
+				"  $ refarm tree show <session-id-prefix>",
+				"  $ refarm tree show --scope git <commit>",
+				"  $ refarm tree preview <session-id-prefix> --switch",
+				"  $ refarm tree preview --scope git <commit> --name safe/fork",
+				"  $ refarm tree switch --scope git <branch>",
+				"",
+				"Notes:",
+				"  Session scope works through the Refarm runtime; git scope works from the local repository.",
+				"  Preview before switching or forking when you need a dry-run plan.",
+				"  Git switches fail closed when the worktree is dirty.",
+			].join("\n"),
+		)
 		.addCommand(
 			new Command("list")
 				.description("List timeline nodes")

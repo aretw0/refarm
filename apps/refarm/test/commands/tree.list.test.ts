@@ -27,6 +27,22 @@ describe("refarm tree list", () => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 	});
+
+	it("documents common cross-substrate tree workflows in help", () => {
+		let help = "";
+		const command = createTreeCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm tree list --scope all");
+		expect(help).toContain("refarm tree preview --scope git <commit> --name safe/fork");
+		expect(help).toContain("Git switches fail closed when the worktree is dirty");
+	});
+
 	it("describes tree switch targets without assuming git-only branches", () => {
 		const command = createTreeCommand();
 		const switchHelp = command.commands
