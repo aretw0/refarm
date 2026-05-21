@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { detectPackageManager } from "../../packages/config/src/package-manager.js";
+import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
 import { runSubprocess } from "./subprocess-utils.mjs";
 
 const ROOT = process.cwd();
@@ -13,20 +13,12 @@ function usage() {
 }
 
 function commandForScript(script) {
-	const packageManager = detectPackageManager({ cwd: ROOT });
-	switch (packageManager) {
-		case "pnpm":
-		case "npm":
-		case "yarn":
-		case "bun":
-			return {
-				command: packageManager,
-				args: ["run", script],
-				display: `${packageManager} run ${script}`,
-			};
-		default:
-			throw new Error(`Unsupported package manager: ${packageManager}`);
-	}
+	const command = packageScriptCommand(script, { cwd: ROOT });
+	return {
+		command: command.packageManager,
+		args: ["run", script],
+		display: command.display,
+	};
 }
 
 if (scripts.length === 0) {
