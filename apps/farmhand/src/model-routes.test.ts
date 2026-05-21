@@ -64,6 +64,39 @@ describe("model routes", () => {
 		});
 	});
 
+	it("prefers operator environment overrides over stored scoped routes", () => {
+		expect(
+			routeForScope(
+				{
+					modelProvider: "openai",
+					modelId: "gpt-5.5",
+					modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
+				},
+				"worker",
+				{
+					env: {
+						MODEL_PROVIDER: "anthropic",
+						MODEL_ID: "claude-sonnet-4-6",
+					},
+				},
+			),
+		).toEqual({
+			provider: "anthropic",
+			modelId: "claude-sonnet-4-6",
+		});
+	});
+
+	it("resolves provider defaults from operator environment overrides", () => {
+		expect(
+			routeForScope({ modelProvider: "openai" }, "worker", {
+				env: { MODEL_PROVIDER: "gemini" },
+			}),
+		).toEqual({
+			provider: "gemini",
+			modelId: "gemini-2.0-flash",
+		});
+	});
+
 	it("restores process env after a scoped route", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.MODEL_ID = "gpt-5.5";

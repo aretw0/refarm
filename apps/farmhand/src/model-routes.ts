@@ -7,6 +7,10 @@ export interface ModelRouteTokens {
 	modelRoutes?: unknown;
 }
 
+export interface ModelRouteOptions {
+	env?: NodeJS.ProcessEnv;
+}
+
 export interface EffectiveModelRoute {
 	provider?: string;
 	modelId?: string;
@@ -60,9 +64,21 @@ export function defaultModelForScope(
 export function routeForScope(
 	tokens: ModelRouteTokens,
 	scope: ModelScope,
+	options: ModelRouteOptions = {},
 ): EffectiveModelRoute {
-	const provider = stringValue(tokens.modelProvider);
-	const defaultModelId = stringValue(tokens.modelId) ?? stringValue(tokens.model);
+	const env = options.env ?? process.env;
+	const envProvider = stringValue(env.MODEL_PROVIDER);
+	const envModelId = stringValue(env.MODEL_ID);
+	const provider = envProvider ?? stringValue(tokens.modelProvider);
+	const defaultModelId =
+		envModelId ?? stringValue(tokens.modelId) ?? stringValue(tokens.model);
+	if (envProvider || envModelId) {
+		return {
+			provider,
+			modelId: defaultModelId ?? defaultModelForScope(provider, scope),
+		};
+	}
+
 	if (scope === "default") {
 		return {
 			provider,
