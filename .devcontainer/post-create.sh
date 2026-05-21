@@ -112,6 +112,7 @@ for dir in \
   /home/vscode/.local/share/pnpm \
   /home/vscode/.local/share/pnpm/store \
   /home/vscode/.config \
+  /home/vscode/.config/gh \
   /home/vscode/.npm-global \
   /home/vscode/.npm-global/bin \
   /home/vscode/.refarm \

@@ -25,6 +25,7 @@ ensure_pnpm() {
   repair_owned_dir "$pnpm_home"
   repair_owned_dir "$pnpm_home/store"
   repair_owned_dir /home/vscode/.config
+  repair_owned_dir /home/vscode/.config/gh
   repair_owned_dir /home/vscode/.cache
 
   corepack prepare --activate || true
