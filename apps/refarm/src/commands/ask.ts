@@ -48,6 +48,7 @@ export interface AskDeps {
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
 	readPluginState?(): Promise<PluginState | null>;
+	reloadPlugins?(pluginIds: string[]): Promise<PluginReloadResult | null>;
 }
 
 interface SessionNode {
@@ -58,6 +59,12 @@ interface PluginState {
 	installed: string[];
 	loaded: string[];
 	known: string[];
+}
+
+interface PluginReloadResult {
+	reloaded: string[];
+	deferred: string[];
+	skipped: string[];
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
@@ -82,6 +89,27 @@ async function readPluginStateViaHttp(): Promise<PluginState | null> {
 			installed: Array.isArray(payload.installed) ? payload.installed : [],
 			loaded: Array.isArray(payload.loaded) ? payload.loaded : [],
 			known: Array.isArray(payload.known) ? payload.known : [],
+		};
+	} catch {
+		return null;
+	}
+}
+
+async function reloadPluginsViaHttp(
+	pluginIds: string[],
+): Promise<PluginReloadResult | null> {
+	try {
+		const response = await fetch(sidecarUrl("/plugins/reload"), {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ pluginIds }),
+		});
+		if (!response.ok) return null;
+		const payload = (await response.json()) as Partial<PluginReloadResult>;
+		return {
+			reloaded: Array.isArray(payload.reloaded) ? payload.reloaded : [],
+			deferred: Array.isArray(payload.deferred) ? payload.deferred : [],
+			skipped: Array.isArray(payload.skipped) ? payload.skipped : [],
 		};
 	} catch {
 		return null;
@@ -359,6 +387,7 @@ function defaultDeps(): AskDeps {
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
 		readPluginState: readPluginStateViaHttp,
+		reloadPlugins: reloadPluginsViaHttp,
 	};
 }
 
@@ -448,11 +477,21 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 
 async function ensurePiAgentReady(
 	readPluginState: (() => Promise<PluginState | null>) | undefined,
+	reloadPlugins:
+		| ((pluginIds: string[]) => Promise<PluginReloadResult | null>)
+		| undefined,
 ): Promise<boolean> {
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
 	if (state.loaded.includes("@refarm/pi-agent")) return true;
+
+	if (state.installed.includes("@refarm/pi-agent") && reloadPlugins) {
+		const reload = await reloadPlugins(["@refarm/pi-agent"]);
+		if (reload?.reloaded.includes("@refarm/pi-agent")) return true;
+		const refreshed = await readPluginState();
+		if (refreshed?.loaded.includes("@refarm/pi-agent")) return true;
+	}
 
 	console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
 	if (!state.installed.includes("@refarm/pi-agent")) {
@@ -514,7 +553,12 @@ Runtime:
 					if (!ready) {
 						process.exit(1);
 					}
-					if (!(await ensurePiAgentReady(resolved.readPluginState))) {
+					if (
+						!(await ensurePiAgentReady(
+							resolved.readPluginState,
+							resolved.reloadPlugins,
+						))
+					) {
 						process.exit(1);
 					}
 				}

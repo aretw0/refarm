@@ -242,6 +242,49 @@ describe("refarm ask", () => {
 		exitSpy.mockRestore();
 	});
 
+	it("reloads installed pi-agent before submitting when it is not loaded", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi
+				.fn()
+				.mockResolvedValueOnce({
+					installed: ["@refarm/pi-agent"],
+					loaded: [],
+					known: ["@refarm/pi-agent"],
+				})
+				.mockResolvedValueOnce({
+					installed: ["@refarm/pi-agent"],
+					loaded: ["@refarm/pi-agent"],
+					known: ["@refarm/pi-agent"],
+				}),
+			reloadPlugins: vi.fn().mockResolvedValue({
+				reloaded: ["@refarm/pi-agent"],
+				deferred: [],
+				skipped: [],
+			}),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnFarmhand: vi.fn(),
+			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		expect(deps.reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
+		expect(deps.submitEffort).toHaveBeenCalledOnce();
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("starts a fresh session for --new even when an old active pointer exists", async () => {
 		const deps = makeDeps({
 			readActiveSessionId: vi
