@@ -287,6 +287,35 @@ function safeSessionRecord(fn: () => void): void {
 	}
 }
 
+function isPiAgentRespondTask(plugin: string, fn: string): boolean {
+	return (
+		(plugin === "@refarm/pi-agent" || plugin === "@refarm.dev/pi-agent") &&
+		fn === "respond"
+	);
+}
+
+export function normalizeTaskArgs(
+	plugin: string,
+	fn: string,
+	args: unknown,
+): unknown {
+	if (!isPiAgentRespondTask(plugin, fn)) return args;
+	if (!args || typeof args !== "object" || Array.isArray(args)) return args;
+
+	const record = args as Record<string, unknown>;
+	if (typeof record.prompt === "string" && record.prompt.trim().length > 0) {
+		return args;
+	}
+	if (typeof record.query !== "string" || record.query.trim().length === 0) {
+		return args;
+	}
+
+	return {
+		...record,
+		prompt: record.query,
+	};
+}
+
 export function createTaskCommand(
 	adapterResolver: (
 		transport: string,
@@ -302,7 +331,7 @@ export function createTaskCommand(
 		`
 
 Examples:
-  $ refarm task run @refarm.dev/pi-agent respond --args '{"query":"hello"}'
+  $ refarm task run @refarm.dev/pi-agent respond --args '{"prompt":"hello"}'
   $ refarm task run @refarm.dev/pi-agent respond --transport http
   $ refarm task status <effort-id>
   $ refarm task logs <effort-id>
@@ -339,6 +368,7 @@ Notes:
 					process.exitCode = 1;
 					return;
 				}
+				parsedArgs = normalizeTaskArgs(plugin, fn, parsedArgs);
 
 				const effort: Effort = {
 					id: crypto.randomUUID(),

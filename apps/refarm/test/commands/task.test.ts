@@ -4,7 +4,11 @@ import type {
 	EffortSummary,
 } from "@refarm.dev/effort-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTaskCommand, resolveAdapter } from "../../src/commands/task.js";
+import {
+	createTaskCommand,
+	normalizeTaskArgs,
+	resolveAdapter,
+} from "../../src/commands/task.js";
 import type {
 	TaskSessionCheckpoint,
 	TaskSessionRecorder,
@@ -94,7 +98,26 @@ describe("refarm task run", () => {
 
 		expect(help).toContain("Manage Refarm runtime task efforts");
 		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
+		expect(help).toContain('{"prompt":"hello"}');
 		expect(help).toContain("http transport submits directly");
+	});
+
+	it("normalizes legacy query args for pi-agent respond tasks", () => {
+		expect(
+			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", { query: "hello" }),
+		).toEqual({ query: "hello", prompt: "hello" });
+		expect(
+			normalizeTaskArgs("@refarm/pi-agent", "respond", { query: "hello" }),
+		).toEqual({ query: "hello", prompt: "hello" });
+		expect(
+			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", {
+				query: "legacy",
+				prompt: "canonical",
+			}),
+		).toEqual({ query: "legacy", prompt: "canonical" });
+		expect(normalizeTaskArgs("other", "respond", { query: "hello" })).toEqual({
+			query: "hello",
+		});
 	});
 
 	it("dispatches effort and prints effortId", async () => {
@@ -121,6 +144,33 @@ describe("refarm task run", () => {
 			expect.objectContaining({ transport: "file" }),
 		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("effort-abc"));
+		spy.mockRestore();
+	});
+
+	it("dispatches pi-agent respond query args as prompt for compatibility", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(
+				["@refarm.dev/pi-agent", "respond", "--args", '{"query":"hello"}'],
+				{ from: "user" },
+			);
+
+		expect(adapter.submit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: { query: "hello", prompt: "hello" },
+					}),
+				],
+			}),
+		);
 		spy.mockRestore();
 	});
 
