@@ -74,6 +74,30 @@ describe("parseChatLine", () => {
 			kind: "login",
 			args: ["--model", "openai/gpt-5.5"],
 		});
+		expect(parseChatLine("/sow --model 'openrouter/anthropic/claude-sonnet-4.6'")).toEqual({
+			kind: "login",
+			args: ["--model", "openrouter/anthropic/claude-sonnet-4.6"],
+		});
+	});
+
+	it("keeps quoted slash-command arguments intact", () => {
+		expect(parseChatLine("/session 'daily driver'")).toEqual({
+			kind: "session",
+			prefix: "daily driver",
+		});
+		expect(parseChatLine("/model set --scope worker 'openai/gpt-5.3-codex-spark'")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "worker",
+			ref: "openai/gpt-5.3-codex-spark",
+		});
+	});
+
+	it("treats malformed quoted slash commands as messages", () => {
+		expect(parseChatLine("/sow --model 'openai/gpt-5.5")).toEqual({
+			kind: "message",
+			text: "/sow --model 'openai/gpt-5.5",
+		});
 	});
 
 	it("parses /new", () => {

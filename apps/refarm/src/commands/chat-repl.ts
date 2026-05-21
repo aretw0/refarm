@@ -4,6 +4,7 @@
  */
 
 import { normalizePluginId } from "@refarm.dev/config";
+import { splitCommandLine } from "@refarm.dev/cli/command-line";
 import {
 	defaultProviderModelRef,
 	defaultScopedModelRef,
@@ -41,7 +42,13 @@ export function parseChatLine(line: string): ChatCommand {
 	}
 
 	const withoutSlash = trimmed.slice(1);
-	const [name, ...rest] = withoutSlash.split(/\s+/);
+	let parts: string[];
+	try {
+		parts = splitCommandLine(withoutSlash, "refarm chat command");
+	} catch {
+		return { kind: "message", text: trimmed };
+	}
+	const [name, ...rest] = parts;
 	const commandName = (name ?? "").toLowerCase();
 
 	if (commandName === "session") {
