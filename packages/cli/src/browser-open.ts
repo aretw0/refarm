@@ -69,7 +69,7 @@ export function resolveBrowserOpenCandidates(
 	};
 
 	if (env.REFARM_BROWSER_OPEN_COMMAND) {
-		const parts = env.REFARM_BROWSER_OPEN_COMMAND.split(/\s+/).filter(Boolean);
+		const parts = splitBrowserOpenCommand(env.REFARM_BROWSER_OPEN_COMMAND);
 		const [command, ...args] = parts;
 		if (command) {
 			add(
@@ -101,6 +101,55 @@ export function resolveBrowserOpenCandidates(
 	add("www-browser", [url], `www-browser ${url}`);
 
 	return candidates;
+}
+
+export function splitBrowserOpenCommand(commandLine: string): string[] {
+	const words: string[] = [];
+	let current = "";
+	let quote: "'" | "\"" | null = null;
+	let escaping = false;
+
+	for (const char of commandLine.trim()) {
+		if (escaping) {
+			current += char;
+			escaping = false;
+			continue;
+		}
+
+		if (char === "\\") {
+			escaping = true;
+			continue;
+		}
+
+		if (quote) {
+			if (char === quote) {
+				quote = null;
+			} else {
+				current += char;
+			}
+			continue;
+		}
+
+		if (char === "'" || char === "\"") {
+			quote = char;
+			continue;
+		}
+
+		if (/\s/.test(char)) {
+			if (current) {
+				words.push(current);
+				current = "";
+			}
+			continue;
+		}
+
+		current += char;
+	}
+
+	if (escaping) current += "\\";
+	if (quote) throw new Error("Unterminated quote in REFARM_BROWSER_OPEN_COMMAND.");
+	if (current) words.push(current);
+	return words;
 }
 
 export async function openHostBrowserUrl(

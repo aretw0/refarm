@@ -3,6 +3,7 @@ import {
 	openHostBrowserUrl,
 	resolveBrowserOpenCandidates,
 	resolveBrowserOpenSpec,
+	splitBrowserOpenCommand,
 } from "./browser-open.js";
 
 describe("resolveBrowserOpenSpec", () => {
@@ -85,6 +86,41 @@ describe("resolveBrowserOpenCandidates", () => {
 			args: ["--flag", "https://example.test/auth"],
 			display: "custom-open --flag https://example.test/auth",
 		});
+	});
+
+	it("keeps quoted REFARM_BROWSER_OPEN_COMMAND words intact", () => {
+		const candidates = resolveBrowserOpenCandidates(
+			"https://example.test/auth",
+			{
+				platform: "linux",
+				env: {
+					REFARM_BROWSER_OPEN_COMMAND: "\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\"",
+				},
+			},
+		);
+
+		expect(candidates[0]).toEqual({
+			command: "/mnt/c/Program Files/Browser/open.exe",
+			args: ["--profile", "Refarm Dev", "https://example.test/auth"],
+			display:
+				"\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\" https://example.test/auth",
+		});
+	});
+});
+
+describe("splitBrowserOpenCommand", () => {
+	it("supports quotes and escaped spaces", () => {
+		expect(splitBrowserOpenCommand("custom\\ open --profile 'Refarm Dev'")).toEqual([
+			"custom open",
+			"--profile",
+			"Refarm Dev",
+		]);
+	});
+
+	it("rejects unterminated quotes", () => {
+		expect(() => splitBrowserOpenCommand("custom-open 'broken")).toThrow(
+			/Unterminated quote/,
+		);
 	});
 });
 
