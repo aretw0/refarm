@@ -58,6 +58,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
 	const credentialEnv = modelCredentialEnvKey(provider);
 	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
+	if (process.env.MODEL_BASE_URL) console.log(`  base url: ${process.env.MODEL_BASE_URL}`);
 	const workerRoute =
 		tokens.modelRoutes?.worker ??
 		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);
@@ -77,6 +78,9 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim(`  openai monitor: ${OPENAI_MONITOR_REF}`));
 		console.log(chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`));
 		console.log(chalk.dim("  login:          refarm sow"));
+	}
+	if (provider && !credentialEnv && provider !== "ollama") {
+		console.log(chalk.dim("  custom provider: set MODEL_BASE_URL for OpenAI-compatible APIs"));
 	}
 }
 

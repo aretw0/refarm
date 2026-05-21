@@ -14,6 +14,7 @@ describe("modelCommand", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
 	const originalModelId = process.env.MODEL_ID;
+	const originalModelBaseUrl = process.env.MODEL_BASE_URL;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -34,6 +35,11 @@ describe("modelCommand", () => {
 			delete process.env.MODEL_ID;
 		} else {
 			process.env.MODEL_ID = originalModelId;
+		}
+		if (originalModelBaseUrl === undefined) {
+			delete process.env.MODEL_BASE_URL;
+		} else {
+			process.env.MODEL_BASE_URL = originalModelBaseUrl;
 		}
 		vi.restoreAllMocks();
 	});
@@ -96,6 +102,23 @@ describe("modelCommand", () => {
 		expect(output).toContain("gemini/gemini-3-flash-preview");
 		expect(output).toContain("key env:  GEMINI_API_KEY");
 		expect(output).toContain("source:   environment overrides are active");
+
+		logSpy.mockRestore();
+	});
+
+	it("prints base URL and custom provider hint when configured through environment", async () => {
+		process.env.MODEL_PROVIDER = "vllm";
+		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
+		process.env.MODEL_BASE_URL = "http://127.0.0.1:8000";
+		const command = createModelCommand(makeDeps());
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("vllm/Qwen3-Coder-480B-A35B-Instruct");
+		expect(output).toContain("base url: http://127.0.0.1:8000");
+		expect(output).toContain("custom provider: set MODEL_BASE_URL");
 
 		logSpy.mockRestore();
 	});
