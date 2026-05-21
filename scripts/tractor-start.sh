@@ -118,11 +118,17 @@ fi
 
 # ── provider selection ────────────────────────────────────────────────────────
 
-# Priority: MODEL_PROVIDER env > .refarm/config.json provider field > ollama (sovereign default)
+# Priority: MODEL_PROVIDER env > MODEL_DEFAULT_PROVIDER env > .refarm/config.json provider field > ollama (sovereign default)
+if [ -z "${MODEL_PROVIDER:-}" ]; then
+  if [ -n "${MODEL_DEFAULT_PROVIDER:-}" ]; then
+    export MODEL_PROVIDER="$MODEL_DEFAULT_PROVIDER"
+  fi
+fi
+
 if [ -z "${MODEL_PROVIDER:-}" ]; then
   CONFIG="$ROOT/.refarm/config.json"
   if [ -f "$CONFIG" ] && command -v node >/dev/null 2>&1; then
-    PROVIDER_FROM_CONFIG=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG','utf8'));process.stdout.write(c.provider||'')}catch{}" 2>/dev/null || true)
+    PROVIDER_FROM_CONFIG=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG','utf8'));process.stdout.write(c.provider||c.default_provider||c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true)
     if [ -n "$PROVIDER_FROM_CONFIG" ]; then
       export MODEL_PROVIDER="$PROVIDER_FROM_CONFIG"
     fi

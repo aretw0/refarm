@@ -96,9 +96,13 @@ detect_provider() {
     printf "%s" "$MODEL_PROVIDER"
     return 0
   fi
+  if [ -n "${MODEL_DEFAULT_PROVIDER:-}" ]; then
+    printf "%s" "$MODEL_DEFAULT_PROVIDER"
+    return 0
+  fi
 
   if [ -f "$CONFIG_FILE" ] && command -v node >/dev/null 2>&1; then
-    node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));process.stdout.write(c.provider||c.default_provider||'')}catch{}" 2>/dev/null || true
+    node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));process.stdout.write(c.provider||c.default_provider||c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
     return 0
   fi
 
