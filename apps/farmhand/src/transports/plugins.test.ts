@@ -62,7 +62,12 @@ function makeTarget() {
 			register: vi.fn().mockResolvedValue(undefined),
 			trust: vi.fn().mockResolvedValue(undefined),
 		},
-		plugins: { load: vi.fn().mockResolvedValue(undefined) },
+		plugins: {
+			get: vi.fn((pluginId: string) =>
+				pluginId === "plugin-a" ? { call: vi.fn() } : undefined,
+			),
+			load: vi.fn().mockResolvedValue(undefined),
+		},
 	};
 }
 
@@ -134,6 +139,31 @@ describe("createPluginsRouteHandler", () => {
 		// Reset mock queues and re-establish base return values
 		vi.mocked(loadInstalledPlugins).mockReset().mockResolvedValue({ loaded: 1, skipped: 0 });
 		vi.mocked(listInstalledPluginIds).mockReset().mockReturnValue(["plugin-a"]);
+	});
+
+	describe("GET /plugins", () => {
+		beforeEach(() => startSidecar(true));
+
+		it("returns installed, loaded, and known plugin ids", async () => {
+			vi.mocked(listInstalledPluginIds).mockReturnValue(["plugin-a", "plugin-b"]);
+
+			const res = await request(port, "GET", "/plugins");
+
+			expect(res.status).toBe(200);
+			expect(res.body).toEqual({
+				installed: ["plugin-a", "plugin-b"],
+				local: [],
+				loaded: ["plugin-a"],
+				known: ["plugin-a", "plugin-b"],
+			});
+		});
+
+		it("returns 405 for non-GET /plugins", async () => {
+			const res = await request(port, "POST", "/plugins");
+
+			expect(res.status).toBe(405);
+			expect(res.body).toEqual({ error: "method not allowed" });
+		});
 	});
 
 	describe("POST /plugins/reload — immediate (plugin idle)", () => {

@@ -9,7 +9,11 @@ import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugi
 import { LocalExtensionRegistry } from "../local-extensions.js";
 import type { PluginUsageTracker } from "../plugin-usage-tracker.js";
 
-export type PluginReloadTarget = RuntimePluginLoaderTarget;
+export type PluginReloadTarget = RuntimePluginLoaderTarget & {
+	plugins: RuntimePluginLoaderTarget["plugins"] & {
+		get?: (pluginId: string) => unknown;
+	};
+};
 
 const RELOAD_STATUS_TTL_MS = 5 * 60 * 1_000;
 
@@ -96,6 +100,23 @@ export function createPluginsRouteHandler(
 
 	return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
 		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
+
+		if (requestUrl.pathname === "/plugins") {
+			if (req.method !== "GET") {
+				json(res, 405, { error: "method not allowed" });
+				return true;
+			}
+			const installed = listInstalledPluginIds(baseDir);
+			const local = localExtensions?.getLoadedIds() ?? [];
+			const known = [...new Set([...installed, ...local])].sort();
+			json(res, 200, {
+				installed,
+				local,
+				loaded: known.filter((pluginId) => Boolean(target.plugins.get?.(pluginId))),
+				known,
+			});
+			return true;
+		}
 
 		if (requestUrl.pathname === "/plugins/install") {
 			void (async () => {
