@@ -264,6 +264,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 			const go = await deps.operator.ask({ type: "confirm", question: "   Configure now?", default: true });
 			if (!go) {
 				console.error(chalk.dim("   Run `refarm sow` when ready."));
+				console.error(chalk.dim("   List providers: `refarm model providers`."));
 				return false;
 			}
 			// Re-invoke the same CLI binary with the `sow` subcommand.
@@ -357,6 +358,9 @@ export function printSessionGuide(r: SessionReadiness): void {
 		console.error(
 			chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm sow"),
 		);
+		console.error(
+			chalk.dim("   List provider defaults:         ") + chalk.cyan("refarm model providers"),
+		);
 		return;
 	}
 
@@ -364,6 +368,9 @@ export function printSessionGuide(r: SessionReadiness): void {
 		console.error(chalk.red("✗  No model provider configured.\n"));
 		console.error(
 			chalk.dim("   Set up a provider:  ") + chalk.cyan("refarm sow"),
+		);
+		console.error(
+			chalk.dim("   List providers:     ") + chalk.cyan("refarm model providers"),
 		);
 		console.error(
 			chalk.dim("   Use Ollama:         ") +

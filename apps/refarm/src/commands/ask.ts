@@ -406,6 +406,7 @@ function printAskError(message: string): void {
 			console.error(chalk.dim("   Or switch provider:  refarm sow"));
 		} else {
 			console.error(chalk.dim("   Reconfigure/login:  refarm sow"));
+			console.error(chalk.dim("   List providers:     refarm model providers"));
 			console.error(chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`));
 		}
 	} else {
@@ -425,6 +426,7 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 	if (!readiness.providerConfigured) {
 		console.error(chalk.red("\n✗  No model provider configured."));
 		console.error(chalk.dim("   Set up a provider:  refarm sow"));
+		console.error(chalk.dim("   List providers:     refarm model providers"));
 		console.error(
 			chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"),
 		);
