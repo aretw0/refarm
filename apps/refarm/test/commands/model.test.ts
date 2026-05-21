@@ -117,6 +117,23 @@ describe("modelCommand", () => {
 		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
 	});
 
+	it("documents model set examples in subcommand help", () => {
+		const command = createModelCommand(makeDeps());
+		const setCommand = command.commands.find((subcommand) => subcommand.name() === "set");
+		let help = "";
+		setCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		setCommand?.outputHelp();
+
+		expect(help).toContain("refarm model set openai/gpt-5.5");
+		expect(help).toContain("refarm model set --scope worker openai/gpt-5.3-codex-spark");
+		expect(help).toContain("provider-specific model id");
+	});
+
 	it("sets the default model route", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);

@@ -175,6 +175,23 @@ Notes:
 		.description("Set the default model route")
 		.argument("<ref>", "provider/model, or model for the current provider")
 		.option("--scope <scope>", "Route scope: default, worker, or monitor", "default")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model set ${OPENAI_DEFAULT_REF}
+  $ refarm model set --scope worker ${OPENAI_WORKER_REF}
+  $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
+  $ refarm model set ${ANTHROPIC_DEFAULT_REF}
+  $ refarm model set ${OLLAMA_DEFAULT_REF}
+
+Notes:
+  Use provider/model for portable routes, including self-hosted or compat
+  providers. If a default provider is already saved, you may pass only the
+  provider-specific model id.
+`,
+		)
 		.action(async (ref: string, opts: { scope?: string }) => {
 			if (!isModelScope(opts.scope)) {
 				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
