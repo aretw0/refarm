@@ -14,6 +14,7 @@ describe("config command", () => {
 	let originalAutostart: string | undefined;
 	let originalRuntimeAutostart: string | undefined;
 	let originalOpenExternalLinks: string | undefined;
+	let originalTractorEngine: string | undefined;
 
 	beforeEach(() => {
 		cwd = makeTempDir();
@@ -21,9 +22,11 @@ describe("config command", () => {
 		originalAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
 		originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
 		originalOpenExternalLinks = process.env.REFARM_OPEN_EXTERNAL_LINKS;
+		originalTractorEngine = process.env.REFARM_TRACTOR_ENGINE;
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
 		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
+		delete process.env.REFARM_TRACTOR_ENGINE;
 		vi.clearAllMocks();
 	});
 
@@ -42,6 +45,11 @@ describe("config command", () => {
 			delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
 		} else {
 			process.env.REFARM_OPEN_EXTERNAL_LINKS = originalOpenExternalLinks;
+		}
+		if (originalTractorEngine === undefined) {
+			delete process.env.REFARM_TRACTOR_ENGINE;
+		} else {
+			process.env.REFARM_TRACTOR_ENGINE = originalTractorEngine;
 		}
 		vi.restoreAllMocks();
 	});
@@ -253,6 +261,25 @@ describe("config command", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("tractor.engine=auto");
 		expect(output).toContain("source=default");
+	});
+
+	it("lets env override tractor engine preference", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+			"utf-8",
+		);
+		process.env.REFARM_TRACTOR_ENGINE = "ts";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "tractor.engine"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("tractor.engine=ts");
+		expect(output).toContain("source=env:REFARM_TRACTOR_ENGINE");
 	});
 
 	it("rejects invalid autostart modes", async () => {

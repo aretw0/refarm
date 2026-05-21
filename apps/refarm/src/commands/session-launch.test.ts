@@ -438,15 +438,22 @@ describe("readAutostartMode", () => {
 
 describe("readTractorEngineMode", () => {
 	const originalHome = process.env.HOME;
+	const originalTractorEngine = process.env.REFARM_TRACTOR_ENGINE;
 	let cwdSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		delete process.env.REFARM_TRACTOR_ENGINE;
 		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
 		process.env.HOME = originalHome;
+		if (originalTractorEngine === undefined) {
+			delete process.env.REFARM_TRACTOR_ENGINE;
+		} else {
+			process.env.REFARM_TRACTOR_ENGINE = originalTractorEngine;
+		}
 		cwdSpy.mockRestore();
 	});
 
@@ -474,6 +481,23 @@ describe("readTractorEngineMode", () => {
 			expect(readTractorEngineMode()).toBe("rust");
 		} finally {
 			rmSync(homeBase, { recursive: true, force: true });
+			rmSync(cwdBase, { recursive: true, force: true });
+		}
+	});
+
+	it("lets env tractor engine override persisted preferences", () => {
+		const cwdBase = join(tmpdir(), `refarm-tractor-cwd-${Date.now()}`);
+		mkdirSync(join(cwdBase, ".refarm"), { recursive: true });
+		writeFileSync(
+			join(cwdBase, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+		);
+		process.env.REFARM_TRACTOR_ENGINE = "ts";
+		cwdSpy.mockReturnValue(cwdBase);
+
+		try {
+			expect(readTractorEngineMode()).toBe("ts");
+		} finally {
 			rmSync(cwdBase, { recursive: true, force: true });
 		}
 	});

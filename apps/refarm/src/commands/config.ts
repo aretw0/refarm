@@ -118,6 +118,9 @@ function resolveTractorEngineMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
 ): { value: TractorEngineMode; source: string } {
+	const envMode = parseTractorEngineMode(process.env.REFARM_TRACTOR_ENGINE);
+	if (envMode) return { value: envMode, source: "env:REFARM_TRACTOR_ENGINE" };
+
 	const paths = opts.local
 		? [configPath(deps, { local: true })]
 		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
@@ -257,6 +260,7 @@ Examples:
   $ refarm config set runtime.autostart always
   $ refarm config set operator.openExternalLinks never
   $ refarm config set tractor.engine auto
+  $ REFARM_TRACTOR_ENGINE=rust refarm runtime
   $ refarm config set runtime.autostart never --local
 
 Keys:
@@ -268,6 +272,7 @@ Legacy aliases:
   farmhand.autostart  ask | always | never  (writes the same autostart setting)
 
 Notes:
+  REFARM_TRACTOR_ENGINE can be auto, rust, or ts for one-shot runtime selection.
   Without a subcommand, config currently prints this guide. It is reserved for
   the future interactive configuration surface.
 `,

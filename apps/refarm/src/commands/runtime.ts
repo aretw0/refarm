@@ -100,11 +100,13 @@ Examples:
   $ refarm runtime
   $ refarm runtime --json
   $ refarm config set tractor.engine rust
+  $ REFARM_TRACTOR_ENGINE=ts refarm runtime
   $ refarm config set runtime.autostart always
 
 Notes:
   tractor.engine=auto prefers the Rust Tractor daemon when its local binary is
   available, and otherwise falls back to the TypeScript Farmhand runtime.
+  REFARM_TRACTOR_ENGINE can be auto, rust, or ts for one-shot selection.
   runtime.autostart controls whether CLI flows ask before starting the selected
   runtime, start it automatically, or never start it.
 `,

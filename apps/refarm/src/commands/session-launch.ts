@@ -159,6 +159,9 @@ function parseAutostartMode(value: string | undefined): AutostartMode | null {
 }
 
 export function readTractorEngineMode(): TractorEngineMode {
+	const envMode = parseTractorEngineMode(process.env.REFARM_TRACTOR_ENGINE);
+	if (envMode) return envMode;
+
 	let resolved: TractorEngineMode | null = null;
 	for (const base of refarmSearchDirs()) {
 		const configFile = path.join(base, "config.json");
