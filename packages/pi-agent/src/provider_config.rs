@@ -10,14 +10,14 @@ pub(crate) fn openai_compat_defaults(provider: &str) -> (&'static str, &'static 
     match provider {
         "openai" => ("https://api.openai.com", "gpt-5.5"),
         "groq" => ("https://api.groq.com", "llama-3.3-70b-versatile"),
-        "mistral" => ("https://api.mistral.ai", "mistral-large-latest"),
-        "xai" => ("https://api.x.ai", "grok-3"),
-        "deepseek" => ("https://api.deepseek.com", "deepseek-chat"),
+        "mistral" => ("https://api.mistral.ai", "mistral-medium-3-5"),
+        "xai" => ("https://api.x.ai", "grok-4.3"),
+        "deepseek" => ("https://api.deepseek.com", "deepseek-v4-flash"),
         "together" => ("https://api.together.xyz", "meta-llama/Llama-3-70b-chat-hf"),
         "openrouter" => ("https://openrouter.ai", "anthropic/claude-sonnet-4-5"),
         "gemini" => (
             "https://generativelanguage.googleapis.com",
-            "gemini-2.0-flash",
+            "gemini-3-flash-preview",
         ),
         _ => ("http://localhost:11434", "llama3.2"),
     }
