@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createWebCommand,
 	resolveBrowserOpenSpec,
@@ -42,6 +42,16 @@ function makeStatus(overrides?: Partial<any>) {
 }
 
 describe("resolveWebLaunchSpec", () => {
+	const originalOverride = process.env.REFARM_PACKAGE_MANAGER;
+
+	afterEach(() => {
+		if (originalOverride === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = originalOverride;
+		}
+	});
+
 	it("maps dev and preview launchers to deterministic commands", () => {
 		expect(resolveWebLaunchSpec("dev")).toEqual({
 			command: "pnpm",
@@ -52,6 +62,16 @@ describe("resolveWebLaunchSpec", () => {
 			command: "pnpm",
 			args: ["-C", "apps/dev", "run", "preview"],
 			display: "pnpm -C apps/dev run preview",
+		});
+	});
+
+	it("honors package manager override for launchers", () => {
+		process.env.REFARM_PACKAGE_MANAGER = "npm";
+
+		expect(resolveWebLaunchSpec("dev")).toEqual({
+			command: "npm",
+			args: ["--prefix", "apps/dev", "run", "dev"],
+			display: "npm --prefix apps/dev run dev",
 		});
 	});
 });
@@ -84,16 +104,26 @@ describe("webCommand", () => {
 	const printStatusSummary = vi.fn();
 	const launch = vi.fn();
 	const open = vi.fn();
+	const originalPackageManager = process.env.REFARM_PACKAGE_MANAGER;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+		process.env.REFARM_PACKAGE_MANAGER = "pnpm";
 		resolveStatusPayload.mockResolvedValue({
 			json: makeStatus(),
 			shutdown: vi.fn().mockResolvedValue(undefined),
 		});
 		launch.mockResolvedValue(0);
 		open.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		if (originalPackageManager === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = originalPackageManager;
+		}
 	});
 
 	it("prints summary preflight by default", async () => {

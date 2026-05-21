@@ -52,7 +52,7 @@ describe("executeRendererLaunchFlow", () => {
 	});
 
 	it("no-ops when launch flag is not enabled", async () => {
-		const resolveLaunchSpec = vi.fn(() => ({ display: "npm run dev" }));
+		const resolveLaunchSpec = vi.fn(() => ({ display: "runner dev" }));
 		const launchProcess = vi.fn().mockResolvedValue(0);
 
 		await executeRendererLaunchFlow({
@@ -73,9 +73,9 @@ describe("executeRendererLaunchFlow", () => {
 
 	it("handles dry-run without launching process", async () => {
 		const spec = {
-			command: "npm",
-			args: ["run", "dev"],
-			display: "npm run dev",
+			command: "runner",
+			args: ["dev"],
+			display: "runner dev",
 		};
 		const resolveLaunchSpec = vi.fn(() => spec);
 		const launchProcess = vi.fn().mockResolvedValue(0);
@@ -147,7 +147,7 @@ describe("executeRendererLaunchFlow", () => {
 				bannerExperience: "web",
 				dryRunRuntimeLabel: "web runtime",
 				startRuntimeLabel: "web runtime",
-				resolveLaunchSpec: () => ({ display: "npm run dev" }),
+				resolveLaunchSpec: () => ({ display: "runner dev" }),
 				launchProcess,
 			}),
 		).rejects.toThrow(/runtime:not-ready/);

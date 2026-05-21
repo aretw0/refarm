@@ -6,8 +6,8 @@ import {
 
 describe("splitLaunchCommand", () => {
 	it("splits launcher command into command + args", () => {
-		expect(splitLaunchCommand("pnpm -C apps/dev run dev")).toEqual({
-			command: "pnpm",
+		expect(splitLaunchCommand("runner -C apps/dev run dev")).toEqual({
+			command: "runner",
 			args: ["-C", "apps/dev", "run", "dev"],
 		});
 	});
@@ -24,10 +24,10 @@ describe("splitLaunchCommand", () => {
 	});
 
 	it("builds full launch process spec from command display", () => {
-		expect(createLaunchProcessSpec("pnpm -C apps/dev run dev")).toEqual({
-			command: "pnpm",
+		expect(createLaunchProcessSpec("runner -C apps/dev run dev")).toEqual({
+			command: "runner",
 			args: ["-C", "apps/dev", "run", "dev"],
-			display: "pnpm -C apps/dev run dev",
+			display: "runner -C apps/dev run dev",
 		});
 	});
 });

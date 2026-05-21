@@ -16,7 +16,7 @@ const requiredDistEntries = [
 ];
 for (const entry of requiredDistEntries) {
 	if (!existsSync(entry)) {
-		throw new Error(`Missing dist entry — run \`npx turbo run build\` first:\n  ${entry}`);
+		throw new Error(`Missing dist entry — build the workspace first:\n  ${entry}`);
 	}
 }
 const statusWithActionsFixture =

@@ -12,8 +12,9 @@ import {
 	openStartMessage,
 } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
+import { launchProcess } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
+import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveLaunchMode } from "./launch-policy.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
@@ -59,11 +60,8 @@ interface WebOptions {
 export function resolveWebLaunchSpec(
 	mode: RefarmWebLauncherMode,
 ): WebLaunchSpec {
-	if (mode === "preview") {
-		return createLaunchProcessSpec("pnpm -C apps/dev run preview");
-	}
-
-	return createLaunchProcessSpec("pnpm -C apps/dev run dev");
+	const script = mode === "preview" ? "preview" : "dev";
+	return createPackageScriptCommand({ cwd: "apps/dev", script });
 }
 
 export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {

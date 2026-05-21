@@ -7,6 +7,7 @@ import os from "node:os";
 import { basename, extname } from "node:path";
 import path from "node:path";
 import { Command } from "commander";
+import { createPackageScriptCommand } from "./package-manager.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
 // To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
@@ -22,6 +23,13 @@ const BUNDLED_PLUGINS = [
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
+
+function localPiAgentBuildCommand(): string {
+	return createPackageScriptCommand({
+		cwd: "packages/pi-agent",
+		script: "build",
+	}).display;
+}
 
 function resolvePackageDir(packageName: string): string | null {
 	try {
@@ -88,7 +96,7 @@ async function installPlugin(
 	const wasmSrc = path.join(pkgDir, plugin.wasmFile);
 	if (!existsSync(wasmSrc)) {
 		console.error(`  ✗ ${plugin.id}: WASM not found at ${wasmSrc}`);
-		console.error(`    Build first: pnpm -C packages/pi-agent run build`);
+		console.error(`    Build first: ${localPiAgentBuildCommand()}`);
 		return "failed";
 	}
 

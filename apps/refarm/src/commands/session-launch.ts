@@ -13,6 +13,7 @@ import {
 	type OperatorChannel,
 	createStdioOperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
+import { createPackageScriptCommand } from "./package-manager.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const FARMHAND_PROBE_TIMEOUT_MS = 1_500;
@@ -170,6 +171,14 @@ function tractorBinaryPath(repoRoot: string): string {
 	return path.join(targetDir, "release", process.platform === "win32" ? "tractor.exe" : "tractor");
 }
 
+function tractorBuildCommand(repoRoot: string): string {
+	return createPackageScriptCommand({
+		cwd: path.join(repoRoot, "packages", "tractor"),
+		repoRoot,
+		script: "build",
+	}).display;
+}
+
 export function resolveLaunchRuntime(
 	repoRoot: string,
 	configuredEngine: TractorEngineMode = readTractorEngineMode(),
@@ -184,7 +193,7 @@ export function resolveLaunchRuntime(
 	if (configuredEngine === "rust") {
 		if (!fs.existsSync(tractorBinaryPath(repoRoot))) {
 			throw new Error(
-				`tractor.engine=rust but the Rust tractor binary is not built at ${tractorBinaryPath(repoRoot)}. Build it with: pnpm --filter @refarm.dev/tractor-rs run build`,
+				`tractor.engine=rust but the Rust tractor binary is not built at ${tractorBinaryPath(repoRoot)}. Build it with: ${tractorBuildCommand(repoRoot)}`,
 			);
 		}
 		return {
