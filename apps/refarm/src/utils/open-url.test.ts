@@ -98,4 +98,41 @@ describe("tryOpenUrl", () => {
 		tryOpenUrl("https://example.com");
 		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
 	});
+
+	it("respects operator.openExternalLinks=false from .refarm config", async () => {
+		fs.mkdirSync(path.join(tempDir, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(tempDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: false } }),
+			"utf-8",
+		);
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
+	});
+
+	it("lets project-local external link policy override home preference", async () => {
+		const homeDir = path.join(tempDir, "home");
+		fs.mkdirSync(path.join(homeDir, ".refarm"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(homeDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "never" } }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(tempDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "auto" } }),
+			"utf-8",
+		);
+		mockOpenHostBrowserUrl.mockResolvedValueOnce({});
+
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+
+		expect(mockOpenHostBrowserUrl).toHaveBeenCalledWith(
+			"https://example.com",
+			expect.objectContaining({ run: expect.any(Function) }),
+		);
+	});
 });

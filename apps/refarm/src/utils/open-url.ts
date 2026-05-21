@@ -52,6 +52,7 @@ function resolveOpenExternalLinksMode(): OpenExternalLinksMode {
 }
 
 function readOperatorCliOpenExternalLinksMode(): OpenExternalLinksMode | null {
+	let resolvedMode: OpenExternalLinksMode | null = null;
 	for (const base of [
 		path.join(os.homedir(), ".refarm"),
 		path.join(process.cwd(), ".refarm"),
@@ -61,15 +62,17 @@ function readOperatorCliOpenExternalLinksMode(): OpenExternalLinksMode | null {
 		try {
 			const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmOpenLinkConfig;
 			const mode = normalizeOpenExternalLinksMode(config.operator?.openExternalLinks);
-			if (mode) return mode;
+			if (mode) resolvedMode = mode;
 		} catch {
 			// Ignore malformed operator config and keep the best-effort opener path.
 		}
 	}
-	return null;
+	return resolvedMode;
 }
 
 function normalizeOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | null {
+	if (value === false) return "never";
+	if (value === true) return "auto";
 	if (typeof value !== "string") return null;
 	const normalized = value.trim().toLowerCase();
 	if (normalized === "0" || normalized === "false" || normalized === "off" || normalized === "never") {
