@@ -60,6 +60,36 @@ describe("refarm telemetry", () => {
 		expect(help).toContain("refarm runtime or refarm doctor");
 	});
 
+	it("rejects invalid profile before fetching telemetry", async () => {
+		const deps = makeDeps();
+		const command = createTelemetryCommand(deps);
+		command.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			command.parseAsync(["--profile", "aggressive"], { from: "user" }),
+		).rejects.toThrow(
+			'invalid profile "aggressive". Use: conservative | balanced | throughput',
+		);
+		expect(deps.fetchTelemetry).not.toHaveBeenCalled();
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
+	it("rejects invalid numeric thresholds before fetching telemetry", async () => {
+		const deps = makeDeps();
+		const command = createTelemetryCommand(deps);
+		command.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			command.parseAsync(["--window-minutes", "soon"], { from: "user" }),
+		).rejects.toThrow("--window-minutes must be a positive integer.");
+		expect(deps.fetchTelemetry).not.toHaveBeenCalled();
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
 	it("emits core diagnostics in --json mode", async () => {
 		const deps = makeDeps({
 			fetchTelemetry: vi.fn().mockResolvedValue({

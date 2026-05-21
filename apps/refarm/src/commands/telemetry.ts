@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
@@ -72,13 +72,29 @@ function parseDiagnosticList(raw: string | undefined): string[] {
 		.filter(Boolean);
 }
 
-function toPositiveInt(raw: string | undefined, fallback: number): number {
+function parsePositiveIntOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive integer.`);
+	}
+	return parsed;
+}
+
+function parsePositiveNumberOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive number.`);
+	}
+	return parsed;
+}
+
+function toPositiveInt(raw: number | string | undefined, fallback: number): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
 	return Math.floor(parsed);
 }
 
-function toPositiveNumber(raw: string | undefined, fallback: number): number {
+function toPositiveNumber(raw: number | string | undefined, fallback: number): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
 	return Number(parsed);
@@ -86,6 +102,15 @@ function toPositiveNumber(raw: string | undefined, fallback: number): number {
 
 function isThresholdProfileName(raw: string): raw is ThresholdProfileName {
 	return raw === "conservative" || raw === "balanced" || raw === "throughput";
+}
+
+function parseThresholdProfile(value: string): ThresholdProfileName {
+	if (isThresholdProfileName(value)) {
+		return value;
+	}
+	throw new InvalidArgumentError(
+		`invalid profile "${value}". Use: conservative | balanced | throughput`,
+	);
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
@@ -201,14 +226,27 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 		.option(
 			"--profile <name>",
 			"Threshold profile: conservative | balanced | throughput",
+			parseThresholdProfile,
 			"balanced",
 		)
-		.option("--window-minutes <n>", "Rolling window size in minutes", "60")
-		.option("--queue-warn <n>", "Warn threshold for queue depth")
-		.option("--inflight-warn <n>", "Warn threshold for in-flight efforts")
+		.option(
+			"--window-minutes <n>",
+			"Rolling window size in minutes",
+			(value) => parsePositiveIntOption(value, "--window-minutes"),
+			60,
+		)
+		.option("--queue-warn <n>", "Warn threshold for queue depth", (value) =>
+			parsePositiveIntOption(value, "--queue-warn"),
+		)
+		.option(
+			"--inflight-warn <n>",
+			"Warn threshold for in-flight efforts",
+			(value) => parsePositiveIntOption(value, "--inflight-warn"),
+		)
 		.option(
 			"--fail-rate-warn <pct>",
 			"Warn threshold for rolling-window failure rate (%)",
+			(value) => parsePositiveNumberOption(value, "--fail-rate-warn"),
 		)
 		.option("--strict", "Exit non-zero when selected diagnostics are present")
 		.option(
@@ -233,23 +271,15 @@ Notes:
 		.action(
 			async (opts: {
 				json?: boolean;
-				profile?: string;
-				windowMinutes?: string;
-				queueWarn?: string;
-				inflightWarn?: string;
-				failRateWarn?: string;
+				profile?: ThresholdProfileName;
+				windowMinutes?: number;
+				queueWarn?: number;
+				inflightWarn?: number;
+				failRateWarn?: number;
 				strict?: boolean;
 				strictOn?: string;
 			}) => {
 				const profileName = opts.profile ?? "balanced";
-				if (!isThresholdProfileName(profileName)) {
-					console.error(
-						chalk.red(
-							`✗  invalid profile "${profileName}". Use: conservative | balanced | throughput`,
-						),
-					);
-					process.exit(1);
-				}
 
 				const baseThresholds = PROFILE_THRESHOLDS[profileName];
 				const thresholds = {
