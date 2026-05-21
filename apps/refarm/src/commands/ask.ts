@@ -10,6 +10,7 @@ import {
 	GitStatusContextProvider,
 	SessionDigestContextProvider,
 } from "@refarm.dev/context-provider-v1";
+import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
@@ -365,9 +366,9 @@ function usageLine(metadata: Record<string, unknown>): string {
 
 function printAskError(message: string): void {
 	const isPiAgentMissing =
-		message.includes("@refarm/pi-agent not loaded") ||
+		message.includes(`${PI_AGENT_PLUGIN_ID} not loaded`) ||
 		message.includes("pi-agent not loaded") ||
-		message.includes('Plugin "@refarm/pi-agent" is not loaded');
+		message.includes(`Plugin "${PI_AGENT_PLUGIN_ID}" is not loaded`);
 
 	const isFarmhandDown =
 		message.includes("ECONNREFUSED") ||
@@ -446,20 +447,20 @@ async function ensurePiAgentReady(
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
-	if (state.loaded.includes("@refarm/pi-agent")) return true;
+	if (state.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
 
-	if (state.installed.includes("@refarm/pi-agent") && reloadPlugins) {
-		const reload = await reloadPlugins(["@refarm/pi-agent"]);
-		if (reload?.reloaded.includes("@refarm/pi-agent")) return true;
+	if (state.installed.includes(PI_AGENT_PLUGIN_ID) && reloadPlugins) {
+		const reload = await reloadPlugins([PI_AGENT_PLUGIN_ID]);
+		if (reload?.reloaded.includes(PI_AGENT_PLUGIN_ID)) return true;
 		const refreshed = await readPluginState();
-		if (refreshed?.loaded.includes("@refarm/pi-agent")) return true;
+		if (refreshed?.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
 	}
 
 	console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
-	if (!state.installed.includes("@refarm/pi-agent")) {
+	if (!state.installed.includes(PI_AGENT_PLUGIN_ID)) {
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
 	}
-	if (state.known.includes("@refarm/pi-agent")) {
+	if (state.known.includes(PI_AGENT_PLUGIN_ID)) {
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
 	} else {
 		console.error(chalk.dim("   Restart runtime:          refarm"));

@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import { basename, extname } from "node:path";
 import path from "node:path";
+import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
 import { createPackageScriptCommand } from "./package-manager.js";
 import { readRuntimePluginState } from "./runtime-plugins.js";
@@ -14,8 +15,8 @@ import { readRuntimePluginState } from "./runtime-plugins.js";
 // To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
 const BUNDLED_PLUGINS = [
 	{
-		id: "@refarm/pi-agent",
-		npmPackage: "@refarm.dev/pi-agent",
+		id: PI_AGENT_PLUGIN_ID,
+		npmPackage: PI_AGENT_NPM_PACKAGE,
 		wasmFile: "dist/pi_agent.wasm",
 		manifestFile: "dist/plugin.json",
 	},
@@ -186,7 +187,7 @@ async function printRuntimePluginStatus(): Promise<void> {
 		);
 	}
 
-	if (!state.loaded.includes("@refarm/pi-agent")) {
+	if (!state.loaded.includes(PI_AGENT_PLUGIN_ID)) {
 		console.log("");
 		console.log("pi-agent is not loaded.");
 		console.log("  Install:  refarm plugin install");

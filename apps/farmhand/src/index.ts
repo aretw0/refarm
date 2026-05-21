@@ -23,7 +23,11 @@ import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
-import { loadConfigAsync } from "@refarm.dev/config";
+import {
+	PI_AGENT_NPM_PACKAGE,
+	PI_AGENT_PLUGIN_ID,
+	loadConfigAsync,
+} from "@refarm.dev/config";
 import type {
 	RuntimeHost,
 	RuntimePluginLoaderTarget,
@@ -300,8 +304,8 @@ async function main() {
 	// Phase 1: Bundled plugins — auto-install from co-located npm packages
 	const defaultBundled: BundledEntry[] = [
 		{
-			id: "@refarm/pi-agent",
-			package: "@refarm.dev/pi-agent",
+			id: PI_AGENT_PLUGIN_ID,
+			package: PI_AGENT_NPM_PACKAGE,
 			wasmFile: "dist/pi_agent.wasm",
 		},
 	];

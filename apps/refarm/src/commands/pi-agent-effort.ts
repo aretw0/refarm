@@ -1,4 +1,5 @@
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 
 export interface PiAgentRespondEffortOptions {
 	prompt: string;
@@ -25,7 +26,7 @@ export function createPiAgentRespondEffort({
 		tasks: [
 			{
 				id: randomUUID(),
-				pluginId: "@refarm/pi-agent",
+				pluginId: PI_AGENT_PLUGIN_ID,
 				fn: "respond",
 				args: {
 					prompt,

@@ -8,6 +8,7 @@ export {
     isModelScope,
 } from "./model-routing.js";
 export const PI_AGENT_PLUGIN_ID: "@refarm/pi-agent";
+export const PI_AGENT_NPM_PACKAGE: "@refarm.dev/pi-agent";
 export function normalizePluginId(pluginId: string): string;
 export function isPiAgentPluginId(pluginId: string): boolean;
 export type {
