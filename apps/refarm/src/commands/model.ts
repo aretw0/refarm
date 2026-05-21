@@ -24,17 +24,15 @@ export interface ModelTokens {
 	modelProvider?: string;
 	modelId?: string;
 	modelRoutes?: Partial<Record<ModelScope, string>>;
+	modelFallbackProvider?: string;
+	modelFallbackModelId?: string;
 	model?: string;
 	oauthProvider?: string;
 }
 
 export interface ModelCommandDeps {
 	loadTokens(): Promise<ModelTokens>;
-	saveTokens(tokens: {
-		modelProvider: string;
-		modelId: string;
-		modelRoutes?: Partial<Record<ModelScope, string>>;
-	}): Promise<unknown>;
+	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
 }
 
 export function defaultModelDeps(): ModelCommandDeps {
@@ -59,11 +57,14 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	const credentialEnv = modelCredentialEnvKey(provider);
 	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
 	if (process.env.MODEL_BASE_URL) console.log(`  base url: ${process.env.MODEL_BASE_URL}`);
-	if (process.env.MODEL_FALLBACK_PROVIDER) {
+	const fallbackProvider =
+		process.env.MODEL_FALLBACK_PROVIDER ?? tokens.modelFallbackProvider;
+	if (fallbackProvider) {
 		const fallbackRef = formatModelRef(
-			process.env.MODEL_FALLBACK_PROVIDER,
+			fallbackProvider,
 			process.env.MODEL_FALLBACK_MODEL_ID ??
-				defaultModelForProvider(process.env.MODEL_FALLBACK_PROVIDER),
+				tokens.modelFallbackModelId ??
+				defaultModelForProvider(fallbackProvider),
 		);
 		console.log(`  fallback: ${fallbackRef}`);
 	}
@@ -151,6 +152,37 @@ export async function setModelRoute(
 	console.log(chalk.green(`✓  ${label} set: ${parsed.provider}/${parsed.modelId}`));
 }
 
+export async function setFallbackModelRoute(
+	ref: string,
+	deps: ModelCommandDeps,
+): Promise<void> {
+	const tokens = await deps.loadTokens();
+	if (ref.trim().toLowerCase() === "off") {
+		await deps.saveTokens({
+			modelFallbackProvider: undefined,
+			modelFallbackModelId: undefined,
+		});
+		console.log(chalk.green("✓  Fallback model disabled"));
+		return;
+	}
+	const parsed = parseModelRef(ref, tokens.modelFallbackProvider ?? tokens.modelProvider);
+	if (!parsed) {
+		console.error(chalk.red("✗  fallback model ref cannot be empty."));
+		process.exit(1);
+	}
+	if (!parsed.provider) {
+		console.error(chalk.red(`✗  Could not infer provider for fallback model "${parsed.modelId}".`));
+		console.error(chalk.dim(`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`));
+		process.exit(1);
+	}
+
+	await deps.saveTokens({
+		modelFallbackProvider: parsed.provider,
+		modelFallbackModelId: parsed.modelId,
+	});
+	console.log(chalk.green(`✓  Fallback model set: ${parsed.provider}/${parsed.modelId}`));
+}
+
 export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()): Command {
 	const command = new Command("model")
 		.description("Inspect and change the active model route")
@@ -166,6 +198,7 @@ Examples:
   $ refarm model set ${OPENAI_DEFAULT_REF}
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
   $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
+  $ refarm model fallback ${OLLAMA_DEFAULT_REF}
   $ refarm model set ${ANTHROPIC_DEFAULT_REF}
   $ refarm model set ${OLLAMA_DEFAULT_REF}
 
@@ -212,6 +245,29 @@ Notes:
 		)
 		.action(() => {
 			printKnownModelProviders();
+		});
+
+	command
+		.command("fallback")
+		.description("Set or disable the persisted fallback model route")
+		.argument("<ref>", "provider/model, model for current fallback provider, or off")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model fallback ${OLLAMA_DEFAULT_REF}
+  $ refarm model fallback ollama/qwen2.5-coder
+  $ refarm model fallback off
+
+Notes:
+  The fallback route is saved in ~/.refarm/identity.json and injected by
+  farmhand as MODEL_FALLBACK_PROVIDER and MODEL_FALLBACK_MODEL_ID. Environment
+  variables still take precedence for one-off operator overrides.
+`,
+		)
+		.action(async (ref: string) => {
+			await setFallbackModelRoute(ref, deps);
 		});
 
 	command

@@ -75,6 +75,45 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.MODEL_ID).toBe("gpt-5.5");
 	});
 
+	it("injects persisted fallback model route", async () => {
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([
+			{
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+				modelFallbackProvider: "ollama",
+				modelFallbackModelId: "qwen2.5-coder",
+			},
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_FALLBACK_PROVIDER).toBe("ollama");
+		expect(env.MODEL_FALLBACK_MODEL_ID).toBe("qwen2.5-coder");
+	});
+
+	it("does not override operator-provided fallback model env", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_FALLBACK_PROVIDER: "anthropic",
+			MODEL_FALLBACK_MODEL_ID: "claude-sonnet-4-6",
+		};
+		const store = makeStore([
+			{
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+				modelFallbackProvider: "ollama",
+				modelFallbackModelId: "qwen2.5-coder",
+			},
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_FALLBACK_PROVIDER).toBe("anthropic");
+		expect(env.MODEL_FALLBACK_MODEL_ID).toBe("claude-sonnet-4-6");
+	});
+
 	it("updates env values it previously managed when Silo changes at runtime", async () => {
 		const env: NodeJS.ProcessEnv = {};
 		const store = makeStore([

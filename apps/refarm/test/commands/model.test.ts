@@ -153,6 +153,24 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints persisted fallback model route", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelFallbackProvider: "ollama",
+			modelFallbackModelId: "qwen2.5-coder",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("fallback: ollama/qwen2.5-coder");
+
+		logSpy.mockRestore();
+	});
+
 	it("documents runtime reload behavior in help", () => {
 		const command = createModelCommand(makeDeps());
 		let help = "";
@@ -170,6 +188,7 @@ describe("modelCommand", () => {
 		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
+		expect(help).toContain("refarm model fallback ollama/llama3.2");
 		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
 	});
 
@@ -207,6 +226,41 @@ describe("modelCommand", () => {
 		expect(help).toContain("refarm model set openai/gpt-5.5");
 		expect(help).toContain("refarm model set --scope worker openai/gpt-5.3-codex-spark");
 		expect(help).toContain("provider-specific model id");
+	});
+
+	it("sets a fallback model route", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["fallback", "ollama/qwen2.5-coder"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelFallbackProvider: "ollama",
+			modelFallbackModelId: "qwen2.5-coder",
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("disables a persisted fallback model route", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelFallbackProvider: "ollama",
+			modelFallbackModelId: "qwen2.5-coder",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["fallback", "off"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelFallbackProvider: undefined,
+			modelFallbackModelId: undefined,
+		});
+
+		logSpy.mockRestore();
 	});
 
 	it("sets the default model route", async () => {
