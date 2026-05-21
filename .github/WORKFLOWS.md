@@ -68,8 +68,9 @@ pnpm run runtime-descriptor:release-smoke
 `TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` enable the Cloudflare-backed
 Turborepo remote cache. They are optional. The shared setup action restores the
 local `.turbo` GitHub Actions cache first, then enables the remote cache only
-when the worker endpoint is reachable. If the remote cache is unavailable, CI
-continues with the local cache and emits a warning.
+when authenticated event and artifact probes pass. If the remote cache is
+unavailable or misconfigured, CI continues with the local cache and emits a
+setup warning instead of letting Turbo fail later during verification.
 
 ## Release Recovery
 

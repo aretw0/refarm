@@ -19,7 +19,7 @@ inputs:
     required: false
     default: "false"
   turbo-cache-api:
-    description: "Turbo remote cache API URL (TURBO_API). When set, remote cache is used instead of local GHA cache."
+    description: "Turbo remote cache API URL (TURBO_API). When healthy, remote cache is layered over local GHA cache."
     required: false
     default: ""
   turbo-cache-token:
@@ -98,10 +98,31 @@ runs:
         set -euo pipefail
         api="${{ inputs.turbo-cache-api }}"
         api="${api%/}"
-        if ! curl --proto '=https' --tlsv1.2 --silent --show-error --fail --max-time 5 -X OPTIONS "$api/v8/artifacts/events" >/dev/null; then
-          echo "::warning::Turbo remote cache is unreachable; continuing with local .turbo cache."
+
+        events_status="$(
+          curl --proto '=https' --tlsv1.2 --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 \
+            -X POST \
+            -H "Authorization: Bearer ${{ inputs.turbo-cache-token }}" \
+            -H "Content-Type: application/json" \
+            --data '{}' \
+            "$api/v8/artifacts/events" || true
+        )"
+        if [ "$events_status" != "200" ]; then
+          echo "::warning::Turbo remote cache events probe returned HTTP ${events_status:-000}; continuing with local .turbo cache."
           exit 0
         fi
+
+        artifact_status="$(
+          curl --proto '=https' --tlsv1.2 --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 \
+            -I \
+            -H "Authorization: Bearer ${{ inputs.turbo-cache-token }}" \
+            "$api/v8/artifacts/0000000000000000000000000000000000000000?teamId=${{ inputs.turbo-cache-team }}" || true
+        )"
+        if [ "$artifact_status" != "404" ]; then
+          echo "::warning::Turbo remote cache artifact probe returned HTTP ${artifact_status:-000}; continuing with local .turbo cache."
+          exit 0
+        fi
+
         echo "TURBO_API=$api" >> "$GITHUB_ENV"
         echo "TURBO_TOKEN=${{ inputs.turbo-cache-token }}" >> "$GITHUB_ENV"
         echo "TURBO_TEAM=${{ inputs.turbo-cache-team }}" >> "$GITHUB_ENV"
