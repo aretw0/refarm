@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { access, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
 
 const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/root",
@@ -171,9 +172,7 @@ export async function ensureTaskSmokeTypeBuilds(
 		}
 		built += 1;
 		await resetTsBuildArtifacts(workspaceDir);
-		await runSubprocess("pnpm", ["-C", workspaceDir, "run", "build"], {
-			env,
-		});
+		await runPackageScript(workspaceDir, "build", { env });
 	}
 	if (built === 0) {
 		console.log(`${loggerPrefix} TS dependency artifacts already present.`);
@@ -247,5 +246,20 @@ export function runSubprocess(command, commandArgs, options = {}) {
 				: `${command} exited with code ${code}`;
 			reject(new Error(details.trim()));
 		});
+	});
+}
+
+export function runPackageScript(workspaceDir, script, options = {}) {
+	const repoRoot = options.repoRoot ?? process.cwd();
+	const packageCommand = createPackageScriptCommand({
+		cwd: path.resolve(repoRoot, workspaceDir),
+		repoRoot,
+		script,
+		env: options.env ?? process.env,
+	});
+
+	return runSubprocess(packageCommand.command, packageCommand.args, {
+		...options,
+		cwd: repoRoot,
 	});
 }
