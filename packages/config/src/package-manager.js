@@ -108,6 +108,34 @@ export function packageInstallCommand({ cwd = process.cwd(), env = process.env }
     };
 }
 
+export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm":
+        case "npm":
+            return {
+                packageManager,
+                command: `${packageManager} publish --dry-run`,
+                display: `${packageManager} publish --dry-run`,
+            };
+        case "yarn":
+            return {
+                packageManager,
+                command: "yarn npm publish --dry-run",
+                display: "yarn npm publish --dry-run",
+            };
+        case "bun":
+            return {
+                packageManager,
+                command: "bun publish --dry-run",
+                display: "bun publish --dry-run",
+            };
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packageBinaryCommand(
     binary,
     args = [],

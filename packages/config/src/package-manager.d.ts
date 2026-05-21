@@ -50,6 +50,10 @@ export function packageInstallCommand(
     options?: PackageManagerOptions,
 ): PackageCommandString;
 
+export function packagePublishDryRunCommand(
+    options?: PackageManagerOptions,
+): PackageCommandString;
+
 export function packageBinaryCommand(
     binary: string,
     args?: string[],

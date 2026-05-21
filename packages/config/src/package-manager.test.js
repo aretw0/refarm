@@ -7,6 +7,7 @@ import {
     detectPackageManager,
     packageBinaryCommand,
     packageInstallCommand,
+    packagePublishDryRunCommand,
     packageScriptCommand,
 } from "./package-manager.js";
 
@@ -91,6 +92,21 @@ describe("package manager config", () => {
             command: "bun",
             args: ["x", "turbo", "gen", "package"],
             display: "bun x turbo gen package",
+        });
+    });
+
+    it("formats publish dry-run commands for each supported manager", () => {
+        expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: "pnpm publish --dry-run",
+        });
+        expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: "npm publish --dry-run",
+        });
+        expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: "yarn npm publish --dry-run",
+        });
+        expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: "bun publish --dry-run",
         });
     });
 });

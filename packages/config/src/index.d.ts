@@ -20,6 +20,7 @@ export {
     detectPackageManager,
     packageBinaryCommand,
     packageInstallCommand,
+    packagePublishDryRunCommand,
     packageScriptCommand,
     parsePackageManager,
 } from "./package-manager.js";
