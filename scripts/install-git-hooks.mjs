@@ -656,35 +656,21 @@ const postCheckoutHookContent = `#!/bin/sh
 
 # Keep branch changes non-blocking even when optional baselines are not implemented yet.
 cleanup_transient_artifacts() {
-  rm -f benchmarks/gha-payload.json coverage/gha-payload.json
+  rm -f "$TRACTOR_WORKSPACE/benchmarks/gha-payload.json" "$TRACTOR_WORKSPACE/coverage/gha-payload.json"
 }
 
 has_package_script() {
   script_name="$1"
-  node -e 'const fs = require("fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); process.exit(pkg.scripts && pkg.scripts[process.argv[1]] ? 0 : 1)' "$script_name"
+  node -e 'const fs = require("fs"); const path = require("path"); const pkg = JSON.parse(fs.readFileSync(path.join(process.argv[1], "package.json"), "utf8")); process.exit(pkg.scripts && pkg.scripts[process.argv[2]] ? 0 : 1)' "$TRACTOR_WORKSPACE" "$script_name"
 }
 
-detect_package_manager() {
-  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-  helper="$repo_root/scripts/package-manager.sh"
-  if [ -f "$helper" ]; then
-    . "$helper"
-    resolve_package_manager "$repo_root"
-    return
-  fi
-
-  printf "npm"
-}
-
-PACKAGE_MANAGER=$(detect_package_manager)
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+TRACTOR_WORKSPACE="$REPO_ROOT/packages/tractor"
 
 package_run() {
   script_name="$1"
   shift
-  case "$PACKAGE_MANAGER" in
-    pnpm|npm|yarn|bun) "$PACKAGE_MANAGER" run "$script_name" "$@" ;;
-    *) "$PACKAGE_MANAGER" run "$script_name" "$@" ;;
-  esac
+  node "$REPO_ROOT/scripts/ci/run-workspace-script.mjs" "$TRACTOR_WORKSPACE" "$script_name" -- "$@"
 }
 
 try_generate_baseline() {
@@ -693,7 +679,9 @@ try_generate_baseline() {
   missing_message="$3"
   success_message="$4"
 
-  if [ -f "$target_file" ]; then
+  target_path="$TRACTOR_WORKSPACE/$target_file"
+
+  if [ -f "$target_path" ]; then
     echo "$success_message"
     return 0
   fi
@@ -707,10 +695,10 @@ try_generate_baseline() {
   echo "$missing_message"
 
   if package_run "$script_name"; then
-    if [ -f "$target_file" ]; then
-      echo "✅ Baseline generated: $target_file"
+    if [ -f "$target_path" ]; then
+      echo "✅ Baseline generated: $target_path"
     else
-      echo "⚠️  Script '$script_name' did not produce $target_file. Skipping for this package."
+      echo "⚠️  Script '$script_name' did not produce $target_path. Skipping for this package."
       cleanup_transient_artifacts
     fi
   else
@@ -722,19 +710,18 @@ try_generate_baseline() {
 # Only trigger when switching branches, not when checking out files
 if [ "$3" = "1" ]; then
   echo "🌱 [Refarm] Branch changed. Validating Tractor Baselines..."
-  cd packages/tractor || exit 0
 
   try_generate_baseline \
     "benchmarks/baseline.json" \
     "bench:save" \
     "⚠️  No benchmark baseline found. Generating one now..." \
-    "✅ Benchmark baseline present. (Run '$PACKAGE_MANAGER run bench:save' manually to refresh)"
+    "✅ Benchmark baseline present. (Run 'node scripts/ci/run-workspace-script.mjs packages/tractor bench:save' manually to refresh)"
 
   try_generate_baseline \
     "benchmarks/coverage-baseline.json" \
     "coverage:save" \
     "⚠️  No coverage baseline found. Generating one now..." \
-    "✅ Coverage baseline present. (Run '$PACKAGE_MANAGER run coverage:save' manually to refresh)"
+    "✅ Coverage baseline present. (Run 'node scripts/ci/run-workspace-script.mjs packages/tractor coverage:save' manually to refresh)"
 fi
 `;
 
