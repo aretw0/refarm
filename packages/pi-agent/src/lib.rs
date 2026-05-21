@@ -64,7 +64,7 @@ mod utils;
 // (provider.rs calls these via `super::`, tests access them via `use super::*`).
 #[allow(unused_imports)]
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
-pub(crate) use provider_config::{choose_model, openai_compat_defaults};
+pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
 pub(crate) use response_nodes::{
     agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
     UsageRecordPayload,

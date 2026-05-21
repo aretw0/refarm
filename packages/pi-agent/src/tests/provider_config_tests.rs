@@ -14,6 +14,11 @@ fn provider_config_choose_model_falls_back_to_default() {
 }
 
 #[test]
+fn provider_config_anthropic_default_is_shared() {
+    assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-sonnet-4-20250514");
+}
+
+#[test]
 fn provider_config_openai_compat_defaults_known_provider() {
     let cases = [
         ("openai", "https://api.openai.com", "gpt-5.5"),

@@ -28,7 +28,7 @@ impl Provider {
 
         if provider_name == "anthropic" {
             return Provider::Anthropic {
-                model: crate::choose_model(&explicit_model, "claude-sonnet-4-20250514"),
+                model: crate::choose_model(&explicit_model, crate::ANTHROPIC_DEFAULT_MODEL),
             };
         }
 

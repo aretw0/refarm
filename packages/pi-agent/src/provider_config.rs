@@ -1,3 +1,5 @@
+pub(crate) const ANTHROPIC_DEFAULT_MODEL: &str = "claude-sonnet-4-20250514";
+
 pub(crate) fn choose_model(explicit_model: &str, default_model: &'static str) -> String {
     if explicit_model.is_empty() {
         default_model.to_owned()
