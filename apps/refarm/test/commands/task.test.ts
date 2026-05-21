@@ -211,6 +211,31 @@ describe("refarm task run", () => {
 		expect(process.exitCode).toBe(1);
 		spy.mockRestore();
 	});
+
+	it("rejects unknown transports before resolving adapters", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const runCommand = taskCommand.commands.find(
+			(command) => command.name() === "run",
+		)!;
+		runCommand.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			runCommand.parseAsync(["p", "f", "--transport", "grpc"], { from: "user" }),
+		).rejects.toThrow('Invalid task transport "grpc". Use: file, http');
+
+		expect(resolver).not.toHaveBeenCalled();
+		expect(adapter.submit).not.toHaveBeenCalled();
+	});
 });
 
 describe("refarm task status", () => {

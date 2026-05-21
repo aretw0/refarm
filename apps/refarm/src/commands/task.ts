@@ -10,7 +10,7 @@ import type {
 } from "@refarm.dev/effort-contract-v1";
 import { isPiAgentPluginId } from "@refarm.dev/config";
 import chalk from "chalk";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import {
 	createTaskSessionRecorder,
 	type TaskSessionRecorder,
@@ -32,6 +32,17 @@ const FINAL_STATUSES = new Set([
 	"timed-out",
 	"cancelled",
 ]);
+const TASK_TRANSPORTS = ["file", "http"] as const;
+type TaskTransport = (typeof TASK_TRANSPORTS)[number];
+
+function parseTaskTransport(value: string): TaskTransport {
+	if ((TASK_TRANSPORTS as readonly string[]).includes(value)) {
+		return value as TaskTransport;
+	}
+	throw new InvalidArgumentError(
+		`Invalid task transport "${value}". Use: ${TASK_TRANSPORTS.join(", ")}`,
+	);
+}
 
 function baseSummary(): EffortSummary {
 	return {
@@ -259,12 +270,9 @@ class HttpTransportClient implements TaskOperationsAdapter {
 }
 
 export function resolveAdapter(transport: string): TaskOperationsAdapter {
-	if (transport === "http") {
+	const resolvedTransport = parseTaskTransport(transport);
+	if (resolvedTransport === "http") {
 		return new HttpTransportClient(resolveSidecarUrl());
-	}
-
-	if (transport !== "file") {
-		throw new Error(`Unsupported transport: ${transport}`);
 	}
 
 	return new FileTransportClient(path.join(os.homedir(), ".refarm"));
@@ -290,6 +298,16 @@ function safeSessionRecord(fn: () => void): void {
 
 function isPiAgentRespondTask(plugin: string, fn: string): boolean {
 	return isPiAgentPluginId(plugin) && fn === "respond";
+}
+
+function resolveTaskAdapter(
+	transport: TaskTransport,
+	adapterResolver: (transport: string) => TaskOperationsAdapter,
+): { transport: TaskTransport; adapter: TaskOperationsAdapter } {
+	return {
+		transport,
+		adapter: adapterResolver(transport),
+	};
 }
 
 export function normalizeTaskArgs(
@@ -350,7 +368,12 @@ Notes:
 			"Effort direction (the why)",
 			"Manual CLI dispatch",
 		)
-		.option("--transport <type>", "Transport adapter: file or http", "file")
+		.option(
+			"--transport <type>",
+			"Transport adapter: file or http",
+			parseTaskTransport,
+			"file",
+		)
 		.addHelpText(
 			"after",
 			`
@@ -371,9 +394,12 @@ Notes:
 			async (
 				plugin: string,
 				fn: string,
-				opts: { args: string; direction: string; transport: string },
+				opts: { args: string; direction: string; transport: TaskTransport },
 			) => {
-				const adapter = adapterResolver(opts.transport);
+				const { transport, adapter } = resolveTaskAdapter(
+					opts.transport,
+					adapterResolver,
+				);
 				let parsedArgs: unknown;
 				try {
 					parsedArgs = JSON.parse(opts.args);
@@ -403,13 +429,13 @@ Notes:
 				safeSessionRecord(() => {
 					sessionRecorder.rememberRun({
 						effort,
-						transport: opts.transport,
+						transport,
 					});
 				});
 				console.log(chalk.green(`Effort dispatched: ${chalk.bold(effortId)}`));
 				console.log(
 					chalk.gray(
-						`  Use: refarm task status ${effortId} --transport ${opts.transport}`,
+						`  Use: refarm task status ${effortId} --transport ${transport}`,
 					),
 				);
 			},
@@ -418,7 +444,12 @@ Notes:
 	taskCommand
 		.command("status <effortId>")
 		.description("Query the result of a dispatched effort")
-		.option("--transport <type>", "Transport adapter: file or http", "file")
+		.option(
+			"--transport <type>",
+			"Transport adapter: file or http",
+			parseTaskTransport,
+			"file",
+		)
 		.option("--watch", "Poll every 2s until final state")
 		.option("--json", "Print machine-readable status JSON")
 		.addHelpText(
@@ -438,16 +469,19 @@ Notes:
 		.action(
 			async (
 				effortId: string,
-				opts: { transport: string; watch?: boolean; json?: boolean },
+				opts: { transport: TaskTransport; watch?: boolean; json?: boolean },
 			) => {
-				const adapter = adapterResolver(opts.transport);
+				const { transport, adapter } = resolveTaskAdapter(
+					opts.transport,
+					adapterResolver,
+				);
 
 				const printStatus = async (): Promise<boolean> => {
 					const result = await adapter.query(effortId);
 					safeSessionRecord(() => {
 						sessionRecorder.rememberStatus({
 							effortId,
-							transport: opts.transport,
+							transport,
 							result,
 						});
 					});
@@ -490,7 +524,7 @@ Notes:
 						);
 						console.log(
 							chalk.gray(
-								`  attempts=${attempts} age=${ageSeconds} transport=${opts.transport}`,
+								`  attempts=${attempts} age=${ageSeconds} transport=${transport}`,
 							),
 						);
 						for (const taskResult of result.results) {
@@ -591,17 +625,25 @@ Notes:
 	taskCommand
 		.command("list")
 		.description("List known efforts and queue summary")
-		.option("--transport <type>", "Transport adapter: file or http", "file")
+		.option(
+			"--transport <type>",
+			"Transport adapter: file or http",
+			parseTaskTransport,
+			"file",
+		)
 		.option("--json", "Print machine-readable JSON output")
-		.action(async (opts: { transport: string; json?: boolean }) => {
-			const adapter = adapterResolver(opts.transport);
+		.action(async (opts: { transport: TaskTransport; json?: boolean }) => {
+			const { transport, adapter } = resolveTaskAdapter(
+				opts.transport,
+				adapterResolver,
+			);
 			const [summary, efforts] = await Promise.all([
 				adapter.summary(),
 				adapter.list(),
 			]);
 			safeSessionRecord(() => {
 				sessionRecorder.rememberList({
-					transport: opts.transport,
+					transport,
 					efforts,
 				});
 			});
@@ -633,20 +675,28 @@ Notes:
 	taskCommand
 		.command("logs <effortId>")
 		.description("Show execution logs for an effort")
-		.option("--transport <type>", "Transport adapter: file or http", "file")
+		.option(
+			"--transport <type>",
+			"Transport adapter: file or http",
+			parseTaskTransport,
+			"file",
+		)
 		.option("--tail <n>", "Only show the last N log entries", "40")
 		.option("--json", "Print machine-readable JSON output")
 		.action(
 			async (
 				effortId: string,
-				opts: { transport: string; tail: string; json?: boolean },
+				opts: { transport: TaskTransport; tail: string; json?: boolean },
 			) => {
-				const adapter = adapterResolver(opts.transport);
+				const { transport, adapter } = resolveTaskAdapter(
+					opts.transport,
+					adapterResolver,
+				);
 				const logs = await adapter.logs(effortId);
 				safeSessionRecord(() => {
 					sessionRecorder.rememberLogs({
 						effortId,
-						transport: opts.transport,
+						transport,
 						logs: logs ?? [],
 					});
 				});
@@ -681,9 +731,17 @@ Notes:
 	taskCommand
 		.command("retry <effortId>")
 		.description("Retry a finished effort (respects adapter policy)")
-		.option("--transport <type>", "Transport adapter: file or http", "file")
-		.action(async (effortId: string, opts: { transport: string }) => {
-			const adapter = adapterResolver(opts.transport);
+		.option(
+			"--transport <type>",
+			"Transport adapter: file or http",
+			parseTaskTransport,
+			"file",
+		)
+		.action(async (effortId: string, opts: { transport: TaskTransport }) => {
+			const { transport, adapter } = resolveTaskAdapter(
+				opts.transport,
+				adapterResolver,
+			);
 			const accepted = await adapter.retry(effortId);
 			if (!accepted) {
 				console.error(chalk.red(`Retry rejected for effort ${effortId}`));
@@ -693,7 +751,7 @@ Notes:
 			safeSessionRecord(() => {
 				sessionRecorder.rememberControl({
 					effortId,
-					transport: opts.transport,
+					transport,
 					action: "retry",
 				});
 			});
@@ -703,9 +761,17 @@ Notes:
 	taskCommand
 		.command("cancel <effortId>")
 		.description("Request cancellation for a pending or running effort")
-		.option("--transport <type>", "Transport adapter: file or http", "file")
-		.action(async (effortId: string, opts: { transport: string }) => {
-			const adapter = adapterResolver(opts.transport);
+		.option(
+			"--transport <type>",
+			"Transport adapter: file or http",
+			parseTaskTransport,
+			"file",
+		)
+		.action(async (effortId: string, opts: { transport: TaskTransport }) => {
+			const { transport, adapter } = resolveTaskAdapter(
+				opts.transport,
+				adapterResolver,
+			);
 			const accepted = await adapter.cancel(effortId);
 			if (!accepted) {
 				console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
@@ -715,7 +781,7 @@ Notes:
 			safeSessionRecord(() => {
 				sessionRecorder.rememberControl({
 					effortId,
-					transport: opts.transport,
+					transport,
 					action: "cancel",
 				});
 			});
