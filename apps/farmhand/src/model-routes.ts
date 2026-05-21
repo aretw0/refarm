@@ -45,17 +45,17 @@ export function defaultModelForScope(
 		case "openai":
 			return "gpt-5.5";
 		case "anthropic":
-			return "claude-sonnet-4-6";
+			return "claude-sonnet-4-20250514";
 		case "ollama":
 			return "llama3.2";
 		case "mistral":
-			return "mistral-large-latest";
+			return "mistral-medium-3-5";
 		case "gemini":
-			return "gemini-2.0-flash";
+			return "gemini-3-flash-preview";
 		case "xai":
-			return "grok-3";
+			return "grok-4.3";
 		case "deepseek":
-			return "deepseek-chat";
+			return "deepseek-v4-flash";
 		default:
 			return undefined;
 	}

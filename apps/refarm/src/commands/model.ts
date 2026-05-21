@@ -116,7 +116,7 @@ Examples:
   $ refarm model openai/gpt-5.5
   $ refarm model set openai/gpt-5.5
   $ refarm model set --scope worker openai/gpt-5.3-codex-spark
-  $ refarm model set anthropic/claude-sonnet-4-6
+  $ refarm model set anthropic/claude-sonnet-4-20250514
   $ refarm model set ollama/llama3.2
 
 Notes:

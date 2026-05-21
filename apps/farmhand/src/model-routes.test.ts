@@ -21,23 +21,23 @@ describe("model routes", () => {
 	it("keeps provider defaults aligned with refarm CLI routing", () => {
 		expect(routeForScope({ modelProvider: "anthropic" }, "default")).toEqual({
 			provider: "anthropic",
-			modelId: "claude-sonnet-4-6",
+			modelId: "claude-sonnet-4-20250514",
 		});
 		expect(routeForScope({ modelProvider: "mistral" }, "default")).toEqual({
 			provider: "mistral",
-			modelId: "mistral-large-latest",
+			modelId: "mistral-medium-3-5",
 		});
 		expect(routeForScope({ modelProvider: "gemini" }, "default")).toEqual({
 			provider: "gemini",
-			modelId: "gemini-2.0-flash",
+			modelId: "gemini-3-flash-preview",
 		});
 		expect(routeForScope({ modelProvider: "xai" }, "default")).toEqual({
 			provider: "xai",
-			modelId: "grok-3",
+			modelId: "grok-4.3",
 		});
 		expect(routeForScope({ modelProvider: "deepseek" }, "default")).toEqual({
 			provider: "deepseek",
-			modelId: "deepseek-chat",
+			modelId: "deepseek-v4-flash",
 		});
 	});
 
@@ -54,13 +54,13 @@ describe("model routes", () => {
 				{
 					modelProvider: "openai",
 					modelId: "gpt-5.5",
-					modelRoutes: { worker: "anthropic/claude-sonnet-4-6" },
+					modelRoutes: { worker: "anthropic/claude-sonnet-4-20250514" },
 				},
 				"worker",
 			),
 		).toEqual({
 			provider: "anthropic",
-			modelId: "claude-sonnet-4-6",
+			modelId: "claude-sonnet-4-20250514",
 		});
 	});
 
@@ -76,13 +76,13 @@ describe("model routes", () => {
 				{
 					env: {
 						MODEL_PROVIDER: "anthropic",
-						MODEL_ID: "claude-sonnet-4-6",
+						MODEL_ID: "claude-sonnet-4-20250514",
 					},
 				},
 			),
 		).toEqual({
 			provider: "anthropic",
-			modelId: "claude-sonnet-4-6",
+			modelId: "claude-sonnet-4-20250514",
 		});
 	});
 
@@ -93,7 +93,7 @@ describe("model routes", () => {
 			}),
 		).toEqual({
 			provider: "gemini",
-			modelId: "gemini-2.0-flash",
+			modelId: "gemini-3-flash-preview",
 		});
 	});
 

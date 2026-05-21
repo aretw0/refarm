@@ -33,7 +33,7 @@ Examples:
   $ refarm sow
   $ refarm sow --cloudflare
   $ refarm sow --model openai/gpt-5.5
-  $ refarm sow --model anthropic/claude-sonnet-4-6
+  $ refarm sow --model anthropic/claude-sonnet-4-20250514
   $ refarm sow --model ollama/llama3.2
   $ refarm sow --model gpt-5.5
 
