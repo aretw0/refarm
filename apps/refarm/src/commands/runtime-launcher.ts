@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -9,6 +10,10 @@ export interface RuntimeLaunchCommand {
 	args: string[];
 	display: string;
 	source: "repo-script" | "path";
+}
+
+export interface RuntimeProcess {
+	unref(): void;
 }
 
 const RUNTIME_STARTERS: Record<
@@ -60,6 +65,15 @@ export function resolveRuntimeLaunchCommand(
 		display: [starter.binary, ...starter.binaryArgs].join(" "),
 		source: "path",
 	};
+}
+
+export function startRuntimeProcess(command: RuntimeLaunchCommand): RuntimeProcess {
+	const child = spawn(command.command, command.args, {
+		detached: true,
+		stdio: "ignore",
+	});
+	child.unref();
+	return child;
 }
 
 export function runtimeStartHelpLines(repoRoot: string): string[] {

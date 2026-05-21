@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import {
@@ -17,6 +17,7 @@ import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	resolveRuntimeLaunchCommand,
 	runtimeStartHelpLines,
+	startRuntimeProcess,
 } from "./runtime-launcher.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
@@ -251,11 +252,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 		spawnFarmhand(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
 			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine);
-			const child = spawn(command.command, command.args, {
-				detached: true,
-				stdio: "ignore",
-			});
-			child.unref();
+			startRuntimeProcess(command);
 		},
 		resolveRuntime: resolveLaunchRuntime,
 

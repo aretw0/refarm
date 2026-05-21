@@ -10,7 +10,11 @@ import {
 	type LaunchRuntimeSelection,
 	type TractorEngineMode,
 } from "./session-launch.js";
-import { resolveRuntimeLaunchCommand } from "./runtime-launcher.js";
+import {
+	resolveRuntimeLaunchCommand,
+	startRuntimeProcess,
+	type RuntimeLaunchCommand,
+} from "./runtime-launcher.js";
 
 interface RuntimeCommandDeps {
 	repoRoot(): string;
@@ -20,6 +24,7 @@ interface RuntimeCommandDeps {
 		repoRoot: string,
 		configuredEngine: TractorEngineMode,
 	): LaunchRuntimeSelection;
+	startRuntime?(command: RuntimeLaunchCommand): void;
 }
 
 interface RuntimeStatusPayload {
@@ -82,8 +87,24 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	}
 	console.log("");
 	console.log(chalk.dim("  Select engine:  refarm config set tractor.engine auto"));
+	console.log(chalk.dim("  Start runtime:  refarm runtime start"));
 	console.log(chalk.dim("  Autostart:      refarm config set runtime.autostart always"));
 	console.log(chalk.dim("  Full status:    refarm status --json"));
+}
+
+function resolveRuntimeStartCommand(deps: RuntimeCommandDeps): {
+	payload: RuntimeStatusPayload;
+	command?: RuntimeLaunchCommand;
+} {
+	const repoRoot = deps.repoRoot();
+	const payload = runtimeStatusPayload(deps);
+	if (payload.activeEngine === "unknown") {
+		return { payload };
+	}
+	return {
+		payload,
+		command: resolveRuntimeLaunchCommand(repoRoot, payload.activeEngine),
+	};
 }
 
 export function createRuntimeCommand(
@@ -98,6 +119,8 @@ export function createRuntimeCommand(
 
 Examples:
   $ refarm runtime
+  $ refarm runtime start
+  $ refarm runtime start --dry-run
   $ refarm runtime --json
   $ refarm config set tractor.engine rust
   $ REFARM_TRACTOR_ENGINE=ts refarm runtime
@@ -110,6 +133,59 @@ Notes:
   runtime.autostart controls whether CLI flows ask before starting the selected
   runtime, start it automatically, or never start it.
 `,
+		)
+		.addCommand(
+			new Command("start")
+				.description("Start the selected Refarm runtime in the background")
+				.option("--dry-run", "Print the resolved start command without executing it")
+				.option("--json", "Output machine-readable JSON")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm runtime start
+  $ refarm runtime start --dry-run
+  $ REFARM_TRACTOR_ENGINE=rust refarm runtime start
+
+Notes:
+  This uses the same engine selection as refarm ask/session autostart.
+  tractor.engine=auto prefers Rust Tractor when its local binary is available.
+`,
+				)
+				.action((opts: { dryRun?: boolean; json?: boolean }, subcommand: Command) => {
+					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const { payload, command } = resolveRuntimeStartCommand(deps);
+					if (!command) {
+						if (json) {
+							console.log(JSON.stringify({ ...payload, started: false }, null, 2));
+							return;
+						}
+						console.error(chalk.red("✗  Cannot start Refarm runtime."));
+						if (payload.issue) console.error(chalk.dim(`   ${payload.issue}`));
+						process.exitCode = 1;
+						return;
+					}
+
+					if (opts.dryRun) {
+						if (json) {
+							console.log(
+								JSON.stringify({ ...payload, command, dryRun: true }, null, 2),
+							);
+							return;
+						}
+						console.log(command.display);
+						return;
+					}
+
+					(deps.startRuntime ?? startRuntimeProcess)(command);
+					if (json) {
+						console.log(JSON.stringify({ ...payload, command, started: true }, null, 2));
+						return;
+					}
+					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
+					console.log(chalk.dim(`  command: ${command.display}`));
+				}),
 		)
 		.action((opts: { json?: boolean }) => {
 			const payload = runtimeStatusPayload(deps);

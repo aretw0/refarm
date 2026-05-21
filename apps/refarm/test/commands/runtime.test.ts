@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import type { LaunchRuntimeSelection } from "../../src/commands/session-launch.js";
 
 describe("runtime command", () => {
+	beforeEach(() => {
+		process.exitCode = undefined;
+	});
+
 	it("prints runtime engine selection", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createRuntimeCommand({
@@ -50,6 +54,7 @@ describe("runtime command", () => {
 		command.outputHelp();
 
 		expect(help).toContain("refarm config set runtime.autostart always");
+		expect(help).toContain("refarm runtime start");
 		expect(help).toContain("runtime.autostart controls");
 	});
 
@@ -100,5 +105,113 @@ describe("runtime command", () => {
 			issue: expect.stringContaining("Rust tractor binary is not built"),
 		});
 		logSpy.mockRestore();
+	});
+
+	it("prints the selected runtime start command in dry-run mode", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const startRuntime = vi.fn();
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime,
+		});
+
+		await command.parseAsync(["start", "--dry-run"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith("farmhand --background");
+		expect(startRuntime).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("outputs runtime start dry-run as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const startRuntime = vi.fn();
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime,
+		});
+
+		await command.parseAsync(["start", "--dry-run", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			dryRun?: boolean;
+			command?: { display?: string };
+		};
+		expect(payload.dryRun).toBe(true);
+		expect(payload.command?.display).toBe("farmhand --background");
+		expect(startRuntime).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("starts the selected runtime in the background", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const startRuntime = vi.fn();
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "always",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+			startRuntime,
+		});
+
+		await command.parseAsync(["start"], { from: "user" });
+
+		expect(startRuntime).toHaveBeenCalledWith(
+			expect.objectContaining({
+				engine: "rust",
+				command: "tractor",
+				display: "tractor",
+			}),
+		);
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Started rust runtime.");
+		expect(output).toContain("command: tractor");
+		logSpy.mockRestore();
+	});
+
+	it("reports start failure when the configured runtime is unavailable", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "rust",
+			readAutostart: () => "ask",
+			resolveRuntime: () => {
+				throw new Error("tractor.engine=rust but the Rust tractor binary is not built");
+			},
+			startRuntime: vi.fn(),
+		});
+
+		await command.parseAsync(["start"], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Cannot start Refarm runtime"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Rust tractor binary is not built"),
+		);
+		expect(logSpy).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 });
