@@ -402,7 +402,7 @@ function printAskError(message: string): void {
 			console.error(chalk.dim("   Or switch provider:  refarm sow"));
 		} else {
 			console.error(chalk.dim("   Reconfigure/login:  refarm sow"));
-			console.error(chalk.dim("   Switch model:       refarm model set openai/gpt-5.5"));
+			console.error(chalk.dim("   Switch model:       refarm model openai/gpt-5.5"));
 		}
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));

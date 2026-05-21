@@ -29,6 +29,19 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints current model when invoked without a subcommand", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync([], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("openai/gpt-5.5");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints built-in OpenAI defaults when no route is configured", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);
@@ -57,6 +70,7 @@ describe("modelCommand", () => {
 		command.outputHelp();
 
 		expect(help).toContain("The Refarm runtime reloads");
+		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
 	});
 
@@ -66,6 +80,21 @@ describe("modelCommand", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await command.parseAsync(["set", "openai/gpt-5.5"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("sets the default model route through shorthand", async () => {
+		const deps = makeDeps();
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["openai/gpt-5.5"], { from: "user" });
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelProvider: "openai",

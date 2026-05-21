@@ -57,7 +57,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim("  source:   built-in defaults"));
 		console.log(chalk.dim("  openai default: openai/gpt-5.5"));
 		console.log(chalk.dim("  openai worker:  openai/gpt-5.3-codex-spark"));
-		console.log(chalk.dim("  set one:        refarm model set openai/gpt-5.5"));
+		console.log(chalk.dim("  set one:        refarm model openai/gpt-5.5"));
 		console.log(chalk.dim("  login:          refarm sow"));
 	}
 }
@@ -94,7 +94,7 @@ export async function setModelRoute(
 	}
 	if (!parsed.provider) {
 		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
-		console.error(chalk.dim("   Use provider/model, for example: refarm model set ollama/llama3.2"));
+		console.error(chalk.dim("   Use provider/model, for example: refarm model ollama/llama3.2"));
 		process.exit(1);
 	}
 
@@ -106,12 +106,14 @@ export async function setModelRoute(
 export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()): Command {
 	const command = new Command("model")
 		.description("Inspect and change the active model route")
+		.argument("[ref]", "provider/model, or model for the current provider")
 		.addHelpText(
 			"after",
 			`
 
 Examples:
   $ refarm model current
+  $ refarm model openai/gpt-5.5
   $ refarm model set openai/gpt-5.5
   $ refarm model set --scope worker openai/gpt-5.3-codex-spark
   $ refarm model set anthropic/claude-sonnet-4-6
@@ -122,10 +124,17 @@ Notes:
   them before each task, so the next ask/chat turn or worker task uses the new route.
   For OpenAI workers, the default scoped route is openai/gpt-5.3-codex-spark.
 `,
-		);
+		)
+		.action(async (ref: string | undefined) => {
+			if (!ref) {
+				printCurrentModel(await deps.loadTokens());
+				return;
+			}
+			await setModelRoute(ref, "default", deps);
+		});
 
 	command
-		.command("current", { isDefault: true })
+		.command("current")
 		.description("Show the currently configured provider/model")
 		.action(async () => {
 			printCurrentModel(await deps.loadTokens());
