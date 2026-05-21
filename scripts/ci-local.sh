@@ -172,17 +172,17 @@ skip_step "refarm:telemetry:gate:ci" "requires farmhand sidecar"
 # ── 7. Turbo: build lint type-check test ─────────────────────────────────────
 step "Turbo: build lint type-check test"
 if [ "$SKIP_TURBO" = "true" ]; then
-  skip_step "pnpm turbo ..." "--skip-turbo flag set"
+  skip_step "turbo ..." "--skip-turbo flag set"
 elif [ "$code_changes" = "true" ]; then
   if [ -n "$TURBO_FILTER" ]; then
-    run_step "pnpm turbo (affected: $TURBO_FILTER)" \
-      pnpm turbo run build lint type-check test:unit test:integration --filter="$TURBO_FILTER" --cache-dir="$LOCAL_TURBO_CACHE_DIR"
+    run_step "turbo (affected: $TURBO_FILTER)" \
+      node scripts/ci/run-package-binary.mjs turbo run build lint type-check test:unit test:integration --filter="$TURBO_FILTER" --cache-dir="$LOCAL_TURBO_CACHE_DIR"
   else
-    run_step "pnpm turbo (full fallback)" \
-      pnpm turbo run build lint type-check test:unit test:integration --cache-dir="$LOCAL_TURBO_CACHE_DIR"
+    run_step "turbo (full fallback)" \
+      node scripts/ci/run-package-binary.mjs turbo run build lint type-check test:unit test:integration --cache-dir="$LOCAL_TURBO_CACHE_DIR"
   fi
 else
-  skip_step "pnpm turbo" "no code changes"
+  skip_step "turbo" "no code changes"
 fi
 
 # ── 8. Tractor gates (skipped without origin/main) ───────────────────────────
