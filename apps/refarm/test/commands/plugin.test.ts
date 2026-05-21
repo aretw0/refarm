@@ -291,6 +291,24 @@ describe("plugin bundle", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("documents package-manager detection in bundle help", () => {
+		const bundleCommand = pluginCommand.commands.find(
+			(command) => command.name() === "bundle",
+		);
+		let help = "";
+		bundleCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		bundleCommand?.outputHelp();
+
+		expect(help).toContain("REFARM_PACKAGE_MANAGER=npm");
+		expect(help).toContain("npm exec -- jco");
+		expect(help).toContain("pnpm|npm|yarn|bun");
+	});
+
 	it("derives plugin name from filename when --name not provided", async () => {
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

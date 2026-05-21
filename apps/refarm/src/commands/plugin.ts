@@ -292,6 +292,21 @@ pluginCommand
 	.description("Transpile a WASM plugin to a JS component using jco transpile")
 	.option("-o, --output <dir>", "Output directory", "./dist")
 	.option("-n, --name <name>", "Plugin name (defaults to input filename without extension)")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm plugin bundle ./plugin.wasm",
+			"  $ refarm plugin bundle ./plugin.wasm --name my-plugin --output ./dist",
+			"  $ REFARM_PACKAGE_MANAGER=npm refarm plugin bundle ./plugin.wasm",
+			"",
+			"Notes:",
+			"  This command runs jco through the detected package manager, such as",
+			"  pnpm exec jco or npm exec -- jco. Override detection with",
+			"  REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun.",
+		].join("\n"),
+	)
 	.action((input: string, options: { output: string; name?: string }) => {
 		const name = options.name ?? basename(input, extname(input));
 		console.log(`Bundling plugin ${name} from ${input}...`);
