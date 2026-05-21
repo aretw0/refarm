@@ -8,6 +8,7 @@ import { basename, extname } from "node:path";
 import path from "node:path";
 import { Command } from "commander";
 import { createPackageScriptCommand } from "./package-manager.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
 // To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
@@ -23,6 +24,13 @@ const BUNDLED_PLUGINS = [
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
+
+interface RuntimePluginState {
+	installed: string[];
+	loaded: string[];
+	local: string[];
+	known: string[];
+}
 
 function localPiAgentBuildCommand(): string {
 	return createPackageScriptCommand({
@@ -161,6 +169,54 @@ async function listInstalledPlugins(): Promise<void> {
 	}
 }
 
+async function readRuntimePluginState(): Promise<RuntimePluginState | null> {
+	try {
+		const response = await fetch(sidecarUrl("/plugins"));
+		if (!response.ok) return null;
+		const payload = (await response.json()) as Partial<RuntimePluginState>;
+		return {
+			installed: Array.isArray(payload.installed) ? payload.installed : [],
+			loaded: Array.isArray(payload.loaded) ? payload.loaded : [],
+			local: Array.isArray(payload.local) ? payload.local : [],
+			known: Array.isArray(payload.known) ? payload.known : [],
+		};
+	} catch {
+		return null;
+	}
+}
+
+async function printRuntimePluginStatus(): Promise<void> {
+	const state = await readRuntimePluginState();
+	if (!state) {
+		console.error("Refarm runtime plugin status is unavailable.");
+		console.error("Start the runtime with `refarm`, then retry.");
+		process.exitCode = 1;
+		return;
+	}
+
+	const known =
+		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
+	const idWidth = Math.max(...known.map((id) => id.length), 6);
+
+	console.log(`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`);
+	for (const id of known) {
+		const installed = state.installed.includes(id) ? "yes" : "no";
+		const loaded = state.loaded.includes(id) ? "yes" : "no";
+		const local = state.local.includes(id) ? "yes" : "no";
+		console.log(
+			`  ${id.padEnd(idWidth)}  ${installed.padEnd(9)}  ${loaded.padEnd(6)}  ${local}`,
+		);
+	}
+
+	if (!state.loaded.includes("@refarm/pi-agent")) {
+		console.log("");
+		console.log("pi-agent is not loaded.");
+		console.log("  Install:  refarm plugin install");
+		console.log("  Reload:   /reload @refarm/pi-agent");
+		console.log("  Diagnose: refarm doctor");
+	}
+}
+
 export const pluginCommand = new Command("plugin").description(
 	"Manage refarm plugins",
 );
@@ -196,6 +252,11 @@ pluginCommand
 	.command("list")
 	.description("List installed plugins and their versions")
 	.action(listInstalledPlugins);
+
+pluginCommand
+	.command("status")
+	.description("Show runtime plugin install/load state")
+	.action(printRuntimePluginStatus);
 
 pluginCommand
 	.command("bundle <input>")

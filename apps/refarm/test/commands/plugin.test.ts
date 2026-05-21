@@ -170,6 +170,77 @@ describe("plugin list", () => {
 	});
 });
 
+describe("plugin status", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		process.exitCode = undefined;
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("shows runtime plugin load state", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					installed: ["@refarm/pi-agent"],
+					loaded: ["@refarm/pi-agent"],
+					local: [],
+					known: ["@refarm/pi-agent"],
+				}),
+			}),
+		);
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("status");
+
+		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+		expect(output).toContain("@refarm/pi-agent");
+		expect(output).toContain("yes");
+		expect(output).not.toContain("pi-agent is not loaded");
+		consoleSpy.mockRestore();
+	});
+
+	it("guides when pi-agent is installed but not loaded", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					installed: ["@refarm/pi-agent"],
+					loaded: [],
+					local: [],
+					known: ["@refarm/pi-agent"],
+				}),
+			}),
+		);
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("status");
+
+		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+		expect(output).toContain("pi-agent is not loaded");
+		expect(output).toContain("refarm plugin install");
+		consoleSpy.mockRestore();
+	});
+
+	it("exits non-zero when runtime status is unavailable", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("status");
+
+		expect(process.exitCode).toBe(1);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("plugin status is unavailable"),
+		);
+		errorSpy.mockRestore();
+	});
+});
+
 describe("plugin bundle", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
