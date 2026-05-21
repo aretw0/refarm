@@ -63,6 +63,14 @@ pnpm run runtime-descriptor:release-smoke
 | `RELEASE_OWNER` | variable | `release-changesets.yml` | optional owner lock |
 | `GITHUB_TOKEN` | automatic | GitHub Actions | release PRs and repository operations |
 
+## Optional CI Cache
+
+`TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` enable the Cloudflare-backed
+Turborepo remote cache. They are optional. The shared setup action restores the
+local `.turbo` GitHub Actions cache first, then enables the remote cache only
+when the worker endpoint is reachable. If the remote cache is unavailable, CI
+continues with the local cache and emits a warning.
+
 ## Release Recovery
 
 If a published version has a problem, prefer deprecation plus a fixed release. Do not use `npm unpublish` for normal recovery because it can break downstream installs.
