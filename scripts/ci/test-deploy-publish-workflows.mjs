@@ -39,7 +39,7 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	const workflow = read(".github/workflows/release-changesets.yml");
 
 	assert.equal(packageJson.private, true);
-	assert.equal(packageJson.scripts["release:check"], "pnpm publish -r --dry-run");
+	assert.equal(packageJson.scripts["release:check"], "node scripts/release-check.mjs");
 	assert.equal(changesetConfig.access, "public");
 	assert.equal(changesetConfig.baseBranch, "main");
 	assert.match(workflow, /name: Release \(Changesets\)/);

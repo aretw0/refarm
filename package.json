@@ -127,7 +127,7 @@
 		"changeset:version": "changeset version",
 		"changeset:publish": "changeset publish",
 		"release": "node scripts/release.mjs",
-		"release:check": "pnpm publish -r --dry-run",
+		"release:check": "node scripts/release-check.mjs",
 		"i18n:check": "node scripts/check-locales.mjs",
 		"i18n:check:test": "node --test scripts/ci/test-check-locales-lib.mjs",
 		"diagrams:generate": "node scripts/ci/generate-diagrams.mjs",
