@@ -410,6 +410,31 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("rejects invalid log tail values before querying adapters", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logsCommand = taskCommand.commands.find(
+			(command) => command.name() === "logs",
+		)!;
+		logsCommand.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			logsCommand.parseAsync(["effort-abc", "--tail", "many"], { from: "user" }),
+		).rejects.toThrow("--tail must be a positive integer.");
+
+		expect(resolver).not.toHaveBeenCalled();
+		expect(adapter.logs).not.toHaveBeenCalled();
+	});
+
 	it("retry sets exitCode when rejected", async () => {
 		const adapter = createMockAdapter({
 			retry: vi.fn().mockResolvedValue(false),

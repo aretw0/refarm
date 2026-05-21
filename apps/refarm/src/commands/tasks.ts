@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import { exitForSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
@@ -23,6 +23,14 @@ interface TaskShowJson {
 	prefix: string;
 	task: Task;
 	events: TaskEvent[];
+}
+
+function parsePositiveIntOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive integer.`);
+	}
+	return parsed;
 }
 
 function formatTaskId(id: string): string {
@@ -229,7 +237,12 @@ export function createTasksCommand(): Command {
 		.description("List and inspect agent task memory")
 		.option("-s, --status <status>", "Filter by status (done/active/failed/blocked)")
 		.option("--session <id>", "Filter by session ID")
-		.option("-n, --limit <n>", "Max tasks to show", "20")
+		.option(
+			"-n, --limit <n>",
+			"Max tasks to show",
+			(value) => parsePositiveIntOption(value, "--limit"),
+			20,
+		)
 		.option("--json", "Output machine-readable JSON")
 		.addHelpText(
 			"after",
@@ -257,14 +270,20 @@ export function createTasksCommand(): Command {
 					await showTask(prefix, { json: opts.json });
 				}),
 		)
-		.action(async (opts: { status?: string; session?: string; limit?: string; json?: boolean }) => {
-			await listTasks({
-				status: opts.status,
-				session: opts.session,
-				limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
-				json: opts.json,
+		.action(
+			async (opts: {
+				status?: string;
+				session?: string;
+				limit?: number;
+				json?: boolean;
+			}) => {
+				await listTasks({
+					status: opts.status,
+					session: opts.session,
+					limit: opts.limit,
+					json: opts.json,
+				});
 			});
-		});
 }
 
 export const tasksCommand = createTasksCommand();

@@ -75,6 +75,20 @@ describe("refarm tasks", () => {
 		expect(output).toContain("abc123def456");
 	});
 
+	it("rejects invalid limits before calling the sidecar", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const command = createTasksCommand();
+		command.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			command.parseAsync(["--limit", "many"], { from: "user" }),
+		).rejects.toThrow("--limit must be a positive integer.");
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it("prints empty state when no tasks exist", async () => {
 		vi.stubGlobal(
 			"fetch",

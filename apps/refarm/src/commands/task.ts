@@ -44,6 +44,14 @@ function parseTaskTransport(value: string): TaskTransport {
 	);
 }
 
+function parsePositiveIntOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive integer.`);
+	}
+	return parsed;
+}
+
 function baseSummary(): EffortSummary {
 	return {
 		total: 0,
@@ -681,12 +689,17 @@ Notes:
 			parseTaskTransport,
 			"file",
 		)
-		.option("--tail <n>", "Only show the last N log entries", "40")
+		.option(
+			"--tail <n>",
+			"Only show the last N log entries",
+			(value) => parsePositiveIntOption(value, "--tail"),
+			40,
+		)
 		.option("--json", "Print machine-readable JSON output")
 		.action(
 			async (
 				effortId: string,
-				opts: { transport: TaskTransport; tail: string; json?: boolean },
+				opts: { transport: TaskTransport; tail: number; json?: boolean },
 			) => {
 				const { transport, adapter } = resolveTaskAdapter(
 					opts.transport,
@@ -705,11 +718,7 @@ Notes:
 					return;
 				}
 
-				const tailCount = Number.parseInt(opts.tail, 10);
-				const sliced =
-					Number.isFinite(tailCount) && tailCount > 0
-						? logs.slice(-tailCount)
-						: logs;
+				const sliced = logs.slice(-opts.tail);
 				if (opts.json) {
 					console.log(JSON.stringify({ effortId, logs: sliced }, null, 2));
 					return;
