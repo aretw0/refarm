@@ -130,7 +130,7 @@ export function createSiloModelEnvInjector(
 					if (envKey) setManagedEnv(envKey, apiKey);
 				}
 			} catch {
-				// Silo unavailable - farmhand-start.sh .env fallback still applies.
+				// Silo unavailable - environment fallback still applies.
 			}
 		},
 	};
