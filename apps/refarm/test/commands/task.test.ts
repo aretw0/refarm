@@ -102,6 +102,25 @@ describe("refarm task run", () => {
 		expect(help).toContain("http transport submits directly");
 	});
 
+	it("documents task run examples and transport behavior", () => {
+		const taskCommand = createTaskCommand();
+		const runCommand = taskCommand.commands.find(
+			(command) => command.name() === "run",
+		);
+		let help = "";
+		runCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		runCommand?.outputHelp();
+
+		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
+		expect(help).toContain('{"query":"hello"}');
+		expect(help).toContain("http transport submits directly");
+	});
+
 	it("normalizes legacy query args for pi-agent respond tasks", () => {
 		expect(
 			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", { query: "hello" }),
@@ -221,6 +240,24 @@ describe("refarm task status", () => {
 		});
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("No result yet"));
 		spy.mockRestore();
+	});
+
+	it("documents task status watch and transport options", () => {
+		const taskCommand = createTaskCommand();
+		const statusCommand = taskCommand.commands.find(
+			(command) => command.name() === "status",
+		);
+		let help = "";
+		statusCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		statusCommand?.outputHelp();
+
+		expect(help).toContain("refarm task status <effort-id> --watch");
+		expect(help).toContain("Use the same transport used by task run");
 	});
 
 	it("prints status and task results when found", async () => {
@@ -455,5 +492,23 @@ describe("refarm task resume", () => {
 			expect.stringContaining('"activeEffortId": "effort-abc"'),
 		);
 		spy.mockRestore();
+	});
+
+	it("documents local checkpoint behavior", () => {
+		const taskCommand = createTaskCommand();
+		const resumeCommand = taskCommand.commands.find(
+			(command) => command.name() === "resume",
+		);
+		let help = "";
+		resumeCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		resumeCommand?.outputHelp();
+
+		expect(help).toContain("refarm task resume --json");
+		expect(help).toContain("It does not contact the runtime by itself");
 	});
 });

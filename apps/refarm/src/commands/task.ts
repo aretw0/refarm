@@ -351,6 +351,22 @@ Notes:
 			"Manual CLI dispatch",
 		)
 		.option("--transport <type>", "Transport adapter: file or http", "file")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm task run @refarm.dev/pi-agent respond --args '{"prompt":"hello"}'
+  $ refarm task run @refarm.dev/pi-agent respond --args '{"query":"hello"}'
+  $ refarm task run @refarm.dev/pi-agent respond --transport http
+  $ refarm task run my-plugin process --direction "Review local change"
+
+Notes:
+  --args must be a JSON object or value accepted by the target plugin function.
+  file transport queues work under ~/.refarm/tasks for the runtime to pick up.
+  http transport submits directly to the local Refarm runtime sidecar.
+`,
+		)
 		.action(
 			async (
 				plugin: string,
@@ -405,6 +421,20 @@ Notes:
 		.option("--transport <type>", "Transport adapter: file or http", "file")
 		.option("--watch", "Poll every 2s until final state")
 		.option("--json", "Print machine-readable status JSON")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm task status <effort-id>
+  $ refarm task status <effort-id> --watch
+  $ refarm task status <effort-id> --transport http --json
+
+Notes:
+  Use the same transport used by task run. file transport reads local result
+  files; http transport queries the running Refarm runtime sidecar.
+`,
+		)
 		.action(
 			async (
 				effortId: string,
@@ -499,6 +529,19 @@ Notes:
 		.command("resume")
 		.description("Show local task session checkpoint with resume hints")
 		.option("--json", "Print machine-readable JSON output")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm task resume
+  $ refarm task resume --json
+
+Notes:
+  Resume reads the local CLI checkpoint and prints status/log commands for
+  recent task efforts. It does not contact the runtime by itself.
+`,
+		)
 		.action(async (opts: { json?: boolean }) => {
 			const checkpoint = sessionRecorder.getCheckpoint();
 			if (!checkpoint) {
