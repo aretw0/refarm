@@ -8,14 +8,10 @@ import {
 	packageInstallCommand,
 	packageScriptCommand,
 } from "../../packages/config/src/package-manager.js";
+import { readWorkspacePackages } from "./workspace-packages.mjs";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
-const workspacePackages = JSON.parse(
-	execSync("pnpm ls -r --json --depth 0", {
-		cwd: ROOT_DIR,
-		maxBuffer: 20 * 1024 * 1024,
-	}).toString(),
-);
+const workspacePackages = readWorkspacePackages(ROOT_DIR);
 
 function packageManager() {
 	return detectPackageManager({ cwd: ROOT_DIR });

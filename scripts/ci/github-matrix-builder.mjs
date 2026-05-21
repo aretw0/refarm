@@ -14,6 +14,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
+import { readWorkspacePackages } from "./workspace-packages.mjs";
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
@@ -99,12 +100,7 @@ function getChangedPackages() {
  */
 function getAllWorkspacePackages() {
     try {
-        const output = execSync("pnpm ls -r --json --depth 0", { 
-            cwd: ROOT_DIR, 
-            encoding: "utf-8",
-            maxBuffer: 20 * 1024 * 1024,
-        });
-        return JSON.parse(output);
+        return readWorkspacePackages(ROOT_DIR);
     } catch (err) {
         console.error("❌ Failed to query workspace packages:", err.message);
         return [];
