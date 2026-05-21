@@ -109,6 +109,18 @@ program.addCommand(
 				description: "Reinitialize even if already initialized (destructive)",
 			},
 		],
+		helpText: `
+
+Examples:
+  $ refarm init my-workspace
+  $ refarm init .
+  $ refarm init my-workspace --force
+
+Notes:
+  This creates refarm.config.json and .refarm/identity.json.
+  --force reinitializes an existing workspace and can overwrite generated metadata.
+  After init, run refarm sow to configure credentials.
+`,
 		load: async () => (await import("./commands/init.js")).initCommand,
 		toArgs: (name, opts) => [
 			name ?? "my-farm",
@@ -173,6 +185,17 @@ program.addCommand(
 			{ flags: "--target <url>", description: "Target Git URL for mirroring" },
 			{ flags: "--dry-run", description: "Simulate the migration without pushing" },
 		],
+		helpText: `
+
+Examples:
+  $ refarm migrate --target https://github.com/user/fork.git --dry-run
+  $ refarm migrate --target git@github.com:user/fork.git
+
+Notes:
+  This mirrors the current repository to another Git remote.
+  Use --dry-run first; live migration may push the full repository.
+  The source remote is read from refarm.config.json or .git/config.
+`,
 		load: async () => (await import("./commands/migrate.js")).migrateCommand,
 		toArgs: (_unused, opts) => [
 			...(opts.target ? ["--target", opts.target] : []),

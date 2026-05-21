@@ -57,6 +57,35 @@ describe("refarm program", () => {
 		expect(help).toContain("The Refarm runtime reloads Silo credentials");
 	});
 
+	it("documents lazy init and migrate workflows", () => {
+		const init = program.commands.find((command) => command.name() === "init");
+		const migrate = program.commands.find(
+			(command) => command.name() === "migrate",
+		);
+		let initHelp = "";
+		let migrateHelp = "";
+		init?.configureOutput({
+			writeOut: (value) => {
+				initHelp += value;
+			},
+		});
+		migrate?.configureOutput({
+			writeOut: (value) => {
+				migrateHelp += value;
+			},
+		});
+
+		init?.outputHelp();
+		migrate?.outputHelp();
+
+		expect(initHelp).toContain("refarm init my-workspace");
+		expect(initHelp).toContain("After init, run refarm sow");
+		expect(migrateHelp).toContain(
+			"refarm migrate --target https://github.com/user/fork.git --dry-run",
+		);
+		expect(migrateHelp).toContain("Use --dry-run first");
+	});
+
 	it("documents common operator workflows in root help", () => {
 		let help = "";
 		program.configureOutput({
