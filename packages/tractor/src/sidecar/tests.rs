@@ -37,6 +37,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
         .route("/efforts/:id/logs", axum::routing::get(get_effort_logs))
         .route("/efforts/:id/retry", axum::routing::post(post_effort_retry))
         .route("/efforts/:id/cancel", axum::routing::post(post_effort_cancel))
+        .route("/plugins", axum::routing::get(get_plugins))
         .with_state(state.clone());
 
     tokio::spawn(async move {
@@ -115,6 +116,35 @@ async fn sidecar_get_efforts_lists_submitted() {
         .filter_map(|e| e["effortId"].as_str())
         .collect();
     assert!(ids.contains(&id.as_str()));
+}
+
+#[tokio::test]
+async fn sidecar_get_plugins_reports_loaded_agent_channels() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/pi-agent".to_string(), tx);
+    let client = reqwest::Client::new();
+
+    let res = client
+        .get(format!("{}/plugins", base(port)))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(
+        body["loaded"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/pi-agent")]
+    );
+    assert_eq!(
+        body["known"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/pi-agent")]
+    );
 }
 
 #[tokio::test]

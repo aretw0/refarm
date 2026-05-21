@@ -8,6 +8,7 @@
 //!   GET    /efforts/:id/logs           — effort log entries
 //!   POST   /efforts/:id/retry          — re-enqueue
 //!   POST   /efforts/:id/cancel         — cancel
+//!   GET    /plugins                    — installed/loaded plugin state
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
 //! task. Results and stream chunks are written to the filesystem so that
@@ -147,6 +148,22 @@ fn write_stream_chunk(
     let mut file = fs::OpenOptions::new().create(true).append(true).open(&path)?;
     writeln!(file, "{}", chunk)?;
     Ok(())
+}
+
+async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
+    let loaded: Vec<String> = {
+        let channels = state.agent_channels.read().expect("channels poisoned");
+        let mut ids: Vec<String> = channels.keys().cloned().collect();
+        ids.sort();
+        ids
+    };
+
+    Json(serde_json::json!({
+        "installed": loaded,
+        "loaded": loaded,
+        "local": [],
+        "known": loaded,
+    }))
 }
 
 struct TaskArgs {
@@ -869,6 +886,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/sessions/:id/history", get(get_session_history))
         .route("/tasks", get(get_tasks))
         .route("/tasks/:id", get(get_task))
+        .route("/plugins", get(get_plugins))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
