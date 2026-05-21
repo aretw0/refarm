@@ -1,116 +1,79 @@
-<!-- HEADER / BANNER -->
-<div align="center">
-  <img src="https://img.icons8.com/fluency/96/000000/tree-structure.png" alt="Refarm Logo" width="90" />
-  
-  <h1>Refarm</h1>
-  <p><b>Personal Operating System for Sovereign Data</b></p>
-  
-  [![Website](https://img.shields.io/badge/Website-refarm.dev-000000?style=flat-square&logo=google-chrome&logoColor=white)](https://refarm.dev)
-  [![Patreon](https://img.shields.io/badge/Support_our_Hackerspace-Patreon-FF424D?style=flat-square&logo=patreon)](https://www.patreon.com/cw/refarm88)
-  [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?style=flat-square&logo=github)](https://github.com/sponsors/aretw0)
-  [![License](https://img.shields.io/github/license/aretw0/refarm.svg?color=red)](LICENSE)
-</div>
+# Refarm
 
-> **Personal Operating System for Sovereign Data**
+Personal operating system for sovereign data.
 
-A experimental system to claim ownership of your data. Centralises data from multiple fragmented sources into a single, offline-first, portable graph that belongs entirely to you.
+Refarm is an experimental local-first system for owning, connecting and moving personal data. The current repository is primarily for building the engine, developer tooling and first applications. Public end-user use is not released yet.
 
----
+Website: <https://refarm.dev>
 
-## Why This Matters
+## Current Status
 
-Most digital life scatters across dozens of platforms. Your data lives inside corporate servers, bound by terms-of-service, inaccessible when you need it, gone when you don't.
+Refarm is pre-release. The priority is making the creator's own daily-driver flow reliable before publishing a general user experience.
 
-**Refarm's hypothesis**: What if you could own, control, and transport your data like you own your files?
+- Current focus: sync, execution and plugin runtime stabilization.
+- Main app surface: `apps/dev`.
+- Engine/runtime work: `packages/tractor`, `packages/tractor-ts`, `packages/pi-agent`, storage and sync packages.
+- Package release automation exists, but publish is explicitly gated.
 
-We're exploring this through:
+## For Future Users
 
-- **Offline-first storage** — data lives in your browser, not corporate servers
-- **Plugin architecture** — extend via client-side WASM, fully agnostic of registries
-- **Open formats** — everything is JSON-LD, portable to any platform
-- **Pragmatic decentralisation** — Designed for agnostic identity & discovery; future-proof for protocols like Nostr, while maintaining local-first simplicity.
+The intended user outcome is a portable personal data graph that can run offline first and sync through open or replaceable infrastructure.
 
----
+Current user-facing principles:
 
-## The Sovereign Ecosystem
+- data should remain portable;
+- browser/local storage should work without a central server as the default assumption;
+- plugins should extend the system without locking users to one registry;
+- identity, discovery and sync should be replaceable over time.
 
-Refarm is a unified architecture that manifests as distinct experiences depending on the domain used to access it. All domains run the same core engine but curate different capabilities:
+This repository is not yet a polished product download. Until release gates are met, the docs and commands here are mainly for contributors and operators.
 
-- **`refarm.dev`**: The core engine, SDKs, and developer portal.
-- **`refarm.me`**: The sovereign identity and private "Second Brain" interface.
-- **`refarm.social`**: The public network, federated communities, and P2P gardens.
-
----
-
-## Status
-
-🌱 **Maturing toward cohesion — creator as first user**
-
-The core engine is built. The current focus is on becoming a real daily driver before any public release: consolidating the primitives into a cohesive system the creator uses for their own life and work. No v0.1.0 release until it earns that trust.
-
-- **Current phase**: Phase 6 — Sync & Execution Stabilization (Loro CRDT, WASM Plugins, dual-runtime Tractor)
-- **Pre-release gate**: creator daily-driver validation — Tractor + Homestead + stream contract working end-to-end
-- **Registry maturity**: Tracking ready-to-publish packages in [Package Registry](packages/README.md) (44 packages)
-- **Methodology**: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
-
----
-
-## 🗺 Sovereign Navigation Map
-
-Categorized entry points for users, developers, and auditors.
-
-### 🏛 Philosophy & Arch
-- **[Architecture](docs/ARCHITECTURE.md)** — Core design principles and Evolutionary Roadmap.
-- **[Knowledge Map](docs/INDEX.md)** — The "Architecture of Truth" (Master Index).
-- **[ADRs](specs/ADRs/README.md)** — Architectural Decision Records.
-
-### 🛠 Development & Ops
-- **[Sovereign Workflow](docs/WORKFLOW.md)** — The SDD→BDD→TDD→DDD process.
-- **[DevOps & Setup](docs/DEVOPS.md)** — Environment, CI, and Reusable Workflows.
-- **[Package Registry](packages/README.md)** — List of all 44 packages and their publishing maturity.
-
-### 🛡 Governance & Security
-- **[PR Quality Governance](docs/PR_QUALITY_GOVERNANCE.md)** — Quality gates and changeset policy.
-- **[Security Policy](SECURITY.md)** — Disclosure and operational status.
-- **[Agent Rules](AGENTS.md)** — Rules of engagement for AI collaborators.
-
-### 📊 Status & Roadmap
-- **[Main Roadmap](roadmaps/MAIN.md)** — v0.1.0 through v1.0.0 milestones.
-- **[Research Archive](docs/research/INDEX.md)** — Historical technical feasibility studies.
-
----
-
-## Getting Started
+## For Developers
 
 ```bash
 pnpm install
-
-# Development
-pnpm run dev       # Watch mode for all apps
-pnpm run build     # Build all packages
-pnpm test          # Run tests
-
-# Contribution workflow
-pnpm run changeset # Create version changelog entry
+pnpm run dev
+pnpm run build
+pnpm test
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+Common entry points:
 
----
+| Area | Start here |
+|---|---|
+| Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Development workflow | [docs/WORKFLOW.md](docs/WORKFLOW.md) |
+| Package registry | [packages/README.md](packages/README.md) |
+| Roadmap | [roadmaps/MAIN.md](roadmaps/MAIN.md) |
+| Contribution guide | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
-## Contributing & Security
+Changes to published packages should include a changeset when applicable:
 
-- **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
-- **PR quality policy:** [docs/PR_QUALITY_GOVERNANCE.md](docs/PR_QUALITY_GOVERNANCE.md)
-- **Security policy & disclosure:** [SECURITY.md](SECURITY.md)
-- **Security operational status (audit/dependencies):** [docs/DEVOPS.md](docs/DEVOPS.md)
-- **License:** [AGPL-3.0](LICENSE)
+```bash
+pnpm run changeset
+```
 
----
+## For Release And Deploy Operators
 
-## Further Reading
+Release and deploy surfaces are intentionally separate:
 
-- [Full Architecture Document](docs/ARCHITECTURE.md)
-- [Development Workflow](docs/WORKFLOW.md)
-- [Main Roadmap](roadmaps/MAIN.md)
-- [Research Validations](docs/research/)
+- GitHub Pages deploy builds `apps/dev` through `.github/workflows/deploy-dev.yml`.
+- Package publishing uses Changesets through `.github/workflows/release-changesets.yml`.
+- Runtime descriptor release assets are validated by `runtime-descriptor:release-smoke`.
+- Publish automation requires repository variables/secrets and is not enabled by ordinary local commands.
+
+Useful dry-run and contract checks:
+
+```bash
+pnpm run actions:pins
+pnpm run deploy:publish:workflow:test
+pnpm run release:check
+pnpm run runtime-descriptor:release-smoke
+```
+
+## Security And Governance
+
+- Security policy: [SECURITY.md](SECURITY.md)
+- PR quality policy: [docs/PR_QUALITY_GOVERNANCE.md](docs/PR_QUALITY_GOVERNANCE.md)
+- Agent collaboration rules: [AGENTS.md](AGENTS.md)
+- License: [AGPL-3.0](LICENSE)
