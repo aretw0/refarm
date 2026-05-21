@@ -5,7 +5,7 @@ const SUPPORTED_PACKAGE_MANAGERS = new Set(["pnpm", "npm", "yarn", "bun"]);
 
 function normalizePackageManager(value) {
     if (typeof value !== "string") return null;
-    const name = value.split("@")[0];
+    const name = value.trim().split("@")[0]?.trim();
     return SUPPORTED_PACKAGE_MANAGERS.has(name) ? name : null;
 }
 

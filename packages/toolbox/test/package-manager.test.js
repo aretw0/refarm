@@ -10,8 +10,8 @@ import {
 
 describe("toolbox package manager commands", () => {
     it("honors REFARM_PACKAGE_MANAGER", () => {
-        expect(detectPackageManager({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toBe("bun");
-        expect(packageScriptCommand("test", { env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+        expect(detectPackageManager({ env: { REFARM_PACKAGE_MANAGER: " bun " } })).toBe("bun");
+        expect(packageScriptCommand("test", { env: { REFARM_PACKAGE_MANAGER: " bun " } })).toMatchObject({
             command: "bun run test",
         });
     });
@@ -20,7 +20,7 @@ describe("toolbox package manager commands", () => {
         const root = mkdtempSync(join(tmpdir(), "refarm-toolbox-pm-"));
         const app = join(root, "apps", "dev");
         mkdirSync(app, { recursive: true });
-        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: "pnpm@11.1.2" }));
+        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.1.2 " }));
         writeFileSync(join(app, "package.json"), JSON.stringify({ name: "dev" }));
 
         try {
