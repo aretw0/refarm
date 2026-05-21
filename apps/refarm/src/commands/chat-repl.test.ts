@@ -68,6 +68,19 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("parses fallback /model route changes", () => {
+		expect(parseChatLine("/model fallback ollama/qwen2.5-coder")).toEqual({
+			kind: "model",
+			action: "fallback",
+			ref: "ollama/qwen2.5-coder",
+		});
+		expect(parseChatLine("/model fallback off")).toEqual({
+			kind: "model",
+			action: "fallback",
+			ref: "off",
+		});
+	});
+
 	it("parses runtime credential setup commands", () => {
 		expect(parseChatLine("/login")).toEqual({ kind: "login", args: [] });
 		expect(parseChatLine("/sow --model openai/gpt-5.5")).toEqual({
@@ -142,6 +155,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
+		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
 	});
 });

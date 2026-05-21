@@ -20,6 +20,7 @@ import { parseChatLine, CHAT_HELP_TEXT } from "./chat-repl.js";
 import {
 	defaultModelDeps,
 	printCurrentModel,
+	setFallbackModelRoute,
 	setModelRoute,
 	type ModelCommandDeps,
 } from "./model.js";
@@ -543,6 +544,8 @@ export async function runSessionRepl(
 							const modelDeps = deps.model ?? defaultModelDeps();
 							if (command.action === "current") {
 								printCurrentModel(await modelDeps.loadTokens());
+							} else if (command.action === "fallback") {
+								await setFallbackModelRoute(command.ref, modelDeps);
 							} else {
 								await setModelRoute(command.ref, command.scope, modelDeps);
 							}
@@ -625,6 +628,7 @@ Runtime commands:
   /model ${OPENAI_DEFAULT_REF}   Set the default model route
   /model worker ${OPENAI_WORKER_REF}
   /model monitor ${OPENAI_MONITOR_REF}
+  /model fallback ollama/llama3.2
   /login                  Configure credentials without leaving the session
   /reload [id...]         Hot-reload plugins in the Refarm runtime
 `,
