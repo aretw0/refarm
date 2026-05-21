@@ -120,7 +120,7 @@
 		"deps:update": "node scripts/check-deps.mjs --update",
 		"deps:missing": "node scripts/check-missing-deps.mjs",
 		"deps:missing:src": "node scripts/check-missing-deps.mjs --src-only",
-		"security:audit": "pnpm audit",
+		"security:audit": "node scripts/security/audit.mjs",
 		"security:fix": "node scripts/security/audit-fix.mjs",
 		"security:fix:dry": "node scripts/security/audit-fix.mjs --dry-run",
 		"changeset": "changeset",
