@@ -15,6 +15,12 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
+import {
+	readRuntimePluginState,
+	reloadRuntimePlugins,
+	type RuntimePluginReloadResult,
+	type RuntimePluginState,
+} from "./runtime-plugins.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
@@ -47,24 +53,12 @@ export interface AskDeps {
 	readActiveSessionId?(): string | null;
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
-	readPluginState?(): Promise<PluginState | null>;
-	reloadPlugins?(pluginIds: string[]): Promise<PluginReloadResult | null>;
+	readPluginState?(): Promise<RuntimePluginState | null>;
+	reloadPlugins?(pluginIds: string[]): Promise<RuntimePluginReloadResult | null>;
 }
 
 interface SessionNode {
 	"@id": string;
-}
-
-interface PluginState {
-	installed: string[];
-	loaded: string[];
-	known: string[];
-}
-
-interface PluginReloadResult {
-	reloaded: string[];
-	deferred: string[];
-	skipped: string[];
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
@@ -78,42 +72,6 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
-
-async function readPluginStateViaHttp(): Promise<PluginState | null> {
-	try {
-		const response = await fetch(sidecarUrl("/plugins"));
-		if (!response.ok) return null;
-		const payload = (await response.json()) as Partial<PluginState>;
-		return {
-			installed: Array.isArray(payload.installed) ? payload.installed : [],
-			loaded: Array.isArray(payload.loaded) ? payload.loaded : [],
-			known: Array.isArray(payload.known) ? payload.known : [],
-		};
-	} catch {
-		return null;
-	}
-}
-
-async function reloadPluginsViaHttp(
-	pluginIds: string[],
-): Promise<PluginReloadResult | null> {
-	try {
-		const response = await fetch(sidecarUrl("/plugins/reload"), {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ pluginIds }),
-		});
-		if (!response.ok) return null;
-		const payload = (await response.json()) as Partial<PluginReloadResult>;
-		return {
-			reloaded: Array.isArray(payload.reloaded) ? payload.reloaded : [],
-			deferred: Array.isArray(payload.deferred) ? payload.deferred : [],
-			skipped: Array.isArray(payload.skipped) ? payload.skipped : [],
-		};
-	} catch {
-		return null;
-	}
 }
 
 function followStreamFile(
@@ -386,8 +344,8 @@ function defaultDeps(): AskDeps {
 		readActiveSessionId,
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
-		readPluginState: readPluginStateViaHttp,
-		reloadPlugins: reloadPluginsViaHttp,
+		readPluginState: readRuntimePluginState,
+		reloadPlugins: reloadRuntimePlugins,
 	};
 }
 
@@ -476,9 +434,9 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 }
 
 async function ensurePiAgentReady(
-	readPluginState: (() => Promise<PluginState | null>) | undefined,
+	readPluginState: (() => Promise<RuntimePluginState | null>) | undefined,
 	reloadPlugins:
-		| ((pluginIds: string[]) => Promise<PluginReloadResult | null>)
+		| ((pluginIds: string[]) => Promise<RuntimePluginReloadResult | null>)
 		| undefined,
 ): Promise<boolean> {
 	if (!readPluginState) return true;
