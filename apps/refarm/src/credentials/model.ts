@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
 import { select, Separator } from "@inquirer/prompts";
+import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { isContainer } from "@refarm.dev/root";
 import type { CollectContext, CredentialProvider } from "./types.js";
 import { secretInput } from "../prompts/secret-input.js";
@@ -24,17 +25,23 @@ const OAUTH_PROVIDERS: OAuthProviderInterface[] = [
 
 const DEVCONTAINER_CALLBACK_TIMEOUT_MS = 120_000;
 
+function credentialEnvKey(provider: string): string {
+	const envKey = modelCredentialEnvKey(provider);
+	if (!envKey) throw new Error(`No credential env key registered for model provider "${provider}".`);
+	return envKey;
+}
+
 // ── API key tier (paste + link) ───────────────────────────────────────────────
 const API_KEY_PROVIDERS = [
-	{ id: "openai",     label: "OpenAI API key",       envKey: "OPENAI_API_KEY",     url: "https://platform.openai.com/api-keys" },
-	{ id: "anthropic",  label: "Anthropic API key",   envKey: "ANTHROPIC_API_KEY",  url: "https://console.anthropic.com/settings/keys" },
-	{ id: "groq",       label: "Groq",                 envKey: "GROQ_API_KEY",       url: "https://console.groq.com/keys" },
-	{ id: "mistral",    label: "Mistral",              envKey: "MISTRAL_API_KEY",    url: "https://console.mistral.ai/api-keys" },
-	{ id: "gemini",     label: "Gemini (Google)",      envKey: "GEMINI_API_KEY",     url: "https://aistudio.google.com/app/apikey" },
-	{ id: "xai",        label: "xAI / Grok",           envKey: "XAI_API_KEY",        url: "https://console.x.ai" },
-	{ id: "deepseek",   label: "DeepSeek",             envKey: "DEEPSEEK_API_KEY",   url: "https://platform.deepseek.com/api_keys" },
-	{ id: "together",   label: "Together AI",          envKey: "TOGETHER_API_KEY",   url: "https://api.together.xyz/settings/api-keys" },
-	{ id: "openrouter", label: "OpenRouter",           envKey: "OPENROUTER_API_KEY", url: "https://openrouter.ai/keys" },
+	{ id: "openai",     label: "OpenAI API key",       envKey: credentialEnvKey("openai"),     url: "https://platform.openai.com/api-keys" },
+	{ id: "anthropic",  label: "Anthropic API key",   envKey: credentialEnvKey("anthropic"),  url: "https://console.anthropic.com/settings/keys" },
+	{ id: "groq",       label: "Groq",                 envKey: credentialEnvKey("groq"),       url: "https://console.groq.com/keys" },
+	{ id: "mistral",    label: "Mistral",              envKey: credentialEnvKey("mistral"),    url: "https://console.mistral.ai/api-keys" },
+	{ id: "gemini",     label: "Gemini (Google)",      envKey: credentialEnvKey("gemini"),     url: "https://aistudio.google.com/app/apikey" },
+	{ id: "xai",        label: "xAI / Grok",           envKey: credentialEnvKey("xai"),        url: "https://console.x.ai" },
+	{ id: "deepseek",   label: "DeepSeek",             envKey: credentialEnvKey("deepseek"),   url: "https://platform.deepseek.com/api_keys" },
+	{ id: "together",   label: "Together AI",          envKey: credentialEnvKey("together"),   url: "https://api.together.xyz/settings/api-keys" },
+	{ id: "openrouter", label: "OpenRouter",           envKey: credentialEnvKey("openrouter"), url: "https://openrouter.ai/keys" },
 ] as const;
 
 type ApiKeyProviderId = typeof API_KEY_PROVIDERS[number]["id"];
