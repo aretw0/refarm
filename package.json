@@ -26,7 +26,7 @@
 		"test:capabilities": "node scripts/ci/test-capabilities.mjs",
 		"gate:smoke:foundation": "node scripts/ci/gate-smoke-foundation.mjs",
 		"gate:smoke:runtime-host-contracts": "node scripts/ci/gate-smoke-runtime-host-contracts.mjs",
-		"gate:smoke:runtime": "pnpm run gate:smoke:runtime-host-contracts && cd packages/tractor && cargo check --quiet && cargo test --lib agent_tools_bridge --quiet && cargo test --lib plugin_host --quiet && cargo test --lib wasi_bridge --quiet && pnpm run test:smoke:ws && cd ../.. && pnpm -C packages/tractor-ts run build && pnpm -C packages/tractor-ts run type-check && pnpm -C packages/tractor-ts run runtime-module:ci",
+		"gate:smoke:runtime": "node scripts/ci/gate-smoke-runtime.mjs",
 		"gate:smoke:contracts": "node scripts/ci/gate-smoke-contracts.mjs",
 		"gate:full:colony": "node scripts/ci/run-root-scripts.mjs gate:smoke:foundation gate:smoke:contracts gate:smoke:runtime validate-packages deps:missing:src deps:vitest-config-check actions:pins audience:boundary:test deploy:publish:workflow:test i18n:check i18n:check:test openapi:check refarm:check:gate && node scripts/ci/project-block-consistency.mjs --silent",
 		"bench:sqlite": "node scripts/ci/run-workspace-script.mjs validations/sqlite-benchmark bench:all",
