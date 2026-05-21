@@ -364,7 +364,7 @@ describe("refarm tree list", () => {
 			expect.stringContaining("Refarm runtime is not running"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Start now:  refarm"),
+			expect.stringContaining("Start now:  refarm runtime start"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm doctor"),

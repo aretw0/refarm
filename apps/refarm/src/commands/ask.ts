@@ -389,7 +389,7 @@ function printAskError(message: string): void {
 		console.error(chalk.dim("   Diagnose:                 refarm doctor"));
 	} else if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Refarm runtime is not running."));
-		console.error(chalk.dim("   Start now:  refarm"));
+		console.error(chalk.dim("   Start now:  refarm runtime start"));
 		console.error(chalk.dim("   Diagnose:   refarm doctor"));
 		console.error(
 			chalk.dim(

@@ -293,7 +293,7 @@ export async function autoStartFarmhand(
 
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
-		console.error(chalk.dim("   Start now:        refarm"));
+		console.error(chalk.dim("   Start now:        refarm runtime start"));
 		for (const line of runtimeStartHelpLines(repoRoot)) {
 			console.error(chalk.dim(`   ${line}`));
 		}
@@ -306,7 +306,7 @@ export async function autoStartFarmhand(
 	if (mode === "ask") {
 		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
 		if (!confirmed) {
-			console.error(chalk.dim("\n   Start later:  refarm"));
+			console.error(chalk.dim("\n   Start later:  refarm runtime start"));
 			console.error(chalk.dim("   Diagnose:     refarm doctor"));
 			return false;
 		}
