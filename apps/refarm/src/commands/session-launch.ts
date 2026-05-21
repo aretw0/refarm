@@ -14,6 +14,10 @@ import {
 	createStdioOperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
 import { createPackageScriptCommand } from "./package-manager.js";
+import {
+	resolveRuntimeLaunchCommand,
+	runtimeStartHelpLines,
+} from "./runtime-launcher.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const FARMHAND_PROBE_TIMEOUT_MS = 1_500;
@@ -230,22 +234,11 @@ export function defaultLaunchDeps(): LaunchDeps {
 
 		spawnFarmhand(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
-			const scriptName =
-				runtime.activeEngine === "rust" ? "tractor-start.sh" : "farmhand-start.sh";
-			const scriptPath = path.join(repoRoot, "scripts", scriptName);
-			const fallbackCommand =
-				runtime.activeEngine === "rust" ? "tractor" : "farmhand";
-			const fallbackArgs =
-				runtime.activeEngine === "rust" ? [] : ["--background"];
-			const child = fs.existsSync(scriptPath)
-				? spawn("bash", [scriptPath, "--background"], {
-						detached: true,
-						stdio: "ignore",
-					})
-				: spawn(fallbackCommand, fallbackArgs, {
-						detached: true,
-						stdio: "ignore",
-					});
+			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine);
+			const child = spawn(command.command, command.args, {
+				detached: true,
+				stdio: "ignore",
+			});
 			child.unref();
 		},
 
@@ -287,12 +280,9 @@ export async function autoStartFarmhand(
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
 		console.error(chalk.dim("   Start now:        refarm"));
-		console.error(
-			chalk.dim(
-				"   Local TS start:   bash scripts/farmhand-start.sh --background",
-			),
-		);
-		console.error(chalk.dim("   Local Rust start: bash scripts/tractor-start.sh --background"));
+		for (const line of runtimeStartHelpLines(repoRoot)) {
+			console.error(chalk.dim(`   ${line}`));
+		}
 		console.error(chalk.dim("   Diagnose:         refarm doctor"));
 		return false;
 	}
@@ -330,12 +320,9 @@ export async function autoStartFarmhand(
 
 	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
 	console.error(chalk.dim("   Run `refarm doctor` for diagnostics."));
-	console.error(
-		chalk.dim(
-			"   Local TS fallback:    bash scripts/farmhand-start.sh --background",
-		),
-	);
-	console.error(chalk.dim("   Local Rust fallback:  bash scripts/tractor-start.sh --background"));
+	for (const line of runtimeStartHelpLines(repoRoot)) {
+		console.error(chalk.dim(`   ${line.replace("start:", "fallback:")}`));
+	}
 	return false;
 }
 
