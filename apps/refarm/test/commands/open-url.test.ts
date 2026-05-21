@@ -22,6 +22,7 @@ describe("open-url command", () => {
 		expect(help).toContain(
 			"refarm open-url https://dash.cloudflare.com --dry-run",
 		);
+		expect(help).toContain("REFARM_BROWSER_OPEN_COMMAND");
 		expect(help).toContain("operator.openExternalLinks never");
 		expect(help).toContain("devcontainer to the host browser");
 		expect(help).toContain("flows headless and print URLs instead");
