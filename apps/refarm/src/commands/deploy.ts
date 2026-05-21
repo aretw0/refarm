@@ -14,6 +14,21 @@ interface DeployResult {
 
 export const deployCommand = new Command("deploy")
   .description("Deploy artifacts to configured targets")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Examples:",
+      "  $ refarm deploy --dry-run",
+      "  $ refarm deploy --target github --dry-run",
+      "  $ refarm deploy --target cloudflare",
+      "",
+      "Notes:",
+      "  Run from a workspace containing refarm.config.json.",
+      "  Use --dry-run first; live deploy resolves credentials from Silo and passes them to Windmill.",
+      "  Use refarm provision cloudflare turbo-cache before deploying Cloudflare-backed cache infrastructure.",
+    ].join("\n"),
+  )
   .option("--target <target>", "Target platform (cloudflare, github, all)", "all")
   .option("--dry-run", "Simulate the deployment")
   .action(async (options) => {

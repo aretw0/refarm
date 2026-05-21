@@ -68,6 +68,20 @@ describe("initCommand — mocked initialization flow", () => {
     await initCommand.parseAsync([name], { from: "user" });
   }
 
+  it("documents force behavior and next credential step in help", () => {
+    let help = "";
+    initCommand.configureOutput({
+      writeOut: (value) => {
+        help += value;
+      },
+    });
+    initCommand.outputHelp();
+
+    expect(help).toContain("refarm init my-workspace --force");
+    expect(help).toContain("--force reinitializes");
+    expect(help).toContain("run refarm sow");
+  });
+
   it("creates project and .refarm directories with { recursive: true }", async () => {
     await runInit();
     expect(mockMkdirSync).toHaveBeenCalledWith(

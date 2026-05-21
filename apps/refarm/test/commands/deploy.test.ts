@@ -36,6 +36,20 @@ import { deployCommand } from "../../src/commands/deploy.js";
 describe("deployCommand", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("documents dry-run and configuration requirements in help", () => {
+    let help = "";
+    deployCommand.configureOutput({
+      writeOut: (value) => {
+        help += value;
+      },
+    });
+    deployCommand.outputHelp();
+
+    expect(help).toContain("refarm deploy --dry-run");
+    expect(help).toContain("refarm.config.json");
+    expect(help).toContain("Use --dry-run first");
+  });
+
   it("calls windmill.deploy with the given target", async () => {
     await deployCommand.parseAsync(["--target", "github", "--dry-run"], { from: "user" });
     expect(mockDeploy).toHaveBeenCalledWith("github");

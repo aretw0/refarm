@@ -32,6 +32,19 @@ import { guideCommand } from "../../src/commands/guide.js";
 describe("guideCommand", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("documents the generated audit file in help", () => {
+    let help = "";
+    guideCommand.configureOutput({
+      writeOut: (value) => {
+        help += value;
+      },
+    });
+    guideCommand.outputHelp();
+
+    expect(help).toContain("refarm-audit.md");
+    expect(help).toContain("Use refarm health");
+  });
+
   it("writes a markdown file", async () => {
     await guideCommand.parseAsync([], { from: "user" });
     expect(mockWriteFileSync).toHaveBeenCalledWith(

@@ -9,6 +9,21 @@ import * as path from "node:path";
 
 export const initCommand = new Command("init")
   .description("Initialize a new Refarm workspace")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Examples:",
+      "  $ refarm init my-workspace",
+      "  $ refarm init .",
+      "  $ refarm init my-workspace --force",
+      "",
+      "Notes:",
+      "  This creates refarm.config.json and .refarm/identity.json.",
+      "  --force reinitializes an existing workspace and can overwrite generated metadata.",
+      "  After init, run refarm sow to configure credentials.",
+    ].join("\n"),
+  )
   .argument("[name]", "Project name", "my-workspace")
   .option("--force", "Reinitialize even if already initialized (destructive)")
   .action(async (name, opts: { force?: boolean }) => {

@@ -45,6 +45,20 @@ import { migrateCommand } from "../../src/commands/migrate.js";
 describe("migrateCommand", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("documents dry-run and mirror impact in help", () => {
+    let help = "";
+    migrateCommand.configureOutput({
+      writeOut: (value) => {
+        help += value;
+      },
+    });
+    migrateCommand.outputHelp();
+
+    expect(help).toContain("refarm migrate --target https://github.com/user/fork.git --dry-run");
+    expect(help).toContain("may push the full repository");
+    expect(help).toContain(".git/config");
+  });
+
   it("calls mirrorRepo with provided --target URL", async () => {
     await migrateCommand.parseAsync(["--target", "https://github.com/user/fork.git", "--dry-run"], { from: "user" });
     expect(mockMirrorRepo).toHaveBeenCalledWith(

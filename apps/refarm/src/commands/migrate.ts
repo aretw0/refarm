@@ -13,6 +13,20 @@ interface MigrateConfig {
 
 export const migrateCommand = new Command("migrate")
   .description("Mirror your project to another Git remote")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Examples:",
+      "  $ refarm migrate --target https://github.com/user/fork.git --dry-run",
+      "  $ refarm migrate --target git@github.com:user/fork.git",
+      "",
+      "Notes:",
+      "  This mirrors the current repository to another Git remote.",
+      "  Use --dry-run first; live migration may push the full repository.",
+      "  The source remote is read from refarm.config.json or .git/config.",
+    ].join("\n"),
+  )
   .option("--target <url>", "Target Git URL for mirroring")
   .option("--dry-run", "Simulate the migration without pushing")
   .action(async (options) => {

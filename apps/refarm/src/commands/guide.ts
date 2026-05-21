@@ -5,7 +5,22 @@ import { loadConfig } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 
 export const guideCommand = new Command("guide")
-  .description("Generate or update the dynamic SETUP_GUIDE.md")
+  .description("Generate a local refarm-audit.md setup report")
+  .addHelpText(
+    "after",
+    [
+      "",
+      "Examples:",
+      "  $ refarm guide",
+      "  $ refarm sow",
+      "  $ refarm health",
+      "",
+      "Notes:",
+      "  This writes refarm-audit.md in the current directory.",
+      "  The report is a local setup audit; it is not a runtime readiness check.",
+      "  Use refarm health for deterministic project diagnostics.",
+    ].join("\n"),
+  )
   .action(async () => {
     console.log(chalk.blue("Generating setup audit..."));
 
