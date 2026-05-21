@@ -128,6 +128,10 @@ fn stream_ref_for_prompt(prompt_ref: &str) -> String {
     format!("urn:tractor:stream:agent-response:{prompt_ref}")
 }
 
+fn is_pi_agent_plugin_id(plugin_id: &str) -> bool {
+    plugin_id == "@refarm/pi-agent" || plugin_id == "@refarm.dev/pi-agent"
+}
+
 fn write_stream_chunk(
     streams_dir: &Path,
     stream_ref: &str,
@@ -277,8 +281,8 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
 
         let fn_name = task.fn_name.as_deref().unwrap_or("respond");
 
-        // Only `@refarm/pi-agent` + `respond` is supported in Phase 1.
-        if task.plugin_id != "@refarm/pi-agent" || fn_name != "respond" {
+        // Only pi-agent + `respond` is supported in Phase 1.
+        if !is_pi_agent_plugin_id(&task.plugin_id) || fn_name != "respond" {
             finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
                 status: "error".to_string(),
                 result: None,

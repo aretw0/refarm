@@ -63,6 +63,12 @@ fn test_effort(id: &str) -> serde_json::Value {
     })
 }
 
+fn test_effort_with_plugin(id: &str, plugin_id: &str) -> serde_json::Value {
+    let mut effort = test_effort(id);
+    effort["tasks"][0]["pluginId"] = serde_json::json!(plugin_id);
+    effort
+}
+
 fn test_task(args: serde_json::Value) -> EffortTask {
     EffortTask {
         id: uuid::Uuid::new_v4().to_string(),
@@ -108,6 +114,13 @@ fn sidecar_extract_task_args_rejects_missing_prompt() {
         .expect_err("missing prompt must fail");
 
     assert!(error.contains("requires args.prompt"));
+}
+
+#[test]
+fn sidecar_accepts_canonical_and_scoped_pi_agent_ids() {
+    assert!(is_pi_agent_plugin_id("@refarm/pi-agent"));
+    assert!(is_pi_agent_plugin_id("@refarm.dev/pi-agent"));
+    assert!(!is_pi_agent_plugin_id("@refarm/other"));
 }
 
 #[tokio::test]
@@ -409,6 +422,38 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
         body["status"].as_str().unwrap(),
         "failed",
         "effort must be failed when @refarm/pi-agent channel is not registered"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_scoped_pi_agent_id_reaches_canonical_channel_lookup() {
+    let (_state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort_with_plugin(&id, "@refarm.dev/pi-agent"))
+        .send()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let body: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(body["status"].as_str().unwrap(), "failed");
+    assert_eq!(
+        body["results"][0]["error"].as_str().unwrap(),
+        "@refarm/pi-agent not loaded",
+        "scoped plugin ID should be accepted before canonical channel lookup"
     );
 }
 
