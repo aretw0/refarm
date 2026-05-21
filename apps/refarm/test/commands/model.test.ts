@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createModelCommand, type ModelCommandDeps } from "../../src/commands/model.js";
 
 function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
@@ -11,8 +11,31 @@ function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 }
 
 describe("modelCommand", () => {
+	const originalProvider = process.env.MODEL_PROVIDER;
+	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
+	const originalModelId = process.env.MODEL_ID;
+
 	beforeEach(() => {
 		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		if (originalProvider === undefined) {
+			delete process.env.MODEL_PROVIDER;
+		} else {
+			process.env.MODEL_PROVIDER = originalProvider;
+		}
+		if (originalDefaultProvider === undefined) {
+			delete process.env.MODEL_DEFAULT_PROVIDER;
+		} else {
+			process.env.MODEL_DEFAULT_PROVIDER = originalDefaultProvider;
+		}
+		if (originalModelId === undefined) {
+			delete process.env.MODEL_ID;
+		} else {
+			process.env.MODEL_ID = originalModelId;
+		}
+		vi.restoreAllMocks();
 	});
 
 	it("prints the current default and OpenAI worker route", async () => {
@@ -54,6 +77,21 @@ describe("modelCommand", () => {
 		expect(output).toContain("openai default: openai/gpt-5.5");
 		expect(output).toContain("openai worker:  openai/gpt-5.3-codex-spark");
 		expect(output).toContain("login:          refarm sow");
+
+		logSpy.mockRestore();
+	});
+
+	it("prints current model from default provider environment", async () => {
+		process.env.MODEL_DEFAULT_PROVIDER = "gemini";
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("gemini/gemini-3-flash-preview");
+		expect(output).toContain("source:   environment overrides are active");
 
 		logSpy.mockRestore();
 	});

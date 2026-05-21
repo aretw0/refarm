@@ -43,7 +43,8 @@ export function defaultModelDeps(): ModelCommandDeps {
 }
 
 export function printCurrentModel(tokens: ModelTokens): void {
-	const provider = process.env.MODEL_PROVIDER ?? tokens.modelProvider;
+	const provider =
+		process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER ?? tokens.modelProvider;
 	const modelId = process.env.MODEL_ID ?? tokens.modelId ?? tokens.model;
 	const resolvedModel = modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
@@ -56,7 +57,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		tokens.modelRoutes?.worker ??
 		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);
 	if (workerRoute) console.log(`  worker:   ${workerRoute}`);
-	if (process.env.MODEL_PROVIDER || process.env.MODEL_ID) {
+	if (process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || process.env.MODEL_ID) {
 		console.log(chalk.dim("  source:   environment overrides are active"));
 	} else if (tokens.modelProvider || tokens.modelId || tokens.model) {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
