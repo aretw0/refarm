@@ -1,10 +1,12 @@
 export type { ModelScope } from "./model-routing.js";
 export {
     DEFAULT_MODEL_PROVIDER,
+    MODEL_PROVIDERS,
     MODEL_SCOPES,
     defaultModelForProvider,
     defaultModelForScope,
     inferProviderFromModelId,
+    isModelProvider,
     isModelScope,
 } from "./model-routing.js";
 export const PI_AGENT_PLUGIN_ID: "@refarm/pi-agent";

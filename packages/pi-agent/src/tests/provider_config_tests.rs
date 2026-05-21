@@ -26,6 +26,16 @@ fn provider_config_openai_compat_defaults_known_provider() {
         ("xai", "https://api.x.ai", "grok-4.3"),
         ("deepseek", "https://api.deepseek.com", "deepseek-v4-flash"),
         (
+            "together",
+            "https://api.together.xyz",
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        ),
+        (
+            "openrouter",
+            "https://openrouter.ai",
+            "anthropic/claude-sonnet-4.6",
+        ),
+        (
             "gemini",
             "https://generativelanguage.googleapis.com",
             "gemini-3-flash-preview",

@@ -3,6 +3,7 @@ export {
 	defaultModelForProvider,
 	defaultModelForScope,
 	inferProviderFromModelId,
+	isModelProvider,
 	isModelScope,
 	MODEL_SCOPES,
 	type ModelScope,
@@ -12,6 +13,7 @@ import {
 	defaultModelForProvider,
 	defaultModelForScope,
 	inferProviderFromModelId,
+	isModelProvider,
 	type ModelScope,
 } from "@refarm.dev/config";
 
@@ -44,8 +46,15 @@ export function parseModelRef(
 
 	const slash = ref.indexOf("/");
 	if (slash > 0 && slash < ref.length - 1) {
+		const prefix = ref.slice(0, slash).trim();
+		if (storedProvider && !isModelProvider(prefix)) {
+			return {
+				provider: storedProvider,
+				modelId: ref,
+			};
+		}
 		return {
-			provider: ref.slice(0, slash).trim(),
+			provider: prefix,
 			modelId: ref.slice(slash + 1).trim(),
 		};
 	}

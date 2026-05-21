@@ -78,6 +78,16 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
 	});
 
+	it("keeps nested model ids when the provider is already configured", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "together" });
+		await sowCommand.parseAsync(["--model", "meta-llama/Llama-3.3-70B-Instruct-Turbo"], { from: "user" });
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			modelProvider: "together",
+			modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+		});
+	});
+
 	it("saves only modelProvider when ollama is selected (no key)", async () => {
 		mockModelCollect.mockResolvedValue({ provider: "ollama", apiKey: null });
 		await sowCommand.parseAsync([], { from: "user" });

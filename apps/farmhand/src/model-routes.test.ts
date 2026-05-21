@@ -25,6 +25,10 @@ describe("model routes", () => {
 			provider: "anthropic",
 			modelId: "claude-sonnet-4-6",
 		});
+		expect(routeForScope({ modelProvider: "groq" }, "default")).toEqual({
+			provider: "groq",
+			modelId: "llama-3.3-70b-versatile",
+		});
 		expect(routeForScope({ modelProvider: "mistral" }, "default")).toEqual({
 			provider: "mistral",
 			modelId: "mistral-medium-3-5",
@@ -40,6 +44,14 @@ describe("model routes", () => {
 		expect(routeForScope({ modelProvider: "deepseek" }, "default")).toEqual({
 			provider: "deepseek",
 			modelId: "deepseek-v4-flash",
+		});
+		expect(routeForScope({ modelProvider: "together" }, "default")).toEqual({
+			provider: "together",
+			modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+		});
+		expect(routeForScope({ modelProvider: "openrouter" }, "default")).toEqual({
+			provider: "openrouter",
+			modelId: "anthropic/claude-sonnet-4.6",
 		});
 	});
 
