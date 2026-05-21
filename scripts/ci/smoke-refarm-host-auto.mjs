@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { runSubprocess } from "./subprocess-utils.mjs";
+import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
+import { runPackageScript, runSubprocess } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-host-smoke:auto]";
 
@@ -56,6 +57,11 @@ export function formatUnknownSmokeProfileMessage(profile) {
 
 export function resolveProfileScript(profile) {
 	return PROFILE_SCRIPT[profile];
+}
+
+export function resolveProfileCommand(profile) {
+	const script = resolveProfileScript(profile);
+	return script ? packageScriptCommand(script, { cwd: process.cwd() }).display : undefined;
 }
 
 export function createSmokeProfileDecisionEnvelope({
@@ -550,12 +556,12 @@ async function main() {
 		return;
 	}
 
-	console.log(`${LOGGER_PREFIX} action=npm run ${command}`);
+	console.log(`${LOGGER_PREFIX} action=${resolveProfileCommand(decision.profile)}`);
 	if (!execute) {
 		return;
 	}
 
-	await runSubprocess("pnpm", ["run", command], { env: process.env });
+	await runPackageScript(".", command, { env: process.env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

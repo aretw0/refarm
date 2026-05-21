@@ -16,6 +16,7 @@ import {
 	isSmokeProfile,
 	listSmokeProfiles,
 	normalizeChangedFiles,
+	resolveProfileCommand,
 	resolveProfileScript,
 } from "./smoke-refarm-host-auto.mjs";
 
@@ -231,7 +232,7 @@ test("creates a profile-to-script list envelope", () => {
 	});
 });
 
-test("maps profiles to npm scripts", () => {
+test("maps profiles to package scripts", () => {
 	assert.equal(isSmokeProfile("skip"), true);
 	assert.equal(isSmokeProfile("actions"), true);
 	assert.equal(isSmokeProfile("action-seams"), true);
@@ -281,6 +282,7 @@ test("maps profiles to npm scripts", () => {
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
 	assert.equal(resolveProfileScript("ci"), "refarm:host:smoke:ci");
+	assert.equal(resolveProfileCommand("tree"), "pnpm run refarm:tree:verify");
 });
 
 test("detects composite check gate files", () => {
@@ -444,7 +446,7 @@ test("explicit CLI profile bypasses diff detection", () => {
 	);
 	assert.match(output, /profile=tree files=0/);
 	assert.match(output, /source=explicit-profile/);
-	assert.match(output, /action=npm run refarm:tree:verify/);
+	assert.match(output, /action=pnpm run refarm:tree:verify/);
 });
 
 test("explicit granular CLI profile maps to a narrow lane", () => {
@@ -459,7 +461,7 @@ test("explicit granular CLI profile maps to a narrow lane", () => {
 	);
 	assert.match(output, /profile=actions-headless files=0/);
 	assert.match(output, /source=explicit-profile/);
-	assert.match(output, /action=npm run refarm:actions:headless:test/);
+	assert.match(output, /action=pnpm run refarm:actions:headless:test/);
 });
 
 test("explicit action-seams CLI profile maps to the combined action seam lane", () => {
@@ -472,7 +474,7 @@ test("explicit action-seams CLI profile maps to the combined action seam lane", 
 	assert.match(output, /source=explicit-profile/);
 	assert.match(
 		output,
-		/action=npm run refarm:host:smoke:cli:action-seams/,
+		/action=pnpm run refarm:host:smoke:cli:action-seams/,
 	);
 });
 
