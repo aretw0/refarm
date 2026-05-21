@@ -5,12 +5,17 @@ export {
     MODEL_CREDENTIAL_ENV_KEYS,
     MODEL_PROVIDERS,
     MODEL_SCOPES,
+    defaultProviderModelId,
+    defaultProviderModelRef,
     defaultModelForProvider,
     defaultModelForScope,
+    defaultScopedModelRef,
+    formatModelRef,
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
     modelCredentialEnvKey,
+    parseModelRef,
 } from "./model-routing.js";
 export {
     PI_AGENT_NPM_PACKAGE,

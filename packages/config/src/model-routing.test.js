@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
     DEFAULT_MODEL_PROVIDER,
+    defaultProviderModelId,
+    defaultProviderModelRef,
     defaultModelForProvider,
     defaultModelForScope,
+    defaultScopedModelRef,
+    formatModelRef,
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
     modelCredentialEnvKey,
+    parseModelRef,
 } from "./model-routing.js";
 
 describe("model routing config", () => {
@@ -30,6 +35,13 @@ describe("model routing config", () => {
     it("uses a separate OpenAI worker route", () => {
         expect(defaultModelForScope("openai", "worker")).toBe("gpt-5.3-codex-spark");
         expect(defaultModelForScope("gemini", "worker")).toBe("gemini-3-flash-preview");
+    });
+
+    it("formats default provider and scoped model refs", () => {
+        expect(defaultProviderModelRef("openai")).toBe("openai/gpt-5.5");
+        expect(defaultProviderModelId("ollama")).toBe("llama3.2");
+        expect(defaultScopedModelRef("worker", "openai")).toBe("openai/gpt-5.3-codex-spark");
+        expect(formatModelRef(undefined, undefined)).toBe("<not configured>");
     });
 
     it("infers providers from known model prefixes", () => {
@@ -59,5 +71,29 @@ describe("model routing config", () => {
         expect(modelCredentialEnvKey("gemini")).toBe("GEMINI_API_KEY");
         expect(modelCredentialEnvKey("ollama")).toBeUndefined();
         expect(modelCredentialEnvKey("unknown")).toBeUndefined();
+    });
+
+    it("parses known provider/model refs with nested model ids", () => {
+        expect(
+            parseModelRef("together/meta-llama/Llama-3.3-70B-Instruct-Turbo", undefined),
+        ).toEqual({
+            provider: "together",
+            modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        });
+        expect(
+            parseModelRef("openrouter/anthropic/claude-sonnet-4.6", undefined),
+        ).toEqual({
+            provider: "openrouter",
+            modelId: "anthropic/claude-sonnet-4.6",
+        });
+    });
+
+    it("preserves slash-bearing model ids for the stored provider", () => {
+        expect(
+            parseModelRef("meta-llama/Llama-3.3-70B-Instruct-Turbo", "together"),
+        ).toEqual({
+            provider: "together",
+            modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        });
     });
 });

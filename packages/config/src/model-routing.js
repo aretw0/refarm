@@ -72,6 +72,14 @@ export function isModelProvider(value) {
     return MODEL_PROVIDERS.includes(value?.trim().toLowerCase());
 }
 
+export function defaultProviderModelRef(provider = DEFAULT_MODEL_PROVIDER) {
+    return formatModelRef(provider, defaultModelForProvider(provider));
+}
+
+export function defaultProviderModelId(provider = DEFAULT_MODEL_PROVIDER) {
+    return defaultModelForProvider(provider) ?? provider;
+}
+
 export function defaultModelForScope(provider, scope) {
     const normalized = provider?.trim().toLowerCase();
     if (scope === "worker" && normalized === "openai") {
@@ -80,6 +88,43 @@ export function defaultModelForScope(provider, scope) {
     return defaultModelForProvider(provider);
 }
 
+export function defaultScopedModelRef(scope, provider = DEFAULT_MODEL_PROVIDER) {
+    return formatModelRef(provider, defaultModelForScope(provider, scope));
+}
+
 export function isModelScope(value) {
     return MODEL_SCOPES.includes(value);
+}
+
+export function parseModelRef(value, storedProvider) {
+    const ref = value?.trim();
+    if (!ref) return null;
+
+    const slash = ref.indexOf("/");
+    if (slash > 0 && slash < ref.length - 1) {
+        const prefix = ref.slice(0, slash).trim();
+        if (storedProvider && !isModelProvider(prefix)) {
+            return {
+                provider: storedProvider,
+                modelId: ref,
+            };
+        }
+        return {
+            provider: prefix,
+            modelId: ref.slice(slash + 1).trim(),
+        };
+    }
+
+    return {
+        provider: storedProvider ?? inferProviderFromModelId(ref),
+        modelId: ref,
+    };
+}
+
+export function formatModelRef(provider, modelId) {
+    const resolvedModel = modelId ?? defaultModelForProvider(provider);
+    if (!provider && !resolvedModel) return "<not configured>";
+    if (!provider) return resolvedModel ?? "<not configured>";
+    if (!resolvedModel) return provider;
+    return `${provider}/${resolvedModel}`;
 }

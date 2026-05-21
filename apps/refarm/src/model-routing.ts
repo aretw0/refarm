@@ -2,73 +2,18 @@ export {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
 	defaultModelForScope,
+	defaultProviderModelId,
+	defaultProviderModelRef,
+	defaultScopedModelRef,
+	formatModelRef,
 	inferProviderFromModelId,
 	isModelProvider,
 	isModelScope,
+	modelCredentialEnvKey,
+	MODEL_CREDENTIAL_ENV_KEYS,
+	MODEL_PROVIDERS,
 	MODEL_SCOPES,
+	parseModelRef,
+	type ModelRef,
 	type ModelScope,
 } from "@refarm.dev/config";
-import {
-	DEFAULT_MODEL_PROVIDER,
-	defaultModelForProvider,
-	defaultModelForScope,
-	inferProviderFromModelId,
-	isModelProvider,
-	type ModelScope,
-} from "@refarm.dev/config";
-
-export interface ModelRef {
-	provider?: string;
-	modelId: string;
-}
-
-export function defaultProviderModelRef(provider = DEFAULT_MODEL_PROVIDER): string {
-	return formatModelRef(provider, defaultModelForProvider(provider));
-}
-
-export function defaultProviderModelId(provider = DEFAULT_MODEL_PROVIDER): string {
-	return defaultModelForProvider(provider) ?? provider;
-}
-
-export function defaultScopedModelRef(
-	scope: ModelScope,
-	provider = DEFAULT_MODEL_PROVIDER,
-): string {
-	return formatModelRef(provider, defaultModelForScope(provider, scope));
-}
-
-export function parseModelRef(
-	value: string | undefined,
-	storedProvider: string | undefined,
-): ModelRef | null {
-	const ref = value?.trim();
-	if (!ref) return null;
-
-	const slash = ref.indexOf("/");
-	if (slash > 0 && slash < ref.length - 1) {
-		const prefix = ref.slice(0, slash).trim();
-		if (storedProvider && !isModelProvider(prefix)) {
-			return {
-				provider: storedProvider,
-				modelId: ref,
-			};
-		}
-		return {
-			provider: prefix,
-			modelId: ref.slice(slash + 1).trim(),
-		};
-	}
-
-	return {
-		provider: storedProvider ?? inferProviderFromModelId(ref),
-		modelId: ref,
-	};
-}
-
-export function formatModelRef(provider: string | undefined, modelId: string | undefined): string {
-	const resolvedModel = modelId ?? defaultModelForProvider(provider);
-	if (!provider && !resolvedModel) return "<not configured>";
-	if (!provider) return resolvedModel ?? "<not configured>";
-	if (!resolvedModel) return provider;
-	return `${provider}/${resolvedModel}`;
-}
