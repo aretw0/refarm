@@ -196,6 +196,9 @@ describe("provision command", () => {
 			expect.stringContaining("Cloudflare services"),
 		);
 		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Provider-only mode does not create resources"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("dry-run — no resources will be created"),
 		);
 
@@ -240,7 +243,8 @@ describe("provision command", () => {
 		provisionCommand.outputHelp();
 
 		expect(help).toContain("refarm provision cloudflare turbo-cache --dry-run");
-		expect(help).toContain("Running a provider without a service prints guidance only");
+		expect(help).toContain("Running a provider without a service prints guidance only; it does not create resources");
+		expect(help).toContain("Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default");
 	});
 
 	it("provisions Cloudflare turbo-cache with stored Cloudflare token", async () => {

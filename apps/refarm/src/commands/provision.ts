@@ -37,7 +37,7 @@ function renderCloudflareCatalog(): void {
 	console.log("");
 	console.log(
 		chalk.gray(
-			"Run a service subcommand to provision resources; provider-only mode prints this guide.",
+			"Provider-only mode does not create resources. Run a service subcommand to apply a plan.",
 		),
 	);
 }
@@ -106,8 +106,9 @@ const cloudflareCommand = new Command("cloudflare")
 			"  $ refarm provision cloudflare turbo-cache --github-secrets",
 			"",
 			"Notes:",
-			"  Provider-only mode lists services and next steps.",
+			"  Provider-only mode lists services and next steps; it does not create resources.",
 			"  Run turbo-cache to create or update Worker/R2 resources.",
+			"  Use --dry-run on turbo-cache to inspect the exact plan before applying it.",
 		].join("\n"),
 	)
 	.option(
@@ -270,8 +271,9 @@ export const provisionCommand = new Command("provision")
 			"  $ refarm provision cloudflare turbo-cache --github-secrets",
 			"",
 			"Notes:",
-			"  Running a provider without a service prints guidance only.",
+			"  Running a provider without a service prints guidance only; it does not create resources.",
 			"  Cloudflare turbo-cache provisioning uses the token saved by refarm sow --cloudflare.",
+			"  Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default.",
 		].join("\n"),
 	)
 	.addCommand(
