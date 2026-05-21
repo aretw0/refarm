@@ -14,7 +14,9 @@
 
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { loadConfig } from "@refarm.dev/config";
+import { exec } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import { loadConfig, packageScriptCommand } from "@refarm.dev/config";
 
 const execAsync = promisify(exec);
 const config = loadConfig();
@@ -29,6 +31,10 @@ const PACKAGES = [
 ];
 
 const ORG = devScope;
+
+function scriptCommand(script, cwd = process.cwd()) {
+  return packageScriptCommand(script, { cwd }).command;
+}
 
 async function main() {
   const [, , packageName, versionBump] = process.argv;
@@ -92,13 +98,13 @@ async function main() {
 
   try {
     console.log("   - Type checking...");
-    await execAsync("pnpm run type-check", { cwd: packageDir });
+    await execAsync(scriptCommand("type-check", packageDir), { cwd: packageDir });
 
     console.log("   - Building...");
-    await execAsync("pnpm run build", { cwd: packageDir });
+    await execAsync(scriptCommand("build", packageDir), { cwd: packageDir });
 
     console.log("   - Testing conformance...");
-    await execAsync("pnpm run test:capabilities", { cwd: process.cwd() });
+    await execAsync(scriptCommand("test:capabilities"), { cwd: process.cwd() });
 
     console.log("   - Dry-run publish...");
     await execAsync("pnpm publish --dry-run", { cwd: packageDir });
