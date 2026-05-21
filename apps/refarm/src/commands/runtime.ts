@@ -10,6 +10,7 @@ import {
 	type LaunchRuntimeSelection,
 	type TractorEngineMode,
 } from "./session-launch.js";
+import { resolveRuntimeLaunchCommand } from "./runtime-launcher.js";
 
 interface RuntimeCommandDeps {
 	repoRoot(): string;
@@ -26,6 +27,7 @@ interface RuntimeStatusPayload {
 	activeEngine: LaunchRuntimeEngine | "unknown";
 	autostart: AutostartMode;
 	reason: LaunchRuntimeSelection["reason"] | "configured-rust-missing-binary";
+	startCommand?: string;
 	issue?: string;
 }
 
@@ -41,13 +43,18 @@ function defaultDeps(): RuntimeCommandDeps {
 function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
 	const configuredEngine = deps.readEngine();
 	const autostart = deps.readAutostart();
+	const repoRoot = deps.repoRoot();
 	try {
-		const selection = deps.resolveRuntime(deps.repoRoot(), configuredEngine);
+		const selection = deps.resolveRuntime(repoRoot, configuredEngine);
 		return {
 			configuredEngine,
 			activeEngine: selection.activeEngine,
 			autostart,
 			reason: selection.reason,
+			startCommand: resolveRuntimeLaunchCommand(
+				repoRoot,
+				selection.activeEngine,
+			).display,
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -67,6 +74,9 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	console.log(`  active:     ${payload.activeEngine}`);
 	console.log(`  autostart:  ${payload.autostart}`);
 	console.log(`  reason:     ${payload.reason}`);
+	if (payload.startCommand) {
+		console.log(`  start:      ${payload.startCommand}`);
+	}
 	if (payload.issue) {
 		console.log(chalk.yellow(`  issue:      ${payload.issue}`));
 	}

@@ -23,6 +23,7 @@ describe("runtime command", () => {
 		expect(output).toContain("configured: auto");
 		expect(output).toContain("active:     rust");
 		expect(output).toContain("autostart:  always");
+		expect(output).toContain("start:      tractor");
 		expect(output).toContain("refarm config set tractor.engine auto");
 		expect(output).toContain("refarm config set runtime.autostart always");
 		logSpy.mockRestore();
@@ -73,6 +74,7 @@ describe("runtime command", () => {
 			activeEngine: "ts",
 			autostart: "never",
 			reason: "configured-ts",
+			startCommand: "farmhand --background",
 		});
 		logSpy.mockRestore();
 	});
