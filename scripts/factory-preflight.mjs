@@ -2,6 +2,12 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import {
+  detectPackageManager,
+  packageInstallCommand,
+  packageScriptCommand,
+  parsePackageManager
+} from '../packages/config/src/package-manager.js';
 
 const colors = {
   reset: '\x1b[0m',
@@ -14,6 +20,22 @@ const colors = {
 
 let failures = 0;
 let warnings = 0;
+const packageManager = detectPackageManager();
+
+const LOCKFILES_BY_PACKAGE_MANAGER = {
+  pnpm: ['pnpm-lock.yaml'],
+  npm: ['package-lock.json', 'npm-shrinkwrap.json'],
+  yarn: ['yarn.lock'],
+  bun: ['bun.lock', 'bun.lockb']
+};
+
+function installCommand() {
+  return packageInstallCommand({ cwd: process.cwd() }).display;
+}
+
+function scriptCommand(script) {
+  return packageScriptCommand(script, { cwd: process.cwd() }).display;
+}
 
 function commandExists(command) {
   const result = spawnSync('bash', ['-lc', `command -v ${command}`], {
@@ -27,6 +49,10 @@ function run(command, args = [], options = {}) {
     encoding: 'utf8',
     ...options
   });
+}
+
+function commandFailureDetail(result) {
+  return result.stderr?.trim() || result.stdout?.trim() || result.error?.message || '';
 }
 
 function ok(label, detail = '') {
@@ -85,28 +111,31 @@ function checkNode() {
   }
 }
 
-function checkPnpm() {
-  const result = run('pnpm', ['--version']);
+function checkPackageManagerRuntime() {
+  const result = run(packageManager, ['--version']);
   if (result.status !== 0) {
-    fail('pnpm is not available', result.stderr.trim());
+    fail(`${packageManager} is not available`, commandFailureDetail(result));
     return;
   }
 
-  ok('pnpm runtime', result.stdout.trim());
+  ok(`${packageManager} runtime`, result.stdout.trim());
 }
 
 function checkLockfile() {
-  if (existsSync('pnpm-lock.yaml')) {
-    ok('pnpm-lock.yaml present');
-  } else {
-    fail('pnpm-lock.yaml missing');
+  const expected = LOCKFILES_BY_PACKAGE_MANAGER[packageManager] ?? [];
+  const present = expected.find((lockfile) => existsSync(lockfile));
+  if (present) {
+    ok(`${present} present`);
+    return;
   }
+
+  fail(`${packageManager} lockfile missing`, `Expected one of: ${expected.join(', ') || '(none configured)'}`);
 }
 
 function checkTypeScriptAlignment() {
   const tsPkgPath = 'node_modules/typescript/package.json';
   if (!existsSync(tsPkgPath)) {
-    fail('TypeScript is not installed in node_modules', 'Run: pnpm install --frozen-lockfile');
+    fail('TypeScript is not installed in node_modules', `Run: ${installCommand()}`);
     return;
   }
 
@@ -118,7 +147,7 @@ function checkHooks() {
   if (existsSync('.git/hooks/pre-push')) {
     ok('Git pre-push hook installed');
   } else {
-    warn('Git pre-push hook missing', 'Run: pnpm run hooks:install');
+    warn('Git pre-push hook missing', `Run: ${scriptCommand('hooks:install')}`);
   }
 }
 
@@ -252,10 +281,10 @@ function checkPackageManagerPin() {
   }
 
   const pkg = readJson('package.json');
-  if (typeof pkg.packageManager === 'string' && pkg.packageManager.startsWith('pnpm@')) {
+  if (parsePackageManager(pkg.packageManager)) {
     ok('packageManager pin present', pkg.packageManager);
   } else {
-    warn('packageManager pin missing in package.json', 'Pinning pnpm improves reproducibility across devcontainers/swarms');
+    warn('packageManager pin missing in package.json', 'Pinning the package manager improves reproducibility across devcontainers/swarms');
   }
 }
 
@@ -263,7 +292,7 @@ console.log(`${colors.cyan}🧪 Refarm Factory Preflight${colors.reset}`);
 console.log(`${colors.dim}Checks for deterministic swarm execution in devcontainers and CI.${colors.reset}\n`);
 
 checkNode();
-checkPnpm();
+checkPackageManagerRuntime();
 checkLockfile();
 checkTypeScriptAlignment();
 checkPackageManagerPin();
