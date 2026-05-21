@@ -18,6 +18,12 @@ export interface EffectiveModelRoute {
 	modelId?: string;
 }
 
+export function scopeForEffortSource(source: string | undefined): ModelScope {
+	if (source === "refarm-ask" || source === "refarm-chat") return "default";
+	if (source === "refarm-monitor") return "monitor";
+	return "worker";
+}
+
 function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
 		? value.trim()

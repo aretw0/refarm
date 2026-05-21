@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	createModelRouteResolver,
 	routeForScope,
+	scopeForEffortSource,
 	withModelRouteEnv,
 } from "./model-routes.js";
 
@@ -47,6 +48,14 @@ describe("model routes", () => {
 			provider: "openai",
 			modelId: "gpt-5.3-codex-spark",
 		});
+	});
+
+	it("maps effort sources to model route scopes", () => {
+		expect(scopeForEffortSource("refarm-ask")).toBe("default");
+		expect(scopeForEffortSource("refarm-chat")).toBe("default");
+		expect(scopeForEffortSource("refarm-monitor")).toBe("monitor");
+		expect(scopeForEffortSource("refarm-task")).toBe("worker");
+		expect(scopeForEffortSource(undefined)).toBe("worker");
 	});
 
 	it("respects an explicit scoped worker route", () => {

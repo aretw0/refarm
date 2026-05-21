@@ -39,6 +39,7 @@ import { LocalExtensionRegistry } from "./local-extensions.js";
 import {
 	createModelRouteResolver,
 	routeForScope,
+	scopeForEffortSource,
 	withModelRouteEnv,
 } from "./model-routes.js";
 import {
@@ -382,10 +383,7 @@ async function main() {
 			},
 		};
 
-		const scope =
-			effort.source === "refarm-ask" || effort.source === "refarm-chat"
-				? "default"
-				: "worker";
+		const scope = scopeForEffortSource(effort.source);
 		await injectSiloModelEnv();
 		const tokens = await modelRouteResolver.refreshTokens();
 		const route = routeForScope(tokens, scope);
