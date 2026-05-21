@@ -9,7 +9,7 @@
  *   3. packages/pi-agent/target/ (workspace fallback, no Docker volume)
  *
  * Usage:
- *   npm run agent:install
+ *   <package-manager> run agent:install
  *   node scripts/pi-agent-install.mjs
  */
 
@@ -26,6 +26,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createPackageScriptCommand } from "../packages/config/src/package-manager.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -76,12 +77,21 @@ const wasmDest = path.join(pluginDir, "pi_agent.wasm");
 copyFileSync(wasmSrc, wasmDest);
 console.log(`[pi-agent-install] Copied WASM → ${wasmDest}`);
 
+function refarmBuildCommand() {
+  return createPackageScriptCommand({
+    cwd: path.join(ROOT, "apps/refarm"),
+    repoRoot: ROOT,
+    script: "build",
+  });
+}
+
 function ensureRefarmCliShim() {
   const distEntry = path.join(ROOT, "apps/refarm/dist/index.js");
   const loaderEntry = path.join(ROOT, "scripts/farmhand-node-register-loader.mjs");
 
-  console.log("[pi-agent-install] Building refarm CLI distro...");
-  const build = spawnSync("pnpm", ["-C", "apps/refarm", "run", "build"], {
+  const buildCommand = refarmBuildCommand();
+  console.log(`[pi-agent-install] Building refarm CLI distro with ${buildCommand.display}...`);
+  const build = spawnSync(buildCommand.command, buildCommand.args, {
     cwd: ROOT,
     stdio: "inherit",
   });
