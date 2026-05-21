@@ -94,13 +94,13 @@ fi
 
 if [ ! -f "$TRACTOR" ]; then
   echo "❌  tractor binary not found at $TRACTOR"
-  echo "   Build it first: cd packages/tractor && cargo build --release"
+  echo "   Build it first: cargo build --manifest-path packages/tractor/Cargo.toml --release"
   exit 1
 fi
 
 if [ ! -f "$PI_AGENT" ]; then
   echo "❌  pi_agent.wasm not found at $PI_AGENT"
-  echo "   Build it first: cd packages/pi-agent && cargo component build --release"
+  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
   exit 1
 fi
 

@@ -90,7 +90,7 @@ function fileSize(path) {
 
 function checkDaemon() {
   if (!existsSync(TRACTOR)) {
-    fail('daemon', `tractor binary not found — build: cd packages/tractor && cargo build --release`);
+    fail('daemon', `tractor binary not found — build: cargo build --manifest-path packages/tractor/Cargo.toml --release`);
     return;
   }
 
@@ -164,7 +164,7 @@ function checkKeys(envVars) {
 
 function checkWasm() {
   if (!existsSync(PI_AGENT)) {
-    fail('wasm', `pi_agent.wasm not found — build: cd packages/pi-agent && cargo component build --release`);
+    fail('wasm', `pi_agent.wasm not found — build: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release`);
     return;
   }
   ok('wasm', `${fileSize(PI_AGENT)}  ${c.dim}built ${fileAge(PI_AGENT)}${c.reset}`);
@@ -172,7 +172,7 @@ function checkWasm() {
 
 function checkTractorBinary() {
   if (!existsSync(TRACTOR)) {
-    fail('tractor', `binary not found — build: cd packages/tractor && cargo build --release`);
+    fail('tractor', `binary not found — build: cargo build --manifest-path packages/tractor/Cargo.toml --release`);
   } else {
     ok('tractor', `${fileSize(TRACTOR)}  ${c.dim}built ${fileAge(TRACTOR)}${c.reset}`);
   }

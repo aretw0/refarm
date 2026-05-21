@@ -61,7 +61,7 @@ function loadEnvFile() {
 function checkDaemon() {
   if (!existsSync(TRACTOR)) {
     console.error(`${c.red}tractor binary not found at ${TRACTOR}${c.reset}`);
-    console.error(`Build first: cd packages/tractor && cargo build --release`);
+    console.error(`Build first: cargo build --manifest-path packages/tractor/Cargo.toml --release`);
     process.exit(1);
   }
   const r = spawnSync(TRACTOR, ['health', '--ws-port', WS_PORT, '--skip-boot-probe'], {

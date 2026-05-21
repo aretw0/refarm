@@ -201,13 +201,13 @@ function checkArtifacts() {
   if (existsSync(tractor)) {
     ok('tractor-bin', `${fileSize(tractor)}  built ${fileAge(tractor)}`);
   } else {
-    fail('tractor-bin', `not found — build: cd packages/tractor && cargo build --release`);
+    fail('tractor-bin', `not found — build: cargo build --manifest-path packages/tractor/Cargo.toml --release`);
   }
 
   if (existsSync(wasm)) {
     ok('pi_agent.wasm', `${fileSize(wasm)}  built ${fileAge(wasm)}`);
   } else {
-    fail('pi_agent.wasm', `not found — build: cd packages/pi-agent && cargo component build --release`);
+    fail('pi_agent.wasm', `not found — build: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release`);
   }
 
   const cargoTarget = process.env.CARGO_TARGET_DIR;

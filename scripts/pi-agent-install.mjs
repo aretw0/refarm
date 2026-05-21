@@ -63,7 +63,7 @@ if (!wasmSrc) {
   console.error("[pi-agent-install] WASM binary not found. Searched:");
   for (const c of candidates) console.error(`  ${c}`);
   console.error("\nBuild first:");
-  console.error("  cd packages/pi-agent && cargo component build --release");
+  console.error("  cargo component build --manifest-path packages/pi-agent/Cargo.toml --release");
   process.exit(1);
 }
 
