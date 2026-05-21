@@ -101,7 +101,8 @@ function getAllWorkspacePackages() {
     try {
         const output = execSync("pnpm ls -r --json --depth 0", { 
             cwd: ROOT_DIR, 
-            encoding: "utf-8" 
+            encoding: "utf-8",
+            maxBuffer: 20 * 1024 * 1024,
         });
         return JSON.parse(output);
     } catch (err) {

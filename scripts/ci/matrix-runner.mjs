@@ -2,12 +2,95 @@ import { execSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
+import {
+	detectPackageManager,
+	packageBinaryCommand,
+	packageInstallCommand,
+	packageScriptCommand,
+} from "../../packages/config/src/package-manager.js";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
 const workspacePackages = JSON.parse(
-	execSync("pnpm ls -r --json --depth 0", { cwd: ROOT_DIR }).toString(),
+	execSync("pnpm ls -r --json --depth 0", {
+		cwd: ROOT_DIR,
+		maxBuffer: 20 * 1024 * 1024,
+	}).toString(),
 );
+
+function packageManager() {
+	return detectPackageManager({ cwd: ROOT_DIR });
+}
+
+function installCommand() {
+	const base = packageInstallCommand({ cwd: ROOT_DIR });
+	const args = base.command.split(" ");
+	switch (base.packageManager) {
+		case "pnpm":
+			args.push("--no-frozen-lockfile");
+			break;
+		case "npm":
+			args.push("--package-lock=false");
+			break;
+		case "yarn":
+			args.push("--no-immutable");
+			break;
+	}
+	return args.join(" ");
+}
+
+function scriptCommand(script) {
+	return packageScriptCommand(script, { cwd: ROOT_DIR }).command;
+}
+
+function packCommand() {
+	switch (packageManager()) {
+		case "pnpm":
+			return "pnpm pack --pack-destination /tmp";
+		case "npm":
+			return "npm pack --pack-destination /tmp";
+		case "yarn":
+			return "yarn pack --out /tmp/package.tgz";
+		case "bun":
+			return "bun pm pack --destination /tmp";
+		default:
+			throw new Error(`Unsupported package manager: ${packageManager()}`);
+	}
+}
+
+function initCommand() {
+	switch (packageManager()) {
+		case "pnpm":
+			return "pnpm init";
+		case "npm":
+			return "npm init -y";
+		case "yarn":
+			return "yarn init -y";
+		case "bun":
+			return "bun init -y";
+		default:
+			throw new Error(`Unsupported package manager: ${packageManager()}`);
+	}
+}
+
+function addCommand(spec) {
+	switch (packageManager()) {
+		case "pnpm":
+			return `pnpm add ${spec}`;
+		case "npm":
+			return `npm install ${spec}`;
+		case "yarn":
+			return `yarn add ${spec}`;
+		case "bun":
+			return `bun add ${spec}`;
+		default:
+			throw new Error(`Unsupported package manager: ${packageManager()}`);
+	}
+}
+
+function typeScriptCheckCommand() {
+	const tsc = packageBinaryCommand("tsc", ["--noEmit"], { cwd: ROOT_DIR });
+	return `${tsc.command} ${tsc.args.join(" ")}`;
+}
 
 function findWorkspacePackage(pkgName) {
 	const workspace = workspacePackages.find((pkg) => pkg.name === pkgName);
@@ -17,9 +100,24 @@ function findWorkspacePackage(pkgName) {
 	return workspace;
 }
 
-function npmPackageExists(pkgName) {
+function registryViewCommand(pkgName) {
+	switch (packageManager()) {
+		case "pnpm":
+			return `pnpm view ${pkgName}@latest version --silent`;
+		case "npm":
+			return `npm view ${pkgName}@latest version --silent`;
+		case "yarn":
+			return `yarn npm info ${pkgName}@latest version`;
+		case "bun":
+			return `bun pm view ${pkgName}@latest version`;
+		default:
+			throw new Error(`Unsupported package manager: ${packageManager()}`);
+	}
+}
+
+function registryPackageExists(pkgName) {
 	try {
-		execSync(`pnpm view ${pkgName}@latest version --silent`, {
+		execSync(registryViewCommand(pkgName), {
 			cwd: ROOT_DIR,
 			stdio: "pipe",
 		});
@@ -140,7 +238,7 @@ function runForward(pkgName) {
 	const workspace = findWorkspacePackage(pkgName);
 	const pkgDir = workspace.path;
 	const unpublishedDeps = localWorkspaceDependencyNames(workspace).filter(
-		(depName) => !npmPackageExists(depName),
+		(depName) => !registryPackageExists(depName),
 	);
 	if (unpublishedDeps.length > 0) {
 		console.log(
@@ -155,10 +253,10 @@ function runForward(pkgName) {
 		);
 		return;
 	}
-	// Copy package to an isolated dir outside the workspace so pnpm treats it
+	// Copy package to an isolated dir outside the workspace so the package manager treats it
 	// as a standalone project and resolves all deps from the registry.
-	// In-place mutation of package.json inside the workspace is fragile: pnpm
-	// creates a local pnpm-lock.yaml and node_modules/ that git restore misses.
+	// In-place mutation of package.json inside the workspace is fragile:
+	// package managers create lockfiles and node_modules/ that git restore misses.
 	const slug = pkgName.replace(/[@/]/g, "__");
 	const testDir = `/tmp/refarm-forward-compat/${slug}`;
 	try {
@@ -169,11 +267,14 @@ function runForward(pkgName) {
 			rmSync(join(testDir, artifact), { recursive: true, force: true });
 		}
 		rewriteWorkspaceDepsToLatest(join(testDir, "package.json"));
-		execSync("pnpm install --no-frozen-lockfile", {
+		execSync(installCommand(), {
 			cwd: testDir,
 			stdio: "inherit",
 		});
-		execSync(`pnpm run ${validationScript}`, { cwd: testDir, stdio: "inherit" });
+		execSync(scriptCommand(validationScript), {
+			cwd: testDir,
+			stdio: "inherit",
+		});
 		console.log(
 			`✅ Forward compat passed for ${pkgName} (${validationScript})`,
 		);
@@ -190,7 +291,7 @@ function runBackward(pkgName, consumerName) {
 	console.log(
 		`\n▶ Packing local ${pkgName} and injecting into published ${consumerName}...`,
 	);
-	if (!npmPackageExists(consumerName)) {
+	if (!registryPackageExists(consumerName)) {
 		console.log(
 			`⚠️  Skipping backward compat for ${consumerName}: no published registry baseline.`,
 		);
@@ -201,8 +302,8 @@ function runBackward(pkgName, consumerName) {
 	const testDir = join(ROOT_DIR, ".turbo", "matrix-test", consumerSlug);
 
 	try {
-		execSync("pnpm run build", { cwd: pkgDir, stdio: "inherit" });
-		const tarOutput = execSync(`pnpm pack --pack-destination /tmp`, {
+		execSync(scriptCommand("build"), { cwd: pkgDir, stdio: "inherit" });
+		const tarOutput = execSync(packCommand(), {
 			cwd: pkgDir,
 		})
 			.toString()
@@ -212,20 +313,20 @@ function runBackward(pkgName, consumerName) {
 		rmSync(testDir, { recursive: true, force: true });
 		mkdirSync(testDir, { recursive: true });
 
-		execSync("pnpm init", { cwd: testDir });
+		execSync(initCommand(), { cwd: testDir });
 		// Install the published consumer
-		execSync(`pnpm add ${consumerName}@latest`, {
+		execSync(addCommand(`${consumerName}@latest`), {
 			cwd: testDir,
 			stdio: "inherit",
 		});
 		// Overwrite the specific child dependency with our local altered tarball
-		execSync(`pnpm add ${tarballPath}`, {
+		execSync(addCommand(tarballPath), {
 			cwd: testDir,
 			stdio: "inherit",
 		});
 
 		// Validate compilation (simulating consumer testing)
-		execSync("npx tsc --noEmit", { cwd: testDir, stdio: "inherit" });
+		execSync(typeScriptCheckCommand(), { cwd: testDir, stdio: "inherit" });
 		console.log(
 			`✅ Backward compat passed for ${consumerName} using local ${pkgName}`,
 		);
