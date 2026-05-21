@@ -19,13 +19,23 @@ describe("parseChatLine", () => {
 	});
 
 	it("parses /reload with a single plugin id", () => {
-		expect(parseChatLine("/reload pi-agent")).toEqual({ kind: "reload", pluginIds: ["pi-agent"] });
+		expect(parseChatLine("/reload pi-agent")).toEqual({
+			kind: "reload",
+			pluginIds: ["@refarm/pi-agent"],
+		});
 	});
 
 	it("parses /reload with multiple plugin ids", () => {
 		expect(parseChatLine("/reload pi-agent other-plugin")).toEqual({
 			kind: "reload",
-			pluginIds: ["pi-agent", "other-plugin"],
+			pluginIds: ["@refarm/pi-agent", "other-plugin"],
+		});
+	});
+
+	it("normalizes scoped package IDs for /reload", () => {
+		expect(parseChatLine("/reload @refarm.dev/pi-agent")).toEqual({
+			kind: "reload",
+			pluginIds: ["@refarm/pi-agent"],
 		});
 	});
 
@@ -105,6 +115,7 @@ describe("parseChatLine", () => {
 
 	it("documents runtime-oriented slash commands", () => {
 		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
+		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model worker <ref>");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
 	});
