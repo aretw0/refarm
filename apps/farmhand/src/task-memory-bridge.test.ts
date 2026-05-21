@@ -12,6 +12,13 @@ function sampleEffortTask(id = "task-1") {
 	};
 }
 
+function aliasEffortTask(id = "task-alias") {
+	return {
+		...sampleEffortTask(id),
+		pluginId: "@refarm.dev/pi-agent",
+	};
+}
+
 function makeTask(id: string, contextId: string) {
 	return {
 		"@type": "Task",
@@ -58,6 +65,28 @@ describe("TaskMemoryBridge", () => {
 		expect(create).toHaveBeenCalledTimes(1);
 		expect(appendEvent).toHaveBeenCalledTimes(1);
 		expect(adapter.update).not.toHaveBeenCalled();
+	});
+
+	it("normalizes plugin aliases in task title and created event payload", async () => {
+		const create = vi.fn().mockResolvedValue(makeTask("alias", "effort-alias"));
+		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:alias" });
+		const adapter = makeAdapter({ create, appendEvent });
+		const bridge = makeBridge(adapter);
+
+		await bridge.ensureTask(aliasEffortTask(), "effort-alias");
+
+		expect(create).toHaveBeenCalledWith(
+			expect.objectContaining({
+				title: "@refarm/pi-agent.respond",
+			}),
+		);
+		expect(appendEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					pluginId: "@refarm/pi-agent",
+				}),
+			}),
+		);
 	});
 
 	it("records done outcome as status_changed event", async () => {
