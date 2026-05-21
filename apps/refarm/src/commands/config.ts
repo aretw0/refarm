@@ -29,10 +29,10 @@ interface ConfigDeps {
 }
 
 const CONFIG_KEYS: readonly ConfigKey[] = [
-	"farmhand.autostart",
 	"runtime.autostart",
 	"operator.openExternalLinks",
 	"tractor.engine",
+	"farmhand.autostart",
 ];
 const AUTOSTART_MODES: readonly AutostartMode[] = ["ask", "always", "never"];
 const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
@@ -161,6 +161,9 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 		const effective = resolveAutostartMode(deps, opts);
 		console.log(`${key}=${effective.value}`);
 		console.log(chalk.dim(`source=${effective.source}`));
+		if (key === "farmhand.autostart") {
+			console.log(chalk.dim("legacy key; prefer runtime.autostart"));
+		}
 		return;
 	}
 	if (key === "operator.openExternalLinks") {
@@ -191,6 +194,9 @@ function setConfigValue(
 		writeConfig(filePath, config);
 		console.log(chalk.green(`✓  ${key}=${value}`));
 		console.log(chalk.dim(`   ${filePath}`));
+		if (key === "farmhand.autostart") {
+			console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
+		}
 		return;
 	}
 	if (key === "operator.openExternalLinks") {
@@ -237,9 +243,11 @@ Examples:
 
 Keys:
   runtime.autostart  ask | always | never
-  farmhand.autostart  ask | always | never
   operator.openExternalLinks  auto | never
   tractor.engine  auto | rust | ts
+
+Legacy aliases:
+  farmhand.autostart  ask | always | never  (writes the same autostart setting)
 
 Notes:
   Without a subcommand, config currently prints this guide. It is reserved for

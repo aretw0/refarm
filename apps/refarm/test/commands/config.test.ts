@@ -105,6 +105,7 @@ describe("config command", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("farmhand.autostart=never");
+		expect(output).toContain("legacy key; prefer runtime.autostart");
 	});
 
 	it("prints effective runtime autostart mode", async () => {
@@ -132,6 +133,7 @@ describe("config command", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm config");
 		expect(output).toContain("interactive config is reserved");
+		expect(output).toContain("runtime.autostart");
 	});
 
 	it("sets operator external-link mode", async () => {
