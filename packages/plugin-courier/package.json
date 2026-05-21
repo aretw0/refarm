@@ -11,7 +11,7 @@
 		"build": "tsc --project tsconfig.build.json",
 		"type-check": "tsc --noEmit",
 		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-		"test": "pnpm run type-check && vitest run",
+		"test": "tsc --noEmit && vitest run",
 		"lint": "eslint src"
 	},
 	"dependencies": {
