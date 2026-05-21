@@ -43,4 +43,22 @@ describe("extension command", () => {
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
 	});
+
+	it("explains the manual plugin packaging path for publish", async () => {
+		process.exitCode = undefined;
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await extensionCommand
+			.commands
+			.find((command) => command.name() === "publish")!
+			.parseAsync(["my-tool"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("not automated yet");
+		expect(output).toContain("refarm plugin bundle");
+		expect(output).toContain("refarm plugin status");
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
 });

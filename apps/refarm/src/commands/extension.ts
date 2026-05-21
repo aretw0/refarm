@@ -214,9 +214,13 @@ extensionCommand
 
 extensionCommand
   .command("publish <name>")
-  .description("Promote a local extension to a published WASM plugin package (coming soon)")
+  .description("Show the current path from a local extension to a plugin package")
   .action((name: string) => {
-    console.log(`refarm extension publish: coming soon.`);
-    console.log(`To publish '${name}' now: scaffold a Rust/WIT package in packages/${name}/`);
-    console.log(`  See CONTRIBUTING.md for the plugin authoring guide.`);
+    console.log(`Publishing local extension '${name}' is not automated yet.`);
+    console.log("Current path:");
+    console.log(`  1. Keep iterating locally: refarm extension list`);
+    console.log(`  2. Apply changes:         /reload @local/${name}`);
+    console.log("  3. Package WASM manually: refarm plugin bundle <plugin.wasm>");
+    console.log("  4. Check runtime state:   refarm plugin status");
+    process.exitCode = 1;
   });
