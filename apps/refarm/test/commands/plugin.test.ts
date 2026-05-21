@@ -237,6 +237,9 @@ describe("plugin status", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("plugin status is unavailable"),
 		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Start or restart the runtime"),
+		);
 		errorSpy.mockRestore();
 	});
 });

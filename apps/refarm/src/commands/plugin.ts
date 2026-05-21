@@ -189,7 +189,8 @@ async function printRuntimePluginStatus(): Promise<void> {
 	const state = await readRuntimePluginState();
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
-		console.error("Start the runtime with `refarm`, then retry.");
+		console.error("Start or restart the runtime with `refarm`, then retry.");
+		console.error("Inspect runtime selection with `refarm runtime`.");
 		process.exitCode = 1;
 		return;
 	}
