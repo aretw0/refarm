@@ -63,11 +63,52 @@ fn test_effort(id: &str) -> serde_json::Value {
     })
 }
 
+fn test_task(args: serde_json::Value) -> EffortTask {
+    EffortTask {
+        id: uuid::Uuid::new_v4().to_string(),
+        plugin_id: "@refarm/pi-agent".to_string(),
+        fn_name: Some("respond".to_string()),
+        args,
+    }
+}
+
 fn base(port: u16) -> String {
     format!("http://127.0.0.1:{port}")
 }
 
 // ── protocol tests ────────────────────────────────────────────────────────────
+
+#[test]
+fn sidecar_extract_task_args_accepts_prompt() {
+    let args = extract_task_args(&test_task(serde_json::json!({
+        "prompt": "ping",
+        "system": "sys",
+        "session_id": "session-a",
+        "history_turns": 4
+    })))
+    .expect("prompt args must parse");
+
+    assert_eq!(args.prompt, "ping");
+    assert_eq!(args.system.as_deref(), Some("sys"));
+    assert_eq!(args.session_id.as_deref(), Some("session-a"));
+    assert_eq!(args.history_turns, Some(4));
+}
+
+#[test]
+fn sidecar_extract_task_args_accepts_legacy_query() {
+    let args = extract_task_args(&test_task(serde_json::json!({ "query": "ping" })))
+        .expect("legacy query args must parse");
+
+    assert_eq!(args.prompt, "ping");
+}
+
+#[test]
+fn sidecar_extract_task_args_rejects_missing_prompt() {
+    let error = extract_task_args(&test_task(serde_json::json!({})))
+        .expect_err("missing prompt must fail");
+
+    assert!(error.contains("requires args.prompt"));
+}
 
 #[tokio::test]
 async fn sidecar_post_efforts_returns_effort_id() {

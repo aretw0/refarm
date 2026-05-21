@@ -203,6 +203,7 @@ async fn post_plugins_reload(
     }))
 }
 
+#[derive(Debug)]
 struct TaskArgs {
     prompt: String,
     system: Option<String>,
@@ -210,14 +211,21 @@ struct TaskArgs {
     history_turns: Option<u64>,
 }
 
-fn extract_task_args(task: &EffortTask) -> TaskArgs {
+fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
     let args = &task.args;
-    TaskArgs {
-        prompt: args
-            .get("prompt")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
+    let prompt = args
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .or_else(|| args.get("query").and_then(|v| v.as_str()))
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| {
+            "sidecar: @refarm/pi-agent::respond requires args.prompt".to_string()
+        })?
+        .to_string();
+
+    Ok(TaskArgs {
+        prompt,
         system: args
             .get("system")
             .and_then(|v| v.as_str())
@@ -230,7 +238,7 @@ fn extract_task_args(task: &EffortTask) -> TaskArgs {
         history_turns: args
             .get("history_turns")
             .and_then(|v| v.as_u64()),
-    }
+    })
 }
 
 // ── effort dispatch ──────────────────────────────────────────────────────────
@@ -282,7 +290,17 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
             return;
         }
 
-        let args = extract_task_args(&task);
+        let args = match extract_task_args(&task) {
+            Ok(args) => args,
+            Err(error) => {
+                finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
+                    status: "error".to_string(),
+                    result: None,
+                    error: Some(error),
+                }]);
+                return;
+            }
+        };
         let prompt_ref = prompt_ref_from_effort(&effort_id);
         let stream_ref = stream_ref_for_prompt(&prompt_ref);
 
