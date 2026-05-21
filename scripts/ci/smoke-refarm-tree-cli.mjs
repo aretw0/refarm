@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
 	parseJsonOutput,
+	runPackageScript,
 	runSubprocess,
 	stripAnsi,
 } from "./subprocess-utils.mjs";
@@ -186,7 +187,7 @@ async function main() {
 	try {
 		if (!skipBuild) {
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-			await runSubprocess("pnpm", ["-C", "apps/refarm", "run", "build"], {
+			await runPackageScript("apps/refarm", "build", {
 				env: process.env,
 			});
 		}

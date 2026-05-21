@@ -16,6 +16,7 @@ import path from "node:path";
 import net from "node:net";
 import { pathToFileURL } from "node:url";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
+import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
 import {
 	parseJsonOutput,
 	prepareTaskSmokeTypeBuilds,
@@ -64,10 +65,12 @@ async function assertFarmhandPortsAvailable() {
 	if (wsPortBusy) busyPorts.push("42000 (ws-crdt)");
 	if (httpPortBusy) busyPorts.push("42001 (http)");
 
+	const stopFarmhand = packageScriptCommand("farmhand:stop").display;
+	const stopAgent = packageScriptCommand("agent:stop").display;
 	throw new Error(
 		`Farmhand smoke requires exclusive ports, but found in use: ${busyPorts.join(
 			", ",
-		)}. Stop existing daemons first (e.g. npm run farmhand:stop; npm run agent:stop).`,
+		)}. Stop existing daemons first (e.g. ${stopFarmhand}; ${stopAgent}).`,
 	);
 }
 
