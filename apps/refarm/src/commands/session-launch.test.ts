@@ -127,8 +127,19 @@ describe("checkSessionReadiness", () => {
 
 	afterEach(() => {
 		process.env.HOME = originalHome;
+		delete process.env.MODEL_DEFAULT_PROVIDER;
 		cwdSpy.mockRestore();
 		vi.unstubAllGlobals();
+	});
+
+	it("recognizes MODEL_DEFAULT_PROVIDER as a configured provider", async () => {
+		process.env.MODEL_DEFAULT_PROVIDER = "openai";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		await expect(checkSessionReadiness()).resolves.toEqual({
+			providerConfigured: true,
+			farmhandRunning: false,
+		});
 	});
 
 	it("recognizes a Silo identity as a configured provider", async () => {
@@ -138,6 +149,27 @@ describe("checkSessionReadiness", () => {
 		writeFileSync(
 			join(refarmDir, "identity.json"),
 			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toEqual({
+				providerConfigured: true,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes modelProvider in config.json as a configured provider", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "config.json"),
+			JSON.stringify({ modelProvider: "openai" }),
 		);
 		cwdSpy.mockReturnValue(tmpBase);
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));

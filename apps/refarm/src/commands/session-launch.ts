@@ -79,26 +79,37 @@ export function refarmSearchDirs(): string[] {
 
 function detectProvider(): boolean {
 	if (process.env.MODEL_PROVIDER) return true;
+	if (process.env.MODEL_DEFAULT_PROVIDER) return true;
 
 	for (const base of refarmSearchDirs()) {
 		if (fs.existsSync(path.join(base, ".env"))) return true;
 		if (hasIdentityProvider(path.join(base, "identity.json"))) return true;
 
 		const configFile = path.join(base, "config.json");
-		if (fs.existsSync(configFile)) {
-			try {
-				const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
-					provider?: string;
-					default_provider?: string;
-				};
-				if (config.provider ?? config.default_provider) return true;
-			} catch {
-				// continue to next dir
-			}
-		}
+		if (hasConfigProvider(configFile)) return true;
 	}
 
 	return false;
+}
+
+function hasConfigProvider(filePath: string): boolean {
+	if (!fs.existsSync(filePath)) return false;
+	try {
+		const config = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
+			provider?: unknown;
+			default_provider?: unknown;
+			modelProvider?: unknown;
+			tokens?: { modelProvider?: unknown };
+		};
+		return (
+			typeof config.provider === "string" ||
+			typeof config.default_provider === "string" ||
+			typeof config.modelProvider === "string" ||
+			typeof config.tokens?.modelProvider === "string"
+		);
+	} catch {
+		return false;
+	}
 }
 
 function hasIdentityProvider(filePath: string): boolean {
