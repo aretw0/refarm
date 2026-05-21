@@ -11,8 +11,8 @@
 #
 # See: docs/PROCESS_PLAYBOOK.md
 #
-# Stop: npm run farmhand:stop
-# Status: npm run farm:status
+# Stop: <package-manager> run farmhand:stop
+# Status: <package-manager> run farm:status
 
 set -euo pipefail
 
@@ -25,6 +25,33 @@ PID_FILE="$ROOT/.refarm/farmhand.pid"
 LOG_FILE="$ROOT/.refarm/farmhand.log"
 WS_PORT=42000
 HTTP_PORT=42001
+
+resolve_package_manager() {
+  if [ -n "${REFARM_PACKAGE_MANAGER:-}" ]; then
+    printf "%s" "${REFARM_PACKAGE_MANAGER%%@*}"
+    return
+  fi
+
+  if command -v node >/dev/null 2>&1; then
+    node -e "try{const p=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).packageManager||'npm';process.stdout.write(p.split('@')[0])}catch{process.stdout.write('npm')}" "$ROOT/package.json"
+    return
+  fi
+
+  printf "npm"
+}
+
+PACKAGE_MANAGER="$(resolve_package_manager)"
+
+script_command() {
+  local script="$1"
+  case "$PACKAGE_MANAGER" in
+    pnpm) printf "pnpm run %s" "$script" ;;
+    npm) printf "npm run %s" "$script" ;;
+    yarn) printf "yarn run %s" "$script" ;;
+    bun) printf "bun run %s" "$script" ;;
+    *) printf "%s run %s" "$PACKAGE_MANAGER" "$script" ;;
+  esac
+}
 
 # ── flags ─────────────────────────────────────────────────────────────────────
 
@@ -47,8 +74,8 @@ check_port_pid() {
 WS_PID="$(check_port_pid $WS_PORT)"
 if [ -n "$WS_PID" ]; then
   echo "❌  Port $WS_PORT is already bound by PID $WS_PID."
-  echo "   If tractor is running: npm run agent:stop"
-  echo "   If farmhand is running: npm run farmhand:stop"
+  echo "   If tractor is running: $(script_command agent:stop)"
+  echo "   If farmhand is running: $(script_command farmhand:stop)"
   echo "   See: docs/PROCESS_PLAYBOOK.md"
   exit 1
 fi
@@ -57,7 +84,7 @@ HTTP_PID="$(check_port_pid $HTTP_PORT)"
 if [ -n "$HTTP_PID" ]; then
   echo "❌  Port $HTTP_PORT is already bound by PID $HTTP_PID."
   echo "   Another farmhand or CI stub may be running."
-  echo "   Stop it first, or check: npm run farm:status"
+  echo "   Stop it first, or check: $(script_command farm:status)"
   exit 1
 fi
 
@@ -102,7 +129,7 @@ else
       ;;
     *)
       echo "⚠   No .refarm/.env found (provider=$DETECTED_PROVIDER)."
-      echo "   Configure keys if needed: npm run agent:keys"
+      echo "   Configure keys if needed: refarm sow"
       ;;
   esac
 fi
@@ -145,8 +172,8 @@ if [ "$BACKGROUND" = "1" ]; then
   echo "   pid      : $(cat "$PID_FILE")"
   echo "   log      : $LOG_FILE"
   echo ""
-  echo "   Status  : npm run farm:status"
-  echo "   Stop    : npm run farmhand:stop"
+  echo "   Status  : $(script_command farm:status)"
+  echo "   Stop    : $(script_command farmhand:stop)"
 else
   exec node "${FARMHAND_NODE_ARGS[@]}"
 fi
