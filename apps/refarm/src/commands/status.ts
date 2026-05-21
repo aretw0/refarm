@@ -93,6 +93,23 @@ export const statusCommand = new Command("status")
 		"--action <id-or-index>",
 		"Invoke a live app-owned status action by available action ID or row index",
 	)
+	.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ refarm status
+  $ refarm status --json
+  $ refarm status --markdown
+  $ refarm status --renderer web
+  $ refarm status --input status.json --markdown
+  $ refarm status --action inspect-trust
+
+Notes:
+  Use refarm runtime for runtime engine/autostart details.
+  Use refarm doctor for actionable readiness recommendations.
+`,
+	)
 	.action(
 		async (options: {
 			json?: boolean;

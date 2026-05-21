@@ -111,6 +111,21 @@ describe("statusCommand", () => {
 		vi.restoreAllMocks();
 	});
 
+	it("documents status rendering and diagnostic next steps in help", () => {
+		let help = "";
+		statusCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		statusCommand.outputHelp();
+
+		expect(help).toContain("refarm status --json");
+		expect(help).toContain("refarm status --input status.json --markdown");
+		expect(help).toContain("Use refarm doctor");
+	});
+
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
 		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(

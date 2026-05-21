@@ -146,6 +146,21 @@ describe("doctorCommand", () => {
 		});
 	});
 
+	it("documents doctor output modes and check handoff in help", () => {
+		let help = "";
+		doctorCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		doctorCommand.outputHelp();
+
+		expect(help).toContain("refarm doctor --json");
+		expect(help).toContain("refarm doctor --input status.json");
+		expect(help).toContain("Use refarm check");
+	});
+
 	it("prints PASS for informational diagnostics only", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

@@ -138,6 +138,22 @@ describe("checkCommand", () => {
 		process.exitCode = undefined;
 	});
 
+	it("documents the composite health and doctor gate in help", () => {
+		const command = createCheckCommand(makeDeps());
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm check --json");
+		expect(help).toContain("combines refarm health and refarm doctor");
+		expect(help).toContain("quick local confidence signal");
+	});
+
 	it("emits a machine-readable composite report", async () => {
 		const deps = makeDeps();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

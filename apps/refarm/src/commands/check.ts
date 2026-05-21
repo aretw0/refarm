@@ -99,6 +99,20 @@ export function createCheckCommand(
 		.description("Run the cheap composite readiness gate")
 		.option("--json", "Output machine-readable composite report")
 		.option("--fail-on-warnings", "Treat doctor warning diagnostics as failures")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm check
+  $ refarm check --json
+  $ refarm check --fail-on-warnings
+
+Notes:
+  check combines refarm health and refarm doctor into one low-cost gate.
+  Use it before a commit or handoff when you need a quick local confidence signal.
+`,
+		)
 		.action(async (options: RefarmCheckOptions) => {
 			const [health, doctor] = await Promise.all([
 				deps.runHealth(),

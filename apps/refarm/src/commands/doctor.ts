@@ -180,6 +180,22 @@ export const doctorCommand = new Command("doctor")
 	)
 	.option("--json", "Output machine-readable doctor report")
 	.option("--fail-on-warnings", "Treat warning diagnostics as failures")
+	.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ refarm doctor
+  $ refarm doctor --json
+  $ refarm doctor --fail-on-warnings
+  $ refarm doctor --renderer web
+  $ refarm doctor --input status.json
+
+Notes:
+  Doctor turns status diagnostics into operator recommendations.
+  Use refarm check when you also want the repository health gate.
+`,
+	)
 	.action(async (options: RefarmDoctorOptions) => {
 		const report = await withResolvedStatusPayload({
 			resolveStatusPayload,
