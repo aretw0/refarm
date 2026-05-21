@@ -385,7 +385,7 @@ function printAskError(message: string): void {
 		console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
-		console.error(chalk.dim("   Or restart runtime:       refarm"));
+		console.error(chalk.dim("   Or restart runtime:       refarm runtime start"));
 		console.error(chalk.dim("   Diagnose:                 refarm doctor"));
 	} else if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Refarm runtime is not running."));
