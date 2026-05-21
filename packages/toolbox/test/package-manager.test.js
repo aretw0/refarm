@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     detectPackageManager,
+    packageFrozenInstallCommand,
     packageInstallCommand,
     packageScriptCommand,
 } from "../src/package-manager.mjs";
@@ -35,5 +36,13 @@ describe("toolbox package manager commands", () => {
 
     it("falls back to npm when no supported package manager is configured", () => {
         expect(detectPackageManager({ cwd: tmpdir(), env: {} })).toBe("npm");
+    });
+
+    it("re-exports frozen install command resolution", () => {
+        expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: "pnpm",
+            args: ["install", "--frozen-lockfile"],
+            display: "pnpm install --frozen-lockfile",
+        });
     });
 });
