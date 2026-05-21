@@ -12,6 +12,16 @@ interface DeployResult {
 	url?: string;
 }
 
+const DEPLOY_TARGETS = ["all", "cloudflare", "github"] as const;
+type DeployTarget = (typeof DEPLOY_TARGETS)[number];
+
+function parseDeployTarget(value: string): DeployTarget {
+	if ((DEPLOY_TARGETS as readonly string[]).includes(value)) {
+		return value as DeployTarget;
+	}
+	throw new Error(`Invalid deploy target "${value}". Use: ${DEPLOY_TARGETS.join(", ")}`);
+}
+
 export const deployCommand = new Command("deploy")
   .description("Deploy artifacts to configured targets")
   .addHelpText(
@@ -35,6 +45,7 @@ export const deployCommand = new Command("deploy")
     console.log(chalk.bold.green("\nStarting deployment orchestration..."));
 
     try {
+      const target = parseDeployTarget(options.target);
       const configPath = path.join(process.cwd(), "refarm.config.json");
       if (!fs.existsSync(configPath)) {
           throw new Error("refarm.config.json not found in current directory.");
@@ -49,9 +60,9 @@ export const deployCommand = new Command("deploy")
 
       const windmill = new Windmill(config, { dryRun: options.dryRun });
 
-      console.log(`🚀 Deploying to ${chalk.cyan(options.target)}...`);
+      console.log(`🚀 Deploying to ${chalk.cyan(target)}...`);
 
-      const result = await windmill.deploy(options.target) as unknown as DeployResult;
+      const result = await windmill.deploy(target) as unknown as DeployResult;
 
       if (result.status === "success" || result.status === "dry-run" || result.status === "partial_failure") {
           console.log(chalk.bold.green("\n✨ Deployment orchestration finished!"));

@@ -34,7 +34,10 @@ vi.mock("node:fs", async (importOriginal) => {
 import { deployCommand } from "../../src/commands/deploy.js";
 
 describe("deployCommand", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+  });
 
   it("documents dry-run and configuration requirements in help", () => {
     let help = "";
@@ -53,6 +56,27 @@ describe("deployCommand", () => {
   it("calls windmill.deploy with the given target", async () => {
     await deployCommand.parseAsync(["--target", "github", "--dry-run"], { from: "user" });
     expect(mockDeploy).toHaveBeenCalledWith("github");
+  });
+
+  it("rejects unknown deploy targets before calling windmill", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(((code?: string | number | null | undefined) => {
+        throw new Error(`exit:${code ?? 0}`);
+      }) as never);
+
+    await expect(
+      deployCommand.parseAsync(["--target", "workers", "--dry-run"], { from: "user" }),
+    ).rejects.toThrow("exit:1");
+
+    expect(mockDeploy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid deploy target "workers"'),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
   });
 
   it("does not throw on dry-run success", async () => {
