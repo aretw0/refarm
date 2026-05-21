@@ -88,12 +88,12 @@ describe("model routing config", () => {
         });
     });
 
-    it("preserves slash-bearing model ids for the stored provider", () => {
+    it("treats any explicit slash as provider/model for custom providers", () => {
         expect(
-            parseModelRef("meta-llama/Llama-3.3-70B-Instruct-Turbo", "together"),
+            parseModelRef("vllm/Qwen3-Coder-480B-A35B-Instruct", "openai"),
         ).toEqual({
-            provider: "together",
-            modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            provider: "vllm",
+            modelId: "Qwen3-Coder-480B-A35B-Instruct",
         });
     });
 });

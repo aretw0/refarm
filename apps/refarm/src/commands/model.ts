@@ -178,7 +178,8 @@ Examples:
 Notes:
   Use provider/model for portable routes, including self-hosted or compat
   providers. If a default provider is already saved, you may pass only the
-  provider-specific model id.
+  provider-specific model id when it has no slash. Slash-bearing model ids
+  should include their provider prefix, for example together/meta-llama/...
 `,
 		)
 		.action(async (ref: string, opts: { scope?: string }) => {

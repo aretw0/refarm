@@ -162,6 +162,8 @@ Examples:
 Notes:
   --model changes the saved provider/model routing. It does not collect a new
   API key or OAuth login; run plain refarm sow to configure credentials.
+  A slash means provider/model, so custom or self-hosted providers can be saved
+  directly, e.g. refarm sow --model vllm/Qwen3-Coder-480B-A35B-Instruct.
   Inside the refarm REPL, use /login or /sow to reconfigure without leaving the
   session. The Refarm runtime reloads Silo credentials before each task.
 `,

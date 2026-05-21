@@ -78,13 +78,13 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
 	});
 
-	it("keeps nested model ids when the provider is already configured", async () => {
-		mockLoadTokens.mockResolvedValue({ modelProvider: "together" });
-		await sowCommand.parseAsync(["--model", "meta-llama/Llama-3.3-70B-Instruct-Turbo"], { from: "user" });
+	it("treats slash refs as provider/model even when another provider is configured", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
+		await sowCommand.parseAsync(["--model", "vllm/Qwen3-Coder-480B-A35B-Instruct"], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).toHaveBeenCalledWith({
-			modelProvider: "together",
-			modelId: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+			modelProvider: "vllm",
+			modelId: "Qwen3-Coder-480B-A35B-Instruct",
 		});
 	});
 

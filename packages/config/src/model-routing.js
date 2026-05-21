@@ -103,12 +103,6 @@ export function parseModelRef(value, storedProvider) {
     const slash = ref.indexOf("/");
     if (slash > 0 && slash < ref.length - 1) {
         const prefix = ref.slice(0, slash).trim();
-        if (storedProvider && !isModelProvider(prefix)) {
-            return {
-                provider: storedProvider,
-                modelId: ref,
-            };
-        }
         return {
             provider: prefix,
             modelId: ref.slice(slash + 1).trim(),
