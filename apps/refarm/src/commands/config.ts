@@ -129,6 +129,24 @@ function resolveTractorEngineMode(
 	return resolved ?? { value: "auto", source: "default" };
 }
 
+function resolveOpenExternalLinksMode(
+	deps: ConfigDeps,
+	opts: { local?: boolean },
+): { value: OpenExternalLinksMode; source: string } {
+	const envMode = parseOpenExternalLinksMode(process.env.REFARM_OPEN_EXTERNAL_LINKS);
+	if (envMode) return { value: envMode, source: "env:REFARM_OPEN_EXTERNAL_LINKS" };
+
+	const paths = opts.local
+		? [configPath(deps, { local: true })]
+		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
+	let resolved: { value: OpenExternalLinksMode; source: string } | null = null;
+	for (const filePath of paths) {
+		const mode = parseOpenExternalLinksMode(readConfig(filePath).operator?.openExternalLinks);
+		if (mode) resolved = { value: mode, source: filePath };
+	}
+	return resolved ?? { value: "auto", source: "default" };
+}
+
 function assertConfigKey(value: string): asserts value is ConfigKey {
 	if ((CONFIG_KEYS as readonly string[]).includes(value)) return;
 	console.error(chalk.red(`✗  Unknown config key: ${value}`));
@@ -168,10 +186,9 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 		return;
 	}
 	if (key === "operator.openExternalLinks") {
-		const filePath = configPath(deps, opts);
-		const mode = parseOpenExternalLinksMode(readConfig(filePath).operator?.openExternalLinks) ?? "auto";
-		console.log(`${key}=${mode}`);
-		console.log(chalk.dim(`source=${mode === "auto" ? "default" : filePath}`));
+		const effective = resolveOpenExternalLinksMode(deps, opts);
+		console.log(`${key}=${effective.value}`);
+		console.log(chalk.dim(`source=${effective.source}`));
 		return;
 	}
 	if (key === "tractor.engine") {

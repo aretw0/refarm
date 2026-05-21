@@ -13,14 +13,17 @@ describe("config command", () => {
 	let home: string;
 	let originalAutostart: string | undefined;
 	let originalRuntimeAutostart: string | undefined;
+	let originalOpenExternalLinks: string | undefined;
 
 	beforeEach(() => {
 		cwd = makeTempDir();
 		home = makeTempDir();
 		originalAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
 		originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
+		originalOpenExternalLinks = process.env.REFARM_OPEN_EXTERNAL_LINKS;
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
 		delete process.env.REFARM_RUNTIME_AUTOSTART;
+		delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
 		vi.clearAllMocks();
 	});
 
@@ -34,6 +37,11 @@ describe("config command", () => {
 			delete process.env.REFARM_RUNTIME_AUTOSTART;
 		} else {
 			process.env.REFARM_RUNTIME_AUTOSTART = originalRuntimeAutostart;
+		}
+		if (originalOpenExternalLinks === undefined) {
+			delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
+		} else {
+			process.env.REFARM_OPEN_EXTERNAL_LINKS = originalOpenExternalLinks;
 		}
 		vi.restoreAllMocks();
 	});
@@ -174,6 +182,49 @@ describe("config command", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("operator.openExternalLinks=never"),
 		);
+	});
+
+	it("lets local external-link mode override home preference", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "auto" } }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "never" } }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "operator.openExternalLinks"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("operator.openExternalLinks=never");
+		expect(output).toContain(path.join(cwd, ".refarm", "config.json"));
+	});
+
+	it("lets env override external-link config", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "never" } }),
+			"utf-8",
+		);
+		process.env.REFARM_OPEN_EXTERNAL_LINKS = "auto";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "operator.openExternalLinks"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("operator.openExternalLinks=auto");
+		expect(output).toContain("source=env:REFARM_OPEN_EXTERNAL_LINKS");
 	});
 
 	it("sets tractor engine preference", async () => {
