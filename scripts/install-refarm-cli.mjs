@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createPackageScriptCommand } from "../packages/config/src/package-manager.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_ENTRY = path.join(ROOT, "apps/refarm/dist/index.js");
@@ -48,8 +49,13 @@ function resolveBinDir() {
 const forceBuild = process.argv.includes("--build");
 
 if (forceBuild || !existsSync(DIST_ENTRY)) {
-  console.log("[install-refarm-cli] Building @refarm.dev/refarm...");
-  run("pnpm", ["--filter", "@refarm.dev/refarm", "run", "build"]);
+  const build = createPackageScriptCommand({
+    cwd: path.join(ROOT, "apps/refarm"),
+    repoRoot: ROOT,
+    script: "build",
+  });
+  console.log(`[install-refarm-cli] Building @refarm.dev/refarm with ${build.display}...`);
+  run(build.command, build.args);
 }
 
 if (!existsSync(DIST_ENTRY)) {
