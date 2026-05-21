@@ -171,6 +171,23 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("treats fallback-only persisted config as identity source", async () => {
+		const deps = makeDeps({
+			modelFallbackProvider: "ollama",
+			modelFallbackModelId: "qwen2.5-coder",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("fallback: ollama/qwen2.5-coder");
+		expect(output).toContain("source:   ~/.refarm/identity.json");
+
+		logSpy.mockRestore();
+	});
+
 	it("documents runtime reload behavior in help", () => {
 		const command = createModelCommand(makeDeps());
 		let help = "";

@@ -78,7 +78,13 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (monitorRoute) console.log(`  monitor:  ${monitorRoute}`);
 	if (process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || process.env.MODEL_ID) {
 		console.log(chalk.dim("  source:   environment overrides are active"));
-	} else if (tokens.modelProvider || tokens.modelId || tokens.model) {
+	} else if (
+		tokens.modelProvider ||
+		tokens.modelId ||
+		tokens.model ||
+		tokens.modelFallbackProvider ||
+		tokens.modelFallbackModelId
+	) {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {
 		console.log(chalk.dim("  source:   built-in defaults"));
