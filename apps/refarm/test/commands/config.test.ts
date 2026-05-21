@@ -172,8 +172,38 @@ describe("config command", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm config");
-		expect(output).toContain("interactive config is reserved");
-		expect(output).toContain("runtime.autostart");
+		expect(output).toContain("runtime.autostart=ask");
+		expect(output).toContain("operator.openExternalLinks=auto");
+		expect(output).toContain("tractor.engine=auto");
+		expect(output).toContain("Future: running this command without arguments can become interactive");
+	});
+
+	it("prints effective config sources when run without a subcommand", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({
+				autostart: "always",
+				operator: { openExternalLinks: "never" },
+			}),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync([], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("runtime.autostart=always");
+		expect(output).toContain(path.join(home, ".refarm", "config.json"));
+		expect(output).toContain("operator.openExternalLinks=never");
+		expect(output).toContain("tractor.engine=rust");
+		expect(output).toContain(path.join(cwd, ".refarm", "config.json"));
 	});
 
 	it("documents config get keys and precedence", () => {

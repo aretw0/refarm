@@ -201,6 +201,24 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 	}
 }
 
+function printConfigSummary(deps: ConfigDeps): void {
+	const runtimeAutostart = resolveAutostartMode(deps, {});
+	const externalLinks = resolveOpenExternalLinksMode(deps, {});
+	const tractorEngine = resolveTractorEngineMode(deps, {});
+
+	console.log(chalk.bold("Refarm config"));
+	console.log(`  runtime.autostart=${runtimeAutostart.value}`);
+	console.log(chalk.dim(`    source=${runtimeAutostart.source}`));
+	console.log(`  operator.openExternalLinks=${externalLinks.value}`);
+	console.log(chalk.dim(`    source=${externalLinks.source}`));
+	console.log(`  tractor.engine=${tractorEngine.value}`);
+	console.log(chalk.dim(`    source=${tractorEngine.source}`));
+	console.log("");
+	console.log(chalk.dim("  Change a value:       refarm config set runtime.autostart always"));
+	console.log(chalk.dim("  Project-local value:  refarm config set runtime.autostart never --local"));
+	console.log(chalk.dim("  Future: running this command without arguments can become interactive."));
+}
+
 function setConfigValue(
 	key: ConfigKey,
 	value: string,
@@ -278,13 +296,7 @@ Notes:
 `,
 		)
 		.action(() => {
-			console.log(chalk.bold("Refarm config"));
-			console.log(chalk.dim("  Use get/set today; interactive config is reserved for this command."));
-			console.log("");
-			console.log(chalk.dim("  refarm config get runtime.autostart"));
-			console.log(chalk.dim("  refarm config set runtime.autostart always"));
-			console.log(chalk.dim("  refarm config set operator.openExternalLinks never"));
-			console.log(chalk.dim("  refarm config set tractor.engine auto"));
+			printConfigSummary(deps);
 		})
 		.addCommand(
 			new Command("get")
