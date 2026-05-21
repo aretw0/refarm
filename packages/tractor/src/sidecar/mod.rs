@@ -321,7 +321,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     &state.streams_dir,
                     &stream_ref,
                     0,
-                    "[pi-agent not loaded - run refarm plugin install then restart the runtime]",
+                    "[pi-agent not loaded - run refarm plugin status, then refarm plugin install or reload @refarm/pi-agent]",
                     true,
                     None,
                 );

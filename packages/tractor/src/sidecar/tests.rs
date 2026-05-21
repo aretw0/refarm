@@ -334,6 +334,7 @@ async fn sidecar_no_plugin_writes_error_stream_chunk() {
             }
             let content = std::fs::read_to_string(&path).unwrap_or_default();
             content.contains("\"is_final\":true")
+                && content.contains("refarm plugin status")
         });
 
     assert!(found, "sidecar must write an is_final stream chunk when plugin is not loaded");
