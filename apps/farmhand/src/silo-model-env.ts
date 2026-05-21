@@ -88,10 +88,16 @@ export function createSiloModelEnvInjector(
 				const tokens = await options.store.loadTokens();
 				const provider = stringValue(tokens.modelProvider);
 				const oauthProvider = stringValue(tokens.oauthProvider);
+				const envProvider = stringValue(env.MODEL_PROVIDER);
+				const envDefaultProvider = stringValue(env.MODEL_DEFAULT_PROVIDER);
+				const routeProviderOverridden = Boolean(envProvider ?? envDefaultProvider);
+				const effectiveProvider = envProvider ?? envDefaultProvider ?? provider;
 
-				if (provider) setManagedEnv("MODEL_PROVIDER", provider);
+				if (provider && !routeProviderOverridden) setManagedEnv("MODEL_PROVIDER", provider);
 				const modelId = stringValue(tokens.modelId) ?? stringValue(tokens.model);
-				if (modelId) setManagedEnv("MODEL_ID", modelId);
+				if (modelId && (!routeProviderOverridden || effectiveProvider === provider)) {
+					setManagedEnv("MODEL_ID", modelId);
+				}
 
 				if (oauthProvider) {
 					const creds = oauthCredentialsFor(tokens, oauthProvider);

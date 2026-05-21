@@ -40,8 +40,39 @@ describe("createSiloModelEnvInjector", () => {
 		await injector.inject();
 
 		expect(env.MODEL_PROVIDER).toBe("anthropic");
-		expect(env.MODEL_ID).toBe("gpt-5.5");
+		expect(env.MODEL_ID).toBeUndefined();
 		expect(env.OPENAI_API_KEY).toBe("external");
+	});
+
+	it("does not turn a default provider override into a stored explicit provider", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_DEFAULT_PROVIDER: "gemini",
+		};
+		const store = makeStore([
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelApiKey: "sk-test" },
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_DEFAULT_PROVIDER).toBe("gemini");
+		expect(env.MODEL_PROVIDER).toBeUndefined();
+		expect(env.MODEL_ID).toBeUndefined();
+	});
+
+	it("keeps a stored model id when the operator override matches the stored provider", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_DEFAULT_PROVIDER: "openai",
+		};
+		const store = makeStore([
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelApiKey: "sk-test" },
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_PROVIDER).toBeUndefined();
+		expect(env.MODEL_ID).toBe("gpt-5.5");
 	});
 
 	it("updates env values it previously managed when Silo changes at runtime", async () => {
