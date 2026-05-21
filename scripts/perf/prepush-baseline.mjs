@@ -2,6 +2,13 @@
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import {
+  detectPackageManager,
+  packageScriptCommand
+} from '../../packages/config/src/package-manager.js';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function getArg(name, fallback = '') {
   const prefix = `${name}=`;
@@ -36,6 +43,7 @@ function runStep(name, cmd, env = {}) {
   try {
     execSync(cmd, {
       stdio: 'pipe',
+      cwd: ROOT,
       env: { ...process.env, ...env },
       maxBuffer: 10 * 1024 * 1024
     });
@@ -47,9 +55,27 @@ function runStep(name, cmd, env = {}) {
 
 function safeGit(cmd, fallback = 'unknown') {
   try {
-    return execSync(cmd, { stdio: 'pipe' }).toString().trim() || fallback;
+    return execSync(cmd, { cwd: ROOT, stdio: 'pipe' }).toString().trim() || fallback;
   } catch {
     return fallback;
+  }
+}
+
+function scriptCommand(script) {
+  return packageScriptCommand(script, { cwd: ROOT }).command;
+}
+
+function auditCommand(packageManager) {
+  switch (packageManager) {
+    case 'pnpm':
+    case 'npm':
+      return `${packageManager} audit --audit-level=high --silent`;
+    case 'yarn':
+      return 'yarn npm audit --severity high';
+    case 'bun':
+      return 'bun audit';
+    default:
+      return `${packageManager} audit`;
   }
 }
 
@@ -57,16 +83,17 @@ const outPath = getArg('--out', 'artifacts/perf/prepush-baseline.csv');
 const includeAudit = !hasFlag('--skip-audit');
 const source = getArg('--source', 'local-dev');
 const strict = hasFlag('--strict');
+const packageManager = detectPackageManager({ cwd: ROOT });
 
 const checks = [
-  { name: 'lint', cmd: 'npm run lint --silent', env: { CI: '1' } },
-  { name: 'type_check', cmd: 'npm run type-check --silent', env: { CI: '1' } },
-  { name: 'unit_tests', cmd: 'npm run test:unit --silent' },
+  { name: 'lint', cmd: scriptCommand('lint'), env: { CI: '1' } },
+  { name: 'type_check', cmd: scriptCommand('type-check'), env: { CI: '1' } },
+  { name: 'unit_tests', cmd: scriptCommand('test:unit') },
   { name: 'quality_gate', cmd: 'node packages/toolbox/src/quality-gate.mjs' }
 ];
 
 if (includeAudit) {
-  checks.push({ name: 'security_audit_high', cmd: 'npm audit --audit-level=high --silent' });
+  checks.push({ name: 'security_audit_high', cmd: auditCommand(packageManager) });
 }
 
 const meta = {
@@ -76,7 +103,7 @@ const meta = {
   git_branch: safeGit('git rev-parse --abbrev-ref HEAD'),
   os: safeGit('uname -s'),
   node: safeGit('node -v'),
-  npm: safeGit('npm -v')
+  npm: safeGit(`${packageManager} -v`)
 };
 
 const results = checks.map((step) => runStep(step.name, step.cmd, step.env));
