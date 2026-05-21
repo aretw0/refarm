@@ -294,12 +294,29 @@ export function createTaskCommand(
 	sessionRecorder: TaskSessionRecorder = createTaskSessionRecorder(),
 ): Command {
 	const taskCommand = new Command("task").description(
-		"Manage Farmhand task efforts",
+		"Manage Refarm runtime task efforts",
+	);
+
+	taskCommand.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ refarm task run @refarm.dev/pi-agent respond --args '{"query":"hello"}'
+  $ refarm task run @refarm.dev/pi-agent respond --transport http
+  $ refarm task status <effort-id>
+  $ refarm task logs <effort-id>
+  $ refarm task resume
+
+Notes:
+  file transport queues work under ~/.refarm/tasks for the runtime to pick up.
+  http transport submits directly to the local runtime sidecar.
+`,
 	);
 
 	taskCommand
 		.command("run <plugin> <fn>")
-		.description("Dispatch a task effort to Farmhand")
+		.description("Dispatch a task effort to the Refarm runtime")
 		.option("--args <json>", "Task args as JSON string", "{}")
 		.option(
 			"--direction <text>",

@@ -81,6 +81,22 @@ describe("refarm task run", () => {
 		process.exitCode = undefined;
 	});
 
+	it("documents runtime task transports in help", () => {
+		const taskCommand = createTaskCommand();
+		let help = "";
+		taskCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		taskCommand.outputHelp();
+
+		expect(help).toContain("Manage Refarm runtime task efforts");
+		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
+		expect(help).toContain("http transport submits directly");
+	});
+
 	it("dispatches effort and prints effortId", async () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
