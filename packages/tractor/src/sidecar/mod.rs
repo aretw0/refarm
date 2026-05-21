@@ -267,7 +267,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     &state.streams_dir,
                     &stream_ref,
                     0,
-                    "[pi-agent not loaded — run npm run agent:install then restart]",
+                    "[pi-agent not loaded - run refarm plugin install then restart the runtime]",
                     true,
                     None,
                 );
@@ -879,4 +879,3 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests;
-
