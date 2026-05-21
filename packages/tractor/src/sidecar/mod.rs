@@ -9,6 +9,7 @@
 //!   POST   /efforts/:id/retry          — re-enqueue
 //!   POST   /efforts/:id/cancel         — cancel
 //!   GET    /plugins                    — installed/loaded plugin state
+//!   POST   /plugins/reload             — report reload readiness for loaded plugins
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
 //! task. Results and stream chunks are written to the filesystem so that
@@ -163,6 +164,42 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         "loaded": loaded,
         "local": [],
         "known": loaded,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginReloadRequest {
+    plugin_ids: Option<Vec<String>>,
+}
+
+async fn post_plugins_reload(
+    State(state): State<SidecarState>,
+    Json(request): Json<PluginReloadRequest>,
+) -> impl IntoResponse {
+    let loaded: Vec<String> = {
+        let channels = state.agent_channels.read().expect("channels poisoned");
+        let mut ids: Vec<String> = channels.keys().cloned().collect();
+        ids.sort();
+        ids
+    };
+    let requested = request.plugin_ids.unwrap_or_else(|| loaded.clone());
+    let mut reloaded = Vec::new();
+    let mut skipped = Vec::new();
+
+    for plugin_id in requested {
+        if loaded.contains(&plugin_id) {
+            reloaded.push(plugin_id);
+        } else {
+            skipped.push(plugin_id);
+        }
+    }
+
+    Json(serde_json::json!({
+        "reloadId": uuid::Uuid::new_v4().to_string(),
+        "reloaded": reloaded,
+        "deferred": [],
+        "skipped": skipped,
     }))
 }
 
@@ -887,6 +924,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/tasks", get(get_tasks))
         .route("/tasks/:id", get(get_task))
         .route("/plugins", get(get_plugins))
+        .route("/plugins/reload", post(post_plugins_reload))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;

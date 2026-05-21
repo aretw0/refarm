@@ -38,6 +38,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
         .route("/efforts/:id/retry", axum::routing::post(post_effort_retry))
         .route("/efforts/:id/cancel", axum::routing::post(post_effort_cancel))
         .route("/plugins", axum::routing::get(get_plugins))
+        .route("/plugins/reload", axum::routing::post(post_plugins_reload))
         .with_state(state.clone());
 
     tokio::spawn(async move {
@@ -145,6 +146,40 @@ async fn sidecar_get_plugins_reports_loaded_agent_channels() {
         body["known"].as_array().unwrap(),
         &vec![serde_json::json!("@refarm/pi-agent")]
     );
+}
+
+#[tokio::test]
+async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/pi-agent".to_string(), tx);
+    let client = reqwest::Client::new();
+
+    let res = client
+        .post(format!("{}/plugins/reload", base(port)))
+        .json(&serde_json::json!({
+            "pluginIds": ["@refarm/pi-agent", "@refarm/missing"]
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(
+        body["reloaded"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/pi-agent")]
+    );
+    assert_eq!(
+        body["skipped"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/missing")]
+    );
+    assert_eq!(body["deferred"].as_array().unwrap().len(), 0);
+    assert!(body["reloadId"].as_str().is_some());
 }
 
 #[tokio::test]
