@@ -14,6 +14,7 @@ import {
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
+const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
@@ -57,6 +58,10 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		tokens.modelRoutes?.worker ??
 		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);
 	if (workerRoute) console.log(`  worker:   ${workerRoute}`);
+	const monitorRoute =
+		tokens.modelRoutes?.monitor ??
+		(provider ? formatModelRef(provider, defaultModelForScope(provider, "monitor")) : undefined);
+	if (monitorRoute) console.log(`  monitor:  ${monitorRoute}`);
 	if (process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || process.env.MODEL_ID) {
 		console.log(chalk.dim("  source:   environment overrides are active"));
 	} else if (tokens.modelProvider || tokens.modelId || tokens.model) {
@@ -65,6 +70,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim("  source:   built-in defaults"));
 		console.log(chalk.dim(`  openai default: ${OPENAI_DEFAULT_REF}`));
 		console.log(chalk.dim(`  openai worker:  ${OPENAI_WORKER_REF}`));
+		console.log(chalk.dim(`  openai monitor: ${OPENAI_MONITOR_REF}`));
 		console.log(chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`));
 		console.log(chalk.dim("  login:          refarm sow"));
 	}
@@ -124,6 +130,7 @@ Examples:
   $ refarm model ${OPENAI_DEFAULT_REF}
   $ refarm model set ${OPENAI_DEFAULT_REF}
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
+  $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
   $ refarm model set ${ANTHROPIC_DEFAULT_REF}
   $ refarm model set ${OLLAMA_DEFAULT_REF}
 
@@ -131,6 +138,7 @@ Notes:
   Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
   them before each task, so the next ask/chat turn or worker task uses the new route.
   For OpenAI workers, the default scoped route is ${OPENAI_WORKER_REF}.
+  For OpenAI monitors, the default scoped route is ${OPENAI_MONITOR_REF}.
 `,
 		)
 		.action(async (ref: string | undefined) => {

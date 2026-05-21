@@ -48,6 +48,7 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("openai/gpt-5.5");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
+		expect(output).toContain("monitor:  openai/gpt-5.5");
 
 		logSpy.mockRestore();
 	});
@@ -76,6 +77,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("current: <not configured>");
 		expect(output).toContain("openai default: openai/gpt-5.5");
 		expect(output).toContain("openai worker:  openai/gpt-5.3-codex-spark");
+		expect(output).toContain("openai monitor: openai/gpt-5.5");
 		expect(output).toContain("login:          refarm sow");
 
 		logSpy.mockRestore();
@@ -110,6 +112,7 @@ describe("modelCommand", () => {
 		expect(help).toContain("The Refarm runtime reloads");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
+		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
 	});
 
 	it("sets the default model route", async () => {
@@ -156,6 +159,25 @@ describe("modelCommand", () => {
 			modelProvider: "openai",
 			modelId: "gpt-5.5",
 			modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("sets a scoped monitor model route", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["set", "--scope", "monitor", "anthropic/claude-sonnet-4-20250514"],
+			{ from: "user" },
+		);
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: { monitor: "anthropic/claude-sonnet-4-20250514" },
 		});
 
 		logSpy.mockRestore();
