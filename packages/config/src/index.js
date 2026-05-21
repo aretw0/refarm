@@ -11,6 +11,7 @@ export {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
+    packageBinaryCommand,
     packageInstallCommand,
     packageScriptCommand,
     parsePackageManager,

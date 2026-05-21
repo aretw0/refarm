@@ -107,3 +107,45 @@ export function packageInstallCommand({ cwd = process.cwd(), env = process.env }
         display: command,
     };
 }
+
+export function packageBinaryCommand(
+    binary,
+    args = [],
+    { cwd = process.cwd(), env = process.env } = {},
+) {
+    const packageManager = detectPackageManager({ cwd, env });
+    const allArgs = [binary, ...args];
+
+    switch (packageManager) {
+        case "pnpm":
+            return {
+                packageManager,
+                command: "pnpm",
+                args: ["exec", ...allArgs],
+                display: `pnpm exec ${allArgs.join(" ")}`,
+            };
+        case "npm":
+            return {
+                packageManager,
+                command: "npm",
+                args: ["exec", "--", ...allArgs],
+                display: `npm exec -- ${allArgs.join(" ")}`,
+            };
+        case "yarn":
+            return {
+                packageManager,
+                command: "yarn",
+                args: allArgs,
+                display: `yarn ${allArgs.join(" ")}`,
+            };
+        case "bun":
+            return {
+                packageManager,
+                command: "bun",
+                args: ["x", ...allArgs],
+                display: `bun x ${allArgs.join(" ")}`,
+            };
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}

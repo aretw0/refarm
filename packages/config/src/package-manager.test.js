@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
     createPackageScriptCommand,
     detectPackageManager,
+    packageBinaryCommand,
     packageInstallCommand,
     packageScriptCommand,
 } from "./package-manager.js";
@@ -52,5 +53,44 @@ describe("package manager config", () => {
 
     it("falls back to npm when no supported package manager is configured", () => {
         expect(detectPackageManager({ cwd: tmpdir(), env: {} })).toBe("npm");
+    });
+
+    it("formats package binary commands for each supported manager", () => {
+        expect(
+            packageBinaryCommand("turbo", ["gen", "package"], {
+                env: { REFARM_PACKAGE_MANAGER: "pnpm" },
+            }),
+        ).toMatchObject({
+            command: "pnpm",
+            args: ["exec", "turbo", "gen", "package"],
+            display: "pnpm exec turbo gen package",
+        });
+        expect(
+            packageBinaryCommand("turbo", ["gen", "package"], {
+                env: { REFARM_PACKAGE_MANAGER: "npm" },
+            }),
+        ).toMatchObject({
+            command: "npm",
+            args: ["exec", "--", "turbo", "gen", "package"],
+            display: "npm exec -- turbo gen package",
+        });
+        expect(
+            packageBinaryCommand("turbo", ["gen", "package"], {
+                env: { REFARM_PACKAGE_MANAGER: "yarn" },
+            }),
+        ).toMatchObject({
+            command: "yarn",
+            args: ["turbo", "gen", "package"],
+            display: "yarn turbo gen package",
+        });
+        expect(
+            packageBinaryCommand("turbo", ["gen", "package"], {
+                env: { REFARM_PACKAGE_MANAGER: "bun" },
+            }),
+        ).toMatchObject({
+            command: "bun",
+            args: ["x", "turbo", "gen", "package"],
+            display: "bun x turbo gen package",
+        });
     });
 });

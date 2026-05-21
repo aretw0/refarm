@@ -8,6 +8,7 @@ export {
 } from "./model-routing.js";
 export type {
     PackageCommandString,
+    PackageBinaryCommand,
     PackageManagerName,
     PackageManagerOptions,
     PackageScriptCommand,
@@ -17,6 +18,7 @@ export {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
+    packageBinaryCommand,
     packageInstallCommand,
     packageScriptCommand,
     parsePackageManager,
