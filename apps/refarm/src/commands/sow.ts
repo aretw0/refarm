@@ -41,7 +41,7 @@ Notes:
   --model changes the saved provider/model routing. It does not collect a new
   API key or OAuth login; run plain refarm sow to configure credentials.
   Inside the refarm REPL, use /login or /sow to reconfigure without leaving the
-  session. Farmhand reloads Silo credentials before each task.
+  session. The Refarm runtime reloads Silo credentials before each task.
 `,
 	)
 	.action(async (opts: SowOptions) => {
@@ -131,7 +131,7 @@ Notes:
 			console.log(chalk.gray("\n  Credentials stored at ~/.refarm/identity.json"));
 			console.log(
 				chalk.dim(
-					"  Farmhand reloads saved Silo credentials before each task.",
+					"  Refarm runtime reloads saved Silo credentials before each task.",
 				),
 			);
 

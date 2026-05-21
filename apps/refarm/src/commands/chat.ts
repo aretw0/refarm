@@ -608,7 +608,7 @@ export async function runSessionRepl(
 					void (async () => {
 						try {
 							await (deps.configureCredentials ?? runSowCommand)(command.args);
-							console.log(chalk.dim("Farmhand reloads saved credentials before each task."));
+							console.log(chalk.dim("Refarm runtime reloads saved credentials before each task."));
 						} catch (error) {
 							const message = error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));
@@ -657,6 +657,24 @@ export function createChatCommand(deps?: ChatDeps): Command {
 		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session")
 		.option("--session <id>", "Resume a specific session ID or prefix")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm chat
+  $ refarm chat --new
+  $ refarm chat --session <id-prefix>
+  $ refarm chat "continue daqui"
+
+Runtime commands:
+  /model                  Show the active model route
+  /model openai/gpt-5.5   Set the default model route
+  /model worker openai/gpt-5.3-codex-spark
+  /login                  Configure credentials without leaving the session
+  /reload [id...]         Hot-reload plugins in the Refarm runtime
+`,
+		)
 		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {
 			const { runSessionLaunchFlow } = await import("./session.js");
 			await runSessionLaunchFlow({ ...opts, message }, deps);

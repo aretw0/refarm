@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseChatLine } from "./chat-repl.js";
+import { CHAT_HELP_TEXT, parseChatLine } from "./chat-repl.js";
 
 describe("parseChatLine", () => {
 	it("treats plain text as a message", () => {
@@ -101,5 +101,11 @@ describe("parseChatLine", () => {
 
 	it("does not treat non-leading slash as command", () => {
 		expect(parseChatLine("hello /world")).toEqual({ kind: "message", text: "hello /world" });
+	});
+
+	it("documents runtime-oriented slash commands", () => {
+		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
+		expect(CHAT_HELP_TEXT).toContain("/model worker <ref>");
+		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
 	});
 });

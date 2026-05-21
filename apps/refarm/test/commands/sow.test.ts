@@ -96,6 +96,20 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockGithubCollect).not.toHaveBeenCalled();
 		expect(mockCloudflareCollect).not.toHaveBeenCalled();
 	});
+
+	it("documents runtime credential reload behavior in help", () => {
+		let help = "";
+		sowCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		sowCommand.outputHelp();
+
+		expect(help).toContain("The Refarm runtime reloads Silo credentials");
+		expect(help).toContain("refarm sow --model openai/gpt-5.5");
+	});
 });
 
 describe("sowCommand — --all flag", () => {

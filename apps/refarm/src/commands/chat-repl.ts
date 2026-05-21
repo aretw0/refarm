@@ -106,7 +106,7 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 }
 
 export const CHAT_HELP_TEXT = `Available commands:
-  /reload [id...]   Hot-reload plugins in farmhand (all, or named plugin IDs)
+  /reload [id...]   Hot-reload plugins in the Refarm runtime (all, or named plugin IDs)
   /model            Show the active model route
   /model <ref>      Set the default model route, e.g. openai/gpt-5.5
   /model worker <ref> Set the worker model route

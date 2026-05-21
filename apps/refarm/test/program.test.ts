@@ -43,6 +43,20 @@ describe("refarm program", () => {
 		]);
 	});
 
+	it("documents runtime credential reload behavior in lazy sow help", () => {
+		const sow = program.commands.find((command) => command.name() === "sow");
+		let help = "";
+		sow?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		sow?.outputHelp();
+
+		expect(help).toContain("The Refarm runtime reloads Silo credentials");
+	});
+
 	it("uses shared runtime metadata resolver for CLI version", () => {
 		expect(program.version()).toBe(resolveRefarmVersion());
 	});

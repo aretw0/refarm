@@ -118,8 +118,8 @@ Examples:
   $ refarm model set ollama/llama3.2
 
 Notes:
-  Model routes are saved in ~/.refarm/identity.json. Farmhand reloads them
-  before each task, so the next ask/chat turn or worker task uses the new route.
+  Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
+  them before each task, so the next ask/chat turn or worker task uses the new route.
   For OpenAI workers, the default scoped route is openai/gpt-5.3-codex-spark.
 `,
 		);

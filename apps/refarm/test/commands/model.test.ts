@@ -45,6 +45,21 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("documents runtime reload behavior in help", () => {
+		const command = createModelCommand(makeDeps());
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("The Refarm runtime reloads");
+		expect(help).toContain("openai/gpt-5.3-codex-spark");
+	});
+
 	it("sets the default model route", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);
