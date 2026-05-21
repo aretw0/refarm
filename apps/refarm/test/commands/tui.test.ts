@@ -43,14 +43,14 @@ function makeStatus(overrides?: Partial<any>) {
 describe("resolveTuiLaunchSpec", () => {
 	it("maps watch and prompt launchers to deterministic commands", () => {
 		expect(resolveTuiLaunchSpec("watch")).toEqual({
-			command: "cargo",
-			args: ["run", "-p", "tractor", "--", "watch"],
-			display: "cargo run -p tractor -- watch",
+			command: "tractor",
+			args: ["watch"],
+			display: "tractor watch",
 		});
 		expect(resolveTuiLaunchSpec("prompt")).toEqual({
-			command: "cargo",
-			args: ["run", "-p", "tractor", "--", "prompt"],
-			display: "cargo run -p tractor -- prompt",
+			command: "tractor",
+			args: ["prompt"],
+			display: "tractor prompt",
 		});
 	});
 });
@@ -388,7 +388,7 @@ describe("tuiCommand", () => {
 
 		expect(launch).toHaveBeenCalledWith(
 			expect.objectContaining({
-				display: "cargo run -p tractor -- watch",
+				display: "tractor watch",
 			}),
 		);
 		expect(logSpy).toHaveBeenCalledWith(
@@ -411,7 +411,7 @@ describe("tuiCommand", () => {
 
 		expect(launch).toHaveBeenCalledWith(
 			expect.objectContaining({
-				display: "cargo run -p tractor -- prompt",
+				display: "tractor prompt",
 			}),
 		);
 	});

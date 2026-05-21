@@ -48,10 +48,10 @@ export function resolveTuiLaunchSpec(
 	mode: RefarmTuiLauncherMode,
 ): TuiLaunchSpec {
 	if (mode === "prompt") {
-		return createLaunchProcessSpec("cargo run -p tractor -- prompt");
+		return createLaunchProcessSpec("tractor prompt");
 	}
 
-	return createLaunchProcessSpec("cargo run -p tractor -- watch");
+	return createLaunchProcessSpec("tractor watch");
 }
 
 export function launchTuiProcess(spec: TuiLaunchSpec): Promise<number> {
