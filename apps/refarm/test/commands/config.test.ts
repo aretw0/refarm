@@ -176,6 +176,40 @@ describe("config command", () => {
 		expect(output).toContain("runtime.autostart");
 	});
 
+	it("documents config get keys and precedence", () => {
+		const root = command();
+		const getCommand = root.commands.find((subcommand) => subcommand.name() === "get");
+		let help = "";
+		getCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		getCommand?.outputHelp();
+
+		expect(help).toContain("refarm config get runtime.autostart");
+		expect(help).toContain("tractor.engine  auto | rust | ts");
+		expect(help).toContain("Environment");
+	});
+
+	it("documents config set examples and local scope", () => {
+		const root = command();
+		const setCommand = root.commands.find((subcommand) => subcommand.name() === "set");
+		let help = "";
+		setCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		setCommand?.outputHelp();
+
+		expect(help).toContain("refarm config set runtime.autostart always");
+		expect(help).toContain("refarm config set tractor.engine rust");
+		expect(help).toContain("repository-specific operator preferences");
+	});
+
 	it("sets operator external-link mode", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

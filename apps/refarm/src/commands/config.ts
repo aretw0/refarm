@@ -291,6 +291,27 @@ Notes:
 				.description("Show an effective config value")
 				.argument("<key>", "Config key")
 				.option("--local", "Read project-local .refarm/config.json only")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm config get runtime.autostart
+  $ refarm config get operator.openExternalLinks
+  $ refarm config get tractor.engine
+  $ refarm config get runtime.autostart --local
+
+Keys:
+  runtime.autostart  ask | always | never
+  operator.openExternalLinks  auto | never
+  tractor.engine  auto | rust | ts
+
+Notes:
+  Without --local, project-local config overrides home config. Environment
+  overrides such as REFARM_RUNTIME_AUTOSTART and REFARM_TRACTOR_ENGINE still
+  take precedence and are shown in the source line.
+`,
+				)
 				.action((key: string, opts: { local?: boolean }) => {
 					assertConfigKey(key);
 					printConfigValue(key, opts, deps);
@@ -302,6 +323,26 @@ Notes:
 				.argument("<key>", "Config key")
 				.argument("<value>", "Config value")
 				.option("--local", "Write project-local .refarm/config.json")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm config set runtime.autostart always
+  $ refarm config set runtime.autostart never --local
+  $ refarm config set operator.openExternalLinks never
+  $ refarm config set tractor.engine rust
+
+Keys:
+  runtime.autostart  ask | always | never
+  operator.openExternalLinks  auto | never
+  tractor.engine  auto | rust | ts
+
+Notes:
+  Use --local for repository-specific operator preferences. Home config is the
+  default and applies across Refarm workspaces for the current user.
+`,
+				)
 				.action((key: string, value: string, opts: { local?: boolean }) => {
 					assertConfigKey(key);
 					setConfigValue(key, value, opts, deps);
