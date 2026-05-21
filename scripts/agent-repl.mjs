@@ -382,7 +382,7 @@ function handleSlashCommand(line) {
 async function main() {
   loadEnvFile();
 
-  const provider = process.env.MODEL_PROVIDER || DEFAULT_MODEL_PROVIDER;
+  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || DEFAULT_MODEL_PROVIDER;
 
   // Check daemon is alive
   const daemonRunning = checkDaemon();
