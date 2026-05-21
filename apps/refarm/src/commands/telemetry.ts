@@ -180,7 +180,7 @@ function printConnectionFailure(message: string): never {
 		console.error(
 			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),
 		);
-		console.error(chalk.dim("   Update/restart farmhand and retry."));
+		console.error(chalk.dim("   Update or restart the Refarm runtime and retry."));
 	} else {
 		console.error(chalk.red(`✗  ${message}`));
 	}
@@ -362,7 +362,7 @@ Notes:
 				} else {
 					console.log(
 						chalk.dim(
-							"\n  recent window unavailable (update/restart farmhand to enable).",
+							"\n  recent window unavailable (update/restart the Refarm runtime to enable).",
 						),
 					);
 				}

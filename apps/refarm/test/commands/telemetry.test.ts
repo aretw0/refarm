@@ -41,6 +41,7 @@ describe("refarm telemetry", () => {
 		expect(deps.fetchTelemetryWindow).toHaveBeenCalledWith(60);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm Telemetry Snapshot");
+		expect(output).toContain("update/restart the Refarm runtime");
 		expect(output).toContain("no pressure signals");
 	});
 

@@ -6,7 +6,7 @@ import { Command } from "commander";
 
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
-// Loaded directly by tractor (no WASM compilation needed).
+// Loaded directly by the Refarm runtime (no WASM compilation needed).
 // Edit this file and run '/reload' in the refarm REPL to apply changes.
 
 export const integration = {
@@ -114,7 +114,7 @@ async function newExtension(name: string, isGlobal: boolean): Promise<void> {
   console.log(`Created extension '${name}' at ${extDir} (${scope})`);
   console.log(`  id: ${ext.id}`);
   console.log(`  Edit: ${path.join(extDir, "index.js")}`);
-  console.log(`  Activate: restart farmhand, or '/reload' in the refarm REPL`);
+  console.log(`  Activate: run '/reload' in the refarm REPL, or restart the Refarm runtime`);
 }
 
 async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
@@ -168,6 +168,21 @@ function listHandler(): void {
 
 export const extensionCommand = new Command("extension").description(
   "Manage local JS extensions (no WASM compilation needed)",
+);
+
+extensionCommand.addHelpText(
+  "after",
+  `
+
+Examples:
+  $ refarm extension new my-tool
+  $ refarm extension list
+  $ refarm extension save my-tool --global
+
+Notes:
+  Local extensions are loaded by the Refarm runtime. After editing one, run
+  /reload in the refarm REPL or restart the runtime.
+`,
 );
 
 extensionCommand
