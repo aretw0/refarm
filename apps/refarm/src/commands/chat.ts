@@ -31,6 +31,7 @@ import {
 } from "./session-lock.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+import { reloadRuntimePluginsAndWait } from "./runtime-plugins.js";
 
 export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -108,69 +109,6 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
-
-async function reloadPluginsViaHttp(
-	pluginIds?: string[],
-): Promise<{ reloaded: string[]; skipped: string[] }> {
-	const response = await fetch(sidecarUrl("/plugins/reload"), {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: pluginIds ? JSON.stringify({ pluginIds }) : undefined,
-	});
-	if (!response.ok) {
-		throw new Error(`Farmhand HTTP ${response.status}`);
-	}
-
-	const { reloadId, reloaded, deferred, skipped } = (await response.json()) as {
-		reloadId: string;
-		reloaded: string[];
-		deferred: string[];
-		skipped: string[];
-	};
-
-	if (deferred.length === 0) {
-		return { reloaded, skipped };
-	}
-
-	// Poll until all deferred reloads complete
-	const pending = new Set(deferred);
-	const completed = new Set(reloaded);
-	const failed = new Set(skipped);
-
-	for (const p of deferred) {
-		process.stdout.write(chalk.yellow(`⏳ ${p}: waiting for active tasks...\n`));
-	}
-
-	while (pending.size > 0) {
-		await new Promise<void>((r) => setTimeout(r, 500));
-
-		const statusRes = await fetch(
-			sidecarUrl(`/plugins/reload/status/${reloadId}`),
-		);
-		if (!statusRes.ok) break;
-
-		const status = (await statusRes.json()) as {
-			pending: string[];
-			completed: string[];
-			failed: string[];
-		};
-
-		for (const p of status.completed) {
-			if (pending.delete(p)) completed.add(p);
-		}
-		for (const p of status.failed) {
-			if (pending.delete(p)) failed.add(p);
-		}
-		for (const p of [...pending]) {
-			if (!status.pending.includes(p)) {
-				pending.delete(p);
-				if (!completed.has(p)) failed.add(p);
-			}
-		}
-	}
-
-	return { reloaded: [...completed], skipped: [...failed] };
 }
 
 function followStreamFile(
@@ -331,7 +269,17 @@ export function defaultChatDeps(): ChatDeps {
 	const resultsDir = path.join(os.homedir(), ".refarm", "task-results");
 	return {
 		submitEffort: submitViaHttp,
-		reloadPlugins: reloadPluginsViaHttp,
+		reloadPlugins: async (pluginIds?: string[]) => {
+			const result = await reloadRuntimePluginsAndWait(pluginIds, {
+				onDeferred: (pluginId) => {
+					process.stdout.write(
+						chalk.yellow(`⏳ ${pluginId}: waiting for active tasks...\n`),
+					);
+				},
+			});
+			if (!result) throw new Error("Farmhand runtime plugin reload is unavailable");
+			return result;
+		},
 		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
 		followStream: (effortId, onChunk, options) =>
 			followStreamFile(streamsDir, effortId, onChunk, options),
