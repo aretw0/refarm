@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
+
 echo "[refarm-devcontainer] Post-start sanity check..."
 
 repair_owned_dir() {
@@ -23,6 +26,7 @@ ensure_pnpm() {
   repair_owned_dir /home/vscode/.local/state
   repair_owned_dir /home/vscode/.local/share
   repair_owned_dir "$pnpm_home"
+  repair_owned_dir "$pnpm_home/bin"
   repair_owned_dir "$pnpm_home/store"
   repair_owned_dir /home/vscode/.config
   repair_owned_dir /home/vscode/.config/gh

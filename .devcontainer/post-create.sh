@@ -2,6 +2,9 @@
 # .devcontainer/post-create.sh - deterministic bootstrap for Refarm devcontainers
 set -euo pipefail
 
+export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
+
 log() {
   echo "[refarm-devcontainer] $*"
 }
@@ -41,6 +44,7 @@ repair_owned_dir() {
 ensure_pnpm() {
   local pnpm_home="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
   repair_owned_dir "$pnpm_home"
+  repair_owned_dir "$pnpm_home/bin"
 
   corepack prepare --activate || warn "corepack prepare failed"
 
@@ -110,6 +114,7 @@ for dir in \
   /home/vscode/.local/state \
   /home/vscode/.local/share \
   /home/vscode/.local/share/pnpm \
+  /home/vscode/.local/share/pnpm/bin \
   /home/vscode/.local/share/pnpm/store \
   /home/vscode/.config \
   /home/vscode/.config/gh \

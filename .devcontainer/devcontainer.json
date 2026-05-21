@@ -41,7 +41,7 @@
   },
   "remoteEnv": {
     "PNPM_HOME": "/home/vscode/.local/share/pnpm",
-    "PATH": "/home/vscode/.local/share/pnpm:/home/vscode/.npm-global/bin:/home/vscode/.local/bin:${containerEnv:PATH}",
+    "PATH": "/home/vscode/.local/share/pnpm/bin:/home/vscode/.local/share/pnpm:/home/vscode/.npm-global/bin:/home/vscode/.local/bin:${containerEnv:PATH}",
     "LANG": "pt_BR.UTF-8",
     "LC_ALL": "pt_BR.UTF-8",
     "LANGUAGE": "pt_BR:pt:en",
