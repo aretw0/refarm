@@ -1,11 +1,7 @@
 import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
+import { normalizePluginId } from "@refarm.dev/config";
 
 const FARMHAND_PLUGIN_ID = "farmhand";
-const PLUGIN_ID_ALIASES: Record<string, string> = {
-	"pi-agent": "@refarm/pi-agent",
-	"refarm/pi-agent": "@refarm/pi-agent",
-	"@refarm.dev/pi-agent": "@refarm/pi-agent",
-};
 
 export interface TaskExecutorInput {
 	taskId: string;
@@ -29,7 +25,7 @@ export async function executeTask(
 		"task:effortId": effortId,
 	};
 
-	const resolvedPluginId = resolvePluginId(pluginId);
+	const resolvedPluginId = normalizePluginId(pluginId);
 	const instance = tractor.plugins.get(resolvedPluginId);
 	if (!instance) {
 		await tractor.storeNode({
@@ -59,8 +55,4 @@ export async function executeTask(
 			"task:error": message,
 		});
 	}
-}
-
-function resolvePluginId(pluginId: string): string {
-	return PLUGIN_ID_ALIASES[pluginId] ?? pluginId;
 }

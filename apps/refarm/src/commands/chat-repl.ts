@@ -3,14 +3,10 @@
  * All functions here are unit-testable without stubs.
  */
 
+import { normalizePluginId } from "@refarm.dev/config";
 import { defaultProviderModelRef, isModelScope, type ModelScope } from "../model-routing.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const PLUGIN_ID_ALIASES: Record<string, string> = {
-	"pi-agent": "@refarm/pi-agent",
-	"refarm/pi-agent": "@refarm/pi-agent",
-	"@refarm.dev/pi-agent": "@refarm/pi-agent",
-};
 
 export type ChatCommand =
 	| { kind: "message"; text: string }
@@ -110,10 +106,6 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 	return ref.length > 0
 		? { kind: "model", action: "set", scope, ref }
 		: { kind: "message", text: fallbackText };
-}
-
-function normalizePluginId(pluginId: string): string {
-	return PLUGIN_ID_ALIASES[pluginId] ?? pluginId;
 }
 
 export const CHAT_HELP_TEXT = `Available commands:

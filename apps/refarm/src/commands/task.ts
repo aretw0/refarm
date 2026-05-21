@@ -8,6 +8,7 @@ import type {
 	EffortSummary,
 	EffortTransportAdapter,
 } from "@refarm.dev/effort-contract-v1";
+import { isPiAgentPluginId } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
@@ -288,10 +289,7 @@ function safeSessionRecord(fn: () => void): void {
 }
 
 function isPiAgentRespondTask(plugin: string, fn: string): boolean {
-	return (
-		(plugin === "@refarm/pi-agent" || plugin === "@refarm.dev/pi-agent") &&
-		fn === "respond"
-	);
+	return isPiAgentPluginId(plugin) && fn === "respond";
 }
 
 export function normalizeTaskArgs(

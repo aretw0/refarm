@@ -1,7 +1,7 @@
 export type ModelScope = "default" | "worker" | "monitor";
 
 export const MODEL_SCOPES: readonly ModelScope[];
-export const DEFAULT_MODEL_PROVIDER: "openai";
+export const DEFAULT_MODEL_PROVIDER: string;
 
 export function inferProviderFromModelId(modelId: string): string | undefined;
 

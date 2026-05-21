@@ -9,6 +9,11 @@ export {
     isModelScope,
 } from "./model-routing.js";
 export {
+    PI_AGENT_PLUGIN_ID,
+    isPiAgentPluginId,
+    normalizePluginId,
+} from "./plugin-identity.js";
+export {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
