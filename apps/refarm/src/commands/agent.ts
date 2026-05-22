@@ -1,4 +1,7 @@
 import { Command } from "commander";
+import { defaultProviderModelRef } from "../model-routing.js";
+
+const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 
 // Agent runtime commands (status, repl, start/stop) live here.
 // Plugin lifecycle (install, update, list) is in `refarm plugin`.
@@ -18,7 +21,7 @@ Agent usage:
   $ refarm                     Start or resume an interactive session
   $ refarm sow                  Configure credentials without editing files
   $ refarm model current        Inspect provider/model routing
-  $ refarm model openai/gpt-5.5 Switch the default route
+  $ refarm model ${OPENAI_DEFAULT_REF} Switch the default route
   $ refarm model base-url ...   Set a self-hosted/OpenAI-compatible endpoint
   $ refarm model fallback ...   Set a retry route for provider failures
 

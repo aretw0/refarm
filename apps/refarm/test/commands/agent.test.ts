@@ -15,6 +15,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
+		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm plugin install");
