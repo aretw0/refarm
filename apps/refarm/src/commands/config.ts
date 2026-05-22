@@ -16,13 +16,17 @@ import {
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 } from "./runtime-recovery.js";
+import {
+	parseOpenExternalLinksMode,
+	resolveCliOpenExternalLinksMode,
+	type OpenExternalLinksMode,
+} from "../utils/open-external-links.js";
 
 type ConfigKey =
 	| "farmhand.autostart"
 	| "runtime.autostart"
 	| "operator.openExternalLinks"
 	| "tractor.engine";
-type OpenExternalLinksMode = "auto" | "never";
 type AutostartMode = RuntimeAutostartMode;
 type TractorEngineMode = RuntimeEngineMode;
 
@@ -86,20 +90,6 @@ function parseAutostartMode(value: string | undefined): AutostartMode | null {
 	return parseRuntimeAutostartMode(value);
 }
 
-function parseOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | null {
-	if (value === false) return "never";
-	if (value === true) return "auto";
-	if (typeof value !== "string") return null;
-	const normalized = value.trim().toLowerCase();
-	if (normalized === "0" || normalized === "false" || normalized === "off" || normalized === "never") {
-		return "never";
-	}
-	if (normalized === "1" || normalized === "true" || normalized === "on" || normalized === "auto") {
-		return "auto";
-	}
-	return null;
-}
-
 function parseTractorEngineMode(value: unknown): TractorEngineMode | null {
 	return parseRuntimeEngineMode(value);
 }
@@ -150,9 +140,15 @@ function resolveOpenExternalLinksMode(
 	const envMode = parseOpenExternalLinksMode(process.env.REFARM_OPEN_EXTERNAL_LINKS);
 	if (envMode) return { value: envMode, source: "env:REFARM_OPEN_EXTERNAL_LINKS" };
 
-	const paths = opts.local
-		? [configPath(deps, { local: true })]
-		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
+	if (!opts.local) {
+		return resolveCliOpenExternalLinksMode({
+			cwd: deps.cwd(),
+			home: deps.home(),
+			env: {},
+		}) ?? { value: "auto", source: "default" };
+	}
+
+	const paths = [configPath(deps, { local: true })];
 	let resolved: { value: OpenExternalLinksMode; source: string } | null = null;
 	for (const filePath of paths) {
 		const mode = parseOpenExternalLinksMode(readConfig(filePath).operator?.openExternalLinks);
