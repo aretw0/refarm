@@ -28,6 +28,10 @@ import { treeCommand } from "./commands/tree.js";
 import { webCommand } from "./commands/web.js";
 import { defaultProviderModelRef } from "./model-routing.js";
 import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+} from "./commands/runtime-recovery.js";
+import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
 	SOW_MODEL_OPTION_DESCRIPTION,
@@ -95,8 +99,8 @@ program
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
 			"",
 			"Runtime controls:",
-			"  $ refarm config set runtime.autostart always",
-			"  $ refarm config set tractor.engine auto",
+			`  $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`,
+			`  $ ${RUNTIME_ENGINE_AUTO_COMMAND}`,
 			"  $ refarm model current",
 			`  $ refarm model ${OPENAI_DEFAULT_REF}`,
 			"  $ refarm model base-url http://127.0.0.1:8000",
