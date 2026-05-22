@@ -170,6 +170,42 @@ describe("sowCommand — --all flag", () => {
 			}),
 		);
 	});
+
+	it("does not clear the newly collected credential when --model matches it", async () => {
+		await sowCommand.parseAsync(["--all", "--model", "openai/gpt-5.5"], { from: "user" });
+
+		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
+			modelProvider: "openai",
+			modelApiKey: "sk-openai-test",
+			oauthProvider: undefined,
+		});
+		expect(mockSaveTokens).toHaveBeenNthCalledWith(2, {
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+	});
+
+	it("does not clear newly collected OAuth credentials when --model matches them", async () => {
+		mockModelCollect.mockResolvedValue({
+			provider: "anthropic",
+			apiKey: null,
+			oauthCredentials: { accessToken: "oauth-test" },
+		});
+
+		await sowCommand.parseAsync(["--all", "--model", "anthropic/claude-sonnet-4-6"], { from: "user" });
+
+		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
+			modelProvider: "anthropic",
+			oauthProvider: "anthropic",
+			oauthCredentials: {
+				anthropic: { accessToken: "oauth-test" },
+			},
+		});
+		expect(mockSaveTokens).toHaveBeenNthCalledWith(2, {
+			modelProvider: "anthropic",
+			modelId: "claude-sonnet-4-6",
+		});
+	});
 });
 
 describe("sowCommand — --github flag", () => {

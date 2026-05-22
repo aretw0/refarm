@@ -52,6 +52,7 @@ export const sowCommand = new Command("sow")
 		try {
 			const silo = new SiloCore();
 			const stored = (await silo.loadTokens()) as Record<string, unknown>;
+			let currentTokens = { ...stored };
 			const ctx = { tryOpenUrl };
 			const modelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 			if (opts.model !== undefined && !modelRef) {
@@ -87,20 +88,24 @@ export const sowCommand = new Command("sow")
 				if (credential.oauthCredentials) {
 					const modelProvider = OAUTH_PROVIDER_TO_MODEL_PROVIDER[credential.provider] ?? credential.provider;
 					const existingTokens = (await silo.loadTokens()) as Record<string, unknown>;
-					await silo.saveTokens({
+					const tokenUpdate = {
 						modelProvider,
 						oauthProvider: credential.provider,
 						oauthCredentials: {
 							...(existingTokens.oauthCredentials ?? {}),
 							[credential.provider]: credential.oauthCredentials,
 						},
-					});
+					};
+					await silo.saveTokens(tokenUpdate);
+					currentTokens = { ...currentTokens, ...tokenUpdate };
 				} else {
-					await silo.saveTokens({
+					const tokenUpdate = {
 						modelProvider: credential.provider,
 						...(credential.apiKey ? { modelApiKey: credential.apiKey } : {}),
 						oauthProvider: undefined,
-					});
+					};
+					await silo.saveTokens(tokenUpdate);
+					currentTokens = { ...currentTokens, ...tokenUpdate };
 				}
 			} else if (!configureModelRef) {
 				console.log(chalk.dim(`  Model: already configured (${stringValue(stored.modelProvider)}) — skipped`));
@@ -112,7 +117,7 @@ export const sowCommand = new Command("sow")
 					modelRouteTokenUpdate(
 						"default",
 						{ provider: modelRef.provider, modelId: modelRef.modelId },
-						stored,
+						currentTokens,
 					),
 				);
 				console.log(chalk.green(`  ✓ Default model set: ${modelRef.provider}/${modelRef.modelId}`));
