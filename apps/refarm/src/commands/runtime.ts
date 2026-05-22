@@ -15,7 +15,7 @@ import {
 	startRuntimeProcess,
 	type RuntimeLaunchCommand,
 } from "./runtime-launcher.js";
-import { waitForRuntimeReady } from "./runtime-readiness.js";
+import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
 
 interface RuntimeCommandDeps {
 	repoRoot(): string;
@@ -26,6 +26,7 @@ interface RuntimeCommandDeps {
 		configuredEngine: TractorEngineMode,
 	): LaunchRuntimeSelection;
 	startRuntime?(command: RuntimeLaunchCommand): void;
+	probeReady?(): Promise<boolean>;
 	waitUntilReady?(): Promise<boolean>;
 }
 
@@ -34,6 +35,7 @@ interface RuntimeStatusPayload {
 	activeEngine: LaunchRuntimeEngine | "unknown";
 	autostart: AutostartMode;
 	reason: LaunchRuntimeSelection["reason"] | "configured-rust-missing-binary";
+	ready?: boolean;
 	startCommand?: string;
 	issue?: string;
 }
@@ -44,14 +46,16 @@ function defaultDeps(): RuntimeCommandDeps {
 		readEngine: readTractorEngineMode,
 		readAutostart: readAutostartMode,
 		resolveRuntime: resolveLaunchRuntime,
+		probeReady: () => probeRuntimeReady(300),
 		waitUntilReady: waitForRuntimeReady,
 	};
 }
 
-function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
+async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeStatusPayload> {
 	const configuredEngine = deps.readEngine();
 	const autostart = deps.readAutostart();
 	const repoRoot = deps.repoRoot();
+	const ready = deps.probeReady ? await deps.probeReady() : undefined;
 	try {
 		const selection = deps.resolveRuntime(repoRoot, configuredEngine);
 		return {
@@ -59,6 +63,7 @@ function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
 			activeEngine: selection.activeEngine,
 			autostart,
 			reason: selection.reason,
+			ready,
 			startCommand: resolveRuntimeLaunchCommand(
 				repoRoot,
 				selection.activeEngine,
@@ -71,6 +76,7 @@ function runtimeStatusPayload(deps: RuntimeCommandDeps): RuntimeStatusPayload {
 			activeEngine: "unknown",
 			autostart,
 			reason: "configured-rust-missing-binary",
+			ready,
 			issue: message,
 		};
 	}
@@ -80,6 +86,9 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	console.log(chalk.bold("Refarm runtime"));
 	console.log(`  configured: ${payload.configuredEngine}`);
 	console.log(`  active:     ${payload.activeEngine}`);
+	const readyLabel =
+		payload.ready === undefined ? "unknown" : payload.ready ? "yes" : "no";
+	console.log(`  ready:      ${readyLabel}`);
 	console.log(`  autostart:  ${payload.autostart}`);
 	console.log(`  reason:     ${payload.reason}`);
 	if (payload.startCommand) {
@@ -95,12 +104,12 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	console.log(chalk.dim("  Full status:    refarm status --json"));
 }
 
-function resolveRuntimeStartCommand(deps: RuntimeCommandDeps): {
+async function resolveRuntimeStartCommand(deps: RuntimeCommandDeps): Promise<{
 	payload: RuntimeStatusPayload;
 	command?: RuntimeLaunchCommand;
-} {
+}> {
 	const repoRoot = deps.repoRoot();
-	const payload = runtimeStatusPayload(deps);
+	const payload = await runtimeStatusPayload(deps);
 	if (payload.activeEngine === "unknown") {
 		return { payload };
 	}
@@ -164,7 +173,7 @@ Notes:
 					subcommand: Command,
 				) => {
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
-					const { payload, command } = resolveRuntimeStartCommand(deps);
+					const { payload, command } = await resolveRuntimeStartCommand(deps);
 					if (!command) {
 						if (json) {
 							console.log(JSON.stringify({ ...payload, started: false }, null, 2));
@@ -222,8 +231,8 @@ Notes:
 					console.log(chalk.dim(`  command: ${command.display}`));
 				}),
 		)
-		.action((opts: { json?: boolean }) => {
-			const payload = runtimeStatusPayload(deps);
+		.action(async (opts: { json?: boolean }) => {
+			const payload = await runtimeStatusPayload(deps);
 			if (opts.json) {
 				console.log(JSON.stringify(payload, null, 2));
 				return;

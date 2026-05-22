@@ -13,6 +13,7 @@ describe("runtime command", () => {
 			repoRoot: () => "/repo",
 			readEngine: () => "auto",
 			readAutostart: () => "always",
+			probeReady: vi.fn().mockResolvedValue(true),
 			resolveRuntime: () => ({
 				configuredEngine: "auto",
 				activeEngine: "rust",
@@ -26,6 +27,7 @@ describe("runtime command", () => {
 		expect(output).toContain("Refarm runtime");
 		expect(output).toContain("configured: auto");
 		expect(output).toContain("active:     rust");
+		expect(output).toContain("ready:      yes");
 		expect(output).toContain("autostart:  always");
 		expect(output).toContain("start:      tractor");
 		expect(output).toContain("refarm config set tractor.engine auto");
@@ -69,6 +71,7 @@ describe("runtime command", () => {
 			repoRoot: () => "/repo",
 			readEngine: () => "ts",
 			readAutostart: () => "never",
+			probeReady: vi.fn().mockResolvedValue(false),
 			resolveRuntime: () => selection,
 		});
 
@@ -79,6 +82,7 @@ describe("runtime command", () => {
 			activeEngine: "ts",
 			autostart: "never",
 			reason: "configured-ts",
+			ready: false,
 			startCommand: "farmhand --background",
 		});
 		logSpy.mockRestore();
