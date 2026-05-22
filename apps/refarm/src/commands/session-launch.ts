@@ -13,12 +13,6 @@ import {
 	type OperatorChannel,
 	createStdioOperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
-import {
-	parseRuntimeAutostartMode,
-	parseRuntimeEngineMode,
-	type RuntimeAutostartMode,
-	type RuntimeEngineMode,
-} from "@refarm.dev/runtime";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	resolveRuntimeLaunchCommand,
@@ -38,6 +32,14 @@ import {
 	hasUsableModelCredential,
 	hasUsableModelCredentialSource,
 } from "@refarm.dev/config";
+import {
+	resolveAutostartMode,
+	resolveTractorEngineMode,
+	type AutostartMode,
+	type TractorEngineMode,
+} from "../utils/runtime-config.js";
+
+export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -45,8 +47,6 @@ export interface SessionReadiness {
 	farmhandRunning?: boolean;
 }
 
-export type AutostartMode = RuntimeAutostartMode;
-export type TractorEngineMode = RuntimeEngineMode;
 export type LaunchRuntimeEngine = "rust" | "ts";
 
 export interface LaunchRuntimeSelection {
@@ -191,56 +191,11 @@ function hasIdentityProvider(filePath: string): boolean {
 
 /** Read runtime autostart preference from env or the nearest .refarm/config.json. */
 export function readAutostartMode(): AutostartMode {
-	const runtimeEnvMode = parseAutostartMode(process.env.REFARM_RUNTIME_AUTOSTART);
-	if (runtimeEnvMode) return runtimeEnvMode;
-
-	const farmhandEnvMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
-	if (farmhandEnvMode) return farmhandEnvMode;
-
-	let resolvedConfigMode: AutostartMode | null = null;
-	for (const base of refarmSearchDirs()) {
-		const configFile = path.join(base, "config.json");
-		if (!fs.existsSync(configFile)) continue;
-		try {
-			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
-				autostart?: string;
-			};
-			const configMode = parseAutostartMode(config.autostart);
-			if (configMode) resolvedConfigMode = configMode;
-		} catch {
-			// ignore malformed config
-		}
-	}
-	return resolvedConfigMode ?? "ask";
-}
-
-function parseAutostartMode(value: string | undefined): AutostartMode | null {
-	return parseRuntimeAutostartMode(value);
+	return resolveAutostartMode().value;
 }
 
 export function readTractorEngineMode(): TractorEngineMode {
-	const envMode = parseTractorEngineMode(process.env.REFARM_TRACTOR_ENGINE);
-	if (envMode) return envMode;
-
-	let resolved: TractorEngineMode | null = null;
-	for (const base of refarmSearchDirs()) {
-		const configFile = path.join(base, "config.json");
-		if (!fs.existsSync(configFile)) continue;
-		try {
-			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
-				tractor?: { engine?: string };
-			};
-			const configMode = parseTractorEngineMode(config.tractor?.engine);
-			if (configMode) resolved = configMode;
-		} catch {
-			// ignore malformed config
-		}
-	}
-	return resolved ?? "auto";
-}
-
-function parseTractorEngineMode(value: string | undefined): TractorEngineMode | null {
-	return parseRuntimeEngineMode(value);
+	return resolveTractorEngineMode().value;
 }
 
 function tractorBinaryPath(repoRoot: string): string {

@@ -5,11 +5,8 @@ import chalk from "chalk";
 import { Command } from "commander";
 import {
 	parseRuntimeAutostartMode,
-	parseRuntimeEngineMode,
 	RUNTIME_AUTOSTART_MODES,
 	RUNTIME_ENGINE_MODES,
-	type RuntimeAutostartMode,
-	type RuntimeEngineMode,
 } from "@refarm.dev/runtime";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -21,15 +18,18 @@ import {
 	resolveCliOpenExternalLinksMode,
 	type OpenExternalLinksMode,
 } from "../utils/open-external-links.js";
+import {
+	resolveAutostartMode as resolveRuntimeAutostartMode,
+	resolveTractorEngineMode as resolveRuntimeTractorEngineMode,
+	type AutostartMode,
+	type TractorEngineMode,
+} from "../utils/runtime-config.js";
 
 type ConfigKey =
 	| "farmhand.autostart"
 	| "runtime.autostart"
 	| "operator.openExternalLinks"
 	| "tractor.engine";
-type AutostartMode = RuntimeAutostartMode;
-type TractorEngineMode = RuntimeEngineMode;
-
 interface RefarmCliConfig {
 	autostart?: string;
 	operator?: {
@@ -90,47 +90,24 @@ function parseAutostartMode(value: string | undefined): AutostartMode | null {
 	return parseRuntimeAutostartMode(value);
 }
 
-function parseTractorEngineMode(value: unknown): TractorEngineMode | null {
-	return parseRuntimeEngineMode(value);
-}
-
 function resolveAutostartMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
 ): { value: AutostartMode; source: string } {
-	const runtimeEnvMode = parseAutostartMode(process.env.REFARM_RUNTIME_AUTOSTART);
-	if (runtimeEnvMode) return { value: runtimeEnvMode, source: "env:REFARM_RUNTIME_AUTOSTART" };
-
-	const farmhandEnvMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
-	if (farmhandEnvMode) return { value: farmhandEnvMode, source: "env:REFARM_FARMHAND_AUTOSTART" };
-
-	const paths = opts.local
-		? [configPath(deps, { local: true })]
-		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
-	let resolved: { value: AutostartMode; source: string } | null = null;
-	for (const filePath of paths) {
-		const mode = parseAutostartMode(readConfig(filePath).autostart);
-		if (mode) resolved = { value: mode, source: filePath };
-	}
-	return resolved ?? { value: "ask", source: "default" };
+	return resolveRuntimeAutostartMode(
+		{ cwd: deps.cwd(), home: deps.home(), env: process.env },
+		opts,
+	);
 }
 
 function resolveTractorEngineMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
 ): { value: TractorEngineMode; source: string } {
-	const envMode = parseTractorEngineMode(process.env.REFARM_TRACTOR_ENGINE);
-	if (envMode) return { value: envMode, source: "env:REFARM_TRACTOR_ENGINE" };
-
-	const paths = opts.local
-		? [configPath(deps, { local: true })]
-		: [configPath(deps, { local: false }), configPath(deps, { local: true })];
-	let resolved: { value: TractorEngineMode; source: string } | null = null;
-	for (const filePath of paths) {
-		const mode = parseTractorEngineMode(readConfig(filePath).tractor?.engine);
-		if (mode) resolved = { value: mode, source: filePath };
-	}
-	return resolved ?? { value: "auto", source: "default" };
+	return resolveRuntimeTractorEngineMode(
+		{ cwd: deps.cwd(), home: deps.home(), env: process.env },
+		opts,
+	);
 }
 
 function resolveOpenExternalLinksMode(
