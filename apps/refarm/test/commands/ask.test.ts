@@ -202,6 +202,37 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("points missing provider failures at model current", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnFarmhand: vi.fn(),
+			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		await expect(command.parseAsync(["hello"], { from: "user" })).rejects.toThrow(
+			"exit:1",
+		);
+
+		const output = errSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("No model provider configured");
+		expect(output).toContain("refarm model current");
+		expect(output).toContain("refarm model providers");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+
+		exitSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("fails before submitting when runtime reports pi-agent missing", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));

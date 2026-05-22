@@ -12,6 +12,7 @@ import {
 	readAutostartMode,
 	readTractorEngineMode,
 	resolveLaunchRuntime,
+	printSessionGuide,
 	type LaunchDeps,
 } from "./session-launch.js";
 
@@ -282,6 +283,30 @@ describe("autoStartFarmhand — mode: never", () => {
 		expect(result).toBe(false);
 		expect(askSpy).not.toHaveBeenCalled();
 		expect(deps.spawnFarmhand).not.toHaveBeenCalled();
+	});
+});
+
+describe("printSessionGuide", () => {
+	it("points provider setup failures at model current", () => {
+		const tmpBase = join(tmpdir(), `refarm-guide-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({}));
+		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tmpBase);
+
+		try {
+			printSessionGuide({ providerConfigured: false, farmhandRunning: true });
+
+			const output = (consoleErrorSpy.mock.calls as unknown[][])
+				.map((call) => String(call[0]))
+				.join("\n");
+			expect(output).toContain("refarm sow");
+			expect(output).toContain("refarm model current");
+			expect(output).toContain("refarm model providers");
+		} finally {
+			cwdSpy.mockRestore();
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
 	});
 });
 
