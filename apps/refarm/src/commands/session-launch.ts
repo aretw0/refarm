@@ -385,6 +385,16 @@ export async function autoStartRuntime(
 			? resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine).display
 			: null;
 		process.stdout.write(chalk.dim(`   → Starting ${runtimeLabel}...`));
+		if (runtime?.reason === "auto-ts-fallback") {
+			process.stdout.write(
+				chalk.dim(
+					`\n   rust tractor: not built; using TypeScript fallback`,
+				),
+			);
+			process.stdout.write(
+				chalk.dim(`\n   build rust: ${tractorBuildCommand(repoRoot)}`),
+			);
+		}
 		if (startCommand) {
 			process.stdout.write(chalk.dim(`\n   command: ${startCommand}\n`));
 		}

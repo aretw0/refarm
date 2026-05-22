@@ -373,6 +373,26 @@ describe("autoStartRuntime — mode: ask (default)", () => {
 		expect(output).toContain("command:");
 		expect(output).toContain("tractor");
 	});
+
+	it("explains the TypeScript fallback when Rust Tractor is not built", async () => {
+		const deps = makeLaunchDeps({
+			resolveRuntime: vi.fn().mockReturnValue({
+				configuredEngine: "auto",
+				activeEngine: "ts",
+				reason: "auto-ts-fallback",
+			}),
+		});
+
+		await autoStartRuntime("/fake/root", deps);
+
+		const output = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(output).toContain("Starting TypeScript Farmhand");
+		expect(output).toContain("rust tractor: not built; using TypeScript fallback");
+		expect(output).toContain("build rust:");
+		expect(output).toContain("packages/tractor");
+	});
 });
 
 describe("autoStartRuntime — mode: always", () => {
