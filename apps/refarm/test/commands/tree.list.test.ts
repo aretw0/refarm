@@ -469,7 +469,7 @@ describe("refarm tree list", () => {
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).not.toHaveBeenCalledWith(
-			expect.stringContaining("farmhand sidecar"),
+			expect.stringContaining("Refarm runtime is not running"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("not a git repository"),

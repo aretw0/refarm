@@ -371,7 +371,7 @@ function printAskError(message: string): void {
 		message.includes("pi-agent not loaded") ||
 		message.includes(`Plugin "${PI_AGENT_PLUGIN_ID}" is not loaded`);
 
-	const isFarmhandDown =
+	const isRuntimeDown =
 		message.includes("ECONNREFUSED") ||
 		message.includes("fetch failed") ||
 		message.includes("Runtime HTTP") ||
@@ -388,7 +388,7 @@ function printAskError(message: string): void {
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
 		console.error(chalk.dim("   Or restart runtime:       refarm runtime start"));
 		console.error(chalk.dim("   Diagnose:                 refarm doctor"));
-	} else if (isFarmhandDown) {
+	} else if (isRuntimeDown) {
 		console.error(chalk.red("\n✗  Refarm runtime is not running."));
 		console.error(chalk.dim("   Start now:  refarm runtime start"));
 		console.error(chalk.dim("   Diagnose:   refarm doctor"));

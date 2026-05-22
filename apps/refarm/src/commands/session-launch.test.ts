@@ -53,7 +53,7 @@ describe("isSessionReady", () => {
 		).toBe(false);
 	});
 
-	it("returns false when farmhand is not running", () => {
+	it("returns false when the runtime is not running", () => {
 		expect(
 			isSessionReady({ providerConfigured: true, farmhandRunning: false }),
 		).toBe(false);
