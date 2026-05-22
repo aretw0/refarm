@@ -177,15 +177,15 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
-	it("starts Farmhand before submitting when launch deps are provided and the sidecar is down", async () => {
+	it("starts runtime before submitting when launch deps are provided and the sidecar is down", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 		const deps = makeDeps();
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
 			operator: { ask: vi.fn() },
-			spawnFarmhand: vi.fn(),
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -195,7 +195,7 @@ describe("refarm ask", () => {
 
 		await command.parseAsync(["hello"], { from: "user" });
 
-		expect(launchDeps.spawnFarmhand).toHaveBeenCalledOnce();
+		expect(launchDeps.spawnRuntime).toHaveBeenCalledOnce();
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
 
 		logSpy.mockRestore();
@@ -208,8 +208,8 @@ describe("refarm ask", () => {
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
 			operator: { ask: vi.fn() },
-			spawnFarmhand: vi.fn(),
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -246,8 +246,8 @@ describe("refarm ask", () => {
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
 			operator: { ask: vi.fn() },
-			spawnFarmhand: vi.fn(),
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -298,8 +298,8 @@ describe("refarm ask", () => {
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
 			operator: { ask: vi.fn() },
-			spawnFarmhand: vi.fn(),
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

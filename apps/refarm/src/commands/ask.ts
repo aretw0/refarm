@@ -29,7 +29,7 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import {
-	autoStartFarmhand,
+	autoStartRuntime,
 	checkSessionReadiness,
 	defaultLaunchDeps,
 	findRepoRoot,
@@ -425,7 +425,7 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 	}
 
 	if (!isRuntimeRunning(readiness)) {
-		return autoStartFarmhand(findRepoRoot(), launch);
+		return autoStartRuntime(findRepoRoot(), launch);
 	}
 
 	return true;

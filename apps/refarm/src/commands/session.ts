@@ -5,7 +5,7 @@ import {
 	isSessionReady,
 	printOnboarding,
 	printSessionGuide,
-	autoStartFarmhand,
+	autoStartRuntime,
 	defaultLaunchDeps,
 	findRepoRoot,
 	isRuntimeRunning,
@@ -88,7 +88,7 @@ export async function runSessionLaunchFlow(
 	// Recovery pass 2: auto-start runtime when provider is now configured.
 	let runtimeRunning = isRuntimeRunning(readiness);
 	if (!runtimeRunning && readiness.providerConfigured) {
-		runtimeRunning = await autoStartFarmhand(findRepoRoot(), launch);
+		runtimeRunning = await autoStartRuntime(findRepoRoot(), launch);
 		if (!runtimeRunning) process.exit(1);
 	}
 

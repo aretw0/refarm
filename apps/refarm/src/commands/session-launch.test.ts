@@ -9,7 +9,7 @@ import {
 	isFirstRun,
 	refarmSearchDirs,
 	checkSessionReadiness,
-	autoStartFarmhand,
+	autoStartRuntime,
 	readAutostartMode,
 	readTractorEngineMode,
 	resolveLaunchRuntime,
@@ -206,40 +206,40 @@ describe("checkSessionReadiness", () => {
 function makeLaunchDeps(overrides: Partial<LaunchDeps> = {}): LaunchDeps {
 	return {
 		operator: createScriptedOperatorChannel([true]),
-		spawnFarmhand: vi.fn(),
-		probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		spawnRuntime: vi.fn(),
+		probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
 		...overrides,
 	};
 }
 
-describe("autoStartFarmhand — mode: ask (default)", () => {
-	it("returns true when user confirms and farmhand becomes ready", async () => {
+describe("autoStartRuntime — mode: ask (default)", () => {
+	it("returns true when user confirms and runtime becomes ready", async () => {
 		const deps = makeLaunchDeps();
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(true);
-		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/fake/root");
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/fake/root");
 	});
 
 	it("returns false and does not spawn when user declines", async () => {
 		const deps = makeLaunchDeps({ operator: createScriptedOperatorChannel([false]) });
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
-		expect(deps.spawnFarmhand).not.toHaveBeenCalled();
+		expect(deps.spawnRuntime).not.toHaveBeenCalled();
 	});
 
-	it("returns false when farmhand times out after spawning", async () => {
+	it("returns false when runtime times out after spawning", async () => {
 		const deps = makeLaunchDeps({
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(false),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(false),
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
-		expect(deps.spawnFarmhand).toHaveBeenCalledOnce();
+		expect(deps.spawnRuntime).toHaveBeenCalledOnce();
 	});
 
-	it("passes the repo root to spawnFarmhand", async () => {
+	it("passes the repo root to spawnRuntime", async () => {
 		const deps = makeLaunchDeps();
-		await autoStartFarmhand("/my/repo", deps);
-		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/my/repo");
+		await autoStartRuntime("/my/repo", deps);
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/my/repo");
 	});
 
 	it("prints the selected runtime engine and start command", async () => {
@@ -251,7 +251,7 @@ describe("autoStartFarmhand — mode: ask (default)", () => {
 			}),
 		});
 
-		await autoStartFarmhand("/fake/root", deps);
+		await autoStartRuntime("/fake/root", deps);
 
 		const output = (stdoutWriteSpy.mock.calls as unknown[][])
 			.map((call) => String(call[0]))
@@ -262,44 +262,44 @@ describe("autoStartFarmhand — mode: ask (default)", () => {
 	});
 });
 
-describe("autoStartFarmhand — mode: always", () => {
+describe("autoStartRuntime — mode: always", () => {
 	it("spawns without asking when autostartMode is always", async () => {
 		const askSpy = vi.fn();
 		const deps = makeLaunchDeps({
 			autostartMode: "always",
 			operator: { ask: askSpy },
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(true);
 		expect(askSpy).not.toHaveBeenCalled();
-		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/fake/root");
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/fake/root");
 	});
 
-	it("returns false when farmhand times out even in always mode", async () => {
+	it("returns false when runtime times out even in always mode", async () => {
 		const askSpy = vi.fn();
 		const deps = makeLaunchDeps({
 			autostartMode: "always",
 			operator: { ask: askSpy },
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(false),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(false),
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(askSpy).not.toHaveBeenCalled();
-		expect(deps.spawnFarmhand).toHaveBeenCalledOnce();
+		expect(deps.spawnRuntime).toHaveBeenCalledOnce();
 	});
 });
 
-describe("autoStartFarmhand — mode: never", () => {
+describe("autoStartRuntime — mode: never", () => {
 	it("returns false immediately without asking or spawning", async () => {
 		const askSpy = vi.fn();
 		const deps = makeLaunchDeps({
 			autostartMode: "never",
 			operator: { ask: askSpy },
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(askSpy).not.toHaveBeenCalled();
-		expect(deps.spawnFarmhand).not.toHaveBeenCalled();
+		expect(deps.spawnRuntime).not.toHaveBeenCalled();
 	});
 });
 
