@@ -107,7 +107,7 @@ describe("printRefarmDoctorReport", () => {
 					diagnostic: "runtime:not-ready",
 					severity: "failure" as const,
 					summary: "The runtime reported that it is not ready.",
-					action: "Start or repair the configured runtime, then rerun `refarm doctor --json`.",
+					action: "Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 				},
 				{
 					diagnostic: "trust:warnings-present",
