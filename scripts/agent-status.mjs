@@ -10,7 +10,11 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import os from 'node:os';
-import { DEFAULT_MODEL_PROVIDER, defaultModelForProvider } from '../packages/config/src/model-routing.js';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  defaultModelForProvider,
+  modelCredentialStatus,
+} from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -123,7 +127,11 @@ function checkDaemon() {
   }
 }
 
-function checkKeys(envVars) {
+function effectiveProvider(envVars, silo, config) {
+  return envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
+}
+
+function checkKeys(envVars, config) {
   const KEY_LABELS = {
     ANTHROPIC_API_KEY: 'Anthropic',
     OPENAI_API_KEY:    'OpenAI',
@@ -153,11 +161,14 @@ function checkKeys(envVars) {
   }
 
   const silo = readSiloTokens();
-  if (silo.modelApiKey) {
-    const label = silo.modelProvider ?? 'key';
-    ok('keys', `${label} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
-  } else if (silo.oauthProvider && silo.oauthCredentials?.[silo.oauthProvider]) {
-    ok('keys', `${silo.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+  const provider = effectiveProvider(envVars, silo, config);
+  const status = modelCredentialStatus(provider, silo, { ...process.env, ...envVars });
+  if (status.state === 'silo-api-key') {
+    ok('keys', `${provider} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
+  } else if (status.state === 'silo-oauth') {
+    ok('keys', `${status.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+  } else if (status.state === 'not-required') {
+    ok('keys', `${provider} ${c.dim}does not require API key${c.reset}`);
   } else {
     fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
   }
@@ -181,7 +192,7 @@ function checkTractorBinary() {
 
 function checkModelConfig(envVars, config) {
   const silo = readSiloTokens();
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
+  const provider = effectiveProvider(envVars, silo, config);
   const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model || defaultModelForProvider(provider);
   const history  = envVars.MODEL_HISTORY_TURNS    || process.env.MODEL_HISTORY_TURNS    || config.MODEL_HISTORY_TURNS    || '0';
   const maxIter  = envVars.MODEL_TOOL_CALL_MAX_ITER || process.env.MODEL_TOOL_CALL_MAX_ITER || config.MODEL_TOOL_CALL_MAX_ITER || '5';
@@ -238,7 +249,7 @@ const config  = readConfig();
 checkDaemon();
 checkTractorBinary();
 checkWasm();
-checkKeys(envVars);
+checkKeys(envVars, config);
 checkModelConfig(envVars, config);
 checkFsRoot(envVars, config);
 

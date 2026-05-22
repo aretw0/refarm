@@ -11,7 +11,11 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import os from 'node:os';
-import { DEFAULT_MODEL_PROVIDER, defaultModelForProvider } from '../packages/config/src/model-routing.js';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  defaultModelForProvider,
+  modelCredentialStatus,
+} from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -233,6 +237,7 @@ function checkModel() {
   let config = {};
   try { config = JSON.parse(readFileSync(configFile, 'utf8')); } catch { /* ok */ }
   const silo = readSiloTokens();
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
 
   const KEY_LABELS = {
     ANTHROPIC_API_KEY:  'Anthropic', OPENAI_API_KEY: 'OpenAI',
@@ -248,18 +253,19 @@ function checkModel() {
 
   // Silo credentials (set via `refarm sow`) — API key or OAuth
   if (configured.length === 0) {
-    if (silo.modelApiKey) {
-      const providerLabel = silo.modelProvider ?? 'key';
-      configured.push(`${providerLabel} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
-    } else if (silo.oauthProvider && silo.oauthCredentials?.[silo.oauthProvider]) {
-      configured.push(`${silo.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+    const status = modelCredentialStatus(provider, silo, { ...process.env, ...envVars });
+    if (status.state === 'silo-api-key') {
+      configured.push(`${provider} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
+    } else if (status.state === 'silo-oauth') {
+      configured.push(`${status.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+    } else if (status.state === 'not-required') {
+      configured.push(`${provider} ${c.dim}does not require API key${c.reset}`);
     }
   }
 
   if (configured.length) ok('keys', configured.join('  '));
   else fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
 
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
   const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model || defaultModelForProvider(provider);
   const budget   = provider ? config.budgets?.[provider] ?? null : null;
   info('model', [
