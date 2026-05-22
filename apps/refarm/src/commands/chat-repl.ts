@@ -22,6 +22,7 @@ export type ChatCommand =
 	| { kind: "model"; action: "current" }
 	| { kind: "model"; action: "set"; scope: ModelScope; ref: string }
 	| { kind: "model"; action: "fallback"; ref: string }
+	| { kind: "model"; action: "base-url"; url: string }
 	| { kind: "login"; args: string[] }
 	| { kind: "new" }
 	| { kind: "session"; prefix: string }
@@ -93,6 +94,13 @@ function parseModelCommand(args: string[], fallbackText: string): ChatCommand {
 			: { kind: "message", text: fallbackText };
 	}
 
+	if (first === "base-url") {
+		const url = rest.join(" ").trim();
+		return url.length > 0
+			? { kind: "model", action: "base-url", url }
+			: { kind: "message", text: fallbackText };
+	}
+
 	if (isModelScope(first)) {
 		const ref = rest.join(" ").trim();
 		return ref.length > 0
@@ -136,6 +144,7 @@ export const CHAT_HELP_TEXT = `Available commands:
   /model <ref>      Set the default model route, e.g. ${OPENAI_DEFAULT_REF}
   /model worker ${OPENAI_WORKER_REF}
   /model monitor ${OPENAI_MONITOR_REF}
+  /model base-url http://127.0.0.1:8000
   /model fallback ollama/llama3.2
   /login [args...]  Configure credentials without leaving the session
   /new              Start a fresh session

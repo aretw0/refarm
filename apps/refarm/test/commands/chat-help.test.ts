@@ -15,6 +15,7 @@ describe("chat command help", () => {
 
 		expect(help).toContain("/model openai/gpt-5.5");
 		expect(help).toContain("/model worker openai/gpt-5.3-codex-spark");
+		expect(help).toContain("/model base-url http://127.0.0.1:8000");
 		expect(help).toContain("/model fallback ollama/llama3.2");
 		expect(help).toContain("/login");
 		expect(help).toContain("Refarm runtime");

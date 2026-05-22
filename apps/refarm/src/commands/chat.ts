@@ -21,6 +21,7 @@ import {
 	defaultModelDeps,
 	printCurrentModel,
 	setFallbackModelRoute,
+	setModelBaseUrl,
 	setModelRoute,
 	type ModelCommandDeps,
 } from "./model.js";
@@ -546,6 +547,8 @@ export async function runSessionRepl(
 								printCurrentModel(await modelDeps.loadTokens());
 							} else if (command.action === "fallback") {
 								await setFallbackModelRoute(command.ref, modelDeps);
+							} else if (command.action === "base-url") {
+								await setModelBaseUrl(command.url, modelDeps);
 							} else {
 								await setModelRoute(command.ref, command.scope, modelDeps);
 							}
@@ -628,6 +631,7 @@ Runtime commands:
   /model ${OPENAI_DEFAULT_REF}   Set the default model route
   /model worker ${OPENAI_WORKER_REF}
   /model monitor ${OPENAI_MONITOR_REF}
+  /model base-url http://127.0.0.1:8000
   /model fallback ollama/llama3.2
   /login                  Configure credentials without leaving the session
   /reload [id...]         Hot-reload plugins in the Refarm runtime

@@ -81,6 +81,19 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("parses base URL /model changes", () => {
+		expect(parseChatLine("/model base-url http://127.0.0.1:8000")).toEqual({
+			kind: "model",
+			action: "base-url",
+			url: "http://127.0.0.1:8000",
+		});
+		expect(parseChatLine("/model base-url off")).toEqual({
+			kind: "model",
+			action: "base-url",
+			url: "off",
+		});
+	});
+
 	it("parses runtime credential setup commands", () => {
 		expect(parseChatLine("/login")).toEqual({ kind: "login", args: [] });
 		expect(parseChatLine("/sow --model openai/gpt-5.5")).toEqual({
@@ -155,6 +168,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
+		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");
 		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
 	});
