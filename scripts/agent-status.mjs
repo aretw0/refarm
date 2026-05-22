@@ -10,7 +10,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import os from 'node:os';
-import { defaultModelForProvider } from '../packages/config/src/model-routing.js';
+import { DEFAULT_MODEL_PROVIDER, defaultModelForProvider } from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -181,14 +181,14 @@ function checkTractorBinary() {
 
 function checkModelConfig(envVars, config) {
   const silo = readSiloTokens();
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider;
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
   const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model || defaultModelForProvider(provider);
   const history  = envVars.MODEL_HISTORY_TURNS    || process.env.MODEL_HISTORY_TURNS    || config.MODEL_HISTORY_TURNS    || '0';
   const maxIter  = envVars.MODEL_TOOL_CALL_MAX_ITER || process.env.MODEL_TOOL_CALL_MAX_ITER || config.MODEL_TOOL_CALL_MAX_ITER || '5';
   const budget   = provider ? config.budgets?.[provider] || '' : '';
 
   const parts = [
-    `provider=${c.cyan}${provider ?? '(not configured)'}${c.reset}`,
+    `provider=${c.cyan}${provider}${c.reset}`,
     `model=${c.dim}${model ?? '(provider default)'}${c.reset}`,
     `history=${c.dim}${history} turns${c.reset}`,
     `max_iter=${c.dim}${maxIter}${c.reset}`,
