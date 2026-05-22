@@ -318,6 +318,9 @@ Keys:
   operator.openExternalLinks  auto | never
   tractor.engine  auto | rust | ts
 
+Legacy aliases:
+  farmhand.autostart  ask | always | never  (reads the same autostart setting)
+
 Notes:
   Without --local, project-local config overrides home config. Environment
   overrides such as REFARM_RUNTIME_AUTOSTART and REFARM_TRACTOR_ENGINE still
@@ -349,6 +352,9 @@ Keys:
   runtime.autostart  ask | always | never
   operator.openExternalLinks  auto | never
   tractor.engine  auto | rust | ts
+
+Legacy aliases:
+  farmhand.autostart  ask | always | never  (writes the same autostart setting)
 
 Notes:
   Use --local for repository-specific operator preferences. Home config is the

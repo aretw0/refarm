@@ -220,6 +220,8 @@ describe("config command", () => {
 
 		expect(help).toContain("refarm config get runtime.autostart");
 		expect(help).toContain("tractor.engine  auto | rust | ts");
+		expect(help).toContain("farmhand.autostart  ask | always | never");
+		expect(help).toContain("reads the same autostart setting");
 		expect(help).toContain("Environment");
 	});
 
@@ -237,6 +239,8 @@ describe("config command", () => {
 
 		expect(help).toContain("refarm config set runtime.autostart always");
 		expect(help).toContain("refarm config set tractor.engine rust");
+		expect(help).toContain("farmhand.autostart  ask | always | never");
+		expect(help).toContain("writes the same autostart setting");
 		expect(help).toContain("repository-specific operator preferences");
 	});
 
