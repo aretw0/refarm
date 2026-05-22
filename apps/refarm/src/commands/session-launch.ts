@@ -120,6 +120,7 @@ function stringValue(value: unknown): string | undefined {
 function hasProviderCredential(
 	provider: string | undefined,
 	tokens: {
+		modelProvider?: unknown;
 		modelApiKey?: unknown;
 		oauthProvider?: unknown;
 		oauthCredentials?: unknown;
@@ -177,11 +178,12 @@ function hasConfigProvider(filePath: string): boolean {
 			};
 		};
 		const provider =
-			stringValue(config.modelProvider) ??
-			stringValue(config.tokens?.modelProvider) ??
 			stringValue(config.provider) ??
-			stringValue(config.default_provider);
+			stringValue(config.default_provider) ??
+			stringValue(config.modelProvider) ??
+			stringValue(config.tokens?.modelProvider);
 		return hasProviderCredential(provider, {
+			modelProvider: config.modelProvider ?? config.tokens?.modelProvider,
 			modelApiKey: config.modelApiKey ?? config.tokens?.modelApiKey,
 			oauthProvider: config.oauthProvider ?? config.tokens?.oauthProvider,
 			oauthCredentials: config.oauthCredentials ?? config.tokens?.oauthCredentials,
@@ -209,6 +211,7 @@ function hasIdentityProvider(filePath: string): boolean {
 		const provider =
 			stringValue(identity.modelProvider) ?? stringValue(identity.tokens?.modelProvider);
 		return hasProviderCredential(provider, {
+			modelProvider: identity.modelProvider ?? identity.tokens?.modelProvider,
 			modelApiKey: identity.modelApiKey ?? identity.tokens?.modelApiKey,
 			oauthProvider: identity.oauthProvider ?? identity.tokens?.oauthProvider,
 			oauthCredentials: identity.oauthCredentials ?? identity.tokens?.oauthCredentials,

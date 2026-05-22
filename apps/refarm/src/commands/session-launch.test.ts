@@ -267,6 +267,32 @@ describe("checkSessionReadiness", () => {
 		}
 	});
 
+	it("does not use nested credentials for a different config provider", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "config.json"),
+			JSON.stringify({
+				default_provider: "gemini",
+				tokens: { modelProvider: "openai", modelApiKey: "sk-openai" },
+			}),
+		);
+		process.env.HOME = join(tmpdir(), `refarm-readiness-home-${Date.now()}`);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: false,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
 	it("recognizes local providers without credential env requirements", async () => {
 		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
