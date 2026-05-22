@@ -6,7 +6,12 @@ import {
 	type HomesteadHostStreamState,
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import type { TrustSummary } from "@refarm.dev/trust";
-import type { RuntimeSummary } from "@refarm.dev/runtime";
+import type {
+	RuntimeActiveEngine,
+	RuntimeEngineMode,
+	RuntimeEngineSummary,
+	RuntimeSummary,
+} from "@refarm.dev/runtime";
 
 export const REFARM_STATUS_SCHEMA_VERSION = 1 as const;
 
@@ -16,13 +21,9 @@ export interface RefarmStatusSurfaceAction {
 	intent?: string;
 }
 
-export type RefarmTractorEngineMode = "auto" | "rust" | "ts";
-export type RefarmActiveTractorEngine = "rust" | "ts" | "unknown";
-
-export interface RefarmRuntimeEngineSummary {
-	configuredEngine?: RefarmTractorEngineMode;
-	activeEngine?: RefarmActiveTractorEngine;
-}
+export type RefarmTractorEngineMode = RuntimeEngineMode;
+export type RefarmActiveTractorEngine = RuntimeActiveEngine;
+export type RefarmRuntimeEngineSummary = RuntimeEngineSummary;
 
 export type RefarmRuntimeStatusSummary = RuntimeSummary & {
 	engine?: RefarmRuntimeEngineSummary;

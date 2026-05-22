@@ -16,6 +16,11 @@ export type RuntimeSelectionReason =
   | "configured-rust-missing-binary"
   | "unavailable";
 
+export interface RuntimeEngineSummary {
+  configuredEngine?: RuntimeEngineMode;
+  activeEngine?: RuntimeActiveEngine;
+}
+
 export interface RuntimeStatusSummary {
   configuredEngine: RuntimeEngineMode;
   activeEngine: RuntimeActiveEngine;

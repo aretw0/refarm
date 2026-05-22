@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createNullRuntimeStatusSummary,
   createNullRuntimeSummary,
+  type RuntimeEngineSummary,
 } from "../src/index.js";
 
 describe("runtime summary contracts", () => {
@@ -20,6 +21,18 @@ describe("runtime summary contracts", () => {
       autostart: "ask",
       reason: "unavailable",
       ready: false,
+    });
+  });
+
+  it("accepts partial engine summaries for status surfaces", () => {
+    const engine: RuntimeEngineSummary = {
+      configuredEngine: "auto",
+      activeEngine: "unknown",
+    };
+
+    expect(engine).toEqual({
+      configuredEngine: "auto",
+      activeEngine: "unknown",
     });
   });
 });
