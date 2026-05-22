@@ -8,7 +8,7 @@ import { splitCommandLine } from "@refarm.dev/cli/command-line";
 import {
 	defaultProviderModelRef,
 	defaultScopedModelRef,
-	isModelScope,
+	parseModelScope,
 	type ModelScope,
 } from "../model-routing.js";
 
@@ -101,10 +101,11 @@ function parseModelCommand(args: string[], fallbackText: string): ChatCommand {
 			: { kind: "message", text: fallbackText };
 	}
 
-	if (isModelScope(first)) {
+	const directScope = parseModelScope(first);
+	if (directScope) {
 		const ref = rest.join(" ").trim();
 		return ref.length > 0
-			? { kind: "model", action: "set", scope: first, ref }
+			? { kind: "model", action: "set", scope: directScope, ref }
 			: { kind: "message", text: fallbackText };
 	}
 
@@ -124,8 +125,9 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 		const value = args[index];
 		if (value === "--scope") {
 			const next = args[index + 1];
-			if (!isModelScope(next)) return { kind: "message", text: fallbackText };
-			scope = next;
+			const parsedScope = parseModelScope(next);
+			if (!parsedScope) return { kind: "message", text: fallbackText };
+			scope = parsedScope;
 			index++;
 			continue;
 		}

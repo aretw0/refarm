@@ -15,6 +15,7 @@ export {
     isModelProvider,
     isModelScope,
     modelCredentialEnvKey,
+    parseModelScope,
     parseModelRef,
 } from "./model-routing.js";
 export {

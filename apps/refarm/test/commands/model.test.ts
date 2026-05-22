@@ -375,6 +375,25 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("normalizes model route scope input", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["set", "--scope", "Worker", "openai/gpt-5.3-codex-spark"],
+			{ from: "user" },
+		);
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("sets a scoped monitor model route", async () => {
 		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
 		const command = createModelCommand(deps);

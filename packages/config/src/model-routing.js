@@ -93,7 +93,12 @@ export function defaultScopedModelRef(scope, provider = DEFAULT_MODEL_PROVIDER) 
 }
 
 export function isModelScope(value) {
-    return MODEL_SCOPES.includes(value);
+    return parseModelScope(value) !== null;
+}
+
+export function parseModelScope(value) {
+    const normalized = value?.trim().toLowerCase();
+    return MODEL_SCOPES.includes(normalized) ? normalized : null;
 }
 
 export function parseModelRef(value, storedProvider) {

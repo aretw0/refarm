@@ -13,6 +13,7 @@ export {
 	MODEL_CREDENTIAL_ENV_KEYS,
 	MODEL_PROVIDERS,
 	MODEL_SCOPES,
+	parseModelScope,
 	parseModelRef,
 	type ModelRef,
 	type ModelScope,

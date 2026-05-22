@@ -60,7 +60,19 @@ describe("parseChatLine", () => {
 			scope: "worker",
 			ref: "openai/gpt-5.3-codex-spark",
 		});
+		expect(parseChatLine("/model Worker openai/gpt-5.3-codex-spark")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "worker",
+			ref: "openai/gpt-5.3-codex-spark",
+		});
 		expect(parseChatLine("/model set --scope monitor openai/gpt-5.5")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "monitor",
+			ref: "openai/gpt-5.5",
+		});
+		expect(parseChatLine("/model set --scope Monitor openai/gpt-5.5")).toEqual({
 			kind: "model",
 			action: "set",
 			scope: "monitor",

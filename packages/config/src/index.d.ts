@@ -14,6 +14,7 @@ export {
     isModelProvider,
     isModelScope,
     modelCredentialEnvKey,
+    parseModelScope,
     parseModelRef,
 } from "./model-routing.js";
 export const PI_AGENT_PLUGIN_ID: "@refarm/pi-agent";

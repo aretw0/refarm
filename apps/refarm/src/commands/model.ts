@@ -8,10 +8,10 @@ import {
 	defaultModelForScope,
 	defaultScopedModelRef,
 	formatModelRef,
-	isModelScope,
 	MODEL_SCOPES,
 	MODEL_PROVIDERS,
 	type ModelScope,
+	parseModelScope,
 	parseModelRef,
 } from "../model-routing.js";
 
@@ -344,12 +344,13 @@ Notes:
 `,
 		)
 		.action(async (ref: string, opts: { scope?: string }) => {
-			if (!isModelScope(opts.scope)) {
+			const scope = parseModelScope(opts.scope);
+			if (!scope) {
 				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
 				console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
 				process.exit(1);
 			}
-			await setModelRoute(ref, opts.scope, deps);
+			await setModelRoute(ref, scope, deps);
 		});
 
 	return command;

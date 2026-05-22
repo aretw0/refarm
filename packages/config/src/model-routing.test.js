@@ -11,6 +11,7 @@ import {
     isModelProvider,
     isModelScope,
     modelCredentialEnvKey,
+    parseModelScope,
     parseModelRef,
 } from "./model-routing.js";
 
@@ -62,7 +63,10 @@ describe("model routing config", () => {
         expect(isModelScope("default")).toBe(true);
         expect(isModelScope("worker")).toBe(true);
         expect(isModelScope("monitor")).toBe(true);
+        expect(isModelScope(" Worker ")).toBe(true);
+        expect(parseModelScope(" Monitor ")).toBe("monitor");
         expect(isModelScope("other")).toBe(false);
+        expect(parseModelScope("other")).toBeNull();
     });
 
     it("resolves provider credential env keys", () => {

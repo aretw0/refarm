@@ -31,6 +31,7 @@ export function defaultScopedModelRef(
 ): string;
 
 export function isModelScope(value: string | undefined): value is ModelScope;
+export function parseModelScope(value: string | undefined): ModelScope | null;
 
 export function parseModelRef(
     value: string | undefined,
