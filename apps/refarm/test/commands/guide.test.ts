@@ -1,20 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockProvision, mockWriteFileSync } = vi.hoisted(() => ({
-  mockProvision: vi.fn().mockReturnValue({
+const { mockProvision, mockLoadTokens, mockWriteFileSync } = vi.hoisted(() => ({
+  mockProvision: vi.fn().mockResolvedValue({
     REFARM_GITHUB_TOKEN: "ghp_test",
     REFARM_CLOUDFLARE_API_TOKEN: undefined,
+  }),
+  mockLoadTokens: vi.fn().mockResolvedValue({
+    modelProvider: "openai",
+    modelApiKey: "sk-test",
   }),
   mockWriteFileSync: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/config", () => ({
+  DEFAULT_MODEL_PROVIDER: "openai",
+  defaultProviderModelRef: vi.fn((provider: string) => `${provider}/gpt-5.5`),
   loadConfig: vi.fn().mockReturnValue({ brand: { name: "test-farm" } }),
+  modelCredentialStatus: vi.fn(() => ({ state: "silo-api-key", envKey: "OPENAI_API_KEY" })),
 }));
 
 vi.mock("@refarm.dev/silo", () => ({
   SiloCore: vi.fn().mockImplementation(function () {
-    return { provision: mockProvision };
+    return { provision: mockProvision, loadTokens: mockLoadTokens };
   }),
 }));
 
@@ -57,5 +64,8 @@ describe("guideCommand", () => {
     await guideCommand.parseAsync([], { from: "user" });
     const content = mockWriteFileSync.mock.calls[0]![1] as string;
     expect(content).toContain("GITHUB_TOKEN");
+    expect(content).toContain("Model Credentials");
+    expect(content).toContain("refarm model current");
+    expect(content).toContain("refarm sow --cloudflare");
   });
 });

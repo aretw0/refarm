@@ -1,8 +1,19 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { writeFileSync } from "node:fs";
-import { loadConfig } from "@refarm.dev/config";
+import {
+  DEFAULT_MODEL_PROVIDER,
+  defaultProviderModelRef,
+  loadConfig,
+  modelCredentialStatus,
+} from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
 
 export const guideCommand = new Command("guide")
   .description("Generate a local refarm-audit.md setup report")
@@ -26,12 +37,39 @@ export const guideCommand = new Command("guide")
 
     const config = loadConfig();
     const silo = new SiloCore(config);
-    const tokens = silo.provision("object") as unknown as Record<string, unknown>;
+    const infraTokens = await silo.provision("object") as unknown as Record<
+      string,
+      unknown
+    >;
+    const modelTokens = await silo.loadTokens() as Record<string, unknown>;
+    const modelProvider = stringValue(modelTokens.modelProvider) ?? DEFAULT_MODEL_PROVIDER;
+    const modelRef = defaultProviderModelRef(modelProvider);
+    const modelStatus = modelCredentialStatus(modelProvider, modelTokens, process.env);
+    const modelReady = modelStatus.state !== "missing";
 
     const checks = [
-      { name: "GITHUB_TOKEN", status: tokens.REFARM_GITHUB_TOKEN ? "✅" : "❌", action: "Run 'refarm sow' to add your PAT." },
-      { name: "CLOUDFLARE_API_TOKEN", status: tokens.REFARM_CLOUDFLARE_API_TOKEN ? "✅" : "❌", action: "Run 'refarm sow' to add your API Token." },
-      { name: "Brand Config", status: config.brand ? "✅" : "❌", action: "Check your refarm.config.json" }
+      {
+        name: "Model Credentials",
+        status: modelReady ? "✅" : "❌",
+        action: modelReady
+          ? `Inspect route with 'refarm model current' (${modelRef}).`
+          : `Run 'refarm sow' to configure ${modelRef}.`,
+      },
+      {
+        name: "GITHUB_TOKEN",
+        status: infraTokens.REFARM_GITHUB_TOKEN ? "✅" : "❌",
+        action: "Run 'refarm sow --github' to add your PAT.",
+      },
+      {
+        name: "CLOUDFLARE_API_TOKEN",
+        status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "✅" : "❌",
+        action: "Run 'refarm sow --cloudflare' to add your API token.",
+      },
+      {
+        name: "Brand Config",
+        status: config.brand ? "✅" : "❌",
+        action: "Check your refarm.config.json.",
+      }
     ];
 
     let guideContent = `# Setup Audit — refarm\n\nDynamically generated based on your current state.\n\n## Status Summary\n\n`;
