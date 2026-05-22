@@ -14,12 +14,14 @@ const {
 	mockFormatRefarmStatusJson,
 	mockFormatRefarmStatusMarkdown,
 	mockParseRefarmStatusJson,
+	mockProbeRuntimeReady,
 } = vi.hoisted(() => ({
 	mockAssertRefarmStatusJson: vi.fn(),
 	mockBuildRefarmStatusJson: vi.fn(),
 	mockFormatRefarmStatusJson: vi.fn(),
 	mockFormatRefarmStatusMarkdown: vi.fn(),
 	mockParseRefarmStatusJson: vi.fn(),
+	mockProbeRuntimeReady: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/cli/status", () => ({
@@ -28,6 +30,10 @@ vi.mock("@refarm.dev/cli/status", () => ({
 	formatRefarmStatusJson: mockFormatRefarmStatusJson,
 	formatRefarmStatusMarkdown: mockFormatRefarmStatusMarkdown,
 	parseRefarmStatusJson: mockParseRefarmStatusJson,
+}));
+
+vi.mock("../../src/commands/runtime-readiness.js", () => ({
+	probeRuntimeReady: mockProbeRuntimeReady,
 }));
 
 import { statusCommand } from "../../src/commands/status.js";
@@ -51,6 +57,7 @@ describe("statusCommand", () => {
 		vi.spyOn(process, "cwd").mockReturnValue(cwd);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.clearAllMocks();
+		mockProbeRuntimeReady.mockResolvedValue(true);
 		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
@@ -162,6 +169,21 @@ describe("statusCommand", () => {
 						configuredEngine: "rust",
 						activeEngine: "unknown",
 					},
+				}),
+			}),
+		);
+	});
+
+	it("reports runtime as not ready when the sidecar probe fails", async () => {
+		mockProbeRuntimeReady.mockResolvedValue(false);
+
+		await statusCommand.parseAsync(["--json"], { from: "user" });
+
+		expect(mockProbeRuntimeReady).toHaveBeenCalledWith(300);
+		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect.objectContaining({
+				runtime: expect.objectContaining({
+					ready: false,
 				}),
 			}),
 		);

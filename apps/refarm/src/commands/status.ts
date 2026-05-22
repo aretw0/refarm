@@ -15,6 +15,7 @@ import {
 	readTractorEngineMode,
 	resolveLaunchRuntime,
 } from "./session-launch.js";
+import { probeRuntimeReady } from "./runtime-readiness.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
@@ -44,7 +45,9 @@ function readNamespaceFromConfig(): string | undefined {
 	}
 }
 
-function createStatusRuntimeSummary(namespace: string): RefarmStatusJson["runtime"] {
+async function createStatusRuntimeSummary(
+	namespace: string,
+): Promise<RefarmStatusJson["runtime"]> {
 	const configuredEngine = readTractorEngineMode();
 	const activeEngine = (() => {
 		try {
@@ -53,8 +56,9 @@ function createStatusRuntimeSummary(namespace: string): RefarmStatusJson["runtim
 			return "unknown";
 		}
 	})();
+	const ready = await probeRuntimeReady(300);
 	return {
-		ready: true,
+		ready,
 		namespace,
 		databaseName: namespace,
 		engine: {
@@ -192,7 +196,7 @@ export async function resolveStatusPayload(
 	}
 	const renderer = resolveRefarmRenderer(requestedRenderer);
 	const namespace = readNamespaceFromConfig() ?? "refarm-main";
-	const runtime = createStatusRuntimeSummary(namespace);
+	const runtime = await createStatusRuntimeSummary(namespace);
 	const trust = createStatusTrustSummary();
 	const hostIdentity = resolveRefarmHostIdentity();
 
