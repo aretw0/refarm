@@ -1,18 +1,18 @@
 use super::*;
 
 #[test]
-fn default_provider_is_ollama_when_nothing_set() {
+fn default_provider_is_openai_when_nothing_set() {
     std::env::remove_var("MODEL_PROVIDER");
     std::env::remove_var("MODEL_DEFAULT_PROVIDER");
     assert_eq!(
         provider_name_from_env(),
-        "ollama",
-        "last-resort default deve ser local, não pago"
+        "openai",
+        "last-resort default must follow Refarm's shared model routing default"
     );
 }
 
 #[test]
-fn model_default_provider_overrides_hardcoded_ollama() {
+fn model_default_provider_overrides_hardcoded_openai() {
     std::env::remove_var("MODEL_PROVIDER");
     std::env::set_var("MODEL_DEFAULT_PROVIDER", "anthropic");
     assert_eq!(provider_name_from_env(), "anthropic");
