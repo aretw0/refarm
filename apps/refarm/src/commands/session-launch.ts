@@ -33,7 +33,8 @@ import {
 	probeRuntimeReady,
 	waitForRuntimeReady,
 } from "./runtime-readiness.js";
-import { DEFAULT_MODEL_PROVIDER, modelCredentialEnvKey } from "../model-routing.js";
+import { DEFAULT_MODEL_PROVIDER } from "../model-routing.js";
+import { hasUsableModelCredential } from "@refarm.dev/config";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -127,20 +128,7 @@ function hasProviderCredential(
 ): boolean {
 	const normalizedProvider = stringValue(provider);
 	if (!normalizedProvider) return false;
-	const credentialEnv = modelCredentialEnvKey(normalizedProvider);
-	if (!credentialEnv) return true;
-	if (stringValue(env[credentialEnv])) return true;
-	if (stringValue(tokens.modelApiKey)) return true;
-
-	const oauthProvider = stringValue(tokens.oauthProvider);
-	if (
-		oauthProvider &&
-		tokens.oauthCredentials &&
-		typeof tokens.oauthCredentials === "object"
-	) {
-		return Boolean((tokens.oauthCredentials as Record<string, unknown>)[oauthProvider]);
-	}
-	return false;
+	return hasUsableModelCredential(normalizedProvider, tokens, env);
 }
 
 function parseEnvFile(filePath: string): Record<string, string> {
