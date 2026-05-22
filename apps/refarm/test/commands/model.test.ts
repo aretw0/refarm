@@ -17,6 +17,7 @@ describe("modelCommand", () => {
 	const originalModelBaseUrl = process.env.MODEL_BASE_URL;
 	const originalFallbackProvider = process.env.MODEL_FALLBACK_PROVIDER;
 	const originalFallbackModelId = process.env.MODEL_FALLBACK_MODEL_ID;
+	const originalOpenAiKey = process.env.OPENAI_API_KEY;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -53,6 +54,11 @@ describe("modelCommand", () => {
 		} else {
 			process.env.MODEL_FALLBACK_MODEL_ID = originalFallbackModelId;
 		}
+		if (originalOpenAiKey === undefined) {
+			delete process.env.OPENAI_API_KEY;
+		} else {
+			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
 		vi.restoreAllMocks();
 	});
 
@@ -66,8 +72,40 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("openai/gpt-5.5");
 		expect(output).toContain("key env:  OPENAI_API_KEY");
+		expect(output).toContain("key:      missing (run refarm sow)");
 		expect(output).toContain("openai/gpt-5.3-codex-spark");
 		expect(output).toContain("monitor:  openai/gpt-5.5");
+
+		logSpy.mockRestore();
+	});
+
+	it("prints Silo API key status for the current provider", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelApiKey: "sk-test",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("key:      Silo API key");
+
+		logSpy.mockRestore();
+	});
+
+	it("prints environment credential status for the current provider", async () => {
+		process.env.OPENAI_API_KEY = "sk-env-test";
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("key:      OPENAI_API_KEY env");
 
 		logSpy.mockRestore();
 	});

@@ -30,7 +30,9 @@ export interface ModelTokens {
 	modelFallbackProvider?: string;
 	modelFallbackModelId?: string;
 	model?: string;
+	modelApiKey?: string;
 	oauthProvider?: string;
+	oauthCredentials?: Record<string, unknown>;
 }
 
 export interface ModelCommandDeps {
@@ -46,6 +48,26 @@ export function defaultModelDeps(): ModelCommandDeps {
 	};
 }
 
+function hasStoredOAuthCredential(tokens: ModelTokens): boolean {
+	return Boolean(
+		tokens.oauthProvider &&
+			tokens.oauthCredentials &&
+			tokens.oauthCredentials[tokens.oauthProvider],
+	);
+}
+
+function modelCredentialStatus(
+	provider: string | undefined,
+	tokens: ModelTokens,
+): string | null {
+	const credentialEnv = modelCredentialEnvKey(provider);
+	if (!credentialEnv) return null;
+	if (process.env[credentialEnv]) return `${credentialEnv} env`;
+	if (tokens.modelApiKey) return "Silo API key";
+	if (hasStoredOAuthCredential(tokens)) return `Silo OAuth (${tokens.oauthProvider})`;
+	return "missing (run refarm sow)";
+}
+
 export function printCurrentModel(tokens: ModelTokens): void {
 	const provider =
 		process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER ?? tokens.modelProvider;
@@ -59,6 +81,8 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
 	const credentialEnv = modelCredentialEnvKey(provider);
 	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
+	const credentialStatus = modelCredentialStatus(provider, tokens);
+	if (credentialStatus) console.log(`  key:      ${credentialStatus}`);
 	const baseUrl = process.env.MODEL_BASE_URL ?? tokens.modelBaseUrl;
 	if (baseUrl) console.log(`  base url: ${baseUrl}`);
 	const fallbackProvider =
