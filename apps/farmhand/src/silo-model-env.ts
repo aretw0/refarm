@@ -99,7 +99,9 @@ export function createSiloModelEnvInjector(
 					if (fallbackModelId) setManagedEnv("MODEL_FALLBACK_MODEL_ID", fallbackModelId);
 				}
 
-				if (oauthProvider) {
+				const credentialProviderMatchesRoute = !routeProviderOverridden || effectiveProvider === provider;
+
+				if (oauthProvider && credentialProviderMatchesRoute) {
 					const creds = oauthCredentialsFor(tokens, oauthProvider);
 					if (creds) {
 						let effectiveCreds = creds;
@@ -131,7 +133,7 @@ export function createSiloModelEnvInjector(
 				}
 
 				const apiKey = stringValue(tokens.modelApiKey);
-				if (apiKey && provider) {
+				if (apiKey && provider && credentialProviderMatchesRoute) {
 					const envKey = modelCredentialEnvKey(provider);
 					if (envKey) setManagedEnv(envKey, apiKey);
 				}

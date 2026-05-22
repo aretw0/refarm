@@ -58,6 +58,23 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.MODEL_DEFAULT_PROVIDER).toBe("gemini");
 		expect(env.MODEL_PROVIDER).toBeUndefined();
 		expect(env.MODEL_ID).toBeUndefined();
+		expect(env.OPENAI_API_KEY).toBeUndefined();
+	});
+
+	it("does not inject stored credentials when the operator route override uses another provider", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_PROVIDER: "gemini",
+		};
+		const store = makeStore([
+			{ modelProvider: "openai", modelId: "gpt-5.5", modelApiKey: "sk-test" },
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_PROVIDER).toBe("gemini");
+		expect(env.MODEL_ID).toBeUndefined();
+		expect(env.OPENAI_API_KEY).toBeUndefined();
 	});
 
 	it("keeps a stored model id when the operator override matches the stored provider", async () => {
