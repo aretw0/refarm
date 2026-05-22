@@ -79,7 +79,9 @@ describe("refarm program", () => {
 		migrate?.outputHelp();
 
 		expect(initHelp).toContain("refarm init my-workspace");
-		expect(initHelp).toContain("After init, run refarm sow");
+		expect(initHelp).toContain("After init, run refarm sow to configure model credentials");
+		expect(initHelp).toContain("refarm model current");
+		expect(initHelp).toContain("refarm guide");
 		expect(migrateHelp).toContain(
 			"refarm migrate --target https://github.com/user/fork.git --dry-run",
 		);

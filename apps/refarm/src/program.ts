@@ -115,8 +115,8 @@ program
 program.addCommand(
 	createLazyCommand<{ force?: boolean }>({
 		name: "init",
-		description: "Initialize a new farm",
-		argument: { flags: "[name]", description: "Project name", defaultValue: "my-farm" },
+		description: "Initialize a new Refarm workspace",
+		argument: { flags: "[name]", description: "Project name", defaultValue: "my-workspace" },
 		options: [
 			{
 				flags: "--force",
@@ -133,11 +133,13 @@ Examples:
 Notes:
   This creates refarm.config.json and .refarm/identity.json.
   --force reinitializes an existing workspace and can overwrite generated metadata.
-  After init, run refarm sow to configure credentials.
+  After init, run refarm sow to configure model credentials.
+  Use refarm model current to inspect the default route, and refarm guide
+  to generate a local setup audit with GitHub/Cloudflare next steps.
 `,
 		load: async () => (await import("./commands/init.js")).initCommand,
 		toArgs: (name, opts) => [
-			name ?? "my-farm",
+			name ?? "my-workspace",
 			...(opts.force ? ["--force"] : []),
 		],
 	}),

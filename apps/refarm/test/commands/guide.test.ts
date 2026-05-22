@@ -49,6 +49,9 @@ describe("guideCommand", () => {
     guideCommand.outputHelp();
 
     expect(help).toContain("refarm-audit.md");
+    expect(help).toContain("refarm sow --cloudflare");
+    expect(help).toContain("refarm model current");
+    expect(help).toContain("model, GitHub, Cloudflare, and brand setup");
     expect(help).toContain("Use refarm health");
   });
 

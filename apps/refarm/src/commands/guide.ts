@@ -24,11 +24,15 @@ export const guideCommand = new Command("guide")
       "Examples:",
       "  $ refarm guide",
       "  $ refarm sow",
+      "  $ refarm sow --cloudflare",
+      "  $ refarm model current",
       "  $ refarm health",
       "",
       "Notes:",
       "  This writes refarm-audit.md in the current directory.",
       "  The report is a local setup audit; it is not a runtime readiness check.",
+      "  It checks model, GitHub, Cloudflare, and brand setup and prints the",
+      "  next refarm command for each missing item.",
       "  Use refarm health for deterministic project diagnostics.",
     ].join("\n"),
   )
@@ -42,9 +46,14 @@ export const guideCommand = new Command("guide")
       unknown
     >;
     const modelTokens = await silo.loadTokens() as Record<string, unknown>;
-    const modelProvider = stringValue(modelTokens.modelProvider) ?? DEFAULT_MODEL_PROVIDER;
+    const modelProvider =
+      stringValue(modelTokens.modelProvider) ?? DEFAULT_MODEL_PROVIDER;
     const modelRef = defaultProviderModelRef(modelProvider);
-    const modelStatus = modelCredentialStatus(modelProvider, modelTokens, process.env);
+    const modelStatus = modelCredentialStatus(
+      modelProvider,
+      modelTokens,
+      process.env,
+    );
     const modelReady = modelStatus.state !== "missing";
 
     const checks = [
@@ -69,18 +78,18 @@ export const guideCommand = new Command("guide")
         name: "Brand Config",
         status: config.brand ? "✅" : "❌",
         action: "Check your refarm.config.json.",
-      }
+      },
     ];
 
     let guideContent = `# Setup Audit — refarm\n\nDynamically generated based on your current state.\n\n## Status Summary\n\n`;
-    
+
     guideContent += `| Item | Status | Required Action |\n|------|--------|-----------------|\n`;
     for (const check of checks) {
       guideContent += `| ${check.name} | ${check.status} | ${check.action} |\n`;
     }
 
     guideContent += `\n\n## Next Steps\n\n`;
-    const missing = checks.filter(c => c.status === "❌");
+    const missing = checks.filter((check) => check.status === "❌");
     if (missing.length > 0) {
       guideContent += `Follow the actions in the table above to complete setup.\n`;
     } else {

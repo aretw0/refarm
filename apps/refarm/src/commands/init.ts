@@ -21,7 +21,9 @@ export const initCommand = new Command("init")
       "Notes:",
       "  This creates refarm.config.json and .refarm/identity.json.",
       "  --force reinitializes an existing workspace and can overwrite generated metadata.",
-      "  After init, run refarm sow to configure credentials.",
+      "  After init, run refarm sow to configure model credentials.",
+      "  Use refarm model current to inspect the default route, and refarm guide",
+      "  to generate a local setup audit with GitHub/Cloudflare next steps.",
     ].join("\n"),
   )
   .argument("[name]", "Project name", "my-workspace")
@@ -90,5 +92,6 @@ export const initCommand = new Command("init")
     }
 
     console.log(chalk.blue("\nProject structure initialized."));
-    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to configure services.`);
+    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to configure model credentials.`);
+    console.log(chalk.dim(`Then run ${chalk.cyan("refarm guide")} for GitHub/Cloudflare setup hints.`));
   });
