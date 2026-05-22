@@ -50,13 +50,18 @@ ensure_pnpm() {
 
   corepack prepare --activate || warn "corepack prepare failed"
 
-  if ! command -v pnpm >/dev/null 2>&1; then
-    cat > "$pnpm_home/pnpm" <<'SH'
+  if command -v pnpm >/dev/null 2>&1 && pnpm --version >/dev/null 2>&1; then
+    return
+  fi
+
+  warn "pnpm command is missing or broken; installing corepack-backed wrapper"
+  for target in "$pnpm_home/pnpm" "$pnpm_home/bin/pnpm"; do
+    cat > "$target" <<'SH'
 #!/usr/bin/env bash
 exec corepack pnpm "$@"
 SH
-    chmod +x "$pnpm_home/pnpm"
-  fi
+    chmod +x "$target"
+  done
 }
 
 clean_stale_wizer_optionals() {
