@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { createModelMock, says } from "./index.js";
+import { MODEL_MOCK_DEFAULT_MODEL, createModelMock, says } from "./index.js";
 import type { ModelMockServer } from "./server.js";
 
 let mock: ModelMockServer;
@@ -19,7 +19,7 @@ describe("ModelMockServer — non-streaming", () => {
 		const res = await fetch(`http://127.0.0.1:${mock.port}/v1/chat/completions`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
-			body: JSON.stringify({ model: "gpt-4o-mini", messages: [{ role: "user", content: "oi" }] }),
+			body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [{ role: "user", content: "oi" }] }),
 		});
 
 		expect(res.status).toBe(200);
@@ -34,7 +34,7 @@ describe("ModelMockServer — non-streaming", () => {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
 			body: JSON.stringify({
-				model: "gpt-4o-mini",
+				model: MODEL_MOCK_DEFAULT_MODEL,
 				messages: [{ role: "user", content: "qual é o sentido da vida?" }],
 			}),
 		});
@@ -48,7 +48,7 @@ describe("ModelMockServer — non-streaming", () => {
 		const res = await fetch(`http://127.0.0.1:${mock.port}/v1/chat/completions`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
-			body: JSON.stringify({ model: "gpt-4o-mini", messages: [] }),
+			body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [] }),
 		});
 
 		expect(res.status).toBe(500);
@@ -65,7 +65,7 @@ describe("ModelMockServer — SSE streaming", () => {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
 			body: JSON.stringify({
-				model: "gpt-4o-mini",
+				model: MODEL_MOCK_DEFAULT_MODEL,
 				stream: true,
 				messages: [{ role: "user", content: "stream?" }],
 			}),
@@ -86,7 +86,7 @@ describe("ModelMockServer — SSE streaming", () => {
 		await fetch(`http://127.0.0.1:${mock.port}/v1/chat/completions`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
-			body: JSON.stringify({ model: "gpt-4o-mini", stream: true, messages: [] }),
+			body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, stream: true, messages: [] }),
 		});
 
 		expect(mock.requests[0].stream).toBe(true);
@@ -103,7 +103,7 @@ describe("ModelMockServer — repeatLast", () => {
 			const res = await fetch(`http://127.0.0.1:${repeatMock.port}/v1/chat/completions`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
-				body: JSON.stringify({ model: "gpt-4o-mini", messages: [] }),
+				body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [] }),
 			});
 			const body = await res.json() as { choices: Array<{ message: { content: string } }> };
 			expect(body.choices[0].message.content).toBe("sempre essa");

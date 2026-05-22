@@ -1,4 +1,5 @@
 export { ModelMockServer } from "./server.js";
+export { MODEL_MOCK_DEFAULT_MODEL } from "./format.js";
 export type { CapturedRequest, MockResponse, ModelMockOptions, SaysResponse } from "./types.js";
 import { ModelMockServer } from "./server.js";
 import type { ModelMockOptions, SaysResponse } from "./types.js";

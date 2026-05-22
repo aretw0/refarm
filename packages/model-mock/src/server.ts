@@ -1,5 +1,10 @@
 import http from "node:http";
-import { readJsonBody, writeJsonResponse, writeSseResponse } from "./format.js";
+import {
+	MODEL_MOCK_DEFAULT_MODEL,
+	readJsonBody,
+	writeJsonResponse,
+	writeSseResponse,
+} from "./format.js";
 import type { CapturedRequest, MockResponse, ModelMockOptions } from "./types.js";
 
 export class ModelMockServer {
@@ -24,7 +29,7 @@ export class ModelMockServer {
 		return {
 			MODEL_PROVIDER: "openai",
 			MODEL_BASE_URL: `http://127.0.0.1:${this.port}`,
-			MODEL_ID: "gpt-4o-mini",
+			MODEL_ID: MODEL_MOCK_DEFAULT_MODEL,
 			// suppress real API key checks
 			OPENAI_API_KEY: "mock-key",
 		};
