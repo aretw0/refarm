@@ -11,6 +11,11 @@ import {
 	type RuntimeAutostartMode,
 	type RuntimeEngineMode,
 } from "@refarm.dev/runtime";
+import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_AUTOSTART_NEVER_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+} from "./runtime-recovery.js";
 
 type ConfigKey =
 	| "farmhand.autostart"
@@ -220,8 +225,8 @@ function printConfigSummary(deps: ConfigDeps): void {
 	console.log(`  tractor.engine=${tractorEngine.value}`);
 	console.log(chalk.dim(`    source=${tractorEngine.source}`));
 	console.log("");
-	console.log(chalk.dim("  Change a value:       refarm config set runtime.autostart always"));
-	console.log(chalk.dim("  Project-local value:  refarm config set runtime.autostart never --local"));
+	console.log(chalk.dim(`  Change a value:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
+	console.log(chalk.dim(`  Project-local value:  ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local`));
 	console.log(chalk.dim("  Future: running this command without arguments can become interactive."));
 }
 
@@ -281,11 +286,11 @@ export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
 Examples:
   $ refarm config
   $ refarm config get runtime.autostart
-  $ refarm config set runtime.autostart always
+  $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   $ refarm config set operator.openExternalLinks never
-  $ refarm config set tractor.engine auto
+  $ ${RUNTIME_ENGINE_AUTO_COMMAND}
   $ REFARM_TRACTOR_ENGINE=rust refarm runtime
-  $ refarm config set runtime.autostart never --local
+  $ ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local
 
 Keys:
   runtime.autostart  ${AUTOSTART_MODES_HELP}
@@ -349,8 +354,8 @@ Notes:
 					`
 
 Examples:
-  $ refarm config set runtime.autostart always
-  $ refarm config set runtime.autostart never --local
+  $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
+  $ ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local
   $ refarm config set operator.openExternalLinks never
   $ refarm config set tractor.engine rust
 
