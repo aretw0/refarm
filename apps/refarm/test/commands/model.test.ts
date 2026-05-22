@@ -120,7 +120,7 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("current: openai/gpt-5.5");
 		expect(output).toContain("key:      OPENAI_API_KEY env");
-		expect(output).toContain("source:   built-in defaults + credential environment");
+		expect(output).toContain("source:   built-in defaults");
 
 		logSpy.mockRestore();
 	});
@@ -146,7 +146,8 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("current: <not configured>");
+		expect(output).toContain("current: openai/gpt-5.5");
+		expect(output).toContain("key:      missing (run refarm sow)");
 		expect(output).toContain("openai default: openai/gpt-5.5");
 		expect(output).toContain("openai worker:  openai/gpt-5.3-codex-spark");
 		expect(output).toContain("openai monitor: openai/gpt-5.5");
