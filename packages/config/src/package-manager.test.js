@@ -38,6 +38,32 @@ describe("package manager config", () => {
         }
     });
 
+    it("detects package manager from workspace lockfiles before falling back", () => {
+        const root = mkdtempSync(join(tmpdir(), "refarm-config-pm-lock-"));
+        const app = join(root, "apps", "dev");
+        mkdirSync(app, { recursive: true });
+        writeFileSync(join(root, "package.json"), JSON.stringify({ name: "repo" }));
+        writeFileSync(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+        writeFileSync(join(app, "package.json"), JSON.stringify({ name: "dev" }));
+
+        try {
+            expect(detectPackageManager({ cwd: app, env: {} })).toBe("pnpm");
+            expect(
+                createPackageScriptCommand({
+                    cwd: app,
+                    repoRoot: root,
+                    script: "build",
+                    env: {},
+                }),
+            ).toMatchObject({
+                command: "pnpm",
+                args: ["-C", "apps/dev", "run", "build"],
+            });
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
     it("formats spawn-safe script commands for application launchers", () => {
         expect(
             createPackageScriptCommand({

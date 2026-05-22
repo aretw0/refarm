@@ -23,10 +23,26 @@ function detectPackageManagerFromPackageJson(startDir) {
             }
         }
 
+        const lockfileDetected = detectPackageManagerFromLockfile(current);
+        if (lockfileDetected) return lockfileDetected;
+
         const parent = path.dirname(current);
         if (parent === current) return null;
         current = parent;
     }
+}
+
+function detectPackageManagerFromLockfile(dir) {
+    if (existsSync(path.join(dir, "pnpm-lock.yaml"))) return "pnpm";
+    if (existsSync(path.join(dir, "bun.lock")) || existsSync(path.join(dir, "bun.lockb"))) return "bun";
+    if (existsSync(path.join(dir, "yarn.lock"))) return "yarn";
+    if (
+        existsSync(path.join(dir, "package-lock.json")) ||
+        existsSync(path.join(dir, "npm-shrinkwrap.json"))
+    ) {
+        return "npm";
+    }
+    return null;
 }
 
 export function detectPackageManager({ cwd = process.cwd(), env = process.env } = {}) {
