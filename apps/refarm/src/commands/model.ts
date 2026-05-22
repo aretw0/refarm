@@ -98,7 +98,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim("  login:          refarm sow"));
 	}
 	if (provider && !credentialEnv && provider !== "ollama") {
-		console.log(chalk.dim("  custom provider: set MODEL_BASE_URL for OpenAI-compatible APIs"));
+		console.log(chalk.dim("  custom provider: set endpoint with refarm model base-url <url>"));
 	}
 }
 
@@ -117,7 +117,7 @@ export function printKnownModelProviders(): void {
 	}
 	console.log(chalk.dim(""));
 	console.log(chalk.dim("Custom/self-hosted providers are allowed with provider/model refs."));
-	console.log(chalk.dim("Set MODEL_BASE_URL when the provider does not have a built-in endpoint."));
+	console.log(chalk.dim("Use refarm model base-url <url> when the provider does not have a built-in endpoint."));
 }
 
 function scopedTokenUpdate(
@@ -265,7 +265,7 @@ Examples:
 
 Notes:
   This lists built-in defaults only. You can still use custom providers by
-  passing provider/model and setting MODEL_BASE_URL for OpenAI-compatible APIs.
+  passing provider/model and setting refarm model base-url for OpenAI-compatible APIs.
 `,
 		)
 		.action(() => {

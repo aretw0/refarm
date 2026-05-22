@@ -29,6 +29,8 @@ Notes:
   API key or OAuth login; run plain refarm sow to configure credentials.
   A slash means provider/model, so custom or self-hosted providers can be saved
   directly, e.g. refarm sow --model vllm/Qwen3-Coder-480B-A35B-Instruct.
+  For self-hosted/OpenAI-compatible providers, persist the endpoint with
+  refarm model base-url http://127.0.0.1:8000.
   Inside the refarm REPL, use /login or /sow to reconfigure without leaving the
   session. The Refarm runtime reloads Silo credentials before each task.
 `;

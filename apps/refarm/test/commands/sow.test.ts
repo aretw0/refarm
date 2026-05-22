@@ -119,6 +119,7 @@ describe("sowCommand — default (no flags)", () => {
 
 		expect(help).toContain("The Refarm runtime reloads Silo credentials");
 		expect(help).toContain("refarm sow --model openai/gpt-5.5");
+		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 	});
 });
 

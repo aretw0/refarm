@@ -132,7 +132,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("vllm/Qwen3-Coder-480B-A35B-Instruct");
 		expect(output).toContain("base url: http://127.0.0.1:8000");
 		expect(output).toContain("fallback: ollama/llama3.2");
-		expect(output).toContain("custom provider: set MODEL_BASE_URL");
+		expect(output).toContain("custom provider: set endpoint with refarm model base-url");
 
 		logSpy.mockRestore();
 	});
@@ -243,6 +243,7 @@ describe("modelCommand", () => {
 		expect(output).toContain("gemini");
 		expect(output).toContain("default: gemini-3-flash-preview");
 		expect(output).toContain("Custom/self-hosted providers are allowed");
+		expect(output).toContain("refarm model base-url <url>");
 
 		logSpy.mockRestore();
 	});
