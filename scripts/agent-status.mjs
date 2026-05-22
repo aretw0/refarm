@@ -128,7 +128,7 @@ function checkDaemon() {
 }
 
 function effectiveProvider(envVars, silo, config) {
-  return envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
+  return envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || config.provider || config.default_provider || config.modelProvider || silo.modelProvider || DEFAULT_MODEL_PROVIDER;
 }
 
 function checkKeys(envVars, config) {
@@ -193,7 +193,7 @@ function checkTractorBinary() {
 function checkModelConfig(envVars, config) {
   const silo = readSiloTokens();
   const provider = effectiveProvider(envVars, silo, config);
-  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model || defaultModelForProvider(provider);
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.modelId || config.model || silo.modelId || silo.model || defaultModelForProvider(provider);
   const history  = envVars.MODEL_HISTORY_TURNS    || process.env.MODEL_HISTORY_TURNS    || config.MODEL_HISTORY_TURNS    || '0';
   const maxIter  = envVars.MODEL_TOOL_CALL_MAX_ITER || process.env.MODEL_TOOL_CALL_MAX_ITER || config.MODEL_TOOL_CALL_MAX_ITER || '5';
   const budget   = provider ? config.budgets?.[provider] || '' : '';

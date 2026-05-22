@@ -229,6 +229,10 @@ function readSiloTokens() {
   } catch { return {}; }
 }
 
+function effectiveProvider(envVars, silo, config) {
+  return envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || config.provider || config.default_provider || config.modelProvider || silo.modelProvider || DEFAULT_MODEL_PROVIDER;
+}
+
 function checkModel() {
   const envFile = join(ROOT, '.refarm', '.env');
   const configFile = join(ROOT, '.refarm', 'config.json');
@@ -237,7 +241,7 @@ function checkModel() {
   let config = {};
   try { config = JSON.parse(readFileSync(configFile, 'utf8')); } catch { /* ok */ }
   const silo = readSiloTokens();
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || DEFAULT_MODEL_PROVIDER;
+  const provider = effectiveProvider(envVars, silo, config);
 
   const KEY_LABELS = {
     ANTHROPIC_API_KEY:  'Anthropic', OPENAI_API_KEY: 'OpenAI',
@@ -266,7 +270,7 @@ function checkModel() {
   if (configured.length) ok('keys', configured.join('  '));
   else fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
 
-  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model || defaultModelForProvider(provider);
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.modelId || config.model || silo.modelId || silo.model || defaultModelForProvider(provider);
   const budget   = provider ? config.budgets?.[provider] ?? null : null;
   info('model', [
     `provider=${c.cyan}${provider}${c.reset}`,
