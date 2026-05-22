@@ -11,6 +11,7 @@ import { Command } from "commander";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
+	PACKAGE_MANAGERS,
 } from "./package-manager.js";
 import { readRuntimePluginState } from "./runtime-plugins.js";
 
@@ -26,6 +27,7 @@ const BUNDLED_PLUGINS = [
 ] as const;
 
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
+const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
 
@@ -305,7 +307,7 @@ pluginCommand
 			"  This command runs jco through the detected package manager.",
 			"  Examples: npm exec -- jco, yarn jco, bun x jco.",
 			"  Override detection with",
-			"  REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun.",
+			`  REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
 		].join("\n"),
 	)
 	.action((input: string, options: { output: string; name?: string }) => {

@@ -1,5 +1,6 @@
 import type { LaunchProcessSpec } from "./launch-process.js";
 import {
+	PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS,
 	packageBinaryCommand as createSharedPackageBinaryCommand,
 	createPackageScriptCommand as createSharedPackageScriptCommand,
 	detectPackageManager as detectSharedPackageManager,
@@ -8,6 +9,7 @@ import {
 } from "@refarm.dev/config";
 
 export type { PackageManagerName } from "@refarm.dev/config";
+export const PACKAGE_MANAGERS = SHARED_PACKAGE_MANAGERS;
 
 export interface RefarmPackageScriptCommandOptions
 	extends PackageScriptCommandOptions {
