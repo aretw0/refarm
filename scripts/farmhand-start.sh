@@ -111,7 +111,12 @@ detect_provider() {
     return 0
   fi
 
-  printf "ollama"
+  if command -v node >/dev/null 2>&1; then
+    node -e "import('$ROOT/packages/config/src/model-routing.js').then(m=>process.stdout.write(m.DEFAULT_MODEL_PROVIDER)).catch(()=>process.stdout.write('openai'))" 2>/dev/null || true
+    return 0
+  fi
+
+  printf "openai"
 }
 
 if [ -f "$ENV_FILE" ]; then
