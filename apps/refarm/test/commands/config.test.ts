@@ -222,7 +222,7 @@ describe("config command", () => {
 		expect(help).toContain("tractor.engine  auto | rust | ts");
 		expect(help).toContain("farmhand.autostart  ask | always | never");
 		expect(help).toContain("reads the same autostart setting");
-		expect(help).toContain("Environment");
+		expect(help).toContain("REFARM_OPEN_EXTERNAL_LINKS");
 	});
 
 	it("documents config set examples and local scope", () => {
@@ -242,6 +242,7 @@ describe("config command", () => {
 		expect(help).toContain("farmhand.autostart  ask | always | never");
 		expect(help).toContain("writes the same autostart setting");
 		expect(help).toContain("repository-specific operator preferences");
+		expect(help).toContain("REFARM_RUNTIME_AUTOSTART");
 	});
 
 	it("sets operator external-link mode", async () => {

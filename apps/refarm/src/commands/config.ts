@@ -274,6 +274,8 @@ Legacy aliases:
   farmhand.autostart  ${AUTOSTART_MODES_HELP}  (writes the same autostart setting)
 
 Notes:
+  REFARM_RUNTIME_AUTOSTART can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
+  REFARM_OPEN_EXTERNAL_LINKS can be ${OPEN_EXTERNAL_LINKS_MODES_HELP} for one-shot link policy.
   REFARM_TRACTOR_ENGINE can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
   Without a subcommand, config prints the effective values and their sources.
   The no-argument form is reserved for the future interactive configuration surface.
@@ -307,7 +309,7 @@ Legacy aliases:
 
 Notes:
   Without --local, project-local config overrides home config. Environment
-  overrides such as REFARM_RUNTIME_AUTOSTART and REFARM_TRACTOR_ENGINE still
+  overrides such as REFARM_RUNTIME_AUTOSTART, REFARM_OPEN_EXTERNAL_LINKS, and REFARM_TRACTOR_ENGINE still
   take precedence and are shown in the source line.
 `,
 				)
@@ -343,6 +345,8 @@ Legacy aliases:
 Notes:
   Use --local for repository-specific operator preferences. Home config is the
   default and applies across Refarm workspaces for the current user.
+  For one-shot overrides, use REFARM_RUNTIME_AUTOSTART, REFARM_OPEN_EXTERNAL_LINKS,
+  or REFARM_TRACTOR_ENGINE without changing persisted config.
 `,
 				)
 				.action((key: string, value: string, opts: { local?: boolean }) => {
