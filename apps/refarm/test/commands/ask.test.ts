@@ -69,6 +69,22 @@ describe("refarm ask", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("documents model route recovery in help", () => {
+		const command = createAskCommand(makeDeps());
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm model current");
+		expect(help).toContain("refarm model providers");
+		expect(help).toContain("refarm model openai/gpt-5.5");
+	});
+
 	it("submits effort with pi-agent respond payload", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);

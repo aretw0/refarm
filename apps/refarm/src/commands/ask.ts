@@ -526,6 +526,9 @@ Runtime:
   runtime is stopped, refarm can start it before submitting the question.
 
   Configure credentials:  refarm sow
+  Inspect model route:    refarm model current
+  List model defaults:    refarm model providers
+  Switch default model:   refarm model ${OPENAI_DEFAULT_REF}
   Diagnose runtime:       ${RUNTIME_DOCTOR_COMMAND}
   Always autostart:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   Disable autostart:      ${RUNTIME_AUTOSTART_NEVER_COMMAND}
