@@ -124,6 +124,28 @@ check_rust_baseline() {
   fi
 }
 
+check_gh_auth_home() {
+  if ! command -v gh >/dev/null 2>&1; then
+    return
+  fi
+
+  local persisted_config="/home/vscode/.config/gh"
+  local root_config="/root/.config/gh"
+  local persisted_has_auth=false
+  local root_has_auth=false
+
+  if [ -f "$persisted_config/hosts.yml" ] || [ -f "$persisted_config/config.yml" ]; then
+    persisted_has_auth=true
+  fi
+  if [ -f "$root_config/hosts.yml" ] || [ -f "$root_config/config.yml" ]; then
+    root_has_auth=true
+  fi
+
+  if [ "$persisted_has_auth" = false ] && [ "$root_has_auth" = true ]; then
+    echo "[refarm-devcontainer][warn] GitHub CLI auth exists under /root, but the persisted dev user config is empty."
+    echo "[refarm-devcontainer][warn] Run: farm vscode /workspaces/refarm gh auth login"
+  fi
+}
 check_agent_env() {
   local missing=()
 
@@ -170,6 +192,7 @@ ensure_refarm_cli
 ensure_git_transport
 check_rust_baseline
 check_coding_agent_tools
+check_gh_auth_home
 check_agent_env
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

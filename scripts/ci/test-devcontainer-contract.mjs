@@ -34,3 +34,11 @@ test("post-start does not rely on USER being set", () => {
 	assert.doesNotMatch(content, /\$USER/);
 	assert.match(content, /\$\{USER:-\$\(id -un\)\}/);
 });
+
+test("post-start warns when gh auth is stored under root instead of the persisted dev user", () => {
+	const content = readFileSync(".devcontainer/post-start.sh", "utf8");
+	assert.match(content, /check_gh_auth_home\(\)/);
+	assert.match(content, /\/root\/\.config\/gh/);
+	assert.match(content, /\/home\/vscode\/\.config\/gh/);
+	assert.match(content, /farm vscode \/workspaces\/refarm gh auth login/);
+});
