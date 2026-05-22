@@ -40,6 +40,42 @@ run_script_for_package_manager() {
   esac
 }
 
+install_command_for_package_manager() {
+  package_manager="$1"
+  frozen="${2:-false}"
+
+  case "$package_manager:$frozen" in
+    pnpm:true) printf "pnpm install --frozen-lockfile" ;;
+    pnpm:*) printf "pnpm install" ;;
+    npm:true) printf "npm ci" ;;
+    npm:*) printf "npm install" ;;
+    yarn:true) printf "yarn install --immutable" ;;
+    yarn:*) printf "yarn install" ;;
+    bun:true) printf "bun install --frozen-lockfile" ;;
+    bun:*) printf "bun install" ;;
+    *:true) printf "%s install" "$package_manager" ;;
+    *) printf "%s install" "$package_manager" ;;
+  esac
+}
+
+install_for_package_manager() {
+  package_manager="$1"
+  frozen="${2:-false}"
+  shift 2
+
+  case "$package_manager:$frozen" in
+    pnpm:true) pnpm install --frozen-lockfile "$@" ;;
+    pnpm:*) pnpm install "$@" ;;
+    npm:true) npm ci "$@" ;;
+    npm:*) npm install "$@" ;;
+    yarn:true) yarn install --immutable "$@" ;;
+    yarn:*) yarn install "$@" ;;
+    bun:true) bun install --frozen-lockfile "$@" ;;
+    bun:*) bun install "$@" ;;
+    *:*) "$package_manager" install "$@" ;;
+  esac
+}
+
 workspace_exec_command_for_package_manager() {
   package_manager="$1"
   workspace="$2"

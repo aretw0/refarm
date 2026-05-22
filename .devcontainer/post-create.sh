@@ -178,12 +178,20 @@ fi
 # 2) Node dependencies
 ensure_pnpm
 clean_stale_wizer_optionals
-if [ -f pnpm-lock.yaml ]; then
-  log "Running pnpm install --frozen-lockfile..."
-  pnpm install --frozen-lockfile --config.confirm-modules-purge=false
+if [ -f pnpm-lock.yaml ] || [ -f package-lock.json ] || [ -f yarn.lock ] || [ -f bun.lock ] || [ -f bun.lockb ]; then
+  log "Running $(install_command_for_package_manager "$PACKAGE_MANAGER" true)..."
+  if [ "$PACKAGE_MANAGER" = "pnpm" ]; then
+    install_for_package_manager "$PACKAGE_MANAGER" true --config.confirm-modules-purge=false
+  else
+    install_for_package_manager "$PACKAGE_MANAGER" true
+  fi
 else
-  log "No pnpm-lock.yaml found, running pnpm install..."
-  pnpm install --config.confirm-modules-purge=false
+  log "No lockfile found, running $(install_command_for_package_manager "$PACKAGE_MANAGER" false)..."
+  if [ "$PACKAGE_MANAGER" = "pnpm" ]; then
+    install_for_package_manager "$PACKAGE_MANAGER" false --config.confirm-modules-purge=false
+  else
+    install_for_package_manager "$PACKAGE_MANAGER" false
+  fi
 fi
 
 # 3) Rust baseline parity for local/CI checks
