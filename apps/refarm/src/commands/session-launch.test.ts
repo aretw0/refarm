@@ -190,6 +190,17 @@ describe("checkSessionReadiness", () => {
 		});
 	});
 
+	it("recognizes the default provider credential env without an explicit provider", async () => {
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		await expect(checkSessionReadiness()).resolves.toMatchObject({
+			providerConfigured: true,
+			runtimeRunning: false,
+			farmhandRunning: false,
+		});
+	});
+
 	it("recognizes a Silo identity with an API key as a configured provider", async () => {
 		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");

@@ -33,7 +33,7 @@ import {
 	probeRuntimeReady,
 	waitForRuntimeReady,
 } from "./runtime-readiness.js";
-import { modelCredentialEnvKey } from "../model-routing.js";
+import { DEFAULT_MODEL_PROVIDER, modelCredentialEnvKey } from "../model-routing.js";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -98,6 +98,7 @@ export function refarmSearchDirs(): string[] {
 function detectProvider(): boolean {
 	const envProvider = stringValue(process.env.MODEL_PROVIDER) ?? stringValue(process.env.MODEL_DEFAULT_PROVIDER);
 	if (envProvider) return hasProviderCredential(envProvider, {});
+	if (hasProviderCredential(DEFAULT_MODEL_PROVIDER, {})) return true;
 
 	for (const base of refarmSearchDirs()) {
 		const envFile = path.join(base, ".env");
