@@ -76,7 +76,7 @@ function readSiloTokens() {
 
 function configureModelEnvFromSilo() {
   const tokens = readSiloTokens();
-  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || tokens.modelProvider;
+  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || tokens.modelProvider || DEFAULT_MODEL_PROVIDER;
   const model = process.env.MODEL_ID || tokens.modelId || tokens.model || defaultModelForProvider(provider);
 
   if (provider && !process.env.MODEL_PROVIDER && !process.env.MODEL_DEFAULT_PROVIDER) {
