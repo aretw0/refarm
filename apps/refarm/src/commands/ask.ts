@@ -9,6 +9,7 @@ import {
 	FilesContextProvider,
 	GitStatusContextProvider,
 	SessionDigestContextProvider,
+	type ContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
@@ -68,6 +69,11 @@ export interface AskDeps {
 	persistActiveSessionId?(id: string): void;
 	readPluginState?(): Promise<RuntimePluginState | null>;
 	reloadPlugins?(pluginIds: string[]): Promise<RuntimePluginReloadResult | null>;
+	collectSystemPrompt?(request: {
+		cwd: string;
+		query: string;
+		files: string[];
+	}): Promise<string>;
 }
 
 interface SessionNode {
@@ -326,6 +332,29 @@ function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
+async function collectDefaultSystemPrompt(request: {
+	cwd: string;
+	query: string;
+	files: string[];
+}): Promise<string> {
+	const providers: ContextProvider[] = [
+		new SessionDigestContextProvider(),
+		new CwdContextProvider(),
+		new DateContextProvider(),
+		new GitStatusContextProvider(),
+		...(request.files.length > 0
+			? [new FilesContextProvider(request.files)]
+			: []),
+	];
+
+	const registry = new ContextRegistry(providers);
+	const entries = await registry.collect({
+		cwd: request.cwd,
+		query: request.query,
+	});
+	return buildSystemPrompt(entries);
+}
+
 async function resolveSessionIdPrefixFromSidecar(
 	prefix: string,
 ): Promise<string> {
@@ -576,17 +605,13 @@ Runtime:
 							.filter(Boolean)
 					: [];
 
-				const providers = [
-					new SessionDigestContextProvider(),
-					new CwdContextProvider(),
-					new DateContextProvider(),
-					new GitStatusContextProvider(),
-					...(files.length > 0 ? [new FilesContextProvider(files)] : []),
-				];
-
-				const registry = new ContextRegistry(providers);
-				const entries = await registry.collect({ cwd: process.cwd(), query });
-				const system = buildSystemPrompt(entries);
+				const system = await (
+					resolved.collectSystemPrompt ?? collectDefaultSystemPrompt
+				)({
+					cwd: process.cwd(),
+					query,
+					files,
+				});
 
 				const effort = createPiAgentRespondEffort({
 					prompt: query,

@@ -39,6 +39,7 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 		readActiveSessionId: vi.fn().mockReturnValue(null),
 		clearActiveSessionId: vi.fn().mockReturnValue(true),
 		persistActiveSessionId: vi.fn(),
+		collectSystemPrompt: vi.fn().mockResolvedValue("test system prompt"),
 		...overrides,
 	};
 }
@@ -111,7 +112,8 @@ describe("refarm ask", () => {
 					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
 						onChunk(makeChunk("ok", 0, true));
 					},
-				),
+			),
+			collectSystemPrompt: vi.fn().mockResolvedValue("test system prompt"),
 		};
 		const command = createAskCommand(deps);
 		const readSpy = vi
@@ -180,6 +182,12 @@ describe("refarm ask", () => {
 		});
 
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		expect(deps.collectSystemPrompt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				query: "explain",
+				files: ["README.md", "package.json"],
+			}),
+		);
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 	});
