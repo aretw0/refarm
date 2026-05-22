@@ -8,6 +8,9 @@ export type RuntimeEngineMode = "auto" | "rust" | "ts";
 export type RuntimeActiveEngine = "rust" | "ts" | "unknown";
 export type RuntimeAutostartMode = "always" | "ask" | "never";
 
+export const RUNTIME_ENGINE_MODES = ["auto", "rust", "ts"] as const;
+export const RUNTIME_AUTOSTART_MODES = ["ask", "always", "never"] as const;
+
 export type RuntimeSelectionReason =
   | "configured-rust"
   | "configured-ts"
@@ -43,6 +46,24 @@ export function createNullRuntimeStatusSummary(): RuntimeStatusSummary {
     reason: "unavailable",
     ready: false,
   };
+}
+
+export function parseRuntimeEngineMode(value: unknown): RuntimeEngineMode | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return (RUNTIME_ENGINE_MODES as readonly string[]).includes(normalized)
+    ? (normalized as RuntimeEngineMode)
+    : null;
+}
+
+export function parseRuntimeAutostartMode(
+  value: unknown,
+): RuntimeAutostartMode | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return (RUNTIME_AUTOSTART_MODES as readonly string[]).includes(normalized)
+    ? (normalized as RuntimeAutostartMode)
+    : null;
 }
 
 export type {

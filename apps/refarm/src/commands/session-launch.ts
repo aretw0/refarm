@@ -13,6 +13,12 @@ import {
 	type OperatorChannel,
 	createStdioOperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
+import {
+	parseRuntimeAutostartMode,
+	parseRuntimeEngineMode,
+	type RuntimeAutostartMode,
+	type RuntimeEngineMode,
+} from "@refarm.dev/runtime";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	resolveRuntimeLaunchCommand,
@@ -30,8 +36,8 @@ export interface SessionReadiness {
 	farmhandRunning?: boolean;
 }
 
-export type AutostartMode = "always" | "ask" | "never";
-export type TractorEngineMode = "auto" | "rust" | "ts";
+export type AutostartMode = RuntimeAutostartMode;
+export type TractorEngineMode = RuntimeEngineMode;
 export type LaunchRuntimeEngine = "rust" | "ts";
 
 export interface LaunchRuntimeSelection {
@@ -161,8 +167,7 @@ export function readAutostartMode(): AutostartMode {
 }
 
 function parseAutostartMode(value: string | undefined): AutostartMode | null {
-	if (value === "always" || value === "ask" || value === "never") return value;
-	return null;
+	return parseRuntimeAutostartMode(value);
 }
 
 export function readTractorEngineMode(): TractorEngineMode {
@@ -187,8 +192,7 @@ export function readTractorEngineMode(): TractorEngineMode {
 }
 
 function parseTractorEngineMode(value: string | undefined): TractorEngineMode | null {
-	if (value === "auto" || value === "rust" || value === "ts") return value;
-	return null;
+	return parseRuntimeEngineMode(value);
 }
 
 function tractorBinaryPath(repoRoot: string): string {

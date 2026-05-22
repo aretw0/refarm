@@ -3,7 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import type { AutostartMode } from "./session-launch.js";
+import {
+	parseRuntimeAutostartMode,
+	parseRuntimeEngineMode,
+	RUNTIME_AUTOSTART_MODES,
+	RUNTIME_ENGINE_MODES,
+	type RuntimeAutostartMode,
+	type RuntimeEngineMode,
+} from "@refarm.dev/runtime";
 
 type ConfigKey =
 	| "farmhand.autostart"
@@ -11,7 +18,8 @@ type ConfigKey =
 	| "operator.openExternalLinks"
 	| "tractor.engine";
 type OpenExternalLinksMode = "auto" | "never";
-type TractorEngineMode = "auto" | "rust" | "ts";
+type AutostartMode = RuntimeAutostartMode;
+type TractorEngineMode = RuntimeEngineMode;
 
 interface RefarmCliConfig {
 	autostart?: string;
@@ -34,9 +42,9 @@ const CONFIG_KEYS: readonly ConfigKey[] = [
 	"tractor.engine",
 	"farmhand.autostart",
 ];
-const AUTOSTART_MODES: readonly AutostartMode[] = ["ask", "always", "never"];
+const AUTOSTART_MODES = RUNTIME_AUTOSTART_MODES;
 const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
-const TRACTOR_ENGINE_MODES: readonly TractorEngineMode[] = ["auto", "rust", "ts"];
+const TRACTOR_ENGINE_MODES = RUNTIME_ENGINE_MODES;
 
 function defaultDeps(): ConfigDeps {
 	return {
@@ -66,9 +74,7 @@ function writeConfig(filePath: string, config: RefarmCliConfig): void {
 }
 
 function parseAutostartMode(value: string | undefined): AutostartMode | null {
-	return value === "ask" || value === "always" || value === "never"
-		? value
-		: null;
+	return parseRuntimeAutostartMode(value);
 }
 
 function parseOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | null {
@@ -86,11 +92,7 @@ function parseOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | nul
 }
 
 function parseTractorEngineMode(value: unknown): TractorEngineMode | null {
-	if (typeof value !== "string") return null;
-	const normalized = value.trim().toLowerCase();
-	return normalized === "auto" || normalized === "rust" || normalized === "ts"
-		? normalized
-		: null;
+	return parseRuntimeEngineMode(value);
 }
 
 function resolveAutostartMode(
