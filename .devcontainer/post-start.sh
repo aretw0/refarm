@@ -105,7 +105,8 @@ check_rust_baseline() {
   fi
 
   if [ ! -w /usr/local/rustup/downloads ] || [ ! -w /usr/local/cargo ]; then
-    sudo chown -R "$USER":"$USER" /usr/local/rustup /usr/local/cargo >/dev/null 2>&1 || true
+    local current_user="${USER:-$(id -un)}"
+    sudo chown -R "$current_user":"$current_user" /usr/local/rustup /usr/local/cargo >/dev/null 2>&1 || true
   fi
 
   local installed missing=()

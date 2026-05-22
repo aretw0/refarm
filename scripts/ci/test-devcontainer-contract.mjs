@@ -22,3 +22,15 @@ test("devcontainer publishes operator-facing local services", () => {
 	assert.ok(config.portsAttributes["42000"].label.includes("WebSocket"));
 	assert.ok(config.portsAttributes["42001"].label.includes("HTTP"));
 });
+test("keeps devcontainer shell scripts LF-only", () => {
+	for (const path of [".devcontainer/post-create.sh", ".devcontainer/post-start.sh", ".devcontainer/farm"]) {
+		const content = readFileSync(path, "utf8");
+		assert.equal(content.includes("\r"), false, `${path} must stay LF-only for bash in Linux containers`);
+	}
+});
+
+test("post-start does not rely on USER being set", () => {
+	const content = readFileSync(".devcontainer/post-start.sh", "utf8");
+	assert.doesNotMatch(content, /\$USER/);
+	assert.match(content, /\$\{USER:-\$\(id -un\)\}/);
+});
