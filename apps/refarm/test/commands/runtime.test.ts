@@ -56,8 +56,57 @@ describe("runtime command", () => {
 		command.outputHelp();
 
 		expect(help).toContain("refarm config set runtime.autostart always");
+		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm runtime start");
 		expect(help).toContain("runtime.autostart controls");
+	});
+
+	it("prints status through the explicit status subcommand", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			probeReady: vi.fn().mockResolvedValue(true),
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		await command.parseAsync(["status"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime");
+		expect(output).toContain("ready:      yes");
+		expect(output).toContain("start:      tractor");
+		logSpy.mockRestore();
+	});
+
+	it("outputs explicit status as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "never",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+		});
+
+		await command.parseAsync(["status", "--json"], { from: "user" });
+
+		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			configuredEngine: "ts",
+			activeEngine: "ts",
+			ready: false,
+			startCommand: "farmhand --background",
+		});
+		logSpy.mockRestore();
 	});
 
 	it("outputs JSON payload", async () => {

@@ -131,10 +131,12 @@ export function createRuntimeCommand(
 
 Examples:
   $ refarm runtime
+  $ refarm runtime status
   $ refarm runtime start
   $ refarm runtime start --wait
   $ refarm runtime start --dry-run
   $ refarm runtime --json
+  $ refarm runtime status --json
   $ refarm config set tractor.engine rust
   $ REFARM_TRACTOR_ENGINE=ts refarm runtime
   $ refarm config set runtime.autostart always
@@ -146,6 +148,34 @@ Notes:
   runtime.autostart controls whether CLI flows ask before starting the selected
   runtime, start it automatically, or never start it.
 `,
+		)
+		.addCommand(
+			new Command("status")
+				.description("Show selected runtime engine, readiness, and start command")
+				.option("--json", "Output machine-readable JSON")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm runtime status
+  $ refarm runtime status --json
+  $ refarm runtime start --wait
+
+Notes:
+  This is the explicit form of bare refarm runtime. It probes whether the local
+  runtime sidecar is responding and prints the selected start command.
+`,
+				)
+				.action(async (opts: { json?: boolean }, subcommand: Command) => {
+					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const payload = await runtimeStatusPayload(deps);
+					if (json) {
+						console.log(JSON.stringify(payload, null, 2));
+						return;
+					}
+					printRuntimeStatus(payload);
+				}),
 		)
 		.addCommand(
 			new Command("start")
