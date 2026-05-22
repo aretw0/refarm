@@ -8,6 +8,7 @@ import {
 	autoStartFarmhand,
 	defaultLaunchDeps,
 	findRepoRoot,
+	isRuntimeRunning,
 	type LaunchDeps,
 } from "./session-launch.js";
 import {
@@ -84,14 +85,14 @@ export async function runSessionLaunchFlow(
 		if (recovered) readiness = { ...readiness, providerConfigured: true };
 	}
 
-	// Recovery pass 2: auto-start farmhand when provider is now configured.
-	let farmhandRunning = readiness.farmhandRunning;
-	if (!farmhandRunning && readiness.providerConfigured) {
-		farmhandRunning = await autoStartFarmhand(findRepoRoot(), launch);
-		if (!farmhandRunning) process.exit(1);
+	// Recovery pass 2: auto-start runtime when provider is now configured.
+	let runtimeRunning = isRuntimeRunning(readiness);
+	if (!runtimeRunning && readiness.providerConfigured) {
+		runtimeRunning = await autoStartFarmhand(findRepoRoot(), launch);
+		if (!runtimeRunning) process.exit(1);
 	}
 
-	const effectiveReadiness = { ...readiness, farmhandRunning };
+	const effectiveReadiness = { ...readiness, runtimeRunning, farmhandRunning: runtimeRunning };
 	if (!isSessionReady(effectiveReadiness)) {
 		printSessionGuide(effectiveReadiness);
 		process.exit(1);

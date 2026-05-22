@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	isSessionReady,
+	isRuntimeRunning,
 	isFirstRun,
 	refarmSearchDirs,
 	checkSessionReadiness,
@@ -37,6 +38,19 @@ describe("isSessionReady", () => {
 		expect(
 			isSessionReady({ providerConfigured: true, farmhandRunning: true }),
 		).toBe(true);
+	});
+
+	it("uses runtimeRunning as the canonical readiness field", () => {
+		expect(
+			isSessionReady({ providerConfigured: true, runtimeRunning: true }),
+		).toBe(true);
+		expect(
+			isRuntimeRunning({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: true,
+			}),
+		).toBe(false);
 	});
 
 	it("returns false when farmhand is not running", () => {
@@ -137,8 +151,9 @@ describe("checkSessionReadiness", () => {
 		process.env.MODEL_DEFAULT_PROVIDER = "openai";
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 
-		await expect(checkSessionReadiness()).resolves.toEqual({
+		await expect(checkSessionReadiness()).resolves.toMatchObject({
 			providerConfigured: true,
+			runtimeRunning: false,
 			farmhandRunning: false,
 		});
 	});
@@ -155,8 +170,9 @@ describe("checkSessionReadiness", () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 
 		try {
-			await expect(checkSessionReadiness()).resolves.toEqual({
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
 				providerConfigured: true,
+				runtimeRunning: false,
 				farmhandRunning: false,
 			});
 		} finally {
@@ -176,8 +192,9 @@ describe("checkSessionReadiness", () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 
 		try {
-			await expect(checkSessionReadiness()).resolves.toEqual({
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
 				providerConfigured: true,
+				runtimeRunning: false,
 				farmhandRunning: false,
 			});
 		} finally {

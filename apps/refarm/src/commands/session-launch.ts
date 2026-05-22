@@ -26,7 +26,8 @@ import {
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
-	farmhandRunning: boolean;
+	runtimeRunning?: boolean;
+	farmhandRunning?: boolean;
 }
 
 export type AutostartMode = "always" | "ask" | "never";
@@ -41,17 +42,23 @@ export interface LaunchRuntimeSelection {
 
 export interface LaunchDeps {
 	operator: OperatorChannel;
-	spawnFarmhand(repoRoot: string): void;
-	probeFarmhandUntilReady(): Promise<boolean>;
+	spawnRuntime?(repoRoot: string): void;
+	probeRuntimeUntilReady?(): Promise<boolean>;
+	spawnFarmhand?(repoRoot: string): void;
+	probeFarmhandUntilReady?(): Promise<boolean>;
 	resolveRuntime?(repoRoot: string): LaunchRuntimeSelection;
-	/** How to handle farmhand auto-start. Reads from config.json; default "ask". */
+	/** How to handle runtime auto-start. Reads from config.json; default "ask". */
 	autostartMode?: AutostartMode;
 	/** Called when no provider is configured — returns true if provider is now ready. */
 	recoverProvider?(): Promise<boolean>;
 }
 
 export function isSessionReady(r: SessionReadiness): boolean {
-	return r.providerConfigured && r.farmhandRunning;
+	return r.providerConfigured && isRuntimeRunning(r);
+}
+
+export function isRuntimeRunning(r: SessionReadiness): boolean {
+	return r.runtimeRunning ?? r.farmhandRunning ?? false;
 }
 
 export function isFirstRun(): boolean {
@@ -65,8 +72,8 @@ export function isFirstRun(): boolean {
 
 export async function checkSessionReadiness(): Promise<SessionReadiness> {
 	const providerConfigured = detectProvider();
-	const farmhandRunning = await probeRuntimeReady();
-	return { providerConfigured, farmhandRunning };
+	const runtimeRunning = await probeRuntimeReady();
+	return { providerConfigured, runtimeRunning, farmhandRunning: runtimeRunning };
 }
 
 // Exported for tests — returns dirs to search for .refarm config, home first.
@@ -248,14 +255,14 @@ export function defaultLaunchDeps(): LaunchDeps {
 		autostartMode: readAutostartMode(),
 		operator: createStdioOperatorChannel(),
 
-		spawnFarmhand(repoRoot) {
+		spawnRuntime(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
 			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine);
 			startRuntimeProcess(command);
 		},
 		resolveRuntime: resolveLaunchRuntime,
 
-		async probeFarmhandUntilReady() {
+		async probeRuntimeUntilReady() {
 			return waitForRuntimeReady();
 		},
 
@@ -282,6 +289,13 @@ export function defaultLaunchDeps(): LaunchDeps {
  * configured but the sidecar is not running.
  */
 export async function autoStartFarmhand(
+	repoRoot: string,
+	deps: LaunchDeps,
+): Promise<boolean> {
+	return autoStartRuntime(repoRoot, deps);
+}
+
+export async function autoStartRuntime(
 	repoRoot: string,
 	deps: LaunchDeps,
 ): Promise<boolean> {
@@ -322,7 +336,9 @@ export async function autoStartFarmhand(
 		if (startCommand) {
 			process.stdout.write(chalk.dim(`\n   command: ${startCommand}\n`));
 		}
-		deps.spawnFarmhand(repoRoot);
+		const spawn = deps.spawnRuntime ?? deps.spawnFarmhand;
+		if (!spawn) throw new Error("No runtime starter is configured.");
+		spawn(repoRoot);
 	} catch (error) {
 		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
 		const message = error instanceof Error ? error.message : String(error);
@@ -332,7 +348,8 @@ export async function autoStartFarmhand(
 	}
 
 	const start = Date.now();
-	const ready = await deps.probeFarmhandUntilReady();
+	const probe = deps.probeRuntimeUntilReady ?? deps.probeFarmhandUntilReady;
+	const ready = probe ? await probe() : false;
 	const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
 	if (ready) {
@@ -354,7 +371,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 		return;
 	}
 
-	if (!r.providerConfigured && !r.farmhandRunning) {
+	if (!r.providerConfigured && !isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
 			chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm sow"),
@@ -387,7 +404,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 		return;
 	}
 
-	if (!r.farmhandRunning) {
+	if (!isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  Refarm runtime is not running.\n"));
 		console.error(
 			chalk.dim("   Diagnose:  ") + chalk.cyan("refarm doctor"),

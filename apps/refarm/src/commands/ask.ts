@@ -33,6 +33,7 @@ import {
 	checkSessionReadiness,
 	defaultLaunchDeps,
 	findRepoRoot,
+	isRuntimeRunning,
 	type LaunchDeps,
 } from "./session-launch.js";
 import { sidecarUrl } from "./sidecar-url.js";
@@ -435,7 +436,7 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 		return false;
 	}
 
-	if (!readiness.farmhandRunning) {
+	if (!isRuntimeRunning(readiness)) {
 		return autoStartFarmhand(findRepoRoot(), launch);
 	}
 
