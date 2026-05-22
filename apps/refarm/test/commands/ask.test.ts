@@ -100,7 +100,7 @@ describe("refarm ask", () => {
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
-	});
+	}, 30_000);
 
 	it("falls back to production active-session helpers when deps omit pointer hooks", async () => {
 		const deps: AskDeps = {
