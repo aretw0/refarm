@@ -302,8 +302,8 @@ Legacy aliases:
 
 Notes:
   REFARM_TRACTOR_ENGINE can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
-  Without a subcommand, config currently prints this guide. It is reserved for
-  the future interactive configuration surface.
+  Without a subcommand, config prints the effective values and their sources.
+  The no-argument form is reserved for the future interactive configuration surface.
 `,
 		)
 		.action(() => {
