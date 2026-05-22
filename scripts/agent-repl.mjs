@@ -14,7 +14,12 @@ import { createInterface } from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_MODEL_PROVIDER } from '../packages/config/src/model-routing.js';
+import os from 'node:os';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  defaultModelForProvider,
+  modelCredentialEnvKey,
+} from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -56,6 +61,34 @@ function loadEnvFile() {
     const key = trimmed.slice(0, eq);
     const val = trimmed.slice(eq + 1);
     if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+function readSiloTokens() {
+  try {
+    const file = join(os.homedir(), '.refarm', 'identity.json');
+    if (!existsSync(file)) return {};
+    return JSON.parse(readFileSync(file, 'utf8')).tokens ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function configureModelEnvFromSilo() {
+  const tokens = readSiloTokens();
+  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || tokens.modelProvider;
+  const model = process.env.MODEL_ID || tokens.modelId || tokens.model || defaultModelForProvider(provider);
+
+  if (provider && !process.env.MODEL_PROVIDER && !process.env.MODEL_DEFAULT_PROVIDER) {
+    process.env.MODEL_PROVIDER = provider;
+  }
+  if (model && !process.env.MODEL_ID) {
+    process.env.MODEL_ID = model;
+  }
+
+  const keyEnv = modelCredentialEnvKey(provider);
+  if (keyEnv && tokens.modelApiKey && !process.env[keyEnv]) {
+    process.env[keyEnv] = tokens.modelApiKey;
   }
 }
 
@@ -381,6 +414,7 @@ function handleSlashCommand(line) {
 
 async function main() {
   loadEnvFile();
+  configureModelEnvFromSilo();
 
   const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || DEFAULT_MODEL_PROVIDER;
 
