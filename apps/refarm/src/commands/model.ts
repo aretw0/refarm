@@ -213,6 +213,26 @@ export async function setFallbackModelRoute(
 	console.log(chalk.green(`✓  Fallback model set: ${parsed.provider}/${parsed.modelId}`));
 }
 
+export async function resetScopedModelRoute(
+	scope: ModelScope,
+	deps: ModelCommandDeps,
+): Promise<void> {
+	if (scope === "default") {
+		console.error(chalk.red("✗  Default route reset is explicit: set the desired provider/model."));
+		console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
+		process.exit(1);
+	}
+
+	const tokens = await deps.loadTokens();
+	const routes =
+		tokens.modelRoutes && typeof tokens.modelRoutes === "object" && !Array.isArray(tokens.modelRoutes)
+			? { ...tokens.modelRoutes }
+			: {};
+	delete routes[scope];
+	await deps.saveTokens({ modelRoutes: routes });
+	console.log(chalk.green(`✓  ${scope} model reset to built-in default`));
+}
+
 export async function setModelBaseUrl(value: string, deps: ModelCommandDeps): Promise<void> {
 	const trimmed = value.trim();
 	if (trimmed.toLowerCase() === "off") {
@@ -243,6 +263,7 @@ Examples:
   $ refarm model set ${OPENAI_DEFAULT_REF}
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
   $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
+  $ refarm model reset --scope worker
   $ refarm model base-url http://127.0.0.1:8000
   $ refarm model fallback ${OLLAMA_DEFAULT_REF}
   $ refarm model set ${ANTHROPIC_DEFAULT_REF}
@@ -314,6 +335,34 @@ Notes:
 		)
 		.action(async (ref: string) => {
 			await setFallbackModelRoute(ref, deps);
+		});
+
+	command
+		.command("reset")
+		.description("Reset a scoped model route to its built-in default")
+		.option("--scope <scope>", `Scoped route to reset: worker, monitor`, "worker")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model reset --scope worker
+  $ refarm model reset --scope monitor
+
+Notes:
+  This removes the persisted scoped route from ~/.refarm/identity.json. The next
+  ask/chat turn or worker task falls back to the provider's built-in scoped
+  default. To change the default route, run refarm model <provider/model>.
+`,
+		)
+		.action(async (opts: { scope?: string }) => {
+			const scope = parseModelScope(opts.scope);
+			if (!scope) {
+				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
+				console.error(chalk.dim("   Use: worker, monitor"));
+				process.exit(1);
+			}
+			await resetScopedModelRoute(scope, deps);
 		});
 
 	command

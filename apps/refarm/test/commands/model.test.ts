@@ -333,6 +333,7 @@ describe("modelCommand", () => {
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
 		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 		expect(help).toContain("refarm model fallback ollama/llama3.2");
+		expect(help).toContain("refarm model reset --scope worker");
 		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
 	});
 
@@ -417,6 +418,27 @@ describe("modelCommand", () => {
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelBaseUrl: "http://127.0.0.1:8000",
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("resets a scoped model route", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: {
+				worker: "anthropic/claude-sonnet-4-6",
+				monitor: "openai/gpt-5.5",
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["reset", "--scope", "worker"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelRoutes: { monitor: "openai/gpt-5.5" },
 		});
 
 		logSpy.mockRestore();
