@@ -119,7 +119,7 @@ fi
 
 # ── provider selection ────────────────────────────────────────────────────────
 
-# Priority: MODEL_PROVIDER env > MODEL_DEFAULT_PROVIDER env > .refarm/config.json provider field > ollama (sovereign default)
+# Priority: MODEL_PROVIDER env > MODEL_DEFAULT_PROVIDER env > .refarm/config.json provider field > Refarm default provider.
 if [ -z "${MODEL_PROVIDER:-}" ]; then
   if [ -n "${MODEL_DEFAULT_PROVIDER:-}" ]; then
     export MODEL_PROVIDER="$MODEL_DEFAULT_PROVIDER"
@@ -146,7 +146,13 @@ if [ -z "${MODEL_PROVIDER:-}" ]; then
 fi
 
 if [ -z "${MODEL_PROVIDER:-}" ]; then
-  MODEL_PROVIDER="${MODEL_PROVIDER:-ollama}"
+  if command -v node >/dev/null 2>&1; then
+    MODEL_PROVIDER="$(node -e "import('$ROOT/packages/config/src/model-routing.js').then(m=>process.stdout.write(m.DEFAULT_MODEL_PROVIDER)).catch(()=>process.stdout.write('openai'))" 2>/dev/null || true)"
+  fi
+fi
+
+if [ -z "${MODEL_PROVIDER:-}" ]; then
+  MODEL_PROVIDER="openai"
   export MODEL_PROVIDER
 fi
 
