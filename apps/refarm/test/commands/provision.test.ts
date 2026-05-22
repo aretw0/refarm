@@ -401,6 +401,12 @@ describe("provision command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("No Cloudflare token found"),
 		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm provision cloudflare turbo-cache --github-secrets"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--dry-run only to inspect the plan"),
+		);
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();

@@ -188,7 +188,10 @@ const cloudflareCommand = new Command("cloudflare")
 						chalk.red("No Cloudflare token found. Run `refarm sow --cloudflare` first."),
 					);
 					console.error(
-						chalk.dim("Then retry: refarm provision cloudflare turbo-cache --dry-run"),
+						chalk.dim("Then apply: refarm provision cloudflare turbo-cache --github-secrets"),
+					);
+					console.error(
+						chalk.dim("Use --dry-run only to inspect the plan without credentials."),
 					);
 					process.exit(1);
 				}
