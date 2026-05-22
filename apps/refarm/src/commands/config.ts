@@ -45,6 +45,10 @@ const CONFIG_KEYS: readonly ConfigKey[] = [
 const AUTOSTART_MODES = RUNTIME_AUTOSTART_MODES;
 const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
 const TRACTOR_ENGINE_MODES = RUNTIME_ENGINE_MODES;
+const AUTOSTART_MODES_HELP = AUTOSTART_MODES.join(" | ");
+const OPEN_EXTERNAL_LINKS_MODES_HELP = OPEN_EXTERNAL_LINKS_MODES.join(" | ");
+const TRACTOR_ENGINE_MODES_HELP = TRACTOR_ENGINE_MODES.join(" | ");
+const TRACTOR_ENGINE_ENV_HELP = TRACTOR_ENGINE_MODES.join(", ");
 
 function defaultDeps(): ConfigDeps {
 	return {
@@ -284,15 +288,15 @@ Examples:
   $ refarm config set runtime.autostart never --local
 
 Keys:
-  runtime.autostart  ask | always | never
-  operator.openExternalLinks  auto | never
-  tractor.engine  auto | rust | ts
+  runtime.autostart  ${AUTOSTART_MODES_HELP}
+  operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
+  tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
 Legacy aliases:
-  farmhand.autostart  ask | always | never  (writes the same autostart setting)
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (writes the same autostart setting)
 
 Notes:
-  REFARM_TRACTOR_ENGINE can be auto, rust, or ts for one-shot runtime selection.
+  REFARM_TRACTOR_ENGINE can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
   Without a subcommand, config currently prints this guide. It is reserved for
   the future interactive configuration surface.
 `,
@@ -316,12 +320,12 @@ Examples:
   $ refarm config get runtime.autostart --local
 
 Keys:
-  runtime.autostart  ask | always | never
-  operator.openExternalLinks  auto | never
-  tractor.engine  auto | rust | ts
+  runtime.autostart  ${AUTOSTART_MODES_HELP}
+  operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
+  tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
 Legacy aliases:
-  farmhand.autostart  ask | always | never  (reads the same autostart setting)
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (reads the same autostart setting)
 
 Notes:
   Without --local, project-local config overrides home config. Environment
@@ -351,12 +355,12 @@ Examples:
   $ refarm config set tractor.engine rust
 
 Keys:
-  runtime.autostart  ask | always | never
-  operator.openExternalLinks  auto | never
-  tractor.engine  auto | rust | ts
+  runtime.autostart  ${AUTOSTART_MODES_HELP}
+  operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
+  tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
 Legacy aliases:
-  farmhand.autostart  ask | always | never  (writes the same autostart setting)
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (writes the same autostart setting)
 
 Notes:
   Use --local for repository-specific operator preferences. Home config is the
