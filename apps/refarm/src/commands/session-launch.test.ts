@@ -134,21 +134,42 @@ describe("refarmSearchDirs", () => {
 
 describe("checkSessionReadiness", () => {
 	const originalHome = process.env.HOME;
+	const originalModelProvider = process.env.MODEL_PROVIDER;
 	let cwdSpy: ReturnType<typeof vi.spyOn>;
+	const originalModelDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
+	const originalOpenAiKey = process.env.OPENAI_API_KEY;
 
 	beforeEach(() => {
+		delete process.env.MODEL_PROVIDER;
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.OPENAI_API_KEY;
 		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
 		process.env.HOME = originalHome;
-		delete process.env.MODEL_DEFAULT_PROVIDER;
+		if (originalModelProvider === undefined) {
+			delete process.env.MODEL_PROVIDER;
+		} else {
+			process.env.MODEL_PROVIDER = originalModelProvider;
+		}
+		if (originalModelDefaultProvider === undefined) {
+			delete process.env.MODEL_DEFAULT_PROVIDER;
+		} else {
+			process.env.MODEL_DEFAULT_PROVIDER = originalModelDefaultProvider;
+		}
+		if (originalOpenAiKey === undefined) {
+			delete process.env.OPENAI_API_KEY;
+		} else {
+			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
 		cwdSpy.mockRestore();
 		vi.unstubAllGlobals();
 	});
 
-	it("recognizes MODEL_DEFAULT_PROVIDER as a configured provider", async () => {
+	it("recognizes MODEL_DEFAULT_PROVIDER with its credential env as configured", async () => {
 		process.env.MODEL_DEFAULT_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 
 		await expect(checkSessionReadiness()).resolves.toMatchObject({
@@ -158,13 +179,24 @@ describe("checkSessionReadiness", () => {
 		});
 	});
 
-	it("recognizes a Silo identity as a configured provider", async () => {
+	it("does not treat a credential-only provider env as configured without credentials", async () => {
+		process.env.MODEL_DEFAULT_PROVIDER = "openai";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		await expect(checkSessionReadiness()).resolves.toMatchObject({
+			providerConfigured: false,
+			runtimeRunning: false,
+			farmhandRunning: false,
+		});
+	});
+
+	it("recognizes a Silo identity with an API key as a configured provider", async () => {
 		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
 		writeFileSync(
 			join(refarmDir, "identity.json"),
-			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+			JSON.stringify({ tokens: { modelProvider: "openai", modelApiKey: "sk-test" } }),
 		);
 		cwdSpy.mockReturnValue(tmpBase);
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
@@ -180,13 +212,57 @@ describe("checkSessionReadiness", () => {
 		}
 	});
 
-	it("recognizes modelProvider in config.json as a configured provider", async () => {
+	it("does not treat a Silo identity provider as configured without credentials", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: false,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes modelProvider with modelApiKey in config.json as a configured provider", async () => {
 		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
 		writeFileSync(
 			join(refarmDir, "config.json"),
-			JSON.stringify({ modelProvider: "openai" }),
+			JSON.stringify({ modelProvider: "openai", modelApiKey: "sk-test" }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes local providers without credential env requirements", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "ollama" } }),
 		);
 		cwdSpy.mockReturnValue(tmpBase);
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));

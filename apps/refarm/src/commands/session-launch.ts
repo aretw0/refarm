@@ -33,6 +33,7 @@ import {
 	probeRuntimeReady,
 	waitForRuntimeReady,
 } from "./runtime-readiness.js";
+import { modelCredentialEnvKey } from "../model-routing.js";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -95,11 +96,12 @@ export function refarmSearchDirs(): string[] {
 }
 
 function detectProvider(): boolean {
-	if (process.env.MODEL_PROVIDER) return true;
-	if (process.env.MODEL_DEFAULT_PROVIDER) return true;
+	const envProvider = stringValue(process.env.MODEL_PROVIDER) ?? stringValue(process.env.MODEL_DEFAULT_PROVIDER);
+	if (envProvider) return hasProviderCredential(envProvider, {});
 
 	for (const base of refarmSearchDirs()) {
-		if (fs.existsSync(path.join(base, ".env"))) return true;
+		const envFile = path.join(base, ".env");
+		if (hasEnvProvider(envFile)) return true;
 		if (hasIdentityProvider(path.join(base, "identity.json"))) return true;
 
 		const configFile = path.join(base, "config.json");
@@ -109,6 +111,65 @@ function detectProvider(): boolean {
 	return false;
 }
 
+function stringValue(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function hasProviderCredential(
+	provider: string | undefined,
+	tokens: {
+		modelApiKey?: unknown;
+		oauthProvider?: unknown;
+		oauthCredentials?: unknown;
+	},
+	env: Record<string, string | undefined> = process.env,
+): boolean {
+	const normalizedProvider = stringValue(provider);
+	if (!normalizedProvider) return false;
+	const credentialEnv = modelCredentialEnvKey(normalizedProvider);
+	if (!credentialEnv) return true;
+	if (stringValue(env[credentialEnv])) return true;
+	if (stringValue(tokens.modelApiKey)) return true;
+
+	const oauthProvider = stringValue(tokens.oauthProvider);
+	if (
+		oauthProvider &&
+		tokens.oauthCredentials &&
+		typeof tokens.oauthCredentials === "object"
+	) {
+		return Boolean((tokens.oauthCredentials as Record<string, unknown>)[oauthProvider]);
+	}
+	return false;
+}
+
+function parseEnvFile(filePath: string): Record<string, string> {
+	if (!fs.existsSync(filePath)) return {};
+	const env: Record<string, string> = {};
+	for (const line of fs.readFileSync(filePath, "utf-8").split(/\r?\n/)) {
+		const trimmed = line.trim();
+		if (!trimmed || trimmed.startsWith("#")) continue;
+		const equal = trimmed.indexOf("=");
+		if (equal <= 0) continue;
+		const key = trimmed.slice(0, equal).trim();
+		let value = trimmed.slice(equal + 1).trim();
+		if (
+			(value.startsWith('"') && value.endsWith('"')) ||
+			(value.startsWith("'") && value.endsWith("'"))
+		) {
+			value = value.slice(1, -1);
+		}
+		env[key] = value;
+	}
+	return env;
+}
+
+function hasEnvProvider(filePath: string): boolean {
+	const env = parseEnvFile(filePath);
+	const provider = stringValue(env.MODEL_PROVIDER) ?? stringValue(env.MODEL_DEFAULT_PROVIDER);
+	if (provider) return hasProviderCredential(provider, {}, { ...process.env, ...env });
+	return Object.keys(env).some((key) => key.endsWith("_API_KEY") && stringValue(env[key]));
+}
+
 function hasConfigProvider(filePath: string): boolean {
 	if (!fs.existsSync(filePath)) return false;
 	try {
@@ -116,14 +177,26 @@ function hasConfigProvider(filePath: string): boolean {
 			provider?: unknown;
 			default_provider?: unknown;
 			modelProvider?: unknown;
-			tokens?: { modelProvider?: unknown };
+			modelApiKey?: unknown;
+			oauthProvider?: unknown;
+			oauthCredentials?: unknown;
+			tokens?: {
+				modelProvider?: unknown;
+				modelApiKey?: unknown;
+				oauthProvider?: unknown;
+				oauthCredentials?: unknown;
+			};
 		};
-		return (
-			typeof config.provider === "string" ||
-			typeof config.default_provider === "string" ||
-			typeof config.modelProvider === "string" ||
-			typeof config.tokens?.modelProvider === "string"
-		);
+		const provider =
+			stringValue(config.modelProvider) ??
+			stringValue(config.tokens?.modelProvider) ??
+			stringValue(config.provider) ??
+			stringValue(config.default_provider);
+		return hasProviderCredential(provider, {
+			modelApiKey: config.modelApiKey ?? config.tokens?.modelApiKey,
+			oauthProvider: config.oauthProvider ?? config.tokens?.oauthProvider,
+			oauthCredentials: config.oauthCredentials ?? config.tokens?.oauthCredentials,
+		});
 	} catch {
 		return false;
 	}
@@ -134,12 +207,23 @@ function hasIdentityProvider(filePath: string): boolean {
 	try {
 		const identity = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
 			modelProvider?: unknown;
-			tokens?: { modelProvider?: unknown };
+			modelApiKey?: unknown;
+			oauthProvider?: unknown;
+			oauthCredentials?: unknown;
+			tokens?: {
+				modelProvider?: unknown;
+				modelApiKey?: unknown;
+				oauthProvider?: unknown;
+				oauthCredentials?: unknown;
+			};
 		};
-		return (
-			typeof identity.modelProvider === "string" ||
-			typeof identity.tokens?.modelProvider === "string"
-		);
+		const provider =
+			stringValue(identity.modelProvider) ?? stringValue(identity.tokens?.modelProvider);
+		return hasProviderCredential(provider, {
+			modelApiKey: identity.modelApiKey ?? identity.tokens?.modelApiKey,
+			oauthProvider: identity.oauthProvider ?? identity.tokens?.oauthProvider,
+			oauthCredentials: identity.oauthCredentials ?? identity.tokens?.oauthCredentials,
+		});
 	} catch {
 		return false;
 	}
