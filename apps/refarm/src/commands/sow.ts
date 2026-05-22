@@ -12,9 +12,9 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import {
 	defaultProviderModelRef,
-	modelCredentialEnvKey,
 	parseModelRef,
 } from "../model-routing.js";
+import { hasUsableModelCredential } from "@refarm.dev/config";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -27,20 +27,10 @@ function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function hasOAuthCredential(tokens: Record<string, unknown>): boolean {
-	const oauthProvider = stringValue(tokens.oauthProvider);
-	if (!oauthProvider || !tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") {
-		return false;
-	}
-	return Boolean((tokens.oauthCredentials as Record<string, unknown>)[oauthProvider]);
-}
-
 function hasModelCredential(tokens: Record<string, unknown>): boolean {
 	const provider = stringValue(tokens.modelProvider);
 	if (!provider) return false;
-	const credentialEnv = modelCredentialEnvKey(provider);
-	if (!credentialEnv) return true;
-	return Boolean(stringValue(tokens.modelApiKey) || stringValue(process.env[credentialEnv]) || hasOAuthCredential(tokens));
+	return hasUsableModelCredential(provider, tokens, process.env);
 }
 
 function modelRouteTokenUpdate(
