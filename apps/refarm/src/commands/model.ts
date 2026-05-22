@@ -9,6 +9,7 @@ import {
 	defaultScopedModelRef,
 	formatModelRef,
 	isModelScope,
+	MODEL_SCOPES,
 	MODEL_PROVIDERS,
 	type ModelScope,
 	parseModelRef,
@@ -19,6 +20,7 @@ const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
 const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
+const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
 export interface ModelTokens {
 	modelProvider?: string;
@@ -322,7 +324,7 @@ Notes:
 		.command("set")
 		.description("Set the default model route")
 		.argument("<ref>", "provider/model, or model for the current provider")
-		.option("--scope <scope>", "Route scope: default, worker, or monitor", "default")
+		.option("--scope <scope>", `Route scope: ${MODEL_SCOPE_HELP}`, "default")
 		.addHelpText(
 			"after",
 			`
@@ -344,7 +346,7 @@ Notes:
 		.action(async (ref: string, opts: { scope?: string }) => {
 			if (!isModelScope(opts.scope)) {
 				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
-				console.error(chalk.dim("   Use: default, worker, or monitor"));
+				console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
 				process.exit(1);
 			}
 			await setModelRoute(ref, opts.scope, deps);
