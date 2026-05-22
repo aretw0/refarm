@@ -1,5 +1,6 @@
 import {
 	classifyRefarmStatusDiagnostics,
+	REFARM_STATUS_DIAGNOSTICS,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
@@ -101,56 +102,56 @@ function createRefarmDoctorRecommendation(
 	severity: RefarmDoctorRecommendation["severity"],
 ): RefarmDoctorRecommendation {
 	switch (diagnostic) {
-		case "runtime:not-ready":
+		case REFARM_STATUS_DIAGNOSTICS.runtimeNotReady:
 			return {
 				diagnostic,
 				severity,
 				summary: "The runtime reported that it is not ready.",
 				action: "Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 			};
-		case "trust:critical-present":
+		case REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Critical trust diagnostics are present.",
 				action: "Review trust policy and rejected capabilities before launching interactive surfaces.",
 			};
-		case "trust:warnings-present":
+		case REFARM_STATUS_DIAGNOSTICS.trustWarningsPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Trust warnings are present.",
 				action: "Inspect trust warnings and decide whether they should block this workflow.",
 			};
-		case "plugins:rejected-surfaces-present":
+		case REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "One or more plugin surfaces were rejected.",
 				action: "Inspect plugin manifests and host surface policy before exposing plugin UI.",
 			};
-		case "streams:active-present":
+		case REFARM_STATUS_DIAGNOSTICS.streamsActivePresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Runtime streams are still active.",
 				action: "Wait for active streams to finish, or inspect stream telemetry before shutdown.",
 			};
-		case "plugins:surface-actions-available":
+		case REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable:
 			return {
 				diagnostic,
 				severity,
 				summary: "Plugin surface actions are available.",
 				action: "Use the actions command or renderer action view to inspect available operations.",
 			};
-		case "renderer:non-interactive":
+		case REFARM_STATUS_DIAGNOSTICS.rendererNonInteractive:
 			return {
 				diagnostic,
 				severity,
 				summary: "The selected renderer is non-interactive.",
 				action: "Use a web or TUI renderer when the workflow requires interactive controls.",
 			};
-		case "renderer:no-rich-html":
+		case REFARM_STATUS_DIAGNOSTICS.rendererNoRichHtml:
 			return {
 				diagnostic,
 				severity,

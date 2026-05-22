@@ -66,15 +66,35 @@ export interface RefarmStatusSchemaVersionIssue {
 	message: string;
 }
 
+export const REFARM_STATUS_DIAGNOSTICS = {
+	runtimeNotReady: "runtime:not-ready",
+	trustCriticalPresent: "trust:critical-present",
+	trustWarningsPresent: "trust:warnings-present",
+	pluginsRejectedSurfacesPresent: "plugins:rejected-surfaces-present",
+	pluginsSurfaceActionsAvailable: "plugins:surface-actions-available",
+	streamsActivePresent: "streams:active-present",
+	rendererNonInteractive: "renderer:non-interactive",
+	rendererNoRichHtml: "renderer:no-rich-html",
+} as const;
+
+export type RefarmStatusDiagnosticCode =
+	(typeof REFARM_STATUS_DIAGNOSTICS)[keyof typeof REFARM_STATUS_DIAGNOSTICS];
+
 export const REFARM_STATUS_FAILURE_DIAGNOSTICS = [
-	"runtime:not-ready",
-	"trust:critical-present",
+	REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
+	REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent,
 ] as const;
 
 export const REFARM_STATUS_WARNING_DIAGNOSTICS = [
-	"trust:warnings-present",
-	"plugins:rejected-surfaces-present",
-	"streams:active-present",
+	REFARM_STATUS_DIAGNOSTICS.trustWarningsPresent,
+	REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent,
+	REFARM_STATUS_DIAGNOSTICS.streamsActivePresent,
+] as const;
+
+export const REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS = [
+	REFARM_STATUS_DIAGNOSTICS.rendererNonInteractive,
+	REFARM_STATUS_DIAGNOSTICS.rendererNoRichHtml,
+	REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable,
 ] as const;
 
 export interface RefarmStatusDiagnosticSummary {
@@ -564,28 +584,28 @@ function buildStatusDiagnostics(input: {
 	const { renderer, runtime, trust, plugins, streams } = input;
 	const diagnostics: string[] = [];
 	if (!homesteadHostRendererCan(renderer, "interactive")) {
-		diagnostics.push("renderer:non-interactive");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.rendererNonInteractive);
 	}
 	if (!homesteadHostRendererCan(renderer, "rich-html")) {
-		diagnostics.push("renderer:no-rich-html");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.rendererNoRichHtml);
 	}
 	if (!runtime.ready) {
-		diagnostics.push("runtime:not-ready");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.runtimeNotReady);
 	}
 	if (trust.warnings > 0) {
-		diagnostics.push("trust:warnings-present");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.trustWarningsPresent);
 	}
 	if (trust.critical > 0) {
-		diagnostics.push("trust:critical-present");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent);
 	}
 	if (plugins.rejectedSurfaces > 0) {
-		diagnostics.push("plugins:rejected-surfaces-present");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent);
 	}
 	if (plugins.surfaceActions > 0) {
-		diagnostics.push("plugins:surface-actions-available");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable);
 	}
 	if (streams.active > 0) {
-		diagnostics.push("streams:active-present");
+		diagnostics.push(REFARM_STATUS_DIAGNOSTICS.streamsActivePresent);
 	}
 	return diagnostics;
 }

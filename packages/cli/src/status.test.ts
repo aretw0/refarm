@@ -13,7 +13,11 @@ import {
 	getRefarmStatusSchemaVersionIssue,
 	isRefarmStatusJson,
 	parseRefarmStatusJson,
+	REFARM_STATUS_DIAGNOSTICS,
+	REFARM_STATUS_FAILURE_DIAGNOSTICS,
+	REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS,
 	REFARM_STATUS_SCHEMA_VERSION,
+	REFARM_STATUS_WARNING_DIAGNOSTICS,
 } from "./status.js";
 
 const STATUS_JSON_GOLDEN = readFileSync(
@@ -42,6 +46,19 @@ describe("buildRefarmStatusJson", () => {
 	it("emits schemaVersion 1 always", () => {
 		expect(buildRefarmStatusJson(BASE_OPTIONS).schemaVersion).toBe(
 			REFARM_STATUS_SCHEMA_VERSION,
+		);
+	});
+
+	it("publishes stable status diagnostic code groups", () => {
+		expect(REFARM_STATUS_FAILURE_DIAGNOSTICS).toEqual([
+			REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
+			REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent,
+		]);
+		expect(REFARM_STATUS_WARNING_DIAGNOSTICS).toContain(
+			REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent,
+		);
+		expect(REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS).toContain(
+			REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable,
 		);
 	});
 

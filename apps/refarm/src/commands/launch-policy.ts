@@ -1,5 +1,6 @@
 import {
 	classifyRefarmStatusDiagnostics,
+	REFARM_STATUS_DIAGNOSTICS,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { InvalidArgumentError } from "commander";
@@ -23,7 +24,9 @@ export function assertLaunchAllowed(
 ): void {
 	const diagnostics = classifyRefarmStatusDiagnostics(json);
 	if (diagnostics.failures.length > 0) {
-		const recoveryHint = diagnostics.failures.includes("runtime:not-ready")
+		const recoveryHint = diagnostics.failures.includes(
+			REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
+		)
 			? " Run `refarm runtime status`, then `refarm runtime start --wait`."
 			: " Run `refarm doctor` for repair recommendations.";
 		throw new Error(
