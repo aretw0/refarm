@@ -13,6 +13,10 @@ import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { readRuntimePluginState } from "./runtime-plugins.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
@@ -173,7 +177,7 @@ async function printRuntimePluginStatus(): Promise<void> {
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
 		console.error("Start or restart the runtime with `refarm`, then retry.");
-		console.error("Inspect runtime readiness with `refarm runtime status`.");
+		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
 		process.exitCode = 1;
 		return;
 	}
@@ -199,7 +203,7 @@ async function printRuntimePluginStatus(): Promise<void> {
 		console.log("  Reload:   refarm");
 		console.log("            then run /reload @refarm/pi-agent");
 		console.log("  Ask:      refarm ask hello");
-		console.log("  Diagnose: refarm doctor");
+		console.log(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`);
 	}
 }
 
@@ -278,13 +282,13 @@ pluginCommand
 			"",
 			"Examples:",
 			"  $ refarm plugin status",
-			"  $ refarm runtime status",
+			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
 			"  › /reload @refarm/pi-agent",
 			"",
 			"Notes:",
 			"  This command requires the selected Refarm runtime sidecar.",
-			"  Use refarm runtime status to see the selected engine and readiness.",
+			`  Use ${RUNTIME_STATUS_COMMAND} to see the selected engine and readiness.`,
 		].join("\n"),
 	)
 	.action(printRuntimePluginStatus);
