@@ -65,6 +65,24 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
 	});
 
+	it("clears stale model credentials when --model changes provider", async () => {
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-old",
+			oauthProvider: "anthropic",
+		});
+
+		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], { from: "user" });
+
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelApiKey: undefined,
+			oauthProvider: undefined,
+		});
+	});
+
 	it("sets provider/model without prompting even when no provider is configured", async () => {
 		await sowCommand.parseAsync(["--model", "ollama/llama3.2"], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();

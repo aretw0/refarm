@@ -162,9 +162,20 @@ function scopedTokenUpdate(
 	provider: string,
 	modelId: string,
 	tokens: ModelTokens,
-): { modelProvider: string; modelId: string; modelRoutes?: Partial<Record<ModelScope, string>> } {
+): {
+	modelProvider: string;
+	modelId: string;
+	modelRoutes?: Partial<Record<ModelScope, string>>;
+	modelApiKey?: string;
+	oauthProvider?: string;
+} {
 	if (scope === "default") {
-		return { modelProvider: provider, modelId };
+		const providerChanged = tokens.modelProvider !== undefined && tokens.modelProvider !== provider;
+		return {
+			modelProvider: provider,
+			modelId,
+			...(providerChanged ? { modelApiKey: undefined, oauthProvider: undefined } : {}),
+		};
 	}
 	return {
 		modelProvider: tokens.modelProvider ?? provider,

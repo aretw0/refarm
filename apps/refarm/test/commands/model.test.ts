@@ -394,6 +394,27 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("clears stale Silo model credentials when the default provider changes", async () => {
+		const deps = makeDeps({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-old",
+			oauthProvider: "anthropic",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["set", "openai/gpt-5.5"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelApiKey: undefined,
+			oauthProvider: undefined,
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("sets the default model route through shorthand", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);

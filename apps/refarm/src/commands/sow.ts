@@ -43,6 +43,19 @@ function hasModelCredential(tokens: Record<string, unknown>): boolean {
 	return Boolean(stringValue(tokens.modelApiKey) || stringValue(process.env[credentialEnv]) || hasOAuthCredential(tokens));
 }
 
+function modelRouteTokenUpdate(
+	modelRef: { provider: string; modelId: string },
+	stored: Record<string, unknown>,
+): Record<string, unknown> {
+	const providerChanged = stringValue(stored.modelProvider) !== undefined &&
+		stringValue(stored.modelProvider) !== modelRef.provider;
+	return {
+		modelProvider: modelRef.provider,
+		modelId: modelRef.modelId,
+		...(providerChanged ? { modelApiKey: undefined, oauthProvider: undefined } : {}),
+	};
+}
+
 interface SowOptions {
 	model?: string;
 	github?: boolean;
@@ -116,10 +129,13 @@ export const sowCommand = new Command("sow")
 			}
 
 			if (configureModelRef) {
-				await silo.saveTokens({
-					modelProvider: modelRef.provider,
-					modelId: modelRef.modelId,
-				});
+				if (!modelRef.provider) throw new Error("model provider was not resolved");
+				await silo.saveTokens(
+					modelRouteTokenUpdate(
+						{ provider: modelRef.provider, modelId: modelRef.modelId },
+						stored,
+					),
+				);
 				console.log(chalk.green(`  ✓ Default model set: ${modelRef.provider}/${modelRef.modelId}`));
 			}
 
