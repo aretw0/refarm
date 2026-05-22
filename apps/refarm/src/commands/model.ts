@@ -1,7 +1,10 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { SiloCore } from "@refarm.dev/silo";
-import { modelCredentialEnvKey } from "@refarm.dev/config";
+import {
+	modelCredentialEnvKey,
+	modelCredentialStatus as resolveModelCredentialStatus,
+} from "@refarm.dev/config";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultProviderModelRef,
@@ -49,24 +52,23 @@ export function defaultModelDeps(): ModelCommandDeps {
 	};
 }
 
-function hasStoredOAuthCredential(tokens: ModelTokens): boolean {
-	return Boolean(
-		tokens.oauthProvider &&
-			tokens.oauthCredentials &&
-			tokens.oauthCredentials[tokens.oauthProvider],
-	);
-}
-
 function modelCredentialStatus(
 	provider: string | undefined,
 	tokens: ModelTokens,
 ): string | null {
-	const credentialEnv = modelCredentialEnvKey(provider);
-	if (!credentialEnv) return null;
-	if (process.env[credentialEnv]) return `${credentialEnv} env`;
-	if (tokens.modelApiKey) return "Silo API key";
-	if (hasStoredOAuthCredential(tokens)) return `Silo OAuth (${tokens.oauthProvider})`;
-	return "missing (run refarm sow)";
+	const status = resolveModelCredentialStatus(provider, tokens, process.env);
+	switch (status.state) {
+		case "not-required":
+			return null;
+		case "env":
+			return `${status.envKey} env`;
+		case "silo-api-key":
+			return "Silo API key";
+		case "silo-oauth":
+			return `Silo OAuth (${status.oauthProvider})`;
+		case "missing":
+			return "missing (run refarm sow)";
+	}
 }
 
 function hasUsableModelCredential(provider: string, tokens: ModelTokens): boolean {
