@@ -8,11 +8,13 @@ import {
     defaultScopedModelRef,
     formatModelRef,
     hasUsableModelCredential,
+    hasUsableModelCredentialSource,
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
     modelCredentialStatus,
     modelCredentialEnvKey,
+    modelCredentialSource,
     modelOAuthCredential,
     parseModelScope,
     parseModelRef,
@@ -135,6 +137,56 @@ describe("model routing config", () => {
                 {},
             ),
         ).toBe(false);
+    });
+
+    it("normalizes model credential sources with nested tokens", () => {
+        expect(
+            modelCredentialSource({
+                provider: "gemini",
+                tokens: { modelProvider: "openai", modelApiKey: "sk-openai" },
+            }),
+        ).toEqual({
+            provider: "gemini",
+            tokens: {
+                modelProvider: "openai",
+                modelApiKey: "sk-openai",
+                oauthProvider: undefined,
+                oauthCredentials: undefined,
+            },
+        });
+        expect(
+            modelCredentialSource({
+                tokens: { modelProvider: "openai", modelApiKey: "sk-openai" },
+            }),
+        ).toEqual({
+            provider: "openai",
+            tokens: {
+                modelProvider: "openai",
+                modelApiKey: "sk-openai",
+                oauthProvider: undefined,
+                oauthCredentials: undefined,
+            },
+        });
+    });
+
+    it("checks usable model credential sources without leaking credentials across providers", () => {
+        expect(
+            hasUsableModelCredentialSource({
+                provider: "gemini",
+                tokens: { modelProvider: "openai", modelApiKey: "sk-openai" },
+            }, {}),
+        ).toBe(false);
+        expect(
+            hasUsableModelCredentialSource({
+                default_provider: "openai",
+                modelApiKey: "sk-openai",
+            }, {}),
+        ).toBe(true);
+        expect(
+            hasUsableModelCredentialSource({
+                tokens: { modelProvider: "ollama" },
+            }, {}),
+        ).toBe(true);
     });
 
     it("can evaluate credential status without a Node process global", () => {

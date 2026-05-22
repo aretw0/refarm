@@ -38,6 +38,30 @@ function defaultEnv() {
     return typeof process !== "undefined" && process?.env ? process.env : {};
 }
 
+function objectValue(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+export function modelCredentialSource(source = {}) {
+    const root = objectValue(source);
+    const nested = objectValue(root.tokens);
+    const provider =
+        stringValue(root.provider) ??
+        stringValue(root.default_provider) ??
+        stringValue(root.modelProvider) ??
+        stringValue(nested.modelProvider);
+
+    return {
+        provider,
+        tokens: {
+            modelProvider: root.modelProvider ?? nested.modelProvider,
+            modelApiKey: root.modelApiKey ?? nested.modelApiKey,
+            oauthProvider: root.oauthProvider ?? nested.oauthProvider,
+            oauthCredentials: root.oauthCredentials ?? nested.oauthCredentials,
+        },
+    };
+}
+
 export function modelOAuthCredential(tokens = {}) {
     const oauthProvider = stringValue(tokens.oauthProvider);
     if (!oauthProvider || !tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") {
@@ -70,6 +94,12 @@ export function modelCredentialStatus(provider, tokens = {}, env = defaultEnv())
 export function hasUsableModelCredential(provider, tokens = {}, env = defaultEnv()) {
     const status = modelCredentialStatus(provider, tokens, env);
     return status.state !== "missing";
+}
+
+export function hasUsableModelCredentialSource(source = {}, env = defaultEnv()) {
+    const credentialSource = modelCredentialSource(source);
+    if (!credentialSource.provider) return false;
+    return hasUsableModelCredential(credentialSource.provider, credentialSource.tokens, env);
 }
 
 export function inferProviderFromModelId(modelId) {

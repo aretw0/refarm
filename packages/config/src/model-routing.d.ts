@@ -17,6 +17,11 @@ export interface ModelCredentialTokens {
     oauthCredentials?: unknown;
 }
 
+export interface ModelCredentialSource {
+    provider?: string;
+    tokens: ModelCredentialTokens;
+}
+
 export type ModelCredentialStatus =
     | { state: "not-required" }
     | { state: "env"; envKey: string }
@@ -27,6 +32,7 @@ export type ModelCredentialStatus =
 export function inferProviderFromModelId(modelId: string): string | undefined;
 export function isModelProvider(value: string | undefined): boolean;
 export function modelCredentialEnvKey(provider: string | undefined): string | undefined;
+export function modelCredentialSource(source?: Record<string, unknown>): ModelCredentialSource;
 export function modelOAuthCredential(tokens?: ModelCredentialTokens): string | undefined;
 export function modelCredentialStatus(
     provider: string | undefined,
@@ -36,6 +42,10 @@ export function modelCredentialStatus(
 export function hasUsableModelCredential(
     provider: string | undefined,
     tokens?: ModelCredentialTokens,
+    env?: Record<string, string | undefined>,
+): boolean;
+export function hasUsableModelCredentialSource(
+    source?: Record<string, unknown>,
     env?: Record<string, string | undefined>,
 ): boolean;
 export function defaultProviderModelRef(provider?: string): string;

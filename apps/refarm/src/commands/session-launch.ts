@@ -34,7 +34,10 @@ import {
 	waitForRuntimeReady,
 } from "./runtime-readiness.js";
 import { DEFAULT_MODEL_PROVIDER } from "../model-routing.js";
-import { hasUsableModelCredential } from "@refarm.dev/config";
+import {
+	hasUsableModelCredential,
+	hasUsableModelCredentialSource,
+} from "@refarm.dev/config";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -163,31 +166,11 @@ function hasEnvProvider(filePath: string): boolean {
 function hasConfigProvider(filePath: string): boolean {
 	if (!fs.existsSync(filePath)) return false;
 	try {
-		const config = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
-			provider?: unknown;
-			default_provider?: unknown;
-			modelProvider?: unknown;
-			modelApiKey?: unknown;
-			oauthProvider?: unknown;
-			oauthCredentials?: unknown;
-			tokens?: {
-				modelProvider?: unknown;
-				modelApiKey?: unknown;
-				oauthProvider?: unknown;
-				oauthCredentials?: unknown;
-			};
-		};
-		const provider =
-			stringValue(config.provider) ??
-			stringValue(config.default_provider) ??
-			stringValue(config.modelProvider) ??
-			stringValue(config.tokens?.modelProvider);
-		return hasProviderCredential(provider, {
-			modelProvider: config.modelProvider ?? config.tokens?.modelProvider,
-			modelApiKey: config.modelApiKey ?? config.tokens?.modelApiKey,
-			oauthProvider: config.oauthProvider ?? config.tokens?.oauthProvider,
-			oauthCredentials: config.oauthCredentials ?? config.tokens?.oauthCredentials,
-		});
+		const config = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<
+			string,
+			unknown
+		>;
+		return hasUsableModelCredentialSource(config, process.env);
 	} catch {
 		return false;
 	}
@@ -196,26 +179,11 @@ function hasConfigProvider(filePath: string): boolean {
 function hasIdentityProvider(filePath: string): boolean {
 	if (!fs.existsSync(filePath)) return false;
 	try {
-		const identity = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
-			modelProvider?: unknown;
-			modelApiKey?: unknown;
-			oauthProvider?: unknown;
-			oauthCredentials?: unknown;
-			tokens?: {
-				modelProvider?: unknown;
-				modelApiKey?: unknown;
-				oauthProvider?: unknown;
-				oauthCredentials?: unknown;
-			};
-		};
-		const provider =
-			stringValue(identity.modelProvider) ?? stringValue(identity.tokens?.modelProvider);
-		return hasProviderCredential(provider, {
-			modelProvider: identity.modelProvider ?? identity.tokens?.modelProvider,
-			modelApiKey: identity.modelApiKey ?? identity.tokens?.modelApiKey,
-			oauthProvider: identity.oauthProvider ?? identity.tokens?.oauthProvider,
-			oauthCredentials: identity.oauthCredentials ?? identity.tokens?.oauthCredentials,
-		});
+		const identity = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<
+			string,
+			unknown
+		>;
+		return hasUsableModelCredentialSource(identity, process.env);
 	} catch {
 		return false;
 	}
