@@ -18,7 +18,7 @@ import os from 'node:os';
 import {
   DEFAULT_MODEL_PROVIDER,
   defaultModelForProvider,
-  modelCredentialEnvKey,
+  modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
@@ -79,8 +79,6 @@ function configureModelEnvFromSilo() {
   const storedProvider = tokens.modelProvider;
   const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || storedProvider || DEFAULT_MODEL_PROVIDER;
   const model = process.env.MODEL_ID || tokens.modelId || tokens.model || defaultModelForProvider(provider);
-  const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER);
-  const storedCredentialMatchesRoute = !routeProviderOverridden || !storedProvider || storedProvider === provider;
 
   if (provider && !process.env.MODEL_PROVIDER && !process.env.MODEL_DEFAULT_PROVIDER) {
     process.env.MODEL_PROVIDER = provider;
@@ -89,9 +87,9 @@ function configureModelEnvFromSilo() {
     process.env.MODEL_ID = model;
   }
 
-  const keyEnv = modelCredentialEnvKey(provider);
-  if (keyEnv && tokens.modelApiKey && storedCredentialMatchesRoute && !process.env[keyEnv]) {
-    process.env[keyEnv] = tokens.modelApiKey;
+  const status = modelCredentialStatus(provider, tokens, process.env);
+  if (status.state === 'silo-api-key' && !process.env[status.envKey]) {
+    process.env[status.envKey] = tokens.modelApiKey;
   }
 }
 
