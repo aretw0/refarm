@@ -44,6 +44,13 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("/model current")).toEqual({ kind: "model", action: "current" });
 	});
 
+	it("parses /model providers", () => {
+		expect(parseChatLine("/model providers")).toEqual({
+			kind: "model",
+			action: "providers",
+		});
+	});
+
 	it("parses /model provider/model as a default route change", () => {
 		expect(parseChatLine("/model openai/gpt-5.5")).toEqual({
 			kind: "model",
@@ -195,6 +202,7 @@ describe("parseChatLine", () => {
 	it("documents runtime-oriented slash commands", () => {
 		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
 		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
+		expect(CHAT_HELP_TEXT).toContain("/model providers");
 		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
 		expect(CHAT_HELP_TEXT).toContain("/model reset worker");

@@ -22,6 +22,7 @@ import {
 } from "./chat-repl.js";
 import {
 	defaultModelDeps,
+	printKnownModelProviders,
 	printCurrentModel,
 	resetScopedModelRoute,
 	setFallbackModelRoute,
@@ -542,6 +543,8 @@ export async function runSessionRepl(
 							const modelDeps = deps.model ?? defaultModelDeps();
 							if (command.action === "current") {
 								printCurrentModel(await modelDeps.loadTokens());
+							} else if (command.action === "providers") {
+								printKnownModelProviders();
 							} else if (command.action === "fallback") {
 								await setFallbackModelRoute(command.ref, modelDeps);
 							} else if (command.action === "base-url") {
