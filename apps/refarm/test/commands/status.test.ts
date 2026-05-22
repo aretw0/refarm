@@ -123,6 +123,7 @@ describe("statusCommand", () => {
 
 		expect(help).toContain("refarm status --json");
 		expect(help).toContain("refarm status --input status.json --markdown");
+		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("Use refarm doctor");
 	});
 

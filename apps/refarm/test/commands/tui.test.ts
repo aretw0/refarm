@@ -82,7 +82,7 @@ describe("tuiCommand", () => {
 
 		expect(help).toContain("refarm tui --launch --launcher prompt");
 		expect(help).toContain("tractor watch or tractor prompt");
-		expect(help).toContain("Use refarm runtime");
+		expect(help).toContain("Use refarm runtime status");
 	});
 
 	it("prints summary preflight by default", async () => {

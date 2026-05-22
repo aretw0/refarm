@@ -12,7 +12,7 @@ describe("agent command", () => {
 
 		agentCommand.outputHelp();
 
-		expect(help).toContain("refarm runtime");
+		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model base-url");
@@ -30,7 +30,7 @@ describe("agent command", () => {
 
 		await agentCommand.parseAsync([], { from: "user" });
 
-		expect(output).toContain("refarm runtime");
+		expect(output).toContain("refarm runtime status");
 		expect(output).toContain("refarm sow");
 		expect(output).toContain("refarm model current");
 		expect(output).toContain("refarm model base-url");

@@ -106,7 +106,7 @@ Examples:
   $ refarm status --action inspect-trust
 
 Notes:
-  Use refarm runtime for runtime engine/autostart details.
+  Use refarm runtime status for runtime engine/readiness details.
   Use refarm doctor for actionable readiness recommendations.
 `,
 	)

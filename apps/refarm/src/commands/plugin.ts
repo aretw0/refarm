@@ -171,7 +171,7 @@ async function printRuntimePluginStatus(): Promise<void> {
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
 		console.error("Start or restart the runtime with `refarm`, then retry.");
-		console.error("Inspect runtime selection with `refarm runtime`.");
+		console.error("Inspect runtime readiness with `refarm runtime status`.");
 		process.exitCode = 1;
 		return;
 	}
@@ -276,13 +276,13 @@ pluginCommand
 			"",
 			"Examples:",
 			"  $ refarm plugin status",
-			"  $ refarm runtime",
+			"  $ refarm runtime status",
 			"  $ refarm",
 			"  › /reload @refarm/pi-agent",
 			"",
 			"Notes:",
 			"  This command requires the selected Refarm runtime sidecar.",
-			"  Use refarm runtime to see whether Rust Tractor or TypeScript Farmhand is selected.",
+			"  Use refarm runtime status to see the selected engine and readiness.",
 		].join("\n"),
 	)
 	.action(printRuntimePluginStatus);

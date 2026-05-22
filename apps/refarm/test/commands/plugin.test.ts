@@ -256,6 +256,9 @@ describe("plugin status", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Start or restart the runtime"),
 		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm runtime status"),
+		);
 		errorSpy.mockRestore();
 	});
 });

@@ -265,7 +265,7 @@ Examples:
 
 Notes:
   Use --strict in automation when telemetry pressure should fail the current step.
-  Run refarm runtime or refarm doctor if telemetry cannot reach the local runtime.
+  Run refarm runtime status or refarm doctor if telemetry cannot reach the local runtime.
 `,
 		)
 		.action(

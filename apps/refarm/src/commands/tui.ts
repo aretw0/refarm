@@ -84,7 +84,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				"Notes:",
 				"  Without --launch, this runs a renderer preflight only.",
 				"  The TUI launcher uses the local tractor binary: tractor watch or tractor prompt.",
-				"  Use refarm runtime to inspect the selected runtime engine before launching.",
+				"  Use refarm runtime status to inspect the selected engine before launching.",
 			].join("\n"),
 		)
 		.option(

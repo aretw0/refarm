@@ -257,7 +257,7 @@ export function createTasksCommand(): Command {
 				"",
 				"Notes:",
 				"  Tasks are created by runtime-backed flows such as refarm ask and refarm task run.",
-				"  Use refarm runtime when the task sidecar is unavailable.",
+				"  Use refarm runtime status when the task sidecar is unavailable.",
 				"  Use refarm task for dispatch/retry/cancel operations.",
 			].join("\n"),
 		)
