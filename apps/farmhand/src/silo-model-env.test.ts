@@ -75,6 +75,40 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.MODEL_ID).toBe("gpt-5.5");
 	});
 
+	it("injects persisted model base URL", async () => {
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([
+			{
+				modelProvider: "vllm",
+				modelId: "Qwen3-Coder-480B-A35B-Instruct",
+				modelBaseUrl: "http://127.0.0.1:8000",
+			},
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_BASE_URL).toBe("http://127.0.0.1:8000");
+	});
+
+	it("does not override operator-provided model base URL", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_BASE_URL: "http://operator.local",
+		};
+		const store = makeStore([
+			{
+				modelProvider: "vllm",
+				modelId: "Qwen3-Coder-480B-A35B-Instruct",
+				modelBaseUrl: "http://127.0.0.1:8000",
+			},
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_BASE_URL).toBe("http://operator.local");
+	});
+
 	it("injects persisted fallback model route", async () => {
 		const env: NodeJS.ProcessEnv = {};
 		const store = makeStore([

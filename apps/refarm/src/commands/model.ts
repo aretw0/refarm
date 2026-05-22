@@ -24,6 +24,7 @@ export interface ModelTokens {
 	modelProvider?: string;
 	modelId?: string;
 	modelRoutes?: Partial<Record<ModelScope, string>>;
+	modelBaseUrl?: string;
 	modelFallbackProvider?: string;
 	modelFallbackModelId?: string;
 	model?: string;
@@ -56,7 +57,8 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
 	const credentialEnv = modelCredentialEnvKey(provider);
 	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
-	if (process.env.MODEL_BASE_URL) console.log(`  base url: ${process.env.MODEL_BASE_URL}`);
+	const baseUrl = process.env.MODEL_BASE_URL ?? tokens.modelBaseUrl;
+	if (baseUrl) console.log(`  base url: ${baseUrl}`);
 	const fallbackProvider =
 		process.env.MODEL_FALLBACK_PROVIDER ?? tokens.modelFallbackProvider;
 	if (fallbackProvider) {
@@ -82,6 +84,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		tokens.modelProvider ||
 		tokens.modelId ||
 		tokens.model ||
+		tokens.modelBaseUrl ||
 		tokens.modelFallbackProvider ||
 		tokens.modelFallbackModelId
 	) {
@@ -189,6 +192,21 @@ export async function setFallbackModelRoute(
 	console.log(chalk.green(`✓  Fallback model set: ${parsed.provider}/${parsed.modelId}`));
 }
 
+export async function setModelBaseUrl(value: string, deps: ModelCommandDeps): Promise<void> {
+	const trimmed = value.trim();
+	if (trimmed.toLowerCase() === "off") {
+		await deps.saveTokens({ modelBaseUrl: undefined });
+		console.log(chalk.green("✓  Model base URL disabled"));
+		return;
+	}
+	if (!trimmed) {
+		console.error(chalk.red("✗  base URL cannot be empty."));
+		process.exit(1);
+	}
+	await deps.saveTokens({ modelBaseUrl: trimmed });
+	console.log(chalk.green(`✓  Model base URL set: ${trimmed}`));
+}
+
 export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()): Command {
 	const command = new Command("model")
 		.description("Inspect and change the active model route")
@@ -204,6 +222,7 @@ Examples:
   $ refarm model set ${OPENAI_DEFAULT_REF}
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
   $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
+  $ refarm model base-url http://127.0.0.1:8000
   $ refarm model fallback ${OLLAMA_DEFAULT_REF}
   $ refarm model set ${ANTHROPIC_DEFAULT_REF}
   $ refarm model set ${OLLAMA_DEFAULT_REF}
@@ -274,6 +293,29 @@ Notes:
 		)
 		.action(async (ref: string) => {
 			await setFallbackModelRoute(ref, deps);
+		});
+
+	command
+		.command("base-url")
+		.description("Set or disable the persisted OpenAI-compatible base URL")
+		.argument("<url>", "Base URL for custom/self-hosted model providers, or off")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model base-url http://127.0.0.1:8000
+  $ refarm model base-url https://models.example.com
+  $ refarm model base-url off
+
+Notes:
+  The base URL is saved in ~/.refarm/identity.json and injected by farmhand as
+  MODEL_BASE_URL. Environment variables still take precedence for one-off
+  operator overrides.
+`,
+		)
+		.action(async (url: string) => {
+			await setModelBaseUrl(url, deps);
 		});
 
 	command

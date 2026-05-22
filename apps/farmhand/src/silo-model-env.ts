@@ -10,6 +10,7 @@ export interface SiloModelTokens {
 	modelProvider?: unknown;
 	modelId?: unknown;
 	model?: unknown;
+	modelBaseUrl?: unknown;
 	modelFallbackProvider?: unknown;
 	modelFallbackModelId?: unknown;
 	oauthProvider?: unknown;
@@ -89,6 +90,8 @@ export function createSiloModelEnvInjector(
 				if (modelId && (!routeProviderOverridden || effectiveProvider === provider)) {
 					setManagedEnv("MODEL_ID", modelId);
 				}
+				const baseUrl = stringValue(tokens.modelBaseUrl);
+				if (baseUrl) setManagedEnv("MODEL_BASE_URL", baseUrl);
 				const fallbackProvider = stringValue(tokens.modelFallbackProvider);
 				if (fallbackProvider) {
 					setManagedEnv("MODEL_FALLBACK_PROVIDER", fallbackProvider);

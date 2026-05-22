@@ -137,6 +137,24 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints persisted base URL", async () => {
+		const deps = makeDeps({
+			modelProvider: "vllm",
+			modelId: "Qwen3-Coder-480B-A35B-Instruct",
+			modelBaseUrl: "http://127.0.0.1:8000",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("base url: http://127.0.0.1:8000");
+		expect(output).toContain("source:   ~/.refarm/identity.json");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints fallback model override from environment", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.MODEL_ID = "gpt-5.5";
@@ -205,6 +223,7 @@ describe("modelCommand", () => {
 		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("openai/gpt-5.3-codex-spark");
+		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 		expect(help).toContain("refarm model fallback ollama/llama3.2");
 		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
 	});
@@ -276,6 +295,32 @@ describe("modelCommand", () => {
 			modelFallbackProvider: undefined,
 			modelFallbackModelId: undefined,
 		});
+
+		logSpy.mockRestore();
+	});
+
+	it("sets a model base URL", async () => {
+		const deps = makeDeps();
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["base-url", "http://127.0.0.1:8000"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({
+			modelBaseUrl: "http://127.0.0.1:8000",
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("disables a persisted model base URL", async () => {
+		const deps = makeDeps({ modelBaseUrl: "http://127.0.0.1:8000" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["base-url", "off"], { from: "user" });
+
+		expect(deps.saveTokens).toHaveBeenCalledWith({ modelBaseUrl: undefined });
 
 		logSpy.mockRestore();
 	});
