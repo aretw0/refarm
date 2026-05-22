@@ -1,6 +1,9 @@
 import chalk from "chalk";
 import { Command } from "commander";
-import type { RuntimeStatusSummary } from "@refarm.dev/runtime";
+import {
+	RUNTIME_ENGINE_MODES,
+	type RuntimeStatusSummary,
+} from "@refarm.dev/runtime";
 import {
 	findRepoRoot,
 	readAutostartMode,
@@ -31,6 +34,7 @@ interface RuntimeCommandDeps {
 }
 
 type RuntimeStatusPayload = RuntimeStatusSummary;
+const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
 
 function defaultDeps(): RuntimeCommandDeps {
 	return {
@@ -136,7 +140,7 @@ Examples:
 Notes:
   tractor.engine=auto prefers the Rust Tractor daemon when its local binary is
   available, and otherwise falls back to the TypeScript Farmhand runtime.
-  REFARM_TRACTOR_ENGINE can be auto, rust, or ts for one-shot selection.
+  REFARM_TRACTOR_ENGINE can be ${RUNTIME_ENGINE_ENV_HELP} for one-shot selection.
   runtime.autostart controls whether CLI flows ask before starting the selected
   runtime, start it automatically, or never start it.
 `,
