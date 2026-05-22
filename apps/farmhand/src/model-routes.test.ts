@@ -86,6 +86,22 @@ describe("model routes", () => {
 		});
 	});
 
+	it("infers providers for scoped model-only routes", () => {
+		expect(
+			routeForScope(
+				{
+					modelProvider: "openai",
+					modelId: "gpt-5.5",
+					modelRoutes: { worker: "claude-sonnet-4-6" },
+				},
+				"worker",
+			),
+		).toEqual({
+			provider: "anthropic",
+			modelId: "claude-sonnet-4-6",
+		});
+	});
+
 	it("prefers operator environment overrides over stored scoped routes", () => {
 		expect(
 			routeForScope(

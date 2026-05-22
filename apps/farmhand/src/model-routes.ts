@@ -1,4 +1,4 @@
-import { defaultModelForScope, type ModelScope } from "@refarm.dev/config";
+import { defaultModelForScope, parseModelRef, type ModelScope } from "@refarm.dev/config";
 
 export type { ModelScope } from "@refarm.dev/config";
 
@@ -30,15 +30,12 @@ function stringValue(value: unknown): string | undefined {
 		: undefined;
 }
 
-function parseRouteRef(value: unknown): EffectiveModelRoute | null {
+function parseRouteRef(value: unknown, storedProvider: string | undefined): EffectiveModelRoute | null {
 	const ref = stringValue(value);
 	if (!ref) return null;
-	const slash = ref.indexOf("/");
-	if (slash <= 0 || slash >= ref.length - 1) return null;
-	return {
-		provider: ref.slice(0, slash).trim(),
-		modelId: ref.slice(slash + 1).trim(),
-	};
+	const inferred = parseModelRef(ref, undefined);
+	if (inferred?.provider) return inferred;
+	return parseModelRef(ref, storedProvider);
 }
 
 export function routeForScope(
@@ -71,7 +68,7 @@ export function routeForScope(
 		tokens.modelRoutes && typeof tokens.modelRoutes === "object"
 			? (tokens.modelRoutes as Record<string, unknown>)
 			: {};
-	const scoped = parseRouteRef(routes[scope]);
+	const scoped = parseRouteRef(routes[scope], provider);
 	if (scoped) return scoped;
 
 	return {
