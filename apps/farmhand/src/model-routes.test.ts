@@ -135,6 +135,21 @@ describe("model routes", () => {
 		});
 	});
 
+	it("does not pair an env provider override with a stored model from another provider", () => {
+		expect(
+			routeForScope(
+				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				"default",
+				{
+					env: { MODEL_PROVIDER: "gemini" },
+				},
+			),
+		).toEqual({
+			provider: "gemini",
+			modelId: "gemini-3-flash-preview",
+		});
+	});
+
 	it("resolves provider defaults from the default provider environment", () => {
 		expect(
 			routeForScope({ modelProvider: "openai" }, "worker", {

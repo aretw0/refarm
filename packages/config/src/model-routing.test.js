@@ -3,6 +3,7 @@ import {
     DEFAULT_MODEL_PROVIDER,
     defaultProviderModelId,
     defaultProviderModelRef,
+    effectiveModelRouteForScope,
     defaultModelForProvider,
     defaultModelForScope,
     defaultScopedModelRef,
@@ -42,6 +43,72 @@ describe("model routing config", () => {
     it("uses a separate OpenAI worker route", () => {
         expect(defaultModelForScope("openai", "worker")).toBe("gpt-5.3-codex-spark");
         expect(defaultModelForScope("gemini", "worker")).toBe("gemini-3-flash-preview");
+    });
+
+    it("resolves effective model routes by scope", () => {
+        expect(effectiveModelRouteForScope({ modelProvider: "openai" }, "default", { env: {} })).toEqual({
+            provider: "openai",
+            modelId: "gpt-5.5",
+        });
+        expect(effectiveModelRouteForScope({ modelProvider: "openai" }, "worker", { env: {} })).toEqual({
+            provider: "openai",
+            modelId: "gpt-5.3-codex-spark",
+        });
+        expect(
+            effectiveModelRouteForScope(
+                {
+                    modelProvider: "openai",
+                    modelId: "gpt-5.5",
+                    modelRoutes: { worker: "anthropic/claude-sonnet-4-6" },
+                },
+                "worker",
+                { env: {} },
+            ),
+        ).toEqual({
+            provider: "anthropic",
+            modelId: "claude-sonnet-4-6",
+        });
+    });
+
+    it("lets operator env override stored scoped model routes", () => {
+        expect(
+            effectiveModelRouteForScope(
+                {
+                    modelProvider: "openai",
+                    modelId: "gpt-5.5",
+                    modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
+                },
+                "worker",
+                {
+                    env: {
+                        MODEL_PROVIDER: "gemini",
+                    },
+                },
+            ),
+        ).toEqual({
+            provider: "gemini",
+            modelId: "gemini-3-flash-preview",
+        });
+    });
+
+    it("does not reuse a stored model id when an env provider override changes provider", () => {
+        expect(
+            effectiveModelRouteForScope(
+                {
+                    modelProvider: "openai",
+                    modelId: "gpt-5.5",
+                },
+                "default",
+                {
+                    env: {
+                        MODEL_PROVIDER: "gemini",
+                    },
+                },
+            ),
+        ).toEqual({
+            provider: "gemini",
+            modelId: "gemini-3-flash-preview",
+        });
     });
 
     it("formats default provider and scoped model refs", () => {

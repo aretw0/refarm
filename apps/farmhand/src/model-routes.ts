@@ -1,4 +1,8 @@
-import { defaultModelForScope, parseModelRef, type ModelScope } from "@refarm.dev/config";
+import {
+	effectiveModelRouteForScope,
+	type EffectiveModelRoute,
+	type ModelScope,
+} from "@refarm.dev/config";
 
 export type { ModelScope } from "@refarm.dev/config";
 
@@ -13,29 +17,10 @@ export interface ModelRouteOptions {
 	env?: NodeJS.ProcessEnv;
 }
 
-export interface EffectiveModelRoute {
-	provider?: string;
-	modelId?: string;
-}
-
 export function scopeForEffortSource(source: string | undefined): ModelScope {
 	if (source === "refarm-ask" || source === "refarm-chat") return "default";
 	if (source === "refarm-monitor") return "monitor";
 	return "worker";
-}
-
-function stringValue(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim().length > 0
-		? value.trim()
-		: undefined;
-}
-
-function parseRouteRef(value: unknown, storedProvider: string | undefined): EffectiveModelRoute | null {
-	const ref = stringValue(value);
-	if (!ref) return null;
-	const inferred = parseModelRef(ref, undefined);
-	if (inferred?.provider) return inferred;
-	return parseModelRef(ref, storedProvider);
 }
 
 export function routeForScope(
@@ -43,38 +28,9 @@ export function routeForScope(
 	scope: ModelScope,
 	options: ModelRouteOptions = {},
 ): EffectiveModelRoute {
-	const env = options.env ?? process.env;
-	const envProvider = stringValue(env.MODEL_PROVIDER);
-	const envDefaultProvider = stringValue(env.MODEL_DEFAULT_PROVIDER);
-	const envModelId = stringValue(env.MODEL_ID);
-	const provider = envProvider ?? envDefaultProvider ?? stringValue(tokens.modelProvider);
-	const defaultModelId =
-		envModelId ?? stringValue(tokens.modelId) ?? stringValue(tokens.model);
-	if (envProvider || envDefaultProvider || envModelId) {
-		return {
-			provider,
-			modelId: defaultModelId ?? defaultModelForScope(provider, scope),
-		};
-	}
-
-	if (scope === "default") {
-		return {
-			provider,
-			modelId: defaultModelId ?? defaultModelForScope(provider, scope),
-		};
-	}
-
-	const routes =
-		tokens.modelRoutes && typeof tokens.modelRoutes === "object"
-			? (tokens.modelRoutes as Record<string, unknown>)
-			: {};
-	const scoped = parseRouteRef(routes[scope], provider);
-	if (scoped) return scoped;
-
-	return {
-		provider,
-		modelId: defaultModelForScope(provider, scope) ?? defaultModelId,
-	};
+	return effectiveModelRouteForScope(tokens, scope, {
+		env: options.env ?? process.env,
+	});
 }
 
 export interface ModelRouteStore {

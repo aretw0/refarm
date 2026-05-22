@@ -24,7 +24,13 @@ export interface ModelCredentialTokens {
 
 export interface ModelRouteTokens extends ModelCredentialTokens {
     modelId?: unknown;
+    model?: unknown;
     modelRoutes?: unknown;
+}
+
+export interface EffectiveModelRoute {
+    provider?: string;
+    modelId?: string;
 }
 
 export interface ModelCredentialSource {
@@ -80,6 +86,12 @@ export function modelRouteTokenUpdate(
     modelRef: ResolvedModelRef,
     tokens?: ModelRouteTokens,
 ): Record<string, unknown>;
+
+export function effectiveModelRouteForScope(
+    tokens: ModelRouteTokens | undefined,
+    scope: ModelScope,
+    options?: { env?: Record<string, string | undefined> },
+): EffectiveModelRoute;
 
 export function isModelScope(value: string | undefined): value is ModelScope;
 export function parseModelScope(value: string | undefined): ModelScope | null;

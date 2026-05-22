@@ -7,6 +7,7 @@ export {
     MODEL_SCOPES,
     defaultProviderModelId,
     defaultProviderModelRef,
+    effectiveModelRouteForScope,
     defaultModelForProvider,
     defaultModelForScope,
     defaultScopedModelRef,

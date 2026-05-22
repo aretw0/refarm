@@ -186,6 +186,50 @@ export function modelRouteTokenUpdate(scope, modelRef, tokens = {}) {
     };
 }
 
+function parseRouteRef(value, storedProvider) {
+    const ref = stringValue(value);
+    if (!ref) return null;
+    const inferred = parseModelRef(ref, undefined);
+    if (inferred?.provider) return inferred;
+    return parseModelRef(ref, storedProvider);
+}
+
+export function effectiveModelRouteForScope(tokens = {}, scope, { env = defaultEnv() } = {}) {
+    const envProvider = stringValue(env.MODEL_PROVIDER);
+    const envDefaultProvider = stringValue(env.MODEL_DEFAULT_PROVIDER);
+    const envModelId = stringValue(env.MODEL_ID);
+    const storedProvider = stringValue(tokens.modelProvider);
+    const provider = envProvider ?? envDefaultProvider ?? storedProvider;
+    const storedModelId =
+        !provider || !storedProvider || provider === storedProvider
+            ? stringValue(tokens.modelId) ?? stringValue(tokens.model)
+            : undefined;
+    const defaultModelId =
+        envModelId ?? storedModelId;
+    if (envProvider || envDefaultProvider || envModelId) {
+        return {
+            provider,
+            modelId: defaultModelId ?? defaultModelForScope(provider, scope),
+        };
+    }
+
+    if (scope === "default") {
+        return {
+            provider,
+            modelId: defaultModelId ?? defaultModelForScope(provider, scope),
+        };
+    }
+
+    const routes = objectValue(tokens.modelRoutes);
+    const scoped = parseRouteRef(routes[scope], provider);
+    if (scoped) return scoped;
+
+    return {
+        provider,
+        modelId: defaultModelForScope(provider, scope) ?? defaultModelId,
+    };
+}
+
 export function isModelScope(value) {
     return parseModelScope(value) !== null;
 }
