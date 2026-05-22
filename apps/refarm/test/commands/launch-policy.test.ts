@@ -63,7 +63,14 @@ describe("assertLaunchAllowed", () => {
 	it("throws when status includes launch-blocking diagnostics", () => {
 		const status = makeStatus({ diagnostics: ["runtime:not-ready"] });
 		expect(() => assertLaunchAllowed(status, "web runtime")).toThrow(
-			/Cannot launch web runtime due status failures: runtime:not-ready/,
+			/Cannot launch web runtime due status failures: runtime:not-ready\. Run `refarm runtime status`, then `refarm runtime start --wait`\./,
+		);
+	});
+
+	it("points non-runtime launch failures at doctor", () => {
+		const status = makeStatus({ diagnostics: ["trust:critical-present"] });
+		expect(() => assertLaunchAllowed(status, "web runtime")).toThrow(
+			/Cannot launch web runtime due status failures: trust:critical-present\. Run `refarm doctor` for repair recommendations\./,
 		);
 	});
 });
