@@ -176,7 +176,7 @@ async function printRuntimePluginStatus(): Promise<void> {
 	const state = await readRuntimePluginState();
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
-		console.error("Start or restart the runtime with `refarm`, then retry.");
+		console.error("Start or restart the runtime with `refarm runtime start`, then retry.");
 		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
 		process.exitCode = 1;
 		return;
@@ -223,7 +223,7 @@ export const pluginCommand = new Command("plugin").description(
 		"",
 		"Notes:",
 		"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
-		"  Status reads the active Refarm runtime; start it with refarm if unavailable.",
+		"  Status reads the active Refarm runtime; start it with refarm runtime start if unavailable.",
 		"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
 	].join("\n"),
 );

@@ -85,6 +85,7 @@ describe("plugin install", () => {
 
 		expect(help).toContain("refarm plugin status");
 		expect(help).toContain("/reload @refarm/pi-agent");
+		expect(help).toContain("refarm runtime start");
 		expect(help).toContain("refarm ask preflights pi-agent");
 	});
 
@@ -254,7 +255,7 @@ describe("plugin status", () => {
 			expect.stringContaining("plugin status is unavailable"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Start or restart the runtime"),
+			expect.stringContaining("refarm runtime start"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm runtime status"),
