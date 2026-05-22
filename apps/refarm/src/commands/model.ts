@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { SiloCore } from "@refarm.dev/silo";
 import { modelCredentialEnvKey } from "@refarm.dev/config";
 import {
+	DEFAULT_MODEL_PROVIDER,
 	defaultProviderModelRef,
 	defaultModelForProvider,
 	defaultModelForScope,
@@ -68,9 +69,17 @@ function modelCredentialStatus(
 	return "missing (run refarm sow)";
 }
 
+function hasUsableModelCredential(provider: string, tokens: ModelTokens): boolean {
+	const status = modelCredentialStatus(provider, tokens);
+	return Boolean(status && !status.startsWith("missing"));
+}
+
 export function printCurrentModel(tokens: ModelTokens): void {
-	const provider =
+	const configuredProvider =
 		process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER ?? tokens.modelProvider;
+	const provider = configuredProvider ?? (
+		hasUsableModelCredential(DEFAULT_MODEL_PROVIDER, tokens) ? DEFAULT_MODEL_PROVIDER : undefined
+	);
 	const modelId = process.env.MODEL_ID ?? tokens.modelId ?? tokens.model;
 	const resolvedModel = modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
@@ -115,6 +124,8 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		tokens.modelFallbackModelId
 	) {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
+	} else if (provider) {
+		console.log(chalk.dim("  source:   built-in defaults + credential environment"));
 	} else {
 		console.log(chalk.dim("  source:   built-in defaults"));
 		console.log(chalk.dim(`  openai default: ${OPENAI_DEFAULT_REF}`));

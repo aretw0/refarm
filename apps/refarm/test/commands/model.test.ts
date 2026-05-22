@@ -110,6 +110,21 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints the default route when only the default provider key env is set", async () => {
+		process.env.OPENAI_API_KEY = "sk-env-test";
+		const command = createModelCommand(makeDeps());
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("current: openai/gpt-5.5");
+		expect(output).toContain("key:      OPENAI_API_KEY env");
+		expect(output).toContain("source:   built-in defaults + credential environment");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints current model when invoked without a subcommand", async () => {
 		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
 		const command = createModelCommand(deps);
