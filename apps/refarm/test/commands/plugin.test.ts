@@ -309,9 +309,9 @@ describe("plugin bundle", () => {
 		bundleCommand?.outputHelp();
 
 		expect(help).toContain("REFARM_PACKAGE_MANAGER=npm");
-		expect(help).toContain("npm exec -- jco");
-		expect(help).toContain("yarn jco");
-		expect(help).toContain("bun x jco");
+		expect(help).toContain("runs jco through the detected package manager");
+		expect(help).toContain("Refarm maps this to pnpm exec, npm exec --, yarn, or bun x");
+		expect(help).toContain("based on the project packageManager field or lockfile");
 		expect(help).toContain("pnpm|npm|yarn|bun");
 	});
 
