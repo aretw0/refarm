@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+	createPackageBinaryCommand,
 	createPackageScriptCommand,
 	detectPackageManager,
 } from "../../src/commands/package-manager.js";
@@ -58,6 +59,38 @@ describe("package manager command resolution", () => {
 			command: "bun",
 			args: ["--cwd", "apps/dev", "run", "preview"],
 			display: "bun --cwd apps/dev run preview",
+		});
+	});
+
+	it("formats binary commands for supported package managers", () => {
+		expect(
+			createPackageBinaryCommand("jco", ["transpile", "plugin.wasm"], {
+				env: { REFARM_PACKAGE_MANAGER: "npm" },
+			}),
+		).toEqual({
+			command: "npm",
+			args: ["exec", "--", "jco", "transpile", "plugin.wasm"],
+			display: "npm exec -- jco transpile plugin.wasm",
+		});
+
+		expect(
+			createPackageBinaryCommand("jco", ["transpile", "plugin.wasm"], {
+				env: { REFARM_PACKAGE_MANAGER: "yarn" },
+			}),
+		).toEqual({
+			command: "yarn",
+			args: ["jco", "transpile", "plugin.wasm"],
+			display: "yarn jco transpile plugin.wasm",
+		});
+
+		expect(
+			createPackageBinaryCommand("jco", ["transpile", "plugin.wasm"], {
+				env: { REFARM_PACKAGE_MANAGER: "bun" },
+			}),
+		).toEqual({
+			command: "bun",
+			args: ["x", "jco", "transpile", "plugin.wasm"],
+			display: "bun x jco transpile plugin.wasm",
 		});
 	});
 });

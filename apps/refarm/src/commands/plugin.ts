@@ -302,8 +302,9 @@ pluginCommand
 			"  $ REFARM_PACKAGE_MANAGER=npm refarm plugin bundle ./plugin.wasm",
 			"",
 			"Notes:",
-			"  This command runs jco through the detected package manager, such as",
-			"  pnpm exec jco or npm exec -- jco. Override detection with",
+			"  This command runs jco through the detected package manager.",
+			"  Examples: npm exec -- jco, yarn jco, bun x jco.",
+			"  Override detection with",
 			"  REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun.",
 		].join("\n"),
 	)

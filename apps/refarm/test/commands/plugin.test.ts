@@ -306,6 +306,8 @@ describe("plugin bundle", () => {
 
 		expect(help).toContain("REFARM_PACKAGE_MANAGER=npm");
 		expect(help).toContain("npm exec -- jco");
+		expect(help).toContain("yarn jco");
+		expect(help).toContain("bun x jco");
 		expect(help).toContain("pnpm|npm|yarn|bun");
 	});
 
