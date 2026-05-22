@@ -141,6 +141,9 @@ describe("refarm sessions", () => {
 			expect.stringContaining("Refarm runtime is not running"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Status:     refarm runtime status"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Start now:  refarm runtime start"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);

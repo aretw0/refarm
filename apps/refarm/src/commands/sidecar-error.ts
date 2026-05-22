@@ -6,6 +6,7 @@ export function isSidecarUnavailable(message: string): boolean {
 
 export function printSidecarUnavailable(): void {
 	console.error(chalk.red("✗  Refarm runtime is not running."));
+	console.error(chalk.dim("   Status:     refarm runtime status"));
 	console.error(chalk.dim("   Start now:  refarm runtime start"));
 	console.error(chalk.dim("   Diagnose:   refarm doctor"));
 	console.error(chalk.dim("   Always:     refarm config set runtime.autostart always"));
