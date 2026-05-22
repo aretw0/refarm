@@ -10,11 +10,21 @@ export interface ModelRef {
     modelId: string;
 }
 
+export interface ResolvedModelRef {
+    provider: string;
+    modelId: string;
+}
+
 export interface ModelCredentialTokens {
     modelProvider?: unknown;
     modelApiKey?: unknown;
     oauthProvider?: unknown;
     oauthCredentials?: unknown;
+}
+
+export interface ModelRouteTokens extends ModelCredentialTokens {
+    modelId?: unknown;
+    modelRoutes?: unknown;
 }
 
 export interface ModelCredentialSource {
@@ -64,6 +74,12 @@ export function defaultScopedModelRef(
     scope: ModelScope,
     provider?: string,
 ): string;
+
+export function modelRouteTokenUpdate(
+    scope: ModelScope,
+    modelRef: ResolvedModelRef,
+    tokens?: ModelRouteTokens,
+): Record<string, unknown>;
 
 export function isModelScope(value: string | undefined): value is ModelScope;
 export function parseModelScope(value: string | undefined): ModelScope | null;

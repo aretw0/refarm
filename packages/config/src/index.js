@@ -20,6 +20,7 @@ export {
     modelCredentialEnvKey,
     modelCredentialSource,
     modelOAuthCredential,
+    modelRouteTokenUpdate,
     parseModelScope,
     parseModelRef,
 } from "./model-routing.js";

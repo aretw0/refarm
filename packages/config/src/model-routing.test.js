@@ -16,6 +16,7 @@ import {
     modelCredentialEnvKey,
     modelCredentialSource,
     modelOAuthCredential,
+    modelRouteTokenUpdate,
     parseModelScope,
     parseModelRef,
 } from "./model-routing.js";
@@ -48,6 +49,59 @@ describe("model routing config", () => {
         expect(defaultProviderModelId("ollama")).toBe("llama3.2");
         expect(defaultScopedModelRef("worker", "openai")).toBe("openai/gpt-5.3-codex-spark");
         expect(formatModelRef(undefined, undefined)).toBe("<not configured>");
+    });
+
+    it("builds default model route token updates", () => {
+        expect(
+            modelRouteTokenUpdate("default", { provider: "openai", modelId: "gpt-5.5" }, {}),
+        ).toEqual({
+            modelProvider: "openai",
+            modelId: "gpt-5.5",
+        });
+        expect(
+            modelRouteTokenUpdate(
+                "default",
+                { provider: "openai", modelId: "gpt-5.5" },
+                {
+                    modelProvider: "anthropic",
+                    modelApiKey: "sk-old",
+                    oauthProvider: "anthropic",
+                },
+            ),
+        ).toEqual({
+            modelProvider: "openai",
+            modelId: "gpt-5.5",
+            modelApiKey: undefined,
+            oauthProvider: undefined,
+        });
+    });
+
+    it("builds scoped model route token updates", () => {
+        expect(
+            modelRouteTokenUpdate(
+                "worker",
+                { provider: "openai", modelId: "gpt-5.3-codex-spark" },
+                { modelProvider: "openai", modelId: "gpt-5.5" },
+            ),
+        ).toEqual({
+            modelProvider: "openai",
+            modelId: "gpt-5.5",
+            modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
+        });
+        expect(
+            modelRouteTokenUpdate(
+                "monitor",
+                { provider: "anthropic", modelId: "claude-sonnet-4-6" },
+                { modelProvider: "openai", modelId: "gpt-5.5", modelRoutes: { worker: "openai/gpt-5.3-codex-spark" } },
+            ),
+        ).toEqual({
+            modelProvider: "openai",
+            modelId: "gpt-5.5",
+            modelRoutes: {
+                worker: "openai/gpt-5.3-codex-spark",
+                monitor: "anthropic/claude-sonnet-4-6",
+            },
+        });
     });
 
     it("infers providers from known model prefixes", () => {

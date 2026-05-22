@@ -164,6 +164,28 @@ export function defaultScopedModelRef(scope, provider = DEFAULT_MODEL_PROVIDER) 
     return formatModelRef(provider, defaultModelForScope(provider, scope));
 }
 
+export function modelRouteTokenUpdate(scope, modelRef, tokens = {}) {
+    if (scope === "default") {
+        const providerChanged =
+            stringValue(tokens.modelProvider) !== undefined &&
+            stringValue(tokens.modelProvider) !== modelRef.provider;
+        return {
+            modelProvider: modelRef.provider,
+            modelId: modelRef.modelId,
+            ...(providerChanged ? { modelApiKey: undefined, oauthProvider: undefined } : {}),
+        };
+    }
+    const provider = stringValue(tokens.modelProvider) ?? modelRef.provider;
+    return {
+        modelProvider: provider,
+        modelId: stringValue(tokens.modelId) ?? defaultModelForProvider(provider) ?? modelRef.modelId,
+        modelRoutes: {
+            ...(objectValue(tokens.modelRoutes)),
+            [scope]: formatModelRef(modelRef.provider, modelRef.modelId),
+        },
+    };
+}
+
 export function isModelScope(value) {
     return parseModelScope(value) !== null;
 }

@@ -15,6 +15,7 @@ import {
 	MODEL_SCOPES,
 	MODEL_PROVIDERS,
 	type ModelScope,
+	modelRouteTokenUpdate,
 	parseModelScope,
 	parseModelRef,
 } from "../model-routing.js";
@@ -150,36 +151,6 @@ export function printKnownModelProviders(): void {
 	console.log(chalk.dim("Use refarm model base-url <url> when the provider does not have a built-in endpoint."));
 }
 
-function scopedTokenUpdate(
-	scope: ModelScope,
-	provider: string,
-	modelId: string,
-	tokens: ModelTokens,
-): {
-	modelProvider: string;
-	modelId: string;
-	modelRoutes?: Partial<Record<ModelScope, string>>;
-	modelApiKey?: string;
-	oauthProvider?: string;
-} {
-	if (scope === "default") {
-		const providerChanged = tokens.modelProvider !== undefined && tokens.modelProvider !== provider;
-		return {
-			modelProvider: provider,
-			modelId,
-			...(providerChanged ? { modelApiKey: undefined, oauthProvider: undefined } : {}),
-		};
-	}
-	return {
-		modelProvider: tokens.modelProvider ?? provider,
-		modelId: tokens.modelId ?? defaultModelForProvider(tokens.modelProvider ?? provider) ?? modelId,
-		modelRoutes: {
-			...(tokens.modelRoutes ?? {}),
-			[scope]: `${provider}/${modelId}`,
-		},
-	};
-}
-
 export async function setModelRoute(
 	ref: string,
 	scope: ModelScope,
@@ -197,7 +168,8 @@ export async function setModelRoute(
 		process.exit(1);
 	}
 
-	await deps.saveTokens(scopedTokenUpdate(scope, parsed.provider, parsed.modelId, tokens));
+	const modelRef = { provider: parsed.provider, modelId: parsed.modelId };
+	await deps.saveTokens(modelRouteTokenUpdate(scope, modelRef, tokens));
 	const label = scope === "default" ? "Default model" : `${scope} model`;
 	console.log(chalk.green(`✓  ${label} set: ${parsed.provider}/${parsed.modelId}`));
 }

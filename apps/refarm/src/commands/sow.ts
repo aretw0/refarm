@@ -12,6 +12,7 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import {
 	defaultProviderModelRef,
+	modelRouteTokenUpdate,
 	parseModelRef,
 } from "../model-routing.js";
 import { hasUsableModelCredential } from "@refarm.dev/config";
@@ -31,19 +32,6 @@ function hasModelCredential(tokens: Record<string, unknown>): boolean {
 	const provider = stringValue(tokens.modelProvider);
 	if (!provider) return false;
 	return hasUsableModelCredential(provider, tokens, process.env);
-}
-
-function modelRouteTokenUpdate(
-	modelRef: { provider: string; modelId: string },
-	stored: Record<string, unknown>,
-): Record<string, unknown> {
-	const providerChanged = stringValue(stored.modelProvider) !== undefined &&
-		stringValue(stored.modelProvider) !== modelRef.provider;
-	return {
-		modelProvider: modelRef.provider,
-		modelId: modelRef.modelId,
-		...(providerChanged ? { modelApiKey: undefined, oauthProvider: undefined } : {}),
-	};
 }
 
 interface SowOptions {
@@ -122,6 +110,7 @@ export const sowCommand = new Command("sow")
 				if (!modelRef.provider) throw new Error("model provider was not resolved");
 				await silo.saveTokens(
 					modelRouteTokenUpdate(
+						"default",
 						{ provider: modelRef.provider, modelId: modelRef.modelId },
 						stored,
 					),

@@ -15,6 +15,7 @@ export {
 	modelCredentialEnvKey,
 	modelCredentialSource,
 	modelOAuthCredential,
+	modelRouteTokenUpdate,
 	MODEL_CREDENTIAL_ENV_KEYS,
 	MODEL_PROVIDERS,
 	MODEL_SCOPES,
@@ -24,5 +25,7 @@ export {
 	type ModelCredentialSource,
 	type ModelCredentialTokens,
 	type ModelRef,
+	type ModelRouteTokens,
 	type ModelScope,
+	type ResolvedModelRef,
 } from "@refarm.dev/config";

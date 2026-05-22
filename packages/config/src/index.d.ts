@@ -3,7 +3,9 @@ export type {
     ModelCredentialSource,
     ModelCredentialTokens,
     ModelRef,
+    ModelRouteTokens,
     ModelScope,
+    ResolvedModelRef,
 } from "./model-routing.js";
 export {
     DEFAULT_MODEL_PROVIDER,
@@ -25,6 +27,7 @@ export {
     modelCredentialEnvKey,
     modelCredentialSource,
     modelOAuthCredential,
+    modelRouteTokenUpdate,
     parseModelScope,
     parseModelRef,
 } from "./model-routing.js";
