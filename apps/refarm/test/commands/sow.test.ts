@@ -95,10 +95,22 @@ describe("sowCommand — default (no flags)", () => {
 	});
 
 	it("skips model prompt and exits cleanly when already configured", async () => {
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
+		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).not.toHaveBeenCalled();
+	});
+
+	it("prompts when provider is set but required credentials are missing", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai", modelId: "gpt-5.5" });
+		mockModelCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		expect(mockModelCollect).toHaveBeenCalledOnce();
+		expect(mockSaveTokens).toHaveBeenCalledWith(
+			expect.objectContaining({ modelProvider: "openai", modelApiKey: "sk-openai-test" }),
+		);
 	});
 
 	it("does not prompt for GitHub or Cloudflare by default", async () => {
@@ -145,7 +157,7 @@ describe("sowCommand — --all flag", () => {
 describe("sowCommand — --github flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
+		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
 	});
 
@@ -170,7 +182,7 @@ describe("sowCommand — --github flag", () => {
 describe("sowCommand — --cloudflare flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
+		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 	});
 
 	it("prompts for Cloudflare when --cloudflare is passed", async () => {
@@ -187,7 +199,7 @@ describe("sowCommand — --cloudflare flag", () => {
 describe("sowCommand — --all credentials", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
+		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
 		mockModelCollect.mockResolvedValue({ provider: "groq", apiKey: "gsk-test" });
 	});

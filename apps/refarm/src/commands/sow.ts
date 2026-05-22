@@ -12,6 +12,7 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import {
 	defaultProviderModelRef,
+	modelCredentialEnvKey,
 	parseModelRef,
 } from "../model-routing.js";
 import {
@@ -21,6 +22,26 @@ import {
 } from "./sow-metadata.js";
 
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
+
+function stringValue(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function hasOAuthCredential(tokens: Record<string, unknown>): boolean {
+	const oauthProvider = stringValue(tokens.oauthProvider);
+	if (!oauthProvider || !tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") {
+		return false;
+	}
+	return Boolean((tokens.oauthCredentials as Record<string, unknown>)[oauthProvider]);
+}
+
+function hasModelCredential(tokens: Record<string, unknown>): boolean {
+	const provider = stringValue(tokens.modelProvider);
+	if (!provider) return false;
+	const credentialEnv = modelCredentialEnvKey(provider);
+	if (!credentialEnv) return true;
+	return Boolean(stringValue(tokens.modelApiKey) || stringValue(process.env[credentialEnv]) || hasOAuthCredential(tokens));
+}
 
 interface SowOptions {
 	model?: string;
@@ -39,9 +60,9 @@ export const sowCommand = new Command("sow")
 	.action(async (opts: SowOptions) => {
 		try {
 			const silo = new SiloCore();
-			const stored = (await silo.loadTokens()) as Record<string, string | undefined>;
+			const stored = (await silo.loadTokens()) as Record<string, unknown>;
 			const ctx = { tryOpenUrl };
-			const modelRef = parseModelRef(opts.model, stored.modelProvider);
+			const modelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 			if (opts.model !== undefined && !modelRef) {
 				console.error(chalk.red("✗  --model cannot be empty."));
 				process.exit(1);
@@ -52,7 +73,7 @@ export const sowCommand = new Command("sow")
 				process.exit(1);
 			}
 
-			const needsModel = !stored.modelProvider;
+			const needsModel = !hasModelCredential(stored);
 			const configureModelRef = modelRef !== null;
 			const configureModel = (needsModel && !configureModelRef) || Boolean(opts.all);
 			const configureGithub = Boolean(opts.github) || Boolean(opts.all);
@@ -68,7 +89,7 @@ export const sowCommand = new Command("sow")
 
 			if (configureModel) {
 				if (!needsModel) {
-					console.log(chalk.dim(`  Model: reconfiguring (was: ${stored.modelProvider})`));
+					console.log(chalk.dim(`  Model: reconfiguring (was: ${stringValue(stored.modelProvider)})`));
 				}
 				const credential = await modelCredentialProvider.collectModel(ctx);
 
@@ -91,7 +112,7 @@ export const sowCommand = new Command("sow")
 					});
 				}
 			} else if (!configureModelRef) {
-				console.log(chalk.dim(`  Model: already configured (${stored.modelProvider}) — skipped`));
+				console.log(chalk.dim(`  Model: already configured (${stringValue(stored.modelProvider)}) — skipped`));
 			}
 
 			if (configureModelRef) {
@@ -108,7 +129,7 @@ export const sowCommand = new Command("sow")
 						type: "input",
 						name: "owner",
 						message: "Your GitHub username or org:",
-						default: stored.githubOwner ?? "refarm-dev",
+						default: stringValue(stored.githubOwner) ?? "refarm-dev",
 					},
 				]);
 				const githubToken = await githubCredentialProvider.collect(ctx);
