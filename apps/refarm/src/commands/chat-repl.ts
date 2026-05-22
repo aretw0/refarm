@@ -21,6 +21,7 @@ export type ChatCommand =
 	| { kind: "reload"; pluginIds: string[] }
 	| { kind: "model"; action: "current" }
 	| { kind: "model"; action: "set"; scope: ModelScope; ref: string }
+	| { kind: "model"; action: "reset"; scope: ModelScope }
 	| { kind: "model"; action: "fallback"; ref: string }
 	| { kind: "model"; action: "base-url"; url: string }
 	| { kind: "login"; args: string[] }
@@ -94,6 +95,10 @@ function parseModelCommand(args: string[], fallbackText: string): ChatCommand {
 			: { kind: "message", text: fallbackText };
 	}
 
+	if (first === "reset") {
+		return parseModelResetArgs(rest, fallbackText);
+	}
+
 	if (first === "base-url") {
 		const url = rest.join(" ").trim();
 		return url.length > 0
@@ -140,11 +145,32 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 		: { kind: "message", text: fallbackText };
 }
 
+function parseModelResetArgs(args: string[], fallbackText: string): ChatCommand {
+	let scope: ModelScope | null = null;
+
+	for (let index = 0; index < args.length; index++) {
+		const value = args[index];
+		if (value === "--scope") {
+			const parsedScope = parseModelScope(args[index + 1]);
+			if (!parsedScope || parsedScope === "default") return { kind: "message", text: fallbackText };
+			scope = parsedScope;
+			index++;
+			continue;
+		}
+		const parsedScope = parseModelScope(value);
+		if (!parsedScope || parsedScope === "default") return { kind: "message", text: fallbackText };
+		scope = parsedScope;
+	}
+
+	return scope ? { kind: "model", action: "reset", scope } : { kind: "message", text: fallbackText };
+}
+
 export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload pi-agent
   /model            Show the active model route
   /model ${OPENAI_DEFAULT_REF}   Set the default model route
   /model worker ${OPENAI_WORKER_REF}
   /model monitor ${OPENAI_MONITOR_REF}
+  /model reset worker
   /model base-url http://127.0.0.1:8000
   /model fallback ollama/llama3.2
   /login [args...]  Configure credentials without leaving the session

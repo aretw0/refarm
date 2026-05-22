@@ -23,6 +23,7 @@ import {
 import {
 	defaultModelDeps,
 	printCurrentModel,
+	resetScopedModelRoute,
 	setFallbackModelRoute,
 	setModelBaseUrl,
 	setModelRoute,
@@ -545,6 +546,8 @@ export async function runSessionRepl(
 								await setFallbackModelRoute(command.ref, modelDeps);
 							} else if (command.action === "base-url") {
 								await setModelBaseUrl(command.url, modelDeps);
+							} else if (command.action === "reset") {
+								await resetScopedModelRoute(command.scope, modelDeps);
 							} else {
 								await setModelRoute(command.ref, command.scope, modelDeps);
 							}

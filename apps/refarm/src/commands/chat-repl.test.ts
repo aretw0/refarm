@@ -93,6 +93,23 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("parses scoped /model route resets", () => {
+		expect(parseChatLine("/model reset worker")).toEqual({
+			kind: "model",
+			action: "reset",
+			scope: "worker",
+		});
+		expect(parseChatLine("/model reset --scope monitor")).toEqual({
+			kind: "model",
+			action: "reset",
+			scope: "monitor",
+		});
+		expect(parseChatLine("/model reset default")).toEqual({
+			kind: "message",
+			text: "/model reset default",
+		});
+	});
+
 	it("parses base URL /model changes", () => {
 		expect(parseChatLine("/model base-url http://127.0.0.1:8000")).toEqual({
 			kind: "model",
@@ -180,6 +197,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
+		expect(CHAT_HELP_TEXT).toContain("/model reset worker");
 		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");
 		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
