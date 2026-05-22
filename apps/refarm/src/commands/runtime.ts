@@ -18,6 +18,14 @@ import {
 	startRuntimeProcess,
 	type RuntimeLaunchCommand,
 } from "./runtime-launcher.js";
+import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_START_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
 
 interface RuntimeCommandDeps {
@@ -94,9 +102,9 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 		console.log(chalk.yellow(`  issue:      ${payload.issue}`));
 	}
 	console.log("");
-	console.log(chalk.dim("  Select engine:  refarm config set tractor.engine auto"));
-	console.log(chalk.dim("  Start runtime:  refarm runtime start"));
-	console.log(chalk.dim("  Autostart:      refarm config set runtime.autostart always"));
+	console.log(chalk.dim(`  Select engine:  ${RUNTIME_ENGINE_AUTO_COMMAND}`));
+	console.log(chalk.dim(`  Start runtime:  ${RUNTIME_START_COMMAND}`));
+	console.log(chalk.dim(`  Autostart:      ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
 	console.log(chalk.dim("  Full status:    refarm status --json"));
 }
 
@@ -127,15 +135,15 @@ export function createRuntimeCommand(
 
 Examples:
   $ refarm runtime
-  $ refarm runtime status
-  $ refarm runtime start
-  $ refarm runtime start --wait
+  $ ${RUNTIME_STATUS_COMMAND}
+  $ ${RUNTIME_START_COMMAND}
+  $ ${RUNTIME_START_WAIT_COMMAND}
   $ refarm runtime start --dry-run
   $ refarm runtime --json
   $ refarm runtime status --json
   $ refarm config set tractor.engine rust
   $ REFARM_TRACTOR_ENGINE=ts refarm runtime
-  $ refarm config set runtime.autostart always
+  $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
 
 Notes:
   tractor.engine=auto prefers the Rust Tractor daemon when its local binary is
@@ -154,9 +162,9 @@ Notes:
 					`
 
 Examples:
-  $ refarm runtime status
+  $ ${RUNTIME_STATUS_COMMAND}
   $ refarm runtime status --json
-  $ refarm runtime start --wait
+  $ ${RUNTIME_START_WAIT_COMMAND}
 
 Notes:
   This is the explicit form of bare refarm runtime. It probes whether the local
@@ -184,8 +192,8 @@ Notes:
 					`
 
 Examples:
-  $ refarm runtime start
-  $ refarm runtime start --wait
+  $ ${RUNTIME_START_COMMAND}
+  $ ${RUNTIME_START_WAIT_COMMAND}
   $ refarm runtime start --dry-run
   $ REFARM_TRACTOR_ENGINE=rust refarm runtime start
 
@@ -245,7 +253,7 @@ Notes:
 						console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
 						console.log(chalk.dim(`  command: ${command.display}`));
 						console.error(chalk.red("Runtime did not become ready before timeout."));
-						console.error(chalk.dim("  Diagnose: refarm doctor"));
+						console.error(chalk.dim(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`));
 						process.exitCode = 1;
 						return;
 					}
