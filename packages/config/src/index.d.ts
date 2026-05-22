@@ -11,9 +11,12 @@ export {
     defaultScopedModelRef,
     formatModelRef,
     inferProviderFromModelId,
+    hasUsableModelCredential,
     isModelProvider,
     isModelScope,
+    modelCredentialStatus,
     modelCredentialEnvKey,
+    modelOAuthCredential,
     parseModelScope,
     parseModelRef,
 } from "./model-routing.js";

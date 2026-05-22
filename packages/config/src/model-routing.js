@@ -30,6 +30,39 @@ export function modelCredentialEnvKey(provider) {
     return MODEL_CREDENTIAL_ENV_KEYS[provider?.trim().toLowerCase()];
 }
 
+function stringValue(value) {
+    return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+export function modelOAuthCredential(tokens = {}) {
+    const oauthProvider = stringValue(tokens.oauthProvider);
+    if (!oauthProvider || !tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") {
+        return undefined;
+    }
+    return tokens.oauthCredentials[oauthProvider] ? oauthProvider : undefined;
+}
+
+export function modelCredentialStatus(provider, tokens = {}, env = process.env) {
+    const credentialEnv = modelCredentialEnvKey(provider);
+    if (!credentialEnv) return { state: "not-required" };
+    if (stringValue(env?.[credentialEnv])) {
+        return { state: "env", envKey: credentialEnv };
+    }
+    if (stringValue(tokens.modelApiKey)) {
+        return { state: "silo-api-key", envKey: credentialEnv };
+    }
+    const oauthProvider = modelOAuthCredential(tokens);
+    if (oauthProvider) {
+        return { state: "silo-oauth", envKey: credentialEnv, oauthProvider };
+    }
+    return { state: "missing", envKey: credentialEnv };
+}
+
+export function hasUsableModelCredential(provider, tokens = {}, env = process.env) {
+    const status = modelCredentialStatus(provider, tokens, env);
+    return status.state !== "missing";
+}
+
 export function inferProviderFromModelId(modelId) {
     const normalized = modelId.trim().toLowerCase();
     if (normalized.startsWith("gpt-") || normalized.startsWith("o")) return "openai";

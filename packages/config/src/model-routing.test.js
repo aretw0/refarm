@@ -7,10 +7,13 @@ import {
     defaultModelForScope,
     defaultScopedModelRef,
     formatModelRef,
+    hasUsableModelCredential,
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
+    modelCredentialStatus,
     modelCredentialEnvKey,
+    modelOAuthCredential,
     parseModelScope,
     parseModelRef,
 } from "./model-routing.js";
@@ -75,6 +78,46 @@ describe("model routing config", () => {
         expect(modelCredentialEnvKey("gemini")).toBe("GEMINI_API_KEY");
         expect(modelCredentialEnvKey("ollama")).toBeUndefined();
         expect(modelCredentialEnvKey("unknown")).toBeUndefined();
+    });
+
+    it("reports model credential status", () => {
+        expect(
+            modelCredentialStatus("openai", {}, { OPENAI_API_KEY: "sk-env" }),
+        ).toEqual({ state: "env", envKey: "OPENAI_API_KEY" });
+        expect(
+            modelCredentialStatus("openai", { modelApiKey: "sk-silo" }, {}),
+        ).toEqual({ state: "silo-api-key", envKey: "OPENAI_API_KEY" });
+        expect(
+            modelCredentialStatus(
+                "openai",
+                {
+                    oauthProvider: "openai-codex",
+                    oauthCredentials: { "openai-codex": { access: "token" } },
+                },
+                {},
+            ),
+        ).toEqual({
+            state: "silo-oauth",
+            envKey: "OPENAI_API_KEY",
+            oauthProvider: "openai-codex",
+        });
+        expect(modelCredentialStatus("openai", {}, {})).toEqual({
+            state: "missing",
+            envKey: "OPENAI_API_KEY",
+        });
+        expect(modelCredentialStatus("ollama", {}, {})).toEqual({ state: "not-required" });
+    });
+
+    it("checks usable model credentials", () => {
+        expect(hasUsableModelCredential("openai", {}, {})).toBe(false);
+        expect(hasUsableModelCredential("openai", {}, { OPENAI_API_KEY: "sk-env" })).toBe(true);
+        expect(hasUsableModelCredential("ollama", {}, {})).toBe(true);
+        expect(
+            modelOAuthCredential({
+                oauthProvider: "openai-codex",
+                oauthCredentials: { "openai-codex": { access: "token" } },
+            }),
+        ).toBe("openai-codex");
     });
 
     it("parses known provider/model refs with nested model ids", () => {

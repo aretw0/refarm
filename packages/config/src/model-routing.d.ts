@@ -10,9 +10,33 @@ export interface ModelRef {
     modelId: string;
 }
 
+export interface ModelCredentialTokens {
+    modelApiKey?: unknown;
+    oauthProvider?: unknown;
+    oauthCredentials?: unknown;
+}
+
+export type ModelCredentialStatus =
+    | { state: "not-required" }
+    | { state: "env"; envKey: string }
+    | { state: "silo-api-key"; envKey: string }
+    | { state: "silo-oauth"; envKey: string; oauthProvider: string }
+    | { state: "missing"; envKey: string };
+
 export function inferProviderFromModelId(modelId: string): string | undefined;
 export function isModelProvider(value: string | undefined): boolean;
 export function modelCredentialEnvKey(provider: string | undefined): string | undefined;
+export function modelOAuthCredential(tokens?: ModelCredentialTokens): string | undefined;
+export function modelCredentialStatus(
+    provider: string | undefined,
+    tokens?: ModelCredentialTokens,
+    env?: Record<string, string | undefined>,
+): ModelCredentialStatus;
+export function hasUsableModelCredential(
+    provider: string | undefined,
+    tokens?: ModelCredentialTokens,
+    env?: Record<string, string | undefined>,
+): boolean;
 export function defaultProviderModelRef(provider?: string): string;
 export function defaultProviderModelId(provider?: string): string;
 
