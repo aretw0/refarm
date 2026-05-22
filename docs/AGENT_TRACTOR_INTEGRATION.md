@@ -181,6 +181,7 @@ Variáveis de ambiente relevantes (definidas no host Tractor):
 | `MODEL_PROVIDER` | `anthropic` | `anthropic` ou `openai-compat` |
 | `ANTHROPIC_API_KEY` | — | Credencial (fica no Tractor, nunca no plugin) |
 | `MODEL_ID` | `claude-sonnet-4-6` | Modelo a usar |
+| `MODEL_BASE_URL` | default do provider | Endpoint para providers OpenAI-compatible/self-hosted |
 | `MODEL_STREAM_RESPONSES` | `0` | `1` para streaming via SSE/WS |
 | `MODEL_MAX_CONTEXT_TOKENS` | — | Limite de tokens no contexto |
 | `MODEL_BUDGET_ANTHROPIC_USD` | — | Cap de gasto mensal (USD) |
