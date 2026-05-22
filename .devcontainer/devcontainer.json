@@ -7,6 +7,16 @@
   "runArgs": [
     "--memory=4g",
     "--cpus=4",
+    "--publish",
+    "127.0.0.1:4321:4321",
+    "--publish",
+    "127.0.0.1:42000:42000",
+    "--publish",
+    "127.0.0.1:42001:42001",
+    "--publish",
+    "127.0.0.1:1455:1455",
+    "--publish",
+    "127.0.0.1:53692:53692",
     "--cap-add=SYS_ADMIN",
     "--security-opt=seccomp=unconfined",
     "--security-opt=apparmor=unconfined"
@@ -63,8 +73,20 @@
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "bash .devcontainer/post-start.sh",
-  "forwardPorts": [1455, 53692],
+  "forwardPorts": [4321, 42000, 42001, 1455, 53692],
   "portsAttributes": {
+    "4321": {
+      "label": "Refarm Astro app",
+      "onAutoForward": "silent"
+    },
+    "42000": {
+      "label": "Refarm tractor/farmhand WebSocket",
+      "onAutoForward": "silent"
+    },
+    "42001": {
+      "label": "Refarm farmhand HTTP sidecar",
+      "onAutoForward": "silent"
+    },
     "1455": {
       "label": "Refarm OpenAI OAuth callback",
       "onAutoForward": "silent"
