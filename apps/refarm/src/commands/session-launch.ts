@@ -26,6 +26,10 @@ import {
 	startRuntimeProcess,
 } from "./runtime-launcher.js";
 import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_COMMAND,
+} from "./runtime-recovery.js";
+import {
 	probeRuntimeReady,
 	waitForRuntimeReady,
 } from "./runtime-readiness.js";
@@ -307,11 +311,11 @@ export async function autoStartRuntime(
 
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
-		console.error(chalk.dim("   Start now:        refarm runtime start"));
+		console.error(chalk.dim(`   Start now:        ${RUNTIME_START_COMMAND}`));
 		for (const line of runtimeStartHelpLines(repoRoot)) {
 			console.error(chalk.dim(`   ${line}`));
 		}
-		console.error(chalk.dim("   Diagnose:         refarm doctor"));
+		console.error(chalk.dim(`   Diagnose:         ${RUNTIME_DOCTOR_COMMAND}`));
 		return false;
 	}
 
@@ -320,8 +324,8 @@ export async function autoStartRuntime(
 	if (mode === "ask") {
 		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
 		if (!confirmed) {
-			console.error(chalk.dim("\n   Start later:  refarm runtime start"));
-			console.error(chalk.dim("   Diagnose:     refarm doctor"));
+			console.error(chalk.dim(`\n   Start later:  ${RUNTIME_START_COMMAND}`));
+			console.error(chalk.dim(`   Diagnose:     ${RUNTIME_DOCTOR_COMMAND}`));
 			return false;
 		}
 	}
@@ -347,7 +351,7 @@ export async function autoStartRuntime(
 		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(chalk.dim(`   ${message}`));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+		console.error(chalk.dim(`   Diagnose:  ${RUNTIME_DOCTOR_COMMAND}`));
 		return false;
 	}
 
@@ -362,7 +366,7 @@ export async function autoStartRuntime(
 	}
 
 	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
-	console.error(chalk.dim("   Run `refarm doctor` for diagnostics."));
+	console.error(chalk.dim(`   Run \`${RUNTIME_DOCTOR_COMMAND}\` for diagnostics.`));
 	for (const line of runtimeStartHelpLines(repoRoot)) {
 		console.error(chalk.dim(`   ${line.replace("start:", "fallback:")}`));
 	}
@@ -411,7 +415,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  Refarm runtime is not running.\n"));
 		console.error(
-			chalk.dim("   Diagnose:  ") + chalk.cyan("refarm doctor"),
+			chalk.dim("   Diagnose:  ") + chalk.cyan(RUNTIME_DOCTOR_COMMAND),
 		);
 	}
 }
@@ -427,5 +431,5 @@ export function printOnboarding(): void {
 	);
 	console.log(chalk.dim("\n  The Refarm runtime starts automatically on first use."));
 	console.log();
-	console.log(chalk.dim("Need help?  ") + chalk.cyan("refarm doctor"));
+	console.log(chalk.dim("Need help?  ") + chalk.cyan(RUNTIME_DOCTOR_COMMAND));
 }
