@@ -19,6 +19,8 @@ Agent usage:
   $ refarm sow                  Configure credentials without editing files
   $ refarm model current        Inspect provider/model routing
   $ refarm model openai/gpt-5.5 Switch the default route
+  $ refarm model base-url ...   Set a self-hosted/OpenAI-compatible endpoint
+  $ refarm model fallback ...   Set a retry route for provider failures
 
 Plugin lifecycle:
   $ refarm plugin list          Show bundled plugin install state

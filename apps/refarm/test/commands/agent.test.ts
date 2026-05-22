@@ -15,6 +15,8 @@ describe("agent command", () => {
 		expect(help).toContain("refarm runtime");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
+		expect(help).toContain("refarm model base-url");
+		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm plugin install");
 	});
 
@@ -31,5 +33,6 @@ describe("agent command", () => {
 		expect(output).toContain("refarm runtime");
 		expect(output).toContain("refarm sow");
 		expect(output).toContain("refarm model current");
+		expect(output).toContain("refarm model base-url");
 	});
 });
