@@ -11,6 +11,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import os from 'node:os';
+import { defaultModelForProvider } from '../packages/config/src/model-routing.js';
 import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -258,12 +259,12 @@ function checkModel() {
   if (configured.length) ok('keys', configured.join('  '));
   else fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
 
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider || '(not configured)';
-  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model    || '(default)';
-  const budget   = config.budgets?.[provider] ?? null;
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || silo.modelProvider || config.modelProvider || config.provider || config.default_provider;
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || silo.modelId || silo.model || config.modelId || config.model || defaultModelForProvider(provider);
+  const budget   = provider ? config.budgets?.[provider] ?? null : null;
   info('model', [
-    `provider=${c.cyan}${provider}${c.reset}`,
-    `model=${c.dim}${model}${c.reset}`,
+    `provider=${c.cyan}${provider ?? '(not configured)'}${c.reset}`,
+    `model=${c.dim}${model ?? '(default)'}${c.reset}`,
     budget ? `budget=${c.dim}$${budget}/30d${c.reset}` : null,
   ].filter(Boolean).join('  '));
 }
