@@ -421,8 +421,8 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 	}
 
 	if (!readiness.providerConfigured) {
-		console.error(chalk.red("\n✗  No model provider configured."));
-		console.error(chalk.dim("   Set up a provider:  refarm sow"));
+		console.error(chalk.red("\n✗  No usable model credentials configured."));
+		console.error(chalk.dim("   Set up credentials: refarm sow"));
 		console.error(chalk.dim("   Inspect route:      refarm model current"));
 		console.error(chalk.dim("   List providers:     refarm model providers"));
 		console.error(

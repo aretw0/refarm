@@ -45,10 +45,12 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 
 describe("refarm ask", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
+	const originalOpenAiKey = process.env.OPENAI_API_KEY;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+		delete process.env.OPENAI_API_KEY;
 	});
 
 	afterEach(() => {
@@ -56,6 +58,11 @@ describe("refarm ask", () => {
 			delete process.env.MODEL_PROVIDER;
 		} else {
 			process.env.MODEL_PROVIDER = originalProvider;
+		}
+		if (originalOpenAiKey === undefined) {
+			delete process.env.OPENAI_API_KEY;
+		} else {
+			process.env.OPENAI_API_KEY = originalOpenAiKey;
 		}
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
@@ -179,6 +186,7 @@ describe("refarm ask", () => {
 
 	it("starts runtime before submitting when launch deps are provided and the sidecar is down", async () => {
 		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 		const deps = makeDeps();
 		const launchDeps: LaunchDeps = {
@@ -224,7 +232,7 @@ describe("refarm ask", () => {
 		);
 
 		const output = errSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("No model provider configured");
+		expect(output).toContain("No usable model credentials configured");
 		expect(output).toContain("refarm model current");
 		expect(output).toContain("refarm model providers");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
@@ -235,6 +243,7 @@ describe("refarm ask", () => {
 
 	it("fails before submitting when runtime reports pi-agent missing", async () => {
 		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
@@ -275,6 +284,7 @@ describe("refarm ask", () => {
 
 	it("reloads installed pi-agent before submitting when it is not loaded", async () => {
 		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi

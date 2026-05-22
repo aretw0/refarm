@@ -359,7 +359,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 		},
 
 		async recoverProvider() {
-			process.stderr.write(chalk.red("✗  No model provider configured.\n\n"));
+			process.stderr.write(chalk.red("✗  No usable model credentials configured.\n\n"));
 			const go = await deps.operator.ask({ type: "confirm", question: "   Configure now?", default: true });
 			if (!go) {
 				console.error(chalk.dim("   Run `refarm sow` when ready."));
@@ -466,7 +466,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured && !isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
-			chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm sow"),
+			chalk.dim("   Configure model credentials:    ") + chalk.cyan("refarm sow"),
 		);
 		console.error(
 			chalk.dim("   Inspect current model route:     ") + chalk.cyan("refarm model current"),
@@ -478,9 +478,9 @@ export function printSessionGuide(r: SessionReadiness): void {
 	}
 
 	if (!r.providerConfigured) {
-		console.error(chalk.red("✗  No model provider configured.\n"));
+		console.error(chalk.red("✗  No usable model credentials configured.\n"));
 		console.error(
-			chalk.dim("   Set up a provider:  ") + chalk.cyan("refarm sow"),
+			chalk.dim("   Set up credentials: ") + chalk.cyan("refarm sow"),
 		);
 		console.error(
 			chalk.dim("   Inspect route:      ") + chalk.cyan("refarm model current"),
