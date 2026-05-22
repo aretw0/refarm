@@ -15,8 +15,11 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import { defaultProviderModelRef, defaultScopedModelRef } from "../model-routing.js";
-import { parseChatLine, CHAT_HELP_TEXT } from "./chat-repl.js";
+import {
+	parseChatLine,
+	CHAT_HELP_TEXT,
+	CHAT_RUNTIME_COMMANDS_HELP,
+} from "./chat-repl.js";
 import {
 	defaultModelDeps,
 	printCurrentModel,
@@ -62,9 +65,6 @@ export interface ChatDeps {
 
 const DEFAULT_HISTORY_TURNS = 20;
 const MAX_CHAT_HISTORY_LINES = 500;
-const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
-const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -623,14 +623,7 @@ Examples:
   $ refarm chat "continue daqui"
 
 Runtime commands:
-  /model                  Show the active model route
-  /model ${OPENAI_DEFAULT_REF}   Set the default model route
-  /model worker ${OPENAI_WORKER_REF}
-  /model monitor ${OPENAI_MONITOR_REF}
-  /model base-url http://127.0.0.1:8000
-  /model fallback ollama/llama3.2
-  /login                  Configure credentials without leaving the session
-  /reload [id...]         Hot-reload plugins in the Refarm runtime
+${CHAT_RUNTIME_COMMANDS_HELP}
 `,
 		)
 		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {

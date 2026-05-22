@@ -140,10 +140,9 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 		: { kind: "message", text: fallbackText };
 }
 
-export const CHAT_HELP_TEXT = `Available commands:
-  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload pi-agent
+export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload pi-agent
   /model            Show the active model route
-  /model <ref>      Set the default model route, e.g. ${OPENAI_DEFAULT_REF}
+  /model ${OPENAI_DEFAULT_REF}   Set the default model route
   /model worker ${OPENAI_WORKER_REF}
   /model monitor ${OPENAI_MONITOR_REF}
   /model base-url http://127.0.0.1:8000
@@ -152,6 +151,9 @@ export const CHAT_HELP_TEXT = `Available commands:
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /exit  or  /quit  Exit refarm chat
-  /help             Show this message
+  /help             Show this message`;
+
+export const CHAT_HELP_TEXT = `Available commands:
+${CHAT_RUNTIME_COMMANDS_HELP}
 
 Any other input is sent as a message to the agent.`;
