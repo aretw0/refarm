@@ -126,6 +126,25 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.MODEL_BASE_URL).toBe("http://operator.local");
 	});
 
+	it("does not inject stored model base URL when the operator route override uses another provider", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_PROVIDER: "openai",
+		};
+		const store = makeStore([
+			{
+				modelProvider: "vllm",
+				modelId: "Qwen3-Coder-480B-A35B-Instruct",
+				modelBaseUrl: "http://127.0.0.1:8000",
+			},
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_PROVIDER).toBe("openai");
+		expect(env.MODEL_BASE_URL).toBeUndefined();
+	});
+
 	it("injects persisted fallback model route", async () => {
 		const env: NodeJS.ProcessEnv = {};
 		const store = makeStore([
@@ -163,6 +182,26 @@ describe("createSiloModelEnvInjector", () => {
 
 		expect(env.MODEL_FALLBACK_PROVIDER).toBe("anthropic");
 		expect(env.MODEL_FALLBACK_MODEL_ID).toBe("claude-sonnet-4-6");
+	});
+
+	it("does not pair an operator fallback provider with a stored fallback model from another provider", async () => {
+		const env: NodeJS.ProcessEnv = {
+			MODEL_FALLBACK_PROVIDER: "anthropic",
+		};
+		const store = makeStore([
+			{
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+				modelFallbackProvider: "ollama",
+				modelFallbackModelId: "qwen2.5-coder",
+			},
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+
+		expect(env.MODEL_FALLBACK_PROVIDER).toBe("anthropic");
+		expect(env.MODEL_FALLBACK_MODEL_ID).toBeUndefined();
 	});
 
 	it("updates env values it previously managed when Silo changes at runtime", async () => {

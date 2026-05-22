@@ -91,12 +91,21 @@ export function createSiloModelEnvInjector(
 					setManagedEnv("MODEL_ID", modelId);
 				}
 				const baseUrl = stringValue(tokens.modelBaseUrl);
-				if (baseUrl) setManagedEnv("MODEL_BASE_URL", baseUrl);
+				if (baseUrl && (!routeProviderOverridden || effectiveProvider === provider)) {
+					setManagedEnv("MODEL_BASE_URL", baseUrl);
+				}
 				const fallbackProvider = stringValue(tokens.modelFallbackProvider);
 				if (fallbackProvider) {
+					const envFallbackProvider = stringValue(env.MODEL_FALLBACK_PROVIDER);
+					const fallbackProviderOverridden = Boolean(envFallbackProvider);
 					setManagedEnv("MODEL_FALLBACK_PROVIDER", fallbackProvider);
 					const fallbackModelId = stringValue(tokens.modelFallbackModelId);
-					if (fallbackModelId) setManagedEnv("MODEL_FALLBACK_MODEL_ID", fallbackModelId);
+					if (
+						fallbackModelId &&
+						(!fallbackProviderOverridden || envFallbackProvider === fallbackProvider)
+					) {
+						setManagedEnv("MODEL_FALLBACK_MODEL_ID", fallbackModelId);
+					}
 				}
 
 				const credentialProviderMatchesRoute = !routeProviderOverridden || effectiveProvider === provider;
