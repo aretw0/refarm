@@ -120,6 +120,20 @@ describe("model routing config", () => {
         ).toBe("openai-codex");
     });
 
+    it("can evaluate credential status without a Node process global", () => {
+        const originalProcess = globalThis.process;
+        try {
+            Reflect.deleteProperty(globalThis, "process");
+            expect(modelCredentialStatus("openai", {}, {})).toEqual({
+                state: "missing",
+                envKey: "OPENAI_API_KEY",
+            });
+            expect(hasUsableModelCredential("ollama")).toBe(true);
+        } finally {
+            globalThis.process = originalProcess;
+        }
+    });
+
     it("parses known provider/model refs with nested model ids", () => {
         expect(
             parseModelRef("together/meta-llama/Llama-3.3-70B-Instruct-Turbo", undefined),

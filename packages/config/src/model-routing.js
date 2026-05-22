@@ -34,6 +34,10 @@ function stringValue(value) {
     return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function defaultEnv() {
+    return typeof process !== "undefined" && process?.env ? process.env : {};
+}
+
 export function modelOAuthCredential(tokens = {}) {
     const oauthProvider = stringValue(tokens.oauthProvider);
     if (!oauthProvider || !tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") {
@@ -42,7 +46,7 @@ export function modelOAuthCredential(tokens = {}) {
     return tokens.oauthCredentials[oauthProvider] ? oauthProvider : undefined;
 }
 
-export function modelCredentialStatus(provider, tokens = {}, env = process.env) {
+export function modelCredentialStatus(provider, tokens = {}, env = defaultEnv()) {
     const credentialEnv = modelCredentialEnvKey(provider);
     if (!credentialEnv) return { state: "not-required" };
     if (stringValue(env?.[credentialEnv])) {
@@ -58,7 +62,7 @@ export function modelCredentialStatus(provider, tokens = {}, env = process.env) 
     return { state: "missing", envKey: credentialEnv };
 }
 
-export function hasUsableModelCredential(provider, tokens = {}, env = process.env) {
+export function hasUsableModelCredential(provider, tokens = {}, env = defaultEnv()) {
     const status = modelCredentialStatus(provider, tokens, env);
     return status.state !== "missing";
 }
