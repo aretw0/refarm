@@ -36,6 +36,13 @@ import {
 	isRuntimeRunning,
 	type LaunchDeps,
 } from "./session-launch.js";
+import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_AUTOSTART_NEVER_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_START_COMMAND,
+} from "./runtime-recovery.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 import { defaultProviderModelRef } from "../model-routing.js";
@@ -381,8 +388,8 @@ function printAskError(message: string): void {
 		console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
-		console.error(chalk.dim("   Or restart runtime:       refarm runtime start"));
-		console.error(chalk.dim("   Diagnose:                 refarm doctor"));
+		console.error(chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`));
+		console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	} else if (isSidecarUnavailable(message)) {
 		console.error();
 		printSidecarUnavailable();
@@ -458,7 +465,7 @@ async function ensurePiAgentReady(
 	} else {
 		console.error(chalk.dim("   Restart runtime:          refarm"));
 	}
-	console.error(chalk.dim("   Diagnose:                 refarm doctor"));
+	console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	return false;
 }
 
@@ -490,10 +497,10 @@ Runtime:
   runtime is stopped, refarm can start it before submitting the question.
 
   Configure credentials:  refarm sow
-  Diagnose runtime:       refarm doctor
-  Always autostart:       refarm config set runtime.autostart always
-  Disable autostart:      refarm config set runtime.autostart never
-  Select runtime engine:  refarm config set tractor.engine auto
+  Diagnose runtime:       ${RUNTIME_DOCTOR_COMMAND}
+  Always autostart:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
+  Disable autostart:      ${RUNTIME_AUTOSTART_NEVER_COMMAND}
+  Select runtime engine:  ${RUNTIME_ENGINE_AUTO_COMMAND}
   One-shot override:      REFARM_RUNTIME_AUTOSTART=always refarm ask "hello"
 `,
 		)
