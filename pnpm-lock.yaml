@@ -314,6 +314,9 @@ importers:
       '@refarm.dev/root':
         specifier: workspace:*
         version: link:../../packages/root
+      '@refarm.dev/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@refarm.dev/silo':
         specifier: workspace:*
         version: link:../../packages/silo

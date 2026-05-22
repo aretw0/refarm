@@ -1,12 +1,12 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import type { RuntimeStatusSummary } from "@refarm.dev/runtime";
 import {
 	findRepoRoot,
 	readAutostartMode,
 	readTractorEngineMode,
 	resolveLaunchRuntime,
 	type AutostartMode,
-	type LaunchRuntimeEngine,
 	type LaunchRuntimeSelection,
 	type TractorEngineMode,
 } from "./session-launch.js";
@@ -30,15 +30,7 @@ interface RuntimeCommandDeps {
 	waitUntilReady?(): Promise<boolean>;
 }
 
-interface RuntimeStatusPayload {
-	configuredEngine: TractorEngineMode;
-	activeEngine: LaunchRuntimeEngine | "unknown";
-	autostart: AutostartMode;
-	reason: LaunchRuntimeSelection["reason"] | "configured-rust-missing-binary";
-	ready?: boolean;
-	startCommand?: string;
-	issue?: string;
-}
+type RuntimeStatusPayload = RuntimeStatusSummary;
 
 function defaultDeps(): RuntimeCommandDeps {
 	return {
