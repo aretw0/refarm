@@ -172,6 +172,21 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("does not pair an environment provider override with a stored model from another provider", async () => {
+		process.env.MODEL_PROVIDER = "gemini";
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("current: gemini/gemini-3-flash-preview");
+		expect(output).not.toContain("gemini/gpt-5.5");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints base URL and custom provider hint when configured through environment", async () => {
 		process.env.MODEL_PROVIDER = "vllm";
 		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
@@ -209,6 +224,25 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("does not print persisted base URL when an environment provider override changes provider", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		const deps = makeDeps({
+			modelProvider: "vllm",
+			modelId: "Qwen3-Coder-480B-A35B-Instruct",
+			modelBaseUrl: "http://127.0.0.1:8000",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("current: openai/gpt-5.5");
+		expect(output).not.toContain("base url: http://127.0.0.1:8000");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints fallback model override from environment", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.MODEL_ID = "gpt-5.5";
@@ -239,6 +273,26 @@ describe("modelCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("fallback: ollama/qwen2.5-coder");
+
+		logSpy.mockRestore();
+	});
+
+	it("does not pair an environment fallback provider with a stored fallback model from another provider", async () => {
+		process.env.MODEL_FALLBACK_PROVIDER = "anthropic";
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelFallbackProvider: "ollama",
+			modelFallbackModelId: "qwen2.5-coder",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("fallback: anthropic/claude-sonnet-4-6");
+		expect(output).not.toContain("anthropic/qwen2.5-coder");
 
 		logSpy.mockRestore();
 	});

@@ -11,6 +11,7 @@ import {
 	defaultModelForProvider,
 	defaultModelForScope,
 	defaultScopedModelRef,
+	effectiveModelRouteForScope,
 	formatModelRef,
 	MODEL_SCOPES,
 	MODEL_PROVIDERS,
@@ -73,12 +74,12 @@ function modelCredentialStatus(
 }
 
 export function printCurrentModel(tokens: ModelTokens): void {
-	const configuredProvider =
-		process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER ?? tokens.modelProvider;
-	const provider = configuredProvider ?? DEFAULT_MODEL_PROVIDER;
-	const modelId = process.env.MODEL_ID ?? tokens.modelId ?? tokens.model;
-	const resolvedModel = modelId ?? defaultModelForProvider(provider);
+	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
+	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
+	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
+	const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER);
+	const storedProviderMatchesRoute = !routeProviderOverridden || tokens.modelProvider === provider;
 
 	console.log(chalk.bold("Model routing"));
 	console.log(`  current: ${chalk.cyan(ref)}`);
@@ -88,28 +89,35 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
 	const credentialStatus = modelCredentialStatus(provider, tokens);
 	if (credentialStatus) console.log(`  key:      ${credentialStatus}`);
-	const baseUrl = process.env.MODEL_BASE_URL ?? tokens.modelBaseUrl;
+	const baseUrl = process.env.MODEL_BASE_URL ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
 	if (baseUrl) console.log(`  base url: ${baseUrl}`);
 	const fallbackProvider =
 		process.env.MODEL_FALLBACK_PROVIDER ?? tokens.modelFallbackProvider;
 	if (fallbackProvider) {
+		const fallbackModelId =
+			process.env.MODEL_FALLBACK_MODEL_ID ??
+			(process.env.MODEL_FALLBACK_PROVIDER ? undefined : tokens.modelFallbackModelId) ??
+			defaultModelForProvider(fallbackProvider);
 		const fallbackRef = formatModelRef(
 			fallbackProvider,
-			process.env.MODEL_FALLBACK_MODEL_ID ??
-				tokens.modelFallbackModelId ??
-				defaultModelForProvider(fallbackProvider),
+			fallbackModelId,
 		);
 		console.log(`  fallback: ${fallbackRef}`);
 	}
-	const workerRoute =
-		tokens.modelRoutes?.worker ??
-		(provider ? formatModelRef(provider, defaultModelForScope(provider, "worker")) : undefined);
+	const worker = effectiveModelRouteForScope(tokens, "worker", { env: process.env });
+	const workerRoute = formatModelRef(worker.provider, worker.modelId);
 	if (workerRoute) console.log(`  worker:   ${workerRoute}`);
-	const monitorRoute =
-		tokens.modelRoutes?.monitor ??
-		(provider ? formatModelRef(provider, defaultModelForScope(provider, "monitor")) : undefined);
+	const monitor = effectiveModelRouteForScope(tokens, "monitor", { env: process.env });
+	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
 	if (monitorRoute) console.log(`  monitor:  ${monitorRoute}`);
-	if (process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || process.env.MODEL_ID) {
+	if (
+		process.env.MODEL_PROVIDER ||
+		process.env.MODEL_DEFAULT_PROVIDER ||
+		process.env.MODEL_ID ||
+		process.env.MODEL_BASE_URL ||
+		process.env.MODEL_FALLBACK_PROVIDER ||
+		process.env.MODEL_FALLBACK_MODEL_ID
+	) {
 		console.log(chalk.dim("  source:   environment overrides are active"));
 	} else if (
 		tokens.modelProvider ||
