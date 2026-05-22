@@ -1,4 +1,9 @@
-export type { ModelRef, ModelScope } from "./model-routing.js";
+export type {
+    ModelCredentialStatus,
+    ModelCredentialTokens,
+    ModelRef,
+    ModelScope,
+} from "./model-routing.js";
 export {
     DEFAULT_MODEL_PROVIDER,
     MODEL_CREDENTIAL_ENV_KEYS,
