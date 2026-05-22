@@ -120,6 +120,23 @@ describe("model routing config", () => {
         ).toBe("openai-codex");
     });
 
+    it("does not treat stored credentials as usable for another provider", () => {
+        expect(
+            modelCredentialStatus(
+                "gemini",
+                { modelProvider: "openai", modelApiKey: "sk-openai" },
+                {},
+            ),
+        ).toEqual({ state: "missing", envKey: "GEMINI_API_KEY" });
+        expect(
+            hasUsableModelCredential(
+                "gemini",
+                { modelProvider: "openai", modelApiKey: "sk-openai" },
+                {},
+            ),
+        ).toBe(false);
+    });
+
     it("can evaluate credential status without a Node process global", () => {
         const originalProcess = globalThis.process;
         try {

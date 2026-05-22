@@ -11,6 +11,7 @@ export interface ModelRef {
 }
 
 export interface ModelCredentialTokens {
+    modelProvider?: unknown;
     modelApiKey?: unknown;
     oauthProvider?: unknown;
     oauthCredentials?: unknown;

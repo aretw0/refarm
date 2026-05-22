@@ -52,6 +52,11 @@ export function modelCredentialStatus(provider, tokens = {}, env = defaultEnv())
     if (stringValue(env?.[credentialEnv])) {
         return { state: "env", envKey: credentialEnv };
     }
+    const tokenProvider = stringValue(tokens.modelProvider)?.toLowerCase();
+    const normalizedProvider = provider?.trim().toLowerCase();
+    if (tokenProvider && tokenProvider !== normalizedProvider) {
+        return { state: "missing", envKey: credentialEnv };
+    }
     if (stringValue(tokens.modelApiKey)) {
         return { state: "silo-api-key", envKey: credentialEnv };
     }
