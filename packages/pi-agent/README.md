@@ -39,13 +39,13 @@ on-event("user:prompt", prompt)
 ## Environment variables
 
 Model variables are injected by the tractor host (forwarded `MODEL_*` only). A `.refarm/config.json` file
-at project root can set them declaratively — values there override process env:
+at project root can set project defaults, while explicit process env still wins for one-shot runs:
 
 ```json
 {
   "provider": "anthropic",
   "model": "claude-sonnet-4-6",
-  "default_provider": "ollama",
+  "default_provider": "openai",
   "stream_responses": true,
   "budgets": { "anthropic": 5.0 },
   "trusted_plugins": ["pi_agent"]
@@ -69,7 +69,7 @@ The file is optional — missing file is silently ignored.
 | Variable | Default | Description |
 |---|---|---|
 | `MODEL_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
-| `MODEL_DEFAULT_PROVIDER` | — | Personal sovereign default when `MODEL_PROVIDER` unset |
+| `MODEL_DEFAULT_PROVIDER` | — | Personal default when `MODEL_PROVIDER` unset |
 | `MODEL_ID` | provider default | Model ID override |
 | `MODEL_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
 | `ANTHROPIC_API_KEY` | — | Required when `MODEL_PROVIDER=anthropic` |
@@ -96,11 +96,12 @@ The file is optional — missing file is silently ignored.
 
 **Provider resolution order** (first wins):
 1. `MODEL_PROVIDER` — explicit per-run choice
-2. `MODEL_DEFAULT_PROVIDER` — user's personal sovereign default
-3. `ollama` — last resort: local, free, no key needed
+2. `MODEL_DEFAULT_PROVIDER` — user's personal default
+3. `openai` — last resort aligned with Refarm's shared default route (`gpt-5.5`)
 
 **Any unknown provider name** routes to the OpenAI-compat path via `MODEL_BASE_URL` —
 Groq, Mistral, Perplexity, Together, etc. all work with zero code changes.
+Use `MODEL_PROVIDER=ollama` explicitly for a local no-key route.
 
 ---
 
@@ -143,10 +144,10 @@ $TRACTOR watch
 
 **Important**: `--agent` must be `pi_agent` (underscore), matching the `.wasm` filename stem.
 
-**Note on `.refarm/config.json`**: The `provider`/`model` fields there document intent but
-model routing uses environment variables (`MODEL_PROVIDER`, `MODEL_ID`). Set those before
-starting the daemon. The `MODEL_FS_ROOT` and `MODEL_SHELL_ALLOWLIST` fields ARE loaded from
-config.json by the `agent-tools` policy layer.
+**Note on `.refarm/config.json`**: the Refarm runtime can load `provider`/`model` as
+defaults, but `MODEL_PROVIDER` and `MODEL_ID` remain the strongest per-run overrides. The
+`MODEL_FS_ROOT` and `MODEL_SHELL_ALLOWLIST` fields are loaded from config.json by the
+`agent-tools` policy layer.
 
 ---
 
