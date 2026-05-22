@@ -343,11 +343,7 @@ function usageLine(metadata: Record<string, unknown>): string {
 }
 
 function printChatError(message: string): void {
-	const isRuntimeDown =
-		isSidecarUnavailable(message) ||
-		message.includes("Runtime HTTP") ||
-		message.includes("Farmhand HTTP");
-	if (isRuntimeDown) {
+	if (isSidecarUnavailable(message)) {
 		console.error();
 		printSidecarUnavailable();
 	} else {

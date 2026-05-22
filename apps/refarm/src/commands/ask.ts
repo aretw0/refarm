@@ -36,6 +36,7 @@ import {
 	isRuntimeRunning,
 	type LaunchDeps,
 } from "./session-launch.js";
+import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 import { defaultProviderModelRef } from "../model-routing.js";
 
@@ -371,12 +372,6 @@ function printAskError(message: string): void {
 		message.includes("pi-agent not loaded") ||
 		message.includes(`Plugin "${PI_AGENT_PLUGIN_ID}" is not loaded`);
 
-	const isRuntimeDown =
-		message.includes("ECONNREFUSED") ||
-		message.includes("fetch failed") ||
-		message.includes("Runtime HTTP") ||
-		message.includes("Farmhand HTTP");
-
 	const isProviderError =
 		message.includes("model-bridge request failed") ||
 		message.includes("Couldn't connect to server") ||
@@ -388,16 +383,9 @@ function printAskError(message: string): void {
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
 		console.error(chalk.dim("   Or restart runtime:       refarm runtime start"));
 		console.error(chalk.dim("   Diagnose:                 refarm doctor"));
-	} else if (isRuntimeDown) {
-		console.error(chalk.red("\n✗  Refarm runtime is not running."));
-		console.error(chalk.dim("   Start now:  refarm runtime start"));
-		console.error(chalk.dim("   Diagnose:   refarm doctor"));
-		console.error(
-			chalk.dim(
-				"   Always:     refarm config set runtime.autostart always",
-			),
-		);
-		console.error(chalk.dim("   Engine:     refarm config set tractor.engine auto"));
+	} else if (isSidecarUnavailable(message)) {
+		console.error();
+		printSidecarUnavailable();
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";

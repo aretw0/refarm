@@ -1,7 +1,12 @@
 import chalk from "chalk";
 
 export function isSidecarUnavailable(message: string): boolean {
-	return message.includes("ECONNREFUSED") || message.includes("fetch failed");
+	return (
+		message.includes("ECONNREFUSED") ||
+		message.includes("fetch failed") ||
+		message.includes("Runtime HTTP") ||
+		message.includes("Farmhand HTTP")
+	);
 }
 
 export function printSidecarUnavailable(): void {
