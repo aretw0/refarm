@@ -4,6 +4,7 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { InvalidArgumentError } from "commander";
+import { RUNTIME_NOT_READY_LAUNCH_HINT } from "./runtime-recovery.js";
 
 export function resolveLaunchMode<TMode extends string>(
 	input: unknown,
@@ -27,7 +28,7 @@ export function assertLaunchAllowed(
 		const recoveryHint = diagnostics.failures.includes(
 			REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
 		)
-			? " Run `refarm runtime status`, then `refarm runtime start --wait`."
+			? RUNTIME_NOT_READY_LAUNCH_HINT
 			: " Run `refarm doctor` for repair recommendations.";
 		throw new Error(
 			`Cannot launch ${target} due status failures: ${diagnostics.failures.join(", ")}.${recoveryHint}`,

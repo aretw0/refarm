@@ -16,6 +16,7 @@ import type {
 	DiagnosticRecommendation,
 	DiagnosticRecommendationSeverity,
 } from "./diagnostic-recommendations.js";
+import { RUNTIME_NOT_READY_RECOVERY_ACTION } from "./runtime-recovery.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
@@ -107,7 +108,7 @@ function createRefarmDoctorRecommendation(
 				diagnostic,
 				severity,
 				summary: "The runtime reported that it is not ready.",
-				action: "Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				action: RUNTIME_NOT_READY_RECOVERY_ACTION,
 			};
 		case REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {

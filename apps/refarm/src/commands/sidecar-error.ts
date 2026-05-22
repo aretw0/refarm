@@ -1,4 +1,11 @@
 import chalk from "chalk";
+import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_START_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 
 export function isSidecarUnavailable(message: string): boolean {
 	return (
@@ -11,11 +18,11 @@ export function isSidecarUnavailable(message: string): boolean {
 
 export function printSidecarUnavailable(): void {
 	console.error(chalk.red("✗  Refarm runtime is not running."));
-	console.error(chalk.dim("   Status:     refarm runtime status"));
-	console.error(chalk.dim("   Start now:  refarm runtime start"));
-	console.error(chalk.dim("   Diagnose:   refarm doctor"));
-	console.error(chalk.dim("   Always:     refarm config set runtime.autostart always"));
-	console.error(chalk.dim("   Engine:     refarm config set tractor.engine auto"));
+	console.error(chalk.dim(`   Status:     ${RUNTIME_STATUS_COMMAND}`));
+	console.error(chalk.dim(`   Start now:  ${RUNTIME_START_COMMAND}`));
+	console.error(chalk.dim(`   Diagnose:   ${RUNTIME_DOCTOR_COMMAND}`));
+	console.error(chalk.dim(`   Always:     ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
+	console.error(chalk.dim(`   Engine:     ${RUNTIME_ENGINE_AUTO_COMMAND}`));
 }
 
 export function printSidecarError(message: string): void {
