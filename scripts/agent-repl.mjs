@@ -76,8 +76,11 @@ function readSiloTokens() {
 
 function configureModelEnvFromSilo() {
   const tokens = readSiloTokens();
-  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || tokens.modelProvider || DEFAULT_MODEL_PROVIDER;
+  const storedProvider = tokens.modelProvider;
+  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || storedProvider || DEFAULT_MODEL_PROVIDER;
   const model = process.env.MODEL_ID || tokens.modelId || tokens.model || defaultModelForProvider(provider);
+  const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER);
+  const storedCredentialMatchesRoute = !routeProviderOverridden || !storedProvider || storedProvider === provider;
 
   if (provider && !process.env.MODEL_PROVIDER && !process.env.MODEL_DEFAULT_PROVIDER) {
     process.env.MODEL_PROVIDER = provider;
@@ -87,7 +90,7 @@ function configureModelEnvFromSilo() {
   }
 
   const keyEnv = modelCredentialEnvKey(provider);
-  if (keyEnv && tokens.modelApiKey && !process.env[keyEnv]) {
+  if (keyEnv && tokens.modelApiKey && storedCredentialMatchesRoute && !process.env[keyEnv]) {
     process.env[keyEnv] = tokens.modelApiKey;
   }
 }
