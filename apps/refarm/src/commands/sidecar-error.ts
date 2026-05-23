@@ -40,9 +40,3 @@ export function reportSidecarError(error: unknown): void {
 	printSidecarError(message);
 	process.exitCode = 1;
 }
-
-export function exitForSidecarError(error: unknown): never {
-	const message = error instanceof Error ? error.message : String(error);
-	printSidecarError(message);
-	process.exit(1);
-}
