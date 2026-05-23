@@ -57,6 +57,14 @@ interface ConfigSummary {
 	values: EffectiveConfigValue[];
 }
 
+interface PersistedConfigValue {
+	key: ConfigKey;
+	value: string;
+	path: string;
+	scope: "home" | "local";
+	legacy?: boolean;
+}
+
 interface JsonOptionCarrier {
 	json?: boolean;
 	opts?: () => { json?: boolean };
@@ -328,29 +336,46 @@ function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): bo
 	);
 }
 
-function setConfigValue(
+function configScope(opts: { local?: boolean }): "home" | "local" {
+	return opts.local ? "local" : "home";
+}
+
+function printPersistedConfigValue(result: PersistedConfigValue): void {
+	console.log(chalk.green(`✓  ${result.key}=${result.value}`));
+	console.log(chalk.dim(`   ${result.path}`));
+	if (result.legacy) {
+		console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
+	}
+}
+
+function printPersistedConfigValueJson(result: PersistedConfigValue): void {
+	console.log(JSON.stringify(result, null, 2));
+}
+
+function persistConfigValue(
 	key: ConfigKey,
 	value: string,
 	opts: { local?: boolean },
 	deps: ConfigDeps,
-): void {
+): PersistedConfigValue | null {
 	if (key === "farmhand.autostart" || key === "runtime.autostart") {
 		const mode = parseConfigAutostartMode(key, value);
-		if (!mode) return;
+		if (!mode) return null;
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
 		config.autostart = mode;
 		writeConfig(filePath, config);
-		console.log(chalk.green(`✓  ${key}=${mode}`));
-		console.log(chalk.dim(`   ${filePath}`));
-		if (key === "farmhand.autostart") {
-			console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
-		}
-		return;
+		return {
+			key,
+			value: mode,
+			path: filePath,
+			scope: configScope(opts),
+			...(key === "farmhand.autostart" ? { legacy: true } : {}),
+		};
 	}
 	if (key === "operator.openExternalLinks") {
 		const mode = parseConfigOpenExternalLinksMode(value);
-		if (!mode) return;
+		if (!mode) return null;
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
 		config.operator = {
@@ -358,13 +383,16 @@ function setConfigValue(
 			openExternalLinks: mode,
 		};
 		writeConfig(filePath, config);
-		console.log(chalk.green(`✓  ${key}=${mode}`));
-		console.log(chalk.dim(`   ${filePath}`));
-		return;
+		return {
+			key,
+			value: mode,
+			path: filePath,
+			scope: configScope(opts),
+		};
 	}
 	if (key === "tractor.engine") {
 		const mode = parseConfigTractorEngineMode(value);
-		if (!mode) return;
+		if (!mode) return null;
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
 		config.tractor = {
@@ -372,9 +400,14 @@ function setConfigValue(
 			engine: mode,
 		};
 		writeConfig(filePath, config);
-		console.log(chalk.green(`✓  ${key}=${mode}`));
-		console.log(chalk.dim(`   ${filePath}`));
+		return {
+			key,
+			value: mode,
+			path: filePath,
+			scope: configScope(opts),
+		};
 	}
+	return null;
 }
 
 export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
@@ -391,6 +424,7 @@ Examples:
   $ refarm config get runtime.autostart
   $ refarm config get runtime.autostart --json
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
+  $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND} --json
   $ refarm config set operator.openExternalLinks never
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
   $ REFARM_TRACTOR_ENGINE=rust refarm runtime
@@ -472,12 +506,14 @@ Notes:
 				.argument("<key>", "Config key")
 				.argument("<value>", "Config value")
 				.option("--local", "Write project-local .refarm/config.json")
+				.option("--json", "Output machine-readable persisted value")
 				.addHelpText(
 					"after",
 					`
 
 Examples:
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
+  $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND} --json
   $ ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local
   $ refarm config set operator.openExternalLinks never
   $ refarm config set tractor.engine rust
@@ -497,11 +533,24 @@ Notes:
   or REFARM_TRACTOR_ENGINE without changing persisted config.
 `,
 				)
-				.action((key: string, value: string, opts: { local?: boolean }) => {
-					const parsedKey = parseConfigKey(key);
-					if (!parsedKey) return;
-					setConfigValue(parsedKey, value, opts, deps);
-				}),
+				.action(
+					(
+						key: string,
+						value: string,
+						opts: { local?: boolean } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						const parsedKey = parseConfigKey(key);
+						if (!parsedKey) return;
+						const result = persistConfigValue(parsedKey, value, opts, deps);
+						if (!result) return;
+						if (hasJsonOption(opts, command)) {
+							printPersistedConfigValueJson(result);
+							return;
+						}
+						printPersistedConfigValue(result);
+					},
+				),
 		);
 }
 

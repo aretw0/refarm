@@ -108,6 +108,53 @@ describe("config command", () => {
 		);
 	});
 
+	it("prints persisted config value as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["set", "runtime.autostart", "always", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "runtime.autostart",
+			value: "always",
+			path: path.join(home, ".refarm", "config.json"),
+			scope: "home",
+		});
+	});
+
+	it("prints local persisted config value as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(
+			["set", "operator.openExternalLinks", "never", "--local", "--json"],
+			{ from: "user" },
+		);
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "operator.openExternalLinks",
+			value: "never",
+			path: path.join(cwd, ".refarm", "config.json"),
+			scope: "local",
+		});
+	});
+
+	it("marks persisted legacy config keys in JSON output", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["set", "farmhand.autostart", "always", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "farmhand.autostart",
+			value: "always",
+			path: path.join(home, ".refarm", "config.json"),
+			scope: "home",
+			legacy: true,
+		});
+	});
+
 	it("prints effective home autostart mode", async () => {
 		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
 		fs.writeFileSync(
