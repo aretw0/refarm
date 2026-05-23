@@ -91,27 +91,20 @@ describe("refarm tree fork", () => {
 			.mockReturnValueOnce(makeSpawnResult(0))
 			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(
 				'Git worktree changed from "main" to "safe/fork" during tree fork.',
 			),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("fails closed before branch creation when current ref cannot be read", async () => {
@@ -120,25 +113,18 @@ describe("refarm tree fork", () => {
 			.mockReturnValueOnce(makeSpawnResult(1))
 			.mockReturnValueOnce(makeSpawnResult(128, "", "fatal: ambiguous HEAD"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("fatal: ambiguous HEAD"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(3);
 	});
 
@@ -147,25 +133,18 @@ describe("refarm tree fork", () => {
 			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
 			.mockReturnValueOnce(makeSpawnResult(0));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Git branch "safe/fork" already exists.'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 

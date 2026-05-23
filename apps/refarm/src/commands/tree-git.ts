@@ -1,5 +1,5 @@
-import * as childProcess from "node:child_process";
 import chalk from "chalk";
+import * as childProcess from "node:child_process";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
 	buildGitBranchPreviewEnvelope,
@@ -100,10 +100,10 @@ function showGitTimelineNode(ref: string): RefarmGitTimelineNode {
 	return node;
 }
 
-function exitForGitError(err: unknown): never {
+function reportGitError(err: unknown): void {
 	const msg = err instanceof Error ? err.message : String(err);
 	console.error(chalk.red(`✗  ${msg}`));
-	process.exit(1);
+	process.exitCode = 1;
 }
 
 export function listGitTree(opts: { json?: boolean; limit?: number }): void {
@@ -111,7 +111,8 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	try {
 		nodes = getGitTimelineNodes(opts.limit ?? 20);
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err);
+		return;
 	}
 
 	if (opts.json) {
@@ -151,7 +152,8 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 	try {
 		node = showGitTimelineNode(prefix);
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err);
+		return;
 	}
 
 	if (opts.json) {
@@ -183,7 +185,8 @@ export function previewGitTree(
 		node = showGitTimelineNode(prefix);
 		branchAlreadyExists = opts.name ? gitBranchExists(opts.name) : undefined;
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err);
+		return;
 	}
 	const envelope = buildGitBranchPreviewEnvelope({
 		node,
@@ -225,7 +228,8 @@ export function previewGitSwitchTree(
 		worktreeClean = gitWorktreeIsClean();
 		node = showGitTimelineNode(name);
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err);
+		return;
 	}
 	const envelope = buildGitSwitchPreviewEnvelope({
 		node,
@@ -288,7 +292,8 @@ export function forkGitTree(
 			);
 		}
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err);
+		return;
 	}
 	const envelope = buildGitForkEnvelope({
 		node,
@@ -332,7 +337,8 @@ export function switchGitTree(name: string, opts: { json?: boolean }): void {
 			);
 		}
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err);
+		return;
 	}
 	const envelope = buildGitSwitchEnvelope({
 		node,
