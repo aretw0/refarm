@@ -1,6 +1,11 @@
+import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
-import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { exitForSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
@@ -257,7 +262,8 @@ export function createTasksCommand(): Command {
 				"",
 				"Notes:",
 				"  Tasks are created by runtime-backed flows such as refarm ask and refarm task run.",
-				"  Use refarm runtime status when the task sidecar is unavailable.",
+				`  If the task sidecar is unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.`,
+				`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
 				"  Use refarm task for dispatch/retry/cancel operations.",
 			].join("\n"),
 		)
