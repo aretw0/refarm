@@ -1,7 +1,3 @@
-import { Command } from "commander";
-import chalk from "chalk";
-import { spawnSync } from "node:child_process";
-import { SiloCore } from "@refarm.dev/silo";
 import {
 	CloudflareProvider,
 	CloudflareTurboCacheProvisioner,
@@ -9,6 +5,10 @@ import {
 	enrichCloudflareError,
 } from "@refarm.dev/infra-cloudflare";
 import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
+import { SiloCore } from "@refarm.dev/silo";
+import chalk from "chalk";
+import { Command } from "commander";
+import { spawnSync } from "node:child_process";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
@@ -193,7 +193,8 @@ const cloudflareCommand = new Command("cloudflare")
 					console.error(
 						chalk.dim("Use --dry-run only to inspect the plan without credentials."),
 					);
-					process.exit(1);
+					process.exitCode = 1;
+					return;
 				}
 
 				let provider: CloudflareProvider;
@@ -205,7 +206,8 @@ const cloudflareCommand = new Command("cloudflare")
 					console.error(
 						chalk.red(`  Failed to connect to Cloudflare: ${String(err)}`),
 					);
-					process.exit(1);
+					process.exitCode = 1;
+					return;
 				}
 
 				const provisioner = new CloudflareTurboCacheProvisioner(provider);
@@ -221,7 +223,8 @@ const cloudflareCommand = new Command("cloudflare")
 				} catch (err) {
 					const enriched = enrichCloudflareError(err);
 					console.error(chalk.red(`  Provisioning failed: ${enriched.message}`));
-					process.exit(1);
+					process.exitCode = 1;
+					return;
 				}
 
 				console.log(chalk.green(`  ✔ R2 bucket "${result.bucketName}"`));
@@ -236,7 +239,8 @@ const cloudflareCommand = new Command("cloudflare")
 						console.error(
 							chalk.red(`  Failed to write GitHub secrets: ${String(err)}`),
 						);
-						process.exit(1);
+						process.exitCode = 1;
+						return;
 					}
 
 					console.log(chalk.green("  ✔ GitHub secret TURBO_CACHE_API_URL set"));

@@ -85,12 +85,6 @@ describe("provision command", () => {
 		process.exitCode = undefined;
 	});
 
-	function mockProcessExit() {
-		return vi.spyOn(process, "exit").mockImplementation((code) => {
-			throw new Error(`process.exit:${String(code)}`);
-		});
-	}
-
 	it("renders a Cloudflare turbo-cache dry-run plan without loading tokens", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -384,15 +378,12 @@ describe("provision command", () => {
 
 	it("fails offline when no stored Cloudflare token exists", async () => {
 		mockLoadTokens.mockResolvedValue(null);
-		const exitSpy = mockProcessExit();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await expect(
-			provisionCommand.parseAsync(["cloudflare", "turbo-cache"], {
-				from: "user",
-			}),
-		).rejects.toThrow("process.exit:1");
+		await provisionCommand.parseAsync(["cloudflare", "turbo-cache"], {
+			from: "user",
+		});
 
 		expect(mockSiloCore).toHaveBeenCalledOnce();
 		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
@@ -407,10 +398,10 @@ describe("provision command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--dry-run only to inspect the plan"),
 		);
+		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 
 	it("fails offline when Cloudflare provider creation fails", async () => {
@@ -418,15 +409,12 @@ describe("provision command", () => {
 		mockCreateCloudflareProvider.mockRejectedValue(
 			new Error("bad credentials"),
 		);
-		const exitSpy = mockProcessExit();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await expect(
-			provisionCommand.parseAsync(["cloudflare", "turbo-cache"], {
-				from: "user",
-			}),
-		).rejects.toThrow("process.exit:1");
+		await provisionCommand.parseAsync(["cloudflare", "turbo-cache"], {
+			from: "user",
+		});
 
 		expect(mockCreateCloudflareProvider).toHaveBeenCalledWith({
 			apiToken: "cf-token",
@@ -439,10 +427,10 @@ describe("provision command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("bad credentials"),
 		);
+		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 
 	it("fails offline when Cloudflare turbo-cache provisioning fails", async () => {
@@ -450,23 +438,20 @@ describe("provision command", () => {
 		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
 		mockCreateCloudflareProvider.mockResolvedValue(provider);
 		mockProvision.mockRejectedValue(new Error("wrangler failed"));
-		const exitSpy = mockProcessExit();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await expect(
-			provisionCommand.parseAsync(
-				[
-					"cloudflare",
-					"turbo-cache",
-					"--bucket",
-					"refarm-cache-test",
-					"--team",
-					"garden",
-				],
-				{ from: "user" },
-			),
-		).rejects.toThrow("process.exit:1");
+		await provisionCommand.parseAsync(
+			[
+				"cloudflare",
+				"turbo-cache",
+				"--bucket",
+				"refarm-cache-test",
+				"--team",
+				"garden",
+			],
+			{ from: "user" },
+		);
 
 		expect(mockTurboCacheProvisioner).toHaveBeenCalledWith(provider);
 		expect(mockProvision).toHaveBeenCalledWith({
@@ -479,9 +464,9 @@ describe("provision command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("wrangler failed"),
 		);
+		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 });
