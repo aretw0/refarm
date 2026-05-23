@@ -1,18 +1,13 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import chalk from "chalk";
-import { Command } from "commander";
 import {
 	parseRuntimeAutostartMode,
 	RUNTIME_AUTOSTART_MODES,
 	RUNTIME_ENGINE_MODES,
 } from "@refarm.dev/runtime";
-import {
-	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
-	RUNTIME_AUTOSTART_NEVER_COMMAND,
-	RUNTIME_ENGINE_AUTO_COMMAND,
-} from "./runtime-recovery.js";
+import chalk from "chalk";
+import { Command } from "commander";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
 	parseOpenExternalLinksMode,
 	resolveCliOpenExternalLinksMode,
@@ -24,6 +19,11 @@ import {
 	type AutostartMode,
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
+import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_AUTOSTART_NEVER_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+} from "./runtime-recovery.js";
 
 type ConfigKey =
 	| "farmhand.autostart"
@@ -271,7 +271,7 @@ Keys:
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
 Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (writes the same autostart setting)
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
   REFARM_RUNTIME_AUTOSTART can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
@@ -305,7 +305,7 @@ Keys:
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
 Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (reads the same autostart setting)
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
   Without --local, project-local config overrides home config. Environment
@@ -340,7 +340,7 @@ Keys:
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
 Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (writes the same autostart setting)
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
   Use --local for repository-specific operator preferences. Home config is the
