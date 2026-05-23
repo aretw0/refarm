@@ -1,6 +1,11 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { findSessionIdPrefixMatches, formatSessionId } from "./session-ids.js";
 import {
 	clearActiveSessionId,
@@ -70,6 +75,8 @@ export function createSessionsCommand(): Command {
 				"",
 				"Notes:",
 				"  Sessions are stored in the active Refarm runtime.",
+				`  If sessions are unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.`,
+				`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
 				"  Prefixes must be unique; list sessions first when a prefix is ambiguous.",
 				"  Use refarm ask --new for a one-shot fresh session without naming it.",
 			].join("\n"),
