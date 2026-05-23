@@ -267,18 +267,11 @@ describe("refarm tasks", () => {
 			),
 		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
 		const command = createTasksCommand();
-		await expect(
-			command.commands
-				.find((child) => child.name() === "show")!
-				.parseAsync(["aaa"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["aaa"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Ambiguous prefix"),
@@ -286,6 +279,6 @@ describe("refarm tasks", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("urn:refarm:task:v1:aaa111"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 });

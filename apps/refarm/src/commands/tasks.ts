@@ -173,18 +173,21 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		};
 		if (response.status === 404) {
 			console.error(chalk.red(`✗  No task matching "${prefix}"`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (response.status === 409) {
 			console.error(
 				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
 			);
 			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (!response.ok) {
 			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		body = parsed;
 	} catch (err) {
