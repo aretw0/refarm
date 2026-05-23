@@ -1,9 +1,9 @@
-import { SowerCore } from "@refarm.dev/sower";
 import { SiloCore } from "@refarm.dev/silo";
+import { SowerCore } from "@refarm.dev/sower";
 import chalk from "chalk";
 import { Command } from "commander";
 import inquirer from "inquirer";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 
 
@@ -38,7 +38,7 @@ export const initCommand = new Command("init")
     if (!opts.force && (existsSync(configPath) || existsSync(identityPath))) {
       console.log(chalk.yellow(`Already initialized at ${projectDir}.`));
       console.log(chalk.dim("Use --force to reinitialize (destructive)."));
-      process.exit(0);
+      return;
     }
 
     console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockDeploy, mockProvision } = vi.hoisted(() => ({
   mockDeploy: vi.fn().mockResolvedValue({ status: "dry-run" }),
@@ -60,23 +60,17 @@ describe("deployCommand", () => {
 
   it("rejects unknown deploy targets before calling windmill", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation(((code?: string | number | null | undefined) => {
-        throw new Error(`exit:${code ?? 0}`);
-      }) as never);
 
-    await expect(
-      deployCommand.parseAsync(["--target", "workers", "--dry-run"], { from: "user" }),
-    ).rejects.toThrow("exit:1");
+    await deployCommand.parseAsync(["--target", "workers", "--dry-run"], {
+      from: "user",
+    });
 
     expect(mockDeploy).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Invalid deploy target "workers"'),
     );
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
     errorSpy.mockRestore();
-    exitSpy.mockRestore();
   });
 
   it("does not throw on dry-run success", async () => {

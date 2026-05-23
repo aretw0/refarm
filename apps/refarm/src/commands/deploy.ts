@@ -81,14 +81,17 @@ export const deployCommand = new Command("deploy")
 
           if (result.status === "partial_failure") {
               console.warn(chalk.yellow("\n⚠️ Some deployment targets failed."));
-              process.exit(1);
+              process.exitCode = 1;
+              return;
           }
       } else {
           console.error(chalk.red(`\n❌ Deployment failed: ${result.message}`));
-          process.exit(1);
+          process.exitCode = 1;
+          return;
       }
     } catch (error) {
       console.error(chalk.red(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}`));
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
   });

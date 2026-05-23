@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // vi.hoisted() runs before vi.mock() hoisting, allowing mock factories to reference these variables.
 const {
@@ -61,6 +61,7 @@ describe("initCommand — mocked initialization flow", () => {
       timestamp: "2026-01-01T00:00:00.000Z",
     });
     mockInquirerPrompt.mockResolvedValue({ template: "workspace" });
+    process.exitCode = undefined;
   });
 
   async function runInit(name = "test-workspace") {
@@ -130,13 +131,10 @@ describe("initCommand — mocked initialization flow", () => {
 
   it("aborts re-run without --force when already initialized", async () => {
     mockExistsSync.mockReturnValue(true);
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(
-      (() => { throw new Error("exit:0"); }) as never,
-    );
-    await expect(runInit()).rejects.toThrow("exit:0");
+    await expect(runInit()).resolves.toBeUndefined();
     expect(mockBootstrapIdentity).not.toHaveBeenCalled();
     expect(mockWriteFileSync).not.toHaveBeenCalled();
-    exitSpy.mockRestore();
+    expect(process.exitCode).toBeUndefined();
   });
 
   it("reinitializes when --force is passed even if already initialized", async () => {

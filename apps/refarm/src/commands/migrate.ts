@@ -1,8 +1,8 @@
-import { Command } from "commander";
-import chalk from "chalk";
-import inquirer from "inquirer";
-import { Windmill } from "@refarm.dev/windmill";
 import { SiloCore } from "@refarm.dev/silo";
+import { Windmill } from "@refarm.dev/windmill";
+import chalk from "chalk";
+import { Command } from "commander";
+import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -85,7 +85,8 @@ export const migrateCommand = new Command("migrate")
 
     if (!config.brand?.urls?.repository) {
         console.error(chalk.red("Error: Could not detect source repository URL. Please ensure you are in a Git repo or have it in your config."));
-        process.exit(1);
+        process.exitCode = 1;
+        return;
     }
 
     console.log(chalk.blue(`📡 Initializing mirror flow for ${config.brand?.urls?.repository}...`));
