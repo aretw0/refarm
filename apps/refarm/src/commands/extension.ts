@@ -1,8 +1,8 @@
+import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { Command } from "commander";
 
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
@@ -60,6 +60,10 @@ export interface ExtensionEntry {
   scope: "project" | "global";
 }
 
+export interface ExtensionListReport {
+  extensions: ExtensionEntry[];
+}
+
 export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
   const results: ExtensionEntry[] = [];
 
@@ -83,6 +87,10 @@ export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
   scan(path.join(cwd, ".refarm", "extensions"), "project");
   scan(path.join(homeDir, ".refarm", "extensions"), "global");
   return results;
+}
+
+export function buildExtensionListReport(cwd: string, homeDir: string): ExtensionListReport {
+  return { extensions: listExtensions(cwd, homeDir) };
 }
 
 async function newExtension(name: string, isGlobal: boolean): Promise<void> {
@@ -150,8 +158,14 @@ async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
   console.log(`Extension '${name}' moved to ${toScope} scope (${destDir})`);
 }
 
-function listHandler(): void {
-  const entries = listExtensions(process.cwd(), os.homedir());
+function listHandler(options: { json?: boolean } = {}): void {
+  const report = buildExtensionListReport(process.cwd(), os.homedir());
+  if (options.json) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
+  const entries = report.extensions;
   if (entries.length === 0) {
     console.log("No local extensions. Create one: refarm extension new <name>");
     return;
@@ -177,6 +191,7 @@ extensionCommand.addHelpText(
 Examples:
   $ refarm extension new my-tool
   $ refarm extension list
+  $ refarm extension list --json
   $ refarm extension save my-tool --global
 
 Notes:
@@ -196,6 +211,7 @@ extensionCommand
 extensionCommand
   .command("list")
   .description("List local extensions in this project and globally")
+  .option("--json", "Output machine-readable extension inventory")
   .action(listHandler);
 
 extensionCommand
