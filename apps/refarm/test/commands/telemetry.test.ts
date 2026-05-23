@@ -58,6 +58,7 @@ describe("refarm telemetry", () => {
 
 		expect(help).toContain("refarm telemetry --json --strict");
 		expect(help).toContain("refarm telemetry --next-action");
+		expect(help).toContain("refarm telemetry --next-action --json");
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm runtime start --wait");
 		expect(help).toContain("refarm doctor");
@@ -311,7 +312,7 @@ describe("refarm telemetry", () => {
 		);
 	});
 
-	it("prefers --next-action over --json", async () => {
+	it("emits the first telemetry recovery action as JSON", async () => {
 		const deps = makeDeps({
 			fetchTelemetry: vi.fn().mockResolvedValue({
 				queueDepth: 20,
@@ -334,9 +335,50 @@ describe("refarm telemetry", () => {
 		});
 
 		expect(logSpy).toHaveBeenCalledOnce();
-		expect(logSpy).toHaveBeenCalledWith(
-			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction:
+				"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+			nextActions: [
+				"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+			],
+			strict: {
+				enabled: false,
+				targets: [],
+				matchedDiagnostics: ["saturation:queue"],
+				passed: true,
+			},
+		});
+	});
+
+	it("preserves strict exit code in next action JSON mode", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 0,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 0,
+				done: 10,
+				failed: 0,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--json", "--next-action", "--strict", "--queue-warn", "5"],
+			{ from: "user" },
 		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			strict?: { passed?: boolean };
+		};
+		expect(payload.strict?.passed).toBe(false);
+		expect(process.exitCode).toBe(2);
 	});
 });
 

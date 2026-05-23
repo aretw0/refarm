@@ -272,6 +272,7 @@ Examples:
   $ refarm telemetry --profile conservative
   $ refarm telemetry --json --strict
   $ refarm telemetry --next-action
+  $ refarm telemetry --next-action --json
   $ refarm telemetry --json --strict-on saturation:queue,reliability:failure-rate
 
 Notes:
@@ -375,6 +376,26 @@ Notes:
 						passed: strictPassed,
 					},
 				};
+
+				if (opts.nextAction && opts.json) {
+					const [nextAction] = nextActions;
+					console.log(
+						JSON.stringify(
+							{
+								ok: diagnostics.length === 0,
+								nextAction: nextAction ?? null,
+								nextActions,
+								strict: payload.strict,
+							},
+							null,
+							2,
+						),
+					);
+					if (!strictPassed) {
+						process.exitCode = 2;
+					}
+					return;
+				}
 
 				if (opts.nextAction) {
 					const [action] = nextActions;
