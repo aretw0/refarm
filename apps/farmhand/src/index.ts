@@ -10,28 +10,28 @@
  *  - FarmhandTask nodes → execute the plugin function, write result back to graph
  */
 
-import { mkdir } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { SiloCore } from "@refarm.dev/silo";
-import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
-import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
-import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
-import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
-import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
-import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
-import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
-import { Tractor } from "@refarm.dev/tractor";
-import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
 import {
 	PI_AGENT_NPM_PACKAGE,
 	PI_AGENT_PLUGIN_ID,
 	loadConfigAsync,
 } from "@refarm.dev/config";
+import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
+import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type {
-	RuntimeHost,
-	RuntimePluginLoaderTarget,
+RuntimeHost,
+RuntimePluginLoaderTarget,
 } from "@refarm.dev/runtime";
+import { SiloCore } from "@refarm.dev/silo";
+import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
+import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
+import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
+import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
+import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
+import { Tractor } from "@refarm.dev/tractor";
+import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
+import { mkdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { injectConfigEnv } from "./config-env.js";
@@ -43,6 +43,7 @@ import {
 	scopeForEffortSource,
 	withModelRouteEnv,
 } from "./model-routes.js";
+import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import {
 	createSiloModelEnvInjector,
 	type OAuthCreds,
@@ -52,7 +53,6 @@ import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
-import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import {
 	FileTransportAdapter,
 	type TaskExecutorFn,
@@ -476,7 +476,6 @@ async function main() {
 		await httpSidecar.stop();
 		await transport.disconnect();
 		await runtime.shutdown?.();
-		process.exit(0);
 	}
 
 	process.on("SIGTERM", () => {
@@ -491,5 +490,5 @@ async function main() {
 
 main().catch((err) => {
 	console.error("[farmhand] Fatal error:", err);
-	process.exit(1);
+	process.exitCode = 1;
 });
