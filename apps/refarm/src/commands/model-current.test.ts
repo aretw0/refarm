@@ -19,6 +19,9 @@ describe("printCurrentModel", () => {
 		delete process.env.MODEL_PROVIDER;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.MODEL_ID;
+		delete process.env.MODEL_BASE_URL;
+		delete process.env.MODEL_FALLBACK_PROVIDER;
+		delete process.env.MODEL_FALLBACK_MODEL_ID;
 		delete process.env.OPENAI_API_KEY;
 	});
 
@@ -41,6 +44,18 @@ describe("printCurrentModel", () => {
 		expect(output).toContain("current: gemini/gemini-3-flash-preview");
 		expect(output).toContain("key env:  GEMINI_API_KEY");
 		expect(output).toContain("source:   environment overrides are active");
+		expect(output).toContain("env:      MODEL_PROVIDER");
+	});
+
+	it("lists all active model route environment overrides", () => {
+		process.env.MODEL_PROVIDER = "vllm";
+		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
+		process.env.MODEL_BASE_URL = "http://127.0.0.1:8000";
+
+		const output = captureCurrentModel();
+
+		expect(output).toContain("source:   environment overrides are active");
+		expect(output).toContain("env:      MODEL_PROVIDER, MODEL_ID, MODEL_BASE_URL");
 	});
 
 	it("marks persisted scoped routes as identity source", () => {

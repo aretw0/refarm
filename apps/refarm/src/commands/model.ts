@@ -1,24 +1,24 @@
-import { Command } from "commander";
-import chalk from "chalk";
-import { SiloCore } from "@refarm.dev/silo";
 import {
 	modelCredentialEnvKey,
 	modelCredentialStatus as resolveModelCredentialStatus,
 } from "@refarm.dev/config";
+import { SiloCore } from "@refarm.dev/silo";
+import chalk from "chalk";
+import { Command } from "commander";
 import {
 	DEFAULT_MODEL_PROVIDER,
-	defaultProviderModelRef,
 	defaultModelForProvider,
 	defaultModelForScope,
+	defaultProviderModelRef,
 	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
-	MODEL_SCOPES,
 	MODEL_PROVIDERS,
-	type ModelScope,
+	MODEL_SCOPES,
 	modelRouteTokenUpdate,
-	parseModelScope,
 	parseModelRef,
+	parseModelScope,
+	type ModelScope,
 } from "../model-routing.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
@@ -81,6 +81,17 @@ function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 	);
 }
 
+function activeModelEnvOverrides(): string[] {
+	return [
+		"MODEL_PROVIDER",
+		"MODEL_DEFAULT_PROVIDER",
+		"MODEL_ID",
+		"MODEL_BASE_URL",
+		"MODEL_FALLBACK_PROVIDER",
+		"MODEL_FALLBACK_MODEL_ID",
+	].filter((name) => Boolean(process.env[name]));
+}
+
 export function printCurrentModel(tokens: ModelTokens): void {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
 	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
@@ -120,15 +131,10 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	const monitor = effectiveModelRouteForScope(tokens, "monitor", { env: process.env });
 	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
 	if (monitorRoute) console.log(`  monitor:  ${monitorRoute}`);
-	if (
-		process.env.MODEL_PROVIDER ||
-		process.env.MODEL_DEFAULT_PROVIDER ||
-		process.env.MODEL_ID ||
-		process.env.MODEL_BASE_URL ||
-		process.env.MODEL_FALLBACK_PROVIDER ||
-		process.env.MODEL_FALLBACK_MODEL_ID
-	) {
+	const envOverrides = activeModelEnvOverrides();
+	if (envOverrides.length > 0) {
 		console.log(chalk.dim("  source:   environment overrides are active"));
+		console.log(chalk.dim(`  env:      ${envOverrides.join(", ")}`));
 	} else if (
 		tokens.modelProvider ||
 		tokens.modelId ||
