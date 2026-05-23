@@ -167,6 +167,76 @@ describe("config command", () => {
 		expect(output).toContain(path.join(cwd, ".refarm", "config.json"));
 	});
 
+	it("prints effective config as JSON when run without a subcommand", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "always" }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			values: Array<{ key: string; value: string; source: string }>;
+		};
+		expect(payload.values).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					key: "runtime.autostart",
+					value: "always",
+					source: path.join(home, ".refarm", "config.json"),
+				}),
+				expect.objectContaining({
+					key: "operator.openExternalLinks",
+					value: "auto",
+					source: "default",
+				}),
+				expect.objectContaining({
+					key: "tractor.engine",
+					value: "auto",
+					source: "default",
+				}),
+			]),
+		);
+	});
+
+	it("prints effective config value as JSON", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "never" }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.autostart", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "runtime.autostart",
+			value: "never",
+			source: path.join(cwd, ".refarm", "config.json"),
+		});
+	});
+
+	it("marks legacy config keys in JSON output", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "farmhand.autostart", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "farmhand.autostart",
+			value: "ask",
+			source: "default",
+			legacy: true,
+		});
+	});
+
 	it("prints a guide when run without a subcommand", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

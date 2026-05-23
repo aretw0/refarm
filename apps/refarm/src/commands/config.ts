@@ -46,6 +46,25 @@ interface ConfigDeps {
 	home(): string;
 }
 
+interface EffectiveConfigValue {
+	key: ConfigKey;
+	value: string;
+	source: string;
+	legacy?: boolean;
+}
+
+interface ConfigSummary {
+	values: EffectiveConfigValue[];
+}
+
+interface JsonOptionCarrier {
+	json?: boolean;
+	opts?: () => { json?: boolean };
+	parent?: {
+		opts?: () => { json?: boolean };
+	};
+}
+
 const CONFIG_KEYS: readonly ConfigKey[] = [
 	"runtime.autostart",
 	"operator.openExternalLinks",
@@ -227,52 +246,86 @@ function warnIgnoredTractorEngineEnvOverride(): void {
 	);
 }
 
-function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
+function resolveConfigValue(
+	key: ConfigKey,
+	opts: { local?: boolean },
+	deps: ConfigDeps,
+): EffectiveConfigValue {
 	if (key === "farmhand.autostart" || key === "runtime.autostart") {
-		warnIgnoredAutostartEnvOverrides();
 		const effective = resolveAutostartMode(deps, opts);
-		console.log(`${key}=${effective.value}`);
-		console.log(chalk.dim(`source=${effective.source}`));
-		if (key === "farmhand.autostart") {
-			console.log(chalk.dim("legacy key; prefer runtime.autostart"));
-		}
-		return;
+		return {
+			key,
+			value: effective.value,
+			source: effective.source,
+			...(key === "farmhand.autostart" ? { legacy: true } : {}),
+		};
 	}
 	if (key === "operator.openExternalLinks") {
-		warnIgnoredOpenExternalLinksEnvOverride();
 		const effective = resolveOpenExternalLinksMode(deps, opts);
-		console.log(`${key}=${effective.value}`);
-		console.log(chalk.dim(`source=${effective.source}`));
-		return;
+		return { key, value: effective.value, source: effective.source };
 	}
-	if (key === "tractor.engine") {
-		warnIgnoredTractorEngineEnvOverride();
-		const effective = resolveTractorEngineMode(deps, opts);
-		console.log(`${key}=${effective.value}`);
-		console.log(chalk.dim(`source=${effective.source}`));
+	const effective = resolveTractorEngineMode(deps, opts);
+	return { key, value: effective.value, source: effective.source };
+}
+
+function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
+	warnIgnoredConfigEnvOverrides();
+	const effective = resolveConfigValue(key, opts, deps);
+	console.log(`${effective.key}=${effective.value}`);
+	console.log(chalk.dim(`source=${effective.source}`));
+	if (effective.legacy) {
+		console.log(chalk.dim("legacy key; prefer runtime.autostart"));
 	}
 }
 
-function printConfigSummary(deps: ConfigDeps): void {
+function printConfigValueJson(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
+	warnIgnoredConfigEnvOverrides();
+	console.log(JSON.stringify(resolveConfigValue(key, opts, deps), null, 2));
+}
+
+function warnIgnoredConfigEnvOverrides(): void {
 	warnIgnoredAutostartEnvOverrides();
 	warnIgnoredOpenExternalLinksEnvOverride();
 	warnIgnoredTractorEngineEnvOverride();
+}
 
-	const runtimeAutostart = resolveAutostartMode(deps, {});
-	const externalLinks = resolveOpenExternalLinksMode(deps, {});
-	const tractorEngine = resolveTractorEngineMode(deps, {});
+function buildConfigSummary(deps: ConfigDeps): ConfigSummary {
+	return {
+		values: [
+			resolveConfigValue("runtime.autostart", {}, deps),
+			resolveConfigValue("operator.openExternalLinks", {}, deps),
+			resolveConfigValue("tractor.engine", {}, deps),
+		],
+	};
+}
+
+function printConfigSummary(deps: ConfigDeps): void {
+	warnIgnoredConfigEnvOverrides();
+	const summary = buildConfigSummary(deps);
 
 	console.log(chalk.bold("Refarm config"));
-	console.log(`  runtime.autostart=${runtimeAutostart.value}`);
-	console.log(chalk.dim(`    source=${runtimeAutostart.source}`));
-	console.log(`  operator.openExternalLinks=${externalLinks.value}`);
-	console.log(chalk.dim(`    source=${externalLinks.source}`));
-	console.log(`  tractor.engine=${tractorEngine.value}`);
-	console.log(chalk.dim(`    source=${tractorEngine.source}`));
+	for (const item of summary.values) {
+		console.log(`  ${item.key}=${item.value}`);
+		console.log(chalk.dim(`    source=${item.source}`));
+	}
 	console.log("");
 	console.log(chalk.dim(`  Change a value:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
 	console.log(chalk.dim(`  Project-local value:  ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local`));
 	console.log(chalk.dim("  Future: running this command without arguments can become interactive."));
+}
+
+function printConfigSummaryJson(deps: ConfigDeps): void {
+	warnIgnoredConfigEnvOverrides();
+	console.log(JSON.stringify(buildConfigSummary(deps), null, 2));
+}
+
+function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): boolean {
+	return (
+		opts.json === true ||
+		opts.opts?.().json === true ||
+		command?.opts?.().json === true ||
+		command?.parent?.opts?.().json === true
+	);
 }
 
 function setConfigValue(
@@ -327,13 +380,16 @@ function setConfigValue(
 export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
 	return new Command("config")
 		.description("Inspect and change refarm CLI preferences")
+		.option("--json", "Output effective config values as JSON")
 		.addHelpText(
 			"after",
 			`
 
 Examples:
   $ refarm config
+  $ refarm config --json
   $ refarm config get runtime.autostart
+  $ refarm config get runtime.autostart --json
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   $ refarm config set operator.openExternalLinks never
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
@@ -356,7 +412,11 @@ Notes:
   The no-argument form is reserved for the future interactive configuration surface.
 `,
 		)
-		.action(() => {
+		.action((opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
+			if (hasJsonOption(opts, command)) {
+				printConfigSummaryJson(deps);
+				return;
+			}
 			printConfigSummary(deps);
 		})
 		.addCommand(
@@ -364,12 +424,14 @@ Notes:
 				.description("Show an effective config value")
 				.argument("<key>", "Config key")
 				.option("--local", "Read project-local .refarm/config.json only")
+				.option("--json", "Output machine-readable key/value/source")
 				.addHelpText(
 					"after",
 					`
 
 Examples:
   $ refarm config get runtime.autostart
+  $ refarm config get runtime.autostart --json
   $ refarm config get operator.openExternalLinks
   $ refarm config get tractor.engine
   $ refarm config get runtime.autostart --local
@@ -388,11 +450,21 @@ Notes:
   take precedence and are shown in the source line.
 `,
 				)
-				.action((key: string, opts: { local?: boolean }) => {
-					const parsedKey = parseConfigKey(key);
-					if (!parsedKey) return;
-					printConfigValue(parsedKey, opts, deps);
-				}),
+				.action(
+					(
+						key: string,
+						opts: { local?: boolean } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						const parsedKey = parseConfigKey(key);
+						if (!parsedKey) return;
+						if (hasJsonOption(opts, command)) {
+							printConfigValueJson(parsedKey, opts, deps);
+							return;
+						}
+						printConfigValue(parsedKey, opts, deps);
+					},
+				),
 		)
 		.addCommand(
 			new Command("set")
