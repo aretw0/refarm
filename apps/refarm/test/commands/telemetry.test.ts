@@ -201,24 +201,15 @@ describe("refarm telemetry", () => {
 		});
 		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
-		await expect(
-			command.parseAsync(["--json", "--strict"], { from: "user" }),
-		).rejects.toThrow("exit:2");
+		await command.parseAsync(["--json", "--strict"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			strict?: { passed?: boolean; matchedDiagnostics?: string[] };
 		};
 		expect(payload.strict?.passed).toBe(false);
 		expect(payload.strict?.matchedDiagnostics?.length).toBeGreaterThan(0);
-		expect(exitSpy).toHaveBeenCalledWith(2);
-
-		exitSpy.mockRestore();
+		expect(process.exitCode).toBe(2);
 	});
 
 	it("strict-on filters diagnostics and passes when no selected code matches", async () => {
@@ -238,11 +229,6 @@ describe("refarm telemetry", () => {
 		});
 		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
 		await command.parseAsync(
 			["--json", "--strict", "--strict-on", "reliability:failure-rate"],
@@ -254,9 +240,7 @@ describe("refarm telemetry", () => {
 		};
 		expect(payload.strict?.passed).toBe(true);
 		expect(payload.strict?.matchedDiagnostics).toEqual([]);
-		expect(exitSpy).not.toHaveBeenCalled();
-
-		exitSpy.mockRestore();
+		expect(process.exitCode).toBeUndefined();
 	});
 
 	it("prints recommendations in summary mode when diagnostics are present", async () => {

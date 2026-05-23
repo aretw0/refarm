@@ -378,7 +378,7 @@ Notes:
 					const [action] = nextActions;
 					if (action) console.log(action);
 					if (!strictPassed) {
-						process.exit(2);
+						process.exitCode = 2;
 					}
 					return;
 				}
@@ -386,7 +386,7 @@ Notes:
 				if (opts.json) {
 					console.log(JSON.stringify(payload, null, 2));
 					if (!strictPassed) {
-						process.exit(2);
+						process.exitCode = 2;
 					}
 					return;
 				}
@@ -448,7 +448,7 @@ Notes:
 							chalk.dim(`  enforced codes: ${strictTargets.join(", ")}`),
 						);
 					}
-					process.exit(2);
+					process.exitCode = 2;
 				}
 			},
 		);
