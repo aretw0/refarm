@@ -78,6 +78,42 @@ describe("refarm sessions", () => {
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Created session"));
 	});
 
+	it("sessions new prints created session as JSON", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				session: {
+					"@id": "urn:refarm:session:v1:abc123def456",
+					"@type": "Session",
+					name: "auth-refactor",
+				},
+			}),
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(
+			"urn:refarm:session:v1:abc123def456",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "new")!
+			.parseAsync(["--name", "auth-refactor", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "created",
+			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			session: {
+				"@id": "urn:refarm:session:v1:abc123def456",
+				"@type": "Session",
+				name: "auth-refactor",
+			},
+		});
+	});
+
 	it("lists sessions as JSON from the default command", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -204,6 +240,62 @@ describe("refarm sessions", () => {
 			expect.stringContaining("Session switch expected active session"),
 		);
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("sessions use prints active session update as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [
+						{
+							"@id": "urn:refarm:session:v1:abc123def456",
+							"@type": "Session",
+							name: "planning",
+						},
+					],
+				}),
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(
+			"urn:refarm:session:v1:abc123def456",
+		);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "use")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "switched",
+			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			session: {
+				"@id": "urn:refarm:session:v1:abc123def456",
+				"@type": "Session",
+				name: "planning",
+			},
+		});
+	});
+
+	it("sessions clear prints clear result as JSON", async () => {
+		vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "clear")!
+			.parseAsync(["--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "cleared",
+			activeSessionId: null,
+			cleared: true,
+		});
 	});
 
 	it("sessions new exits with actionable message when sidecar is down", async () => {

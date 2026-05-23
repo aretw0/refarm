@@ -43,6 +43,13 @@ interface SessionListReport {
 	sessions: SessionNode[];
 }
 
+interface ActiveSessionReport {
+	action: "created" | "switched" | "cleared";
+	activeSessionId: string | null;
+	session?: SessionNode;
+	cleared?: boolean;
+}
+
 function writeActiveSessionOrReport(targetSessionId: string): boolean {
 	try {
 		writeActiveSessionIdAndVerify(targetSessionId);
@@ -104,15 +111,17 @@ export function createSessionsCommand(): Command {
 			new Command("use")
 				.description("Switch to a session by ID prefix")
 				.argument("<id>", "Session ID or unique prefix")
-				.action(async (prefix: string) => {
-					await useSession(prefix);
+				.option("--json", "Output machine-readable active session update")
+				.action(async (prefix: string, opts: { json?: boolean }) => {
+					await useSession(prefix, { json: opts.json });
 				}),
 		)
 		.addCommand(
 			new Command("new")
 				.description("Create a new session and switch to it")
 				.option("--name <name>", "Optional session name")
-				.action(async (opts: { name?: string }) => {
+				.option("--json", "Output machine-readable created session metadata")
+				.action(async (opts: { name?: string; json?: boolean }) => {
 					await createSession(opts);
 				}),
 		)
@@ -144,8 +153,19 @@ export function createSessionsCommand(): Command {
 		.addCommand(
 			new Command("clear")
 				.description("Clear the active session (next ask starts fresh)")
-				.action(() => {
-					if (clearActiveSessionId()) {
+				.option("--json", "Output machine-readable clear result")
+				.action((opts: { json?: boolean }) => {
+					const cleared = clearActiveSessionId();
+					if (opts.json) {
+						const report: ActiveSessionReport = {
+							action: "cleared",
+							activeSessionId: null,
+							cleared,
+						};
+						console.log(JSON.stringify(report, null, 2));
+						return;
+					}
+					if (cleared) {
 						console.log(chalk.green("✓  Active session cleared."));
 					} else {
 						console.log(chalk.dim("No active session."));
@@ -230,7 +250,7 @@ async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 	);
 }
 
-async function createSession(opts: { name?: string }): Promise<void> {
+async function createSession(opts: { name?: string; json?: boolean }): Promise<void> {
 	let created: SessionNode;
 	try {
 		const body = opts.name ? { name: opts.name } : {};
@@ -271,6 +291,15 @@ async function createSession(opts: { name?: string }): Promise<void> {
 	}
 
 	if (!writeActiveSessionOrReport(created["@id"])) return;
+	if (opts.json) {
+		const report: ActiveSessionReport = {
+			action: "created",
+			activeSessionId: created["@id"],
+			session: created,
+		};
+		console.log(JSON.stringify(report, null, 2));
+		return;
+	}
 	const short = formatSessionId(created["@id"]);
 	const name = created.name ? chalk.white(created.name) : chalk.dim("unnamed");
 	console.log(
@@ -280,7 +309,10 @@ async function createSession(opts: { name?: string }): Promise<void> {
 	);
 }
 
-async function useSession(prefix: string): Promise<void> {
+async function useSession(
+	prefix: string,
+	opts: { json?: boolean } = {},
+): Promise<void> {
 	let sessions: SessionNode[];
 	try {
 		sessions = await fetchSessions();
@@ -308,6 +340,15 @@ async function useSession(prefix: string): Promise<void> {
 	}
 
 	if (!writeActiveSessionOrReport(matches[0]!["@id"])) return;
+	if (opts.json) {
+		const report: ActiveSessionReport = {
+			action: "switched",
+			activeSessionId: matches[0]!["@id"],
+			session: matches[0]!,
+		};
+		console.log(JSON.stringify(report, null, 2));
+		return;
+	}
 	console.log(
 		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]!["@id"])}`),
 	);
