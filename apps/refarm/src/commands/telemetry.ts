@@ -1,6 +1,11 @@
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
@@ -265,7 +270,8 @@ Examples:
 
 Notes:
   Use --strict in automation when telemetry pressure should fail the current step.
-  Run refarm runtime status or refarm doctor if telemetry cannot reach the local runtime.
+  If telemetry cannot reach the local runtime, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.
+  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.
 `,
 		)
 		.action(

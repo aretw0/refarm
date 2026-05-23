@@ -57,7 +57,9 @@ describe("refarm telemetry", () => {
 		command.outputHelp();
 
 		expect(help).toContain("refarm telemetry --json --strict");
-		expect(help).toContain("refarm runtime status or refarm doctor");
+		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm doctor");
 	});
 
 	it("rejects invalid profile before fetching telemetry", async () => {
