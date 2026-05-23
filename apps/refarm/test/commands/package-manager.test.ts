@@ -86,6 +86,21 @@ describe("package manager command resolution", () => {
 		});
 	});
 
+	it("formats run commands with pass-through script args", () => {
+		expect(
+			createPackageScriptCommand({
+				cwd: ".",
+				script: "imports:organize",
+				args: ["--check"],
+				env: { REFARM_PACKAGE_MANAGER: "npm" },
+			}),
+		).toEqual({
+			command: "npm",
+			args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
+			display: "npm --prefix . run imports:organize -- --check",
+		});
+	});
+
 	it("formats binary commands for supported package managers", () => {
 		expect(
 			createPackageBinaryCommand("jco", ["transpile", "plugin.wasm"], {

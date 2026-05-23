@@ -9,6 +9,7 @@ export interface PackageScriptCommandOptions extends PackageManagerOptions {
     cwd: string;
     script: string;
     repoRoot?: string;
+    args?: string[];
 }
 
 export interface PackageScriptCommand {

@@ -91,6 +91,57 @@ describe("package manager config", () => {
         });
     });
 
+    it("formats script commands with pass-through args for each supported manager", () => {
+        expect(
+            createPackageScriptCommand({
+                cwd: ".",
+                script: "imports:organize",
+                args: ["--check", "apps/refarm/src/index.ts"],
+                env: { REFARM_PACKAGE_MANAGER: "pnpm" },
+            }),
+        ).toMatchObject({
+            command: "pnpm",
+            args: ["-C", ".", "run", "imports:organize", "--check", "apps/refarm/src/index.ts"],
+            display: "pnpm -C . run imports:organize --check apps/refarm/src/index.ts",
+        });
+        expect(
+            createPackageScriptCommand({
+                cwd: ".",
+                script: "imports:organize",
+                args: ["--check"],
+                env: { REFARM_PACKAGE_MANAGER: "npm" },
+            }),
+        ).toMatchObject({
+            command: "npm",
+            args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
+            display: "npm --prefix . run imports:organize -- --check",
+        });
+        expect(
+            createPackageScriptCommand({
+                cwd: ".",
+                script: "imports:organize",
+                args: ["--check"],
+                env: { REFARM_PACKAGE_MANAGER: "yarn" },
+            }),
+        ).toMatchObject({
+            command: "yarn",
+            args: ["--cwd", ".", "run", "imports:organize", "--check"],
+            display: "yarn --cwd . run imports:organize --check",
+        });
+        expect(
+            createPackageScriptCommand({
+                cwd: ".",
+                script: "imports:organize",
+                args: ["--check"],
+                env: { REFARM_PACKAGE_MANAGER: "bun" },
+            }),
+        ).toMatchObject({
+            command: "bun",
+            args: ["--cwd", ".", "run", "imports:organize", "--check"],
+            display: "bun --cwd . run imports:organize --check",
+        });
+    });
+
     it("falls back to npm when no supported package manager is configured", () => {
         expect(detectPackageManager({ cwd: tmpdir(), env: {} })).toBe("npm");
     });

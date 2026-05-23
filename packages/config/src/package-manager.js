@@ -73,6 +73,7 @@ export function createPackageScriptCommand({
     script,
     repoRoot,
     env = process.env,
+    args = [],
 }) {
     const packageManager = detectPackageManager({
         cwd: repoRoot ?? cwd,
@@ -85,33 +86,41 @@ export function createPackageScriptCommand({
             return {
                 packageManager,
                 command: "pnpm",
-                args: ["-C", commandCwd, "run", script],
-                display: `pnpm -C ${commandCwd} run ${script}`,
+                args: ["-C", commandCwd, "run", script, ...args],
+                display: `pnpm -C ${commandCwd} run ${script}${formatArgsDisplay(args)}`,
             };
         case "npm":
             return {
                 packageManager,
                 command: "npm",
-                args: ["--prefix", commandCwd, "run", script],
-                display: `npm --prefix ${commandCwd} run ${script}`,
+                args: ["--prefix", commandCwd, "run", script, ...(args.length > 0 ? ["--", ...args] : [])],
+                display: `npm --prefix ${commandCwd} run ${script}${formatNpmArgsDisplay(args)}`,
             };
         case "yarn":
             return {
                 packageManager,
                 command: "yarn",
-                args: ["--cwd", commandCwd, "run", script],
-                display: `yarn --cwd ${commandCwd} run ${script}`,
+                args: ["--cwd", commandCwd, "run", script, ...args],
+                display: `yarn --cwd ${commandCwd} run ${script}${formatArgsDisplay(args)}`,
             };
         case "bun":
             return {
                 packageManager,
                 command: "bun",
-                args: ["--cwd", commandCwd, "run", script],
-                display: `bun --cwd ${commandCwd} run ${script}`,
+                args: ["--cwd", commandCwd, "run", script, ...args],
+                display: `bun --cwd ${commandCwd} run ${script}${formatArgsDisplay(args)}`,
             };
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
     }
+}
+
+function formatArgsDisplay(args) {
+    return args.length > 0 ? ` ${args.join(" ")}` : "";
+}
+
+function formatNpmArgsDisplay(args) {
+    return args.length > 0 ? ` -- ${args.join(" ")}` : "";
 }
 
 export function packageScriptCommand(script, { cwd = process.cwd(), env = process.env } = {}) {
