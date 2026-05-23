@@ -318,15 +318,15 @@ pluginCommand
 	.action((input: string, options: { output: string; name?: string }) => {
 		const name = options.name ?? basename(input, extname(input));
 		console.log(`Bundling plugin ${name} from ${input}...`);
+		const command = createPackageBinaryCommand("jco", [
+			"transpile",
+			input,
+			"-o",
+			options.output,
+			"--name",
+			name,
+		]);
 		try {
-			const command = createPackageBinaryCommand("jco", [
-				"transpile",
-				input,
-				"-o",
-				options.output,
-				"--name",
-				name,
-			]);
 			console.log(`  → ${command.display}`);
 			execFileSync(command.command, command.args, {
 				stdio: "inherit",
@@ -334,6 +334,10 @@ pluginCommand
 			console.log(`  ✓ Plugin bundled to ${options.output}/${name}.js`);
 		} catch (e) {
 			console.error(`  ✗ Bundle failed: ${e instanceof Error ? e.message : String(e)}`);
+			console.error(`    Command: ${command.display}`);
+			console.error(
+				`    Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
+			);
 			process.exitCode = 1;
 		}
 	});

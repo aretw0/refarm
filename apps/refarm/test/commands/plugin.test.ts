@@ -351,6 +351,12 @@ describe("plugin bundle", () => {
 		await run("bundle", "bad-plugin.wasm");
 
 		expect(process.exitCode).toBe(1);
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Command: pnpm exec jco transpile bad-plugin.wasm"),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun"),
+		);
 		process.exitCode = originalExitCode;
 		consoleSpy.mockRestore();
 	});
