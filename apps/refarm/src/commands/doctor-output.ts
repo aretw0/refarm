@@ -1,12 +1,17 @@
 import { formatRefarmStatusJson } from "@refarm.dev/cli/status";
 import type { RefarmDoctorReport } from "./doctor.js";
 
-export type RefarmDoctorOutputMode = "json" | "next-action" | "summary";
+export type RefarmDoctorOutputMode =
+	| "json"
+	| "next-action"
+	| "next-action-json"
+	| "summary";
 
 export function resolveDoctorOutputMode(options: {
 	json?: boolean;
 	nextAction?: boolean;
 }): RefarmDoctorOutputMode {
+	if (options.nextAction && options.json) return "next-action-json";
 	if (options.nextAction) return "next-action";
 	return options.json ? "json" : "summary";
 }
@@ -93,6 +98,21 @@ export function printRefarmDoctorNextAction(
 	if (action) log(action);
 }
 
+export function formatRefarmDoctorNextActionJson(
+	report: RefarmDoctorReport,
+): string {
+	const [nextAction] = report.nextActions;
+	return JSON.stringify(
+		{
+			ok: report.ok,
+			nextAction: nextAction ?? null,
+			nextActions: report.nextActions,
+		},
+		null,
+		2,
+	);
+}
+
 export function emitRefarmDoctorOutput(options: {
 	report: RefarmDoctorReport;
 	mode: RefarmDoctorOutputMode;
@@ -106,6 +126,12 @@ export function emitRefarmDoctorOutput(options: {
 
 	if (options.mode === "next-action") {
 		printRefarmDoctorNextAction(options.report, options.log);
+		return;
+	}
+
+	if (options.mode === "next-action-json") {
+		const log = options.log ?? console.log;
+		log(formatRefarmDoctorNextActionJson(options.report));
 		return;
 	}
 

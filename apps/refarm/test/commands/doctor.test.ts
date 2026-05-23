@@ -164,6 +164,7 @@ describe("doctorCommand", () => {
 
 		expect(help).toContain("refarm doctor --json");
 		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor --next-action --json");
 		expect(help).toContain("refarm doctor --input status.json");
 		expect(help).toContain("Use refarm check");
 	});
@@ -239,6 +240,30 @@ describe("doctorCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 		);
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
+	it("emits the first blocking recovery action as JSON", async () => {
+		mockResolveStatusPayload.mockResolvedValue({
+			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await doctorCommand.parseAsync(["--next-action", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction:
+				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			nextActions: [
+				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Inspect trust warnings and decide whether they should block this workflow.",
+			],
+		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});

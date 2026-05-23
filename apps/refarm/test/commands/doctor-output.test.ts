@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	emitRefarmDoctorOutput,
+	formatRefarmDoctorNextActionJson,
 	formatRefarmDoctorReportJson,
 	printRefarmDoctorNextAction,
 	printRefarmDoctorReport,
@@ -74,8 +75,11 @@ describe("resolveDoctorOutputMode", () => {
 
 	it("maps --next-action to next-action mode", () => {
 		expect(resolveDoctorOutputMode({ nextAction: true })).toBe("next-action");
+	});
+
+	it("maps --next-action --json to next-action-json mode", () => {
 		expect(resolveDoctorOutputMode({ json: true, nextAction: true })).toBe(
-			"next-action",
+			"next-action-json",
 		);
 	});
 });
@@ -183,6 +187,24 @@ describe("printRefarmDoctorNextAction", () => {
 	});
 });
 
+describe("formatRefarmDoctorNextActionJson", () => {
+	it("formats next-action payload for automation", () => {
+		expect(
+			JSON.parse(
+				formatRefarmDoctorNextActionJson({
+					...makeReport(),
+					ok: false,
+					nextActions: ["Start runtime.", "Inspect trust."],
+				}),
+			),
+		).toEqual({
+			ok: false,
+			nextAction: "Start runtime.",
+			nextActions: ["Start runtime.", "Inspect trust."],
+		});
+	});
+});
+
 describe("emitRefarmDoctorOutput", () => {
 	it("emits json or summary based on mode", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -207,5 +229,24 @@ describe("emitRefarmDoctorOutput", () => {
 
 		expect(log).toHaveBeenCalledOnce();
 		expect(log).toHaveBeenCalledWith("Start runtime.");
+	});
+
+	it("emits next action JSON in next-action-json mode", () => {
+		const log = vi.fn();
+		emitRefarmDoctorOutput({
+			report: {
+				...makeReport(),
+				ok: false,
+				nextActions: ["Start runtime."],
+			},
+			mode: "next-action-json",
+			log,
+		});
+
+		expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Start runtime.",
+			nextActions: ["Start runtime."],
+		});
 	});
 });

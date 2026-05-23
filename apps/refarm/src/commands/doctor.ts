@@ -196,6 +196,7 @@ Examples:
   $ refarm doctor
   $ refarm doctor --json
   $ refarm doctor --next-action
+  $ refarm doctor --next-action --json
   $ refarm doctor --fail-on-warnings
   $ refarm doctor --renderer web
   $ refarm doctor --input status.json
