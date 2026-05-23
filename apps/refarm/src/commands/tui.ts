@@ -8,6 +8,7 @@ import { resolveLaunchMode } from "./launch-policy.js";
 import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -90,7 +91,8 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				"  Without --launch, this runs a renderer preflight only.",
 				"  The TUI launcher uses the local tractor binary: tractor watch or tractor prompt.",
 				`  Use ${RUNTIME_STATUS_COMMAND} to inspect the selected engine before launching.`,
-				`  If runtime readiness is unclear, run ${RUNTIME_START_WAIT_COMMAND} or ${RUNTIME_DOCTOR_COMMAND}.`,
+				`  If runtime readiness is unclear, run ${RUNTIME_START_WAIT_COMMAND} or ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}.`,
+				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 			].join("\n"),
 		)
 		.option(

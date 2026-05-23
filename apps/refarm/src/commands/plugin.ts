@@ -15,6 +15,7 @@ import {
 import { readRuntimePluginState } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -178,6 +179,7 @@ async function printRuntimePluginStatus(): Promise<void> {
 		console.error("Refarm runtime plugin status is unavailable.");
 		console.error(`Start or restart the runtime with \`${RUNTIME_START_WAIT_COMMAND}\`, then retry.`);
 		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
+		console.error(`Next recovery action: \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\`.`);
 		console.error(`Diagnose readiness with \`${RUNTIME_DOCTOR_COMMAND}\`.`);
 		process.exitCode = 1;
 		return;
@@ -225,7 +227,8 @@ export const pluginCommand = new Command("plugin").description(
 	"Notes:",
 	"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
 	`  Status reads the active Refarm runtime; start it with ${RUNTIME_START_WAIT_COMMAND} if unavailable.`,
-	`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
+	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
+	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 	"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
 	].join("\n"),
 );
@@ -293,7 +296,8 @@ pluginCommand
 			"  This command requires the selected Refarm runtime sidecar.",
 			`  Use ${RUNTIME_STATUS_COMMAND} to see the selected engine and readiness.`,
 			`  Start or restart it with ${RUNTIME_START_WAIT_COMMAND}.`,
-			`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
+			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
+			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 		].join("\n"),
 	)
 	.action(printRuntimePluginStatus);

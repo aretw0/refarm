@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import {
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -370,7 +371,8 @@ Notes:
   file transport queues work under ~/.refarm/tasks for the runtime to pick up.
   http transport submits directly to the local runtime sidecar.
   For http transport readiness, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.
-  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.
+  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.
+  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.
 `,
 	);
 

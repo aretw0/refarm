@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -263,7 +264,8 @@ export function createTasksCommand(): Command {
 				"Notes:",
 				"  Tasks are created by runtime-backed flows such as refarm ask and refarm task run.",
 				`  If the task sidecar is unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.`,
-				`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
+				`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
+				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 				"  Use refarm task for dispatch/retry/cancel operations.",
 			].join("\n"),
 		)
