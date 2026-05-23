@@ -17,6 +17,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { defaultProviderModelRef } from "../model-routing.js";
+import { printJson } from "./json-output.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
 	readRuntimePluginState,
@@ -693,7 +694,7 @@ Runtime:
 									content,
 									...(metadata ? { metadata } : {}),
 								};
-								console.log(JSON.stringify(result, null, 2));
+								printJson(result);
 							}
 							return;
 						}
@@ -715,7 +716,7 @@ Runtime:
 							content,
 							...(metadata ? { metadata } : {}),
 						};
-						console.log(JSON.stringify(result, null, 2));
+						printJson(result);
 					}
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);

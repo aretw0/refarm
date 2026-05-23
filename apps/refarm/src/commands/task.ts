@@ -11,6 +11,7 @@ import { Command, InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -598,7 +599,7 @@ Notes:
 			const checkpoint = sessionRecorder.getCheckpoint();
 			if (!checkpoint) {
 				if (opts.json) {
-					console.log(JSON.stringify({ status: "empty" }, null, 2));
+					printJson({ status: "empty" });
 					return;
 				}
 				console.log(chalk.gray("No task session checkpoint yet."));
@@ -606,7 +607,7 @@ Notes:
 			}
 
 			if (opts.json) {
-				console.log(JSON.stringify({ status: "ok", checkpoint }, null, 2));
+				printJson({ status: "ok", checkpoint });
 				return;
 			}
 
@@ -667,7 +668,7 @@ Notes:
 			});
 
 			if (opts.json) {
-				console.log(JSON.stringify({ summary, efforts }, null, 2));
+				printJson({ summary, efforts });
 				return;
 			}
 
@@ -730,7 +731,7 @@ Notes:
 
 				const sliced = logs.slice(-opts.tail);
 				if (opts.json) {
-					console.log(JSON.stringify({ effortId, logs: sliced }, null, 2));
+					printJson({ effortId, logs: sliced });
 					return;
 				}
 

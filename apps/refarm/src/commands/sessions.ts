@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
+import { printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -163,7 +164,7 @@ export function createSessionsCommand(): Command {
 							activeSessionId: null,
 							cleared,
 						};
-						console.log(JSON.stringify(report, null, 2));
+						printJson(report);
 						return;
 					}
 					if (cleared) {
@@ -206,7 +207,7 @@ async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 		),
 	};
 	if (opts.json) {
-		console.log(JSON.stringify(report, null, 2));
+		printJson(report);
 		return;
 	}
 
@@ -298,7 +299,7 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 			activeSessionId: created["@id"],
 			session: created,
 		};
-		console.log(JSON.stringify(report, null, 2));
+		printJson(report);
 		return;
 	}
 	const short = formatSessionId(created["@id"]);
@@ -347,7 +348,7 @@ async function useSession(
 			activeSessionId: matches[0]!["@id"],
 			session: matches[0]!,
 		};
-		console.log(JSON.stringify(report, null, 2));
+		printJson(report);
 		return;
 	}
 	console.log(
@@ -459,7 +460,7 @@ async function showSession(
 	}
 
 	if (opts.json) {
-		console.log(JSON.stringify(history, null, 2));
+		printJson(history);
 		return;
 	}
 

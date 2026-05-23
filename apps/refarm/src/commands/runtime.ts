@@ -1,9 +1,24 @@
-import chalk from "chalk";
-import { Command } from "commander";
 import {
 	RUNTIME_ENGINE_MODES,
 	type RuntimeStatusSummary,
 } from "@refarm.dev/runtime";
+import chalk from "chalk";
+import { Command } from "commander";
+import { printJson } from "./json-output.js";
+import {
+	resolveRuntimeLaunchCommand,
+	startRuntimeProcess,
+	type RuntimeLaunchCommand,
+} from "./runtime-launcher.js";
+import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
+import {
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_START_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import {
 	findRepoRoot,
 	readAutostartMode,
@@ -13,20 +28,6 @@ import {
 	type LaunchRuntimeSelection,
 	type TractorEngineMode,
 } from "./session-launch.js";
-import {
-	resolveRuntimeLaunchCommand,
-	startRuntimeProcess,
-	type RuntimeLaunchCommand,
-} from "./runtime-launcher.js";
-import {
-	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
-	RUNTIME_DOCTOR_COMMAND,
-	RUNTIME_ENGINE_AUTO_COMMAND,
-	RUNTIME_START_COMMAND,
-	RUNTIME_START_WAIT_COMMAND,
-	RUNTIME_STATUS_COMMAND,
-} from "./runtime-recovery.js";
-import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
 
 interface RuntimeCommandDeps {
 	repoRoot(): string;
@@ -175,7 +176,7 @@ Notes:
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
 					const payload = await runtimeStatusPayload(deps);
 					if (json) {
-						console.log(JSON.stringify(payload, null, 2));
+						printJson(payload);
 						return;
 					}
 					printRuntimeStatus(payload);
@@ -210,7 +211,7 @@ Notes:
 					const { payload, command } = await resolveRuntimeStartCommand(deps);
 					if (!command) {
 						if (json) {
-							console.log(JSON.stringify({ ...payload, started: false }, null, 2));
+							printJson({ ...payload, started: false });
 							return;
 						}
 						console.error(chalk.red("✗  Cannot start Refarm runtime."));
@@ -221,9 +222,7 @@ Notes:
 
 					if (opts.dryRun) {
 						if (json) {
-							console.log(
-								JSON.stringify({ ...payload, command, dryRun: true }, null, 2),
-							);
+							printJson({ ...payload, command, dryRun: true });
 							return;
 						}
 						console.log(command.display);
@@ -234,13 +233,7 @@ Notes:
 					if (opts.wait) {
 						const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 						if (json) {
-							console.log(
-								JSON.stringify(
-									{ ...payload, command, started: true, ready },
-									null,
-									2,
-								),
-							);
+							printJson({ ...payload, command, started: true, ready });
 							if (!ready) process.exitCode = 1;
 							return;
 						}
@@ -258,7 +251,7 @@ Notes:
 						return;
 					}
 					if (json) {
-						console.log(JSON.stringify({ ...payload, command, started: true }, null, 2));
+						printJson({ ...payload, command, started: true });
 						return;
 					}
 					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
@@ -268,7 +261,7 @@ Notes:
 		.action(async (opts: { json?: boolean }) => {
 			const payload = await runtimeStatusPayload(deps);
 			if (opts.json) {
-				console.log(JSON.stringify(payload, null, 2));
+				printJson(payload);
 				return;
 			}
 			printRuntimeStatus(payload);
