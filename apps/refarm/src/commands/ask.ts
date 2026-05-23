@@ -80,6 +80,13 @@ interface SessionNode {
 	"@id": string;
 }
 
+interface AskJsonResult {
+	effortId: string;
+	sessionId: string;
+	content: string;
+	metadata?: Record<string, unknown>;
+}
+
 async function submitViaHttp(effort: Effort): Promise<string> {
 	const response = await fetch(sidecarUrl("/efforts"), {
 		method: "POST",
@@ -512,12 +519,14 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 		.option("--files <files>", "Comma-separated file paths to include")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Use a specific session ID or unique prefix")
+		.option("--json", "Output machine-readable ask result")
 		.addHelpText(
 			"after",
 			`
 
 Examples:
   $ refarm ask "hello"
+  $ refarm ask "hello" --json
   $ refarm ask "explain this package" --files README.md,package.json
   $ refarm ask "start fresh" --new
 
@@ -539,7 +548,7 @@ Runtime:
 		.action(
 			async (
 				query: string,
-				opts: { files?: string; new?: boolean; session?: string },
+				opts: { files?: string; new?: boolean; session?: string; json?: boolean },
 			) => {
 				if (!deps || launchDeps) {
 					const ready = await ensureAskRuntimeReady(
@@ -628,23 +637,32 @@ Runtime:
 					historyTurns: DEFAULT_HISTORY_TURNS,
 				});
 
-				console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
+				if (!opts.json) {
+					console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
+				}
 
 				try {
 					const submittedAtMs = Date.now();
 					const effortId = await resolved.submitEffort(effort);
+					let content = "";
+					let metadata: Record<string, unknown> | undefined;
 
 					try {
 						await resolved.followStream(
 							effortId,
 							(chunk) => {
-								process.stdout.write(chunk.content);
+								content += chunk.content;
+								if (!opts.json) {
+									process.stdout.write(chunk.content);
+								}
 								if (chunk.is_final) {
-									process.stdout.write("\n");
-									const metadata = chunk.metadata as
+									if (!opts.json) {
+										process.stdout.write("\n");
+									}
+									metadata = chunk.metadata as
 										| Record<string, unknown>
 										| undefined;
-									if (metadata) {
+									if (metadata && !opts.json) {
 										console.log(chalk.gray(`\n${"─".repeat(41)}`));
 										console.log(chalk.gray(usageLine(metadata)));
 									}
@@ -658,12 +676,25 @@ Runtime:
 							fallback?.status === "ok" &&
 							typeof fallback.content === "string"
 						) {
-							process.stdout.write(`${fallback.content}\n`);
-							if (fallback.metadata) {
+							content = fallback.content;
+							metadata = fallback.metadata;
+							if (!opts.json) {
+								process.stdout.write(`${fallback.content}\n`);
+							}
+							if (fallback.metadata && !opts.json) {
 								console.log(chalk.gray(`\n${"─".repeat(41)}`));
 								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
 							persistActiveSession(sessionId);
+							if (opts.json) {
+								const result: AskJsonResult = {
+									effortId,
+									sessionId,
+									content,
+									...(metadata ? { metadata } : {}),
+								};
+								console.log(JSON.stringify(result, null, 2));
+							}
 							return;
 						}
 
@@ -677,6 +708,15 @@ Runtime:
 					}
 
 					persistActiveSession(sessionId);
+					if (opts.json) {
+						const result: AskJsonResult = {
+							effortId,
+							sessionId,
+							content,
+							...(metadata ? { metadata } : {}),
+						};
+						console.log(JSON.stringify(result, null, 2));
+					}
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);

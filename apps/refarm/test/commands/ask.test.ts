@@ -185,6 +185,41 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("prints ask result as JSON without streaming text", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:jsonactive"),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(outSpy).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			effortId: "eff-1",
+			sessionId: "urn:refarm:session:v1:jsonactive",
+			content: "hello world",
+			metadata: {
+				model: "claude-sonnet-4-6",
+				tokens_in: 50,
+				tokens_out: 100,
+				estimated_usd: 0.0005,
+			},
+		});
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			"urn:refarm:session:v1:jsonactive",
+		);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("handles --files without failing", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
@@ -416,6 +451,38 @@ describe("refarm ask", () => {
 		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(allLogs).toContain("model:");
 		expect(allLogs).toContain("mock-model");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("prints fallback ask result as JSON when stream times out", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:jsonfallback"),
+			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
+			readEffortResult: vi.fn().mockResolvedValue({
+				status: "ok",
+				content: "fallback response",
+				metadata: { model: "mock-model", tokens_in: 1, tokens_out: 2 },
+			}),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["fallback please", "--json"], { from: "user" });
+
+		expect(outSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			effortId: "eff-1",
+			sessionId: "urn:refarm:session:v1:jsonfallback",
+			content: "fallback response",
+			metadata: { model: "mock-model", tokens_in: 1, tokens_out: 2 },
+		});
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
