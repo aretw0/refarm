@@ -37,6 +37,15 @@ pnpm run build
 pnpm test
 ```
 
+Before committing TypeScript or JavaScript edits, use the changed-file import organizer as a final cleanup step:
+
+```bash
+pnpm run imports:organize
+pnpm run imports:organize:check
+```
+
+It uses the TypeScript language service on changed source files only, and skips generated artifacts.
+
 Common entry points:
 
 | Area | Start here |
