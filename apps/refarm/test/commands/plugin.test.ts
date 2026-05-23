@@ -172,6 +172,88 @@ describe("plugin install", () => {
 		expect(mockCopyFileSync).toHaveBeenCalled();
 		consoleSpy.mockRestore();
 	});
+
+	it("prints install results as JSON without human log lines", async () => {
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockReadFileSync
+			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
+			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" }));
+		mockReadFile.mockRejectedValue(new Error("ENOENT"));
+		mockExistsSync.mockReturnValue(true);
+		mockDigest.mockReturnValue("deadbeef");
+
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("install", "--json");
+
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			failed: 0,
+			plugins: [
+				{
+					id: "@refarm/pi-agent",
+					packageName: "@refarm.dev/pi-agent",
+					status: "installed",
+					version: "0.4.1",
+					bytes: 10,
+					integrity: "sha256-deadbeef",
+				},
+			],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("prints failed install results as JSON", async () => {
+		mockRequireResolve.mockImplementation(() => {
+			throw new Error("MODULE_NOT_FOUND");
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("install", "--json");
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			failed: 1,
+			plugins: [
+				{
+					id: "@refarm/pi-agent",
+					packageName: "@refarm.dev/pi-agent",
+					status: "failed",
+					version: null,
+					message: "package @refarm.dev/pi-agent not found in node_modules",
+				},
+			],
+		});
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("prints update results as JSON", async () => {
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
+		mockReadFile.mockResolvedValue("0.4.1");
+
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("update", "--json");
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			failed: 0,
+			plugins: [
+				{
+					id: "@refarm/pi-agent",
+					packageName: "@refarm.dev/pi-agent",
+					status: "cached",
+					version: "0.4.1",
+					message: "already up-to-date",
+				},
+			],
+		});
+		logSpy.mockRestore();
+	});
 });
 
 describe("plugin list", () => {

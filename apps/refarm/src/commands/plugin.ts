@@ -66,6 +66,24 @@ interface RuntimePluginStatusReport {
 	};
 }
 
+type PluginInstallStatus = "installed" | "cached" | "failed";
+
+interface PluginInstallResult {
+	id: string;
+	packageName: string;
+	status: PluginInstallStatus;
+	version: string | null;
+	message?: string;
+	buildCommand?: string;
+	bytes?: number;
+	integrity?: string;
+}
+
+interface PluginInstallReport {
+	failed: number;
+	plugins: PluginInstallResult[];
+}
+
 function localPiAgentBuildCommand(): string {
 	return createPackageScriptCommand({
 		cwd: "packages/pi-agent",
@@ -114,32 +132,66 @@ async function readInstalledVersion(pluginId: string): Promise<string | null> {
 async function installPlugin(
 	plugin: BundledPlugin,
 	force: boolean,
-): Promise<"installed" | "cached" | "failed"> {
+	options: { quiet?: boolean } = {},
+): Promise<PluginInstallResult> {
+	const quiet = options.quiet === true;
 	const pkgVersion = readPackageVersion(plugin.npmPackage);
 	if (!pkgVersion) {
-		console.error(`  ✗ ${plugin.id}: package ${plugin.npmPackage} not found in node_modules`);
-		return "failed";
+		const message = `package ${plugin.npmPackage} not found in node_modules`;
+		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
+		return {
+			id: plugin.id,
+			packageName: plugin.npmPackage,
+			status: "failed",
+			version: null,
+			message,
+		};
 	}
 
 	if (!force) {
 		const installed = await readInstalledVersion(plugin.id);
 		if (installed === pkgVersion) {
-			console.log(`  ✓ ${plugin.id} v${pkgVersion} already up-to-date`);
-			return "cached";
+			const message = "already up-to-date";
+			if (!quiet) console.log(`  ✓ ${plugin.id} v${pkgVersion} ${message}`);
+			return {
+				id: plugin.id,
+				packageName: plugin.npmPackage,
+				status: "cached",
+				version: pkgVersion,
+				message,
+			};
 		}
 	}
 
 	const pkgDir = resolvePackageDir(plugin.npmPackage);
 	if (!pkgDir) {
-		console.error(`  ✗ ${plugin.id}: cannot locate package directory`);
-		return "failed";
+		const message = "cannot locate package directory";
+		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
+		return {
+			id: plugin.id,
+			packageName: plugin.npmPackage,
+			status: "failed",
+			version: pkgVersion,
+			message,
+		};
 	}
 
 	const wasmSrc = path.join(pkgDir, plugin.wasmFile);
 	if (!existsSync(wasmSrc)) {
-		console.error(`  ✗ ${plugin.id}: WASM not found at ${wasmSrc}`);
-		console.error(`    Build first: ${localPiAgentBuildCommand()}`);
-		return "failed";
+		const buildCommand = localPiAgentBuildCommand();
+		const message = `WASM not found at ${wasmSrc}`;
+		if (!quiet) {
+			console.error(`  ✗ ${plugin.id}: ${message}`);
+			console.error(`    Build first: ${buildCommand}`);
+		}
+		return {
+			id: plugin.id,
+			packageName: plugin.npmPackage,
+			status: "failed",
+			version: pkgVersion,
+			message,
+			buildCommand,
+		};
 	}
 
 	try {
@@ -170,12 +222,54 @@ async function installPlugin(
 		await mkdir(path.dirname(sentinel), { recursive: true });
 		await writeFile(sentinel, pkgVersion, "utf-8");
 
-		console.log(`  ✓ ${plugin.id} v${pkgVersion} installed (${wasmBytes.byteLength} bytes)`);
-		return "installed";
+		if (!quiet) {
+			console.log(`  ✓ ${plugin.id} v${pkgVersion} installed (${wasmBytes.byteLength} bytes)`);
+		}
+		return {
+			id: plugin.id,
+			packageName: plugin.npmPackage,
+			status: "installed",
+			version: pkgVersion,
+			bytes: wasmBytes.byteLength,
+			integrity,
+		};
 	} catch (err) {
-		console.error(`  ✗ ${plugin.id}: ${err instanceof Error ? err.message : String(err)}`);
-		return "failed";
+		const message = err instanceof Error ? err.message : String(err);
+		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
+		return {
+			id: plugin.id,
+			packageName: plugin.npmPackage,
+			status: "failed",
+			version: pkgVersion,
+			message,
+		};
 	}
+}
+
+async function installBundledPlugins(options: {
+	force?: boolean;
+	json?: boolean;
+	heading?: string;
+}): Promise<void> {
+	if (!options.json && options.heading) {
+		console.log(options.heading);
+	}
+
+	const results: PluginInstallResult[] = [];
+	for (const plugin of BUNDLED_PLUGINS) {
+		results.push(
+			await installPlugin(plugin, options.force === true, {
+				quiet: options.json === true,
+			}),
+		);
+	}
+
+	const failed = results.filter((result) => result.status === "failed").length;
+	if (options.json) {
+		const report: PluginInstallReport = { failed, plugins: results };
+		console.log(JSON.stringify(report, null, 2));
+	}
+	if (failed > 0) process.exitCode = 1;
 }
 
 async function buildPluginListReport(): Promise<PluginListReport> {
@@ -330,6 +424,7 @@ pluginCommand
 			"",
 			"Examples:",
 			"  $ refarm plugin install",
+			"  $ refarm plugin install --json",
 			"  $ refarm plugin install --force",
 			"",
 			"Notes:",
@@ -339,27 +434,25 @@ pluginCommand
 		].join("\n"),
 	)
 	.option("-f, --force", "Reinstall even if already up-to-date", false)
-	.action(async (options: { force: boolean }) => {
-		console.log("Installing bundled plugins...");
-		let failed = 0;
-		for (const plugin of BUNDLED_PLUGINS) {
-			const status = await installPlugin(plugin, options.force);
-			if (status === "failed") failed++;
-		}
-		if (failed > 0) process.exitCode = 1;
+	.option("--json", "Output machine-readable install report")
+	.action(async (options: { force: boolean; json?: boolean }) => {
+		await installBundledPlugins({
+			force: options.force,
+			json: options.json,
+			heading: "Installing bundled plugins...",
+		});
 	});
 
 pluginCommand
 	.command("update")
 	.description("Update bundled plugins when a newer npm package version is available")
-	.action(async () => {
-		console.log("Checking bundled plugins for updates...");
-		let failed = 0;
-		for (const plugin of BUNDLED_PLUGINS) {
-			const status = await installPlugin(plugin, false);
-			if (status === "failed") failed++;
-		}
-		if (failed > 0) process.exitCode = 1;
+	.option("--json", "Output machine-readable update report")
+	.action(async (options: { json?: boolean }) => {
+		await installBundledPlugins({
+			force: false,
+			json: options.json,
+			heading: "Checking bundled plugins for updates...",
+		});
 	});
 
 pluginCommand
