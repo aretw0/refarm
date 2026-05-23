@@ -129,7 +129,7 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 				"  $ refarm tidy imports apps/refarm/src/commands/model.ts",
 				"",
 				"Notes:",
-				"  imports defaults to changed source files, matching pnpm run imports:organize.",
+				"  imports defaults to changed source files, matching the imports:organize package script.",
 				"  It skips generated artifacts such as dist/, build/, .turbo/, node_modules/, and .d.ts.",
 				`  Override package-manager detection with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGERS.join("|")}.`,
 			].join("\n"),
