@@ -38,9 +38,19 @@ export interface PackageSpawnCommand {
     display: string;
 }
 
+export interface PackageManagerOverrideDiagnostic {
+    name: "REFARM_PACKAGE_MANAGER";
+    value: string;
+    valid: readonly PackageManagerName[];
+}
+
 export const PACKAGE_MANAGERS: readonly PackageManagerName[];
 
 export function parsePackageManager(value: unknown): PackageManagerName | null;
+
+export function packageManagerOverrideDiagnostic(
+    env?: Record<string, string | undefined>,
+): PackageManagerOverrideDiagnostic | null;
 
 export function detectPackageManager(options?: PackageManagerOptions): PackageManagerName;
 

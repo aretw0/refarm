@@ -38,6 +38,7 @@ export {
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
+    packageManagerOverrideDiagnostic,
     packagePublishDryRunCommand,
     packageScriptCommand,
     parsePackageManager,

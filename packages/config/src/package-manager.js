@@ -9,6 +9,16 @@ export function parsePackageManager(value) {
     return PACKAGE_MANAGERS.includes(name) ? name : null;
 }
 
+export function packageManagerOverrideDiagnostic(env = process.env) {
+    const value = env.REFARM_PACKAGE_MANAGER;
+    if (value === undefined || parsePackageManager(value)) return null;
+    return {
+        name: "REFARM_PACKAGE_MANAGER",
+        value,
+        valid: PACKAGE_MANAGERS,
+    };
+}
+
 function detectPackageManagerFromPackageJson(startDir) {
     let current = path.resolve(startDir);
     while (true) {

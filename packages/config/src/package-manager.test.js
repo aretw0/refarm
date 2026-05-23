@@ -3,11 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+    PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
+    packageManagerOverrideDiagnostic,
     packagePublishDryRunCommand,
     packageScriptCommand,
 } from "./package-manager.js";
@@ -19,6 +21,16 @@ describe("package manager config", () => {
             packageManager: "bun",
             command: "bun run test",
         });
+    });
+
+    it("describes ignored invalid REFARM_PACKAGE_MANAGER overrides", () => {
+        expect(packageManagerOverrideDiagnostic({ REFARM_PACKAGE_MANAGER: "pip" })).toEqual({
+            name: "REFARM_PACKAGE_MANAGER",
+            value: "pip",
+            valid: PACKAGE_MANAGERS,
+        });
+        expect(packageManagerOverrideDiagnostic({ REFARM_PACKAGE_MANAGER: "pnpm" })).toBeNull();
+        expect(packageManagerOverrideDiagnostic({})).toBeNull();
     });
 
     it("detects packageManager while walking up from a workspace", () => {

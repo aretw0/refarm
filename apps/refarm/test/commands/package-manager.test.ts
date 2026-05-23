@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
@@ -9,6 +9,10 @@ import {
 } from "../../src/commands/package-manager.js";
 
 describe("package manager command resolution", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it("uses REFARM_PACKAGE_MANAGER as an operator override", () => {
 		expect(
 			createPackageScriptCommand({
@@ -21,6 +25,26 @@ describe("package manager command resolution", () => {
 			args: ["--prefix", "apps/dev", "run", "dev"],
 			display: "npm --prefix apps/dev run dev",
 		});
+	});
+
+	it("warns when REFARM_PACKAGE_MANAGER is ignored", () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		expect(
+			createPackageScriptCommand({
+				cwd: "apps/dev",
+				script: "dev",
+				env: { REFARM_PACKAGE_MANAGER: "pip" },
+			}),
+		).toEqual({
+			command: "pnpm",
+			args: ["-C", "apps/dev", "run", "dev"],
+			display: "pnpm -C apps/dev run dev",
+		});
+
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(errors).toContain("Ignored invalid REFARM_PACKAGE_MANAGER=pip");
+		expect(errors).toContain("Use: pnpm, npm, yarn, bun");
 	});
 
 	it("detects packageManager from package.json", () => {
