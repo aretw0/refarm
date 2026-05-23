@@ -506,9 +506,7 @@ Notes:
 					});
 					if (!result) {
 						if (opts.json) {
-							console.log(
-								JSON.stringify({ effortId, status: "not-found" }, null, 2),
-							);
+							printJson({ effortId, status: "not-found" });
 						} else {
 							console.log(chalk.gray("No result yet."));
 						}
@@ -518,19 +516,13 @@ Notes:
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
 					if (opts.json) {
-						console.log(
-							JSON.stringify(
-								{
-									effortId,
-									status: result.status,
-									attempts,
-									ageSeconds,
-									result,
-								},
-								null,
-								2,
-							),
-						);
+						printJson({
+							effortId,
+							status: result.status,
+							attempts,
+							ageSeconds,
+							result,
+						});
 					} else {
 						const color =
 							result.status === "done"

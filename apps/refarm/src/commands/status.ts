@@ -10,6 +10,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
+import { printJson } from "./json-output.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeReady } from "./runtime-readiness.js";
 import {
@@ -168,15 +169,11 @@ async function emitStatusActionInvocation(options: {
 				throw new Error("Missing --action action ID or row index.");
 			}
 
-			console.log(
-				JSON.stringify(
-					await invokeRefarmStatusSurfaceActionSelection({
-						status: json,
-						selection: actionSelection,
-					}),
-					null,
-					2,
-				),
+			printJson(
+				await invokeRefarmStatusSurfaceActionSelection({
+					status: json,
+					selection: actionSelection,
+				}),
 			);
 		},
 	});

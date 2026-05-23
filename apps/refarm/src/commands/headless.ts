@@ -8,10 +8,11 @@ import {
 	createHeadlessStatusSurfaceActionDryRunEnvelope,
 	resolveHeadlessStatusSurfaceActionRequest,
 } from "./headless-action.js";
+import { printJson } from "./json-output.js";
+import { resolveStatusOutputMode } from "./status-output.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
-import { resolveStatusOutputMode } from "./status-output.js";
 
 interface HeadlessOptions {
 	input?: string;
@@ -102,17 +103,13 @@ async function emitHeadlessActionRequest(
 			);
 
 			if (!selectedAction.selected) {
-				console.log(
-					JSON.stringify(
-						createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
-							json,
-							selectedAction.reason === "no-actions"
-								? "no host actions available"
-								: `host action "${selectedAction.selection.requested}" is not available`,
-							selectedAction.rows,
-						),
-						null,
-						2,
+				printJson(
+					createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
+						json,
+						selectedAction.reason === "no-actions"
+							? "no host actions available"
+							: `host action "${selectedAction.selection.requested}" is not available`,
+						selectedAction.rows,
 					),
 				);
 				return;
@@ -129,16 +126,12 @@ async function emitHeadlessActionRequest(
 				);
 			}
 
-			console.log(
-				JSON.stringify(
-					createHeadlessStatusSurfaceActionDryRunEnvelope(
-						json,
-						selectedAction.selection,
-						resolution.request,
-						resolution.availableActions,
-					),
-					null,
-					2,
+			printJson(
+				createHeadlessStatusSurfaceActionDryRunEnvelope(
+					json,
+					selectedAction.selection,
+					resolution.request,
+					resolution.availableActions,
 				),
 			);
 		},
