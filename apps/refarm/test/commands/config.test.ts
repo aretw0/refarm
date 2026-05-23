@@ -304,6 +304,45 @@ describe("config command", () => {
 		expect(output).toContain("source=env:REFARM_OPEN_EXTERNAL_LINKS");
 	});
 
+	it("warns when invalid env overrides are ignored", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "never" }),
+			"utf-8",
+		);
+		process.env.REFARM_RUNTIME_AUTOSTART = "sometimes";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.autostart"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("runtime.autostart=never");
+		expect(output).toContain(path.join(home, ".refarm", "config.json"));
+		expect(errors).toContain("Ignored invalid REFARM_RUNTIME_AUTOSTART=sometimes");
+		expect(errors).toContain("Use: ask, always, never");
+	});
+
+	it("warns about invalid summary env overrides", async () => {
+		process.env.REFARM_OPEN_EXTERNAL_LINKS = "browser";
+		process.env.REFARM_TRACTOR_ENGINE = "python";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command().parseAsync([], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("operator.openExternalLinks=auto");
+		expect(output).toContain("tractor.engine=auto");
+		expect(errors).toContain("Ignored invalid REFARM_OPEN_EXTERNAL_LINKS=browser");
+		expect(errors).toContain("Ignored invalid REFARM_TRACTOR_ENGINE=python");
+	});
+
 	it("sets tractor engine preference", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

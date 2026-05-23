@@ -14,6 +14,7 @@ import {
 	type OpenExternalLinksMode,
 } from "../utils/open-external-links.js";
 import {
+	parseTractorEngineMode,
 	resolveAutostartMode as resolveRuntimeAutostartMode,
 	resolveTractorEngineMode as resolveRuntimeTractorEngineMode,
 	type AutostartMode,
@@ -56,6 +57,15 @@ const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "ne
 const TRACTOR_ENGINE_MODES = RUNTIME_ENGINE_MODES;
 const AUTOSTART_MODES_HELP = AUTOSTART_MODES.join(" | ");
 const OPEN_EXTERNAL_LINKS_MODES_HELP = OPEN_EXTERNAL_LINKS_MODES.join(" | ");
+const OPEN_EXTERNAL_LINKS_ENV_VALUES: readonly string[] = [
+	...OPEN_EXTERNAL_LINKS_MODES,
+	"true",
+	"false",
+	"on",
+	"off",
+	"1",
+	"0",
+];
 const TRACTOR_ENGINE_MODES_HELP = TRACTOR_ENGINE_MODES.join(" | ");
 const TRACTOR_ENGINE_ENV_HELP = TRACTOR_ENGINE_MODES.join(", ");
 
@@ -162,8 +172,53 @@ function assertTractorEngineMode(value: string): asserts value is TractorEngineM
 	process.exit(1);
 }
 
+function warnIgnoredEnvOverride(
+	name: string,
+	value: string | undefined,
+	valid: readonly string[],
+	parse: (value: string | undefined) => unknown,
+): void {
+	if (value === undefined || parse(value)) return;
+	console.error(chalk.yellow(`⚠  Ignored invalid ${name}=${value}`));
+	console.error(chalk.dim(`   Use: ${valid.join(", ")}`));
+}
+
+function warnIgnoredAutostartEnvOverrides(): void {
+	warnIgnoredEnvOverride(
+		"REFARM_RUNTIME_AUTOSTART",
+		process.env.REFARM_RUNTIME_AUTOSTART,
+		AUTOSTART_MODES,
+		parseAutostartMode,
+	);
+	warnIgnoredEnvOverride(
+		"REFARM_FARMHAND_AUTOSTART",
+		process.env.REFARM_FARMHAND_AUTOSTART,
+		AUTOSTART_MODES,
+		parseAutostartMode,
+	);
+}
+
+function warnIgnoredOpenExternalLinksEnvOverride(): void {
+	warnIgnoredEnvOverride(
+		"REFARM_OPEN_EXTERNAL_LINKS",
+		process.env.REFARM_OPEN_EXTERNAL_LINKS,
+		OPEN_EXTERNAL_LINKS_ENV_VALUES,
+		parseOpenExternalLinksMode,
+	);
+}
+
+function warnIgnoredTractorEngineEnvOverride(): void {
+	warnIgnoredEnvOverride(
+		"REFARM_TRACTOR_ENGINE",
+		process.env.REFARM_TRACTOR_ENGINE,
+		TRACTOR_ENGINE_MODES,
+		parseTractorEngineMode,
+	);
+}
+
 function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
 	if (key === "farmhand.autostart" || key === "runtime.autostart") {
+		warnIgnoredAutostartEnvOverrides();
 		const effective = resolveAutostartMode(deps, opts);
 		console.log(`${key}=${effective.value}`);
 		console.log(chalk.dim(`source=${effective.source}`));
@@ -173,12 +228,14 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 		return;
 	}
 	if (key === "operator.openExternalLinks") {
+		warnIgnoredOpenExternalLinksEnvOverride();
 		const effective = resolveOpenExternalLinksMode(deps, opts);
 		console.log(`${key}=${effective.value}`);
 		console.log(chalk.dim(`source=${effective.source}`));
 		return;
 	}
 	if (key === "tractor.engine") {
+		warnIgnoredTractorEngineEnvOverride();
 		const effective = resolveTractorEngineMode(deps, opts);
 		console.log(`${key}=${effective.value}`);
 		console.log(chalk.dim(`source=${effective.source}`));
@@ -186,6 +243,10 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 }
 
 function printConfigSummary(deps: ConfigDeps): void {
+	warnIgnoredAutostartEnvOverrides();
+	warnIgnoredOpenExternalLinksEnvOverride();
+	warnIgnoredTractorEngineEnvOverride();
+
 	const runtimeAutostart = resolveAutostartMode(deps, {});
 	const externalLinks = resolveOpenExternalLinksMode(deps, {});
 	const tractorEngine = resolveTractorEngineMode(deps, {});
