@@ -129,8 +129,9 @@ export function createSessionsCommand(): Command {
 			new Command("show")
 				.description("Show conversation history for a session")
 				.argument("<id>", "Session ID or unique prefix")
-				.action(async (prefix: string) => {
-					await showSession(prefix);
+				.option("--json", "Output machine-readable session history")
+				.action(async (prefix: string, opts: { json?: boolean }) => {
+					await showSession(prefix, { json: opts.json });
 				}),
 		)
 		.addCommand(
@@ -418,7 +419,10 @@ async function forkSession(
 	console.log(chalk.dim("   Active session switched to the fork."));
 }
 
-async function showSession(prefix: string): Promise<void> {
+async function showSession(
+	prefix: string,
+	opts: { json?: boolean } = {},
+): Promise<void> {
 	// Pass prefix directly — sidecar does exact-then-substring resolution.
 	const encodedId = encodeURIComponent(prefix);
 	let history: SessionHistory;
@@ -451,6 +455,11 @@ async function showSession(prefix: string): Promise<void> {
 		history = body;
 	} catch (err) {
 		reportSidecarError(err);
+		return;
+	}
+
+	if (opts.json) {
+		console.log(JSON.stringify(history, null, 2));
 		return;
 	}
 
