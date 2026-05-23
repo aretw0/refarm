@@ -179,6 +179,20 @@ describe("refarm tree list", () => {
 		expect(output).toContain("refarm tree switch <id-prefix>");
 	});
 
+	it("sets exitCode when session timeline listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "session"], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("lists git commits as timeline nodes", async () => {
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

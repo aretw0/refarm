@@ -19,6 +19,7 @@ describe("refarm tree show", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		process.exitCode = undefined;
 	});
 	it("shows a session timeline node with entries", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
@@ -63,6 +64,42 @@ describe("refarm tree show", () => {
 				kind: "git",
 			},
 		});
+	});
+
+	it("sets exitCode when a session timeline node is not found", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 404,
+				json: async () => ({ error: "not found" }),
+			}),
+		);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["missing"], { from: "user" });
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('No timeline node matching "missing"'),
+		);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sets exitCode when session history cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123"], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
 	});
 
 });

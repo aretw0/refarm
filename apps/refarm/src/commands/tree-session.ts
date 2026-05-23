@@ -1,5 +1,12 @@
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
+import { formatSessionId } from "./session-ids.js";
+import {
+	readActiveSessionId,
+	writeActiveSessionIdAndVerify,
+} from "./session-lock.js";
+import { reportSidecarError } from "./sidecar-error.js";
+import { sidecarUrl } from "./sidecar-url.js";
 import {
 	buildSessionForkPreviewEnvelope,
 	buildSessionSwitchEnvelope,
@@ -10,13 +17,6 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineNode,
 } from "./tree-model.js";
-import { formatSessionId } from "./session-ids.js";
-import {
-	readActiveSessionId,
-	writeActiveSessionIdAndVerify,
-} from "./session-lock.js";
-import { exitForSidecarError } from "./sidecar-error.js";
-import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
 	"@id": string;
@@ -86,7 +86,7 @@ async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	return body.sessions ?? [];
 }
 
-async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
+async function fetchSessionHistory(prefix: string): Promise<SessionHistory | null> {
 	const response = await fetch(
 		sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
 	);
@@ -96,7 +96,8 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
 	};
 	if (response.status === 404) {
 		console.error(chalk.red(`✗  No timeline node matching "${prefix}"`));
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	if (response.status === 409) {
 		console.error(
@@ -104,11 +105,13 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
 		);
 		for (const match of body.matches ?? [])
 			console.error(chalk.dim(`   ${match}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	if (!response.ok) {
 		console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	return body;
 }
@@ -131,7 +134,8 @@ export async function listSessionTree(opts: {
 	try {
 		sessions = await fetchSessions(opts.limit);
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	const nodes = [...sessions]
@@ -180,12 +184,14 @@ export async function showSessionTree(
 	prefix: string,
 	opts: { json?: boolean },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
+	if (!history) return;
 	const node = createSessionTimelineNode(history.session);
 
 	if (opts.json) {
@@ -221,12 +227,14 @@ export async function previewSessionTree(
 	prefix: string,
 	opts: { json?: boolean; at?: string; name?: string },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
+	if (!history) return;
 	const branchPointEntryId = opts.at ?? history.session.leaf_entry_id ?? null;
 	if (opts.at && !history.entries.some((entry) => entry.id === opts.at)) {
 		console.error(
@@ -269,12 +277,14 @@ export async function switchSessionTree(
 	prefix: string,
 	opts: { json?: boolean },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
+	if (!history) return;
 	const node = createSessionTimelineNode(history.session);
 	const currentSessionIdBefore = readActiveSessionId();
 	if (currentSessionIdBefore === node.nodeId) {
@@ -316,12 +326,14 @@ export async function previewSessionSwitchTree(
 	prefix: string,
 	opts: { json?: boolean },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
+	if (!history) return;
 	const envelope = buildSessionSwitchPreviewEnvelope({
 		node: createSessionTimelineNode(history.session),
 		activeSessionIdBefore: readActiveSessionId(),
