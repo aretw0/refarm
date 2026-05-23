@@ -8,6 +8,12 @@ export interface DiagnosticRecommendation {
 	target?: string;
 }
 
+export interface DiagnosticNextActionPayload<TExtra extends object = object> {
+	ok: boolean;
+	nextAction: string | null;
+	nextActions: string[];
+}
+
 export function diagnosticNextActions(
 	recommendations: DiagnosticRecommendation[],
 ): string[] {
@@ -21,4 +27,17 @@ export function diagnosticNextActions(
 		actions.push(action);
 	}
 	return actions;
+}
+
+export function buildDiagnosticNextActionPayload<TExtra extends object = object>(
+	input: { ok: boolean; nextActions: string[] } & TExtra,
+): DiagnosticNextActionPayload<TExtra> & TExtra {
+	const [nextAction] = input.nextActions;
+	const { ok, nextActions, ...extra } = input;
+	return {
+		ok,
+		nextAction: nextAction ?? null,
+		nextActions,
+		...(extra as TExtra),
+	};
 }

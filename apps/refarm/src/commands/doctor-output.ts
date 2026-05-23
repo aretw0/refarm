@@ -1,4 +1,5 @@
 import { formatRefarmStatusJson } from "@refarm.dev/cli/status";
+import { buildDiagnosticNextActionPayload } from "./diagnostic-recommendations.js";
 import type { RefarmDoctorReport } from "./doctor.js";
 
 export type RefarmDoctorOutputMode =
@@ -101,13 +102,11 @@ export function printRefarmDoctorNextAction(
 export function formatRefarmDoctorNextActionJson(
 	report: RefarmDoctorReport,
 ): string {
-	const [nextAction] = report.nextActions;
 	return JSON.stringify(
-		{
+		buildDiagnosticNextActionPayload({
 			ok: report.ok,
-			nextAction: nextAction ?? null,
 			nextActions: report.nextActions,
-		},
+		}),
 		null,
 		2,
 	);

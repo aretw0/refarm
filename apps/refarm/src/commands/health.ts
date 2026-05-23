@@ -9,6 +9,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import {
+	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
@@ -173,12 +174,10 @@ function emitHealthJson(report: HealthReport): void {
 }
 
 function emitHealthNextActionJson(report: HealthReport): void {
-  const [nextAction] = report.nextActions;
-  console.log(JSON.stringify({
+  console.log(JSON.stringify(buildDiagnosticNextActionPayload({
     ok: report.ok,
-    nextAction: nextAction ?? null,
     nextActions: report.nextActions,
-  }, null, 2));
+  }), null, 2));
 }
 
 function emitHealthSummary(report: HealthReport): void {

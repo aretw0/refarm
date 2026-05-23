@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
+	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
@@ -378,15 +379,13 @@ Notes:
 				};
 
 				if (opts.nextAction && opts.json) {
-					const [nextAction] = nextActions;
 					console.log(
 						JSON.stringify(
-							{
+							buildDiagnosticNextActionPayload({
 								ok: diagnostics.length === 0,
-								nextAction: nextAction ?? null,
 								nextActions,
 								strict: payload.strict,
-							},
+							}),
 							null,
 							2,
 						),

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 import {
+	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
@@ -89,12 +90,10 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 }
 
 function printRefarmCheckNextActionJson(report: RefarmCheckReport): void {
-	const [nextAction] = report.nextActions;
-	const output: RefarmCheckNextActionJson = {
+	const output: RefarmCheckNextActionJson = buildDiagnosticNextActionPayload({
 		ok: report.ok,
-		nextAction: nextAction ?? null,
 		nextActions: report.nextActions,
-	};
+	});
 	console.log(JSON.stringify(output, null, 2));
 }
 
