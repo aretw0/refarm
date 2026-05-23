@@ -263,23 +263,16 @@ describe("refarm tree switch and guards", () => {
 
 	it("rejects unsafe git tree switch targets before git execution", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["HEAD", "--scope", "git"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["HEAD", "--scope", "git"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Invalid branch name "HEAD"'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -291,25 +284,18 @@ describe("refarm tree switch and guards", () => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "session", "--limit", limit, "--json"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "session", "--limit", limit, "--json"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(`Invalid --limit "${limit}"`),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
@@ -320,25 +306,18 @@ describe("refarm tree switch and guards", () => {
 		"1abc",
 	])("fails closed for invalid all list limit %s", async (limit) => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "all", "--limit", limit, "--json"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", limit, "--json"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(`Invalid --limit "${limit}"`),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -348,25 +327,18 @@ describe("refarm tree switch and guards", () => {
 		"1abc",
 	])("fails closed for invalid git list limit %s", async (limit) => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "git", "--limit", limit, "--json"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "git", "--limit", limit, "--json"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(`Invalid --limit "${limit}"`),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -374,25 +346,18 @@ describe("refarm tree switch and guards", () => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "crdt"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "crdt"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--scope session|git|all"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
@@ -406,23 +371,16 @@ describe("refarm tree switch and guards", () => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === commandName)!
-				.parseAsync([...args], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === commandName)!
+			.parseAsync([...args], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--scope session|git for this operation"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
