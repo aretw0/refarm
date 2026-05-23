@@ -289,6 +289,8 @@ Examples:
 Notes:
   Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
   them before each task, so the next ask/chat turn or worker task uses the new route.
+  MODEL_PROVIDER, MODEL_ID, and MODEL_BASE_URL can override the primary route
+  for one command without changing persisted config.
   MODEL_FALLBACK_PROVIDER can retry a different provider when the primary fails.
   MODEL_FALLBACK_MODEL_ID can override that fallback provider's default model.
   For OpenAI workers, the default scoped route is ${OPENAI_WORKER_REF}.

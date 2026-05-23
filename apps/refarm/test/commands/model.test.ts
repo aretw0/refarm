@@ -344,6 +344,7 @@ describe("modelCommand", () => {
 		command.outputHelp();
 
 		expect(help).toContain("The Refarm runtime reloads");
+		expect(help).toContain("MODEL_PROVIDER, MODEL_ID, and MODEL_BASE_URL");
 		expect(help).toContain("MODEL_FALLBACK_PROVIDER");
 		expect(help).toContain("MODEL_FALLBACK_MODEL_ID");
 		expect(help).toContain("refarm model providers");
