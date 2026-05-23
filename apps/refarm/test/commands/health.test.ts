@@ -132,6 +132,7 @@ describe("healthCommand", () => {
 
     expect(help).toContain("refarm health --fail-on-issues");
     expect(help).toContain("refarm health --next-action");
+    expect(help).toContain("refarm health --next-action --json");
     expect(help).toContain("It does not require the Refarm runtime sidecar");
     expect(help).toContain("refarm doctor --next-action");
     expect(help).toContain("refarm.config.json");
@@ -226,6 +227,27 @@ describe("healthCommand", () => {
     expect(logSpy).toHaveBeenCalledWith(
       "Track the source file, or add an explicit health policy exclusion if it is generated.",
     );
+    logSpy.mockRestore();
+  });
+
+  it("emits the first health recovery action as JSON", async () => {
+    mockAudit.mockResolvedValue({
+      git: [{ file: "src/missing.ts", type: "ignored" }],
+      builds: [{ package: "apps/missing-build", type: "missing_build_config" }],
+      alignment: [],
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--next-action", "--json"], { from: "user" });
+
+    expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+      ok: false,
+      nextAction: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+      nextActions: [
+        "Track the source file, or add an explicit health policy exclusion if it is generated.",
+        "Add the package build configuration or mark the package exempt in the project health policy.",
+      ],
+    });
     logSpy.mockRestore();
   });
 

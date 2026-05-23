@@ -172,6 +172,15 @@ function emitHealthJson(report: HealthReport): void {
   console.log(JSON.stringify(report, null, 2));
 }
 
+function emitHealthNextActionJson(report: HealthReport): void {
+  const [nextAction] = report.nextActions;
+  console.log(JSON.stringify({
+    ok: report.ok,
+    nextAction: nextAction ?? null,
+    nextActions: report.nextActions,
+  }, null, 2));
+}
+
 function emitHealthSummary(report: HealthReport): void {
   console.log(chalk.blue("🔍 Running health audit...\n"));
 
@@ -253,6 +262,7 @@ export const healthCommand = new Command("health")
       "  $ refarm health",
       "  $ refarm health --json",
       "  $ refarm health --next-action",
+      "  $ refarm health --next-action --json",
       "  $ refarm health --fail-on-issues",
       "",
       "Notes:",
@@ -268,7 +278,9 @@ export const healthCommand = new Command("health")
   .action(async (options: HealthOptions) => {
     const report = await runHealthAudit();
 
-    if (options.nextAction) {
+    if (options.nextAction && options.json) {
+      emitHealthNextActionJson(report);
+    } else if (options.nextAction) {
       const [action] = report.nextActions;
       if (action) console.log(action);
     } else if (options.json) {
