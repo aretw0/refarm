@@ -79,6 +79,8 @@ describe("initCommand — mocked initialization flow", () => {
 
     expect(help).toContain("refarm init my-workspace --force");
     expect(help).toContain("--force reinitializes");
+    expect(help).toContain("workspace identity is metadata");
+    expect(help).toContain("~/.refarm/identity.json");
     expect(help).toContain("run refarm sow to configure model credentials");
     expect(help).toContain("refarm model current");
     expect(help).toContain("refarm guide");

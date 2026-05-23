@@ -79,6 +79,8 @@ describe("refarm program", () => {
 		migrate?.outputHelp();
 
 		expect(initHelp).toContain("refarm init my-workspace");
+		expect(initHelp).toContain("workspace identity is metadata");
+		expect(initHelp).toContain("~/.refarm/identity.json");
 		expect(initHelp).toContain("After init, run refarm sow to configure model credentials");
 		expect(initHelp).toContain("refarm model current");
 		expect(initHelp).toContain("refarm guide");

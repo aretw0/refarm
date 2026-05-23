@@ -20,6 +20,8 @@ export const initCommand = new Command("init")
       "",
       "Notes:",
       "  This creates refarm.config.json and .refarm/identity.json.",
+      "  The workspace identity is metadata; operator credentials are saved later",
+      "  under ~/.refarm/identity.json by refarm sow.",
       "  --force reinitializes an existing workspace and can overwrite generated metadata.",
       "  After init, run refarm sow to configure model credentials.",
       "  Use refarm model current to inspect the default route, and refarm guide",
