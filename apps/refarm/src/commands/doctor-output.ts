@@ -39,7 +39,7 @@ export function printRefarmDoctorReport(
 	const state = report.ok ? "PASS" : "FAIL";
 	log(`Doctor: ${state}`);
 	log(
-		`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile})`,
+		`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile}, packageManager=${report.host.packageManager})`,
 	);
 	log(
 		`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`,

@@ -34,20 +34,21 @@ describe("resolveRefarmRuntimeMetadata", () => {
 	it("returns default host metadata", () => {
 		__resetRefarmRuntimeMetadataCacheForTests();
 		const metadata = resolveRefarmRuntimeMetadata({
-			env: { REFARM_VERSION: "1.0.0" },
+			env: { REFARM_VERSION: "1.0.0", REFARM_PACKAGE_MANAGER: "npm" },
 		});
 		expect(metadata).toEqual({
 			app: "apps/refarm",
 			command: "refarm",
 			profile: "dev",
 			version: "1.0.0",
+			packageManager: "npm",
 		});
 	});
 
 	it("allows overriding app/command/profile", () => {
 		__resetRefarmRuntimeMetadataCacheForTests();
 		const metadata = resolveRefarmRuntimeMetadata({
-			env: { REFARM_VERSION: "2.0.0" },
+			env: { REFARM_VERSION: "2.0.0", REFARM_PACKAGE_MANAGER: "npm" },
 			app: "apps/custom",
 			command: "custom",
 			profile: "prod",
@@ -57,7 +58,16 @@ describe("resolveRefarmRuntimeMetadata", () => {
 			command: "custom",
 			profile: "prod",
 			version: "2.0.0",
+			packageManager: "npm",
 		});
+	});
+
+	it("includes the resolved package manager", () => {
+		__resetRefarmRuntimeMetadataCacheForTests();
+		const metadata = resolveRefarmRuntimeMetadata({
+			env: { REFARM_VERSION: "1.0.0", REFARM_PACKAGE_MANAGER: "bun" },
+		});
+		expect(metadata.packageManager).toBe("bun");
 	});
 });
 

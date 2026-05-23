@@ -40,6 +40,7 @@ function makeDoctorReport(
 			command: "refarm",
 			profile: "dev",
 			version: "0.1.0",
+			packageManager: "pnpm",
 		},
 		status: {
 			schemaVersion: 1,

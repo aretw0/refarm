@@ -69,6 +69,7 @@ describe("buildRefarmDoctorReport", () => {
 					command: "refarm",
 					profile: "dev",
 					version: "1.2.3",
+					packageManager: "pnpm",
 				},
 			},
 		);
@@ -96,6 +97,7 @@ describe("buildRefarmDoctorReport", () => {
 			"Inspect trust warnings and decide whether they should block this workflow.",
 		]);
 		expect(report.host.version).toBe("1.2.3");
+		expect(report.host.packageManager).toBe("pnpm");
 	});
 
 	it("fails on warnings when failOnWarnings is enabled", () => {

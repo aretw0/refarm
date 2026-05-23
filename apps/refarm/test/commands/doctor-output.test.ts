@@ -29,6 +29,7 @@ function makeReport() {
 			command: "refarm",
 			profile: "dev",
 			version: "1.2.3",
+			packageManager: "pnpm" as const,
 		},
 		status: {
 			schemaVersion: 1 as const,
@@ -97,6 +98,9 @@ describe("printRefarmDoctorReport", () => {
 		expect(log).toHaveBeenCalledWith("Doctor: PASS");
 		expect(log).toHaveBeenCalledWith(
 			expect.stringContaining("Host: refarm v1.2.3"),
+		);
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining("packageManager=pnpm"),
 		);
 		expect(log).toHaveBeenCalledWith(expect.stringContaining("Renderer:"));
 		expect(log).toHaveBeenCalledWith(expect.stringContaining("Runtime:"));
