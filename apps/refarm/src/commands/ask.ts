@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -11,11 +9,14 @@ import {
 	SessionDigestContextProvider,
 	type ContextProvider,
 } from "@refarm.dev/context-provider-v1";
-import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { defaultProviderModelRef } from "../model-routing.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
 	readRuntimePluginState,
@@ -23,12 +24,14 @@ import {
 	type RuntimePluginReloadResult,
 	type RuntimePluginState,
 } from "./runtime-plugins.js";
-import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
-	clearActiveSessionId,
-	readActiveSessionId,
-	writeActiveSessionIdAndVerify,
-} from "./session-lock.js";
+	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+	RUNTIME_AUTOSTART_NEVER_COMMAND,
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_START_COMMAND,
+} from "./runtime-recovery.js";
+import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	autoStartRuntime,
 	checkSessionReadiness,
@@ -38,15 +41,12 @@ import {
 	type LaunchDeps,
 } from "./session-launch.js";
 import {
-	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
-	RUNTIME_AUTOSTART_NEVER_COMMAND,
-	RUNTIME_DOCTOR_COMMAND,
-	RUNTIME_ENGINE_AUTO_COMMAND,
-	RUNTIME_START_COMMAND,
-} from "./runtime-recovery.js";
+	clearActiveSessionId,
+	readActiveSessionId,
+	writeActiveSessionIdAndVerify,
+} from "./session-lock.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
-import { defaultProviderModelRef } from "../model-routing.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 
@@ -546,7 +546,8 @@ Runtime:
 						launchDeps ?? defaultLaunchDeps(),
 					);
 					if (!ready) {
-						process.exit(1);
+						process.exitCode = 1;
+						return;
 					}
 					if (
 						!(await ensurePiAgentReady(
@@ -554,7 +555,8 @@ Runtime:
 							resolved.reloadPlugins,
 						))
 					) {
-						process.exit(1);
+						process.exitCode = 1;
+						return;
 					}
 				}
 
@@ -562,7 +564,8 @@ Runtime:
 					console.error(
 						chalk.red("\n✗  --new and --session cannot be used together."),
 					);
-					process.exit(1);
+					process.exitCode = 1;
+					return;
 				}
 
 				if (opts.new) {
@@ -594,7 +597,8 @@ Runtime:
 							} else {
 								printAskError(message);
 							}
-							process.exit(1);
+							process.exitCode = 1;
+							return;
 						}
 					} else {
 						sessionId = explicitSession;
@@ -676,7 +680,8 @@ Runtime:
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);
-					process.exit(1);
+					process.exitCode = 1;
+					return;
 				}
 			},
 		);

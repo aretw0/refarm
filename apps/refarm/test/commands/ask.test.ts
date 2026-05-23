@@ -1,5 +1,5 @@
-import fs from "node:fs";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
+import fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import { createAskCommand } from "../../src/commands/ask.js";
@@ -245,23 +245,16 @@ describe("refarm ask", () => {
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
-		await expect(command.parseAsync(["hello"], { from: "user" })).rejects.toThrow(
-			"exit:1",
-		);
+		await command.parseAsync(["hello"], { from: "user" });
 
 		const output = errSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("No usable model credentials configured");
 		expect(output).toContain("refarm model current");
 		expect(output).toContain("refarm model providers");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
 
-		exitSpy.mockRestore();
 		errSpy.mockRestore();
 	});
 
@@ -284,15 +277,8 @@ describe("refarm ask", () => {
 		};
 		const command = createAskCommand(deps, launchDeps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
-		await expect(command.parseAsync(["hello"], { from: "user" })).rejects.toThrow(
-			"exit:1",
-		);
+		await command.parseAsync(["hello"], { from: "user" });
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(errSpy).toHaveBeenCalledWith(
@@ -301,9 +287,9 @@ describe("refarm ask", () => {
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Reload runtime plugins"),
 		);
+		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 
 	it("reloads installed pi-agent before submitting when it is not loaded", async () => {
@@ -513,20 +499,13 @@ describe("refarm ask", () => {
 			.spyOn(process.stdout, "write")
 			.mockImplementation(() => true);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
-		await expect(
-			command.parseAsync(
-				["hello", "--session", "urn:refarm:session:v1:target"],
-				{
-					from: "user",
-				},
-			),
-		).rejects.toThrow("exit:1");
+		await command.parseAsync(
+			["hello", "--session", "urn:refarm:session:v1:target"],
+			{
+				from: "user",
+			},
+		);
 
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
 		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
@@ -535,12 +514,11 @@ describe("refarm ask", () => {
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 		errSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 
 	it("fails when --session prefix is ambiguous", async () => {
@@ -553,54 +531,38 @@ describe("refarm ask", () => {
 		});
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
-		await expect(
-			command.parseAsync(["hello", "--session", "abc"], {
-				from: "user",
-			}),
-		).rejects.toThrow("exit:1");
+		await command.parseAsync(["hello", "--session", "abc"], {
+			from: "user",
+		});
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Ambiguous session prefix "abc"'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 
 	it("rejects --new together with --session", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
-		await expect(
-			command.parseAsync(
-				["hello", "--new", "--session", "urn:refarm:session:v1:test123"],
-				{
-					from: "user",
-				},
-			),
-		).rejects.toThrow("exit:1");
+		await command.parseAsync(
+			["hello", "--new", "--session", "urn:refarm:session:v1:test123"],
+			{
+				from: "user",
+			},
+		);
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--new and --session cannot be used together"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
-		exitSpy.mockRestore();
 	});
 });
