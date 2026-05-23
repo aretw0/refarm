@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { printJson } from "./json-output.js";
 
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
@@ -146,7 +147,7 @@ async function newExtension(
     nextActions: ["run '/reload' in the refarm REPL, or restart the Refarm runtime"],
   };
   if (options.json) {
-    console.log(JSON.stringify(report, null, 2));
+    printJson(report);
     return;
   }
   printCreatedExtension(report);
@@ -188,7 +189,7 @@ async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
 function listHandler(options: { json?: boolean } = {}): void {
   const report = buildExtensionListReport(process.cwd(), os.homedir());
   if (options.json) {
-    console.log(JSON.stringify(report, null, 2));
+    printJson(report);
     return;
   }
 

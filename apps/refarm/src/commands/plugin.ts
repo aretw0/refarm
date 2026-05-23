@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path, { basename, extname } from "node:path";
+import { printJson } from "./json-output.js";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
@@ -267,7 +268,7 @@ async function installBundledPlugins(options: {
 	const failed = results.filter((result) => result.status === "failed").length;
 	if (options.json) {
 		const report: PluginInstallReport = { failed, plugins: results };
-		console.log(JSON.stringify(report, null, 2));
+		printJson(report);
 	}
 	if (failed > 0) process.exitCode = 1;
 }
@@ -292,7 +293,7 @@ async function listInstalledPlugins(options: { json?: boolean } = {}): Promise<v
 	const report = await buildPluginListReport();
 
 	if (options.json) {
-		console.log(JSON.stringify(report, null, 2));
+		printJson(report);
 		return;
 	}
 
@@ -351,7 +352,7 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 	const state = await readRuntimePluginState();
 	const report = buildRuntimePluginStatusReport(state);
 	if (options.json) {
-		console.log(JSON.stringify(report, null, 2));
+		printJson(report);
 		if (!report.available) process.exitCode = 1;
 		return;
 	}
