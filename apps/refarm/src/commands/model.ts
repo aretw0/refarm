@@ -104,6 +104,14 @@ export interface CurrentModelStatus {
 	};
 }
 
+export interface KnownModelProvider {
+	provider: string;
+	defaultModel: string | undefined;
+	workerModel: string | undefined;
+	monitorModel: string | undefined;
+	credentialEnv: string | undefined;
+}
+
 export function defaultModelDeps(): ModelCommandDeps {
 	const silo = new SiloCore();
 	return {
@@ -272,14 +280,21 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	};
 }
 
+export function buildKnownModelProviders(): KnownModelProvider[] {
+	return MODEL_PROVIDERS.map((provider) => ({
+		provider,
+		defaultModel: defaultModelForProvider(provider),
+		workerModel: defaultModelForScope(provider, "worker"),
+		monitorModel: defaultModelForScope(provider, "monitor"),
+		credentialEnv: modelCredentialEnvKey(provider),
+	}));
+}
+
 export function printKnownModelProviders(): void {
 	console.log(chalk.bold("Known model providers"));
-	for (const provider of MODEL_PROVIDERS) {
-		const defaultModel = defaultModelForProvider(provider);
-		const workerModel = defaultModelForScope(provider, "worker");
-		const monitorModel = defaultModelForScope(provider, "monitor");
-		const credentialEnv = modelCredentialEnvKey(provider);
-		console.log(`  ${chalk.cyan(provider)}`);
+	for (const provider of buildKnownModelProviders()) {
+		const { defaultModel, workerModel, monitorModel, credentialEnv } = provider;
+		console.log(`  ${chalk.cyan(provider.provider)}`);
 		if (defaultModel) console.log(`    default: ${defaultModel}`);
 		if (workerModel && workerModel !== defaultModel) console.log(`    worker:  ${workerModel}`);
 		if (monitorModel && monitorModel !== defaultModel) console.log(`    monitor: ${monitorModel}`);
@@ -288,6 +303,10 @@ export function printKnownModelProviders(): void {
 	console.log(chalk.dim(""));
 	console.log(chalk.dim("Custom/self-hosted providers are allowed with provider/model refs."));
 	console.log(chalk.dim("Use refarm model base-url <url> when the provider does not have a built-in endpoint."));
+}
+
+export function printKnownModelProvidersJson(): void {
+	console.log(JSON.stringify({ providers: buildKnownModelProviders() }, null, 2));
 }
 
 export async function setModelRoute(
@@ -454,6 +473,7 @@ Examples:
   $ refarm model current --json
   $ refarm model ${OPENAI_DEFAULT_REF} --json
   $ refarm model providers
+  $ refarm model providers --json
   $ refarm model ${OPENAI_DEFAULT_REF}
   $ refarm model set ${OPENAI_DEFAULT_REF}
   $ refarm model set ${OPENAI_DEFAULT_REF} --json
@@ -513,12 +533,14 @@ Notes:
 	command
 		.command("providers")
 		.description("List known provider defaults and credential environment variables")
+		.option("--json", "Output machine-readable provider defaults")
 		.addHelpText(
 			"after",
 			`
 
 Examples:
   $ refarm model providers
+  $ refarm model providers --json
   $ refarm sow --model ${OPENAI_DEFAULT_REF}
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
 
@@ -527,7 +549,11 @@ Notes:
   passing provider/model and setting refarm model base-url for OpenAI-compatible APIs.
 `,
 		)
-		.action(() => {
+		.action((opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
+			if (hasJsonOption(opts, command)) {
+				printKnownModelProvidersJson();
+				return;
+			}
 			printKnownModelProviders();
 		});
 

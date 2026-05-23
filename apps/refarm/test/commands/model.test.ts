@@ -402,6 +402,38 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("lists known provider defaults as JSON", async () => {
+		const command = createModelCommand(makeDeps());
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["providers", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			providers: Array<{
+				provider: string;
+				defaultModel: string;
+				workerModel: string;
+				monitorModel: string;
+				credentialEnv?: string;
+			}>;
+		};
+		expect(payload.providers).toContainEqual({
+			provider: "openai",
+			defaultModel: "gpt-5.5",
+			workerModel: "gpt-5.3-codex-spark",
+			monitorModel: "gpt-5.5",
+			credentialEnv: "OPENAI_API_KEY",
+		});
+		expect(payload.providers).toContainEqual({
+			provider: "ollama",
+			defaultModel: "llama3.2",
+			workerModel: "llama3.2",
+			monitorModel: "llama3.2",
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("documents model set examples in subcommand help", () => {
 		const command = createModelCommand(makeDeps());
 		const setCommand = command.commands.find((subcommand) => subcommand.name() === "set");
