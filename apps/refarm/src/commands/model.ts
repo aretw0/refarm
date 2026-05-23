@@ -31,7 +31,41 @@ const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 interface JsonOptionCarrier {
 	json?: boolean;
 	opts?: () => { json?: boolean };
+	parent?: {
+		opts?: () => { json?: boolean };
+	};
 }
+
+interface ModelRouteMutationResult {
+	action: "set-route";
+	scope: ModelScope;
+	provider: string;
+	modelId: string;
+	ref: string;
+}
+
+interface ModelFallbackMutationResult {
+	action: "set-fallback" | "disable-fallback";
+	provider?: string;
+	modelId?: string;
+	ref?: string;
+}
+
+interface ModelBaseUrlMutationResult {
+	action: "set-base-url" | "disable-base-url";
+	baseUrl?: string;
+}
+
+interface ModelResetMutationResult {
+	action: "reset-route";
+	scope: ModelScope;
+}
+
+type ModelMutationResult =
+	| ModelRouteMutationResult
+	| ModelFallbackMutationResult
+	| ModelBaseUrlMutationResult
+	| ModelResetMutationResult;
 
 export interface ModelTokens {
 	modelProvider?: string;
@@ -116,8 +150,21 @@ function activeModelEnvOverrides(): string[] {
 	].filter((name) => Boolean(process.env[name]));
 }
 
-function hasJsonOption(options: JsonOptionCarrier): boolean {
-	return options.json === true || options.opts?.().json === true;
+function hasJsonOption(
+	options: JsonOptionCarrier,
+	command?: JsonOptionCarrier,
+): boolean {
+	return (
+		options.json === true ||
+		options.opts?.().json === true ||
+		options.parent?.opts?.().json === true ||
+		command?.opts?.().json === true ||
+		command?.parent?.opts?.().json === true
+	);
+}
+
+function printModelMutationResult(result: ModelMutationResult): void {
+	console.log(JSON.stringify(result, null, 2));
 }
 
 export function printCurrentModel(tokens: ModelTokens): void {
@@ -247,69 +294,100 @@ export async function setModelRoute(
 	ref: string,
 	scope: ModelScope,
 	deps: ModelCommandDeps,
-): Promise<void> {
+	options: { json?: boolean } = {},
+): Promise<ModelRouteMutationResult | null> {
 	const tokens = await deps.loadTokens();
 	const parsed = parseModelRef(ref, tokens.modelProvider);
 	if (!parsed) {
 		console.error(chalk.red("✗  model ref cannot be empty."));
 		process.exitCode = 1;
-		return;
+		return null;
 	}
 	if (!parsed.provider) {
 		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
 		console.error(chalk.dim(`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`));
 		process.exitCode = 1;
-		return;
+		return null;
 	}
 
 	const modelRef = { provider: parsed.provider, modelId: parsed.modelId };
 	await deps.saveTokens(modelRouteTokenUpdate(scope, modelRef, tokens));
-	const label = scope === "default" ? "Default model" : `${scope} model`;
-	console.log(chalk.green(`✓  ${label} set: ${parsed.provider}/${parsed.modelId}`));
+	const result: ModelRouteMutationResult = {
+		action: "set-route",
+		scope,
+		provider: parsed.provider,
+		modelId: parsed.modelId,
+		ref: formatModelRef(parsed.provider, parsed.modelId),
+	};
+	if (options.json) {
+		printModelMutationResult(result);
+	} else {
+		const label = scope === "default" ? "Default model" : `${scope} model`;
+		console.log(chalk.green(`✓  ${label} set: ${result.ref}`));
+	}
+	return result;
 }
 
 export async function setFallbackModelRoute(
 	ref: string,
 	deps: ModelCommandDeps,
-): Promise<void> {
+	options: { json?: boolean } = {},
+): Promise<ModelFallbackMutationResult | null> {
 	const tokens = await deps.loadTokens();
 	if (ref.trim().toLowerCase() === "off") {
 		await deps.saveTokens({
 			modelFallbackProvider: undefined,
 			modelFallbackModelId: undefined,
 		});
-		console.log(chalk.green("✓  Fallback model disabled"));
-		return;
+		const result: ModelFallbackMutationResult = { action: "disable-fallback" };
+		if (options.json) {
+			printModelMutationResult(result);
+		} else {
+			console.log(chalk.green("✓  Fallback model disabled"));
+		}
+		return result;
 	}
 	const parsed = parseModelRef(ref, tokens.modelFallbackProvider ?? tokens.modelProvider);
 	if (!parsed) {
 		console.error(chalk.red("✗  fallback model ref cannot be empty."));
 		process.exitCode = 1;
-		return;
+		return null;
 	}
 	if (!parsed.provider) {
 		console.error(chalk.red(`✗  Could not infer provider for fallback model "${parsed.modelId}".`));
 		console.error(chalk.dim(`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`));
 		process.exitCode = 1;
-		return;
+		return null;
 	}
 
 	await deps.saveTokens({
 		modelFallbackProvider: parsed.provider,
 		modelFallbackModelId: parsed.modelId,
 	});
-	console.log(chalk.green(`✓  Fallback model set: ${parsed.provider}/${parsed.modelId}`));
+	const result: ModelFallbackMutationResult = {
+		action: "set-fallback",
+		provider: parsed.provider,
+		modelId: parsed.modelId,
+		ref: formatModelRef(parsed.provider, parsed.modelId),
+	};
+	if (options.json) {
+		printModelMutationResult(result);
+	} else {
+		console.log(chalk.green(`✓  Fallback model set: ${result.ref}`));
+	}
+	return result;
 }
 
 export async function resetScopedModelRoute(
 	scope: ModelScope,
 	deps: ModelCommandDeps,
-): Promise<void> {
+	options: { json?: boolean } = {},
+): Promise<ModelResetMutationResult | null> {
 	if (scope === "default") {
 		console.error(chalk.red("✗  Default route reset is explicit: set the desired provider/model."));
 		console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
 		process.exitCode = 1;
-		return;
+		return null;
 	}
 
 	const tokens = await deps.loadTokens();
@@ -319,29 +397,54 @@ export async function resetScopedModelRoute(
 			: {};
 	delete routes[scope];
 	await deps.saveTokens({ modelRoutes: routes });
-	console.log(chalk.green(`✓  ${scope} model reset to built-in default`));
+	const result: ModelResetMutationResult = { action: "reset-route", scope };
+	if (options.json) {
+		printModelMutationResult(result);
+	} else {
+		console.log(chalk.green(`✓  ${scope} model reset to built-in default`));
+	}
+	return result;
 }
 
-export async function setModelBaseUrl(value: string, deps: ModelCommandDeps): Promise<void> {
+export async function setModelBaseUrl(
+	value: string,
+	deps: ModelCommandDeps,
+	options: { json?: boolean } = {},
+): Promise<ModelBaseUrlMutationResult | null> {
 	const trimmed = value.trim();
 	if (trimmed.toLowerCase() === "off") {
 		await deps.saveTokens({ modelBaseUrl: undefined });
-		console.log(chalk.green("✓  Model base URL disabled"));
-		return;
+		const result: ModelBaseUrlMutationResult = { action: "disable-base-url" };
+		if (options.json) {
+			printModelMutationResult(result);
+		} else {
+			console.log(chalk.green("✓  Model base URL disabled"));
+		}
+		return result;
 	}
 	if (!trimmed) {
 		console.error(chalk.red("✗  base URL cannot be empty."));
 		process.exitCode = 1;
-		return;
+		return null;
 	}
 	await deps.saveTokens({ modelBaseUrl: trimmed });
-	console.log(chalk.green(`✓  Model base URL set: ${trimmed}`));
+	const result: ModelBaseUrlMutationResult = {
+		action: "set-base-url",
+		baseUrl: trimmed,
+	};
+	if (options.json) {
+		printModelMutationResult(result);
+	} else {
+		console.log(chalk.green(`✓  Model base URL set: ${trimmed}`));
+	}
+	return result;
 }
 
 export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()): Command {
 	const command = new Command("model")
 		.description("Inspect and change the active model route")
 		.argument("[ref]", "provider/model, or model for the current provider")
+		.option("--json", "Output machine-readable current route or mutation result")
 		.addHelpText(
 			"after",
 			`
@@ -349,9 +452,11 @@ export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()):
 Examples:
   $ refarm model current
   $ refarm model current --json
+  $ refarm model ${OPENAI_DEFAULT_REF} --json
   $ refarm model providers
   $ refarm model ${OPENAI_DEFAULT_REF}
   $ refarm model set ${OPENAI_DEFAULT_REF}
+  $ refarm model set ${OPENAI_DEFAULT_REF} --json
   $ refarm model set --scope worker ${OPENAI_WORKER_REF}
   $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
   $ refarm model reset --scope worker
@@ -371,22 +476,34 @@ Notes:
   For OpenAI monitors, the default scoped route is ${OPENAI_MONITOR_REF}.
 `,
 		)
-		.action(async (ref: string | undefined) => {
-			if (!ref) {
-				const tokens = await deps.loadTokens();
-				printCurrentModel(tokens);
-				return;
-			}
-			await setModelRoute(ref, "default", deps);
-		});
+		.action(
+			async (
+				ref: string | undefined,
+				opts: JsonOptionCarrier,
+				command: JsonOptionCarrier,
+			) => {
+				if (!ref) {
+					const tokens = await deps.loadTokens();
+					if (hasJsonOption(opts, command)) {
+						printCurrentModelJson(tokens);
+						return;
+					}
+					printCurrentModel(tokens);
+					return;
+				}
+				await setModelRoute(ref, "default", deps, {
+					json: hasJsonOption(opts, command),
+				});
+			},
+		);
 
 	command
 		.command("current")
 		.description("Show the currently configured provider/model")
 		.option("--json", "Output machine-readable route metadata")
-		.action(async (opts: JsonOptionCarrier) => {
+		.action(async (opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
 			const tokens = await deps.loadTokens();
-			if (hasJsonOption(opts)) {
+			if (hasJsonOption(opts, command)) {
 				printCurrentModelJson(tokens);
 				return;
 			}
@@ -418,6 +535,7 @@ Notes:
 		.command("fallback")
 		.description("Set or disable the persisted fallback model route")
 		.argument("<ref>", "provider/model, model for current fallback provider, or off")
+		.option("--json", "Output machine-readable fallback update")
 		.addHelpText(
 			"after",
 			`
@@ -433,14 +551,23 @@ Notes:
   variables still take precedence for one-off operator overrides.
 `,
 		)
-		.action(async (ref: string) => {
-			await setFallbackModelRoute(ref, deps);
-		});
+		.action(
+			async (
+				ref: string,
+				opts: JsonOptionCarrier,
+				command: JsonOptionCarrier,
+			) => {
+				await setFallbackModelRoute(ref, deps, {
+					json: hasJsonOption(opts, command),
+				});
+			},
+		);
 
 	command
 		.command("reset")
 		.description("Reset a scoped model route to its built-in default")
 		.option("--scope <scope>", `Scoped route to reset: worker, monitor`, "worker")
+		.option("--json", "Output machine-readable reset result")
 		.addHelpText(
 			"after",
 			`
@@ -455,21 +582,29 @@ Notes:
   default. To change the default route, run refarm model <provider/model>.
 `,
 		)
-		.action(async (opts: { scope?: string }) => {
-			const scope = parseModelScope(opts.scope);
-			if (!scope) {
-				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
-				console.error(chalk.dim("   Use: worker, monitor"));
-				process.exitCode = 1;
-				return;
-			}
-			await resetScopedModelRoute(scope, deps);
-		});
+		.action(
+			async (
+				opts: { scope?: string } & JsonOptionCarrier,
+				command: JsonOptionCarrier,
+			) => {
+				const scope = parseModelScope(opts.scope);
+				if (!scope) {
+					console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
+					console.error(chalk.dim("   Use: worker, monitor"));
+					process.exitCode = 1;
+					return;
+				}
+				await resetScopedModelRoute(scope, deps, {
+					json: hasJsonOption(opts, command),
+				});
+			},
+		);
 
 	command
 		.command("base-url")
 		.description("Set or disable the persisted OpenAI-compatible base URL")
 		.argument("<url>", "Base URL for custom/self-hosted model providers, or off")
+		.option("--json", "Output machine-readable base URL update")
 		.addHelpText(
 			"after",
 			`
@@ -485,15 +620,24 @@ Notes:
   operator overrides.
 `,
 		)
-		.action(async (url: string) => {
-			await setModelBaseUrl(url, deps);
-		});
+		.action(
+			async (
+				url: string,
+				opts: JsonOptionCarrier,
+				command: JsonOptionCarrier,
+			) => {
+				await setModelBaseUrl(url, deps, {
+					json: hasJsonOption(opts, command),
+				});
+			},
+		);
 
 	command
 		.command("set")
 		.description("Set the default model route")
 		.argument("<ref>", "provider/model, or model for the current provider")
 		.option("--scope <scope>", `Route scope: ${MODEL_SCOPE_HELP}`, "default")
+		.option("--json", "Output machine-readable route update")
 		.addHelpText(
 			"after",
 			`
@@ -512,16 +656,24 @@ Notes:
   should include their provider prefix, for example together/meta-llama/...
 `,
 		)
-		.action(async (ref: string, opts: { scope?: string }) => {
-			const scope = parseModelScope(opts.scope);
-			if (!scope) {
-				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
-				console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
-				process.exitCode = 1;
-				return;
-			}
-			await setModelRoute(ref, scope, deps);
-		});
+		.action(
+			async (
+				ref: string,
+				opts: { scope?: string } & JsonOptionCarrier,
+				command: JsonOptionCarrier,
+			) => {
+				const scope = parseModelScope(opts.scope);
+				if (!scope) {
+					console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
+					console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
+					process.exitCode = 1;
+					return;
+				}
+				await setModelRoute(ref, scope, deps, {
+					json: hasJsonOption(opts, command),
+				});
+			},
+		);
 
 	return command;
 }

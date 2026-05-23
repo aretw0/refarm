@@ -434,6 +434,25 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("sets a fallback model route as JSON", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["fallback", "ollama/qwen2.5-coder", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "set-fallback",
+			provider: "ollama",
+			modelId: "qwen2.5-coder",
+			ref: "ollama/qwen2.5-coder",
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("disables a persisted fallback model route", async () => {
 		const deps = makeDeps({
 			modelProvider: "openai",
@@ -454,6 +473,25 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("disables a persisted fallback model route as JSON", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelFallbackProvider: "ollama",
+			modelFallbackModelId: "qwen2.5-coder",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["fallback", "off", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "disable-fallback",
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("sets a model base URL", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);
@@ -463,6 +501,23 @@ describe("modelCommand", () => {
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelBaseUrl: "http://127.0.0.1:8000",
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("sets a model base URL as JSON", async () => {
+		const deps = makeDeps();
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["base-url", "http://127.0.0.1:8000", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "set-base-url",
+			baseUrl: "http://127.0.0.1:8000",
 		});
 
 		logSpy.mockRestore();
@@ -489,6 +544,30 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("resets a scoped model route as JSON", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: {
+				worker: "anthropic/claude-sonnet-4-6",
+				monitor: "openai/gpt-5.5",
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["reset", "--scope", "worker", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "reset-route",
+			scope: "worker",
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("disables a persisted model base URL", async () => {
 		const deps = makeDeps({ modelBaseUrl: "http://127.0.0.1:8000" });
 		const command = createModelCommand(deps);
@@ -497,6 +576,20 @@ describe("modelCommand", () => {
 		await command.parseAsync(["base-url", "off"], { from: "user" });
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({ modelBaseUrl: undefined });
+
+		logSpy.mockRestore();
+	});
+
+	it("disables a persisted model base URL as JSON", async () => {
+		const deps = makeDeps({ modelBaseUrl: "http://127.0.0.1:8000" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["base-url", "off", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "disable-base-url",
+		});
 
 		logSpy.mockRestore();
 	});
@@ -511,6 +604,26 @@ describe("modelCommand", () => {
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelProvider: "openai",
 			modelId: "gpt-5.5",
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("sets the default model route as JSON", async () => {
+		const deps = makeDeps();
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["set", "openai/gpt-5.5", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "set-route",
+			scope: "default",
+			provider: "openai",
+			modelId: "gpt-5.5",
+			ref: "openai/gpt-5.5",
 		});
 
 		logSpy.mockRestore();
@@ -552,6 +665,24 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("sets the default model route through shorthand as JSON", async () => {
+		const deps = makeDeps();
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["openai/gpt-5.5", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "set-route",
+			scope: "default",
+			provider: "openai",
+			modelId: "gpt-5.5",
+			ref: "openai/gpt-5.5",
+		});
+
+		logSpy.mockRestore();
+	});
+
 	it("sets a scoped worker model route", async () => {
 		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
 		const command = createModelCommand(deps);
@@ -566,6 +697,27 @@ describe("modelCommand", () => {
 			modelProvider: "openai",
 			modelId: "gpt-5.5",
 			modelRoutes: { worker: "openai/gpt-5.3-codex-spark" },
+		});
+
+		logSpy.mockRestore();
+	});
+
+	it("sets a scoped worker model route as JSON", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["set", "--scope", "worker", "openai/gpt-5.3-codex-spark", "--json"],
+			{ from: "user" },
+		);
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "set-route",
+			scope: "worker",
+			provider: "openai",
+			modelId: "gpt-5.3-codex-spark",
+			ref: "openai/gpt-5.3-codex-spark",
 		});
 
 		logSpy.mockRestore();
