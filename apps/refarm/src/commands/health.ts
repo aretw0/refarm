@@ -1,14 +1,17 @@
 import {
-  HealthCore,
-  FileSystemAuditor,
-  ProjectAuditor,
-  RefarmProjectAuditor,
+	FileSystemAuditor,
+	HealthCore,
+	ProjectAuditor,
+	RefarmProjectAuditor,
 } from "@refarm.dev/health";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import {
+	diagnosticNextActions,
+	type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
 
 export interface HealthIssue {
   file?: string;
@@ -38,10 +41,12 @@ export interface HealthReport {
   results: HealthResults;
   resolution: ResolutionStatus[];
   recommendations: HealthRecommendation[];
+  nextActions: string[];
 }
 
 interface HealthOptions {
   json?: boolean;
+  nextAction?: boolean;
   failOnIssues?: boolean;
 }
 
@@ -73,12 +78,14 @@ export function buildHealthReport(
   resolution: ResolutionStatus[],
 ): HealthReport {
   const issueCount = results.git.length + results.builds.length + results.alignment.length;
+  const recommendations = buildHealthRecommendations(results);
   return {
     ok: issueCount === 0,
     issueCount,
     results,
     resolution,
-    recommendations: buildHealthRecommendations(results),
+    recommendations,
+    nextActions: diagnosticNextActions(recommendations),
   };
 }
 
@@ -244,6 +251,7 @@ export const healthCommand = new Command("health")
       "Examples:",
       "  $ refarm health",
       "  $ refarm health --json",
+      "  $ refarm health --next-action",
       "  $ refarm health --fail-on-issues",
       "",
       "Notes:",
@@ -253,11 +261,15 @@ export const healthCommand = new Command("health")
     ].join("\n"),
   )
   .option("--json", "Output machine-readable health report")
+  .option("--next-action", "Print only the first blocking recovery action")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
     const report = await runHealthAudit();
 
-    if (options.json) {
+    if (options.nextAction) {
+      const [action] = report.nextActions;
+      if (action) console.log(action);
+    } else if (options.json) {
       emitHealthJson(report);
     } else {
       emitHealthSummary(report);

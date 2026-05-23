@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockAudit,
@@ -42,10 +42,10 @@ vi.mock("node:fs", async (importOriginal) => {
 });
 
 import {
-  buildHealthReport,
-  buildHealthRecommendations,
-  healthCommand,
-  resolveHealthPolicy,
+	buildHealthRecommendations,
+	buildHealthReport,
+	healthCommand,
+	resolveHealthPolicy,
 } from "../../src/commands/health.js";
 
 describe("buildHealthReport", () => {
@@ -63,6 +63,11 @@ describe("buildHealthReport", () => {
     expect(report.issueCount).toBe(3);
     expect(report.resolution).toEqual([{ package: "packages/local", mode: "LOCAL (src)" }]);
     expect(report.recommendations).toHaveLength(3);
+    expect(report.nextActions).toEqual([
+      "Track the source file, or add an explicit health policy exclusion if it is generated.",
+      "Add the package build configuration or mark the package exempt in the project health policy.",
+      "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+    ]);
   });
 });
 
@@ -126,6 +131,7 @@ describe("healthCommand", () => {
     healthCommand.outputHelp();
 
     expect(help).toContain("refarm health --fail-on-issues");
+    expect(help).toContain("refarm health --next-action");
     expect(help).toContain("use refarm doctor for host/runtime readiness");
     expect(help).toContain("refarm.config.json");
   });
@@ -200,7 +206,25 @@ describe("healthCommand", () => {
     expect(output).toContain('"ok": true');
     expect(output).toContain('"issueCount": 0');
     expect(output).toContain('"recommendations"');
+    expect(output).toContain('"nextActions"');
     expect(output).toContain('"resolution"');
+    logSpy.mockRestore();
+  });
+
+  it("emits only the first health recovery action with --next-action", async () => {
+    mockAudit.mockResolvedValue({
+      git: [{ file: "src/missing.ts", type: "ignored" }],
+      builds: [{ package: "apps/missing-build", type: "missing_build_config" }],
+      alignment: [],
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--next-action"], { from: "user" });
+
+    expect(logSpy).toHaveBeenCalledOnce();
+    expect(logSpy).toHaveBeenCalledWith(
+      "Track the source file, or add an explicit health policy exclusion if it is generated.",
+    );
     logSpy.mockRestore();
   });
 
