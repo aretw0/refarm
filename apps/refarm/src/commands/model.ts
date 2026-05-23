@@ -28,6 +28,11 @@ const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
+interface JsonOptionCarrier {
+	json?: boolean;
+	opts?: () => { json?: boolean };
+}
+
 export interface ModelTokens {
 	modelProvider?: string;
 	modelId?: string;
@@ -44,6 +49,25 @@ export interface ModelTokens {
 export interface ModelCommandDeps {
 	loadTokens(): Promise<ModelTokens>;
 	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
+}
+
+export interface CurrentModelStatus {
+	current: {
+		provider: string | undefined;
+		modelId: string | undefined;
+		ref: string;
+	};
+	routes: Record<ModelScope, string>;
+	credential: {
+		envKey: string | undefined;
+		status: string | null;
+	};
+	baseUrl: string | undefined;
+	fallback: string | undefined;
+	source: {
+		kind: "environment" | "identity" | "built-in";
+		envOverrides: string[];
+	};
 }
 
 export function defaultModelDeps(): ModelCommandDeps {
@@ -92,58 +116,29 @@ function activeModelEnvOverrides(): string[] {
 	].filter((name) => Boolean(process.env[name]));
 }
 
+function hasJsonOption(options: JsonOptionCarrier): boolean {
+	return options.json === true || options.opts?.().json === true;
+}
+
 export function printCurrentModel(tokens: ModelTokens): void {
-	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
-	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
-	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
-	const ref = formatModelRef(provider, resolvedModel);
-	const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER);
-	const storedProviderMatchesRoute =
-		!routeProviderOverridden ||
-		tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
+	const status = buildCurrentModelStatus(tokens);
+	const provider = status.current.provider;
+	const resolvedModel = status.current.modelId;
 
 	console.log(chalk.bold("Model routing"));
-	console.log(`  current: ${chalk.cyan(ref)}`);
+	console.log(`  current: ${chalk.cyan(status.current.ref)}`);
 	if (provider) console.log(`  provider: ${provider}`);
 	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
-	const credentialEnv = modelCredentialEnvKey(provider);
-	if (credentialEnv) console.log(`  key env:  ${credentialEnv}`);
-	const credentialStatus = modelCredentialStatus(provider, tokens);
-	if (credentialStatus) console.log(`  key:      ${credentialStatus}`);
-	const baseUrl = process.env.MODEL_BASE_URL ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
-	if (baseUrl) console.log(`  base url: ${baseUrl}`);
-	const fallbackProvider =
-		process.env.MODEL_FALLBACK_PROVIDER ?? tokens.modelFallbackProvider;
-	if (fallbackProvider) {
-		const fallbackModelId =
-			process.env.MODEL_FALLBACK_MODEL_ID ??
-			(process.env.MODEL_FALLBACK_PROVIDER ? undefined : tokens.modelFallbackModelId) ??
-			defaultModelForProvider(fallbackProvider);
-		const fallbackRef = formatModelRef(
-			fallbackProvider,
-			fallbackModelId,
-		);
-		console.log(`  fallback: ${fallbackRef}`);
-	}
-	const worker = effectiveModelRouteForScope(tokens, "worker", { env: process.env });
-	const workerRoute = formatModelRef(worker.provider, worker.modelId);
-	if (workerRoute) console.log(`  worker:   ${workerRoute}`);
-	const monitor = effectiveModelRouteForScope(tokens, "monitor", { env: process.env });
-	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
-	if (monitorRoute) console.log(`  monitor:  ${monitorRoute}`);
-	const envOverrides = activeModelEnvOverrides();
-	if (envOverrides.length > 0) {
+	if (status.credential.envKey) console.log(`  key env:  ${status.credential.envKey}`);
+	if (status.credential.status) console.log(`  key:      ${status.credential.status}`);
+	if (status.baseUrl) console.log(`  base url: ${status.baseUrl}`);
+	if (status.fallback) console.log(`  fallback: ${status.fallback}`);
+	if (status.routes.worker) console.log(`  worker:   ${status.routes.worker}`);
+	if (status.routes.monitor) console.log(`  monitor:  ${status.routes.monitor}`);
+	if (status.source.kind === "environment") {
 		console.log(chalk.dim("  source:   environment overrides are active"));
-		console.log(chalk.dim(`  env:      ${envOverrides.join(", ")}`));
-	} else if (
-		tokens.modelProvider ||
-		tokens.modelId ||
-		tokens.model ||
-		tokens.modelBaseUrl ||
-		tokens.modelFallbackProvider ||
-		tokens.modelFallbackModelId ||
-		hasPersistedModelRoutes(tokens)
-	) {
+		console.log(chalk.dim(`  env:      ${status.source.envOverrides.join(", ")}`));
+	} else if (status.source.kind === "identity") {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {
 		console.log(chalk.dim("  source:   built-in defaults"));
@@ -153,9 +148,81 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`));
 		console.log(chalk.dim("  login:          refarm sow"));
 	}
-	if (provider && !credentialEnv && provider !== "ollama") {
+	if (provider && !status.credential.envKey && provider !== "ollama") {
 		console.log(chalk.dim("  custom provider: set endpoint with refarm model base-url <url>"));
 	}
+}
+
+export function printCurrentModelJson(tokens: ModelTokens): void {
+	console.log(JSON.stringify(buildCurrentModelStatus(tokens), null, 2));
+}
+
+export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
+	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
+	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
+	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
+	const ref = formatModelRef(provider, resolvedModel);
+	const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER);
+	const storedProviderMatchesRoute =
+		!routeProviderOverridden ||
+		tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
+
+	const credentialEnv = modelCredentialEnvKey(provider);
+	const credentialStatus = modelCredentialStatus(provider, tokens);
+	const baseUrl = process.env.MODEL_BASE_URL ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
+	const fallbackProvider =
+		process.env.MODEL_FALLBACK_PROVIDER ?? tokens.modelFallbackProvider;
+	let fallbackRef: string | undefined;
+	if (fallbackProvider) {
+		const fallbackModelId =
+			process.env.MODEL_FALLBACK_MODEL_ID ??
+			(process.env.MODEL_FALLBACK_PROVIDER ? undefined : tokens.modelFallbackModelId) ??
+			defaultModelForProvider(fallbackProvider);
+		fallbackRef = formatModelRef(
+			fallbackProvider,
+			fallbackModelId,
+		);
+	}
+	const worker = effectiveModelRouteForScope(tokens, "worker", { env: process.env });
+	const workerRoute = formatModelRef(worker.provider, worker.modelId);
+	const monitor = effectiveModelRouteForScope(tokens, "monitor", { env: process.env });
+	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
+	const envOverrides = activeModelEnvOverrides();
+	let sourceKind: CurrentModelStatus["source"]["kind"];
+	if (envOverrides.length > 0) {
+		sourceKind = "environment";
+	} else if (
+		tokens.modelProvider ||
+		tokens.modelId ||
+		tokens.model ||
+		tokens.modelBaseUrl ||
+		tokens.modelFallbackProvider ||
+		tokens.modelFallbackModelId ||
+		hasPersistedModelRoutes(tokens)
+	) {
+		sourceKind = "identity";
+	} else {
+		sourceKind = "built-in";
+	}
+
+	return {
+		current: { provider, modelId: resolvedModel, ref },
+		routes: {
+			default: ref,
+			worker: workerRoute,
+			monitor: monitorRoute,
+		},
+		credential: {
+			envKey: credentialEnv,
+			status: credentialStatus,
+		},
+		baseUrl,
+		fallback: fallbackRef,
+		source: {
+			kind: sourceKind,
+			envOverrides,
+		},
+	};
 }
 
 export function printKnownModelProviders(): void {
@@ -281,6 +348,7 @@ export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()):
 
 Examples:
   $ refarm model current
+  $ refarm model current --json
   $ refarm model providers
   $ refarm model ${OPENAI_DEFAULT_REF}
   $ refarm model set ${OPENAI_DEFAULT_REF}
@@ -305,7 +373,8 @@ Notes:
 		)
 		.action(async (ref: string | undefined) => {
 			if (!ref) {
-				printCurrentModel(await deps.loadTokens());
+				const tokens = await deps.loadTokens();
+				printCurrentModel(tokens);
 				return;
 			}
 			await setModelRoute(ref, "default", deps);
@@ -314,8 +383,14 @@ Notes:
 	command
 		.command("current")
 		.description("Show the currently configured provider/model")
-		.action(async () => {
-			printCurrentModel(await deps.loadTokens());
+		.option("--json", "Output machine-readable route metadata")
+		.action(async (opts: JsonOptionCarrier) => {
+			const tokens = await deps.loadTokens();
+			if (hasJsonOption(opts)) {
+				printCurrentModelJson(tokens);
+				return;
+			}
+			printCurrentModel(tokens);
 		});
 
 	command

@@ -140,6 +140,30 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints current model as JSON", async () => {
+		const deps = makeDeps({ modelProvider: "openai", modelId: "gpt-5.5" });
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			current: { ref: string };
+			routes: { default: string; worker: string; monitor: string };
+			source: { kind: string; envOverrides: string[] };
+			credential: { envKey: string; status: string };
+		};
+		expect(payload.current.ref).toBe("openai/gpt-5.5");
+		expect(payload.routes.default).toBe("openai/gpt-5.5");
+		expect(payload.routes.worker).toBe("openai/gpt-5.3-codex-spark");
+		expect(payload.routes.monitor).toBe("openai/gpt-5.5");
+		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
+		expect(payload.credential.status).toBe("missing (run refarm sow)");
+		expect(payload.source.kind).toBe("identity");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints built-in OpenAI defaults when no route is configured", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);
