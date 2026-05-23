@@ -161,6 +161,7 @@ describe("doctorCommand", () => {
 		doctorCommand.outputHelp();
 
 		expect(help).toContain("refarm doctor --json");
+		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor --input status.json");
 		expect(help).toContain("Use refarm check");
 	});
@@ -220,6 +221,23 @@ describe("doctorCommand", () => {
 		expect(String(output)).toContain('"status"');
 		expect(String(output)).toContain('"recommendations"');
 		expect(String(output)).toContain('"nextActions"');
+		logSpy.mockRestore();
+	});
+
+	it("emits only the first blocking recovery action with --next-action", async () => {
+		mockResolveStatusPayload.mockResolvedValue({
+			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await doctorCommand.parseAsync(["--next-action"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith(
+			"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+		);
+		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
 });

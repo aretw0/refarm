@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	emitRefarmDoctorOutput,
 	formatRefarmDoctorReportJson,
+	printRefarmDoctorNextAction,
 	printRefarmDoctorReport,
 	resolveDoctorOutputMode,
 } from "../../src/commands/doctor-output.js";
@@ -68,6 +69,13 @@ describe("resolveDoctorOutputMode", () => {
 	it("maps --json to json mode and defaults to summary", () => {
 		expect(resolveDoctorOutputMode({ json: true })).toBe("json");
 		expect(resolveDoctorOutputMode({})).toBe("summary");
+	});
+
+	it("maps --next-action to next-action mode", () => {
+		expect(resolveDoctorOutputMode({ nextAction: true })).toBe("next-action");
+		expect(resolveDoctorOutputMode({ json: true, nextAction: true })).toBe(
+			"next-action",
+		);
 	});
 });
 
@@ -148,6 +156,29 @@ describe("printRefarmDoctorReport", () => {
 	});
 });
 
+describe("printRefarmDoctorNextAction", () => {
+	it("prints only the first next action", () => {
+		const log = vi.fn();
+		printRefarmDoctorNextAction(
+			{
+				...makeReport(),
+				nextActions: ["Start runtime.", "Inspect trust."],
+			},
+			log,
+		);
+
+		expect(log).toHaveBeenCalledOnce();
+		expect(log).toHaveBeenCalledWith("Start runtime.");
+	});
+
+	it("prints nothing when no next action is available", () => {
+		const log = vi.fn();
+		printRefarmDoctorNextAction(makeReport(), log);
+
+		expect(log).not.toHaveBeenCalled();
+	});
+});
+
 describe("emitRefarmDoctorOutput", () => {
 	it("emits json or summary based on mode", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -157,5 +188,20 @@ describe("emitRefarmDoctorOutput", () => {
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('"ok": true'));
 		expect(logSpy).toHaveBeenCalledWith("Doctor: PASS");
 		logSpy.mockRestore();
+	});
+
+	it("emits only the next action in next-action mode", () => {
+		const log = vi.fn();
+		emitRefarmDoctorOutput({
+			report: {
+				...makeReport(),
+				nextActions: ["Start runtime."],
+			},
+			mode: "next-action",
+			log,
+		});
+
+		expect(log).toHaveBeenCalledOnce();
+		expect(log).toHaveBeenCalledWith("Start runtime.");
 	});
 });

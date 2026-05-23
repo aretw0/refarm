@@ -25,6 +25,7 @@ export interface RefarmCheckReport {
 
 export interface RefarmCheckOptions {
 	json?: boolean;
+	nextAction?: boolean;
 	failOnWarnings?: boolean;
 }
 
@@ -103,6 +104,7 @@ export function createCheckCommand(
 	return new Command("check")
 		.description("Run the cheap composite readiness gate")
 		.option("--json", "Output machine-readable composite report")
+		.option("--next-action", "Print only the first blocking recovery action")
 		.option("--fail-on-warnings", "Treat doctor warning diagnostics as failures")
 		.addHelpText(
 			"after",
@@ -111,6 +113,7 @@ export function createCheckCommand(
 Examples:
   $ refarm check
   $ refarm check --json
+  $ refarm check --next-action
   $ refarm check --fail-on-warnings
 
 Notes:
@@ -125,7 +128,10 @@ Notes:
 			]);
 			const report = buildRefarmCheckReport({ health, doctor });
 
-			if (options.json) {
+			if (options.nextAction) {
+				const [action] = report.nextActions;
+				if (action) console.log(action);
+			} else if (options.json) {
 				console.log(JSON.stringify(report, null, 2));
 			} else {
 				printRefarmCheckSummary(report);

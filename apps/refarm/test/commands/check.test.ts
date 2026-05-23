@@ -155,6 +155,7 @@ describe("checkCommand", () => {
 		command.outputHelp();
 
 		expect(help).toContain("refarm check --json");
+		expect(help).toContain("refarm check --next-action");
 		expect(help).toContain("combines refarm health and refarm doctor");
 		expect(help).toContain("quick local confidence signal");
 	});
@@ -211,6 +212,72 @@ describe("checkCommand", () => {
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");
 		expect(output).toContain("missing-build-config");
 		expect(output).not.toContain("renderer:non-interactive");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints only the first blocking recovery action with --next-action", async () => {
+		const deps = makeDeps({
+			health: {
+				ok: false,
+				issueCount: 1,
+				recommendations: [
+					{
+						issueType: "missing-build-config",
+						diagnostic: "missing-build-config",
+						summary: "A package is missing a build config.",
+						action: "Add the build config.",
+						target: "packages/example",
+					},
+				],
+			},
+			doctor: {
+				ok: false,
+				failureCount: 1,
+				recommendations: [
+					{
+						diagnostic: "runtime:not-ready",
+						severity: "failure",
+						summary: "Runtime is not ready.",
+						action: "Repair the runtime.",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--next-action"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith("Add the build config.");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prefers --next-action over --json when both are provided", async () => {
+		const deps = makeDeps({
+			health: {
+				ok: false,
+				issueCount: 1,
+				recommendations: [
+					{
+						issueType: "missing-build-config",
+						diagnostic: "missing-build-config",
+						summary: "A package is missing a build config.",
+						action: "Add the build config.",
+						target: "packages/example",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith("Add the build config.");
 		expect(process.exitCode).toBe(1);
 	});
 
