@@ -1,6 +1,9 @@
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
-import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import {
+	diagnosticNextActions,
+	type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
@@ -228,6 +231,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 			"Show runtime telemetry snapshot and saturation/reliability signals",
 		)
 		.option("--json", "Output machine-readable JSON")
+		.option("--next-action", "Print only the first telemetry recovery action")
 		.option(
 			"--profile <name>",
 			"Threshold profile: conservative | balanced | throughput",
@@ -266,6 +270,7 @@ Examples:
   $ refarm telemetry
   $ refarm telemetry --profile conservative
   $ refarm telemetry --json --strict
+  $ refarm telemetry --next-action
   $ refarm telemetry --json --strict-on saturation:queue,reliability:failure-rate
 
 Notes:
@@ -277,6 +282,7 @@ Notes:
 		.action(
 			async (opts: {
 				json?: boolean;
+				nextAction?: boolean;
 				profile?: ThresholdProfileName;
 				windowMinutes?: number;
 				queueWarn?: number;
@@ -345,6 +351,7 @@ Notes:
 						: [...diagnostics];
 				const strictPassed = !opts.strict || strictMatches.length === 0;
 				const recommendations = buildTelemetryRecommendations(diagnostics);
+				const nextActions = diagnosticNextActions(recommendations);
 
 				const payload = {
 					snapshot,
@@ -356,6 +363,7 @@ Notes:
 					},
 					diagnostics,
 					recommendations,
+					nextActions,
 					strict: {
 						enabled: !!opts.strict,
 						targets: strictTargets,
@@ -363,6 +371,15 @@ Notes:
 						passed: strictPassed,
 					},
 				};
+
+				if (opts.nextAction) {
+					const [action] = nextActions;
+					if (action) console.log(action);
+					if (!strictPassed) {
+						process.exit(2);
+					}
+					return;
+				}
 
 				if (opts.json) {
 					console.log(JSON.stringify(payload, null, 2));

@@ -57,6 +57,7 @@ describe("refarm telemetry", () => {
 		command.outputHelp();
 
 		expect(help).toContain("refarm telemetry --json --strict");
+		expect(help).toContain("refarm telemetry --next-action");
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm runtime start --wait");
 		expect(help).toContain("refarm doctor");
@@ -120,6 +121,7 @@ describe("refarm telemetry", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			diagnostics?: string[];
 			recommendations?: Array<{ diagnostic: string }>;
+			nextActions?: string[];
 		};
 		expect(payload.diagnostics).toContain("saturation:queue");
 		expect(payload.diagnostics).toContain("saturation:inflight");
@@ -130,6 +132,9 @@ describe("refarm telemetry", () => {
 				"saturation:inflight",
 				"reliability:failures-present",
 			]),
+		);
+		expect(payload.nextActions?.[0]).toBe(
+			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
 		);
 	});
 
@@ -277,6 +282,62 @@ describe("refarm telemetry", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Recommendations");
 		expect(output).toContain("saturation:queue");
+	});
+
+	it("emits only the first telemetry recovery action with --next-action", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 8,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 8,
+				done: 10,
+				failed: 2,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--next-action", "--queue-warn", "5"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith(
+			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+		);
+	});
+
+	it("prefers --next-action over --json", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 0,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 0,
+				done: 10,
+				failed: 0,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--json", "--next-action", "--queue-warn", "5"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith(
+			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+		);
 	});
 });
 
