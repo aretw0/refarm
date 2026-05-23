@@ -26,6 +26,7 @@ describe("refarm tree list", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		process.exitCode = undefined;
 	});
 
 	it("documents common cross-substrate tree workflows in help", () => {
@@ -347,18 +348,11 @@ describe("refarm tree list", () => {
 		);
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "all", "--json"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--json"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Refarm runtime is not running"),
@@ -372,7 +366,7 @@ describe("refarm tree list", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm doctor"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("lists git tree execution affordances in human output", async () => {
@@ -455,18 +449,11 @@ describe("refarm tree list", () => {
 			makeSpawnResult(128, "", "fatal: not a git repository"),
 		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "all", "--json"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--json"], { from: "user" });
 
 		expect(errorSpy).not.toHaveBeenCalledWith(
 			expect.stringContaining("Refarm runtime is not running"),
@@ -474,6 +461,6 @@ describe("refarm tree list", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("not a git repository"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 });

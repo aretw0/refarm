@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import { reportSidecarError } from "./sidecar-error.js";
 import {
 	forkGitTree,
 	getGitTimelineNodes,
@@ -26,7 +27,6 @@ import {
 	showSessionTree,
 	switchSessionTree,
 } from "./tree-session.js";
-import { exitForSidecarError } from "./sidecar-error.js";
 
 type RefarmTimelineListScope =
 	| RefarmTimelineScope
@@ -127,8 +127,8 @@ function parseLimit(limit: string | undefined): number {
 	return value;
 }
 
-function exitForAllListError(err: unknown): never {
-	exitForSidecarError(err);
+function reportAllListError(err: unknown): void {
+	reportSidecarError(err);
 }
 
 function compareAllTimelineNodes(
@@ -158,7 +158,8 @@ async function listAllTree(opts: {
 			.sort(compareAllTimelineNodes)
 			.slice(0, limit);
 	} catch (err) {
-		exitForAllListError(err);
+		reportAllListError(err);
+		return;
 	}
 
 	if (opts.json) {
