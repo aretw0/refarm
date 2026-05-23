@@ -46,6 +46,14 @@ describe("model routing config", () => {
     });
 
     it("resolves effective model routes by scope", () => {
+        expect(effectiveModelRouteForScope({}, "default", { env: {} })).toEqual({
+            provider: "openai",
+            modelId: "gpt-5.5",
+        });
+        expect(effectiveModelRouteForScope({}, "worker", { env: {} })).toEqual({
+            provider: "openai",
+            modelId: "gpt-5.3-codex-spark",
+        });
         expect(effectiveModelRouteForScope({ modelProvider: "openai" }, "default", { env: {} })).toEqual({
             provider: "openai",
             modelId: "gpt-5.5",
