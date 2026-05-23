@@ -1,22 +1,22 @@
 import { Command } from "commander";
 import {
-	checkSessionReadiness,
-	isFirstRun,
-	isSessionReady,
-	printOnboarding,
-	printSessionGuide,
-	autoStartRuntime,
-	defaultLaunchDeps,
-	findRepoRoot,
-	isRuntimeRunning,
-	type LaunchDeps,
-} from "./session-launch.js";
-import {
 	defaultChatDeps,
 	runSessionRepl,
 	type ChatDeps,
 } from "./chat.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
+import {
+	autoStartRuntime,
+	checkSessionReadiness,
+	defaultLaunchDeps,
+	findRepoRoot,
+	isFirstRun,
+	isRuntimeRunning,
+	isSessionReady,
+	printOnboarding,
+	printSessionGuide,
+	type LaunchDeps,
+} from "./session-launch.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
@@ -89,18 +89,22 @@ export async function runSessionLaunchFlow(
 	let runtimeRunning = isRuntimeRunning(readiness);
 	if (!runtimeRunning && readiness.providerConfigured) {
 		runtimeRunning = await autoStartRuntime(findRepoRoot(), launch);
-		if (!runtimeRunning) process.exit(1);
+		if (!runtimeRunning) {
+			process.exitCode = 1;
+			return;
+		}
 	}
 
 	const effectiveReadiness = { ...readiness, runtimeRunning, farmhandRunning: runtimeRunning };
 	if (!isSessionReady(effectiveReadiness)) {
 		printSessionGuide(effectiveReadiness);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	if (isFirstRun()) {
 		printOnboarding();
-		process.exit(0);
+		return;
 	}
 
 	const deps = injectedDeps ?? defaultChatDeps();
@@ -111,7 +115,8 @@ export async function runSessionLaunchFlow(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		process.stderr.write(`✗  ${message}\n`);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	await runSessionRepl(sessionId, deps, "refarm", opts.message);
