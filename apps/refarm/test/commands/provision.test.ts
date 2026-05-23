@@ -147,6 +147,40 @@ describe("provision command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints provision catalog as JSON without loading tokens", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(["list", "--json"], { from: "user" });
+
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			command: string;
+			operation: string;
+			providers: Array<{ id: string; services: Array<{ id: string }> }>;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			command: "provision",
+			operation: "catalog",
+		});
+		expect(payload.providers[0]).toMatchObject({
+			id: "cloudflare",
+			services: [expect.objectContaining({ id: "turbo-cache" })],
+		});
+		expect(payload.nextActions).toContain(
+			"refarm provision cloudflare turbo-cache --dry-run",
+		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("prints provision guidance when no subcommand is selected", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -195,6 +229,38 @@ describe("provision command", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("dry-run — no resources will be created"),
 		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("renders a provider-level Cloudflare dry-run as JSON", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(["cloudflare", "--dry-run", "--json"], {
+			from: "user",
+		});
+
+		expect(mockCreateCloudflareTurboCacheProvisionPlan).toHaveBeenCalledWith({
+			bucketName: "refarm-turbo-cache",
+			team: "refarm",
+		});
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			provider: string;
+			operation: string;
+			plan: { serviceId: string };
+		};
+		expect(payload).toMatchObject({
+			provider: "cloudflare",
+			operation: "dry-run",
+			plan: { serviceId: "turbo-cache" },
+		});
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
@@ -261,6 +327,51 @@ describe("provision command", () => {
 		expect(help).toContain("--dry-run does not require credentials");
 		expect(help).toContain("--github-secrets writes TURBO_CACHE_* via gh");
 		expect(help).toContain("Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default");
+	});
+
+	it("renders a Cloudflare turbo-cache dry-run as JSON without loading tokens", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			[
+				"cloudflare",
+				"turbo-cache",
+				"--dry-run",
+				"--json",
+				"--bucket",
+				"refarm-cache-test",
+				"--team",
+				"garden",
+			],
+			{ from: "user" },
+		);
+
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			provider: string;
+			service: string;
+			operation: string;
+			input: { bucket: string; team: string };
+			plan: { resources: Array<{ name: string }> };
+		};
+		expect(payload).toMatchObject({
+			provider: "cloudflare",
+			service: "turbo-cache",
+			operation: "dry-run",
+			input: { bucket: "refarm-cache-test", team: "garden" },
+		});
+		expect(payload.plan.resources[0]).toMatchObject({
+			name: "refarm-cache-test",
+		});
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("provisions Cloudflare turbo-cache with stored Cloudflare token", async () => {
@@ -398,6 +509,38 @@ describe("provision command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--dry-run only to inspect the plan"),
 		);
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports missing Cloudflare token as JSON without human stderr", async () => {
+		mockLoadTokens.mockResolvedValue(null);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			["cloudflare", "turbo-cache", "--json"],
+			{ from: "user" },
+		);
+
+		expect(mockSiloCore).toHaveBeenCalledOnce();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "missing-cloudflare-token",
+			nextAction: "refarm sow --cloudflare",
+		});
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();

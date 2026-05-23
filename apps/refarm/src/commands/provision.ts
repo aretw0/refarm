@@ -9,9 +9,11 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
+import { printJson } from "./json-output.js";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
+	json?: boolean;
 	team: string;
 	bucket: string;
 	githubSecrets?: boolean;
@@ -20,6 +22,128 @@ interface TurboCacheCommandOptions {
 
 interface CloudflareCommandOptions {
 	dryRun?: boolean;
+	json?: boolean;
+}
+
+interface ProvisionCommandOptions {
+	json?: boolean;
+}
+
+const PROVISION_SCHEMA_VERSION = 1;
+const DEFAULT_TURBO_CACHE_BUCKET = "refarm-turbo-cache";
+const DEFAULT_TURBO_CACHE_TEAM = "refarm";
+
+function optionIsEnabled(command: Command, name: string): boolean {
+	const opts = command.optsWithGlobals<Record<string, unknown>>();
+	return opts[name] === true;
+}
+
+function provisionNextActions(): string[] {
+	return [
+		"refarm sow --cloudflare",
+		"refarm provision cloudflare turbo-cache --dry-run",
+		"refarm provision cloudflare turbo-cache --github-secrets",
+	];
+}
+
+function cloudflareTurboCachePlan(input: {
+	bucket: string;
+	team: string;
+}): ReturnType<typeof createCloudflareTurboCacheProvisionPlan> {
+	return createCloudflareTurboCacheProvisionPlan({
+		bucketName: input.bucket,
+		team: input.team,
+	});
+}
+
+function buildProvisionCatalogPayload() {
+	return {
+		schemaVersion: PROVISION_SCHEMA_VERSION,
+		command: "provision",
+		operation: "catalog",
+		providers: [
+			{
+				id: "cloudflare",
+				services: [
+					{
+						id: turboCacheManifest.id,
+						displayName: turboCacheManifest.displayName,
+						description: turboCacheManifest.description,
+					},
+				],
+			},
+		],
+		nextActions: provisionNextActions(),
+	};
+}
+
+function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
+	return {
+		schemaVersion: PROVISION_SCHEMA_VERSION,
+		command: "provision",
+		provider: "cloudflare",
+		operation: options.dryRun ? "dry-run" : "catalog",
+		services: [
+			{
+				id: turboCacheManifest.id,
+				displayName: turboCacheManifest.displayName,
+				description: "Worker + R2 materialization",
+			},
+		],
+		nextActions: provisionNextActions(),
+		...(options.dryRun
+			? {
+					plan: cloudflareTurboCachePlan({
+						bucket: DEFAULT_TURBO_CACHE_BUCKET,
+						team: DEFAULT_TURBO_CACHE_TEAM,
+					}),
+				}
+			: {}),
+	};
+}
+
+function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
+	return {
+		schemaVersion: PROVISION_SCHEMA_VERSION,
+		command: "provision",
+		provider: "cloudflare",
+		service: turboCacheManifest.id,
+		operation: "dry-run",
+		dryRun: true,
+		input: {
+			bucket: input.bucket,
+			team: input.team,
+			githubSecrets: input.githubSecrets === true,
+			printSecrets: input.printSecrets === true,
+		},
+		plan: cloudflareTurboCachePlan(input),
+		nextActions: [
+			"refarm sow --cloudflare",
+			"refarm provision cloudflare turbo-cache --github-secrets",
+		],
+	};
+}
+
+function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOptions) {
+	return {
+		schemaVersion: PROVISION_SCHEMA_VERSION,
+		command: "provision",
+		provider: "cloudflare",
+		service: turboCacheManifest.id,
+		operation: "apply",
+		ok: false,
+		error: "missing-cloudflare-token",
+		message: "No Cloudflare token found.",
+		input: {
+			bucket: input.bucket,
+			team: input.team,
+		},
+		nextAction: "refarm sow --cloudflare",
+		nextActions: [
+			"refarm sow --cloudflare",
+			"refarm provision cloudflare turbo-cache --dry-run",
+		],
+	};
 }
 
 function renderProvisionCatalog(): void {
@@ -56,10 +180,7 @@ function renderProvisionNextSteps(): void {
 }
 
 function renderCloudflarePlan(input: TurboCacheCommandOptions): void {
-	const plan = createCloudflareTurboCacheProvisionPlan({
-		bucketName: input.bucket,
-		team: input.team,
-	});
+	const plan = cloudflareTurboCachePlan(input);
 
 	console.log(chalk.bold("Resources:"));
 	for (const resource of plan.resources) {
@@ -115,16 +236,27 @@ const cloudflareCommand = new Command("cloudflare")
 		"--dry-run",
 		"Show provider-level provisioning plan without creating resources",
 	)
-	.action((opts: CloudflareCommandOptions) => {
+	.option("--json", "Output machine-readable provider catalog or dry-run plan")
+	.action((opts: CloudflareCommandOptions, command: Command) => {
+		const json = opts.json === true || optionIsEnabled(command, "json");
+		const dryRun = opts.dryRun === true || optionIsEnabled(command, "dryRun");
+		if (json) {
+			printJson(buildCloudflareCatalogPayload({ dryRun }));
+			return;
+		}
+
 		console.log(chalk.cyan("\nCloudflare provisioner\n"));
 		renderCloudflareCatalog();
 		console.log("");
 		renderProvisionNextSteps();
 
-		if (opts.dryRun) {
+		if (dryRun) {
 			console.log("");
 			console.log(chalk.yellow("  (dry-run — no resources will be created)\n"));
-			renderCloudflarePlan({ bucket: "refarm-turbo-cache", team: "refarm" });
+			renderCloudflarePlan({
+				bucket: DEFAULT_TURBO_CACHE_BUCKET,
+				team: DEFAULT_TURBO_CACHE_TEAM,
+			});
 		}
 	})
 	.addCommand(
@@ -151,8 +283,9 @@ const cloudflareCommand = new Command("cloudflare")
 				"--dry-run",
 				"Show what would be provisioned without creating resources",
 			)
-			.option("--team <slug>", "Team slug for cache key namespacing", "refarm")
-			.option("--bucket <name>", "R2 bucket name", "refarm-turbo-cache")
+			.option("--json", "Output machine-readable dry-run or apply result")
+			.option("--team <slug>", "Team slug for cache key namespacing", DEFAULT_TURBO_CACHE_TEAM)
+			.option("--bucket <name>", "R2 bucket name", DEFAULT_TURBO_CACHE_BUCKET)
 			.option(
 				"--github-secrets",
 				"Write produced TURBO_CACHE_* values to GitHub Actions secrets",
@@ -161,14 +294,24 @@ const cloudflareCommand = new Command("cloudflare")
 				"--print-secrets",
 				"Print produced secret values to stdout (unsafe for shared logs)",
 			)
-			.action(async (opts: TurboCacheCommandOptions) => {
+			.action(async (opts: TurboCacheCommandOptions, command: Command) => {
 				const shouldDryRun =
 					opts.dryRun === true ||
-					cloudflareCommand.opts<CloudflareCommandOptions>().dryRun === true;
+					optionIsEnabled(command, "dryRun");
+				const shouldJson =
+					opts.json === true ||
+					optionIsEnabled(command, "json");
 
-				console.log(
-					chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`),
-				);
+				if (shouldDryRun && shouldJson) {
+					printJson(buildTurboCacheDryRunPayload(opts));
+					return;
+				}
+
+				if (!shouldJson) {
+					console.log(
+						chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`),
+					);
+				}
 
 				if (shouldDryRun) {
 					console.log(
@@ -184,6 +327,11 @@ const cloudflareCommand = new Command("cloudflare")
 				} | null;
 
 				if (!tokens?.cloudflareToken) {
+					if (shouldJson) {
+						printJson(buildTurboCacheMissingCredentialsPayload(opts));
+						process.exitCode = 1;
+						return;
+					}
 					console.error(
 						chalk.red("No Cloudflare token found. Run `refarm sow --cloudflare` first."),
 					);
@@ -227,9 +375,11 @@ const cloudflareCommand = new Command("cloudflare")
 					return;
 				}
 
-				console.log(chalk.green(`  ✔ R2 bucket "${result.bucketName}"`));
-				console.log(chalk.green("  ✔ AUTH_TOKEN secret set"));
-				console.log(chalk.green(`  ✔ Worker deployed → ${result.workerUrl}\n`));
+				if (!shouldJson) {
+					console.log(chalk.green(`  ✔ R2 bucket "${result.bucketName}"`));
+					console.log(chalk.green("  ✔ AUTH_TOKEN secret set"));
+					console.log(chalk.green(`  ✔ Worker deployed → ${result.workerUrl}\n`));
+				}
 
 				if (opts.githubSecrets) {
 					try {
@@ -243,8 +393,42 @@ const cloudflareCommand = new Command("cloudflare")
 						return;
 					}
 
-					console.log(chalk.green("  ✔ GitHub secret TURBO_CACHE_API_URL set"));
-					console.log(chalk.green("  ✔ GitHub secret TURBO_CACHE_TOKEN set"));
+					if (!shouldJson) {
+						console.log(chalk.green("  ✔ GitHub secret TURBO_CACHE_API_URL set"));
+						console.log(chalk.green("  ✔ GitHub secret TURBO_CACHE_TOKEN set"));
+					}
+					if (shouldJson) {
+						printJson({
+							schemaVersion: PROVISION_SCHEMA_VERSION,
+							command: "provision",
+							provider: "cloudflare",
+							service: turboCacheManifest.id,
+							operation: "apply",
+							ok: true,
+							bucketName: result.bucketName,
+							workerUrl: result.workerUrl,
+							authToken: opts.printSecrets ? result.authToken : "<redacted>",
+							githubSecretsWritten: true,
+							plan: result.plan,
+						});
+					}
+					return;
+				}
+
+				if (shouldJson) {
+					printJson({
+						schemaVersion: PROVISION_SCHEMA_VERSION,
+						command: "provision",
+						provider: "cloudflare",
+						service: turboCacheManifest.id,
+						operation: "apply",
+						ok: true,
+						bucketName: result.bucketName,
+						workerUrl: result.workerUrl,
+						authToken: opts.printSecrets ? result.authToken : "<redacted>",
+						githubSecretsWritten: false,
+						plan: result.plan,
+					});
 					return;
 				}
 
@@ -292,7 +476,21 @@ export const provisionCommand = new Command("provision")
 	.addCommand(
 		new Command("list")
 			.description("List provisionable providers and services")
-			.action(renderProvisionCatalog),
+			.option("--json", "Output machine-readable provision catalog")
+			.action((opts: ProvisionCommandOptions, command: Command) => {
+				if (opts.json === true || optionIsEnabled(command, "json")) {
+					printJson(buildProvisionCatalogPayload());
+					return;
+				}
+				renderProvisionCatalog();
+			}),
 	)
 	.addCommand(cloudflareCommand)
-	.action(renderProvisionCatalog);
+	.option("--json", "Output machine-readable provision catalog")
+	.action((opts: ProvisionCommandOptions, command: Command) => {
+		if (opts.json === true || optionIsEnabled(command, "json")) {
+			printJson(buildProvisionCatalogPayload());
+			return;
+		}
+		renderProvisionCatalog();
+	});
