@@ -919,11 +919,11 @@ async function main() {
 		}
 
 		console.log(
-			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when farmhand is down`,
+			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when runtime is down`,
 		);
 		await assertCommandFailsWith(
 			["telemetry", "--json", "--strict"],
-			"farmhand is not running",
+			"Refarm runtime is not running",
 		);
 
 		console.log(
