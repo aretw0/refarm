@@ -13,6 +13,7 @@ import {
 describe("organize-imports-lib", () => {
 	it("selects source files and skips generated artifacts", () => {
 		assert.equal(isOrganizableSourceFile("apps/refarm/src/index.ts"), true);
+		assert.equal(isOrganizableSourceFile("packages/config/src/index.js"), false);
 		assert.equal(isOrganizableSourceFile("apps/refarm/dist/index.js"), false);
 		assert.equal(isOrganizableSourceFile("packages/config/src/index.d.ts"), false);
 		assert.deepEqual(

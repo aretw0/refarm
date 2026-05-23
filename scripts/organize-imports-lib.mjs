@@ -3,30 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
-const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
+const SOURCE_EXTENSIONS = new Set([".cts", ".mts", ".ts", ".tsx"]);
 const GENERATED_SEGMENTS = new Set([".turbo", "build", "dist", "node_modules"]);
-
-const FORMAT_SETTINGS = {
-	convertTabsToSpaces: false,
-	indentSize: 4,
-	insertSpaceAfterCommaDelimiter: true,
-	insertSpaceAfterConstructor: false,
-	insertSpaceAfterFunctionKeywordForAnonymousFunctions: true,
-	insertSpaceAfterKeywordsInControlFlowStatements: true,
-	insertSpaceAfterOpeningAndBeforeClosingEmptyBraces: false,
-	insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces: false,
-	insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
-	insertSpaceAfterOpeningAndBeforeClosingNonemptyBrackets: false,
-	insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis: false,
-	insertSpaceAfterSemicolonInForStatements: true,
-	insertSpaceAfterTypeAssertion: false,
-	insertSpaceBeforeAndAfterBinaryOperators: true,
-	insertSpaceBeforeFunctionParenthesis: false,
-	insertSpaceBeforeTypeAnnotation: false,
-	newLineCharacter: "\n",
-	semicolons: ts.SemicolonPreference.Insert,
-	tabSize: 4,
-};
 
 export function isOrganizableSourceFile(filePath) {
 	const normalized = filePath.replaceAll("\\", "/");
@@ -90,9 +68,7 @@ export function organizeImportText(fileName, text, root = process.cwd()) {
 		if (path.resolve(fileChanges.fileName) !== absolute) continue;
 		updateSnapshot(applyTextChanges(currentText, fileChanges.textChanges));
 	}
-
-	const formatting = service.getFormattingEditsForDocument(absolute, FORMAT_SETTINGS);
-	return applyTextChanges(currentText, formatting);
+	return currentText;
 }
 
 export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
