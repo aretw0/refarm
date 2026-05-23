@@ -159,8 +159,9 @@ function parseEnvFile(filePath: string): Record<string, string> {
 function hasEnvProvider(filePath: string): boolean {
 	const env = parseEnvFile(filePath);
 	const provider = stringValue(env.MODEL_PROVIDER) ?? stringValue(env.MODEL_DEFAULT_PROVIDER);
-	if (provider) return hasProviderCredential(provider, {}, { ...process.env, ...env });
-	return Object.keys(env).some((key) => key.endsWith("_API_KEY") && stringValue(env[key]));
+	const mergedEnv = { ...process.env, ...env };
+	if (provider) return hasProviderCredential(provider, {}, mergedEnv);
+	return hasProviderCredential(DEFAULT_MODEL_PROVIDER, {}, mergedEnv);
 }
 
 function hasConfigProvider(filePath: string): boolean {
