@@ -20,6 +20,7 @@ Runtime commands:
 Agent usage:
   $ refarm ask "hello"          Send one prompt through the configured runtime
   $ refarm                     Start or resume an interactive session
+  $ refarm tidy imports --check Check import organization before committing
   $ refarm sow                  Configure credentials without editing files
   $ refarm model current        Inspect provider/model routing
   $ refarm model ${OPENAI_DEFAULT_REF} Switch the default route
