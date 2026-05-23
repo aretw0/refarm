@@ -203,8 +203,12 @@ export function effectiveModelRouteForScope(tokens = {}, scope, { env = defaultE
     const envModelId = stringValue(env.MODEL_ID);
     const storedProvider = stringValue(tokens.modelProvider);
     const provider = envProvider ?? envDefaultProvider ?? storedProvider;
+    const sameStoredProvider =
+        !provider ||
+        !storedProvider ||
+        provider.trim().toLowerCase() === storedProvider.trim().toLowerCase();
     const storedModelId =
-        !provider || !storedProvider || provider === storedProvider
+        sameStoredProvider
             ? stringValue(tokens.modelId) ?? stringValue(tokens.model)
             : undefined;
     const defaultModelId =

@@ -111,6 +111,26 @@ describe("model routing config", () => {
         });
     });
 
+    it("keeps a stored model id when an env provider override only changes casing", () => {
+        expect(
+            effectiveModelRouteForScope(
+                {
+                    modelProvider: "OpenAI",
+                    modelId: "gpt-5.5",
+                },
+                "default",
+                {
+                    env: {
+                        MODEL_PROVIDER: "openai",
+                    },
+                },
+            ),
+        ).toEqual({
+            provider: "openai",
+            modelId: "gpt-5.5",
+        });
+    });
+
     it("formats default provider and scoped model refs", () => {
         expect(defaultProviderModelRef("openai")).toBe("openai/gpt-5.5");
         expect(defaultProviderModelId("ollama")).toBe("llama3.2");
