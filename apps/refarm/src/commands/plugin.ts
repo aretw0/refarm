@@ -241,7 +241,8 @@ pluginCommand
 			"",
 			"Notes:",
 			"  If the bundled WASM is missing, build pi-agent first with the command printed by the error.",
-			"  After install, run refarm plugin status to confirm runtime load state.",
+			"  After install, start or restart the runtime, then run /reload @refarm/pi-agent.",
+			"  Run refarm plugin status to confirm runtime load state.",
 		].join("\n"),
 	)
 	.option("-f, --force", "Reinstall even if already up-to-date", false)

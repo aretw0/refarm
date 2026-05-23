@@ -89,6 +89,24 @@ describe("plugin install", () => {
 		expect(help).toContain("refarm ask preflights pi-agent");
 	});
 
+	it("documents runtime reload after bundled plugin install", () => {
+		const install = pluginCommand.commands.find(
+			(command) => command.name() === "install",
+		);
+		let help = "";
+		install?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		install?.outputHelp();
+
+		expect(help).toContain("start or restart the runtime");
+		expect(help).toContain("/reload @refarm/pi-agent");
+		expect(help).toContain("refarm plugin status");
+	});
+
 	it("reports failure when npm package cannot be resolved", async () => {
 		mockRequireResolve.mockImplementation(() => {
 			throw new Error("MODULE_NOT_FOUND");
