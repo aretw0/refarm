@@ -65,6 +65,14 @@ interface PersistedConfigValue {
 	legacy?: boolean;
 }
 
+interface UnsetConfigValue {
+	key: ConfigKey;
+	path: string;
+	scope: "home" | "local";
+	removed: boolean;
+	legacy?: boolean;
+}
+
 interface JsonOptionCarrier {
 	json?: boolean;
 	opts?: () => { json?: boolean };
@@ -352,6 +360,22 @@ function printPersistedConfigValueJson(result: PersistedConfigValue): void {
 	console.log(JSON.stringify(result, null, 2));
 }
 
+function printUnsetConfigValue(result: UnsetConfigValue): void {
+	if (result.removed) {
+		console.log(chalk.green(`✓  unset ${result.key}`));
+	} else {
+		console.log(chalk.dim(`-  ${result.key} was not set`));
+	}
+	console.log(chalk.dim(`   ${result.path}`));
+	if (result.legacy) {
+		console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
+	}
+}
+
+function printUnsetConfigValueJson(result: UnsetConfigValue): void {
+	console.log(JSON.stringify(result, null, 2));
+}
+
 function persistConfigValue(
 	key: ConfigKey,
 	value: string,
@@ -410,6 +434,48 @@ function persistConfigValue(
 	return null;
 }
 
+function unsetConfigValue(
+	key: ConfigKey,
+	opts: { local?: boolean },
+	deps: ConfigDeps,
+): UnsetConfigValue {
+	const filePath = configPath(deps, opts);
+	const config = readConfig(filePath);
+	let removed = false;
+
+	if (key === "farmhand.autostart" || key === "runtime.autostart") {
+		removed = Object.prototype.hasOwnProperty.call(config, "autostart");
+		if (removed) {
+			delete config.autostart;
+		}
+	} else if (key === "operator.openExternalLinks") {
+		removed = Object.prototype.hasOwnProperty.call(
+			config.operator ?? {},
+			"openExternalLinks",
+		);
+		if (removed && config.operator) {
+			delete config.operator.openExternalLinks;
+		}
+	} else if (key === "tractor.engine") {
+		removed = Object.prototype.hasOwnProperty.call(config.tractor ?? {}, "engine");
+		if (removed && config.tractor) {
+			delete config.tractor.engine;
+		}
+	}
+
+	if (removed) {
+		writeConfig(filePath, config);
+	}
+
+	return {
+		key,
+		path: filePath,
+		scope: configScope(opts),
+		removed,
+		...(key === "farmhand.autostart" ? { legacy: true } : {}),
+	};
+}
+
 export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
 	return new Command("config")
 		.description("Inspect and change refarm CLI preferences")
@@ -425,6 +491,7 @@ Examples:
   $ refarm config get runtime.autostart --json
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND} --json
+  $ refarm config unset runtime.autostart
   $ refarm config set operator.openExternalLinks never
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
   $ REFARM_TRACTOR_ENGINE=rust refarm runtime
@@ -497,6 +564,51 @@ Notes:
 							return;
 						}
 						printConfigValue(parsedKey, opts, deps);
+					},
+				),
+		)
+		.addCommand(
+			new Command("unset")
+				.description("Remove a persisted config value so defaults or environment can apply")
+				.argument("<key>", "Config key")
+				.option("--local", "Update project-local .refarm/config.json")
+				.option("--json", "Output machine-readable unset result")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm config unset runtime.autostart
+  $ refarm config unset runtime.autostart --json
+  $ refarm config unset operator.openExternalLinks --local
+
+Keys:
+  runtime.autostart  ${AUTOSTART_MODES_HELP}
+  operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
+  tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
+
+Legacy aliases:
+  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
+
+Notes:
+  Unset only changes persisted config. Environment overrides such as
+  REFARM_RUNTIME_AUTOSTART still take precedence until removed from the shell.
+`,
+				)
+				.action(
+					(
+						key: string,
+						opts: { local?: boolean } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						const parsedKey = parseConfigKey(key);
+						if (!parsedKey) return;
+						const result = unsetConfigValue(parsedKey, opts, deps);
+						if (hasJsonOption(opts, command)) {
+							printUnsetConfigValueJson(result);
+							return;
+						}
+						printUnsetConfigValue(result);
 					},
 				),
 		)

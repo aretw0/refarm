@@ -155,6 +155,66 @@ describe("config command", () => {
 		});
 	});
 
+	it("unsets persisted config values", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "always" }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["unset", "runtime.autostart"], {
+			from: "user",
+		});
+
+		const saved = JSON.parse(
+			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
+		) as { autostart?: string };
+		expect(saved.autostart).toBeUndefined();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("unset runtime.autostart"),
+		);
+	});
+
+	it("prints unset config result as JSON", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "never" } }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(
+			["unset", "operator.openExternalLinks", "--local", "--json"],
+			{ from: "user" },
+		);
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "operator.openExternalLinks",
+			path: path.join(cwd, ".refarm", "config.json"),
+			scope: "local",
+			removed: true,
+		});
+	});
+
+	it("reports unset misses without creating config files", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["unset", "tractor.engine", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			key: "tractor.engine",
+			path: path.join(home, ".refarm", "config.json"),
+			scope: "home",
+			removed: false,
+		});
+		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
+	});
+
 	it("prints effective home autostart mode", async () => {
 		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
 		fs.writeFileSync(
