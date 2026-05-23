@@ -32,6 +32,7 @@ import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
 import { tasksCommand } from "./commands/tasks.js";
 import { telemetryCommand } from "./commands/telemetry.js";
+import { tidyCommand } from "./commands/tidy.js";
 import { treeCommand } from "./commands/tree.js";
 import { tuiCommand } from "./commands/tui.js";
 import { webCommand } from "./commands/web.js";
@@ -97,6 +98,7 @@ program
 			"  $ refarm runtime                 Inspect selected runtime engine and autostart",
 			"  $ refarm health                  Audit project structure and package alignment",
 			"  $ refarm check --next-action     Print the next blocking recovery action",
+			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
 			"",
 			"Runtime controls:",
@@ -223,4 +225,5 @@ program.addCommand(askCommand);
 program.addCommand(sessionsCommand);
 program.addCommand(tasksCommand);
 program.addCommand(telemetryCommand);
+program.addCommand(tidyCommand);
 program.addCommand(treeCommand);
