@@ -146,6 +146,34 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 	};
 }
 
+function buildTurboCacheFailurePayload(input: {
+	options: TurboCacheCommandOptions;
+	error: string;
+	message: string;
+	nextAction: string;
+}) {
+	return {
+		schemaVersion: PROVISION_SCHEMA_VERSION,
+		command: "provision",
+		provider: "cloudflare",
+		service: turboCacheManifest.id,
+		operation: "apply",
+		ok: false,
+		error: input.error,
+		message: input.message,
+		input: {
+			bucket: input.options.bucket,
+			team: input.options.team,
+			githubSecrets: input.options.githubSecrets === true,
+		},
+		nextAction: input.nextAction,
+		nextActions: [
+			input.nextAction,
+			"refarm provision cloudflare turbo-cache --dry-run",
+		],
+	};
+}
+
 function renderProvisionCatalog(): void {
 	console.log(chalk.bold("Provisionable services:"));
 	console.log(
@@ -351,6 +379,18 @@ const cloudflareCommand = new Command("cloudflare")
 						apiToken: tokens.cloudflareToken,
 					});
 				} catch (err) {
+					if (shouldJson) {
+						printJson(
+							buildTurboCacheFailurePayload({
+								options: opts,
+								error: "cloudflare-connect-failed",
+								message: String(err),
+								nextAction: "refarm sow --cloudflare",
+							}),
+						);
+						process.exitCode = 1;
+						return;
+					}
 					console.error(
 						chalk.red(`  Failed to connect to Cloudflare: ${String(err)}`),
 					);
@@ -370,6 +410,18 @@ const cloudflareCommand = new Command("cloudflare")
 					});
 				} catch (err) {
 					const enriched = enrichCloudflareError(err);
+					if (shouldJson) {
+						printJson(
+							buildTurboCacheFailurePayload({
+								options: opts,
+								error: "cloudflare-provision-failed",
+								message: enriched.message,
+								nextAction: "refarm provision cloudflare turbo-cache --dry-run",
+							}),
+						);
+						process.exitCode = 1;
+						return;
+					}
 					console.error(chalk.red(`  Provisioning failed: ${enriched.message}`));
 					process.exitCode = 1;
 					return;
@@ -386,6 +438,18 @@ const cloudflareCommand = new Command("cloudflare")
 						setGitHubActionsSecret("TURBO_CACHE_API_URL", result.workerUrl);
 						setGitHubActionsSecret("TURBO_CACHE_TOKEN", result.authToken);
 					} catch (err) {
+						if (shouldJson) {
+							printJson(
+								buildTurboCacheFailurePayload({
+									options: opts,
+									error: "github-secrets-write-failed",
+									message: String(err),
+									nextAction: "gh auth status",
+								}),
+							);
+							process.exitCode = 1;
+							return;
+						}
 						console.error(
 							chalk.red(`  Failed to write GitHub secrets: ${String(err)}`),
 						);

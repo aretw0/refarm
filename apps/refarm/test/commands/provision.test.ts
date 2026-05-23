@@ -576,6 +576,39 @@ describe("provision command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("reports Cloudflare provider creation failures as JSON", async () => {
+		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
+		mockCreateCloudflareProvider.mockRejectedValue(
+			new Error("bad credentials"),
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			["cloudflare", "turbo-cache", "--json"],
+			{ from: "user" },
+		);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "cloudflare-connect-failed",
+			nextAction: "refarm sow --cloudflare",
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("fails offline when Cloudflare turbo-cache provisioning fails", async () => {
 		const provider = { accountId: "account-1" };
 		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
@@ -607,6 +640,90 @@ describe("provision command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("wrangler failed"),
 		);
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports Cloudflare turbo-cache provisioning failures as JSON", async () => {
+		const provider = { accountId: "account-1" };
+		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
+		mockCreateCloudflareProvider.mockResolvedValue(provider);
+		mockProvision.mockRejectedValue(new Error("wrangler failed"));
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			[
+				"cloudflare",
+				"turbo-cache",
+				"--json",
+				"--bucket",
+				"refarm-cache-test",
+				"--team",
+				"garden",
+			],
+			{ from: "user" },
+		);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			message: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "cloudflare-provision-failed",
+			message: "wrangler failed",
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports GitHub secret write failures as JSON", async () => {
+		const provider = { accountId: "account-1" };
+		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
+		mockCreateCloudflareProvider.mockResolvedValue(provider);
+		mockProvision.mockResolvedValue({
+			workerUrl: "https://refarm-cache.example.workers.dev",
+			authToken: "generated-token",
+			bucketName: "refarm-cache-test",
+			plan: { provider: "cloudflare", serviceId: "turbo-cache" },
+		});
+		mockSpawnSync.mockReturnValue({
+			status: 1,
+			stdout: "",
+			stderr: "not authenticated",
+		});
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			["cloudflare", "turbo-cache", "--github-secrets", "--json"],
+			{ from: "user" },
+		);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "github-secrets-write-failed",
+			nextAction: "gh auth status",
+		});
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
