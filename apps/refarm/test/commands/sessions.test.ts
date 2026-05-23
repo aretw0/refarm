@@ -11,6 +11,7 @@ describe("refarm sessions", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		process.exitCode = undefined;
 	});
 
 	it("documents the common session workflows in help", () => {
@@ -101,18 +102,11 @@ describe("refarm sessions", () => {
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
 		const command = createSessionsCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "use")!
-				.parseAsync(["abc123"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "use")!
+			.parseAsync(["abc123"], { from: "user" });
 
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm/session.lock"),
@@ -122,24 +116,17 @@ describe("refarm sessions", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("sessions new exits with actionable message when sidecar is down", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
 		const command = createSessionsCommand();
-		await expect(
-			command.commands.find((c) => c.name() === "new")!.parseAsync([], {
-				from: "user",
-			}),
-		).rejects.toThrow("exit:1");
+		await command.commands.find((c) => c.name() === "new")!.parseAsync([], {
+			from: "user",
+		});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Refarm runtime is not running"),
@@ -150,7 +137,7 @@ describe("refarm sessions", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Start now:  refarm runtime start"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("sessions new shows upgrade hint when endpoint is missing (HTTP 404)", async () => {

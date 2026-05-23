@@ -13,7 +13,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-import { exitForSidecarError } from "./sidecar-error.js";
+import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
@@ -38,13 +38,15 @@ interface SessionHistory {
 	total: number;
 }
 
-function writeActiveSessionOrExit(targetSessionId: string): void {
+function writeActiveSessionOrReport(targetSessionId: string): boolean {
 	try {
 		writeActiveSessionIdAndVerify(targetSessionId);
+		return true;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(chalk.red(`✗  ${message}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return false;
 	}
 }
 
@@ -164,7 +166,8 @@ async function listSessions(): Promise<void> {
 	try {
 		sessions = await fetchSessions();
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	if (sessions.length === 0) {
@@ -244,10 +247,11 @@ async function createSession(opts: { name?: string }): Promise<void> {
 		}
 		created = parsed.session;
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
-	writeActiveSessionOrExit(created["@id"]);
+	if (!writeActiveSessionOrReport(created["@id"])) return;
 	const short = formatSessionId(created["@id"]);
 	const name = created.name ? chalk.white(created.name) : chalk.dim("unnamed");
 	console.log(
@@ -262,14 +266,16 @@ async function useSession(prefix: string): Promise<void> {
 	try {
 		sessions = await fetchSessions();
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	const matches = findSessionIdPrefixMatches(prefix, sessions);
 
 	if (matches.length === 0) {
 		console.error(chalk.red(`✗  No session matching "${prefix}"`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	if (matches.length > 1) {
 		console.error(
@@ -278,10 +284,11 @@ async function useSession(prefix: string): Promise<void> {
 			),
 		);
 		for (const m of matches) console.error(chalk.dim(`   ${m["@id"]}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
-	writeActiveSessionOrExit(matches[0]!["@id"]);
+	if (!writeActiveSessionOrReport(matches[0]!["@id"])) return;
 	console.log(
 		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]!["@id"])}`),
 	);
@@ -312,28 +319,32 @@ async function forkSession(
 		};
 		if (response.status === 404) {
 			console.error(chalk.red(`✗  No session matching "${prefix}"`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (response.status === 409) {
 			console.error(
 				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
 			);
 			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (!response.ok || !parsed.session) {
 			console.error(
 				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
 			);
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		fork = parsed.session;
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	// Auto-switch to the new fork.
-	writeActiveSessionOrExit(fork["@id"]);
+	if (!writeActiveSessionOrReport(fork["@id"])) return;
 	const short = formatSessionId(fork["@id"]);
 	const parentShort = formatSessionId(fork.parent_session_id ?? prefix);
 	console.log(
@@ -361,22 +372,26 @@ async function showSession(prefix: string): Promise<void> {
 		};
 		if (response.status === 404) {
 			console.error(chalk.red(`✗  No session matching "${prefix}"`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (response.status === 409) {
 			console.error(
 				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${body.error}`),
 			);
 			for (const m of body.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (!response.ok) {
 			console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		history = body;
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	const session = history.session;
