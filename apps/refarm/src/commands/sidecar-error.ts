@@ -21,7 +21,7 @@ export function printSidecarUnavailable(): void {
 	console.error(chalk.dim(`   Status:     ${RUNTIME_STATUS_COMMAND}`));
 	console.error(chalk.dim(`   Start now:  ${RUNTIME_START_COMMAND}`));
 	console.error(chalk.dim(`   Diagnose:   ${RUNTIME_DOCTOR_COMMAND}`));
-	console.error(chalk.dim(`   Always:     ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
+	console.error(chalk.dim(`   Autostart:  ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
 	console.error(chalk.dim(`   Engine:     ${RUNTIME_ENGINE_AUTO_COMMAND}`));
 }
 
