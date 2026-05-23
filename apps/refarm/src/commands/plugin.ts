@@ -1,23 +1,23 @@
+import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import { Command } from "commander";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
-import { basename, extname } from "node:path";
-import path from "node:path";
-import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
-import { Command } from "commander";
+import path, { basename, extname } from "node:path";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
+import { readRuntimePluginState } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
-import { readRuntimePluginState } from "./runtime-plugins.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
 // To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
@@ -176,8 +176,9 @@ async function printRuntimePluginStatus(): Promise<void> {
 	const state = await readRuntimePluginState();
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
-		console.error("Start or restart the runtime with `refarm runtime start`, then retry.");
+		console.error(`Start or restart the runtime with \`${RUNTIME_START_WAIT_COMMAND}\`, then retry.`);
 		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
+		console.error(`Diagnose readiness with \`${RUNTIME_DOCTOR_COMMAND}\`.`);
 		process.exitCode = 1;
 		return;
 	}
@@ -221,10 +222,11 @@ export const pluginCommand = new Command("plugin").description(
 		"  › /reload @refarm/pi-agent",
 		"  $ refarm plugin bundle ./plugin.wasm --name my-plugin",
 		"",
-		"Notes:",
-		"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
-		"  Status reads the active Refarm runtime; start it with refarm runtime start if unavailable.",
-		"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
+	"Notes:",
+	"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
+	`  Status reads the active Refarm runtime; start it with ${RUNTIME_START_WAIT_COMMAND} if unavailable.`,
+	`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
+	"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
 	].join("\n"),
 );
 
@@ -290,6 +292,8 @@ pluginCommand
 			"Notes:",
 			"  This command requires the selected Refarm runtime sidecar.",
 			`  Use ${RUNTIME_STATUS_COMMAND} to see the selected engine and readiness.`,
+			`  Start or restart it with ${RUNTIME_START_WAIT_COMMAND}.`,
+			`  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.`,
 		].join("\n"),
 	)
 	.action(printRuntimePluginStatus);

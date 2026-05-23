@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted mocks — must be defined before any imports that use these modules
 const {
@@ -85,7 +85,8 @@ describe("plugin install", () => {
 
 		expect(help).toContain("refarm plugin status");
 		expect(help).toContain("/reload @refarm/pi-agent");
-		expect(help).toContain("refarm runtime start");
+		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm doctor");
 		expect(help).toContain("refarm ask preflights pi-agent");
 	});
 
@@ -273,10 +274,13 @@ describe("plugin status", () => {
 			expect.stringContaining("plugin status is unavailable"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm runtime start"),
+			expect.stringContaining("refarm runtime start --wait"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm runtime status"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm doctor"),
 		);
 		errorSpy.mockRestore();
 	});
