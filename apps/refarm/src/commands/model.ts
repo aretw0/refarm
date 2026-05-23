@@ -20,6 +20,7 @@ import {
 	parseModelScope,
 	type ModelScope,
 } from "../model-routing.js";
+import { printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
@@ -172,7 +173,7 @@ function hasJsonOption(
 }
 
 function printModelMutationResult(result: ModelMutationResult): void {
-	console.log(JSON.stringify(result, null, 2));
+	printJson(result);
 }
 
 export function printCurrentModel(tokens: ModelTokens): void {
@@ -209,7 +210,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 }
 
 export function printCurrentModelJson(tokens: ModelTokens): void {
-	console.log(JSON.stringify(buildCurrentModelStatus(tokens), null, 2));
+	printJson(buildCurrentModelStatus(tokens));
 }
 
 export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
@@ -306,7 +307,7 @@ export function printKnownModelProviders(): void {
 }
 
 export function printKnownModelProvidersJson(): void {
-	console.log(JSON.stringify({ providers: buildKnownModelProviders() }, null, 2));
+	printJson({ providers: buildKnownModelProviders() });
 }
 
 export async function setModelRoute(

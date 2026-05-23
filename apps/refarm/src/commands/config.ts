@@ -20,6 +20,7 @@ import {
 	type AutostartMode,
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
+import { printJson } from "./json-output.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
@@ -296,7 +297,7 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 
 function printConfigValueJson(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
 	warnIgnoredConfigEnvOverrides();
-	console.log(JSON.stringify(resolveConfigValue(key, opts, deps), null, 2));
+	printJson(resolveConfigValue(key, opts, deps));
 }
 
 function warnIgnoredConfigEnvOverrides(): void {
@@ -332,7 +333,7 @@ function printConfigSummary(deps: ConfigDeps): void {
 
 function printConfigSummaryJson(deps: ConfigDeps): void {
 	warnIgnoredConfigEnvOverrides();
-	console.log(JSON.stringify(buildConfigSummary(deps), null, 2));
+	printJson(buildConfigSummary(deps));
 }
 
 function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): boolean {
@@ -357,7 +358,7 @@ function printPersistedConfigValue(result: PersistedConfigValue): void {
 }
 
 function printPersistedConfigValueJson(result: PersistedConfigValue): void {
-	console.log(JSON.stringify(result, null, 2));
+	printJson(result);
 }
 
 function printUnsetConfigValue(result: UnsetConfigValue): void {
@@ -373,7 +374,7 @@ function printUnsetConfigValue(result: UnsetConfigValue): void {
 }
 
 function printUnsetConfigValueJson(result: UnsetConfigValue): void {
-	console.log(JSON.stringify(result, null, 2));
+	printJson(result);
 }
 
 function persistConfigValue(
