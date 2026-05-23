@@ -54,13 +54,14 @@ export const sowCommand = new Command("sow")
 			const stored = (await silo.loadTokens()) as Record<string, unknown>;
 			let currentTokens = { ...stored };
 			const ctx = { tryOpenUrl };
-			const modelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
-			if (opts.model !== undefined && !modelRef) {
+			const initialModelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
+			let modelRef = initialModelRef;
+			if (opts.model !== undefined && !initialModelRef) {
 				console.error(chalk.red("✗  --model cannot be empty."));
 				process.exit(1);
 			}
-			if (modelRef && !modelRef.provider) {
-				console.error(chalk.red(`✗  Could not infer provider for model "${modelRef.modelId}".`));
+			if (initialModelRef && !initialModelRef.provider && !opts.all) {
+				console.error(chalk.red(`✗  Could not infer provider for model "${initialModelRef.modelId}".`));
 				console.error(chalk.dim(`   Use provider/model, for example: refarm sow --model ${OLLAMA_DEFAULT_REF}`));
 				process.exit(1);
 			}
@@ -112,6 +113,8 @@ export const sowCommand = new Command("sow")
 			}
 
 			if (configureModelRef) {
+				modelRef = parseModelRef(opts.model, stringValue(currentTokens.modelProvider));
+				if (!modelRef) throw new Error("model ref was not resolved");
 				if (!modelRef.provider) throw new Error("model provider was not resolved");
 				await silo.saveTokens(
 					modelRouteTokenUpdate(

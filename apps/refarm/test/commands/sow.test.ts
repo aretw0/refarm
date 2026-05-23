@@ -185,6 +185,20 @@ describe("sowCommand — --all flag", () => {
 		});
 	});
 
+	it("resolves a short --model id against the newly collected provider", async () => {
+		await sowCommand.parseAsync(["--all", "--model", "gpt-5.5"], { from: "user" });
+
+		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
+			modelProvider: "openai",
+			modelApiKey: "sk-openai-test",
+			oauthProvider: undefined,
+		});
+		expect(mockSaveTokens).toHaveBeenNthCalledWith(2, {
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+	});
+
 	it("does not clear newly collected OAuth credentials when --model matches them", async () => {
 		mockModelCollect.mockResolvedValue({
 			provider: "anthropic",
