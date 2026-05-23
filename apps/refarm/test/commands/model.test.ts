@@ -224,6 +224,24 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("keeps persisted base URL when env provider only changes casing", async () => {
+		process.env.MODEL_PROVIDER = "OpenAI";
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelBaseUrl: "https://api.openai.com/v1",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("base url: https://api.openai.com/v1");
+
+		logSpy.mockRestore();
+	});
+
 	it("does not print persisted base URL when an environment provider override changes provider", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		const deps = makeDeps({

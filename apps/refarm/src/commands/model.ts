@@ -87,7 +87,9 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
 	const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER);
-	const storedProviderMatchesRoute = !routeProviderOverridden || tokens.modelProvider === provider;
+	const storedProviderMatchesRoute =
+		!routeProviderOverridden ||
+		tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
 
 	console.log(chalk.bold("Model routing"));
 	console.log(`  current: ${chalk.cyan(ref)}`);
