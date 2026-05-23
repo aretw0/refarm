@@ -232,13 +232,15 @@ async function createSession(opts: { name?: string }): Promise<void> {
 					`   Restart or update backend and retry: ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`,
 				),
 			);
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (!response.ok || !parsed.session) {
 			console.error(
 				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
 			);
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		created = parsed.session;
 	} catch (err) {
