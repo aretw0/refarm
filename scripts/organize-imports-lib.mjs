@@ -5,6 +5,11 @@ import ts from "typescript";
 
 const SOURCE_EXTENSIONS = new Set([".cts", ".mts", ".ts", ".tsx"]);
 const GENERATED_SEGMENTS = new Set([".turbo", "build", "dist", "node_modules"]);
+const ORGANIZE_FORMAT_SETTINGS = {
+	insertSpaceAfterCommaDelimiter: true,
+	insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
+	newLineCharacter: "\n",
+};
 
 export function isOrganizableSourceFile(filePath) {
 	const normalized = filePath.replaceAll("\\", "/");
@@ -60,7 +65,7 @@ export function organizeImportText(fileName, text, root = process.cwd()) {
 	const service = createLanguageService(root, absolute, snapshots);
 	const changes = service.organizeImports(
 		{ type: "file", fileName: absolute },
-		{},
+		ORGANIZE_FORMAT_SETTINGS,
 		{},
 	);
 
@@ -68,7 +73,7 @@ export function organizeImportText(fileName, text, root = process.cwd()) {
 		if (path.resolve(fileChanges.fileName) !== absolute) continue;
 		updateSnapshot(applyTextChanges(currentText, fileChanges.textChanges));
 	}
-	return currentText;
+	return normalizeMultilineImportIndent(currentText);
 }
 
 export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
@@ -124,4 +129,23 @@ function applyTextChanges(text, changes) {
 			next.slice(change.span.start + change.span.length);
 	}
 	return next;
+}
+
+function normalizeMultilineImportIndent(text) {
+	const lines = text.split("\n");
+	let inNamedImport = false;
+	return lines.map((line) => {
+		if (/^import\s+\{\s*$/.test(line)) {
+			inNamedImport = true;
+			return line;
+		}
+		if (inNamedImport && /^\}\s+from\s+/.test(line)) {
+			inNamedImport = false;
+			return line;
+		}
+		if (inNamedImport && line.trim().length > 0 && !/^\s/.test(line)) {
+			return `\t${line}`;
+		}
+		return line;
+	}).join("\n");
 }

@@ -35,11 +35,12 @@ describe("organize-imports-lib", () => {
 
 		try {
 			const input = [
+				'import { describe,it } from "node:test";',
 				'import { b } from "./b";',
 				'import { a } from "./a";',
 				'import { readFileSync } from "node:fs";',
 				"",
-				"console.log(a, b);",
+				"console.log(a, b, describe, it);",
 				"",
 			].join("\n");
 			const output = organizeImportText("src/main.ts", input, root);
@@ -47,10 +48,11 @@ describe("organize-imports-lib", () => {
 			assert.equal(
 				output,
 				[
+					'import { describe, it } from "node:test";',
 					'import { a } from "./a";',
 					'import { b } from "./b";',
 					"",
-					"console.log(a, b);",
+					"console.log(a, b, describe, it);",
 					"",
 				].join("\n"),
 			);
