@@ -1,6 +1,7 @@
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
+import { printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -131,7 +132,7 @@ async function listTasks(opts: {
 			},
 			tasks,
 		};
-		console.log(JSON.stringify(body, null, 2));
+		printJson(body);
 		return;
 	}
 
@@ -207,7 +208,7 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 			task,
 			events,
 		};
-		console.log(JSON.stringify(output, null, 2));
+		printJson(output);
 		return;
 	}
 

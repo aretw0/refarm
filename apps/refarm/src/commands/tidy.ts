@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { spawn } from "node:child_process";
+import { printJson } from "./json-output.js";
 import type { LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
@@ -106,10 +107,6 @@ export function runTidyProcess(
 			});
 		});
 	});
-}
-
-function printJson(value: unknown): void {
-	console.log(JSON.stringify(value, null, 2));
 }
 
 export function createTidyCommand(deps?: Partial<TidyDeps>): Command {

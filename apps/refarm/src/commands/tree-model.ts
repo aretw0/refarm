@@ -1,4 +1,5 @@
 import type { RefarmExecutionPlanBase } from "./execution-plan.js";
+import { printJson } from "./json-output.js";
 
 const SESSION_SCOPE = "session";
 const GIT_SCOPE = "git";
@@ -570,5 +571,5 @@ export function buildGitSwitchEnvelope(args: {
 }
 
 export function outputTreeJson(value: RefarmTreeJsonEnvelope): void {
-	console.log(JSON.stringify(value, null, 2));
+	printJson(value);
 }
