@@ -208,18 +208,11 @@ describe("refarm tree switch and guards", () => {
 			() => undefined as string | undefined,
 		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["abc123"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123"], { from: "user" });
 
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm/session.lock"),
@@ -229,7 +222,7 @@ describe("refarm tree switch and guards", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -240,23 +233,16 @@ describe("refarm tree switch and guards", () => {
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["abc123"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Session "abc123def456" is already active.'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(writeSpy).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});

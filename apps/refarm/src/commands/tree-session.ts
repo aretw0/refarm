@@ -242,7 +242,8 @@ export async function previewSessionTree(
 				`✗  No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
 			),
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	const envelope = buildSessionForkPreviewEnvelope({
 		node: createSessionTimelineNode(history.session),
@@ -291,7 +292,8 @@ export async function switchSessionTree(
 		console.error(
 			chalk.red(`✗  Session "${node.metadata.shortId}" is already active.`),
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	let currentSessionIdAfter: string;
 	try {
@@ -302,7 +304,8 @@ export async function switchSessionTree(
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(chalk.red(`✗  ${message}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	const envelope = buildSessionSwitchEnvelope({
 		node,
