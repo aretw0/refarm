@@ -42,3 +42,32 @@ test("post-start warns when gh auth is stored under root instead of the persiste
 	assert.match(content, /\/home\/vscode\/\.config\/gh/);
 	assert.match(content, /farm vscode \/workspaces\/refarm gh auth login/);
 });
+
+test("devcontainer provides the baseline sandbox tools expected by agents", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const dockerfile = readFileSync(".devcontainer/Dockerfile", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+
+	assert.deepEqual(config.features["ghcr.io/jsburckhardt/devcontainer-features/uv:1"], {});
+
+	for (const packageName of [
+		"bash-completion",
+		"bubblewrap",
+		"fd-find",
+		"git-lfs",
+		"hyperfine",
+		"jq",
+		"ripgrep",
+		"shellcheck",
+		"shfmt",
+		"tree",
+		"unzip",
+	]) {
+		assert.match(dockerfile, new RegExp(`\\b${packageName}\\b`), `${packageName} must be installed in the devcontainer image`);
+	}
+
+	assert.match(dockerfile, /ln -sf \/usr\/bin\/fdfind \/usr\/local\/bin\/fd/);
+	assert.match(postStart, /check_coding_agent_tools\(\)/);
+	assert.match(postStart, /for tool in bwrap fd rg jq shellcheck shfmt pi; do/);
+	assert.match(postStart, /Missing coding-agent tools/);
+});
