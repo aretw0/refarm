@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import {
 	assertRefarmStatusJson,
 	buildRefarmStatusJson,
@@ -9,19 +7,21 @@ import {
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
+import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
+import { probeRuntimeReady } from "./runtime-readiness.js";
 import {
 	findRepoRoot,
 	readTractorEngineMode,
 	resolveLaunchRuntime,
 } from "./session-launch.js";
-import { probeRuntimeReady } from "./runtime-readiness.js";
-import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
-import { withResolvedStatusPayload } from "./status-payload.js";
-import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
-import { runStatusPreflight } from "./status-preflight.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
+import { runStatusPreflight } from "./status-preflight.js";
+import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 
 export interface ResolveStatusPayloadOptions {
 	renderer?: string;
@@ -111,7 +111,8 @@ Examples:
 
 Notes:
   Use refarm runtime status for runtime engine/readiness details.
-  Use refarm doctor for actionable readiness recommendations.
+  Use refarm doctor --next-action for the shortest recovery step.
+  Use refarm doctor for the full readiness report.
 `,
 	)
 	.action(

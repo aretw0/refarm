@@ -14,6 +14,7 @@ export const agentCommand = new Command("agent").description(
 Runtime commands:
   $ refarm runtime status       Inspect selected runtime engine and readiness
   $ refarm status               Check runtime, plugins, streams, and trust state
+  $ refarm doctor --next-action Print the next blocking recovery action
   $ refarm doctor               Diagnose readiness and repair hints
 
 Agent usage:

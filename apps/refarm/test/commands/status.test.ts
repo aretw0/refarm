@@ -1,12 +1,12 @@
 import type { RefarmStatusOptions } from "@refarm.dev/cli/status";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import {
 	HOMESTEAD_HOST_RENDERER_KINDS,
 	requiredHomesteadHostRendererCapabilities,
 } from "@refarm.dev/homestead/sdk/host-renderer";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	mockAssertRefarmStatusJson,
@@ -36,11 +36,11 @@ vi.mock("../../src/commands/runtime-readiness.js", () => ({
 	probeRuntimeReady: mockProbeRuntimeReady,
 }));
 
-import { statusCommand } from "../../src/commands/status.js";
 import {
 	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
 	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
+import { statusCommand } from "../../src/commands/status.js";
 
 describe("statusCommand", () => {
 	let cwd: string;
@@ -131,7 +131,8 @@ describe("statusCommand", () => {
 		expect(help).toContain("refarm status --json");
 		expect(help).toContain("refarm status --input status.json --markdown");
 		expect(help).toContain("refarm runtime status");
-		expect(help).toContain("Use refarm doctor");
+		expect(help).toContain("Use refarm doctor --next-action");
+		expect(help).toContain("Use refarm doctor for the full readiness report");
 	});
 
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {

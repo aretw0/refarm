@@ -1,41 +1,41 @@
 import { Command } from "commander";
 import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
-import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
-import { sessionCommand, runSessionLaunchFlow } from "./commands/session.js";
-import { sessionsCommand } from "./commands/sessions.js";
 import { deployCommand } from "./commands/deploy.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { extensionCommand } from "./commands/extension.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
 import { healthCommand } from "./commands/health.js";
 import { modelCommand } from "./commands/model.js";
 import { openUrlCommand } from "./commands/open-url.js";
-import { runtimeCommand } from "./commands/runtime.js";
-import { extensionCommand } from "./commands/extension.js";
 import { pluginCommand } from "./commands/plugin.js";
 import { provisionCommand } from "./commands/provision.js";
-import { statusCommand } from "./commands/status.js";
-import { taskCommand } from "./commands/task.js";
-import { tasksCommand } from "./commands/tasks.js";
-import { tuiCommand } from "./commands/tui.js";
-import { telemetryCommand } from "./commands/telemetry.js";
-import { treeCommand } from "./commands/tree.js";
-import { webCommand } from "./commands/web.js";
-import { defaultProviderModelRef } from "./model-routing.js";
+import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 } from "./commands/runtime-recovery.js";
+import { runtimeCommand } from "./commands/runtime.js";
+import { runSessionLaunchFlow, sessionCommand } from "./commands/session.js";
+import { sessionsCommand } from "./commands/sessions.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
 	SOW_MODEL_OPTION_DESCRIPTION,
 } from "./commands/sow-metadata.js";
+import { statusCommand } from "./commands/status.js";
+import { taskCommand } from "./commands/task.js";
+import { tasksCommand } from "./commands/tasks.js";
+import { telemetryCommand } from "./commands/telemetry.js";
+import { treeCommand } from "./commands/tree.js";
+import { tuiCommand } from "./commands/tui.js";
+import { webCommand } from "./commands/web.js";
+import { defaultProviderModelRef } from "./model-routing.js";
 
 export const program = new Command();
 
@@ -96,6 +96,7 @@ program
 			"  $ refarm sow                     Configure credentials and model provider",
 			"  $ refarm runtime                 Inspect selected runtime engine and autostart",
 			"  $ refarm health                  Audit project structure and package alignment",
+			"  $ refarm check --next-action     Print the next blocking recovery action",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
 			"",
 			"Runtime controls:",
