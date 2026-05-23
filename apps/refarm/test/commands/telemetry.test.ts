@@ -63,6 +63,21 @@ describe("refarm telemetry", () => {
 		expect(help).toContain("refarm doctor");
 	});
 
+	it("sets exitCode when telemetry cannot reach the runtime", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+		});
+		const command = createTelemetryCommand(deps);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync([], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
 	it("rejects invalid profile before fetching telemetry", async () => {
 		const deps = makeDeps();
 		const command = createTelemetryCommand(deps);

@@ -207,7 +207,7 @@ export function buildTelemetryRecommendations(
 	});
 }
 
-function printConnectionFailure(message: string): never {
+function printConnectionFailure(message: string): void {
 	if (isSidecarUnavailable(message)) {
 		printSidecarUnavailable();
 	} else if (message.includes("telemetry endpoint not available")) {
@@ -218,7 +218,7 @@ function printConnectionFailure(message: string): never {
 	} else {
 		console.error(chalk.red(`✗  ${message}`));
 	}
-	process.exit(1);
+	process.exitCode = 1;
 }
 
 export function createTelemetryCommand(deps?: TelemetryDeps): Command {
@@ -315,6 +315,7 @@ Notes:
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printConnectionFailure(message);
+					return;
 				}
 
 				let window: RuntimeTelemetryWindow | null = null;
@@ -323,6 +324,7 @@ Notes:
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printConnectionFailure(message);
+					return;
 				}
 
 				const diagnostics: string[] = [];
