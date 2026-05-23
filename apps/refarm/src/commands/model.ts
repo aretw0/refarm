@@ -73,6 +73,14 @@ function modelCredentialStatus(
 	}
 }
 
+function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
+	return Boolean(
+		tokens.modelRoutes &&
+		typeof tokens.modelRoutes === "object" &&
+		Object.keys(tokens.modelRoutes).length > 0,
+	);
+}
+
 export function printCurrentModel(tokens: ModelTokens): void {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
 	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
@@ -125,7 +133,8 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		tokens.model ||
 		tokens.modelBaseUrl ||
 		tokens.modelFallbackProvider ||
-		tokens.modelFallbackModelId
+		tokens.modelFallbackModelId ||
+		hasPersistedModelRoutes(tokens)
 	) {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {

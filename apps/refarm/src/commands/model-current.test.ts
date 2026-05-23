@@ -42,4 +42,14 @@ describe("printCurrentModel", () => {
 		expect(output).toContain("key env:  GEMINI_API_KEY");
 		expect(output).toContain("source:   environment overrides are active");
 	});
+
+	it("marks persisted scoped routes as identity source", () => {
+		const output = captureCurrentModel({
+			modelRoutes: { worker: "anthropic/claude-sonnet-4-6" },
+		});
+
+		expect(output).toContain("worker:   anthropic/claude-sonnet-4-6");
+		expect(output).toContain("source:   ~/.refarm/identity.json");
+		expect(output).not.toContain("source:   built-in defaults");
+	});
 });
