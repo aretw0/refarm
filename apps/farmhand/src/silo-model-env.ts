@@ -74,10 +74,18 @@ export function createSiloModelEnvInjector(
 		managedEnvKeys.add(key);
 	}
 
+	function clearManagedEnv(): void {
+		for (const key of managedEnvKeys) {
+			delete env[key];
+		}
+		managedEnvKeys.clear();
+	}
+
 	return {
 		async inject() {
 			try {
 				const tokens = await options.store.loadTokens();
+				clearManagedEnv();
 				const provider = stringValue(tokens.modelProvider);
 				const oauthProvider = stringValue(tokens.oauthProvider);
 				const envProvider = stringValue(env.MODEL_PROVIDER);

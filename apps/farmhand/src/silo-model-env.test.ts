@@ -218,6 +218,22 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.OPENAI_API_KEY).toBe("new-key");
 	});
 
+	it("clears env values it previously managed when Silo provider changes", async () => {
+		const env: NodeJS.ProcessEnv = {};
+		const store = makeStore([
+			{ modelProvider: "openai", modelApiKey: "old-key" },
+			{ modelProvider: "gemini", modelApiKey: "gemini-key" },
+		]);
+		const injector = createSiloModelEnvInjector({ store, env });
+
+		await injector.inject();
+		await injector.inject();
+
+		expect(env.MODEL_PROVIDER).toBe("gemini");
+		expect(env.OPENAI_API_KEY).toBeUndefined();
+		expect(env.GEMINI_API_KEY).toBe("gemini-key");
+	});
+
 	it("refreshes expired OAuth credentials before injecting them", async () => {
 		const env: NodeJS.ProcessEnv = {};
 		const store = makeStore([
