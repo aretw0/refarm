@@ -229,7 +229,7 @@ async function createSession(opts: { name?: string }): Promise<void> {
 			);
 			console.error(
 				chalk.dim(
-					"   Restart or update backend and retry: refarm doctor",
+					`   Restart or update backend and retry: ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`,
 				),
 			);
 			process.exit(1);

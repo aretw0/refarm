@@ -182,6 +182,9 @@ describe("refarm sessions", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Restart or update backend"),
 		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm doctor --next-action"),
+		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 });

@@ -12,6 +12,7 @@ import {
 	diagnosticNextActions,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
 export interface HealthIssue {
   file?: string;
@@ -256,7 +257,8 @@ export const healthCommand = new Command("health")
       "",
       "Notes:",
       "  Health audits filesystem source visibility, build configuration, and package entrypoint alignment.",
-      "  It does not require the Refarm runtime sidecar; use refarm doctor for host/runtime readiness.",
+      "  It does not require the Refarm runtime sidecar.",
+      `  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for host/runtime recovery steps.`,
       "  Project-specific policy can live under health in refarm.config.json.",
     ].join("\n"),
   )

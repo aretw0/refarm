@@ -132,7 +132,8 @@ describe("healthCommand", () => {
 
     expect(help).toContain("refarm health --fail-on-issues");
     expect(help).toContain("refarm health --next-action");
-    expect(help).toContain("use refarm doctor for host/runtime readiness");
+    expect(help).toContain("It does not require the Refarm runtime sidecar");
+    expect(help).toContain("refarm doctor --next-action");
     expect(help).toContain("refarm.config.json");
   });
 
