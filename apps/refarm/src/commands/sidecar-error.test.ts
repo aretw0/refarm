@@ -26,6 +26,7 @@ describe("sidecar-error", () => {
 		expect(output).toContain("Refarm runtime is not running");
 		expect(output).toContain("Status:     refarm runtime status");
 		expect(output).toContain("Start now:  refarm runtime start");
+		expect(output).toContain("Next:       refarm doctor --next-action");
 		expect(output).toContain("Autostart:  refarm config set runtime.autostart always");
 		expect(output).toContain("Engine:     refarm config set tractor.engine auto");
 	});

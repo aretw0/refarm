@@ -1,19 +1,19 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { createScriptedOperatorChannel } from "@refarm.dev/prompt-contract-v1";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	isSessionReady,
-	isRuntimeRunning,
-	isFirstRun,
-	refarmSearchDirs,
-	checkSessionReadiness,
 	autoStartRuntime,
+	checkSessionReadiness,
+	isFirstRun,
+	isRuntimeRunning,
+	isSessionReady,
+	printSessionGuide,
 	readAutostartMode,
 	readTractorEngineMode,
+	refarmSearchDirs,
 	resolveLaunchRuntime,
-	printSessionGuide,
 	type LaunchDeps,
 } from "./session-launch.js";
 
@@ -376,6 +376,10 @@ describe("autoStartRuntime — mode: ask (default)", () => {
 		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(deps.spawnRuntime).not.toHaveBeenCalled();
+		const output = (consoleErrorSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("\n");
+		expect(output).toContain("Next action:  refarm doctor --next-action");
 	});
 
 	it("returns false when runtime times out after spawning", async () => {
@@ -385,6 +389,12 @@ describe("autoStartRuntime — mode: ask (default)", () => {
 		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(deps.spawnRuntime).toHaveBeenCalledOnce();
+		const output = (consoleErrorSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("\n");
+		expect(output).toContain(
+			"Run `refarm doctor --next-action` for the next recovery action.",
+		);
 	});
 
 	it("passes the repo root to spawnRuntime", async () => {
@@ -471,6 +481,10 @@ describe("autoStartRuntime — mode: never", () => {
 		expect(result).toBe(false);
 		expect(askSpy).not.toHaveBeenCalled();
 		expect(deps.spawnRuntime).not.toHaveBeenCalled();
+		const output = (consoleErrorSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("\n");
+		expect(output).toContain("Next action:      refarm doctor --next-action");
 	});
 });
 

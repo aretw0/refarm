@@ -2,6 +2,7 @@ import chalk from "chalk";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 	RUNTIME_START_COMMAND,
 	RUNTIME_STATUS_COMMAND,
@@ -20,6 +21,7 @@ export function printSidecarUnavailable(): void {
 	console.error(chalk.red("✗  Refarm runtime is not running."));
 	console.error(chalk.dim(`   Status:     ${RUNTIME_STATUS_COMMAND}`));
 	console.error(chalk.dim(`   Start now:  ${RUNTIME_START_COMMAND}`));
+	console.error(chalk.dim(`   Next:       ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`));
 	console.error(chalk.dim(`   Diagnose:   ${RUNTIME_DOCTOR_COMMAND}`));
 	console.error(chalk.dim(`   Autostart:  ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
 	console.error(chalk.dim(`   Engine:     ${RUNTIME_ENGINE_AUTO_COMMAND}`));

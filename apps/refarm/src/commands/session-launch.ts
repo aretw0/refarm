@@ -3,16 +3,27 @@
  * No readline REPL, no Commander. Just policy.
  */
 
+import {
+	hasUsableModelCredential,
+	hasUsableModelCredentialSource,
+} from "@refarm.dev/config";
+import {
+	createStdioOperatorChannel,
+	type OperatorChannel,
+} from "@refarm.dev/prompt-contract-v1";
+import chalk from "chalk";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import chalk from "chalk";
+import { DEFAULT_MODEL_PROVIDER } from "../model-routing.js";
 import {
-	type OperatorChannel,
-	createStdioOperatorChannel,
-} from "@refarm.dev/prompt-contract-v1";
+	resolveAutostartMode,
+	resolveTractorEngineMode,
+	type AutostartMode,
+	type TractorEngineMode,
+} from "../utils/runtime-config.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	resolveRuntimeLaunchCommand,
@@ -20,24 +31,14 @@ import {
 	startRuntimeProcess,
 } from "./runtime-launcher.js";
 import {
-	RUNTIME_DOCTOR_COMMAND,
-	RUNTIME_START_COMMAND,
-} from "./runtime-recovery.js";
-import {
 	probeRuntimeReady,
 	waitForRuntimeReady,
 } from "./runtime-readiness.js";
-import { DEFAULT_MODEL_PROVIDER } from "../model-routing.js";
 import {
-	hasUsableModelCredential,
-	hasUsableModelCredentialSource,
-} from "@refarm.dev/config";
-import {
-	resolveAutostartMode,
-	resolveTractorEngineMode,
-	type AutostartMode,
-	type TractorEngineMode,
-} from "../utils/runtime-config.js";
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_START_COMMAND,
+} from "./runtime-recovery.js";
 
 export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
 
@@ -315,6 +316,9 @@ export async function autoStartRuntime(
 		for (const line of runtimeStartHelpLines(repoRoot)) {
 			console.error(chalk.dim(`   ${line}`));
 		}
+		console.error(
+			chalk.dim(`   Next action:      ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
+		);
 		console.error(chalk.dim(`   Diagnose:         ${RUNTIME_DOCTOR_COMMAND}`));
 		return false;
 	}
@@ -325,6 +329,9 @@ export async function autoStartRuntime(
 		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
 		if (!confirmed) {
 			console.error(chalk.dim(`\n   Start later:  ${RUNTIME_START_COMMAND}`));
+			console.error(
+				chalk.dim(`   Next action:  ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
+			);
 			console.error(chalk.dim(`   Diagnose:     ${RUNTIME_DOCTOR_COMMAND}`));
 			return false;
 		}
@@ -361,6 +368,9 @@ export async function autoStartRuntime(
 		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(chalk.dim(`   ${message}`));
+		console.error(
+			chalk.dim(`   Next action:  ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
+		);
 		console.error(chalk.dim(`   Diagnose:  ${RUNTIME_DOCTOR_COMMAND}`));
 		return false;
 	}
@@ -376,6 +386,11 @@ export async function autoStartRuntime(
 	}
 
 	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
+	console.error(
+		chalk.dim(
+			`   Run \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\` for the next recovery action.`,
+		),
+	);
 	console.error(chalk.dim(`   Run \`${RUNTIME_DOCTOR_COMMAND}\` for diagnostics.`));
 	for (const line of runtimeStartHelpLines(repoRoot)) {
 		console.error(chalk.dim(`   ${line.replace("start:", "fallback:")}`));
