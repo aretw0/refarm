@@ -21,6 +21,7 @@ export function formatRefarmDoctorReportJson(
 			warnings: report.warnings,
 			informational: report.informational,
 			recommendations: report.recommendations,
+			nextActions: report.nextActions,
 			host: report.host,
 			status: JSON.parse(formatRefarmStatusJson(report.status)),
 		},

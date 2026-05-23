@@ -5,6 +5,11 @@ import {
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
+	diagnosticNextActions,
+	type DiagnosticRecommendation,
+	type DiagnosticRecommendationSeverity,
+} from "./diagnostic-recommendations.js";
+import {
 	emitRefarmDoctorOutput,
 	resolveDoctorOutputMode,
 } from "./doctor-output.js";
@@ -12,10 +17,6 @@ import {
 	resolveRefarmRuntimeMetadata,
 	type RefarmRuntimeMetadata,
 } from "./runtime-metadata.js";
-import type {
-	DiagnosticRecommendation,
-	DiagnosticRecommendationSeverity,
-} from "./diagnostic-recommendations.js";
 import { RUNTIME_NOT_READY_RECOVERY_ACTION } from "./runtime-recovery.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
@@ -28,6 +29,7 @@ export interface RefarmDoctorReport {
 	warnings: string[];
 	informational: string[];
 	recommendations: RefarmDoctorRecommendation[];
+	nextActions: string[];
 	host: RefarmRuntimeMetadata;
 	status: RefarmStatusJson;
 }
@@ -56,6 +58,11 @@ export function buildRefarmDoctorReport(
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok =
 		failures.length === 0 && (!failOnWarnings || warnings.length === 0);
+	const recommendations = buildRefarmDoctorRecommendations({
+		failures,
+		warnings,
+		informational,
+	});
 
 	return {
 		ok,
@@ -64,11 +71,8 @@ export function buildRefarmDoctorReport(
 		failures,
 		warnings,
 		informational,
-		recommendations: buildRefarmDoctorRecommendations({
-			failures,
-			warnings,
-			informational,
-		}),
+		recommendations,
+		nextActions: diagnosticNextActions(recommendations),
 		host:
 			options.metadata ??
 			resolveRefarmRuntimeMetadata({

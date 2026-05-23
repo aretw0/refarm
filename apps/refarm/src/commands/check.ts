@@ -1,6 +1,9 @@
 import chalk from "chalk";
 import { Command } from "commander";
-import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import {
+	diagnosticNextActions,
+	type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
 import {
 	buildRefarmDoctorReport,
 	type RefarmDoctorReport,
@@ -17,6 +20,7 @@ export interface RefarmCheckReport {
 		doctor: RefarmDoctorReport;
 	};
 	recommendations: DiagnosticRecommendation[];
+	nextActions: string[];
 }
 
 export interface RefarmCheckOptions {
@@ -47,6 +51,7 @@ export function buildRefarmCheckReport(checks: {
 		warningCount: checks.doctor.warningCount,
 		checks,
 		recommendations,
+		nextActions: diagnosticNextActions(recommendations),
 	};
 }
 

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockResolveStatusPayload, mockShutdown } = vi.hoisted(() => ({
 	mockResolveStatusPayload: vi.fn(),
@@ -90,6 +90,10 @@ describe("buildRefarmDoctorReport", () => {
 				diagnostic: "renderer:non-interactive",
 				severity: "info",
 			}),
+		]);
+		expect(report.nextActions).toEqual([
+			"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			"Inspect trust warnings and decide whether they should block this workflow.",
 		]);
 		expect(report.host.version).toBe("1.2.3");
 	});
@@ -215,6 +219,7 @@ describe("doctorCommand", () => {
 		expect(String(output)).toContain('"host"');
 		expect(String(output)).toContain('"status"');
 		expect(String(output)).toContain('"recommendations"');
+		expect(String(output)).toContain('"nextActions"');
 		logSpy.mockRestore();
 	});
 });

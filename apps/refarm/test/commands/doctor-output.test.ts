@@ -22,6 +22,7 @@ function makeReport() {
 				action: "Use a web or TUI renderer when the workflow requires interactive controls.",
 			},
 		],
+		nextActions: [] as string[],
 		host: {
 			app: "apps/refarm",
 			command: "refarm",
@@ -76,6 +77,7 @@ describe("formatRefarmDoctorReportJson", () => {
 		expect(output).toContain('"host"');
 		expect(output).toContain('"status"');
 		expect(output).toContain('"recommendations"');
+		expect(output).toContain('"nextActions"');
 		expect(output).toContain('"version": "1.2.3"');
 	});
 });
@@ -121,6 +123,10 @@ describe("printRefarmDoctorReport", () => {
 					summary: "The selected renderer is non-interactive.",
 					action: "Use a web or TUI renderer when the workflow requires interactive controls.",
 				},
+			],
+			nextActions: [
+				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Inspect trust warnings and decide whether they should block this workflow.",
 			],
 		};
 

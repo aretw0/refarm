@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildRefarmCheckReport,
 	createCheckCommand,
@@ -33,6 +33,7 @@ function makeDoctorReport(
 		warnings: [],
 		informational: [],
 		recommendations: [],
+		nextActions: [],
 		host: {
 			app: "apps/refarm",
 			command: "refarm",
@@ -123,6 +124,10 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.failureCount).toBe(3);
 		expect(report.warningCount).toBe(1);
 		expect(report.recommendations).toHaveLength(2);
+		expect(report.nextActions).toEqual([
+			"Add the build config.",
+			"Repair the runtime.",
+		]);
 		expect(report.checks.health.issueCount).toBe(2);
 		expect(report.checks.doctor.failureCount).toBe(1);
 	});
@@ -167,6 +172,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');
+		expect(output).toContain('"nextActions"');
 	});
 
 	it("prints a failing summary and actionable recommendations", async () => {
