@@ -143,6 +143,23 @@ describe("model routing config", () => {
         });
     });
 
+    it("does not clear credentials when only provider casing changes", () => {
+        expect(
+            modelRouteTokenUpdate(
+                "default",
+                { provider: "openai", modelId: "gpt-5.5" },
+                {
+                    modelProvider: "OpenAI",
+                    modelApiKey: "sk-existing",
+                    oauthProvider: undefined,
+                },
+            ),
+        ).toEqual({
+            modelProvider: "openai",
+            modelId: "gpt-5.5",
+        });
+    });
+
     it("builds scoped model route token updates", () => {
         expect(
             modelRouteTokenUpdate(

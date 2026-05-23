@@ -166,9 +166,12 @@ export function defaultScopedModelRef(scope, provider = DEFAULT_MODEL_PROVIDER) 
 
 export function modelRouteTokenUpdate(scope, modelRef, tokens = {}) {
     if (scope === "default") {
+        const storedProvider = stringValue(tokens.modelProvider)?.toLowerCase();
+        const nextProvider = stringValue(modelRef.provider)?.toLowerCase();
         const providerChanged =
-            stringValue(tokens.modelProvider) !== undefined &&
-            stringValue(tokens.modelProvider) !== modelRef.provider;
+            storedProvider !== undefined &&
+            nextProvider !== undefined &&
+            storedProvider !== nextProvider;
         return {
             modelProvider: modelRef.provider,
             modelId: modelRef.modelId,
