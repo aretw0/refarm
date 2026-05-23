@@ -185,12 +185,14 @@ export async function setModelRoute(
 	const parsed = parseModelRef(ref, tokens.modelProvider);
 	if (!parsed) {
 		console.error(chalk.red("✗  model ref cannot be empty."));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	if (!parsed.provider) {
 		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
 		console.error(chalk.dim(`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	const modelRef = { provider: parsed.provider, modelId: parsed.modelId };
@@ -215,12 +217,14 @@ export async function setFallbackModelRoute(
 	const parsed = parseModelRef(ref, tokens.modelFallbackProvider ?? tokens.modelProvider);
 	if (!parsed) {
 		console.error(chalk.red("✗  fallback model ref cannot be empty."));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	if (!parsed.provider) {
 		console.error(chalk.red(`✗  Could not infer provider for fallback model "${parsed.modelId}".`));
 		console.error(chalk.dim(`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	await deps.saveTokens({
@@ -237,7 +241,8 @@ export async function resetScopedModelRoute(
 	if (scope === "default") {
 		console.error(chalk.red("✗  Default route reset is explicit: set the desired provider/model."));
 		console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	const tokens = await deps.loadTokens();
@@ -259,7 +264,8 @@ export async function setModelBaseUrl(value: string, deps: ModelCommandDeps): Pr
 	}
 	if (!trimmed) {
 		console.error(chalk.red("✗  base URL cannot be empty."));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	await deps.saveTokens({ modelBaseUrl: trimmed });
 	console.log(chalk.green(`✓  Model base URL set: ${trimmed}`));
@@ -379,7 +385,8 @@ Notes:
 			if (!scope) {
 				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
 				console.error(chalk.dim("   Use: worker, monitor"));
-				process.exit(1);
+				process.exitCode = 1;
+				return;
 			}
 			await resetScopedModelRoute(scope, deps);
 		});
@@ -435,7 +442,8 @@ Notes:
 			if (!scope) {
 				console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
 				console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
-				process.exit(1);
+				process.exitCode = 1;
+				return;
 			}
 			await setModelRoute(ref, scope, deps);
 		});

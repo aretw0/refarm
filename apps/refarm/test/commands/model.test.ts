@@ -21,6 +21,7 @@ describe("modelCommand", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 	});
 
 	afterEach(() => {
@@ -60,6 +61,7 @@ describe("modelCommand", () => {
 			process.env.OPENAI_API_KEY = originalOpenAiKey;
 		}
 		vi.restoreAllMocks();
+		process.exitCode = undefined;
 	});
 
 	it("prints the current default and OpenAI worker route", async () => {
@@ -581,5 +583,49 @@ describe("modelCommand", () => {
 		});
 
 		logSpy.mockRestore();
+	});
+
+	it("sets exitCode when model ref is empty", async () => {
+		const deps = makeDeps({ modelProvider: "openai" });
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(["set", ""], { from: "user" });
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("model ref cannot be empty"),
+		);
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sets exitCode when fallback model ref is empty", async () => {
+		const deps = makeDeps();
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(["fallback", ""], {
+			from: "user",
+		});
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("fallback model ref cannot be empty"),
+		);
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sets exitCode when model scope is invalid", async () => {
+		const deps = makeDeps();
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(
+			["set", "--scope", "planner", "openai/gpt-5.5"],
+			{ from: "user" },
+		);
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Unknown model scope"),
+		);
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
 	});
 });
