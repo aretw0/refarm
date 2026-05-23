@@ -36,6 +36,36 @@ const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
 
+interface PluginListEntry {
+	id: string;
+	version: string | null;
+	source: "bundled";
+	installed: boolean;
+}
+
+interface PluginListReport {
+	plugins: PluginListEntry[];
+}
+
+interface RuntimePluginStatusEntry {
+	id: string;
+	installed: boolean;
+	loaded: boolean;
+	local: boolean;
+}
+
+interface RuntimePluginStatusReport {
+	available: boolean;
+	plugins: RuntimePluginStatusEntry[];
+	nextAction?: string;
+	recovery?: {
+		start: string;
+		status: string;
+		doctorNextAction: string;
+		doctor: string;
+	};
+}
+
 function localPiAgentBuildCommand(): string {
 	return createPackageScriptCommand({
 		cwd: "packages/pi-agent",
@@ -148,14 +178,31 @@ async function installPlugin(
 	}
 }
 
-async function listInstalledPlugins(): Promise<void> {
-	const results: Array<{ id: string; version: string | null; source: string }> = [];
+async function buildPluginListReport(): Promise<PluginListReport> {
+	const plugins: PluginListEntry[] = [];
 
 	for (const plugin of BUNDLED_PLUGINS) {
 		const version = await readInstalledVersion(plugin.id);
-		results.push({ id: plugin.id, version, source: "bundled" });
+		plugins.push({
+			id: plugin.id,
+			version,
+			source: "bundled",
+			installed: version !== null,
+		});
 	}
 
+	return { plugins };
+}
+
+async function listInstalledPlugins(options: { json?: boolean } = {}): Promise<void> {
+	const report = await buildPluginListReport();
+
+	if (options.json) {
+		console.log(JSON.stringify(report, null, 2));
+		return;
+	}
+
+	const results = report.plugins;
 	if (results.length === 0) {
 		console.log("No plugins installed. Run 'refarm plugin install' to install bundled plugins.");
 		return;
@@ -173,8 +220,48 @@ async function listInstalledPlugins(): Promise<void> {
 	}
 }
 
-async function printRuntimePluginStatus(): Promise<void> {
+function buildRuntimePluginStatusReport(
+	state: Awaited<ReturnType<typeof readRuntimePluginState>>,
+): RuntimePluginStatusReport {
+	if (!state) {
+		return {
+			available: false,
+			plugins: [],
+			nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+			recovery: {
+				start: RUNTIME_START_WAIT_COMMAND,
+				status: RUNTIME_STATUS_COMMAND,
+				doctorNextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				doctor: RUNTIME_DOCTOR_COMMAND,
+			},
+		};
+	}
+
+	const known =
+		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
+	return {
+		available: true,
+		plugins: known.map((id) => ({
+			id,
+			installed: state.installed.includes(id),
+			loaded: state.loaded.includes(id),
+			local: state.local.includes(id),
+		})),
+		...(state.loaded.includes(PI_AGENT_PLUGIN_ID)
+			? {}
+			: { nextAction: "refarm plugin install" }),
+	};
+}
+
+async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promise<void> {
 	const state = await readRuntimePluginState();
+	const report = buildRuntimePluginStatusReport(state);
+	if (options.json) {
+		console.log(JSON.stringify(report, null, 2));
+		if (!report.available) process.exitCode = 1;
+		return;
+	}
+
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
 		console.error(`Start or restart the runtime with \`${RUNTIME_START_WAIT_COMMAND}\`, then retry.`);
@@ -185,21 +272,20 @@ async function printRuntimePluginStatus(): Promise<void> {
 		return;
 	}
 
-	const known =
-		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
+	const known = report.plugins.map((plugin) => plugin.id);
 	const idWidth = Math.max(...known.map((id) => id.length), 6);
 
 	console.log(`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`);
-	for (const id of known) {
-		const installed = state.installed.includes(id) ? "yes" : "no";
-		const loaded = state.loaded.includes(id) ? "yes" : "no";
-		const local = state.local.includes(id) ? "yes" : "no";
+	for (const plugin of report.plugins) {
+		const installed = plugin.installed ? "yes" : "no";
+		const loaded = plugin.loaded ? "yes" : "no";
+		const local = plugin.local ? "yes" : "no";
 		console.log(
-			`  ${id.padEnd(idWidth)}  ${installed.padEnd(9)}  ${loaded.padEnd(6)}  ${local}`,
+			`  ${plugin.id.padEnd(idWidth)}  ${installed.padEnd(9)}  ${loaded.padEnd(6)}  ${local}`,
 		);
 	}
 
-	if (!state.loaded.includes(PI_AGENT_PLUGIN_ID)) {
+	if (!report.plugins.some((plugin) => plugin.id === PI_AGENT_PLUGIN_ID && plugin.loaded)) {
 		console.log("");
 		console.log("pi-agent is not loaded.");
 		console.log("  Install:  refarm plugin install");
@@ -218,8 +304,10 @@ export const pluginCommand = new Command("plugin").description(
 		"",
 		"Examples:",
 		"  $ refarm plugin status",
+		"  $ refarm plugin status --json",
 		"  $ refarm plugin install",
 		"  $ refarm plugin list",
+		"  $ refarm plugin list --json",
 		"  $ refarm",
 		"  › /reload @refarm/pi-agent",
 		"  $ refarm plugin bundle ./plugin.wasm --name my-plugin",
@@ -277,6 +365,7 @@ pluginCommand
 pluginCommand
 	.command("list")
 	.description("List installed plugins and their versions")
+	.option("--json", "Output machine-readable plugin inventory")
 	.action(listInstalledPlugins);
 
 pluginCommand
@@ -288,6 +377,7 @@ pluginCommand
 			"",
 			"Examples:",
 			"  $ refarm plugin status",
+			"  $ refarm plugin status --json",
 			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
 			"  › /reload @refarm/pi-agent",
@@ -300,6 +390,7 @@ pluginCommand
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 		].join("\n"),
 	)
+	.option("--json", "Output machine-readable runtime plugin state")
 	.action(printRuntimePluginStatus);
 
 pluginCommand
