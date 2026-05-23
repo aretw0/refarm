@@ -4,7 +4,10 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { InvalidArgumentError } from "commander";
-import { RUNTIME_NOT_READY_LAUNCH_HINT } from "./runtime-recovery.js";
+import {
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_NOT_READY_LAUNCH_HINT,
+} from "./runtime-recovery.js";
 
 export function resolveLaunchMode<TMode extends string>(
 	input: unknown,
@@ -29,7 +32,7 @@ export function assertLaunchAllowed(
 			REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
 		)
 			? RUNTIME_NOT_READY_LAUNCH_HINT
-			: " Run `refarm doctor` for repair recommendations.";
+			: ` Run \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\` for the next recovery action.`;
 		throw new Error(
 			`Cannot launch ${target} due status failures: ${diagnostics.failures.join(", ")}.${recoveryHint}`,
 		);
