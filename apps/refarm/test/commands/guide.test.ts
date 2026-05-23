@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockProvision, mockLoadTokens, mockWriteFileSync } = vi.hoisted(() => ({
   mockProvision: vi.fn().mockResolvedValue({
@@ -15,6 +15,10 @@ const { mockProvision, mockLoadTokens, mockWriteFileSync } = vi.hoisted(() => ({
 vi.mock("@refarm.dev/config", () => ({
   DEFAULT_MODEL_PROVIDER: "openai",
   defaultProviderModelRef: vi.fn((provider: string) => `${provider}/gpt-5.5`),
+  effectiveModelRouteForScope: vi.fn((tokens: Record<string, unknown>, _scope: string, options: { env?: Record<string, string | undefined> }) => ({
+    provider: options.env?.MODEL_PROVIDER ?? tokens.modelProvider ?? "openai",
+    modelId: options.env?.MODEL_PROVIDER === "gemini" ? "gemini-3-flash-preview" : "gpt-5.5",
+  })),
   loadConfig: vi.fn().mockReturnValue({ brand: { name: "test-farm" } }),
   modelCredentialStatus: vi.fn(() => ({ state: "silo-api-key", envKey: "OPENAI_API_KEY" })),
 }));
@@ -37,7 +41,20 @@ vi.mock("node:fs", async (importOriginal) => {
 import { guideCommand } from "../../src/commands/guide.js";
 
 describe("guideCommand", () => {
-  beforeEach(() => vi.clearAllMocks());
+  const originalModelProvider = process.env.MODEL_PROVIDER;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.MODEL_PROVIDER;
+  });
+
+  afterEach(() => {
+    if (originalModelProvider === undefined) {
+      delete process.env.MODEL_PROVIDER;
+    } else {
+      process.env.MODEL_PROVIDER = originalModelProvider;
+    }
+  });
 
   it("documents the generated audit file in help", () => {
     let help = "";
@@ -70,5 +87,13 @@ describe("guideCommand", () => {
     expect(content).toContain("Model Credentials");
     expect(content).toContain("refarm model current");
     expect(content).toContain("refarm sow --cloudflare");
+  });
+
+  it("uses environment model route overrides in the audit", async () => {
+    process.env.MODEL_PROVIDER = "gemini";
+    await guideCommand.parseAsync([], { from: "user" });
+
+    const content = mockWriteFileSync.mock.calls[0]![1] as string;
+    expect(content).toContain("gemini/gemini-3-flash-preview");
   });
 });

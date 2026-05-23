@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import {
   DEFAULT_MODEL_PROVIDER,
   defaultProviderModelRef,
+  effectiveModelRouteForScope,
   loadConfig,
   modelCredentialStatus,
 } from "@refarm.dev/config";
@@ -46,9 +47,13 @@ export const guideCommand = new Command("guide")
       unknown
     >;
     const modelTokens = await silo.loadTokens() as Record<string, unknown>;
-    const modelProvider =
-      stringValue(modelTokens.modelProvider) ?? DEFAULT_MODEL_PROVIDER;
-    const modelRef = defaultProviderModelRef(modelProvider);
+    const effectiveModel = effectiveModelRouteForScope(modelTokens, "default", {
+      env: process.env,
+    });
+    const modelProvider = effectiveModel.provider ?? DEFAULT_MODEL_PROVIDER;
+    const modelRef = effectiveModel.modelId
+      ? `${modelProvider}/${effectiveModel.modelId}`
+      : defaultProviderModelRef(modelProvider);
     const modelStatus = modelCredentialStatus(
       modelProvider,
       modelTokens,
