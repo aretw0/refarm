@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import chalk from "chalk";
-import { program } from "./program.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
+import { program } from "./program.js";
 
 function terminalLink(text: string, url: string): string {
 	return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
@@ -18,7 +18,8 @@ function renderTokenAuthError(err: TokenAuthError): void {
 program.parseAsync(process.argv).catch((err: unknown) => {
 	if (err instanceof TokenAuthError) {
 		renderTokenAuthError(err);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	throw err;
 });
