@@ -303,6 +303,7 @@ describe("provision command", () => {
 		provisionCommand.outputHelp();
 
 		expect(help).toContain("refarm provision cloudflare turbo-cache --dry-run");
+		expect(help).toContain("refarm provision list --json");
 		expect(help).toContain("Running a provider without a service prints guidance only; it does not create resources");
 		expect(help).toContain("Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default");
 	});
@@ -325,6 +326,7 @@ describe("provision command", () => {
 
 		expect(help).toContain("Requires a Cloudflare token saved by refarm sow --cloudflare");
 		expect(help).toContain("--dry-run does not require credentials");
+		expect(help).toContain("refarm provision cloudflare turbo-cache --dry-run --json");
 		expect(help).toContain("--github-secrets writes TURBO_CACHE_* via gh");
 		expect(help).toContain("Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default");
 	});
