@@ -1,18 +1,18 @@
 import type {
-	EffortLogEntry,
-	EffortResult,
-	EffortSummary,
+EffortLogEntry,
+EffortResult,
+EffortSummary,
 } from "@refarm.dev/effort-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+TaskSessionCheckpoint,
+TaskSessionRecorder,
+} from "../../src/commands/task-session.js";
 import {
 	createTaskCommand,
 	normalizeTaskArgs,
 	resolveAdapter,
 } from "../../src/commands/task.js";
-import type {
-	TaskSessionCheckpoint,
-	TaskSessionRecorder,
-} from "../../src/commands/task-session.js";
 
 interface MockTaskAdapter {
 	submit: ReturnType<typeof vi.fn>;
@@ -100,6 +100,9 @@ describe("refarm task run", () => {
 		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
 		expect(help).toContain('{"prompt":"hello"}');
 		expect(help).toContain("http transport submits directly");
+		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm doctor");
 	});
 
 	it("documents task run examples and transport behavior", () => {
@@ -119,6 +122,7 @@ describe("refarm task run", () => {
 		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
 		expect(help).toContain('{"query":"hello"}');
 		expect(help).toContain("http transport submits directly");
+		expect(help).toContain("refarm runtime start --wait");
 	});
 
 	it("normalizes legacy query args for pi-agent respond tasks", () => {

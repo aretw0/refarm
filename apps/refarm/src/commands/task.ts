@@ -1,21 +1,26 @@
+import { isPiAgentPluginId } from "@refarm.dev/config";
+import type {
+Effort,
+EffortLogEntry,
+EffortResult,
+EffortSummary,
+EffortTransportAdapter,
+} from "@refarm.dev/effort-contract-v1";
+import chalk from "chalk";
+import { Command, InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type {
-	Effort,
-	EffortLogEntry,
-	EffortResult,
-	EffortSummary,
-	EffortTransportAdapter,
-} from "@refarm.dev/effort-contract-v1";
-import { isPiAgentPluginId } from "@refarm.dev/config";
-import chalk from "chalk";
-import { Command, InvalidArgumentError } from "commander";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import { resolveSidecarUrl } from "./sidecar-url.js";
 import {
 	createTaskSessionRecorder,
 	type TaskSessionRecorder,
 } from "./task-session.js";
-import { resolveSidecarUrl } from "./sidecar-url.js";
 
 interface TaskOperationsAdapter extends EffortTransportAdapter {
 	list(): Promise<EffortResult[]>;
@@ -364,6 +369,8 @@ Examples:
 Notes:
   file transport queues work under ~/.refarm/tasks for the runtime to pick up.
   http transport submits directly to the local runtime sidecar.
+  For http transport readiness, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.
+  Use ${RUNTIME_DOCTOR_COMMAND} when runtime readiness is unclear.
 `,
 	);
 
@@ -396,6 +403,7 @@ Notes:
   --args must be a JSON object or value accepted by the target plugin function.
   file transport queues work under ~/.refarm/tasks for the runtime to pick up.
   http transport submits directly to the local Refarm runtime sidecar.
+  For http transport readiness, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.
 `,
 		)
 		.action(
