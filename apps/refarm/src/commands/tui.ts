@@ -1,19 +1,24 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
-import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
-import { withResolvedStatusPayload } from "./status-payload.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
+import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
-	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
+	type ResolveStatusPayloadResult,
 } from "./status.js";
-import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
 export type RefarmTuiLauncherMode = (typeof TUI_LAUNCHER_MODES)[number];
@@ -84,7 +89,8 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				"Notes:",
 				"  Without --launch, this runs a renderer preflight only.",
 				"  The TUI launcher uses the local tractor binary: tractor watch or tractor prompt.",
-				"  Use refarm runtime status to inspect the selected engine before launching.",
+				`  Use ${RUNTIME_STATUS_COMMAND} to inspect the selected engine before launching.`,
+				`  If runtime readiness is unclear, run ${RUNTIME_START_WAIT_COMMAND} or ${RUNTIME_DOCTOR_COMMAND}.`,
 			].join("\n"),
 		)
 		.option(
