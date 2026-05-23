@@ -78,6 +78,93 @@ describe("refarm sessions", () => {
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Created session"));
 	});
 
+	it("lists sessions as JSON from the default command", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [
+						{
+							"@id": "urn:refarm:session:v1:older",
+							"@type": "Session",
+							name: "older",
+							created_at_ns: 1,
+						},
+						{
+							"@id": "urn:refarm:session:v1:newer",
+							"@type": "Session",
+							name: "newer",
+							created_at_ns: 2,
+						},
+					],
+				}),
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:newer");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			activeSessionId: "urn:refarm:session:v1:newer",
+			sessions: [
+				{
+					"@id": "urn:refarm:session:v1:newer",
+					"@type": "Session",
+					name: "newer",
+					created_at_ns: 2,
+				},
+				{
+					"@id": "urn:refarm:session:v1:older",
+					"@type": "Session",
+					name: "older",
+					created_at_ns: 1,
+				},
+			],
+		});
+	});
+
+	it("lists sessions as JSON from the list subcommand", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [
+						{
+							"@id": "urn:refarm:session:v1:abc123def456",
+							"@type": "Session",
+							name: "planning",
+							created_at_ns: 1,
+						},
+					],
+				}),
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(
+			"urn:refarm:session:v1:abc123def456",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			sessions: [
+				{
+					"@id": "urn:refarm:session:v1:abc123def456",
+					name: "planning",
+				},
+			],
+		});
+	});
+
 	it("sessions use fails closed when active pointer verification reads back the wrong session", async () => {
 		vi.stubGlobal(
 			"fetch",

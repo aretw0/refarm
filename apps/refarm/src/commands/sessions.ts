@@ -38,6 +38,11 @@ interface SessionHistory {
 	total: number;
 }
 
+interface SessionListReport {
+	activeSessionId: string | null;
+	sessions: SessionNode[];
+}
+
 function writeActiveSessionOrReport(targetSessionId: string): boolean {
 	try {
 		writeActiveSessionIdAndVerify(targetSessionId);
@@ -65,12 +70,14 @@ function formatAge(createdAtNs: number | undefined): string {
 export function createSessionsCommand(): Command {
 	return new Command("sessions")
 		.description("List and manage conversation sessions")
+		.option("--json", "Output machine-readable session list")
 		.addHelpText(
 			"after",
 			[
 				"",
 				"Examples:",
 				"  $ refarm sessions",
+				"  $ refarm sessions --json",
 				"  $ refarm sessions new --name planning",
 				"  $ refarm sessions use <id-prefix>",
 				"  $ refarm sessions show <id-prefix>",
@@ -88,8 +95,9 @@ export function createSessionsCommand(): Command {
 		.addCommand(
 			new Command("list")
 				.description("List recent sessions (default)")
-				.action(async () => {
-					await listSessions();
+				.option("--json", "Output machine-readable session list")
+				.action(async (opts: { json?: boolean }) => {
+					await listSessions({ json: opts.json });
 				}),
 		)
 		.addCommand(
@@ -144,9 +152,9 @@ export function createSessionsCommand(): Command {
 					}
 				}),
 		)
-		.action(async () => {
+		.action(async (opts: { json?: boolean }) => {
 			// default action: list
-			await listSessions();
+			await listSessions({ json: opts.json });
 		});
 }
 
@@ -159,7 +167,7 @@ async function fetchSessions(): Promise<SessionNode[]> {
 	return body.sessions ?? [];
 }
 
-async function listSessions(): Promise<void> {
+async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 	const activeId = readActiveSessionId();
 
 	let sessions: SessionNode[];
@@ -167,6 +175,17 @@ async function listSessions(): Promise<void> {
 		sessions = await fetchSessions();
 	} catch (err) {
 		reportSidecarError(err);
+		return;
+	}
+
+	const report: SessionListReport = {
+		activeSessionId: activeId,
+		sessions: [...sessions].sort(
+			(a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0),
+		),
+	};
+	if (opts.json) {
+		console.log(JSON.stringify(report, null, 2));
 		return;
 	}
 
@@ -178,7 +197,7 @@ async function listSessions(): Promise<void> {
 	}
 
 	// Sort newest first by created_at_ns
-	sessions.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0));
+	sessions = report.sessions;
 
 	console.log(chalk.bold(`\n  Sessions  (${sessions.length} total)\n`));
 
