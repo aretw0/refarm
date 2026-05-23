@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockSaveTokens, mockLoadTokens, mockInquirerPrompt, mockGithubCollect, mockCloudflareCollect, mockModelCollect } =
 	vi.hoisted(() => ({
@@ -39,9 +39,15 @@ vi.mock("@refarm.dev/silo", () => ({
 
 import { sowCommand } from "../../src/commands/sow.js";
 
+afterEach(() => {
+	process.exitCode = undefined;
+	vi.restoreAllMocks();
+});
+
 describe("sowCommand — default (no flags)", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({});
 		mockModelCollect.mockResolvedValue({ provider: "anthropic", apiKey: "sk-ant-test" });
 	});
@@ -63,6 +69,19 @@ describe("sowCommand — default (no flags)", () => {
 		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+	});
+
+	it("sets exitCode when --model is empty", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--model", ""], { from: "user" });
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--model cannot be empty"),
+		);
+		expect(process.exitCode).toBe(1);
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).not.toHaveBeenCalled();
 	});
 
 	it("clears stale model credentials when --model changes provider", async () => {
@@ -156,6 +175,7 @@ describe("sowCommand — default (no flags)", () => {
 describe("sowCommand — --all flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
 		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
 		mockModelCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
@@ -225,6 +245,7 @@ describe("sowCommand — --all flag", () => {
 describe("sowCommand — --github flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
 	});
@@ -250,6 +271,7 @@ describe("sowCommand — --github flag", () => {
 describe("sowCommand — --cloudflare flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 	});
 
@@ -267,6 +289,7 @@ describe("sowCommand — --cloudflare flag", () => {
 describe("sowCommand — --all credentials", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
 		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
 		mockModelCollect.mockResolvedValue({ provider: "groq", apiKey: "gsk-test" });
@@ -287,16 +310,13 @@ describe("sowCommand — --all credentials", () => {
 describe("sowCommand — SIGINT handling", () => {
 	it("exits gracefully on ExitPromptError", async () => {
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({});
 		const { ExitPromptError } = await import("@inquirer/core");
 		mockModelCollect.mockRejectedValueOnce(
 			new ExitPromptError("User force closed the prompt with SIGINT"),
 		);
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation((() => {}) as () => never);
 		await sowCommand.parseAsync([], { from: "user" });
-		expect(exitSpy).toHaveBeenCalledWith(0);
-		exitSpy.mockRestore();
+		expect(process.exitCode).toBeUndefined();
 	});
 });

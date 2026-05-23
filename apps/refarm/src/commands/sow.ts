@@ -1,12 +1,12 @@
-import { Command } from "commander";
-import chalk from "chalk";
-import inquirer from "inquirer";
 import { ExitPromptError } from "@inquirer/core";
+import { hasUsableModelCredential } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
-import { tryOpenUrl } from "../utils/open-url.js";
+import chalk from "chalk";
+import { Command } from "commander";
+import inquirer from "inquirer";
 import {
-	githubCredentialProvider,
 	cloudflareCredentialProvider,
+	githubCredentialProvider,
 	modelCredentialProvider,
 } from "../credentials/index.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
@@ -15,7 +15,7 @@ import {
 	modelRouteTokenUpdate,
 	parseModelRef,
 } from "../model-routing.js";
-import { hasUsableModelCredential } from "@refarm.dev/config";
+import { tryOpenUrl } from "../utils/open-url.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -58,12 +58,14 @@ export const sowCommand = new Command("sow")
 			let modelRef = initialModelRef;
 			if (opts.model !== undefined && !initialModelRef) {
 				console.error(chalk.red("✗  --model cannot be empty."));
-				process.exit(1);
+				process.exitCode = 1;
+				return;
 			}
 			if (initialModelRef && !initialModelRef.provider && !opts.all) {
 				console.error(chalk.red(`✗  Could not infer provider for model "${initialModelRef.modelId}".`));
 				console.error(chalk.dim(`   Use provider/model, for example: refarm sow --model ${OLLAMA_DEFAULT_REF}`));
-				process.exit(1);
+				process.exitCode = 1;
+				return;
 			}
 
 			const needsModel = !hasModelCredential(stored);
@@ -164,6 +166,5 @@ export const sowCommand = new Command("sow")
 		} catch (error) {
 			if (!(error instanceof ExitPromptError)) throw error;
 			console.log(chalk.gray("\n  Cancelled."));
-			process.exit(0);
 		}
 	});
