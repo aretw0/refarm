@@ -47,6 +47,46 @@ describe("extension command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints created extension metadata as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const tempDir = mkdtempSync(join(tmpdir(), "refarm-extension-json-"));
+		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
+
+		try {
+			await extensionCommand
+				.commands
+				.find((command) => command.name() === "new")!
+				.parseAsync(["my-tool", "--json"], { from: "user" });
+
+			const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+				id: string;
+				slug: string;
+				name: string;
+				version: string;
+				dir: string;
+				scope: string;
+				indexPath: string;
+				nextActions: string[];
+			};
+			expect(payload).toMatchObject({
+				id: "@local/my-tool",
+				slug: "my-tool",
+				name: "My Tool",
+				version: "0.0.1",
+				dir: join(tempDir, ".refarm", "extensions", "my-tool"),
+				scope: "project",
+				indexPath: join(tempDir, ".refarm", "extensions", "my-tool", "index.js"),
+				nextActions: [
+					"run '/reload' in the refarm REPL, or restart the Refarm runtime",
+				],
+			});
+		} finally {
+			cwdSpy.mockRestore();
+			logSpy.mockRestore();
+			rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("builds a structured extension inventory", () => {
 		const cwd = mkdtempSync(join(tmpdir(), "refarm-extension-cwd-"));
 		const home = mkdtempSync(join(tmpdir(), "refarm-extension-home-"));

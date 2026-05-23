@@ -64,6 +64,12 @@ export interface ExtensionListReport {
   extensions: ExtensionEntry[];
 }
 
+export interface CreatedExtensionReport extends ExtensionEntry {
+  slug: string;
+  indexPath: string;
+  nextActions: string[];
+}
+
 export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
   const results: ExtensionEntry[] = [];
 
@@ -93,7 +99,18 @@ export function buildExtensionListReport(cwd: string, homeDir: string): Extensio
   return { extensions: listExtensions(cwd, homeDir) };
 }
 
-async function newExtension(name: string, isGlobal: boolean): Promise<void> {
+function printCreatedExtension(report: CreatedExtensionReport): void {
+  console.log(`Created extension '${report.slug}' at ${report.dir} (${report.scope})`);
+  console.log(`  id: ${report.id}`);
+  console.log(`  Edit: ${report.indexPath}`);
+  console.log(`  Activate: ${report.nextActions[0]}`);
+}
+
+async function newExtension(
+  name: string,
+  isGlobal: boolean,
+  options: { json?: boolean } = {},
+): Promise<void> {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
     console.error(
       `Invalid extension name '${name}': use lowercase letters, digits, and hyphens only (e.g. my-tool)`,
@@ -116,13 +133,23 @@ async function newExtension(name: string, isGlobal: boolean): Promise<void> {
 
   const ext = buildExtJson(name);
   await writeFile(path.join(extDir, "ext.json"), JSON.stringify(ext, null, 2) + "\n", "utf-8");
-  await writeFile(path.join(extDir, "index.js"), INDEX_JS_TEMPLATE(name, ext.id), "utf-8");
+  const indexPath = path.join(extDir, "index.js");
+  await writeFile(indexPath, INDEX_JS_TEMPLATE(name, ext.id), "utf-8");
 
   const scope = isGlobal ? "global" : "project";
-  console.log(`Created extension '${name}' at ${extDir} (${scope})`);
-  console.log(`  id: ${ext.id}`);
-  console.log(`  Edit: ${path.join(extDir, "index.js")}`);
-  console.log(`  Activate: run '/reload' in the refarm REPL, or restart the Refarm runtime`);
+  const report: CreatedExtensionReport = {
+    ...ext,
+    slug: name,
+    dir: extDir,
+    scope,
+    indexPath,
+    nextActions: ["run '/reload' in the refarm REPL, or restart the Refarm runtime"],
+  };
+  if (options.json) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  printCreatedExtension(report);
 }
 
 async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
@@ -190,6 +217,7 @@ extensionCommand.addHelpText(
 
 Examples:
   $ refarm extension new my-tool
+  $ refarm extension new my-tool --json
   $ refarm extension list
   $ refarm extension list --json
   $ refarm extension save my-tool --global
@@ -204,8 +232,9 @@ extensionCommand
   .command("new <name>")
   .description("Scaffold a new local extension in .refarm/extensions/<name>/")
   .option("-g, --global", "Create in ~/.refarm/extensions/ (available in all projects)", false)
-  .action(async (name: string, options: { global: boolean }) => {
-    await newExtension(name, options.global);
+  .option("--json", "Output machine-readable created extension metadata")
+  .action(async (name: string, options: { global: boolean; json?: boolean }) => {
+    await newExtension(name, options.global, { json: options.json });
   });
 
 extensionCommand
