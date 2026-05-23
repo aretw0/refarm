@@ -177,6 +177,22 @@ describe("model routes", () => {
 		expect(process.env.MODEL_ID).toBe("gpt-5.5");
 	});
 
+	it("does not leak a previous model id into a route without one", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.MODEL_ID = "gpt-5.5";
+
+		await withModelRouteEnv(
+			{ provider: "vllm", modelId: undefined },
+			async () => {
+				expect(process.env.MODEL_PROVIDER).toBe("vllm");
+				expect(process.env.MODEL_ID).toBeUndefined();
+			},
+		);
+
+		expect(process.env.MODEL_PROVIDER).toBe("openai");
+		expect(process.env.MODEL_ID).toBe("gpt-5.5");
+	});
+
 	it("refreshes route tokens and keeps last known value on load failure", async () => {
 		let fail = false;
 		const resolver = createModelRouteResolver({

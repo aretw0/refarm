@@ -63,8 +63,16 @@ export function withModelRouteEnv<T>(
 ): Promise<T> {
 	const previousProvider = process.env.MODEL_PROVIDER;
 	const previousModel = process.env.MODEL_ID;
-	if (route.provider) process.env.MODEL_PROVIDER = route.provider;
-	if (route.modelId) process.env.MODEL_ID = route.modelId;
+	if (route.provider) {
+		process.env.MODEL_PROVIDER = route.provider;
+	} else {
+		delete process.env.MODEL_PROVIDER;
+	}
+	if (route.modelId) {
+		process.env.MODEL_ID = route.modelId;
+	} else {
+		delete process.env.MODEL_ID;
+	}
 
 	return fn().finally(() => {
 		if (previousProvider === undefined) {
