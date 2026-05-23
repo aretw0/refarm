@@ -28,6 +28,7 @@ describe("config command", () => {
 		delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
 		delete process.env.REFARM_TRACTOR_ENGINE;
 		vi.clearAllMocks();
+		process.exitCode = undefined;
 	});
 
 	afterEach(() => {
@@ -52,6 +53,7 @@ describe("config command", () => {
 			process.env.REFARM_TRACTOR_ENGINE = originalTractorEngine;
 		}
 		vi.restoreAllMocks();
+		process.exitCode = undefined;
 	});
 
 	function command() {
@@ -392,41 +394,40 @@ describe("config command", () => {
 
 	it("rejects invalid autostart modes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
-		await expect(
-			command().parseAsync(["set", "runtime.autostart", "sometimes"], {
-				from: "user",
-			}),
-		).rejects.toThrow("exit:1");
+		await command().parseAsync(["set", "runtime.autostart", "sometimes"], {
+			from: "user",
+		});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Invalid runtime.autostart"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("rejects unknown config keys without exiting the process", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.provider"], {
+			from: "user",
+		});
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Unknown config key"),
+		);
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("rejects invalid tractor engine preferences", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
-		await expect(
-			command().parseAsync(["set", "tractor.engine", "python"], {
-				from: "user",
-			}),
-		).rejects.toThrow("exit:1");
+		await command().parseAsync(["set", "tractor.engine", "python"], {
+			from: "user",
+		});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Invalid tractor.engine"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 });

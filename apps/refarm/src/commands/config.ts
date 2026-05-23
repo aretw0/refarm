@@ -144,32 +144,43 @@ function resolveOpenExternalLinksMode(
 	return resolved ?? { value: "auto", source: "default" };
 }
 
-function assertConfigKey(value: string): asserts value is ConfigKey {
-	if ((CONFIG_KEYS as readonly string[]).includes(value)) return;
+function parseConfigKey(value: string): ConfigKey | null {
+	if ((CONFIG_KEYS as readonly string[]).includes(value)) return value as ConfigKey;
 	console.error(chalk.red(`✗  Unknown config key: ${value}`));
 	console.error(chalk.dim(`   Use: ${CONFIG_KEYS.join(", ")}`));
-	process.exit(1);
+	process.exitCode = 1;
+	return null;
 }
 
-function assertAutostartMode(key: Extract<ConfigKey, "farmhand.autostart" | "runtime.autostart">, value: string): asserts value is AutostartMode {
-	if ((AUTOSTART_MODES as readonly string[]).includes(value)) return;
+function parseConfigAutostartMode(
+	key: Extract<ConfigKey, "farmhand.autostart" | "runtime.autostart">,
+	value: string,
+): AutostartMode | null {
+	const mode = parseAutostartMode(value);
+	if (mode) return mode;
 	console.error(chalk.red(`✗  Invalid ${key}: ${value}`));
 	console.error(chalk.dim(`   Use: ${AUTOSTART_MODES.join(", ")}`));
-	process.exit(1);
+	process.exitCode = 1;
+	return null;
 }
 
-function assertOpenExternalLinksMode(value: string): asserts value is OpenExternalLinksMode {
-	if ((OPEN_EXTERNAL_LINKS_MODES as readonly string[]).includes(value)) return;
+function parseConfigOpenExternalLinksMode(value: string): OpenExternalLinksMode | null {
+	if ((OPEN_EXTERNAL_LINKS_MODES as readonly string[]).includes(value)) {
+		return value as OpenExternalLinksMode;
+	}
 	console.error(chalk.red(`✗  Invalid operator.openExternalLinks: ${value}`));
 	console.error(chalk.dim(`   Use: ${OPEN_EXTERNAL_LINKS_MODES.join(", ")}`));
-	process.exit(1);
+	process.exitCode = 1;
+	return null;
 }
 
-function assertTractorEngineMode(value: string): asserts value is TractorEngineMode {
-	if ((TRACTOR_ENGINE_MODES as readonly string[]).includes(value)) return;
+function parseConfigTractorEngineMode(value: string): TractorEngineMode | null {
+	const mode = parseTractorEngineMode(value);
+	if (mode) return mode;
 	console.error(chalk.red(`✗  Invalid tractor.engine: ${value}`));
 	console.error(chalk.dim(`   Use: ${TRACTOR_ENGINE_MODES.join(", ")}`));
-	process.exit(1);
+	process.exitCode = 1;
+	return null;
 }
 
 function warnIgnoredEnvOverride(
@@ -271,12 +282,13 @@ function setConfigValue(
 	deps: ConfigDeps,
 ): void {
 	if (key === "farmhand.autostart" || key === "runtime.autostart") {
-		assertAutostartMode(key, value);
+		const mode = parseConfigAutostartMode(key, value);
+		if (!mode) return;
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
-		config.autostart = value;
+		config.autostart = mode;
 		writeConfig(filePath, config);
-		console.log(chalk.green(`✓  ${key}=${value}`));
+		console.log(chalk.green(`✓  ${key}=${mode}`));
 		console.log(chalk.dim(`   ${filePath}`));
 		if (key === "farmhand.autostart") {
 			console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
@@ -284,28 +296,30 @@ function setConfigValue(
 		return;
 	}
 	if (key === "operator.openExternalLinks") {
-		assertOpenExternalLinksMode(value);
+		const mode = parseConfigOpenExternalLinksMode(value);
+		if (!mode) return;
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
 		config.operator = {
 			...(config.operator ?? {}),
-			openExternalLinks: value,
+			openExternalLinks: mode,
 		};
 		writeConfig(filePath, config);
-		console.log(chalk.green(`✓  ${key}=${value}`));
+		console.log(chalk.green(`✓  ${key}=${mode}`));
 		console.log(chalk.dim(`   ${filePath}`));
 		return;
 	}
 	if (key === "tractor.engine") {
-		assertTractorEngineMode(value);
+		const mode = parseConfigTractorEngineMode(value);
+		if (!mode) return;
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
 		config.tractor = {
 			...(config.tractor ?? {}),
-			engine: value,
+			engine: mode,
 		};
 		writeConfig(filePath, config);
-		console.log(chalk.green(`✓  ${key}=${value}`));
+		console.log(chalk.green(`✓  ${key}=${mode}`));
 		console.log(chalk.dim(`   ${filePath}`));
 	}
 }
@@ -375,8 +389,9 @@ Notes:
 `,
 				)
 				.action((key: string, opts: { local?: boolean }) => {
-					assertConfigKey(key);
-					printConfigValue(key, opts, deps);
+					const parsedKey = parseConfigKey(key);
+					if (!parsedKey) return;
+					printConfigValue(parsedKey, opts, deps);
 				}),
 		)
 		.addCommand(
@@ -411,8 +426,9 @@ Notes:
 `,
 				)
 				.action((key: string, value: string, opts: { local?: boolean }) => {
-					assertConfigKey(key);
-					setConfigValue(key, value, opts, deps);
+					const parsedKey = parseConfigKey(key);
+					if (!parsedKey) return;
+					setConfigValue(parsedKey, value, opts, deps);
 				}),
 		);
 }
