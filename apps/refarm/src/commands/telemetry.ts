@@ -5,6 +5,7 @@ import {
 	diagnosticNextActions,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import { printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -379,16 +380,12 @@ Notes:
 				};
 
 				if (opts.nextAction && opts.json) {
-					console.log(
-						JSON.stringify(
-							buildDiagnosticNextActionPayload({
-								ok: diagnostics.length === 0,
-								nextActions,
-								strict: payload.strict,
-							}),
-							null,
-							2,
-						),
+					printJson(
+						buildDiagnosticNextActionPayload({
+							ok: diagnostics.length === 0,
+							nextActions,
+							strict: payload.strict,
+						}),
 					);
 					if (!strictPassed) {
 						process.exitCode = 2;
@@ -406,7 +403,7 @@ Notes:
 				}
 
 				if (opts.json) {
-					console.log(JSON.stringify(payload, null, 2));
+					printJson(payload);
 					if (!strictPassed) {
 						process.exitCode = 2;
 					}

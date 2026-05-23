@@ -1,6 +1,7 @@
 import { formatRefarmStatusJson } from "@refarm.dev/cli/status";
 import { buildDiagnosticNextActionPayload } from "./diagnostic-recommendations.js";
 import type { RefarmDoctorReport } from "./doctor.js";
+import { formatJson } from "./json-output.js";
 
 export type RefarmDoctorOutputMode =
 	| "json"
@@ -20,7 +21,7 @@ export function resolveDoctorOutputMode(options: {
 export function formatRefarmDoctorReportJson(
 	report: RefarmDoctorReport,
 ): string {
-	return JSON.stringify(
+	return formatJson(
 		{
 			ok: report.ok,
 			failureCount: report.failureCount,
@@ -33,8 +34,6 @@ export function formatRefarmDoctorReportJson(
 			host: report.host,
 			status: JSON.parse(formatRefarmStatusJson(report.status)),
 		},
-		null,
-		2,
 	);
 }
 
@@ -102,13 +101,11 @@ export function printRefarmDoctorNextAction(
 export function formatRefarmDoctorNextActionJson(
 	report: RefarmDoctorReport,
 ): string {
-	return JSON.stringify(
+	return formatJson(
 		buildDiagnosticNextActionPayload({
 			ok: report.ok,
 			nextActions: report.nextActions,
 		}),
-		null,
-		2,
 	);
 }
 

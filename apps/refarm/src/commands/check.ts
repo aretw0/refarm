@@ -10,6 +10,7 @@ import {
 	type RefarmDoctorReport,
 } from "./doctor.js";
 import { type HealthReport, runHealthAudit } from "./health.js";
+import { printJson } from "./json-output.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmCheckReport {
@@ -94,7 +95,7 @@ function printRefarmCheckNextActionJson(report: RefarmCheckReport): void {
 		ok: report.ok,
 		nextActions: report.nextActions,
 	});
-	console.log(JSON.stringify(output, null, 2));
+	printJson(output);
 }
 
 async function runDefaultDoctor(options: {
@@ -150,7 +151,7 @@ Notes:
 				const [action] = report.nextActions;
 				if (action) console.log(action);
 			} else if (options.json) {
-				console.log(JSON.stringify(report, null, 2));
+				printJson(report);
 			} else {
 				printRefarmCheckSummary(report);
 			}

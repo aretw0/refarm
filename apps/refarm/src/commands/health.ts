@@ -13,6 +13,7 @@ import {
 	diagnosticNextActions,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import { printJson } from "./json-output.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
 export interface HealthIssue {
@@ -170,14 +171,14 @@ function asStringArray(value: unknown): string[] {
 }
 
 function emitHealthJson(report: HealthReport): void {
-  console.log(JSON.stringify(report, null, 2));
+  printJson(report);
 }
 
 function emitHealthNextActionJson(report: HealthReport): void {
-  console.log(JSON.stringify(buildDiagnosticNextActionPayload({
+  printJson(buildDiagnosticNextActionPayload({
     ok: report.ok,
     nextActions: report.nextActions,
-  }), null, 2));
+  }));
 }
 
 function emitHealthSummary(report: HealthReport): void {
