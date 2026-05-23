@@ -35,6 +35,12 @@ export function printSidecarError(message: string): void {
 	console.error(chalk.red(`✗  ${message}`));
 }
 
+export function reportSidecarError(error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	printSidecarError(message);
+	process.exitCode = 1;
+}
+
 export function exitForSidecarError(error: unknown): never {
 	const message = error instanceof Error ? error.message : String(error);
 	printSidecarError(message);

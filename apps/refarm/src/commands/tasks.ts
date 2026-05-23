@@ -7,7 +7,7 @@ import {
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
-import { exitForSidecarError } from "./sidecar-error.js";
+import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface TaskListJson {
@@ -115,7 +115,8 @@ async function listTasks(opts: {
 			limit: opts.limit,
 		});
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	if (opts.json) {
@@ -191,7 +192,8 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		}
 		body = parsed;
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err);
+		return;
 	}
 
 	const { task, events } = body;

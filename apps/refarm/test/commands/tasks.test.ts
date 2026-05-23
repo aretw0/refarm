@@ -18,6 +18,7 @@ describe("refarm tasks", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		process.exitCode = undefined;
 	});
 
 	it("documents task inspection and task command handoff in help", () => {
@@ -106,6 +107,18 @@ describe("refarm tasks", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("No tasks yet"),
 		);
+	});
+
+	it("sets exitCode when task listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync([], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("prints task lists as machine-readable JSON", async () => {
@@ -279,6 +292,20 @@ describe("refarm tasks", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("urn:refarm:task:v1:aaa111"),
 		);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sets exitCode when task details cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123"], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
 		expect(process.exitCode).toBe(1);
 	});
 });
