@@ -139,6 +139,7 @@ describe("webCommand", () => {
 		expect(help).toContain("refarm web --launch --open");
 		expect(help).toContain("refarm web --dry-run --launcher preview");
 		expect(help).toContain("--dry-run prints the resolved package-manager command");
+		expect(help).toContain("REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun");
 	});
 
 	it("prints summary preflight by default", async () => {

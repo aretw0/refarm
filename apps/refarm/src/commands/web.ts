@@ -12,18 +12,21 @@ import {
 	openStartMessage,
 } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import { launchProcess } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
-import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveLaunchMode } from "./launch-policy.js";
+import { launchProcess } from "./launch-process.js";
+import {
+	createPackageScriptCommand,
+	PACKAGE_MANAGERS,
+} from "./package-manager.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
-	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
+	type ResolveStatusPayloadResult,
 } from "./status.js";
-import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
@@ -101,6 +104,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				"Notes:",
 				"  Without --launch, this runs a renderer preflight only.",
 				"  --dry-run prints the resolved package-manager command without starting it.",
+				`  Override package-manager detection with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGERS.join("|")}.`,
 				"  --open follows operator.openExternalLinks; set it with refarm config.",
 			].join("\n"),
 		)
