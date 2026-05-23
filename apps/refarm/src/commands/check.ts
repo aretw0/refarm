@@ -23,6 +23,12 @@ export interface RefarmCheckReport {
 	nextActions: string[];
 }
 
+export interface RefarmCheckNextActionJson {
+	ok: boolean;
+	nextAction: string | null;
+	nextActions: string[];
+}
+
 export interface RefarmCheckOptions {
 	json?: boolean;
 	nextAction?: boolean;
@@ -82,6 +88,16 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	}
 }
 
+function printRefarmCheckNextActionJson(report: RefarmCheckReport): void {
+	const [nextAction] = report.nextActions;
+	const output: RefarmCheckNextActionJson = {
+		ok: report.ok,
+		nextAction: nextAction ?? null,
+		nextActions: report.nextActions,
+	};
+	console.log(JSON.stringify(output, null, 2));
+}
+
 async function runDefaultDoctor(options: {
 	failOnWarnings?: boolean;
 }): Promise<RefarmDoctorReport> {
@@ -114,6 +130,7 @@ Examples:
   $ refarm check
   $ refarm check --json
   $ refarm check --next-action
+  $ refarm check --next-action --json
   $ refarm check --fail-on-warnings
 
 Notes:
@@ -128,7 +145,9 @@ Notes:
 			]);
 			const report = buildRefarmCheckReport({ health, doctor });
 
-			if (options.nextAction) {
+			if (options.nextAction && options.json) {
+				printRefarmCheckNextActionJson(report);
+			} else if (options.nextAction) {
 				const [action] = report.nextActions;
 				if (action) console.log(action);
 			} else if (options.json) {

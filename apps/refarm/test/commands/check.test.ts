@@ -158,6 +158,7 @@ describe("checkCommand", () => {
 
 		expect(help).toContain("refarm check --json");
 		expect(help).toContain("refarm check --next-action");
+		expect(help).toContain("refarm check --next-action --json");
 		expect(help).toContain("combines refarm health and refarm doctor");
 		expect(help).toContain("quick local confidence signal");
 	});
@@ -256,7 +257,7 @@ describe("checkCommand", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
-	it("prefers --next-action over --json when both are provided", async () => {
+	it("prints the next blocking recovery action as JSON", async () => {
 		const deps = makeDeps({
 			health: {
 				ok: false,
@@ -279,7 +280,11 @@ describe("checkCommand", () => {
 		});
 
 		expect(logSpy).toHaveBeenCalledOnce();
-		expect(logSpy).toHaveBeenCalledWith("Add the build config.");
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Add the build config.",
+			nextActions: ["Add the build config."],
+		});
 		expect(process.exitCode).toBe(1);
 	});
 
