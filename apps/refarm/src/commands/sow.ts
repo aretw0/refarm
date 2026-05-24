@@ -16,7 +16,7 @@ import {
 	parseModelRef,
 } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -69,14 +69,14 @@ export const sowCommand = new Command("sow")
 			let modelRef = initialModelRef;
 			if (opts.model !== undefined && !initialModelRef) {
 				if (opts.json) {
-					printJson({
-						action: "sow",
-						ok: false,
-						error: "empty-model",
-						message: "--model cannot be empty.",
-						nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
-						nextActions: [`refarm sow --model ${OLLAMA_DEFAULT_REF}`],
-					});
+					printJson(
+						buildJsonErrorEnvelope({
+							error: "empty-model",
+							message: "--model cannot be empty.",
+							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							extra: { action: "sow" },
+						}),
+					);
 					process.exitCode = 1;
 					return;
 				}
@@ -86,15 +86,17 @@ export const sowCommand = new Command("sow")
 			}
 			if (initialModelRef && !initialModelRef.provider && !opts.all) {
 				if (opts.json) {
-					printJson({
-						action: "sow",
-						ok: false,
-						error: "model-provider-required",
-						modelId: initialModelRef.modelId,
-						message: `Could not infer provider for model "${initialModelRef.modelId}".`,
-						nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
-						nextActions: [`refarm sow --model ${OLLAMA_DEFAULT_REF}`],
-					});
+					printJson(
+						buildJsonErrorEnvelope({
+							error: "model-provider-required",
+							message: `Could not infer provider for model "${initialModelRef.modelId}".`,
+							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							extra: {
+								action: "sow",
+								modelId: initialModelRef.modelId,
+							},
+						}),
+					);
 					process.exitCode = 1;
 					return;
 				}
@@ -138,19 +140,23 @@ export const sowCommand = new Command("sow")
 				const nextAction = configureModel
 					? "refarm sow"
 					: `refarm sow --${interactivePrompts[0]}`;
-				printJson({
-					action: "sow",
-					ok: false,
-					status: "interactive-required",
-					prompts: interactivePrompts,
-					message: "Credential collection requires an interactive terminal or browser handoff.",
-					nextAction,
-					nextActions: [
+				printJson(
+					buildJsonErrorEnvelope({
+						error: "interactive-required",
+						message: "Credential collection requires an interactive terminal or browser handoff.",
 						nextAction,
-						"refarm model current --json",
-						"refarm config get operator.openExternalLinks --json",
-					],
-				});
+						nextActions: [
+							nextAction,
+							"refarm model current --json",
+							"refarm config get operator.openExternalLinks --json",
+						],
+						extra: {
+							action: "sow",
+							status: "interactive-required",
+							prompts: interactivePrompts,
+						},
+					}),
+				);
 				process.exitCode = 1;
 				return;
 			}
