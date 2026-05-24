@@ -1,12 +1,12 @@
+import type {
+Effort,
+EffortLogEntry,
+EffortResult,
+EffortStatus,
+} from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type {
-	Effort,
-	EffortLogEntry,
-	EffortResult,
-	EffortStatus,
-} from "@refarm.dev/effort-contract-v1";
 
 const SESSION_VERSION = 1 as const;
 const DEFAULT_MAX_EFFORTS = 25;
@@ -61,12 +61,29 @@ function nowIso(): string {
 	return new Date().toISOString();
 }
 
+export function buildTaskStatusCommand(
+	effortId: string,
+	transport: string,
+	options: { watch?: boolean } = {},
+): string {
+	return [
+		`refarm task status ${effortId} --transport ${transport}`,
+		options.watch ? "--watch" : "",
+	]
+		.filter(Boolean)
+		.join(" ");
+}
+
+export function buildTaskLogsCommand(effortId: string, transport: string): string {
+	return `refarm task logs ${effortId} --transport ${transport}`;
+}
+
 function buildStatusCommand(effortId: string, transport: string): string {
-	return `refarm task status ${effortId} --transport ${transport}`;
+	return buildTaskStatusCommand(effortId, transport);
 }
 
 function buildLogsCommand(effortId: string, transport: string): string {
-	return `refarm task logs ${effortId} --transport ${transport}`;
+	return buildTaskLogsCommand(effortId, transport);
 }
 
 function emptyCheckpoint(): TaskSessionCheckpoint {

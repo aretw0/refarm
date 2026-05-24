@@ -1,9 +1,13 @@
+import type { Effort, EffortResult } from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Effort, EffortResult } from "@refarm.dev/effort-contract-v1";
 import { afterEach, describe, expect, it } from "vitest";
-import { FileTaskSessionRecorder } from "../../src/commands/task-session.js";
+import {
+	buildTaskLogsCommand,
+	buildTaskStatusCommand,
+	FileTaskSessionRecorder,
+} from "../../src/commands/task-session.js";
 
 const tempDirs: string[] = [];
 
@@ -17,6 +21,20 @@ afterEach(() => {
 	for (const dir of tempDirs.splice(0, tempDirs.length)) {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
+});
+
+describe("task session commands", () => {
+	it("builds stable task status and logs commands", () => {
+		expect(buildTaskStatusCommand("effort-1", "http")).toBe(
+			"refarm task status effort-1 --transport http",
+		);
+		expect(buildTaskStatusCommand("effort-1", "http", { watch: true })).toBe(
+			"refarm task status effort-1 --transport http --watch",
+		);
+		expect(buildTaskLogsCommand("effort-1", "http")).toBe(
+			"refarm task logs effort-1 --transport http",
+		);
+	});
 });
 
 describe("FileTaskSessionRecorder", () => {

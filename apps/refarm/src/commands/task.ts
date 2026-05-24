@@ -21,6 +21,8 @@ import {
 } from "./runtime-recovery.js";
 import { resolveSidecarUrl } from "./sidecar-url.js";
 import {
+	buildTaskLogsCommand,
+	buildTaskStatusCommand,
 	createTaskSessionRecorder,
 	type TaskSessionRecorder,
 } from "./task-session.js";
@@ -446,6 +448,7 @@ Notes:
 				};
 
 				const effortId = await adapter.submit(effort);
+				const statusCommand = buildTaskStatusCommand(effortId, transport);
 				safeSessionRecord(() => {
 					sessionRecorder.rememberRun({
 						effort,
@@ -453,11 +456,7 @@ Notes:
 					});
 				});
 				console.log(chalk.green(`Effort dispatched: ${chalk.bold(effortId)}`));
-				console.log(
-					chalk.gray(
-						`  Use: refarm task status ${effortId} --transport ${transport}`,
-					),
-				);
+				console.log(chalk.gray(`  Use: ${statusCommand}`));
 			},
 		);
 
@@ -756,6 +755,7 @@ Notes:
 				opts.transport,
 				adapterResolver,
 			);
+			const statusCommand = buildTaskStatusCommand(effortId, transport);
 			const accepted = await adapter.retry(effortId);
 			if (!accepted) {
 				if (opts.json) {
@@ -765,15 +765,10 @@ Notes:
 							operation: "retry",
 							error: "task-retry-rejected",
 							message: `Retry rejected for effort ${effortId}.`,
-							nextAction: `refarm task status ${effortId} --transport ${transport}`,
-							nextActions: [
-								`refarm task status ${effortId} --transport ${transport}`,
-							],
-							nextCommand: `refarm task status ${effortId} --transport ${transport}`,
-							nextCommands: [
-								`refarm task status ${effortId} --transport ${transport}`,
-								RUNTIME_DOCTOR_NEXT_COMMAND,
-							],
+							nextAction: statusCommand,
+							nextActions: [statusCommand],
+							nextCommand: statusCommand,
+							nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
 							extra: {
 								effortId,
 								transport,
@@ -796,21 +791,19 @@ Notes:
 				});
 			});
 			if (opts.json) {
+				const watchCommand = buildTaskStatusCommand(effortId, transport, {
+					watch: true,
+				});
+				const logsCommand = buildTaskLogsCommand(effortId, transport);
 				printJson({
 					effortId,
 					transport,
 					action: "retry",
 					accepted: true,
-					nextAction: `refarm task status ${effortId} --transport ${transport} --watch`,
-					nextActions: [
-						`refarm task status ${effortId} --transport ${transport} --watch`,
-						`refarm task logs ${effortId} --transport ${transport}`,
-					],
-					nextCommand: `refarm task status ${effortId} --transport ${transport} --watch`,
-					nextCommands: [
-						`refarm task status ${effortId} --transport ${transport} --watch`,
-						`refarm task logs ${effortId} --transport ${transport}`,
-					],
+					nextAction: watchCommand,
+					nextActions: [watchCommand, logsCommand],
+					nextCommand: watchCommand,
+					nextCommands: [watchCommand, logsCommand],
 				});
 				return;
 			}
@@ -832,6 +825,7 @@ Notes:
 				opts.transport,
 				adapterResolver,
 			);
+			const statusCommand = buildTaskStatusCommand(effortId, transport);
 			const accepted = await adapter.cancel(effortId);
 			if (!accepted) {
 				if (opts.json) {
@@ -841,15 +835,10 @@ Notes:
 							operation: "cancel",
 							error: "task-cancel-rejected",
 							message: `Cancel rejected for effort ${effortId}.`,
-							nextAction: `refarm task status ${effortId} --transport ${transport}`,
-							nextActions: [
-								`refarm task status ${effortId} --transport ${transport}`,
-							],
-							nextCommand: `refarm task status ${effortId} --transport ${transport}`,
-							nextCommands: [
-								`refarm task status ${effortId} --transport ${transport}`,
-								RUNTIME_DOCTOR_NEXT_COMMAND,
-							],
+							nextAction: statusCommand,
+							nextActions: [statusCommand],
+							nextCommand: statusCommand,
+							nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
 							extra: {
 								effortId,
 								transport,
@@ -877,14 +866,10 @@ Notes:
 					transport,
 					action: "cancel",
 					accepted: true,
-					nextAction: `refarm task status ${effortId} --transport ${transport}`,
-					nextActions: [
-						`refarm task status ${effortId} --transport ${transport}`,
-					],
-					nextCommand: `refarm task status ${effortId} --transport ${transport}`,
-					nextCommands: [
-						`refarm task status ${effortId} --transport ${transport}`,
-					],
+					nextAction: statusCommand,
+					nextActions: [statusCommand],
+					nextCommand: statusCommand,
+					nextCommands: [statusCommand],
 				});
 				return;
 			}
