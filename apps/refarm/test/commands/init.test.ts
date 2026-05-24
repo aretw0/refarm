@@ -158,6 +158,8 @@ describe("initCommand — mocked initialization flow", () => {
       status: string;
       projectDir: string;
       nextActions: string[];
+      nextCommand: string;
+      nextCommands: string[];
     };
     expect(payload).toMatchObject({
       command: "init",
@@ -166,6 +168,11 @@ describe("initCommand — mocked initialization flow", () => {
     });
     expect(payload.projectDir).toContain("test-workspace");
     expect(payload.nextActions).toContain("refarm model current");
+    expect(payload.nextCommand).toContain("refarm sow");
+    expect(payload.nextCommand).toContain("test-workspace");
+    expect(payload.nextCommands).toContainEqual(
+      expect.stringContaining("refarm guide --json"),
+    );
     logSpy.mockRestore();
   });
 
@@ -184,11 +191,13 @@ describe("initCommand — mocked initialization flow", () => {
       ok: boolean;
       status: string;
       nextAction: string;
+      nextCommand: string;
     };
     expect(payload).toMatchObject({
       ok: false,
       status: "already-initialized",
-      nextAction: "refarm init test-workspace --force",
+      nextAction: 'refarm init "test-workspace" --force',
+      nextCommand: 'refarm init "test-workspace" --force',
     });
     logSpy.mockRestore();
   });

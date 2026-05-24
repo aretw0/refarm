@@ -18,6 +18,14 @@ interface InitOptions {
 
 const INIT_SCHEMA_VERSION = 1;
 
+function initForceCommand(name: string): string {
+  return `refarm init ${JSON.stringify(name)} --force`;
+}
+
+function workspaceCommand(projectDir: string, command: string): string {
+  return `cd ${JSON.stringify(projectDir)} && ${command}`;
+}
+
 export const initCommand = new Command("init")
   .description("Initialize a new Refarm workspace")
   .addHelpText(
@@ -56,8 +64,9 @@ export const initCommand = new Command("init")
             operation: "scaffold",
             error: "already-initialized",
             message: `Already initialized at ${projectDir}.`,
-            nextAction: `refarm init ${name} --force`,
-            nextActions: [`refarm init ${name} --force`],
+            nextAction: initForceCommand(name),
+            nextActions: [initForceCommand(name)],
+            nextCommand: initForceCommand(name),
             extra: {
               schemaVersion: INIT_SCHEMA_VERSION,
               status: "already-initialized",
@@ -135,6 +144,9 @@ export const initCommand = new Command("init")
     }
 
     if (opts.json) {
+      const sowCommand = workspaceCommand(projectDir, "refarm sow");
+      const modelCurrentCommand = workspaceCommand(projectDir, "refarm model current --json");
+      const guideCommand = workspaceCommand(projectDir, "refarm guide --json");
       printJson(
         buildJsonSuccessEnvelope({
           command: "init",
@@ -144,6 +156,12 @@ export const initCommand = new Command("init")
             `cd ${name} && refarm sow`,
             "refarm model current",
             "refarm guide",
+          ],
+          nextCommand: sowCommand,
+          nextCommands: [
+            sowCommand,
+            modelCurrentCommand,
+            guideCommand,
           ],
           extra: {
             schemaVersion: INIT_SCHEMA_VERSION,
