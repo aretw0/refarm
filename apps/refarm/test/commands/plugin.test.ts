@@ -415,6 +415,8 @@ describe("plugin status", () => {
 				local: boolean;
 			}>;
 			nextAction?: string;
+			nextCommand?: string;
+			nextCommands?: string[];
 		};
 		expect(payload.available).toBe(true);
 		expect(payload.plugins).toEqual([
@@ -432,6 +434,11 @@ describe("plugin status", () => {
 			},
 		]);
 		expect(payload.nextAction).toBe("refarm plugin install");
+		expect(payload.nextCommand).toBe("refarm plugin install");
+		expect(payload.nextCommands).toEqual([
+			"refarm plugin install",
+			"refarm plugin status --json",
+		]);
 		consoleSpy.mockRestore();
 	});
 
@@ -444,6 +451,8 @@ describe("plugin status", () => {
 		const payload = JSON.parse(String(consoleSpy.mock.calls[0]?.[0])) as {
 			available: boolean;
 			nextAction?: string;
+			nextCommand?: string;
+			nextCommands?: string[];
 			recovery?: {
 				start: string;
 				status: string;
@@ -454,6 +463,11 @@ describe("plugin status", () => {
 		expect(payload).toMatchObject({
 			available: false,
 			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
 			recovery: {
 				start: "refarm runtime start --wait",
 				status: "refarm runtime status",

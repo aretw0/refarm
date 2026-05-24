@@ -17,6 +17,7 @@ import { readRuntimePluginState } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -34,6 +35,8 @@ const BUNDLED_PLUGINS = [
 
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
+const PLUGIN_INSTALL_COMMAND = "refarm plugin install";
+const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
 
@@ -59,6 +62,8 @@ interface RuntimePluginStatusReport {
 	available: boolean;
 	plugins: RuntimePluginStatusEntry[];
 	nextAction?: string;
+	nextCommand?: string;
+	nextCommands?: string[];
 	recovery?: {
 		start: string;
 		status: string;
@@ -323,6 +328,8 @@ function buildRuntimePluginStatusReport(
 			available: false,
 			plugins: [],
 			nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+			nextCommand: RUNTIME_START_WAIT_COMMAND,
+			nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
 			recovery: {
 				start: RUNTIME_START_WAIT_COMMAND,
 				status: RUNTIME_STATUS_COMMAND,
@@ -344,7 +351,11 @@ function buildRuntimePluginStatusReport(
 		})),
 		...(state.loaded.includes(PI_AGENT_PLUGIN_ID)
 			? {}
-			: { nextAction: "refarm plugin install" }),
+			: {
+					nextAction: PLUGIN_INSTALL_COMMAND,
+					nextCommand: PLUGIN_INSTALL_COMMAND,
+					nextCommands: [PLUGIN_INSTALL_COMMAND, PLUGIN_STATUS_JSON_COMMAND],
+				}),
 	};
 }
 
@@ -383,7 +394,7 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 	if (!report.plugins.some((plugin) => plugin.id === PI_AGENT_PLUGIN_ID && plugin.loaded)) {
 		console.log("");
 		console.log("pi-agent is not loaded.");
-		console.log("  Install:  refarm plugin install");
+		console.log(`  Install:  ${PLUGIN_INSTALL_COMMAND}`);
 		console.log("  Reload:   refarm");
 		console.log("            then run /reload @refarm/pi-agent");
 		console.log("  Ask:      refarm ask hello");
