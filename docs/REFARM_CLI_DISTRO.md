@@ -62,6 +62,27 @@ state using the same contracts as the apps?
   add `severity` or `target` when useful. `refarm health` also keeps `issueType`
   as a compatibility alias for its project-audit issue code.
 
+Machine-readable failures should be actionable by default. Commands that expose
+`--json` should return expected recoverable failures as structured envelopes
+instead of human-only stderr:
+
+```json
+{
+  "ok": false,
+  "error": "stable-machine-code",
+  "message": "optional human-readable summary",
+  "nextAction": "refarm ...",
+  "nextActions": ["refarm ..."]
+}
+```
+
+Commands may add contextual fields such as `command`, `operation`,
+`schemaVersion`, `action`, `prefix`, or `matches`, but `error`, `nextAction`,
+and `nextActions` are the automation contract. New CLI code should use
+`buildJsonErrorEnvelope` from `apps/refarm/src/commands/json-output.ts` so
+operator-facing commands and agent-driven workflows converge on the same
+recovery shape when touched.
+
 `refarm web` now reuses the same status contract and can launch `apps/dev`
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
 It can also request browser opening (`--open`, optional `--open-url`) while
