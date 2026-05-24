@@ -1,7 +1,12 @@
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -11,27 +16,6 @@ import {
 } from "./runtime-recovery.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
-
-interface TaskListJson {
-	schemaVersion: 1;
-	command: "tasks";
-	operation: "list";
-	filters: {
-		status?: string;
-		session_id?: string;
-		limit?: number;
-	};
-	tasks: Task[];
-}
-
-interface TaskShowJson {
-	schemaVersion: 1;
-	command: "tasks";
-	operation: "show";
-	prefix: string;
-	task: Task;
-	events: TaskEvent[];
-}
 
 function parsePositiveIntOption(value: string, label: string): number {
 	const parsed = Number(value);
@@ -119,6 +103,14 @@ function statusLabel(status: string | undefined): string {
 	}
 }
 
+function tasksListJsonCommand(): string {
+	return "refarm tasks --json";
+}
+
+function tasksShowJsonCommand(prefix: string): string {
+	return refarmCommand(["tasks", "show", quoteCommandArg(prefix), "--json"]);
+}
+
 async function fetchTasks(
 	params: { status?: string; session_id?: string; limit?: number } = {},
 ): Promise<Task[]> {
@@ -156,17 +148,23 @@ async function listTasks(opts: {
 	}
 
 	if (opts.json) {
-		const body: TaskListJson = {
-			schemaVersion: 1,
+		const nextCommands = tasks[0]
+			? [tasksShowJsonCommand(tasks[0]["@id"]), tasksListJsonCommand()]
+			: [];
+		const body = buildJsonSuccessEnvelope({
 			command: "tasks",
 			operation: "list",
-			filters: {
-				status: opts.status,
-				session_id: opts.session,
-				limit: opts.limit,
+			extra: {
+				schemaVersion: 1,
+				filters: {
+					status: opts.status,
+					session_id: opts.session,
+					limit: opts.limit,
+				},
+				tasks,
 			},
-			tasks,
-		};
+			nextCommands,
+		});
 		printJson(body);
 		return;
 	}
@@ -271,14 +269,17 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 	const { task, events } = body;
 
 	if (opts.json) {
-		const output: TaskShowJson = {
-			schemaVersion: 1,
+		const output = buildJsonSuccessEnvelope({
 			command: "tasks",
 			operation: "show",
-			prefix,
-			task,
-			events,
-		};
+			extra: {
+				schemaVersion: 1,
+				prefix,
+				task,
+				events,
+			},
+			nextCommands: [tasksListJsonCommand()],
+		});
 		printJson(output);
 		return;
 	}

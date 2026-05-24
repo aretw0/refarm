@@ -171,6 +171,15 @@ describe("refarm tasks", () => {
 			schemaVersion: 1,
 			command: "tasks",
 			operation: "list",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm tasks show 'urn:refarm:task:v1:abc123def456' --json",
+			nextCommands: [
+				"refarm tasks show 'urn:refarm:task:v1:abc123def456' --json",
+				"refarm tasks --json",
+			],
 			filters: {
 				status: "done",
 				session_id: "session-1",
@@ -267,6 +276,11 @@ describe("refarm tasks", () => {
 			schemaVersion: 1,
 			command: "tasks",
 			operation: "show",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm tasks --json",
+			nextCommands: ["refarm tasks --json"],
 			prefix: "abc123",
 			task: {
 				"@id": "urn:refarm:task:v1:abc123def456",
