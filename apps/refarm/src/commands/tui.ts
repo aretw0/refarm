@@ -1,6 +1,7 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
+import { refarmCommand } from "./command-handoff.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
@@ -62,6 +63,10 @@ export function resolveTuiLaunchSpec(
 
 export function launchTuiProcess(spec: TuiLaunchSpec): Promise<number> {
 	return launchProcess(spec);
+}
+
+function tuiLaunchCommand(launcher: RefarmTuiLauncherMode): string {
+	return refarmCommand(["tui", "--launch", "--launcher", launcher]);
 }
 
 export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
@@ -172,6 +177,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				launchProcess: resolvedDeps.launch,
 				dryRunJson: options.json,
 				dryRunJsonCommand: "tui",
+				dryRunJsonNextCommand: tuiLaunchCommand(launchMode),
 				dryRunJsonExtra: () => ({
 					renderer: "tui",
 					launcher: launchMode,

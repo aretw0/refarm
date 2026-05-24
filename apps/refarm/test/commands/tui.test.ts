@@ -574,7 +574,8 @@ describe("tuiCommand", () => {
 			launcher: "prompt",
 			runtimeLabel: "tui runtime",
 			launchCommand: "tractor prompt",
-			nextCommand: "tractor prompt",
+			nextCommand: "refarm tui --launch --launcher prompt",
+			nextCommands: ["refarm tui --launch --launcher prompt"],
 		});
 		logSpy.mockRestore();
 	});

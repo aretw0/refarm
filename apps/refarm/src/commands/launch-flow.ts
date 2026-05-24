@@ -23,6 +23,7 @@ export interface ExecuteRendererLaunchFlowOptions<
 	dryRunJson?: boolean;
 	dryRunJsonCommand?: string;
 	dryRunJsonOperation?: string;
+	dryRunJsonNextCommand?: string | ((spec: TSpec) => string);
 	dryRunJsonExtra?: (spec: TSpec) => Record<string, unknown>;
 	onLaunchStarted?: (spec: TSpec) => void | Promise<void>;
 	log?: (message: string) => void;
@@ -46,6 +47,9 @@ export async function executeRendererLaunchFlow<
 
 	if (options.dryRun) {
 		if (options.dryRunJson) {
+			const nextCommand = typeof options.dryRunJsonNextCommand === "function"
+				? options.dryRunJsonNextCommand(spec)
+				: options.dryRunJsonNextCommand ?? spec.display;
 			printJson(
 				buildJsonSuccessEnvelope({
 					command: options.dryRunJsonCommand,
@@ -57,8 +61,8 @@ export async function executeRendererLaunchFlow<
 						launchSpec: spec,
 						...(options.dryRunJsonExtra?.(spec) ?? {}),
 					},
-					nextCommand: spec.display,
-					nextCommands: [spec.display],
+					nextCommand,
+					nextCommands: [nextCommand],
 				}),
 			);
 			await options.onDryRun?.(spec);

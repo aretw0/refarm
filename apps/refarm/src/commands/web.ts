@@ -5,6 +5,7 @@ import {
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -75,6 +76,23 @@ export { resolveBrowserOpenSpec };
 
 export async function openBrowserUrl(url: string): Promise<void> {
 	await openHostBrowserUrl(url);
+}
+
+function webLaunchCommand(options: {
+	launcher: RefarmWebLauncherMode;
+	open?: boolean;
+	openUrl?: string;
+}): string {
+	return refarmCommand([
+		"web",
+		"--launch",
+		"--launcher",
+		options.launcher,
+		...(options.open ? ["--open"] : []),
+		...(options.open && options.openUrl
+			? ["--open-url", quoteCommandArg(options.openUrl)]
+			: []),
+	]);
 }
 
 export function createWebCommand(deps?: Partial<WebDeps>): Command {
@@ -192,6 +210,11 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				launchProcess: resolvedDeps.launch,
 				dryRunJson: options.json,
 				dryRunJsonCommand: "web",
+				dryRunJsonNextCommand: webLaunchCommand({
+					launcher: launchMode,
+					open: options.open,
+					openUrl,
+				}),
 				dryRunJsonExtra: () => ({
 					renderer: "web",
 					launcher: launchMode,

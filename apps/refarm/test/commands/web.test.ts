@@ -540,7 +540,8 @@ describe("webCommand", () => {
 			launcher: "dev",
 			runtimeLabel: "web runtime",
 			launchCommand: "pnpm -C apps/dev run dev",
-			nextCommand: "pnpm -C apps/dev run dev",
+			nextCommand: "refarm web --launch --launcher dev",
+			nextCommands: ["refarm web --launch --launcher dev"],
 		});
 		logSpy.mockRestore();
 	});
@@ -564,6 +565,8 @@ describe("webCommand", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			open: true,
 			openUrl: "http://localhost:9999",
+			nextCommand:
+				"refarm web --launch --launcher dev --open --open-url 'http://localhost:9999'",
 		});
 		logSpy.mockRestore();
 	});
