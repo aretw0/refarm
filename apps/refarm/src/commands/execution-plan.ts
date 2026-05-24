@@ -22,6 +22,18 @@ export interface RefarmExecutionPlanReadinessLine {
 	label: string;
 }
 
+export interface RefarmExecutionPlanHandoff {
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
+}
+
+export type RefarmExecutionPlanHandoffInput = Pick<
+	RefarmExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
+	"readyToExecute" | "blockedReason" | "recommendedCommand"
+>;
+
 export function formatExecutionPlanReadinessLine(
 	plan: RefarmExecutionPlanReadinessInput,
 ): RefarmExecutionPlanReadinessLine {
@@ -34,5 +46,20 @@ export function formatExecutionPlanReadinessLine(
 	return {
 		status: "ready",
 		label: `Ready: ${plan.readyToExecute ? "yes" : "no"}`,
+	};
+}
+
+export function createExecutionPlanHandoff(
+	plan: RefarmExecutionPlanHandoffInput,
+): RefarmExecutionPlanHandoff {
+	const nextAction = plan.readyToExecute
+		? plan.recommendedCommand
+		: plan.blockedReason ?? plan.recommendedCommand;
+	const nextCommands = plan.readyToExecute ? [plan.recommendedCommand] : [];
+	return {
+		nextAction,
+		nextActions: nextAction ? [nextAction] : [],
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 	};
 }

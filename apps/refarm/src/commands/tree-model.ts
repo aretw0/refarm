@@ -1,4 +1,8 @@
-import type { RefarmExecutionPlanBase } from "./execution-plan.js";
+import {
+	createExecutionPlanHandoff,
+	type RefarmExecutionPlanBase,
+	type RefarmExecutionPlanHandoff,
+} from "./execution-plan.js";
 import { printJson } from "./json-output.js";
 
 const SESSION_SCOPE = "session";
@@ -173,10 +177,10 @@ export interface RefarmTimelinePreviewEnvelope {
 	reason: "dry-run";
 	target: RefarmTimelineNode;
 	plan: RefarmSessionTimelinePreviewPlan | RefarmGitTimelinePreviewPlan;
-	nextAction: string | null;
-	nextActions: string[];
-	nextCommand: string | null;
-	nextCommands: string[];
+	nextAction: RefarmExecutionPlanHandoff["nextAction"];
+	nextActions: RefarmExecutionPlanHandoff["nextActions"];
+	nextCommand: RefarmExecutionPlanHandoff["nextCommand"];
+	nextCommands: RefarmExecutionPlanHandoff["nextCommands"];
 }
 
 export interface RefarmSessionTimelinePreviewEnvelope
@@ -191,24 +195,6 @@ export interface RefarmGitTimelinePreviewEnvelope
 	scope: typeof REFARM_TREE_GIT_SCOPE;
 	target: RefarmGitTimelineNode;
 	plan: RefarmGitTimelinePreviewPlan;
-}
-
-function previewHandoff(
-	plan: RefarmSessionTimelinePreviewPlan | RefarmGitTimelinePreviewPlan,
-): Pick<
-	RefarmTimelinePreviewEnvelope,
-	"nextAction" | "nextActions" | "nextCommand" | "nextCommands"
-> {
-	const nextAction = plan.readyToExecute
-		? plan.recommendedCommand
-		: plan.blockedReason ?? plan.recommendedCommand;
-	const nextCommands = plan.readyToExecute ? [plan.recommendedCommand] : [];
-	return {
-		nextAction,
-		nextActions: nextAction ? [nextAction] : [],
-		nextCommand: nextCommands[0] ?? null,
-		nextCommands,
-	};
 }
 
 export interface RefarmGitTimelineForkResult {
@@ -390,7 +376,7 @@ export function buildSessionForkPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...previewHandoff(plan),
+		...createExecutionPlanHandoff(plan),
 	};
 }
 
@@ -429,7 +415,7 @@ export function buildSessionSwitchPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...previewHandoff(plan),
+		...createExecutionPlanHandoff(plan),
 	};
 }
 
@@ -496,7 +482,7 @@ export function buildGitBranchPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...previewHandoff(plan),
+		...createExecutionPlanHandoff(plan),
 	};
 }
 
@@ -542,7 +528,7 @@ export function buildGitSwitchPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...previewHandoff(plan),
+		...createExecutionPlanHandoff(plan),
 	};
 }
 
