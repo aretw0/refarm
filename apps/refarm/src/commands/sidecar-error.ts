@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
@@ -33,9 +33,8 @@ export function buildSidecarErrorPayload(
 	context: { command?: string; operation?: string } = {},
 ) {
 	if (isSidecarUnavailable(message)) {
-		return {
+		return buildJsonErrorEnvelope({
 			...context,
-			ok: false,
 			error: "runtime-unavailable",
 			message: "Refarm runtime is not running.",
 			nextAction: RUNTIME_START_COMMAND,
@@ -47,16 +46,15 @@ export function buildSidecarErrorPayload(
 				RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 				RUNTIME_ENGINE_AUTO_COMMAND,
 			],
-		};
+		});
 	}
-	return {
+	return buildJsonErrorEnvelope({
 		...context,
-		ok: false,
 		error: "runtime-request-failed",
 		message,
 		nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 		nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_DOCTOR_COMMAND],
-	};
+	});
 }
 
 export function printSidecarError(message: string): void {
