@@ -21,6 +21,7 @@ interface GuideCheck {
   ok: boolean;
   status: "ready" | "missing";
   action: string;
+  actionCommand?: string;
 }
 
 interface GuideReport {
@@ -31,6 +32,8 @@ interface GuideReport {
   checks: GuideCheck[];
   nextAction: string | null;
   nextActions: string[];
+  nextCommand: string | null;
+  nextCommands: string[];
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -115,6 +118,7 @@ export const guideCommand = new Command("guide")
         action: modelReady
           ? `Inspect route with 'refarm model current' (${modelRef}).`
           : `Run 'refarm sow' to configure ${modelRef}.`,
+        actionCommand: modelReady ? "refarm model current --json" : "refarm sow",
       },
       {
         id: "github-token",
@@ -122,6 +126,7 @@ export const guideCommand = new Command("guide")
         ok: Boolean(infraTokens.REFARM_GITHUB_TOKEN),
         status: infraTokens.REFARM_GITHUB_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --github' to add your PAT.",
+        actionCommand: "refarm sow --github",
       },
       {
         id: "cloudflare-token",
@@ -129,6 +134,7 @@ export const guideCommand = new Command("guide")
         ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
         status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --cloudflare' to add your API token.",
+        actionCommand: "refarm sow --cloudflare",
       },
       {
         id: "brand-config",
@@ -141,6 +147,9 @@ export const guideCommand = new Command("guide")
     const nextActions = checks
       .filter((check) => !check.ok)
       .map((check) => check.action);
+    const nextCommands = checks
+      .filter((check) => !check.ok)
+      .flatMap((check) => check.actionCommand ? [check.actionCommand] : []);
     const report: GuideReport = {
       schemaVersion: 1,
       command: "guide",
@@ -149,6 +158,8 @@ export const guideCommand = new Command("guide")
       checks,
       nextAction: nextActions[0] ?? null,
       nextActions,
+      nextCommand: nextCommands[0] ?? null,
+      nextCommands,
     };
 
     if (options.json) {

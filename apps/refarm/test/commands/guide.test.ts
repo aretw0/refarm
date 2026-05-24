@@ -103,9 +103,11 @@ describe("guideCommand", () => {
       command: string;
       outputPath: string;
       ok: boolean;
-      checks: Array<{ id: string; ok: boolean; status: string }>;
+      checks: Array<{ id: string; ok: boolean; status: string; actionCommand?: string }>;
       nextAction: string | null;
       nextActions: string[];
+      nextCommand: string | null;
+      nextCommands: string[];
     };
     expect(payload).toMatchObject({
       command: "guide",
@@ -118,11 +120,13 @@ describe("guideCommand", () => {
           id: "model-credentials",
           ok: true,
           status: "ready",
+          actionCommand: "refarm model current --json",
         }),
         expect.objectContaining({
           id: "cloudflare-token",
           ok: false,
           status: "missing",
+          actionCommand: "refarm sow --cloudflare",
         }),
       ]),
     );
@@ -130,6 +134,8 @@ describe("guideCommand", () => {
     expect(payload.nextActions).toContain(
       "Run 'refarm sow --cloudflare' to add your API token.",
     );
+    expect(payload.nextCommand).toBe("refarm sow --cloudflare");
+    expect(payload.nextCommands).toEqual(["refarm sow --cloudflare"]);
 
     logSpy.mockRestore();
   });
