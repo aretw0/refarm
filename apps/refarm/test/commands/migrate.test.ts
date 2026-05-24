@@ -128,14 +128,16 @@ describe("migrateCommand", () => {
       ok: boolean;
       error: string;
       nextAction: string;
-      nextCommand?: string;
+      nextCommand: string | null;
+      nextCommands: string[];
     };
     expect(payload).toMatchObject({
       ok: false,
       error: "missing-target-url",
       nextAction: "refarm migrate --target <url> --dry-run",
     });
-    expect(payload).not.toHaveProperty("nextCommand");
+    expect(payload.nextCommand).toBeNull();
+    expect(payload.nextCommands).toEqual([]);
     expect(process.exitCode).toBe(1);
 
     logSpy.mockRestore();

@@ -37,6 +37,8 @@ describe("json output helpers", () => {
 			error: "task-not-found",
 			nextAction: "refarm tasks --json",
 			nextActions: ["refarm tasks --json"],
+			nextCommand: null,
+			nextCommands: [],
 		});
 	});
 
@@ -45,6 +47,8 @@ describe("json output helpers", () => {
 			ok: true,
 			nextAction: null,
 			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 		});
 	});
 
@@ -114,6 +118,8 @@ describe("json output helpers", () => {
 			error: "ambiguous-task-prefix",
 			nextAction: "refarm tasks --json",
 			nextActions: ["refarm tasks --json"],
+			nextCommand: null,
+			nextCommands: [],
 		});
 	});
 });

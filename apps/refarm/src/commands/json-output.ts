@@ -38,8 +38,8 @@ export type JsonErrorEnvelope<TExtra extends object = object> = TExtra &
 		message?: string;
 		nextAction: string;
 		nextActions: string[];
-		nextCommand?: string | null;
-		nextCommands?: string[];
+		nextCommand: string | null;
+		nextCommands: string[];
 	};
 
 export type JsonSuccessEnvelope<TExtra extends object = object> = TExtra &
@@ -47,8 +47,8 @@ export type JsonSuccessEnvelope<TExtra extends object = object> = TExtra &
 		ok: true;
 		nextAction: string | null;
 		nextActions: string[];
-		nextCommand?: string | null;
-		nextCommands?: string[];
+		nextCommand: string | null;
+		nextCommands: string[];
 	};
 
 export function buildJsonSuccessEnvelope<TExtra extends object = object>(
@@ -65,7 +65,7 @@ export function buildJsonSuccessEnvelope<TExtra extends object = object>(
 	} = input;
 	const resolvedNextActions = nextActions ?? (nextAction ? [nextAction] : []);
 	const resolvedNextCommands =
-		nextCommands ?? (nextCommand ? [nextCommand] : undefined);
+		nextCommands ?? (nextCommand ? [nextCommand] : []);
 	return {
 		...(extra ?? {}),
 		...(command ? { command } : {}),
@@ -73,12 +73,8 @@ export function buildJsonSuccessEnvelope<TExtra extends object = object>(
 		ok: true,
 		nextAction: nextAction ?? resolvedNextActions[0] ?? null,
 		nextActions: resolvedNextActions,
-		...(resolvedNextCommands
-			? {
-					nextCommand: nextCommand ?? resolvedNextCommands[0] ?? null,
-					nextCommands: resolvedNextCommands,
-				}
-			: {}),
+		nextCommand: nextCommand ?? resolvedNextCommands[0] ?? null,
+		nextCommands: resolvedNextCommands,
 	} as JsonSuccessEnvelope<TExtra>;
 }
 
@@ -97,7 +93,7 @@ export function buildJsonErrorEnvelope<TExtra extends object = object>(
 		extra,
 	} = input;
 	const resolvedNextCommands =
-		nextCommands ?? (nextCommand ? [nextCommand] : undefined);
+		nextCommands ?? (nextCommand ? [nextCommand] : []);
 	return {
 		...(extra ?? {}),
 		...(command ? { command } : {}),
@@ -107,11 +103,7 @@ export function buildJsonErrorEnvelope<TExtra extends object = object>(
 		...(message ? { message } : {}),
 		nextAction,
 		nextActions: nextActions ?? [nextAction],
-		...(resolvedNextCommands
-			? {
-					nextCommand: nextCommand ?? resolvedNextCommands[0] ?? null,
-					nextCommands: resolvedNextCommands,
-				}
-			: {}),
+		nextCommand: nextCommand ?? resolvedNextCommands[0] ?? null,
+		nextCommands: resolvedNextCommands,
 	} as JsonErrorEnvelope<TExtra>;
 }

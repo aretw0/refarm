@@ -342,6 +342,8 @@ describe("refarm telemetry", () => {
 			nextActions: [
 				"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
 			],
+			nextCommand: null,
+			nextCommands: [],
 			strict: {
 				enabled: false,
 				targets: [],
