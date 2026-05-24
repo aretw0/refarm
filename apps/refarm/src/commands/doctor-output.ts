@@ -7,12 +7,17 @@ export type RefarmDoctorOutputMode =
 	| "json"
 	| "next-action"
 	| "next-action-json"
+	| "next-command"
+	| "next-command-json"
 	| "summary";
 
 export function resolveDoctorOutputMode(options: {
 	json?: boolean;
 	nextAction?: boolean;
+	nextCommand?: boolean;
 }): RefarmDoctorOutputMode {
+	if (options.nextCommand && options.json) return "next-command-json";
+	if (options.nextCommand) return "next-command";
 	if (options.nextAction && options.json) return "next-action-json";
 	if (options.nextAction) return "next-action";
 	return options.json ? "json" : "summary";
@@ -99,6 +104,14 @@ export function printRefarmDoctorNextAction(
 	if (action) log(action);
 }
 
+export function printRefarmDoctorNextCommand(
+	report: RefarmDoctorReport,
+	log: (message: string) => void = console.log,
+): void {
+	const [command] = report.nextCommands;
+	if (command) log(command);
+}
+
 export function formatRefarmDoctorNextActionJson(
 	report: RefarmDoctorReport,
 ): string {
@@ -128,6 +141,17 @@ export function emitRefarmDoctorOutput(options: {
 	}
 
 	if (options.mode === "next-action-json") {
+		const log = options.log ?? console.log;
+		log(formatRefarmDoctorNextActionJson(options.report));
+		return;
+	}
+
+	if (options.mode === "next-command") {
+		printRefarmDoctorNextCommand(options.report, options.log);
+		return;
+	}
+
+	if (options.mode === "next-command-json") {
 		const log = options.log ?? console.log;
 		log(formatRefarmDoctorNextActionJson(options.report));
 		return;

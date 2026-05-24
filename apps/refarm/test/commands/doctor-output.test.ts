@@ -4,6 +4,7 @@ import {
 	formatRefarmDoctorNextActionJson,
 	formatRefarmDoctorReportJson,
 	printRefarmDoctorNextAction,
+	printRefarmDoctorNextCommand,
 	printRefarmDoctorReport,
 	resolveDoctorOutputMode,
 } from "../../src/commands/doctor-output.js";
@@ -82,6 +83,20 @@ describe("resolveDoctorOutputMode", () => {
 		expect(resolveDoctorOutputMode({ json: true, nextAction: true })).toBe(
 			"next-action-json",
 		);
+	});
+
+	it("maps --next-command to next-command modes", () => {
+		expect(resolveDoctorOutputMode({ nextCommand: true })).toBe("next-command");
+		expect(resolveDoctorOutputMode({ json: true, nextCommand: true })).toBe(
+			"next-command-json",
+		);
+		expect(
+			resolveDoctorOutputMode({
+				json: true,
+				nextAction: true,
+				nextCommand: true,
+			}),
+		).toBe("next-command-json");
 	});
 });
 
@@ -190,6 +205,30 @@ describe("printRefarmDoctorNextAction", () => {
 	});
 });
 
+describe("printRefarmDoctorNextCommand", () => {
+	it("prints only the first next command", () => {
+		const log = vi.fn();
+		printRefarmDoctorNextCommand(
+			{
+				...makeReport(),
+				nextActions: ["Start runtime."],
+				nextCommands: ["refarm runtime start --wait", "refarm doctor"],
+			},
+			log,
+		);
+
+		expect(log).toHaveBeenCalledOnce();
+		expect(log).toHaveBeenCalledWith("refarm runtime start --wait");
+	});
+
+	it("prints nothing when no next command is available", () => {
+		const log = vi.fn();
+		printRefarmDoctorNextCommand(makeReport(), log);
+
+		expect(log).not.toHaveBeenCalled();
+	});
+});
+
 describe("formatRefarmDoctorNextActionJson", () => {
 	it("formats next-action payload for automation", () => {
 		expect(
@@ -248,6 +287,44 @@ describe("emitRefarmDoctorOutput", () => {
 				nextCommands: ["refarm runtime start --wait"],
 			},
 			mode: "next-action-json",
+			log,
+		});
+
+		expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Start runtime.",
+			nextActions: ["Start runtime."],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
+		});
+	});
+
+	it("emits only the next command in next-command mode", () => {
+		const log = vi.fn();
+		emitRefarmDoctorOutput({
+			report: {
+				...makeReport(),
+				nextActions: ["Start runtime."],
+				nextCommands: ["refarm runtime start --wait"],
+			},
+			mode: "next-command",
+			log,
+		});
+
+		expect(log).toHaveBeenCalledOnce();
+		expect(log).toHaveBeenCalledWith("refarm runtime start --wait");
+	});
+
+	it("emits next command JSON in next-command-json mode", () => {
+		const log = vi.fn();
+		emitRefarmDoctorOutput({
+			report: {
+				...makeReport(),
+				ok: false,
+				nextActions: ["Start runtime."],
+				nextCommands: ["refarm runtime start --wait"],
+			},
+			mode: "next-command-json",
 			log,
 		});
 

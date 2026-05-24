@@ -164,6 +164,7 @@ describe("checkCommand", () => {
 		expect(help).toContain("refarm check --json");
 		expect(help).toContain("refarm check --next-action");
 		expect(help).toContain("refarm check --next-action --json");
+		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("combines refarm health and refarm doctor");
 		expect(help).toContain("quick local confidence signal");
 	});
@@ -294,6 +295,66 @@ describe("checkCommand", () => {
 			nextActions: ["Add the build config."],
 			nextCommand: null,
 			nextCommands: [],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints only the first executable recovery command with --next-command", async () => {
+		const deps = makeDeps({
+			doctor: {
+				ok: false,
+				failureCount: 1,
+				recommendations: [
+					{
+						diagnostic: "runtime:not-ready",
+						severity: "failure",
+						summary: "Runtime is not ready.",
+						action: "Repair the runtime.",
+						command: "refarm runtime start --wait",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--next-command"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith("refarm runtime start --wait");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints the next executable recovery command as JSON", async () => {
+		const deps = makeDeps({
+			doctor: {
+				ok: false,
+				failureCount: 1,
+				recommendations: [
+					{
+						diagnostic: "runtime:not-ready",
+						severity: "failure",
+						summary: "Runtime is not ready.",
+						action: "Repair the runtime.",
+						command: "refarm runtime start --wait",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-command"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Repair the runtime.",
+			nextActions: ["Repair the runtime."],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
 		});
 		expect(process.exitCode).toBe(1);
 	});

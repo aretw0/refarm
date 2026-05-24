@@ -52,6 +52,7 @@ export interface RefarmDoctorOptions {
 	input?: string;
 	json?: boolean;
 	nextAction?: boolean;
+	nextCommand?: boolean;
 	failOnWarnings?: boolean;
 }
 
@@ -195,6 +196,7 @@ export const doctorCommand = new Command("doctor")
 	)
 	.option("--json", "Output machine-readable doctor report")
 	.option("--next-action", "Print only the first blocking recovery action")
+	.option("--next-command", "Print only the first executable recovery command")
 	.option("--fail-on-warnings", "Treat warning diagnostics as failures")
 	.addHelpText(
 		"after",
@@ -205,6 +207,7 @@ Examples:
   $ refarm doctor --json
   $ refarm doctor --next-action
   $ refarm doctor --next-action --json
+  $ refarm doctor --next-command
   $ refarm doctor --fail-on-warnings
   $ refarm doctor --renderer web
   $ refarm doctor --input status.json
