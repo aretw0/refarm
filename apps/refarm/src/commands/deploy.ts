@@ -23,6 +23,7 @@ interface DeployCommandOptions {
 }
 
 const DEPLOY_SCHEMA_VERSION = 1;
+const DEPLOY_DRY_RUN_COMMAND = "refarm deploy --dry-run";
 
 function parseDeployTarget(value: string): DeployTarget {
 	if ((DEPLOY_TARGETS as readonly string[]).includes(value)) {
@@ -89,8 +90,10 @@ export const deployCommand = new Command("deploy")
           ok,
           status: result.status,
           result,
-          nextAction: ok ? null : "refarm deploy --dry-run",
-          nextActions: ok ? [] : ["refarm deploy --dry-run"],
+          nextAction: ok ? null : DEPLOY_DRY_RUN_COMMAND,
+          nextActions: ok ? [] : [DEPLOY_DRY_RUN_COMMAND],
+          nextCommand: ok ? null : DEPLOY_DRY_RUN_COMMAND,
+          nextCommands: ok ? [] : [DEPLOY_DRY_RUN_COMMAND],
         });
         if (!ok) process.exitCode = 1;
         return;
@@ -130,8 +133,10 @@ export const deployCommand = new Command("deploy")
             operation: "deploy",
             error: "deploy-failed",
             message,
-            nextAction: "refarm deploy --dry-run",
-            nextActions: ["refarm deploy --dry-run"],
+            nextAction: DEPLOY_DRY_RUN_COMMAND,
+            nextActions: [DEPLOY_DRY_RUN_COMMAND],
+            nextCommand: DEPLOY_DRY_RUN_COMMAND,
+            nextCommands: [DEPLOY_DRY_RUN_COMMAND],
             extra: {
               schemaVersion: DEPLOY_SCHEMA_VERSION,
               target: options.target,

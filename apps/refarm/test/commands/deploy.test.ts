@@ -129,11 +129,15 @@ describe("deployCommand", () => {
       ok: boolean;
       status: string;
       nextAction: string;
+      nextCommand: string;
+      nextCommands: string[];
     };
     expect(payload).toMatchObject({
       ok: false,
       status: "failure",
       nextAction: "refarm deploy --dry-run",
+      nextCommand: "refarm deploy --dry-run",
+      nextCommands: ["refarm deploy --dry-run"],
     });
     expect(process.exitCode).toBe(1);
 
@@ -159,6 +163,7 @@ describe("deployCommand", () => {
       status: string;
       error: string;
       message: string;
+      nextCommand: string;
     };
     expect(payload).toMatchObject({
       ok: false,
@@ -166,6 +171,7 @@ describe("deployCommand", () => {
       status: "error",
     });
     expect(payload.message).toContain('Invalid deploy target "workers"');
+    expect(payload.nextCommand).toBe("refarm deploy --dry-run");
     expect(process.exitCode).toBe(1);
 
     logSpy.mockRestore();
