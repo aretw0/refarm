@@ -6,6 +6,10 @@ export function joinCommand(parts: string[]): string {
 	return parts.join(" ");
 }
 
+export function shellCommand(command: string, args: string[] = []): string {
+	return joinCommand([command, ...args.map(quoteCommandArg)]);
+}
+
 export function refarmCommand(args: string[]): string {
 	return joinCommand(["refarm", ...args]);
 }

@@ -580,10 +580,41 @@ describe("plugin bundle", () => {
 		bundleCommand?.outputHelp();
 
 		expect(help).toContain("REFARM_PACKAGE_MANAGER=npm");
+		expect(help).toContain("refarm plugin bundle ./plugin.wasm --dry-run --json");
 		expect(help).toContain("runs jco through the detected package manager");
 		expect(help).toContain("Refarm maps this to pnpm exec, npm exec --, yarn, or bun x");
 		expect(help).toContain("based on the project packageManager field or lockfile");
 		expect(help).toContain("pnpm|npm|yarn|bun");
+	});
+
+	it("prints a bundle dry-run as JSON without running jco", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("bundle", "my plugin.wasm", "-o", "./out dir", "--dry-run", "--json");
+
+		expect(mockExecFileSync).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			dryRun: boolean;
+			bundleCommand: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			command: "plugin",
+			operation: "bundle",
+			dryRun: true,
+			bundleCommand:
+				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
+			nextCommand:
+				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
+		});
+		expect(payload.nextCommands).toEqual([payload.bundleCommand]);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("derives plugin name from filename when --name not provided", async () => {
@@ -630,5 +661,37 @@ describe("plugin bundle", () => {
 		);
 		process.exitCode = originalExitCode;
 		consoleSpy.mockRestore();
+	});
+
+	it("prints bundle failures as JSON without human stderr", async () => {
+		mockExecFileSync.mockImplementation(() => {
+			throw new Error("jco not found");
+		});
+		const originalExitCode = process.exitCode;
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("bundle", "bad-plugin.wasm", "--json");
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			message: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "plugin-bundle-failed",
+			message: "jco not found",
+			nextCommand:
+				"pnpm 'exec' 'jco' 'transpile' 'bad-plugin.wasm' '-o' './dist' '--name' 'bad-plugin'",
+		});
+		expect(payload.nextCommands).toEqual([payload.nextCommand]);
+		expect(process.exitCode).toBe(1);
+		process.exitCode = originalExitCode;
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 });

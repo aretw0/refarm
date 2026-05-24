@@ -3,6 +3,7 @@ import {
 	joinCommand,
 	quoteCommandArg,
 	refarmCommand,
+	shellCommand,
 	workspaceCommand,
 } from "../../src/commands/command-handoff.js";
 
@@ -24,6 +25,12 @@ describe("command handoff helpers", () => {
 	it("builds workspace-scoped command strings", () => {
 		expect(workspaceCommand("/workspaces/my farm", "refarm sow")).toBe(
 			"cd '/workspaces/my farm' && refarm sow",
+		);
+	});
+
+	it("builds shell-ready commands from executable argv", () => {
+		expect(shellCommand("pnpm", ["exec", "jco", "my plugin.wasm"])).toBe(
+			"pnpm 'exec' 'jco' 'my plugin.wasm'",
 		);
 	});
 

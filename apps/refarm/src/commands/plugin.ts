@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path, { basename, extname } from "node:path";
+import { shellCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -551,12 +552,15 @@ pluginCommand
 	.description("Transpile a WASM plugin to a JS component using jco transpile")
 	.option("-o, --output <dir>", "Output directory", "./dist")
 	.option("-n, --name <name>", "Plugin name (defaults to input filename without extension)")
+	.option("--dry-run", "Print the resolved jco command without executing it")
+	.option("--json", "Output machine-readable bundle plan or result")
 	.addHelpText(
 		"after",
 		[
 			"",
 			"Examples:",
 			"  $ refarm plugin bundle ./plugin.wasm",
+			"  $ refarm plugin bundle ./plugin.wasm --dry-run --json",
 			"  $ refarm plugin bundle ./plugin.wasm --name my-plugin --output ./dist",
 			"  $ REFARM_PACKAGE_MANAGER=npm refarm plugin bundle ./plugin.wasm",
 			"",
@@ -568,9 +572,8 @@ pluginCommand
 			`  REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
 		].join("\n"),
 	)
-	.action((input: string, options: { output: string; name?: string }) => {
+	.action((input: string, options: { output: string; name?: string; dryRun?: boolean; json?: boolean }) => {
 		const name = options.name ?? basename(input, extname(input));
-		console.log(`Bundling plugin ${name} from ${input}...`);
 		const command = createPackageBinaryCommand("jco", [
 			"transpile",
 			input,
@@ -579,18 +582,92 @@ pluginCommand
 			"--name",
 			name,
 		]);
-		try {
+		const executableCommand = shellCommand(command.command, command.args);
+		if (options.dryRun) {
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "plugin",
+						operation: "bundle",
+						nextCommand: executableCommand,
+						nextCommands: [executableCommand],
+						extra: {
+							input,
+							output: options.output,
+							name,
+							dryRun: true,
+							bundleCommand: executableCommand,
+							packageManagerCommand: command.command,
+							args: command.args,
+						},
+					}),
+				);
+				return;
+			}
+			console.log(`Bundle dry-run for ${name} from ${input}:`);
 			console.log(`  → ${command.display}`);
+			return;
+		}
+		if (!options.json) {
+			console.log(`Bundling plugin ${name} from ${input}...`);
+		}
+		try {
+			if (!options.json) {
+				console.log(`  → ${command.display}`);
+			}
 			execFileSync(command.command, command.args, {
 				stdio: "inherit",
 			});
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "plugin",
+						operation: "bundle",
+						extra: {
+							input,
+							output: options.output,
+							name,
+							dryRun: false,
+							bundleCommand: executableCommand,
+							packageManagerCommand: command.command,
+							args: command.args,
+							artifact: `${options.output}/${name}.js`,
+						},
+					}),
+				);
+				return;
+			}
 			console.log(`  ✓ Plugin bundled to ${options.output}/${name}.js`);
 		} catch (e) {
-			console.error(`  ✗ Bundle failed: ${e instanceof Error ? e.message : String(e)}`);
-			console.error(`    Command: ${command.display}`);
-			console.error(
-				`    Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
-			);
+			const message = e instanceof Error ? e.message : String(e);
+			if (options.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "plugin",
+						operation: "bundle",
+						error: "plugin-bundle-failed",
+						message,
+						nextAction: `Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}, or install jco for the detected package manager.`,
+						nextCommand: executableCommand,
+						nextCommands: [executableCommand],
+						extra: {
+							input,
+							output: options.output,
+							name,
+							dryRun: false,
+							bundleCommand: executableCommand,
+							packageManagerCommand: command.command,
+							args: command.args,
+						},
+					}),
+				);
+			} else {
+				console.error(`  ✗ Bundle failed: ${message}`);
+				console.error(`    Command: ${command.display}`);
+				console.error(
+					`    Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
+				);
+			}
 			process.exitCode = 1;
 		}
 	});
