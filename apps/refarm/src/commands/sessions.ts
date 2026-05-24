@@ -5,6 +5,7 @@ import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -75,6 +76,11 @@ function writeActiveSessionOrReport(
 					message,
 					nextAction: "refarm sessions list --json",
 					nextActions: ["refarm sessions list --json", RUNTIME_DOCTOR_COMMAND],
+					nextCommand: "refarm sessions list --json",
+					nextCommands: [
+						"refarm sessions list --json",
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+					],
 					extra: {
 						action: "sessions",
 						targetSessionId,
@@ -104,6 +110,7 @@ function printSessionPrefixError(
 						? "session-not-found"
 						: "ambiguous-session-prefix",
 				nextAction: "refarm sessions list --json",
+				nextCommand: "refarm sessions list --json",
 				extra: {
 					action: "sessions",
 					prefix,
@@ -160,6 +167,7 @@ export function createSessionsCommand(): Command {
 				"  Sessions are stored in the active Refarm runtime.",
 				`  If sessions are unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.`,
 				`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
+				`  Use ${RUNTIME_DOCTOR_NEXT_COMMAND} for command-only recovery automation.`,
 				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 				"  Prefixes must be unique; list sessions first when a prefix is ambiguous.",
 				"  Use refarm ask --new for a one-shot fresh session without naming it.",
@@ -472,6 +480,7 @@ async function forkSession(
 						error: "session-fork-failed",
 						message: parsed.error ?? `HTTP ${response.status}`,
 						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 						extra: {
 							action: "sessions",
 							prefix,
@@ -555,6 +564,7 @@ async function showSession(
 						error: "session-history-failed",
 						message: body.error ?? `HTTP ${response.status}`,
 						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 						extra: {
 							action: "sessions",
 							prefix,

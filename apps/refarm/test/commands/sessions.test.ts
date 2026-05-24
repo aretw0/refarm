@@ -30,6 +30,7 @@ describe("refarm sessions", () => {
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm runtime start --wait");
 		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor --next-command");
 		expect(help).toContain("refarm doctor");
 		expect(help).toContain("Use refarm ask --new");
 	});
@@ -216,6 +217,7 @@ describe("refarm sessions", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
+			nextCommand: "refarm runtime start --wait",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -327,6 +329,7 @@ describe("refarm sessions", () => {
 			error: "session-not-found",
 			prefix: "missing",
 			nextAction: "refarm sessions list --json",
+			nextCommand: "refarm sessions list --json",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -430,6 +433,7 @@ describe("refarm sessions", () => {
 				"urn:refarm:session:v1:abc222",
 			],
 			nextAction: "refarm sessions list --json",
+			nextCommand: "refarm sessions list --json",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -504,6 +508,7 @@ describe("refarm sessions", () => {
 			error: "session-not-found",
 			prefix: "missing",
 			nextAction: "refarm sessions list --json",
+			nextCommand: "refarm sessions list --json",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -548,6 +553,7 @@ describe("refarm sessions", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
+			nextCommand: "refarm runtime start --wait",
 		});
 		expect(process.exitCode).toBe(1);
 	});
