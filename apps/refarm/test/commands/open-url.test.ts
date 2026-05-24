@@ -169,11 +169,15 @@ describe("open-url command", () => {
 		const payload = JSON.parse(logs.join("\n")) as {
 			ok: boolean;
 			error: string;
+			message: string;
+			operation: string;
 			nextAction: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
-			error: "no opener",
+			error: "open-url-failed",
+			message: "no opener",
+			operation: "open",
 			nextAction: "open manually: https://example.test/auth",
 		});
 		logSpy.mockRestore();

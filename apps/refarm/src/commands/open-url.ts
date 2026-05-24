@@ -4,7 +4,7 @@ import {
 	type BrowserOpenResult,
 } from "@refarm.dev/cli/browser-open";
 import { Command } from "commander";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	openDryRunMessage,
 	openFailureMessage,
@@ -100,16 +100,20 @@ Notes:
 				process.exitCode = 1;
 				if (options.json) {
 					const message = error instanceof Error ? error.message : String(error);
-					printJson({
-						schemaVersion: OPEN_URL_SCHEMA_VERSION,
-						command: "open-url",
-						url,
-						dryRun: false,
-						ok: false,
-						error: message,
-						nextAction: `open manually: ${url}`,
-						nextActions: [`open manually: ${url}`],
-					});
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "open-url",
+							operation: "open",
+							error: "open-url-failed",
+							message,
+							nextAction: `open manually: ${url}`,
+							extra: {
+								schemaVersion: OPEN_URL_SCHEMA_VERSION,
+								url,
+								dryRun: false,
+							},
+						}),
+					);
 					return;
 				}
 				console.error(openFailureMessage(error));
