@@ -202,6 +202,11 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 								fixCommand,
 								refarmTidyImportsCommand(selectedFiles, { check: true }),
 							],
+							nextCommand: fixCommand,
+							nextCommands: [
+								fixCommand,
+								refarmTidyImportsCommand(selectedFiles, { check: true }),
+							],
 							extra: {
 								...plan,
 								exitCode: result.exitCode,

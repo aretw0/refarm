@@ -128,12 +128,16 @@ describe("tidyCommand", () => {
 			stdout: string;
 			stderr: string;
 			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "tidy-imports-failed",
 			nextAction: "refarm tidy imports",
+			nextCommand: "refarm tidy imports",
 		});
+		expect(payload.nextCommands).toContain("refarm tidy imports --check");
 		expect(payload.exitCode).toBe(1);
 		expect(payload.stdout).toContain("apps/refarm/src/program.ts");
 		expect(payload.stderr).toContain("Imports need organizing");
