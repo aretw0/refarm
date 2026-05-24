@@ -47,6 +47,13 @@ describe("refarm tree preview", () => {
 			scope: "session",
 			operation: "preview",
 			reason: "dry-run",
+			nextAction:
+				"Provide --name <branch-name> before executing session fork.",
+			nextActions: [
+				"Provide --name <branch-name> before executing session fork.",
+			],
+			nextCommand: null,
+			nextCommands: [],
 			plan: {
 				action: "fork",
 				destructive: false,
@@ -122,6 +129,16 @@ describe("refarm tree preview", () => {
 			);
 
 		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
+		expect(payload).toMatchObject({
+			nextAction: "refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+			nextActions: [
+				"refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+			],
+			nextCommand: "refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+			nextCommands: [
+				"refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+			],
+		});
 		expect(payload.plan).toMatchObject({
 			action: "fork",
 			readyToExecute: true,
@@ -233,6 +250,12 @@ describe("refarm tree preview", () => {
 			scope: "git",
 			operation: "preview",
 			reason: "dry-run",
+			nextAction: "Provide --name <branch-name> before executing tree fork.",
+			nextActions: [
+				"Provide --name <branch-name> before executing tree fork.",
+			],
+			nextCommand: null,
+			nextCommands: [],
 			plan: {
 				action: "fork",
 				destructive: false,
@@ -277,6 +300,10 @@ describe("refarm tree preview", () => {
 			scope: "git",
 			operation: "preview",
 			reason: "dry-run",
+			nextAction: "refarm tree switch --scope git safe/fork",
+			nextActions: ["refarm tree switch --scope git safe/fork"],
+			nextCommand: "refarm tree switch --scope git safe/fork",
+			nextCommands: ["refarm tree switch --scope git safe/fork"],
 			plan: {
 				action: "switch",
 				destructive: false,
@@ -315,6 +342,12 @@ describe("refarm tree preview", () => {
 			});
 
 		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
+		expect(payload).toMatchObject({
+			nextAction: 'Git branch "safe/fork" is already active.',
+			nextActions: ['Git branch "safe/fork" is already active.'],
+			nextCommand: null,
+			nextCommands: [],
+		});
 		expect(payload.plan).toMatchObject({
 			action: "switch",
 			readyToExecute: false,
