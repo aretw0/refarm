@@ -4,7 +4,11 @@ import {
 	type BrowserOpenResult,
 } from "@refarm.dev/cli/browser-open";
 import { Command } from "commander";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	openDryRunMessage,
 	openFailureMessage,
@@ -56,20 +60,22 @@ Notes:
 			if (options.dryRun) {
 				const candidates = resolveBrowserOpenCandidates(url);
 				if (options.json) {
-					printJson({
-						schemaVersion: OPEN_URL_SCHEMA_VERSION,
-						command: "open-url",
-						url,
-						dryRun: true,
-						ok: true,
-						candidates,
-						nextAction: candidates.length > 0
-							? `refarm open-url ${url}`
-							: `open manually: ${url}`,
-						nextActions: candidates.length > 0
-							? [`refarm open-url ${url}`]
-							: [`open manually: ${url}`],
-					});
+					const nextAction = candidates.length > 0
+						? `refarm open-url ${url}`
+						: `open manually: ${url}`;
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "open-url",
+							operation: "dry-run",
+							nextAction,
+							extra: {
+								schemaVersion: OPEN_URL_SCHEMA_VERSION,
+								url,
+								dryRun: true,
+								candidates,
+							},
+						}),
+					);
 					return;
 				}
 				console.log(openDryRunMessage(url));
@@ -85,14 +91,18 @@ Notes:
 			try {
 				const result = await resolvedDeps.open(url);
 				if (options.json) {
-					printJson({
-						schemaVersion: OPEN_URL_SCHEMA_VERSION,
-						command: "open-url",
-						url,
-						dryRun: false,
-						ok: true,
-						result,
-					});
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "open-url",
+							operation: "open",
+							extra: {
+								schemaVersion: OPEN_URL_SCHEMA_VERSION,
+								url,
+								dryRun: false,
+								result,
+							},
+						}),
+					);
 					return;
 				}
 				console.log(`Opened via: ${result.candidate.display}`);
