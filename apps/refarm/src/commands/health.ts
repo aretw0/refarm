@@ -11,6 +11,7 @@ import path from "node:path";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
+	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import { printJson } from "./json-output.js";
@@ -45,11 +46,13 @@ export interface HealthReport {
   resolution: ResolutionStatus[];
   recommendations: HealthRecommendation[];
   nextActions: string[];
+  nextCommands: string[];
 }
 
 interface HealthOptions {
   json?: boolean;
   nextAction?: boolean;
+  nextCommand?: boolean;
   failOnIssues?: boolean;
 }
 
@@ -75,6 +78,7 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
   "**/*.d.ts",
   "packages/pi-agent/src/bindings.rs",
 ];
+const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 
 export function buildHealthReport(
   results: HealthResults,
@@ -89,6 +93,7 @@ export function buildHealthReport(
     resolution,
     recommendations,
     nextActions: diagnosticNextActions(recommendations),
+    nextCommands: diagnosticNextCommands(recommendations),
   };
 }
 
@@ -114,6 +119,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       target: issue.package,
       summary: `${issue.package ?? "A workspace package"} resolves to ${issue.entry ?? "source"} instead of its build output.`,
       action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+      command: RESOLUTION_ALIGNMENT_COMMAND,
     })),
   ];
 }
@@ -178,6 +184,7 @@ function emitHealthNextActionJson(report: HealthReport): void {
   printJson(buildDiagnosticNextActionPayload({
     ok: report.ok,
     nextActions: report.nextActions,
+    nextCommands: report.nextCommands,
   }));
 }
 
@@ -263,6 +270,7 @@ export const healthCommand = new Command("health")
       "  $ refarm health --json",
       "  $ refarm health --next-action",
       "  $ refarm health --next-action --json",
+      "  $ refarm health --next-command",
       "  $ refarm health --fail-on-issues",
       "",
       "Notes:",
@@ -274,11 +282,17 @@ export const healthCommand = new Command("health")
   )
   .option("--json", "Output machine-readable health report")
   .option("--next-action", "Print only the first blocking recovery action")
+  .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
     const report = await runHealthAudit();
 
-    if (options.nextAction && options.json) {
+    if (options.nextCommand && options.json) {
+      emitHealthNextActionJson(report);
+    } else if (options.nextCommand) {
+      const [command] = report.nextCommands;
+      if (command) console.log(command);
+    } else if (options.nextAction && options.json) {
       emitHealthNextActionJson(report);
     } else if (options.nextAction) {
       const [action] = report.nextActions;

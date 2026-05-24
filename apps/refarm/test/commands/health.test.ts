@@ -68,6 +68,9 @@ describe("buildHealthReport", () => {
       "Add the package build configuration or mark the package exempt in the project health policy.",
       "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
     ]);
+    expect(report.nextCommands).toEqual([
+      "node packages/toolbox/src/cli.mjs reso dist",
+    ]);
   });
 });
 
@@ -100,6 +103,7 @@ describe("buildHealthRecommendations", () => {
         target: "packages/local",
         summary: "packages/local resolves to src/ instead of its build output.",
         action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+        command: "node packages/toolbox/src/cli.mjs reso dist",
       },
     ]);
   });
@@ -133,6 +137,7 @@ describe("healthCommand", () => {
     expect(help).toContain("refarm health --fail-on-issues");
     expect(help).toContain("refarm health --next-action");
     expect(help).toContain("refarm health --next-action --json");
+    expect(help).toContain("refarm health --next-command");
     expect(help).toContain("It does not require the Refarm runtime sidecar");
     expect(help).toContain("refarm doctor --next-action");
     expect(help).toContain("refarm.config.json");
@@ -209,6 +214,7 @@ describe("healthCommand", () => {
     expect(output).toContain('"issueCount": 0');
     expect(output).toContain('"recommendations"');
     expect(output).toContain('"nextActions"');
+    expect(output).toContain('"nextCommands"');
     expect(output).toContain('"resolution"');
     logSpy.mockRestore();
   });
@@ -247,6 +253,45 @@ describe("healthCommand", () => {
         "Track the source file, or add an explicit health policy exclusion if it is generated.",
         "Add the package build configuration or mark the package exempt in the project health policy.",
       ],
+      nextCommand: null,
+      nextCommands: [],
+    });
+    logSpy.mockRestore();
+  });
+
+  it("emits only the first health recovery command with --next-command", async () => {
+    mockAudit.mockResolvedValue({
+      git: [],
+      builds: [],
+      alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--next-command"], { from: "user" });
+
+    expect(logSpy).toHaveBeenCalledOnce();
+    expect(logSpy).toHaveBeenCalledWith("node packages/toolbox/src/cli.mjs reso dist");
+    logSpy.mockRestore();
+  });
+
+  it("emits the first health recovery command as JSON", async () => {
+    mockAudit.mockResolvedValue({
+      git: [],
+      builds: [],
+      alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--next-command", "--json"], { from: "user" });
+
+    expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+      ok: false,
+      nextAction: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+      nextActions: [
+        "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+      ],
+      nextCommand: "node packages/toolbox/src/cli.mjs reso dist",
+      nextCommands: ["node packages/toolbox/src/cli.mjs reso dist"],
     });
     logSpy.mockRestore();
   });
