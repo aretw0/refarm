@@ -51,7 +51,10 @@ function provisionNextActions(): string[] {
 }
 
 function provisionNextCommands(): string[] {
-	return provisionNextActions();
+	return [
+		"refarm provision cloudflare turbo-cache --dry-run",
+		"refarm provision cloudflare turbo-cache --github-secrets",
+	];
 }
 
 function cloudflareTurboCachePlan(input: {
@@ -132,7 +135,6 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 			"refarm provision cloudflare turbo-cache --github-secrets",
 		],
 		nextCommands: [
-			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --github-secrets",
 		],
 	};
@@ -149,9 +151,8 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
-		nextCommand: "refarm sow --cloudflare",
+		nextCommand: "refarm provision cloudflare turbo-cache --dry-run",
 		nextCommands: [
-			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
 		extra: {
@@ -172,6 +173,13 @@ function buildTurboCacheFailurePayload(input: {
 	message: string;
 	nextAction: string;
 }) {
+	const nextCommand = input.nextAction.startsWith("refarm sow")
+		? "refarm provision cloudflare turbo-cache --dry-run"
+		: input.nextAction;
+	const nextCommands = Array.from(new Set([
+		nextCommand,
+		"refarm provision cloudflare turbo-cache --dry-run",
+	]));
 	return buildJsonErrorEnvelope({
 		command: "provision",
 		operation: "apply",
@@ -182,11 +190,8 @@ function buildTurboCacheFailurePayload(input: {
 			input.nextAction,
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
-		nextCommand: input.nextAction,
-		nextCommands: [
-			input.nextAction,
-			"refarm provision cloudflare turbo-cache --dry-run",
-		],
+		nextCommand,
+		nextCommands,
 		extra: {
 			schemaVersion: PROVISION_SCHEMA_VERSION,
 			provider: "cloudflare",

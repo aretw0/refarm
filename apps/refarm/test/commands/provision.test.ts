@@ -660,7 +660,7 @@ describe("provision command", () => {
 			ok: false,
 			error: "missing-cloudflare-token",
 			nextAction: "refarm sow --cloudflare",
-			nextCommand: "refarm sow --cloudflare",
+			nextCommand: "refarm provision cloudflare turbo-cache --dry-run",
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -724,7 +724,7 @@ describe("provision command", () => {
 			ok: false,
 			error: "cloudflare-connect-failed",
 			nextAction: "refarm sow --cloudflare",
-			nextCommand: "refarm sow --cloudflare",
+			nextCommand: "refarm provision cloudflare turbo-cache --dry-run",
 		});
 		expect(process.exitCode).toBe(1);
 
