@@ -71,6 +71,34 @@ in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
 human-facing intent and the executable command when a flow is meant to be
 agent-driven.
 
+## Agent finish handoffs
+
+`refarm agent finish` is the CLI-owned end-of-slice handoff for coding agents.
+It prints an ordered plan by default and only executes when `--run` is present:
+
+```bash
+refarm agent finish --json
+refarm agent finish --next-command
+refarm agent finish --run --json
+refarm agent finish --run --next-command
+```
+
+The default plan is check-only: import organization check, health audit, then
+the composite readiness gate. Use the explicit fix mode when an agent should
+organize imports as the first finishing action:
+
+```bash
+refarm agent finish --fix --json
+refarm agent finish --fix --next-command
+refarm agent finish --fix --run --json
+```
+
+Keep `--fix` opt-in. It may rewrite source files through `refarm tidy imports`,
+while the default `finish --run` path should remain a verification-only signal.
+If a finish run fails, `nextCommand` should forward the failing command's
+recovery command, such as `refarm runtime start --wait`, instead of the whole
+plan.
+
 ## Live status affordances
 
 `apps/refarm` now publishes app-owned host status affordances from a local
