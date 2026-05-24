@@ -325,6 +325,7 @@ export function createTasksCommand(): Command {
 				"  $ refarm tasks --status active",
 				"  $ refarm tasks --session <session-id>",
 				"  $ refarm tasks show <task-id-prefix>",
+				"  $ refarm tasks show <task-id-prefix> --json",
 				"  $ refarm tasks --json",
 				"",
 				"Notes:",

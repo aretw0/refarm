@@ -146,6 +146,7 @@ export function createSessionsCommand(): Command {
 				"  $ refarm sessions use <id-prefix>",
 				"  $ refarm sessions show <id-prefix>",
 				"  $ refarm sessions fork <id-prefix> --name experiment",
+				"  $ refarm sessions fork <id-prefix> --name experiment --json",
 				"",
 				"Notes:",
 				"  Sessions are stored in the active Refarm runtime.",
