@@ -37,6 +37,7 @@ describe("refarm program", () => {
 			"--github",
 			"--cloudflare",
 			"--all",
+			"--json",
 		]);
 		expect(migrate?.options.map((option) => option.long)).toEqual([
 			"--target",

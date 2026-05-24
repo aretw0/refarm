@@ -71,6 +71,74 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
 	});
 
+	it("prints a structured model route update with --json", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--model", "openai/gpt-5.5", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			modelRoute: { provider: string; modelId: string };
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "updated",
+			modelRoute: { provider: "openai", modelId: "gpt-5.5" },
+		});
+		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+	});
+
+	it("reports configured credential status as JSON without prompting", async () => {
+		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			credentials: { model: boolean; github: boolean; cloudflare: boolean };
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "configured",
+			credentials: { model: true, github: false, cloudflare: false },
+			nextActions: [],
+		});
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).not.toHaveBeenCalled();
+	});
+
+	it("reports interactive credential collection as a JSON next action", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			prompts: string[];
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			status: "interactive-required",
+			prompts: ["model"],
+			nextAction: "refarm sow",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).not.toHaveBeenCalled();
+	});
+
 	it("sets exitCode when --model is empty", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -168,6 +236,8 @@ describe("sowCommand — default (no flags)", () => {
 
 		expect(help).toContain("The Refarm runtime reloads Silo credentials");
 		expect(help).toContain("refarm sow --model openai/gpt-5.5");
+		expect(help).toContain("refarm sow --model openai/gpt-5.5 --json");
+		expect(help).toContain("--json is non-interactive");
 		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 	});
 });

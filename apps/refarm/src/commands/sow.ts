@@ -16,6 +16,7 @@ import {
 	parseModelRef,
 } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
+import { printJson } from "./json-output.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -39,6 +40,15 @@ interface SowOptions {
 	github?: boolean;
 	cloudflare?: boolean;
 	all?: boolean;
+	json?: boolean;
+}
+
+function credentialSummary(tokens: Record<string, unknown>) {
+	return {
+		model: hasModelCredential(tokens),
+		github: Boolean(stringValue(tokens.githubToken)),
+		cloudflare: Boolean(stringValue(tokens.cloudflareToken)),
+	};
 }
 
 export const sowCommand = new Command("sow")
@@ -47,6 +57,7 @@ export const sowCommand = new Command("sow")
 	.option("--github", "Configure GitHub credentials")
 	.option("--cloudflare", "Configure Cloudflare credentials")
 	.option("--all", "Configure or reconfigure all credentials")
+	.option("--json", "Output machine-readable sow result")
 	.addHelpText("after", SOW_HELP_TEXT)
 	.action(async (opts: SowOptions) => {
 		try {
@@ -57,11 +68,36 @@ export const sowCommand = new Command("sow")
 			const initialModelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 			let modelRef = initialModelRef;
 			if (opts.model !== undefined && !initialModelRef) {
+				if (opts.json) {
+					printJson({
+						action: "sow",
+						ok: false,
+						error: "empty-model",
+						message: "--model cannot be empty.",
+						nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+						nextActions: [`refarm sow --model ${OLLAMA_DEFAULT_REF}`],
+					});
+					process.exitCode = 1;
+					return;
+				}
 				console.error(chalk.red("✗  --model cannot be empty."));
 				process.exitCode = 1;
 				return;
 			}
 			if (initialModelRef && !initialModelRef.provider && !opts.all) {
+				if (opts.json) {
+					printJson({
+						action: "sow",
+						ok: false,
+						error: "model-provider-required",
+						modelId: initialModelRef.modelId,
+						message: `Could not infer provider for model "${initialModelRef.modelId}".`,
+						nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+						nextActions: [`refarm sow --model ${OLLAMA_DEFAULT_REF}`],
+					});
+					process.exitCode = 1;
+					return;
+				}
 				console.error(chalk.red(`✗  Could not infer provider for model "${initialModelRef.modelId}".`));
 				console.error(chalk.dim(`   Use provider/model, for example: refarm sow --model ${OLLAMA_DEFAULT_REF}`));
 				process.exitCode = 1;
@@ -75,10 +111,47 @@ export const sowCommand = new Command("sow")
 			const configureCloudflare = Boolean(opts.cloudflare) || Boolean(opts.all);
 
 			if (!configureModel && !configureModelRef && !configureGithub && !configureCloudflare) {
+				if (opts.json) {
+					printJson({
+						action: "sow",
+						ok: true,
+						status: "configured",
+						credentials: credentialSummary(currentTokens),
+						nextAction: null,
+						nextActions: [],
+					});
+					return;
+				}
 				console.log(chalk.green("✓  All credentials already configured.\n"));
 				console.log(
 					chalk.dim("   Use --model, --github, --cloudflare, or --all to reconfigure."),
 				);
+				return;
+			}
+
+			const interactivePrompts = [
+				...(configureModel ? ["model"] : []),
+				...(configureGithub ? ["github"] : []),
+				...(configureCloudflare ? ["cloudflare"] : []),
+			];
+			if (opts.json && interactivePrompts.length > 0) {
+				const nextAction = configureModel
+					? "refarm sow"
+					: `refarm sow --${interactivePrompts[0]}`;
+				printJson({
+					action: "sow",
+					ok: false,
+					status: "interactive-required",
+					prompts: interactivePrompts,
+					message: "Credential collection requires an interactive terminal or browser handoff.",
+					nextAction,
+					nextActions: [
+						nextAction,
+						"refarm model current --json",
+						"refarm config get operator.openExternalLinks --json",
+					],
+				});
+				process.exitCode = 1;
 				return;
 			}
 
@@ -118,14 +191,16 @@ export const sowCommand = new Command("sow")
 				modelRef = parseModelRef(opts.model, stringValue(currentTokens.modelProvider));
 				if (!modelRef) throw new Error("model ref was not resolved");
 				if (!modelRef.provider) throw new Error("model provider was not resolved");
-				await silo.saveTokens(
-					modelRouteTokenUpdate(
-						"default",
-						{ provider: modelRef.provider, modelId: modelRef.modelId },
-						currentTokens,
-					),
+				const tokenUpdate = modelRouteTokenUpdate(
+					"default",
+					{ provider: modelRef.provider, modelId: modelRef.modelId },
+					currentTokens,
 				);
-				console.log(chalk.green(`  ✓ Default model set: ${modelRef.provider}/${modelRef.modelId}`));
+				await silo.saveTokens(tokenUpdate);
+				currentTokens = { ...currentTokens, ...tokenUpdate };
+				if (!opts.json) {
+					console.log(chalk.green(`  ✓ Default model set: ${modelRef.provider}/${modelRef.modelId}`));
+				}
 			}
 
 			if (configureGithub) {
@@ -139,11 +214,32 @@ export const sowCommand = new Command("sow")
 				]);
 				const githubToken = await githubCredentialProvider.collect(ctx);
 				await silo.saveTokens({ githubToken, githubOwner: owner });
+				currentTokens = { ...currentTokens, githubToken, githubOwner: owner };
 			}
 
 			if (configureCloudflare) {
 				const cloudflareToken = await cloudflareCredentialProvider.collect(ctx);
 				await silo.saveTokens({ cloudflareToken });
+				currentTokens = { ...currentTokens, cloudflareToken };
+			}
+
+			if (opts.json) {
+				printJson({
+					action: "sow",
+					ok: true,
+					status: configureModelRef ? "updated" : "configured",
+					credentials: credentialSummary(currentTokens),
+					modelRoute: modelRef?.provider
+						? {
+								scope: "default",
+								provider: modelRef.provider,
+								modelId: modelRef.modelId,
+							}
+						: undefined,
+					nextAction: "refarm model current --json",
+					nextActions: ["refarm model current --json", "refarm check --next-action --json"],
+				});
+				return;
 			}
 
 			console.log(chalk.gray("\n  Credentials stored at ~/.refarm/identity.json"));

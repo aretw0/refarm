@@ -155,6 +155,7 @@ program.addCommand(
 		github?: boolean;
 		cloudflare?: boolean;
 		all?: boolean;
+		json?: boolean;
 	}>({
 		name: "sow",
 		description: SOW_COMMAND_DESCRIPTION,
@@ -163,6 +164,7 @@ program.addCommand(
 			{ flags: "--github", description: "Configure GitHub credentials" },
 			{ flags: "--cloudflare", description: "Configure Cloudflare credentials" },
 			{ flags: "--all", description: "Configure or reconfigure all credentials" },
+			{ flags: "--json", description: "Output machine-readable sow result" },
 		],
 		helpText: SOW_HELP_TEXT,
 		load: async () => (await import("./commands/sow.js")).sowCommand,
@@ -171,6 +173,7 @@ program.addCommand(
 			...(opts.github ? ["--github"] : []),
 			...(opts.cloudflare ? ["--cloudflare"] : []),
 			...(opts.all ? ["--all"] : []),
+			...(opts.json ? ["--json"] : []),
 		],
 	}),
 );
