@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { agentCommand } from "../../src/commands/agent.js";
+import { createAgentCommand } from "../../src/commands/agent.js";
 
 describe("agent command", () => {
 	it("documents runtime, credential, model, and plugin handoffs in help", () => {
+		const agentCommand = createAgentCommand();
 		let help = "";
 		agentCommand.configureOutput({
 			writeOut: (value) => {
@@ -19,6 +20,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
+		expect(help).toContain("refarm agent finish --json");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model openai/gpt-5.5");
@@ -29,6 +31,7 @@ describe("agent command", () => {
 	});
 
 	it("prints help when invoked without subcommands", async () => {
+		const agentCommand = createAgentCommand();
 		let output = "";
 		agentCommand.configureOutput({
 			writeOut: (value) => {
@@ -51,6 +54,7 @@ describe("agent command", () => {
 	});
 
 	it("prints a machine-readable agent handoff plan", async () => {
+		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await agentCommand.parseAsync(["--json"], { from: "user" });
@@ -95,6 +99,48 @@ describe("agent command", () => {
 		});
 		expect(payload.nextActions).toContain("refarm runtime status --json");
 		expect(payload.nextCommands).toEqual(["refarm check --next-command"]);
+		logSpy.mockRestore();
+	});
+
+	it("prints an end-of-slice verification plan", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			steps: { id: string; command: string; description: string }[];
+			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "plan",
+			nextCommand: "refarm tidy imports --check --json",
+			nextCommands: [
+				"refarm tidy imports --check --json",
+				"refarm health --next-action --json",
+				"refarm check --next-action --json",
+			],
+		});
+		expect(payload.nextActions).toEqual(payload.nextCommands);
+		expect(payload.steps).toEqual([
+			expect.objectContaining({
+				id: "tidy-imports-check",
+				command: "refarm tidy imports --check --json",
+			}),
+			expect.objectContaining({
+				id: "health",
+				command: "refarm health --next-action --json",
+			}),
+			expect.objectContaining({
+				id: "check",
+				command: "refarm check --next-action --json",
+			}),
+		]);
 		logSpy.mockRestore();
 	});
 });
