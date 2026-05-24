@@ -134,7 +134,11 @@ export async function listSessionTree(opts: {
 	try {
 		sessions = await fetchSessions(opts.limit);
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "list",
+		});
 		return;
 	}
 
@@ -188,7 +192,11 @@ export async function showSessionTree(
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "show",
+		});
 		return;
 	}
 	if (!history) return;
@@ -231,7 +239,11 @@ export async function previewSessionTree(
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "preview",
+		});
 		return;
 	}
 	if (!history) return;
@@ -282,7 +294,11 @@ export async function switchSessionTree(
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "switch",
+		});
 		return;
 	}
 	if (!history) return;
@@ -333,7 +349,11 @@ export async function previewSessionSwitchTree(
 	try {
 		history = await fetchSessionHistory(prefix);
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "preview",
+		});
 		return;
 	}
 	if (!history) return;

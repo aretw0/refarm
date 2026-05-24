@@ -133,8 +133,12 @@ function parseLimit(limit: string | undefined): number | null {
 	return value;
 }
 
-function reportAllListError(err: unknown): void {
-	reportSidecarError(err);
+function reportAllListError(err: unknown, opts: { json?: boolean }): void {
+	reportSidecarError(err, {
+		json: opts.json,
+		command: "tree",
+		operation: "list",
+	});
 }
 
 function compareAllTimelineNodes(
@@ -165,7 +169,7 @@ async function listAllTree(opts: {
 			.sort(compareAllTimelineNodes)
 			.slice(0, limit);
 	} catch (err) {
-		reportAllListError(err);
+		reportAllListError(err, opts);
 		return;
 	}
 

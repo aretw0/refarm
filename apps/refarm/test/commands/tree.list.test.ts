@@ -193,6 +193,27 @@ describe("refarm tree list", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("prints runtime errors as JSON when session timeline listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "session", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "list",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("lists git commits as timeline nodes", async () => {
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -266,6 +287,28 @@ describe("refarm tree list", () => {
 				}),
 			]),
 		);
+	});
+
+	it("prints runtime errors as JSON when all-scope listing cannot reach session timeline", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "list",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("applies all-scope limit after combining timeline nodes", async () => {
@@ -361,6 +404,7 @@ describe("refarm tree list", () => {
 			vi.fn().mockRejectedValue(new Error("fetch failed")),
 		);
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -368,18 +412,14 @@ describe("refarm tree list", () => {
 			.find((c) => c.name() === "list")!
 			.parseAsync(["--scope", "all", "--json"], { from: "user" });
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Refarm runtime is not running"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Status:     refarm runtime status"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Start now:  refarm runtime start"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm doctor"),
-		);
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "list",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
 		expect(process.exitCode).toBe(1);
 	});
 
@@ -462,6 +502,7 @@ describe("refarm tree list", () => {
 		spawnSyncMock.mockReturnValue(
 			makeSpawnResult(128, "", "fatal: not a git repository"),
 		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -469,12 +510,15 @@ describe("refarm tree list", () => {
 			.find((c) => c.name() === "list")!
 			.parseAsync(["--scope", "all", "--json"], { from: "user" });
 
-		expect(errorSpy).not.toHaveBeenCalledWith(
-			expect.stringContaining("Refarm runtime is not running"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("not a git repository"),
-		);
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "list",
+			ok: false,
+			error: "runtime-request-failed",
+			message: "fatal: not a git repository",
+			nextAction: "refarm doctor --next-action",
+		});
 		expect(process.exitCode).toBe(1);
 	});
 });
