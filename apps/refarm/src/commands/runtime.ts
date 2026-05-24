@@ -14,6 +14,7 @@ import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
@@ -44,6 +45,12 @@ interface RuntimeCommandDeps {
 
 type RuntimeStatusPayload = RuntimeStatusSummary;
 const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
+
+type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
+	TExtra & {
+		nextCommand: string | null;
+		nextCommands: string[];
+	};
 
 function defaultDeps(): RuntimeCommandDeps {
 	return {
@@ -85,6 +92,33 @@ async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeSt
 			issue: message,
 		};
 	}
+}
+
+function runtimeNextCommands(payload: RuntimeStatusPayload): string[] {
+	if (payload.activeEngine === "unknown") {
+		return [
+			RUNTIME_ENGINE_AUTO_COMMAND,
+			RUNTIME_START_WAIT_COMMAND,
+			RUNTIME_DOCTOR_NEXT_COMMAND,
+		];
+	}
+	if (payload.ready === false) {
+		return [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND];
+	}
+	return [];
+}
+
+function buildRuntimeJsonPayload<TExtra extends object = object>(
+	payload: RuntimeStatusPayload,
+	extra?: TExtra,
+): RuntimeJsonPayload<TExtra> {
+	const nextCommands = runtimeNextCommands(payload);
+	return {
+		...payload,
+		...(extra ?? {}),
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
+	} as RuntimeJsonPayload<TExtra>;
 }
 
 function printRuntimeStatus(payload: RuntimeStatusPayload): void {
@@ -176,7 +210,7 @@ Notes:
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
 					const payload = await runtimeStatusPayload(deps);
 					if (json) {
-						printJson(payload);
+						printJson(buildRuntimeJsonPayload(payload));
 						return;
 					}
 					printRuntimeStatus(payload);
@@ -211,7 +245,7 @@ Notes:
 					const { payload, command } = await resolveRuntimeStartCommand(deps);
 					if (!command) {
 						if (json) {
-							printJson({ ...payload, started: false });
+							printJson(buildRuntimeJsonPayload(payload, { started: false }));
 							return;
 						}
 						console.error(chalk.red("✗  Cannot start Refarm runtime."));
@@ -222,7 +256,7 @@ Notes:
 
 					if (opts.dryRun) {
 						if (json) {
-							printJson({ ...payload, command, dryRun: true });
+							printJson(buildRuntimeJsonPayload(payload, { command, dryRun: true }));
 							return;
 						}
 						console.log(command.display);
@@ -233,7 +267,10 @@ Notes:
 					if (opts.wait) {
 						const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 						if (json) {
-							printJson({ ...payload, command, started: true, ready });
+							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
+								command,
+								started: true,
+							}));
 							if (!ready) process.exitCode = 1;
 							return;
 						}
@@ -251,7 +288,7 @@ Notes:
 						return;
 					}
 					if (json) {
-						printJson({ ...payload, command, started: true });
+						printJson(buildRuntimeJsonPayload(payload, { command, started: true }));
 						return;
 					}
 					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
@@ -261,7 +298,7 @@ Notes:
 		.action(async (opts: { json?: boolean }) => {
 			const payload = await runtimeStatusPayload(deps);
 			if (opts.json) {
-				printJson(payload);
+				printJson(buildRuntimeJsonPayload(payload));
 				return;
 			}
 			printRuntimeStatus(payload);

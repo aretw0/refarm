@@ -105,6 +105,11 @@ describe("runtime command", () => {
 			activeEngine: "ts",
 			ready: false,
 			startCommand: "farmhand --background",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
 		});
 		logSpy.mockRestore();
 	});
@@ -133,6 +138,11 @@ describe("runtime command", () => {
 			reason: "configured-ts",
 			ready: false,
 			startCommand: "farmhand --background",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
 		});
 		logSpy.mockRestore();
 	});
@@ -156,6 +166,12 @@ describe("runtime command", () => {
 			autostart: "ask",
 			reason: "configured-rust-missing-binary",
 			issue: expect.stringContaining("Rust tractor binary is not built"),
+			nextCommand: "refarm config set tractor.engine auto",
+			nextCommands: [
+				"refarm config set tractor.engine auto",
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
 		});
 		logSpy.mockRestore();
 	});
@@ -204,9 +220,11 @@ describe("runtime command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			dryRun?: boolean;
 			command?: { display?: string };
+			nextCommand?: string | null;
 		};
 		expect(payload.dryRun).toBe(true);
 		expect(payload.command?.display).toBe("farmhand --background");
+		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
@@ -284,9 +302,11 @@ describe("runtime command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			started?: boolean;
 			ready?: boolean;
+			nextCommand?: string | null;
 		};
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(true);
+		expect(payload.nextCommand).toBeNull();
 		logSpy.mockRestore();
 	});
 
