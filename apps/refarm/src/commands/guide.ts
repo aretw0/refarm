@@ -118,7 +118,7 @@ export const guideCommand = new Command("guide")
         action: modelReady
           ? `Inspect route with 'refarm model current' (${modelRef}).`
           : `Run 'refarm sow' to configure ${modelRef}.`,
-        actionCommand: modelReady ? "refarm model current --json" : "refarm sow",
+        actionCommand: modelReady ? "refarm model current --json" : "refarm model providers --json",
       },
       {
         id: "github-token",
@@ -126,7 +126,7 @@ export const guideCommand = new Command("guide")
         ok: Boolean(infraTokens.REFARM_GITHUB_TOKEN),
         status: infraTokens.REFARM_GITHUB_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --github' to add your PAT.",
-        actionCommand: "refarm sow --github",
+        actionCommand: "gh auth status",
       },
       {
         id: "cloudflare-token",
@@ -134,7 +134,7 @@ export const guideCommand = new Command("guide")
         ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
         status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --cloudflare' to add your API token.",
-        actionCommand: "refarm sow --cloudflare",
+        actionCommand: "refarm provision cloudflare turbo-cache --dry-run",
       },
       {
         id: "brand-config",

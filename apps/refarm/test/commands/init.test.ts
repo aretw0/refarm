@@ -167,9 +167,13 @@ describe("initCommand — mocked initialization flow", () => {
       status: "initialized",
     });
     expect(payload.projectDir).toContain("test-workspace");
+    expect(payload.nextActions).toContain("cd test-workspace && refarm sow");
     expect(payload.nextActions).toContain("refarm model current");
-    expect(payload.nextCommand).toContain("refarm sow");
+    expect(payload.nextCommand).toContain("refarm model current --json");
     expect(payload.nextCommand).toContain("test-workspace");
+    expect(payload.nextCommands).not.toContainEqual(
+      expect.stringContaining("refarm sow"),
+    );
     expect(payload.nextCommands).toContainEqual(
       expect.stringContaining("refarm guide --json"),
     );

@@ -158,9 +158,8 @@ export const initCommand = new Command("init")
             "refarm model current",
             "refarm guide",
           ],
-          nextCommand: sowCommand,
+          nextCommand: modelCurrentCommand,
           nextCommands: [
-            sowCommand,
             modelCurrentCommand,
             guideCommand,
           ],
