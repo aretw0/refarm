@@ -502,6 +502,18 @@ function buildAskErrorPayload(message: string): {
 	if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";
+		const providerNextCommands =
+			provider === "ollama"
+				? [
+						"ollama serve",
+						"refarm model current --json",
+						"refarm model providers --json",
+					]
+				: [
+						"refarm model current --json",
+						"refarm model providers --json",
+						`refarm model ${OPENAI_DEFAULT_REF} --json`,
+					];
 		return buildJsonErrorEnvelope({
 			command: "ask",
 			operation: "submit",
@@ -517,16 +529,8 @@ function buildAskErrorPayload(message: string): {
 							"refarm model providers --json",
 							`refarm model ${OPENAI_DEFAULT_REF} --json`,
 						],
-			nextCommand: provider === "ollama" ? "ollama serve" : "refarm sow",
-			nextCommands:
-				provider === "ollama"
-					? ["ollama serve", "refarm sow"]
-					: [
-							"refarm sow",
-							"refarm model current --json",
-							"refarm model providers --json",
-							`refarm model ${OPENAI_DEFAULT_REF} --json`,
-						],
+			nextCommand: providerNextCommands[0],
+			nextCommands: providerNextCommands,
 			extra: { action: "ask", provider },
 		});
 	}
@@ -562,11 +566,10 @@ function printMissingModelCredentials(json: boolean): void {
 					"refarm model providers --json",
 					"ollama serve",
 				],
-				nextCommand: "refarm sow",
+				nextCommand: "refarm model providers --json",
 				nextCommands: [
-					"refarm sow",
-					"refarm model current --json",
 					"refarm model providers --json",
+					"refarm model current --json",
 					"ollama serve",
 				],
 				extra: { action: "ask" },

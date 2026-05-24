@@ -321,9 +321,11 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "model-credentials-missing",
 			nextAction: "refarm sow",
-			nextCommand: "refarm sow",
+			nextCommand: "refarm model providers --json",
 		});
 		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
@@ -443,9 +445,8 @@ describe("refarm ask", () => {
 			error: "model-provider-unavailable",
 			provider: "openai",
 			nextAction: "refarm sow",
-			nextCommand: "refarm sow",
+			nextCommand: "refarm model current --json",
 			nextCommands: [
-				"refarm sow",
 				"refarm model current --json",
 				"refarm model providers --json",
 				"refarm model openai/gpt-5.5 --json",
