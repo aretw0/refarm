@@ -84,6 +84,7 @@ describe("plugin install", () => {
 		pluginCommand.outputHelp();
 
 		expect(help).toContain("refarm plugin status");
+		expect(help).toContain("refarm plugin reload @refarm/pi-agent --json");
 		expect(help).toContain("/reload @refarm/pi-agent");
 		expect(help).toContain("refarm runtime start --wait");
 		expect(help).toContain("refarm doctor --next-action");
@@ -105,6 +106,7 @@ describe("plugin install", () => {
 		install?.outputHelp();
 
 		expect(help).toContain("start or restart the runtime");
+		expect(help).toContain("refarm plugin reload @refarm/pi-agent --json");
 		expect(help).toContain("/reload @refarm/pi-agent");
 		expect(help).toContain("refarm plugin status");
 	});

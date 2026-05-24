@@ -551,9 +551,8 @@ export const pluginCommand = new Command("plugin").description(
 		"  $ refarm plugin install",
 		"  $ refarm plugin list",
 		"  $ refarm plugin list --json",
-		"  $ refarm",
-		"  › /reload @refarm/pi-agent",
 		"  $ refarm plugin bundle ./plugin.wasm --name my-plugin",
+		"  $ refarm",
 		"",
 	"Notes:",
 	"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
@@ -561,6 +560,7 @@ export const pluginCommand = new Command("plugin").description(
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 	"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
+	"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
 	].join("\n"),
 );
 
@@ -578,7 +578,8 @@ pluginCommand
 			"",
 			"Notes:",
 			"  If the bundled WASM is missing, build pi-agent first with the command printed by the error.",
-			"  After install, start or restart the runtime, then run /reload @refarm/pi-agent.",
+			"  After install, start or restart the runtime, then run refarm plugin reload @refarm/pi-agent --json.",
+			"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
 			"  Run refarm plugin status to confirm runtime load state.",
 		].join("\n"),
 	)
@@ -623,7 +624,6 @@ pluginCommand
 			"  $ refarm plugin reload @refarm/pi-agent --json",
 			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
-			"  › /reload @refarm/pi-agent",
 			"",
 			"Notes:",
 			"  This command requires the selected Refarm runtime sidecar.",
@@ -631,6 +631,7 @@ pluginCommand
 			`  Start or restart it with ${RUNTIME_START_WAIT_COMMAND}.`,
 			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
+			"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable runtime plugin state")
