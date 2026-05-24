@@ -265,4 +265,30 @@ describe("agent command", () => {
 		process.exitCode = originalExitCode;
 		logSpy.mockRestore();
 	});
+
+	it("prints a concise human finish run report", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--run"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith("Refarm agent finish");
+		expect(logSpy).toHaveBeenCalledWith(
+			"PASS tidy-imports-check: refarm tidy imports --check --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith("Finish checks passed.");
+		expect(runRefarm).toHaveBeenCalledTimes(3);
+		logSpy.mockRestore();
+	});
 });

@@ -66,6 +66,7 @@ function runRefarmCommand(args: string[]): AgentFinishStepRunResult {
 	const exitCode = result.status ?? (result.error ? 1 : 0);
 	const stdout = result.stdout ?? "";
 	const stderr = result.stderr ?? "";
+	const payload = parseJsonPayload(stdout);
 	return {
 		id: args.join(" "),
 		command: refarmCommand(args),
@@ -75,9 +76,7 @@ function runRefarmCommand(args: string[]): AgentFinishStepRunResult {
 		exitCode,
 		stdout,
 		stderr,
-		...(parseJsonPayload(stdout) !== undefined
-			? { payload: parseJsonPayload(stdout) }
-			: {}),
+		...(payload !== undefined ? { payload } : {}),
 	};
 }
 
@@ -188,6 +187,21 @@ function payloadNextActions(payload: unknown): string[] | undefined {
 	return actions.length > 0 ? actions : undefined;
 }
 
+function printAgentFinishRunHuman(result: ReturnType<typeof runAgentFinishPlan>): void {
+	console.log("Refarm agent finish");
+	for (const step of result.steps) {
+		console.log(`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}`);
+	}
+	if (result.ok) {
+		console.log("Finish checks passed.");
+		return;
+	}
+	const nextAction = result.nextActions[0];
+	const nextCommand = result.nextCommands[0];
+	if (nextAction) console.log(`Next action: ${nextAction}`);
+	if (nextCommand) console.log(`Next command: ${nextCommand}`);
+}
+
 export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	const resolvedDeps: AgentCommandDeps = {
 		runRefarm: runRefarmCommand,
@@ -291,18 +305,23 @@ Notes:
 			};
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps);
-				printJson({
-					action: "finish",
-					status: result.status,
-					steps: result.steps,
-					command: "agent",
-					operation: "finish",
-					ok: result.ok,
-					nextAction: result.nextActions[0] ?? result.nextCommands[0] ?? null,
-					nextActions: result.nextActions,
-					nextCommand: result.nextCommands[0] ?? null,
-					nextCommands: result.nextCommands,
-				});
+				if (options.json) {
+					printJson({
+						action: "finish",
+						status: result.status,
+						steps: result.steps,
+						command: "agent",
+						operation: "finish",
+						ok: result.ok,
+						nextAction:
+							result.nextActions[0] ?? result.nextCommands[0] ?? null,
+						nextActions: result.nextActions,
+						nextCommand: result.nextCommands[0] ?? null,
+						nextCommands: result.nextCommands,
+					});
+				} else {
+					printAgentFinishRunHuman(result);
+				}
 				if (!result.ok) process.exitCode = 1;
 				return;
 			}
