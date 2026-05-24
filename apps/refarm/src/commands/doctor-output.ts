@@ -31,6 +31,7 @@ export function formatRefarmDoctorReportJson(
 			informational: report.informational,
 			recommendations: report.recommendations,
 			nextActions: report.nextActions,
+			nextCommands: report.nextCommands,
 			host: report.host,
 			status: JSON.parse(formatRefarmStatusJson(report.status)),
 		},
@@ -105,6 +106,7 @@ export function formatRefarmDoctorNextActionJson(
 		buildDiagnosticNextActionPayload({
 			ok: report.ok,
 			nextActions: report.nextActions,
+			nextCommands: report.nextCommands,
 		}),
 	);
 }

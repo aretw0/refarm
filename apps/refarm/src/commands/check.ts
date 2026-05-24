@@ -3,6 +3,7 @@ import { Command } from "commander";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
+	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import {
@@ -24,12 +25,16 @@ export interface RefarmCheckReport {
 	recommendations: DiagnosticRecommendation[];
 	nextAction: string | null;
 	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export interface RefarmCheckNextActionJson {
 	ok: boolean;
 	nextAction: string | null;
 	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export interface RefarmCheckOptions {
@@ -56,6 +61,7 @@ export function buildRefarmCheckReport(checks: {
 		checks.doctor.failureCount;
 
 	const nextActions = diagnosticNextActions(recommendations);
+	const nextCommands = diagnosticNextCommands(recommendations);
 	return {
 		ok: checks.health.ok && checks.doctor.ok,
 		failureCount,
@@ -64,6 +70,8 @@ export function buildRefarmCheckReport(checks: {
 		recommendations,
 		nextAction: nextActions[0] ?? null,
 		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 	};
 }
 
@@ -97,6 +105,7 @@ function printRefarmCheckNextActionJson(report: RefarmCheckReport): void {
 	const output: RefarmCheckNextActionJson = buildDiagnosticNextActionPayload({
 		ok: report.ok,
 		nextActions: report.nextActions,
+		nextCommands: report.nextCommands,
 	});
 	printJson(output);
 }

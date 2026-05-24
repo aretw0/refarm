@@ -6,6 +6,7 @@ import {
 import { Command } from "commander";
 import {
 	diagnosticNextActions,
+	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 	type DiagnosticRecommendationSeverity,
 } from "./diagnostic-recommendations.js";
@@ -17,7 +18,10 @@ import {
 	resolveRefarmRuntimeMetadata,
 	type RefarmRuntimeMetadata,
 } from "./runtime-metadata.js";
-import { RUNTIME_NOT_READY_RECOVERY_ACTION } from "./runtime-recovery.js";
+import {
+	RUNTIME_NOT_READY_RECOVERY_ACTION,
+	RUNTIME_START_WAIT_COMMAND,
+} from "./runtime-recovery.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
@@ -30,6 +34,7 @@ export interface RefarmDoctorReport {
 	informational: string[];
 	recommendations: RefarmDoctorRecommendation[];
 	nextActions: string[];
+	nextCommands: string[];
 	host: RefarmRuntimeMetadata;
 	status: RefarmStatusJson;
 }
@@ -39,6 +44,7 @@ export interface RefarmDoctorRecommendation {
 	severity: DiagnosticRecommendationSeverity;
 	summary: DiagnosticRecommendation["summary"];
 	action: DiagnosticRecommendation["action"];
+	command?: DiagnosticRecommendation["command"];
 }
 
 export interface RefarmDoctorOptions {
@@ -74,6 +80,7 @@ export function buildRefarmDoctorReport(
 		informational,
 		recommendations,
 		nextActions: diagnosticNextActions(recommendations),
+		nextCommands: diagnosticNextCommands(recommendations),
 		host:
 			options.metadata ??
 			resolveRefarmRuntimeMetadata({
@@ -114,6 +121,7 @@ function createRefarmDoctorRecommendation(
 				severity,
 				summary: "The runtime reported that it is not ready.",
 				action: RUNTIME_NOT_READY_RECOVERY_ACTION,
+				command: RUNTIME_START_WAIT_COMMAND,
 			};
 		case REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {

@@ -25,6 +25,7 @@ function makeReport() {
 			},
 		],
 		nextActions: [] as string[],
+		nextCommands: [] as string[],
 		host: {
 			app: "apps/refarm",
 			command: "refarm",
@@ -91,6 +92,7 @@ describe("formatRefarmDoctorReportJson", () => {
 		expect(output).toContain('"status"');
 		expect(output).toContain('"recommendations"');
 		expect(output).toContain('"nextActions"');
+		expect(output).toContain('"nextCommands"');
 		expect(output).toContain('"version": "1.2.3"');
 	});
 });
@@ -171,6 +173,7 @@ describe("printRefarmDoctorNextAction", () => {
 			{
 				...makeReport(),
 				nextActions: ["Start runtime.", "Inspect trust."],
+				nextCommands: ["refarm runtime start --wait"],
 			},
 			log,
 		);
@@ -195,12 +198,15 @@ describe("formatRefarmDoctorNextActionJson", () => {
 					...makeReport(),
 					ok: false,
 					nextActions: ["Start runtime.", "Inspect trust."],
+					nextCommands: ["refarm runtime start --wait"],
 				}),
 			),
 		).toEqual({
 			ok: false,
 			nextAction: "Start runtime.",
 			nextActions: ["Start runtime.", "Inspect trust."],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
 		});
 	});
 });
@@ -222,6 +228,7 @@ describe("emitRefarmDoctorOutput", () => {
 			report: {
 				...makeReport(),
 				nextActions: ["Start runtime."],
+				nextCommands: ["refarm runtime start --wait"],
 			},
 			mode: "next-action",
 			log,
@@ -238,6 +245,7 @@ describe("emitRefarmDoctorOutput", () => {
 				...makeReport(),
 				ok: false,
 				nextActions: ["Start runtime."],
+				nextCommands: ["refarm runtime start --wait"],
 			},
 			mode: "next-action-json",
 			log,
@@ -247,6 +255,8 @@ describe("emitRefarmDoctorOutput", () => {
 			ok: false,
 			nextAction: "Start runtime.",
 			nextActions: ["Start runtime."],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
 		});
 	});
 });

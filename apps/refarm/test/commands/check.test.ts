@@ -35,6 +35,7 @@ function makeDoctorReport(
 		informational: [],
 		recommendations: [],
 		nextActions: [],
+		nextCommands: [],
 		host: {
 			app: "apps/refarm",
 			command: "refarm",
@@ -117,6 +118,7 @@ describe("buildRefarmCheckReport", () => {
 						severity: "failure",
 						summary: "Runtime is not ready.",
 						action: "Repair the runtime.",
+						command: "refarm runtime start --wait",
 					},
 				],
 			}),
@@ -131,6 +133,8 @@ describe("buildRefarmCheckReport", () => {
 			"Add the build config.",
 			"Repair the runtime.",
 		]);
+		expect(report.nextCommand).toBe("refarm runtime start --wait");
+		expect(report.nextCommands).toEqual(["refarm runtime start --wait"]);
 		expect(report.checks.health.issueCount).toBe(2);
 		expect(report.checks.doctor.failureCount).toBe(1);
 	});
@@ -179,6 +183,8 @@ describe("checkCommand", () => {
 		expect(output).toContain('"doctor"');
 		expect(output).toContain('"nextAction": null');
 		expect(output).toContain('"nextActions"');
+		expect(output).toContain('"nextCommand": null');
+		expect(output).toContain('"nextCommands"');
 	});
 
 	it("prints a failing summary and actionable recommendations", async () => {
@@ -286,6 +292,8 @@ describe("checkCommand", () => {
 			ok: false,
 			nextAction: "Add the build config.",
 			nextActions: ["Add the build config."],
+			nextCommand: null,
+			nextCommands: [],
 		});
 		expect(process.exitCode).toBe(1);
 	});

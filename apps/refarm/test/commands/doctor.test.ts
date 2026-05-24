@@ -96,6 +96,7 @@ describe("buildRefarmDoctorReport", () => {
 			"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 			"Inspect trust warnings and decide whether they should block this workflow.",
 		]);
+		expect(report.nextCommands).toEqual(["refarm runtime start --wait"]);
 		expect(report.host.version).toBe("1.2.3");
 		expect(report.host.packageManager).toBe("pnpm");
 	});
@@ -125,6 +126,7 @@ describe("buildRefarmDoctorRecommendations", () => {
 				severity: "failure",
 				summary: "The runtime reported that it is not ready.",
 				action: "Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				command: "refarm runtime start --wait",
 			},
 			{
 				diagnostic: "plugins:rejected-surfaces-present",
@@ -224,6 +226,7 @@ describe("doctorCommand", () => {
 		expect(String(output)).toContain('"status"');
 		expect(String(output)).toContain('"recommendations"');
 		expect(String(output)).toContain('"nextActions"');
+		expect(String(output)).toContain('"nextCommands"');
 		logSpy.mockRestore();
 	});
 
@@ -263,6 +266,8 @@ describe("doctorCommand", () => {
 				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 				"Inspect trust warnings and decide whether they should block this workflow.",
 			],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

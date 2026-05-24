@@ -4,6 +4,7 @@ export interface DiagnosticRecommendation {
 	diagnostic: string;
 	summary: string;
 	action: string;
+	command?: string;
 	severity?: DiagnosticRecommendationSeverity;
 	target?: string;
 }
@@ -12,6 +13,8 @@ export interface DiagnosticNextActionPayload<TExtra extends object = object> {
 	ok: boolean;
 	nextAction: string | null;
 	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export function diagnosticNextActions(
@@ -29,15 +32,33 @@ export function diagnosticNextActions(
 	return actions;
 }
 
+export function diagnosticNextCommands(
+	recommendations: DiagnosticRecommendation[],
+): string[] {
+	const seen = new Set<string>();
+	const commands: string[] = [];
+	for (const recommendation of recommendations) {
+		if (recommendation.severity === "info") continue;
+		const command = recommendation.command?.trim();
+		if (!command || seen.has(command)) continue;
+		seen.add(command);
+		commands.push(command);
+	}
+	return commands;
+}
+
 export function buildDiagnosticNextActionPayload<TExtra extends object = object>(
-	input: { ok: boolean; nextActions: string[] } & TExtra,
+	input: { ok: boolean; nextActions: string[]; nextCommands?: string[] } & TExtra,
 ): DiagnosticNextActionPayload<TExtra> & TExtra {
 	const [nextAction] = input.nextActions;
-	const { ok, nextActions, ...extra } = input;
+	const [nextCommand] = input.nextCommands ?? [];
+	const { ok, nextActions, nextCommands, ...extra } = input;
 	return {
 		ok,
 		nextAction: nextAction ?? null,
 		nextActions,
+		nextCommand: nextCommand ?? null,
+		nextCommands: nextCommands ?? [],
 		...(extra as TExtra),
 	};
 }
