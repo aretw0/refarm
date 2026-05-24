@@ -439,6 +439,64 @@ describe("provision command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("reports Cloudflare turbo-cache apply result as JSON with executable secret handoff", async () => {
+		const provider = { accountId: "account-1" };
+		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
+		mockCreateCloudflareProvider.mockResolvedValue(provider);
+		mockProvision.mockResolvedValue({
+			workerUrl: "https://refarm-cache.example.workers.dev",
+			authToken: "generated-token",
+			bucketName: "refarm-cache-test",
+			plan: { provider: "cloudflare", serviceId: "turbo-cache" },
+		});
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			[
+				"cloudflare",
+				"turbo-cache",
+				"--json",
+				"--bucket",
+				"refarm-cache-test",
+				"--team",
+				"garden",
+			],
+			{ from: "user" },
+		);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			authToken: string;
+			githubSecretsWritten: boolean;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			command: "provision",
+			operation: "apply",
+			provider: "cloudflare",
+			service: "turbo-cache",
+			bucketName: "refarm-cache-test",
+			workerUrl: "https://refarm-cache.example.workers.dev",
+			authToken: "<redacted>",
+			githubSecretsWritten: false,
+			nextCommand: "refarm provision cloudflare turbo-cache --github-secrets",
+		});
+		expect(payload.nextCommands).toContain(
+			"refarm provision cloudflare turbo-cache --github-secrets",
+		);
+		expect(mockSpawnSync).not.toHaveBeenCalled();
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("writes produced Cloudflare turbo-cache secrets to GitHub without printing the token", async () => {
 		const provider = { accountId: "account-1" };
 		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
@@ -491,6 +549,57 @@ describe("provision command", () => {
 		);
 		expect(logSpy).not.toHaveBeenCalledWith(
 			expect.stringContaining("generated-token"),
+		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports GitHub secret writes as JSON with an executable verification command", async () => {
+		const provider = { accountId: "account-1" };
+		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
+		mockCreateCloudflareProvider.mockResolvedValue(provider);
+		mockProvision.mockResolvedValue({
+			workerUrl: "https://refarm-cache.example.workers.dev",
+			authToken: "generated-token",
+			bucketName: "refarm-cache-test",
+			plan: { provider: "cloudflare", serviceId: "turbo-cache" },
+		});
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(
+			["cloudflare", "turbo-cache", "--github-secrets", "--json"],
+			{ from: "user" },
+		);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			authToken: string;
+			githubSecretsWritten: boolean;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			authToken: "<redacted>",
+			githubSecretsWritten: true,
+			nextCommand: "gh secret list",
+		});
+		expect(payload.nextCommands).toEqual(["gh secret list"]);
+		expect(mockSpawnSync).toHaveBeenCalledWith(
+			"gh",
+			["secret", "set", "TURBO_CACHE_API_URL"],
+			expect.objectContaining({ input: "https://refarm-cache.example.workers.dev" }),
+		);
+		expect(mockSpawnSync).toHaveBeenCalledWith(
+			"gh",
+			["secret", "set", "TURBO_CACHE_TOKEN"],
+			expect.objectContaining({ input: "generated-token" }),
 		);
 
 		logSpy.mockRestore();

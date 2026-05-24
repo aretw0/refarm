@@ -9,7 +9,11 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
@@ -192,6 +196,42 @@ function buildTurboCacheFailurePayload(input: {
 				team: input.options.team,
 				githubSecrets: input.options.githubSecrets === true,
 			},
+		},
+	});
+}
+
+function buildTurboCacheApplyPayload(input: {
+	options: TurboCacheCommandOptions;
+	result: Awaited<ReturnType<CloudflareTurboCacheProvisioner["provision"]>>;
+	githubSecretsWritten: boolean;
+}) {
+	const nextCommands = input.githubSecretsWritten
+		? ["gh secret list"]
+		: ["refarm provision cloudflare turbo-cache --github-secrets"];
+	const nextActions = input.githubSecretsWritten
+		? ["gh secret list", "push a commit and watch GitHub Actions"]
+		: [
+				"refarm provision cloudflare turbo-cache --github-secrets",
+				"copy TURBO_CACHE_API_URL and TURBO_CACHE_TOKEN into GitHub Actions secrets",
+			];
+	return buildJsonSuccessEnvelope({
+		command: "provision",
+		operation: "apply",
+		nextAction: nextActions[0],
+		nextActions,
+		nextCommand: nextCommands[0],
+		nextCommands,
+		extra: {
+			schemaVersion: PROVISION_SCHEMA_VERSION,
+			provider: "cloudflare",
+			service: turboCacheManifest.id,
+			bucketName: input.result.bucketName,
+			workerUrl: input.result.workerUrl,
+			authToken: input.options.printSecrets
+				? input.result.authToken
+				: "<redacted>",
+			githubSecretsWritten: input.githubSecretsWritten,
+			plan: input.result.plan,
 		},
 	});
 }
@@ -486,37 +526,25 @@ const cloudflareCommand = new Command("cloudflare")
 						console.log(chalk.green("  ✔ GitHub secret TURBO_CACHE_TOKEN set"));
 					}
 					if (shouldJson) {
-						printJson({
-							schemaVersion: PROVISION_SCHEMA_VERSION,
-							command: "provision",
-							provider: "cloudflare",
-							service: turboCacheManifest.id,
-							operation: "apply",
-							ok: true,
-							bucketName: result.bucketName,
-							workerUrl: result.workerUrl,
-							authToken: opts.printSecrets ? result.authToken : "<redacted>",
-							githubSecretsWritten: true,
-							plan: result.plan,
-						});
+						printJson(
+							buildTurboCacheApplyPayload({
+								options: opts,
+								result,
+								githubSecretsWritten: true,
+							}),
+						);
 					}
 					return;
 				}
 
 				if (shouldJson) {
-					printJson({
-						schemaVersion: PROVISION_SCHEMA_VERSION,
-						command: "provision",
-						provider: "cloudflare",
-						service: turboCacheManifest.id,
-						operation: "apply",
-						ok: true,
-						bucketName: result.bucketName,
-						workerUrl: result.workerUrl,
-						authToken: opts.printSecrets ? result.authToken : "<redacted>",
-						githubSecretsWritten: false,
-						plan: result.plan,
-					});
+					printJson(
+						buildTurboCacheApplyPayload({
+							options: opts,
+							result,
+							githubSecretsWritten: false,
+						}),
+					);
 					return;
 				}
 
