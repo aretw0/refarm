@@ -11,7 +11,11 @@ import { Command, InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -80,6 +84,18 @@ function formatAgeSeconds(submittedAt?: string): string {
 	const submittedMs = Date.parse(submittedAt);
 	if (Number.isNaN(submittedMs)) return "-";
 	return `${Math.max(0, Math.floor((Date.now() - submittedMs) / 1000))}s`;
+}
+
+function printTaskJsonSuccess<TExtra extends object>(
+	extra: TExtra,
+	nextCommands: string[] = [],
+): void {
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra,
+			nextCommands,
+		}),
+	);
 }
 
 class FileTransportClient implements TaskOperationsAdapter {
@@ -506,7 +522,13 @@ Notes:
 					});
 					if (!result) {
 						if (opts.json) {
-							printJson({ effortId, status: "not-found" });
+							const statusCommand = buildTaskStatusCommand(effortId, transport, {
+								watch: true,
+							});
+							printTaskJsonSuccess(
+								{ effortId, status: "not-found" },
+								[statusCommand, buildTaskLogsCommand(effortId, transport)],
+							);
 						} else {
 							console.log(chalk.gray("No result yet."));
 						}
@@ -516,13 +538,22 @@ Notes:
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
 					if (opts.json) {
-						printJson({
-							effortId,
-							status: result.status,
-							attempts,
-							ageSeconds,
-							result,
-						});
+						const nextCommands = FINAL_STATUSES.has(result.status)
+							? [buildTaskLogsCommand(effortId, transport)]
+							: [
+									buildTaskStatusCommand(effortId, transport, { watch: true }),
+									buildTaskLogsCommand(effortId, transport),
+								];
+						printTaskJsonSuccess(
+							{
+								effortId,
+								status: result.status,
+								attempts,
+								ageSeconds,
+								result,
+							},
+							nextCommands,
+						);
 					} else {
 						const color =
 							result.status === "done"
@@ -591,7 +622,10 @@ Notes:
 			const checkpoint = sessionRecorder.getCheckpoint();
 			if (!checkpoint) {
 				if (opts.json) {
-					printJson({ status: "empty" });
+					printTaskJsonSuccess(
+						{ status: "empty" },
+						["refarm task list --json"],
+					);
 					return;
 				}
 				console.log(chalk.gray("No task session checkpoint yet."));
@@ -599,7 +633,17 @@ Notes:
 			}
 
 			if (opts.json) {
-				printJson({ status: "ok", checkpoint });
+				const active = checkpoint.activeEffortId
+					? checkpoint.efforts.find(
+							(entry) => entry.effortId === checkpoint.activeEffortId,
+						)
+					: undefined;
+				printTaskJsonSuccess(
+					{ status: "ok", checkpoint },
+					active
+						? [`${active.statusCommand} --watch`, active.logsCommand]
+						: ["refarm task list --json"],
+				);
 				return;
 			}
 
@@ -660,7 +704,13 @@ Notes:
 			});
 
 			if (opts.json) {
-				printJson({ summary, efforts });
+				const nextCommands = efforts[0]
+					? [
+							buildTaskStatusCommand(efforts[0].effortId, transport),
+							buildTaskLogsCommand(efforts[0].effortId, transport),
+						]
+					: [];
+				printTaskJsonSuccess({ summary, efforts }, nextCommands);
 				return;
 			}
 
@@ -717,13 +767,23 @@ Notes:
 					});
 				});
 				if (!logs || logs.length === 0) {
+					if (opts.json) {
+						printTaskJsonSuccess(
+							{ effortId, logs: [] },
+							[buildTaskStatusCommand(effortId, transport)],
+						);
+						return;
+					}
 					console.log(chalk.gray("No logs yet."));
 					return;
 				}
 
 				const sliced = logs.slice(-opts.tail);
 				if (opts.json) {
-					printJson({ effortId, logs: sliced });
+					printTaskJsonSuccess(
+						{ effortId, logs: sliced },
+						[buildTaskStatusCommand(effortId, transport)],
+					);
 					return;
 				}
 

@@ -330,6 +330,38 @@ describe("refarm task status", () => {
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("t1"));
 		spy.mockRestore();
 	});
+
+	it("prints status not-found JSON with follow-up commands", async () => {
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(null),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.status).toBe("not-found");
+		expect(payload.nextCommand).toBe(
+			"refarm task status effort-abc --transport file --watch",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm task logs effort-abc --transport file",
+		);
+		spy.mockRestore();
+	});
 });
 
 describe("refarm task list/logs/retry/cancel", () => {
@@ -412,6 +444,34 @@ describe("refarm task list/logs/retry/cancel", () => {
 			logs,
 		});
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("submitted"));
+		spy.mockRestore();
+	});
+
+	it("logs prints empty JSON with status follow-up", async () => {
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockResolvedValue([]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			logs: EffortLogEntry[];
+			nextCommand: string;
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.logs).toEqual([]);
+		expect(payload.nextCommand).toBe(
+			"refarm task status effort-abc --transport file",
+		);
 		spy.mockRestore();
 	});
 
