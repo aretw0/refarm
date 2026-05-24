@@ -22,6 +22,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
 		expect(help).toContain("refarm agent finish --next-command");
+		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --run");
 		expect(help).toContain("refarm agent finish --run --json");
 		expect(help).toContain("refarm agent finish --run --next-command");
@@ -166,6 +167,18 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints the next fix finish command without executing it", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--fix", "--next-command"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith("refarm tidy imports --json");
+		logSpy.mockRestore();
+	});
+
 	it("runs the finish plan and reports passing steps", async () => {
 		const runRefarm = vi.fn((args: string[]) => ({
 			id: args.join(" "),
@@ -208,6 +221,41 @@ describe("agent command", () => {
 			"--json",
 		]);
 		expect(runRefarm).toHaveBeenCalledTimes(3);
+		logSpy.mockRestore();
+	});
+
+	it("runs import organization before finish checks when --fix is set", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--fix", "--run", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string; args: string[] }[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports",
+			"tidy-imports-check",
+			"health",
+			"check",
+		]);
+		expect(payload.steps[0]?.args).toEqual(["tidy", "imports", "--json"]);
+		expect(runRefarm).toHaveBeenCalledTimes(4);
 		logSpy.mockRestore();
 	});
 

@@ -52,6 +52,7 @@ interface AgentCommandDeps {
 }
 
 interface AgentFinishOptions {
+	fix?: boolean;
 	json?: boolean;
 	nextAction?: boolean;
 	nextCommand?: boolean;
@@ -96,6 +97,11 @@ function finishStep(
 
 const agentFinishSteps = [
 	finishStep(
+		"tidy-imports",
+		["tidy", "imports", "--json"],
+		"Organize imports after the editing slice.",
+	),
+	finishStep(
 		"tidy-imports-check",
 		["tidy", "imports", "--check", "--json"],
 		"Check import organization after the editing slice.",
@@ -112,14 +118,23 @@ const agentFinishSteps = [
 	),
 ];
 
-function plannedFinishCommands(): string[] {
-	return agentFinishSteps.map((step) => step.command);
+function selectedFinishSteps(options: { fix?: boolean } = {}): CommandPlanStep[] {
+	return options.fix
+		? agentFinishSteps
+		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
+}
+
+function plannedFinishCommands(options: { fix?: boolean } = {}): string[] {
+	return selectedFinishSteps(options).map((step) => step.command);
 }
 
 function runAgentFinishPlan(
 	deps: AgentCommandDeps,
+	options: { fix?: boolean } = {},
 ): CommandPlanRunResult {
-	return runCommandPlan(agentFinishSteps, (step) => deps.runRefarm(step.args));
+	return runCommandPlan(selectedFinishSteps(options), (step) =>
+		deps.runRefarm(step.args),
+	);
 }
 
 function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
@@ -174,6 +189,7 @@ Verification:
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
   $ refarm agent finish --next-command Print the first verification command
+  $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
 Plugin lifecycle:
@@ -222,6 +238,7 @@ Notes:
 	command
 		.command("finish")
 		.description("Print the end-of-slice verification plan for coding agents")
+		.option("--fix", "Include import organization before verification")
 		.option("--json", "Output machine-readable finish plan")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
@@ -233,12 +250,15 @@ Notes:
 				"Examples:",
 				"  $ refarm agent finish --json",
 				"  $ refarm agent finish --next-command",
+				"  $ refarm agent finish --fix --next-command",
 				"  $ refarm agent finish --run --json",
+				"  $ refarm agent finish --fix --run --json",
 				"  $ refarm agent finish --run --next-command",
 				"",
 				"Notes:",
-				"  Without --run this command only prints the checks a coding agent should run.",
-				"  --run executes check-only commands, stops at the first failure, and does not commit changes.",
+				"  Without --run this command only prints the commands a coding agent should run.",
+				"  --fix adds refarm tidy imports before the check-only verification steps.",
+				"  --run executes selected commands, stops at the first failure, and does not commit changes.",
 			].join("\n"),
 		)
 		.action(function (this: Command) {
@@ -247,7 +267,7 @@ Notes:
 				...this.opts<AgentFinishOptions>(),
 			} satisfies AgentFinishOptions;
 			if (options.run) {
-				const result = runAgentFinishPlan(resolvedDeps);
+				const result = runAgentFinishPlan(resolvedDeps, { fix: options.fix });
 				if (options.json) {
 					printJson({
 						action: "finish",
@@ -274,7 +294,7 @@ Notes:
 				if (!result.ok) process.exitCode = 1;
 				return;
 			}
-			const nextCommands = plannedFinishCommands();
+			const nextCommands = plannedFinishCommands({ fix: options.fix });
 			if (options.nextCommand) {
 				const [nextCommand] = nextCommands;
 				if (nextCommand) console.log(nextCommand);
@@ -297,7 +317,7 @@ Notes:
 						extra: {
 							action: "finish",
 							status: "plan",
-							steps: agentFinishSteps,
+							steps: selectedFinishSteps({ fix: options.fix }),
 						},
 					}),
 				);
