@@ -28,6 +28,11 @@ import {
 } from "./sow-metadata.js";
 
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
+const MODEL_CURRENT_JSON_COMMAND = "refarm model current --json";
+const MODEL_PROVIDERS_JSON_COMMAND = "refarm model providers --json";
+const CHECK_NEXT_ACTION_JSON_COMMAND = "refarm check --next-action --json";
+const OPERATOR_LINKS_CONFIG_COMMAND =
+	"refarm config get operator.openExternalLinks --json";
 
 function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
@@ -78,6 +83,7 @@ export const sowCommand = new Command("sow")
 							error: "empty-model",
 							message: "--model cannot be empty.",
 							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							nextCommand: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
 							extra: { action: "sow" },
 						}),
 					);
@@ -95,6 +101,7 @@ export const sowCommand = new Command("sow")
 							error: "model-provider-required",
 							message: `Could not infer provider for model "${initialModelRef.modelId}".`,
 							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							nextCommand: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
 							extra: {
 								action: "sow",
 								modelId: initialModelRef.modelId,
@@ -154,8 +161,14 @@ export const sowCommand = new Command("sow")
 						nextAction,
 						nextActions: [
 							nextAction,
-							"refarm model current --json",
-							"refarm config get operator.openExternalLinks --json",
+							MODEL_CURRENT_JSON_COMMAND,
+							OPERATOR_LINKS_CONFIG_COMMAND,
+						],
+						nextCommand: nextAction,
+						nextCommands: [
+							nextAction,
+							MODEL_CURRENT_JSON_COMMAND,
+							OPERATOR_LINKS_CONFIG_COMMAND,
 						],
 						extra: {
 							action: "sow",
@@ -241,10 +254,16 @@ export const sowCommand = new Command("sow")
 					buildJsonSuccessEnvelope({
 						command: "sow",
 						operation: "credentials",
-						nextAction: "refarm model current --json",
+						nextAction: MODEL_CURRENT_JSON_COMMAND,
 						nextActions: [
-							"refarm model current --json",
-							"refarm check --next-action --json",
+							MODEL_CURRENT_JSON_COMMAND,
+							CHECK_NEXT_ACTION_JSON_COMMAND,
+						],
+						nextCommand: MODEL_CURRENT_JSON_COMMAND,
+						nextCommands: [
+							MODEL_CURRENT_JSON_COMMAND,
+							MODEL_PROVIDERS_JSON_COMMAND,
+							CHECK_NEXT_ACTION_JSON_COMMAND,
 						],
 						extra: {
 							action: "sow",

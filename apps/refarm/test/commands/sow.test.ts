@@ -82,6 +82,8 @@ describe("sowCommand — default (no flags)", () => {
 			status: string;
 			modelRoute: { provider: string; modelId: string };
 			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: true,
@@ -89,6 +91,8 @@ describe("sowCommand — default (no flags)", () => {
 			modelRoute: { provider: "openai", modelId: "gpt-5.5" },
 		});
 		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(payload.nextCommand).toBe("refarm model current --json");
+		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
 	});
@@ -127,13 +131,19 @@ describe("sowCommand — default (no flags)", () => {
 			status: string;
 			prompts: string[];
 			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			status: "interactive-required",
 			prompts: ["model"],
 			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 		});
+		expect(payload.nextCommands).toContain(
+			"refarm config get operator.openExternalLinks --json",
+		);
 		expect(process.exitCode).toBe(1);
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).not.toHaveBeenCalled();
