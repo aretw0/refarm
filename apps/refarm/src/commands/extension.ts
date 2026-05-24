@@ -9,6 +9,12 @@ import {
 	printJson,
 } from "./json-output.js";
 
+const EXTENSION_LIST_JSON_COMMAND = "refarm extension list --json";
+
+function extensionSaveCommand(name: string, scope: "global" | "local"): string {
+  return `refarm extension save ${JSON.stringify(name)} --${scope}`;
+}
+
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
 // Loaded directly by the Refarm runtime (no WASM compilation needed).
@@ -73,6 +79,8 @@ export interface CreatedExtensionReport extends ExtensionEntry {
   slug: string;
   indexPath: string;
   nextActions: string[];
+  nextCommand?: string;
+  nextCommands?: string[];
 }
 
 export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
@@ -149,6 +157,8 @@ async function newExtension(
     scope,
     indexPath,
     nextActions: ["run '/reload' in the refarm REPL, or restart the Refarm runtime"],
+    nextCommand: EXTENSION_LIST_JSON_COMMAND,
+    nextCommands: [EXTENSION_LIST_JSON_COMMAND],
   };
   if (options.json) {
     printJson(report);
@@ -173,6 +183,11 @@ async function saveExtension(
             "Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
           nextAction: "refarm extension save my-tool --global",
           nextActions: [
+            "refarm extension save my-tool --global",
+            "refarm extension save my-tool --local",
+          ],
+          nextCommand: "refarm extension save my-tool --global",
+          nextCommands: [
             "refarm extension save my-tool --global",
             "refarm extension save my-tool --local",
           ],
@@ -208,7 +223,8 @@ async function saveExtension(
       printJson(
         buildJsonErrorEnvelope({
           error: "extension-not-found",
-          nextAction: `refarm extension list --json`,
+          nextAction: EXTENSION_LIST_JSON_COMMAND,
+          nextCommand: EXTENSION_LIST_JSON_COMMAND,
           extra: {
             name,
             action: "save",
@@ -235,7 +251,8 @@ async function saveExtension(
       buildJsonSuccessEnvelope({
         command: "extension",
         operation: "save",
-        nextAction: `refarm extension list --json`,
+        nextAction: EXTENSION_LIST_JSON_COMMAND,
+        nextCommand: EXTENSION_LIST_JSON_COMMAND,
         extra: {
           name,
           action: "save",
@@ -264,6 +281,8 @@ function publishExtensionPlan(name: string) {
       "refarm plugin bundle <plugin.wasm>",
       "refarm plugin status",
     ],
+    nextCommand: EXTENSION_LIST_JSON_COMMAND,
+    nextCommands: [EXTENSION_LIST_JSON_COMMAND, "refarm plugin status --json"],
     extra: {
       name,
       action: "publish",
@@ -351,6 +370,11 @@ extensionCommand
             nextActions: [
               `refarm extension save ${name} --global`,
               `refarm extension save ${name} --local`,
+            ],
+            nextCommand: extensionSaveCommand(name, "global"),
+            nextCommands: [
+              extensionSaveCommand(name, "global"),
+              extensionSaveCommand(name, "local"),
             ],
             extra: {
               name,

@@ -69,6 +69,8 @@ describe("extension command", () => {
 				scope: string;
 				indexPath: string;
 				nextActions: string[];
+				nextCommand: string;
+				nextCommands: string[];
 			};
 			expect(payload).toMatchObject({
 				id: "@local/my-tool",
@@ -81,6 +83,8 @@ describe("extension command", () => {
 				nextActions: [
 					"run '/reload' in the refarm REPL, or restart the Refarm runtime",
 				],
+				nextCommand: "refarm extension list --json",
+				nextCommands: ["refarm extension list --json"],
 			});
 		} finally {
 			cwdSpy.mockRestore();
@@ -227,6 +231,7 @@ describe("extension command", () => {
 				fromScope: string;
 				toScope: string;
 				destinationDir: string;
+				nextCommand: string;
 			};
 			expect(payload).toMatchObject({
 				ok: true,
@@ -234,6 +239,7 @@ describe("extension command", () => {
 				fromScope: "project",
 				toScope: "global",
 				destinationDir: join(homeDir, ".refarm", "extensions", "my-tool"),
+				nextCommand: "refarm extension list --json",
 			});
 		} finally {
 			if (previousHome === undefined) {
@@ -263,12 +269,18 @@ describe("extension command", () => {
 			ok: boolean;
 			error: string;
 			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "missing-scope",
 		});
 		expect(payload.nextActions).toContain("refarm extension save my-tool --global");
+		expect(payload.nextCommand).toBe('refarm extension save "my-tool" --global');
+		expect(payload.nextCommands).toContain(
+			'refarm extension save "my-tool" --local',
+		);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
@@ -289,12 +301,16 @@ describe("extension command", () => {
 			ok: boolean;
 			error: string;
 			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "invalid-extension-name",
 			nextAction: "refarm extension save my-tool --global",
+			nextCommand: "refarm extension save my-tool --global",
 		});
+		expect(payload.nextCommands).toContain("refarm extension save my-tool --local");
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
@@ -314,6 +330,8 @@ describe("extension command", () => {
 			status: string;
 			nextAction: string;
 			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
@@ -322,6 +340,8 @@ describe("extension command", () => {
 			nextAction: "refarm plugin bundle <plugin.wasm>",
 		});
 		expect(payload.nextActions).toContain("/reload @local/my-tool");
+		expect(payload.nextCommand).toBe("refarm extension list --json");
+		expect(payload.nextCommands).toContain("refarm plugin status --json");
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
