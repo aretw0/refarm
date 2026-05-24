@@ -26,6 +26,10 @@ interface OpenUrlOptions {
 
 const OPEN_URL_SCHEMA_VERSION = 1;
 
+function openUrlCommandLine(url: string, flags: string[] = []): string {
+	return ["refarm", "open-url", JSON.stringify(url), ...flags].join(" ");
+}
+
 export function createOpenUrlCommand(deps?: Partial<OpenUrlDeps>): Command {
 	const resolvedDeps: OpenUrlDeps = {
 		open: (url) => openHostBrowserUrl(url),
@@ -63,11 +67,16 @@ Notes:
 					const nextAction = candidates.length > 0
 						? `refarm open-url ${url}`
 						: `open manually: ${url}`;
+					const nextCommand = candidates.length > 0
+						? openUrlCommandLine(url)
+						: openUrlCommandLine(url, ["--dry-run", "--json"]);
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "open-url",
 							operation: "dry-run",
 							nextAction,
+							nextCommand,
+							nextCommands: [nextCommand],
 							extra: {
 								schemaVersion: OPEN_URL_SCHEMA_VERSION,
 								url,
@@ -117,6 +126,7 @@ Notes:
 							error: "open-url-failed",
 							message,
 							nextAction: `open manually: ${url}`,
+							nextCommand: openUrlCommandLine(url, ["--dry-run", "--json"]),
 							extra: {
 								schemaVersion: OPEN_URL_SCHEMA_VERSION,
 								url,

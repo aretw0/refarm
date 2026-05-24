@@ -68,6 +68,8 @@ describe("open-url command", () => {
 			dryRun: boolean;
 			ok: boolean;
 			candidates: unknown[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			command: "open-url",
@@ -76,6 +78,12 @@ describe("open-url command", () => {
 			ok: true,
 		});
 		expect(payload.candidates.length).toBeGreaterThan(0);
+		expect(payload.nextCommand).toBe(
+			'refarm open-url "https://github.com/login/device"',
+		);
+		expect(payload.nextCommands).toEqual([
+			'refarm open-url "https://github.com/login/device"',
+		]);
 		logSpy.mockRestore();
 	});
 
@@ -172,6 +180,7 @@ describe("open-url command", () => {
 			message: string;
 			operation: string;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
@@ -179,6 +188,8 @@ describe("open-url command", () => {
 			message: "no opener",
 			operation: "open",
 			nextAction: "open manually: https://example.test/auth",
+			nextCommand:
+				'refarm open-url "https://example.test/auth" --dry-run --json',
 		});
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
