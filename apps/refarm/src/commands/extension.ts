@@ -3,7 +3,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
@@ -227,17 +231,21 @@ async function saveExtension(
 
   const toScope = toGlobal ? "global" : "project";
   if (options.json) {
-    printJson({
-      name,
-      action: "save",
-      ok: true,
-      fromScope: toGlobal ? "project" : "global",
-      toScope,
-      sourceDir: srcDir,
-      destinationDir: destDir,
-      nextAction: `refarm extension list --json`,
-      nextActions: [`refarm extension list --json`],
-    });
+    printJson(
+      buildJsonSuccessEnvelope({
+        command: "extension",
+        operation: "save",
+        nextAction: `refarm extension list --json`,
+        extra: {
+          name,
+          action: "save",
+          fromScope: toGlobal ? "project" : "global",
+          toScope,
+          sourceDir: srcDir,
+          destinationDir: destDir,
+        },
+      }),
+    );
     return;
   }
   console.log(`Extension '${name}' moved to ${toScope} scope (${destDir})`);
