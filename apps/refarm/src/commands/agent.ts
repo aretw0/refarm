@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { spawnSync } from "node:child_process";
 import { defaultProviderModelRef } from "../model-routing.js";
 import { refarmCommand } from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
@@ -44,6 +45,52 @@ interface AgentFinishStep {
 	description: string;
 }
 
+interface AgentFinishStepRunResult extends AgentFinishStep {
+	ok: boolean;
+	exitCode: number;
+	stdout: string;
+	stderr: string;
+	payload?: unknown;
+}
+
+interface AgentCommandDeps {
+	runRefarm(args: string[]): AgentFinishStepRunResult;
+}
+
+function runRefarmCommand(args: string[]): AgentFinishStepRunResult {
+	const result = spawnSync(process.argv[0]!, [process.argv[1]!, ...args], {
+		cwd: process.cwd(),
+		env: process.env,
+		encoding: "utf-8",
+	});
+	const exitCode = result.status ?? (result.error ? 1 : 0);
+	const stdout = result.stdout ?? "";
+	const stderr = result.stderr ?? "";
+	return {
+		id: args.join(" "),
+		command: refarmCommand(args),
+		args,
+		description: "Refarm command execution result.",
+		ok: exitCode === 0,
+		exitCode,
+		stdout,
+		stderr,
+		...(parseJsonPayload(stdout) !== undefined
+			? { payload: parseJsonPayload(stdout) }
+			: {}),
+	};
+}
+
+function parseJsonPayload(stdout: string): unknown {
+	const trimmed = stdout.trim();
+	if (!trimmed) return undefined;
+	try {
+		return JSON.parse(trimmed);
+	} catch {
+		return undefined;
+	}
+}
+
 function finishStep(
 	id: string,
 	args: string[],
@@ -75,7 +122,77 @@ const agentFinishSteps = [
 	),
 ];
 
-export function createAgentCommand(): Command {
+function runAgentFinishPlan(
+	deps: AgentCommandDeps,
+): {
+	ok: boolean;
+	status: "passed" | "failed";
+	steps: AgentFinishStepRunResult[];
+	nextActions: string[];
+	nextCommands: string[];
+} {
+	const steps: AgentFinishStepRunResult[] = [];
+	for (const step of agentFinishSteps) {
+		const result = {
+			...deps.runRefarm(step.args),
+			id: step.id,
+			command: step.command,
+			args: step.args,
+			description: step.description,
+		};
+		const payloadOk = payloadOkValue(result.payload);
+		const ok = result.exitCode === 0 && payloadOk !== false;
+		const normalized = { ...result, ok };
+		steps.push(normalized);
+		if (!ok) {
+			return {
+				ok: false,
+				status: "failed",
+				steps,
+				nextActions: payloadNextActions(result.payload) ??
+					payloadNextCommands(result.payload) ?? [step.command],
+				nextCommands: payloadNextCommands(result.payload) ?? [step.command],
+			};
+		}
+	}
+	return {
+		ok: true,
+		status: "passed",
+		steps,
+		nextActions: [],
+		nextCommands: [],
+	};
+}
+
+function payloadOkValue(payload: unknown): boolean | undefined {
+	if (!payload || typeof payload !== "object" || !("ok" in payload)) {
+		return undefined;
+	}
+	const value = (payload as { ok?: unknown }).ok;
+	return typeof value === "boolean" ? value : undefined;
+}
+
+function payloadNextCommands(payload: unknown): string[] | undefined {
+	if (!payload || typeof payload !== "object") return undefined;
+	const value = (payload as { nextCommands?: unknown }).nextCommands;
+	if (!Array.isArray(value)) return undefined;
+	const commands = value.filter((item): item is string => typeof item === "string");
+	return commands.length > 0 ? commands : undefined;
+}
+
+function payloadNextActions(payload: unknown): string[] | undefined {
+	if (!payload || typeof payload !== "object") return undefined;
+	const value = (payload as { nextActions?: unknown }).nextActions;
+	if (!Array.isArray(value)) return undefined;
+	const actions = value.filter((item): item is string => typeof item === "string");
+	return actions.length > 0 ? actions : undefined;
+}
+
+export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
+	const resolvedDeps: AgentCommandDeps = {
+		runRefarm: runRefarmCommand,
+		...deps,
+	};
 	// Agent runtime commands (status, repl, start/stop) live here.
 	// Plugin lifecycle (install, update, list) is in `refarm plugin`.
 	const command = new Command("agent").description(
@@ -153,23 +270,42 @@ Notes:
 		.command("finish")
 		.description("Print the end-of-slice verification plan for coding agents")
 		.option("--json", "Output machine-readable finish plan")
+		.option("--run", "Execute the finish plan and stop at the first failing step")
 		.addHelpText(
 			"after",
 			[
 				"",
 				"Examples:",
 				"  $ refarm agent finish --json",
+				"  $ refarm agent finish --run --json",
 				"",
 				"Notes:",
-				"  This command prints the checks a coding agent should run after edits.",
-				"  It does not execute checks, mutate files, or commit changes.",
+				"  Without --run this command only prints the checks a coding agent should run.",
+				"  --run executes check-only commands, stops at the first failure, and does not commit changes.",
 			].join("\n"),
 		)
 		.action(function (this: Command) {
 			const options = {
-				...this.parent?.opts<{ json?: boolean }>(),
-				...this.opts<{ json?: boolean }>(),
+				...this.parent?.opts<{ json?: boolean; run?: boolean }>(),
+				...this.opts<{ json?: boolean; run?: boolean }>(),
 			};
+			if (options.run) {
+				const result = runAgentFinishPlan(resolvedDeps);
+				printJson({
+					action: "finish",
+					status: result.status,
+					steps: result.steps,
+					command: "agent",
+					operation: "finish",
+					ok: result.ok,
+					nextAction: result.nextActions[0] ?? result.nextCommands[0] ?? null,
+					nextActions: result.nextActions,
+					nextCommand: result.nextCommands[0] ?? null,
+					nextCommands: result.nextCommands,
+				});
+				if (!result.ok) process.exitCode = 1;
+				return;
+			}
 			if (options.json) {
 				const nextCommands = agentFinishSteps.map((step) => step.command);
 				printJson(

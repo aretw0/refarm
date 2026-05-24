@@ -151,4 +151,118 @@ describe("agent command", () => {
 		]);
 		logSpy.mockRestore();
 	});
+
+	it("runs the finish plan and reports passing steps", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--run", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			steps: { ok: boolean; args: string[] }[];
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "passed",
+			nextCommands: [],
+		});
+		expect(payload.steps).toHaveLength(3);
+		expect(payload.steps[0]).toMatchObject({
+			id: "tidy-imports-check",
+			ok: true,
+		});
+		expect(payload.steps[0]?.args).toEqual([
+			"tidy",
+			"imports",
+			"--check",
+			"--json",
+		]);
+		expect(runRefarm).toHaveBeenCalledTimes(3);
+		logSpy.mockRestore();
+	});
+
+	it("stops finish runs at the first failing step and forwards recovery commands", async () => {
+		const runRefarm = vi
+			.fn()
+			.mockImplementationOnce((args: string[]) => ({
+				id: args.join(" "),
+				command: `refarm ${args.join(" ")}`,
+				args,
+				description: "test step",
+				ok: true,
+				exitCode: 0,
+				stdout: JSON.stringify({ ok: true }),
+				stderr: "",
+				payload: { ok: true },
+			}))
+			.mockImplementationOnce((args: string[]) => ({
+				id: args.join(" "),
+				command: `refarm ${args.join(" ")}`,
+				args,
+				description: "test step",
+				ok: false,
+				exitCode: 1,
+				stdout: JSON.stringify({
+					ok: false,
+					nextActions: ["Start the runtime before running the full check."],
+					nextCommands: ["refarm runtime start --wait"],
+				}),
+				stderr: "",
+				payload: {
+					ok: false,
+					nextActions: ["Start the runtime before running the full check."],
+					nextCommands: ["refarm runtime start --wait"],
+				},
+			}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		await agentCommand.parseAsync(["finish", "--run", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			steps: { id: string; ok: boolean }[];
+			nextAction: string;
+			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			status: "failed",
+			nextAction: "Start the runtime before running the full check.",
+			nextActions: ["Start the runtime before running the full check."],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
+		});
+		expect(payload.steps).toHaveLength(2);
+		expect(payload.steps[1]).toMatchObject({
+			id: "health",
+			ok: false,
+		});
+		expect(runRefarm).toHaveBeenCalledTimes(2);
+		expect(process.exitCode).toBe(1);
+		process.exitCode = originalExitCode;
+		logSpy.mockRestore();
+	});
 });
