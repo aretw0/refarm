@@ -79,6 +79,28 @@ describe("refarm telemetry", () => {
 		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
 	});
 
+	it("prints runtime errors as JSON when telemetry cannot reach the runtime", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "telemetry",
+			operation: "snapshot",
+			ok: false,
+			error: "runtime-unavailable",
+			nextCommand: "refarm runtime start --wait",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
 	it("rejects invalid profile before fetching telemetry", async () => {
 		const deps = makeDeps();
 		const command = createTelemetryCommand(deps);
@@ -138,6 +160,8 @@ describe("refarm telemetry", () => {
 			diagnostics?: string[];
 			recommendations?: Array<{ diagnostic: string }>;
 			nextActions?: string[];
+			nextCommand?: string | null;
+			nextCommands?: string[];
 		};
 		expect(payload.diagnostics).toContain("saturation:queue");
 		expect(payload.diagnostics).toContain("saturation:inflight");
@@ -152,6 +176,8 @@ describe("refarm telemetry", () => {
 		expect(payload.nextActions?.[0]).toBe(
 			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
 		);
+		expect(payload.nextCommand).toBe("refarm task list --json");
+		expect(payload.nextCommands).toContain("refarm task list --json");
 	});
 
 	it("uses profile thresholds and window diagnostics", async () => {
@@ -342,8 +368,8 @@ describe("refarm telemetry", () => {
 			nextActions: [
 				"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
 			],
-			nextCommand: null,
-			nextCommands: [],
+			nextCommand: "refarm task list --json",
+			nextCommands: ["refarm task list --json"],
 			strict: {
 				enabled: false,
 				targets: [],
@@ -397,16 +423,19 @@ describe("buildTelemetryRecommendations", () => {
 				diagnostic: "saturation:queue",
 				summary: "The task queue is above the configured warning threshold.",
 				action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+				command: "refarm task list --json",
 			},
 			{
 				diagnostic: "reliability:failure-rate",
 				summary: "Recent failure rate is above the configured warning threshold.",
 				action: "Pause non-essential automation and investigate the dominant failing tasks.",
+				command: "refarm tasks --status failed --json",
 			},
 			{
 				diagnostic: "custom:diagnostic",
 				summary: "Telemetry diagnostic custom:diagnostic is present.",
 				action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+				command: "refarm doctor --next-command",
 			},
 		]);
 	});

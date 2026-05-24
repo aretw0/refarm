@@ -3,16 +3,22 @@ import { Command, InvalidArgumentError } from "commander";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
+	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import { printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
-import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
+import {
+	isSidecarUnavailable,
+	printSidecarUnavailable,
+	reportSidecarError,
+} from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -174,36 +180,42 @@ export function buildTelemetryRecommendations(
 					diagnostic,
 					summary: "The task queue is above the configured warning threshold.",
 					action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+					command: "refarm task list --json",
 				};
 			case "saturation:inflight":
 				return {
 					diagnostic,
 					summary: "In-flight effort count is above the configured warning threshold.",
 					action: "Wait for active efforts to settle or increase worker capacity before starting more work.",
+					command: "refarm task list --json",
 				};
 			case "reliability:failures-present":
 				return {
 					diagnostic,
 					summary: "Failed efforts are present in the current telemetry snapshot.",
 					action: "Inspect failed effort logs and retry only after the failure cause is understood.",
+					command: "refarm task list --json",
 				};
 			case "reliability:failures-recent":
 				return {
 					diagnostic,
 					summary: "Recent telemetry window includes failed efforts.",
 					action: "Inspect recent failures before continuing automated execution.",
+					command: "refarm tasks --status failed --json",
 				};
 			case "reliability:failure-rate":
 				return {
 					diagnostic,
 					summary: "Recent failure rate is above the configured warning threshold.",
 					action: "Pause non-essential automation and investigate the dominant failing tasks.",
+					command: "refarm tasks --status failed --json",
 				};
 			default:
 				return {
 					diagnostic,
 					summary: `Telemetry diagnostic ${diagnostic} is present.`,
 					action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+					command: RUNTIME_DOCTOR_NEXT_COMMAND,
 				};
 		}
 	});
@@ -316,8 +328,16 @@ Notes:
 				try {
 					snapshot = await resolved.fetchTelemetry();
 				} catch (err) {
-					const message = err instanceof Error ? err.message : String(err);
-					printConnectionFailure(message);
+					if (opts.json) {
+						reportSidecarError(err, {
+							json: true,
+							command: "telemetry",
+							operation: "snapshot",
+						});
+					} else {
+						const message = err instanceof Error ? err.message : String(err);
+						printConnectionFailure(message);
+					}
 					return;
 				}
 
@@ -325,8 +345,16 @@ Notes:
 				try {
 					window = await resolved.fetchTelemetryWindow(windowMinutes);
 				} catch (err) {
-					const message = err instanceof Error ? err.message : String(err);
-					printConnectionFailure(message);
+					if (opts.json) {
+						reportSidecarError(err, {
+							json: true,
+							command: "telemetry",
+							operation: "window",
+						});
+					} else {
+						const message = err instanceof Error ? err.message : String(err);
+						printConnectionFailure(message);
+					}
 					return;
 				}
 
@@ -359,6 +387,7 @@ Notes:
 				const strictPassed = !opts.strict || strictMatches.length === 0;
 				const recommendations = buildTelemetryRecommendations(diagnostics);
 				const nextActions = diagnosticNextActions(recommendations);
+				const nextCommands = diagnosticNextCommands(recommendations);
 
 				const payload = {
 					snapshot,
@@ -371,6 +400,8 @@ Notes:
 					diagnostics,
 					recommendations,
 					nextActions,
+					nextCommand: nextCommands[0] ?? null,
+					nextCommands,
 					strict: {
 						enabled: !!opts.strict,
 						targets: strictTargets,
@@ -384,6 +415,7 @@ Notes:
 						buildDiagnosticNextActionPayload({
 							ok: diagnostics.length === 0,
 							nextActions,
+							nextCommands,
 							strict: payload.strict,
 						}),
 					);
