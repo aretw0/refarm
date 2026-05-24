@@ -9,7 +9,7 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
@@ -125,25 +125,26 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 }
 
 function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOptions) {
-	return {
-		schemaVersion: PROVISION_SCHEMA_VERSION,
+	return buildJsonErrorEnvelope({
 		command: "provision",
-		provider: "cloudflare",
-		service: turboCacheManifest.id,
 		operation: "apply",
-		ok: false,
 		error: "missing-cloudflare-token",
 		message: "No Cloudflare token found.",
-		input: {
-			bucket: input.bucket,
-			team: input.team,
-		},
 		nextAction: "refarm sow --cloudflare",
 		nextActions: [
 			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
-	};
+		extra: {
+			schemaVersion: PROVISION_SCHEMA_VERSION,
+			provider: "cloudflare",
+			service: turboCacheManifest.id,
+			input: {
+				bucket: input.bucket,
+				team: input.team,
+			},
+		},
+	});
 }
 
 function buildTurboCacheFailurePayload(input: {
@@ -152,26 +153,27 @@ function buildTurboCacheFailurePayload(input: {
 	message: string;
 	nextAction: string;
 }) {
-	return {
-		schemaVersion: PROVISION_SCHEMA_VERSION,
+	return buildJsonErrorEnvelope({
 		command: "provision",
-		provider: "cloudflare",
-		service: turboCacheManifest.id,
 		operation: "apply",
-		ok: false,
 		error: input.error,
 		message: input.message,
-		input: {
-			bucket: input.options.bucket,
-			team: input.options.team,
-			githubSecrets: input.options.githubSecrets === true,
-		},
 		nextAction: input.nextAction,
 		nextActions: [
 			input.nextAction,
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
-	};
+		extra: {
+			schemaVersion: PROVISION_SCHEMA_VERSION,
+			provider: "cloudflare",
+			service: turboCacheManifest.id,
+			input: {
+				bucket: input.options.bucket,
+				team: input.options.team,
+				githubSecrets: input.options.githubSecrets === true,
+			},
+		},
+	});
 }
 
 function renderProvisionCatalog(): void {
