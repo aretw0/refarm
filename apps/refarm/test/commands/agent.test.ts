@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { agentCommand } from "../../src/commands/agent.js";
 
 describe("agent command", () => {
@@ -21,6 +21,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm plugin install");
+		expect(help).toContain("refarm agent --json");
 	});
 
 	it("prints help when invoked without subcommands", async () => {
@@ -39,5 +40,29 @@ describe("agent command", () => {
 		expect(output).toContain("refarm sow");
 		expect(output).toContain("refarm model current");
 		expect(output).toContain("refarm model base-url");
+	});
+
+	it("prints a machine-readable agent handoff plan", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			runtime: { status: string };
+			credentials: { status: string };
+			plugins: { install: string };
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "handoff",
+			runtime: { status: "refarm runtime status --json" },
+			credentials: { status: "refarm model current --json" },
+			plugins: { install: "refarm plugin install --json" },
+		});
+		expect(payload.nextActions).toContain("refarm doctor --next-action --json");
+		logSpy.mockRestore();
 	});
 });
