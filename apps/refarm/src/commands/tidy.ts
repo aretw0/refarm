@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import type { LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
@@ -73,6 +73,14 @@ function buildTidyImportsPlan(
 		display: spec.display,
 		dryRun: options.dryRun === true,
 	};
+}
+
+function refarmTidyImportsCommand(files: string[], options: { check?: boolean } = {}): string {
+	return [
+		"refarm tidy imports",
+		...(options.check ? ["--check"] : []),
+		...files,
+	].join(" ");
 }
 
 export function runTidyProcess(
@@ -162,12 +170,40 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 
 			const result = await resolvedDeps.run(spec, { capture: options.json === true });
 			if (options.json) {
-				printJson({
-					...plan,
-					exitCode: result.exitCode,
-					stdout: result.stdout,
-					stderr: result.stderr,
-				});
+				if (result.exitCode === 0) {
+					printJson({
+						...plan,
+						ok: true,
+						exitCode: result.exitCode,
+						stdout: result.stdout,
+						stderr: result.stderr,
+						nextAction: null,
+						nextActions: [],
+					});
+				} else {
+					const fixCommand = options.check
+						? refarmTidyImportsCommand(selectedFiles)
+						: refarmTidyImportsCommand(selectedFiles, { check: true });
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "tidy",
+							operation: "imports",
+							error: "tidy-imports-failed",
+							message: `Import organization exited with code ${result.exitCode}.`,
+							nextAction: fixCommand,
+							nextActions: [
+								fixCommand,
+								refarmTidyImportsCommand(selectedFiles, { check: true }),
+							],
+							extra: {
+								...plan,
+								exitCode: result.exitCode,
+								stdout: result.stdout,
+								stderr: result.stderr,
+							},
+						}),
+					);
+				}
 			}
 			if (result.exitCode !== 0) {
 				process.exitCode = result.exitCode;

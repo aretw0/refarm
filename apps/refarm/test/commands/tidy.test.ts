@@ -122,13 +122,50 @@ describe("tidyCommand", () => {
 			{ capture: true },
 		);
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
 			exitCode: number;
 			stdout: string;
 			stderr: string;
+			nextAction: string;
 		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "tidy-imports-failed",
+			nextAction: "refarm tidy imports",
+		});
 		expect(payload.exitCode).toBe(1);
 		expect(payload.stdout).toContain("apps/refarm/src/program.ts");
 		expect(payload.stderr).toContain("Imports need organizing");
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints successful import results as actionable JSON", async () => {
+		const deps = makeDeps({
+			cwd: () => ".",
+			run: vi.fn().mockResolvedValue({
+				exitCode: 0,
+				stdout: "Imports already organized.\n",
+				stderr: "",
+			}),
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createTidyCommand(deps).parseAsync(["imports", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			exitCode: number;
+			nextAction: string | null;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			exitCode: 0,
+			nextAction: null,
+			nextActions: [],
+		});
 	});
 });
