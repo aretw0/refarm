@@ -43,7 +43,10 @@ vi.mock("node:fs", async (importOriginal) => {
 import { migrateCommand } from "../../src/commands/migrate.js";
 
 describe("migrateCommand", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+  });
 
   it("documents dry-run and mirror impact in help", () => {
     let help = "";
@@ -125,11 +128,51 @@ describe("migrateCommand", () => {
       ok: boolean;
       error: string;
       nextAction: string;
+      nextCommand?: string;
     };
     expect(payload).toMatchObject({
       ok: false,
       error: "missing-target-url",
       nextAction: "refarm migrate --target <url> --dry-run",
+    });
+    expect(payload).not.toHaveProperty("nextCommand");
+    expect(process.exitCode).toBe(1);
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("prints mirror failures with an executable dry-run recovery command", async () => {
+    mockMirrorRepo.mockResolvedValueOnce({ status: "failure", message: "push failed" });
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await migrateCommand.parseAsync(
+      ["--target", "https://github.com/user/fork.git", "--json"],
+      { from: "user" },
+    );
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      status: string;
+      nextAction: string;
+      nextCommand: string;
+      nextCommands: string[];
+    };
+    expect(payload).toMatchObject({
+      ok: false,
+      status: "failure",
+      nextAction:
+        'refarm migrate --target "https://github.com/user/fork.git" --dry-run',
+      nextCommand:
+        'refarm migrate --target "https://github.com/user/fork.git" --dry-run',
+      nextCommands: [
+        'refarm migrate --target "https://github.com/user/fork.git" --dry-run',
+      ],
     });
     expect(process.exitCode).toBe(1);
 

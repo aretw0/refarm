@@ -20,6 +20,10 @@ interface MigrateCommandOptions {
 
 const MIGRATE_SCHEMA_VERSION = 1;
 
+function migrateDryRunCommand(targetUrl: string): string {
+	return `refarm migrate --target ${JSON.stringify(targetUrl)} --dry-run`;
+}
+
 function wantsJsonOutput(
 	options: MigrateCommandOptions,
 	command: Command,
@@ -90,6 +94,13 @@ export const migrateCommand = new Command("migrate")
         targetUrl = answers.targetUrl;
     }
 
+    if (!targetUrl) {
+        console.error(chalk.red("Error: Missing target Git URL."));
+        process.exitCode = 1;
+        return;
+    }
+    const resolvedTargetUrl = targetUrl;
+
     const silo = new SiloCore();
     const tokens = await silo.resolve();
     
@@ -145,7 +156,7 @@ export const migrateCommand = new Command("migrate")
                         schemaVersion: MIGRATE_SCHEMA_VERSION,
                         dryRun: options.dryRun === true,
                         status: "error",
-                        targetUrl,
+                        targetUrl: resolvedTargetUrl,
                     },
                 }),
             );
@@ -162,12 +173,13 @@ export const migrateCommand = new Command("migrate")
     }
 
     const windmill = new Windmill(config, { dryRun: options.dryRun });
-    const result = await windmill.github.mirrorRepo(config.brand?.slug, targetUrl, {
+    const result = await windmill.github.mirrorRepo(config.brand?.slug, resolvedTargetUrl, {
         dryRun: options.dryRun
     });
 
     if (json) {
         const ok = result.status === "success" || result.status === "dry-run";
+        const nextCommand = migrateDryRunCommand(resolvedTargetUrl);
         printJson({
             schemaVersion: MIGRATE_SCHEMA_VERSION,
             command: "migrate",
@@ -176,10 +188,12 @@ export const migrateCommand = new Command("migrate")
             ok,
             status: result.status,
             sourceUrl: config.brand.urls.repository,
-            targetUrl,
+            targetUrl: resolvedTargetUrl,
             result,
-            nextAction: ok ? null : "refarm migrate --target <url> --dry-run",
-            nextActions: ok ? [] : ["refarm migrate --target <url> --dry-run"],
+            nextAction: ok ? null : nextCommand,
+            nextActions: ok ? [] : [nextCommand],
+            nextCommand: ok ? null : nextCommand,
+            nextCommands: ok ? [] : [nextCommand],
         });
         if (!ok) process.exitCode = 1;
         return;
@@ -187,10 +201,10 @@ export const migrateCommand = new Command("migrate")
 
     if (result.status === "success") {
         console.log(chalk.green.bold("\n✨ MIGRATION COMPLETE"));
-        console.log(chalk.gray(`Your repository has been mirrored to: ${targetUrl}`));
+        console.log(chalk.gray(`Your repository has been mirrored to: ${resolvedTargetUrl}`));
     } else if (result.status === "dry-run") {
         console.log(chalk.yellow.bold("\n✨ DRY RUN SUCCESSFUL"));
-        console.log(chalk.gray(`Would have mirrored to: ${targetUrl}`));
+        console.log(chalk.gray(`Would have mirrored to: ${resolvedTargetUrl}`));
     } else {
         console.log(chalk.red.bold("\n❌ MIGRATION FAILED"));
         console.log(chalk.red(`Error: ${result.message}`));
