@@ -21,7 +21,8 @@ describe("extension command", () => {
 		expect(help).toContain("Local extensions are loaded by the Refarm runtime");
 		expect(help).toContain("refarm extension save my-tool --global --json");
 		expect(help).toContain("refarm extension publish my-tool --json");
-		expect(help).toContain("/reload in the refarm REPL");
+		expect(help).toContain("refarm plugin reload @local/<name> --json");
+		expect(help).toContain("/reload @local/<name>");
 	});
 
 	it("prints runtime activation guidance when scaffolding an extension", async () => {
@@ -41,7 +42,7 @@ describe("extension command", () => {
 		}
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("Activate: run '/reload'");
+		expect(output).toContain("Activate: refarm plugin reload '@local/my-tool' --json");
 		expect(output).toContain("restart the Refarm runtime");
 		expect(errorSpy).not.toHaveBeenCalled();
 
@@ -81,10 +82,15 @@ describe("extension command", () => {
 				scope: "project",
 				indexPath: join(tempDir, ".refarm", "extensions", "my-tool", "index.js"),
 				nextActions: [
-					"run '/reload' in the refarm REPL, or restart the Refarm runtime",
+					"refarm plugin reload '@local/my-tool' --json",
+					"restart the Refarm runtime",
+					"inside refarm chat, run /reload @local/my-tool",
 				],
-				nextCommand: "refarm extension list --json",
-				nextCommands: ["refarm extension list --json"],
+				nextCommand: "refarm plugin reload '@local/my-tool' --json",
+				nextCommands: [
+					"refarm plugin reload '@local/my-tool' --json",
+					"refarm extension list --json",
+				],
 			});
 		} finally {
 			cwdSpy.mockRestore();
@@ -194,6 +200,7 @@ describe("extension command", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("not automated yet");
 		expect(output).toContain("refarm plugin bundle");
+		expect(output).toContain("refarm plugin reload '@local/my-tool' --json");
 		expect(output).toContain("refarm plugin status");
 		expect(process.exitCode).toBe(1);
 
@@ -339,8 +346,9 @@ describe("extension command", () => {
 			status: "manual",
 			nextAction: "refarm plugin bundle <plugin.wasm>",
 		});
-		expect(payload.nextActions).toContain("/reload @local/my-tool");
+		expect(payload.nextActions).toContain("refarm plugin reload '@local/my-tool' --json");
 		expect(payload.nextCommand).toBe("refarm extension list --json");
+		expect(payload.nextCommands).toContain("refarm plugin reload '@local/my-tool' --json");
 		expect(payload.nextCommands).toContain("refarm plugin status --json");
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

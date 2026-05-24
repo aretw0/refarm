@@ -11,15 +11,25 @@ import {
 } from "./json-output.js";
 
 const EXTENSION_LIST_JSON_COMMAND = "refarm extension list --json";
+const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
 
 function extensionSaveCommand(name: string, scope: "global" | "local"): string {
   return refarmCommand(["extension", "save", quoteCommandArg(name), `--${scope}`]);
 }
 
+function extensionReloadCommand(name: string, json = false): string {
+  return refarmCommand([
+    "plugin",
+    "reload",
+    quoteCommandArg(`@local/${name}`),
+    ...(json ? ["--json"] : []),
+  ]);
+}
+
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
 // Loaded directly by the Refarm runtime (no WASM compilation needed).
-// Edit this file and run '/reload' in the refarm REPL to apply changes.
+// Edit this file and run 'refarm plugin reload ${id} --json' to apply changes.
 
 export const integration = {
   /**
@@ -118,6 +128,9 @@ function printCreatedExtension(report: CreatedExtensionReport): void {
   console.log(`  id: ${report.id}`);
   console.log(`  Edit: ${report.indexPath}`);
   console.log(`  Activate: ${report.nextActions[0]}`);
+  if (report.nextActions[1]) {
+    console.log(`  Fallback: ${report.nextActions[1]}`);
+  }
 }
 
 async function newExtension(
@@ -151,15 +164,20 @@ async function newExtension(
   await writeFile(indexPath, INDEX_JS_TEMPLATE(name, ext.id), "utf-8");
 
   const scope = isGlobal ? "global" : "project";
+  const reloadCommand = extensionReloadCommand(name, true);
   const report: CreatedExtensionReport = {
     ...ext,
     slug: name,
     dir: extDir,
     scope,
     indexPath,
-    nextActions: ["run '/reload' in the refarm REPL, or restart the Refarm runtime"],
-    nextCommand: EXTENSION_LIST_JSON_COMMAND,
-    nextCommands: [EXTENSION_LIST_JSON_COMMAND],
+    nextActions: [
+      reloadCommand,
+      "restart the Refarm runtime",
+      `inside refarm chat, run /reload @local/${name}`,
+    ],
+    nextCommand: reloadCommand,
+    nextCommands: [reloadCommand, EXTENSION_LIST_JSON_COMMAND],
   };
   if (options.json) {
     printJson(report);
@@ -270,6 +288,7 @@ async function saveExtension(
 }
 
 function publishExtensionPlan(name: string) {
+  const reloadCommand = extensionReloadCommand(name, true);
   return buildJsonErrorEnvelope({
     command: "extension",
     operation: "publish",
@@ -278,12 +297,12 @@ function publishExtensionPlan(name: string) {
     nextAction: "refarm plugin bundle <plugin.wasm>",
     nextActions: [
       "refarm extension list",
-      `/reload @local/${name}`,
+      reloadCommand,
       "refarm plugin bundle <plugin.wasm>",
       "refarm plugin status",
     ],
     nextCommand: EXTENSION_LIST_JSON_COMMAND,
-    nextCommands: [EXTENSION_LIST_JSON_COMMAND, "refarm plugin status --json"],
+    nextCommands: [EXTENSION_LIST_JSON_COMMAND, reloadCommand, PLUGIN_STATUS_JSON_COMMAND],
     extra: {
       name,
       action: "publish",
@@ -333,7 +352,8 @@ Examples:
 
 Notes:
   Local extensions are loaded by the Refarm runtime. After editing one, run
-  /reload in the refarm REPL or restart the runtime.
+  refarm plugin reload @local/<name> --json or restart the runtime.
+  Inside refarm chat, /reload @local/<name> is the interactive equivalent.
 `,
 );
 
@@ -407,7 +427,7 @@ extensionCommand
     console.log(`Publishing local extension '${name}' is not automated yet.`);
     console.log("Current path:");
     console.log(`  1. Keep iterating locally: refarm extension list`);
-    console.log(`  2. Apply changes:         /reload @local/${name}`);
+    console.log(`  2. Apply changes:         ${extensionReloadCommand(name, true)}`);
     console.log("  3. Package WASM manually: refarm plugin bundle <plugin.wasm>");
     console.log("  4. Check runtime state:   refarm plugin status");
     process.exitCode = 1;
