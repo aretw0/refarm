@@ -51,16 +51,72 @@ interface ActiveSessionReport {
 	cleared?: boolean;
 }
 
-function writeActiveSessionOrReport(targetSessionId: string): boolean {
+interface SessionForkReport {
+	action: "forked";
+	activeSessionId: string;
+	session: SessionNode;
+	parentSessionId: string;
+	branchEntryId?: string;
+}
+
+function writeActiveSessionOrReport(
+	targetSessionId: string,
+	opts: { json?: boolean } = {},
+): boolean {
 	try {
 		writeActiveSessionIdAndVerify(targetSessionId);
 		return true;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		if (opts.json) {
+			printJson({
+				action: "sessions",
+				ok: false,
+				error: "active-session-write-failed",
+				message,
+				targetSessionId,
+				nextAction: "refarm sessions list --json",
+				nextActions: ["refarm sessions list --json", RUNTIME_DOCTOR_COMMAND],
+			});
+			process.exitCode = 1;
+			return false;
+		}
 		console.error(chalk.red(`✗  ${message}`));
 		process.exitCode = 1;
 		return false;
 	}
+}
+
+function printSessionPrefixError(
+	kind: "not-found" | "ambiguous",
+	prefix: string,
+	matches: string[] = [],
+	opts: { json?: boolean } = {},
+): void {
+	if (opts.json) {
+		printJson({
+			action: "sessions",
+			ok: false,
+			error: kind === "not-found" ? "session-not-found" : "ambiguous-session-prefix",
+			prefix,
+			matches,
+			nextAction: "refarm sessions list --json",
+			nextActions: ["refarm sessions list --json"],
+		});
+		process.exitCode = 1;
+		return;
+	}
+	if (kind === "not-found") {
+		console.error(chalk.red(`✗  No session matching "${prefix}"`));
+	} else {
+		console.error(
+			chalk.red(
+				`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`,
+			),
+		);
+		for (const m of matches) console.error(chalk.dim(`   ${m}`));
+	}
+	process.exitCode = 1;
 }
 
 function formatAge(createdAtNs: number | undefined): string {
@@ -146,8 +202,9 @@ export function createSessionsCommand(): Command {
 					"Branch from a specific entry instead of the current leaf",
 				)
 				.option("--name <name>", "Name for the new forked session")
+				.option("--json", "Output machine-readable fork result")
 				.action(
-					async (prefix: string, opts: { at?: string; name?: string }) => {
+					async (prefix: string, opts: { at?: string; name?: string; json?: boolean }) => {
 						await forkSession(prefix, opts);
 					},
 				),
@@ -292,7 +349,7 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(created["@id"])) return;
+	if (!writeActiveSessionOrReport(created["@id"], { json: opts.json })) return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "created",
@@ -326,22 +383,20 @@ async function useSession(
 	const matches = findSessionIdPrefixMatches(prefix, sessions);
 
 	if (matches.length === 0) {
-		console.error(chalk.red(`✗  No session matching "${prefix}"`));
-		process.exitCode = 1;
+		printSessionPrefixError("not-found", prefix, [], opts);
 		return;
 	}
 	if (matches.length > 1) {
-		console.error(
-			chalk.red(
-				`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`,
-			),
+		printSessionPrefixError(
+			"ambiguous",
+			prefix,
+			matches.map((match) => match["@id"]),
+			opts,
 		);
-		for (const m of matches) console.error(chalk.dim(`   ${m["@id"]}`));
-		process.exitCode = 1;
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(matches[0]!["@id"])) return;
+	if (!writeActiveSessionOrReport(matches[0]!["@id"], { json: opts.json })) return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "switched",
@@ -358,7 +413,7 @@ async function useSession(
 
 async function forkSession(
 	prefix: string,
-	opts: { at?: string; name?: string },
+	opts: { at?: string; name?: string; json?: boolean },
 ): Promise<void> {
 	const body: Record<string, string> = {};
 	if (opts.at) body["entry_id"] = opts.at;
@@ -380,19 +435,29 @@ async function forkSession(
 			matches?: string[];
 		};
 		if (response.status === 404) {
-			console.error(chalk.red(`✗  No session matching "${prefix}"`));
-			process.exitCode = 1;
+			printSessionPrefixError("not-found", prefix, [], { json: opts.json });
 			return;
 		}
 		if (response.status === 409) {
-			console.error(
-				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
-			);
-			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exitCode = 1;
+			printSessionPrefixError("ambiguous", prefix, parsed.matches ?? [], {
+				json: opts.json,
+			});
 			return;
 		}
 		if (!response.ok || !parsed.session) {
+			if (opts.json) {
+				printJson({
+					action: "sessions",
+					ok: false,
+					error: "session-fork-failed",
+					message: parsed.error ?? `HTTP ${response.status}`,
+					prefix,
+					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+				});
+				process.exitCode = 1;
+				return;
+			}
 			console.error(
 				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
 			);
@@ -406,7 +471,18 @@ async function forkSession(
 	}
 
 	// Auto-switch to the new fork.
-	if (!writeActiveSessionOrReport(fork["@id"])) return;
+	if (!writeActiveSessionOrReport(fork["@id"], { json: opts.json })) return;
+	if (opts.json) {
+		const report: SessionForkReport = {
+			action: "forked",
+			activeSessionId: fork["@id"],
+			session: fork,
+			parentSessionId: fork.parent_session_id ?? prefix,
+			...(fork.leaf_entry_id ? { branchEntryId: fork.leaf_entry_id } : {}),
+		};
+		printJson(report);
+		return;
+	}
 	const short = formatSessionId(fork["@id"]);
 	const parentShort = formatSessionId(fork.parent_session_id ?? prefix);
 	console.log(
@@ -436,19 +512,29 @@ async function showSession(
 			matches?: string[];
 		};
 		if (response.status === 404) {
-			console.error(chalk.red(`✗  No session matching "${prefix}"`));
-			process.exitCode = 1;
+			printSessionPrefixError("not-found", prefix, [], { json: opts.json });
 			return;
 		}
 		if (response.status === 409) {
-			console.error(
-				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${body.error}`),
-			);
-			for (const m of body.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exitCode = 1;
+			printSessionPrefixError("ambiguous", prefix, body.matches ?? [], {
+				json: opts.json,
+			});
 			return;
 		}
 		if (!response.ok) {
+			if (opts.json) {
+				printJson({
+					action: "sessions",
+					ok: false,
+					error: "session-history-failed",
+					message: body.error ?? `HTTP ${response.status}`,
+					prefix,
+					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+				});
+				process.exitCode = 1;
+				return;
+			}
 			console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
 			process.exitCode = 1;
 			return;

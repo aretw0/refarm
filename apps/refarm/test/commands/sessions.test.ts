@@ -282,6 +282,36 @@ describe("refarm sessions", () => {
 		});
 	});
 
+	it("sessions use prints prefix errors as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [],
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "use")!
+			.parseAsync(["missing", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			action: "sessions",
+			ok: false,
+			error: "session-not-found",
+			prefix: "missing",
+			nextAction: "refarm sessions list --json",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("sessions clear prints clear result as JSON", async () => {
 		vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -345,6 +375,118 @@ describe("refarm sessions", () => {
 			],
 			total: 1,
 		});
+	});
+
+	it("sessions show prints ambiguous prefix errors as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 409,
+				json: async () => ({
+					error: "ambiguous",
+					matches: [
+						"urn:refarm:session:v1:abc111",
+						"urn:refarm:session:v1:abc222",
+					],
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			action: "sessions",
+			ok: false,
+			error: "ambiguous-session-prefix",
+			prefix: "abc",
+			matches: [
+				"urn:refarm:session:v1:abc111",
+				"urn:refarm:session:v1:abc222",
+			],
+			nextAction: "refarm sessions list --json",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sessions fork prints fork result as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session: {
+						"@id": "urn:refarm:session:v1:fork123",
+						"@type": "Session",
+						name: "experiment",
+						parent_session_id: "urn:refarm:session:v1:parent123",
+						leaf_entry_id: "entry-1",
+					},
+				}),
+			}),
+		);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(
+			"urn:refarm:session:v1:fork123",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["parent", "--name", "experiment", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			action: "forked",
+			activeSessionId: "urn:refarm:session:v1:fork123",
+			parentSessionId: "urn:refarm:session:v1:parent123",
+			branchEntryId: "entry-1",
+			session: {
+				"@id": "urn:refarm:session:v1:fork123",
+				"@type": "Session",
+				name: "experiment",
+				parent_session_id: "urn:refarm:session:v1:parent123",
+				leaf_entry_id: "entry-1",
+			},
+		});
+	});
+
+	it("sessions fork prints prefix errors as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 404,
+				json: async () => ({
+					error: "not found",
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["missing", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			action: "sessions",
+			ok: false,
+			error: "session-not-found",
+			prefix: "missing",
+			nextAction: "refarm sessions list --json",
+		});
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("sessions new exits with actionable message when sidecar is down", async () => {
