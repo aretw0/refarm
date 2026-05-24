@@ -49,6 +49,7 @@ describe("deployCommand", () => {
     deployCommand.outputHelp();
 
     expect(help).toContain("refarm deploy --dry-run");
+    expect(help).toContain("refarm deploy --dry-run --json");
     expect(help).toContain("refarm.config.json");
     expect(help).toContain("Use --dry-run first");
   });
@@ -77,5 +78,95 @@ describe("deployCommand", () => {
     await expect(
       deployCommand.parseAsync(["--dry-run"], { from: "user" })
     ).resolves.not.toThrow();
+  });
+
+  it("prints dry-run deployment result as JSON", async () => {
+    mockDeploy.mockResolvedValueOnce({ status: "dry-run", url: "https://example.invalid" });
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await deployCommand.parseAsync(["--target", "github", "--dry-run", "--json"], {
+      from: "user",
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      command: string;
+      target: string;
+      dryRun: boolean;
+      ok: boolean;
+      status: string;
+    };
+    expect(payload).toMatchObject({
+      command: "deploy",
+      target: "github",
+      dryRun: true,
+      ok: true,
+      status: "dry-run",
+    });
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("prints deploy failures as JSON without human stderr", async () => {
+    mockDeploy.mockResolvedValueOnce({ status: "failure", message: "upload failed" });
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await deployCommand.parseAsync(["--target", "cloudflare", "--json"], {
+      from: "user",
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      status: string;
+      nextAction: string;
+    };
+    expect(payload).toMatchObject({
+      ok: false,
+      status: "failure",
+      nextAction: "refarm deploy --dry-run",
+    });
+    expect(process.exitCode).toBe(1);
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("prints invalid deploy targets as JSON before calling windmill", async () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await deployCommand.parseAsync(["--target", "workers", "--dry-run", "--json"], {
+      from: "user",
+    });
+
+    expect(mockDeploy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      status: string;
+      error: string;
+    };
+    expect(payload).toMatchObject({
+      ok: false,
+      status: "error",
+    });
+    expect(payload.error).toContain('Invalid deploy target "workers"');
+    expect(process.exitCode).toBe(1);
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });

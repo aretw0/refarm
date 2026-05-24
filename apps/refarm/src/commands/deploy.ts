@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { printJson } from "./json-output.js";
 
 interface DeployResult {
 	status: string;
@@ -14,6 +15,14 @@ interface DeployResult {
 
 const DEPLOY_TARGETS = ["all", "cloudflare", "github"] as const;
 type DeployTarget = (typeof DEPLOY_TARGETS)[number];
+
+interface DeployCommandOptions {
+	target: string;
+	dryRun?: boolean;
+	json?: boolean;
+}
+
+const DEPLOY_SCHEMA_VERSION = 1;
 
 function parseDeployTarget(value: string): DeployTarget {
 	if ((DEPLOY_TARGETS as readonly string[]).includes(value)) {
@@ -30,6 +39,7 @@ export const deployCommand = new Command("deploy")
       "",
       "Examples:",
       "  $ refarm deploy --dry-run",
+      "  $ refarm deploy --dry-run --json",
       "  $ refarm deploy --target github --dry-run",
       "  $ refarm deploy --target cloudflare",
       "",
@@ -41,8 +51,11 @@ export const deployCommand = new Command("deploy")
   )
   .option("--target <target>", "Target platform (cloudflare, github, all)", "all")
   .option("--dry-run", "Simulate the deployment")
-  .action(async (options) => {
-    console.log(chalk.bold.green("\nStarting deployment orchestration..."));
+  .option("--json", "Output machine-readable deployment result")
+  .action(async (options: DeployCommandOptions) => {
+    if (!options.json) {
+      console.log(chalk.bold.green("\nStarting deployment orchestration..."));
+    }
 
     try {
       const target = parseDeployTarget(options.target);
@@ -60,9 +73,28 @@ export const deployCommand = new Command("deploy")
 
       const windmill = new Windmill(config, { dryRun: options.dryRun });
 
-      console.log(`🚀 Deploying to ${chalk.cyan(target)}...`);
+      if (!options.json) {
+        console.log(`🚀 Deploying to ${chalk.cyan(target)}...`);
+      }
 
       const result = await windmill.deploy(target) as unknown as DeployResult;
+
+      if (options.json) {
+        const ok = result.status === "success" || result.status === "dry-run";
+        printJson({
+          schemaVersion: DEPLOY_SCHEMA_VERSION,
+          command: "deploy",
+          target,
+          dryRun: options.dryRun === true,
+          ok,
+          status: result.status,
+          result,
+          nextAction: ok ? null : "refarm deploy --dry-run",
+          nextActions: ok ? [] : ["refarm deploy --dry-run"],
+        });
+        if (!ok) process.exitCode = 1;
+        return;
+      }
 
       if (result.status === "success" || result.status === "dry-run" || result.status === "partial_failure") {
           console.log(chalk.bold.green("\n✨ Deployment orchestration finished!"));
@@ -90,6 +122,22 @@ export const deployCommand = new Command("deploy")
           return;
       }
     } catch (error) {
+      if (options.json) {
+        const message = error instanceof Error ? error.message : String(error);
+        printJson({
+          schemaVersion: DEPLOY_SCHEMA_VERSION,
+          command: "deploy",
+          target: options.target,
+          dryRun: options.dryRun === true,
+          ok: false,
+          status: "error",
+          error: message,
+          nextAction: "refarm deploy --dry-run",
+          nextActions: ["refarm deploy --dry-run"],
+        });
+        process.exitCode = 1;
+        return;
+      }
       console.error(chalk.red(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}`));
       process.exitCode = 1;
       return;
