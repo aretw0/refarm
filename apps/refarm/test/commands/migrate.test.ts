@@ -99,6 +99,8 @@ describe("migrateCommand", () => {
       ok: boolean;
       status: string;
       targetUrl: string;
+      nextCommand: string;
+      nextCommands: string[];
     };
     expect(payload).toMatchObject({
       command: "migrate",
@@ -107,6 +109,43 @@ describe("migrateCommand", () => {
       ok: true,
       status: "dry-run",
       targetUrl: "https://github.com/user/fork.git",
+      nextCommand:
+        "refarm migrate --target 'https://github.com/user/fork.git'",
+      nextCommands: [
+        "refarm migrate --target 'https://github.com/user/fork.git'",
+      ],
+    });
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("prints live mirror success as JSON with a remote verification command", async () => {
+    mockMirrorRepo.mockResolvedValueOnce({ status: "success" });
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await migrateCommand.parseAsync(
+      ["--target", "https://github.com/user/fork.git", "--json"],
+      { from: "user" },
+    );
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      status: string;
+      nextCommand: string;
+      nextCommands: string[];
+    };
+    expect(payload).toMatchObject({
+      ok: true,
+      status: "success",
+      nextAction: "git ls-remote 'https://github.com/user/fork.git' HEAD",
+      nextCommand: "git ls-remote 'https://github.com/user/fork.git' HEAD",
+      nextCommands: ["git ls-remote 'https://github.com/user/fork.git' HEAD"],
     });
 
     logSpy.mockRestore();

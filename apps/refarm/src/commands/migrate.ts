@@ -5,7 +5,7 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { joinCommand, quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface MigrateConfig {
@@ -23,6 +23,28 @@ const MIGRATE_SCHEMA_VERSION = 1;
 
 function migrateDryRunCommand(targetUrl: string): string {
 	return refarmCommand(["migrate", "--target", quoteCommandArg(targetUrl), "--dry-run"]);
+}
+
+function migrateApplyCommand(targetUrl: string): string {
+	return refarmCommand(["migrate", "--target", quoteCommandArg(targetUrl)]);
+}
+
+function migrateVerifyCommand(targetUrl: string): string {
+	return joinCommand(["git", "ls-remote", quoteCommandArg(targetUrl), "HEAD"]);
+}
+
+function migrateJsonNextCommands(input: {
+	targetUrl: string;
+	dryRun: boolean;
+	ok: boolean;
+}): string[] {
+	if (!input.ok) {
+		return [migrateDryRunCommand(input.targetUrl)];
+	}
+	if (input.dryRun) {
+		return [migrateApplyCommand(input.targetUrl)];
+	}
+	return [migrateVerifyCommand(input.targetUrl)];
 }
 
 function wantsJsonOutput(
@@ -180,7 +202,11 @@ export const migrateCommand = new Command("migrate")
 
     if (json) {
         const ok = result.status === "success" || result.status === "dry-run";
-        const nextCommand = migrateDryRunCommand(resolvedTargetUrl);
+        const nextCommands = migrateJsonNextCommands({
+            targetUrl: resolvedTargetUrl,
+            dryRun: options.dryRun === true,
+            ok,
+        });
         printJson({
             schemaVersion: MIGRATE_SCHEMA_VERSION,
             command: "migrate",
@@ -191,10 +217,10 @@ export const migrateCommand = new Command("migrate")
             sourceUrl: config.brand.urls.repository,
             targetUrl: resolvedTargetUrl,
             result,
-            nextAction: ok ? null : nextCommand,
-            nextActions: ok ? [] : [nextCommand],
-            nextCommand: ok ? null : nextCommand,
-            nextCommands: ok ? [] : [nextCommand],
+            nextAction: nextCommands[0] ?? null,
+            nextActions: nextCommands,
+            nextCommand: nextCommands[0] ?? null,
+            nextCommands,
         });
         if (!ok) process.exitCode = 1;
         return;
