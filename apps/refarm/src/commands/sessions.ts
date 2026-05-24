@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -69,15 +69,18 @@ function writeActiveSessionOrReport(
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
 		if (opts.json) {
-			printJson({
-				action: "sessions",
-				ok: false,
-				error: "active-session-write-failed",
-				message,
-				targetSessionId,
-				nextAction: "refarm sessions list --json",
-				nextActions: ["refarm sessions list --json", RUNTIME_DOCTOR_COMMAND],
-			});
+			printJson(
+				buildJsonErrorEnvelope({
+					error: "active-session-write-failed",
+					message,
+					nextAction: "refarm sessions list --json",
+					nextActions: ["refarm sessions list --json", RUNTIME_DOCTOR_COMMAND],
+					extra: {
+						action: "sessions",
+						targetSessionId,
+					},
+				}),
+			);
 			process.exitCode = 1;
 			return false;
 		}
@@ -94,15 +97,20 @@ function printSessionPrefixError(
 	opts: { json?: boolean } = {},
 ): void {
 	if (opts.json) {
-		printJson({
-			action: "sessions",
-			ok: false,
-			error: kind === "not-found" ? "session-not-found" : "ambiguous-session-prefix",
-			prefix,
-			matches,
-			nextAction: "refarm sessions list --json",
-			nextActions: ["refarm sessions list --json"],
-		});
+		printJson(
+			buildJsonErrorEnvelope({
+				error:
+					kind === "not-found"
+						? "session-not-found"
+						: "ambiguous-session-prefix",
+				nextAction: "refarm sessions list --json",
+				extra: {
+					action: "sessions",
+					prefix,
+					matches,
+				},
+			}),
+		);
 		process.exitCode = 1;
 		return;
 	}
@@ -459,15 +467,17 @@ async function forkSession(
 		}
 		if (!response.ok || !parsed.session) {
 			if (opts.json) {
-				printJson({
-					action: "sessions",
-					ok: false,
-					error: "session-fork-failed",
-					message: parsed.error ?? `HTTP ${response.status}`,
-					prefix,
-					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
-				});
+				printJson(
+					buildJsonErrorEnvelope({
+						error: "session-fork-failed",
+						message: parsed.error ?? `HTTP ${response.status}`,
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						extra: {
+							action: "sessions",
+							prefix,
+						},
+					}),
+				);
 				process.exitCode = 1;
 				return;
 			}
@@ -540,15 +550,17 @@ async function showSession(
 		}
 		if (!response.ok) {
 			if (opts.json) {
-				printJson({
-					action: "sessions",
-					ok: false,
-					error: "session-history-failed",
-					message: body.error ?? `HTTP ${response.status}`,
-					prefix,
-					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
-				});
+				printJson(
+					buildJsonErrorEnvelope({
+						error: "session-history-failed",
+						message: body.error ?? `HTTP ${response.status}`,
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						extra: {
+							action: "sessions",
+							prefix,
+						},
+					}),
+				);
 				process.exitCode = 1;
 				return;
 			}
