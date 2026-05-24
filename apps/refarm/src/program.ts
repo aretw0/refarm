@@ -98,6 +98,7 @@ program
 			"  $ refarm runtime                 Inspect selected runtime engine and autostart",
 			"  $ refarm health                  Audit project structure and package alignment",
 			"  $ refarm check --next-action     Print the next blocking recovery action",
+			"  $ refarm check --next-command    Print the next executable recovery command",
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
 			"",

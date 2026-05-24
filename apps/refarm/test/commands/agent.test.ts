@@ -14,7 +14,9 @@ describe("agent command", () => {
 
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor --next-command");
 		expect(help).toContain("refarm check --next-action --json");
+		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm sow");
@@ -38,7 +40,9 @@ describe("agent command", () => {
 
 		expect(output).toContain("refarm runtime status");
 		expect(output).toContain("refarm doctor --next-action");
+		expect(output).toContain("refarm doctor --next-command");
 		expect(output).toContain("refarm check --next-action --json");
+		expect(output).toContain("refarm check --next-command");
 		expect(output).toContain("refarm tidy imports --check");
 		expect(output).toContain("refarm tidy imports");
 		expect(output).toContain("refarm sow");
@@ -54,18 +58,27 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
-			runtime: { status: string };
+			runtime: { status: string; doctorCommand: string };
 			usage: { tidyCheck: string; tidyApply: string };
 			credentials: { status: string };
 			plugins: { install: string };
-			verification: { quick: string; tidyCheck: string };
+			verification: {
+				quick: string;
+				quickCommand: string;
+				tidyCheck: string;
+			};
 			nextAction: string;
 			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "handoff",
-			runtime: { status: "refarm runtime status --json" },
+			runtime: {
+				status: "refarm runtime status --json",
+				doctorCommand: "refarm doctor --next-command",
+			},
 			usage: {
 				tidyCheck: "refarm tidy imports --check --json",
 				tidyApply: "refarm tidy imports --json",
@@ -74,11 +87,14 @@ describe("agent command", () => {
 			plugins: { install: "refarm plugin install --json" },
 			verification: {
 				quick: "refarm check --next-action --json",
+				quickCommand: "refarm check --next-command",
 				tidyCheck: "refarm tidy imports --check --json",
 			},
 			nextAction: "refarm check --next-action --json",
+			nextCommand: "refarm check --next-command",
 		});
 		expect(payload.nextActions).toContain("refarm runtime status --json");
+		expect(payload.nextCommands).toEqual(["refarm check --next-command"]);
 		logSpy.mockRestore();
 	});
 });

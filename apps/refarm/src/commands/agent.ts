@@ -9,6 +9,7 @@ const agentRuntimePlan = {
 		status: "refarm runtime status --json",
 		start: "refarm runtime start --json",
 		doctor: "refarm doctor --next-action --json",
+		doctorCommand: "refarm doctor --next-command",
 	},
 	usage: {
 		ask: `refarm ask "hello" --json`,
@@ -27,8 +28,10 @@ const agentRuntimePlan = {
 	},
 	verification: {
 		quick: "refarm check --next-action --json",
+		quickCommand: "refarm check --next-command",
 		health: "refarm health --next-action --json",
 		doctor: "refarm doctor --next-action --json",
+		doctorCommand: "refarm doctor --next-command",
 		tidyCheck: "refarm tidy imports --check --json",
 	},
 };
@@ -45,6 +48,7 @@ Runtime commands:
   $ refarm runtime status       Inspect selected runtime engine and readiness
   $ refarm status               Check runtime, plugins, streams, and trust state
   $ refarm doctor --next-action Print the next blocking recovery action
+  $ refarm doctor --next-command Print the next executable recovery command
   $ refarm doctor               Diagnose readiness and repair hints
 
 Agent usage:
@@ -60,6 +64,7 @@ Agent usage:
 
 Verification:
   $ refarm check --next-action --json Composite health + doctor gate
+  $ refarm check --next-command      Print the next executable recovery command
   $ refarm tidy imports --check --json Check import organization
 
 Plugin lifecycle:
@@ -81,12 +86,14 @@ Notes:
 				command: "agent",
 				operation: "handoff",
 				nextAction: "refarm check --next-action --json",
+				nextCommand: "refarm check --next-command",
 				nextActions: [
 					"refarm check --next-action --json",
 					"refarm runtime status --json",
 					"refarm model current --json",
 					"refarm plugin list --json",
 				],
+				nextCommands: ["refarm check --next-command"],
 				extra: {
 					action: "agent",
 					status: "handoff",

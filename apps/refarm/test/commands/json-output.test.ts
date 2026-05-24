@@ -54,6 +54,7 @@ describe("json output helpers", () => {
 				command: "tidy",
 				operation: "imports",
 				nextAction: "refarm check --next-action --json",
+				nextCommand: "refarm check --next-command",
 				extra: {
 					exitCode: 0,
 				},
@@ -65,6 +66,8 @@ describe("json output helpers", () => {
 			ok: true,
 			nextAction: "refarm check --next-action --json",
 			nextActions: ["refarm check --next-action --json"],
+			nextCommand: "refarm check --next-command",
+			nextCommands: ["refarm check --next-command"],
 		});
 	});
 
@@ -75,6 +78,7 @@ describe("json output helpers", () => {
 				message: "Refarm runtime is not running.",
 				nextAction: "refarm runtime start",
 				nextActions: ["refarm runtime status", "refarm runtime start"],
+				nextCommands: ["refarm runtime start --wait"],
 			}),
 		).toEqual({
 			ok: false,
@@ -82,6 +86,8 @@ describe("json output helpers", () => {
 			message: "Refarm runtime is not running.",
 			nextAction: "refarm runtime start",
 			nextActions: ["refarm runtime status", "refarm runtime start"],
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
 		});
 	});
 

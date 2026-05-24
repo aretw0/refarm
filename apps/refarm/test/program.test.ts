@@ -106,6 +106,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm ask \"hello\"");
 		expect(help).toContain("refarm runtime");
 		expect(help).toContain("refarm check --next-action");
+		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm config set runtime.autostart always");
 		expect(help).toContain("refarm model current");
