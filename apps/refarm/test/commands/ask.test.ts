@@ -293,6 +293,41 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
+	it("prints missing provider failures as JSON when requested", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "model-credentials-missing",
+			nextAction: "refarm sow",
+		});
+		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("fails before submitting when runtime reports pi-agent missing", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
@@ -324,6 +359,49 @@ describe("refarm ask", () => {
 		);
 		expect(process.exitCode).toBe(1);
 
+		errSpy.mockRestore();
+	});
+
+	it("prints pi-agent readiness failures as JSON when requested", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: ["@refarm/pi-agent"],
+				loaded: [],
+				known: ["@refarm/pi-agent"],
+			}),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "pi-agent-not-loaded",
+			nextAction: "/reload @refarm/pi-agent",
+		});
+		expect(payload.nextActions).toContain("refarm runtime start");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
 		errSpy.mockRestore();
 	});
 
@@ -630,6 +708,37 @@ describe("refarm ask", () => {
 		);
 		expect(process.exitCode).toBe(1);
 
+		errSpy.mockRestore();
+	});
+
+	it("rejects incompatible session flags as JSON", async () => {
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["hello", "--new", "--session", "urn:refarm:session:v1:test123", "--json"],
+			{
+				from: "user",
+			},
+		);
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "invalid-options",
+			nextAction: 'refarm ask "hello" --new --json',
+		});
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
 		errSpy.mockRestore();
 	});
 });

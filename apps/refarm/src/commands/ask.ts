@@ -411,28 +411,18 @@ function usageLine(metadata: Record<string, unknown>): string {
 }
 
 function printAskError(message: string): void {
-	const isPiAgentMissing =
-		message.includes(`${PI_AGENT_PLUGIN_ID} not loaded`) ||
-		message.includes("pi-agent not loaded") ||
-		message.includes(`Plugin "${PI_AGENT_PLUGIN_ID}" is not loaded`);
-
-	const isProviderError =
-		message.includes("model-bridge request failed") ||
-		message.includes("Couldn't connect to server") ||
-		message.includes("curl: (7)");
-
-	if (isPiAgentMissing) {
+	const payload = buildAskErrorPayload(message);
+	if (payload.error === "pi-agent-not-loaded") {
 		console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
 		console.error(chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`));
 		console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
-	} else if (isSidecarUnavailable(message)) {
+	} else if (payload.error === "runtime-unavailable") {
 		console.error();
 		printSidecarUnavailable();
-	} else if (isProviderError) {
-		const providerMatch = message.match(/for provider "([^"]+)"/);
-		const provider = providerMatch?.[1] ?? "the configured provider";
+	} else if (payload.error === "model-provider-unavailable") {
+		const provider = payload.provider ?? "the configured provider";
 		console.error(chalk.red(`\n✗  Model provider unavailable: ${provider}`));
 		if (provider === "ollama") {
 			console.error(chalk.dim("   Start Ollama:  ollama serve"));
@@ -448,7 +438,112 @@ function printAskError(message: string): void {
 	}
 }
 
-async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
+function buildAskErrorPayload(message: string): {
+	action: "ask";
+	ok: false;
+	error: string;
+	message: string;
+	provider?: string;
+	nextAction: string;
+	nextActions: string[];
+} {
+	const isPiAgentMissing =
+		message.includes(`${PI_AGENT_PLUGIN_ID} not loaded`) ||
+		message.includes("pi-agent not loaded") ||
+		message.includes(`Plugin "${PI_AGENT_PLUGIN_ID}" is not loaded`);
+
+	const isProviderError =
+		message.includes("model-bridge request failed") ||
+		message.includes("Couldn't connect to server") ||
+		message.includes("curl: (7)");
+
+	if (isPiAgentMissing) {
+		return {
+			action: "ask",
+			ok: false,
+			error: "pi-agent-not-loaded",
+			message: "pi-agent is not loaded in the Refarm runtime.",
+			nextAction: "refarm plugin install",
+			nextActions: [
+				"refarm plugin install",
+				"/reload @refarm/pi-agent",
+				RUNTIME_START_COMMAND,
+				RUNTIME_DOCTOR_COMMAND,
+			],
+		};
+	}
+	if (isSidecarUnavailable(message)) {
+		return {
+			action: "ask",
+			ok: false,
+			error: "runtime-unavailable",
+			message,
+			nextAction: RUNTIME_START_COMMAND,
+			nextActions: [RUNTIME_START_COMMAND, RUNTIME_DOCTOR_COMMAND],
+		};
+	}
+	if (isProviderError) {
+		const providerMatch = message.match(/for provider "([^"]+)"/);
+		const provider = providerMatch?.[1] ?? "the configured provider";
+		return {
+			action: "ask",
+			ok: false,
+			error: "model-provider-unavailable",
+			message: `Model provider unavailable: ${provider}`,
+			provider,
+			nextAction: provider === "ollama" ? "ollama serve" : "refarm sow",
+			nextActions:
+				provider === "ollama"
+					? ["ollama serve", "refarm sow"]
+					: [
+							"refarm sow",
+							"refarm model current --json",
+							"refarm model providers --json",
+							`refarm model ${OPENAI_DEFAULT_REF} --json`,
+						],
+		};
+	}
+	return {
+		action: "ask",
+		ok: false,
+		error: "ask-failed",
+		message,
+		nextAction: RUNTIME_DOCTOR_COMMAND,
+		nextActions: [RUNTIME_DOCTOR_COMMAND, "refarm model current --json"],
+	};
+}
+
+function printAskErrorJson(message: string): void {
+	printJson(buildAskErrorPayload(message));
+}
+
+function printMissingModelCredentials(json: boolean): void {
+	if (json) {
+		printJson({
+			action: "ask",
+			ok: false,
+			error: "model-credentials-missing",
+			message: "No usable model credentials configured.",
+			nextAction: "refarm sow",
+			nextActions: [
+				"refarm sow",
+				"refarm model current --json",
+				"refarm model providers --json",
+				"ollama serve",
+			],
+		});
+		return;
+	}
+	console.error(chalk.red("\n✗  No usable model credentials configured."));
+	console.error(chalk.dim("   Set up credentials: refarm sow"));
+	console.error(chalk.dim("   Inspect route:      refarm model current"));
+	console.error(chalk.dim("   List providers:     refarm model providers"));
+	console.error(
+		chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"),
+	);
+}
+
+async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
 	let readiness = await checkSessionReadiness();
 
 	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -458,13 +553,7 @@ async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
 	}
 
 	if (!readiness.providerConfigured) {
-		console.error(chalk.red("\n✗  No usable model credentials configured."));
-		console.error(chalk.dim("   Set up credentials: refarm sow"));
-		console.error(chalk.dim("   Inspect route:      refarm model current"));
-		console.error(chalk.dim("   List providers:     refarm model providers"));
-		console.error(
-			chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"),
-		);
+		printMissingModelCredentials(json);
 		return false;
 	}
 
@@ -480,6 +569,7 @@ async function ensurePiAgentReady(
 	reloadPlugins:
 		| ((pluginIds: string[]) => Promise<RuntimePluginReloadResult | null>)
 		| undefined,
+	json = false,
 ): Promise<boolean> {
 	if (!readPluginState) return true;
 	const state = await readPluginState();
@@ -493,6 +583,27 @@ async function ensurePiAgentReady(
 		if (refreshed?.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
 	}
 
+	if (json) {
+		printJson({
+			action: "ask",
+			ok: false,
+			error: "pi-agent-not-loaded",
+			message: "pi-agent is not loaded in the Refarm runtime.",
+			installed: state.installed.includes(PI_AGENT_PLUGIN_ID),
+			known: state.known.includes(PI_AGENT_PLUGIN_ID),
+			nextAction: state.installed.includes(PI_AGENT_PLUGIN_ID)
+				? "/reload @refarm/pi-agent"
+				: "refarm plugin install",
+			nextActions: [
+				...(state.installed.includes(PI_AGENT_PLUGIN_ID)
+					? ["/reload @refarm/pi-agent"]
+					: ["refarm plugin install"]),
+				RUNTIME_START_COMMAND,
+				RUNTIME_DOCTOR_COMMAND,
+			],
+		});
+		return false;
+	}
 	console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
 	if (!state.installed.includes(PI_AGENT_PLUGIN_ID)) {
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
@@ -554,6 +665,7 @@ Runtime:
 				if (!deps || launchDeps) {
 					const ready = await ensureAskRuntimeReady(
 						launchDeps ?? defaultLaunchDeps(),
+						Boolean(opts.json),
 					);
 					if (!ready) {
 						process.exitCode = 1;
@@ -563,6 +675,7 @@ Runtime:
 						!(await ensurePiAgentReady(
 							resolved.readPluginState,
 							resolved.reloadPlugins,
+							Boolean(opts.json),
 						))
 					) {
 						process.exitCode = 1;
@@ -571,6 +684,18 @@ Runtime:
 				}
 
 				if (opts.new && opts.session) {
+					if (opts.json) {
+						printJson({
+							action: "ask",
+							ok: false,
+							error: "invalid-options",
+							message: "--new and --session cannot be used together.",
+							nextAction: `refarm ask ${JSON.stringify(query)} --new --json`,
+							nextActions: [`refarm ask ${JSON.stringify(query)} --new --json`],
+						});
+						process.exitCode = 1;
+						return;
+					}
 					console.error(
 						chalk.red("\n✗  --new and --session cannot be used together."),
 					);
@@ -598,6 +723,20 @@ Runtime:
 								message.includes("No session matching") ||
 								message.includes("Ambiguous session prefix")
 							) {
+								if (opts.json) {
+									printJson({
+										action: "ask",
+										ok: false,
+										error: message.includes("Ambiguous session prefix")
+											? "ambiguous-session-prefix"
+											: "session-not-found",
+										message,
+										nextAction: "refarm sessions list --json",
+										nextActions: ["refarm sessions list --json"],
+									});
+									process.exitCode = 1;
+									return;
+								}
 								console.error(chalk.red(`\n✗  ${message}`));
 								console.error(
 									chalk.dim(
@@ -720,7 +859,11 @@ Runtime:
 					}
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
-					printAskError(message);
+					if (opts.json) {
+						printAskErrorJson(message);
+					} else {
+						printAskError(message);
+					}
 					process.exitCode = 1;
 					return;
 				}
