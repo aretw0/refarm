@@ -7,7 +7,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path, { basename, extname } from "node:path";
-import { printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
@@ -49,6 +53,11 @@ interface PluginListEntry {
 
 interface PluginListReport {
 	plugins: PluginListEntry[];
+	ok?: true;
+	nextAction?: string | null;
+	nextActions?: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
 }
 
 interface RuntimePluginStatusEntry {
@@ -88,6 +97,12 @@ interface PluginInstallResult {
 interface PluginInstallReport {
 	failed: number;
 	plugins: PluginInstallResult[];
+	ok?: boolean;
+	error?: string;
+	nextAction?: string | null;
+	nextActions?: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
 }
 
 function localPiAgentBuildCommand(): string {
@@ -272,7 +287,29 @@ async function installBundledPlugins(options: {
 
 	const failed = results.filter((result) => result.status === "failed").length;
 	if (options.json) {
-		const report: PluginInstallReport = { failed, plugins: results };
+		const failedResult = results.find((result) => result.status === "failed");
+		const report: PluginInstallReport = failedResult
+			? buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "install",
+					error: "plugin-install-failed",
+					message: failedResult.message,
+					nextAction: failedResult.buildCommand ?? PLUGIN_INSTALL_COMMAND,
+					nextCommand: failedResult.buildCommand ?? PLUGIN_INSTALL_COMMAND,
+					nextCommands: [
+						...(failedResult.buildCommand ? [failedResult.buildCommand] : []),
+						PLUGIN_INSTALL_COMMAND,
+						PLUGIN_STATUS_JSON_COMMAND,
+					],
+					extra: { failed, plugins: results },
+				})
+			: buildJsonSuccessEnvelope({
+					command: "plugin",
+					operation: "install",
+					nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+					nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+					extra: { failed, plugins: results },
+				});
 		printJson(report);
 	}
 	if (failed > 0) process.exitCode = 1;
@@ -298,7 +335,18 @@ async function listInstalledPlugins(options: { json?: boolean } = {}): Promise<v
 	const report = await buildPluginListReport();
 
 	if (options.json) {
-		printJson(report);
+		const missing = report.plugins.some((plugin) => !plugin.installed);
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "list",
+				nextCommand: missing ? PLUGIN_INSTALL_COMMAND : PLUGIN_STATUS_JSON_COMMAND,
+				nextCommands: missing
+					? [PLUGIN_INSTALL_COMMAND, PLUGIN_STATUS_JSON_COMMAND]
+					: [PLUGIN_STATUS_JSON_COMMAND],
+				extra: report,
+			}),
+		);
 		return;
 	}
 

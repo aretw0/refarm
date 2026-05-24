@@ -200,6 +200,13 @@ describe("plugin install", () => {
 					integrity: "sha256-deadbeef",
 				},
 			],
+			command: "plugin",
+			operation: "install",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm plugin status --json",
+			nextCommands: ["refarm plugin status --json"],
 		});
 		logSpy.mockRestore();
 	});
@@ -223,6 +230,18 @@ describe("plugin install", () => {
 					version: null,
 					message: "package @refarm.dev/pi-agent not found in node_modules",
 				},
+			],
+			command: "plugin",
+			operation: "install",
+			ok: false,
+			error: "plugin-install-failed",
+			message: "package @refarm.dev/pi-agent not found in node_modules",
+			nextAction: "refarm plugin install",
+			nextActions: ["refarm plugin install"],
+			nextCommand: "refarm plugin install",
+			nextCommands: [
+				"refarm plugin install",
+				"refarm plugin status --json",
 			],
 		});
 		expect(errorSpy).not.toHaveBeenCalled();
@@ -251,6 +270,13 @@ describe("plugin install", () => {
 					message: "already up-to-date",
 				},
 			],
+			command: "plugin",
+			operation: "install",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm plugin status --json",
+			nextCommands: ["refarm plugin status --json"],
 		});
 		logSpy.mockRestore();
 	});
@@ -300,6 +326,7 @@ describe("plugin list", () => {
 				source: string;
 				installed: boolean;
 			}>;
+			nextCommand: string | null;
 		};
 		expect(payload.plugins).toEqual([
 			{
@@ -309,6 +336,7 @@ describe("plugin list", () => {
 				installed: true,
 			},
 		]);
+		expect(payload.nextCommand).toBe("refarm plugin status --json");
 		consoleSpy.mockRestore();
 	});
 
@@ -321,11 +349,13 @@ describe("plugin list", () => {
 
 		const payload = JSON.parse(String(consoleSpy.mock.calls[0]?.[0])) as {
 			plugins: Array<{ version: string | null; installed: boolean }>;
+			nextCommand: string | null;
 		};
 		expect(payload.plugins[0]).toMatchObject({
 			version: null,
 			installed: false,
 		});
+		expect(payload.nextCommand).toBe("refarm plugin install");
 		consoleSpy.mockRestore();
 	});
 });
