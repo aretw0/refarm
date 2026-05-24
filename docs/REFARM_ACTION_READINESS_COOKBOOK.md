@@ -43,6 +43,34 @@ package extraction still waits for an independent consumer outside `apps/refarm`
 When a selection is unavailable, guardrail errors list deterministic choices as
 `[row] id` pairs so operators can retry by stable ID or row index.
 
+## JSON continuation handoffs
+
+Machine-readable Refarm command output should separate human guidance from
+commands an operator agent can execute directly:
+
+- `nextAction` / `nextActions` describe the next useful operator intent. They
+  may include human language, REPL-only instructions, or manual steps.
+- `nextCommand` / `nextCommands` contain shell-ready commands only. Do not put
+  placeholders such as `<url>` or REPL commands such as `/reload` in these
+  fields.
+- Prefer `refarm ...` commands for continuation when the CLI can express the
+  action. Use lower-level commands such as `git ls-remote ...` or
+  `gh secret list` only when they are the deterministic verification surface.
+- Preserve package-manager agnosticism in command handoffs. If a command needs
+  the workspace package manager, route it through the existing Refarm helper or
+  local package-manager resolver instead of hardcoding `pnpm`, `npm`, or `yarn`
+  in new logic.
+- Successful dry-runs should usually point at the equivalent apply command.
+  Successful apply flows should usually point at an observation command such as
+  `refarm health --next-action --json`, a status/list command, or a provider
+  verification command.
+
+When adding or changing JSON output in `apps/refarm`, prefer the shared helpers
+in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
+`apps/refarm/src/commands/command-handoff.ts`. Tests should assert both the
+human-facing intent and the executable command when a flow is meant to be
+agent-driven.
+
 ## Live status affordances
 
 `apps/refarm` now publishes app-owned host status affordances from a local
