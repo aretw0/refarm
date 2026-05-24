@@ -153,8 +153,24 @@ async function newExtension(
   printCreatedExtension(report);
 }
 
-async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
+async function saveExtension(
+  name: string,
+  toGlobal: boolean,
+  options: { json?: boolean } = {},
+): Promise<void> {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
+    if (options.json) {
+      printJson({
+        name,
+        action: "save",
+        ok: false,
+        error: "invalid-extension-name",
+        message:
+          "Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
+      });
+      process.exitCode = 1;
+      return;
+    }
     console.error(
       `Invalid extension name '${name}': use lowercase letters, digits, and hyphens only (e.g. my-tool)`,
     );
@@ -174,6 +190,21 @@ async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
 
   if (!existsSync(srcDir)) {
     const fromScope = toGlobal ? "project" : "global";
+    if (options.json) {
+      printJson({
+        name,
+        action: "save",
+        ok: false,
+        error: "extension-not-found",
+        fromScope,
+        sourceDir: srcDir,
+        destinationDir: destDir,
+        nextAction: `refarm extension list --json`,
+        nextActions: [`refarm extension list --json`],
+      });
+      process.exitCode = 1;
+      return;
+    }
     console.error(`Extension '${name}' not found in ${fromScope} scope (${srcDir})`);
     process.exitCode = 1;
     return;
@@ -183,7 +214,38 @@ async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
   await rename(srcDir, destDir);
 
   const toScope = toGlobal ? "global" : "project";
+  if (options.json) {
+    printJson({
+      name,
+      action: "save",
+      ok: true,
+      fromScope: toGlobal ? "project" : "global",
+      toScope,
+      sourceDir: srcDir,
+      destinationDir: destDir,
+      nextAction: `refarm extension list --json`,
+      nextActions: [`refarm extension list --json`],
+    });
+    return;
+  }
   console.log(`Extension '${name}' moved to ${toScope} scope (${destDir})`);
+}
+
+function publishExtensionPlan(name: string) {
+  return {
+    name,
+    action: "publish",
+    ok: false,
+    status: "manual",
+    message: `Publishing local extension '${name}' is not automated yet.`,
+    nextAction: "refarm plugin bundle <plugin.wasm>",
+    nextActions: [
+      "refarm extension list",
+      `/reload @local/${name}`,
+      "refarm plugin bundle <plugin.wasm>",
+      "refarm plugin status",
+    ],
+  };
 }
 
 function listHandler(options: { json?: boolean } = {}): void {
@@ -222,6 +284,8 @@ Examples:
   $ refarm extension list
   $ refarm extension list --json
   $ refarm extension save my-tool --global
+  $ refarm extension save my-tool --global --json
+  $ refarm extension publish my-tool --json
 
 Notes:
   Local extensions are loaded by the Refarm runtime. After editing one, run
@@ -249,19 +313,43 @@ extensionCommand
   .description("Move a project extension to global scope (or vice versa)")
   .option("-g, --global", "Move from project to global scope", false)
   .option("-l, --local", "Move from global to project scope", false)
-  .action(async (name: string, options: { global: boolean; local: boolean }) => {
+  .option("--json", "Output machine-readable move result")
+  .action(async (name: string, options: { global: boolean; local: boolean; json?: boolean }) => {
     if (!options.global && !options.local) {
+      if (options.json) {
+        printJson({
+          name,
+          action: "save",
+          ok: false,
+          error: "missing-scope",
+          message: "Specify --global or --local.",
+          nextAction: `refarm extension save ${name} --global`,
+          nextActions: [
+            `refarm extension save ${name} --global`,
+            `refarm extension save ${name} --local`,
+          ],
+        });
+        process.exitCode = 1;
+        return;
+      }
       console.error("Specify --global (project→global) or --local (global→project)");
       process.exitCode = 1;
       return;
     }
-    await saveExtension(name, options.global);
+    await saveExtension(name, options.global, { json: options.json });
   });
 
 extensionCommand
   .command("publish <name>")
   .description("Show the current path from a local extension to a plugin package")
-  .action((name: string) => {
+  .option("--json", "Output machine-readable publish plan")
+  .action((name: string, options: { json?: boolean }) => {
+    const plan = publishExtensionPlan(name);
+    if (options.json) {
+      printJson(plan);
+      process.exitCode = 1;
+      return;
+    }
     console.log(`Publishing local extension '${name}' is not automated yet.`);
     console.log("Current path:");
     console.log(`  1. Keep iterating locally: refarm extension list`);

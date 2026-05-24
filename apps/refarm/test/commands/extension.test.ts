@@ -1,5 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import * as os from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -19,13 +19,15 @@ describe("extension command", () => {
 		extensionCommand.outputHelp();
 
 		expect(help).toContain("Local extensions are loaded by the Refarm runtime");
+		expect(help).toContain("refarm extension save my-tool --global --json");
+		expect(help).toContain("refarm extension publish my-tool --json");
 		expect(help).toContain("/reload in the refarm REPL");
 	});
 
 	it("prints runtime activation guidance when scaffolding an extension", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const tempDir = mkdtempSync(join(tmpdir(), "refarm-extension-test-"));
+		const tempDir = mkdtempSync(join(os.tmpdir(), "refarm-extension-test-"));
 		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
 
 		try {
@@ -49,7 +51,7 @@ describe("extension command", () => {
 
 	it("prints created extension metadata as JSON", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const tempDir = mkdtempSync(join(tmpdir(), "refarm-extension-json-"));
+		const tempDir = mkdtempSync(join(os.tmpdir(), "refarm-extension-json-"));
 		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
 
 		try {
@@ -88,8 +90,8 @@ describe("extension command", () => {
 	});
 
 	it("builds a structured extension inventory", () => {
-		const cwd = mkdtempSync(join(tmpdir(), "refarm-extension-cwd-"));
-		const home = mkdtempSync(join(tmpdir(), "refarm-extension-home-"));
+		const cwd = mkdtempSync(join(os.tmpdir(), "refarm-extension-cwd-"));
+		const home = mkdtempSync(join(os.tmpdir(), "refarm-extension-home-"));
 		try {
 			const projectExt = join(cwd, ".refarm", "extensions", "my-tool");
 			const globalExt = join(home, ".refarm", "extensions", "global-tool");
@@ -139,7 +141,7 @@ describe("extension command", () => {
 	});
 
 	it("prints extension inventory as JSON", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "refarm-extension-list-"));
+		const tempDir = mkdtempSync(join(os.tmpdir(), "refarm-extension-list-"));
 		const extDir = join(tempDir, ".refarm", "extensions", "my-tool");
 		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -191,6 +193,109 @@ describe("extension command", () => {
 		expect(output).toContain("refarm plugin status");
 		expect(process.exitCode).toBe(1);
 
+		logSpy.mockRestore();
+	});
+
+	it("moves an extension and prints save result as JSON", async () => {
+		const tempDir = mkdtempSync(join(os.tmpdir(), "refarm-extension-save-cwd-"));
+		const homeDir = mkdtempSync(join(os.tmpdir(), "refarm-extension-save-home-"));
+		const extDir = join(tempDir, ".refarm", "extensions", "my-tool");
+		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tempDir);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const previousHome = process.env.HOME;
+		try {
+			process.env.HOME = homeDir;
+			mkdirSync(extDir, { recursive: true });
+			writeFileSync(
+				join(extDir, "ext.json"),
+				JSON.stringify({
+					id: "@local/my-tool",
+					name: "My Tool",
+					version: "0.0.1",
+					capabilities: { provides: ["ai:respond"] },
+				}),
+			);
+
+			await extensionCommand
+				.commands
+				.find((command) => command.name() === "save")!
+				.parseAsync(["my-tool", "--global", "--json"], { from: "user" });
+
+			const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+				ok: boolean;
+				action: string;
+				fromScope: string;
+				toScope: string;
+				destinationDir: string;
+			};
+			expect(payload).toMatchObject({
+				ok: true,
+				action: "save",
+				fromScope: "project",
+				toScope: "global",
+				destinationDir: join(homeDir, ".refarm", "extensions", "my-tool"),
+			});
+		} finally {
+			if (previousHome === undefined) {
+				delete process.env.HOME;
+			} else {
+				process.env.HOME = previousHome;
+			}
+			cwdSpy.mockRestore();
+			logSpy.mockRestore();
+			rmSync(tempDir, { recursive: true, force: true });
+			rmSync(homeDir, { recursive: true, force: true });
+		}
+	});
+
+	it("prints missing save scope as JSON", async () => {
+		process.exitCode = undefined;
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await extensionCommand
+			.commands
+			.find((command) => command.name() === "save")!
+			.parseAsync(["my-tool", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "missing-scope",
+		});
+		expect(payload.nextActions).toContain("refarm extension save my-tool --global");
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("prints publish plan as JSON", async () => {
+		process.exitCode = undefined;
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await extensionCommand
+			.commands
+			.find((command) => command.name() === "publish")!
+			.parseAsync(["my-tool", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			nextAction: string;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			status: "manual",
+			nextAction: "refarm plugin bundle <plugin.wasm>",
+		});
+		expect(payload.nextActions).toContain("/reload @local/my-tool");
+		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
 });
