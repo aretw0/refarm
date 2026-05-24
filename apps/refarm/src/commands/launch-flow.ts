@@ -5,7 +5,10 @@ import {
 } from "./brand.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import { launchDryRunMessage, launchStartMessage } from "./launch-feedback.js";
-import { assertLaunchAllowed } from "./launch-policy.js";
+import {
+	assertLaunchAllowed,
+	resolveLaunchReadiness,
+} from "./launch-policy.js";
 
 export interface ExecuteRendererLaunchFlowOptions<
 	TSpec extends { display: string },
@@ -37,7 +40,13 @@ export async function executeRendererLaunchFlow<
 		return;
 	}
 
-	assertLaunchAllowed(options.status, options.launchGuardTarget);
+	const readiness = resolveLaunchReadiness(
+		options.status,
+		options.launchGuardTarget,
+	);
+	if (!options.dryRun) {
+		assertLaunchAllowed(options.status, options.launchGuardTarget);
+	}
 	if (!(options.dryRun && options.dryRunJson)) {
 		printRefarmLaunchBanner(options.bannerExperience);
 	}
@@ -50,19 +59,30 @@ export async function executeRendererLaunchFlow<
 			const nextCommand = typeof options.dryRunJsonNextCommand === "function"
 				? options.dryRunJsonNextCommand(spec)
 				: options.dryRunJsonNextCommand ?? spec.display;
+			const nextCommands = readiness.readyToExecute
+				? [nextCommand]
+				: readiness.recoveryCommands;
 			printJson(
 				buildJsonSuccessEnvelope({
 					command: options.dryRunJsonCommand,
 					operation: options.dryRunJsonOperation ?? "dry-run",
+					nextAction: readiness.readyToExecute
+						? nextCommand
+						: readiness.blockedReason,
 					extra: {
 						reason: "dry-run",
 						runtimeLabel: options.dryRunRuntimeLabel,
+						launchReady: readiness.readyToExecute,
+						launchFailures: readiness.failures,
+						...(readiness.blockedReason
+							? { launchBlockedReason: readiness.blockedReason }
+							: {}),
 						launchCommand: spec.display,
 						launchSpec: spec,
 						...(options.dryRunJsonExtra?.(spec) ?? {}),
 					},
-					nextCommand,
-					nextCommands: [nextCommand],
+					nextCommand: nextCommands[0] ?? null,
+					nextCommands,
 				}),
 			);
 			await options.onDryRun?.(spec);

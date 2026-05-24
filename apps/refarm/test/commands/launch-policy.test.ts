@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	assertLaunchAllowed,
+	resolveLaunchReadiness,
 	resolveLaunchMode,
 } from "../../src/commands/launch-policy.js";
 
@@ -54,6 +55,22 @@ describe("resolveLaunchMode", () => {
 });
 
 describe("assertLaunchAllowed", () => {
+	it("resolves launch readiness and recovery commands without throwing", () => {
+		expect(
+			resolveLaunchReadiness(
+				makeStatus({ diagnostics: ["runtime:not-ready"] }),
+				"web runtime",
+			),
+		).toMatchObject({
+			readyToExecute: false,
+			failures: ["runtime:not-ready"],
+			recoveryCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+		});
+	});
+
 	it("does not throw when there are no failure diagnostics", () => {
 		expect(() =>
 			assertLaunchAllowed(makeStatus(), "web runtime"),

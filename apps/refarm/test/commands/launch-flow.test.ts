@@ -141,6 +141,8 @@ describe("executeRendererLaunchFlow", () => {
 			renderer: "web",
 			launcher: "dev",
 			runtimeLabel: "web runtime",
+			launchReady: true,
+			launchFailures: [],
 			launchCommand: "runner dev",
 			launchSpec: spec,
 			nextCommand: "runner dev",
@@ -148,6 +150,51 @@ describe("executeRendererLaunchFlow", () => {
 		});
 		expect(onDryRun).toHaveBeenCalledWith(spec);
 		expect(launchProcess).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("prints blocked machine-readable dry-run envelopes without launching", async () => {
+		const spec = {
+			command: "runner",
+			args: ["dev"],
+			display: "runner dev",
+		};
+		const resolveLaunchSpec = vi.fn(() => spec);
+		const launchProcess = vi.fn().mockResolvedValue(0);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await executeRendererLaunchFlow({
+			launch: true,
+			dryRun: true,
+			dryRunJson: true,
+			dryRunJsonCommand: "web",
+			dryRunJsonNextCommand: "refarm web --launch --launcher dev",
+			status: makeStatus(["runtime:not-ready"]),
+			launchGuardTarget: "web runtime",
+			bannerExperience: "web",
+			dryRunRuntimeLabel: "web runtime",
+			startRuntimeLabel: "web runtime",
+			resolveLaunchSpec,
+			launchProcess,
+		});
+
+		expect(resolveLaunchSpec).toHaveBeenCalled();
+		expect(launchProcess).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "web",
+			operation: "dry-run",
+			ok: true,
+			launchReady: false,
+			launchFailures: ["runtime:not-ready"],
+			nextAction:
+				"Cannot launch web runtime due status failures: runtime:not-ready. Run `refarm runtime status`, then `refarm runtime start --wait`.",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+			launchCommand: "runner dev",
+		});
 		logSpy.mockRestore();
 	});
 
