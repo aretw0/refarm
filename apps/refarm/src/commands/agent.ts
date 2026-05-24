@@ -2,6 +2,12 @@ import { Command } from "commander";
 import { spawnSync } from "node:child_process";
 import { defaultProviderModelRef } from "../model-routing.js";
 import { refarmCommand } from "./command-handoff.js";
+import {
+	commandPayloadNextActions,
+	commandPayloadNextCommands,
+	commandPayloadOk,
+	parseCommandJsonPayload,
+} from "./command-result.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
@@ -66,7 +72,7 @@ function runRefarmCommand(args: string[]): AgentFinishStepRunResult {
 	const exitCode = result.status ?? (result.error ? 1 : 0);
 	const stdout = result.stdout ?? "";
 	const stderr = result.stderr ?? "";
-	const payload = parseJsonPayload(stdout);
+	const payload = parseCommandJsonPayload(stdout);
 	return {
 		id: args.join(" "),
 		command: refarmCommand(args),
@@ -78,16 +84,6 @@ function runRefarmCommand(args: string[]): AgentFinishStepRunResult {
 		stderr,
 		...(payload !== undefined ? { payload } : {}),
 	};
-}
-
-function parseJsonPayload(stdout: string): unknown {
-	const trimmed = stdout.trim();
-	if (!trimmed) return undefined;
-	try {
-		return JSON.parse(trimmed);
-	} catch {
-		return undefined;
-	}
 }
 
 function finishStep(
@@ -139,7 +135,7 @@ function runAgentFinishPlan(
 			args: step.args,
 			description: step.description,
 		};
-		const payloadOk = payloadOkValue(result.payload);
+		const payloadOk = commandPayloadOk(result.payload);
 		const ok = result.exitCode === 0 && payloadOk !== false;
 		const normalized = { ...result, ok };
 		steps.push(normalized);
@@ -148,9 +144,10 @@ function runAgentFinishPlan(
 				ok: false,
 				status: "failed",
 				steps,
-				nextActions: payloadNextActions(result.payload) ??
-					payloadNextCommands(result.payload) ?? [step.command],
-				nextCommands: payloadNextCommands(result.payload) ?? [step.command],
+				nextActions: commandPayloadNextActions(result.payload) ??
+					commandPayloadNextCommands(result.payload) ?? [step.command],
+				nextCommands:
+					commandPayloadNextCommands(result.payload) ?? [step.command],
 			};
 		}
 	}
@@ -161,30 +158,6 @@ function runAgentFinishPlan(
 		nextActions: [],
 		nextCommands: [],
 	};
-}
-
-function payloadOkValue(payload: unknown): boolean | undefined {
-	if (!payload || typeof payload !== "object" || !("ok" in payload)) {
-		return undefined;
-	}
-	const value = (payload as { ok?: unknown }).ok;
-	return typeof value === "boolean" ? value : undefined;
-}
-
-function payloadNextCommands(payload: unknown): string[] | undefined {
-	if (!payload || typeof payload !== "object") return undefined;
-	const value = (payload as { nextCommands?: unknown }).nextCommands;
-	if (!Array.isArray(value)) return undefined;
-	const commands = value.filter((item): item is string => typeof item === "string");
-	return commands.length > 0 ? commands : undefined;
-}
-
-function payloadNextActions(payload: unknown): string[] | undefined {
-	if (!payload || typeof payload !== "object") return undefined;
-	const value = (payload as { nextActions?: unknown }).nextActions;
-	if (!Array.isArray(value)) return undefined;
-	const actions = value.filter((item): item is string => typeof item === "string");
-	return actions.length > 0 ? actions : undefined;
 }
 
 function printAgentFinishRunHuman(result: ReturnType<typeof runAgentFinishPlan>): void {
