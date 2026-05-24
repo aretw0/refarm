@@ -202,6 +202,24 @@ describe("refarm sessions", () => {
 		});
 	});
 
+	it("prints runtime errors as JSON when session listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "list",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("sessions use fails closed when active pointer verification reads back the wrong session", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -508,6 +526,29 @@ describe("refarm sessions", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Start now:  refarm runtime start"),
 		);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sessions new prints runtime errors as JSON when sidecar is down", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createSessionsCommand();
+		await command.commands
+			.find((c) => c.name() === "new")!
+			.parseAsync(["--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "new",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
 		expect(process.exitCode).toBe(1);
 	});
 

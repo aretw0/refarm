@@ -254,7 +254,11 @@ async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 	try {
 		sessions = await fetchSessions();
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "list",
+		});
 		return;
 	}
 
@@ -346,7 +350,11 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 		}
 		created = parsed.session;
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "new",
+		});
 		return;
 	}
 
@@ -377,7 +385,11 @@ async function useSession(
 	try {
 		sessions = await fetchSessions();
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "use",
+		});
 		return;
 	}
 
@@ -467,7 +479,11 @@ async function forkSession(
 		}
 		fork = parsed.session;
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "fork",
+		});
 		return;
 	}
 
@@ -542,7 +558,11 @@ async function showSession(
 		}
 		history = body;
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "show",
+		});
 		return;
 	}
 

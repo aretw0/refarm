@@ -122,6 +122,25 @@ describe("refarm tasks", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("prints runtime errors as JSON when task listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync(["--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tasks",
+			operation: "list",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("prints task lists as machine-readable JSON", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -376,6 +395,27 @@ describe("refarm tasks", () => {
 
 		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints runtime errors as JSON when task details cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+		});
 		expect(process.exitCode).toBe(1);
 	});
 });

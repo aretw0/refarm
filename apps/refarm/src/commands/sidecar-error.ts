@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { printJson } from "./json-output.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
@@ -27,6 +28,37 @@ export function printSidecarUnavailable(): void {
 	console.error(chalk.dim(`   Engine:     ${RUNTIME_ENGINE_AUTO_COMMAND}`));
 }
 
+export function buildSidecarErrorPayload(
+	message: string,
+	context: { command?: string; operation?: string } = {},
+) {
+	if (isSidecarUnavailable(message)) {
+		return {
+			...context,
+			ok: false,
+			error: "runtime-unavailable",
+			message: "Refarm runtime is not running.",
+			nextAction: RUNTIME_START_COMMAND,
+			nextActions: [
+				RUNTIME_STATUS_COMMAND,
+				RUNTIME_START_COMMAND,
+				RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				RUNTIME_DOCTOR_COMMAND,
+				RUNTIME_AUTOSTART_ALWAYS_COMMAND,
+				RUNTIME_ENGINE_AUTO_COMMAND,
+			],
+		};
+	}
+	return {
+		...context,
+		ok: false,
+		error: "runtime-request-failed",
+		message,
+		nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+		nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_DOCTOR_COMMAND],
+	};
+}
+
 export function printSidecarError(message: string): void {
 	if (isSidecarUnavailable(message)) {
 		printSidecarUnavailable();
@@ -35,8 +67,21 @@ export function printSidecarError(message: string): void {
 	console.error(chalk.red(`✗  ${message}`));
 }
 
-export function reportSidecarError(error: unknown): void {
+export function reportSidecarError(
+	error: unknown,
+	options: { json?: boolean; command?: string; operation?: string } = {},
+): void {
 	const message = error instanceof Error ? error.message : String(error);
+	if (options.json) {
+		printJson(
+			buildSidecarErrorPayload(message, {
+				command: options.command,
+				operation: options.operation,
+			}),
+		);
+		process.exitCode = 1;
+		return;
+	}
 	printSidecarError(message);
 	process.exitCode = 1;
 }

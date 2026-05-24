@@ -134,7 +134,11 @@ async function listTasks(opts: {
 			limit: opts.limit,
 		});
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tasks",
+			operation: "list",
+		});
 		return;
 	}
 
@@ -253,7 +257,11 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		}
 		body = parsed;
 	} catch (err) {
-		reportSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tasks",
+			operation: "show",
+		});
 		return;
 	}
 
