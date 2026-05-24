@@ -250,6 +250,8 @@ describe("sowCommand — default (no flags)", () => {
 		expect(help).toContain("refarm sow --model openai/gpt-5.5");
 		expect(help).toContain("refarm sow --model openai/gpt-5.5 --json");
 		expect(help).toContain("--json is non-interactive");
+		expect(help).toContain("nextAction describes any manual login/configuration");
+		expect(help).toContain("nextCommand lists executable inspection or continuation commands");
 		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 	});
 });

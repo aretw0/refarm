@@ -70,6 +70,7 @@ describe("guideCommand", () => {
     expect(help).toContain("refarm sow --cloudflare");
     expect(help).toContain("refarm model current");
     expect(help).toContain("model, GitHub, Cloudflare, and brand setup");
+    expect(help).toContain("next human action and executable follow-up command");
     expect(help).toContain("Use refarm health");
   });
 

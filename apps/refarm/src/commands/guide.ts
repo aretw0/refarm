@@ -78,7 +78,7 @@ export const guideCommand = new Command("guide")
       "  This writes refarm-audit.md in the current directory.",
       "  The report is a local setup audit; it is not a runtime readiness check.",
       "  It checks model, GitHub, Cloudflare, and brand setup and prints the",
-      "  next refarm command for each missing item.",
+      "  next human action and executable follow-up command for missing items.",
       "  Use refarm health for deterministic project diagnostics.",
     ].join("\n"),
   )
