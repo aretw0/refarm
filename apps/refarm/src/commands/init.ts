@@ -5,7 +5,7 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface InitOptions {
   force?: boolean;
@@ -46,17 +46,23 @@ export const initCommand = new Command("init")
 
     if (!opts.force && (existsSync(configPath) || existsSync(identityPath))) {
       if (opts.json) {
-        printJson({
-          schemaVersion: INIT_SCHEMA_VERSION,
-          command: "init",
-          ok: false,
-          status: "already-initialized",
-          projectDir,
-          configPath,
-          identityPath,
-          nextAction: `refarm init ${name} --force`,
-          nextActions: [`refarm init ${name} --force`],
-        });
+        printJson(
+          buildJsonErrorEnvelope({
+            command: "init",
+            operation: "scaffold",
+            error: "already-initialized",
+            message: `Already initialized at ${projectDir}.`,
+            nextAction: `refarm init ${name} --force`,
+            nextActions: [`refarm init ${name} --force`],
+            extra: {
+              schemaVersion: INIT_SCHEMA_VERSION,
+              status: "already-initialized",
+              projectDir,
+              configPath,
+              identityPath,
+            },
+          }),
+        );
         return;
       }
       console.log(chalk.yellow(`Already initialized at ${projectDir}.`));
