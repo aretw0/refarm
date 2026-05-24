@@ -154,6 +154,11 @@ export const sowCommand = new Command("sow")
 				const nextAction = configureModel
 					? "refarm sow"
 					: `refarm sow --${interactivePrompts[0]}`;
+				const nextCommands = [
+					...(configureModel ? [MODEL_PROVIDERS_JSON_COMMAND] : []),
+					MODEL_CURRENT_JSON_COMMAND,
+					OPERATOR_LINKS_CONFIG_COMMAND,
+				];
 				printJson(
 					buildJsonErrorEnvelope({
 						error: "interactive-required",
@@ -164,12 +169,8 @@ export const sowCommand = new Command("sow")
 							MODEL_CURRENT_JSON_COMMAND,
 							OPERATOR_LINKS_CONFIG_COMMAND,
 						],
-						nextCommand: nextAction,
-						nextCommands: [
-							nextAction,
-							MODEL_CURRENT_JSON_COMMAND,
-							OPERATOR_LINKS_CONFIG_COMMAND,
-						],
+						nextCommand: nextCommands[0],
+						nextCommands,
 						extra: {
 							action: "sow",
 							status: "interactive-required",

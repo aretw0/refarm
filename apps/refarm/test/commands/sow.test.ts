@@ -139,8 +139,10 @@ describe("sowCommand — default (no flags)", () => {
 			status: "interactive-required",
 			prompts: ["model"],
 			nextAction: "refarm sow",
-			nextCommand: "refarm sow",
+			nextCommand: "refarm model providers --json",
 		});
+		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain(
 			"refarm config get operator.openExternalLinks --json",
 		);
@@ -345,6 +347,23 @@ describe("sowCommand — --github flag", () => {
 	it("does not prompt for model when already configured", async () => {
 		await sowCommand.parseAsync(["--github"], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();
+	});
+
+	it("keeps JSON next commands non-interactive when GitHub collection is required", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--github", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.nextAction).toBe("refarm sow --github");
+		expect(payload.nextCommand).toBe("refarm model current --json");
+		expect(payload.nextCommands).not.toContain("refarm sow --github");
+		expect(payload.nextCommands).toContain("refarm config get operator.openExternalLinks --json");
+		expect(mockGithubCollect).not.toHaveBeenCalled();
 	});
 });
 
