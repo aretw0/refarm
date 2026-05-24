@@ -20,7 +20,8 @@ import {
 	type AutostartMode,
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
-import { printJson } from "./json-output.js";
+import { refarmCommand } from "./command-handoff.js";
+import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
@@ -297,7 +298,11 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 
 function printConfigValueJson(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
 	warnIgnoredConfigEnvOverrides();
-	printJson(resolveConfigValue(key, opts, deps));
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: resolveConfigValue(key, opts, deps),
+		}),
+	);
 }
 
 function warnIgnoredConfigEnvOverrides(): void {
@@ -333,7 +338,11 @@ function printConfigSummary(deps: ConfigDeps): void {
 
 function printConfigSummaryJson(deps: ConfigDeps): void {
 	warnIgnoredConfigEnvOverrides();
-	printJson(buildConfigSummary(deps));
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: buildConfigSummary(deps),
+		}),
+	);
 }
 
 function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): boolean {
@@ -358,7 +367,14 @@ function printPersistedConfigValue(result: PersistedConfigValue): void {
 }
 
 function printPersistedConfigValueJson(result: PersistedConfigValue): void {
-	printJson(result);
+	const nextCommand = configGetCommand(result.key, { local: result.scope === "local" });
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: result,
+			nextCommand,
+			nextCommands: [nextCommand],
+		}),
+	);
 }
 
 function printUnsetConfigValue(result: UnsetConfigValue): void {
@@ -374,7 +390,24 @@ function printUnsetConfigValue(result: UnsetConfigValue): void {
 }
 
 function printUnsetConfigValueJson(result: UnsetConfigValue): void {
-	printJson(result);
+	const nextCommand = configGetCommand(result.key, { local: result.scope === "local" });
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: result,
+			nextCommand,
+			nextCommands: [nextCommand],
+		}),
+	);
+}
+
+function configGetCommand(key: ConfigKey, opts: { local?: boolean }): string {
+	return refarmCommand([
+		"config",
+		"get",
+		key,
+		"--json",
+		...(opts.local ? ["--local"] : []),
+	]);
 }
 
 function persistConfigValue(

@@ -8,6 +8,25 @@ function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "refarm-config-"));
 }
 
+const EMPTY_JSON_HANDOFF = {
+	ok: true,
+	nextAction: null,
+	nextActions: [],
+	nextCommand: null,
+	nextCommands: [],
+};
+
+function configGetHandoff(key: string, local = false) {
+	const nextCommand = `refarm config get ${key} --json${local ? " --local" : ""}`;
+	return {
+		ok: true,
+		nextAction: null,
+		nextActions: [],
+		nextCommand,
+		nextCommands: [nextCommand],
+	};
+}
+
 describe("config command", () => {
 	let cwd: string;
 	let home: string;
@@ -120,6 +139,7 @@ describe("config command", () => {
 			value: "always",
 			path: path.join(home, ".refarm", "config.json"),
 			scope: "home",
+			...configGetHandoff("runtime.autostart"),
 		});
 	});
 
@@ -136,6 +156,7 @@ describe("config command", () => {
 			value: "never",
 			path: path.join(cwd, ".refarm", "config.json"),
 			scope: "local",
+			...configGetHandoff("operator.openExternalLinks", true),
 		});
 	});
 
@@ -152,6 +173,7 @@ describe("config command", () => {
 			path: path.join(home, ".refarm", "config.json"),
 			scope: "home",
 			legacy: true,
+			...configGetHandoff("farmhand.autostart"),
 		});
 	});
 
@@ -196,6 +218,7 @@ describe("config command", () => {
 			path: path.join(cwd, ".refarm", "config.json"),
 			scope: "local",
 			removed: true,
+			...configGetHandoff("operator.openExternalLinks", true),
 		});
 	});
 
@@ -211,6 +234,7 @@ describe("config command", () => {
 			path: path.join(home, ".refarm", "config.json"),
 			scope: "home",
 			removed: false,
+			...configGetHandoff("tractor.engine"),
 		});
 		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
 	});
@@ -326,6 +350,7 @@ describe("config command", () => {
 			key: "runtime.autostart",
 			value: "never",
 			source: path.join(cwd, ".refarm", "config.json"),
+			...EMPTY_JSON_HANDOFF,
 		});
 	});
 
@@ -341,6 +366,7 @@ describe("config command", () => {
 			value: "ask",
 			source: "default",
 			legacy: true,
+			...EMPTY_JSON_HANDOFF,
 		});
 	});
 
