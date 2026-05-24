@@ -96,4 +96,27 @@ describe("command plan runner", () => {
 		});
 		expect(runStep).toHaveBeenCalledTimes(1);
 	});
+
+	it("preserves planned step identity over runner metadata", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			id: "runner-id",
+			command: "runner command",
+			args: ["runner"],
+			description: "Runner description.",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+
+		expect(runCommandPlan([steps[0]!], runStep).steps[0]).toMatchObject({
+			id: "first",
+			command: "refarm first --json",
+			args: ["first", "--json"],
+			description: "First step.",
+			ok: true,
+		});
+	});
 });

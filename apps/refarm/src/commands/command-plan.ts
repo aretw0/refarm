@@ -33,7 +33,14 @@ export function runCommandPlan(
 ): CommandPlanRunResult {
 	const steps: CommandPlanStepRunResult[] = [];
 	for (const step of stepsToRun) {
-		const result = runStep(step);
+		const observed = runStep(step);
+		const result = {
+			...observed,
+			id: step.id,
+			command: step.command,
+			args: step.args,
+			description: step.description,
+		};
 		const payloadOk = commandPayloadOk(result.payload);
 		const ok = result.exitCode === 0 && payloadOk !== false;
 		const normalized = { ...result, ok };

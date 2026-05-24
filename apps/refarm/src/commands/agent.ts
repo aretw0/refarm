@@ -108,13 +108,7 @@ const agentFinishSteps = [
 function runAgentFinishPlan(
 	deps: AgentCommandDeps,
 ): CommandPlanRunResult {
-	return runCommandPlan(agentFinishSteps, (step) => ({
-			...deps.runRefarm(step.args),
-			id: step.id,
-			command: step.command,
-			args: step.args,
-			description: step.description,
-		}));
+	return runCommandPlan(agentFinishSteps, (step) => deps.runRefarm(step.args));
 }
 
 function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
