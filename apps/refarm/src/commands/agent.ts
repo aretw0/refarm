@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { defaultProviderModelRef } from "../model-routing.js";
+import { refarmCommand } from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
@@ -36,23 +37,43 @@ const agentRuntimePlan = {
 	},
 };
 
+interface AgentFinishStep {
+	id: string;
+	command: string;
+	args: string[];
+	description: string;
+}
+
+function finishStep(
+	id: string,
+	args: string[],
+	description: string,
+): AgentFinishStep {
+	return {
+		id,
+		command: refarmCommand(args),
+		args,
+		description,
+	};
+}
+
 const agentFinishSteps = [
-	{
-		id: "tidy-imports-check",
-		command: "refarm tidy imports --check --json",
-		description: "Check import organization after the editing slice.",
-	},
-	{
-		id: "health",
-		command: "refarm health --next-action --json",
-		description: "Audit filesystem, build alignment, and resolution health.",
-	},
-	{
-		id: "check",
-		command: "refarm check --next-action --json",
-		description: "Run the composite readiness gate and surface recovery actions.",
-	},
-] as const;
+	finishStep(
+		"tidy-imports-check",
+		["tidy", "imports", "--check", "--json"],
+		"Check import organization after the editing slice.",
+	),
+	finishStep(
+		"health",
+		["health", "--next-action", "--json"],
+		"Audit filesystem, build alignment, and resolution health.",
+	),
+	finishStep(
+		"check",
+		["check", "--next-action", "--json"],
+		"Run the composite readiness gate and surface recovery actions.",
+	),
+];
 
 export function createAgentCommand(): Command {
 	// Agent runtime commands (status, repl, start/stop) live here.

@@ -111,7 +111,12 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
-			steps: { id: string; command: string; description: string }[];
+			steps: {
+				id: string;
+				command: string;
+				args: string[];
+				description: string;
+			}[];
 			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
@@ -131,14 +136,17 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "tidy-imports-check",
 				command: "refarm tidy imports --check --json",
+				args: ["tidy", "imports", "--check", "--json"],
 			}),
 			expect.objectContaining({
 				id: "health",
 				command: "refarm health --next-action --json",
+				args: ["health", "--next-action", "--json"],
 			}),
 			expect.objectContaining({
 				id: "check",
 				command: "refarm check --next-action --json",
+				args: ["check", "--next-action", "--json"],
 			}),
 		]);
 		logSpy.mockRestore();
