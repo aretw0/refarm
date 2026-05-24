@@ -20,9 +20,18 @@ export interface JsonErrorEnvelopeInput<TExtra extends object = object>
 	extra?: TExtra;
 }
 
+export type JsonErrorEnvelope<TExtra extends object = object> = TExtra &
+	JsonErrorEnvelopeContext & {
+		ok: false;
+		error: string;
+		message?: string;
+		nextAction: string;
+		nextActions: string[];
+	};
+
 export function buildJsonErrorEnvelope<TExtra extends object = object>(
 	input: JsonErrorEnvelopeInput<TExtra>,
-) {
+): JsonErrorEnvelope<TExtra> {
 	const { command, operation, error, message, nextAction, nextActions, extra } =
 		input;
 	return {
@@ -34,5 +43,5 @@ export function buildJsonErrorEnvelope<TExtra extends object = object>(
 		...(message ? { message } : {}),
 		nextAction,
 		nextActions: nextActions ?? [nextAction],
-	};
+	} as JsonErrorEnvelope<TExtra>;
 }
