@@ -53,6 +53,7 @@ import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.j
 import { sidecarUrl } from "./sidecar-url.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -478,6 +479,7 @@ function buildAskErrorPayload(message: string): {
 			nextCommand: "refarm plugin install",
 			nextCommands: [
 				"refarm plugin install",
+				PI_AGENT_RELOAD_JSON_COMMAND,
 				RUNTIME_START_WAIT_COMMAND,
 				RUNTIME_DOCTOR_NEXT_COMMAND,
 			],
@@ -639,11 +641,11 @@ async function ensurePiAgentReady(
 					RUNTIME_DOCTOR_COMMAND,
 				],
 				nextCommand: state.installed.includes(PI_AGENT_PLUGIN_ID)
-					? RUNTIME_START_WAIT_COMMAND
+					? PI_AGENT_RELOAD_JSON_COMMAND
 					: "refarm plugin install",
 				nextCommands: [
 					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
-						? []
+						? [PI_AGENT_RELOAD_JSON_COMMAND]
 						: ["refarm plugin install"]),
 					RUNTIME_START_WAIT_COMMAND,
 					RUNTIME_DOCTOR_NEXT_COMMAND,

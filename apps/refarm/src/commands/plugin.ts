@@ -18,7 +18,10 @@ import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
-import { readRuntimePluginState } from "./runtime-plugins.js";
+import {
+	readRuntimePluginState,
+	reloadRuntimePluginsAndWait,
+} from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -42,6 +45,7 @@ type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 const PLUGIN_INSTALL_COMMAND = "refarm plugin install";
 const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
+const PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
 
@@ -390,6 +394,7 @@ function buildRuntimePluginStatusReport(
 
 	const known =
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
+	const piAgentInstalled = state.installed.includes(PI_AGENT_PLUGIN_ID);
 	return {
 		available: true,
 		plugins: known.map((id) => ({
@@ -401,9 +406,18 @@ function buildRuntimePluginStatusReport(
 		...(state.loaded.includes(PI_AGENT_PLUGIN_ID)
 			? {}
 			: {
-					nextAction: PLUGIN_INSTALL_COMMAND,
-					nextCommand: PLUGIN_INSTALL_COMMAND,
-					nextCommands: [PLUGIN_INSTALL_COMMAND, PLUGIN_STATUS_JSON_COMMAND],
+					nextAction: piAgentInstalled
+						? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
+						: PLUGIN_INSTALL_COMMAND,
+					nextCommand: piAgentInstalled
+						? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
+						: PLUGIN_INSTALL_COMMAND,
+					nextCommands: [
+						...(piAgentInstalled
+							? [PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND]
+							: [PLUGIN_INSTALL_COMMAND]),
+						PLUGIN_STATUS_JSON_COMMAND,
+					],
 				}),
 	};
 }
@@ -444,10 +458,83 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 		console.log("");
 		console.log("pi-agent is not loaded.");
 		console.log(`  Install:  ${PLUGIN_INSTALL_COMMAND}`);
-		console.log("  Reload:   refarm");
-		console.log("            then run /reload @refarm/pi-agent");
+		console.log(`  Reload:   ${PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND}`);
 		console.log("  Ask:      refarm ask hello");
 		console.log(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`);
+	}
+}
+
+async function reloadRuntimePluginCommand(
+	pluginIds: string[],
+	options: { json?: boolean } = {},
+): Promise<void> {
+	const requested = pluginIds.length > 0 ? pluginIds : undefined;
+	if (!options.json) {
+		console.log(
+			requested
+				? `Reloading runtime plugins: ${requested.join(", ")}`
+				: "Reloading runtime plugins...",
+		);
+	}
+
+	const result = await reloadRuntimePluginsAndWait(requested, {
+		onDeferred(pluginId) {
+			if (!options.json) {
+				console.log(`  waiting for ${pluginId} to become idle...`);
+			}
+		},
+	});
+
+	if (!result) {
+		if (options.json) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "reload",
+					error: "runtime-plugin-reload-unavailable",
+					message: "Refarm runtime plugin reload is unavailable.",
+					nextAction: RUNTIME_START_WAIT_COMMAND,
+					nextCommand: RUNTIME_START_WAIT_COMMAND,
+					nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
+					extra: {
+						requested: pluginIds,
+					},
+				}),
+			);
+		} else {
+			console.error("Runtime plugin reload is unavailable.");
+			console.error(`  Start runtime: ${RUNTIME_START_WAIT_COMMAND}`);
+			console.error(`  Diagnose:      ${RUNTIME_DOCTOR_COMMAND}`);
+		}
+		process.exitCode = 1;
+		return;
+	}
+
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "reload",
+				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+				extra: {
+					requested: pluginIds,
+					reloaded: result.reloaded,
+					skipped: result.skipped,
+				},
+			}),
+		);
+		return;
+	}
+
+	for (const pluginId of result.reloaded) {
+		console.log(`  ✓ ${pluginId} reloaded`);
+	}
+	for (const pluginId of result.skipped) {
+		console.error(`  ✗ ${pluginId} failed to reload`);
+	}
+	if (result.reloaded.length === 0 && result.skipped.length === 0) {
+		console.log("  No plugins to reload.");
 	}
 }
 
@@ -460,6 +547,7 @@ export const pluginCommand = new Command("plugin").description(
 		"Examples:",
 		"  $ refarm plugin status",
 		"  $ refarm plugin status --json",
+		"  $ refarm plugin reload @refarm/pi-agent --json",
 		"  $ refarm plugin install",
 		"  $ refarm plugin list",
 		"  $ refarm plugin list --json",
@@ -532,6 +620,7 @@ pluginCommand
 			"Examples:",
 			"  $ refarm plugin status",
 			"  $ refarm plugin status --json",
+			"  $ refarm plugin reload @refarm/pi-agent --json",
 			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
 			"  › /reload @refarm/pi-agent",
@@ -546,6 +635,26 @@ pluginCommand
 	)
 	.option("--json", "Output machine-readable runtime plugin state")
 	.action(printRuntimePluginStatus);
+
+pluginCommand
+	.command("reload [pluginIds...]")
+	.description("Ask the running Refarm runtime to hot-reload plugins")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm plugin reload",
+			"  $ refarm plugin reload pi-agent",
+			"  $ refarm plugin reload @refarm/pi-agent --json",
+			"",
+			"Notes:",
+			"  This is the non-interactive equivalent of /reload in refarm chat.",
+			`  Use ${RUNTIME_START_WAIT_COMMAND} if the runtime is not running.`,
+		].join("\n"),
+	)
+	.option("--json", "Output machine-readable reload result")
+	.action(reloadRuntimePluginCommand);
 
 pluginCommand
 	.command("bundle <input>")

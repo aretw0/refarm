@@ -414,7 +414,7 @@ describe("plugin status", () => {
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
 		expect(output).toContain("pi-agent is not loaded");
 		expect(output).toContain("refarm plugin install");
-		expect(output).toContain("then run /reload @refarm/pi-agent");
+		expect(output).toContain("refarm plugin reload @refarm/pi-agent --json");
 		expect(output).toContain("refarm ask hello");
 		consoleSpy.mockRestore();
 	});
@@ -463,13 +463,82 @@ describe("plugin status", () => {
 				local: true,
 			},
 		]);
-		expect(payload.nextAction).toBe("refarm plugin install");
-		expect(payload.nextCommand).toBe("refarm plugin install");
+		expect(payload.nextAction).toBe("refarm plugin reload @refarm/pi-agent --json");
+		expect(payload.nextCommand).toBe("refarm plugin reload @refarm/pi-agent --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm plugin install",
+			"refarm plugin reload @refarm/pi-agent --json",
 			"refarm plugin status --json",
 		]);
 		consoleSpy.mockRestore();
+	});
+
+	it("reloads runtime plugins as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					reloadId: "reload-1",
+					reloaded: ["@refarm/pi-agent"],
+					deferred: [],
+					skipped: [],
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("reload", "pi-agent", "--json");
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			requested: string[];
+			reloaded: string[];
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			command: "plugin",
+			operation: "reload",
+			requested: ["pi-agent"],
+			reloaded: ["@refarm/pi-agent"],
+			nextCommand: "refarm plugin status --json",
+		});
+		expect(fetch).toHaveBeenCalledWith(
+			expect.stringContaining("/plugins/reload"),
+			expect.objectContaining({
+				method: "POST",
+				body: JSON.stringify({ pluginIds: ["@refarm/pi-agent"] }),
+			}),
+		);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports runtime plugin reload unavailability as JSON", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("reload", "pi-agent", "--json");
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "runtime-plugin-reload-unavailable",
+			nextCommand: "refarm runtime start --wait",
+		});
+		expect(payload.nextCommands).toContain("refarm doctor --next-command");
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("prints unavailable runtime plugin state as JSON", async () => {

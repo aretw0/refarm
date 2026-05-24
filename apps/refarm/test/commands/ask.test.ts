@@ -402,9 +402,10 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "pi-agent-not-loaded",
 			nextAction: "/reload @refarm/pi-agent",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm plugin reload @refarm/pi-agent --json",
 		});
 		expect(payload.nextActions).toContain("refarm runtime start");
+		expect(payload.nextCommands).toContain("refarm runtime start --wait");
 		expect(payload.nextCommands).toContain("refarm doctor --next-command");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
