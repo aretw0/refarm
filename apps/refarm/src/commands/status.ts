@@ -14,6 +14,12 @@ import { printJson } from "./json-output.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeReady } from "./runtime-readiness.js";
 import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import {
 	findRepoRoot,
 	readTractorEngineMode,
 	resolveLaunchRuntime,
@@ -111,9 +117,10 @@ Examples:
   $ refarm status --action inspect-trust
 
 Notes:
-  Use refarm runtime status for runtime engine/readiness details.
-  Use refarm doctor --next-action for the shortest recovery step.
-  Use refarm doctor for the full readiness report.
+  Use ${RUNTIME_STATUS_COMMAND} for runtime engine/readiness details.
+  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.
+  Use ${RUNTIME_DOCTOR_NEXT_COMMAND} for command-only recovery automation.
+  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.
 `,
 	)
 	.action(
