@@ -747,6 +747,10 @@ Runtime:
 								nextActions: [
 									`refarm ask ${JSON.stringify(query)} --new --json`,
 								],
+								nextCommand: `refarm ask ${JSON.stringify(query)} --new --json`,
+								nextCommands: [
+									`refarm ask ${JSON.stringify(query)} --new --json`,
+								],
 								extra: { action: "ask" },
 							}),
 						);
@@ -791,6 +795,8 @@ Runtime:
 											message,
 											nextAction: "refarm sessions list --json",
 											nextActions: ["refarm sessions list --json"],
+											nextCommand: "refarm sessions list --json",
+											nextCommands: ["refarm sessions list --json"],
 											extra: { action: "ask" },
 										}),
 									);

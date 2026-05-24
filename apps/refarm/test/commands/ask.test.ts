@@ -777,6 +777,37 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
+	it("prints session prefix failures as JSON with executable recovery command", async () => {
+		const deps = makeDeps({
+			resolveSessionIdPrefix: vi
+				.fn()
+				.mockRejectedValue(
+					new Error('Ambiguous session prefix "abc" (2 matches)'),
+				),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--session", "abc", "--json"], {
+			from: "user",
+		});
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "ambiguous-session-prefix",
+			nextAction: "refarm sessions list --json",
+			nextCommand: "refarm sessions list --json",
+			nextCommands: ["refarm sessions list --json"],
+		});
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("rejects --new together with --session", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
@@ -816,11 +847,13 @@ describe("refarm ask", () => {
 			ok: boolean;
 			error: string;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "invalid-options",
 			nextAction: 'refarm ask "hello" --new --json',
+			nextCommand: 'refarm ask "hello" --new --json',
 		});
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
