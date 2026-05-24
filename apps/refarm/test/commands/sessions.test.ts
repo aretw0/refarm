@@ -113,6 +113,15 @@ describe("refarm sessions", () => {
 				"@type": "Session",
 				name: "auth-refactor",
 			},
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+			nextCommands: [
+				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions list --json",
+			],
 		});
 	});
 
@@ -160,6 +169,15 @@ describe("refarm sessions", () => {
 					name: "older",
 					created_at_ns: 1,
 				},
+			],
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm sessions show 'urn:refarm:session:v1:newer' --json",
+			nextCommands: [
+				"refarm sessions show 'urn:refarm:session:v1:newer' --json",
+				"refarm sessions use 'urn:refarm:session:v1:newer' --json",
 			],
 		});
 	});
@@ -300,6 +318,15 @@ describe("refarm sessions", () => {
 				"@type": "Session",
 				name: "planning",
 			},
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+			nextCommands: [
+				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions list --json",
+			],
 		});
 	});
 
@@ -347,6 +374,11 @@ describe("refarm sessions", () => {
 			action: "cleared",
 			activeSessionId: null,
 			cleared: true,
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm sessions list --json",
+			nextCommands: ["refarm sessions list --json"],
 		});
 	});
 
@@ -396,6 +428,15 @@ describe("refarm sessions", () => {
 				},
 			],
 			total: 1,
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm sessions use 'urn:refarm:session:v1:abc123def456' --json",
+			nextCommands: [
+				"refarm sessions use 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions list --json",
+			],
 		});
 	});
 
@@ -479,6 +520,15 @@ describe("refarm sessions", () => {
 				parent_session_id: "urn:refarm:session:v1:parent123",
 				leaf_entry_id: "entry-1",
 			},
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm sessions show 'urn:refarm:session:v1:fork123' --json",
+			nextCommands: [
+				"refarm sessions show 'urn:refarm:session:v1:fork123' --json",
+				"refarm sessions list --json",
+			],
 		});
 	});
 

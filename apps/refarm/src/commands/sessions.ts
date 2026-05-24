@@ -1,7 +1,12 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -58,6 +63,28 @@ interface SessionForkReport {
 	session: SessionNode;
 	parentSessionId: string;
 	branchEntryId?: string;
+}
+
+const SESSIONS_LIST_JSON_COMMAND = "refarm sessions list --json";
+
+function sessionShowJsonCommand(sessionId: string): string {
+	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
+}
+
+function sessionUseJsonCommand(sessionId: string): string {
+	return refarmCommand(["sessions", "use", quoteCommandArg(sessionId), "--json"]);
+}
+
+function printSessionJsonSuccess<TExtra extends object>(
+	extra: TExtra,
+	nextCommands: string[] = [],
+): void {
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra,
+			nextCommands,
+		}),
+	);
 }
 
 function writeActiveSessionOrReport(
@@ -238,7 +265,7 @@ export function createSessionsCommand(): Command {
 							activeSessionId: null,
 							cleared,
 						};
-						printJson(report);
+						printSessionJsonSuccess(report, [SESSIONS_LIST_JSON_COMMAND]);
 						return;
 					}
 					if (cleared) {
@@ -285,7 +312,18 @@ async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 		),
 	};
 	if (opts.json) {
-		printJson(report);
+		const nextCommands = report.activeSessionId
+			? [
+					sessionShowJsonCommand(report.activeSessionId),
+					sessionUseJsonCommand(report.activeSessionId),
+				]
+			: report.sessions[0]
+				? [
+						sessionShowJsonCommand(report.sessions[0]["@id"]),
+						SESSIONS_LIST_JSON_COMMAND,
+					]
+				: ["refarm sessions new --json"];
+		printSessionJsonSuccess(report, nextCommands);
 		return;
 	}
 
@@ -381,7 +419,10 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 			activeSessionId: created["@id"],
 			session: created,
 		};
-		printJson(report);
+		printSessionJsonSuccess(report, [
+			sessionShowJsonCommand(created["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
 		return;
 	}
 	const short = formatSessionId(created["@id"]);
@@ -432,7 +473,10 @@ async function useSession(
 			activeSessionId: matches[0]!["@id"],
 			session: matches[0]!,
 		};
-		printJson(report);
+		printSessionJsonSuccess(report, [
+			sessionShowJsonCommand(matches[0]!["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
 		return;
 	}
 	console.log(
@@ -516,7 +560,10 @@ async function forkSession(
 			parentSessionId: fork.parent_session_id ?? prefix,
 			...(fork.leaf_entry_id ? { branchEntryId: fork.leaf_entry_id } : {}),
 		};
-		printJson(report);
+		printSessionJsonSuccess(report, [
+			sessionShowJsonCommand(fork["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
 		return;
 	}
 	const short = formatSessionId(fork["@id"]);
@@ -589,7 +636,10 @@ async function showSession(
 	}
 
 	if (opts.json) {
-		printJson(history);
+		printSessionJsonSuccess(history, [
+			sessionUseJsonCommand(history.session["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
 		return;
 	}
 
