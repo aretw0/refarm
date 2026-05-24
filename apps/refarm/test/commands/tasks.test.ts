@@ -295,6 +295,75 @@ describe("refarm tasks", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("prints ambiguous task prefixes as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse(
+					{
+						error: "ambiguous task prefix",
+						matches: [
+							"urn:refarm:task:v1:aaa111",
+							"urn:refarm:task:v1:aaa222",
+						],
+					},
+					409,
+				),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["aaa", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "ambiguous-task-prefix",
+			message: "ambiguous task prefix",
+			prefix: "aaa",
+			matches: [
+				"urn:refarm:task:v1:aaa111",
+				"urn:refarm:task:v1:aaa222",
+			],
+			nextAction: "refarm tasks --json",
+			nextActions: ["refarm tasks --json"],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints missing task prefixes as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(jsonResponse({ error: "missing" }, 404)),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["missing", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "task-not-found",
+			prefix: "missing",
+			nextAction: "refarm tasks --json",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("sets exitCode when task details cannot reach the runtime", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

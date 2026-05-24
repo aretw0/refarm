@@ -32,12 +32,30 @@ interface TaskShowJson {
 	events: TaskEvent[];
 }
 
+interface TaskErrorJson {
+	schemaVersion: 1;
+	command: "tasks";
+	operation: "show" | "list";
+	ok: false;
+	error: string;
+	message?: string;
+	prefix?: string;
+	matches?: string[];
+	nextAction: string;
+	nextActions: string[];
+}
+
 function parsePositiveIntOption(value: string, label: string): number {
 	const parsed = Number(value);
 	if (!Number.isInteger(parsed) || parsed <= 0) {
 		throw new InvalidArgumentError(`${label} must be a positive integer.`);
 	}
 	return parsed;
+}
+
+function printTaskErrorJson(error: TaskErrorJson): void {
+	printJson(error);
+	process.exitCode = 1;
 }
 
 function formatTaskId(id: string): string {
@@ -174,11 +192,39 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 			matches?: string[];
 		};
 		if (response.status === 404) {
+			if (opts.json) {
+				printTaskErrorJson({
+					schemaVersion: 1,
+					command: "tasks",
+					operation: "show",
+					ok: false,
+					error: "task-not-found",
+					prefix,
+					nextAction: "refarm tasks --json",
+					nextActions: ["refarm tasks --json"],
+				});
+				return;
+			}
 			console.error(chalk.red(`✗  No task matching "${prefix}"`));
 			process.exitCode = 1;
 			return;
 		}
 		if (response.status === 409) {
+			if (opts.json) {
+				printTaskErrorJson({
+					schemaVersion: 1,
+					command: "tasks",
+					operation: "show",
+					ok: false,
+					error: "ambiguous-task-prefix",
+					message: parsed.error,
+					prefix,
+					matches: parsed.matches ?? [],
+					nextAction: "refarm tasks --json",
+					nextActions: ["refarm tasks --json"],
+				});
+				return;
+			}
 			console.error(
 				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
 			);
@@ -187,6 +233,20 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 			return;
 		}
 		if (!response.ok) {
+			if (opts.json) {
+				printTaskErrorJson({
+					schemaVersion: 1,
+					command: "tasks",
+					operation: "show",
+					ok: false,
+					error: "task-show-failed",
+					message: parsed.error ?? `HTTP ${response.status}`,
+					prefix,
+					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+				});
+				return;
+			}
 			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
 			process.exitCode = 1;
 			return;
