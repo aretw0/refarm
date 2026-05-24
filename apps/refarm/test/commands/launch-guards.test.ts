@@ -11,7 +11,7 @@ describe("assertLaunchGuardOptions", () => {
 	it("rejects --launch combined with --json", () => {
 		expect(() =>
 			assertLaunchGuardOptions({ launch: true, json: true }),
-		).toThrow(/cannot be combined/);
+		).toThrow(/requires --dry-run/);
 	});
 
 	it("rejects --dry-run without --launch", () => {
@@ -35,6 +35,16 @@ describe("assertLaunchGuardOptions", () => {
 				launch: true,
 				dryRun: true,
 				requiresLaunch: [{ enabled: true, flag: "--open" }],
+			}),
+		).not.toThrow();
+	});
+
+	it("allows machine-readable launch dry-runs", () => {
+		expect(() =>
+			assertLaunchGuardOptions({
+				launch: true,
+				dryRun: true,
+				json: true,
 			}),
 		).not.toThrow();
 	});

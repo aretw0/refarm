@@ -99,6 +99,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				"  $ refarm web --launch",
 				"  $ refarm web --launch --open",
 				"  $ refarm web --dry-run --launcher preview",
+				"  $ refarm web --launch --dry-run --json",
 				"  $ refarm web --actions",
 				"",
 				"Notes:",
@@ -156,11 +157,13 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				options.launcher ?? "dev",
 				WEB_LAUNCHER_MODES,
 			);
-			const outputMode = resolveJsonMarkdownStatusOutputMode({
-				json: options.json,
-				markdown: options.markdown,
-				defaultMode: "summary",
-			});
+			const outputMode = options.launch && options.dryRun && options.json
+				? "silent"
+				: resolveJsonMarkdownStatusOutputMode({
+						json: options.json,
+						markdown: options.markdown,
+						defaultMode: "summary",
+					});
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const json = await runStatusPreflight({
 				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
@@ -187,8 +190,16 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				startRuntimeLabel: "web runtime",
 				resolveLaunchSpec: () => resolveWebLaunchSpec(launchMode),
 				launchProcess: resolvedDeps.launch,
+				dryRunJson: options.json,
+				dryRunJsonCommand: "web",
+				dryRunJsonExtra: () => ({
+					renderer: "web",
+					launcher: launchMode,
+					open: options.open === true,
+					...(options.open ? { openUrl } : {}),
+				}),
 				onDryRun: () => {
-					if (options.open) {
+					if (options.open && !options.json) {
 						console.log(openDryRunMessage(openUrl));
 					}
 				},

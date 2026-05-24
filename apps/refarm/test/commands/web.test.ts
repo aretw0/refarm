@@ -465,7 +465,7 @@ describe("webCommand", () => {
 
 		await expect(
 			command.parseAsync(["--launch", "--json"], { from: "user" }),
-		).rejects.toThrow(/cannot be combined/);
+		).rejects.toThrow(/requires --dry-run/);
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
@@ -512,6 +512,59 @@ describe("webCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("[dry-run] would launch web runtime"),
 		);
+		logSpy.mockRestore();
+	});
+
+	it("prints launch dry-run as a single JSON envelope", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--dry-run", "--json"], {
+			from: "user",
+		});
+
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "web",
+			operation: "dry-run",
+			ok: true,
+			reason: "dry-run",
+			renderer: "web",
+			launcher: "dev",
+			runtimeLabel: "web runtime",
+			launchCommand: "pnpm -C apps/dev run dev",
+			nextCommand: "pnpm -C apps/dev run dev",
+		});
+		logSpy.mockRestore();
+	});
+
+	it("includes browser open intent in web launch dry-run JSON", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--launch", "--dry-run", "--json", "--open", "--open-url", "http://localhost:9999"],
+			{ from: "user" },
+		);
+
+		expect(open).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			open: true,
+			openUrl: "http://localhost:9999",
+		});
 		logSpy.mockRestore();
 	});
 

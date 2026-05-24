@@ -515,7 +515,7 @@ describe("tuiCommand", () => {
 
 		await expect(
 			command.parseAsync(["--launch", "--json"], { from: "user" }),
-		).rejects.toThrow(/cannot be combined/);
+		).rejects.toThrow(/requires --dry-run/);
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
@@ -546,6 +546,36 @@ describe("tuiCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("[dry-run] would launch tui runtime"),
 		);
+		logSpy.mockRestore();
+	});
+
+	it("prints launch dry-run as a single JSON envelope", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--launch", "--dry-run", "--json", "--launcher", "prompt"],
+			{ from: "user" },
+		);
+
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tui",
+			operation: "dry-run",
+			ok: true,
+			reason: "dry-run",
+			renderer: "tui",
+			launcher: "prompt",
+			runtimeLabel: "tui runtime",
+			launchCommand: "tractor prompt",
+			nextCommand: "tractor prompt",
+		});
 		logSpy.mockRestore();
 	});
 

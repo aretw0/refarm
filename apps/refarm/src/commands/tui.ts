@@ -85,6 +85,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				"  $ refarm tui --launch",
 				"  $ refarm tui --launch --launcher prompt",
 				"  $ refarm tui --dry-run",
+				"  $ refarm tui --launch --dry-run --json",
 				"  $ refarm tui --actions",
 				"",
 				"Notes:",
@@ -136,11 +137,13 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				options.launcher ?? "watch",
 				TUI_LAUNCHER_MODES,
 			);
-			const outputMode = resolveJsonMarkdownStatusOutputMode({
-				json: options.json,
-				markdown: options.markdown,
-				defaultMode: "summary",
-			});
+			const outputMode = options.launch && options.dryRun && options.json
+				? "silent"
+				: resolveJsonMarkdownStatusOutputMode({
+						json: options.json,
+						markdown: options.markdown,
+						defaultMode: "summary",
+					});
 
 			const json = await runStatusPreflight({
 				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
@@ -167,6 +170,12 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				startRuntimeLabel: "TUI runtime",
 				resolveLaunchSpec: () => resolveTuiLaunchSpec(launchMode),
 				launchProcess: resolvedDeps.launch,
+				dryRunJson: options.json,
+				dryRunJsonCommand: "tui",
+				dryRunJsonExtra: () => ({
+					renderer: "tui",
+					launcher: launchMode,
+				}),
 			});
 		});
 }

@@ -104,6 +104,53 @@ describe("executeRendererLaunchFlow", () => {
 		expect(launchProcess).not.toHaveBeenCalled();
 	});
 
+	it("prints machine-readable dry-run launch envelopes", async () => {
+		const spec = {
+			command: "runner",
+			args: ["dev"],
+			display: "runner dev",
+		};
+		const resolveLaunchSpec = vi.fn(() => spec);
+		const launchProcess = vi.fn().mockResolvedValue(0);
+		const onDryRun = vi.fn();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await executeRendererLaunchFlow({
+			launch: true,
+			dryRun: true,
+			dryRunJson: true,
+			dryRunJsonCommand: "web",
+			dryRunJsonExtra: () => ({ renderer: "web", launcher: "dev" }),
+			status: makeStatus(),
+			launchGuardTarget: "web runtime",
+			bannerExperience: "web",
+			dryRunRuntimeLabel: "web runtime",
+			startRuntimeLabel: "web runtime",
+			resolveLaunchSpec,
+			launchProcess,
+			onDryRun,
+		});
+
+		expect(resolveLaunchSpec).toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "web",
+			operation: "dry-run",
+			ok: true,
+			reason: "dry-run",
+			renderer: "web",
+			launcher: "dev",
+			runtimeLabel: "web runtime",
+			launchCommand: "runner dev",
+			launchSpec: spec,
+			nextCommand: "runner dev",
+			nextCommands: ["runner dev"],
+		});
+		expect(onDryRun).toHaveBeenCalledWith(spec);
+		expect(launchProcess).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
 	it("launches process and propagates non-zero exit code via callback", async () => {
 		const spec = { command: "cargo", args: ["run"], display: "cargo run" };
 		const resolveLaunchSpec = vi.fn(() => spec);

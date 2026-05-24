@@ -22,12 +22,16 @@ export function assertLaunchGuardOptions(input: LaunchGuardInput): void {
 		"Choose only one output format: --json or --markdown.",
 	);
 
-	if (input.launch && (input.json || input.markdown)) {
+	if (input.launch && input.markdown) {
 		throw new Error("--launch cannot be combined with --json or --markdown.");
 	}
 
 	if (input.dryRun && !input.launch) {
 		throw new Error("--dry-run requires --launch.");
+	}
+
+	if (input.launch && input.json && !input.dryRun) {
+		throw new Error("--launch --json requires --dry-run.");
 	}
 
 	for (const requirement of input.requiresLaunch ?? []) {

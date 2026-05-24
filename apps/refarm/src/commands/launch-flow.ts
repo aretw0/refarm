@@ -3,6 +3,7 @@ import {
 	printRefarmLaunchBanner,
 	type RefarmLaunchExperience,
 } from "./brand.js";
+import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import { launchDryRunMessage, launchStartMessage } from "./launch-feedback.js";
 import { assertLaunchAllowed } from "./launch-policy.js";
 
@@ -19,6 +20,10 @@ export interface ExecuteRendererLaunchFlowOptions<
 	resolveLaunchSpec: () => TSpec;
 	launchProcess: (spec: TSpec) => Promise<number>;
 	onDryRun?: (spec: TSpec) => void | Promise<void>;
+	dryRunJson?: boolean;
+	dryRunJsonCommand?: string;
+	dryRunJsonOperation?: string;
+	dryRunJsonExtra?: (spec: TSpec) => Record<string, unknown>;
 	onLaunchStarted?: (spec: TSpec) => void | Promise<void>;
 	log?: (message: string) => void;
 	setExitCode?: (code: number) => void;
@@ -32,12 +37,33 @@ export async function executeRendererLaunchFlow<
 	}
 
 	assertLaunchAllowed(options.status, options.launchGuardTarget);
-	printRefarmLaunchBanner(options.bannerExperience);
+	if (!(options.dryRun && options.dryRunJson)) {
+		printRefarmLaunchBanner(options.bannerExperience);
+	}
 
 	const spec = options.resolveLaunchSpec();
 	const log = options.log ?? console.log;
 
 	if (options.dryRun) {
+		if (options.dryRunJson) {
+			printJson(
+				buildJsonSuccessEnvelope({
+					command: options.dryRunJsonCommand,
+					operation: options.dryRunJsonOperation ?? "dry-run",
+					extra: {
+						reason: "dry-run",
+						runtimeLabel: options.dryRunRuntimeLabel,
+						launchCommand: spec.display,
+						launchSpec: spec,
+						...(options.dryRunJsonExtra?.(spec) ?? {}),
+					},
+					nextCommand: spec.display,
+					nextCommands: [spec.display],
+				}),
+			);
+			await options.onDryRun?.(spec);
+			return;
+		}
 		log(launchDryRunMessage(options.dryRunRuntimeLabel, spec.display));
 		await options.onDryRun?.(spec);
 		return;
