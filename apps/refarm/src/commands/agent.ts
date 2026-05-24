@@ -51,6 +51,13 @@ interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
 }
 
+interface AgentFinishOptions {
+	json?: boolean;
+	nextAction?: boolean;
+	nextCommand?: boolean;
+	run?: boolean;
+}
+
 function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
 	const result = spawnSync(process.argv[0]!, [process.argv[1]!, ...args], {
 		cwd: process.cwd(),
@@ -104,6 +111,10 @@ const agentFinishSteps = [
 		"Run the composite readiness gate and surface recovery actions.",
 	),
 ];
+
+function plannedFinishCommands(): string[] {
+	return agentFinishSteps.map((step) => step.command);
+}
 
 function runAgentFinishPlan(
 	deps: AgentCommandDeps,
@@ -162,6 +173,7 @@ Verification:
   $ refarm check --next-command      Print the next executable recovery command
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
+  $ refarm agent finish --next-command Print the first verification command
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
 Plugin lifecycle:
@@ -172,6 +184,7 @@ Automation:
   $ refarm agent --json         Print runtime/model/plugin handoff commands
   $ refarm agent finish --json  Print ordered verification commands before commit
   $ refarm agent finish --run --json Execute ordered verification commands
+  $ refarm agent finish --run --next-command Print the failing recovery command
 
 Notes:
   This command is kept as the stable namespace for future agent runtime controls.
@@ -210,6 +223,8 @@ Notes:
 		.command("finish")
 		.description("Print the end-of-slice verification plan for coding agents")
 		.option("--json", "Output machine-readable finish plan")
+		.option("--next-action", "Print the first finish action or failing recovery action")
+		.option("--next-command", "Print the first finish command or failing recovery command")
 		.option("--run", "Execute the finish plan and stop at the first failing step")
 		.addHelpText(
 			"after",
@@ -217,7 +232,9 @@ Notes:
 				"",
 				"Examples:",
 				"  $ refarm agent finish --json",
+				"  $ refarm agent finish --next-command",
 				"  $ refarm agent finish --run --json",
+				"  $ refarm agent finish --run --next-command",
 				"",
 				"Notes:",
 				"  Without --run this command only prints the checks a coding agent should run.",
@@ -226,9 +243,9 @@ Notes:
 		)
 		.action(function (this: Command) {
 			const options = {
-				...this.parent?.opts<{ json?: boolean; run?: boolean }>(),
-				...this.opts<{ json?: boolean; run?: boolean }>(),
-			};
+				...this.parent?.opts<AgentFinishOptions>(),
+				...this.opts<AgentFinishOptions>(),
+			} satisfies AgentFinishOptions;
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps);
 				if (options.json) {
@@ -245,14 +262,30 @@ Notes:
 						nextCommand: result.nextCommands[0] ?? null,
 						nextCommands: result.nextCommands,
 					});
+				} else if (options.nextCommand) {
+					const [nextCommand] = result.nextCommands;
+					if (nextCommand) console.log(nextCommand);
+				} else if (options.nextAction) {
+					const [nextAction] = result.nextActions;
+					if (nextAction) console.log(nextAction);
 				} else {
 					printAgentFinishRunHuman(result);
 				}
 				if (!result.ok) process.exitCode = 1;
 				return;
 			}
+			const nextCommands = plannedFinishCommands();
+			if (options.nextCommand) {
+				const [nextCommand] = nextCommands;
+				if (nextCommand) console.log(nextCommand);
+				return;
+			}
+			if (options.nextAction) {
+				const [nextAction] = nextCommands;
+				if (nextAction) console.log(nextAction);
+				return;
+			}
 			if (options.json) {
-				const nextCommands = agentFinishSteps.map((step) => step.command);
 				printJson(
 					buildJsonSuccessEnvelope({
 						command: "agent",

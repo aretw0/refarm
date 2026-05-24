@@ -21,8 +21,10 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
+		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --run");
 		expect(help).toContain("refarm agent finish --run --json");
+		expect(help).toContain("refarm agent finish --run --next-command");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model openai/gpt-5.5");
@@ -154,6 +156,16 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints the next finish command without JSON parsing", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--next-command"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith("refarm tidy imports --check --json");
+		logSpy.mockRestore();
+	});
+
 	it("runs the finish plan and reports passing steps", async () => {
 		const runRefarm = vi.fn((args: string[]) => ({
 			id: args.join(" "),
@@ -263,6 +275,39 @@ describe("agent command", () => {
 			ok: false,
 		});
 		expect(runRefarm).toHaveBeenCalledTimes(2);
+		expect(process.exitCode).toBe(1);
+		process.exitCode = originalExitCode;
+		logSpy.mockRestore();
+	});
+
+	it("prints the next recovery command for failing finish runs", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: false,
+			exitCode: 1,
+			stdout: JSON.stringify({
+				ok: false,
+				nextCommands: ["refarm runtime start --wait"],
+			}),
+			stderr: "",
+			payload: {
+				ok: false,
+				nextCommands: ["refarm runtime start --wait"],
+			},
+		}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		await agentCommand.parseAsync(["finish", "--run", "--next-command"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith("refarm runtime start --wait");
+		expect(runRefarm).toHaveBeenCalledTimes(1);
 		expect(process.exitCode).toBe(1);
 		process.exitCode = originalExitCode;
 		logSpy.mockRestore();
