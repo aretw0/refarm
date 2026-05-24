@@ -681,9 +681,9 @@ describe("plugin bundle", () => {
 			bundleCommand:
 				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
 			nextCommand:
-				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
+				"refarm plugin bundle 'my plugin.wasm' -o './out dir' --name 'my plugin'",
 		});
-		expect(payload.nextCommands).toEqual([payload.bundleCommand]);
+		expect(payload.nextCommands).toEqual([payload.nextCommand]);
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
 	});
@@ -757,9 +757,12 @@ describe("plugin bundle", () => {
 			error: "plugin-bundle-failed",
 			message: "jco not found",
 			nextCommand:
-				"pnpm 'exec' 'jco' 'transpile' 'bad-plugin.wasm' '-o' './dist' '--name' 'bad-plugin'",
+				"refarm plugin bundle 'bad-plugin.wasm' -o './dist' --name 'bad-plugin'",
 		});
-		expect(payload.nextCommands).toEqual([payload.nextCommand]);
+		expect(payload.nextCommands).toEqual([
+			payload.nextCommand,
+			"refarm plugin bundle 'bad-plugin.wasm' -o './dist' --name 'bad-plugin' --dry-run --json",
+		]);
 		expect(process.exitCode).toBe(1);
 		process.exitCode = originalExitCode;
 		logSpy.mockRestore();

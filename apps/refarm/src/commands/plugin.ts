@@ -7,7 +7,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path, { basename, extname } from "node:path";
-import { shellCommand } from "./command-handoff.js";
+import {
+	quoteCommandArg,
+	refarmCommand,
+	shellCommand,
+} from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -46,6 +50,28 @@ const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 const PLUGIN_INSTALL_COMMAND = "refarm plugin install";
 const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
 const PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
+
+function pluginBundleCommand(
+	input: string,
+	options: {
+		output: string;
+		name: string;
+		dryRun?: boolean;
+		json?: boolean;
+	},
+): string {
+	return refarmCommand([
+		"plugin",
+		"bundle",
+		quoteCommandArg(input),
+		"-o",
+		quoteCommandArg(options.output),
+		"--name",
+		quoteCommandArg(options.name),
+		...(options.dryRun ? ["--dry-run"] : []),
+		...(options.json ? ["--json"] : []),
+	]);
+}
 
 const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
 
@@ -693,14 +719,18 @@ pluginCommand
 			name,
 		]);
 		const executableCommand = shellCommand(command.command, command.args);
+		const bundleRefarmCommand = pluginBundleCommand(input, {
+			output: options.output,
+			name,
+		});
 		if (options.dryRun) {
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
 						command: "plugin",
 						operation: "bundle",
-						nextCommand: executableCommand,
-						nextCommands: [executableCommand],
+						nextCommand: bundleRefarmCommand,
+						nextCommands: [bundleRefarmCommand],
 						extra: {
 							input,
 							output: options.output,
@@ -758,8 +788,16 @@ pluginCommand
 						error: "plugin-bundle-failed",
 						message,
 						nextAction: `Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}, or install jco for the detected package manager.`,
-						nextCommand: executableCommand,
-						nextCommands: [executableCommand],
+						nextCommand: bundleRefarmCommand,
+						nextCommands: [
+							bundleRefarmCommand,
+							pluginBundleCommand(input, {
+								output: options.output,
+								name,
+								dryRun: true,
+								json: true,
+							}),
+						],
 						extra: {
 							input,
 							output: options.output,
