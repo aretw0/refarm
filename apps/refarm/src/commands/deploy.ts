@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface DeployResult {
@@ -24,12 +25,38 @@ interface DeployCommandOptions {
 
 const DEPLOY_SCHEMA_VERSION = 1;
 const DEPLOY_DRY_RUN_COMMAND = "refarm deploy --dry-run";
+const DEPLOY_HEALTH_COMMAND = "refarm health --next-action --json";
 
 function parseDeployTarget(value: string): DeployTarget {
 	if ((DEPLOY_TARGETS as readonly string[]).includes(value)) {
 		return value as DeployTarget;
 	}
 	throw new Error(`Invalid deploy target "${value}". Use: ${DEPLOY_TARGETS.join(", ")}`);
+}
+
+function deployCommandForTarget(target: DeployTarget, options: { dryRun?: boolean } = {}): string {
+	const args = ["deploy"];
+	if (target !== "all") {
+		args.push("--target", target);
+	}
+	if (options.dryRun) {
+		args.push("--dry-run");
+	}
+	return refarmCommand(args);
+}
+
+function deployJsonNextCommands(input: {
+	target: DeployTarget;
+	dryRun: boolean;
+	ok: boolean;
+}): string[] {
+	if (!input.ok) {
+		return [deployCommandForTarget(input.target, { dryRun: true })];
+	}
+	if (input.dryRun) {
+		return [deployCommandForTarget(input.target)];
+	}
+	return [DEPLOY_HEALTH_COMMAND];
 }
 
 export const deployCommand = new Command("deploy")
@@ -82,6 +109,11 @@ export const deployCommand = new Command("deploy")
 
       if (options.json) {
         const ok = result.status === "success" || result.status === "dry-run";
+        const nextCommands = deployJsonNextCommands({
+          target,
+          dryRun: options.dryRun === true,
+          ok,
+        });
         printJson({
           schemaVersion: DEPLOY_SCHEMA_VERSION,
           command: "deploy",
@@ -90,10 +122,10 @@ export const deployCommand = new Command("deploy")
           ok,
           status: result.status,
           result,
-          nextAction: ok ? null : DEPLOY_DRY_RUN_COMMAND,
-          nextActions: ok ? [] : [DEPLOY_DRY_RUN_COMMAND],
-          nextCommand: ok ? null : DEPLOY_DRY_RUN_COMMAND,
-          nextCommands: ok ? [] : [DEPLOY_DRY_RUN_COMMAND],
+          nextAction: nextCommands[0] ?? null,
+          nextActions: nextCommands,
+          nextCommand: nextCommands[0] ?? null,
+          nextCommands,
         });
         if (!ok) process.exitCode = 1;
         return;

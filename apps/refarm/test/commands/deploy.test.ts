@@ -99,6 +99,8 @@ describe("deployCommand", () => {
       dryRun: boolean;
       ok: boolean;
       status: string;
+      nextCommand: string;
+      nextCommands: string[];
     };
     expect(payload).toMatchObject({
       command: "deploy",
@@ -106,6 +108,39 @@ describe("deployCommand", () => {
       dryRun: true,
       ok: true,
       status: "dry-run",
+      nextCommand: "refarm deploy --target github",
+      nextCommands: ["refarm deploy --target github"],
+    });
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("prints live deployment success as JSON with a health observation handoff", async () => {
+    mockDeploy.mockResolvedValueOnce({ status: "success", url: "https://example.invalid" });
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await deployCommand.parseAsync(["--target", "cloudflare", "--json"], {
+      from: "user",
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      status: string;
+      nextCommand: string;
+      nextCommands: string[];
+    };
+    expect(payload).toMatchObject({
+      ok: true,
+      status: "success",
+      nextAction: "refarm health --next-action --json",
+      nextCommand: "refarm health --next-action --json",
+      nextCommands: ["refarm health --next-action --json"],
     });
 
     logSpy.mockRestore();
@@ -135,9 +170,9 @@ describe("deployCommand", () => {
     expect(payload).toMatchObject({
       ok: false,
       status: "failure",
-      nextAction: "refarm deploy --dry-run",
-      nextCommand: "refarm deploy --dry-run",
-      nextCommands: ["refarm deploy --dry-run"],
+      nextAction: "refarm deploy --target cloudflare --dry-run",
+      nextCommand: "refarm deploy --target cloudflare --dry-run",
+      nextCommands: ["refarm deploy --target cloudflare --dry-run"],
     });
     expect(process.exitCode).toBe(1);
 
