@@ -460,6 +460,82 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("retry prints accepted result as JSON", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockResolvedValue(true),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			effortId: string;
+			transport: string;
+			action: string;
+			accepted: boolean;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			effortId: "effort-abc",
+			transport: "http",
+			action: "retry",
+			accepted: true,
+		});
+		expect(payload.nextAction).toContain("--watch");
+		expect(session.rememberControl).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "http",
+			action: "retry",
+		});
+		spy.mockRestore();
+	});
+
+	it("retry prints rejected result as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockResolvedValue(false),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			accepted: boolean;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport file",
+		});
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("cancel requests cancellation", async () => {
 		const adapter = createMockAdapter({
 			cancel: vi.fn().mockResolvedValue(true),
@@ -483,6 +559,48 @@ describe("refarm task list/logs/retry/cancel", () => {
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining("Cancel requested"),
 		);
+		spy.mockRestore();
+	});
+
+	it("cancel prints accepted result as JSON", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockResolvedValue(true),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			effortId: string;
+			transport: string;
+			action: string;
+			accepted: boolean;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			effortId: "effort-abc",
+			transport: "http",
+			action: "cancel",
+			accepted: true,
+			nextAction: "refarm task status effort-abc --transport http",
+		});
+		expect(session.rememberControl).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "http",
+			action: "cancel",
+		});
 		spy.mockRestore();
 	});
 });

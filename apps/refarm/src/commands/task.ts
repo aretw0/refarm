@@ -749,14 +749,28 @@ Notes:
 			parseTaskTransport,
 			"file",
 		)
-		.action(async (effortId: string, opts: { transport: TaskTransport }) => {
+		.option("--json", "Print machine-readable retry result")
+		.action(async (effortId: string, opts: { transport: TaskTransport; json?: boolean }) => {
 			const { transport, adapter } = resolveTaskAdapter(
 				opts.transport,
 				adapterResolver,
 			);
 			const accepted = await adapter.retry(effortId);
 			if (!accepted) {
+				if (opts.json) {
+					printJson({
+						effortId,
+						transport,
+						action: "retry",
+						accepted: false,
+						nextAction: `refarm task status ${effortId} --transport ${transport}`,
+						nextActions: [
+							`refarm task status ${effortId} --transport ${transport}`,
+						],
+					});
+				} else {
 				console.error(chalk.red(`Retry rejected for effort ${effortId}`));
+				}
 				process.exitCode = 1;
 				return;
 			}
@@ -767,6 +781,20 @@ Notes:
 					action: "retry",
 				});
 			});
+			if (opts.json) {
+				printJson({
+					effortId,
+					transport,
+					action: "retry",
+					accepted: true,
+					nextAction: `refarm task status ${effortId} --transport ${transport} --watch`,
+					nextActions: [
+						`refarm task status ${effortId} --transport ${transport} --watch`,
+						`refarm task logs ${effortId} --transport ${transport}`,
+					],
+				});
+				return;
+			}
 			console.log(chalk.green(`Retry requested for effort ${effortId}`));
 		});
 
@@ -779,14 +807,28 @@ Notes:
 			parseTaskTransport,
 			"file",
 		)
-		.action(async (effortId: string, opts: { transport: TaskTransport }) => {
+		.option("--json", "Print machine-readable cancel result")
+		.action(async (effortId: string, opts: { transport: TaskTransport; json?: boolean }) => {
 			const { transport, adapter } = resolveTaskAdapter(
 				opts.transport,
 				adapterResolver,
 			);
 			const accepted = await adapter.cancel(effortId);
 			if (!accepted) {
+				if (opts.json) {
+					printJson({
+						effortId,
+						transport,
+						action: "cancel",
+						accepted: false,
+						nextAction: `refarm task status ${effortId} --transport ${transport}`,
+						nextActions: [
+							`refarm task status ${effortId} --transport ${transport}`,
+						],
+					});
+				} else {
 				console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
+				}
 				process.exitCode = 1;
 				return;
 			}
@@ -797,6 +839,19 @@ Notes:
 					action: "cancel",
 				});
 			});
+			if (opts.json) {
+				printJson({
+					effortId,
+					transport,
+					action: "cancel",
+					accepted: true,
+					nextAction: `refarm task status ${effortId} --transport ${transport}`,
+					nextActions: [
+						`refarm task status ${effortId} --transport ${transport}`,
+					],
+				});
+				return;
+			}
 			console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
 		});
 
