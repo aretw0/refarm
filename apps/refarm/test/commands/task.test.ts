@@ -523,10 +523,14 @@ describe("refarm task list/logs/retry/cancel", () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
 			accepted: boolean;
 			nextAction: string;
 		};
 		expect(payload).toMatchObject({
+			ok: false,
+			error: "task-retry-rejected",
 			accepted: false,
 			nextAction: "refarm task status effort-abc --transport file",
 		});
@@ -602,6 +606,44 @@ describe("refarm task list/logs/retry/cancel", () => {
 			action: "cancel",
 		});
 		spy.mockRestore();
+	});
+
+	it("cancel prints rejected result as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockResolvedValue(false),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			accepted: boolean;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "task-cancel-rejected",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport file",
+		});
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 });
 

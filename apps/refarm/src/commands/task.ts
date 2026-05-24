@@ -11,7 +11,7 @@ import { Command, InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -758,18 +758,26 @@ Notes:
 			const accepted = await adapter.retry(effortId);
 			if (!accepted) {
 				if (opts.json) {
-					printJson({
-						effortId,
-						transport,
-						action: "retry",
-						accepted: false,
-						nextAction: `refarm task status ${effortId} --transport ${transport}`,
-						nextActions: [
-							`refarm task status ${effortId} --transport ${transport}`,
-						],
-					});
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "task",
+							operation: "retry",
+							error: "task-retry-rejected",
+							message: `Retry rejected for effort ${effortId}.`,
+							nextAction: `refarm task status ${effortId} --transport ${transport}`,
+							nextActions: [
+								`refarm task status ${effortId} --transport ${transport}`,
+							],
+							extra: {
+								effortId,
+								transport,
+								action: "retry",
+								accepted: false,
+							},
+						}),
+					);
 				} else {
-				console.error(chalk.red(`Retry rejected for effort ${effortId}`));
+					console.error(chalk.red(`Retry rejected for effort ${effortId}`));
 				}
 				process.exitCode = 1;
 				return;
@@ -816,18 +824,26 @@ Notes:
 			const accepted = await adapter.cancel(effortId);
 			if (!accepted) {
 				if (opts.json) {
-					printJson({
-						effortId,
-						transport,
-						action: "cancel",
-						accepted: false,
-						nextAction: `refarm task status ${effortId} --transport ${transport}`,
-						nextActions: [
-							`refarm task status ${effortId} --transport ${transport}`,
-						],
-					});
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "task",
+							operation: "cancel",
+							error: "task-cancel-rejected",
+							message: `Cancel rejected for effort ${effortId}.`,
+							nextAction: `refarm task status ${effortId} --transport ${transport}`,
+							nextActions: [
+								`refarm task status ${effortId} --transport ${transport}`,
+							],
+							extra: {
+								effortId,
+								transport,
+								action: "cancel",
+								accepted: false,
+							},
+						}),
+					);
 				} else {
-				console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
+					console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
 				}
 				process.exitCode = 1;
 				return;
