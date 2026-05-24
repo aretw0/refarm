@@ -21,6 +21,8 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
+		expect(help).toContain("refarm agent finish --run");
+		expect(help).toContain("refarm agent finish --run --json");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model openai/gpt-5.5");

@@ -168,6 +168,7 @@ Verification:
   $ refarm check --next-command      Print the next executable recovery command
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
+  $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
 Plugin lifecycle:
   $ refarm plugin list          Show bundled plugin install state
@@ -176,6 +177,7 @@ Plugin lifecycle:
 Automation:
   $ refarm agent --json         Print runtime/model/plugin handoff commands
   $ refarm agent finish --json  Print ordered verification commands before commit
+  $ refarm agent finish --run --json Execute ordered verification commands
 
 Notes:
   This command is kept as the stable namespace for future agent runtime controls.
