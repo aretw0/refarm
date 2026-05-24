@@ -16,7 +16,11 @@ import {
 	parseModelRef,
 } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -114,14 +118,17 @@ export const sowCommand = new Command("sow")
 
 			if (!configureModel && !configureModelRef && !configureGithub && !configureCloudflare) {
 				if (opts.json) {
-					printJson({
-						action: "sow",
-						ok: true,
-						status: "configured",
-						credentials: credentialSummary(currentTokens),
-						nextAction: null,
-						nextActions: [],
-					});
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "sow",
+							operation: "credentials",
+							extra: {
+								action: "sow",
+								status: "configured",
+								credentials: credentialSummary(currentTokens),
+							},
+						}),
+					);
 					return;
 				}
 				console.log(chalk.green("✓  All credentials already configured.\n"));
@@ -230,21 +237,29 @@ export const sowCommand = new Command("sow")
 			}
 
 			if (opts.json) {
-				printJson({
-					action: "sow",
-					ok: true,
-					status: configureModelRef ? "updated" : "configured",
-					credentials: credentialSummary(currentTokens),
-					modelRoute: modelRef?.provider
-						? {
-								scope: "default",
-								provider: modelRef.provider,
-								modelId: modelRef.modelId,
-							}
-						: undefined,
-					nextAction: "refarm model current --json",
-					nextActions: ["refarm model current --json", "refarm check --next-action --json"],
-				});
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "sow",
+						operation: "credentials",
+						nextAction: "refarm model current --json",
+						nextActions: [
+							"refarm model current --json",
+							"refarm check --next-action --json",
+						],
+						extra: {
+							action: "sow",
+							status: configureModelRef ? "updated" : "configured",
+							credentials: credentialSummary(currentTokens),
+							modelRoute: modelRef?.provider
+								? {
+										scope: "default",
+										provider: modelRef.provider,
+										modelId: modelRef.modelId,
+									}
+								: undefined,
+						},
+					}),
+				);
 				return;
 			}
 
