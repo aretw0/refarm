@@ -314,13 +314,17 @@ describe("refarm ask", () => {
 			error: string;
 			nextAction: string;
 			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "model-credentials-missing",
 			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 		});
 		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 
@@ -391,14 +395,97 @@ describe("refarm ask", () => {
 			error: string;
 			nextAction: string;
 			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "pi-agent-not-loaded",
 			nextAction: "/reload @refarm/pi-agent",
+			nextCommand: "refarm runtime start --wait",
 		});
 		expect(payload.nextActions).toContain("refarm runtime start");
+		expect(payload.nextCommands).toContain("refarm doctor --next-command");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("prints model provider failures with executable recovery commands as JSON", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			submitEffort: vi
+				.fn()
+				.mockRejectedValue(
+					new Error('model-bridge request failed for provider "openai"'),
+				),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "model-provider-unavailable",
+			provider: "openai",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
+			nextCommands: [
+				"refarm sow",
+				"refarm model current --json",
+				"refarm model providers --json",
+				"refarm model openai/gpt-5.5 --json",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("prints runtime submit failures with executable recovery commands as JSON", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			submitEffort: vi.fn().mockRejectedValue(new Error("fetch failed")),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+		});
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();

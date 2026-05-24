@@ -29,8 +29,10 @@ import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 	RUNTIME_START_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
@@ -446,6 +448,8 @@ function buildAskErrorPayload(message: string): {
 	provider?: string;
 	nextAction: string;
 	nextActions: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
 } {
 	const isPiAgentMissing =
 		message.includes(`${PI_AGENT_PLUGIN_ID} not loaded`) ||
@@ -470,6 +474,12 @@ function buildAskErrorPayload(message: string): {
 				RUNTIME_START_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 			],
+			nextCommand: "refarm plugin install",
+			nextCommands: [
+				"refarm plugin install",
+				RUNTIME_START_WAIT_COMMAND,
+				RUNTIME_DOCTOR_NEXT_COMMAND,
+			],
 			extra: { action: "ask" },
 		});
 	}
@@ -481,6 +491,8 @@ function buildAskErrorPayload(message: string): {
 			message,
 			nextAction: RUNTIME_START_COMMAND,
 			nextActions: [RUNTIME_START_COMMAND, RUNTIME_DOCTOR_COMMAND],
+			nextCommand: RUNTIME_START_WAIT_COMMAND,
+			nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
 			extra: { action: "ask" },
 		});
 	}
@@ -502,6 +514,16 @@ function buildAskErrorPayload(message: string): {
 							"refarm model providers --json",
 							`refarm model ${OPENAI_DEFAULT_REF} --json`,
 						],
+			nextCommand: provider === "ollama" ? "ollama serve" : "refarm sow",
+			nextCommands:
+				provider === "ollama"
+					? ["ollama serve", "refarm sow"]
+					: [
+							"refarm sow",
+							"refarm model current --json",
+							"refarm model providers --json",
+							`refarm model ${OPENAI_DEFAULT_REF} --json`,
+						],
 			extra: { action: "ask", provider },
 		});
 	}
@@ -512,6 +534,8 @@ function buildAskErrorPayload(message: string): {
 		message,
 		nextAction: RUNTIME_DOCTOR_COMMAND,
 		nextActions: [RUNTIME_DOCTOR_COMMAND, "refarm model current --json"],
+		nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+		nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, "refarm model current --json"],
 		extra: { action: "ask" },
 	});
 }
@@ -530,6 +554,13 @@ function printMissingModelCredentials(json: boolean): void {
 				message: "No usable model credentials configured.",
 				nextAction: "refarm sow",
 				nextActions: [
+					"refarm sow",
+					"refarm model current --json",
+					"refarm model providers --json",
+					"ollama serve",
+				],
+				nextCommand: "refarm sow",
+				nextCommands: [
 					"refarm sow",
 					"refarm model current --json",
 					"refarm model providers --json",
@@ -605,6 +636,16 @@ async function ensurePiAgentReady(
 						: ["refarm plugin install"]),
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
+				],
+				nextCommand: state.installed.includes(PI_AGENT_PLUGIN_ID)
+					? RUNTIME_START_WAIT_COMMAND
+					: "refarm plugin install",
+				nextCommands: [
+					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
+						? []
+						: ["refarm plugin install"]),
+					RUNTIME_START_WAIT_COMMAND,
+					RUNTIME_DOCTOR_NEXT_COMMAND,
 				],
 				extra: {
 					action: "ask",
