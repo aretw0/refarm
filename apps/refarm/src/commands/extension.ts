@@ -160,14 +160,24 @@ async function saveExtension(
 ): Promise<void> {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
     if (options.json) {
-      printJson({
-        name,
-        action: "save",
-        ok: false,
-        error: "invalid-extension-name",
-        message:
-          "Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
-      });
+      printJson(
+        buildJsonErrorEnvelope({
+          command: "extension",
+          operation: "save",
+          error: "invalid-extension-name",
+          message:
+            "Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
+          nextAction: "refarm extension save my-tool --global",
+          nextActions: [
+            "refarm extension save my-tool --global",
+            "refarm extension save my-tool --local",
+          ],
+          extra: {
+            name,
+            action: "save",
+          },
+        }),
+      );
       process.exitCode = 1;
       return;
     }
@@ -234,11 +244,10 @@ async function saveExtension(
 }
 
 function publishExtensionPlan(name: string) {
-  return {
-    name,
-    action: "publish",
-    ok: false,
-    status: "manual",
+  return buildJsonErrorEnvelope({
+    command: "extension",
+    operation: "publish",
+    error: "extension-publish-manual",
     message: `Publishing local extension '${name}' is not automated yet.`,
     nextAction: "refarm plugin bundle <plugin.wasm>",
     nextActions: [
@@ -247,7 +256,12 @@ function publishExtensionPlan(name: string) {
       "refarm plugin bundle <plugin.wasm>",
       "refarm plugin status",
     ],
-  };
+    extra: {
+      name,
+      action: "publish",
+      status: "manual",
+    },
+  });
 }
 
 function listHandler(options: { json?: boolean } = {}): void {
@@ -321,6 +335,8 @@ extensionCommand
       if (options.json) {
         printJson(
           buildJsonErrorEnvelope({
+            command: "extension",
+            operation: "save",
             error: "missing-scope",
             message: "Specify --global or --local.",
             nextAction: `refarm extension save ${name} --global`,

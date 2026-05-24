@@ -274,6 +274,32 @@ describe("extension command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints invalid extension names as actionable JSON", async () => {
+		process.exitCode = undefined;
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await extensionCommand
+			.commands
+			.find((command) => command.name() === "save")!
+			.parseAsync(["Bad_Name", "--global", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "invalid-extension-name",
+			nextAction: "refarm extension save my-tool --global",
+		});
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("prints publish plan as JSON", async () => {
 		process.exitCode = undefined;
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -291,6 +317,7 @@ describe("extension command", () => {
 		};
 		expect(payload).toMatchObject({
 			ok: false,
+			error: "extension-publish-manual",
 			status: "manual",
 			nextAction: "refarm plugin bundle <plugin.wasm>",
 		});
