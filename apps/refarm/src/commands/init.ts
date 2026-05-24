@@ -5,7 +5,14 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
+import { printJson } from "./json-output.js";
 
+interface InitOptions {
+  force?: boolean;
+  json?: boolean;
+}
+
+const INIT_SCHEMA_VERSION = 1;
 
 export const initCommand = new Command("init")
   .description("Initialize a new Refarm workspace")
@@ -17,6 +24,7 @@ export const initCommand = new Command("init")
       "  $ refarm init my-workspace",
       "  $ refarm init .",
       "  $ refarm init my-workspace --force",
+      "  $ refarm init my-workspace --json",
       "",
       "Notes:",
       "  This creates refarm.config.json and .refarm/identity.json.",
@@ -30,18 +38,35 @@ export const initCommand = new Command("init")
   )
   .argument("[name]", "Project name", "my-workspace")
   .option("--force", "Reinitialize even if already initialized (destructive)")
-  .action(async (name, opts: { force?: boolean }) => {
+  .option("--json", "Output machine-readable initialization result")
+  .action(async (name, opts: InitOptions) => {
     const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
     const configPath = path.join(projectDir, "refarm.config.json");
     const identityPath = path.join(projectDir, ".refarm", "identity.json");
 
     if (!opts.force && (existsSync(configPath) || existsSync(identityPath))) {
+      if (opts.json) {
+        printJson({
+          schemaVersion: INIT_SCHEMA_VERSION,
+          command: "init",
+          ok: false,
+          status: "already-initialized",
+          projectDir,
+          configPath,
+          identityPath,
+          nextAction: `refarm init ${name} --force`,
+          nextActions: [`refarm init ${name} --force`],
+        });
+        return;
+      }
       console.log(chalk.yellow(`Already initialized at ${projectDir}.`));
       console.log(chalk.dim("Use --force to reinitialize (destructive)."));
       return;
     }
 
-    console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));
+    if (!opts.json) {
+      console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));
+    }
 
     const answers = await inquirer.prompt([
       {
@@ -70,7 +95,9 @@ export const initCommand = new Command("init")
         mkdirSync(refarmDir, { recursive: true });
       }
       
-      console.log(chalk.blue("Generating workspace identity..."));
+      if (!opts.json) {
+        console.log(chalk.blue("Generating workspace identity..."));
+      }
       const silo = new SiloCore();
       const identity = await silo.bootstrapIdentity();
 
@@ -82,7 +109,9 @@ export const initCommand = new Command("init")
         name
       };
       writeFileSync(path.join(refarmDir, "identity.json"), JSON.stringify(identityMetadata, null, 2));
-      console.log(chalk.gray(`  - .refarm/identity.json (identity metadata)`));
+      if (!opts.json) {
+        console.log(chalk.gray(`  - .refarm/identity.json (identity metadata)`));
+      }
 
       // 4. Write config
       const config = {
@@ -90,7 +119,28 @@ export const initCommand = new Command("init")
         brand: { name, slug: name.toLowerCase().replace(/\s+/g, "-") }
       };
       writeFileSync(path.join(projectDir, "refarm.config.json"), JSON.stringify(config, null, 2));
-      console.log(chalk.gray(`  - refarm.config.json`));
+      if (!opts.json) {
+        console.log(chalk.gray(`  - refarm.config.json`));
+      }
+    }
+
+    if (opts.json) {
+      printJson({
+        schemaVersion: INIT_SCHEMA_VERSION,
+        command: "init",
+        ok: true,
+        status: "initialized",
+        projectDir,
+        configPath,
+        identityPath,
+        nextAction: `cd ${name} && refarm sow`,
+        nextActions: [
+          `cd ${name} && refarm sow`,
+          "refarm model current",
+          "refarm guide",
+        ],
+      });
+      return;
     }
 
     console.log(chalk.blue("\nProject structure initialized."));

@@ -79,6 +79,7 @@ describe("initCommand — mocked initialization flow", () => {
     initCommand.outputHelp();
 
     expect(help).toContain("refarm init my-workspace --force");
+    expect(help).toContain("refarm init my-workspace --json");
     expect(help).toContain("--force reinitializes");
     expect(help).toContain("workspace identity is metadata");
     expect(help).toContain("~/.refarm/identity.json");
@@ -141,5 +142,54 @@ describe("initCommand — mocked initialization flow", () => {
     mockExistsSync.mockReturnValue(true);
     await initCommand.parseAsync(["test-workspace", "--force"], { from: "user" });
     expect(mockBootstrapIdentity).toHaveBeenCalled();
+  });
+
+  it("prints initialization result as JSON", async () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+
+    await initCommand.parseAsync(["test-workspace", "--json"], { from: "user" });
+
+    const payload = JSON.parse(logs.join("\n")) as {
+      command: string;
+      ok: boolean;
+      status: string;
+      projectDir: string;
+      nextActions: string[];
+    };
+    expect(payload).toMatchObject({
+      command: "init",
+      ok: true,
+      status: "initialized",
+    });
+    expect(payload.projectDir).toContain("test-workspace");
+    expect(payload.nextActions).toContain("refarm model current");
+    logSpy.mockRestore();
+  });
+
+  it("prints already-initialized result as JSON without overwriting", async () => {
+    mockExistsSync.mockReturnValue(true);
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+
+    await initCommand.parseAsync(["test-workspace", "--json"], { from: "user" });
+
+    expect(mockBootstrapIdentity).not.toHaveBeenCalled();
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      status: string;
+      nextAction: string;
+    };
+    expect(payload).toMatchObject({
+      ok: false,
+      status: "already-initialized",
+      nextAction: "refarm init test-workspace --force",
+    });
+    logSpy.mockRestore();
   });
 });
