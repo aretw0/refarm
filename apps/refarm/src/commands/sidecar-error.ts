@@ -4,8 +4,10 @@ import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 	RUNTIME_START_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 
@@ -23,6 +25,7 @@ export function printSidecarUnavailable(): void {
 	console.error(chalk.dim(`   Status:     ${RUNTIME_STATUS_COMMAND}`));
 	console.error(chalk.dim(`   Start now:  ${RUNTIME_START_COMMAND}`));
 	console.error(chalk.dim(`   Next:       ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`));
+	console.error(chalk.dim(`   Command:    ${RUNTIME_DOCTOR_NEXT_COMMAND}`));
 	console.error(chalk.dim(`   Diagnose:   ${RUNTIME_DOCTOR_COMMAND}`));
 	console.error(chalk.dim(`   Autostart:  ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
 	console.error(chalk.dim(`   Engine:     ${RUNTIME_ENGINE_AUTO_COMMAND}`));
@@ -46,6 +49,8 @@ export function buildSidecarErrorPayload(
 				RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 				RUNTIME_ENGINE_AUTO_COMMAND,
 			],
+			nextCommand: RUNTIME_START_WAIT_COMMAND,
+			nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
 		});
 	}
 	return buildJsonErrorEnvelope({
@@ -54,6 +59,8 @@ export function buildSidecarErrorPayload(
 		message,
 		nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 		nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_DOCTOR_COMMAND],
+		nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+		nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND],
 	});
 }
 

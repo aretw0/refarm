@@ -3,6 +3,7 @@ export const RUNTIME_START_COMMAND = "refarm runtime start";
 export const RUNTIME_START_WAIT_COMMAND = "refarm runtime start --wait";
 export const RUNTIME_DOCTOR_COMMAND = "refarm doctor";
 export const RUNTIME_DOCTOR_NEXT_ACTION_COMMAND = "refarm doctor --next-action";
+export const RUNTIME_DOCTOR_NEXT_COMMAND = "refarm doctor --next-command";
 export const RUNTIME_AUTOSTART_ALWAYS_COMMAND =
 	"refarm config set runtime.autostart always";
 export const RUNTIME_AUTOSTART_NEVER_COMMAND =

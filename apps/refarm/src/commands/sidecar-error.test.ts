@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
+import {
+	buildSidecarErrorPayload,
+	isSidecarUnavailable,
+	printSidecarUnavailable,
+} from "./sidecar-error.js";
 
 describe("sidecar-error", () => {
 	afterEach(() => {
@@ -27,7 +31,31 @@ describe("sidecar-error", () => {
 		expect(output).toContain("Status:     refarm runtime status");
 		expect(output).toContain("Start now:  refarm runtime start");
 		expect(output).toContain("Next:       refarm doctor --next-action");
+		expect(output).toContain("Command:    refarm doctor --next-command");
 		expect(output).toContain("Autostart:  refarm config set runtime.autostart always");
 		expect(output).toContain("Engine:     refarm config set tractor.engine auto");
+	});
+
+	it("includes executable recovery commands in runtime unavailable JSON", () => {
+		expect(buildSidecarErrorPayload("fetch failed")).toMatchObject({
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime start",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: [
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+		});
+	});
+
+	it("includes executable doctor command for generic runtime request failures", () => {
+		expect(buildSidecarErrorPayload("sidecar HTTP 500")).toMatchObject({
+			ok: false,
+			error: "runtime-request-failed",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: ["refarm doctor --next-command"],
+		});
 	});
 });
