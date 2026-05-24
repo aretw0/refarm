@@ -1,6 +1,10 @@
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import type { LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
@@ -171,15 +175,18 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 			const result = await resolvedDeps.run(spec, { capture: options.json === true });
 			if (options.json) {
 				if (result.exitCode === 0) {
-					printJson({
-						...plan,
-						ok: true,
-						exitCode: result.exitCode,
-						stdout: result.stdout,
-						stderr: result.stderr,
-						nextAction: null,
-						nextActions: [],
-					});
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "tidy",
+							operation: "imports",
+							extra: {
+								...plan,
+								exitCode: result.exitCode,
+								stdout: result.stdout,
+								stderr: result.stderr,
+							},
+						}),
+					);
 				} else {
 					const fixCommand = options.check
 						? refarmTidyImportsCommand(selectedFiles)

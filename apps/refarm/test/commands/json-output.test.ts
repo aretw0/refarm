@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
 	formatJson,
 	printJson,
 } from "../../src/commands/json-output.js";
@@ -36,6 +37,34 @@ describe("json output helpers", () => {
 			error: "task-not-found",
 			nextAction: "refarm tasks --json",
 			nextActions: ["refarm tasks --json"],
+		});
+	});
+
+	it("builds a standard success envelope without a follow-up action", () => {
+		expect(buildJsonSuccessEnvelope()).toEqual({
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+		});
+	});
+
+	it("builds a standard success envelope with contextual next actions", () => {
+		expect(
+			buildJsonSuccessEnvelope({
+				command: "tidy",
+				operation: "imports",
+				nextAction: "refarm check --next-action --json",
+				extra: {
+					exitCode: 0,
+				},
+			}),
+		).toEqual({
+			exitCode: 0,
+			command: "tidy",
+			operation: "imports",
+			ok: true,
+			nextAction: "refarm check --next-action --json",
+			nextActions: ["refarm check --next-action --json"],
 		});
 	});
 

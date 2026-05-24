@@ -11,6 +11,13 @@ export interface JsonErrorEnvelopeContext {
 	operation?: string;
 }
 
+export interface JsonSuccessEnvelopeInput<TExtra extends object = object>
+	extends JsonErrorEnvelopeContext {
+	nextAction?: string | null;
+	nextActions?: string[];
+	extra?: TExtra;
+}
+
 export interface JsonErrorEnvelopeInput<TExtra extends object = object>
 	extends JsonErrorEnvelopeContext {
 	error: string;
@@ -28,6 +35,28 @@ export type JsonErrorEnvelope<TExtra extends object = object> = TExtra &
 		nextAction: string;
 		nextActions: string[];
 	};
+
+export type JsonSuccessEnvelope<TExtra extends object = object> = TExtra &
+	JsonErrorEnvelopeContext & {
+		ok: true;
+		nextAction: string | null;
+		nextActions: string[];
+	};
+
+export function buildJsonSuccessEnvelope<TExtra extends object = object>(
+	input: JsonSuccessEnvelopeInput<TExtra> = {},
+): JsonSuccessEnvelope<TExtra> {
+	const { command, operation, nextAction, nextActions, extra } = input;
+	const resolvedNextActions = nextActions ?? (nextAction ? [nextAction] : []);
+	return {
+		...(extra ?? {}),
+		...(command ? { command } : {}),
+		...(operation ? { operation } : {}),
+		ok: true,
+		nextAction: nextAction ?? resolvedNextActions[0] ?? null,
+		nextActions: resolvedNextActions,
+	} as JsonSuccessEnvelope<TExtra>;
+}
 
 export function buildJsonErrorEnvelope<TExtra extends object = object>(
 	input: JsonErrorEnvelopeInput<TExtra>,
