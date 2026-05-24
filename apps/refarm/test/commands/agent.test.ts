@@ -15,6 +15,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm tidy imports --check");
+		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm sow");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model openai/gpt-5.5");
@@ -37,6 +38,7 @@ describe("agent command", () => {
 		expect(output).toContain("refarm runtime status");
 		expect(output).toContain("refarm doctor --next-action");
 		expect(output).toContain("refarm tidy imports --check");
+		expect(output).toContain("refarm tidy imports");
 		expect(output).toContain("refarm sow");
 		expect(output).toContain("refarm model current");
 		expect(output).toContain("refarm model base-url");
@@ -51,6 +53,7 @@ describe("agent command", () => {
 			ok: boolean;
 			status: string;
 			runtime: { status: string };
+			usage: { tidyCheck: string; tidyApply: string };
 			credentials: { status: string };
 			plugins: { install: string };
 			nextActions: string[];
@@ -59,6 +62,10 @@ describe("agent command", () => {
 			ok: true,
 			status: "handoff",
 			runtime: { status: "refarm runtime status --json" },
+			usage: {
+				tidyCheck: "refarm tidy imports --check --json",
+				tidyApply: "refarm tidy imports --json",
+			},
 			credentials: { status: "refarm model current --json" },
 			plugins: { install: "refarm plugin install --json" },
 		});
