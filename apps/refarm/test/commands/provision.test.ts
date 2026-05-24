@@ -164,6 +164,7 @@ describe("provision command", () => {
 			operation: string;
 			providers: Array<{ id: string; services: Array<{ id: string }> }>;
 			nextActions: string[];
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			command: "provision",
@@ -175,6 +176,9 @@ describe("provision command", () => {
 		});
 		expect(payload.nextActions).toContain(
 			"refarm provision cloudflare turbo-cache --dry-run",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm provision cloudflare turbo-cache --github-secrets",
 		);
 
 		logSpy.mockRestore();
@@ -361,6 +365,7 @@ describe("provision command", () => {
 			operation: string;
 			input: { bucket: string; team: string };
 			plan: { resources: Array<{ name: string }> };
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			provider: "cloudflare",
@@ -371,6 +376,9 @@ describe("provision command", () => {
 		expect(payload.plan.resources[0]).toMatchObject({
 			name: "refarm-cache-test",
 		});
+		expect(payload.nextCommands).toContain(
+			"refarm provision cloudflare turbo-cache --github-secrets",
+		);
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
@@ -537,11 +545,13 @@ describe("provision command", () => {
 			ok: boolean;
 			error: string;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "missing-cloudflare-token",
 			nextAction: "refarm sow --cloudflare",
+			nextCommand: "refarm sow --cloudflare",
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -599,11 +609,13 @@ describe("provision command", () => {
 			ok: boolean;
 			error: string;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "cloudflare-connect-failed",
 			nextAction: "refarm sow --cloudflare",
+			nextCommand: "refarm sow --cloudflare",
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -677,11 +689,13 @@ describe("provision command", () => {
 			ok: boolean;
 			error: string;
 			message: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "cloudflare-provision-failed",
 			message: "wrangler failed",
+			nextCommand: "refarm provision cloudflare turbo-cache --dry-run",
 		});
 		expect(process.exitCode).toBe(1);
 
@@ -720,11 +734,13 @@ describe("provision command", () => {
 			ok: boolean;
 			error: string;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "github-secrets-write-failed",
 			nextAction: "gh auth status",
+			nextCommand: "gh auth status",
 		});
 		expect(process.exitCode).toBe(1);
 

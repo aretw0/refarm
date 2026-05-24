@@ -46,6 +46,10 @@ function provisionNextActions(): string[] {
 	];
 }
 
+function provisionNextCommands(): string[] {
+	return provisionNextActions();
+}
+
 function cloudflareTurboCachePlan(input: {
 	bucket: string;
 	team: string;
@@ -74,6 +78,7 @@ function buildProvisionCatalogPayload() {
 			},
 		],
 		nextActions: provisionNextActions(),
+		nextCommands: provisionNextCommands(),
 	};
 }
 
@@ -91,6 +96,7 @@ function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
 			},
 		],
 		nextActions: provisionNextActions(),
+		nextCommands: provisionNextCommands(),
 		...(options.dryRun
 			? {
 					plan: cloudflareTurboCachePlan({
@@ -121,6 +127,10 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --github-secrets",
 		],
+		nextCommands: [
+			"refarm sow --cloudflare",
+			"refarm provision cloudflare turbo-cache --github-secrets",
+		],
 	};
 }
 
@@ -132,6 +142,11 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 		message: "No Cloudflare token found.",
 		nextAction: "refarm sow --cloudflare",
 		nextActions: [
+			"refarm sow --cloudflare",
+			"refarm provision cloudflare turbo-cache --dry-run",
+		],
+		nextCommand: "refarm sow --cloudflare",
+		nextCommands: [
 			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
@@ -160,6 +175,11 @@ function buildTurboCacheFailurePayload(input: {
 		message: input.message,
 		nextAction: input.nextAction,
 		nextActions: [
+			input.nextAction,
+			"refarm provision cloudflare turbo-cache --dry-run",
+		],
+		nextCommand: input.nextAction,
+		nextCommands: [
 			input.nextAction,
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
