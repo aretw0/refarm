@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
@@ -191,17 +191,19 @@ async function saveExtension(
   if (!existsSync(srcDir)) {
     const fromScope = toGlobal ? "project" : "global";
     if (options.json) {
-      printJson({
-        name,
-        action: "save",
-        ok: false,
-        error: "extension-not-found",
-        fromScope,
-        sourceDir: srcDir,
-        destinationDir: destDir,
-        nextAction: `refarm extension list --json`,
-        nextActions: [`refarm extension list --json`],
-      });
+      printJson(
+        buildJsonErrorEnvelope({
+          error: "extension-not-found",
+          nextAction: `refarm extension list --json`,
+          extra: {
+            name,
+            action: "save",
+            fromScope,
+            sourceDir: srcDir,
+            destinationDir: destDir,
+          },
+        }),
+      );
       process.exitCode = 1;
       return;
     }
@@ -317,18 +319,21 @@ extensionCommand
   .action(async (name: string, options: { global: boolean; local: boolean; json?: boolean }) => {
     if (!options.global && !options.local) {
       if (options.json) {
-        printJson({
-          name,
-          action: "save",
-          ok: false,
-          error: "missing-scope",
-          message: "Specify --global or --local.",
-          nextAction: `refarm extension save ${name} --global`,
-          nextActions: [
-            `refarm extension save ${name} --global`,
-            `refarm extension save ${name} --local`,
-          ],
-        });
+        printJson(
+          buildJsonErrorEnvelope({
+            error: "missing-scope",
+            message: "Specify --global or --local.",
+            nextAction: `refarm extension save ${name} --global`,
+            nextActions: [
+              `refarm extension save ${name} --global`,
+              `refarm extension save ${name} --local`,
+            ],
+            extra: {
+              name,
+              action: "save",
+            },
+          }),
+        );
         process.exitCode = 1;
         return;
       }
