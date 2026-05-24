@@ -11,16 +11,22 @@ export interface JsonErrorEnvelopeContext {
 	operation?: string;
 }
 
-export interface JsonErrorEnvelopeInput extends JsonErrorEnvelopeContext {
+export interface JsonErrorEnvelopeInput<TExtra extends object = object>
+	extends JsonErrorEnvelopeContext {
 	error: string;
 	message?: string;
 	nextAction: string;
 	nextActions?: string[];
+	extra?: TExtra;
 }
 
-export function buildJsonErrorEnvelope(input: JsonErrorEnvelopeInput) {
-	const { command, operation, error, message, nextAction, nextActions } = input;
+export function buildJsonErrorEnvelope<TExtra extends object = object>(
+	input: JsonErrorEnvelopeInput<TExtra>,
+) {
+	const { command, operation, error, message, nextAction, nextActions, extra } =
+		input;
 	return {
+		...(extra ?? {}),
 		...(command ? { command } : {}),
 		...(operation ? { operation } : {}),
 		ok: false,

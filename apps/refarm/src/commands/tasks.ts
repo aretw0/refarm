@@ -1,7 +1,7 @@
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -32,19 +32,6 @@ interface TaskShowJson {
 	events: TaskEvent[];
 }
 
-interface TaskErrorJson {
-	schemaVersion: 1;
-	command: "tasks";
-	operation: "show" | "list";
-	ok: false;
-	error: string;
-	message?: string;
-	prefix?: string;
-	matches?: string[];
-	nextAction: string;
-	nextActions: string[];
-}
-
 function parsePositiveIntOption(value: string, label: string): number {
 	const parsed = Number(value);
 	if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -53,8 +40,29 @@ function parsePositiveIntOption(value: string, label: string): number {
 	return parsed;
 }
 
-function printTaskErrorJson(error: TaskErrorJson): void {
-	printJson(error);
+function printTaskErrorJson(input: {
+	error: string;
+	message?: string;
+	prefix?: string;
+	matches?: string[];
+	nextAction: string;
+	nextActions?: string[];
+}): void {
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "tasks",
+			operation: "show",
+			error: input.error,
+			message: input.message,
+			nextAction: input.nextAction,
+			nextActions: input.nextActions,
+			extra: {
+				schemaVersion: 1,
+				...(input.prefix ? { prefix: input.prefix } : {}),
+				...(input.matches ? { matches: input.matches } : {}),
+			},
+		}),
+	);
 	process.exitCode = 1;
 }
 
@@ -198,14 +206,9 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		if (response.status === 404) {
 			if (opts.json) {
 				printTaskErrorJson({
-					schemaVersion: 1,
-					command: "tasks",
-					operation: "show",
-					ok: false,
 					error: "task-not-found",
 					prefix,
 					nextAction: "refarm tasks --json",
-					nextActions: ["refarm tasks --json"],
 				});
 				return;
 			}
@@ -216,16 +219,11 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		if (response.status === 409) {
 			if (opts.json) {
 				printTaskErrorJson({
-					schemaVersion: 1,
-					command: "tasks",
-					operation: "show",
-					ok: false,
 					error: "ambiguous-task-prefix",
 					message: parsed.error,
 					prefix,
 					matches: parsed.matches ?? [],
 					nextAction: "refarm tasks --json",
-					nextActions: ["refarm tasks --json"],
 				});
 				return;
 			}
@@ -239,10 +237,6 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 		if (!response.ok) {
 			if (opts.json) {
 				printTaskErrorJson({
-					schemaVersion: 1,
-					command: "tasks",
-					operation: "show",
-					ok: false,
 					error: "task-show-failed",
 					message: parsed.error ?? `HTTP ${response.status}`,
 					prefix,

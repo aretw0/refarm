@@ -55,4 +55,30 @@ describe("json output helpers", () => {
 			nextActions: ["refarm runtime status", "refarm runtime start"],
 		});
 	});
+
+	it("adds extra fields before the standard error shape", () => {
+		expect(
+			buildJsonErrorEnvelope({
+				command: "tasks",
+				operation: "show",
+				error: "ambiguous-task-prefix",
+				nextAction: "refarm tasks --json",
+				extra: {
+					schemaVersion: 1,
+					prefix: "abc",
+					matches: ["abc1", "abc2"],
+				},
+			}),
+		).toEqual({
+			schemaVersion: 1,
+			prefix: "abc",
+			matches: ["abc1", "abc2"],
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "ambiguous-task-prefix",
+			nextAction: "refarm tasks --json",
+			nextActions: ["refarm tasks --json"],
+		});
+	});
 });
