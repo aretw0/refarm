@@ -5,7 +5,7 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface MigrateConfig {
 	brand?: { slug?: string; urls?: { repository?: string } };
@@ -61,18 +61,21 @@ export const migrateCommand = new Command("migrate")
 
     if (!targetUrl) {
         if (json) {
-            printJson({
-                schemaVersion: MIGRATE_SCHEMA_VERSION,
-                command: "migrate",
-                operation: "mirror",
-                dryRun: options.dryRun === true,
-                ok: false,
-                status: "error",
-                error: "missing-target-url",
-                message: "Missing --target <url>.",
-                nextAction: "refarm migrate --target <url> --dry-run",
-                nextActions: ["refarm migrate --target <url> --dry-run"],
-            });
+            printJson(
+                buildJsonErrorEnvelope({
+                    command: "migrate",
+                    operation: "mirror",
+                    error: "missing-target-url",
+                    message: "Missing --target <url>.",
+                    nextAction: "refarm migrate --target <url> --dry-run",
+                    nextActions: ["refarm migrate --target <url> --dry-run"],
+                    extra: {
+                        schemaVersion: MIGRATE_SCHEMA_VERSION,
+                        dryRun: options.dryRun === true,
+                        status: "error",
+                    },
+                }),
+            );
             process.exitCode = 1;
             return;
         }
@@ -127,22 +130,25 @@ export const migrateCommand = new Command("migrate")
 
     if (!config.brand?.urls?.repository) {
         if (json) {
-            printJson({
-                schemaVersion: MIGRATE_SCHEMA_VERSION,
-                command: "migrate",
-                operation: "mirror",
-                dryRun: options.dryRun === true,
-                ok: false,
-                status: "error",
-                error: "source-repository-not-found",
-                message: "Could not detect source repository URL.",
-                targetUrl,
-                nextAction: "set brand.urls.repository in refarm.config.json",
-                nextActions: [
-                    "set brand.urls.repository in refarm.config.json",
-                    "run refarm migrate --target <url> --dry-run",
-                ],
-            });
+            printJson(
+                buildJsonErrorEnvelope({
+                    command: "migrate",
+                    operation: "mirror",
+                    error: "source-repository-not-found",
+                    message: "Could not detect source repository URL.",
+                    nextAction: "set brand.urls.repository in refarm.config.json",
+                    nextActions: [
+                        "set brand.urls.repository in refarm.config.json",
+                        "run refarm migrate --target <url> --dry-run",
+                    ],
+                    extra: {
+                        schemaVersion: MIGRATE_SCHEMA_VERSION,
+                        dryRun: options.dryRun === true,
+                        status: "error",
+                        targetUrl,
+                    },
+                }),
+            );
             process.exitCode = 1;
             return;
         }
