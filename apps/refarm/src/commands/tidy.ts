@@ -166,12 +166,15 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 			const plan = buildTidyImportsPlan(spec, options, selectedFiles);
 
 			if (options.dryRun) {
+				const nextCommand = refarmTidyImportsCommand(selectedFiles, {
+					check: options.check,
+				});
 				if (options.json) {
 					printJson(
 						buildJsonSuccessEnvelope({
 							operation: "imports",
-							nextCommand: plan.display,
-							nextCommands: [plan.display],
+							nextCommand,
+							nextCommands: [nextCommand],
 							extra: plan,
 						}),
 					);

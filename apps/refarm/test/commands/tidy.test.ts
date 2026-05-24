@@ -100,9 +100,9 @@ describe("tidyCommand", () => {
 			operation: "imports",
 			nextAction: null,
 			nextActions: [],
-			nextCommand: "pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
+			nextCommand: "refarm tidy imports --check 'apps/refarm/src/program.ts'",
 			nextCommands: [
-				"pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
+				"refarm tidy imports --check 'apps/refarm/src/program.ts'",
 			],
 		});
 	});
