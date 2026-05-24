@@ -65,6 +65,7 @@ describe("guideCommand", () => {
     });
     guideCommand.outputHelp();
 
+    expect(help).toContain("refarm guide --json");
     expect(help).toContain("refarm-audit.md");
     expect(help).toContain("refarm sow --cloudflare");
     expect(help).toContain("refarm model current");
@@ -87,6 +88,50 @@ describe("guideCommand", () => {
     expect(content).toContain("Model Credentials");
     expect(content).toContain("refarm model current");
     expect(content).toContain("refarm sow --cloudflare");
+  });
+
+  it("prints setup audit as JSON without writing markdown", async () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+
+    await guideCommand.parseAsync(["--json"], { from: "user" });
+
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      command: string;
+      outputPath: string;
+      ok: boolean;
+      checks: Array<{ id: string; ok: boolean; status: string }>;
+      nextAction: string | null;
+      nextActions: string[];
+    };
+    expect(payload).toMatchObject({
+      command: "guide",
+      outputPath: "refarm-audit.md",
+      ok: false,
+    });
+    expect(payload.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "model-credentials",
+          ok: true,
+          status: "ready",
+        }),
+        expect.objectContaining({
+          id: "cloudflare-token",
+          ok: false,
+          status: "missing",
+        }),
+      ]),
+    );
+    expect(payload.nextAction).toBe("Run 'refarm sow --cloudflare' to add your API token.");
+    expect(payload.nextActions).toContain(
+      "Run 'refarm sow --cloudflare' to add your API token.",
+    );
+
+    logSpy.mockRestore();
   });
 
   it("uses environment model route overrides in the audit", async () => {

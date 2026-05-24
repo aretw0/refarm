@@ -1,19 +1,60 @@
-import { Command } from "commander";
-import chalk from "chalk";
-import { writeFileSync } from "node:fs";
 import {
-  DEFAULT_MODEL_PROVIDER,
-  defaultProviderModelRef,
-  effectiveModelRouteForScope,
-  loadConfig,
-  modelCredentialStatus,
+	DEFAULT_MODEL_PROVIDER,
+	defaultProviderModelRef,
+	effectiveModelRouteForScope,
+	loadConfig,
+	modelCredentialStatus,
 } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
+import chalk from "chalk";
+import { Command } from "commander";
+import { writeFileSync } from "node:fs";
+import { printJson } from "./json-output.js";
+
+interface GuideOptions {
+  json?: boolean;
+}
+
+interface GuideCheck {
+  id: string;
+  name: string;
+  ok: boolean;
+  status: "ready" | "missing";
+  action: string;
+}
+
+interface GuideReport {
+  schemaVersion: 1;
+  command: "guide";
+  outputPath: string;
+  ok: boolean;
+  checks: GuideCheck[];
+  nextAction: string | null;
+  nextActions: string[];
+}
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+function renderGuideMarkdown(report: GuideReport): string {
+  let guideContent = `# Setup Audit — refarm\n\nDynamically generated based on your current state.\n\n## Status Summary\n\n`;
+
+  guideContent += `| Item | Status | Required Action |\n|------|--------|-----------------|\n`;
+  for (const check of report.checks) {
+    guideContent += `| ${check.name} | ${check.ok ? "✅" : "❌"} | ${check.action} |\n`;
+  }
+
+  guideContent += `\n\n## Next Steps\n\n`;
+  if (report.nextActions.length > 0) {
+    guideContent += `Follow the actions in the table above to complete setup.\n`;
+  } else {
+    guideContent += `Your workspace is ready. Run the health checks to verify your infrastructure.\n`;
+  }
+
+  return guideContent;
 }
 
 export const guideCommand = new Command("guide")
@@ -24,6 +65,7 @@ export const guideCommand = new Command("guide")
       "",
       "Examples:",
       "  $ refarm guide",
+      "  $ refarm guide --json",
       "  $ refarm sow",
       "  $ refarm sow --cloudflare",
       "  $ refarm model current",
@@ -37,8 +79,11 @@ export const guideCommand = new Command("guide")
       "  Use refarm health for deterministic project diagnostics.",
     ].join("\n"),
   )
-  .action(async () => {
-    console.log(chalk.blue("Generating setup audit..."));
+  .option("--json", "Output machine-readable setup audit")
+  .action(async (options: GuideOptions) => {
+    if (!options.json) {
+      console.log(chalk.blue("Generating setup audit..."));
+    }
 
     const config = loadConfig();
     const silo = new SiloCore(config);
@@ -61,46 +106,57 @@ export const guideCommand = new Command("guide")
     );
     const modelReady = modelStatus.state !== "missing";
 
-    const checks = [
+    const checks: GuideCheck[] = [
       {
+        id: "model-credentials",
         name: "Model Credentials",
-        status: modelReady ? "✅" : "❌",
+        ok: modelReady,
+        status: modelReady ? "ready" : "missing",
         action: modelReady
           ? `Inspect route with 'refarm model current' (${modelRef}).`
           : `Run 'refarm sow' to configure ${modelRef}.`,
       },
       {
+        id: "github-token",
         name: "GITHUB_TOKEN",
-        status: infraTokens.REFARM_GITHUB_TOKEN ? "✅" : "❌",
+        ok: Boolean(infraTokens.REFARM_GITHUB_TOKEN),
+        status: infraTokens.REFARM_GITHUB_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --github' to add your PAT.",
       },
       {
+        id: "cloudflare-token",
         name: "CLOUDFLARE_API_TOKEN",
-        status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "✅" : "❌",
+        ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
+        status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --cloudflare' to add your API token.",
       },
       {
+        id: "brand-config",
         name: "Brand Config",
-        status: config.brand ? "✅" : "❌",
+        ok: Boolean(config.brand),
+        status: config.brand ? "ready" : "missing",
         action: "Check your refarm.config.json.",
       },
     ];
+    const nextActions = checks
+      .filter((check) => !check.ok)
+      .map((check) => check.action);
+    const report: GuideReport = {
+      schemaVersion: 1,
+      command: "guide",
+      outputPath: "refarm-audit.md",
+      ok: nextActions.length === 0,
+      checks,
+      nextAction: nextActions[0] ?? null,
+      nextActions,
+    };
 
-    let guideContent = `# Setup Audit — refarm\n\nDynamically generated based on your current state.\n\n## Status Summary\n\n`;
-
-    guideContent += `| Item | Status | Required Action |\n|------|--------|-----------------|\n`;
-    for (const check of checks) {
-      guideContent += `| ${check.name} | ${check.status} | ${check.action} |\n`;
+    if (options.json) {
+      printJson(report);
+      return;
     }
 
-    guideContent += `\n\n## Next Steps\n\n`;
-    const missing = checks.filter((check) => check.status === "❌");
-    if (missing.length > 0) {
-      guideContent += `Follow the actions in the table above to complete setup.\n`;
-    } else {
-      guideContent += `Your workspace is ready. Run the health checks to verify your infrastructure.\n`;
-    }
-
+    const guideContent = renderGuideMarkdown(report);
     writeFileSync("refarm-audit.md", guideContent);
     console.log(chalk.green("refarm-audit.md written."));
   });
