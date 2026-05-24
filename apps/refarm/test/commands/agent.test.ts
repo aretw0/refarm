@@ -14,6 +14,7 @@ describe("agent command", () => {
 
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm check --next-action --json");
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm sow");
@@ -37,6 +38,7 @@ describe("agent command", () => {
 
 		expect(output).toContain("refarm runtime status");
 		expect(output).toContain("refarm doctor --next-action");
+		expect(output).toContain("refarm check --next-action --json");
 		expect(output).toContain("refarm tidy imports --check");
 		expect(output).toContain("refarm tidy imports");
 		expect(output).toContain("refarm sow");
@@ -56,6 +58,8 @@ describe("agent command", () => {
 			usage: { tidyCheck: string; tidyApply: string };
 			credentials: { status: string };
 			plugins: { install: string };
+			verification: { quick: string; tidyCheck: string };
+			nextAction: string;
 			nextActions: string[];
 		};
 		expect(payload).toMatchObject({
@@ -68,8 +72,13 @@ describe("agent command", () => {
 			},
 			credentials: { status: "refarm model current --json" },
 			plugins: { install: "refarm plugin install --json" },
+			verification: {
+				quick: "refarm check --next-action --json",
+				tidyCheck: "refarm tidy imports --check --json",
+			},
+			nextAction: "refarm check --next-action --json",
 		});
-		expect(payload.nextActions).toContain("refarm doctor --next-action --json");
+		expect(payload.nextActions).toContain("refarm runtime status --json");
 		logSpy.mockRestore();
 	});
 });

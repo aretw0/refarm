@@ -1,13 +1,10 @@
 import { Command } from "commander";
 import { defaultProviderModelRef } from "../model-routing.js";
-import { printJson } from "./json-output.js";
+import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 
 const agentRuntimePlan = {
-	action: "agent",
-	ok: true,
-	status: "handoff",
 	runtime: {
 		status: "refarm runtime status --json",
 		start: "refarm runtime start --json",
@@ -28,13 +25,12 @@ const agentRuntimePlan = {
 		list: "refarm plugin list --json",
 		install: "refarm plugin install --json",
 	},
-	nextAction: "refarm doctor --next-action --json",
-	nextActions: [
-		"refarm runtime status --json",
-		"refarm doctor --next-action --json",
-		"refarm model current --json",
-		"refarm plugin list --json",
-	],
+	verification: {
+		quick: "refarm check --next-action --json",
+		health: "refarm health --next-action --json",
+		doctor: "refarm doctor --next-action --json",
+		tidyCheck: "refarm tidy imports --check --json",
+	},
 };
 
 // Agent runtime commands (status, repl, start/stop) live here.
@@ -62,6 +58,10 @@ Agent usage:
   $ refarm model base-url ...   Set a self-hosted/OpenAI-compatible endpoint
   $ refarm model fallback ...   Set a retry route for provider failures
 
+Verification:
+  $ refarm check --next-action --json Composite health + doctor gate
+  $ refarm tidy imports --check --json Check import organization
+
 Plugin lifecycle:
   $ refarm plugin list          Show bundled plugin install state
   $ refarm plugin install       Install bundled plugins such as @refarm/pi-agent
@@ -76,7 +76,24 @@ Notes:
 `,
 ).action(function (this: Command, options: { json?: boolean }) {
 	if (options.json) {
-		printJson(agentRuntimePlan);
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "agent",
+				operation: "handoff",
+				nextAction: "refarm check --next-action --json",
+				nextActions: [
+					"refarm check --next-action --json",
+					"refarm runtime status --json",
+					"refarm model current --json",
+					"refarm plugin list --json",
+				],
+				extra: {
+					action: "agent",
+					status: "handoff",
+					...agentRuntimePlan,
+				},
+			}),
+		);
 		return;
 	}
 	this.outputHelp();
