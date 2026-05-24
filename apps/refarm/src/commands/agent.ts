@@ -3,9 +3,12 @@ import { spawnSync } from "node:child_process";
 import { defaultProviderModelRef } from "../model-routing.js";
 import { refarmCommand } from "./command-handoff.js";
 import {
-	commandPayloadNextActions,
-	commandPayloadNextCommands,
-	commandPayloadOk,
+	runCommandPlan,
+	type CommandPlanRunResult,
+	type CommandPlanStep,
+	type CommandPlanStepRunResult,
+} from "./command-plan.js";
+import {
 	parseCommandJsonPayload,
 } from "./command-result.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
@@ -44,26 +47,11 @@ const agentRuntimePlan = {
 	},
 };
 
-interface AgentFinishStep {
-	id: string;
-	command: string;
-	args: string[];
-	description: string;
-}
-
-interface AgentFinishStepRunResult extends AgentFinishStep {
-	ok: boolean;
-	exitCode: number;
-	stdout: string;
-	stderr: string;
-	payload?: unknown;
-}
-
 interface AgentCommandDeps {
-	runRefarm(args: string[]): AgentFinishStepRunResult;
+	runRefarm(args: string[]): CommandPlanStepRunResult;
 }
 
-function runRefarmCommand(args: string[]): AgentFinishStepRunResult {
+function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
 	const result = spawnSync(process.argv[0]!, [process.argv[1]!, ...args], {
 		cwd: process.cwd(),
 		env: process.env,
@@ -90,7 +78,7 @@ function finishStep(
 	id: string,
 	args: string[],
 	description: string,
-): AgentFinishStep {
+): CommandPlanStep {
 	return {
 		id,
 		command: refarmCommand(args),
@@ -119,48 +107,17 @@ const agentFinishSteps = [
 
 function runAgentFinishPlan(
 	deps: AgentCommandDeps,
-): {
-	ok: boolean;
-	status: "passed" | "failed";
-	steps: AgentFinishStepRunResult[];
-	nextActions: string[];
-	nextCommands: string[];
-} {
-	const steps: AgentFinishStepRunResult[] = [];
-	for (const step of agentFinishSteps) {
-		const result = {
+): CommandPlanRunResult {
+	return runCommandPlan(agentFinishSteps, (step) => ({
 			...deps.runRefarm(step.args),
 			id: step.id,
 			command: step.command,
 			args: step.args,
 			description: step.description,
-		};
-		const payloadOk = commandPayloadOk(result.payload);
-		const ok = result.exitCode === 0 && payloadOk !== false;
-		const normalized = { ...result, ok };
-		steps.push(normalized);
-		if (!ok) {
-			return {
-				ok: false,
-				status: "failed",
-				steps,
-				nextActions: commandPayloadNextActions(result.payload) ??
-					commandPayloadNextCommands(result.payload) ?? [step.command],
-				nextCommands:
-					commandPayloadNextCommands(result.payload) ?? [step.command],
-			};
-		}
-	}
-	return {
-		ok: true,
-		status: "passed",
-		steps,
-		nextActions: [],
-		nextCommands: [],
-	};
+		}));
 }
 
-function printAgentFinishRunHuman(result: ReturnType<typeof runAgentFinishPlan>): void {
+function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
 	console.log("Refarm agent finish");
 	for (const step of result.steps) {
 		console.log(`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}`);
