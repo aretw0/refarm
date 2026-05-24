@@ -5,7 +5,11 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 
 interface InitOptions {
   force?: boolean;
@@ -131,21 +135,25 @@ export const initCommand = new Command("init")
     }
 
     if (opts.json) {
-      printJson({
-        schemaVersion: INIT_SCHEMA_VERSION,
-        command: "init",
-        ok: true,
-        status: "initialized",
-        projectDir,
-        configPath,
-        identityPath,
-        nextAction: `cd ${name} && refarm sow`,
-        nextActions: [
-          `cd ${name} && refarm sow`,
-          "refarm model current",
-          "refarm guide",
-        ],
-      });
+      printJson(
+        buildJsonSuccessEnvelope({
+          command: "init",
+          operation: "scaffold",
+          nextAction: `cd ${name} && refarm sow`,
+          nextActions: [
+            `cd ${name} && refarm sow`,
+            "refarm model current",
+            "refarm guide",
+          ],
+          extra: {
+            schemaVersion: INIT_SCHEMA_VERSION,
+            status: "initialized",
+            projectDir,
+            configPath,
+            identityPath,
+          },
+        }),
+      );
       return;
     }
 
