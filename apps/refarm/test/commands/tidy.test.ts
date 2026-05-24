@@ -85,8 +85,8 @@ describe("tidyCommand", () => {
 			action: "imports",
 			check: true,
 			files: ["apps/refarm/src/program.ts"],
-			command: "pnpm",
-			args: [
+			processCommand: "pnpm",
+			processArgs: [
 				"-C",
 				".",
 				"run",
@@ -96,6 +96,7 @@ describe("tidyCommand", () => {
 			],
 			display: "pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
 			dryRun: true,
+			command: "tidy",
 			ok: true,
 			operation: "imports",
 			nextAction: null,

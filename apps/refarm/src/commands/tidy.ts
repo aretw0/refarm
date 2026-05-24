@@ -37,8 +37,8 @@ export interface TidyImportsPlan {
 	action: "imports";
 	check: boolean;
 	files: string[];
-	command: string;
-	args: string[];
+	processCommand: string;
+	processArgs: string[];
 	display: string;
 	dryRun: boolean;
 }
@@ -73,8 +73,8 @@ function buildTidyImportsPlan(
 		action: "imports",
 		check: options.check === true,
 		files,
-		command: spec.command,
-		args: spec.args,
+		processCommand: spec.command,
+		processArgs: spec.args,
 		display: spec.display,
 		dryRun: options.dryRun === true,
 	};
@@ -172,6 +172,7 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 				if (options.json) {
 					printJson(
 						buildJsonSuccessEnvelope({
+							command: "tidy",
 							operation: "imports",
 							nextCommand,
 							nextCommands: [nextCommand],
