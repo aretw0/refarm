@@ -10,6 +10,14 @@ function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 	};
 }
 
+const MODEL_CURRENT_JSON_HANDOFF = {
+	ok: true,
+	nextAction: null,
+	nextActions: [],
+	nextCommand: "refarm model current --json",
+	nextCommands: ["refarm model current --json"],
+};
+
 describe("modelCommand", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
@@ -152,6 +160,8 @@ describe("modelCommand", () => {
 			routes: { default: string; worker: string; monitor: string };
 			source: { kind: string; envOverrides: string[] };
 			credential: { envKey: string; status: string };
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
 		expect(payload.routes.default).toBe("openai/gpt-5.5");
@@ -160,6 +170,8 @@ describe("modelCommand", () => {
 		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
 		expect(payload.credential.status).toBe("missing (run refarm sow)");
 		expect(payload.source.kind).toBe("identity");
+		expect(payload.nextCommand).toBe("refarm sow --model 'openai/gpt-5.5'");
+		expect(payload.nextCommands).toContain("refarm model providers --json");
 
 		logSpy.mockRestore();
 	});
@@ -416,6 +428,7 @@ describe("modelCommand", () => {
 				monitorModel: string;
 				credentialEnv?: string;
 			}>;
+			nextCommand: string;
 		};
 		expect(payload.providers).toContainEqual({
 			provider: "openai",
@@ -430,6 +443,7 @@ describe("modelCommand", () => {
 			workerModel: "llama3.2",
 			monitorModel: "llama3.2",
 		});
+		expect(payload.nextCommand).toBe("refarm model current --json");
 
 		logSpy.mockRestore();
 	});
@@ -480,6 +494,7 @@ describe("modelCommand", () => {
 			provider: "ollama",
 			modelId: "qwen2.5-coder",
 			ref: "ollama/qwen2.5-coder",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -519,6 +534,7 @@ describe("modelCommand", () => {
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			action: "disable-fallback",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -550,6 +566,7 @@ describe("modelCommand", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			action: "set-base-url",
 			baseUrl: "http://127.0.0.1:8000",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -595,6 +612,7 @@ describe("modelCommand", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			action: "reset-route",
 			scope: "worker",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -621,6 +639,7 @@ describe("modelCommand", () => {
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			action: "disable-base-url",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -656,6 +675,7 @@ describe("modelCommand", () => {
 			provider: "openai",
 			modelId: "gpt-5.5",
 			ref: "openai/gpt-5.5",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -710,6 +730,7 @@ describe("modelCommand", () => {
 			provider: "openai",
 			modelId: "gpt-5.5",
 			ref: "openai/gpt-5.5",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();
@@ -750,6 +771,7 @@ describe("modelCommand", () => {
 			provider: "openai",
 			modelId: "gpt-5.3-codex-spark",
 			ref: "openai/gpt-5.3-codex-spark",
+			...MODEL_CURRENT_JSON_HANDOFF,
 		});
 
 		logSpy.mockRestore();

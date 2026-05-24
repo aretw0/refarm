@@ -20,13 +20,15 @@ import {
 	parseModelScope,
 	type ModelScope,
 } from "../model-routing.js";
-import { printJson } from "./json-output.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
 const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
+const MODEL_CURRENT_JSON_COMMAND = "refarm model current --json";
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
 interface JsonOptionCarrier {
@@ -173,7 +175,13 @@ function hasJsonOption(
 }
 
 function printModelMutationResult(result: ModelMutationResult): void {
-	printJson(result);
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: result,
+			nextCommand: MODEL_CURRENT_JSON_COMMAND,
+			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+		}),
+	);
 }
 
 export function printCurrentModel(tokens: ModelTokens): void {
@@ -210,7 +218,23 @@ export function printCurrentModel(tokens: ModelTokens): void {
 }
 
 export function printCurrentModelJson(tokens: ModelTokens): void {
-	printJson(buildCurrentModelStatus(tokens));
+	const status = buildCurrentModelStatus(tokens);
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: status,
+			nextCommands: currentModelNextCommands(status),
+		}),
+	);
+}
+
+function currentModelNextCommands(status: CurrentModelStatus): string[] {
+	if (status.credential.status?.startsWith("missing")) {
+		return [
+			refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref)]),
+			"refarm model providers --json",
+		];
+	}
+	return [];
 }
 
 export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
@@ -307,7 +331,13 @@ export function printKnownModelProviders(): void {
 }
 
 export function printKnownModelProvidersJson(): void {
-	printJson({ providers: buildKnownModelProviders() });
+	printJson(
+		buildJsonSuccessEnvelope({
+			extra: { providers: buildKnownModelProviders() },
+			nextCommand: MODEL_CURRENT_JSON_COMMAND,
+			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+		}),
+	);
 }
 
 export async function setModelRoute(
