@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { spawn } from "node:child_process";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -80,11 +81,12 @@ function buildTidyImportsPlan(
 }
 
 function refarmTidyImportsCommand(files: string[], options: { check?: boolean } = {}): string {
-	return [
-		"refarm tidy imports",
+	return refarmCommand([
+		"tidy",
+		"imports",
 		...(options.check ? ["--check"] : []),
-		...files,
-	].join(" ");
+		...files.map((file) => quoteCommandArg(file)),
+	]);
 }
 
 export function runTidyProcess(
@@ -165,7 +167,14 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 
 			if (options.dryRun) {
 				if (options.json) {
-					printJson(plan);
+					printJson(
+						buildJsonSuccessEnvelope({
+							operation: "imports",
+							nextCommand: plan.display,
+							nextCommands: [plan.display],
+							extra: plan,
+						}),
+					);
 				} else {
 					console.log(`Command: ${plan.display}`);
 				}

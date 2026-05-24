@@ -96,6 +96,14 @@ describe("tidyCommand", () => {
 			],
 			display: "pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
 			dryRun: true,
+			ok: true,
+			operation: "imports",
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
+			nextCommands: [
+				"pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
+			],
 		});
 	});
 
@@ -142,6 +150,34 @@ describe("tidyCommand", () => {
 		expect(payload.stdout).toContain("apps/refarm/src/program.ts");
 		expect(payload.stderr).toContain("Imports need organizing");
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("quotes import recovery commands for explicit file paths", async () => {
+		const deps = makeDeps({
+			cwd: () => ".",
+			run: vi.fn().mockResolvedValue({
+				exitCode: 1,
+				stdout: "",
+				stderr: "Imports need organizing.\n",
+			}),
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createTidyCommand(deps).parseAsync(
+			["imports", "--check", "--json", "apps/refarm/src/a file's test.ts"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.nextCommand).toBe(
+			"refarm tidy imports 'apps/refarm/src/a file'\"'\"'s test.ts'",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm tidy imports --check 'apps/refarm/src/a file'\"'\"'s test.ts'",
+		);
 	});
 
 	it("prints successful import results as actionable JSON", async () => {
