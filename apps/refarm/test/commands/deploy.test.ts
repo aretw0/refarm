@@ -158,12 +158,14 @@ describe("deployCommand", () => {
       ok: boolean;
       status: string;
       error: string;
+      message: string;
     };
     expect(payload).toMatchObject({
       ok: false,
+      error: "deploy-failed",
       status: "error",
     });
-    expect(payload.error).toContain('Invalid deploy target "workers"');
+    expect(payload.message).toContain('Invalid deploy target "workers"');
     expect(process.exitCode).toBe(1);
 
     logSpy.mockRestore();

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface DeployResult {
 	status: string;
@@ -124,17 +124,22 @@ export const deployCommand = new Command("deploy")
     } catch (error) {
       if (options.json) {
         const message = error instanceof Error ? error.message : String(error);
-        printJson({
-          schemaVersion: DEPLOY_SCHEMA_VERSION,
-          command: "deploy",
-          target: options.target,
-          dryRun: options.dryRun === true,
-          ok: false,
-          status: "error",
-          error: message,
-          nextAction: "refarm deploy --dry-run",
-          nextActions: ["refarm deploy --dry-run"],
-        });
+        printJson(
+          buildJsonErrorEnvelope({
+            command: "deploy",
+            operation: "deploy",
+            error: "deploy-failed",
+            message,
+            nextAction: "refarm deploy --dry-run",
+            nextActions: ["refarm deploy --dry-run"],
+            extra: {
+              schemaVersion: DEPLOY_SCHEMA_VERSION,
+              target: options.target,
+              dryRun: options.dryRun === true,
+              status: "error",
+            },
+          }),
+        );
         process.exitCode = 1;
         return;
       }
