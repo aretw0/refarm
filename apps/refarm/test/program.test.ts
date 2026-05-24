@@ -108,6 +108,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm check --next-action");
 		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("refarm tidy imports --check");
+		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm config set runtime.autostart always");
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
