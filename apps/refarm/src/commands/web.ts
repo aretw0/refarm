@@ -122,7 +122,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				"",
 				"Notes:",
 				"  Without --launch, this runs a renderer preflight only.",
-				"  --dry-run prints the resolved package-manager command without starting it.",
+				"  --dry-run prints launch readiness and the resolved process command without starting it.",
 				`  Override package-manager detection with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGERS.join("|")}.`,
 				"  --open follows operator.openExternalLinks; set it with refarm config.",
 			].join("\n"),
@@ -134,7 +134,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.option("--json", "Output machine-readable JSON")
 		.option("--markdown", "Output markdown report")
 		.option("--launch", "Launch the local web runtime after renderer preflight")
-		.option("--dry-run", "Print launcher command without executing it")
+		.option("--dry-run", "Print launch readiness without executing it")
 		.option("--open", "Open default browser after starting web runtime")
 		.option("--actions", "Output selectable Web surface action rows")
 		.option(

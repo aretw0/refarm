@@ -154,7 +154,7 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 		.description("Organize imports for changed source files or explicit paths")
 		.argument("[files...]", "Source files to organize instead of changed-file mode")
 		.option("--check", "Check import organization without writing files")
-		.option("--dry-run", "Print the resolved package-manager command without running it")
+		.option("--dry-run", "Print the import organization plan without running it")
 		.option("--json", "Output machine-readable command plan or result")
 		.action(async (files: string[], options: TidyImportsOptions) => {
 			const selectedFiles = files ?? [];

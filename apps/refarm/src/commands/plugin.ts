@@ -688,7 +688,7 @@ pluginCommand
 	.description("Transpile a WASM plugin to a JS component using jco transpile")
 	.option("-o, --output <dir>", "Output directory", "./dist")
 	.option("-n, --name <name>", "Plugin name (defaults to input filename without extension)")
-	.option("--dry-run", "Print the resolved jco command without executing it")
+	.option("--dry-run", "Print the plugin bundle plan without executing it")
 	.option("--json", "Output machine-readable bundle plan or result")
 	.addHelpText(
 		"after",

@@ -108,7 +108,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.option("--json", "Output machine-readable JSON")
 		.option("--markdown", "Output markdown report")
 		.option("--launch", "Launch TUI runtime after renderer preflight")
-		.option("--dry-run", "Print launcher command without executing it")
+		.option("--dry-run", "Print launch readiness without executing it")
 		.option("--actions", "Output selectable TUI surface action rows")
 		.option(
 			"--select <id-or-index>",
