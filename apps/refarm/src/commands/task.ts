@@ -15,6 +15,7 @@ import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -768,6 +769,11 @@ Notes:
 							nextActions: [
 								`refarm task status ${effortId} --transport ${transport}`,
 							],
+							nextCommand: `refarm task status ${effortId} --transport ${transport}`,
+							nextCommands: [
+								`refarm task status ${effortId} --transport ${transport}`,
+								RUNTIME_DOCTOR_NEXT_COMMAND,
+							],
 							extra: {
 								effortId,
 								transport,
@@ -797,6 +803,11 @@ Notes:
 					accepted: true,
 					nextAction: `refarm task status ${effortId} --transport ${transport} --watch`,
 					nextActions: [
+						`refarm task status ${effortId} --transport ${transport} --watch`,
+						`refarm task logs ${effortId} --transport ${transport}`,
+					],
+					nextCommand: `refarm task status ${effortId} --transport ${transport} --watch`,
+					nextCommands: [
 						`refarm task status ${effortId} --transport ${transport} --watch`,
 						`refarm task logs ${effortId} --transport ${transport}`,
 					],
@@ -834,6 +845,11 @@ Notes:
 							nextActions: [
 								`refarm task status ${effortId} --transport ${transport}`,
 							],
+							nextCommand: `refarm task status ${effortId} --transport ${transport}`,
+							nextCommands: [
+								`refarm task status ${effortId} --transport ${transport}`,
+								RUNTIME_DOCTOR_NEXT_COMMAND,
+							],
 							extra: {
 								effortId,
 								transport,
@@ -863,6 +879,10 @@ Notes:
 					accepted: true,
 					nextAction: `refarm task status ${effortId} --transport ${transport}`,
 					nextActions: [
+						`refarm task status ${effortId} --transport ${transport}`,
+					],
+					nextCommand: `refarm task status ${effortId} --transport ${transport}`,
+					nextCommands: [
 						`refarm task status ${effortId} --transport ${transport}`,
 					],
 				});

@@ -486,12 +486,14 @@ describe("refarm task list/logs/retry/cancel", () => {
 			action: string;
 			accepted: boolean;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			effortId: "effort-abc",
 			transport: "http",
 			action: "retry",
 			accepted: true,
+			nextCommand: "refarm task status effort-abc --transport http --watch",
 		});
 		expect(payload.nextAction).toContain("--watch");
 		expect(session.rememberControl).toHaveBeenCalledWith({
@@ -527,13 +529,17 @@ describe("refarm task list/logs/retry/cancel", () => {
 			error: string;
 			accepted: boolean;
 			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "task-retry-rejected",
 			accepted: false,
 			nextAction: "refarm task status effort-abc --transport file",
+			nextCommand: "refarm task status effort-abc --transport file",
 		});
+		expect(payload.nextCommands).toContain("refarm doctor --next-command");
 		expect(session.rememberControl).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
@@ -592,6 +598,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 			action: string;
 			accepted: boolean;
 			nextAction: string;
+			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			effortId: "effort-abc",
@@ -599,6 +606,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 			action: "cancel",
 			accepted: true,
 			nextAction: "refarm task status effort-abc --transport http",
+			nextCommand: "refarm task status effort-abc --transport http",
 		});
 		expect(session.rememberControl).toHaveBeenCalledWith({
 			effortId: "effort-abc",
@@ -633,13 +641,17 @@ describe("refarm task list/logs/retry/cancel", () => {
 			error: string;
 			accepted: boolean;
 			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "task-cancel-rejected",
 			accepted: false,
 			nextAction: "refarm task status effort-abc --transport file",
+			nextCommand: "refarm task status effort-abc --transport file",
 		});
+		expect(payload.nextCommands).toContain("refarm doctor --next-command");
 		expect(session.rememberControl).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

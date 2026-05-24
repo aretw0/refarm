@@ -137,6 +137,7 @@ describe("refarm tasks", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
+			nextCommand: "refarm runtime start --wait",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -354,6 +355,8 @@ describe("refarm tasks", () => {
 			],
 			nextAction: "refarm tasks --json",
 			nextActions: ["refarm tasks --json"],
+			nextCommand: "refarm tasks --json",
+			nextCommands: ["refarm tasks --json"],
 		});
 		expect(process.exitCode).toBe(1);
 	});

@@ -5,6 +5,7 @@ import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -47,6 +48,8 @@ function printTaskErrorJson(input: {
 	matches?: string[];
 	nextAction: string;
 	nextActions?: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
 }): void {
 	printJson(
 		buildJsonErrorEnvelope({
@@ -56,6 +59,8 @@ function printTaskErrorJson(input: {
 			message: input.message,
 			nextAction: input.nextAction,
 			nextActions: input.nextActions,
+			nextCommand: input.nextCommand,
+			nextCommands: input.nextCommands,
 			extra: {
 				schemaVersion: 1,
 				...(input.prefix ? { prefix: input.prefix } : {}),
@@ -209,6 +214,7 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 					error: "task-not-found",
 					prefix,
 					nextAction: "refarm tasks --json",
+					nextCommand: "refarm tasks --json",
 				});
 				return;
 			}
@@ -224,6 +230,7 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 					prefix,
 					matches: parsed.matches ?? [],
 					nextAction: "refarm tasks --json",
+					nextCommand: "refarm tasks --json",
 				});
 				return;
 			}
@@ -242,6 +249,8 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 					prefix,
 					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+					nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+					nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND],
 				});
 				return;
 			}
