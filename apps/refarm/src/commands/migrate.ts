@@ -5,6 +5,7 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 
 interface MigrateConfig {
@@ -21,7 +22,7 @@ interface MigrateCommandOptions {
 const MIGRATE_SCHEMA_VERSION = 1;
 
 function migrateDryRunCommand(targetUrl: string): string {
-	return `refarm migrate --target ${JSON.stringify(targetUrl)} --dry-run`;
+	return refarmCommand(["migrate", "--target", quoteCommandArg(targetUrl), "--dry-run"]);
 }
 
 function wantsJsonOutput(

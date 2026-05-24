@@ -6,6 +6,11 @@ import inquirer from "inquirer";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import {
+	quoteCommandArg,
+	refarmCommand,
+	workspaceCommand,
+} from "./command-handoff.js";
+import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
@@ -19,11 +24,7 @@ interface InitOptions {
 const INIT_SCHEMA_VERSION = 1;
 
 function initForceCommand(name: string): string {
-  return `refarm init ${JSON.stringify(name)} --force`;
-}
-
-function workspaceCommand(projectDir: string, command: string): string {
-  return `cd ${JSON.stringify(projectDir)} && ${command}`;
+  return refarmCommand(["init", quoteCommandArg(name), "--force"]);
 }
 
 export const initCommand = new Command("init")

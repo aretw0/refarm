@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -12,7 +13,7 @@ import {
 const EXTENSION_LIST_JSON_COMMAND = "refarm extension list --json";
 
 function extensionSaveCommand(name: string, scope: "global" | "local"): string {
-  return `refarm extension save ${JSON.stringify(name)} --${scope}`;
+  return refarmCommand(["extension", "save", quoteCommandArg(name), `--${scope}`]);
 }
 
 const INDEX_JS_TEMPLATE = (name: string, id: string) => `\

@@ -79,10 +79,10 @@ describe("open-url command", () => {
 		});
 		expect(payload.candidates.length).toBeGreaterThan(0);
 		expect(payload.nextCommand).toBe(
-			'refarm open-url "https://github.com/login/device"',
+			"refarm open-url 'https://github.com/login/device'",
 		);
 		expect(payload.nextCommands).toEqual([
-			'refarm open-url "https://github.com/login/device"',
+			"refarm open-url 'https://github.com/login/device'",
 		]);
 		logSpy.mockRestore();
 	});
@@ -189,7 +189,7 @@ describe("open-url command", () => {
 			operation: "open",
 			nextAction: "open manually: https://example.test/auth",
 			nextCommand:
-				'refarm open-url "https://example.test/auth" --dry-run --json',
+				"refarm open-url 'https://example.test/auth' --dry-run --json",
 		});
 		logSpy.mockRestore();
 		errorSpy.mockRestore();

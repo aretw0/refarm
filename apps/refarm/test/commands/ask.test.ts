@@ -852,8 +852,8 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "invalid-options",
-			nextAction: 'refarm ask "hello" --new --json',
-			nextCommand: 'refarm ask "hello" --new --json',
+			nextAction: "refarm ask 'hello' --new --json",
+			nextCommand: "refarm ask 'hello' --new --json",
 		});
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);

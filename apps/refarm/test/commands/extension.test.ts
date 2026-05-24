@@ -277,9 +277,9 @@ describe("extension command", () => {
 			error: "missing-scope",
 		});
 		expect(payload.nextActions).toContain("refarm extension save my-tool --global");
-		expect(payload.nextCommand).toBe('refarm extension save "my-tool" --global');
+		expect(payload.nextCommand).toBe("refarm extension save 'my-tool' --global");
 		expect(payload.nextCommands).toContain(
-			'refarm extension save "my-tool" --local',
+			"refarm extension save 'my-tool' --local",
 		);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

@@ -196,8 +196,8 @@ describe("initCommand — mocked initialization flow", () => {
     expect(payload).toMatchObject({
       ok: false,
       status: "already-initialized",
-      nextAction: 'refarm init "test-workspace" --force',
-      nextCommand: 'refarm init "test-workspace" --force',
+      nextAction: "refarm init 'test-workspace' --force",
+      nextCommand: "refarm init 'test-workspace' --force",
     });
     logSpy.mockRestore();
   });

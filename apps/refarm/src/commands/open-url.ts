@@ -4,6 +4,7 @@ import {
 	type BrowserOpenResult,
 } from "@refarm.dev/cli/browser-open";
 import { Command } from "commander";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -27,7 +28,7 @@ interface OpenUrlOptions {
 const OPEN_URL_SCHEMA_VERSION = 1;
 
 function openUrlCommandLine(url: string, flags: string[] = []): string {
-	return ["refarm", "open-url", JSON.stringify(url), ...flags].join(" ");
+	return refarmCommand(["open-url", quoteCommandArg(url), ...flags]);
 }
 
 export function createOpenUrlCommand(deps?: Partial<OpenUrlDeps>): Command {

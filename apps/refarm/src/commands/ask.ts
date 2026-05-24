@@ -17,6 +17,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { defaultProviderModelRef } from "../model-routing.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
@@ -737,19 +738,25 @@ Runtime:
 
 				if (opts.new && opts.session) {
 					if (opts.json) {
+						const recoveryCommand = refarmCommand([
+							"ask",
+							quoteCommandArg(query),
+							"--new",
+							"--json",
+						]);
 						printJson(
 							buildJsonErrorEnvelope({
 								command: "ask",
 								operation: "options",
 								error: "invalid-options",
 								message: "--new and --session cannot be used together.",
-								nextAction: `refarm ask ${JSON.stringify(query)} --new --json`,
+								nextAction: recoveryCommand,
 								nextActions: [
-									`refarm ask ${JSON.stringify(query)} --new --json`,
+									recoveryCommand,
 								],
-								nextCommand: `refarm ask ${JSON.stringify(query)} --new --json`,
+								nextCommand: recoveryCommand,
 								nextCommands: [
-									`refarm ask ${JSON.stringify(query)} --new --json`,
+									recoveryCommand,
 								],
 								extra: { action: "ask" },
 							}),

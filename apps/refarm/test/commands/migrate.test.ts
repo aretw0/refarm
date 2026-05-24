@@ -167,11 +167,11 @@ describe("migrateCommand", () => {
       ok: false,
       status: "failure",
       nextAction:
-        'refarm migrate --target "https://github.com/user/fork.git" --dry-run',
+        "refarm migrate --target 'https://github.com/user/fork.git' --dry-run",
       nextCommand:
-        'refarm migrate --target "https://github.com/user/fork.git" --dry-run',
+        "refarm migrate --target 'https://github.com/user/fork.git' --dry-run",
       nextCommands: [
-        'refarm migrate --target "https://github.com/user/fork.git" --dry-run',
+        "refarm migrate --target 'https://github.com/user/fork.git' --dry-run",
       ],
     });
     expect(process.exitCode).toBe(1);
