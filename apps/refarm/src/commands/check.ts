@@ -22,6 +22,7 @@ export interface RefarmCheckReport {
 		doctor: RefarmDoctorReport;
 	};
 	recommendations: DiagnosticRecommendation[];
+	nextAction: string | null;
 	nextActions: string[];
 }
 
@@ -54,13 +55,15 @@ export function buildRefarmCheckReport(checks: {
 		(checks.health.ok ? 0 : checks.health.issueCount) +
 		checks.doctor.failureCount;
 
+	const nextActions = diagnosticNextActions(recommendations);
 	return {
 		ok: checks.health.ok && checks.doctor.ok,
 		failureCount,
 		warningCount: checks.doctor.warningCount,
 		checks,
 		recommendations,
-		nextActions: diagnosticNextActions(recommendations),
+		nextAction: nextActions[0] ?? null,
+		nextActions,
 	};
 }
 

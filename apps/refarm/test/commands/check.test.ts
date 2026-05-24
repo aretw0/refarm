@@ -126,6 +126,7 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.failureCount).toBe(3);
 		expect(report.warningCount).toBe(1);
 		expect(report.recommendations).toHaveLength(2);
+		expect(report.nextAction).toBe("Add the build config.");
 		expect(report.nextActions).toEqual([
 			"Add the build config.",
 			"Repair the runtime.",
@@ -176,6 +177,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');
+		expect(output).toContain('"nextAction": null');
 		expect(output).toContain('"nextActions"');
 	});
 
