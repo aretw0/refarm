@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockMirrorRepo, mockSiloResolve, mockInquirerPrompt } = vi.hoisted(() => ({
   mockMirrorRepo: vi.fn().mockResolvedValue({ status: "dry-run" }),
@@ -55,6 +55,7 @@ describe("migrateCommand", () => {
     migrateCommand.outputHelp();
 
     expect(help).toContain("refarm migrate --target https://github.com/user/fork.git --dry-run");
+    expect(help).toContain("refarm migrate --target https://github.com/user/fork.git --dry-run --json");
     expect(help).toContain("may push the full repository");
     expect(help).toContain(".git/config");
   });
@@ -72,5 +73,67 @@ describe("migrateCommand", () => {
     await expect(
       migrateCommand.parseAsync(["--target", "https://github.com/user/fork.git", "--dry-run"], { from: "user" })
     ).resolves.not.toThrow();
+  });
+
+  it("prints dry-run mirror result as JSON", async () => {
+    mockMirrorRepo.mockResolvedValueOnce({ status: "dry-run" });
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await migrateCommand.parseAsync(
+      ["--target", "https://github.com/user/fork.git", "--dry-run", "--json"],
+      { from: "user" },
+    );
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      command: string;
+      operation: string;
+      dryRun: boolean;
+      ok: boolean;
+      status: string;
+      targetUrl: string;
+    };
+    expect(payload).toMatchObject({
+      command: "migrate",
+      operation: "mirror",
+      dryRun: true,
+      ok: true,
+      status: "dry-run",
+      targetUrl: "https://github.com/user/fork.git",
+    });
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("reports missing target as JSON without prompting", async () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await migrateCommand.parseAsync(["--dry-run", "--json"], { from: "user" });
+
+    expect(mockInquirerPrompt).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    const payload = JSON.parse(logs.join("\n")) as {
+      ok: boolean;
+      error: string;
+      nextAction: string;
+    };
+    expect(payload).toMatchObject({
+      ok: false,
+      error: "missing-target-url",
+      nextAction: "refarm migrate --target <url> --dry-run",
+    });
+    expect(process.exitCode).toBe(1);
+
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });

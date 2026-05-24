@@ -41,6 +41,7 @@ describe("refarm program", () => {
 		expect(migrate?.options.map((option) => option.long)).toEqual([
 			"--target",
 			"--dry-run",
+			"--json",
 		]);
 	});
 

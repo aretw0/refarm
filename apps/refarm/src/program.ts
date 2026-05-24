@@ -184,17 +184,19 @@ program.addCommand(webCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
 program.addCommand(
-	createLazyCommand<{ target?: string; dryRun?: boolean }>({
+	createLazyCommand<{ target?: string; dryRun?: boolean; json?: boolean }>({
 		name: "migrate",
 		description: "Mirror your project to another Git remote",
 		options: [
 			{ flags: "--target <url>", description: "Target Git URL for mirroring" },
 			{ flags: "--dry-run", description: "Simulate the migration without pushing" },
+			{ flags: "--json", description: "Output machine-readable migration result" },
 		],
 		helpText: `
 
 Examples:
   $ refarm migrate --target https://github.com/user/fork.git --dry-run
+  $ refarm migrate --target https://github.com/user/fork.git --dry-run --json
   $ refarm migrate --target git@github.com:user/fork.git
 
 Notes:
@@ -206,6 +208,7 @@ Notes:
 		toArgs: (_unused, opts) => [
 			...(opts.target ? ["--target", opts.target] : []),
 			...(opts.dryRun ? ["--dry-run"] : []),
+			...(opts.json ? ["--json"] : []),
 		],
 	}),
 );
