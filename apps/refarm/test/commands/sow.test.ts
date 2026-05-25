@@ -146,7 +146,7 @@ describe("sowCommand — default (no flags)", () => {
 			status: "interactive-required",
 			prompts: ["model"],
 			nextAction: "refarm sow",
-			nextCommand: "refarm model providers --json",
+			nextCommand: "refarm sow --model ollama/llama3.2 --json",
 		});
 		expect(payload.nextCommands).not.toContain("refarm sow");
 		expect(payload.nextCommands).toContain("refarm model providers --json");

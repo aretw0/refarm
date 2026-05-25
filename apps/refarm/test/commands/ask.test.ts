@@ -329,7 +329,7 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "model-credentials-missing",
 			nextAction: "refarm sow",
-			nextCommand: "refarm model providers --json",
+			nextCommand: "refarm sow --json",
 			handoffs: {
 				interactive: "refarm sow",
 				inspectCurrent: "refarm model current --json",
