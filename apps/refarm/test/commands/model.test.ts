@@ -170,8 +170,11 @@ describe("modelCommand", () => {
 		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
 		expect(payload.credential.status).toBe("missing (run refarm sow)");
 		expect(payload.source.kind).toBe("identity");
-		expect(payload.nextCommand).toBe("refarm sow --model 'openai/gpt-5.5'");
+		expect(payload.nextCommand).toBe("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
+		expect(payload.nextCommands).toContain(
+			"refarm sow --model 'openai/gpt-5.5' --json",
+		);
 
 		logSpy.mockRestore();
 	});

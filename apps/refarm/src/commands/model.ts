@@ -230,8 +230,9 @@ export function printCurrentModelJson(tokens: ModelTokens): void {
 function currentModelNextCommands(status: CurrentModelStatus): string[] {
 	if (status.credential.status?.startsWith("missing")) {
 		return [
-			refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref)]),
+			"refarm sow --json",
 			"refarm model providers --json",
+			refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
 		];
 	}
 	return [];
