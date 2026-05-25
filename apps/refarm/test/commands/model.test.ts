@@ -156,6 +156,8 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
 			current: { ref: string };
 			routes: { default: string; worker: string; monitor: string };
 			source: { kind: string; envOverrides: string[] };
@@ -174,6 +176,8 @@ describe("modelCommand", () => {
 				command: string;
 			}[];
 		};
+		expect(payload.command).toBe("model");
+		expect(payload.operation).toBe("current");
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
 		expect(payload.routes.default).toBe("openai/gpt-5.5");
 		expect(payload.routes.worker).toBe("openai/gpt-5.3-codex-spark");
@@ -449,6 +453,8 @@ describe("modelCommand", () => {
 		await command.parseAsync(["providers", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
 			providers: Array<{
 				provider: string;
 				defaultModel: string;
@@ -458,6 +464,8 @@ describe("modelCommand", () => {
 			}>;
 			nextCommand: string;
 		};
+		expect(payload.command).toBe("model");
+		expect(payload.operation).toBe("providers");
 		expect(payload.providers).toContainEqual({
 			provider: "openai",
 			defaultModel: "gpt-5.5",

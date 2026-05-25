@@ -249,6 +249,8 @@ export function printCurrentModelJson(tokens: ModelTokens): void {
 	const status = buildCurrentModelStatus(tokens);
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "model",
+			operation: "current",
 			extra: status,
 			nextActions: currentModelNextActions(status),
 			nextCommands: currentModelNextCommands(status),
@@ -400,6 +402,8 @@ export function printKnownModelProviders(): void {
 export function printKnownModelProvidersJson(): void {
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "model",
+			operation: "providers",
 			extra: { providers: buildKnownModelProviders() },
 			nextCommand: MODEL_CURRENT_JSON_COMMAND,
 			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
