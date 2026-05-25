@@ -66,6 +66,8 @@ import {
 } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
+const PI_AGENT_INSTALL_COMMAND = "refarm plugin install";
+const PI_AGENT_INSTALL_JSON_COMMAND = "refarm plugin install --json";
 const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
 export interface AskDeps {
@@ -482,16 +484,16 @@ function buildAskErrorPayload(message: string): {
 			operation: "submit",
 			error: "pi-agent-not-loaded",
 			message: "pi-agent is not loaded in the Refarm runtime.",
-			nextAction: "refarm plugin install",
+			nextAction: PI_AGENT_INSTALL_COMMAND,
 			nextActions: [
-				"refarm plugin install",
+				PI_AGENT_INSTALL_COMMAND,
 				"/reload @refarm/pi-agent",
 				RUNTIME_START_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 			],
-			nextCommand: "refarm plugin install",
+			nextCommand: PI_AGENT_INSTALL_JSON_COMMAND,
 			nextCommands: [
-				"refarm plugin install",
+				PI_AGENT_INSTALL_JSON_COMMAND,
 				PI_AGENT_RELOAD_JSON_COMMAND,
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_START_WAIT_COMMAND,
@@ -688,21 +690,21 @@ async function ensurePiAgentReady(
 				message: "pi-agent is not loaded in the Refarm runtime.",
 				nextAction: state.installed.includes(PI_AGENT_PLUGIN_ID)
 					? "/reload @refarm/pi-agent"
-					: "refarm plugin install",
+					: PI_AGENT_INSTALL_COMMAND,
 				nextActions: [
 					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
 						? ["/reload @refarm/pi-agent"]
-						: ["refarm plugin install"]),
+						: [PI_AGENT_INSTALL_COMMAND]),
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
 				],
 				nextCommand: state.installed.includes(PI_AGENT_PLUGIN_ID)
 					? PI_AGENT_RELOAD_JSON_COMMAND
-					: "refarm plugin install",
+					: PI_AGENT_INSTALL_JSON_COMMAND,
 				nextCommands: [
 					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
 						? [PI_AGENT_RELOAD_JSON_COMMAND]
-						: ["refarm plugin install"]),
+						: [PI_AGENT_INSTALL_JSON_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_WAIT_COMMAND,
 					RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -719,7 +721,7 @@ async function ensurePiAgentReady(
 							action: "Install or reload pi-agent, then ensure the runtime is ready.",
 							command: state.installed.includes(PI_AGENT_PLUGIN_ID)
 								? PI_AGENT_RELOAD_JSON_COMMAND
-								: "refarm plugin install",
+								: PI_AGENT_INSTALL_JSON_COMMAND,
 						},
 					],
 				},

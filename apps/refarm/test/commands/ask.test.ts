@@ -444,6 +444,59 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
+	it("prints plugin install recovery as JSON when pi-agent is missing", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: [],
+				loaded: [],
+				known: [],
+			}),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+			recommendations: { diagnostic: string; command: string }[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "pi-agent-not-loaded",
+			nextAction: "refarm plugin install",
+			nextCommand: "refarm plugin install --json",
+		});
+		expect(payload.nextCommands).toContain("refarm plugin install --json");
+		expect(payload.nextCommands).not.toContain("refarm plugin install");
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "pi-agent-not-loaded",
+				command: "refarm plugin install --json",
+			}),
+		]);
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("prints model provider failures with executable recovery commands as JSON", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
