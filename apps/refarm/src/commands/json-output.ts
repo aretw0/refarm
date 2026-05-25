@@ -51,6 +51,28 @@ export type JsonSuccessEnvelope<TExtra extends object = object> = TExtra &
 		nextCommands: string[];
 	};
 
+function normalizeHandoffList(
+	singular: string | null | undefined,
+	plural: string[] | undefined,
+	options: { singularFirst: boolean },
+): string[] {
+	const singularValue =
+		typeof singular === "string" && singular.trim().length > 0
+			? singular.trim()
+			: null;
+	const pluralValues = (plural ?? [])
+		.map((value) => value.trim())
+		.filter((value) => value.length > 0);
+	const values = singularValue && options.singularFirst
+		? [singularValue, ...pluralValues]
+		: pluralValues.length > 0
+			? pluralValues
+			: singularValue
+				? [singularValue]
+				: [];
+	return Array.from(new Set(values));
+}
+
 export function buildJsonSuccessEnvelope<TExtra extends object = object>(
 	input: JsonSuccessEnvelopeInput<TExtra> = {},
 ): JsonSuccessEnvelope<TExtra> {
@@ -63,17 +85,24 @@ export function buildJsonSuccessEnvelope<TExtra extends object = object>(
 		nextCommands,
 		extra,
 	} = input;
-	const resolvedNextActions = nextActions ?? (nextAction ? [nextAction] : []);
-	const resolvedNextCommands =
-		nextCommands ?? (nextCommand ? [nextCommand] : []);
+	const resolvedNextActions = normalizeHandoffList(nextAction, nextActions, {
+		singularFirst: false,
+	});
+	const resolvedNextCommands = normalizeHandoffList(nextCommand, nextCommands, {
+		singularFirst: true,
+	});
+	const resolvedNextAction =
+		typeof nextAction === "string" && nextAction.trim().length > 0
+			? nextAction.trim()
+			: resolvedNextActions[0] ?? null;
 	return {
 		...(extra ?? {}),
 		...(command ? { command } : {}),
 		...(operation ? { operation } : {}),
 		ok: true,
-		nextAction: nextAction ?? resolvedNextActions[0] ?? null,
+		nextAction: resolvedNextAction,
 		nextActions: resolvedNextActions,
-		nextCommand: nextCommand ?? resolvedNextCommands[0] ?? null,
+		nextCommand: resolvedNextCommands[0] ?? null,
 		nextCommands: resolvedNextCommands,
 	} as JsonSuccessEnvelope<TExtra>;
 }
@@ -92,8 +121,16 @@ export function buildJsonErrorEnvelope<TExtra extends object = object>(
 		nextCommands,
 		extra,
 	} = input;
-	const resolvedNextCommands =
-		nextCommands ?? (nextCommand ? [nextCommand] : []);
+	const resolvedNextActions = normalizeHandoffList(nextAction, nextActions, {
+		singularFirst: false,
+	});
+	const resolvedNextCommands = normalizeHandoffList(nextCommand, nextCommands, {
+		singularFirst: true,
+	});
+	const resolvedNextAction =
+		typeof nextAction === "string" && nextAction.trim().length > 0
+			? nextAction.trim()
+			: resolvedNextActions[0] ?? nextAction;
 	return {
 		...(extra ?? {}),
 		...(command ? { command } : {}),
@@ -101,9 +138,9 @@ export function buildJsonErrorEnvelope<TExtra extends object = object>(
 		ok: false,
 		error,
 		...(message ? { message } : {}),
-		nextAction,
-		nextActions: nextActions ?? [nextAction],
-		nextCommand: nextCommand ?? resolvedNextCommands[0] ?? null,
+		nextAction: resolvedNextAction,
+		nextActions: resolvedNextActions,
+		nextCommand: resolvedNextCommands[0] ?? null,
 		nextCommands: resolvedNextCommands,
 	} as JsonErrorEnvelope<TExtra>;
 }

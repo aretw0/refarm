@@ -75,6 +75,28 @@ describe("json output helpers", () => {
 		});
 	});
 
+	it("keeps singular next commands first in plural command lists", () => {
+		expect(
+			buildJsonSuccessEnvelope({
+				nextAction: " Inspect diagnostics. ",
+				nextActions: ["Start runtime.", "Inspect diagnostics."],
+				nextCommand: " refarm doctor --next-command ",
+				nextCommands: [
+					"refarm runtime ensure --wait --next-command",
+					"refarm doctor --next-command",
+				],
+			}),
+		).toMatchObject({
+			nextAction: "Inspect diagnostics.",
+			nextActions: ["Start runtime.", "Inspect diagnostics."],
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+	});
+
 	it("preserves explicit next actions in error envelopes", () => {
 		expect(
 			buildJsonErrorEnvelope({
