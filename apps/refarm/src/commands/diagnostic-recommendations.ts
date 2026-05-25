@@ -1,3 +1,5 @@
+import { normalizeHandoffValues } from "./command-handoff.js";
+
 export type DiagnosticRecommendationSeverity = "failure" | "warning" | "info";
 
 export interface DiagnosticRecommendation {
@@ -47,22 +49,12 @@ export function diagnosticNextCommands(
 	return commands;
 }
 
-function normalizeDiagnosticHandoffs(values: string[]): string[] {
-	return Array.from(
-		new Set(
-			values
-				.map((value) => value.trim())
-				.filter((value) => value.length > 0),
-		),
-	);
-}
-
 export function buildDiagnosticNextActionPayload<TExtra extends object = object>(
 	input: { ok: boolean; nextActions: string[]; nextCommands?: string[] } & TExtra,
 ): DiagnosticNextActionPayload<TExtra> & TExtra {
 	const { ok, nextActions, nextCommands, ...extra } = input;
-	const resolvedNextActions = normalizeDiagnosticHandoffs(nextActions);
-	const resolvedNextCommands = normalizeDiagnosticHandoffs(nextCommands ?? []);
+	const resolvedNextActions = normalizeHandoffValues(nextActions);
+	const resolvedNextCommands = normalizeHandoffValues(nextCommands ?? []);
 	const [nextAction] = resolvedNextActions;
 	const [nextCommand] = resolvedNextCommands;
 	return {

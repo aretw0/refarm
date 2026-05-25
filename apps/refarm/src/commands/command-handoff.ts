@@ -6,6 +6,16 @@ export function joinCommand(parts: string[]): string {
 	return parts.join(" ");
 }
 
+export function normalizeHandoffValues(values: string[]): string[] {
+	return Array.from(
+		new Set(
+			values
+				.map((value) => value.trim())
+				.filter((value) => value.length > 0),
+		),
+	);
+}
+
 export function shellCommand(command: string, args: string[] = []): string {
 	return joinCommand([command, ...args.map(quoteCommandArg)]);
 }

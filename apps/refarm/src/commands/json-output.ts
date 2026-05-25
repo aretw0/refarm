@@ -1,3 +1,5 @@
+import { normalizeHandoffValues } from "./command-handoff.js";
+
 export function formatJson(value: unknown): string {
 	return JSON.stringify(value, null, 2);
 }
@@ -60,9 +62,7 @@ function normalizeHandoffList(
 		typeof singular === "string" && singular.trim().length > 0
 			? singular.trim()
 			: null;
-	const pluralValues = (plural ?? [])
-		.map((value) => value.trim())
-		.filter((value) => value.length > 0);
+	const pluralValues = normalizeHandoffValues(plural ?? []);
 	const values = singularValue && options.singularFirst
 		? [singularValue, ...pluralValues]
 		: pluralValues.length > 0
@@ -70,7 +70,7 @@ function normalizeHandoffList(
 			: singularValue
 				? [singularValue]
 				: [];
-	return Array.from(new Set(values));
+	return normalizeHandoffValues(values);
 }
 
 export function buildJsonSuccessEnvelope<TExtra extends object = object>(
