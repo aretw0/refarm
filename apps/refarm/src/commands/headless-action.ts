@@ -61,6 +61,8 @@ export interface HeadlessSurfaceActionInvocationResult {
 
 export interface HeadlessSurfaceActionDryRunEnvelope {
 	schemaVersion: 1;
+	command: "headless";
+	operation: "action-dry-run";
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
 	renderer: "headless";
@@ -143,6 +145,8 @@ function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
 ): HeadlessSurfaceActionDryRunEnvelope {
 	return {
 		schemaVersion: 1,
+		command: "headless",
+		operation: "action-dry-run",
 		statusSchemaVersion: status.schemaVersion,
 		reason: "dry-run",
 		renderer: "headless",

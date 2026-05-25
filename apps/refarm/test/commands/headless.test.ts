@@ -123,6 +123,8 @@ describe("headlessCommand", () => {
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
 		expect(output).toMatchObject({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",
@@ -204,6 +206,8 @@ describe("headlessCommand", () => {
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
 		expect(output).toMatchObject({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",

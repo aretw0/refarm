@@ -129,6 +129,8 @@ describe("headless surface action invocation", () => {
 			),
 		).toMatchObject({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",
@@ -157,6 +159,8 @@ describe("headless surface action invocation", () => {
 
 		expect(envelope).toEqual({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",
