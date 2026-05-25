@@ -14,6 +14,7 @@ describe("agent command", () => {
 		agentCommand.outputHelp();
 
 		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor --next-command");
 		expect(help).toContain("refarm check --next-action --json");
@@ -49,6 +50,7 @@ describe("agent command", () => {
 		await agentCommand.parseAsync([], { from: "user" });
 
 		expect(output).toContain("refarm runtime status");
+		expect(output).toContain("refarm runtime ensure --wait --next-command");
 		expect(output).toContain("refarm doctor --next-action");
 		expect(output).toContain("refarm doctor --next-command");
 		expect(output).toContain("refarm check --next-action --json");
@@ -71,7 +73,12 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
-			runtime: { status: string; start: string; doctorCommand: string };
+			runtime: {
+				status: string;
+				ensure: string;
+				start: string;
+				doctorCommand: string;
+			};
 			usage: { tidyCheck: string; tidyApply: string };
 			credentials: {
 				configureInteractive: string;
@@ -100,6 +107,7 @@ describe("agent command", () => {
 			status: "handoff",
 			runtime: {
 				status: "refarm runtime status --json",
+				ensure: "refarm runtime ensure --wait --next-command",
 				start: "refarm runtime start --wait --json",
 				doctorCommand: "refarm doctor --next-command",
 			},
@@ -128,6 +136,7 @@ describe("agent command", () => {
 			nextCommand: "refarm check --next-command",
 		});
 		expect(payload.nextActions).toContain("refarm runtime status --json");
+		expect(payload.nextActions).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextCommands).toEqual([

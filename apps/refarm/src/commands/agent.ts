@@ -10,9 +10,7 @@ import {
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
 } from "./command-plan.js";
-import {
-	parseCommandJsonPayload,
-} from "./command-result.js";
+import { parseCommandJsonPayload } from "./command-result.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -24,13 +22,21 @@ import {
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_START_WAIT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 
 const agentRuntimePlan = {
 	runtime: {
-		status: "refarm runtime status --json",
-		start: "refarm runtime start --wait --json",
-		doctor: "refarm doctor --next-action --json",
-		doctorCommand: "refarm doctor --next-command",
+		status: `${RUNTIME_STATUS_COMMAND} --json`,
+		ensure: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+		start: `${RUNTIME_START_WAIT_COMMAND} --json`,
+		doctor: `${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} --json`,
+		doctorCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 	},
 	usage: {
 		ask: `refarm ask "hello" --json`,
@@ -187,6 +193,7 @@ export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 
 Runtime commands:
   $ refarm runtime status       Inspect selected runtime engine and readiness
+  $ refarm runtime ensure --wait --next-command Ensure runtime readiness and print recovery
   $ refarm status               Check runtime, plugins, streams, and trust state
   $ refarm doctor --next-action Print the next blocking recovery action
   $ refarm doctor --next-command Print the next executable recovery command
@@ -240,7 +247,8 @@ Notes:
 					nextCommand: "refarm check --next-command",
 					nextActions: [
 						"refarm check --next-action --json",
-						"refarm runtime status --json",
+						agentRuntimePlan.runtime.status,
+						agentRuntimePlan.runtime.ensure,
 						MODEL_CURRENT_JSON_COMMAND,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
