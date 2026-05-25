@@ -269,11 +269,11 @@ export const sowCommand = new Command("sow")
 							MODEL_CURRENT_JSON_COMMAND,
 							CHECK_NEXT_ACTION_JSON_COMMAND,
 						],
-						nextCommand: MODEL_CURRENT_JSON_COMMAND,
+						nextCommand: CHECK_NEXT_ACTION_JSON_COMMAND,
 						nextCommands: [
+							CHECK_NEXT_ACTION_JSON_COMMAND,
 							MODEL_CURRENT_JSON_COMMAND,
 							MODEL_PROVIDERS_JSON_COMMAND,
-							CHECK_NEXT_ACTION_JSON_COMMAND,
 						],
 						extra: {
 							action: "sow",

@@ -91,7 +91,9 @@ describe("sowCommand — default (no flags)", () => {
 			modelRoute: { provider: "openai", modelId: "gpt-5.5" },
 		});
 		expect(payload.nextActions).toContain("refarm model current --json");
-		expect(payload.nextCommand).toBe("refarm model current --json");
+		expect(payload.nextCommand).toBe("refarm check --next-action --json");
+		expect(payload.nextCommands[0]).toBe("refarm check --next-action --json");
+		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
