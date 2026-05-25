@@ -32,6 +32,20 @@ export function printSidecarUnavailable(): void {
 	console.error(chalk.dim(`   Engine:     ${RUNTIME_ENGINE_AUTO_COMMAND}`));
 }
 
+export function buildRuntimeUnavailableRecommendation(
+	input: { summary?: string; action?: string } = {},
+) {
+	return {
+		diagnostic: "runtime:unavailable",
+		severity: "failure" as const,
+		summary: input.summary ?? "The local runtime sidecar is not reachable.",
+		action:
+			input.action ??
+			"Ensure the selected runtime is running and inspect the next recovery command.",
+		command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	};
+}
+
 export function buildSidecarErrorPayload(
 	message: string,
 	context: { command?: string; operation?: string } = {},
@@ -58,15 +72,7 @@ export function buildSidecarErrorPayload(
 				RUNTIME_DOCTOR_NEXT_COMMAND,
 			],
 			extra: {
-				recommendations: [
-					{
-						diagnostic: "runtime:unavailable",
-						severity: "failure",
-						summary: "The local runtime sidecar is not reachable.",
-						action: "Ensure the selected runtime is running and inspect the next recovery command.",
-						command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-					},
-				],
+				recommendations: [buildRuntimeUnavailableRecommendation()],
 			},
 		});
 	}

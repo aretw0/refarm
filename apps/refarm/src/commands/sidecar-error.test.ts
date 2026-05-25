@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	buildRuntimeUnavailableRecommendation,
 	buildSidecarErrorPayload,
 	isSidecarUnavailable,
 	printSidecarUnavailable,
@@ -54,6 +55,21 @@ describe("sidecar-error", () => {
 					command: "refarm runtime ensure --wait --next-command",
 				}),
 			],
+		});
+	});
+
+	it("builds runtime unavailable recommendations with contextual overrides", () => {
+		expect(
+			buildRuntimeUnavailableRecommendation({
+				summary: "Runtime is unavailable while submitting a task.",
+				action: "Ensure the runtime, then retry the task.",
+			}),
+		).toEqual({
+			diagnostic: "runtime:unavailable",
+			severity: "failure",
+			summary: "Runtime is unavailable while submitting a task.",
+			action: "Ensure the runtime, then retry the task.",
+			command: "refarm runtime ensure --wait --next-command",
 		});
 	});
 

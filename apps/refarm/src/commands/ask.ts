@@ -59,7 +59,11 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
+import {
+	buildRuntimeUnavailableRecommendation,
+	isSidecarUnavailable,
+	printSidecarUnavailable,
+} from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
@@ -528,13 +532,10 @@ function buildAskErrorPayload(message: string): {
 			extra: {
 				action: "ask",
 				recommendations: [
-					{
-						diagnostic: "runtime:unavailable",
-						severity: "failure",
+					buildRuntimeUnavailableRecommendation({
 						summary: "The runtime sidecar is not reachable while submitting an ask.",
 						action: "Ensure the selected runtime is running before submitting again.",
-						command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-					},
+					}),
 				],
 			},
 		});
