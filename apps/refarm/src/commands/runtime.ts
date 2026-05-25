@@ -83,6 +83,8 @@ interface RuntimeDiagnosticRecovery {
 
 type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
 	TExtra & {
+		command: "runtime";
+		operation: "status" | "ensure" | "start";
 		ok: boolean;
 		nextAction: string | null;
 		nextActions: string[];
@@ -150,10 +152,13 @@ function buildRuntimeJsonPayload<TExtra extends object = object>(
 	payload: RuntimeStatusPayload,
 	extra?: TExtra,
 	nextCommandsOverride?: string[],
+	operation: RuntimeJsonPayload["operation"] = "status",
 ): RuntimeJsonPayload<TExtra> {
 	const nextCommands = nextCommandsOverride ?? runtimeNextCommands(payload);
 	const nextActions = runtimeNextActions(nextCommands, extra);
 	return {
+		command: "runtime",
+		operation,
 		...payload,
 		...(extra ?? {}),
 		ok: runtimePayloadOk(payload),
@@ -377,7 +382,7 @@ Notes:
 							printJson(buildRuntimeJsonPayload(payload, {
 								ensured: true,
 								started: false,
-							}));
+							}, undefined, "ensure"));
 							return;
 						}
 						console.log(chalk.green("Runtime already ready."));
@@ -389,7 +394,7 @@ Notes:
 							const [nextCommand] = buildRuntimeJsonPayload(payload, {
 								ensured: false,
 								started: false,
-							}).nextCommands;
+							}, undefined, "ensure").nextCommands;
 							if (nextCommand) console.log(nextCommand);
 							process.exitCode = 1;
 							return;
@@ -398,7 +403,7 @@ Notes:
 							printJson(buildRuntimeJsonPayload(payload, {
 								ensured: false,
 								started: false,
-							}));
+							}, undefined, "ensure"));
 							process.exitCode = 1;
 							return;
 						}
@@ -417,26 +422,26 @@ Notes:
 						const recovery = runtimeStartDiagnosticRecovery(diagnostics);
 						if (opts.nextCommand) {
 							const [nextCommand] = buildRuntimeJsonPayload({ ...payload, ready }, {
-								command,
+								launchCommand: command,
 								ensured: ready,
 								started: true,
 								...(diagnostics ? { diagnostics } : {}),
 								...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
 								...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
-							}, recovery.nextCommands).nextCommands;
+							}, recovery.nextCommands, "ensure").nextCommands;
 							if (nextCommand) console.log(nextCommand);
 							if (!ready) process.exitCode = 1;
 							return;
 						}
 						if (json) {
 							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
-								command,
+								launchCommand: command,
 								ensured: ready,
 								started: true,
 								...(diagnostics ? { diagnostics } : {}),
 								...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
 								...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
-							}, recovery.nextCommands));
+							}, recovery.nextCommands, "ensure"));
 							if (!ready) process.exitCode = 1;
 							return;
 						}
@@ -456,19 +461,19 @@ Notes:
 
 					if (opts.nextCommand) {
 						const [nextCommand] = buildRuntimeJsonPayload(payload, {
-							command,
+							launchCommand: command,
 							ensured: false,
 							started: true,
-						}).nextCommands;
+						}, undefined, "ensure").nextCommands;
 						if (nextCommand) console.log(nextCommand);
 						return;
 					}
 					if (json) {
 						printJson(buildRuntimeJsonPayload(payload, {
-							command,
+							launchCommand: command,
 							ensured: false,
 							started: true,
-						}));
+						}, undefined, "ensure"));
 						return;
 					}
 					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
@@ -504,7 +509,7 @@ Notes:
 					const { payload, command } = await resolveRuntimeStartCommand(deps);
 					if (!command) {
 						if (json) {
-							printJson(buildRuntimeJsonPayload(payload, { started: false }));
+							printJson(buildRuntimeJsonPayload(payload, { started: false }, undefined, "start"));
 							return;
 						}
 						console.error(chalk.red("✗  Cannot start Refarm runtime."));
@@ -515,7 +520,7 @@ Notes:
 
 					if (opts.dryRun) {
 						if (json) {
-							printJson(buildRuntimeJsonPayload(payload, { command, dryRun: true }));
+							printJson(buildRuntimeJsonPayload(payload, { launchCommand: command, dryRun: true }, undefined, "start"));
 							return;
 						}
 						console.log(command.display);
@@ -531,12 +536,12 @@ Notes:
 								: runtimeStartDiagnostics(command);
 							const recovery = runtimeStartDiagnosticRecovery(diagnostics);
 							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
-								command,
+								launchCommand: command,
 								started: true,
 								...(diagnostics ? { diagnostics } : {}),
 								...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
 								...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
-							}, recovery.nextCommands));
+							}, recovery.nextCommands, "start"));
 							if (!ready) process.exitCode = 1;
 							return;
 						}
@@ -554,7 +559,7 @@ Notes:
 						return;
 					}
 					if (json) {
-						printJson(buildRuntimeJsonPayload(payload, { command, started: true }));
+						printJson(buildRuntimeJsonPayload(payload, { launchCommand: command, started: true }, undefined, "start"));
 						return;
 					}
 					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));

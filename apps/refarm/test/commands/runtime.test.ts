@@ -105,6 +105,8 @@ describe("runtime command", () => {
 		await command.parseAsync(["status", "--json"], { from: "user" });
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			command: "runtime",
+			operation: "status",
 			ok: false,
 			configuredEngine: "ts",
 			activeEngine: "ts",
@@ -139,6 +141,8 @@ describe("runtime command", () => {
 		await command.parseAsync(["--json"], { from: "user" });
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toEqual({
+			command: "runtime",
+			operation: "status",
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			autostart: "never",
@@ -171,6 +175,8 @@ describe("runtime command", () => {
 		await command.parseAsync(["--json"], { from: "user" });
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			command: "runtime",
+			operation: "status",
 			ok: false,
 			configuredEngine: "rust",
 			activeEngine: "unknown",
@@ -231,15 +237,19 @@ describe("runtime command", () => {
 		});
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
 			ok?: boolean;
 			dryRun?: boolean;
-			command?: { display?: string };
+			launchCommand?: { display?: string };
 			nextAction?: string | null;
 			nextCommand?: string | null;
 		};
+		expect(payload.command).toBe("runtime");
+		expect(payload.operation).toBe("start");
 		expect(payload.ok).toBe(true);
 		expect(payload.dryRun).toBe(true);
-		expect(payload.command?.display).toBe("farmhand --background");
+		expect(payload.launchCommand?.display).toBe("farmhand --background");
 		expect(payload.nextAction).toBeNull();
 		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).not.toHaveBeenCalled();
@@ -292,6 +302,8 @@ describe("runtime command", () => {
 		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
 			ok?: boolean;
 			ensured?: boolean;
 			started?: boolean;
@@ -299,6 +311,8 @@ describe("runtime command", () => {
 			nextAction?: string | null;
 			nextCommand?: string | null;
 		};
+		expect(payload.command).toBe("runtime");
+		expect(payload.operation).toBe("ensure");
 		expect(payload.ok).toBe(true);
 		expect(payload.ensured).toBe(true);
 		expect(payload.started).toBe(false);
@@ -330,6 +344,8 @@ describe("runtime command", () => {
 		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
 			ok?: boolean;
 			ensured?: boolean;
 			started?: boolean;
@@ -337,6 +353,8 @@ describe("runtime command", () => {
 			nextAction?: string | null;
 			nextCommand?: string | null;
 		};
+		expect(payload.command).toBe("runtime");
+		expect(payload.operation).toBe("ensure");
 		expect(payload.ok).toBe(true);
 		expect(payload.ensured).toBe(true);
 		expect(payload.started).toBe(true);
@@ -375,6 +393,8 @@ describe("runtime command", () => {
 		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
 			ok?: boolean;
 			ensured?: boolean;
 			started?: boolean;
@@ -397,6 +417,8 @@ describe("runtime command", () => {
 			nextAction?: string | null;
 			nextActions?: string[];
 		};
+		expect(payload.command).toBe("runtime");
+		expect(payload.operation).toBe("ensure");
 		expect(payload.ok).toBe(false);
 		expect(payload.ensured).toBe(false);
 		expect(payload.started).toBe(true);
