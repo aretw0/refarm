@@ -134,7 +134,7 @@ export const guideCommand = new Command("guide")
         ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
         status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
         action: "Run 'refarm sow --cloudflare' to add your API token.",
-        actionCommand: "refarm provision cloudflare turbo-cache --dry-run",
+        actionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
       },
       {
         id: "brand-config",

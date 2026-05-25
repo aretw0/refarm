@@ -127,7 +127,7 @@ describe("guideCommand", () => {
           id: "cloudflare-token",
           ok: false,
           status: "missing",
-          actionCommand: "refarm provision cloudflare turbo-cache --dry-run",
+          actionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
         }),
       ]),
     );
@@ -135,8 +135,8 @@ describe("guideCommand", () => {
     expect(payload.nextActions).toContain(
       "Run 'refarm sow --cloudflare' to add your API token.",
     );
-    expect(payload.nextCommand).toBe("refarm provision cloudflare turbo-cache --dry-run");
-    expect(payload.nextCommands).toEqual(["refarm provision cloudflare turbo-cache --dry-run"]);
+    expect(payload.nextCommand).toBe("refarm provision cloudflare turbo-cache --dry-run --json");
+    expect(payload.nextCommands).toEqual(["refarm provision cloudflare turbo-cache --dry-run --json"]);
 
     logSpy.mockRestore();
   });
