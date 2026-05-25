@@ -3,6 +3,9 @@ import { spawnSync } from "node:child_process";
 import { defaultProviderModelRef } from "../model-routing.js";
 import { refarmCommand } from "./command-handoff.js";
 import {
+	buildCommandPlanEnvelope,
+	buildCommandPlanRunEnvelope,
+	commandPlanStepCommands,
 	runCommandPlan,
 	type CommandPlanRunResult,
 	type CommandPlanStep,
@@ -125,7 +128,7 @@ function selectedFinishSteps(options: { fix?: boolean } = {}): CommandPlanStep[]
 }
 
 function plannedFinishCommands(options: { fix?: boolean } = {}): string[] {
-	return selectedFinishSteps(options).map((step) => step.command);
+	return commandPlanStepCommands(selectedFinishSteps(options));
 }
 
 function runAgentFinishPlan(
@@ -269,19 +272,11 @@ Notes:
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps, { fix: options.fix });
 				if (options.json) {
-					printJson({
+					printJson(buildCommandPlanRunEnvelope({
 						action: "finish",
-						status: result.status,
-						steps: result.steps,
 						command: "agent",
 						operation: "finish",
-						ok: result.ok,
-						nextAction:
-							result.nextActions[0] ?? result.nextCommands[0] ?? null,
-						nextActions: result.nextActions,
-						nextCommand: result.nextCommands[0] ?? null,
-						nextCommands: result.nextCommands,
-					});
+					}, result));
 				} else if (options.nextCommand) {
 					const [nextCommand] = result.nextCommands;
 					if (nextCommand) console.log(nextCommand);
@@ -306,21 +301,11 @@ Notes:
 				return;
 			}
 			if (options.json) {
-				printJson(
-					buildJsonSuccessEnvelope({
-						command: "agent",
-						operation: "finish",
-						nextAction: nextCommands[0] ?? null,
-						nextActions: nextCommands,
-						nextCommand: nextCommands[0] ?? null,
-						nextCommands,
-						extra: {
-							action: "finish",
-							status: "plan",
-							steps: selectedFinishSteps({ fix: options.fix }),
-						},
-					}),
-				);
+				printJson(buildCommandPlanEnvelope({
+					action: "finish",
+					command: "agent",
+					operation: "finish",
+				}, selectedFinishSteps({ fix: options.fix })));
 				return;
 			}
 			this.outputHelp();

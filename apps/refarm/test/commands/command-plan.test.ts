@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	buildCommandPlanEnvelope,
+	buildCommandPlanRunEnvelope,
+	commandPlanStepCommands,
 	runCommandPlan,
 	type CommandPlanStep,
 } from "../../src/commands/command-plan.js";
@@ -20,6 +23,28 @@ const steps: CommandPlanStep[] = [
 ];
 
 describe("command plan runner", () => {
+	it("builds plan command lists and JSON envelopes", () => {
+		expect(commandPlanStepCommands(steps)).toEqual([
+			"refarm first --json",
+			"refarm second --json",
+		]);
+		expect(buildCommandPlanEnvelope({
+			action: "finish",
+			command: "agent",
+			operation: "finish",
+		}, steps)).toMatchObject({
+			action: "finish",
+			status: "plan",
+			command: "agent",
+			operation: "finish",
+			ok: true,
+			nextAction: "refarm first --json",
+			nextCommand: "refarm first --json",
+			nextCommands: ["refarm first --json", "refarm second --json"],
+			steps,
+		});
+	});
+
 	it("runs every step when all commands succeed", () => {
 		const runStep = vi.fn((step: CommandPlanStep) => ({
 			...step,
@@ -38,6 +63,39 @@ describe("command plan runner", () => {
 			steps: [{ id: "first", ok: true }, { id: "second", ok: true }],
 		});
 		expect(runStep).toHaveBeenCalledTimes(2);
+	});
+
+	it("builds run JSON envelopes from command plan results", () => {
+		const result = runCommandPlan([steps[0]!], (step) => ({
+			...step,
+			ok: false,
+			exitCode: 1,
+			stdout: JSON.stringify({
+				ok: false,
+				nextCommand: "refarm runtime start --wait",
+			}),
+			stderr: "",
+			payload: {
+				ok: false,
+				nextCommand: "refarm runtime start --wait",
+			},
+		}));
+
+		expect(buildCommandPlanRunEnvelope({
+			action: "finish",
+			command: "agent",
+			operation: "finish",
+		}, result)).toMatchObject({
+			action: "finish",
+			status: "failed",
+			command: "agent",
+			operation: "finish",
+			ok: false,
+			nextAction: "refarm runtime start --wait",
+			nextCommand: "refarm runtime start --wait",
+			nextCommands: ["refarm runtime start --wait"],
+			steps: [{ id: "first", ok: false }],
+		});
 	});
 
 	it("stops at the first failing step and forwards payload handoffs", () => {
