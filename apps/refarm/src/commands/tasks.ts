@@ -11,8 +11,8 @@ import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
-	RUNTIME_START_WAIT_COMMAND,
-	RUNTIME_STATUS_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND
 } from "./runtime-recovery.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
@@ -342,7 +342,7 @@ export function createTasksCommand(): Command {
 				"",
 				"Notes:",
 				"  Tasks are created by runtime-backed flows such as refarm ask and refarm task run.",
-				`  If the task sidecar is unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.`,
+				`  If the task sidecar is unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
 				`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 				"  Use refarm task for dispatch/retry/cancel operations.",

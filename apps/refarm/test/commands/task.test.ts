@@ -101,7 +101,7 @@ describe("refarm task run", () => {
 		expect(help).toContain('{"prompt":"hello"}');
 		expect(help).toContain("http transport submits directly");
 		expect(help).toContain("refarm runtime status");
-		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor");
 	});
@@ -123,7 +123,7 @@ describe("refarm task run", () => {
 		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
 		expect(help).toContain('{"query":"hello"}');
 		expect(help).toContain("http transport submits directly");
-		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
 	});
 
 	it("normalizes legacy query args for pi-agent respond tasks", () => {

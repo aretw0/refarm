@@ -28,7 +28,7 @@ describe("refarm sessions", () => {
 		expect(help).toContain("refarm sessions fork <id-prefix> --name experiment");
 		expect(help).toContain("refarm sessions fork <id-prefix> --name experiment --json");
 		expect(help).toContain("refarm runtime status");
-		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor --next-command");
 		expect(help).toContain("refarm doctor");

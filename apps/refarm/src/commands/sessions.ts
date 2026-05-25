@@ -11,8 +11,8 @@ import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
-	RUNTIME_START_WAIT_COMMAND,
-	RUNTIME_STATUS_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND
 } from "./runtime-recovery.js";
 import { findSessionIdPrefixMatches, formatSessionId } from "./session-ids.js";
 import {
@@ -192,7 +192,7 @@ export function createSessionsCommand(): Command {
 				"",
 				"Notes:",
 				"  Sessions are stored in the active Refarm runtime.",
-				`  If sessions are unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_START_WAIT_COMMAND}.`,
+				`  If sessions are unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
 				`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 				`  Use ${RUNTIME_DOCTOR_NEXT_COMMAND} for command-only recovery automation.`,
 				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,

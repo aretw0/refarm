@@ -60,7 +60,7 @@ describe("refarm telemetry", () => {
 		expect(help).toContain("refarm telemetry --next-action");
 		expect(help).toContain("refarm telemetry --next-action --json");
 		expect(help).toContain("refarm runtime status");
-		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor");
 	});
 
@@ -95,7 +95,7 @@ describe("refarm telemetry", () => {
 			operation: "snapshot",
 			ok: false,
 			error: "runtime-unavailable",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 		});
 		expect(process.exitCode).toBe(1);
 		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();

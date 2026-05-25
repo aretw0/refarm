@@ -617,7 +617,7 @@ export const pluginCommand = new Command("plugin").description(
 		"",
 	"Notes:",
 	"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
-	`  Status reads the active Refarm runtime; start it with ${RUNTIME_START_WAIT_COMMAND} if unavailable.`,
+	`  Status reads the active Refarm runtime; ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if unavailable.`,
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 	"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
@@ -689,7 +689,7 @@ pluginCommand
 			"Notes:",
 			"  This command requires the selected Refarm runtime sidecar.",
 			`  Use ${RUNTIME_STATUS_COMMAND} to see the selected engine and readiness.`,
-			`  Start or restart it with ${RUNTIME_START_WAIT_COMMAND}.`,
+			`  Ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
 			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 			"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
@@ -712,7 +712,7 @@ pluginCommand
 			"",
 			"Notes:",
 			"  This is the non-interactive equivalent of /reload in refarm chat.",
-			`  Use ${RUNTIME_START_WAIT_COMMAND} if the runtime is not running.`,
+			`  Use ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if the runtime is not running.`,
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable reload result")

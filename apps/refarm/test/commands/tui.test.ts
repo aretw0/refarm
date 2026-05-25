@@ -83,7 +83,7 @@ describe("tuiCommand", () => {
 		expect(help).toContain("refarm tui --launch --launcher prompt");
 		expect(help).toContain("tractor watch or tractor prompt");
 		expect(help).toContain("Use refarm runtime status");
-		expect(help).toContain("refarm runtime start --wait");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor");
 	});
