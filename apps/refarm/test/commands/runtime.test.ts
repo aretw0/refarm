@@ -413,6 +413,7 @@ describe("runtime command", () => {
 			"refarm model current --json",
 			"refarm model providers --json",
 			"refarm sow --model ollama/llama3.2 --json",
+			"refarm config get operator.openExternalLinks --json",
 		]);
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({

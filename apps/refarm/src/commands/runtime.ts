@@ -223,6 +223,7 @@ function runtimeStartDiagnosticRecovery(
 				MODEL_CURRENT_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
 				LOCAL_MODEL_JSON_COMMAND,
+				OPERATOR_LINKS_CONFIG_COMMAND,
 			],
 			recommendations: [
 				{
