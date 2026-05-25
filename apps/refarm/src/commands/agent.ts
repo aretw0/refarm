@@ -47,6 +47,8 @@ const agentRuntimePlan = {
 		doctor: "refarm doctor --next-action --json",
 		doctorCommand: "refarm doctor --next-command",
 		tidyCheck: "refarm tidy imports --check --json",
+		finishPlanCommand: "refarm agent finish --next-command",
+		finishRunCommand: "refarm agent finish --run --next-command",
 	},
 };
 
@@ -224,8 +226,12 @@ Notes:
 						"refarm runtime status --json",
 						"refarm model current --json",
 						"refarm plugin list --json",
+						"refarm agent finish --next-command",
 					],
-					nextCommands: ["refarm check --next-command"],
+					nextCommands: [
+						"refarm check --next-command",
+						"refarm agent finish --next-command",
+					],
 					extra: {
 						action: "agent",
 						status: "handoff",

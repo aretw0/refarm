@@ -75,6 +75,8 @@ describe("agent command", () => {
 				quick: string;
 				quickCommand: string;
 				tidyCheck: string;
+				finishPlanCommand: string;
+				finishRunCommand: string;
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -98,12 +100,18 @@ describe("agent command", () => {
 				quick: "refarm check --next-action --json",
 				quickCommand: "refarm check --next-command",
 				tidyCheck: "refarm tidy imports --check --json",
+				finishPlanCommand: "refarm agent finish --next-command",
+				finishRunCommand: "refarm agent finish --run --next-command",
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",
 		});
 		expect(payload.nextActions).toContain("refarm runtime status --json");
-		expect(payload.nextCommands).toEqual(["refarm check --next-command"]);
+		expect(payload.nextActions).toContain("refarm agent finish --next-command");
+		expect(payload.nextCommands).toEqual([
+			"refarm check --next-command",
+			"refarm agent finish --next-command",
+		]);
 		logSpy.mockRestore();
 	});
 
