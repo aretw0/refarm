@@ -101,6 +101,7 @@ program
 			"  $ refarm check --next-command    Print the next executable recovery command",
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
+			"  $ refarm agent finish --fix --run Organize imports, then verify",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
 			"",
 			"Runtime controls:",
