@@ -9,6 +9,7 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
+import { normalizeHandoffValues } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -178,10 +179,10 @@ function buildTurboCacheFailurePayload(input: {
 	const nextCommand = input.nextAction.startsWith("refarm sow")
 		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
-	const nextCommands = Array.from(new Set([
+	const nextCommands = normalizeHandoffValues([
 		nextCommand,
 		"refarm provision cloudflare turbo-cache --dry-run",
-	]));
+	]);
 	return buildJsonErrorEnvelope({
 		command: "provision",
 		operation: "apply",
