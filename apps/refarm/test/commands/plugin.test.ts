@@ -240,9 +240,9 @@ describe("plugin install", () => {
 			message: "package @refarm.dev/pi-agent not found in node_modules",
 			nextAction: "refarm plugin install",
 			nextActions: ["refarm plugin install"],
-			nextCommand: "refarm plugin install",
+			nextCommand: "refarm plugin install --json",
 			nextCommands: [
-				"refarm plugin install",
+				"refarm plugin install --json",
 				"refarm plugin status --json",
 			],
 		});
@@ -357,7 +357,7 @@ describe("plugin list", () => {
 			version: null,
 			installed: false,
 		});
-		expect(payload.nextCommand).toBe("refarm plugin install");
+		expect(payload.nextCommand).toBe("refarm plugin install --json");
 		consoleSpy.mockRestore();
 	});
 });

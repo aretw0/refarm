@@ -49,6 +49,7 @@ const BUNDLED_PLUGINS = [
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 const PLUGIN_INSTALL_COMMAND = "refarm plugin install";
+const PLUGIN_INSTALL_JSON_COMMAND = "refarm plugin install --json";
 const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
 const PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
@@ -337,10 +338,10 @@ async function installBundledPlugins(options: {
 					error: "plugin-install-failed",
 					message: failedResult.message,
 					nextAction: failedResult.buildCommand ?? PLUGIN_INSTALL_COMMAND,
-					nextCommand: failedResult.buildCommand ?? PLUGIN_INSTALL_COMMAND,
+					nextCommand: failedResult.buildCommand ?? PLUGIN_INSTALL_JSON_COMMAND,
 					nextCommands: [
 						...(failedResult.buildCommand ? [failedResult.buildCommand] : []),
-						PLUGIN_INSTALL_COMMAND,
+						PLUGIN_INSTALL_JSON_COMMAND,
 						PLUGIN_STATUS_JSON_COMMAND,
 					],
 					extra: { failed, plugins: results },
@@ -382,9 +383,9 @@ async function listInstalledPlugins(options: { json?: boolean } = {}): Promise<v
 			buildJsonSuccessEnvelope({
 				command: "plugin",
 				operation: "list",
-				nextCommand: missing ? PLUGIN_INSTALL_COMMAND : PLUGIN_STATUS_JSON_COMMAND,
+				nextCommand: missing ? PLUGIN_INSTALL_JSON_COMMAND : PLUGIN_STATUS_JSON_COMMAND,
 				nextCommands: missing
-					? [PLUGIN_INSTALL_COMMAND, PLUGIN_STATUS_JSON_COMMAND]
+					? [PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND]
 					: [PLUGIN_STATUS_JSON_COMMAND],
 				extra: report,
 			}),
@@ -455,11 +456,11 @@ function buildRuntimePluginStatusReport(
 						: PLUGIN_INSTALL_COMMAND,
 					nextCommand: piAgentInstalled
 						? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
-						: PLUGIN_INSTALL_COMMAND,
+						: PLUGIN_INSTALL_JSON_COMMAND,
 					nextCommands: [
 						...(piAgentInstalled
 							? [PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND]
-							: [PLUGIN_INSTALL_COMMAND]),
+							: [PLUGIN_INSTALL_JSON_COMMAND]),
 						PLUGIN_STATUS_JSON_COMMAND,
 					],
 				}),
