@@ -83,6 +83,9 @@ interface RuntimeDiagnosticRecovery {
 
 type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
 	TExtra & {
+		ok: boolean;
+		nextAction: string | null;
+		nextActions: string[];
 		nextCommand: string | null;
 		nextCommands: string[];
 	};
@@ -149,12 +152,46 @@ function buildRuntimeJsonPayload<TExtra extends object = object>(
 	nextCommandsOverride?: string[],
 ): RuntimeJsonPayload<TExtra> {
 	const nextCommands = nextCommandsOverride ?? runtimeNextCommands(payload);
+	const nextActions = runtimeNextActions(nextCommands, extra);
 	return {
 		...payload,
 		...(extra ?? {}),
+		ok: runtimePayloadOk(payload),
+		nextAction: nextActions[0] ?? null,
+		nextActions,
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
 	} as RuntimeJsonPayload<TExtra>;
+}
+
+function runtimePayloadOk(payload: RuntimeStatusPayload): boolean {
+	return payload.activeEngine !== "unknown" && !payload.issue && payload.ready !== false;
+}
+
+function runtimeNextActions<TExtra extends object = object>(
+	nextCommands: string[],
+	extra?: TExtra,
+): string[] {
+	const recommendationAction = firstRecommendationAction(extra);
+	return recommendationAction
+		? [recommendationAction]
+		: nextCommands.length > 0
+			? [nextCommands[0]!]
+			: [];
+}
+
+function firstRecommendationAction(extra?: object): string | null {
+	if (!extra || typeof extra !== "object") return null;
+	const recommendations = (extra as { recommendations?: unknown }).recommendations;
+	if (!Array.isArray(recommendations)) return null;
+	for (const recommendation of recommendations) {
+		if (!recommendation || typeof recommendation !== "object") continue;
+		const action = (recommendation as { action?: unknown }).action;
+		if (typeof action === "string" && action.trim().length > 0) {
+			return action.trim();
+		}
+	}
+	return null;
 }
 
 function runtimeStartDiagnostics(

@@ -105,10 +105,13 @@ describe("runtime command", () => {
 		await command.parseAsync(["status", "--json"], { from: "user" });
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			ok: false,
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			ready: false,
 			startCommand: "farmhand --background",
+			nextAction: "refarm runtime ensure --wait --next-command",
+			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
 				"refarm runtime ensure --wait --next-command",
@@ -142,6 +145,9 @@ describe("runtime command", () => {
 			reason: "configured-ts",
 			ready: false,
 			startCommand: "farmhand --background",
+			ok: false,
+			nextAction: "refarm runtime ensure --wait --next-command",
+			nextActions: ["refarm runtime ensure --wait --next-command"],
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
 				"refarm runtime ensure --wait --next-command",
@@ -165,11 +171,14 @@ describe("runtime command", () => {
 		await command.parseAsync(["--json"], { from: "user" });
 
 		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			ok: false,
 			configuredEngine: "rust",
 			activeEngine: "unknown",
 			autostart: "ask",
 			reason: "configured-rust-missing-binary",
 			issue: expect.stringContaining("Rust tractor binary is not built"),
+			nextAction: "refarm config set tractor.engine auto",
+			nextActions: ["refarm config set tractor.engine auto"],
 			nextCommand: "refarm config set tractor.engine auto",
 			nextCommands: [
 				"refarm config set tractor.engine auto",
@@ -222,12 +231,16 @@ describe("runtime command", () => {
 		});
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ok?: boolean;
 			dryRun?: boolean;
 			command?: { display?: string };
+			nextAction?: string | null;
 			nextCommand?: string | null;
 		};
+		expect(payload.ok).toBe(true);
 		expect(payload.dryRun).toBe(true);
 		expect(payload.command?.display).toBe("farmhand --background");
+		expect(payload.nextAction).toBeNull();
 		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).not.toHaveBeenCalled();
 		logSpy.mockRestore();
@@ -279,14 +292,18 @@ describe("runtime command", () => {
 		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ok?: boolean;
 			ensured?: boolean;
 			started?: boolean;
 			ready?: boolean;
+			nextAction?: string | null;
 			nextCommand?: string | null;
 		};
+		expect(payload.ok).toBe(true);
 		expect(payload.ensured).toBe(true);
 		expect(payload.started).toBe(false);
 		expect(payload.ready).toBe(true);
+		expect(payload.nextAction).toBeNull();
 		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).not.toHaveBeenCalled();
 		logSpy.mockRestore();
@@ -313,14 +330,18 @@ describe("runtime command", () => {
 		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ok?: boolean;
 			ensured?: boolean;
 			started?: boolean;
 			ready?: boolean;
+			nextAction?: string | null;
 			nextCommand?: string | null;
 		};
+		expect(payload.ok).toBe(true);
 		expect(payload.ensured).toBe(true);
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(true);
+		expect(payload.nextAction).toBeNull();
 		expect(payload.nextCommand).toBeNull();
 		expect(startRuntime).toHaveBeenCalledOnce();
 		expect(waitUntilReady).toHaveBeenCalledOnce();
@@ -354,6 +375,7 @@ describe("runtime command", () => {
 		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ok?: boolean;
 			ensured?: boolean;
 			started?: boolean;
 			ready?: boolean;
@@ -372,10 +394,19 @@ describe("runtime command", () => {
 				severity?: string;
 			}[];
 			diagnostics?: { logPath?: string; logTail?: string[] };
+			nextAction?: string | null;
+			nextActions?: string[];
 		};
+		expect(payload.ok).toBe(false);
 		expect(payload.ensured).toBe(false);
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(false);
+		expect(payload.nextAction).toBe(
+			"Inspect credential handoffs and configure a usable model route.",
+		);
+		expect(payload.nextActions).toEqual([
+			"Inspect credential handoffs and configure a usable model route.",
+		]);
 		expect(payload.nextCommand).toBe("refarm sow --json");
 		expect(payload.nextCommands).toEqual([
 			"refarm sow --json",
