@@ -81,6 +81,8 @@ export const sowCommand = new Command("sow")
 				if (opts.json) {
 					printJson(
 						buildJsonErrorEnvelope({
+							command: "sow",
+							operation: "credentials",
 							error: "empty-model",
 							message: "--model cannot be empty.",
 							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
@@ -99,6 +101,8 @@ export const sowCommand = new Command("sow")
 				if (opts.json) {
 					printJson(
 						buildJsonErrorEnvelope({
+							command: "sow",
+							operation: "credentials",
 							error: "model-provider-required",
 							message: `Could not infer provider for model "${initialModelRef.modelId}".`,
 							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
@@ -168,6 +172,8 @@ export const sowCommand = new Command("sow")
 						];
 				printJson(
 					buildJsonErrorEnvelope({
+						command: "sow",
+						operation: "credentials",
 						error: "interactive-required",
 						message: "Credential collection requires an interactive terminal or browser handoff.",
 						nextAction,

@@ -78,6 +78,8 @@ describe("sowCommand — default (no flags)", () => {
 		await sowCommand.parseAsync(["--model", "openai/gpt-5.5", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
 			ok: boolean;
 			status: string;
 			modelRoute: { provider: string; modelId: string };
@@ -86,6 +88,8 @@ describe("sowCommand — default (no flags)", () => {
 			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
+			command: "sow",
+			operation: "credentials",
 			ok: true,
 			status: "updated",
 			modelRoute: { provider: "openai", modelId: "gpt-5.5" },
@@ -144,6 +148,8 @@ describe("sowCommand — default (no flags)", () => {
 			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
+			command: "sow",
+			operation: "credentials",
 			ok: false,
 			status: "interactive-required",
 			prompts: ["model"],
@@ -189,12 +195,16 @@ describe("sowCommand — default (no flags)", () => {
 		await sowCommand.parseAsync(["--model", "", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
 			ok: boolean;
 			error: string;
 			nextAction: string;
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
+			command: "sow",
+			operation: "credentials",
 			ok: false,
 			error: "empty-model",
 			nextAction: "refarm sow --model ollama/llama3.2",
@@ -215,12 +225,16 @@ describe("sowCommand — default (no flags)", () => {
 		});
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
 			ok: boolean;
 			error: string;
 			nextAction: string;
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
+			command: "sow",
+			operation: "credentials",
 			ok: false,
 			error: "model-provider-required",
 			nextAction: "refarm sow --model ollama/llama3.2",
