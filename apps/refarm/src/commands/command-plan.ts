@@ -36,6 +36,15 @@ export interface CommandPlanRunResult {
 	nextCommands: string[];
 }
 
+export interface CommandPlanStepSummary {
+	id: string;
+	command: string;
+	ok: boolean;
+	exitCode: number;
+	effect?: CommandPlanEffect;
+	payload?: unknown;
+}
+
 export interface CommandPlanEnvelopeContext {
 	action: string;
 	command: string;
@@ -59,6 +68,7 @@ export interface CommandPlanRunEnvelope {
 	effects: CommandPlanEffect[];
 	writes: boolean;
 	steps: CommandPlanStepRunResult[];
+	stepResults: CommandPlanStepSummary[];
 	failedStepId: string | null;
 	failedCommand: string | null;
 	command: string;
@@ -125,6 +135,7 @@ export function buildCommandPlanRunEnvelope(
 		effects: commandPlanEffects(result.steps),
 		writes: commandPlanWrites(result.steps),
 		steps: result.steps,
+		stepResults: result.steps.map(commandPlanStepSummary),
 		failedStepId: result.failedStepId,
 		failedCommand: result.failedCommand,
 		command: context.command,
@@ -135,6 +146,28 @@ export function buildCommandPlanRunEnvelope(
 		nextCommand: result.nextCommands[0] ?? null,
 		nextCommands: result.nextCommands,
 	};
+}
+
+export function commandPlanStepSummary(
+	step: CommandPlanStepRunResult,
+): CommandPlanStepSummary {
+	return {
+		id: step.id,
+		command: step.command,
+		ok: step.ok,
+		exitCode: step.exitCode,
+		...(step.effect ? { effect: step.effect } : {}),
+		...(step.payload !== undefined ? { payload: commandPlanPayloadSummary(step.payload) } : {}),
+	};
+}
+
+function commandPlanPayloadSummary(payload: unknown): unknown {
+	if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+		return payload;
+	}
+	const { stdout: _stdout, stderr: _stderr, ...summary } =
+		payload as Record<string, unknown>;
+	return summary;
 }
 
 export function runCommandPlan(

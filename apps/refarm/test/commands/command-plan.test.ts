@@ -4,6 +4,7 @@ import {
 	buildCommandPlanRunEnvelope,
 	commandPlanEffects,
 	commandPlanStepCommands,
+	commandPlanStepSummary,
 	commandPlanWrites,
 	runCommandPlan,
 	type CommandPlanStep,
@@ -111,7 +112,46 @@ describe("command plan runner", () => {
 			nextAction: "refarm runtime start --wait",
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			stepResults: [
+				{
+					id: "first",
+					command: "refarm first --json",
+					ok: false,
+					exitCode: 1,
+					effect: "verify",
+					payload: {
+						ok: false,
+						nextCommand: "refarm runtime start --wait",
+					},
+				},
+			],
 			steps: [{ id: "first", ok: false }],
+		});
+	});
+
+	it("summarizes command plan step results without raw streams", () => {
+		expect(commandPlanStepSummary({
+			...steps[0]!,
+			ok: false,
+			exitCode: 1,
+			stdout: "large stdout",
+			stderr: "large stderr",
+			payload: {
+				ok: false,
+				nextCommand: "refarm runtime start --wait",
+				stdout: "nested stdout",
+				stderr: "nested stderr",
+			},
+		})).toEqual({
+			id: "first",
+			command: "refarm first --json",
+			ok: false,
+			exitCode: 1,
+			effect: "verify",
+			payload: {
+				ok: false,
+				nextCommand: "refarm runtime start --wait",
+			},
 		});
 	});
 
