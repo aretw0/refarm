@@ -17,8 +17,17 @@ describe("command result helpers", () => {
 	it("reads ok and handoff arrays from payloads", () => {
 		const payload = {
 			ok: false,
-			nextActions: ["Start runtime.", 1, "Inspect diagnostics."],
-			nextCommands: ["refarm runtime start --wait", null],
+			nextActions: [
+				"Start runtime.",
+				1,
+				" Inspect diagnostics. ",
+				"Start runtime.",
+			],
+			nextCommands: [
+				" refarm runtime start --wait ",
+				null,
+				"refarm runtime start --wait",
+			],
 			recommendations: [{ diagnostic: "runtime:not-ready" }],
 		};
 

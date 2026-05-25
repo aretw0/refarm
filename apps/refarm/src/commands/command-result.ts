@@ -1,3 +1,5 @@
+import { normalizeHandoffValues } from "./command-handoff.js";
+
 export function parseCommandJsonPayload(stdout: string): unknown {
 	const trimmed = stdout.trim();
 	if (!trimmed) return undefined;
@@ -39,10 +41,9 @@ function commandPayloadStringList(
 	const record = payload as Record<string, unknown>;
 	const value = record[pluralKey];
 	if (Array.isArray(value)) {
-		const strings = value
-			.filter((item): item is string => typeof item === "string")
-			.map((item) => item.trim())
-			.filter((item) => item.length > 0);
+		const strings = normalizeHandoffValues(
+			value.filter((item): item is string => typeof item === "string"),
+		);
 		if (strings.length > 0) return strings;
 	}
 	const singular = record[singularKey];
