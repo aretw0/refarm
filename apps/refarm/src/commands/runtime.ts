@@ -154,7 +154,7 @@ function runtimeStartDiagnosticNextCommands(
 		logText.includes("API_KEY is not set") ||
 		logText.includes("Configure keys with: refarm sow")
 	) {
-		return ["refarm sow", "refarm model current --json"];
+		return ["refarm sow --json", "refarm model current --json"];
 	}
 	return undefined;
 }

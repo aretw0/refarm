@@ -364,9 +364,9 @@ describe("runtime command", () => {
 		expect(payload.ensured).toBe(false);
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(false);
-		expect(payload.nextCommand).toBe("refarm sow");
+		expect(payload.nextCommand).toBe("refarm sow --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm sow",
+			"refarm sow --json",
 			"refarm model current --json",
 		]);
 		expect(payload.diagnostics?.logPath).toBe(
@@ -408,7 +408,7 @@ describe("runtime command", () => {
 			from: "user",
 		});
 
-		expect(logSpy).toHaveBeenCalledWith("refarm sow");
+		expect(logSpy).toHaveBeenCalledWith("refarm sow --json");
 		expect(process.exitCode).toBe(1);
 		rmSync(repoRoot, { recursive: true, force: true });
 		logSpy.mockRestore();
