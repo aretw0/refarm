@@ -105,6 +105,16 @@ export function commandPlanWrites(steps: readonly CommandPlanStep[]): boolean {
 	return commandPlanEffects(steps).includes("write");
 }
 
+function normalizeCommandPlanHandoffs(values: string[]): string[] {
+	return Array.from(
+		new Set(
+			values
+				.map((value) => value.trim())
+				.filter((value) => value.length > 0),
+		),
+	);
+}
+
 export function buildCommandPlanEnvelope(
 	context: CommandPlanEnvelopeContext,
 	steps: readonly CommandPlanStep[],
@@ -194,16 +204,21 @@ export function runCommandPlan(
 		const normalized = { ...result, ok };
 		steps.push(normalized);
 		if (!ok) {
+			const nextActions = normalizeCommandPlanHandoffs(
+				commandPayloadNextActions(result.payload) ??
+					commandPayloadNextCommands(result.payload) ?? [step.command],
+			);
+			const nextCommands = normalizeCommandPlanHandoffs(
+				commandPayloadNextCommands(result.payload) ?? [step.command],
+			);
 			return {
 				ok: false,
 				status: "failed",
 				steps,
 				failedStepId: step.id,
 				failedCommand: step.command,
-				nextActions: commandPayloadNextActions(result.payload) ??
-					commandPayloadNextCommands(result.payload) ?? [step.command],
-				nextCommands:
-					commandPayloadNextCommands(result.payload) ?? [step.command],
+				nextActions,
+				nextCommands,
 				recommendations: commandPayloadRecommendations(result.payload) ?? [],
 			};
 		}

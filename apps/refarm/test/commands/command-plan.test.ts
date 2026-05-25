@@ -176,14 +176,22 @@ describe("command plan runner", () => {
 				exitCode: 1,
 				stdout: JSON.stringify({
 					ok: false,
-					nextActions: ["Repair runtime."],
-					nextCommands: ["refarm runtime start --wait"],
+					nextActions: [" Repair runtime. ", "Repair runtime.", ""],
+					nextCommands: [
+						" refarm runtime start --wait ",
+						"refarm runtime start --wait",
+						"  ",
+					],
 				}),
 				stderr: "",
 				payload: {
 					ok: false,
-					nextActions: ["Repair runtime."],
-					nextCommands: ["refarm runtime start --wait"],
+					nextActions: [" Repair runtime. ", "Repair runtime.", ""],
+					nextCommands: [
+						" refarm runtime start --wait ",
+						"refarm runtime start --wait",
+						"  ",
+					],
 				},
 			}));
 
