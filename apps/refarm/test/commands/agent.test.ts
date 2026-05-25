@@ -27,7 +27,9 @@ describe("agent command", () => {
 		expect(help).toContain("refarm agent finish --run --json");
 		expect(help).toContain("refarm agent finish --run --next-command");
 		expect(help).toContain("refarm sow");
+		expect(help).toContain("refarm sow --json");
 		expect(help).toContain("refarm model current");
+		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
@@ -54,7 +56,9 @@ describe("agent command", () => {
 		expect(output).toContain("refarm tidy imports --check");
 		expect(output).toContain("refarm tidy imports");
 		expect(output).toContain("refarm sow");
+		expect(output).toContain("refarm sow --json");
 		expect(output).toContain("refarm model current");
+		expect(output).toContain("refarm model providers");
 		expect(output).toContain("refarm model base-url");
 	});
 
@@ -69,7 +73,15 @@ describe("agent command", () => {
 			status: string;
 			runtime: { status: string; start: string; doctorCommand: string };
 			usage: { tidyCheck: string; tidyApply: string };
-			credentials: { status: string };
+			credentials: {
+				configureInteractive: string;
+				configureJson: string;
+				inspectCurrent: string;
+				inspectProviders: string;
+				localNoKeyModel: string;
+				openExternalLinks: string;
+				setModel: string;
+			};
 			plugins: { install: string };
 			verification: {
 				quick: string;
@@ -95,7 +107,15 @@ describe("agent command", () => {
 				tidyCheck: "refarm tidy imports --check --json",
 				tidyApply: "refarm tidy imports --json",
 			},
-			credentials: { status: "refarm model current --json" },
+			credentials: {
+				configureInteractive: "refarm sow",
+				configureJson: "refarm sow --json",
+				inspectCurrent: "refarm model current --json",
+				inspectProviders: "refarm model providers --json",
+				localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
+				openExternalLinks: "refarm config get operator.openExternalLinks --json",
+				setModel: "refarm model openai/gpt-5.5 --json",
+			},
 			plugins: { install: "refarm plugin install --json" },
 			verification: {
 				quick: "refarm check --next-action --json",
@@ -108,9 +128,11 @@ describe("agent command", () => {
 			nextCommand: "refarm check --next-command",
 		});
 		expect(payload.nextActions).toContain("refarm runtime status --json");
+		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
+			"refarm model current --json",
 			"refarm agent finish --next-command",
 		]);
 		logSpy.mockRestore();

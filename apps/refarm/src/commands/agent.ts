@@ -17,6 +17,7 @@ import {
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
+const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 const agentRuntimePlan = {
 	runtime: {
@@ -32,8 +33,12 @@ const agentRuntimePlan = {
 		tidyApply: "refarm tidy imports --json",
 	},
 	credentials: {
-		configure: "refarm sow",
-		status: "refarm model current --json",
+		configureInteractive: "refarm sow",
+		configureJson: "refarm sow --json",
+		inspectCurrent: "refarm model current --json",
+		inspectProviders: "refarm model providers --json",
+		openExternalLinks: "refarm config get operator.openExternalLinks --json",
+		localNoKeyModel: `refarm sow --model ${OLLAMA_DEFAULT_REF} --json`,
 		setModel: `refarm model ${OPENAI_DEFAULT_REF} --json`,
 	},
 	plugins: {
@@ -187,7 +192,9 @@ Agent usage:
   $ refarm tidy imports --check Check import organization before committing
   $ refarm tidy imports         Organize imports after an editing slice
   $ refarm sow                  Configure credentials without editing files
+  $ refarm sow --json           Print credential handoffs for non-interactive agents
   $ refarm model current        Inspect provider/model routing
+  $ refarm model providers      Inspect provider credential requirements
   $ refarm model ${OPENAI_DEFAULT_REF} Switch the default route
   $ refarm model base-url ...   Set a self-hosted/OpenAI-compatible endpoint
   $ refarm model fallback ...   Set a retry route for provider failures
@@ -229,11 +236,13 @@ Notes:
 						"refarm check --next-action --json",
 						"refarm runtime status --json",
 						"refarm model current --json",
+						"refarm model providers --json",
 						"refarm plugin list --json",
 						"refarm agent finish --next-command",
 					],
 					nextCommands: [
 						"refarm check --next-command",
+						"refarm model current --json",
 						"refarm agent finish --next-command",
 					],
 					extra: {
