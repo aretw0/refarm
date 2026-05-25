@@ -11,11 +11,17 @@ import {
 } from "../credentials/index.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import {
-	defaultProviderModelRef,
 	modelRouteTokenUpdate,
 	parseModelRef,
 } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
+import {
+	LOCAL_MODEL_JSON_COMMAND,
+	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_PROVIDERS_JSON_COMMAND,
+	OLLAMA_DEFAULT_REF,
+	OPERATOR_LINKS_CONFIG_COMMAND,
+} from "./credential-handoffs.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -27,13 +33,7 @@ import {
 	SOW_MODEL_OPTION_DESCRIPTION,
 } from "./sow-metadata.js";
 
-const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
-const MODEL_CURRENT_JSON_COMMAND = "refarm model current --json";
-const MODEL_PROVIDERS_JSON_COMMAND = "refarm model providers --json";
-const LOCAL_MODEL_JSON_COMMAND = `refarm sow --model ${OLLAMA_DEFAULT_REF} --json`;
 const CHECK_NEXT_ACTION_JSON_COMMAND = "refarm check --next-action --json";
-const OPERATOR_LINKS_CONFIG_COMMAND =
-	"refarm config get operator.openExternalLinks --json";
 
 function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;

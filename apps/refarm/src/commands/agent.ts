@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
-import { defaultProviderModelRef } from "../model-routing.js";
 import { refarmCommand } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
@@ -14,10 +13,17 @@ import {
 import {
 	parseCommandJsonPayload,
 } from "./command-result.js";
+import {
+	LOCAL_MODEL_JSON_COMMAND,
+	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_PROVIDERS_JSON_COMMAND,
+	OPENAI_DEFAULT_REF,
+	OPENAI_MODEL_JSON_COMMAND,
+	OPERATOR_LINKS_CONFIG_COMMAND,
+	SOW_INTERACTIVE_COMMAND,
+	SOW_JSON_COMMAND,
+} from "./credential-handoffs.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
-
-const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
-const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
 const agentRuntimePlan = {
 	runtime: {
@@ -33,13 +39,13 @@ const agentRuntimePlan = {
 		tidyApply: "refarm tidy imports --json",
 	},
 	credentials: {
-		configureInteractive: "refarm sow",
-		configureJson: "refarm sow --json",
-		inspectCurrent: "refarm model current --json",
-		inspectProviders: "refarm model providers --json",
-		openExternalLinks: "refarm config get operator.openExternalLinks --json",
-		localNoKeyModel: `refarm sow --model ${OLLAMA_DEFAULT_REF} --json`,
-		setModel: `refarm model ${OPENAI_DEFAULT_REF} --json`,
+		configureInteractive: SOW_INTERACTIVE_COMMAND,
+		configureJson: SOW_JSON_COMMAND,
+		inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
+		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
+		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
+		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
+		setModel: OPENAI_MODEL_JSON_COMMAND,
 	},
 	plugins: {
 		list: "refarm plugin list --json",
@@ -235,14 +241,14 @@ Notes:
 					nextActions: [
 						"refarm check --next-action --json",
 						"refarm runtime status --json",
-						"refarm model current --json",
-						"refarm model providers --json",
+						MODEL_CURRENT_JSON_COMMAND,
+						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
 						"refarm agent finish --next-command",
 					],
 					nextCommands: [
 						"refarm check --next-command",
-						"refarm model current --json",
+						MODEL_CURRENT_JSON_COMMAND,
 						"refarm agent finish --next-command",
 					],
 					extra: {
