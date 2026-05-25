@@ -30,6 +30,8 @@ export interface CommandPlanRunResult {
 	ok: boolean;
 	status: "passed" | "failed";
 	steps: CommandPlanStepRunResult[];
+	failedStepId: string | null;
+	failedCommand: string | null;
 	nextActions: string[];
 	nextCommands: string[];
 }
@@ -57,6 +59,8 @@ export interface CommandPlanRunEnvelope {
 	effects: CommandPlanEffect[];
 	writes: boolean;
 	steps: CommandPlanStepRunResult[];
+	failedStepId: string | null;
+	failedCommand: string | null;
 	command: string;
 	operation: string;
 	ok: boolean;
@@ -121,6 +125,8 @@ export function buildCommandPlanRunEnvelope(
 		effects: commandPlanEffects(result.steps),
 		writes: commandPlanWrites(result.steps),
 		steps: result.steps,
+		failedStepId: result.failedStepId,
+		failedCommand: result.failedCommand,
 		command: context.command,
 		operation: context.operation,
 		ok: result.ok,
@@ -155,6 +161,8 @@ export function runCommandPlan(
 				ok: false,
 				status: "failed",
 				steps,
+				failedStepId: step.id,
+				failedCommand: step.command,
 				nextActions: commandPayloadNextActions(result.payload) ??
 					commandPayloadNextCommands(result.payload) ?? [step.command],
 				nextCommands:
@@ -166,6 +174,8 @@ export function runCommandPlan(
 		ok: true,
 		status: "passed",
 		steps,
+		failedStepId: null,
+		failedCommand: null,
 		nextActions: [],
 		nextCommands: [],
 	};

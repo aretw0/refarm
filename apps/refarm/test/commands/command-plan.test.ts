@@ -69,6 +69,8 @@ describe("command plan runner", () => {
 		expect(runCommandPlan(steps, runStep)).toMatchObject({
 			ok: true,
 			status: "passed",
+			failedStepId: null,
+			failedCommand: null,
 			nextActions: [],
 			nextCommands: [],
 			steps: [{ id: "first", ok: true }, { id: "second", ok: true }],
@@ -104,6 +106,8 @@ describe("command plan runner", () => {
 			ok: false,
 			effects: ["verify"],
 			writes: false,
+			failedStepId: "first",
+			failedCommand: "refarm first --json",
 			nextAction: "refarm runtime start --wait",
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
@@ -142,6 +146,8 @@ describe("command plan runner", () => {
 		expect(runCommandPlan(steps, runStep)).toMatchObject({
 			ok: false,
 			status: "failed",
+			failedStepId: "second",
+			failedCommand: "refarm second --json",
 			nextActions: ["Repair runtime."],
 			nextCommands: ["refarm runtime start --wait"],
 			steps: [{ id: "first", ok: true }, { id: "second", ok: false }],
@@ -161,6 +167,8 @@ describe("command plan runner", () => {
 		expect(runCommandPlan(steps, runStep)).toMatchObject({
 			ok: false,
 			status: "failed",
+			failedStepId: "first",
+			failedCommand: "refarm first --json",
 			nextActions: ["refarm first --json"],
 			nextCommands: ["refarm first --json"],
 			steps: [{ id: "first", ok: false }],
@@ -189,6 +197,8 @@ describe("command plan runner", () => {
 		expect(runCommandPlan(steps, runStep)).toMatchObject({
 			ok: false,
 			status: "failed",
+			failedStepId: "first",
+			failedCommand: "refarm first --json",
 			nextActions: ["Start runtime."],
 			nextCommands: ["refarm runtime start --wait"],
 			steps: [{ id: "first", ok: false }],

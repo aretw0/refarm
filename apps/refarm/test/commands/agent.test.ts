@@ -219,11 +219,15 @@ describe("agent command", () => {
 			ok: boolean;
 			status: string;
 			steps: { ok: boolean; args: string[] }[];
+			failedStepId: string | null;
+			failedCommand: string | null;
 			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "passed",
+			failedStepId: null,
+			failedCommand: null,
 			nextCommands: [],
 		});
 		expect(payload.steps).toHaveLength(3);
@@ -326,6 +330,8 @@ describe("agent command", () => {
 			ok: boolean;
 			status: string;
 			steps: { id: string; ok: boolean }[];
+			failedStepId: string | null;
+			failedCommand: string | null;
 			nextAction: string;
 			nextActions: string[];
 			nextCommand: string;
@@ -334,6 +340,8 @@ describe("agent command", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			status: "failed",
+			failedStepId: "health",
+			failedCommand: "refarm health --next-action --json",
 			nextAction: "Start the runtime before running the full check.",
 			nextActions: ["Start the runtime before running the full check."],
 			nextCommand: "refarm runtime start --wait",
