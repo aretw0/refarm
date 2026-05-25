@@ -3,8 +3,18 @@ import { normalizeHandoffValues } from "./command-handoff.js";
 export function parseCommandJsonPayload(stdout: string): unknown {
 	const trimmed = stdout.trim();
 	if (!trimmed) return undefined;
+	const direct = parseJson(trimmed);
+	if (direct !== undefined) return direct;
+
+	const objectStart = trimmed.indexOf("{");
+	const objectEnd = trimmed.lastIndexOf("}");
+	if (objectStart === -1 || objectEnd <= objectStart) return undefined;
+	return parseJson(trimmed.slice(objectStart, objectEnd + 1));
+}
+
+function parseJson(value: string): unknown {
 	try {
-		return JSON.parse(trimmed);
+		return JSON.parse(value);
 	} catch {
 		return undefined;
 	}

@@ -14,6 +14,13 @@ describe("command result helpers", () => {
 		expect(parseCommandJsonPayload("not json")).toBeUndefined();
 	});
 
+	it("parses JSON payloads with wrapper output", () => {
+		expect(
+			parseCommandJsonPayload('starting...\n{\n  "ok": false\n}\nfinished\n'),
+		).toEqual({ ok: false });
+		expect(parseCommandJsonPayload("prefix {not-json} suffix")).toBeUndefined();
+	});
+
 	it("reads ok and handoff arrays from payloads", () => {
 		const payload = {
 			ok: false,
