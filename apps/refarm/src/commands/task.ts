@@ -87,11 +87,14 @@ function formatAgeSeconds(submittedAt?: string): string {
 }
 
 function printTaskJsonSuccess<TExtra extends object>(
+	operation: string,
 	extra: TExtra,
 	nextCommands: string[] = [],
 ): void {
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "task",
+			operation,
 			extra,
 			nextCommands,
 		}),
@@ -526,6 +529,7 @@ Notes:
 								watch: true,
 							});
 							printTaskJsonSuccess(
+								"status",
 								{ effortId, status: "not-found" },
 								[statusCommand, buildTaskLogsCommand(effortId, transport)],
 							);
@@ -545,6 +549,7 @@ Notes:
 									buildTaskLogsCommand(effortId, transport),
 								];
 						printTaskJsonSuccess(
+							"status",
 							{
 								effortId,
 								status: result.status,
@@ -623,6 +628,7 @@ Notes:
 			if (!checkpoint) {
 				if (opts.json) {
 					printTaskJsonSuccess(
+						"resume",
 						{ status: "empty" },
 						["refarm task list --json"],
 					);
@@ -639,6 +645,7 @@ Notes:
 						)
 					: undefined;
 				printTaskJsonSuccess(
+					"resume",
 					{ status: "ok", checkpoint },
 					active
 						? [`${active.statusCommand} --watch`, active.logsCommand]
@@ -710,7 +717,7 @@ Notes:
 							buildTaskLogsCommand(efforts[0].effortId, transport),
 						]
 					: [];
-				printTaskJsonSuccess({ summary, efforts }, nextCommands);
+				printTaskJsonSuccess("list", { summary, efforts }, nextCommands);
 				return;
 			}
 
@@ -769,6 +776,7 @@ Notes:
 				if (!logs || logs.length === 0) {
 					if (opts.json) {
 						printTaskJsonSuccess(
+							"logs",
 							{ effortId, logs: [] },
 							[buildTaskStatusCommand(effortId, transport)],
 						);
@@ -781,6 +789,7 @@ Notes:
 				const sliced = logs.slice(-opts.tail);
 				if (opts.json) {
 					printTaskJsonSuccess(
+						"logs",
 						{ effortId, logs: sliced },
 						[buildTaskStatusCommand(effortId, transport)],
 					);

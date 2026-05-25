@@ -348,11 +348,15 @@ describe("refarm task status", () => {
 
 		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
 			ok: boolean;
+			command: string;
+			operation: string;
 			status: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
 		expect(payload.ok).toBe(true);
+		expect(payload.command).toBe("task");
+		expect(payload.operation).toBe("status");
 		expect(payload.status).toBe("not-found");
 		expect(payload.nextCommand).toBe(
 			"refarm task status effort-abc --transport file --watch",
@@ -464,10 +468,14 @@ describe("refarm task list/logs/retry/cancel", () => {
 
 		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
 			ok: boolean;
+			command: string;
+			operation: string;
 			logs: EffortLogEntry[];
 			nextCommand: string;
 		};
 		expect(payload.ok).toBe(true);
+		expect(payload.command).toBe("task");
+		expect(payload.operation).toBe("logs");
 		expect(payload.logs).toEqual([]);
 		expect(payload.nextCommand).toBe(
 			"refarm task status effort-abc --transport file",
@@ -789,6 +797,10 @@ describe("refarm task resume", () => {
 
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining('"activeEffortId": "effort-abc"'),
+		);
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"command": "task"'));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining('"operation": "resume"'),
 		);
 		spy.mockRestore();
 	});
