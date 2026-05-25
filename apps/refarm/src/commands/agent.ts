@@ -21,7 +21,7 @@ const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const agentRuntimePlan = {
 	runtime: {
 		status: "refarm runtime status --json",
-		start: "refarm runtime start --json",
+		start: "refarm runtime start --wait --json",
 		doctor: "refarm doctor --next-action --json",
 		doctorCommand: "refarm doctor --next-command",
 	},

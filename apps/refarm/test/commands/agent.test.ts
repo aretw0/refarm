@@ -67,7 +67,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
-			runtime: { status: string; doctorCommand: string };
+			runtime: { status: string; start: string; doctorCommand: string };
 			usage: { tidyCheck: string; tidyApply: string };
 			credentials: { status: string };
 			plugins: { install: string };
@@ -88,6 +88,7 @@ describe("agent command", () => {
 			status: "handoff",
 			runtime: {
 				status: "refarm runtime status --json",
+				start: "refarm runtime start --wait --json",
 				doctorCommand: "refarm doctor --next-command",
 			},
 			usage: {
