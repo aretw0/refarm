@@ -12,6 +12,8 @@ function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 
 const MODEL_CURRENT_JSON_HANDOFF = {
 	ok: true,
+	command: "model",
+	operation: "mutate",
 	nextAction: null,
 	nextActions: [],
 	nextCommand: "refarm model current --json",

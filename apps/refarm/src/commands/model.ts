@@ -205,6 +205,8 @@ function hasJsonOption(
 function printModelMutationResult(result: ModelMutationResult): void {
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "model",
+			operation: "mutate",
 			extra: result,
 			nextCommand: MODEL_CURRENT_JSON_COMMAND,
 			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
