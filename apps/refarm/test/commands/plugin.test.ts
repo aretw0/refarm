@@ -609,6 +609,9 @@ describe("plugin status", () => {
 			expect.stringContaining("plugin status is unavailable"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm runtime ensure --wait --next-command"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm runtime start --wait"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(

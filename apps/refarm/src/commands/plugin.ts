@@ -489,7 +489,8 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
-		console.error(`Start or restart the runtime with \`${RUNTIME_START_WAIT_COMMAND}\`, then retry.`);
+		console.error(`Ensure runtime readiness with \`${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`, then retry.`);
+		console.error(`Fallback start command: \`${RUNTIME_START_WAIT_COMMAND}\`.`);
 		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
 		console.error(`Next recovery action: \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\`.`);
 		console.error(`Diagnose readiness with \`${RUNTIME_DOCTOR_COMMAND}\`.`);
@@ -564,7 +565,8 @@ async function reloadRuntimePluginCommand(
 			);
 		} else {
 			console.error("Runtime plugin reload is unavailable.");
-			console.error(`  Start runtime: ${RUNTIME_START_WAIT_COMMAND}`);
+			console.error(`  Ensure runtime: ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`);
+			console.error(`  Start fallback:  ${RUNTIME_START_WAIT_COMMAND}`);
 			console.error(`  Diagnose:      ${RUNTIME_DOCTOR_COMMAND}`);
 		}
 		process.exitCode = 1;
