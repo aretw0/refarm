@@ -312,6 +312,13 @@ describe("refarm ask", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			error: string;
+			handoffs: {
+				interactive: string;
+				inspectCurrent: string;
+				inspectProviders: string;
+				localNoKeyModel: string;
+				openExternalLinks: string;
+			};
 			nextAction: string;
 			nextActions: string[];
 			nextCommand: string;
@@ -322,9 +329,18 @@ describe("refarm ask", () => {
 			error: "model-credentials-missing",
 			nextAction: "refarm sow",
 			nextCommand: "refarm model providers --json",
+			handoffs: {
+				interactive: "refarm sow",
+				inspectCurrent: "refarm model current --json",
+				inspectProviders: "refarm model providers --json",
+				localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
+				openExternalLinks: "refarm config get operator.openExternalLinks --json",
+			},
 		});
+		expect(payload.nextActions).toContain("refarm sow --json");
 		expect(payload.nextActions).toContain("refarm model current --json");
 		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(deps.submitEffort).not.toHaveBeenCalled();

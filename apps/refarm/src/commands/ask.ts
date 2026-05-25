@@ -16,8 +16,17 @@ import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { defaultProviderModelRef } from "../model-routing.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	LOCAL_MODEL_JSON_COMMAND,
+	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_PROVIDERS_JSON_COMMAND,
+	OPENAI_DEFAULT_REF,
+	OPENAI_MODEL_JSON_COMMAND,
+	OPERATOR_LINKS_CONFIG_COMMAND,
+	SOW_INTERACTIVE_COMMAND,
+	SOW_JSON_COMMAND,
+} from "./credential-handoffs.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
@@ -52,7 +61,6 @@ import {
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
-const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
 export interface AskDeps {
@@ -519,15 +527,15 @@ function buildAskErrorPayload(message: string): {
 			operation: "submit",
 			error: "model-provider-unavailable",
 			message: `Model provider unavailable: ${provider}`,
-			nextAction: provider === "ollama" ? "ollama serve" : "refarm sow",
+			nextAction: provider === "ollama" ? "ollama serve" : SOW_INTERACTIVE_COMMAND,
 			nextActions:
 				provider === "ollama"
-					? ["ollama serve", "refarm sow"]
+					? ["ollama serve", SOW_INTERACTIVE_COMMAND]
 					: [
-							"refarm sow",
-							"refarm model current --json",
-							"refarm model providers --json",
-							`refarm model ${OPENAI_DEFAULT_REF} --json`,
+							SOW_INTERACTIVE_COMMAND,
+							MODEL_CURRENT_JSON_COMMAND,
+							MODEL_PROVIDERS_JSON_COMMAND,
+							OPENAI_MODEL_JSON_COMMAND,
 						],
 			nextCommand: providerNextCommands[0],
 			nextCommands: providerNextCommands,
@@ -540,9 +548,9 @@ function buildAskErrorPayload(message: string): {
 		error: "ask-failed",
 		message,
 		nextAction: RUNTIME_DOCTOR_COMMAND,
-		nextActions: [RUNTIME_DOCTOR_COMMAND, "refarm model current --json"],
+		nextActions: [RUNTIME_DOCTOR_COMMAND, MODEL_CURRENT_JSON_COMMAND],
 		nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-		nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, "refarm model current --json"],
+		nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, MODEL_CURRENT_JSON_COMMAND],
 		extra: { action: "ask" },
 	});
 }
@@ -559,20 +567,31 @@ function printMissingModelCredentials(json: boolean): void {
 				operation: "credentials",
 				error: "model-credentials-missing",
 				message: "No usable model credentials configured.",
-				nextAction: "refarm sow",
+				nextAction: SOW_INTERACTIVE_COMMAND,
 				nextActions: [
-					"refarm sow",
-					"refarm model current --json",
-					"refarm model providers --json",
+					SOW_INTERACTIVE_COMMAND,
+					SOW_JSON_COMMAND,
+					MODEL_CURRENT_JSON_COMMAND,
+					MODEL_PROVIDERS_JSON_COMMAND,
 					"ollama serve",
 				],
-				nextCommand: "refarm model providers --json",
+				nextCommand: MODEL_PROVIDERS_JSON_COMMAND,
 				nextCommands: [
-					"refarm model providers --json",
-					"refarm model current --json",
+					MODEL_PROVIDERS_JSON_COMMAND,
+					MODEL_CURRENT_JSON_COMMAND,
+					SOW_JSON_COMMAND,
 					"ollama serve",
 				],
-				extra: { action: "ask" },
+				extra: {
+					action: "ask",
+					handoffs: {
+						interactive: SOW_INTERACTIVE_COMMAND,
+						inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
+						inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
+						localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
+						openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
+					},
+				},
 			}),
 		);
 		return;
