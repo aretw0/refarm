@@ -4,6 +4,7 @@ import {
 } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
+import { existsSync, readFileSync } from "node:fs";
 import { printJson } from "./json-output.js";
 import {
 	resolveRuntimeLaunchCommand,
@@ -46,6 +47,12 @@ interface RuntimeCommandDeps {
 
 type RuntimeStatusPayload = RuntimeStatusSummary;
 const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
+const START_LOG_TAIL_LINES = 40;
+
+interface RuntimeStartDiagnostics {
+	logPath?: string;
+	logTail?: string[];
+}
 
 type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
 	TExtra & {
@@ -112,14 +119,43 @@ function runtimeNextCommands(payload: RuntimeStatusPayload): string[] {
 function buildRuntimeJsonPayload<TExtra extends object = object>(
 	payload: RuntimeStatusPayload,
 	extra?: TExtra,
+	nextCommandsOverride?: string[],
 ): RuntimeJsonPayload<TExtra> {
-	const nextCommands = runtimeNextCommands(payload);
+	const nextCommands = nextCommandsOverride ?? runtimeNextCommands(payload);
 	return {
 		...payload,
 		...(extra ?? {}),
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
 	} as RuntimeJsonPayload<TExtra>;
+}
+
+function runtimeStartDiagnostics(
+	command?: RuntimeLaunchCommand,
+): RuntimeStartDiagnostics | undefined {
+	if (!command?.logPath || !existsSync(command.logPath)) return undefined;
+	const content = readFileSync(command.logPath, "utf-8");
+	const logTail = content
+		.split(/\r?\n/)
+		.filter((line) => line.trim().length > 0)
+		.slice(-START_LOG_TAIL_LINES);
+	return {
+		logPath: command.logPath,
+		...(logTail.length > 0 ? { logTail } : {}),
+	};
+}
+
+function runtimeStartDiagnosticNextCommands(
+	diagnostics?: RuntimeStartDiagnostics,
+): string[] | undefined {
+	const logText = diagnostics?.logTail?.join("\n") ?? "";
+	if (
+		logText.includes("API_KEY is not set") ||
+		logText.includes("Configure keys with: refarm sow")
+	) {
+		return ["refarm sow", "refarm model current --json"];
+	}
+	return undefined;
 }
 
 function printRuntimeStatus(payload: RuntimeStatusPayload): void {
@@ -275,11 +311,15 @@ Notes:
 					if (opts.wait) {
 						const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 						if (json) {
+							const diagnostics = ready
+								? undefined
+								: runtimeStartDiagnostics(command);
 							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
 								command,
 								ensured: ready,
 								started: true,
-							}));
+								...(diagnostics ? { diagnostics } : {}),
+							}, runtimeStartDiagnosticNextCommands(diagnostics)));
 							if (!ready) process.exitCode = 1;
 							return;
 						}
@@ -360,10 +400,14 @@ Notes:
 					if (opts.wait) {
 						const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
 						if (json) {
+							const diagnostics = ready
+								? undefined
+								: runtimeStartDiagnostics(command);
 							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
 								command,
 								started: true,
-							}));
+								...(diagnostics ? { diagnostics } : {}),
+							}, runtimeStartDiagnosticNextCommands(diagnostics)));
 							if (!ready) process.exitCode = 1;
 							return;
 						}

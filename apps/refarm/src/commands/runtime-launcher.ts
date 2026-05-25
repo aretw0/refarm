@@ -10,6 +10,7 @@ export interface RuntimeLaunchCommand {
 	args: string[];
 	display: string;
 	source: "repo-script" | "path";
+	logPath?: string;
 }
 
 export interface RuntimeProcess {
@@ -56,6 +57,7 @@ export function resolveRuntimeLaunchCommand(
 				...starter.scriptArgs,
 			].join(" "),
 			source: "repo-script",
+			logPath: path.join(repoRoot, ".refarm", `${engine}-runtime-start.log`),
 		};
 	}
 	return {
@@ -68,12 +70,18 @@ export function resolveRuntimeLaunchCommand(
 }
 
 export function startRuntimeProcess(command: RuntimeLaunchCommand): RuntimeProcess {
+	const outputFd = command.logPath ? openRuntimeStartLog(command.logPath) : "ignore";
 	const child = spawn(command.command, command.args, {
 		detached: true,
-		stdio: "ignore",
+		stdio: ["ignore", outputFd, outputFd],
 	});
 	child.unref();
 	return child;
+}
+
+function openRuntimeStartLog(logPath: string): number {
+	fs.mkdirSync(path.dirname(logPath), { recursive: true });
+	return fs.openSync(logPath, "a");
 }
 
 export function runtimeStartHelpLines(repoRoot: string): string[] {

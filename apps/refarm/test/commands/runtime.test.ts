@@ -1,3 +1,6 @@
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import type { LaunchRuntimeSelection } from "../../src/commands/session-launch.js";
@@ -326,8 +329,16 @@ describe("runtime command", () => {
 
 	it("sets exitCode when ensure cannot make the runtime ready", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const repoRoot = join(tmpdir(), `refarm-runtime-ensure-${Date.now()}`);
+		mkdirSync(join(repoRoot, "scripts"), { recursive: true });
+		mkdirSync(join(repoRoot, ".refarm"), { recursive: true });
+		writeFileSync(join(repoRoot, "scripts", "farmhand-start.sh"), "");
+		writeFileSync(
+			join(repoRoot, ".refarm", "ts-runtime-start.log"),
+			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.\nConfigure keys with: refarm sow\n",
+		);
 		const command = createRuntimeCommand({
-			repoRoot: () => "/repo",
+			repoRoot: () => repoRoot,
 			readEngine: () => "ts",
 			readAutostart: () => "ask",
 			probeReady: vi.fn().mockResolvedValue(false),
@@ -347,12 +358,25 @@ describe("runtime command", () => {
 			started?: boolean;
 			ready?: boolean;
 			nextCommand?: string | null;
+			nextCommands?: string[];
+			diagnostics?: { logPath?: string; logTail?: string[] };
 		};
 		expect(payload.ensured).toBe(false);
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(false);
-		expect(payload.nextCommand).toBe("refarm runtime ensure --wait");
+		expect(payload.nextCommand).toBe("refarm sow");
+		expect(payload.nextCommands).toEqual([
+			"refarm sow",
+			"refarm model current --json",
+		]);
+		expect(payload.diagnostics?.logPath).toBe(
+			join(repoRoot, ".refarm", "ts-runtime-start.log"),
+		);
+		expect(payload.diagnostics?.logTail).toContain(
+			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.",
+		);
 		expect(process.exitCode).toBe(1);
+		rmSync(repoRoot, { recursive: true, force: true });
 		logSpy.mockRestore();
 	});
 

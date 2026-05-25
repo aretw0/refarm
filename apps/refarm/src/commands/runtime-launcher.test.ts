@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
 	resolveRuntimeLaunchCommand,
 	runtimeStartHelpLines,
+	startRuntimeProcess,
 } from "./runtime-launcher.js";
 
 describe("resolveRuntimeLaunchCommand", () => {
@@ -20,6 +21,7 @@ describe("resolveRuntimeLaunchCommand", () => {
 				args: [join(repoRoot, "scripts", "farmhand-start.sh"), "--background"],
 				display: "bash scripts/farmhand-start.sh --background",
 				source: "repo-script",
+				logPath: join(repoRoot, ".refarm", "ts-runtime-start.log"),
 			});
 		} finally {
 			rmSync(repoRoot, { recursive: true, force: true });
@@ -59,6 +61,29 @@ describe("resolveRuntimeLaunchCommand", () => {
 			rmSync(repoRoot, { recursive: true, force: true });
 		}
 	});
+
+	it("captures repo-script startup output for later diagnostics", async () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-launcher-${Date.now()}`);
+		const logPath = join(repoRoot, ".refarm", "ts-runtime-start.log");
+		mkdirSync(join(repoRoot, "scripts"), { recursive: true });
+		const script = join(repoRoot, "scripts", "farmhand-start.sh");
+		writeFileSync(script, "echo startup failed\n");
+
+		try {
+			startRuntimeProcess({
+				engine: "ts",
+				command: "bash",
+				args: [script],
+				display: "bash scripts/farmhand-start.sh",
+				source: "repo-script",
+				logPath,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(readFileSync(logPath, "utf-8")).toContain("startup failed");
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
 });
 
 describe("runtimeStartHelpLines", () => {
@@ -76,4 +101,3 @@ describe("runtimeStartHelpLines", () => {
 		}
 	});
 });
-
