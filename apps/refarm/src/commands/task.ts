@@ -855,16 +855,22 @@ Notes:
 					watch: true,
 				});
 				const logsCommand = buildTaskLogsCommand(effortId, transport);
-				printJson({
-					effortId,
-					transport,
-					action: "retry",
-					accepted: true,
-					nextAction: watchCommand,
-					nextActions: [watchCommand, logsCommand],
-					nextCommand: watchCommand,
-					nextCommands: [watchCommand, logsCommand],
-				});
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "task",
+						operation: "retry",
+						nextAction: watchCommand,
+						nextActions: [watchCommand, logsCommand],
+						nextCommand: watchCommand,
+						nextCommands: [watchCommand, logsCommand],
+						extra: {
+							effortId,
+							transport,
+							action: "retry",
+							accepted: true,
+						},
+					}),
+				);
 				return;
 			}
 			console.log(chalk.green(`Retry requested for effort ${effortId}`));
@@ -921,16 +927,22 @@ Notes:
 				});
 			});
 			if (opts.json) {
-				printJson({
-					effortId,
-					transport,
-					action: "cancel",
-					accepted: true,
-					nextAction: statusCommand,
-					nextActions: [statusCommand],
-					nextCommand: statusCommand,
-					nextCommands: [statusCommand],
-				});
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "task",
+						operation: "cancel",
+						nextAction: statusCommand,
+						nextActions: [statusCommand],
+						nextCommand: statusCommand,
+						nextCommands: [statusCommand],
+						extra: {
+							effortId,
+							transport,
+							action: "cancel",
+							accepted: true,
+						},
+					}),
+				);
 				return;
 			}
 			console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));

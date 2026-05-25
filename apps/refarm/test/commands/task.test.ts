@@ -541,6 +541,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 			});
 
 		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			command: string;
+			operation: string;
 			effortId: string;
 			transport: string;
 			action: string;
@@ -549,6 +552,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
+			ok: true,
+			command: "task",
+			operation: "retry",
 			effortId: "effort-abc",
 			transport: "http",
 			action: "retry",
@@ -653,6 +659,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 			});
 
 		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			command: string;
+			operation: string;
 			effortId: string;
 			transport: string;
 			action: string;
@@ -661,6 +670,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
+			ok: true,
+			command: "task",
+			operation: "cancel",
 			effortId: "effort-abc",
 			transport: "http",
 			action: "cancel",
