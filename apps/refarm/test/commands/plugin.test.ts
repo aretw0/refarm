@@ -531,13 +531,21 @@ describe("plugin status", () => {
 			error: string;
 			nextCommand: string;
 			nextCommands: string[];
+			recommendations: { diagnostic: string; command: string }[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "runtime-plugin-reload-unavailable",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 		});
+		expect(payload.nextCommands).toContain("refarm runtime start --wait");
 		expect(payload.nextCommands).toContain("refarm doctor --next-command");
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "runtime-plugin-status-unavailable",
+				command: "refarm runtime ensure --wait --next-command",
+			}),
+		]);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
@@ -554,7 +562,9 @@ describe("plugin status", () => {
 			nextAction?: string;
 			nextCommand?: string;
 			nextCommands?: string[];
+			recommendations?: { diagnostic: string; command: string }[];
 			recovery?: {
+				ensure: string;
 				start: string;
 				status: string;
 				doctorNextAction: string;
@@ -564,12 +574,20 @@ describe("plugin status", () => {
 		expect(payload).toMatchObject({
 			available: false,
 			nextAction: "refarm doctor --next-action",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
 				"refarm runtime start --wait",
 				"refarm doctor --next-command",
 			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime-plugin-status-unavailable",
+					command: "refarm runtime ensure --wait --next-command",
+				}),
+			],
 			recovery: {
+				ensure: "refarm runtime ensure --wait --next-command",
 				start: "refarm runtime start --wait",
 				status: "refarm runtime status",
 				doctorNextAction: "refarm doctor --next-action",

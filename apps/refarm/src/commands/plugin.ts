@@ -30,6 +30,7 @@ import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -104,12 +105,22 @@ interface RuntimePluginStatusReport {
 	nextAction?: string;
 	nextCommand?: string;
 	nextCommands?: string[];
+	recommendations?: RuntimePluginRecommendation[];
 	recovery?: {
+		ensure: string;
 		start: string;
 		status: string;
 		doctorNextAction: string;
 		doctor: string;
 	};
+}
+
+interface RuntimePluginRecommendation {
+	diagnostic: string;
+	severity: "failure" | "warning" | "info";
+	summary: string;
+	action: string;
+	command?: string;
 }
 
 type PluginInstallStatus = "installed" | "cached" | "failed";
@@ -403,13 +414,20 @@ function buildRuntimePluginStatusReport(
 	state: Awaited<ReturnType<typeof readRuntimePluginState>>,
 ): RuntimePluginStatusReport {
 	if (!state) {
+		const recommendations = runtimePluginUnavailableRecommendations();
 		return {
 			available: false,
 			plugins: [],
 			nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-			nextCommand: RUNTIME_START_WAIT_COMMAND,
-			nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
+			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+			nextCommands: [
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				RUNTIME_START_WAIT_COMMAND,
+				RUNTIME_DOCTOR_NEXT_COMMAND,
+			],
+			recommendations,
 			recovery: {
+				ensure: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				start: RUNTIME_START_WAIT_COMMAND,
 				status: RUNTIME_STATUS_COMMAND,
 				doctorNextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -446,6 +464,18 @@ function buildRuntimePluginStatusReport(
 					],
 				}),
 	};
+}
+
+function runtimePluginUnavailableRecommendations(): RuntimePluginRecommendation[] {
+	return [
+		{
+			diagnostic: "runtime-plugin-status-unavailable",
+			severity: "failure",
+			summary: "The runtime plugin status endpoint is not reachable.",
+			action: "Ensure the selected runtime is running, then inspect plugin status again.",
+			command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+		},
+	];
 }
 
 async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promise<void> {
@@ -519,11 +549,16 @@ async function reloadRuntimePluginCommand(
 					operation: "reload",
 					error: "runtime-plugin-reload-unavailable",
 					message: "Refarm runtime plugin reload is unavailable.",
-					nextAction: RUNTIME_START_WAIT_COMMAND,
-					nextCommand: RUNTIME_START_WAIT_COMMAND,
-					nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
+					nextAction: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+					nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+					nextCommands: [
+						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+						RUNTIME_START_WAIT_COMMAND,
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+					],
 					extra: {
 						requested: pluginIds,
+						recommendations: runtimePluginUnavailableRecommendations(),
 					},
 				}),
 			);
