@@ -284,9 +284,11 @@ describe("extension command", () => {
 			error: "missing-scope",
 		});
 		expect(payload.nextActions).toContain("refarm extension save my-tool --global");
-		expect(payload.nextCommand).toBe("refarm extension save 'my-tool' --global");
+		expect(payload.nextCommand).toBe(
+			"refarm extension save 'my-tool' --global --json",
+		);
 		expect(payload.nextCommands).toContain(
-			"refarm extension save 'my-tool' --local",
+			"refarm extension save 'my-tool' --local --json",
 		);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
@@ -315,9 +317,11 @@ describe("extension command", () => {
 			ok: false,
 			error: "invalid-extension-name",
 			nextAction: "refarm extension save my-tool --global",
-			nextCommand: "refarm extension save my-tool --global",
+			nextCommand: "refarm extension save my-tool --global --json",
 		});
-		expect(payload.nextCommands).toContain("refarm extension save my-tool --local");
+		expect(payload.nextCommands).toContain(
+			"refarm extension save my-tool --local --json",
+		);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 		errorSpy.mockRestore();

@@ -13,8 +13,18 @@ import {
 const EXTENSION_LIST_JSON_COMMAND = "refarm extension list --json";
 const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
 
-function extensionSaveCommand(name: string, scope: "global" | "local"): string {
-  return refarmCommand(["extension", "save", quoteCommandArg(name), `--${scope}`]);
+function extensionSaveCommand(
+  name: string,
+  scope: "global" | "local",
+  json = false,
+): string {
+  return refarmCommand([
+    "extension",
+    "save",
+    quoteCommandArg(name),
+    `--${scope}`,
+    ...(json ? ["--json"] : []),
+  ]);
 }
 
 function extensionReloadCommand(name: string, json = false): string {
@@ -205,10 +215,10 @@ async function saveExtension(
             "refarm extension save my-tool --global",
             "refarm extension save my-tool --local",
           ],
-          nextCommand: "refarm extension save my-tool --global",
+          nextCommand: "refarm extension save my-tool --global --json",
           nextCommands: [
-            "refarm extension save my-tool --global",
-            "refarm extension save my-tool --local",
+            "refarm extension save my-tool --global --json",
+            "refarm extension save my-tool --local --json",
           ],
           extra: {
             name,
@@ -392,10 +402,10 @@ extensionCommand
               `refarm extension save ${name} --global`,
               `refarm extension save ${name} --local`,
             ],
-            nextCommand: extensionSaveCommand(name, "global"),
+            nextCommand: extensionSaveCommand(name, "global", true),
             nextCommands: [
-              extensionSaveCommand(name, "global"),
-              extensionSaveCommand(name, "local"),
+              extensionSaveCommand(name, "global", true),
+              extensionSaveCommand(name, "local", true),
             ],
             extra: {
               name,
