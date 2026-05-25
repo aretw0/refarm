@@ -141,6 +141,9 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
+			"refarm runtime ensure --wait --next-command",
+			"refarm sow --json",
+			"refarm sow --model ollama/llama3.2 --json",
 			"refarm model current --json",
 			"refarm agent finish --next-command",
 		]);
