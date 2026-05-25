@@ -76,11 +76,14 @@ function sessionUseJsonCommand(sessionId: string): string {
 }
 
 function printSessionJsonSuccess<TExtra extends object>(
+	operation: string,
 	extra: TExtra,
 	nextCommands: string[] = [],
 ): void {
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "sessions",
+			operation,
 			extra,
 			nextCommands,
 		}),
@@ -89,7 +92,7 @@ function printSessionJsonSuccess<TExtra extends object>(
 
 function writeActiveSessionOrReport(
 	targetSessionId: string,
-	opts: { json?: boolean } = {},
+	opts: { json?: boolean; operation?: string } = {},
 ): boolean {
 	try {
 		writeActiveSessionIdAndVerify(targetSessionId);
@@ -99,6 +102,8 @@ function writeActiveSessionOrReport(
 		if (opts.json) {
 			printJson(
 				buildJsonErrorEnvelope({
+					command: "sessions",
+					operation: opts.operation ?? "active",
 					error: "active-session-write-failed",
 					message,
 					nextAction: "refarm sessions list --json",
@@ -127,11 +132,13 @@ function printSessionPrefixError(
 	kind: "not-found" | "ambiguous",
 	prefix: string,
 	matches: string[] = [],
-	opts: { json?: boolean } = {},
+	opts: { json?: boolean; operation?: string } = {},
 ): void {
 	if (opts.json) {
 		printJson(
 			buildJsonErrorEnvelope({
+				command: "sessions",
+				operation: opts.operation ?? "resolve",
 				error:
 					kind === "not-found"
 						? "session-not-found"
@@ -265,7 +272,7 @@ export function createSessionsCommand(): Command {
 							activeSessionId: null,
 							cleared,
 						};
-						printSessionJsonSuccess(report, [SESSIONS_LIST_JSON_COMMAND]);
+						printSessionJsonSuccess("clear", report, [SESSIONS_LIST_JSON_COMMAND]);
 						return;
 					}
 					if (cleared) {
@@ -323,7 +330,7 @@ async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 						SESSIONS_LIST_JSON_COMMAND,
 					]
 				: ["refarm sessions new --json"];
-		printSessionJsonSuccess(report, nextCommands);
+		printSessionJsonSuccess("list", report, nextCommands);
 		return;
 	}
 
@@ -412,14 +419,14 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(created["@id"], { json: opts.json })) return;
+	if (!writeActiveSessionOrReport(created["@id"], { json: opts.json, operation: "new" })) return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "created",
 			activeSessionId: created["@id"],
 			session: created,
 		};
-		printSessionJsonSuccess(report, [
+		printSessionJsonSuccess("new", report, [
 			sessionShowJsonCommand(created["@id"]),
 			SESSIONS_LIST_JSON_COMMAND,
 		]);
@@ -453,7 +460,7 @@ async function useSession(
 	const matches = findSessionIdPrefixMatches(prefix, sessions);
 
 	if (matches.length === 0) {
-		printSessionPrefixError("not-found", prefix, [], opts);
+		printSessionPrefixError("not-found", prefix, [], { ...opts, operation: "use" });
 		return;
 	}
 	if (matches.length > 1) {
@@ -461,19 +468,19 @@ async function useSession(
 			"ambiguous",
 			prefix,
 			matches.map((match) => match["@id"]),
-			opts,
+			{ ...opts, operation: "use" },
 		);
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(matches[0]!["@id"], { json: opts.json })) return;
+	if (!writeActiveSessionOrReport(matches[0]!["@id"], { json: opts.json, operation: "use" })) return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "switched",
 			activeSessionId: matches[0]!["@id"],
 			session: matches[0]!,
 		};
-		printSessionJsonSuccess(report, [
+		printSessionJsonSuccess("use", report, [
 			sessionShowJsonCommand(matches[0]!["@id"]),
 			SESSIONS_LIST_JSON_COMMAND,
 		]);
@@ -508,12 +515,16 @@ async function forkSession(
 			matches?: string[];
 		};
 		if (response.status === 404) {
-			printSessionPrefixError("not-found", prefix, [], { json: opts.json });
+			printSessionPrefixError("not-found", prefix, [], {
+				json: opts.json,
+				operation: "fork",
+			});
 			return;
 		}
 		if (response.status === 409) {
 			printSessionPrefixError("ambiguous", prefix, parsed.matches ?? [], {
 				json: opts.json,
+				operation: "fork",
 			});
 			return;
 		}
@@ -521,6 +532,8 @@ async function forkSession(
 			if (opts.json) {
 				printJson(
 					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "fork",
 						error: "session-fork-failed",
 						message: parsed.error ?? `HTTP ${response.status}`,
 						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -551,7 +564,7 @@ async function forkSession(
 	}
 
 	// Auto-switch to the new fork.
-	if (!writeActiveSessionOrReport(fork["@id"], { json: opts.json })) return;
+	if (!writeActiveSessionOrReport(fork["@id"], { json: opts.json, operation: "fork" })) return;
 	if (opts.json) {
 		const report: SessionForkReport = {
 			action: "forked",
@@ -560,7 +573,7 @@ async function forkSession(
 			parentSessionId: fork.parent_session_id ?? prefix,
 			...(fork.leaf_entry_id ? { branchEntryId: fork.leaf_entry_id } : {}),
 		};
-		printSessionJsonSuccess(report, [
+		printSessionJsonSuccess("fork", report, [
 			sessionShowJsonCommand(fork["@id"]),
 			SESSIONS_LIST_JSON_COMMAND,
 		]);
@@ -595,12 +608,16 @@ async function showSession(
 			matches?: string[];
 		};
 		if (response.status === 404) {
-			printSessionPrefixError("not-found", prefix, [], { json: opts.json });
+			printSessionPrefixError("not-found", prefix, [], {
+				json: opts.json,
+				operation: "show",
+			});
 			return;
 		}
 		if (response.status === 409) {
 			printSessionPrefixError("ambiguous", prefix, body.matches ?? [], {
 				json: opts.json,
+				operation: "show",
 			});
 			return;
 		}
@@ -608,6 +625,8 @@ async function showSession(
 			if (opts.json) {
 				printJson(
 					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "show",
 						error: "session-history-failed",
 						message: body.error ?? `HTTP ${response.status}`,
 						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -636,7 +655,7 @@ async function showSession(
 	}
 
 	if (opts.json) {
-		printSessionJsonSuccess(history, [
+		printSessionJsonSuccess("show", history, [
 			sessionUseJsonCommand(history.session["@id"]),
 			SESSIONS_LIST_JSON_COMMAND,
 		]);

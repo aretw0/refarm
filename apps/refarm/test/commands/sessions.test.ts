@@ -106,6 +106,8 @@ describe("refarm sessions", () => {
 			.parseAsync(["--name", "auth-refactor", "--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "sessions",
+			operation: "new",
 			action: "created",
 			activeSessionId: "urn:refarm:session:v1:abc123def456",
 			session: {
@@ -155,6 +157,8 @@ describe("refarm sessions", () => {
 		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "sessions",
+			operation: "list",
 			activeSessionId: "urn:refarm:session:v1:newer",
 			sessions: [
 				{
@@ -322,6 +326,8 @@ describe("refarm sessions", () => {
 			.parseAsync(["abc123", "--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "sessions",
+			operation: "use",
 			action: "switched",
 			activeSessionId: "urn:refarm:session:v1:abc123def456",
 			session: {
@@ -362,6 +368,8 @@ describe("refarm sessions", () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "use",
 			action: "sessions",
 			ok: false,
 			error: "session-not-found",
@@ -382,6 +390,8 @@ describe("refarm sessions", () => {
 			.parseAsync(["--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "sessions",
+			operation: "clear",
 			action: "cleared",
 			activeSessionId: null,
 			cleared: true,
@@ -425,6 +435,8 @@ describe("refarm sessions", () => {
 			.parseAsync(["abc123", "--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "sessions",
+			operation: "show",
 			session: {
 				"@id": "urn:refarm:session:v1:abc123def456",
 				"@type": "Session",
@@ -476,6 +488,8 @@ describe("refarm sessions", () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "show",
 			action: "sessions",
 			ok: false,
 			error: "ambiguous-session-prefix",
@@ -520,6 +534,8 @@ describe("refarm sessions", () => {
 			.parseAsync(["parent", "--name", "experiment", "--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "sessions",
+			operation: "fork",
 			action: "forked",
 			activeSessionId: "urn:refarm:session:v1:fork123",
 			parentSessionId: "urn:refarm:session:v1:parent123",
@@ -564,6 +580,8 @@ describe("refarm sessions", () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "fork",
 			action: "sessions",
 			ok: false,
 			error: "session-not-found",
