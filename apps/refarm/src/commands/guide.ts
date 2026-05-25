@@ -27,6 +27,7 @@ interface GuideCheck {
 interface GuideReport {
   schemaVersion: 1;
   command: "guide";
+  operation: "audit";
   outputPath: string;
   ok: boolean;
   checks: GuideCheck[];
@@ -153,6 +154,7 @@ export const guideCommand = new Command("guide")
     const report: GuideReport = {
       schemaVersion: 1,
       command: "guide",
+      operation: "audit",
       outputPath: "refarm-audit.md",
       ok: nextActions.length === 0,
       checks,

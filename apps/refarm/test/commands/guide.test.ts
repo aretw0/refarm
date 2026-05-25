@@ -102,6 +102,7 @@ describe("guideCommand", () => {
     expect(mockWriteFileSync).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       command: string;
+      operation: string;
       outputPath: string;
       ok: boolean;
       checks: Array<{ id: string; ok: boolean; status: string; actionCommand?: string }>;
@@ -112,6 +113,7 @@ describe("guideCommand", () => {
     };
     expect(payload).toMatchObject({
       command: "guide",
+      operation: "audit",
       outputPath: "refarm-audit.md",
       ok: false,
     });
