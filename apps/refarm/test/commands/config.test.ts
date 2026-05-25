@@ -16,6 +16,13 @@ const EMPTY_JSON_HANDOFF = {
 	nextCommands: [],
 };
 
+function configIdentity(operation: string) {
+	return {
+		command: "config",
+		operation,
+	};
+}
+
 function configGetHandoff(key: string, local = false) {
 	const nextCommand = `refarm config get ${key} --json${local ? " --local" : ""}`;
 	return {
@@ -135,6 +142,7 @@ describe("config command", () => {
 		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("set"),
 			key: "runtime.autostart",
 			value: "always",
 			path: path.join(home, ".refarm", "config.json"),
@@ -152,6 +160,7 @@ describe("config command", () => {
 		);
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("set"),
 			key: "operator.openExternalLinks",
 			value: "never",
 			path: path.join(cwd, ".refarm", "config.json"),
@@ -168,6 +177,7 @@ describe("config command", () => {
 		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("set"),
 			key: "farmhand.autostart",
 			value: "always",
 			path: path.join(home, ".refarm", "config.json"),
@@ -214,6 +224,7 @@ describe("config command", () => {
 		);
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("unset"),
 			key: "operator.openExternalLinks",
 			path: path.join(cwd, ".refarm", "config.json"),
 			scope: "local",
@@ -230,6 +241,7 @@ describe("config command", () => {
 		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("unset"),
 			key: "tractor.engine",
 			path: path.join(home, ".refarm", "config.json"),
 			scope: "home",
@@ -310,8 +322,12 @@ describe("config command", () => {
 		await command().parseAsync(["--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
 			values: Array<{ key: string; value: string; source: string }>;
 		};
+		expect(payload.command).toBe("config");
+		expect(payload.operation).toBe("summary");
 		expect(payload.values).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
@@ -347,6 +363,7 @@ describe("config command", () => {
 		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("get"),
 			key: "runtime.autostart",
 			value: "never",
 			source: path.join(cwd, ".refarm", "config.json"),
@@ -362,6 +379,7 @@ describe("config command", () => {
 		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("get"),
 			key: "farmhand.autostart",
 			value: "ask",
 			source: "default",

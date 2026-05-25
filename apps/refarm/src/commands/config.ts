@@ -300,6 +300,8 @@ function printConfigValueJson(key: ConfigKey, opts: { local?: boolean }, deps: C
 	warnIgnoredConfigEnvOverrides();
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "config",
+			operation: "get",
 			extra: resolveConfigValue(key, opts, deps),
 		}),
 	);
@@ -340,6 +342,8 @@ function printConfigSummaryJson(deps: ConfigDeps): void {
 	warnIgnoredConfigEnvOverrides();
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "config",
+			operation: "summary",
 			extra: buildConfigSummary(deps),
 		}),
 	);
@@ -370,6 +374,8 @@ function printPersistedConfigValueJson(result: PersistedConfigValue): void {
 	const nextCommand = configGetCommand(result.key, { local: result.scope === "local" });
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "config",
+			operation: "set",
 			extra: result,
 			nextCommand,
 			nextCommands: [nextCommand],
@@ -393,6 +399,8 @@ function printUnsetConfigValueJson(result: UnsetConfigValue): void {
 	const nextCommand = configGetCommand(result.key, { local: result.scope === "local" });
 	printJson(
 		buildJsonSuccessEnvelope({
+			command: "config",
+			operation: "unset",
 			extra: result,
 			nextCommand,
 			nextCommands: [nextCommand],
