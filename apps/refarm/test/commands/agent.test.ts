@@ -135,10 +135,14 @@ describe("agent command", () => {
 			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
+			effects: string[];
+			writes: boolean;
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "plan",
+			effects: ["verify", "observe"],
+			writes: false,
 			nextCommand: "refarm tidy imports --check --json",
 			nextCommands: [
 				"refarm tidy imports --check --json",
@@ -259,8 +263,12 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			steps: { id: string; args: string[]; effect?: string }[];
+			effects: string[];
+			writes: boolean;
 		};
 		expect(payload.ok).toBe(true);
+		expect(payload.effects).toEqual(["write", "verify", "observe"]);
+		expect(payload.writes).toBe(true);
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports",
 			"tidy-imports-check",

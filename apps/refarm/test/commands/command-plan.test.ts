@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
+	commandPlanEffects,
 	commandPlanStepCommands,
+	commandPlanWrites,
 	runCommandPlan,
 	type CommandPlanStep,
 } from "../../src/commands/command-plan.js";
@@ -30,6 +32,8 @@ describe("command plan runner", () => {
 			"refarm first --json",
 			"refarm second --json",
 		]);
+		expect(commandPlanEffects(steps)).toEqual(["verify", "observe"]);
+		expect(commandPlanWrites(steps)).toBe(false);
 		expect(buildCommandPlanEnvelope({
 			action: "finish",
 			command: "agent",
@@ -40,6 +44,8 @@ describe("command plan runner", () => {
 			command: "agent",
 			operation: "finish",
 			ok: true,
+			effects: ["verify", "observe"],
+			writes: false,
 			nextAction: "refarm first --json",
 			nextCommand: "refarm first --json",
 			nextCommands: ["refarm first --json", "refarm second --json"],
@@ -96,6 +102,8 @@ describe("command plan runner", () => {
 			command: "agent",
 			operation: "finish",
 			ok: false,
+			effects: ["verify"],
+			writes: false,
 			nextAction: "refarm runtime start --wait",
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],

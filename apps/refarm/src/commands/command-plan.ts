@@ -41,11 +41,24 @@ export function commandPlanStepCommands(
 	return steps.map((step) => step.command);
 }
 
+export function commandPlanEffects(
+	steps: readonly CommandPlanStep[],
+): CommandPlanStep["effect"][] {
+	return Array.from(
+		new Set(steps.map((step) => step.effect).filter(Boolean)),
+	);
+}
+
+export function commandPlanWrites(steps: readonly CommandPlanStep[]): boolean {
+	return commandPlanEffects(steps).includes("write");
+}
+
 export function buildCommandPlanEnvelope(
 	context: CommandPlanEnvelopeContext,
 	steps: readonly CommandPlanStep[],
 ): object {
 	const nextCommands = commandPlanStepCommands(steps);
+	const effects = commandPlanEffects(steps);
 	return buildJsonSuccessEnvelope({
 		command: context.command,
 		operation: context.operation,
@@ -56,6 +69,8 @@ export function buildCommandPlanEnvelope(
 		extra: {
 			action: context.action,
 			status: "plan",
+			effects,
+			writes: effects.includes("write"),
 			steps,
 		},
 	});
@@ -68,6 +83,8 @@ export function buildCommandPlanRunEnvelope(
 	return {
 		action: context.action,
 		status: result.status,
+		effects: commandPlanEffects(result.steps),
+		writes: commandPlanWrites(result.steps),
 		steps: result.steps,
 		command: context.command,
 		operation: context.operation,

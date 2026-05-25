@@ -105,6 +105,9 @@ Each plan step declares an `effect`:
 - `verify` checks readiness without intentionally writing source;
 - `write` may modify source or local state and must stay opt-in.
 
+Plan and run envelopes also include top-level `effects` and `writes` fields so
+automation can reject write-capable plans without scanning every step.
+
 ## Live status affordances
 
 `apps/refarm` now publishes app-owned host status affordances from a local
