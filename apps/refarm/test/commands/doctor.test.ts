@@ -269,6 +269,23 @@ describe("doctorCommand", () => {
 			],
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: ["refarm runtime ensure --wait --next-command"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "The runtime reported that it is not ready.",
+					action:
+						"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+					command: "refarm runtime ensure --wait --next-command",
+				},
+				{
+					diagnostic: "trust:warnings-present",
+					severity: "warning",
+					summary: "Trust warnings are present.",
+					action:
+						"Inspect trust warnings and decide whether they should block this workflow.",
+				},
+			],
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
@@ -310,6 +327,23 @@ describe("doctorCommand", () => {
 			],
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: ["refarm runtime ensure --wait --next-command"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "The runtime reported that it is not ready.",
+					action:
+						"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+					command: "refarm runtime ensure --wait --next-command",
+				},
+				{
+					diagnostic: "trust:warnings-present",
+					severity: "warning",
+					summary: "Trust warnings are present.",
+					action:
+						"Inspect trust warnings and decide whether they should block this workflow.",
+				},
+			],
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

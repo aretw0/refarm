@@ -296,6 +296,15 @@ describe("checkCommand", () => {
 			nextActions: ["Add the build config."],
 			nextCommand: null,
 			nextCommands: [],
+			recommendations: [
+				{
+					issueType: "missing-build-config",
+					diagnostic: "missing-build-config",
+					summary: "A package is missing a build config.",
+					action: "Add the build config.",
+					target: "packages/example",
+				},
+			],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -356,6 +365,15 @@ describe("checkCommand", () => {
 			nextActions: ["Repair the runtime."],
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "Runtime is not ready.",
+					action: "Repair the runtime.",
+					command: "refarm runtime start --wait",
+				},
+			],
 		});
 		expect(process.exitCode).toBe(1);
 	});

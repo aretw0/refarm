@@ -107,6 +107,9 @@ function printRefarmCheckNextActionJson(report: RefarmCheckReport): void {
 		ok: report.ok,
 		nextActions: report.nextActions,
 		nextCommands: report.nextCommands,
+		recommendations: report.recommendations.filter(
+			(recommendation) => recommendation.severity !== "info",
+		),
 	});
 	printJson(output);
 }
