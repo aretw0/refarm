@@ -130,6 +130,13 @@ describe("sowCommand — default (no flags)", () => {
 			ok: boolean;
 			status: string;
 			prompts: string[];
+			handoffs: {
+				interactive: string;
+				inspectCurrent: string;
+				inspectProviders: string;
+				localNoKeyModel?: string;
+				openExternalLinks: string;
+			};
 			nextAction: string;
 			nextCommand: string;
 			nextCommands: string[];
@@ -146,6 +153,13 @@ describe("sowCommand — default (no flags)", () => {
 		expect(payload.nextCommands).toContain(
 			"refarm config get operator.openExternalLinks --json",
 		);
+		expect(payload.handoffs).toEqual({
+			interactive: "refarm sow",
+			inspectCurrent: "refarm model current --json",
+			inspectProviders: "refarm model providers --json",
+			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
+			openExternalLinks: "refarm config get operator.openExternalLinks --json",
+		});
 		expect(process.exitCode).toBe(1);
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).not.toHaveBeenCalled();
@@ -357,6 +371,7 @@ describe("sowCommand — --github flag", () => {
 		await sowCommand.parseAsync(["--github", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			handoffs: { localNoKeyModel?: string };
 			nextAction: string;
 			nextCommand: string;
 			nextCommands: string[];
@@ -365,6 +380,7 @@ describe("sowCommand — --github flag", () => {
 		expect(payload.nextCommand).toBe("refarm model current --json");
 		expect(payload.nextCommands).not.toContain("refarm sow --github");
 		expect(payload.nextCommands).toContain("refarm config get operator.openExternalLinks --json");
+		expect(payload.handoffs.localNoKeyModel).toBeUndefined();
 		expect(mockGithubCollect).not.toHaveBeenCalled();
 	});
 });

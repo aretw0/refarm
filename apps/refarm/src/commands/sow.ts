@@ -30,6 +30,7 @@ import {
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const MODEL_CURRENT_JSON_COMMAND = "refarm model current --json";
 const MODEL_PROVIDERS_JSON_COMMAND = "refarm model providers --json";
+const LOCAL_MODEL_JSON_COMMAND = `refarm sow --model ${OLLAMA_DEFAULT_REF} --json`;
 const CHECK_NEXT_ACTION_JSON_COMMAND = "refarm check --next-action --json";
 const OPERATOR_LINKS_CONFIG_COMMAND =
 	"refarm config get operator.openExternalLinks --json";
@@ -175,6 +176,13 @@ export const sowCommand = new Command("sow")
 							action: "sow",
 							status: "interactive-required",
 							prompts: interactivePrompts,
+							handoffs: {
+								interactive: nextAction,
+								inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
+								inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
+								openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
+								...(configureModel ? { localNoKeyModel: LOCAL_MODEL_JSON_COMMAND } : {}),
+							},
 						},
 					}),
 				);
