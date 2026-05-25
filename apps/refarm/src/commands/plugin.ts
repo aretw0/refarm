@@ -101,6 +101,9 @@ interface RuntimePluginStatusEntry {
 }
 
 interface RuntimePluginStatusReport {
+	command: "plugin";
+	operation: "status";
+	ok: boolean;
 	available: boolean;
 	plugins: RuntimePluginStatusEntry[];
 	nextAction?: string;
@@ -417,6 +420,9 @@ function buildRuntimePluginStatusReport(
 	if (!state) {
 		const recommendations = runtimePluginUnavailableRecommendations();
 		return {
+			command: "plugin",
+			operation: "status",
+			ok: false,
 			available: false,
 			plugins: [],
 			nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -440,7 +446,11 @@ function buildRuntimePluginStatusReport(
 	const known =
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
 	const piAgentInstalled = state.installed.includes(PI_AGENT_PLUGIN_ID);
+	const piAgentLoaded = state.loaded.includes(PI_AGENT_PLUGIN_ID);
 	return {
+		command: "plugin",
+		operation: "status",
+		ok: piAgentLoaded,
 		available: true,
 		plugins: known.map((id) => ({
 			id,
@@ -448,7 +458,7 @@ function buildRuntimePluginStatusReport(
 			loaded: state.loaded.includes(id),
 			local: state.local.includes(id),
 		})),
-		...(state.loaded.includes(PI_AGENT_PLUGIN_ID)
+		...(piAgentLoaded
 			? {}
 			: {
 					nextAction: piAgentInstalled
@@ -484,7 +494,7 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 	const report = buildRuntimePluginStatusReport(state);
 	if (options.json) {
 		printJson(report);
-		if (!report.available) process.exitCode = 1;
+		if (!report.ok) process.exitCode = 1;
 		return;
 	}
 

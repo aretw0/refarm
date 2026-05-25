@@ -439,6 +439,9 @@ describe("plugin status", () => {
 		await run("status", "--json");
 
 		const payload = JSON.parse(String(consoleSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
+			ok: boolean;
 			available: boolean;
 			plugins: Array<{
 				id: string;
@@ -450,6 +453,9 @@ describe("plugin status", () => {
 			nextCommand?: string;
 			nextCommands?: string[];
 		};
+		expect(payload.command).toBe("plugin");
+		expect(payload.operation).toBe("status");
+		expect(payload.ok).toBe(false);
 		expect(payload.available).toBe(true);
 		expect(payload.plugins).toEqual([
 			{
@@ -471,6 +477,7 @@ describe("plugin status", () => {
 			"refarm plugin reload @refarm/pi-agent --json",
 			"refarm plugin status --json",
 		]);
+		expect(process.exitCode).toBe(1);
 		consoleSpy.mockRestore();
 	});
 
@@ -558,6 +565,9 @@ describe("plugin status", () => {
 		await run("status", "--json");
 
 		const payload = JSON.parse(String(consoleSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
+			ok: boolean;
 			available: boolean;
 			nextAction?: string;
 			nextCommand?: string;
@@ -572,6 +582,9 @@ describe("plugin status", () => {
 			};
 		};
 		expect(payload).toMatchObject({
+			command: "plugin",
+			operation: "status",
+			ok: false,
 			available: false,
 			nextAction: "refarm doctor --next-action",
 			nextCommand: "refarm runtime ensure --wait --next-command",
