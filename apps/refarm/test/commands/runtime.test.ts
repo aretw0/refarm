@@ -357,8 +357,20 @@ describe("runtime command", () => {
 			ensured?: boolean;
 			started?: boolean;
 			ready?: boolean;
+			handoffs?: {
+				interactive?: string;
+				inspectCurrent?: string;
+				inspectProviders?: string;
+				localNoKeyModel?: string;
+				openExternalLinks?: string;
+			};
 			nextCommand?: string | null;
 			nextCommands?: string[];
+			recommendations?: {
+				diagnostic?: string;
+				command?: string;
+				severity?: string;
+			}[];
 			diagnostics?: { logPath?: string; logTail?: string[] };
 		};
 		expect(payload.ensured).toBe(false);
@@ -368,7 +380,22 @@ describe("runtime command", () => {
 		expect(payload.nextCommands).toEqual([
 			"refarm sow --json",
 			"refarm model current --json",
+			"refarm model providers --json",
 		]);
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-credentials-missing",
+				severity: "failure",
+				command: "refarm sow --json",
+			}),
+		]);
+		expect(payload.handoffs).toEqual({
+			interactive: "refarm sow",
+			inspectCurrent: "refarm model current --json",
+			inspectProviders: "refarm model providers --json",
+			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
+			openExternalLinks: "refarm config get operator.openExternalLinks --json",
+		});
 		expect(payload.diagnostics?.logPath).toBe(
 			join(repoRoot, ".refarm", "ts-runtime-start.log"),
 		);

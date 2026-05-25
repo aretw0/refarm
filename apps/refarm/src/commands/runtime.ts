@@ -5,6 +5,14 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, readFileSync } from "node:fs";
+import {
+	LOCAL_MODEL_JSON_COMMAND,
+	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_PROVIDERS_JSON_COMMAND,
+	OPERATOR_LINKS_CONFIG_COMMAND,
+	SOW_INTERACTIVE_COMMAND,
+	SOW_JSON_COMMAND,
+} from "./credential-handoffs.js";
 import { printJson } from "./json-output.js";
 import {
 	resolveRuntimeLaunchCommand,
@@ -53,6 +61,24 @@ const START_LOG_TAIL_LINES = 40;
 interface RuntimeStartDiagnostics {
 	logPath?: string;
 	logTail?: string[];
+}
+
+interface RuntimeDiagnosticRecovery {
+	nextCommands?: string[];
+	recommendations?: {
+		diagnostic: string;
+		severity: "failure" | "warning" | "info";
+		summary: string;
+		action: string;
+		command?: string;
+	}[];
+	handoffs?: {
+		interactive: string;
+		inspectCurrent: string;
+		inspectProviders: string;
+		localNoKeyModel: string;
+		openExternalLinks: string;
+	};
 }
 
 type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
@@ -146,17 +172,39 @@ function runtimeStartDiagnostics(
 	};
 }
 
-function runtimeStartDiagnosticNextCommands(
+function runtimeStartDiagnosticRecovery(
 	diagnostics?: RuntimeStartDiagnostics,
-): string[] | undefined {
+): RuntimeDiagnosticRecovery {
 	const logText = diagnostics?.logTail?.join("\n") ?? "";
 	if (
 		logText.includes("API_KEY is not set") ||
 		logText.includes("Configure keys with: refarm sow")
 	) {
-		return ["refarm sow --json", "refarm model current --json"];
+		return {
+			nextCommands: [
+				SOW_JSON_COMMAND,
+				MODEL_CURRENT_JSON_COMMAND,
+				MODEL_PROVIDERS_JSON_COMMAND,
+			],
+			recommendations: [
+				{
+					diagnostic: "model-credentials-missing",
+					severity: "failure",
+					summary: "The runtime startup log reports missing model credentials.",
+					action: "Inspect credential handoffs and configure a usable model route.",
+					command: SOW_JSON_COMMAND,
+				},
+			],
+			handoffs: {
+				interactive: SOW_INTERACTIVE_COMMAND,
+				inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
+				inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
+				localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
+				openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
+			},
+		};
 	}
-	return undefined;
+	return {};
 }
 
 function printRuntimeStatus(payload: RuntimeStatusPayload): void {
@@ -327,14 +375,16 @@ Notes:
 						const diagnostics = ready
 							? undefined
 							: runtimeStartDiagnostics(command);
-						const nextCommands = runtimeStartDiagnosticNextCommands(diagnostics);
+						const recovery = runtimeStartDiagnosticRecovery(diagnostics);
 						if (opts.nextCommand) {
 							const [nextCommand] = buildRuntimeJsonPayload({ ...payload, ready }, {
 								command,
 								ensured: ready,
 								started: true,
 								...(diagnostics ? { diagnostics } : {}),
-							}, nextCommands).nextCommands;
+								...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
+								...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
+							}, recovery.nextCommands).nextCommands;
 							if (nextCommand) console.log(nextCommand);
 							if (!ready) process.exitCode = 1;
 							return;
@@ -345,7 +395,9 @@ Notes:
 								ensured: ready,
 								started: true,
 								...(diagnostics ? { diagnostics } : {}),
-							}, runtimeStartDiagnosticNextCommands(diagnostics)));
+								...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
+								...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
+							}, recovery.nextCommands));
 							if (!ready) process.exitCode = 1;
 							return;
 						}
@@ -438,11 +490,14 @@ Notes:
 							const diagnostics = ready
 								? undefined
 								: runtimeStartDiagnostics(command);
+							const recovery = runtimeStartDiagnosticRecovery(diagnostics);
 							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
 								command,
 								started: true,
 								...(diagnostics ? { diagnostics } : {}),
-							}, runtimeStartDiagnosticNextCommands(diagnostics)));
+								...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
+								...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
+							}, recovery.nextCommands));
 							if (!ready) process.exitCode = 1;
 							return;
 						}
