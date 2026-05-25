@@ -382,7 +382,7 @@ describe("sowCommand — --github flag", () => {
 			nextCommands: string[];
 		};
 		expect(payload.nextAction).toBe("refarm sow --github");
-		expect(payload.nextCommand).toBe("refarm model current --json");
+		expect(payload.nextCommand).toBe("refarm config get operator.openExternalLinks --json");
 		expect(payload.nextCommands).not.toContain("refarm sow --github");
 		expect(payload.nextCommands).toContain("refarm config get operator.openExternalLinks --json");
 		expect(payload.handoffs.localNoKeyModel).toBeUndefined();
