@@ -93,10 +93,10 @@ describe("buildRefarmDoctorReport", () => {
 			}),
 		]);
 		expect(report.nextActions).toEqual([
-			"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			"Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 			"Inspect trust warnings and decide whether they should block this workflow.",
 		]);
-		expect(report.nextCommands).toEqual(["refarm runtime start --wait"]);
+		expect(report.nextCommands).toEqual(["refarm runtime ensure --wait"]);
 		expect(report.host.version).toBe("1.2.3");
 		expect(report.host.packageManager).toBe("pnpm");
 	});
@@ -125,8 +125,8 @@ describe("buildRefarmDoctorRecommendations", () => {
 				diagnostic: "runtime:not-ready",
 				severity: "failure",
 				summary: "The runtime reported that it is not ready.",
-				action: "Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
-				command: "refarm runtime start --wait",
+				action: "Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				command: "refarm runtime ensure --wait",
 			},
 			{
 				diagnostic: "plugins:rejected-surfaces-present",
@@ -242,7 +242,7 @@ describe("doctorCommand", () => {
 
 		expect(logSpy).toHaveBeenCalledOnce();
 		expect(logSpy).toHaveBeenCalledWith(
-			"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			"Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 		);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
@@ -262,13 +262,13 @@ describe("doctorCommand", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			ok: false,
 			nextAction:
-				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 			nextActions: [
-				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 				"Inspect trust warnings and decide whether they should block this workflow.",
 			],
-			nextCommand: "refarm runtime start --wait",
-			nextCommands: ["refarm runtime start --wait"],
+			nextCommand: "refarm runtime ensure --wait",
+			nextCommands: ["refarm runtime ensure --wait"],
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
@@ -284,7 +284,7 @@ describe("doctorCommand", () => {
 		await doctorCommand.parseAsync(["--next-command"], { from: "user" });
 
 		expect(logSpy).toHaveBeenCalledOnce();
-		expect(logSpy).toHaveBeenCalledWith("refarm runtime start --wait");
+		expect(logSpy).toHaveBeenCalledWith("refarm runtime ensure --wait");
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
@@ -303,13 +303,13 @@ describe("doctorCommand", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			ok: false,
 			nextAction:
-				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 			nextActions: [
-				"Run `refarm runtime status`, then `refarm runtime start --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait`; use `refarm config set runtime.autostart always` if this should be automatic.",
 				"Inspect trust warnings and decide whether they should block this workflow.",
 			],
-			nextCommand: "refarm runtime start --wait",
-			nextCommands: ["refarm runtime start --wait"],
+			nextCommand: "refarm runtime ensure --wait",
+			nextCommands: ["refarm runtime ensure --wait"],
 		});
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

@@ -19,8 +19,8 @@ import {
 	type RefarmRuntimeMetadata,
 } from "./runtime-metadata.js";
 import {
+	RUNTIME_ENSURE_WAIT_COMMAND,
 	RUNTIME_NOT_READY_RECOVERY_ACTION,
-	RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
@@ -122,7 +122,7 @@ function createRefarmDoctorRecommendation(
 				severity,
 				summary: "The runtime reported that it is not ready.",
 				action: RUNTIME_NOT_READY_RECOVERY_ACTION,
-				command: RUNTIME_START_WAIT_COMMAND,
+				command: RUNTIME_ENSURE_WAIT_COMMAND,
 			};
 		case REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {

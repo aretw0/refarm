@@ -106,9 +106,9 @@ describe("runtime command", () => {
 			activeEngine: "ts",
 			ready: false,
 			startCommand: "farmhand --background",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait",
 			nextCommands: [
-				"refarm runtime start --wait",
+				"refarm runtime ensure --wait",
 				"refarm doctor --next-command",
 			],
 		});
@@ -139,9 +139,9 @@ describe("runtime command", () => {
 			reason: "configured-ts",
 			ready: false,
 			startCommand: "farmhand --background",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait",
 			nextCommands: [
-				"refarm runtime start --wait",
+				"refarm runtime ensure --wait",
 				"refarm doctor --next-command",
 			],
 		});
@@ -170,7 +170,7 @@ describe("runtime command", () => {
 			nextCommand: "refarm config set tractor.engine auto",
 			nextCommands: [
 				"refarm config set tractor.engine auto",
-				"refarm runtime start --wait",
+				"refarm runtime ensure --wait",
 				"refarm doctor --next-command",
 			],
 		});
@@ -351,7 +351,7 @@ describe("runtime command", () => {
 		expect(payload.ensured).toBe(false);
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(false);
-		expect(payload.nextCommand).toBe("refarm runtime start --wait");
+		expect(payload.nextCommand).toBe("refarm runtime ensure --wait");
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
