@@ -18,6 +18,10 @@ function hasInteractiveSowCommand(value: string): boolean {
 		!/\brefarm sow --model\b/.test(value);
 }
 
+function hasPlaceholderCommand(value: string): boolean {
+	return /["'`][^"'`]*(?:nextCommand|nextCommands|actionCommand)?[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(value);
+}
+
 function propertyBlocks(source: string, property: string): string[] {
 	const blocks: string[] = [];
 	const pattern = new RegExp(`${property}\\s*:`, "g");
@@ -53,6 +57,18 @@ describe("JSON next command contract", () => {
 			return ["nextCommand", "nextCommands", "actionCommand"]
 				.flatMap((property) => propertyBlocks(source, property)
 					.filter(hasInteractiveSowCommand)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+		});
+
+		expect(violations).toEqual([]);
+	});
+
+	it("keeps placeholders out of executable handoffs", () => {
+		const violations = commandSourceFiles().flatMap((file) => {
+			const source = readFileSync(file, "utf8");
+			return ["nextCommand", "nextCommands", "actionCommand"]
+				.flatMap((property) => propertyBlocks(source, property)
+					.filter(hasPlaceholderCommand)
 					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
 		});
 
