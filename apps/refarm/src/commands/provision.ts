@@ -36,6 +36,7 @@ interface ProvisionCommandOptions {
 const PROVISION_SCHEMA_VERSION = 1;
 const DEFAULT_TURBO_CACHE_BUCKET = "refarm-turbo-cache";
 const DEFAULT_TURBO_CACHE_TEAM = "refarm";
+const SOW_CLOUDFLARE_JSON_COMMAND = "refarm sow --cloudflare --json";
 
 function optionIsEnabled(command: Command, name: string): boolean {
 	const opts = command.optsWithGlobals<Record<string, unknown>>();
@@ -151,8 +152,9 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 			"refarm sow --cloudflare",
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
-		nextCommand: "refarm provision cloudflare turbo-cache --dry-run",
+		nextCommand: SOW_CLOUDFLARE_JSON_COMMAND,
 		nextCommands: [
+			SOW_CLOUDFLARE_JSON_COMMAND,
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
 		extra: {
@@ -174,7 +176,7 @@ function buildTurboCacheFailurePayload(input: {
 	nextAction: string;
 }) {
 	const nextCommand = input.nextAction.startsWith("refarm sow")
-		? "refarm provision cloudflare turbo-cache --dry-run"
+		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
 	const nextCommands = Array.from(new Set([
 		nextCommand,
