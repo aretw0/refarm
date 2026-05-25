@@ -41,6 +41,7 @@ import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
@@ -488,10 +489,22 @@ function buildAskErrorPayload(message: string): {
 			nextCommands: [
 				"refarm plugin install",
 				PI_AGENT_RELOAD_JSON_COMMAND,
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_START_WAIT_COMMAND,
 				RUNTIME_DOCTOR_NEXT_COMMAND,
 			],
-			extra: { action: "ask" },
+			extra: {
+				action: "ask",
+				recommendations: [
+					{
+						diagnostic: "pi-agent-not-loaded",
+						severity: "failure",
+						summary: "The pi-agent plugin is not loaded in the runtime.",
+						action: "Install or reload pi-agent, then ensure the runtime is ready.",
+						command: PI_AGENT_RELOAD_JSON_COMMAND,
+					},
+				],
+			},
 		});
 	}
 	if (isSidecarUnavailable(message)) {
@@ -501,10 +514,29 @@ function buildAskErrorPayload(message: string): {
 			error: "runtime-unavailable",
 			message,
 			nextAction: RUNTIME_START_COMMAND,
-			nextActions: [RUNTIME_START_COMMAND, RUNTIME_DOCTOR_COMMAND],
-			nextCommand: RUNTIME_START_WAIT_COMMAND,
-			nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
-			extra: { action: "ask" },
+			nextActions: [
+				RUNTIME_START_COMMAND,
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				RUNTIME_DOCTOR_COMMAND,
+			],
+			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+			nextCommands: [
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				RUNTIME_START_WAIT_COMMAND,
+				RUNTIME_DOCTOR_NEXT_COMMAND,
+			],
+			extra: {
+				action: "ask",
+				recommendations: [
+					{
+						diagnostic: "runtime:unavailable",
+						severity: "failure",
+						summary: "The runtime sidecar is not reachable while submitting an ask.",
+						action: "Ensure the selected runtime is running before submitting again.",
+						command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+					},
+				],
+			},
 		});
 	}
 	if (isProviderError) {
@@ -669,6 +701,7 @@ async function ensurePiAgentReady(
 					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
 						? [PI_AGENT_RELOAD_JSON_COMMAND]
 						: ["refarm plugin install"]),
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_WAIT_COMMAND,
 					RUNTIME_DOCTOR_NEXT_COMMAND,
 				],
@@ -676,6 +709,17 @@ async function ensurePiAgentReady(
 					action: "ask",
 					installed: state.installed.includes(PI_AGENT_PLUGIN_ID),
 					known: state.known.includes(PI_AGENT_PLUGIN_ID),
+					recommendations: [
+						{
+							diagnostic: "pi-agent-not-loaded",
+							severity: "failure",
+							summary: "The pi-agent plugin is not loaded in the runtime.",
+							action: "Install or reload pi-agent, then ensure the runtime is ready.",
+							command: state.installed.includes(PI_AGENT_PLUGIN_ID)
+								? PI_AGENT_RELOAD_JSON_COMMAND
+								: "refarm plugin install",
+						},
+					],
 				},
 			}),
 		);

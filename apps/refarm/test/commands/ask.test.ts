@@ -323,6 +323,7 @@ describe("refarm ask", () => {
 			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
+			recommendations: { diagnostic: string; command: string }[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
@@ -415,6 +416,7 @@ describe("refarm ask", () => {
 			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
+			recommendations: { diagnostic: string; command: string }[];
 		};
 		expect(payload).toMatchObject({
 			ok: false,
@@ -423,8 +425,15 @@ describe("refarm ask", () => {
 			nextCommand: "refarm plugin reload @refarm/pi-agent --json",
 		});
 		expect(payload.nextActions).toContain("refarm runtime start");
+		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextCommands).toContain("refarm runtime start --wait");
 		expect(payload.nextCommands).toContain("refarm doctor --next-command");
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "pi-agent-not-loaded",
+				command: "refarm plugin reload @refarm/pi-agent --json",
+			}),
+		]);
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 
@@ -498,10 +507,17 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
 				"refarm runtime start --wait",
 				"refarm doctor --next-command",
+			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:unavailable",
+					command: "refarm runtime ensure --wait --next-command",
+				}),
 			],
 		});
 		expect(process.exitCode).toBe(1);
