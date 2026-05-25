@@ -2,6 +2,7 @@ import {
 	commandPayloadNextActions,
 	commandPayloadNextCommands,
 	commandPayloadOk,
+	commandPayloadRecommendations,
 } from "./command-result.js";
 import {
 	buildJsonSuccessEnvelope,
@@ -34,6 +35,7 @@ export interface CommandPlanRunResult {
 	failedCommand: string | null;
 	nextActions: string[];
 	nextCommands: string[];
+	recommendations: unknown[];
 }
 
 export interface CommandPlanStepSummary {
@@ -78,6 +80,7 @@ export interface CommandPlanRunEnvelope {
 	nextActions: string[];
 	nextCommand: string | null;
 	nextCommands: string[];
+	recommendations: unknown[];
 }
 
 export function commandPlanStepCommands(
@@ -145,6 +148,7 @@ export function buildCommandPlanRunEnvelope(
 		nextActions: result.nextActions,
 		nextCommand: result.nextCommands[0] ?? null,
 		nextCommands: result.nextCommands,
+		recommendations: result.recommendations,
 	};
 }
 
@@ -200,6 +204,7 @@ export function runCommandPlan(
 					commandPayloadNextCommands(result.payload) ?? [step.command],
 				nextCommands:
 					commandPayloadNextCommands(result.payload) ?? [step.command],
+				recommendations: commandPayloadRecommendations(result.payload) ?? [],
 			};
 		}
 	}
@@ -211,5 +216,6 @@ export function runCommandPlan(
 		failedCommand: null,
 		nextActions: [],
 		nextCommands: [],
+		recommendations: [],
 	};
 }

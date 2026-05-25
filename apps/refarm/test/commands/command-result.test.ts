@@ -3,6 +3,7 @@ import {
 	commandPayloadNextActions,
 	commandPayloadNextCommands,
 	commandPayloadOk,
+	commandPayloadRecommendations,
 	parseCommandJsonPayload,
 } from "../../src/commands/command-result.js";
 
@@ -18,6 +19,7 @@ describe("command result helpers", () => {
 			ok: false,
 			nextActions: ["Start runtime.", 1, "Inspect diagnostics."],
 			nextCommands: ["refarm runtime start --wait", null],
+			recommendations: [{ diagnostic: "runtime:not-ready" }],
 		};
 
 		expect(commandPayloadOk(payload)).toBe(false);
@@ -27,6 +29,9 @@ describe("command result helpers", () => {
 		]);
 		expect(commandPayloadNextCommands(payload)).toEqual([
 			"refarm runtime start --wait",
+		]);
+		expect(commandPayloadRecommendations(payload)).toEqual([
+			{ diagnostic: "runtime:not-ready" },
 		]);
 	});
 
@@ -58,6 +63,7 @@ describe("command result helpers", () => {
 		expect(commandPayloadOk({ ok: "false" })).toBeUndefined();
 		expect(commandPayloadNextActions({ nextActions: "start" })).toBeUndefined();
 		expect(commandPayloadNextCommands({ nextCommands: [] })).toBeUndefined();
+		expect(commandPayloadRecommendations({ recommendations: "fix it" })).toBeUndefined();
 		expect(commandPayloadNextCommands(null)).toBeUndefined();
 	});
 });

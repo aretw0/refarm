@@ -24,6 +24,12 @@ export function commandPayloadNextCommands(payload: unknown): string[] | undefin
 	return commandPayloadStringList(payload, "nextCommand", "nextCommands");
 }
 
+export function commandPayloadRecommendations(payload: unknown): unknown[] | undefined {
+	if (!payload || typeof payload !== "object") return undefined;
+	const value = (payload as Record<string, unknown>).recommendations;
+	return Array.isArray(value) ? value : undefined;
+}
+
 function commandPayloadStringList(
 	payload: unknown,
 	singularKey: "nextAction" | "nextCommand",

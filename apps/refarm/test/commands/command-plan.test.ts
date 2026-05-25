@@ -87,11 +87,13 @@ describe("command plan runner", () => {
 			stdout: JSON.stringify({
 				ok: false,
 				nextCommand: "refarm runtime start --wait",
+				recommendations: [{ diagnostic: "runtime:not-ready" }],
 			}),
 			stderr: "",
 			payload: {
 				ok: false,
 				nextCommand: "refarm runtime start --wait",
+				recommendations: [{ diagnostic: "runtime:not-ready" }],
 			},
 		}));
 
@@ -112,6 +114,7 @@ describe("command plan runner", () => {
 			nextAction: "refarm runtime start --wait",
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			recommendations: [{ diagnostic: "runtime:not-ready" }],
 			stepResults: [
 				{
 					id: "first",
@@ -122,6 +125,7 @@ describe("command plan runner", () => {
 					payload: {
 						ok: false,
 						nextCommand: "refarm runtime start --wait",
+						recommendations: [{ diagnostic: "runtime:not-ready" }],
 					},
 				},
 			],
@@ -231,6 +235,12 @@ describe("command plan runner", () => {
 				ok: false,
 				nextAction: "Start runtime.",
 				nextCommand: "refarm runtime start --wait",
+				recommendations: [
+					{
+						diagnostic: "runtime:not-ready",
+						command: "refarm runtime start --wait",
+					},
+				],
 			},
 		}));
 
@@ -241,6 +251,12 @@ describe("command plan runner", () => {
 			failedCommand: "refarm first --json",
 			nextActions: ["Start runtime."],
 			nextCommands: ["refarm runtime start --wait"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					command: "refarm runtime start --wait",
+				},
+			],
 			steps: [{ id: "first", ok: false }],
 		});
 		expect(runStep).toHaveBeenCalledTimes(1);
