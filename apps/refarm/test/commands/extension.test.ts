@@ -62,6 +62,9 @@ describe("extension command", () => {
 				.parseAsync(["my-tool", "--json"], { from: "user" });
 
 			const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+				command: string;
+				operation: string;
+				ok: boolean;
 				id: string;
 				slug: string;
 				name: string;
@@ -69,11 +72,15 @@ describe("extension command", () => {
 				dir: string;
 				scope: string;
 				indexPath: string;
+				nextAction: string;
 				nextActions: string[];
 				nextCommand: string;
 				nextCommands: string[];
 			};
 			expect(payload).toMatchObject({
+				command: "extension",
+				operation: "new",
+				ok: true,
 				id: "@local/my-tool",
 				slug: "my-tool",
 				name: "My Tool",
@@ -86,6 +93,7 @@ describe("extension command", () => {
 					"restart the Refarm runtime",
 					"inside refarm chat, run /reload @local/my-tool",
 				],
+				nextAction: "refarm plugin reload '@local/my-tool' --json",
 				nextCommand: "refarm plugin reload '@local/my-tool' --json",
 				nextCommands: [
 					"refarm plugin reload '@local/my-tool' --json",
@@ -127,6 +135,9 @@ describe("extension command", () => {
 			);
 
 			expect(buildExtensionListReport(cwd, home)).toMatchObject({
+				command: "extension",
+				operation: "list",
+				ok: true,
 				extensions: [
 					{
 						id: "@local/my-tool",
@@ -173,8 +184,14 @@ describe("extension command", () => {
 				.parseAsync(["--json"], { from: "user" });
 
 			const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+				command: string;
+				operation: string;
+				ok: boolean;
 				extensions: Array<{ id: string; scope: string }>;
 			};
+			expect(payload.command).toBe("extension");
+			expect(payload.operation).toBe("list");
+			expect(payload.ok).toBe(true);
 			expect(payload.extensions).toEqual([
 				expect.objectContaining({
 					id: "@local/my-tool",

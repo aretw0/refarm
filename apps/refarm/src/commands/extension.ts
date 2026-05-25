@@ -93,12 +93,19 @@ export interface ExtensionEntry {
 }
 
 export interface ExtensionListReport {
+  command: "extension";
+  operation: "list";
+  ok: true;
   extensions: ExtensionEntry[];
 }
 
 export interface CreatedExtensionReport extends ExtensionEntry {
+  command: "extension";
+  operation: "new";
+  ok: true;
   slug: string;
   indexPath: string;
+  nextAction: string;
   nextActions: string[];
   nextCommand?: string;
   nextCommands?: string[];
@@ -130,7 +137,12 @@ export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
 }
 
 export function buildExtensionListReport(cwd: string, homeDir: string): ExtensionListReport {
-  return { extensions: listExtensions(cwd, homeDir) };
+  return {
+    command: "extension",
+    operation: "list",
+    ok: true,
+    extensions: listExtensions(cwd, homeDir),
+  };
 }
 
 function printCreatedExtension(report: CreatedExtensionReport): void {
@@ -176,11 +188,15 @@ async function newExtension(
   const scope = isGlobal ? "global" : "project";
   const reloadCommand = extensionReloadCommand(name, true);
   const report: CreatedExtensionReport = {
+    command: "extension",
+    operation: "new",
+    ok: true,
     ...ext,
     slug: name,
     dir: extDir,
     scope,
     indexPath,
+    nextAction: reloadCommand,
     nextActions: [
       reloadCommand,
       "restart the Refarm runtime",
@@ -251,6 +267,8 @@ async function saveExtension(
     if (options.json) {
       printJson(
         buildJsonErrorEnvelope({
+          command: "extension",
+          operation: "save",
           error: "extension-not-found",
           nextAction: EXTENSION_LIST_JSON_COMMAND,
           nextCommand: EXTENSION_LIST_JSON_COMMAND,
