@@ -10,6 +10,7 @@ import type { LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
+	type PackageManagerName,
 } from "./package-manager.js";
 
 export interface TidyImportsOptions {
@@ -37,6 +38,7 @@ export interface TidyImportsPlan {
 	action: "imports";
 	check: boolean;
 	files: string[];
+	packageManager: PackageManagerName | null;
 	processCommand: string;
 	processArgs: string[];
 	display: string;
@@ -73,6 +75,7 @@ function buildTidyImportsPlan(
 		action: "imports",
 		check: options.check === true,
 		files,
+		packageManager: spec.packageManager ?? null,
 		processCommand: spec.command,
 		processArgs: spec.args,
 		display: spec.display,

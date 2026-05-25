@@ -34,6 +34,7 @@ describe("resolveTidyImportsSpec", () => {
 				files: ["apps/refarm/src/program.ts"],
 			}),
 		).toEqual({
+			packageManager: "pnpm",
 			command: "pnpm",
 			args: [
 				"-C",
@@ -85,6 +86,7 @@ describe("tidyCommand", () => {
 			action: "imports",
 			check: true,
 			files: ["apps/refarm/src/program.ts"],
+			packageManager: "pnpm",
 			processCommand: "pnpm",
 			processArgs: [
 				"-C",

@@ -21,6 +21,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
 			}),
 		).toEqual({
+			packageManager: "npm",
 			command: "npm",
 			args: ["--prefix", "apps/dev", "run", "dev"],
 			display: "npm --prefix apps/dev run dev",
@@ -37,6 +38,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "pip" },
 			}),
 		).toEqual({
+			packageManager: "pnpm",
 			command: "pnpm",
 			args: ["-C", "apps/dev", "run", "dev"],
 			display: "pnpm -C apps/dev run dev",
@@ -80,6 +82,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "bun" },
 			}),
 		).toEqual({
+			packageManager: "bun",
 			command: "bun",
 			args: ["--cwd", "apps/dev", "run", "preview"],
 			display: "bun --cwd apps/dev run preview",
@@ -95,6 +98,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
 			}),
 		).toEqual({
+			packageManager: "npm",
 			command: "npm",
 			args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
 			display: "npm --prefix . run imports:organize -- --check",
@@ -107,6 +111,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
 			}),
 		).toEqual({
+			packageManager: "npm",
 			command: "npm",
 			args: ["exec", "--", "jco", "transpile", "plugin.wasm"],
 			display: "npm exec -- jco transpile plugin.wasm",
@@ -117,6 +122,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "yarn" },
 			}),
 		).toEqual({
+			packageManager: "yarn",
 			command: "yarn",
 			args: ["jco", "transpile", "plugin.wasm"],
 			display: "yarn jco transpile plugin.wasm",
@@ -127,6 +133,7 @@ describe("package manager command resolution", () => {
 				env: { REFARM_PACKAGE_MANAGER: "bun" },
 			}),
 		).toEqual({
+			packageManager: "bun",
 			command: "bun",
 			args: ["x", "jco", "transpile", "plugin.wasm"],
 			display: "bun x jco transpile plugin.wasm",

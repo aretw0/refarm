@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { splitCommandLine } from "@refarm.dev/cli/command-line";
+import type { PackageManagerName } from "./package-manager.js";
 
 export interface LaunchProcessSpec {
+	packageManager?: PackageManagerName;
 	command: string;
 	args: string[];
 	display: string;

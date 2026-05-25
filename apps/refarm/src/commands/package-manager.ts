@@ -41,6 +41,7 @@ export function createPackageScriptCommand(
 	warnInvalidPackageManagerOverride(options.env);
 	const command = createSharedPackageScriptCommand(options);
 	return {
+		packageManager: command.packageManager,
 		command: command.command,
 		args: command.args,
 		display: command.display,
@@ -58,6 +59,7 @@ export function createPackageBinaryCommand(
 	warnInvalidPackageManagerOverride(options.env);
 	const command = createSharedPackageBinaryCommand(binary, args, options);
 	return {
+		packageManager: command.packageManager,
 		command: command.command,
 		args: command.args,
 		display: command.display,

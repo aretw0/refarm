@@ -670,6 +670,8 @@ describe("plugin bundle", () => {
 			ok: boolean;
 			dryRun: boolean;
 			bundleCommand: string;
+			packageManager: string;
+			packageManagerCommand: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
@@ -680,6 +682,8 @@ describe("plugin bundle", () => {
 			dryRun: true,
 			bundleCommand:
 				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
+			packageManager: "pnpm",
+			packageManagerCommand: "pnpm",
 			nextCommand:
 				"refarm plugin bundle 'my plugin.wasm' -o './out dir' --name 'my plugin'",
 		});
@@ -749,6 +753,8 @@ describe("plugin bundle", () => {
 			ok: boolean;
 			error: string;
 			message: string;
+			packageManager: string;
+			packageManagerCommand: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
@@ -756,6 +762,8 @@ describe("plugin bundle", () => {
 			ok: false,
 			error: "plugin-bundle-failed",
 			message: "jco not found",
+			packageManager: "pnpm",
+			packageManagerCommand: "pnpm",
 			nextCommand:
 				"refarm plugin bundle 'bad-plugin.wasm' -o './dist' --name 'bad-plugin'",
 		});
