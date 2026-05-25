@@ -65,7 +65,7 @@ describe("assertLaunchAllowed", () => {
 			readyToExecute: false,
 			failures: ["runtime:not-ready"],
 			recoveryCommands: [
-				"refarm runtime start --wait",
+				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 		});
@@ -80,7 +80,7 @@ describe("assertLaunchAllowed", () => {
 	it("throws when status includes launch-blocking diagnostics", () => {
 		const status = makeStatus({ diagnostics: ["runtime:not-ready"] });
 		expect(() => assertLaunchAllowed(status, "web runtime")).toThrow(
-			/Cannot launch web runtime due status failures: runtime:not-ready\. Run `refarm runtime status`, then `refarm runtime start --wait`\./,
+			/Cannot launch web runtime due status failures: runtime:not-ready\. Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`\./,
 		);
 	});
 

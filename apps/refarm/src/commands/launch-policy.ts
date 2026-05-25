@@ -7,8 +7,8 @@ import { InvalidArgumentError } from "commander";
 import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_NOT_READY_LAUNCH_HINT,
-	RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
 
 export function resolveLaunchMode<TMode extends string>(
@@ -50,7 +50,7 @@ export function resolveLaunchReadiness(
 		failures: diagnostics.failures,
 		blockedReason: `Cannot launch ${target} due status failures: ${diagnostics.failures.join(", ")}.${recoveryHint}`,
 		recoveryCommands: runtimeNotReady
-			? [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND]
+			? [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND]
 			: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
 	};
 }

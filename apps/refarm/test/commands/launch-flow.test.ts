@@ -187,10 +187,10 @@ describe("executeRendererLaunchFlow", () => {
 			launchReady: false,
 			launchFailures: ["runtime:not-ready"],
 			nextAction:
-				"Cannot launch web runtime due status failures: runtime:not-ready. Run `refarm runtime status`, then `refarm runtime start --wait`.",
-			nextCommand: "refarm runtime start --wait",
+				"Cannot launch web runtime due status failures: runtime:not-ready. Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`.",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
-				"refarm runtime start --wait",
+				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 			launchCommand: "runner dev",
