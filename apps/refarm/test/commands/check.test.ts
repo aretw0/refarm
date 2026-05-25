@@ -129,6 +129,8 @@ describe("buildRefarmCheckReport", () => {
 			}),
 		});
 
+		expect(report.command).toBe("check");
+		expect(report.operation).toBe("readiness");
 		expect(report.ok).toBe(false);
 		expect(report.failureCount).toBe(3);
 		expect(report.warningCount).toBe(1);
@@ -184,6 +186,8 @@ describe("checkCommand", () => {
 		expect(deps.runDoctor).toHaveBeenCalledWith({ failOnWarnings: undefined });
 		expect(process.exitCode).toBeUndefined();
 		const output = String(logSpy.mock.calls[0]?.[0]);
+		expect(output).toContain('"command": "check"');
+		expect(output).toContain('"operation": "readiness"');
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');

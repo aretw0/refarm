@@ -15,6 +15,8 @@ import { printJson } from "./json-output.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmCheckReport {
+	command: "check";
+	operation: "readiness";
 	ok: boolean;
 	failureCount: number;
 	warningCount: number;
@@ -64,6 +66,8 @@ export function buildRefarmCheckReport(checks: {
 	const nextActions = diagnosticNextActions(recommendations);
 	const nextCommands = diagnosticNextCommands(recommendations);
 	return {
+		command: "check",
+		operation: "readiness",
 		ok: checks.health.ok && checks.doctor.ok,
 		failureCount,
 		warningCount: checks.doctor.warningCount,
