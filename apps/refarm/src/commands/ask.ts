@@ -613,6 +613,7 @@ function printMissingModelCredentials(json: boolean): void {
 					MODEL_PROVIDERS_JSON_COMMAND,
 					MODEL_CURRENT_JSON_COMMAND,
 					SOW_JSON_COMMAND,
+					LOCAL_MODEL_JSON_COMMAND,
 					"ollama serve",
 				],
 				extra: {

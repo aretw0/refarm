@@ -342,6 +342,9 @@ describe("refarm ask", () => {
 		expect(payload.nextActions).toContain("refarm model current --json");
 		expect(payload.nextCommands).not.toContain("refarm sow");
 		expect(payload.nextCommands).toContain("refarm sow --json");
+		expect(payload.nextCommands).toContain(
+			"refarm sow --model ollama/llama3.2 --json",
+		);
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
