@@ -47,18 +47,30 @@ export function diagnosticNextCommands(
 	return commands;
 }
 
+function normalizeDiagnosticHandoffs(values: string[]): string[] {
+	return Array.from(
+		new Set(
+			values
+				.map((value) => value.trim())
+				.filter((value) => value.length > 0),
+		),
+	);
+}
+
 export function buildDiagnosticNextActionPayload<TExtra extends object = object>(
 	input: { ok: boolean; nextActions: string[]; nextCommands?: string[] } & TExtra,
 ): DiagnosticNextActionPayload<TExtra> & TExtra {
-	const [nextAction] = input.nextActions;
-	const [nextCommand] = input.nextCommands ?? [];
 	const { ok, nextActions, nextCommands, ...extra } = input;
+	const resolvedNextActions = normalizeDiagnosticHandoffs(nextActions);
+	const resolvedNextCommands = normalizeDiagnosticHandoffs(nextCommands ?? []);
+	const [nextAction] = resolvedNextActions;
+	const [nextCommand] = resolvedNextCommands;
 	return {
 		ok,
 		nextAction: nextAction ?? null,
-		nextActions,
+		nextActions: resolvedNextActions,
 		nextCommand: nextCommand ?? null,
-		nextCommands: nextCommands ?? [],
+		nextCommands: resolvedNextCommands,
 		...(extra as TExtra),
 	};
 }

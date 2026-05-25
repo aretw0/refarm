@@ -63,8 +63,17 @@ describe("diagnostic recommendations", () => {
 		expect(
 			buildDiagnosticNextActionPayload({
 				ok: false,
-				nextActions: ["Start runtime.", "Inspect trust."],
-				nextCommands: ["refarm runtime start --wait"],
+				nextActions: [
+					" Start runtime. ",
+					"Inspect trust.",
+					"Start runtime.",
+					"",
+				],
+				nextCommands: [
+					" refarm runtime start --wait ",
+					"refarm runtime start --wait",
+					"  ",
+				],
 				strict: { enabled: true, passed: false },
 			}),
 		).toEqual({
