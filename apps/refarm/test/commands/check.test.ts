@@ -9,6 +9,8 @@ import type { HealthReport } from "../../src/commands/health.js";
 
 function makeHealthReport(overrides: Partial<HealthReport> = {}): HealthReport {
 	return {
+		command: "health",
+		operation: "audit",
 		ok: true,
 		issueCount: 0,
 		results: {
@@ -18,7 +20,9 @@ function makeHealthReport(overrides: Partial<HealthReport> = {}): HealthReport {
 		},
 		resolution: [],
 		recommendations: [],
+		nextAction: null,
 		nextActions: [],
+		nextCommand: null,
 		...overrides,
 		nextCommands: overrides.nextCommands ?? [],
 	};

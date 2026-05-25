@@ -40,12 +40,16 @@ export interface ResolutionStatus {
 }
 
 export interface HealthReport {
+  command: "health";
+  operation: "audit";
   ok: boolean;
   issueCount: number;
   results: HealthResults;
   resolution: ResolutionStatus[];
   recommendations: HealthRecommendation[];
+  nextAction: string | null;
   nextActions: string[];
+  nextCommand: string | null;
   nextCommands: string[];
 }
 
@@ -86,14 +90,20 @@ export function buildHealthReport(
 ): HealthReport {
   const issueCount = results.git.length + results.builds.length + results.alignment.length;
   const recommendations = buildHealthRecommendations(results);
+  const nextActions = diagnosticNextActions(recommendations);
+  const nextCommands = diagnosticNextCommands(recommendations);
   return {
+    command: "health",
+    operation: "audit",
     ok: issueCount === 0,
     issueCount,
     results,
     resolution,
     recommendations,
-    nextActions: diagnosticNextActions(recommendations),
-    nextCommands: diagnosticNextCommands(recommendations),
+    nextAction: nextActions[0] ?? null,
+    nextActions,
+    nextCommand: nextCommands[0] ?? null,
+    nextCommands,
   };
 }
 

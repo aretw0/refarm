@@ -210,10 +210,14 @@ describe("healthCommand", () => {
     await healthCommand.parseAsync(["--json"], { from: "user" });
 
     const output = String(logSpy.mock.calls[0]?.[0]);
+    expect(output).toContain('"command": "health"');
+    expect(output).toContain('"operation": "audit"');
     expect(output).toContain('"ok": true');
     expect(output).toContain('"issueCount": 0');
+    expect(output).toContain('"nextAction": null');
     expect(output).toContain('"recommendations"');
     expect(output).toContain('"nextActions"');
+    expect(output).toContain('"nextCommand": null');
     expect(output).toContain('"nextCommands"');
     expect(output).toContain('"resolution"');
     logSpy.mockRestore();
