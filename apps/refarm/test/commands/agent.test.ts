@@ -96,6 +96,8 @@ describe("agent command", () => {
 				tidyCheck: string;
 				finishPlanCommand: string;
 				finishRunCommand: string;
+				finishFixPlanCommand: string;
+				finishFixRunCommand: string;
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -131,6 +133,8 @@ describe("agent command", () => {
 				tidyCheck: "refarm tidy imports --check --json",
 				finishPlanCommand: "refarm agent finish --next-command",
 				finishRunCommand: "refarm agent finish --run --next-command",
+				finishFixPlanCommand: "refarm agent finish --fix --next-command",
+				finishFixRunCommand: "refarm agent finish --fix --run --next-command",
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",
@@ -139,6 +143,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
 			"refarm runtime ensure --wait --next-command",
@@ -146,6 +151,7 @@ describe("agent command", () => {
 			"refarm sow --model ollama/llama3.2 --json",
 			"refarm model current --json",
 			"refarm agent finish --next-command",
+			"refarm agent finish --fix --next-command",
 		]);
 		logSpy.mockRestore();
 	});

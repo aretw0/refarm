@@ -66,6 +66,8 @@ const agentRuntimePlan = {
 		tidyCheck: "refarm tidy imports --check --json",
 		finishPlanCommand: "refarm agent finish --next-command",
 		finishRunCommand: "refarm agent finish --run --next-command",
+		finishFixPlanCommand: "refarm agent finish --fix --next-command",
+		finishFixRunCommand: "refarm agent finish --fix --run --next-command",
 	},
 };
 
@@ -253,6 +255,7 @@ Notes:
 						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
 						"refarm agent finish --next-command",
+						"refarm agent finish --fix --next-command",
 					],
 					nextCommands: [
 						"refarm check --next-command",
@@ -261,6 +264,7 @@ Notes:
 						LOCAL_MODEL_JSON_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,
 						"refarm agent finish --next-command",
+						"refarm agent finish --fix --next-command",
 					],
 					extra: {
 						action: "agent",
