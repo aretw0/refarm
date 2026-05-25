@@ -41,10 +41,18 @@ describe("sidecar-error", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
 				"refarm runtime start --wait",
 				"refarm doctor --next-command",
+			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:unavailable",
+					severity: "failure",
+					command: "refarm runtime ensure --wait --next-command",
+				}),
 			],
 		});
 	});
@@ -56,6 +64,13 @@ describe("sidecar-error", () => {
 			nextAction: "refarm doctor --next-action",
 			nextCommand: "refarm doctor --next-command",
 			nextCommands: ["refarm doctor --next-command"],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:request-failed",
+					severity: "failure",
+					command: "refarm doctor --next-command",
+				}),
+			],
 		});
 	});
 });

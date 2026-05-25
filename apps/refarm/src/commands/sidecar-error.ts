@@ -6,6 +6,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
@@ -44,13 +45,29 @@ export function buildSidecarErrorPayload(
 			nextActions: [
 				RUNTIME_STATUS_COMMAND,
 				RUNTIME_START_COMMAND,
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 				RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 				RUNTIME_ENGINE_AUTO_COMMAND,
 			],
-			nextCommand: RUNTIME_START_WAIT_COMMAND,
-			nextCommands: [RUNTIME_START_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
+			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+			nextCommands: [
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				RUNTIME_START_WAIT_COMMAND,
+				RUNTIME_DOCTOR_NEXT_COMMAND,
+			],
+			extra: {
+				recommendations: [
+					{
+						diagnostic: "runtime:unavailable",
+						severity: "failure",
+						summary: "The local runtime sidecar is not reachable.",
+						action: "Ensure the selected runtime is running and inspect the next recovery command.",
+						command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+					},
+				],
+			},
 		});
 	}
 	return buildJsonErrorEnvelope({
@@ -61,6 +78,17 @@ export function buildSidecarErrorPayload(
 		nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_DOCTOR_COMMAND],
 		nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 		nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND],
+		extra: {
+			recommendations: [
+				{
+					diagnostic: "runtime:request-failed",
+					severity: "failure",
+					summary: "A request to the local runtime failed.",
+					action: "Run doctor to inspect runtime readiness and policy diagnostics.",
+					command: RUNTIME_DOCTOR_NEXT_COMMAND,
+				},
+			],
+		},
 	});
 }
 

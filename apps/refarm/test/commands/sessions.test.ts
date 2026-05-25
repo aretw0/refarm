@@ -235,7 +235,18 @@ describe("refarm sessions", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:unavailable",
+					command: "refarm runtime ensure --wait --next-command",
+				}),
+			],
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -603,7 +614,18 @@ describe("refarm sessions", () => {
 			ok: false,
 			error: "runtime-unavailable",
 			nextAction: "refarm runtime start",
-			nextCommand: "refarm runtime start --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:unavailable",
+					command: "refarm runtime ensure --wait --next-command",
+				}),
+			],
 		});
 		expect(process.exitCode).toBe(1);
 	});
