@@ -153,6 +153,9 @@ describe("sowCommand — default (no flags)", () => {
 		expect(payload.nextCommands).toContain(
 			"refarm config get operator.openExternalLinks --json",
 		);
+		expect(payload.nextCommands).toContain(
+			"refarm sow --model ollama/llama3.2 --json",
+		);
 		expect(payload.handoffs).toEqual({
 			interactive: "refarm sow",
 			inspectCurrent: "refarm model current --json",

@@ -158,6 +158,7 @@ export const sowCommand = new Command("sow")
 				const nextCommands = [
 					...(configureModel ? [MODEL_PROVIDERS_JSON_COMMAND] : []),
 					MODEL_CURRENT_JSON_COMMAND,
+					...(configureModel ? [LOCAL_MODEL_JSON_COMMAND] : []),
 					OPERATOR_LINKS_CONFIG_COMMAND,
 				];
 				printJson(
