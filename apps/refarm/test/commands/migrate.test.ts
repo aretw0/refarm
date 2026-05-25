@@ -136,12 +136,14 @@ describe("migrateCommand", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       ok: boolean;
+      operation: string;
       status: string;
       nextCommand: string;
       nextCommands: string[];
     };
     expect(payload).toMatchObject({
       ok: true,
+      operation: "mirror",
       status: "success",
       nextAction: "git ls-remote 'https://github.com/user/fork.git' HEAD",
       nextCommand: "git ls-remote 'https://github.com/user/fork.git' HEAD",
@@ -199,6 +201,8 @@ describe("migrateCommand", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       ok: boolean;
+      error: string;
+      operation: string;
       status: string;
       nextAction: string;
       nextCommand: string;
@@ -206,6 +210,8 @@ describe("migrateCommand", () => {
     };
     expect(payload).toMatchObject({
       ok: false,
+      error: "migrate-failed",
+      operation: "mirror",
       status: "failure",
       nextAction:
         "refarm migrate --target 'https://github.com/user/fork.git' --dry-run",

@@ -6,7 +6,11 @@ import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { joinCommand, quoteCommandArg, refarmCommand } from "./command-handoff.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+    buildJsonErrorEnvelope,
+    buildJsonSuccessEnvelope,
+    printJson,
+} from "./json-output.js";
 
 interface MigrateConfig {
 	brand?: { slug?: string; urls?: { repository?: string } };
@@ -207,21 +211,42 @@ export const migrateCommand = new Command("migrate")
             dryRun: options.dryRun === true,
             ok,
         });
-        printJson({
-            schemaVersion: MIGRATE_SCHEMA_VERSION,
-            command: "migrate",
-            operation: "mirror",
-            dryRun: options.dryRun === true,
-            ok,
-            status: result.status,
-            sourceUrl: config.brand.urls.repository,
-            targetUrl: resolvedTargetUrl,
-            result,
-            nextAction: nextCommands[0] ?? null,
-            nextActions: nextCommands,
-            nextCommand: nextCommands[0] ?? null,
-            nextCommands,
-        });
+        const jsonEnvelope = ok
+            ? buildJsonSuccessEnvelope({
+                command: "migrate",
+                operation: "mirror",
+                nextAction: nextCommands[0] ?? null,
+                nextActions: nextCommands,
+                nextCommand: nextCommands[0] ?? null,
+                nextCommands,
+                extra: {
+                    schemaVersion: MIGRATE_SCHEMA_VERSION,
+                    dryRun: options.dryRun === true,
+                    status: result.status,
+                    sourceUrl: config.brand.urls.repository,
+                    targetUrl: resolvedTargetUrl,
+                    result,
+                },
+            })
+            : buildJsonErrorEnvelope({
+                command: "migrate",
+                operation: "mirror",
+                error: "migrate-failed",
+                message: result.message,
+                nextAction: nextCommands[0] ?? migrateDryRunCommand(resolvedTargetUrl),
+                nextActions: nextCommands,
+                nextCommand: nextCommands[0] ?? migrateDryRunCommand(resolvedTargetUrl),
+                nextCommands,
+                extra: {
+                    schemaVersion: MIGRATE_SCHEMA_VERSION,
+                    dryRun: options.dryRun === true,
+                    status: result.status,
+                    sourceUrl: config.brand.urls.repository,
+                    targetUrl: resolvedTargetUrl,
+                    result,
+                },
+            });
+        printJson(jsonEnvelope);
         if (!ok) process.exitCode = 1;
         return;
     }
