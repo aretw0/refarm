@@ -157,12 +157,21 @@ describe("refarm telemetry", () => {
 		);
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
+			ok?: boolean;
 			diagnostics?: string[];
 			recommendations?: Array<{ diagnostic: string }>;
+			nextAction?: string | null;
 			nextActions?: string[];
 			nextCommand?: string | null;
 			nextCommands?: string[];
 		};
+		expect(payload).toMatchObject({
+			command: "telemetry",
+			operation: "snapshot",
+			ok: false,
+		});
 		expect(payload.diagnostics).toContain("saturation:queue");
 		expect(payload.diagnostics).toContain("saturation:inflight");
 		expect(payload.diagnostics).toContain("reliability:failures-present");
@@ -176,6 +185,7 @@ describe("refarm telemetry", () => {
 		expect(payload.nextActions?.[0]).toBe(
 			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
 		);
+		expect(payload.nextAction).toBe(payload.nextActions?.[0]);
 		expect(payload.nextCommand).toBe("refarm task list --json");
 		expect(payload.nextCommands).toContain("refarm task list --json");
 	});

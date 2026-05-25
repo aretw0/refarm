@@ -390,6 +390,9 @@ Notes:
 				const nextCommands = diagnosticNextCommands(recommendations);
 
 				const payload = {
+					command: "telemetry",
+					operation: "snapshot",
+					ok: diagnostics.length === 0,
 					snapshot,
 					window,
 					thresholds: {
@@ -399,6 +402,7 @@ Notes:
 					},
 					diagnostics,
 					recommendations,
+					nextAction: nextActions[0] ?? null,
 					nextActions,
 					nextCommand: nextCommands[0] ?? null,
 					nextCommands,
