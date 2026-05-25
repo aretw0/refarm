@@ -250,12 +250,21 @@ export function printCurrentModelJson(tokens: ModelTokens): void {
 	printJson(
 		buildJsonSuccessEnvelope({
 			extra: status,
+			nextActions: currentModelNextActions(status),
 			nextCommands: currentModelNextCommands(status),
 		}),
 	);
 }
 
+function currentModelNextActions(status: CurrentModelStatus): string[] {
+	return currentModelRecoveryCommands(status);
+}
+
 function currentModelNextCommands(status: CurrentModelStatus): string[] {
+	return currentModelRecoveryCommands(status);
+}
+
+function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 	if (status.credential.state === "missing") {
 		return [
 			SOW_JSON_COMMAND,

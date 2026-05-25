@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { printCurrentModel } from "./model.js";
+import { printCurrentModel, printCurrentModelJson } from "./model.js";
 
 function captureCurrentModel(tokens = {}): string {
 	const lines: string[] = [];
@@ -9,6 +9,19 @@ function captureCurrentModel(tokens = {}): string {
 	try {
 		printCurrentModel(tokens);
 		return lines.join("\n");
+	} finally {
+		log.mockRestore();
+	}
+}
+
+function captureCurrentModelJson(tokens = {}): Record<string, unknown> {
+	const lines: string[] = [];
+	const log = vi.spyOn(console, "log").mockImplementation((line = "") => {
+		lines.push(String(line));
+	});
+	try {
+		printCurrentModelJson(tokens);
+		return JSON.parse(lines.join("\n")) as Record<string, unknown>;
 	} finally {
 		log.mockRestore();
 	}
@@ -34,6 +47,22 @@ describe("printCurrentModel", () => {
 		expect(output).toContain("key:      missing (run refarm sow)");
 		expect(output).toContain("source:   built-in defaults");
 		expect(output).toContain("login:          refarm sow");
+	});
+
+	it("prints credential recovery actions in JSON when credentials are missing", () => {
+		const payload = captureCurrentModelJson() as {
+			ok: boolean;
+			nextAction: string;
+			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
+		};
+
+		expect(payload.ok).toBe(true);
+		expect(payload.nextAction).toBe("refarm sow --json");
+		expect(payload.nextActions).toContain("refarm model providers --json");
+		expect(payload.nextCommand).toBe("refarm sow --json");
+		expect(payload.nextCommands).toContain("refarm model providers --json");
 	});
 
 	it("marks environment overrides as the active source", () => {
