@@ -84,7 +84,7 @@ export const sowCommand = new Command("sow")
 							error: "empty-model",
 							message: "--model cannot be empty.",
 							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
-							nextCommand: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							nextCommand: LOCAL_MODEL_JSON_COMMAND,
 							extra: { action: "sow" },
 						}),
 					);
@@ -102,7 +102,7 @@ export const sowCommand = new Command("sow")
 							error: "model-provider-required",
 							message: `Could not infer provider for model "${initialModelRef.modelId}".`,
 							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
-							nextCommand: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							nextCommand: LOCAL_MODEL_JSON_COMMAND,
 							extra: {
 								action: "sow",
 								modelId: initialModelRef.modelId,

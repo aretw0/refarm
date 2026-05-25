@@ -183,6 +183,56 @@ describe("sowCommand — default (no flags)", () => {
 		expect(mockSaveTokens).not.toHaveBeenCalled();
 	});
 
+	it("prints empty model recovery as executable JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--model", "", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "empty-model",
+			nextAction: "refarm sow --model ollama/llama3.2",
+			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).not.toHaveBeenCalled();
+
+		logSpy.mockRestore();
+	});
+
+	it("prints missing model provider recovery as executable JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--model", "custom-local-model", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "model-provider-required",
+			nextAction: "refarm sow --model ollama/llama3.2",
+			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(mockModelCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).not.toHaveBeenCalled();
+
+		logSpy.mockRestore();
+	});
+
 	it("clears stale model credentials when --model changes provider", async () => {
 		mockLoadTokens.mockResolvedValue({
 			modelProvider: "anthropic",
