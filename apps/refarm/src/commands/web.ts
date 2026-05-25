@@ -15,7 +15,7 @@ import {
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
-import { launchProcess } from "./launch-process.js";
+import { launchProcess, type LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
@@ -32,11 +32,7 @@ const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
 
-export interface WebLaunchSpec {
-	command: string;
-	args: string[];
-	display: string;
-}
+export type WebLaunchSpec = LaunchProcessSpec;
 
 export interface WebDeps {
 	resolveStatusPayload(options: {

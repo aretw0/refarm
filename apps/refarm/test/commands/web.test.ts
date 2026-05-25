@@ -54,11 +54,13 @@ describe("resolveWebLaunchSpec", () => {
 
 	it("maps dev and preview launchers to deterministic commands", () => {
 		expect(resolveWebLaunchSpec("dev")).toEqual({
+			packageManager: "pnpm",
 			command: "pnpm",
 			args: ["-C", "apps/dev", "run", "dev"],
 			display: "pnpm -C apps/dev run dev",
 		});
 		expect(resolveWebLaunchSpec("preview")).toEqual({
+			packageManager: "pnpm",
 			command: "pnpm",
 			args: ["-C", "apps/dev", "run", "preview"],
 			display: "pnpm -C apps/dev run preview",
@@ -69,6 +71,7 @@ describe("resolveWebLaunchSpec", () => {
 		process.env.REFARM_PACKAGE_MANAGER = "npm";
 
 		expect(resolveWebLaunchSpec("dev")).toEqual({
+			packageManager: "npm",
 			command: "npm",
 			args: ["--prefix", "apps/dev", "run", "dev"],
 			display: "npm --prefix apps/dev run dev",

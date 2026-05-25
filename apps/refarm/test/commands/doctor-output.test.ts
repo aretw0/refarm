@@ -246,6 +246,7 @@ describe("formatRefarmDoctorNextActionJson", () => {
 			nextActions: ["Start runtime.", "Inspect trust."],
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			recommendations: [],
 		});
 	});
 });
@@ -296,6 +297,7 @@ describe("emitRefarmDoctorOutput", () => {
 			nextActions: ["Start runtime."],
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			recommendations: [],
 		});
 	});
 
@@ -334,6 +336,7 @@ describe("emitRefarmDoctorOutput", () => {
 			nextActions: ["Start runtime."],
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			recommendations: [],
 		});
 	});
 });
