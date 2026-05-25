@@ -21,6 +21,14 @@ import {
 	type ModelScope,
 } from "../model-routing.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	LOCAL_MODEL_JSON_COMMAND,
+	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_PROVIDERS_JSON_COMMAND,
+	OPERATOR_LINKS_CONFIG_COMMAND,
+	SOW_INTERACTIVE_COMMAND,
+	SOW_JSON_COMMAND,
+} from "./credential-handoffs.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
@@ -28,7 +36,6 @@ const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
 const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
-const MODEL_CURRENT_JSON_COMMAND = "refarm model current --json";
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
 interface JsonOptionCarrier {
@@ -97,6 +104,7 @@ export interface CurrentModelStatus {
 	routes: Record<ModelScope, string>;
 	credential: {
 		envKey: string | undefined;
+		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
 		status: string | null;
 	};
 	baseUrl: string | undefined;
@@ -104,6 +112,19 @@ export interface CurrentModelStatus {
 	source: {
 		kind: "environment" | "identity" | "built-in";
 		envOverrides: string[];
+	};
+	recommendations?: {
+		diagnostic: string;
+		severity: "failure" | "warning" | "info";
+		summary: string;
+		action: string;
+		command?: string;
+	}[];
+	handoffs?: {
+		interactive: string;
+		inspectProviders: string;
+		localNoKeyModel: string;
+		openExternalLinks: string;
 	};
 }
 
@@ -140,6 +161,13 @@ function modelCredentialStatus(
 		case "missing":
 			return "missing (run refarm sow)";
 	}
+}
+
+function modelCredentialState(
+	provider: string | undefined,
+	tokens: ModelTokens,
+): CurrentModelStatus["credential"]["state"] {
+	return resolveModelCredentialStatus(provider, tokens, process.env).state;
 }
 
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
@@ -228,14 +256,37 @@ export function printCurrentModelJson(tokens: ModelTokens): void {
 }
 
 function currentModelNextCommands(status: CurrentModelStatus): string[] {
-	if (status.credential.status?.startsWith("missing")) {
+	if (status.credential.state === "missing") {
 		return [
-			"refarm sow --json",
-			"refarm model providers --json",
+			SOW_JSON_COMMAND,
+			MODEL_PROVIDERS_JSON_COMMAND,
 			refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
 		];
 	}
 	return [];
+}
+
+function currentModelRecovery(
+	status: Pick<CurrentModelStatus, "credential">,
+): Pick<CurrentModelStatus, "recommendations" | "handoffs"> {
+	if (status.credential.state !== "missing") return {};
+	return {
+		recommendations: [
+			{
+				diagnostic: "model-credentials-missing",
+				severity: "failure",
+				summary: "The current model route requires credentials that are not available.",
+				action: "Inspect provider requirements or run the credential handoff.",
+				command: SOW_JSON_COMMAND,
+			},
+		],
+		handoffs: {
+			interactive: SOW_INTERACTIVE_COMMAND,
+			inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
+			localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
+			openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
+		},
+	};
 }
 
 export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
@@ -249,6 +300,7 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
 
 	const credentialEnv = modelCredentialEnvKey(provider);
+	const credentialState = modelCredentialState(provider, tokens);
 	const credentialStatus = modelCredentialStatus(provider, tokens);
 	const baseUrl = process.env.MODEL_BASE_URL ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
 	const fallbackProvider =
@@ -286,7 +338,7 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		sourceKind = "built-in";
 	}
 
-	return {
+	const status: CurrentModelStatus = {
 		current: { provider, modelId: resolvedModel, ref },
 		routes: {
 			default: ref,
@@ -295,6 +347,7 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 		},
 		credential: {
 			envKey: credentialEnv,
+			state: credentialState,
 			status: credentialStatus,
 		},
 		baseUrl,
@@ -303,6 +356,10 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 			kind: sourceKind,
 			envOverrides,
 		},
+	};
+	return {
+		...status,
+		...currentModelRecovery(status),
 	};
 }
 

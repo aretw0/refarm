@@ -159,15 +159,27 @@ describe("modelCommand", () => {
 			current: { ref: string };
 			routes: { default: string; worker: string; monitor: string };
 			source: { kind: string; envOverrides: string[] };
-			credential: { envKey: string; status: string };
+			credential: { envKey: string; state: string; status: string };
+			handoffs: {
+				interactive: string;
+				inspectProviders: string;
+				localNoKeyModel: string;
+				openExternalLinks: string;
+			};
 			nextCommand: string;
 			nextCommands: string[];
+			recommendations: {
+				diagnostic: string;
+				severity: string;
+				command: string;
+			}[];
 		};
 		expect(payload.current.ref).toBe("openai/gpt-5.5");
 		expect(payload.routes.default).toBe("openai/gpt-5.5");
 		expect(payload.routes.worker).toBe("openai/gpt-5.3-codex-spark");
 		expect(payload.routes.monitor).toBe("openai/gpt-5.5");
 		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
+		expect(payload.credential.state).toBe("missing");
 		expect(payload.credential.status).toBe("missing (run refarm sow)");
 		expect(payload.source.kind).toBe("identity");
 		expect(payload.nextCommand).toBe("refarm sow --json");
@@ -175,6 +187,19 @@ describe("modelCommand", () => {
 		expect(payload.nextCommands).toContain(
 			"refarm sow --model 'openai/gpt-5.5' --json",
 		);
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-credentials-missing",
+				severity: "failure",
+				command: "refarm sow --json",
+			}),
+		]);
+		expect(payload.handoffs).toEqual({
+			interactive: "refarm sow",
+			inspectProviders: "refarm model providers --json",
+			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
+			openExternalLinks: "refarm config get operator.openExternalLinks --json",
+		});
 
 		logSpy.mockRestore();
 	});
