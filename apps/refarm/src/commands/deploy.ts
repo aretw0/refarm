@@ -5,7 +5,11 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { refarmCommand } from "./command-handoff.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+  buildJsonErrorEnvelope,
+  buildJsonSuccessEnvelope,
+  printJson,
+} from "./json-output.js";
 
 interface DeployResult {
 	status: string;
@@ -114,19 +118,40 @@ export const deployCommand = new Command("deploy")
           dryRun: options.dryRun === true,
           ok,
         });
-        printJson({
-          schemaVersion: DEPLOY_SCHEMA_VERSION,
-          command: "deploy",
-          target,
-          dryRun: options.dryRun === true,
-          ok,
-          status: result.status,
-          result,
-          nextAction: nextCommands[0] ?? null,
-          nextActions: nextCommands,
-          nextCommand: nextCommands[0] ?? null,
-          nextCommands,
-        });
+        const jsonEnvelope = ok
+          ? buildJsonSuccessEnvelope({
+              command: "deploy",
+              operation: "deploy",
+              nextAction: nextCommands[0] ?? null,
+              nextActions: nextCommands,
+              nextCommand: nextCommands[0] ?? null,
+              nextCommands,
+              extra: {
+                schemaVersion: DEPLOY_SCHEMA_VERSION,
+                target,
+                dryRun: options.dryRun === true,
+                status: result.status,
+                result,
+              },
+            })
+          : buildJsonErrorEnvelope({
+              command: "deploy",
+              operation: "deploy",
+              error: "deploy-failed",
+              message: result.message,
+              nextAction: nextCommands[0] ?? DEPLOY_DRY_RUN_COMMAND,
+              nextActions: nextCommands,
+              nextCommand: nextCommands[0] ?? DEPLOY_DRY_RUN_COMMAND,
+              nextCommands,
+              extra: {
+                schemaVersion: DEPLOY_SCHEMA_VERSION,
+                target,
+                dryRun: options.dryRun === true,
+                status: result.status,
+                result,
+              },
+            });
+        printJson(jsonEnvelope);
         if (!ok) process.exitCode = 1;
         return;
       }

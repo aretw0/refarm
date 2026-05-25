@@ -95,6 +95,7 @@ describe("deployCommand", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       command: string;
+      operation: string;
       target: string;
       dryRun: boolean;
       ok: boolean;
@@ -104,6 +105,7 @@ describe("deployCommand", () => {
     };
     expect(payload).toMatchObject({
       command: "deploy",
+      operation: "deploy",
       target: "github",
       dryRun: true,
       ok: true,
@@ -131,12 +133,14 @@ describe("deployCommand", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       ok: boolean;
+      operation: string;
       status: string;
       nextCommand: string;
       nextCommands: string[];
     };
     expect(payload).toMatchObject({
       ok: true,
+      operation: "deploy",
       status: "success",
       nextAction: "refarm health --next-action --json",
       nextCommand: "refarm health --next-action --json",
@@ -162,6 +166,8 @@ describe("deployCommand", () => {
     expect(errorSpy).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       ok: boolean;
+      error: string;
+      operation: string;
       status: string;
       nextAction: string;
       nextCommand: string;
@@ -169,6 +175,8 @@ describe("deployCommand", () => {
     };
     expect(payload).toMatchObject({
       ok: false,
+      error: "deploy-failed",
+      operation: "deploy",
       status: "failure",
       nextAction: "refarm deploy --target cloudflare --dry-run",
       nextCommand: "refarm deploy --target cloudflare --dry-run",
