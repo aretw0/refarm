@@ -109,9 +109,9 @@ describe("runtime command", () => {
 			activeEngine: "ts",
 			ready: false,
 			startCommand: "farmhand --background",
-			nextCommand: "refarm runtime ensure --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
-				"refarm runtime ensure --wait",
+				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 		});
@@ -142,9 +142,9 @@ describe("runtime command", () => {
 			reason: "configured-ts",
 			ready: false,
 			startCommand: "farmhand --background",
-			nextCommand: "refarm runtime ensure --wait",
+			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
-				"refarm runtime ensure --wait",
+				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 		});
@@ -173,7 +173,7 @@ describe("runtime command", () => {
 			nextCommand: "refarm config set tractor.engine auto",
 			nextCommands: [
 				"refarm config set tractor.engine auto",
-				"refarm runtime ensure --wait",
+				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 		});
@@ -375,6 +375,40 @@ describe("runtime command", () => {
 		expect(payload.diagnostics?.logTail).toContain(
 			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.",
 		);
+		expect(process.exitCode).toBe(1);
+		rmSync(repoRoot, { recursive: true, force: true });
+		logSpy.mockRestore();
+	});
+
+	it("prints startup recovery command when ensure --next-command fails", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const repoRoot = join(tmpdir(), `refarm-runtime-ensure-next-${Date.now()}`);
+		mkdirSync(join(repoRoot, "scripts"), { recursive: true });
+		mkdirSync(join(repoRoot, ".refarm"), { recursive: true });
+		writeFileSync(join(repoRoot, "scripts", "farmhand-start.sh"), "");
+		writeFileSync(
+			join(repoRoot, ".refarm", "ts-runtime-start.log"),
+			"MODEL_PROVIDER=openai but OPENAI_API_KEY is not set.\n",
+		);
+		const command = createRuntimeCommand({
+			repoRoot: () => repoRoot,
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime: vi.fn(),
+			waitUntilReady: vi.fn().mockResolvedValue(false),
+		});
+
+		await command.parseAsync(["ensure", "--wait", "--next-command"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith("refarm sow");
 		expect(process.exitCode).toBe(1);
 		rmSync(repoRoot, { recursive: true, force: true });
 		logSpy.mockRestore();

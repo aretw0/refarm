@@ -18,6 +18,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 	RUNTIME_ENSURE_WAIT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
@@ -106,12 +107,12 @@ function runtimeNextCommands(payload: RuntimeStatusPayload): string[] {
 	if (payload.activeEngine === "unknown") {
 		return [
 			RUNTIME_ENGINE_AUTO_COMMAND,
-			RUNTIME_ENSURE_WAIT_COMMAND,
+			RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			RUNTIME_DOCTOR_NEXT_COMMAND,
 		];
 	}
 	if (payload.ready === false) {
-		return [RUNTIME_ENSURE_WAIT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND];
+		return [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND];
 	}
 	return [];
 }
@@ -211,6 +212,7 @@ Examples:
   $ ${RUNTIME_START_COMMAND}
   $ ${RUNTIME_START_WAIT_COMMAND}
   $ ${RUNTIME_ENSURE_WAIT_COMMAND}
+  $ ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}
   $ refarm runtime start --dry-run
   $ refarm runtime --json
   $ refarm runtime status --json
@@ -259,6 +261,7 @@ Notes:
 				.description("Start the selected runtime only when it is not ready")
 				.option("--wait", "Wait until the local runtime sidecar responds")
 				.option("--json", "Output machine-readable JSON")
+				.option("--next-command", "Print only the first executable recovery command")
 				.addHelpText(
 					"after",
 					`
@@ -267,6 +270,7 @@ Examples:
   $ refarm runtime ensure
   $ ${RUNTIME_ENSURE_WAIT_COMMAND}
   $ refarm runtime ensure --wait --json
+  $ ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}
 
 Notes:
   ensure is idempotent: when the runtime is already ready it reports success
@@ -275,12 +279,13 @@ Notes:
 `,
 				)
 				.action(async (
-					opts: { wait?: boolean; json?: boolean },
+					opts: { wait?: boolean; json?: boolean; nextCommand?: boolean },
 					subcommand: Command,
 				) => {
 					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
 					const { payload, command } = await resolveRuntimeStartCommand(deps);
 					if (payload.ready === true) {
+						if (opts.nextCommand) return;
 						if (json) {
 							printJson(buildRuntimeJsonPayload(payload, {
 								ensured: true,
@@ -293,6 +298,15 @@ Notes:
 					}
 
 					if (!command) {
+						if (opts.nextCommand) {
+							const [nextCommand] = buildRuntimeJsonPayload(payload, {
+								ensured: false,
+								started: false,
+							}).nextCommands;
+							if (nextCommand) console.log(nextCommand);
+							process.exitCode = 1;
+							return;
+						}
 						if (json) {
 							printJson(buildRuntimeJsonPayload(payload, {
 								ensured: false,
@@ -310,10 +324,22 @@ Notes:
 					(deps.startRuntime ?? startRuntimeProcess)(command);
 					if (opts.wait) {
 						const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
+						const diagnostics = ready
+							? undefined
+							: runtimeStartDiagnostics(command);
+						const nextCommands = runtimeStartDiagnosticNextCommands(diagnostics);
+						if (opts.nextCommand) {
+							const [nextCommand] = buildRuntimeJsonPayload({ ...payload, ready }, {
+								command,
+								ensured: ready,
+								started: true,
+								...(diagnostics ? { diagnostics } : {}),
+							}, nextCommands).nextCommands;
+							if (nextCommand) console.log(nextCommand);
+							if (!ready) process.exitCode = 1;
+							return;
+						}
 						if (json) {
-							const diagnostics = ready
-								? undefined
-								: runtimeStartDiagnostics(command);
 							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
 								command,
 								ensured: ready,
@@ -337,6 +363,15 @@ Notes:
 						return;
 					}
 
+					if (opts.nextCommand) {
+						const [nextCommand] = buildRuntimeJsonPayload(payload, {
+							command,
+							ensured: false,
+							started: true,
+						}).nextCommands;
+						if (nextCommand) console.log(nextCommand);
+						return;
+					}
 					if (json) {
 						printJson(buildRuntimeJsonPayload(payload, {
 							command,
