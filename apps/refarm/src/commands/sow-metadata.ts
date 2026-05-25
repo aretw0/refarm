@@ -27,7 +27,7 @@ Examples:
 
 Notes:
   --json is non-interactive: nextAction describes any manual login/configuration
-  step, while nextCommand lists executable inspection or continuation commands.
+  step, while nextCommand lists executable recovery or continuation commands.
   --model changes the saved provider/model routing. It does not collect a new
   API key or OAuth login; run plain refarm sow to configure credentials.
   A slash means provider/model, so custom or self-hosted providers can be saved
