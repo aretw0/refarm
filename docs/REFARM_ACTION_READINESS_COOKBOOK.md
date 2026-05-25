@@ -99,6 +99,12 @@ If a finish run fails, `nextCommand` should forward the failing command's
 recovery command, such as `refarm runtime start --wait`, instead of the whole
 plan.
 
+Each plan step declares an `effect`:
+
+- `observe` reads current state and reports it;
+- `verify` checks readiness without intentionally writing source;
+- `write` may modify source or local state and must stay opt-in.
+
 ## Live status affordances
 
 `apps/refarm` now publishes app-owned host status affordances from a local

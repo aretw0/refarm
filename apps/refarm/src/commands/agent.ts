@@ -91,12 +91,14 @@ function finishStep(
 	id: string,
 	args: string[],
 	description: string,
+	effect: CommandPlanStep["effect"] = "verify",
 ): CommandPlanStep {
 	return {
 		id,
 		command: refarmCommand(args),
 		args,
 		description,
+		effect,
 	};
 }
 
@@ -105,6 +107,7 @@ const agentFinishSteps = [
 		"tidy-imports",
 		["tidy", "imports", "--json"],
 		"Organize imports after the editing slice.",
+		"write",
 	),
 	finishStep(
 		"tidy-imports-check",
@@ -115,6 +118,7 @@ const agentFinishSteps = [
 		"health",
 		["health", "--next-action", "--json"],
 		"Audit filesystem, build alignment, and resolution health.",
+		"observe",
 	),
 	finishStep(
 		"check",

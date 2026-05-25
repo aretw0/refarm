@@ -130,6 +130,7 @@ describe("agent command", () => {
 				command: string;
 				args: string[];
 				description: string;
+				effect?: string;
 			}[];
 			nextActions: string[];
 			nextCommand: string;
@@ -151,16 +152,19 @@ describe("agent command", () => {
 				id: "tidy-imports-check",
 				command: "refarm tidy imports --check --json",
 				args: ["tidy", "imports", "--check", "--json"],
+				effect: "verify",
 			}),
 			expect.objectContaining({
 				id: "health",
 				command: "refarm health --next-action --json",
 				args: ["health", "--next-action", "--json"],
+				effect: "observe",
 			}),
 			expect.objectContaining({
 				id: "check",
 				command: "refarm check --next-action --json",
 				args: ["check", "--next-action", "--json"],
+				effect: "verify",
 			}),
 		]);
 		logSpy.mockRestore();
@@ -254,7 +258,7 @@ describe("agent command", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			steps: { id: string; args: string[] }[];
+			steps: { id: string; args: string[]; effect?: string }[];
 		};
 		expect(payload.ok).toBe(true);
 		expect(payload.steps.map((step) => step.id)).toEqual([
@@ -264,6 +268,7 @@ describe("agent command", () => {
 			"check",
 		]);
 		expect(payload.steps[0]?.args).toEqual(["tidy", "imports", "--json"]);
+		expect(payload.steps[0]?.effect).toBe("write");
 		expect(runRefarm).toHaveBeenCalledTimes(4);
 		logSpy.mockRestore();
 	});

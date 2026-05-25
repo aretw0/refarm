@@ -13,12 +13,14 @@ const steps: CommandPlanStep[] = [
 		command: "refarm first --json",
 		args: ["first", "--json"],
 		description: "First step.",
+		effect: "verify",
 	},
 	{
 		id: "second",
 		command: "refarm second --json",
 		args: ["second", "--json"],
 		description: "Second step.",
+		effect: "observe",
 	},
 ];
 
@@ -41,7 +43,10 @@ describe("command plan runner", () => {
 			nextAction: "refarm first --json",
 			nextCommand: "refarm first --json",
 			nextCommands: ["refarm first --json", "refarm second --json"],
-			steps,
+			steps: [
+				expect.objectContaining({ id: "first", effect: "verify" }),
+				expect.objectContaining({ id: "second", effect: "observe" }),
+			],
 		});
 	});
 
@@ -190,6 +195,7 @@ describe("command plan runner", () => {
 			command: "runner command",
 			args: ["runner"],
 			description: "Runner description.",
+			effect: "write" as const,
 			ok: true,
 			exitCode: 0,
 			stdout: JSON.stringify({ ok: true }),
@@ -202,6 +208,7 @@ describe("command plan runner", () => {
 			command: "refarm first --json",
 			args: ["first", "--json"],
 			description: "First step.",
+			effect: "verify",
 			ok: true,
 		});
 	});

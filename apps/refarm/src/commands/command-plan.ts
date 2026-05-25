@@ -10,6 +10,7 @@ export interface CommandPlanStep {
 	command: string;
 	args: string[];
 	description: string;
+	effect?: "observe" | "verify" | "write";
 }
 
 export interface CommandPlanStepRunResult extends CommandPlanStep {
@@ -91,6 +92,7 @@ export function runCommandPlan(
 			command: step.command,
 			args: step.args,
 			description: step.description,
+			effect: step.effect,
 		};
 		const payloadOk = commandPayloadOk(result.payload);
 		const ok = result.exitCode === 0 && payloadOk !== false;
