@@ -15,6 +15,7 @@ import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
 	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
@@ -173,6 +174,7 @@ Examples:
   $ ${RUNTIME_STATUS_COMMAND}
   $ ${RUNTIME_START_COMMAND}
   $ ${RUNTIME_START_WAIT_COMMAND}
+  $ ${RUNTIME_ENSURE_WAIT_COMMAND}
   $ refarm runtime start --dry-run
   $ refarm runtime --json
   $ refarm runtime status --json
@@ -214,6 +216,97 @@ Notes:
 						return;
 					}
 					printRuntimeStatus(payload);
+				}),
+		)
+		.addCommand(
+			new Command("ensure")
+				.description("Start the selected runtime only when it is not ready")
+				.option("--wait", "Wait until the local runtime sidecar responds")
+				.option("--json", "Output machine-readable JSON")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm runtime ensure
+  $ ${RUNTIME_ENSURE_WAIT_COMMAND}
+  $ refarm runtime ensure --wait --json
+
+Notes:
+  ensure is idempotent: when the runtime is already ready it reports success
+  without spawning another process. When it is not ready, it starts the selected
+  runtime using the same engine selection as refarm runtime start.
+`,
+				)
+				.action(async (
+					opts: { wait?: boolean; json?: boolean },
+					subcommand: Command,
+				) => {
+					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const { payload, command } = await resolveRuntimeStartCommand(deps);
+					if (payload.ready === true) {
+						if (json) {
+							printJson(buildRuntimeJsonPayload(payload, {
+								ensured: true,
+								started: false,
+							}));
+							return;
+						}
+						console.log(chalk.green("Runtime already ready."));
+						return;
+					}
+
+					if (!command) {
+						if (json) {
+							printJson(buildRuntimeJsonPayload(payload, {
+								ensured: false,
+								started: false,
+							}));
+							process.exitCode = 1;
+							return;
+						}
+						console.error(chalk.red("✗  Cannot ensure Refarm runtime."));
+						if (payload.issue) console.error(chalk.dim(`   ${payload.issue}`));
+						process.exitCode = 1;
+						return;
+					}
+
+					(deps.startRuntime ?? startRuntimeProcess)(command);
+					if (opts.wait) {
+						const ready = await (deps.waitUntilReady ?? waitForRuntimeReady)();
+						if (json) {
+							printJson(buildRuntimeJsonPayload({ ...payload, ready }, {
+								command,
+								ensured: ready,
+								started: true,
+							}));
+							if (!ready) process.exitCode = 1;
+							return;
+						}
+						if (ready) {
+							console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
+							console.log(chalk.dim(`  command: ${command.display}`));
+							console.log(chalk.green("Runtime ready."));
+							return;
+						}
+						console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
+						console.log(chalk.dim(`  command: ${command.display}`));
+						console.error(chalk.red("Runtime did not become ready before timeout."));
+						console.error(chalk.dim(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`));
+						process.exitCode = 1;
+						return;
+					}
+
+					if (json) {
+						printJson(buildRuntimeJsonPayload(payload, {
+							command,
+							ensured: false,
+							started: true,
+						}));
+						return;
+					}
+					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
+					console.log(chalk.dim(`  command: ${command.display}`));
 				}),
 		)
 		.addCommand(

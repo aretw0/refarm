@@ -58,6 +58,7 @@ describe("runtime command", () => {
 		expect(help).toContain("refarm config set runtime.autostart always");
 		expect(help).toContain("refarm runtime status");
 		expect(help).toContain("refarm runtime start");
+		expect(help).toContain("refarm runtime ensure --wait");
 		expect(help).toContain("runtime.autostart controls");
 	});
 
@@ -253,6 +254,105 @@ describe("runtime command", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Started rust runtime.");
 		expect(output).toContain("Runtime ready.");
+		logSpy.mockRestore();
+	});
+
+	it("does not spawn when ensure finds the runtime already ready", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const startRuntime = vi.fn();
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			probeReady: vi.fn().mockResolvedValue(true),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime,
+		});
+
+		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ensured?: boolean;
+			started?: boolean;
+			ready?: boolean;
+			nextCommand?: string | null;
+		};
+		expect(payload.ensured).toBe(true);
+		expect(payload.started).toBe(false);
+		expect(payload.ready).toBe(true);
+		expect(payload.nextCommand).toBeNull();
+		expect(startRuntime).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("starts and waits when ensure finds the runtime not ready", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const startRuntime = vi.fn();
+		const waitUntilReady = vi.fn().mockResolvedValue(true);
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime,
+			waitUntilReady,
+		});
+
+		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ensured?: boolean;
+			started?: boolean;
+			ready?: boolean;
+			nextCommand?: string | null;
+		};
+		expect(payload.ensured).toBe(true);
+		expect(payload.started).toBe(true);
+		expect(payload.ready).toBe(true);
+		expect(payload.nextCommand).toBeNull();
+		expect(startRuntime).toHaveBeenCalledOnce();
+		expect(waitUntilReady).toHaveBeenCalledOnce();
+		logSpy.mockRestore();
+	});
+
+	it("sets exitCode when ensure cannot make the runtime ready", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime: vi.fn(),
+			waitUntilReady: vi.fn().mockResolvedValue(false),
+		});
+
+		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			ensured?: boolean;
+			started?: boolean;
+			ready?: boolean;
+			nextCommand?: string | null;
+		};
+		expect(payload.ensured).toBe(false);
+		expect(payload.started).toBe(true);
+		expect(payload.ready).toBe(false);
+		expect(payload.nextCommand).toBe("refarm runtime start --wait");
+		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
 
