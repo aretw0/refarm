@@ -97,6 +97,34 @@ describe("command plan runner", () => {
 		expect(runStep).toHaveBeenCalledTimes(1);
 	});
 
+	it("forwards singular payload handoffs from failing steps", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: false,
+			exitCode: 1,
+			stdout: JSON.stringify({
+				ok: false,
+				nextAction: "Start runtime.",
+				nextCommand: "refarm runtime start --wait",
+			}),
+			stderr: "",
+			payload: {
+				ok: false,
+				nextAction: "Start runtime.",
+				nextCommand: "refarm runtime start --wait",
+			},
+		}));
+
+		expect(runCommandPlan(steps, runStep)).toMatchObject({
+			ok: false,
+			status: "failed",
+			nextActions: ["Start runtime."],
+			nextCommands: ["refarm runtime start --wait"],
+			steps: [{ id: "first", ok: false }],
+		});
+		expect(runStep).toHaveBeenCalledTimes(1);
+	});
+
 	it("preserves planned step identity over runner metadata", () => {
 		const runStep = vi.fn((step: CommandPlanStep) => ({
 			...step,

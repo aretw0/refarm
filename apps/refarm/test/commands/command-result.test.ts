@@ -30,6 +30,19 @@ describe("command result helpers", () => {
 		]);
 	});
 
+	it("falls back to singular handoff fields when arrays are absent or empty", () => {
+		expect(commandPayloadNextActions({
+			nextAction: "Start runtime.",
+		})).toEqual(["Start runtime."]);
+		expect(commandPayloadNextCommands({
+			nextCommand: "refarm runtime start --wait",
+		})).toEqual(["refarm runtime start --wait"]);
+		expect(commandPayloadNextCommands({
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [],
+		})).toEqual(["refarm doctor --next-command"]);
+	});
+
 	it("ignores missing or malformed command payload fields", () => {
 		expect(commandPayloadOk({ ok: "false" })).toBeUndefined();
 		expect(commandPayloadNextActions({ nextActions: "start" })).toBeUndefined();

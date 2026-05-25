@@ -17,20 +17,27 @@ export function commandPayloadOk(payload: unknown): boolean | undefined {
 }
 
 export function commandPayloadNextActions(payload: unknown): string[] | undefined {
-	return commandPayloadStringArray(payload, "nextActions");
+	return commandPayloadStringList(payload, "nextAction", "nextActions");
 }
 
 export function commandPayloadNextCommands(payload: unknown): string[] | undefined {
-	return commandPayloadStringArray(payload, "nextCommands");
+	return commandPayloadStringList(payload, "nextCommand", "nextCommands");
 }
 
-function commandPayloadStringArray(
+function commandPayloadStringList(
 	payload: unknown,
-	key: "nextActions" | "nextCommands",
+	singularKey: "nextAction" | "nextCommand",
+	pluralKey: "nextActions" | "nextCommands",
 ): string[] | undefined {
 	if (!payload || typeof payload !== "object") return undefined;
-	const value = (payload as Record<string, unknown>)[key];
-	if (!Array.isArray(value)) return undefined;
-	const strings = value.filter((item): item is string => typeof item === "string");
-	return strings.length > 0 ? strings : undefined;
+	const record = payload as Record<string, unknown>;
+	const value = record[pluralKey];
+	if (Array.isArray(value)) {
+		const strings = value.filter((item): item is string => typeof item === "string");
+		if (strings.length > 0) return strings;
+	}
+	const singular = record[singularKey];
+	return typeof singular === "string" && singular.length > 0
+		? [singular]
+		: undefined;
 }
