@@ -3,7 +3,10 @@ import {
 	commandPayloadNextCommands,
 	commandPayloadOk,
 } from "./command-result.js";
-import { buildJsonSuccessEnvelope } from "./json-output.js";
+import {
+	buildJsonSuccessEnvelope,
+	type JsonSuccessEnvelope,
+} from "./json-output.js";
 
 export interface CommandPlanStep {
 	id: string;
@@ -12,6 +15,8 @@ export interface CommandPlanStep {
 	description: string;
 	effect?: "observe" | "verify" | "write";
 }
+
+export type CommandPlanEffect = NonNullable<CommandPlanStep["effect"]>;
 
 export interface CommandPlanStepRunResult extends CommandPlanStep {
 	ok: boolean;
@@ -35,6 +40,32 @@ export interface CommandPlanEnvelopeContext {
 	operation: string;
 }
 
+export interface CommandPlanEnvelopeExtra {
+	action: string;
+	status: "plan";
+	effects: CommandPlanEffect[];
+	writes: boolean;
+	steps: readonly CommandPlanStep[];
+}
+
+export type CommandPlanEnvelope =
+	JsonSuccessEnvelope<CommandPlanEnvelopeExtra>;
+
+export interface CommandPlanRunEnvelope {
+	action: string;
+	status: CommandPlanRunResult["status"];
+	effects: CommandPlanEffect[];
+	writes: boolean;
+	steps: CommandPlanStepRunResult[];
+	command: string;
+	operation: string;
+	ok: boolean;
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
+}
+
 export function commandPlanStepCommands(
 	steps: readonly CommandPlanStep[],
 ): string[] {
@@ -43,9 +74,13 @@ export function commandPlanStepCommands(
 
 export function commandPlanEffects(
 	steps: readonly CommandPlanStep[],
-): CommandPlanStep["effect"][] {
+): CommandPlanEffect[] {
 	return Array.from(
-		new Set(steps.map((step) => step.effect).filter(Boolean)),
+		new Set(
+			steps
+				.map((step) => step.effect)
+				.filter((effect): effect is CommandPlanEffect => Boolean(effect)),
+		),
 	);
 }
 
@@ -56,7 +91,7 @@ export function commandPlanWrites(steps: readonly CommandPlanStep[]): boolean {
 export function buildCommandPlanEnvelope(
 	context: CommandPlanEnvelopeContext,
 	steps: readonly CommandPlanStep[],
-): object {
+): CommandPlanEnvelope {
 	const nextCommands = commandPlanStepCommands(steps);
 	const effects = commandPlanEffects(steps);
 	return buildJsonSuccessEnvelope({
@@ -79,7 +114,7 @@ export function buildCommandPlanEnvelope(
 export function buildCommandPlanRunEnvelope(
 	context: CommandPlanEnvelopeContext,
 	result: CommandPlanRunResult,
-): object {
+): CommandPlanRunEnvelope {
 	return {
 		action: context.action,
 		status: result.status,
