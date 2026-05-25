@@ -205,6 +205,13 @@ describe("refarm ask", () => {
 			effortId: "eff-1",
 			sessionId: "urn:refarm:session:v1:jsonactive",
 			content: "hello world",
+			command: "ask",
+			operation: "submit",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 			metadata: {
 				model: "claude-sonnet-4-6",
 				tokens_in: 50,
@@ -736,6 +743,13 @@ describe("refarm ask", () => {
 			effortId: "eff-1",
 			sessionId: "urn:refarm:session:v1:jsonfallback",
 			content: "fallback response",
+			command: "ask",
+			operation: "submit",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 			metadata: { model: "mock-model", tokens_in: 1, tokens_out: 2 },
 		});
 

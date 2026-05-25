@@ -27,7 +27,11 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
 	readRuntimePluginState,
@@ -594,6 +598,16 @@ function printAskErrorJson(message: string): void {
 	printJson(buildAskErrorPayload(message));
 }
 
+function printAskSuccessJson(result: AskJsonResult): void {
+	printJson(
+		buildJsonSuccessEnvelope({
+			command: "ask",
+			operation: "submit",
+			extra: result,
+		}),
+	);
+}
+
 function printMissingModelCredentials(json: boolean): void {
 	if (json) {
 		printJson(
@@ -978,7 +992,7 @@ Runtime:
 									content,
 									...(metadata ? { metadata } : {}),
 								};
-								printJson(result);
+								printAskSuccessJson(result);
 							}
 							return;
 						}
@@ -1000,7 +1014,7 @@ Runtime:
 							content,
 							...(metadata ? { metadata } : {}),
 						};
-						printJson(result);
+						printAskSuccessJson(result);
 					}
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
