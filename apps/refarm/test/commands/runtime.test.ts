@@ -381,6 +381,7 @@ describe("runtime command", () => {
 			"refarm sow --json",
 			"refarm model current --json",
 			"refarm model providers --json",
+			"refarm sow --model ollama/llama3.2 --json",
 		]);
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({

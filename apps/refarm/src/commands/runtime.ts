@@ -185,6 +185,7 @@ function runtimeStartDiagnosticRecovery(
 				SOW_JSON_COMMAND,
 				MODEL_CURRENT_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
+				LOCAL_MODEL_JSON_COMMAND,
 			],
 			recommendations: [
 				{
