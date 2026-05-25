@@ -71,6 +71,16 @@ in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
 human-facing intent and the executable command when a flow is meant to be
 agent-driven.
 
+Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
+filtering, and deduplication for handoff lists. JSON emitters and command-result
+readers should reuse that helper instead of open-coding their own list cleanup.
+
+Command runners that consume Refarm JSON should parse through
+`apps/refarm/src/commands/command-result.ts`. The parser accepts pure JSON first
+and can recover a single JSON object from wrapper output when a subprocess emits
+context before or after the machine-readable payload. Do not make downstream
+agents scrape command-specific text.
+
 ## Agent finish handoffs
 
 `refarm agent finish` is the CLI-owned end-of-slice handoff for coding agents.
@@ -91,6 +101,7 @@ organize imports as the first finishing action:
 refarm agent finish --fix --json
 refarm agent finish --fix --next-command
 refarm agent finish --fix --run --json
+refarm agent finish --fix --run --next-command
 ```
 
 Keep `--fix` opt-in. It may rewrite source files through `refarm tidy imports`,

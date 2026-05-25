@@ -22,6 +22,7 @@
 - **[Sovereign Workflow](WORKFLOW.md)** — SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](DEVOPS.md)** — Dev containers, CI, security, hardware requirements.
 - **[Process Playbook](PROCESS_PLAYBOOK.md)** — Daily operational commands: services, agents, smoke gates, troubleshooting.
+- **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
 - **[Colony Playbook](COLONY_PLAYBOOK.md)** — Parallel agent batch execution guide.
 - **[Known Limitations](KNOWN_LIMITATIONS.md)** — Technical hurdles, resource quotas, expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** — Guardrails and publishing hygiene.
