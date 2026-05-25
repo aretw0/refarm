@@ -28,6 +28,8 @@ export function formatRefarmDoctorReportJson(
 ): string {
 	return formatJson(
 		{
+			command: report.command,
+			operation: report.operation,
 			ok: report.ok,
 			failureCount: report.failureCount,
 			warningCount: report.warningCount,
@@ -35,7 +37,9 @@ export function formatRefarmDoctorReportJson(
 			warnings: report.warnings,
 			informational: report.informational,
 			recommendations: report.recommendations,
+			nextAction: report.nextAction,
 			nextActions: report.nextActions,
+			nextCommand: report.nextCommand,
 			nextCommands: report.nextCommands,
 			host: report.host,
 			status: JSON.parse(formatRefarmStatusJson(report.status)),

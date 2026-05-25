@@ -26,6 +26,8 @@ import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmDoctorReport {
+	command: "doctor";
+	operation: "diagnose";
 	ok: boolean;
 	failureCount: number;
 	warningCount: number;
@@ -33,7 +35,9 @@ export interface RefarmDoctorReport {
 	warnings: string[];
 	informational: string[];
 	recommendations: RefarmDoctorRecommendation[];
+	nextAction: string | null;
 	nextActions: string[];
+	nextCommand: string | null;
 	nextCommands: string[];
 	host: RefarmRuntimeMetadata;
 	status: RefarmStatusJson;
@@ -71,8 +75,12 @@ export function buildRefarmDoctorReport(
 		warnings,
 		informational,
 	});
+	const nextActions = diagnosticNextActions(recommendations);
+	const nextCommands = diagnosticNextCommands(recommendations);
 
 	return {
+		command: "doctor",
+		operation: "diagnose",
 		ok,
 		failureCount: failures.length,
 		warningCount: warnings.length,
@@ -80,8 +88,10 @@ export function buildRefarmDoctorReport(
 		warnings,
 		informational,
 		recommendations,
-		nextActions: diagnosticNextActions(recommendations),
-		nextCommands: diagnosticNextCommands(recommendations),
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 		host:
 			options.metadata ??
 			resolveRefarmRuntimeMetadata({

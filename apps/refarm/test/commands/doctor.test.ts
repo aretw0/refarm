@@ -74,6 +74,8 @@ describe("buildRefarmDoctorReport", () => {
 			},
 		);
 
+		expect(report.command).toBe("doctor");
+		expect(report.operation).toBe("diagnose");
 		expect(report.ok).toBe(false);
 		expect(report.failures).toEqual(["runtime:not-ready"]);
 		expect(report.warnings).toEqual(["trust:warnings-present"]);
@@ -96,7 +98,11 @@ describe("buildRefarmDoctorReport", () => {
 			"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
 			"Inspect trust warnings and decide whether they should block this workflow.",
 		]);
+		expect(report.nextAction).toBe(
+			"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+		);
 		expect(report.nextCommands).toEqual(["refarm runtime ensure --wait --next-command"]);
+		expect(report.nextCommand).toBe("refarm runtime ensure --wait --next-command");
 		expect(report.host.version).toBe("1.2.3");
 		expect(report.host.packageManager).toBe("pnpm");
 	});

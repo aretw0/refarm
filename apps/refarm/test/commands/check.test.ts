@@ -32,6 +32,8 @@ function makeDoctorReport(
 	overrides: Partial<RefarmDoctorReport> = {},
 ): RefarmDoctorReport {
 	return {
+		command: "doctor",
+		operation: "diagnose",
 		ok: true,
 		failureCount: 0,
 		warningCount: 0,
@@ -39,7 +41,9 @@ function makeDoctorReport(
 		warnings: [],
 		informational: [],
 		recommendations: [],
+		nextAction: null,
 		nextActions: [],
+		nextCommand: null,
 		nextCommands: [],
 		host: {
 			app: "apps/refarm",

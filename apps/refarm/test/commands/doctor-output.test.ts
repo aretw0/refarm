@@ -11,6 +11,8 @@ import {
 
 function makeReport() {
 	return {
+		command: "doctor" as const,
+		operation: "diagnose" as const,
 		ok: true,
 		failureCount: 0,
 		warningCount: 0,
@@ -25,7 +27,9 @@ function makeReport() {
 				action: "Use a web or TUI renderer when the workflow requires interactive controls.",
 			},
 		],
+		nextAction: null,
 		nextActions: [] as string[],
+		nextCommand: null,
 		nextCommands: [] as string[],
 		host: {
 			app: "apps/refarm",
@@ -105,8 +109,12 @@ describe("formatRefarmDoctorReportJson", () => {
 		const output = formatRefarmDoctorReportJson(makeReport());
 		expect(output).toContain('"host"');
 		expect(output).toContain('"status"');
+		expect(output).toContain('"command": "doctor"');
+		expect(output).toContain('"operation": "diagnose"');
 		expect(output).toContain('"recommendations"');
+		expect(output).toContain('"nextAction": null');
 		expect(output).toContain('"nextActions"');
+		expect(output).toContain('"nextCommand": null');
 		expect(output).toContain('"nextCommands"');
 		expect(output).toContain('"version": "1.2.3"');
 	});
