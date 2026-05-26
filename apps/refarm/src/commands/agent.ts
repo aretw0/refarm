@@ -33,6 +33,9 @@ import {
 } from "./runtime-recovery.js";
 
 const agentRuntimePlan = {
+	environment: {
+		packageManager: "refarm package-manager --json",
+	},
 	runtime: {
 		status: `${RUNTIME_STATUS_COMMAND} --json`,
 		ensure: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -262,6 +265,7 @@ Notes:
 						agentRuntimePlan.runtime.status,
 						agentRuntimePlan.runtime.ensure,
 						MODEL_CURRENT_JSON_COMMAND,
+						agentRuntimePlan.environment.packageManager,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
 						"refarm agent finish --next-command",
@@ -273,6 +277,7 @@ Notes:
 						LOCAL_MODEL_JSON_COMMAND,
 						SOW_JSON_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,
+						agentRuntimePlan.environment.packageManager,
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",
 					],

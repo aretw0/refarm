@@ -73,6 +73,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
+			environment: { packageManager: string };
 			runtime: {
 				status: string;
 				ensure: string;
@@ -109,6 +110,9 @@ describe("agent command", () => {
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "handoff",
+			environment: {
+				packageManager: "refarm package-manager --json",
+			},
 			runtime: {
 				status: "refarm runtime status --json",
 				ensure: "refarm runtime ensure --wait --next-command",
@@ -145,6 +149,7 @@ describe("agent command", () => {
 		});
 		expect(payload.nextActions).toContain("refarm runtime status --json");
 		expect(payload.nextActions).toContain("refarm runtime ensure --wait --next-command");
+		expect(payload.nextActions).toContain("refarm package-manager --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
@@ -154,6 +159,7 @@ describe("agent command", () => {
 			"refarm sow --model ollama/llama3.2 --json",
 			"refarm sow --json",
 			"refarm model current --json",
+			"refarm package-manager --json",
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
 		]);
