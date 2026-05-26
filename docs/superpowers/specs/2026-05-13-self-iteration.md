@@ -140,9 +140,9 @@ conditional coding workflow instruction: when the user asks for code edits, the
 agent should inspect the workspace, keep changes focused, verify before
 reporting completion, and prefer deterministic Refarm handoffs such as
 `refarm package-manager --json` and
-`refarm agent finish --fix --run --json`. The prompt avoids hardcoding a
-specific JavaScript package manager; package-manager selection remains delegated
-to Refarm's resolver.
+`refarm agent finish --profile affected --run --json`. The prompt avoids
+hardcoding a specific JavaScript package manager; package-manager selection
+remains delegated to Refarm's resolver.
 
 ---
 

@@ -148,8 +148,8 @@ deterministic install/reload/runtime recovery commands.
 **Next sprint:**
 3. TUI-backed config surface for no-argument `refarm config`
 4. Package-level validation profiles for coding-agent verification — started via
-   `refarm agent finish --profile package --workspace <dir>` and surfaced in
-   context through `affected_workspaces`
+   `refarm agent finish --profile affected` / `--profile package --workspace <dir>`
+   and surfaced in context through `affected_workspaces`
 
 **After daily-driver milestone:**
 5. TUI mode — `refarm` bare launches a full-screen TUI (already partially
