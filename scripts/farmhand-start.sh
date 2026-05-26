@@ -18,12 +18,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
+MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
 FARMHAND_ENTRY="$ROOT/apps/farmhand/src/index.ts"
 FARMHAND_LOADER_REGISTER="$ROOT/scripts/farmhand-node-register-loader.mjs"
 ENV_FILE="$ROOT/.refarm/.env"
-CONFIG_FILE="$ROOT/.refarm/config.json"
-WORKSPACE_IDENTITY_FILE="$ROOT/.refarm/identity.json"
-OPERATOR_IDENTITY_FILE="$HOME/.refarm/identity.json"
 PID_FILE="$ROOT/.refarm/farmhand.pid"
 LOG_FILE="$ROOT/.refarm/farmhand.log"
 WS_PORT=42000
@@ -36,6 +34,14 @@ fi
 
 # shellcheck disable=SC1090
 source "$PACKAGE_MANAGER_HELPER"
+
+if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
+  echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$MODEL_PROVIDER_HELPER"
 
 PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
 
@@ -94,35 +100,7 @@ fi
 # ── load .refarm/.env (or explain when it is optional) ──────────────────────
 
 detect_provider() {
-  if [ -n "${MODEL_PROVIDER:-}" ]; then
-    printf "%s" "$MODEL_PROVIDER"
-    return 0
-  fi
-  if [ -n "${MODEL_DEFAULT_PROVIDER:-}" ]; then
-    printf "%s" "$MODEL_DEFAULT_PROVIDER"
-    return 0
-  fi
-
-  if [ -f "$CONFIG_FILE" ] && command -v node >/dev/null 2>&1; then
-    node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));process.stdout.write(c.provider||c.default_provider||c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
-    return 0
-  fi
-  if [ -f "$OPERATOR_IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
-    node -e "try{const c=JSON.parse(require('fs').readFileSync('$OPERATOR_IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
-    return 0
-  fi
-
-  if [ -f "$WORKSPACE_IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
-    node -e "try{const c=JSON.parse(require('fs').readFileSync('$WORKSPACE_IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
-    return 0
-  fi
-
-  if command -v node >/dev/null 2>&1; then
-    node -e "import('$ROOT/packages/config/src/model-routing.js').then(m=>process.stdout.write(m.DEFAULT_MODEL_PROVIDER)).catch(()=>process.stdout.write('openai'))" 2>/dev/null || true
-    return 0
-  fi
-
-  printf "openai"
+  resolve_refarm_model_provider "$ROOT"
 }
 
 if [ -f "$ENV_FILE" ]; then

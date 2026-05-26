@@ -15,9 +15,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
+MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
 ENV_FILE="$ROOT/.refarm/.env"
-WORKSPACE_IDENTITY_FILE="$ROOT/.refarm/identity.json"
-OPERATOR_IDENTITY_FILE="$HOME/.refarm/identity.json"
 PID_FILE="$ROOT/.refarm/tractor.pid"
 LOG_FILE="$ROOT/.refarm/tractor.log"
 
@@ -52,6 +51,14 @@ fi
 
 # shellcheck disable=SC1090
 source "$PACKAGE_MANAGER_HELPER"
+
+if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
+  echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$MODEL_PROVIDER_HELPER"
 
 PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
 
@@ -120,49 +127,8 @@ fi
 
 # ── provider selection ────────────────────────────────────────────────────────
 
-# Priority: MODEL_PROVIDER env > MODEL_DEFAULT_PROVIDER env > workspace config > operator identity > workspace identity > Refarm default provider.
 if [ -z "${MODEL_PROVIDER:-}" ]; then
-  if [ -n "${MODEL_DEFAULT_PROVIDER:-}" ]; then
-    export MODEL_PROVIDER="$MODEL_DEFAULT_PROVIDER"
-  fi
-fi
-
-if [ -z "${MODEL_PROVIDER:-}" ]; then
-  CONFIG="$ROOT/.refarm/config.json"
-  if [ -f "$CONFIG" ] && command -v node >/dev/null 2>&1; then
-    PROVIDER_FROM_CONFIG=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG','utf8'));process.stdout.write(c.provider||c.default_provider||c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true)
-    if [ -n "$PROVIDER_FROM_CONFIG" ]; then
-      export MODEL_PROVIDER="$PROVIDER_FROM_CONFIG"
-    fi
-  fi
-fi
-
-if [ -z "${MODEL_PROVIDER:-}" ]; then
-  if [ -f "$OPERATOR_IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
-    PROVIDER_FROM_IDENTITY=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$OPERATOR_IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true)
-    if [ -n "$PROVIDER_FROM_IDENTITY" ]; then
-      export MODEL_PROVIDER="$PROVIDER_FROM_IDENTITY"
-    fi
-  fi
-fi
-
-if [ -z "${MODEL_PROVIDER:-}" ]; then
-  if [ -f "$WORKSPACE_IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
-    PROVIDER_FROM_IDENTITY=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$WORKSPACE_IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true)
-    if [ -n "$PROVIDER_FROM_IDENTITY" ]; then
-      export MODEL_PROVIDER="$PROVIDER_FROM_IDENTITY"
-    fi
-  fi
-fi
-
-if [ -z "${MODEL_PROVIDER:-}" ]; then
-  if command -v node >/dev/null 2>&1; then
-    MODEL_PROVIDER="$(node -e "import('$ROOT/packages/config/src/model-routing.js').then(m=>process.stdout.write(m.DEFAULT_MODEL_PROVIDER)).catch(()=>process.stdout.write('openai'))" 2>/dev/null || true)"
-  fi
-fi
-
-if [ -z "${MODEL_PROVIDER:-}" ]; then
-  MODEL_PROVIDER="openai"
+  MODEL_PROVIDER="$(resolve_refarm_model_provider "$ROOT")"
   export MODEL_PROVIDER
 fi
 
