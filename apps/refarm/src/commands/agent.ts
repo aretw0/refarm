@@ -90,8 +90,10 @@ const agentRuntimePlan = {
 		finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
 		finishAffectedPlanJsonCommand: "refarm agent finish --profile affected --json",
 		finishAffectedRunJsonCommand: "refarm agent finish --profile affected --run --json",
+		finishAffectedSinceRunJsonCommand: "refarm agent finish --profile affected --since <ref> --run --json",
 		finishAffectedTestRunJsonCommand: "refarm agent finish --profile affected --include-tests --run --json",
 		finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
+		finishAffectedSinceRunCommand: "refarm agent finish --profile affected --since <ref> --run --next-command",
 		finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
 	},
 };
@@ -564,7 +566,9 @@ Notes:
 						agentRuntimePlan.verification.finishPackagePlanCommand,
 						agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
 						agentRuntimePlan.verification.finishAffectedRunJsonCommand,
+						agentRuntimePlan.verification.finishAffectedSinceRunJsonCommand,
 						agentRuntimePlan.verification.finishAffectedRunCommand,
+						agentRuntimePlan.verification.finishAffectedSinceRunCommand,
 						agentRuntimePlan.verification.finishAffectedTestRunCommand,
 					],
 					nextCommands: [
@@ -580,7 +584,9 @@ Notes:
 						agentRuntimePlan.verification.finishPackageRunCommand,
 						agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
 						agentRuntimePlan.verification.finishAffectedRunJsonCommand,
+						agentRuntimePlan.verification.finishAffectedSinceRunJsonCommand,
 						agentRuntimePlan.verification.finishAffectedRunCommand,
+						agentRuntimePlan.verification.finishAffectedSinceRunCommand,
 						agentRuntimePlan.verification.finishAffectedTestRunCommand,
 					],
 					extra: {
