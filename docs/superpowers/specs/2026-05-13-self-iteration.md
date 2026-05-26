@@ -119,15 +119,19 @@ ships, users must manually start farmhand before `refarm chat`.
 **Path forward**: ADR-065 implementation (detect not running, offer Y/n, spawn
 detached). See `docs/superpowers/specs/` for the pending ADR-065 spec.
 
-### Gap 6 — No verification contract (behavioral, not code)
+### Gap 6 — Verification contract in system prompt — ADDRESSED
 
 Pi-agent can run tests via agent-shell, but it doesn't know to run them. The
 system prompt and/or task prompt must instruct it to verify before committing.
 
-**Path forward**: The `chat.ts` system prompt (via `buildSystemPrompt` from
-`context-provider-v1`) should include a coding workflow instruction: "After
-editing, run `pnpm typecheck && pnpm test --filter <package>` and read the
-output before committing." This is a prompt engineering task, not a code change.
+`buildSystemPrompt` in `@refarm.dev/context-provider-v1` now includes a
+conditional coding workflow instruction: when the user asks for code edits, the
+agent should inspect the workspace, keep changes focused, verify before
+reporting completion, and prefer deterministic Refarm handoffs such as
+`refarm package-manager --json` and
+`refarm agent finish --fix --run --json`. The prompt avoids hardcoding a
+specific JavaScript package manager; package-manager selection remains delegated
+to Refarm's resolver.
 
 ---
 
@@ -180,12 +184,13 @@ already implemented for rapid iteration once the binary exists.
 - ADR-065: farmhand auto-start so `refarm chat` works without a separate daemon
 - Monitor bundled install logs to ensure pi-agent consistently installs on farmhand boot
 
-**Phase 3 — Make it self-aware (coding system prompt)**
+**Phase 3 — Make it self-aware (coding system prompt) — started**
 
-- Inject a coding-specific system instruction into the context providers:
-  "You have access to the full refarm monorepo. Use agent-fs to read files and
-  agent-shell to run pnpm commands. Verify with typecheck and tests before committing."
-- This is a `context-provider-v1` contribution, not a farmhand or pi-agent change
+- `context-provider-v1` injects a coding workflow instruction into the shared
+  system prompt used by `refarm ask` and `refarm chat`.
+- Remaining work: make the instruction richer when the workspace exposes
+  project-specific policies, for example AGENTS.md, Scarecrow policies, or
+  package-level validation profiles.
 
 **Phase 4 — Scarecrow boundary (Barn Steps 3+4)**
 
