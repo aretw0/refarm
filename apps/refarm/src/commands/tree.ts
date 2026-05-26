@@ -51,6 +51,7 @@ function printTreeValidationJson(input: {
 			error: input.error,
 			message: input.message,
 			nextAction: nextCommand,
+			nextActions: [nextCommand],
 			nextCommand,
 			nextCommands: [nextCommand],
 			extra: input.extra,

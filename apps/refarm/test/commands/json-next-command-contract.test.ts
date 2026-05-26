@@ -12,6 +12,7 @@ import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
 import { provisionCommand } from "../../src/commands/provision.js";
+import { createTreeCommand } from "../../src/commands/tree.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
 
@@ -336,6 +337,21 @@ describe("JSON next command contract", () => {
 					id: "provision-cloudflare-turbo-cache",
 					command: provisionCommand,
 					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
+				},
+				{
+					id: "tree-invalid-list-scope",
+					command: createTreeCommand(),
+					args: ["list", "--scope", "crdt", "--json"],
+				},
+				{
+					id: "tree-invalid-list-limit",
+					command: createTreeCommand(),
+					args: ["list", "--scope", "all", "--limit", "0", "--json"],
+				},
+				{
+					id: "tree-invalid-operation-scope",
+					command: createTreeCommand(),
+					args: ["show", "abc123", "--scope", "all", "--json"],
 				},
 				{
 					id: "tui-launch-dry-run",
