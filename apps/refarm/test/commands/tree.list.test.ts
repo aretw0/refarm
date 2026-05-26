@@ -209,7 +209,7 @@ describe("refarm tree list", () => {
 			operation: "list",
 			ok: false,
 			error: "runtime-unavailable",
-			nextAction: "refarm runtime start",
+			nextAction: "refarm runtime ensure --wait --next-command",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -306,7 +306,7 @@ describe("refarm tree list", () => {
 			operation: "list",
 			ok: false,
 			error: "runtime-unavailable",
-			nextAction: "refarm runtime start",
+			nextAction: "refarm runtime ensure --wait --next-command",
 		});
 		expect(process.exitCode).toBe(1);
 	});
@@ -418,7 +418,7 @@ describe("refarm tree list", () => {
 			operation: "list",
 			ok: false,
 			error: "runtime-unavailable",
-			nextAction: "refarm runtime start",
+			nextAction: "refarm runtime ensure --wait --next-command",
 		});
 		expect(process.exitCode).toBe(1);
 	});

@@ -55,11 +55,11 @@ export function buildSidecarErrorPayload(
 			...context,
 			error: "runtime-unavailable",
 			message: "Refarm runtime is not running.",
-			nextAction: RUNTIME_START_COMMAND,
+			nextAction: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			nextActions: [
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_STATUS_COMMAND,
 				RUNTIME_START_COMMAND,
-				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 				RUNTIME_AUTOSTART_ALWAYS_COMMAND,

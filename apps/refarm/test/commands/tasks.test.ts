@@ -136,7 +136,7 @@ describe("refarm tasks", () => {
 			operation: "list",
 			ok: false,
 			error: "runtime-unavailable",
-			nextAction: "refarm runtime start",
+			nextAction: "refarm runtime ensure --wait --next-command",
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
 				"refarm runtime ensure --wait --next-command",
@@ -480,7 +480,7 @@ describe("refarm tasks", () => {
 			operation: "show",
 			ok: false,
 			error: "runtime-unavailable",
-			nextAction: "refarm runtime start",
+			nextAction: "refarm runtime ensure --wait --next-command",
 		});
 		expect(process.exitCode).toBe(1);
 	});
