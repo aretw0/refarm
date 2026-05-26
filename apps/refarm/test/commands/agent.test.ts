@@ -264,6 +264,7 @@ describe("agent command", () => {
 				profile: string;
 				fix: boolean;
 				includeTests: boolean;
+				validationScope: string;
 				workspace: string | null;
 			};
 		};
@@ -276,6 +277,7 @@ describe("agent command", () => {
 				profile: "quick",
 				fix: false,
 				includeTests: false,
+				validationScope: "quick",
 				workspace: null,
 			},
 			nextCommand: "refarm tidy imports --check --json",
@@ -532,7 +534,12 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string; process?: { cwd?: string } }[];
 			nextCommands: string[];
-			selection: { affectedWorkspaces?: string[]; includeTests: boolean; profile: string };
+			selection: {
+				affectedWorkspaces?: string[];
+				includeTests: boolean;
+				profile: string;
+				validationScope: string;
+			};
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -547,6 +554,7 @@ describe("agent command", () => {
 		expect(payload.selection).toMatchObject({
 			profile: "affected",
 			includeTests: false,
+			validationScope: "dirtyTree",
 			affectedWorkspaces: ["apps/refarm"],
 		});
 		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
@@ -610,7 +618,12 @@ describe("agent command", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string }[];
-			selection: { affectedWorkspaces?: string[]; since: string | null; sinceRef: string | null };
+			selection: {
+				affectedWorkspaces?: string[];
+				since: string | null;
+				sinceRef: string | null;
+				validationScope: string;
+			};
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -622,6 +635,7 @@ describe("agent command", () => {
 		expect(payload.selection).toMatchObject({
 			since: "HEAD~1",
 			sinceRef: "HEAD~1",
+			validationScope: "branchRange",
 			affectedWorkspaces: ["apps/refarm"],
 		});
 		logSpy.mockRestore();
@@ -695,11 +709,17 @@ describe("agent command", () => {
 		}
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
-			selection: { affectedWorkspaces?: string[]; since: string | null; sinceRef: string | null };
+			selection: {
+				affectedWorkspaces?: string[];
+				since: string | null;
+				sinceRef: string | null;
+				validationScope: string;
+			};
 		};
 		expect(payload.selection).toMatchObject({
 			since: "upstream",
 			sinceRef: "origin/main",
+			validationScope: "branchRange",
 			affectedWorkspaces: ["apps/refarm"],
 		});
 		logSpy.mockRestore();
@@ -797,7 +817,11 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string }[];
 			nextCommands: string[];
-			selection: { affectedWorkspaces?: string[]; includeTests: boolean };
+			selection: {
+				affectedWorkspaces?: string[];
+				includeTests: boolean;
+				validationScope: string;
+			};
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -810,6 +834,7 @@ describe("agent command", () => {
 		expect(payload.nextCommands).toContain("npm --prefix apps/refarm run test");
 		expect(payload.selection).toMatchObject({
 			includeTests: true,
+			validationScope: "dirtyTree",
 			affectedWorkspaces: ["apps/refarm"],
 		});
 		logSpy.mockRestore();
@@ -849,7 +874,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string }[];
 			nextCommands: string[];
-			selection: { affectedWorkspaces?: string[] };
+			selection: { affectedWorkspaces?: string[]; validationScope: string };
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -858,6 +883,7 @@ describe("agent command", () => {
 		]);
 		expect(payload.nextCommands).not.toContain("npm --prefix . run type-check");
 		expect(payload.selection.affectedWorkspaces).toEqual([]);
+		expect(payload.selection.validationScope).toBe("dirtyTree");
 		logSpy.mockRestore();
 	});
 

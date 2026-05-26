@@ -162,6 +162,7 @@ Plan and run envelopes include a `selection` block for deterministic routing:
     "includeTests": false,
     "since": null,
     "sinceRef": null,
+    "validationScope": "dirtyTree",
     "workspace": null,
     "affectedWorkspaces": ["apps/refarm"]
   }
@@ -169,7 +170,9 @@ Plan and run envelopes include a `selection` block for deterministic routing:
 ```
 
 Use `selection.affectedWorkspaces` instead of scraping command strings when an
-agent needs to explain or branch on the package set selected by Git status.
+agent needs to explain or branch on the package set selected by Git status. Use
+`selection.validationScope` to distinguish dirty-tree, branch-range, package,
+and quick validation without inferring from flags.
 
 ## Live status affordances
 

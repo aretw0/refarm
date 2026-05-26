@@ -140,6 +140,7 @@ interface AgentFinishSelectionMetadata {
 	includeTests: boolean;
 	since: string | null;
 	sinceRef: string | null;
+	validationScope: "branchRange" | "dirtyTree" | "package" | "quick";
 	workspace: string | null;
 	affectedWorkspaces?: string[];
 }
@@ -450,11 +451,21 @@ function finishSelectionMetadata(
 		includeTests: Boolean(selection.includeTests),
 		since: selection.profile === "affected" ? selection.since ?? null : null,
 		sinceRef: selection.profile === "affected" ? selection.sinceRef ?? selection.since ?? null : null,
+		validationScope: finishValidationScope(selection),
 		workspace: selection.profile === "package" ? selection.workspace ?? "." : null,
 		...(selection.profile === "affected"
 			? { affectedWorkspaces: affectedWorkspaces ?? [] }
 			: {}),
 	};
+}
+
+function finishValidationScope(
+	selection: AgentFinishSelection,
+): AgentFinishSelectionMetadata["validationScope"] {
+	if (selection.profile === "affected") {
+		return selection.since ? "branchRange" : "dirtyTree";
+	}
+	return selection.profile;
 }
 
 function resolveFinishSelectionContext(
