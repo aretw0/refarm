@@ -37,9 +37,9 @@ describe("runtime plugin client", () => {
 			ok: true,
 			json: vi.fn().mockResolvedValue({
 				reloadId: "reload-1",
-				reloaded: ["@refarm/pi-agent"],
-				deferred: [0],
-				skipped: ["@refarm/missing"],
+				reloaded: ["pi-agent"],
+				deferred: ["@local/tool", 0],
+				skipped: ["@refarm.dev/pi-agent", "@refarm/missing"],
 			}),
 		});
 		vi.stubGlobal("fetch", fetchSpy);
@@ -47,8 +47,8 @@ describe("runtime plugin client", () => {
 		await expect(reloadRuntimePlugins(["@refarm/pi-agent"])).resolves.toEqual({
 			reloadId: "reload-1",
 			reloaded: ["@refarm/pi-agent"],
-			deferred: [],
-			skipped: ["@refarm/missing"],
+			deferred: ["@local/tool"],
+			skipped: ["@refarm/pi-agent", "@refarm/missing"],
 		});
 		expect(fetchSpy).toHaveBeenCalledWith(
 			expect.stringContaining("/plugins/reload"),
@@ -90,7 +90,7 @@ describe("runtime plugin client", () => {
 				json: vi.fn().mockResolvedValue({
 					reloadId: "reload-1",
 					reloaded: [],
-					deferred: ["@local/tool"],
+					deferred: ["pi-agent"],
 					skipped: [],
 				}),
 			})
@@ -98,7 +98,7 @@ describe("runtime plugin client", () => {
 				ok: true,
 				json: vi.fn().mockResolvedValue({
 					pending: [],
-					completed: ["@local/tool"],
+					completed: ["@refarm.dev/pi-agent"],
 					failed: [],
 				}),
 			});
@@ -106,15 +106,15 @@ describe("runtime plugin client", () => {
 		vi.stubGlobal("fetch", fetchSpy);
 
 		await expect(
-			reloadRuntimePluginsAndWait(["@local/tool"], {
+			reloadRuntimePluginsAndWait(["pi-agent"], {
 				onDeferred,
 				pollIntervalMs: 1,
 			}),
 		).resolves.toEqual({
-			reloaded: ["@local/tool"],
+			reloaded: ["@refarm/pi-agent"],
 			skipped: [],
 		});
-		expect(onDeferred).toHaveBeenCalledWith("@local/tool");
+		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
 		expect(fetchSpy).toHaveBeenNthCalledWith(
 			2,
 			expect.stringContaining("/plugins/reload/status/reload-1"),

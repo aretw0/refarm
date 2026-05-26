@@ -65,9 +65,9 @@ export async function reloadRuntimePlugins(
 		const payload = (await response.json()) as Partial<RuntimePluginReloadResult>;
 		return {
 			reloadId: typeof payload.reloadId === "string" ? payload.reloadId : undefined,
-			reloaded: stringArray(payload.reloaded),
-			deferred: stringArray(payload.deferred),
-			skipped: stringArray(payload.skipped),
+			reloaded: pluginIdArray(payload.reloaded),
+			deferred: pluginIdArray(payload.deferred),
+			skipped: pluginIdArray(payload.skipped),
 		};
 	} catch {
 		return null;
@@ -106,11 +106,11 @@ export async function reloadRuntimePluginsAndWait(
 			completed?: unknown;
 			failed?: unknown;
 		};
-		const stillPending = stringArray(status.pending);
-		for (const pluginId of stringArray(status.completed)) {
+		const stillPending = pluginIdArray(status.pending);
+		for (const pluginId of pluginIdArray(status.completed)) {
 			if (pending.delete(pluginId)) completed.add(pluginId);
 		}
-		for (const pluginId of stringArray(status.failed)) {
+		for (const pluginId of pluginIdArray(status.failed)) {
 			if (pending.delete(pluginId)) failed.add(pluginId);
 		}
 		for (const pluginId of [...pending]) {
