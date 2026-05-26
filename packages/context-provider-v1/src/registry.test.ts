@@ -87,7 +87,7 @@ describe("buildSystemPrompt", () => {
 		expect(prompt).toContain("When the user asks you to edit code");
 		expect(prompt).toContain("refarm package-manager --json");
 		expect(prompt).toContain("refarm agent finish --profile affected --run --json");
-		expect(prompt).toContain("refarm agent finish --profile affected --since <ref> --run --json");
+		expect(prompt).toContain("refarm agent finish --profile affected --since upstream --run --json");
 		expect(prompt).toContain("refarm agent finish --profile package --workspace <dir> --run --json");
 		expect(prompt).toContain("Do not commit until verification passes");
 	});

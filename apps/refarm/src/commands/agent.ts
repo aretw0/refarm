@@ -122,6 +122,7 @@ interface AgentFinishSelection {
 	includeTests?: boolean;
 	profile: AgentFinishProfile;
 	since?: string;
+	sinceRef?: string;
 	workspace?: string;
 }
 
@@ -130,8 +131,14 @@ interface AgentFinishSelectionMetadata {
 	fix: boolean;
 	includeTests: boolean;
 	since: string | null;
+	sinceRef: string | null;
 	workspace: string | null;
 	affectedWorkspaces?: string[];
+}
+
+interface AgentFinishSelectionContext {
+	affectedWorkspaces?: string[];
+	sinceRef?: string;
 }
 
 function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
@@ -322,8 +329,8 @@ function affectedPackageFinishSteps(
 	);
 }
 
-function affectedWorkspacesFromGit(options: { since?: string } = {}): string[] {
-	const repoRoot = findWorkspaceRoot();
+function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
+	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
 	try {
 		const status = execFileSync(
 			"git",
@@ -348,6 +355,17 @@ function affectedWorkspacesFromGit(options: { since?: string } = {}): string[] {
 		}
 		return [];
 	}
+}
+
+function resolveSinceRef(repoRoot: string, since: string): string {
+	if (since !== "upstream") return since;
+	const upstream = execFileSync(
+		"git",
+		["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+		{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+	).trim();
+	if (!upstream) throw new Error("Could not resolve upstream for the current branch.");
+	return upstream;
 }
 
 function sanitizeStepId(value: string): string {
@@ -416,6 +434,7 @@ function finishSelectionMetadata(
 		fix: Boolean(selection.fix),
 		includeTests: Boolean(selection.includeTests),
 		since: selection.profile === "affected" ? selection.since ?? null : null,
+		sinceRef: selection.profile === "affected" ? selection.sinceRef ?? selection.since ?? null : null,
 		workspace: selection.profile === "package" ? selection.workspace ?? "." : null,
 		...(selection.profile === "affected"
 			? { affectedWorkspaces: affectedWorkspaces ?? [] }
@@ -423,12 +442,16 @@ function finishSelectionMetadata(
 	};
 }
 
-function resolveAffectedWorkspacesForSelection(
+function resolveFinishSelectionContext(
 	selection: AgentFinishSelection,
-): string[] | undefined {
-	return selection.profile === "affected"
-		? affectedWorkspacesFromGit({ since: selection.since })
-		: undefined;
+): AgentFinishSelectionContext {
+	if (selection.profile !== "affected") return {};
+	const repoRoot = findWorkspaceRoot();
+	const sinceRef = selection.since ? resolveSinceRef(repoRoot, selection.since) : undefined;
+	return {
+		affectedWorkspaces: affectedWorkspacesFromGit({ repoRoot, since: sinceRef }),
+		...(sinceRef ? { sinceRef } : {}),
+	};
 }
 
 function printAgentFinishRunHuman(
@@ -459,7 +482,7 @@ function printAgentFinishRunHuman(
 function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {
 	if (selection.profile === "affected") {
 		const workspaces = selection.affectedWorkspaces ?? [];
-		const since = selection.since ? ` since ${selection.since}` : "";
+		const since = formatSinceSelection(selection);
 		return workspaces.length > 0
 			? `affected${since} (${workspaces.join(", ")})`
 			: `affected${since} (no changed workspaces)`;
@@ -468,6 +491,14 @@ function formatFinishSelection(selection: AgentFinishSelectionMetadata): string 
 		return `package (${selection.workspace ?? "."})`;
 	}
 	return selection.profile;
+}
+
+function formatSinceSelection(selection: AgentFinishSelectionMetadata): string {
+	if (!selection.since) return "";
+	if (selection.sinceRef && selection.sinceRef !== selection.since) {
+		return ` since ${selection.since} (${selection.sinceRef})`;
+	}
+	return ` since ${selection.since}`;
 }
 
 function resolveFinishOptions(self: Command, actionArg: unknown): AgentFinishOptions {
@@ -544,7 +575,7 @@ Verification:
   $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --profile package --workspace apps/refarm --run
   $ refarm agent finish --profile affected --run
-  $ refarm agent finish --profile affected --since origin/develop --run
+  $ refarm agent finish --profile affected --since upstream --run
   $ refarm agent finish --profile affected --include-tests --run
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
@@ -646,7 +677,7 @@ Notes:
 				"  $ refarm agent finish --profile package --workspace apps/refarm --json",
 				"  $ refarm agent finish --profile package --workspace apps/refarm --run",
 				"  $ refarm agent finish --profile affected --run --json",
-				"  $ refarm agent finish --profile affected --since origin/develop --run --json",
+				"  $ refarm agent finish --profile affected --since upstream --run --json",
 				"  $ refarm agent finish --profile affected --include-tests --run --json",
 				"  $ refarm agent finish --run --next-command",
 				"",
@@ -656,6 +687,7 @@ Notes:
 				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --profile affected adds package scripts for changed Git workspaces.",
 				"  --since <ref> lets affected include committed branch changes after atomic commits.",
+				"  --since upstream compares against the current branch upstream without network access.",
 				"  --include-tests also adds existing package test scripts for package profiles.",
 				"  --fix adds refarm tidy imports before the check-only verification steps.",
 				"  --run executes selected commands, stops at the first failure, and does not commit changes.",
@@ -682,9 +714,9 @@ Notes:
 				since: options.since,
 				workspace: options.workspace,
 			};
-			let affectedWorkspaces: string[] | undefined;
+			let selectionContext: AgentFinishSelectionContext;
 			try {
-				affectedWorkspaces = resolveAffectedWorkspacesForSelection(selection);
+				selectionContext = resolveFinishSelectionContext(selection);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				reportAgentFinishOptionError(message, options, "invalid-agent-finish-since-ref");
@@ -692,7 +724,10 @@ Notes:
 			}
 			const selectionWithAffected = {
 				...selection,
-				...(affectedWorkspaces ? { affectedWorkspaces } : {}),
+				...(selectionContext.sinceRef ? { sinceRef: selectionContext.sinceRef } : {}),
+				...(selectionContext.affectedWorkspaces
+					? { affectedWorkspaces: selectionContext.affectedWorkspaces }
+					: {}),
 			};
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps, selectionWithAffected);
@@ -703,7 +738,10 @@ Notes:
 							command: "agent",
 							operation: "finish",
 						}, result),
-						selection: finishSelectionMetadata(selection, affectedWorkspaces),
+						selection: finishSelectionMetadata(
+							selectionWithAffected,
+							selectionContext.affectedWorkspaces,
+						),
 					});
 				} else if (options.nextCommand) {
 					const [nextCommand] = result.nextCommands;
@@ -714,7 +752,10 @@ Notes:
 				} else {
 					printAgentFinishRunHuman(
 						result,
-						finishSelectionMetadata(selection, affectedWorkspaces),
+						finishSelectionMetadata(
+							selectionWithAffected,
+							selectionContext.affectedWorkspaces,
+						),
 					);
 				}
 				if (!result.ok) process.exitCode = 1;
@@ -738,7 +779,10 @@ Notes:
 						command: "agent",
 						operation: "finish",
 					}, selectedFinishSteps(selectionWithAffected)),
-					selection: finishSelectionMetadata(selection, affectedWorkspaces),
+					selection: finishSelectionMetadata(
+						selectionWithAffected,
+						selectionContext.affectedWorkspaces,
+					),
 				});
 				return;
 			}

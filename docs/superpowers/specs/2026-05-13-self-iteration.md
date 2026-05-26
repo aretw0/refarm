@@ -207,6 +207,8 @@ already implemented for rapid iteration once the binary exists.
 - `refarm agent finish --profile affected --since <ref>` keeps the same
   affected-workspace validation available after atomic commits by comparing the
   branch/worktree against a Git ref.
+- `--since upstream` resolves the current branch upstream locally, so agents can
+  validate branch changes without hardcoding `origin/develop` or fetching.
 - `GitStatusContextProvider` now emits an `affected_workspaces` context block
   with workspace-relative package candidates and matching package validation
   commands. This lets pi-agent choose the package finish profile from context

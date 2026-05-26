@@ -92,7 +92,7 @@ refarm agent finish --next-command
 refarm agent finish --run --json
 refarm agent finish --run --next-command
 refarm agent finish --profile affected --run --json
-refarm agent finish --profile affected --since origin/develop --run --json
+refarm agent finish --profile affected --since upstream --run --json
 refarm agent finish --profile affected --include-tests --run --json
 ```
 
@@ -122,10 +122,12 @@ diff.
 
 After committing an atomic slice, add `--since <ref>` to keep affected
 workspace selection tied to branch changes instead of only the current dirty
-tree. This is useful for final branch-local validation before push:
+tree. Use `--since upstream` when the current branch has an upstream configured;
+it resolves locally and does not fetch from the network. This is useful for final
+branch-local validation before push:
 
 ```bash
-refarm agent finish --profile affected --since origin/develop --run --json
+refarm agent finish --profile affected --since upstream --run --json
 ```
 
 Keep package tests explicit. Add `--include-tests` when the slice needs package
@@ -151,6 +153,7 @@ Plan and run envelopes include a `selection` block for deterministic routing:
     "fix": false,
     "includeTests": false,
     "since": null,
+    "sinceRef": null,
     "workspace": null,
     "affectedWorkspaces": ["apps/refarm"]
   }

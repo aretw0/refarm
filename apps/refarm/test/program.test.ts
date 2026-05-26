@@ -110,7 +110,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --profile affected --run");
-		expect(help).toContain("refarm agent finish --profile affected --since origin/develop --run");
+		expect(help).toContain("refarm agent finish --profile affected --since upstream --run");
 		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
 		expect(help).toContain("refarm config set runtime.autostart always");

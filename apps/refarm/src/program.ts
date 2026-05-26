@@ -104,7 +104,7 @@ program
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --profile affected --run Verify changed workspaces",
-			"  $ refarm agent finish --profile affected --since origin/develop --run Verify branch changes",
+			"  $ refarm agent finish --profile affected --since upstream --run Verify branch changes",
 			"  $ refarm agent finish --fix --run Organize imports, then verify",
 			"  $ refarm agent finish --profile package --workspace apps/refarm --run",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
