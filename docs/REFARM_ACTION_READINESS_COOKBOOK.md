@@ -113,6 +113,14 @@ If a finish run fails, `nextCommand` should forward the failing command's
 recovery command, such as `refarm runtime start --wait`, instead of the whole
 plan.
 
+`refarm agent --json` exposes `verification.recommended` so agents do not need
+to infer the default finish lane from the command catalog:
+
+- `afterEdit`: dirty-tree validation after source edits;
+- `afterCommit`: branch validation after atomic commits;
+- `beforePush`: final branch-local validation against upstream;
+- `withPackageTests`: opt-in package tests when the slice requires them.
+
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends
 package-level `type-check`, `lint`, and `build` scripts for changed workspaces

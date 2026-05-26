@@ -97,6 +97,12 @@ const agentRuntimePlan = {
 		finishAffectedUpstreamRunCommand: "refarm agent finish --profile affected --since upstream --run --next-command",
 		finishAffectedSinceRunCommand: "refarm agent finish --profile affected --since <ref> --run --next-command",
 		finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
+		recommended: {
+			afterEdit: "refarm agent finish --profile affected --run --json",
+			afterCommit: "refarm agent finish --profile affected --since upstream --run --json",
+			beforePush: "refarm agent finish --profile affected --since upstream --run --json",
+			withPackageTests: "refarm agent finish --profile affected --include-tests --run --json",
+		},
 	},
 };
 

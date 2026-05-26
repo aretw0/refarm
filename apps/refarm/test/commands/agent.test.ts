@@ -129,6 +129,12 @@ describe("agent command", () => {
 				finishAffectedUpstreamRunCommand: string;
 				finishAffectedSinceRunCommand: string;
 				finishAffectedTestRunCommand: string;
+				recommended: {
+					afterCommit: string;
+					afterEdit: string;
+					beforePush: string;
+					withPackageTests: string;
+				};
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -184,6 +190,12 @@ describe("agent command", () => {
 				finishAffectedUpstreamRunCommand: "refarm agent finish --profile affected --since upstream --run --next-command",
 				finishAffectedSinceRunCommand: "refarm agent finish --profile affected --since <ref> --run --next-command",
 				finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
+				recommended: {
+					afterEdit: "refarm agent finish --profile affected --run --json",
+					afterCommit: "refarm agent finish --profile affected --since upstream --run --json",
+					beforePush: "refarm agent finish --profile affected --since upstream --run --json",
+					withPackageTests: "refarm agent finish --profile affected --include-tests --run --json",
+				},
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",
