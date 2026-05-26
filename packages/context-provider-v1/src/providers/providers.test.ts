@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -46,6 +47,24 @@ describe("GitStatusContextProvider", () => {
 		const provider = new GitStatusContextProvider();
 		const entries = await provider.provide({ cwd: os.tmpdir() });
 		expect(entries).toEqual([]);
+	});
+
+	it("reports affected workspace candidates from changed files", async () => {
+		execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		const appDir = path.join(tempDir, "apps", "refarm");
+		mkdirSync(appDir, { recursive: true });
+		writeFileSync(path.join(appDir, "package.json"), JSON.stringify({ name: "refarm" }), "utf8");
+		writeFileSync(path.join(appDir, "index.ts"), "export const value = 1;\n", "utf8");
+
+		const provider = new GitStatusContextProvider();
+		const entries = await provider.provide({ cwd: tempDir });
+
+		const affected = entries.find((entry) => entry.label === "affected_workspaces");
+		expect(affected?.content).toContain("Changed workspace candidates:");
+		expect(affected?.content).toContain("- apps/refarm");
+		expect(affected?.content).toContain(
+			"refarm agent finish --profile package --workspace apps/refarm --run --json",
+		);
 	});
 });
 
