@@ -198,9 +198,12 @@ already implemented for rapid iteration once the binary exists.
 
 - `context-provider-v1` injects a coding workflow instruction into the shared
   system prompt used by `refarm ask` and `refarm chat`.
+- `refarm agent finish --profile package --workspace <dir>` adds package-level
+  validation by discovering existing `type-check`, `lint`, and `build` scripts
+  through Refarm's package-manager resolver instead of hardcoding pnpm/npm/yarn.
 - Remaining work: make the instruction richer when the workspace exposes
   project-specific policies, for example AGENTS.md, Scarecrow policies, or
-  package-level validation profiles.
+  package-level policy metadata.
 
 **Phase 4 — Scarecrow boundary (Barn Steps 3+4)**
 

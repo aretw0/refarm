@@ -24,6 +24,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm agent finish --json");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --fix --run");
+		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
 		expect(help).toContain("refarm agent finish --run");
 		expect(help).toContain("refarm agent finish --run --json");
 		expect(help).toContain("refarm agent finish --run --next-command");
@@ -246,6 +247,84 @@ describe("agent command", () => {
 		});
 
 		expect(logSpy).toHaveBeenCalledWith("refarm tidy imports --json");
+		logSpy.mockRestore();
+	});
+
+	it("adds package validation steps from workspace scripts", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--profile",
+			"package",
+			"--workspace",
+			"apps/refarm",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string; command: string; process?: { packageManager?: string | null } }[];
+			nextCommands: string[];
+		};
+
+		expect(payload.ok).toBe(true);
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"package-type-check",
+			"package-lint",
+			"package-build",
+		]);
+		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run type-check");
+		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run lint");
+		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run build");
+		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		logSpy.mockRestore();
+	});
+
+	it("runs package validation steps with process runner", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test refarm step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const runProcess = vi.fn((step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+		const agentCommand = createAgentCommand({ runRefarm, runProcess });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--profile",
+			"package",
+			"--workspace",
+			"apps/refarm",
+			"--run",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			steps: { id: string; ok: boolean }[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(runRefarm).toHaveBeenCalledTimes(3);
+		expect(runProcess).toHaveBeenCalledTimes(3);
+		expect(payload.steps.map((step) => step.id)).toContain("package-type-check");
 		logSpy.mockRestore();
 	});
 

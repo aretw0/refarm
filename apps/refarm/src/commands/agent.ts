@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { refarmCommand } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
@@ -24,6 +26,7 @@ import {
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -81,14 +84,19 @@ const agentRuntimePlan = {
 
 interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
+	runProcess(step: CommandPlanStep): CommandPlanStepRunResult;
 }
+
+type AgentFinishProfile = "quick" | "package";
 
 interface AgentFinishOptions {
 	fix?: boolean;
 	json?: boolean;
 	nextAction?: boolean;
 	nextCommand?: boolean;
+	profile?: string;
 	run?: boolean;
+	workspace?: string;
 }
 
 function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
@@ -114,6 +122,23 @@ function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
 	};
 }
 
+function runProcessCommand(step: CommandPlanStep): CommandPlanStepRunResult {
+	if (!step.process) return runRefarmCommand(step.args);
+	const result = spawnSync(step.process.command, step.process.args, {
+		cwd: step.process.cwd ?? process.cwd(),
+		env: process.env,
+		encoding: "utf-8",
+	});
+	const exitCode = result.status ?? (result.error ? 1 : 0);
+	return {
+		...step,
+		ok: exitCode === 0,
+		exitCode,
+		stdout: result.stdout ?? "",
+		stderr: result.stderr ?? "",
+	};
+}
+
 function finishStep(
 	id: string,
 	args: string[],
@@ -127,6 +152,49 @@ function finishStep(
 		description,
 		effect,
 	};
+}
+
+function packageScriptStep(
+	workspace: string,
+	script: string,
+	description: string,
+): CommandPlanStep {
+	const repoRoot = findWorkspaceRoot();
+	const cwd = path.resolve(repoRoot, workspace);
+	const command = createPackageScriptCommand({
+		cwd,
+		repoRoot,
+		script,
+	});
+	return {
+		id: `package-${script}`,
+		command: command.display,
+		args: [command.command, ...command.args],
+		description,
+		effect: "verify",
+		process: {
+			command: command.command,
+			args: command.args,
+			cwd: repoRoot,
+			display: command.display,
+			packageManager: command.packageManager,
+		},
+	};
+}
+
+function findWorkspaceRoot(cwd = process.cwd()): string {
+	let current = path.resolve(cwd);
+	while (true) {
+		if (
+			fs.existsSync(path.join(current, "pnpm-workspace.yaml")) ||
+			fs.existsSync(path.join(current, ".git"))
+		) {
+			return current;
+		}
+		const parent = path.dirname(current);
+		if (parent === current) return path.resolve(cwd);
+		current = parent;
+	}
 }
 
 const agentFinishSteps = [
@@ -154,22 +222,71 @@ const agentFinishSteps = [
 	),
 ];
 
-function selectedFinishSteps(options: { fix?: boolean } = {}): CommandPlanStep[] {
-	return options.fix
-		? agentFinishSteps
-		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
+function packageScripts(workspace: string): Record<string, string> {
+	const packageJsonPath = path.resolve(findWorkspaceRoot(), workspace, "package.json");
+	if (!fs.existsSync(packageJsonPath)) return {};
+	try {
+		const parsed = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as {
+			scripts?: unknown;
+		};
+		return parsed.scripts && typeof parsed.scripts === "object" && !Array.isArray(parsed.scripts)
+			? parsed.scripts as Record<string, string>
+			: {};
+	} catch {
+		return {};
+	}
 }
 
-function plannedFinishCommands(options: { fix?: boolean } = {}): string[] {
+function packageFinishSteps(workspace: string): CommandPlanStep[] {
+	const scripts = packageScripts(workspace);
+	const candidates = [
+		["type-check", "Run the package TypeScript/type validation."],
+		["lint", "Run the package lint validation."],
+		["build", "Build the package after source changes."],
+	] as const;
+	return candidates
+		.filter(([script]) => typeof scripts[script] === "string")
+		.map(([script, description]) => packageScriptStep(workspace, script, description));
+}
+
+function parseFinishProfile(value: string | undefined): AgentFinishProfile {
+	if (!value || value === "quick") return "quick";
+	if (value === "package") return "package";
+	throw new Error(`Unknown finish profile: ${value}. Use: quick | package`);
+}
+
+function selectedFinishSteps(options: {
+	fix?: boolean;
+	profile?: AgentFinishProfile;
+	workspace?: string;
+} = {}): CommandPlanStep[] {
+	const steps = options.fix
+		? agentFinishSteps
+		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
+	if (options.profile === "package") {
+		return [...steps, ...packageFinishSteps(options.workspace ?? ".")];
+	}
+	return steps;
+}
+
+function plannedFinishCommands(options: {
+	fix?: boolean;
+	profile?: AgentFinishProfile;
+	workspace?: string;
+} = {}): string[] {
 	return commandPlanStepCommands(selectedFinishSteps(options));
 }
 
 function runAgentFinishPlan(
 	deps: AgentCommandDeps,
-	options: { fix?: boolean } = {},
+	options: {
+		fix?: boolean;
+		profile?: AgentFinishProfile;
+		workspace?: string;
+	} = {},
 ): CommandPlanRunResult {
 	return runCommandPlan(selectedFinishSteps(options), (step) =>
-		deps.runRefarm(step.args),
+		step.process ? deps.runProcess(step) : deps.runRefarm(step.args),
 	);
 }
 
@@ -194,9 +311,20 @@ function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
 	}
 }
 
+function resolveFinishOptions(self: Command, actionArg: unknown): AgentFinishOptions {
+	const command = actionArg && typeof actionArg === "object" && "opts" in actionArg
+		? actionArg as Command
+		: self;
+	return {
+		...command.parent?.opts<AgentFinishOptions>(),
+		...command.opts<AgentFinishOptions>(),
+	};
+}
+
 export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	const resolvedDeps: AgentCommandDeps = {
 		runRefarm: runRefarmCommand,
+		runProcess: runProcessCommand,
 		...deps,
 	};
 	// Agent runtime commands (status, repl, start/stop) live here.
@@ -235,6 +363,7 @@ Verification:
   $ refarm agent finish --json      Print an end-of-slice verification plan
   $ refarm agent finish --next-command Print the first verification command
   $ refarm agent finish --fix --run Organize imports, then verify
+  $ refarm agent finish --profile package --workspace apps/refarm --run
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
 Plugin lifecycle:
@@ -303,7 +432,9 @@ Notes:
 		.option("--json", "Output machine-readable finish plan")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
+		.option("--profile <name>", "Validation profile: quick | package", "quick")
 		.option("--run", "Execute the finish plan and stop at the first failing step")
+		.option("--workspace <dir>", "Workspace/package directory for --profile package", ".")
 		.addHelpText(
 			"after",
 			[
@@ -314,21 +445,36 @@ Notes:
 				"  $ refarm agent finish --fix --next-command",
 				"  $ refarm agent finish --run --json",
 				"  $ refarm agent finish --fix --run --json",
+				"  $ refarm agent finish --profile package --workspace apps/refarm --json",
+				"  $ refarm agent finish --profile package --workspace apps/refarm --run",
 				"  $ refarm agent finish --run --next-command",
 				"",
 				"Notes:",
 				"  Without --run this command only prints the commands a coding agent should run.",
+				"  --profile quick is the default end-of-slice gate.",
+				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --fix adds refarm tidy imports before the check-only verification steps.",
 				"  --run executes selected commands, stops at the first failure, and does not commit changes.",
 			].join("\n"),
 		)
-		.action(function (this: Command) {
-			const options = {
-				...this.parent?.opts<AgentFinishOptions>(),
-				...this.opts<AgentFinishOptions>(),
-			} satisfies AgentFinishOptions;
+		.action(function (this: Command, actionArg: unknown) {
+			const options = resolveFinishOptions(this, actionArg);
+			let profile: AgentFinishProfile;
+			try {
+				profile = parseFinishProfile(options.profile);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				console.error(message);
+				process.exitCode = 1;
+				return;
+			}
+			const selection = {
+				fix: options.fix,
+				profile,
+				workspace: options.workspace,
+			};
 			if (options.run) {
-				const result = runAgentFinishPlan(resolvedDeps, { fix: options.fix });
+				const result = runAgentFinishPlan(resolvedDeps, selection);
 				if (options.json) {
 					printJson(buildCommandPlanRunEnvelope({
 						action: "finish",
@@ -347,7 +493,7 @@ Notes:
 				if (!result.ok) process.exitCode = 1;
 				return;
 			}
-			const nextCommands = plannedFinishCommands({ fix: options.fix });
+			const nextCommands = plannedFinishCommands(selection);
 			if (options.nextCommand) {
 				const [nextCommand] = nextCommands;
 				if (nextCommand) console.log(nextCommand);
@@ -363,7 +509,7 @@ Notes:
 					action: "finish",
 					command: "agent",
 					operation: "finish",
-				}, selectedFinishSteps({ fix: options.fix })));
+				}, selectedFinishSteps(selection)));
 				return;
 			}
 			this.outputHelp();

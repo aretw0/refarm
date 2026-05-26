@@ -16,6 +16,13 @@ export interface CommandPlanStep {
 	args: string[];
 	description: string;
 	effect?: "observe" | "verify" | "write";
+	process?: {
+		command: string;
+		args: string[];
+		cwd?: string;
+		display: string;
+		packageManager?: string | null;
+	};
 }
 
 export type CommandPlanEffect = NonNullable<CommandPlanStep["effect"]>;
