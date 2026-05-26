@@ -38,6 +38,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm agent finish --lanes --json --next-command");
 		expect(help).toContain("refarm agent finish --lane after-edit --run --json");
 		expect(help).toContain("refarm agent finish --lane before-push --run --json");
+		expect(help).toContain("refarm agent finish --lane handoffs --run --json");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --json --next-command");
 		expect(help).toContain("refarm agent finish --fix --run");
@@ -144,6 +145,7 @@ describe("agent command", () => {
 					afterCommit: string;
 					afterEdit: string;
 					beforePush: string;
+					handoffs: string;
 					withPackageTests: string;
 				};
 				lanes: {
@@ -215,6 +217,7 @@ describe("agent command", () => {
 					afterEdit: "refarm agent finish --lane after-edit --run --json",
 					afterCommit: "refarm agent finish --lane after-commit --run --json",
 					beforePush: "refarm agent finish --lane before-push --run --json",
+					handoffs: "refarm agent finish --lane handoffs --run --json",
 					withPackageTests: "refarm agent finish --lane with-package-tests --run --json",
 				},
 				lanes: [
@@ -234,6 +237,11 @@ describe("agent command", () => {
 						validationScope: "branchRange",
 					}),
 					expect.objectContaining({
+						id: "handoffs",
+						command: "refarm agent finish --lane handoffs --run --json",
+						validationScope: "contract",
+					}),
+					expect.objectContaining({
 						id: "with-package-tests",
 						command: "refarm agent finish --lane with-package-tests --run --json",
 						validationScope: "dirtyTree",
@@ -250,6 +258,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --lane handoffs --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --json");
 		expect(payload.nextActions).toContain("refarm agent finish --json --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
@@ -273,6 +282,7 @@ describe("agent command", () => {
 			"refarm config profile coding --local --json",
 			"refarm agent finish --lanes --json",
 			"refarm agent finish --lanes --json --next-command",
+			"refarm agent finish --lane handoffs --run --json",
 			"refarm agent finish --json",
 			"refarm agent finish --json --next-command",
 			"refarm agent finish --next-command",
@@ -512,12 +522,18 @@ describe("agent command", () => {
 				validationScope: "branchRange",
 			}),
 			expect.objectContaining({
+				id: "handoffs",
+				command: "refarm agent finish --lane handoffs --run --json",
+				validationScope: "contract",
+			}),
+			expect.objectContaining({
 				id: "with-package-tests",
 				command: "refarm agent finish --lane with-package-tests --run --json",
 				validationScope: "dirtyTree",
 			}),
 		]);
 		expect(payload.nextCommands).toContain("refarm agent finish --lane before-push --run --json");
+		expect(payload.nextCommands).toContain("refarm agent finish --lane handoffs --run --json");
 		logSpy.mockRestore();
 	});
 
@@ -672,7 +688,7 @@ describe("agent command", () => {
 		};
 		expect(payload).toMatchObject({
 			ok: false,
-			message: "Unknown finish lane: unknown. Use: after-edit | after-commit | before-push | with-package-tests",
+			message: "Unknown finish lane: unknown. Use: after-edit | after-commit | before-push | handoffs | with-package-tests",
 			nextCommand: "refarm agent finish --help",
 		});
 		expect(payload.nextActions).toEqual([
@@ -756,6 +772,92 @@ describe("agent command", () => {
 		expect(runRefarm).toHaveBeenCalledTimes(3);
 		expect(runProcess).toHaveBeenCalledTimes(3);
 		expect(payload.steps.map((step) => step.id)).toContain("package-type-check");
+		logSpy.mockRestore();
+	});
+
+	it("adds JSON handoff contract validation in the handoffs finish lane", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--lane",
+			"handoffs",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			selection: { lane: string | null; profile: string; validationScope: string };
+			steps: { id: string; command: string; process?: { packageManager?: string | null } }[];
+			nextCommands: string[];
+		};
+
+		expect(payload.ok).toBe(true);
+		expect(payload.selection).toMatchObject({
+			lane: "handoffs",
+			profile: "quick",
+			validationScope: "contract",
+		});
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"handoffs-test-handoffs",
+		]);
+		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run test:handoffs");
+		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		logSpy.mockRestore();
+	});
+
+	it("runs JSON handoff contract validation in the handoffs finish lane", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test refarm step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const runProcess = vi.fn((step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+		const agentCommand = createAgentCommand({ runRefarm, runProcess });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--lane",
+			"handoffs",
+			"--run",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			selection: { lane: string | null; validationScope: string };
+			steps: { id: string; ok: boolean }[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.selection).toMatchObject({
+			lane: "handoffs",
+			validationScope: "contract",
+		});
+		expect(runRefarm).toHaveBeenCalledTimes(3);
+		expect(runProcess).toHaveBeenCalledTimes(1);
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"handoffs-test-handoffs",
+		]);
 		logSpy.mockRestore();
 	});
 

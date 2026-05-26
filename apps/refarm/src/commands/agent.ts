@@ -109,6 +109,7 @@ const agentRuntimePlan = {
 			afterEdit: "refarm agent finish --lane after-edit --run --json",
 			afterCommit: "refarm agent finish --lane after-commit --run --json",
 			beforePush: "refarm agent finish --lane before-push --run --json",
+			handoffs: "refarm agent finish --lane handoffs --run --json",
 			withPackageTests: "refarm agent finish --lane with-package-tests --run --json",
 		},
 		lanes: [
@@ -129,6 +130,12 @@ const agentRuntimePlan = {
 				command: "refarm agent finish --lane before-push --run --json",
 				description: "Run final branch-local validation before pushing.",
 				validationScope: "branchRange",
+			},
+			{
+				id: "handoffs",
+				command: "refarm agent finish --lane handoffs --run --json",
+				description: "Validate public JSON handoff contracts after CLI contract changes.",
+				validationScope: "contract",
 			},
 			{
 				id: "with-package-tests",
@@ -175,7 +182,7 @@ interface AgentCommandDeps {
 }
 
 type AgentFinishProfile = "quick" | "package" | "affected";
-type AgentFinishLane = "after-commit" | "after-edit" | "before-push" | "with-package-tests";
+type AgentFinishLane = "after-commit" | "after-edit" | "before-push" | "handoffs" | "with-package-tests";
 
 interface AgentFinishOptions {
 	fix?: boolean;
@@ -208,7 +215,7 @@ interface AgentFinishSelectionMetadata {
 	lane: AgentFinishLane | null;
 	since: string | null;
 	sinceRef: string | null;
-	validationScope: "branchRange" | "dirtyTree" | "package" | "quick";
+	validationScope: "branchRange" | "contract" | "dirtyTree" | "package" | "quick";
 	workspace: string | null;
 	affectedWorkspaces?: string[];
 }
@@ -287,7 +294,7 @@ function packageScriptStep(
 		script,
 	});
 	return {
-		id: `${idPrefix}-${script}`,
+		id: `${idPrefix}-${sanitizeStepId(script)}`,
 		command: command.display,
 		args: [command.command, ...command.args],
 		description,
@@ -358,6 +365,15 @@ function packageScripts(workspace: string): Record<string, string> {
 
 function packageFinishSteps(workspace: string, includeTests = false): CommandPlanStep[] {
 	return packageFinishStepsForWorkspace(workspace, "package", includeTests);
+}
+
+function handoffContractStep(): CommandPlanStep {
+	return packageScriptStep(
+		"apps/refarm",
+		"test:handoffs",
+		"Run the public JSON handoff contract test.",
+		"handoffs",
+	);
 }
 
 function packageFinishStepsForWorkspace(
@@ -457,8 +473,9 @@ function parseFinishLane(value: string | undefined): AgentFinishLane | undefined
 	if (value === "after-commit") return "after-commit";
 	if (value === "after-edit") return "after-edit";
 	if (value === "before-push") return "before-push";
+	if (value === "handoffs") return "handoffs";
 	if (value === "with-package-tests") return "with-package-tests";
-	throw new Error("Unknown finish lane: " + value + ". Use: after-edit | after-commit | before-push | with-package-tests");
+	throw new Error("Unknown finish lane: " + value + ". Use: after-edit | after-commit | before-push | handoffs | with-package-tests");
 }
 
 function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelection, "fix"> {
@@ -467,6 +484,9 @@ function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelecti
 	}
 	if (lane === "with-package-tests") {
 		return { lane, includeTests: true, profile: "affected" };
+	}
+	if (lane === "handoffs") {
+		return { lane, profile: "quick" };
 	}
 	return { lane, profile: "affected" };
 }
@@ -509,6 +529,7 @@ function lanesConflictMessage(options: AgentFinishOptions): string | null {
 function selectedFinishSteps(options: {
 	fix?: boolean;
 	includeTests?: boolean;
+	lane?: AgentFinishLane;
 	profile?: AgentFinishProfile;
 	workspace?: string;
 	affectedWorkspaces?: string[];
@@ -516,6 +537,9 @@ function selectedFinishSteps(options: {
 	const steps = options.fix
 		? agentFinishSteps
 		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
+	if (options.lane === "handoffs") {
+		return [...steps, handoffContractStep()];
+	}
 	if (options.profile === "package") {
 		return [...steps, ...packageFinishSteps(options.workspace ?? ".", options.includeTests)];
 	}
@@ -531,6 +555,7 @@ function selectedFinishSteps(options: {
 function plannedFinishCommands(options: {
 	fix?: boolean;
 	includeTests?: boolean;
+	lane?: AgentFinishLane;
 	profile?: AgentFinishProfile;
 	workspace?: string;
 } = {}): string[] {
@@ -542,6 +567,7 @@ function runAgentFinishPlan(
 	options: {
 		fix?: boolean;
 		includeTests?: boolean;
+		lane?: AgentFinishLane;
 		profile?: AgentFinishProfile;
 		workspace?: string;
 		affectedWorkspaces?: string[];
@@ -591,6 +617,7 @@ function finishValidationScope(
 	if (selection.profile === "affected") {
 		return selection.since ? "branchRange" : "dirtyTree";
 	}
+	if (selection.lane === "handoffs") return "contract";
 	return selection.profile;
 }
 
@@ -738,6 +765,7 @@ Verification:
   $ refarm agent finish --lanes --json --next-command Print first lane as JSON
   $ refarm agent finish --lane after-edit --run --json Verify dirty-tree edits
   $ refarm agent finish --lane before-push --run --json Verify branch changes
+  $ refarm agent finish --lane handoffs --run --json Verify JSON handoff contracts
   $ refarm agent finish --next-command Print the first verification command
   $ refarm agent finish --json --next-command Print first verification as JSON
   $ refarm agent finish --fix --run Organize imports, then verify
@@ -800,6 +828,7 @@ Notes:
 						"refarm plugin list --json",
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
+						agentRuntimePlan.verification.recommended.handoffs,
 						agentRuntimePlan.verification.finishPlanJsonCommand,
 						agentRuntimePlan.verification.finishPlanNextJsonCommand,
 						"refarm agent finish --next-command",
@@ -824,6 +853,7 @@ Notes:
 						agentRuntimePlan.environment.codingProfile,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
+						agentRuntimePlan.verification.recommended.handoffs,
 						agentRuntimePlan.verification.finishPlanJsonCommand,
 						agentRuntimePlan.verification.finishPlanNextJsonCommand,
 						"refarm agent finish --next-command",
@@ -853,7 +883,7 @@ Notes:
 		.option("--fix", "Include import organization before verification")
 		.option("--include-tests", "Include package test scripts for package or affected profiles")
 		.option("--json", "Output machine-readable finish plan")
-		.option("--lane <name>", "Recommended finish lane: after-edit | after-commit | before-push | with-package-tests")
+		.option("--lane <name>", "Recommended finish lane: after-edit | after-commit | before-push | handoffs | with-package-tests")
 		.option("--lanes", "List recommended finish lanes and commands")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
@@ -871,6 +901,7 @@ Notes:
 				"  $ refarm agent finish --lanes --json --next-command",
 				"  $ refarm agent finish --lane after-edit --run --json",
 				"  $ refarm agent finish --lane before-push --run --json",
+				"  $ refarm agent finish --lane handoffs --run --json",
 				"  $ refarm agent finish --next-command",
 				"  $ refarm agent finish --json --next-command",
 				"  $ refarm agent finish --fix --next-command",
