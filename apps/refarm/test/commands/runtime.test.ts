@@ -195,6 +195,37 @@ describe("runtime command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("sets exitCode when runtime start --json has no launch command", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "rust",
+			readAutostart: () => "ask",
+			resolveRuntime: () => {
+				throw new Error("tractor.engine=rust but the Rust tractor binary is not built");
+			},
+		});
+
+		await command.parseAsync(["start", "--json"], { from: "user" });
+
+		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			command: "runtime",
+			operation: "start",
+			ok: false,
+			configuredEngine: "rust",
+			activeEngine: "unknown",
+			started: false,
+			nextCommand: "refarm config set tractor.engine auto",
+			nextCommands: [
+				"refarm config set tractor.engine auto",
+				"refarm runtime ensure --wait --next-command",
+				"refarm doctor --next-command",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
 	it("prints the selected runtime start command in dry-run mode", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();

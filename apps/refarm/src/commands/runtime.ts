@@ -510,6 +510,7 @@ Notes:
 					if (!command) {
 						if (json) {
 							printJson(buildRuntimeJsonPayload(payload, { started: false }, undefined, "start"));
+							process.exitCode = 1;
 							return;
 						}
 						console.error(chalk.red("✗  Cannot start Refarm runtime."));
