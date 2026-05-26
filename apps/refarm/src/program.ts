@@ -13,6 +13,7 @@ import { headlessCommand } from "./commands/headless.js";
 import { healthCommand } from "./commands/health.js";
 import { modelCommand } from "./commands/model.js";
 import { openUrlCommand } from "./commands/open-url.js";
+import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
 import { provisionCommand } from "./commands/provision.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
@@ -100,6 +101,7 @@ program
 			"  $ refarm check --next-action     Print the next blocking recovery action",
 			"  $ refarm check --next-command    Print the next executable recovery command",
 			"  $ refarm tidy imports --check    Check import organization on changed files",
+			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --fix --run Organize imports, then verify",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
@@ -220,6 +222,7 @@ Notes:
 );
 program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
+program.addCommand(packageManagerCommand);
 program.addCommand(pluginCommand);
 program.addCommand(extensionCommand);
 program.addCommand(agentCommand);

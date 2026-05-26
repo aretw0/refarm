@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	buildPackageManagerStatus,
 	createPackageBinaryCommand,
+	createPackageManagerCommand,
 	createPackageScriptCommand,
 	detectPackageManager,
 } from "../../src/commands/package-manager.js";
@@ -58,6 +60,56 @@ describe("package manager command resolution", () => {
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	it("builds machine-readable package manager status", () => {
+		expect(
+			buildPackageManagerStatus({
+				cwd: ".",
+				env: { REFARM_PACKAGE_MANAGER: "bun" },
+			}),
+		).toEqual({
+			packageManager: "bun",
+			cwd: ".",
+			override: "bun",
+			overrideValid: true,
+			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
+			handoffs: {
+				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
+				pluginBundleDryRun: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+			},
+		});
+	});
+
+	it("prints package manager status as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createPackageManagerCommand({
+			cwd: () => ".",
+			env: { REFARM_PACKAGE_MANAGER: "npm" },
+		}).parseAsync(["--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			command: "package-manager",
+			operation: "current",
+			ok: true,
+			packageManager: "npm",
+			cwd: ".",
+			override: "npm",
+			overrideValid: true,
+			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
+			handoffs: {
+				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
+				pluginBundleDryRun: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+			},
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm tidy imports --dry-run --json",
+			nextCommands: [
+				"refarm tidy imports --dry-run --json",
+				"refarm plugin bundle <plugin.wasm> --dry-run --json",
+			],
+		});
 	});
 
 	it("walks past package.json files without packageManager", () => {

@@ -8,14 +8,29 @@ import {
 	type PackageScriptCommandOptions,
 } from "@refarm.dev/config";
 import chalk from "chalk";
+import { Command } from "commander";
+import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import type { LaunchProcessSpec } from "./launch-process.js";
 
 export type { PackageManagerName } from "@refarm.dev/config";
 export const PACKAGE_MANAGERS = SHARED_PACKAGE_MANAGERS;
+const PACKAGE_MANAGER_OVERRIDE = "REFARM_PACKAGE_MANAGER";
 
 export interface RefarmPackageScriptCommandOptions
 	extends PackageScriptCommandOptions {
 	env?: NodeJS.ProcessEnv;
+}
+
+export interface PackageManagerStatus {
+	packageManager: PackageManagerName;
+	cwd: string;
+	override: string | null;
+	overrideValid: boolean;
+	validPackageManagers: readonly PackageManagerName[];
+	handoffs: {
+		tidyImportsDryRun: string;
+		pluginBundleDryRun: string;
+	};
 }
 
 export function detectPackageManager(options: {
@@ -33,6 +48,88 @@ function warnInvalidPackageManagerOverride(env: NodeJS.ProcessEnv = process.env)
 		chalk.yellow(`⚠  Ignored invalid ${diagnostic.name}=${diagnostic.value}`),
 	);
 	console.error(chalk.dim(`   Use: ${diagnostic.valid.join(", ")}`));
+}
+
+export function buildPackageManagerStatus(options: {
+	cwd?: string;
+	env?: NodeJS.ProcessEnv;
+} = {}): PackageManagerStatus {
+	const env = options.env ?? process.env;
+	const cwd = options.cwd ?? process.cwd();
+	const diagnostic = packageManagerOverrideDiagnostic(env);
+	return {
+		packageManager: detectSharedPackageManager({ cwd, env }),
+		cwd,
+		override: env[PACKAGE_MANAGER_OVERRIDE]?.trim() || null,
+		overrideValid: Boolean(env[PACKAGE_MANAGER_OVERRIDE]) && !diagnostic,
+		validPackageManagers: PACKAGE_MANAGERS,
+		handoffs: {
+			tidyImportsDryRun: "refarm tidy imports --dry-run --json",
+			pluginBundleDryRun: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+		},
+	};
+}
+
+function printPackageManagerStatus(status: PackageManagerStatus): void {
+	console.log(chalk.bold("Package manager"));
+	console.log(`  current:  ${status.packageManager}`);
+	if (status.override) {
+		console.log(
+			`  override: ${PACKAGE_MANAGER_OVERRIDE}=${status.override} ${
+				status.overrideValid ? "(active)" : "(ignored)"
+			}`,
+		);
+	} else {
+		console.log(`  override: unset`);
+	}
+	console.log(`  valid:    ${status.validPackageManagers.join(", ")}`);
+	console.log(chalk.dim(`  cwd:      ${status.cwd}`));
+	console.log(chalk.dim(`  inspect:  ${status.handoffs.tidyImportsDryRun}`));
+}
+
+export function createPackageManagerCommand(deps?: {
+	cwd?: () => string;
+	env?: NodeJS.ProcessEnv;
+}): Command {
+	return new Command("package-manager")
+		.description("Inspect package-manager detection for Refarm-launched project commands")
+		.option("--json", "Output machine-readable package-manager status")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm package-manager",
+				"  $ refarm package-manager --json",
+				"  $ REFARM_PACKAGE_MANAGER=npm refarm package-manager --json",
+				"",
+				"Notes:",
+				"  Refarm detects packageManager from package.json, then lockfiles, then npm.",
+				`  Override detection with ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGERS.join("|")}.`,
+				"  Commands such as tidy imports, web launchers, and plugin bundle use this resolver.",
+			].join("\n"),
+		)
+		.action((options: { json?: boolean }) => {
+			const status = buildPackageManagerStatus({
+				cwd: deps?.cwd?.() ?? process.cwd(),
+				env: deps?.env ?? process.env,
+			});
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "package-manager",
+						operation: "current",
+						extra: status,
+						nextCommands: Object.values(status.handoffs),
+					}),
+				);
+				return;
+			}
+			if (!status.overrideValid) {
+				warnInvalidPackageManagerOverride(deps?.env ?? process.env);
+			}
+			printPackageManagerStatus(status);
+		});
 }
 
 export function createPackageScriptCommand(
@@ -65,3 +162,5 @@ export function createPackageBinaryCommand(
 		display: command.display,
 	};
 }
+
+export const packageManagerCommand = createPackageManagerCommand();
