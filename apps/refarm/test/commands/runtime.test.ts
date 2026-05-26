@@ -429,19 +429,19 @@ describe("runtime command", () => {
 		expect(payload.nextActions).toEqual([
 			"Inspect credential handoffs and configure a usable model route.",
 		]);
-		expect(payload.nextCommand).toBe("refarm sow --json");
+		expect(payload.nextCommand).toBe("refarm sow --model ollama/llama3.2 --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm sow --json",
+			"refarm sow --model ollama/llama3.2 --json",
 			"refarm model current --json",
 			"refarm model providers --json",
-			"refarm sow --model ollama/llama3.2 --json",
+			"refarm sow --json",
 			"refarm config get operator.openExternalLinks --json",
 		]);
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({
 				diagnostic: "model-credentials-missing",
 				severity: "failure",
-				command: "refarm sow --json",
+				command: "refarm sow --model ollama/llama3.2 --json",
 			}),
 		]);
 		expect(payload.handoffs).toEqual({
@@ -490,7 +490,9 @@ describe("runtime command", () => {
 			from: "user",
 		});
 
-		expect(logSpy).toHaveBeenCalledWith("refarm sow --json");
+		expect(logSpy).toHaveBeenCalledWith(
+			"refarm sow --model ollama/llama3.2 --json",
+		);
 		expect(process.exitCode).toBe(1);
 		rmSync(repoRoot, { recursive: true, force: true });
 		logSpy.mockRestore();
