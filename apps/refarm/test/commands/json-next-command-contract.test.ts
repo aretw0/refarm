@@ -2,7 +2,9 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const COMMANDS_DIR = join(process.cwd(), "apps", "refarm", "src", "commands");
+const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfNoEntry: false })
+	? join(process.cwd(), "src", "commands")
+	: join(process.cwd(), "apps", "refarm", "src", "commands");
 
 function commandSourceFiles(dir = COMMANDS_DIR): string[] {
 	return readdirSync(dir)
