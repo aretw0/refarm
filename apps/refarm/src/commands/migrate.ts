@@ -98,8 +98,8 @@ export const migrateCommand = new Command("migrate")
                     operation: "mirror",
                     error: "missing-target-url",
                     message: "Missing --target <url>.",
-                    nextAction: "refarm migrate --target <url> --dry-run",
-                    nextActions: ["refarm migrate --target <url> --dry-run"],
+                    nextAction: "Provide a concrete target Git URL and run a dry-run migration.",
+                    nextActions: ["Provide a concrete target Git URL and run a dry-run migration."],
                     extra: {
                         schemaVersion: MIGRATE_SCHEMA_VERSION,
                         dryRun: options.dryRun === true,
@@ -177,7 +177,7 @@ export const migrateCommand = new Command("migrate")
                     nextAction: "set brand.urls.repository in refarm.config.json",
                     nextActions: [
                         "set brand.urls.repository in refarm.config.json",
-                        "run refarm migrate --target <url> --dry-run",
+                        "run a dry-run migration with a concrete target Git URL",
                     ],
                     extra: {
                         schemaVersion: MIGRATE_SCHEMA_VERSION,

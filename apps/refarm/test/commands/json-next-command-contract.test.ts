@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
+import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
@@ -43,6 +44,16 @@ function generatedExecutableCommands(payloads: {
 	return payloads.flatMap((payload) =>
 		[payload.nextCommand, ...(payload.nextCommands ?? [])]
 			.filter((command): command is string => typeof command === "string"),
+	);
+}
+
+function generatedActions(payloads: {
+	nextAction?: string | null;
+	nextActions?: string[];
+}[]): string[] {
+	return payloads.flatMap((payload) =>
+		[payload.nextAction, ...(payload.nextActions ?? [])]
+			.filter((action): action is string => typeof action === "string"),
 	);
 }
 
@@ -100,6 +111,7 @@ function makeReadyStatus(renderer: "tui" | "web") {
 }
 
 interface ParsedCommandJson {
+	nextAction?: string | null;
 	nextActions?: string[];
 	nextCommand?: string | null;
 	nextCommands?: string[];
@@ -113,10 +125,12 @@ interface ParsedCommandJson {
 
 async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<ParsedCommandJson> {
 	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	const originalExitCode = process.exitCode;
 	try {
 		await command.parseAsync(args, { from: "user" });
 		return JSON.parse(String(logSpy.mock.calls[0]?.[0])) as ParsedCommandJson;
 	} finally {
+		process.exitCode = originalExitCode;
 		logSpy.mockRestore();
 	}
 }
@@ -195,6 +209,7 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "handoffs", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "with-package-tests", "--json"]),
+			await parseCommandJson(migrateCommand, ["--dry-run", "--json"]),
 			await parseCommandJson(createPackageManagerCommand({
 				cwd: () => ".",
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
@@ -225,11 +240,14 @@ describe("JSON next command contract", () => {
 		];
 
 		const commands = generatedExecutableCommands(payloads);
+		const actions = generatedActions(payloads);
 		const placeholders = commands.filter((command) => /<[^>]+>/.test(command));
+		const actionPlaceholders = actions.filter((action) => /<[^>]+>/.test(action));
 		const interactiveSow = commands.filter(hasInteractiveSowCommand);
 		const replOnly = commands.filter((command) => /^\/[A-Za-z]/.test(command));
 
 		expect(placeholders).toEqual([]);
+		expect(actionPlaceholders).toEqual([]);
 		expect(interactiveSow).toEqual([]);
 		expect(replOnly).toEqual([]);
 	});

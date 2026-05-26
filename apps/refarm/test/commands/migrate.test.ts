@@ -175,7 +175,7 @@ describe("migrateCommand", () => {
     expect(payload).toMatchObject({
       ok: false,
       error: "missing-target-url",
-      nextAction: "refarm migrate --target <url> --dry-run",
+      nextAction: "Provide a concrete target Git URL and run a dry-run migration.",
     });
     expect(payload.nextCommand).toBeNull();
     expect(payload.nextCommands).toEqual([]);
