@@ -456,4 +456,55 @@ describe("agent command", () => {
 		expect(runRefarm).toHaveBeenCalledTimes(3);
 		logSpy.mockRestore();
 	});
+
+	it("prints remaining finish commands after a human failure report", async () => {
+		const runRefarm = vi
+			.fn()
+			.mockImplementationOnce((args: string[]) => ({
+				id: args.join(" "),
+				command: `refarm ${args.join(" ")}`,
+				args,
+				description: "test step",
+				ok: true,
+				exitCode: 0,
+				stdout: JSON.stringify({ ok: true }),
+				stderr: "",
+				payload: { ok: true },
+			}))
+			.mockImplementationOnce((args: string[]) => ({
+				id: args.join(" "),
+				command: `refarm ${args.join(" ")}`,
+				args,
+				description: "test step",
+				ok: false,
+				exitCode: 1,
+				stdout: JSON.stringify({
+					ok: false,
+					nextCommands: ["refarm runtime ensure --wait --next-command"],
+				}),
+				stderr: "",
+				payload: {
+					ok: false,
+					nextCommands: ["refarm runtime ensure --wait --next-command"],
+				},
+			}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		await agentCommand.parseAsync(["finish", "--run"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith(
+			"FAIL health: refarm health --next-action --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"Next command: refarm runtime ensure --wait --next-command",
+		);
+		expect(logSpy).toHaveBeenCalledWith("Remaining commands:");
+		expect(logSpy).toHaveBeenCalledWith("  refarm check --next-action --json");
+		expect(runRefarm).toHaveBeenCalledTimes(2);
+		expect(process.exitCode).toBe(1);
+		process.exitCode = originalExitCode;
+		logSpy.mockRestore();
+	});
 });

@@ -178,6 +178,12 @@ function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
 	const nextCommand = result.nextCommands[0];
 	if (nextAction) console.log(`Next action: ${nextAction}`);
 	if (nextCommand) console.log(`Next command: ${nextCommand}`);
+	if (result.remainingCommands.length > 0) {
+		console.log("Remaining commands:");
+		for (const command of result.remainingCommands) {
+			console.log(`  ${command}`);
+		}
+	}
 }
 
 export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
