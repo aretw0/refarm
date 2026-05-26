@@ -145,6 +145,7 @@ interface AgentFinishOptions {
 	includeTests?: boolean;
 	json?: boolean;
 	lane?: string;
+	lanes?: boolean;
 	nextAction?: boolean;
 	nextCommand?: boolean;
 	profile?: string;
@@ -668,6 +669,7 @@ Verification:
   $ refarm check --next-command      Print the next executable recovery command
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
+  $ refarm agent finish --lanes --json List recommended finish lanes
   $ refarm agent finish --lane after-edit --run --json Verify dirty-tree edits
   $ refarm agent finish --lane before-push --run --json Verify branch changes
   $ refarm agent finish --next-command Print the first verification command
@@ -762,6 +764,7 @@ Notes:
 		.option("--include-tests", "Include package test scripts for package or affected profiles")
 		.option("--json", "Output machine-readable finish plan")
 		.option("--lane <name>", "Recommended finish lane: after-edit | after-commit | before-push | with-package-tests")
+		.option("--lanes", "List recommended finish lanes and commands")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
 		.option("--profile <name>", "Validation profile: quick | package | affected", "quick")
@@ -774,6 +777,7 @@ Notes:
 				"",
 				"Examples:",
 				"  $ refarm agent finish --json",
+				"  $ refarm agent finish --lanes --json",
 				"  $ refarm agent finish --lane after-edit --run --json",
 				"  $ refarm agent finish --lane before-push --run --json",
 				"  $ refarm agent finish --next-command",
@@ -791,6 +795,7 @@ Notes:
 				"  Without --run this command only prints the commands a coding agent should run.",
 				"  --profile quick is the default end-of-slice gate.",
 				"  --lane selects a recommended finish command from refarm agent --json.",
+				"  --lanes prints the same recommended lane catalog without the full agent handoff.",
 				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --profile affected adds package scripts for changed Git workspaces.",
 				"  --since <ref> lets affected include committed branch changes after atomic commits.",
@@ -802,6 +807,44 @@ Notes:
 		)
 		.action(function (this: Command, actionArg: unknown) {
 			const options = resolveFinishOptions(this, actionArg);
+			if (options.lanes) {
+				if (options.run) {
+					reportAgentFinishOptionError("--lanes cannot be combined with --run.", options);
+					return;
+				}
+				const lanes = agentRuntimePlan.verification.lanes;
+				const commands = lanes.map((lane) => lane.command);
+				if (options.nextCommand) {
+					const [nextCommand] = commands;
+					if (nextCommand) console.log(nextCommand);
+					return;
+				}
+				if (options.nextAction) {
+					const [nextAction] = commands;
+					if (nextAction) console.log(nextAction);
+					return;
+				}
+				if (options.json) {
+					printJson(buildJsonSuccessEnvelope({
+						command: "agent",
+						operation: "finish-lanes",
+						nextActions: commands,
+						nextCommands: commands,
+						extra: {
+							action: "finish",
+							status: "lanes",
+							lanes,
+							recommended: agentRuntimePlan.verification.recommended,
+						},
+					}));
+					return;
+				}
+				for (const lane of lanes) {
+					console.log(`${lane.id}: ${lane.command}`);
+					console.log(`  ${lane.description}`);
+				}
+				return;
+			}
 			let lane: AgentFinishLane | undefined;
 			try {
 				lane = parseFinishLane(options.lane);

@@ -88,6 +88,7 @@ It prints an ordered plan by default and only executes when `--run` is present:
 
 ```bash
 refarm agent finish --json
+refarm agent finish --lanes --json
 refarm agent finish --lane after-edit --run --json
 refarm agent finish --lane before-push --run --json
 refarm agent finish --next-command
@@ -129,6 +130,8 @@ uses those lane shortcuts.
 
 For renderers or agents that need labels, `verification.lanes` also lists the
 same lane IDs with command, description, and validation scope metadata.
+`refarm agent finish --lanes --json` exposes the same focused catalog without
+requiring the full agent handoff.
 
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends

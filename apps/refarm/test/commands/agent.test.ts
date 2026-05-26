@@ -34,6 +34,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
+		expect(help).toContain("refarm agent finish --lanes --json");
 		expect(help).toContain("refarm agent finish --lane after-edit --run --json");
 		expect(help).toContain("refarm agent finish --lane before-push --run --json");
 		expect(help).toContain("refarm agent finish --next-command");
@@ -362,6 +363,54 @@ describe("agent command", () => {
 		});
 
 		expect(logSpy).toHaveBeenCalledWith("refarm tidy imports --json");
+		logSpy.mockRestore();
+	});
+
+	it("prints finish lanes as a focused JSON handoff", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--lanes", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			lanes: { command: string; id: string; validationScope: string }[];
+			nextCommands: string[];
+			recommended: { afterEdit: string };
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "lanes",
+			recommended: {
+				afterEdit: "refarm agent finish --lane after-edit --run --json",
+			},
+		});
+		expect(payload.lanes).toEqual([
+			expect.objectContaining({
+				id: "after-edit",
+				command: "refarm agent finish --lane after-edit --run --json",
+				validationScope: "dirtyTree",
+			}),
+			expect.objectContaining({
+				id: "after-commit",
+				command: "refarm agent finish --lane after-commit --run --json",
+				validationScope: "branchRange",
+			}),
+			expect.objectContaining({
+				id: "before-push",
+				command: "refarm agent finish --lane before-push --run --json",
+				validationScope: "branchRange",
+			}),
+			expect.objectContaining({
+				id: "with-package-tests",
+				command: "refarm agent finish --lane with-package-tests --run --json",
+				validationScope: "dirtyTree",
+			}),
+		]);
+		expect(payload.nextCommands).toContain("refarm agent finish --lane before-push --run --json");
 		logSpy.mockRestore();
 	});
 
