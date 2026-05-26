@@ -63,7 +63,7 @@ async function createStatusRuntimeSummary(
 			return "unknown";
 		}
 	})();
-	const ready = await probeRuntimeReady(300);
+	const ready = await probeRuntimeReady();
 	return {
 		ready,
 		namespace,

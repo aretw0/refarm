@@ -161,10 +161,10 @@ Notes:
 `,
 		)
 		.action(async (options: RefarmCheckOptions) => {
-			const [health, doctor] = await Promise.all([
-				deps.runHealth(),
-				deps.runDoctor({ failOnWarnings: options.failOnWarnings }),
-			]);
+			const health = await deps.runHealth();
+			const doctor = await deps.runDoctor({
+				failOnWarnings: options.failOnWarnings,
+			});
 			const report = buildRefarmCheckReport({ health, doctor });
 
 			if (options.nextCommand && options.json) {
