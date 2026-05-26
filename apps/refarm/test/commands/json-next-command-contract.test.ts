@@ -56,6 +56,18 @@ function generatedExecutableCommands(payloads: {
 	);
 }
 
+function generatedCommandEntries(payloads: Array<{
+	nextCommand?: string | null;
+	nextCommands?: string[];
+	sampleId: string;
+}>): Array<{ command: string; sampleId: string }> {
+	return payloads.flatMap((payload) =>
+		[payload.nextCommand, ...(payload.nextCommands ?? [])]
+			.filter((command): command is string => typeof command === "string")
+			.map((command) => ({ command, sampleId: payload.sampleId })),
+	);
+}
+
 function generatedActions(payloads: {
 	nextAction?: string | null;
 	nextActions?: string[];
@@ -63,6 +75,18 @@ function generatedActions(payloads: {
 	return payloads.flatMap((payload) =>
 		[payload.nextAction, ...(payload.nextActions ?? [])]
 			.filter((action): action is string => typeof action === "string"),
+	);
+}
+
+function generatedActionEntries(payloads: Array<{
+	nextAction?: string | null;
+	nextActions?: string[];
+	sampleId: string;
+}>): Array<{ action: string; sampleId: string }> {
+	return payloads.flatMap((payload) =>
+		[payload.nextAction, ...(payload.nextActions ?? [])]
+			.filter((action): action is string => typeof action === "string")
+			.map((action) => ({ action, sampleId: payload.sampleId })),
 	);
 }
 
@@ -147,16 +171,33 @@ interface ParsedCommandJson {
 	};
 }
 
-async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<ParsedCommandJson> {
+interface JsonCommandSample {
+	args: string[];
+	command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> };
+	id: string;
+}
+
+async function parseCommandJson(sample: JsonCommandSample): Promise<ParsedCommandJson & { sampleId: string }> {
 	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	const originalExitCode = process.exitCode;
 	try {
-		await command.parseAsync(args, { from: "user" });
-		return JSON.parse(String(logSpy.mock.calls[0]?.[0])) as ParsedCommandJson;
+		await sample.command.parseAsync(sample.args, { from: "user" });
+		return {
+			...(JSON.parse(String(logSpy.mock.calls[0]?.[0])) as ParsedCommandJson),
+			sampleId: sample.id,
+		};
 	} finally {
 		process.exitCode = originalExitCode;
 		logSpy.mockRestore();
 	}
+}
+
+async function parseCommandJsonSamples(samples: JsonCommandSample[]): Promise<Array<ParsedCommandJson & { sampleId: string }>> {
+	const payloads: Array<ParsedCommandJson & { sampleId: string }> = [];
+	for (const sample of samples) {
+		payloads.push(await parseCommandJson(sample));
+	}
+	return payloads;
 }
 
 function propertyBlocks(source: string, property: string): string[] {
@@ -239,58 +280,98 @@ describe("JSON next command contract", () => {
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
 		try {
-			const payloads = [
-			await parseCommandJson(createAgentCommand(), ["--json"]),
-			await parseCommandJson(createAgentCommand(), ["finish", "--json"]),
-			await parseCommandJson(createAgentCommand(), ["finish", "--templates", "--json"]),
-			await parseCommandJson(createAgentCommand(), ["finish", "--lanes", "--json"]),
-			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
-			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "handoffs", "--json"]),
-			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "with-package-tests", "--json"]),
-			await parseCommandJson(config.command, ["set", "operator.openExternalLinks", "never", "--local", "--json"]),
-			await parseCommandJson(deployCommand, ["--target", "workers", "--dry-run", "--json"]),
-			await parseCommandJson(extensionCommand, ["publish", "my-tool", "--json"]),
-			await parseCommandJson(migrateCommand, ["--dry-run", "--json"]),
-			await parseCommandJson(createOpenUrlCommand({ open: vi.fn() }), [
-				"https://example.test/auth?code=a&state=b",
-				"--dry-run",
-				"--json",
-			]),
-			await parseCommandJson(createPackageManagerCommand({
-				cwd: () => ".",
-				env: { REFARM_PACKAGE_MANAGER: "npm" },
-			}), ["--json"]),
-			await parseCommandJson(createModelCommand({
-				loadTokens: async () => ({}),
-				saveTokens: vi.fn(),
-			}), ["current", "--json"]),
-			await parseCommandJson(createModelCommand({
-				loadTokens: async () => ({}),
-				saveTokens: vi.fn(),
-			}), ["providers", "--json"]),
-			await parseCommandJson(pluginCommand, ["list", "--json"]),
-			await parseCommandJson(provisionCommand, ["list", "--json"]),
-			await parseCommandJson(provisionCommand, ["cloudflare", "--dry-run", "--json"]),
-			await parseCommandJson(provisionCommand, ["cloudflare", "turbo-cache", "--dry-run", "--json"]),
-			await parseCommandJson(createTuiCommand({
-				resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
-				printStatusSummary: vi.fn(),
-				launch: vi.fn(),
-			}), ["--launch", "--dry-run", "--json"]),
-			await parseCommandJson(createWebCommand({
-				resolveStatusPayload: async () => ({ json: makeReadyStatus("web") }),
-				printStatusSummary: vi.fn(),
-				launch: vi.fn(),
-				open: vi.fn(),
-			}), ["--launch", "--dry-run", "--json"]),
-		];
+			const payloads = await parseCommandJsonSamples([
+				{ id: "agent-handoff", command: createAgentCommand(), args: ["--json"] },
+				{ id: "agent-finish-plan", command: createAgentCommand(), args: ["finish", "--json"] },
+				{ id: "agent-finish-templates", command: createAgentCommand(), args: ["finish", "--templates", "--json"] },
+				{ id: "agent-finish-lanes", command: createAgentCommand(), args: ["finish", "--lanes", "--json"] },
+				{ id: "agent-finish-after-edit", command: createAgentCommand(), args: ["finish", "--lane", "after-edit", "--json"] },
+				{ id: "agent-finish-handoffs", command: createAgentCommand(), args: ["finish", "--lane", "handoffs", "--json"] },
+				{ id: "agent-finish-with-package-tests", command: createAgentCommand(), args: ["finish", "--lane", "with-package-tests", "--json"] },
+				{
+					id: "config-set-local",
+					command: config.command,
+					args: ["set", "operator.openExternalLinks", "never", "--local", "--json"],
+				},
+				{
+					id: "deploy-invalid-target",
+					command: deployCommand,
+					args: ["--target", "workers", "--dry-run", "--json"],
+				},
+				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
+				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
+				{
+					id: "open-url-dry-run",
+					command: createOpenUrlCommand({ open: vi.fn() }),
+					args: ["https://example.test/auth?code=a&state=b", "--dry-run", "--json"],
+				},
+				{
+					id: "package-manager",
+					command: createPackageManagerCommand({
+						cwd: () => ".",
+						env: { REFARM_PACKAGE_MANAGER: "npm" },
+					}),
+					args: ["--json"],
+				},
+				{
+					id: "model-current",
+					command: createModelCommand({
+						loadTokens: async () => ({}),
+						saveTokens: vi.fn(),
+					}),
+					args: ["current", "--json"],
+				},
+				{
+					id: "model-providers",
+					command: createModelCommand({
+						loadTokens: async () => ({}),
+						saveTokens: vi.fn(),
+					}),
+					args: ["providers", "--json"],
+				},
+				{ id: "plugin-list", command: pluginCommand, args: ["list", "--json"] },
+				{ id: "provision-list", command: provisionCommand, args: ["list", "--json"] },
+				{ id: "provision-cloudflare", command: provisionCommand, args: ["cloudflare", "--dry-run", "--json"] },
+				{
+					id: "provision-cloudflare-turbo-cache",
+					command: provisionCommand,
+					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
+				},
+				{
+					id: "tui-launch-dry-run",
+					command: createTuiCommand({
+						resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+						printStatusSummary: vi.fn(),
+						launch: vi.fn(),
+					}),
+					args: ["--launch", "--dry-run", "--json"],
+				},
+				{
+					id: "web-launch-dry-run",
+					command: createWebCommand({
+						resolveStatusPayload: async () => ({ json: makeReadyStatus("web") }),
+						printStatusSummary: vi.fn(),
+						launch: vi.fn(),
+						open: vi.fn(),
+					}),
+					args: ["--launch", "--dry-run", "--json"],
+				},
+			]);
 
-			const commands = generatedExecutableCommands(payloads);
-			const actions = generatedActions(payloads);
-			const placeholders = commands.filter((command) => /<[^>]+>/.test(command));
-			const actionPlaceholders = actions.filter((action) => /<[^>]+>/.test(action));
-			const interactiveSow = commands.filter(hasInteractiveSowCommand);
-			const replOnly = commands.filter((command) => /^\/[A-Za-z]/.test(command));
+			const commandEntries = generatedCommandEntries(payloads);
+			const actionEntries = generatedActionEntries(payloads);
+			const placeholders = commandEntries
+				.filter(({ command }) => /<[^>]+>/.test(command))
+				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const actionPlaceholders = actionEntries
+				.filter(({ action }) => /<[^>]+>/.test(action))
+				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
+			const interactiveSow = commandEntries
+				.filter(({ command }) => hasInteractiveSowCommand(command))
+				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const replOnly = commandEntries
+				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
+				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 
 			expect(placeholders).toEqual([]);
 			expect(actionPlaceholders).toEqual([]);
@@ -303,7 +384,11 @@ describe("JSON next command contract", () => {
 
 	it("keeps parameterized generated commands in templates", async () => {
 		const payloads = [
-			await parseCommandJson(createAgentCommand(), ["--json"]),
+			await parseCommandJson({
+				id: "agent-handoff",
+				command: createAgentCommand(),
+				args: ["--json"],
+			}),
 		];
 		const commands = generatedExecutableCommands(payloads);
 		const actions = payloads.flatMap((payload) => payload.nextActions ?? []);
