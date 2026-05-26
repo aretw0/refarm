@@ -119,18 +119,14 @@ slash commands, deduplicates repeated prompts, and caps history length.
 
 ---
 
-## Gap 5 — Spinner UX for long-running tasks
+## Gap 5 — Spinner UX for long-running tasks — ADDRESSED
 
-The `spinnerMessage` hook already exists in `ChatDeps` and farmhand already
-sends stream chunks. The gap is the spinner display while waiting for the first
-chunk.
+The `spinnerMessage` hook exists in `ChatDeps` and farmhand sends stream chunks.
+`chat.ts` clears the spinner line with `\r\x1b[2K` before writing the first
+stream chunk, and the behavior is covered by a deterministic TTY test.
 
-`chat.ts` already has a spinner frame logic (`⠸ Thinking…`). The issue is that
-the spinner may not clear properly on some terminals when the first chunk arrives,
-leaving ghost characters.
-
-This is a polish task, not a structural gap. Verify by running a slow model
-response and checking terminal output fidelity.
+Non-TTY output remains quiet, so scripted/headless flows do not receive spinner
+frames.
 
 ---
 
@@ -147,8 +143,7 @@ deterministic install/reload/runtime recovery commands.
 ## Sequencing
 
 **Today (unblock daily use):**
-1. Verify spinner cleanup under slow first-token latency
-2. Validate first-run devcontainer path end-to-end after a clean rebuild
+1. Validate first-run devcontainer path end-to-end after a clean rebuild
 
 **Next sprint:**
 3. TUI-backed config surface for no-argument `refarm config`

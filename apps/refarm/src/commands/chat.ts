@@ -330,7 +330,7 @@ async function runSowCommand(args: string[] = []): Promise<void> {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 
-function startThinkingSpinner(getMessage?: (frame: number, elapsedMs: number) => string): () => void {
+export function startThinkingSpinner(getMessage?: (frame: number, elapsedMs: number) => string): () => void {
 	if (!process.stdout.isTTY) return () => {};
 	const startMs = Date.now();
 	let frame = 0;
