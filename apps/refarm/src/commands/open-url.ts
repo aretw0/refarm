@@ -65,12 +65,12 @@ Notes:
 			if (options.dryRun) {
 				const candidates = resolveBrowserOpenCandidates(url);
 				if (options.json) {
-					const nextAction = candidates.length > 0
-						? `refarm open-url ${url}`
-						: `open manually: ${url}`;
 					const nextCommand = candidates.length > 0
 						? openUrlCommandLine(url)
 						: openUrlCommandLine(url, ["--dry-run", "--json"]);
+					const nextAction = candidates.length > 0
+						? nextCommand
+						: `open manually: ${url}`;
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "open-url",

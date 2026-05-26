@@ -68,6 +68,7 @@ describe("open-url command", () => {
 			dryRun: boolean;
 			ok: boolean;
 			candidates: unknown[];
+			nextAction: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
@@ -78,12 +79,39 @@ describe("open-url command", () => {
 			ok: true,
 		});
 		expect(payload.candidates.length).toBeGreaterThan(0);
+		expect(payload.nextAction).toBe(
+			"refarm open-url 'https://github.com/login/device'",
+		);
 		expect(payload.nextCommand).toBe(
 			"refarm open-url 'https://github.com/login/device'",
 		);
 		expect(payload.nextCommands).toEqual([
 			"refarm open-url 'https://github.com/login/device'",
 		]);
+		logSpy.mockRestore();
+	});
+
+	it("quotes dry-run JSON handoffs for URLs with query strings", async () => {
+		const open = vi.fn();
+		const command = createOpenUrlCommand({ open });
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(
+			["https://example.test/auth?code=a&state=b", "--dry-run", "--json"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload.nextAction).toBe(
+			"refarm open-url 'https://example.test/auth?code=a&state=b'",
+		);
+		expect(payload.nextCommand).toBe(payload.nextAction);
 		logSpy.mockRestore();
 	});
 

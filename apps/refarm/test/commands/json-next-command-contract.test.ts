@@ -6,6 +6,7 @@ import { deployCommand } from "../../src/commands/deploy.js";
 import { extensionCommand } from "../../src/commands/extension.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
+import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
 import { provisionCommand } from "../../src/commands/provision.js";
@@ -230,6 +231,11 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(deployCommand, ["--target", "workers", "--dry-run", "--json"]),
 			await parseCommandJson(extensionCommand, ["publish", "my-tool", "--json"]),
 			await parseCommandJson(migrateCommand, ["--dry-run", "--json"]),
+			await parseCommandJson(createOpenUrlCommand({ open: vi.fn() }), [
+				"https://example.test/auth?code=a&state=b",
+				"--dry-run",
+				"--json",
+			]),
 			await parseCommandJson(createPackageManagerCommand({
 				cwd: () => ".",
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
