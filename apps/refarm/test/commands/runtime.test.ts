@@ -174,7 +174,8 @@ describe("runtime command", () => {
 
 		await command.parseAsync(["--json"], { from: "user" });
 
-		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
+		expect(payload).toMatchObject({
 			command: "runtime",
 			operation: "status",
 			ok: false,
@@ -186,12 +187,12 @@ describe("runtime command", () => {
 			nextAction: "refarm config set tractor.engine auto",
 			nextActions: ["refarm config set tractor.engine auto"],
 			nextCommand: "refarm config set tractor.engine auto",
-			nextCommands: [
-				"refarm config set tractor.engine auto",
-				"refarm runtime ensure --wait --next-command",
-				"refarm doctor --next-command",
-			],
 		});
+		expect(payload.nextCommands).toEqual([
+			"refarm config set tractor.engine auto",
+			"refarm runtime ensure --wait --next-command",
+			"refarm doctor --next-command",
+		]);
 		logSpy.mockRestore();
 	});
 
@@ -208,7 +209,8 @@ describe("runtime command", () => {
 
 		await command.parseAsync(["start", "--json"], { from: "user" });
 
-		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
+		expect(payload).toMatchObject({
 			command: "runtime",
 			operation: "start",
 			ok: false,
@@ -216,12 +218,12 @@ describe("runtime command", () => {
 			activeEngine: "unknown",
 			started: false,
 			nextCommand: "refarm config set tractor.engine auto",
-			nextCommands: [
-				"refarm config set tractor.engine auto",
-				"refarm runtime ensure --wait --next-command",
-				"refarm doctor --next-command",
-			],
 		});
+		expect(payload.nextCommands).toEqual([
+			"refarm config set tractor.engine auto",
+			"refarm runtime ensure --wait --next-command",
+			"refarm doctor --next-command",
+		]);
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
