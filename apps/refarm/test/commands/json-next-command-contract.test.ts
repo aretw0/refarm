@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createAgentCommand } from "../../src/commands/agent.js";
+import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 
 const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfNoEntry: false })
 	? join(process.cwd(), "src", "commands")
@@ -26,6 +28,22 @@ function hasPlaceholderCommand(value: string): boolean {
 
 function hasReplCommand(value: string): boolean {
 	return /["'`]\/[A-Za-z][^"'`]*["'`]/.test(value);
+}
+
+async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<{
+	nextCommand?: string | null;
+	nextCommands?: string[];
+}> {
+	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	try {
+		await command.parseAsync(args, { from: "user" });
+		return JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			nextCommand?: string | null;
+			nextCommands?: string[];
+		};
+	} finally {
+		logSpy.mockRestore();
+	}
 }
 
 function propertyBlocks(source: string, property: string): string[] {
@@ -91,5 +109,23 @@ describe("JSON next command contract", () => {
 		});
 
 		expect(violations).toEqual([]);
+	});
+
+	it("keeps generated public nextCommands executable", async () => {
+		const payloads = [
+			await parseCommandJson(createAgentCommand(), ["--json"]),
+			await parseCommandJson(createPackageManagerCommand({
+				cwd: () => ".",
+				env: { REFARM_PACKAGE_MANAGER: "npm" },
+			}), ["--json"]),
+		];
+
+		const placeholders = payloads.flatMap((payload) =>
+			[payload.nextCommand, ...(payload.nextCommands ?? [])]
+				.filter((command): command is string => typeof command === "string")
+				.filter((command) => /<[^>]+>/.test(command)),
+		);
+
+		expect(placeholders).toEqual([]);
 	});
 });
