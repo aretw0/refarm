@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
+import { deployCommand } from "../../src/commands/deploy.js";
 import { extensionCommand } from "../../src/commands/extension.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
@@ -226,6 +227,7 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "handoffs", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "with-package-tests", "--json"]),
+			await parseCommandJson(deployCommand, ["--target", "workers", "--dry-run", "--json"]),
 			await parseCommandJson(extensionCommand, ["publish", "my-tool", "--json"]),
 			await parseCommandJson(migrateCommand, ["--dry-run", "--json"]),
 			await parseCommandJson(createPackageManagerCommand({
