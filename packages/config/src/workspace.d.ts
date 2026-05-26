@@ -4,6 +4,14 @@ export interface WorkspacePackageOptions {
 
 export function changedFilePathsFromGitStatus(status: string): string[];
 
+export function changedFilePathsFromGitNameOnly(output: string): string[];
+
+export function affectedWorkspacePackagesFromChangedPaths(
+    root: string,
+    changedPaths: string[],
+    options?: WorkspacePackageOptions,
+): string[];
+
 export function affectedWorkspacePackagesFromGitStatus(
     root: string,
     status: string,

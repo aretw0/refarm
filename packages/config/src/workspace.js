@@ -17,8 +17,23 @@ export function changedFilePathsFromGitStatus(status) {
 }
 
 export function affectedWorkspacePackagesFromGitStatus(root, status, options = {}) {
+    return affectedWorkspacePackagesFromChangedPaths(
+        root,
+        changedFilePathsFromGitStatus(status),
+        options,
+    );
+}
+
+export function changedFilePathsFromGitNameOnly(output) {
+    return String(output ?? "")
+        .split(/\r?\n/)
+        .map((line) => unquoteGitPath(line.trimEnd()))
+        .filter(Boolean);
+}
+
+export function affectedWorkspacePackagesFromChangedPaths(root, changedPaths, options = {}) {
     const candidates = new Set();
-    for (const changedPath of changedFilePathsFromGitStatus(status)) {
+    for (const changedPath of changedPaths) {
         const workspace = findWorkspacePackageForPath(root, changedPath, options);
         if (workspace) candidates.add(workspace);
     }

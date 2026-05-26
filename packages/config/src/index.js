@@ -44,7 +44,9 @@ export {
     parsePackageManager,
 } from "./package-manager.js";
 export {
+    affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
+    changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
 } from "./workspace.js";

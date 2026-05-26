@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+    affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
+    changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
 } from "./workspace.js";
@@ -17,6 +19,16 @@ describe("workspace package detection", () => {
         ].join("\n"))).toEqual([
             "apps/refarm/src/index.ts",
             "packages/new.ts",
+            "apps/refarm/src/file with space.ts",
+        ]);
+    });
+
+    it("parses changed paths from git diff name-only output", () => {
+        expect(changedFilePathsFromGitNameOnly([
+            "apps/refarm/src/index.ts",
+            "\"apps/refarm/src/file with space.ts\"",
+        ].join("\n"))).toEqual([
+            "apps/refarm/src/index.ts",
             "apps/refarm/src/file with space.ts",
         ]);
     });
@@ -40,6 +52,10 @@ describe("workspace package detection", () => {
             expect(affectedWorkspacePackagesFromGitStatus(root, status)).toEqual([
                 "apps/refarm",
             ]);
+            expect(affectedWorkspacePackagesFromChangedPaths(root, [
+                "apps/refarm/src/index.ts",
+                "docs/guide.md",
+            ])).toEqual(["apps/refarm"]);
             expect(findWorkspacePackageForPath(root, "docs/guide.md")).toBeNull();
             expect(findWorkspacePackageForPath(root, "docs/guide.md", { includeRoot: true })).toBe(".");
         } finally {

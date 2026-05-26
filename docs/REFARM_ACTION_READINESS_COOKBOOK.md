@@ -92,6 +92,7 @@ refarm agent finish --next-command
 refarm agent finish --run --json
 refarm agent finish --run --next-command
 refarm agent finish --profile affected --run --json
+refarm agent finish --profile affected --since origin/develop --run --json
 refarm agent finish --profile affected --include-tests --run --json
 ```
 
@@ -119,6 +120,14 @@ that have those scripts. Use `--profile package --workspace <dir>` when the
 affected package is known explicitly or when validating a package without a Git
 diff.
 
+After committing an atomic slice, add `--since <ref>` to keep affected
+workspace selection tied to branch changes instead of only the current dirty
+tree. This is useful for final branch-local validation before push:
+
+```bash
+refarm agent finish --profile affected --since origin/develop --run --json
+```
+
 Keep package tests explicit. Add `--include-tests` when the slice needs package
 test scripts in addition to the default `type-check`, `lint`, and `build`
 scripts. This keeps the normal affected profile fast enough for frequent agent
@@ -141,6 +150,7 @@ Plan and run envelopes include a `selection` block for deterministic routing:
     "profile": "affected",
     "fix": false,
     "includeTests": false,
+    "since": null,
     "workspace": null,
     "affectedWorkspaces": ["apps/refarm"]
   }

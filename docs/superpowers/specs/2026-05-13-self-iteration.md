@@ -204,6 +204,9 @@ already implemented for rapid iteration once the binary exists.
 - `refarm agent finish --profile affected` turns Git status into package-level
   validation automatically, preserving the quick finish gate and appending
   scripts for changed workspaces.
+- `refarm agent finish --profile affected --since <ref>` keeps the same
+  affected-workspace validation available after atomic commits by comparing the
+  branch/worktree against a Git ref.
 - `GitStatusContextProvider` now emits an `affected_workspaces` context block
   with workspace-relative package candidates and matching package validation
   commands. This lets pi-agent choose the package finish profile from context

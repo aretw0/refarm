@@ -38,6 +38,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
 		expect(help).toContain("refarm agent finish --profile affected --run");
+		expect(help).toContain("refarm agent finish --profile affected --since origin/develop --run");
 		expect(help).toContain("refarm agent finish --profile affected --include-tests --run");
 		expect(help).toContain("refarm agent finish --run");
 		expect(help).toContain("refarm agent finish --run --json");
@@ -475,6 +476,79 @@ describe("agent command", () => {
 			affectedWorkspaces: ["apps/refarm"],
 		});
 		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
+	it("adds affected workspace steps from committed changes since a git ref", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-since-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(path.join(appDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit", lint: "eslint ." },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 1;\n", "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 2;\n", "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"change app",
+		], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--since",
+				"HEAD~1",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string }[];
+			selection: { affectedWorkspaces?: string[]; since: string | null };
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"package-apps-refarm-type-check",
+			"package-apps-refarm-lint",
+		]);
+		expect(payload.selection).toMatchObject({
+			since: "HEAD~1",
+			affectedWorkspaces: ["apps/refarm"],
+		});
 		logSpy.mockRestore();
 	});
 

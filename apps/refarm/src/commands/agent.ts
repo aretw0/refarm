@@ -1,4 +1,9 @@
-import { affectedWorkspacePackagesFromGitStatus } from "@refarm.dev/config";
+import {
+	affectedWorkspacePackagesFromChangedPaths,
+	affectedWorkspacePackagesFromGitStatus,
+	changedFilePathsFromGitNameOnly,
+	changedFilePathsFromGitStatus,
+} from "@refarm.dev/config";
 import { Command } from "commander";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -106,6 +111,7 @@ interface AgentFinishOptions {
 	nextCommand?: boolean;
 	profile?: string;
 	run?: boolean;
+	since?: string;
 	workspace?: string;
 }
 
@@ -113,6 +119,7 @@ interface AgentFinishSelection {
 	fix?: boolean;
 	includeTests?: boolean;
 	profile: AgentFinishProfile;
+	since?: string;
 	workspace?: string;
 }
 
@@ -120,6 +127,7 @@ interface AgentFinishSelectionMetadata {
 	profile: AgentFinishProfile;
 	fix: boolean;
 	includeTests: boolean;
+	since: string | null;
 	workspace: string | null;
 	affectedWorkspaces?: string[];
 }
@@ -312,7 +320,7 @@ function affectedPackageFinishSteps(
 	);
 }
 
-function affectedWorkspacesFromGit(): string[] {
+function affectedWorkspacesFromGit(options: { since?: string } = {}): string[] {
 	const repoRoot = findWorkspaceRoot();
 	try {
 		const status = execFileSync(
@@ -320,8 +328,22 @@ function affectedWorkspacesFromGit(): string[] {
 			["status", "--short", "--untracked-files=all"],
 			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
 		);
-		return affectedWorkspacePackagesFromGitStatus(repoRoot, status);
+		if (!options.since) {
+			return affectedWorkspacePackagesFromGitStatus(repoRoot, status);
+		}
+		const diff = execFileSync(
+			"git",
+			["diff", "--name-only", options.since, "--"],
+			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+		);
+		return affectedWorkspacePackagesFromChangedPaths(repoRoot, [
+			...changedFilePathsFromGitNameOnly(diff),
+			...changedFilePathsFromGitStatus(status),
+		]);
 	} catch {
+		if (options.since) {
+			throw new Error(`Could not inspect changed workspaces since ${options.since}. Check that the ref exists.`);
+		}
 		return [];
 	}
 }
@@ -391,6 +413,7 @@ function finishSelectionMetadata(
 		profile: selection.profile,
 		fix: Boolean(selection.fix),
 		includeTests: Boolean(selection.includeTests),
+		since: selection.profile === "affected" ? selection.since ?? null : null,
 		workspace: selection.profile === "package" ? selection.workspace ?? "." : null,
 		...(selection.profile === "affected"
 			? { affectedWorkspaces: affectedWorkspaces ?? [] }
@@ -401,7 +424,9 @@ function finishSelectionMetadata(
 function resolveAffectedWorkspacesForSelection(
 	selection: AgentFinishSelection,
 ): string[] | undefined {
-	return selection.profile === "affected" ? affectedWorkspacesFromGit() : undefined;
+	return selection.profile === "affected"
+		? affectedWorkspacesFromGit({ since: selection.since })
+		: undefined;
 }
 
 function printAgentFinishRunHuman(
@@ -432,9 +457,10 @@ function printAgentFinishRunHuman(
 function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {
 	if (selection.profile === "affected") {
 		const workspaces = selection.affectedWorkspaces ?? [];
+		const since = selection.since ? ` since ${selection.since}` : "";
 		return workspaces.length > 0
-			? `affected (${workspaces.join(", ")})`
-			: "affected (no changed workspaces)";
+			? `affected${since} (${workspaces.join(", ")})`
+			: `affected${since} (no changed workspaces)`;
 	}
 	if (selection.profile === "package") {
 		return `package (${selection.workspace ?? "."})`;
@@ -496,6 +522,7 @@ Verification:
   $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --profile package --workspace apps/refarm --run
   $ refarm agent finish --profile affected --run
+  $ refarm agent finish --profile affected --since origin/develop --run
   $ refarm agent finish --profile affected --include-tests --run
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
@@ -578,6 +605,7 @@ Notes:
 		.option("--next-command", "Print the first finish command or failing recovery command")
 		.option("--profile <name>", "Validation profile: quick | package | affected", "quick")
 		.option("--run", "Execute the finish plan and stop at the first failing step")
+		.option("--since <ref>", "For --profile affected, compare changed files against a Git ref")
 		.option("--workspace <dir>", "Workspace/package directory for --profile package", ".")
 		.addHelpText(
 			"after",
@@ -592,6 +620,7 @@ Notes:
 				"  $ refarm agent finish --profile package --workspace apps/refarm --json",
 				"  $ refarm agent finish --profile package --workspace apps/refarm --run",
 				"  $ refarm agent finish --profile affected --run --json",
+				"  $ refarm agent finish --profile affected --since origin/develop --run --json",
 				"  $ refarm agent finish --profile affected --include-tests --run --json",
 				"  $ refarm agent finish --run --next-command",
 				"",
@@ -600,6 +629,7 @@ Notes:
 				"  --profile quick is the default end-of-slice gate.",
 				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --profile affected adds package scripts for changed Git workspaces.",
+				"  --since <ref> lets affected include committed branch changes after atomic commits.",
 				"  --include-tests also adds existing package test scripts for package profiles.",
 				"  --fix adds refarm tidy imports before the check-only verification steps.",
 				"  --run executes selected commands, stops at the first failure, and does not commit changes.",
@@ -620,9 +650,18 @@ Notes:
 				fix: options.fix,
 				includeTests: options.includeTests,
 				profile,
+				since: options.since,
 				workspace: options.workspace,
 			};
-			const affectedWorkspaces = resolveAffectedWorkspacesForSelection(selection);
+			let affectedWorkspaces: string[] | undefined;
+			try {
+				affectedWorkspaces = resolveAffectedWorkspacesForSelection(selection);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				console.error(message);
+				process.exitCode = 1;
+				return;
+			}
 			const selectionWithAffected = {
 				...selection,
 				...(affectedWorkspaces ? { affectedWorkspaces } : {}),

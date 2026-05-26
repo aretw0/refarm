@@ -62,7 +62,9 @@ export type {
     WorkspacePackageOptions,
 } from "./workspace.js";
 export {
+    affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
+    changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
 } from "./workspace.js";
