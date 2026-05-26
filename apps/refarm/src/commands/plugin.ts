@@ -425,7 +425,7 @@ function buildRuntimePluginStatusReport(
 			ok: false,
 			available: false,
 			plugins: [],
-			nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+			nextAction: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			nextCommands: [
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,

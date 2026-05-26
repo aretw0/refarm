@@ -655,7 +655,7 @@ describe("plugin status", () => {
 			operation: "status",
 			ok: false,
 			available: false,
-			nextAction: "refarm doctor --next-action",
+			nextAction: "refarm runtime ensure --wait --next-command",
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
 				"refarm runtime ensure --wait --next-command",
