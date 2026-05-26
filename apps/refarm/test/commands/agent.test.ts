@@ -121,6 +121,9 @@ describe("agent command", () => {
 				quickCommand: string;
 				tidyCheck: string;
 				finishLanesJsonCommand: string;
+				finishLanesNextJsonCommand: string;
+				finishPlanJsonCommand: string;
+				finishPlanNextJsonCommand: string;
 				finishPlanCommand: string;
 				finishRunCommand: string;
 				finishFixPlanCommand: string;
@@ -189,6 +192,9 @@ describe("agent command", () => {
 				quickCommand: "refarm check --next-command",
 				tidyCheck: "refarm tidy imports --check --json",
 				finishLanesJsonCommand: "refarm agent finish --lanes --json",
+				finishLanesNextJsonCommand: "refarm agent finish --lanes --json --next-command",
+				finishPlanJsonCommand: "refarm agent finish --json",
+				finishPlanNextJsonCommand: "refarm agent finish --json --next-command",
 				finishPlanCommand: "refarm agent finish --next-command",
 				finishRunCommand: "refarm agent finish --run --next-command",
 				finishFixPlanCommand: "refarm agent finish --fix --next-command",
@@ -243,6 +249,9 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
+		expect(payload.nextActions).toContain("refarm agent finish --lanes --json --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --json");
+		expect(payload.nextActions).toContain("refarm agent finish --json --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
@@ -263,6 +272,9 @@ describe("agent command", () => {
 			"refarm package-manager --json",
 			"refarm config profile coding --local --json",
 			"refarm agent finish --lanes --json",
+			"refarm agent finish --lanes --json --next-command",
+			"refarm agent finish --json",
+			"refarm agent finish --json --next-command",
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
 			"refarm agent finish --profile package --workspace <dir> --run --next-command",
