@@ -246,9 +246,15 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 					message: parsed.error ?? `HTTP ${response.status}`,
 					prefix,
 					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+					nextActions: [
+						RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						RUNTIME_STATUS_COMMAND,
+					],
 					nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-					nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND],
+					nextCommands: [
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+					],
 				});
 				return;
 			}

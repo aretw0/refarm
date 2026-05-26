@@ -412,6 +412,44 @@ describe("refarm tasks", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("prints task detail endpoint failures as JSON with recovery commands", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse({ error: "task storage unavailable" }, 500),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "task-show-failed",
+			message: "task storage unavailable",
+			prefix: "abc123",
+			nextAction: "refarm doctor --next-action",
+			nextActions: [
+				"refarm doctor --next-action",
+				"refarm runtime status",
+			],
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("sets exitCode when task details cannot reach the runtime", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
