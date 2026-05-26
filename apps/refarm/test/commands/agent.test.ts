@@ -221,12 +221,24 @@ describe("agent command", () => {
 			nextCommands: string[];
 			effects: string[];
 			writes: boolean;
+			selection: {
+				profile: string;
+				fix: boolean;
+				includeTests: boolean;
+				workspace: string | null;
+			};
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "plan",
 			effects: ["verify", "observe"],
 			writes: false,
+			selection: {
+				profile: "quick",
+				fix: false,
+				includeTests: false,
+				workspace: null,
+			},
 			nextCommand: "refarm tidy imports --check --json",
 			nextCommands: [
 				"refarm tidy imports --check --json",
@@ -435,6 +447,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string; process?: { cwd?: string } }[];
 			nextCommands: string[];
+			selection: { affectedWorkspaces?: string[]; includeTests: boolean; profile: string };
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -445,6 +458,12 @@ describe("agent command", () => {
 		]);
 		expect(payload.nextCommands).toContain("npm --prefix apps/refarm run type-check");
 		expect(payload.nextCommands).toContain("npm --prefix apps/refarm run lint");
+		expect(payload.nextCommands).not.toContain("npm --prefix apps/refarm run test");
+		expect(payload.selection).toMatchObject({
+			profile: "affected",
+			includeTests: false,
+			affectedWorkspaces: ["apps/refarm"],
+		});
 		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
 		logSpy.mockRestore();
 	});
@@ -485,6 +504,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string }[];
 			nextCommands: string[];
+			selection: { affectedWorkspaces?: string[]; includeTests: boolean };
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -495,6 +515,10 @@ describe("agent command", () => {
 			"package-apps-refarm-build",
 		]);
 		expect(payload.nextCommands).toContain("npm --prefix apps/refarm run test");
+		expect(payload.selection).toMatchObject({
+			includeTests: true,
+			affectedWorkspaces: ["apps/refarm"],
+		});
 		logSpy.mockRestore();
 	});
 
@@ -532,6 +556,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			steps: { id: string; command: string }[];
 			nextCommands: string[];
+			selection: { affectedWorkspaces?: string[] };
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
@@ -539,6 +564,7 @@ describe("agent command", () => {
 			"check",
 		]);
 		expect(payload.nextCommands).not.toContain("npm --prefix . run type-check");
+		expect(payload.selection.affectedWorkspaces).toEqual([]);
 		logSpy.mockRestore();
 	});
 

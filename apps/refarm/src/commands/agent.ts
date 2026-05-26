@@ -106,6 +106,21 @@ interface AgentFinishOptions {
 	workspace?: string;
 }
 
+interface AgentFinishSelection {
+	fix?: boolean;
+	includeTests?: boolean;
+	profile: AgentFinishProfile;
+	workspace?: string;
+}
+
+interface AgentFinishSelectionMetadata {
+	profile: AgentFinishProfile;
+	fix: boolean;
+	includeTests: boolean;
+	workspace: string | null;
+	affectedWorkspaces?: string[];
+}
+
 function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
 	const result = spawnSync(process.argv[0]!, [process.argv[1]!, ...args], {
 		cwd: process.cwd(),
@@ -281,8 +296,11 @@ function packageFinishStepsForWorkspace(
 		));
 }
 
-function affectedPackageFinishSteps(includeTests = false): CommandPlanStep[] {
-	return affectedWorkspacesFromGit().flatMap((workspace) =>
+function affectedPackageFinishSteps(
+	includeTests = false,
+	workspaces = affectedWorkspacesFromGit(),
+): CommandPlanStep[] {
+	return workspaces.flatMap((workspace) =>
 		packageFinishStepsForWorkspace(
 			workspace,
 			`package-${sanitizeStepId(workspace)}`,
@@ -321,6 +339,7 @@ function selectedFinishSteps(options: {
 	includeTests?: boolean;
 	profile?: AgentFinishProfile;
 	workspace?: string;
+	affectedWorkspaces?: string[];
 } = {}): CommandPlanStep[] {
 	const steps = options.fix
 		? agentFinishSteps
@@ -329,7 +348,10 @@ function selectedFinishSteps(options: {
 		return [...steps, ...packageFinishSteps(options.workspace ?? ".", options.includeTests)];
 	}
 	if (options.profile === "affected") {
-		return [...steps, ...affectedPackageFinishSteps(options.includeTests)];
+		return [...steps, ...affectedPackageFinishSteps(
+			options.includeTests,
+			options.affectedWorkspaces,
+		)];
 	}
 	return steps;
 }
@@ -350,11 +372,33 @@ function runAgentFinishPlan(
 		includeTests?: boolean;
 		profile?: AgentFinishProfile;
 		workspace?: string;
+		affectedWorkspaces?: string[];
 	} = {},
 ): CommandPlanRunResult {
 	return runCommandPlan(selectedFinishSteps(options), (step) =>
 		step.process ? deps.runProcess(step) : deps.runRefarm(step.args),
 	);
+}
+
+function finishSelectionMetadata(
+	selection: AgentFinishSelection,
+	affectedWorkspaces?: string[],
+): AgentFinishSelectionMetadata {
+	return {
+		profile: selection.profile,
+		fix: Boolean(selection.fix),
+		includeTests: Boolean(selection.includeTests),
+		workspace: selection.profile === "package" ? selection.workspace ?? "." : null,
+		...(selection.profile === "affected"
+			? { affectedWorkspaces: affectedWorkspaces ?? [] }
+			: {}),
+	};
+}
+
+function resolveAffectedWorkspacesForSelection(
+	selection: AgentFinishSelection,
+): string[] | undefined {
+	return selection.profile === "affected" ? affectedWorkspacesFromGit() : undefined;
 }
 
 function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
@@ -554,14 +598,22 @@ Notes:
 				profile,
 				workspace: options.workspace,
 			};
+			const affectedWorkspaces = resolveAffectedWorkspacesForSelection(selection);
+			const selectionWithAffected = {
+				...selection,
+				...(affectedWorkspaces ? { affectedWorkspaces } : {}),
+			};
 			if (options.run) {
-				const result = runAgentFinishPlan(resolvedDeps, selection);
+				const result = runAgentFinishPlan(resolvedDeps, selectionWithAffected);
 				if (options.json) {
-					printJson(buildCommandPlanRunEnvelope({
-						action: "finish",
-						command: "agent",
-						operation: "finish",
-					}, result));
+					printJson({
+						...buildCommandPlanRunEnvelope({
+							action: "finish",
+							command: "agent",
+							operation: "finish",
+						}, result),
+						selection: finishSelectionMetadata(selection, affectedWorkspaces),
+					});
 				} else if (options.nextCommand) {
 					const [nextCommand] = result.nextCommands;
 					if (nextCommand) console.log(nextCommand);
@@ -574,7 +626,7 @@ Notes:
 				if (!result.ok) process.exitCode = 1;
 				return;
 			}
-			const nextCommands = plannedFinishCommands(selection);
+			const nextCommands = plannedFinishCommands(selectionWithAffected);
 			if (options.nextCommand) {
 				const [nextCommand] = nextCommands;
 				if (nextCommand) console.log(nextCommand);
@@ -586,11 +638,14 @@ Notes:
 				return;
 			}
 			if (options.json) {
-				printJson(buildCommandPlanEnvelope({
-					action: "finish",
-					command: "agent",
-					operation: "finish",
-				}, selectedFinishSteps(selection)));
+				printJson({
+					...buildCommandPlanEnvelope({
+						action: "finish",
+						command: "agent",
+						operation: "finish",
+					}, selectedFinishSteps(selectionWithAffected)),
+					selection: finishSelectionMetadata(selection, affectedWorkspaces),
+				});
 				return;
 			}
 			this.outputHelp();
