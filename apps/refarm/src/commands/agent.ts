@@ -459,6 +459,27 @@ function laneConflictMessage(lane: AgentFinishLane | undefined, options: AgentFi
 	return null;
 }
 
+function lanesConflictMessage(options: AgentFinishOptions): string | null {
+	if (options.run === true) return "--lanes cannot be combined with --run.";
+	if (typeof options.lane === "string" && options.lane.length > 0) {
+		return "--lanes cannot be combined with --lane. Choose a lane after listing them.";
+	}
+	if (typeof options.profile === "string" && options.profile !== "quick") {
+		return "--lanes cannot be combined with --profile. It lists all recommended lanes.";
+	}
+	if (typeof options.since === "string" && options.since.length > 0) {
+		return "--lanes cannot be combined with --since. It does not select changed workspaces.";
+	}
+	if (options.includeTests === true) {
+		return "--lanes cannot be combined with --include-tests. Inspect the with-package-tests lane instead.";
+	}
+	if (typeof options.workspace === "string" && options.workspace.length > 0 && options.workspace !== ".") {
+		return "--lanes cannot be combined with --workspace. It is not workspace-specific.";
+	}
+	if (options.fix === true) return "--lanes cannot be combined with --fix. It only lists recommended commands.";
+	return null;
+}
+
 function selectedFinishSteps(options: {
 	fix?: boolean;
 	includeTests?: boolean;
@@ -808,8 +829,9 @@ Notes:
 		.action(function (this: Command, actionArg: unknown) {
 			const options = resolveFinishOptions(this, actionArg);
 			if (options.lanes) {
-				if (options.run) {
-					reportAgentFinishOptionError("--lanes cannot be combined with --run.", options);
+				const conflictMessage = lanesConflictMessage(options);
+				if (conflictMessage) {
+					reportAgentFinishOptionError(conflictMessage, options);
 					return;
 				}
 				const lanes = agentRuntimePlan.verification.lanes;

@@ -414,6 +414,36 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("rejects ambiguous finish lane catalog combinations", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--lanes",
+				"--lane",
+				"after-edit",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			message: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			message: "--lanes cannot be combined with --lane. Choose a lane after listing them.",
+			nextCommand: "refarm agent finish --help",
+		});
+		logSpy.mockRestore();
+	});
+
 	it("rejects since outside the affected finish profile", async () => {
 		const agentCommand = createAgentCommand();
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
