@@ -110,8 +110,8 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm agent --next-command");
 		expect(help).toContain("refarm agent finish --next-command");
-		expect(help).toContain("refarm agent finish --lane after-edit --run");
-		expect(help).toContain("refarm agent finish --lane before-push --run");
+		expect(help).toContain("refarm agent finish --lane after-edit --run --json");
+		expect(help).toContain("refarm agent finish --lane before-push --run --json");
 		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
 		expect(help).toContain("refarm config set runtime.autostart always");
