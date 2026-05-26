@@ -37,12 +37,6 @@ interface GuideReport {
   nextCommands: string[];
 }
 
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
-}
-
 function renderGuideMarkdown(report: GuideReport): string {
   let guideContent = `# Setup Audit — refarm\n\nDynamically generated based on your current state.\n\n## Status Summary\n\n`;
 

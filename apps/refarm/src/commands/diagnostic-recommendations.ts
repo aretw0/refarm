@@ -11,7 +11,7 @@ export interface DiagnosticRecommendation {
 	target?: string;
 }
 
-export interface DiagnosticNextActionPayload<TExtra extends object = object> {
+export interface DiagnosticNextActionPayload {
 	ok: boolean;
 	nextAction: string | null;
 	nextActions: string[];
@@ -51,7 +51,7 @@ export function diagnosticNextCommands(
 
 export function buildDiagnosticNextActionPayload<TExtra extends object = object>(
 	input: { ok: boolean; nextActions: string[]; nextCommands?: string[] } & TExtra,
-): DiagnosticNextActionPayload<TExtra> & TExtra {
+): DiagnosticNextActionPayload & TExtra {
 	const { ok, nextActions, nextCommands, ...extra } = input;
 	const resolvedNextActions = normalizeHandoffValues(nextActions);
 	const resolvedNextCommands = normalizeHandoffValues(nextCommands ?? []);
