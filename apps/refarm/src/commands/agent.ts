@@ -260,8 +260,8 @@ Notes:
 					nextCommands: [
 						"refarm check --next-command",
 						agentRuntimePlan.runtime.ensure,
-						SOW_JSON_COMMAND,
 						LOCAL_MODEL_JSON_COMMAND,
+						SOW_JSON_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",

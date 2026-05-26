@@ -619,15 +619,15 @@ function printMissingModelCredentials(json: boolean): void {
 				nextAction: SOW_INTERACTIVE_COMMAND,
 				nextActions: [
 					SOW_INTERACTIVE_COMMAND,
-					SOW_JSON_COMMAND,
+					LOCAL_MODEL_JSON_COMMAND,
 					MODEL_CURRENT_JSON_COMMAND,
 					MODEL_PROVIDERS_JSON_COMMAND,
 					"ollama serve",
 				],
-				nextCommand: SOW_JSON_COMMAND,
+				nextCommand: LOCAL_MODEL_JSON_COMMAND,
 				nextCommands: [
-					SOW_JSON_COMMAND,
 					LOCAL_MODEL_JSON_COMMAND,
+					SOW_JSON_COMMAND,
 					MODEL_PROVIDERS_JSON_COMMAND,
 					MODEL_CURRENT_JSON_COMMAND,
 					"ollama serve",

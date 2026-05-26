@@ -1,5 +1,7 @@
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import { createAskCommand } from "../../src/commands/ask.js";
@@ -46,11 +48,17 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 
 describe("refarm ask", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
+	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
+	const originalHome = process.env.HOME;
+	let tempHome: string | null = null;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ask-home-"));
+		process.env.HOME = tempHome;
+		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
 	});
 
@@ -60,10 +68,24 @@ describe("refarm ask", () => {
 		} else {
 			process.env.MODEL_PROVIDER = originalProvider;
 		}
+		if (originalDefaultProvider === undefined) {
+			delete process.env.MODEL_DEFAULT_PROVIDER;
+		} else {
+			process.env.MODEL_DEFAULT_PROVIDER = originalDefaultProvider;
+		}
 		if (originalOpenAiKey === undefined) {
 			delete process.env.OPENAI_API_KEY;
 		} else {
 			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
+		if (originalHome === undefined) {
+			delete process.env.HOME;
+		} else {
+			process.env.HOME = originalHome;
+		}
+		if (tempHome) {
+			fs.rmSync(tempHome, { recursive: true, force: true });
+			tempHome = null;
 		}
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
@@ -336,7 +358,7 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "model-credentials-missing",
 			nextAction: "refarm sow",
-			nextCommand: "refarm sow --json",
+			nextCommand: "refarm sow --model ollama/llama3.2 --json",
 			handoffs: {
 				interactive: "refarm sow",
 				inspectCurrent: "refarm model current --json",
@@ -345,13 +367,15 @@ describe("refarm ask", () => {
 				openExternalLinks: "refarm config get operator.openExternalLinks --json",
 			},
 		});
-		expect(payload.nextActions).toContain("refarm sow --json");
+		expect(payload.nextActions).toContain(
+			"refarm sow --model ollama/llama3.2 --json",
+		);
 		expect(payload.nextActions).toContain("refarm model current --json");
 		expect(payload.nextCommands).not.toContain("refarm sow");
-		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain(
 			"refarm sow --model ollama/llama3.2 --json",
 		);
+		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(deps.submitEffort).not.toHaveBeenCalled();
