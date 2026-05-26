@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createModelCommand, type ModelCommandDeps } from "../../src/commands/model.js";
+import {
+	buildCurrentModelStatus,
+	createModelCommand,
+	type ModelCommandDeps,
+} from "../../src/commands/model.js";
 
 function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 	saveTokens: ReturnType<typeof vi.fn>;
@@ -208,9 +212,9 @@ describe("modelCommand", () => {
 			inspectProviders: "refarm model providers --json",
 			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 			openExternalLinks: "refarm config get operator.openExternalLinks --json",
-			setModel: "refarm model openai/gpt-5.5 --json",
-			setWorkerModel: "refarm model set --scope worker openai/gpt-5.3-codex-spark --json",
-			setMonitorModel: "refarm model set --scope monitor openai/gpt-5.5 --json",
+			setModel: "refarm model 'openai/gpt-5.5' --json",
+			setWorkerModel: "refarm model set --scope worker 'openai/gpt-5.3-codex-spark' --json",
+			setMonitorModel: "refarm model set --scope monitor 'openai/gpt-5.5' --json",
 		});
 
 		logSpy.mockRestore();
@@ -232,6 +236,23 @@ describe("modelCommand", () => {
 		expect(output).toContain("login:          refarm sow");
 
 		logSpy.mockRestore();
+	});
+
+	it("builds route handoffs from effective scoped routes", () => {
+		const status = buildCurrentModelStatus({
+			modelProvider: "vllm",
+			modelId: "Qwen3-Coder-480B-A35B-Instruct",
+			modelRoutes: {
+				worker: "ollama/llama3.2",
+				monitor: "anthropic/claude-sonnet-4.5",
+			},
+		});
+
+		expect(status.handoffs).toMatchObject({
+			setModel: "refarm model 'vllm/Qwen3-Coder-480B-A35B-Instruct' --json",
+			setWorkerModel: "refarm model set --scope worker 'ollama/llama3.2' --json",
+			setMonitorModel: "refarm model set --scope monitor 'anthropic/claude-sonnet-4.5' --json",
+		});
 	});
 
 	it("prints current model from default provider environment", async () => {

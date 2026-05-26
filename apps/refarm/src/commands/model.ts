@@ -26,8 +26,6 @@ import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPENAI_MODEL_JSON_COMMAND,
-	OPENAI_MONITOR_MODEL_JSON_COMMAND,
-	OPENAI_WORKER_MODEL_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
@@ -285,23 +283,39 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 	return [];
 }
 
-function currentModelHandoffs(): NonNullable<CurrentModelStatus["handoffs"]> {
+function currentModelHandoffs(
+	status: Pick<CurrentModelStatus, "current" | "routes">,
+): NonNullable<CurrentModelStatus["handoffs"]> {
 	return {
 		interactive: SOW_INTERACTIVE_COMMAND,
 		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
 		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
 		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
-		setModel: OPENAI_MODEL_JSON_COMMAND,
-		setWorkerModel: OPENAI_WORKER_MODEL_JSON_COMMAND,
-		setMonitorModel: OPENAI_MONITOR_MODEL_JSON_COMMAND,
+		setModel: refarmCommand(["model", quoteCommandArg(status.current.ref), "--json"]),
+		setWorkerModel: refarmCommand([
+			"model",
+			"set",
+			"--scope",
+			"worker",
+			quoteCommandArg(status.routes.worker),
+			"--json",
+		]),
+		setMonitorModel: refarmCommand([
+			"model",
+			"set",
+			"--scope",
+			"monitor",
+			quoteCommandArg(status.routes.monitor),
+			"--json",
+		]),
 	};
 }
 
 function currentModelRecovery(
-	status: Pick<CurrentModelStatus, "credential">,
+	status: Pick<CurrentModelStatus, "credential" | "current" | "routes">,
 ): Pick<CurrentModelStatus, "recommendations" | "handoffs"> {
 	if (status.credential.state !== "missing") {
-		return { handoffs: currentModelHandoffs() };
+		return { handoffs: currentModelHandoffs(status) };
 	}
 	return {
 		recommendations: [
@@ -313,7 +327,7 @@ function currentModelRecovery(
 				command: SOW_JSON_COMMAND,
 			},
 		],
-		handoffs: currentModelHandoffs(),
+		handoffs: currentModelHandoffs(status),
 	};
 }
 
