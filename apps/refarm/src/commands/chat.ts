@@ -1,8 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import readline from "node:readline";
-import { spawnSync } from "node:child_process";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -15,15 +10,20 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import readline from "node:readline";
 import {
-	parseChatLine,
 	CHAT_HELP_TEXT,
 	CHAT_RUNTIME_COMMANDS_HELP,
+	parseChatLine,
 } from "./chat-repl.js";
 import {
 	defaultModelDeps,
-	printKnownModelProviders,
 	printCurrentModel,
+	printKnownModelProviders,
 	resetScopedModelRoute,
 	setFallbackModelRoute,
 	setModelBaseUrl,
@@ -31,6 +31,11 @@ import {
 	type ModelCommandDeps,
 } from "./model.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
+import {
+	readRuntimePluginState,
+	reloadRuntimePluginsAndWait,
+	type RuntimePluginState,
+} from "./runtime-plugins.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
@@ -39,7 +44,6 @@ import {
 } from "./session-lock.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
-import { reloadRuntimePluginsAndWait } from "./runtime-plugins.js";
 
 export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -59,6 +63,7 @@ export interface ChatDeps {
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
 	reloadPlugins(pluginIds?: string[]): Promise<{ reloaded: string[]; skipped: string[] }>;
+	readPluginState?(): Promise<RuntimePluginState | null>;
 	model?: ModelCommandDeps;
 	configureCredentials?(args?: string[]): Promise<void>;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
@@ -288,6 +293,7 @@ export function defaultChatDeps(): ChatDeps {
 			if (!result) throw new Error("Refarm runtime plugin reload is unavailable");
 			return result;
 		},
+		readPluginState: readRuntimePluginState,
 		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
 		followStream: (effortId, onChunk, options) =>
 			followStreamFile(streamsDir, effortId, onChunk, options),

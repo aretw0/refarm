@@ -1,9 +1,14 @@
+import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
 import {
 	defaultChatDeps,
 	runSessionRepl,
 	type ChatDeps,
 } from "./chat.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+} from "./runtime-recovery.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	autoStartRuntime,
@@ -23,6 +28,9 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { sidecarUrl } from "./sidecar-url.js";
+
+const PI_AGENT_INSTALL_JSON_COMMAND = "refarm plugin install --json";
+const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -61,6 +69,30 @@ async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<strin
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as { sessions?: Array<{ "@id": string }> };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
+}
+
+async function ensureSessionPiAgentReady(deps: ChatDeps): Promise<boolean> {
+	if (!deps.readPluginState) return true;
+	const state = await deps.readPluginState();
+	if (!state) return true;
+	if (state.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+
+	if (state.installed.includes(PI_AGENT_PLUGIN_ID) && deps.reloadPlugins) {
+		const reload = await deps.reloadPlugins([PI_AGENT_PLUGIN_ID]);
+		if (reload.reloaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+		const refreshed = await deps.readPluginState();
+		if (refreshed?.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+	}
+
+	process.stderr.write("✗  pi-agent is not loaded in the Refarm runtime.\n");
+	if (!state.installed.includes(PI_AGENT_PLUGIN_ID)) {
+		process.stderr.write(`   Install bundled plugins:  ${PI_AGENT_INSTALL_JSON_COMMAND}\n`);
+	} else {
+		process.stderr.write(`   Reload runtime plugins:   ${PI_AGENT_RELOAD_JSON_COMMAND}\n`);
+	}
+	process.stderr.write(`   Ensure runtime:           ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\n`);
+	process.stderr.write(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}\n`);
+	return false;
 }
 
 /**
@@ -108,6 +140,10 @@ export async function runSessionLaunchFlow(
 	}
 
 	const deps = injectedDeps ?? defaultChatDeps();
+	if (!(await ensureSessionPiAgentReady(deps))) {
+		process.exitCode = 1;
+		return;
+	}
 
 	let sessionId: string;
 	try {

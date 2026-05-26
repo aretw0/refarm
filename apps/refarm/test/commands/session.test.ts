@@ -123,4 +123,55 @@ describe("session command", () => {
 		expect(process.exitCode).toBe(1);
 		stderrSpy.mockRestore();
 	});
+
+	it("reloads pi-agent before entering the REPL when installed but not loaded", async () => {
+		const readPluginState = vi
+			.fn()
+			.mockResolvedValueOnce({
+				installed: ["@refarm/pi-agent"],
+				loaded: [],
+				local: [],
+				known: ["@refarm/pi-agent"],
+			})
+			.mockResolvedValueOnce({
+				installed: ["@refarm/pi-agent"],
+				loaded: ["@refarm/pi-agent"],
+				local: [],
+				known: ["@refarm/pi-agent"],
+			});
+		const reloadPlugins = vi.fn().mockResolvedValue({
+			reloaded: ["@refarm/pi-agent"],
+			skipped: [],
+		});
+		mockDefaultChatDeps.mockReturnValue({ readPluginState, reloadPlugins });
+
+		await expect(runSessionLaunchFlow()).resolves.toBeUndefined();
+
+		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
+		expect(mockRunSessionRepl).toHaveBeenCalled();
+		expect(process.exitCode).toBeUndefined();
+	});
+
+	it("does not enter the REPL when pi-agent is missing", async () => {
+		const readPluginState = vi.fn().mockResolvedValue({
+			installed: [],
+			loaded: [],
+			local: [],
+			known: [],
+		});
+		mockDefaultChatDeps.mockReturnValue({ readPluginState });
+		const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+		await expect(runSessionLaunchFlow()).resolves.toBeUndefined();
+
+		expect(mockRunSessionRepl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		expect(stderrSpy).toHaveBeenCalledWith(
+			expect.stringContaining("pi-agent is not loaded"),
+		);
+		expect(stderrSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm plugin install --json"),
+		);
+		stderrSpy.mockRestore();
+	});
 });

@@ -133,24 +133,22 @@ response and checking terminal output fidelity.
 
 ---
 
-## Gap 6 — `pi-agent` preflight check — PARTIALLY ADDRESSED
+## Gap 6 — `pi-agent` preflight check — ADDRESSED
 
-`refarm ask` now checks runtime plugin state and can install/reload pi-agent with
-machine-readable recovery commands. `refarm plugin list --json`,
-`refarm plugin install --json`, and `refarm plugin reload @refarm/pi-agent --json`
-are also exposed through `refarm agent --json`.
-
-Remaining work: make `refarm chat` run the same explicit preflight before
-entering the REPL, instead of relying on first-turn error handling.
+`refarm ask` checks runtime plugin state and can install/reload pi-agent with
+machine-readable recovery commands. `refarm chat` now performs the same preflight
+before entering the REPL: if pi-agent is installed but not loaded, it attempts a
+reload; if it remains unavailable, the REPL does not start and the user gets
+deterministic install/reload/runtime recovery commands.
 
 ---
 
 ## Sequencing
 
 **Today (unblock daily use):**
-1. Port `refarm ask` pi-agent preflight behavior to `refarm chat`
-2. Decide aliases for `/login` and `/model` workflows (`/sow`, `/provider`)
-3. Verify spinner cleanup under slow first-token latency
+1. Decide aliases for `/login` and `/model` workflows (`/sow`, `/provider`)
+2. Verify spinner cleanup under slow first-token latency
+3. Validate first-run devcontainer path end-to-end after a clean rebuild
 
 **Next sprint:**
 4. Crash resilience after runtime failure mid-session (Gap 2)
