@@ -724,8 +724,32 @@ Notes:
 `,
 	).action(function (this: Command) {
 		const options = this.opts<{ json?: boolean; nextAction?: boolean; nextCommand?: boolean }>();
+		if (options.nextCommand && options.json) {
+			printJson(buildJsonSuccessEnvelope({
+				command: "agent",
+				operation: "handoff",
+				nextAction: "refarm check --next-action --json",
+				nextCommand: "refarm check --next-command",
+				nextActions: ["refarm check --next-action --json"],
+				nextCommands: ["refarm check --next-command"],
+				extra: { action: "agent", status: "handoff" },
+			}));
+			return;
+		}
 		if (options.nextCommand) {
 			console.log("refarm check --next-command");
+			return;
+		}
+		if (options.nextAction && options.json) {
+			printJson(buildJsonSuccessEnvelope({
+				command: "agent",
+				operation: "handoff",
+				nextAction: "refarm check --next-action --json",
+				nextCommand: "refarm check --next-command",
+				nextActions: ["refarm check --next-action --json"],
+				nextCommands: ["refarm check --next-command"],
+				extra: { action: "agent", status: "handoff" },
+			}));
 			return;
 		}
 		if (options.nextAction) {

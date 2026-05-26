@@ -295,6 +295,52 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints the first agent handoff command as JSON when requested", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["--json", "--next-command"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+			status: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "handoff",
+			nextAction: "refarm check --next-action --json",
+			nextCommand: "refarm check --next-command",
+			nextCommands: ["refarm check --next-command"],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("prints the first agent handoff action as JSON when requested", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["--json", "--next-action"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			nextAction: string;
+			nextActions: string[];
+			nextCommand: string;
+			status: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "handoff",
+			nextAction: "refarm check --next-action --json",
+			nextActions: ["refarm check --next-action --json"],
+			nextCommand: "refarm check --next-command",
+		});
+		logSpy.mockRestore();
+	});
+
 	it("prints an end-of-slice verification plan", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
