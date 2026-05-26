@@ -389,6 +389,32 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 			error?: string;
 		};
 		if (response.status === 404) {
+			if (opts.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "new",
+						error: "session-create-unavailable",
+						message: "Session creation endpoint is unavailable in this daemon.",
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextActions: [
+							RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+							RUNTIME_STATUS_COMMAND,
+						],
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+						nextCommands: [
+							RUNTIME_DOCTOR_NEXT_COMMAND,
+							RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+						],
+						extra: {
+							action: "sessions",
+							endpoint: "/sessions",
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
 			console.error(
 				chalk.red(
 					"✗  Session creation endpoint is unavailable in this daemon.",
@@ -403,6 +429,32 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 			return;
 		}
 		if (!response.ok || !parsed.session) {
+			if (opts.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "new",
+						error: "session-create-failed",
+						message: parsed.error ?? `HTTP ${response.status}`,
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextActions: [
+							RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+							RUNTIME_STATUS_COMMAND,
+						],
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+						nextCommands: [
+							RUNTIME_DOCTOR_NEXT_COMMAND,
+							RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+						],
+						extra: {
+							action: "sessions",
+							endpoint: "/sessions",
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
 			console.error(
 				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
 			);

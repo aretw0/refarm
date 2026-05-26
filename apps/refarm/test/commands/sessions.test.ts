@@ -675,4 +675,76 @@ describe("refarm sessions", () => {
 		);
 		expect(process.exitCode).toBe(1);
 	});
+
+	it("sessions new prints missing endpoint errors as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 404,
+				json: async () => ({}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createSessionsCommand();
+		await command.commands
+			.find((c) => c.name() === "new")!
+			.parseAsync(["--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "new",
+			action: "sessions",
+			ok: false,
+			error: "session-create-unavailable",
+			message: "Session creation endpoint is unavailable in this daemon.",
+			endpoint: "/sessions",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sessions new prints endpoint failures as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 500,
+				json: async () => ({ error: "database unavailable" }),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createSessionsCommand();
+		await command.commands
+			.find((c) => c.name() === "new")!
+			.parseAsync(["--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "new",
+			action: "sessions",
+			ok: false,
+			error: "session-create-failed",
+			message: "database unavailable",
+			endpoint: "/sessions",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+		});
+		expect(process.exitCode).toBe(1);
+	});
 });
