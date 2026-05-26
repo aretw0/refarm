@@ -152,11 +152,11 @@ export const initCommand = new Command("init")
         buildJsonSuccessEnvelope({
           command: "init",
           operation: "scaffold",
-          nextAction: `cd ${name} && refarm sow`,
+          nextAction: sowCommand,
           nextActions: [
-            `cd ${name} && refarm sow`,
-            "refarm model current",
-            "refarm guide",
+            sowCommand,
+            modelCurrentCommand,
+            guideCommand,
           ],
           nextCommand: sowCommand,
           nextCommands: [

@@ -157,6 +157,7 @@ describe("initCommand — mocked initialization flow", () => {
       ok: boolean;
       status: string;
       projectDir: string;
+      nextAction: string;
       nextActions: string[];
       nextCommand: string;
       nextCommands: string[];
@@ -167,17 +168,42 @@ describe("initCommand — mocked initialization flow", () => {
       status: "initialized",
     });
     expect(payload.projectDir).toContain("test-workspace");
-    expect(payload.nextActions).toContain("cd test-workspace && refarm sow");
-    expect(payload.nextActions).toContain("refarm model current");
+    expect(payload.nextAction).toContain("refarm sow --json");
+    expect(payload.nextAction).toContain("test-workspace");
     expect(payload.nextCommand).toContain("refarm sow --json");
     expect(payload.nextCommand).toContain("test-workspace");
     expect(payload.nextCommands[0]).toContain("refarm sow --json");
+    expect(payload.nextActions[0]).toBe(payload.nextCommands[0]);
     expect(payload.nextCommands).toContainEqual(
+      expect.stringContaining("refarm model current --json"),
+    );
+    expect(payload.nextActions).toContainEqual(
       expect.stringContaining("refarm model current --json"),
     );
     expect(payload.nextCommands).toContainEqual(
       expect.stringContaining("refarm guide --json"),
     );
+    logSpy.mockRestore();
+  });
+
+  it("quotes initialization handoffs for workspace names with spaces", async () => {
+    const logs: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+      logs.push(String(value));
+    });
+
+    await initCommand.parseAsync(["space workspace", "--json"], { from: "user" });
+
+    const payload = JSON.parse(logs.join("\n")) as {
+      nextAction: string;
+      nextActions: string[];
+      nextCommand: string;
+      nextCommands: string[];
+    };
+    expect(payload.nextAction).toMatch(/^cd '.*space workspace' && refarm sow --json$/);
+    expect(payload.nextCommand).toMatch(/^cd '.*space workspace' && refarm sow --json$/);
+    expect(payload.nextActions[0]).toBe(payload.nextCommand);
+    expect(payload.nextCommands[0]).toBe(payload.nextCommand);
     logSpy.mockRestore();
   });
 
