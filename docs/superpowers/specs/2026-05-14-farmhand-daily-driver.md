@@ -101,13 +101,15 @@ Current commands:
 | `/model current` | Inspect active model routing |
 | `/model providers` | Inspect provider defaults and credential env vars |
 | `/model <provider/model>` | Switch the default route |
+| `/provider <provider/model>` | Alias for switching the default route |
 | `/model worker <provider/model>` | Switch the worker route |
 | `/model monitor <provider/model>` | Switch the monitor route |
 | `/model fallback <provider/model>` | Set fallback route |
 | `/model base-url <url>` | Set self-hosted/OpenAI-compatible endpoint |
 
-Remaining work: decide whether `/sow` and `/provider` aliases should exist for
-operator muscle memory, or whether `/login` + `/model` is the stable vocabulary.
+Alias decision: `/sow` is supported as an alias for `/login`, and `/provider`
+is supported as an alias for `/model`. The stable vocabulary remains `/login`
+and `/model`; the aliases exist for operator muscle memory.
 
 ---
 
@@ -146,17 +148,16 @@ deterministic install/reload/runtime recovery commands.
 ## Sequencing
 
 **Today (unblock daily use):**
-1. Decide aliases for `/login` and `/model` workflows (`/sow`, `/provider`)
-2. Verify spinner cleanup under slow first-token latency
-3. Validate first-run devcontainer path end-to-end after a clean rebuild
+1. Verify spinner cleanup under slow first-token latency
+2. Validate first-run devcontainer path end-to-end after a clean rebuild
 
 **Next sprint:**
-4. Crash resilience after runtime failure mid-session (Gap 2)
-5. TUI-backed config surface for no-argument `refarm config`
-6. Package-level validation profiles for coding-agent verification
+3. Crash resilience after runtime failure mid-session (Gap 2)
+4. TUI-backed config surface for no-argument `refarm config`
+5. Package-level validation profiles for coding-agent verification
 
 **After daily-driver milestone:**
-7. TUI mode — `refarm` bare launches a full-screen TUI (already partially
+6. TUI mode — `refarm` bare launches a full-screen TUI (already partially
    implemented in `tui.ts` and `tui-actions.ts`, gated behind `--launch` flag)
 
 ---

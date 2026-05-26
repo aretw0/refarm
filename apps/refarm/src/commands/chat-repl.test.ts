@@ -60,6 +60,26 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("parses /provider as a model route alias", () => {
+		expect(parseChatLine("/provider")).toEqual({ kind: "model", action: "current" });
+		expect(parseChatLine("/provider providers")).toEqual({
+			kind: "model",
+			action: "providers",
+		});
+		expect(parseChatLine("/provider openai/gpt-5.5")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "default",
+			ref: "openai/gpt-5.5",
+		});
+		expect(parseChatLine("/provider worker openai/gpt-5.3-codex-spark")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "worker",
+			ref: "openai/gpt-5.3-codex-spark",
+		});
+	});
+
 	it("parses scoped /model route changes", () => {
 		expect(parseChatLine("/model worker openai/gpt-5.3-codex-spark")).toEqual({
 			kind: "model",
@@ -203,6 +223,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
 		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model providers");
+		expect(CHAT_HELP_TEXT).toContain("/provider openai/gpt-5.5");
 		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
 		expect(CHAT_HELP_TEXT).toContain("/model reset worker");

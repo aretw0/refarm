@@ -3,8 +3,8 @@
  * All functions here are unit-testable without stubs.
  */
 
-import { normalizePluginId } from "@refarm.dev/config";
 import { splitCommandLine } from "@refarm.dev/cli/command-line";
+import { normalizePluginId } from "@refarm.dev/config";
 import {
 	defaultProviderModelRef,
 	defaultScopedModelRef,
@@ -66,7 +66,7 @@ export function parseChatLine(line: string): ChatCommand {
 		return { kind: "reload", pluginIds: rest.filter(Boolean).map(normalizePluginId) };
 	}
 
-	if (commandName === "model") {
+	if (commandName === "model" || commandName === "provider") {
 		return parseModelCommand(rest, trimmed);
 	}
 
@@ -174,6 +174,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /model            Show the active model route
   /model providers  List known provider defaults
   /model ${OPENAI_DEFAULT_REF}   Set the default model route
+  /provider ${OPENAI_DEFAULT_REF}   Alias for /model ${OPENAI_DEFAULT_REF}
   /model worker ${OPENAI_WORKER_REF}
   /model monitor ${OPENAI_MONITOR_REF}
   /model reset worker
