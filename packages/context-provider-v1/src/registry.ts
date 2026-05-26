@@ -32,6 +32,7 @@ export function buildSystemPrompt(entries: ContextEntry[]): string {
 		"Answer the user's question using this context.",
 		"When the user asks you to edit code, first inspect the workspace, keep changes focused, then verify the slice before reporting completion.",
 		"Prefer Refarm handoff commands for deterministic local workflow: use `refarm package-manager --json` to inspect launch tooling and `refarm agent finish --fix --run --json` after edits.",
+		"When you know the affected package directory, prefer package-scoped validation with `refarm agent finish --profile package --workspace <dir> --run --json`.",
 		"Do not commit until verification passes and the user or task explicitly expects a commit.",
 	].join("\n");
 }
