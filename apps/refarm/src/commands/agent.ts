@@ -418,6 +418,20 @@ function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelecti
 	return { lane, profile: "affected" };
 }
 
+function laneConflictMessage(lane: AgentFinishLane | undefined, options: AgentFinishOptions): string | null {
+	if (!lane) return null;
+	if (options.profile && options.profile !== "quick") {
+		return "--lane cannot be combined with --profile. Use one selection style.";
+	}
+	if (options.since) {
+		return "--lane cannot be combined with --since. Use an explicit --profile affected command for custom refs.";
+	}
+	if (options.includeTests) {
+		return "--lane cannot be combined with --include-tests. Use --lane with-package-tests or explicit profile flags.";
+	}
+	return null;
+}
+
 function selectedFinishSteps(options: {
 	fix?: boolean;
 	includeTests?: boolean;
@@ -768,6 +782,11 @@ Notes:
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				reportAgentFinishOptionError(message, options);
+				return;
+			}
+			const laneConflict = laneConflictMessage(lane, options);
+			if (laneConflict) {
+				reportAgentFinishOptionError(laneConflict, options);
 				return;
 			}
 			let profile: AgentFinishProfile;

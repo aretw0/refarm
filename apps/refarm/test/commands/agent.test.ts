@@ -383,6 +383,36 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("rejects ambiguous finish lane combinations", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--lane",
+				"after-edit",
+				"--include-tests",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			message: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			message: "--lane cannot be combined with --include-tests. Use --lane with-package-tests or explicit profile flags.",
+			nextCommand: "refarm agent finish --help",
+		});
+		logSpy.mockRestore();
+	});
+
 	it("adds package validation steps from workspace scripts", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
