@@ -106,6 +106,7 @@ program
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --lane after-edit --run --json Verify changed workspaces",
 			"  $ refarm agent finish --lane before-push --run --json Verify branch changes",
+			"  $ refarm agent finish --lane handoffs --run --json Verify JSON handoff contracts",
 			"  $ refarm agent finish --fix --run Organize imports, then verify",
 			"  $ refarm agent finish --profile package --workspace apps/refarm --run",
 			"  $ refarm doctor                  Diagnose host/runtime readiness",
