@@ -491,7 +491,7 @@ function buildAskErrorPayload(message: string): {
 			nextAction: PI_AGENT_INSTALL_COMMAND,
 			nextActions: [
 				PI_AGENT_INSTALL_COMMAND,
-				"/reload @refarm/pi-agent",
+				PI_AGENT_RELOAD_JSON_COMMAND,
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_START_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
@@ -745,11 +745,11 @@ async function ensurePiAgentReady(
 				error: "pi-agent-not-loaded",
 				message: "pi-agent is not loaded in the Refarm runtime.",
 				nextAction: state.installed.includes(PI_AGENT_PLUGIN_ID)
-					? "/reload @refarm/pi-agent"
+					? PI_AGENT_RELOAD_JSON_COMMAND
 					: PI_AGENT_INSTALL_COMMAND,
 				nextActions: [
 					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
-						? ["/reload @refarm/pi-agent"]
+						? [PI_AGENT_RELOAD_JSON_COMMAND]
 						: [PI_AGENT_INSTALL_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_COMMAND,

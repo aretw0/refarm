@@ -455,9 +455,11 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "pi-agent-not-loaded",
-			nextAction: "/reload @refarm/pi-agent",
+			nextAction: "refarm plugin reload @refarm/pi-agent --json",
 			nextCommand: "refarm plugin reload @refarm/pi-agent --json",
 		});
+		expect(payload.nextActions).toContain("refarm plugin reload @refarm/pi-agent --json");
+		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
 		expect(payload.nextActions).toContain("refarm runtime start");
 		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextCommands).toContain("refarm runtime start --wait");
@@ -503,6 +505,7 @@ describe("refarm ask", () => {
 			ok: boolean;
 			error: string;
 			nextAction: string;
+			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
 			recommendations: { diagnostic: string; command: string }[];
@@ -513,6 +516,8 @@ describe("refarm ask", () => {
 			nextAction: "refarm plugin install",
 			nextCommand: "refarm plugin install --json",
 		});
+		expect(payload.nextActions).toContain("refarm plugin install");
+		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
 		expect(payload.nextCommands).toContain("refarm plugin install --json");
 		expect(payload.nextCommands).not.toContain("refarm plugin install");
 		expect(payload.recommendations).toEqual([
