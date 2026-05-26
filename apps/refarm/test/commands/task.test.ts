@@ -462,6 +462,50 @@ describe("refarm task status", () => {
 		);
 		spy.mockRestore();
 	});
+
+	it("prints status adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			query: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "status",
+			error: "task-status-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			logsCommand: "refarm task logs effort-abc --transport http",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberStatus).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
 });
 
 describe("refarm task list/logs/retry/cancel", () => {
@@ -577,6 +621,50 @@ describe("refarm task list/logs/retry/cancel", () => {
 			"refarm task status effort-abc --transport file",
 		);
 		spy.mockRestore();
+	});
+
+	it("prints log adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "logs",
+			error: "task-logs-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			statusCommand: "refarm task status effort-abc --transport http",
+			nextAction: "refarm task status effort-abc --transport http",
+			nextCommand: "refarm task status effort-abc --transport http",
+			nextCommands: [
+				"refarm task status effort-abc --transport http",
+				"refarm doctor --next-command",
+			],
+		});
+		expect(session.rememberLogs).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("rejects invalid log tail values before querying adapters", async () => {

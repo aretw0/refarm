@@ -147,6 +147,56 @@ function reportTaskControlError(
 	process.exitCode = 1;
 }
 
+function reportTaskReadError(
+	operation: "status" | "logs",
+	effortId: string,
+	transport: TaskTransport,
+	err: unknown,
+	opts: { json?: boolean },
+): void {
+	const message = err instanceof Error ? err.message : String(err);
+	const statusCommand = buildTaskStatusCommand(effortId, transport);
+	const logsCommand = buildTaskLogsCommand(effortId, transport);
+	const nextCommands =
+		operation === "logs"
+			? [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND]
+			: [RUNTIME_DOCTOR_NEXT_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND];
+	if (opts.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "task",
+				operation,
+				error: `task-${operation}-failed`,
+				message,
+				nextAction:
+					operation === "logs"
+						? statusCommand
+						: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				nextActions:
+					operation === "logs"
+						? [statusCommand, RUNTIME_DOCTOR_NEXT_ACTION_COMMAND]
+						: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
+				nextCommand: nextCommands[0],
+				nextCommands,
+				extra: {
+					effortId,
+					transport,
+					...(operation === "status" ? { logsCommand } : { statusCommand }),
+				},
+			}),
+		);
+		process.exitCode = 1;
+		return;
+	}
+	console.error(
+		chalk.red(
+			`${operation === "status" ? "Status" : "Logs"} failed for effort ${effortId}: ${message}`,
+		),
+	);
+	console.error(chalk.dim(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`));
+	process.exitCode = 1;
+}
+
 function buildTaskRunCommand(
 	plugin: string,
 	fn: string,
@@ -623,7 +673,15 @@ Notes:
 				);
 
 				const printStatus = async (): Promise<boolean> => {
-					const result = await adapter.query(effortId);
+					let result: EffortResult | null;
+					try {
+						result = await adapter.query(effortId);
+					} catch (err) {
+						reportTaskReadError("status", effortId, transport, err, {
+							json: opts.json,
+						});
+						return true;
+					}
 					safeSessionRecord(() => {
 						sessionRecorder.rememberStatus({
 							effortId,
@@ -873,7 +931,15 @@ Notes:
 					opts.transport,
 					adapterResolver,
 				);
-				const logs = await adapter.logs(effortId);
+				let logs: EffortLogEntry[] | null;
+				try {
+					logs = await adapter.logs(effortId);
+				} catch (err) {
+					reportTaskReadError("logs", effortId, transport, err, {
+						json: opts.json,
+					});
+					return;
+				}
 				safeSessionRecord(() => {
 					sessionRecorder.rememberLogs({
 						effortId,
