@@ -1,7 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
 
 describe("agent command", () => {
+	const tempDirs: string[] = [];
+
+	afterEach(() => {
+		while (tempDirs.length > 0) {
+			rmSync(tempDirs.pop()!, { recursive: true, force: true });
+		}
+	});
+
 	it("documents runtime, credential, model, and plugin handoffs in help", () => {
 		const agentCommand = createAgentCommand();
 		let help = "";
@@ -333,6 +345,48 @@ describe("agent command", () => {
 		expect(runRefarm).toHaveBeenCalledTimes(3);
 		expect(runProcess).toHaveBeenCalledTimes(3);
 		expect(payload.steps.map((step) => step.id)).toContain("package-type-check");
+		logSpy.mockRestore();
+	});
+
+	it("resolves package profile workspaces from git root when invoked in a subdirectory", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-root-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(appDir, { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		const originalCwd = process.cwd();
+		process.chdir(appDir);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"package",
+				"--workspace",
+				"apps/refarm",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { cwd?: string } }[];
+		};
+		const typeCheck = payload.steps.find((step) => step.id === "package-type-check");
+		expect(typeCheck?.command).toBe("npm --prefix apps/refarm run type-check");
+		expect(typeCheck?.process?.cwd).toBe(root);
 		logSpy.mockRestore();
 	});
 

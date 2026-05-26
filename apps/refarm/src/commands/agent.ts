@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { refarmCommand } from "./command-handoff.js";
@@ -186,6 +186,16 @@ function packageScriptStep(
 }
 
 function findWorkspaceRoot(cwd = process.cwd()): string {
+	try {
+		const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+			cwd,
+			encoding: "utf-8",
+			stdio: ["ignore", "pipe", "ignore"],
+		}).trim();
+		if (root) return root;
+	} catch {
+		// Fall back to marker walking outside Git repositories.
+	}
 	let current = path.resolve(cwd);
 	while (true) {
 		if (
