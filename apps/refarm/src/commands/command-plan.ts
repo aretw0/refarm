@@ -1,10 +1,10 @@
+import { normalizeHandoffValues } from "./command-handoff.js";
 import {
 	commandPayloadNextActions,
 	commandPayloadNextCommands,
 	commandPayloadOk,
 	commandPayloadRecommendations,
 } from "./command-result.js";
-import { normalizeHandoffValues } from "./command-handoff.js";
 import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
@@ -32,6 +32,8 @@ export interface CommandPlanRunResult {
 	ok: boolean;
 	status: "passed" | "failed";
 	steps: CommandPlanStepRunResult[];
+	remainingSteps: CommandPlanStep[];
+	remainingCommands: string[];
 	failedStepId: string | null;
 	failedCommand: string | null;
 	nextActions: string[];
@@ -72,6 +74,8 @@ export interface CommandPlanRunEnvelope {
 	writes: boolean;
 	steps: CommandPlanStepRunResult[];
 	stepResults: CommandPlanStepSummary[];
+	remainingSteps: CommandPlanStep[];
+	remainingCommands: string[];
 	failedStepId: string | null;
 	failedCommand: string | null;
 	command: string;
@@ -140,6 +144,8 @@ export function buildCommandPlanRunEnvelope(
 		writes: commandPlanWrites(result.steps),
 		steps: result.steps,
 		stepResults: result.steps.map(commandPlanStepSummary),
+		remainingSteps: result.remainingSteps,
+		remainingCommands: result.remainingCommands,
 		failedStepId: result.failedStepId,
 		failedCommand: result.failedCommand,
 		command: context.command,
@@ -180,7 +186,7 @@ export function runCommandPlan(
 	runStep: (step: CommandPlanStep) => CommandPlanStepRunResult,
 ): CommandPlanRunResult {
 	const steps: CommandPlanStepRunResult[] = [];
-	for (const step of stepsToRun) {
+	for (const [index, step] of stepsToRun.entries()) {
 		const observed = runStep(step);
 		const result = {
 			...observed,
@@ -195,6 +201,7 @@ export function runCommandPlan(
 		const normalized = { ...result, ok };
 		steps.push(normalized);
 		if (!ok) {
+			const remainingSteps = stepsToRun.slice(index + 1);
 			const nextActions = normalizeHandoffValues(
 				commandPayloadNextActions(result.payload) ??
 					commandPayloadNextCommands(result.payload) ?? [step.command],
@@ -206,6 +213,8 @@ export function runCommandPlan(
 				ok: false,
 				status: "failed",
 				steps,
+				remainingSteps,
+				remainingCommands: commandPlanStepCommands(remainingSteps),
 				failedStepId: step.id,
 				failedCommand: step.command,
 				nextActions,
@@ -218,6 +227,8 @@ export function runCommandPlan(
 		ok: true,
 		status: "passed",
 		steps,
+		remainingSteps: [],
+		remainingCommands: [],
 		failedStepId: null,
 		failedCommand: null,
 		nextActions: [],
