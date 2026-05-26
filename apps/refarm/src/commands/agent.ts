@@ -661,7 +661,11 @@ export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	// Plugin lifecycle (install, update, list) is in `refarm plugin`.
 	const command = new Command("agent").description(
 		"Manage the refarm AI agent",
-	).option("--json", "Output machine-readable agent handoff plan").addHelpText(
+	)
+		.option("--json", "Output machine-readable agent handoff plan")
+		.option("--next-action", "Print the first agent handoff action")
+		.option("--next-command", "Print the first executable agent handoff command")
+		.addHelpText(
 		"after",
 		`
 
@@ -708,6 +712,7 @@ Plugin lifecycle:
 
 Automation:
   $ refarm agent --json         Print runtime/model/plugin handoff commands
+  $ refarm agent --next-command Print the first executable handoff command
   $ refarm agent finish --json  Print ordered verification commands before commit
   $ refarm agent finish --run --json Execute ordered verification commands
   $ refarm agent finish --run --next-command Print the failing recovery command
@@ -718,7 +723,15 @@ Notes:
   routing, and plugin for installation.
 `,
 	).action(function (this: Command) {
-		const options = this.opts<{ json?: boolean }>();
+		const options = this.opts<{ json?: boolean; nextAction?: boolean; nextCommand?: boolean }>();
+		if (options.nextCommand) {
+			console.log("refarm check --next-command");
+			return;
+		}
+		if (options.nextAction) {
+			console.log("refarm check --next-action --json");
+			return;
+		}
 		if (options.json) {
 			printJson(
 				buildJsonSuccessEnvelope({

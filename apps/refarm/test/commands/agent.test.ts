@@ -55,6 +55,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm plugin install");
 		expect(help).toContain("refarm agent --json");
+		expect(help).toContain("refarm agent --next-command");
 	});
 
 	it("prints help when invoked without subcommands", async () => {
@@ -271,6 +272,26 @@ describe("agent command", () => {
 			"refarm agent finish --profile affected --since <ref> --run --next-command",
 			"refarm agent finish --profile affected --include-tests --run --next-command",
 		]);
+		logSpy.mockRestore();
+	});
+
+	it("prints the first agent handoff command without JSON parsing", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["--next-command"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith("refarm check --next-command");
+		logSpy.mockRestore();
+	});
+
+	it("prints the first agent handoff action without JSON parsing", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["--next-action"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith("refarm check --next-action --json");
 		logSpy.mockRestore();
 	});
 
