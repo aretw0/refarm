@@ -102,6 +102,7 @@ program
 			"  $ refarm check --next-command    Print the next executable recovery command",
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
+			"  $ refarm agent --next-command    Print the first agent handoff command",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --lane after-edit --run Verify changed workspaces",
 			"  $ refarm agent finish --lane before-push --run Verify branch changes",

@@ -108,6 +108,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm check --next-action");
 		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("refarm tidy imports --check");
+		expect(help).toContain("refarm agent --next-command");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --lane after-edit --run");
 		expect(help).toContain("refarm agent finish --lane before-push --run");
