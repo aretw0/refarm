@@ -66,6 +66,39 @@ describe("refarm tree show", () => {
 		});
 	});
 
+	it("prints git timeline lookup failures as JSON", async () => {
+		spawnSyncMock.mockReturnValue(
+			makeSpawnResult(128, "", "fatal: bad revision 'missing'"),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["missing", "--scope", "git", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "show",
+			scope: "git",
+			ok: false,
+			error: "git-tree-show-failed",
+			message: "fatal: bad revision 'missing'",
+			target: "missing",
+			nextAction: "refarm tree list --scope git --json",
+			nextCommand: "refarm tree list --scope git --json",
+			nextCommands: [
+				"refarm tree list --scope git --json",
+				"refarm doctor --next-command",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("sets exitCode when a session timeline node is not found", async () => {
 		vi.stubGlobal(
 			"fetch",
