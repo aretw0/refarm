@@ -1734,6 +1734,41 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints the next recovery action for failing finish runs", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: false,
+			exitCode: 1,
+			stdout: JSON.stringify({
+				ok: false,
+				nextActions: ["Start the runtime before running the full check."],
+				nextCommands: ["refarm runtime start --wait"],
+			}),
+			stderr: "",
+			payload: {
+				ok: false,
+				nextActions: ["Start the runtime before running the full check."],
+				nextCommands: ["refarm runtime start --wait"],
+			},
+		}));
+		const agentCommand = createAgentCommand({ runRefarm });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		await agentCommand.parseAsync(["finish", "--run", "--next-action"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith("Start the runtime before running the full check.");
+		expect(runRefarm).toHaveBeenCalledTimes(1);
+		expect(process.exitCode).toBe(1);
+		process.exitCode = originalExitCode;
+		logSpy.mockRestore();
+	});
+
 	it("prints a concise human finish run report", async () => {
 		const runRefarm = vi.fn((args: string[]) => ({
 			id: args.join(" "),
