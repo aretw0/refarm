@@ -438,6 +438,10 @@ importers:
         version: 3.6.0(vite@8.0.12(@types/node@25.9.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/context-provider-v1:
+    dependencies:
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../config
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

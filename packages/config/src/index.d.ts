@@ -58,6 +58,14 @@ export {
     packageScriptCommand,
     parsePackageManager,
 } from "./package-manager.js";
+export type {
+    WorkspacePackageOptions,
+} from "./workspace.js";
+export {
+    affectedWorkspacePackagesFromGitStatus,
+    changedFilePathsFromGitStatus,
+    findWorkspacePackageForPath,
+} from "./workspace.js";
 
 export function findRefarmRoot(startDir?: string): string;
 export function loadConfig(root?: string): any;

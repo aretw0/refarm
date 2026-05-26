@@ -43,6 +43,11 @@ export {
     packageScriptCommand,
     parsePackageManager,
 } from "./package-manager.js";
+export {
+    affectedWorkspacePackagesFromGitStatus,
+    changedFilePathsFromGitStatus,
+    findWorkspacePackageForPath,
+} from "./workspace.js";
 
 /**
  * Common configuration utility for Refarm.

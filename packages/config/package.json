@@ -8,7 +8,8 @@
     ".": "./src/index.js",
     "./astro": "./src/astro.js",
     "./model-routing": "./src/model-routing.js",
-    "./package-manager": "./src/package-manager.js"
+    "./package-manager": "./src/package-manager.js",
+    "./workspace": "./src/workspace.js"
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",

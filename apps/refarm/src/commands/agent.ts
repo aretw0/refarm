@@ -1,3 +1,4 @@
+import { affectedWorkspacePackagesFromGitStatus } from "@refarm.dev/config";
 import { Command } from "commander";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -290,58 +291,10 @@ function affectedWorkspacesFromGit(): string[] {
 			["status", "--short", "--untracked-files=all"],
 			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
 		);
-		const workspaces = new Set<string>();
-		for (const changedPath of changedFilePaths(status)) {
-			const workspace = findPackageDir(repoRoot, changedPath);
-			if (workspace && workspace !== ".") workspaces.add(workspace);
-		}
-		return [...workspaces].sort();
+		return affectedWorkspacePackagesFromGitStatus(repoRoot, status);
 	} catch {
 		return [];
 	}
-}
-
-function changedFilePaths(status: string): string[] {
-	return status
-		.split(/\r?\n/)
-		.map((line) => line.trimEnd())
-		.filter(Boolean)
-		.map((line) => {
-			const rawPath = line.slice(3).trim();
-			const renamedPath = rawPath.includes(" -> ")
-				? rawPath.split(" -> ").at(-1)
-				: rawPath;
-			return unquoteGitPath(renamedPath ?? rawPath);
-		})
-		.filter(Boolean);
-}
-
-function unquoteGitPath(value: string): string {
-	if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
-		try {
-			return JSON.parse(value) as string;
-		} catch {
-			return value.slice(1, -1);
-		}
-	}
-	return value;
-}
-
-function findPackageDir(cwd: string, changedPath: string): string | null {
-	const absolutePath = path.resolve(cwd, changedPath);
-	let current = fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()
-		? absolutePath
-		: path.dirname(absolutePath);
-	const root = path.resolve(cwd);
-	while (current.startsWith(root)) {
-		if (fs.existsSync(path.join(current, "package.json"))) {
-			return path.relative(root, current) || ".";
-		}
-		const parent = path.dirname(current);
-		if (parent === current) break;
-		current = parent;
-	}
-	return null;
 }
 
 function sanitizeStepId(value: string): string {
