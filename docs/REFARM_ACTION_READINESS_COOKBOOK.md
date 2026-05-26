@@ -133,6 +133,23 @@ Each plan step declares an `effect`:
 Plan and run envelopes also include top-level `effects` and `writes` fields so
 automation can reject write-capable plans without scanning every step.
 
+Plan and run envelopes include a `selection` block for deterministic routing:
+
+```json
+{
+  "selection": {
+    "profile": "affected",
+    "fix": false,
+    "includeTests": false,
+    "workspace": null,
+    "affectedWorkspaces": ["apps/refarm"]
+  }
+}
+```
+
+Use `selection.affectedWorkspaces` instead of scraping command strings when an
+agent needs to explain or branch on the package set selected by Git status.
+
 ## Live status affordances
 
 `apps/refarm` now publishes app-owned host status affordances from a local
