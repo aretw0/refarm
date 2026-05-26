@@ -1,7 +1,9 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
+import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { extensionCommand } from "../../src/commands/extension.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
@@ -117,6 +119,21 @@ function makeReadyStatus(renderer: "tui" | "web") {
 	};
 }
 
+function createTempConfigCommand() {
+	const cwd = mkdtempSync(join(tmpdir(), "refarm-config-contract-cwd-"));
+	const home = mkdtempSync(join(tmpdir(), "refarm-config-contract-home-"));
+	return {
+		cleanup: () => {
+			rmSync(cwd, { recursive: true, force: true });
+			rmSync(home, { recursive: true, force: true });
+		},
+		command: createConfigCommand({
+			cwd: () => cwd,
+			home: () => home,
+		}),
+	};
+}
+
 interface ParsedCommandJson {
 	nextAction?: string | null;
 	nextActions?: string[];
@@ -220,7 +237,9 @@ describe("JSON next command contract", () => {
 	});
 
 	it("keeps generated public nextCommands executable", async () => {
-		const payloads = [
+		const config = createTempConfigCommand();
+		try {
+			const payloads = [
 			await parseCommandJson(createAgentCommand(), ["--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--templates", "--json"]),
@@ -228,6 +247,7 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "handoffs", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "with-package-tests", "--json"]),
+			await parseCommandJson(config.command, ["set", "operator.openExternalLinks", "never", "--local", "--json"]),
 			await parseCommandJson(deployCommand, ["--target", "workers", "--dry-run", "--json"]),
 			await parseCommandJson(extensionCommand, ["publish", "my-tool", "--json"]),
 			await parseCommandJson(migrateCommand, ["--dry-run", "--json"]),
@@ -265,17 +285,20 @@ describe("JSON next command contract", () => {
 			}), ["--launch", "--dry-run", "--json"]),
 		];
 
-		const commands = generatedExecutableCommands(payloads);
-		const actions = generatedActions(payloads);
-		const placeholders = commands.filter((command) => /<[^>]+>/.test(command));
-		const actionPlaceholders = actions.filter((action) => /<[^>]+>/.test(action));
-		const interactiveSow = commands.filter(hasInteractiveSowCommand);
-		const replOnly = commands.filter((command) => /^\/[A-Za-z]/.test(command));
+			const commands = generatedExecutableCommands(payloads);
+			const actions = generatedActions(payloads);
+			const placeholders = commands.filter((command) => /<[^>]+>/.test(command));
+			const actionPlaceholders = actions.filter((action) => /<[^>]+>/.test(action));
+			const interactiveSow = commands.filter(hasInteractiveSowCommand);
+			const replOnly = commands.filter((command) => /^\/[A-Za-z]/.test(command));
 
-		expect(placeholders).toEqual([]);
-		expect(actionPlaceholders).toEqual([]);
-		expect(interactiveSow).toEqual([]);
-		expect(replOnly).toEqual([]);
+			expect(placeholders).toEqual([]);
+			expect(actionPlaceholders).toEqual([]);
+			expect(interactiveSow).toEqual([]);
+			expect(replOnly).toEqual([]);
+		} finally {
+			config.cleanup();
+		}
 	});
 
 	it("keeps parameterized generated commands in templates", async () => {
