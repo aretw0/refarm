@@ -413,6 +413,36 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints finish lane errors as JSON when requested", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync(["finish", "--lane", "unknown", "--json"], {
+				from: "user",
+			});
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			message: string;
+			nextActions: string[];
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			message: "Unknown finish lane: unknown. Use: after-edit | after-commit | before-push | with-package-tests",
+			nextCommand: "refarm agent finish --help",
+		});
+		expect(payload.nextActions).toEqual([
+			"Run `refarm agent finish --help` and choose a valid finish lane or profile.",
+		]);
+		logSpy.mockRestore();
+	});
+
 	it("adds package validation steps from workspace scripts", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

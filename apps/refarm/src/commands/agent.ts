@@ -585,7 +585,7 @@ function reportAgentFinishOptionError(
 			"Pass an explicit Git ref with `refarm agent finish --profile affected --since <ref> --json`.",
 			"Configure the current branch upstream, then retry `refarm agent finish --profile affected --since upstream --json`.",
 		]
-		: ["Run `refarm agent finish --help` and choose a valid finish profile."];
+		: ["Run `refarm agent finish --help` and choose a valid finish lane or profile."];
 	if (options.json) {
 		printJson(buildJsonErrorEnvelope({
 			command: "agent",
