@@ -22,7 +22,8 @@ FARMHAND_ENTRY="$ROOT/apps/farmhand/src/index.ts"
 FARMHAND_LOADER_REGISTER="$ROOT/scripts/farmhand-node-register-loader.mjs"
 ENV_FILE="$ROOT/.refarm/.env"
 CONFIG_FILE="$ROOT/.refarm/config.json"
-IDENTITY_FILE="$ROOT/.refarm/identity.json"
+WORKSPACE_IDENTITY_FILE="$ROOT/.refarm/identity.json"
+OPERATOR_IDENTITY_FILE="$HOME/.refarm/identity.json"
 PID_FILE="$ROOT/.refarm/farmhand.pid"
 LOG_FILE="$ROOT/.refarm/farmhand.log"
 WS_PORT=42000
@@ -106,8 +107,13 @@ detect_provider() {
     node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));process.stdout.write(c.provider||c.default_provider||c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
     return 0
   fi
-  if [ -f "$IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
-    node -e "try{const c=JSON.parse(require('fs').readFileSync('$IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
+  if [ -f "$OPERATOR_IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
+    node -e "try{const c=JSON.parse(require('fs').readFileSync('$OPERATOR_IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
+    return 0
+  fi
+
+  if [ -f "$WORKSPACE_IDENTITY_FILE" ] && command -v node >/dev/null 2>&1; then
+    node -e "try{const c=JSON.parse(require('fs').readFileSync('$WORKSPACE_IDENTITY_FILE','utf8'));process.stdout.write(c.modelProvider||c.tokens?.modelProvider||'')}catch{}" 2>/dev/null || true
     return 0
   fi
 
