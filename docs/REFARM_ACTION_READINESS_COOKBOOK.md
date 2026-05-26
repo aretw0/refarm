@@ -115,8 +115,8 @@ If a finish run fails, `nextCommand` should forward the failing command's
 recovery command, such as `refarm runtime start --wait`, instead of the whole
 plan.
 
-`refarm agent --json` exposes `verification.recommended` so agents do not need
-to infer the default finish lane from the command catalog:
+`refarm agent --json` exposes `verification.recommended` with lane commands so
+agents do not need to infer the default finish path from the command catalog:
 
 - `afterEdit`: dirty-tree validation after source edits;
 - `afterCommit`: branch validation after atomic commits;
@@ -124,7 +124,8 @@ to infer the default finish lane from the command catalog:
 - `withPackageTests`: opt-in package tests when the slice requires them.
 
 The same names can be passed to `refarm agent finish --lane <name>` as stable
-shortcuts for those recommended commands.
+shortcuts for those recommended commands; `verification.recommended` already
+uses those lane shortcuts.
 
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends

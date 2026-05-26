@@ -64,10 +64,10 @@ describe("GitStatusContextProvider", () => {
 		expect(affected?.content).toContain("- apps/refarm");
 		expect(affected?.content).toContain("Preferred aggregate validation command:");
 		expect(affected?.content).toContain(
-			"refarm agent finish --profile affected --run --json",
+			"refarm agent finish --lane after-edit --run --json",
 		);
 		expect(affected?.content).toContain(
-			"refarm agent finish --profile affected --since upstream --run --json",
+			"refarm agent finish --lane before-push --run --json",
 		);
 		expect(affected?.content).toContain(
 			"refarm agent finish --profile package --workspace apps/refarm --run --json",
