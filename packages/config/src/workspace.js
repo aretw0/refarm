@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 export function changedFilePathsFromGitStatus(status) {
@@ -58,6 +58,38 @@ export function findWorkspacePackageForPath(root, changedPath, options = {}) {
         current = parent;
     }
     return null;
+}
+
+export function findWorkspaceRoot(startDir = process.cwd()) {
+    let current = path.resolve(startDir);
+    while (true) {
+        if (hasWorkspaceRootMarker(current)) {
+            return current;
+        }
+        const parent = path.dirname(current);
+        if (parent === current) return path.resolve(startDir);
+        current = parent;
+    }
+}
+
+function hasWorkspaceRootMarker(dir) {
+    return existsSync(path.join(dir, ".git")) ||
+        existsSync(path.join(dir, "pnpm-workspace.yaml")) ||
+        packageJsonDeclaresWorkspaces(dir);
+}
+
+function packageJsonDeclaresWorkspaces(dir) {
+    try {
+        const pkg = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
+        return Array.isArray(pkg.workspaces) ||
+            (
+                typeof pkg.workspaces === "object" &&
+                pkg.workspaces !== null &&
+                Array.isArray(pkg.workspaces.packages)
+            );
+    } catch {
+        return false;
+    }
 }
 
 function unquoteGitPath(value) {

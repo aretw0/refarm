@@ -3,6 +3,7 @@ import {
 	affectedWorkspacePackagesFromGitStatus,
 	changedFilePathsFromGitNameOnly,
 	changedFilePathsFromGitStatus,
+	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
 import { Command } from "commander";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -312,36 +313,7 @@ function findWorkspaceRoot(cwd = process.cwd()): string {
 	} catch {
 		// Fall back to marker walking outside Git repositories.
 	}
-	let current = path.resolve(cwd);
-	while (true) {
-		if (hasWorkspaceRootMarker(current)) {
-			return current;
-		}
-		const parent = path.dirname(current);
-		if (parent === current) return path.resolve(cwd);
-		current = parent;
-	}
-}
-
-function hasWorkspaceRootMarker(dir: string): boolean {
-	return fs.existsSync(path.join(dir, ".git")) ||
-		fs.existsSync(path.join(dir, "pnpm-workspace.yaml")) ||
-		packageJsonDeclaresWorkspaces(dir);
-}
-
-function packageJsonDeclaresWorkspaces(dir: string): boolean {
-	try {
-		const raw = fs.readFileSync(path.join(dir, "package.json"), "utf8");
-		const pkg = JSON.parse(raw) as { workspaces?: unknown };
-		return Array.isArray(pkg.workspaces) ||
-			(
-				typeof pkg.workspaces === "object" &&
-				pkg.workspaces !== null &&
-				Array.isArray((pkg.workspaces as { packages?: unknown }).packages)
-			);
-	} catch {
-		return false;
-	}
+	return findWorkspaceRootFromMarkers(cwd);
 }
 
 const agentFinishSteps = [

@@ -8,6 +8,7 @@ import {
     changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
+    findWorkspaceRoot,
 } from "./workspace.js";
 
 describe("workspace package detection", () => {
@@ -58,6 +59,40 @@ describe("workspace package detection", () => {
             ])).toEqual(["apps/refarm"]);
             expect(findWorkspacePackageForPath(root, "docs/guide.md")).toBeNull();
             expect(findWorkspacePackageForPath(root, "docs/guide.md", { includeRoot: true })).toBe(".");
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    it("finds workspace roots from package.json workspaces", () => {
+        const root = mkdtempSync(join(tmpdir(), "refarm-config-workspace-root-"));
+        try {
+            const appDir = join(root, "apps", "refarm");
+            mkdirSync(appDir, { recursive: true });
+            writeFileSync(join(root, "package.json"), JSON.stringify({
+                private: true,
+                workspaces: ["apps/*"],
+            }));
+            writeFileSync(join(appDir, "package.json"), JSON.stringify({ name: "refarm" }));
+
+            expect(findWorkspaceRoot(appDir)).toBe(root);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    it("finds workspace roots from package.json workspace package lists", () => {
+        const root = mkdtempSync(join(tmpdir(), "refarm-config-workspace-root-list-"));
+        try {
+            const appDir = join(root, "packages", "config");
+            mkdirSync(appDir, { recursive: true });
+            writeFileSync(join(root, "package.json"), JSON.stringify({
+                private: true,
+                workspaces: { packages: ["packages/*"] },
+            }));
+            writeFileSync(join(appDir, "package.json"), JSON.stringify({ name: "config" }));
+
+            expect(findWorkspaceRoot(appDir)).toBe(root);
         } finally {
             rmSync(root, { recursive: true, force: true });
         }

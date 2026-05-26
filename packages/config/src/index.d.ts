@@ -67,6 +67,7 @@ export {
     changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
+    findWorkspaceRoot,
 } from "./workspace.js";
 
 export function findRefarmRoot(startDir?: string): string;

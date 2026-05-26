@@ -23,3 +23,5 @@ export function findWorkspacePackageForPath(
     changedPath: string,
     options?: WorkspacePackageOptions,
 ): string | null;
+
+export function findWorkspaceRoot(startDir?: string): string;

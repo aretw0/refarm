@@ -49,6 +49,7 @@ export {
     changedFilePathsFromGitNameOnly,
     changedFilePathsFromGitStatus,
     findWorkspacePackageForPath,
+    findWorkspaceRoot,
 } from "./workspace.js";
 
 /**
