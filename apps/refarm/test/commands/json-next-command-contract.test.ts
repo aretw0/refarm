@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
+import { provisionCommand } from "../../src/commands/provision.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
 
@@ -170,6 +171,9 @@ describe("JSON next command contract", () => {
 				cwd: () => ".",
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
 			}), ["--json"]),
+			await parseCommandJson(provisionCommand, ["list", "--json"]),
+			await parseCommandJson(provisionCommand, ["cloudflare", "--dry-run", "--json"]),
+			await parseCommandJson(provisionCommand, ["cloudflare", "turbo-cache", "--dry-run", "--json"]),
 			await parseCommandJson(createTuiCommand({
 				resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
 				printStatusSummary: vi.fn(),
