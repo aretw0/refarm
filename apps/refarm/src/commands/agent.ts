@@ -103,6 +103,32 @@ const agentRuntimePlan = {
 			beforePush: "refarm agent finish --lane before-push --run --json",
 			withPackageTests: "refarm agent finish --lane with-package-tests --run --json",
 		},
+		lanes: [
+			{
+				id: "after-edit",
+				command: "refarm agent finish --lane after-edit --run --json",
+				description: "Validate the current dirty tree after source edits.",
+				validationScope: "dirtyTree",
+			},
+			{
+				id: "after-commit",
+				command: "refarm agent finish --lane after-commit --run --json",
+				description: "Validate committed branch changes against upstream.",
+				validationScope: "branchRange",
+			},
+			{
+				id: "before-push",
+				command: "refarm agent finish --lane before-push --run --json",
+				description: "Run final branch-local validation before pushing.",
+				validationScope: "branchRange",
+			},
+			{
+				id: "with-package-tests",
+				command: "refarm agent finish --lane with-package-tests --run --json",
+				description: "Validate dirty-tree edits and include package tests.",
+				validationScope: "dirtyTree",
+			},
+		],
 	},
 };
 

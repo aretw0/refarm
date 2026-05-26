@@ -127,6 +127,9 @@ The same names can be passed to `refarm agent finish --lane <name>` as stable
 shortcuts for those recommended commands; `verification.recommended` already
 uses those lane shortcuts.
 
+For renderers or agents that need labels, `verification.lanes` also lists the
+same lane IDs with command, description, and validation scope metadata.
+
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends
 package-level `type-check`, `lint`, and `build` scripts for changed workspaces

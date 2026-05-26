@@ -137,6 +137,12 @@ describe("agent command", () => {
 					beforePush: string;
 					withPackageTests: string;
 				};
+				lanes: {
+					command: string;
+					description: string;
+					id: string;
+					validationScope: string;
+				}[];
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -198,6 +204,28 @@ describe("agent command", () => {
 					beforePush: "refarm agent finish --lane before-push --run --json",
 					withPackageTests: "refarm agent finish --lane with-package-tests --run --json",
 				},
+				lanes: [
+					expect.objectContaining({
+						id: "after-edit",
+						command: "refarm agent finish --lane after-edit --run --json",
+						validationScope: "dirtyTree",
+					}),
+					expect.objectContaining({
+						id: "after-commit",
+						command: "refarm agent finish --lane after-commit --run --json",
+						validationScope: "branchRange",
+					}),
+					expect.objectContaining({
+						id: "before-push",
+						command: "refarm agent finish --lane before-push --run --json",
+						validationScope: "branchRange",
+					}),
+					expect.objectContaining({
+						id: "with-package-tests",
+						command: "refarm agent finish --lane with-package-tests --run --json",
+						validationScope: "dirtyTree",
+					}),
+				],
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",
