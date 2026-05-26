@@ -125,6 +125,8 @@ describe("JSON next command contract", () => {
 	it("keeps generated public nextCommands executable", async () => {
 		const payloads = [
 			await parseCommandJson(createAgentCommand(), ["--json"]),
+			await parseCommandJson(createAgentCommand(), ["finish", "--json"]),
+			await parseCommandJson(createAgentCommand(), ["finish", "--lanes", "--json"]),
 			await parseCommandJson(createPackageManagerCommand({
 				cwd: () => ".",
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
