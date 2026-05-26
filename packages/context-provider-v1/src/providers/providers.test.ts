@@ -67,6 +67,9 @@ describe("GitStatusContextProvider", () => {
 			"refarm agent finish --profile affected --run --json",
 		);
 		expect(affected?.content).toContain(
+			"refarm agent finish --profile affected --since <ref> --run --json",
+		);
+		expect(affected?.content).toContain(
 			"refarm agent finish --profile package --workspace apps/refarm --run --json",
 		);
 	});

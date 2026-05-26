@@ -62,6 +62,7 @@ function formatAffectedWorkspaces(workspaces: string[]): string {
 		"",
 		"Preferred aggregate validation command:",
 		"- refarm agent finish --profile affected --run --json",
+		"- refarm agent finish --profile affected --since <ref> --run --json",
 		"",
 		"Package validation commands:",
 		...workspaces.map(
