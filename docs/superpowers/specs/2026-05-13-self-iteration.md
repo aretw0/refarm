@@ -83,32 +83,43 @@ To check for updates: `refarm agent update`
 
 This is resolved — a fresh devcontainer or CI runner works without manual steps.
 
-### Gap 2 — History turns disabled by default
+### Gap 2 — History turns disabled by default — OPERATOR PROFILE AVAILABLE
 
 `MODEL_HISTORY_TURNS` defaults to 0. Self-iteration requires the agent to
 remember context across turns (what it just edited, what tests said). Without
 history, every `refarm chat` message starts fresh — the agent cannot reason
 about its own prior actions.
 
-**Path forward**: Set `MODEL_HISTORY_TURNS=20` in the farmhand environment (via
-Silo token or farmhand-start.sh). The chat CLI already carries session IDs;
-pi-agent reads history from the CRDT if turns > 0.
+**Path forward**: Apply the explicit coding profile when self-iteration is
+desired:
 
-### Gap 3 — Tool loop depth capped at 5
+```bash
+refarm config profile coding --local --json
+refarm runtime ensure --wait --next-command
+```
+
+This writes `MODEL_HISTORY_TURNS=20` to the selected `.refarm/config.json`.
+The chat CLI already carries session IDs; pi-agent reads history from the CRDT
+if turns > 0.
+
+### Gap 3 — Tool loop depth capped at 5 — OPERATOR PROFILE AVAILABLE
 
 `MODEL_TOOL_CALL_MAX_ITER=5` limits the ReAct loop. A coding task often needs:
 read → understand → edit → run tests → read failure → edit again → run again.
 That's 6–10 tool calls minimum for a non-trivial change.
 
-**Path forward**: Expose this as a `refarm chat --depth <n>` flag or set
-`MODEL_TOOL_CALL_MAX_ITER=20` in the farmhand environment for coding workloads.
+**Path forward**: The coding profile writes `MODEL_TOOL_CALL_MAX_ITER=20`.
+Future work can still add a per-run `refarm chat --depth <n>` override, but
+the durable repo-local path now exists through `refarm config profile coding`.
 
-### Gap 4 — Streaming not enabled by default
+### Gap 4 — Streaming not enabled by default — OPERATOR PROFILE AVAILABLE
 
 `MODEL_STREAM_RESPONSES` is opt-in. Without it, the user sees nothing until the
 task completes. For multi-minute coding tasks this is a bad experience.
 
-**Path forward**: Set `MODEL_STREAM_RESPONSES=1` in farmhand environment.
+**Path forward**: The coding profile writes `MODEL_STREAM_RESPONSES=1`.
+This keeps streaming opt-in while making the recommended self-iteration setup
+one deterministic command.
 
 ### Gap 5 — No preflight check for farmhand availability
 
@@ -168,11 +179,10 @@ already implemented for rapid iteration once the binary exists.
 **Phase 1 — Make it work (today)**
 
 1. Farmhand auto-installs pi-agent on boot (no manual step needed)
-2. Set env vars in farmhand startup:
+2. Apply the repo-local coding profile:
    ```
-   MODEL_HISTORY_TURNS=20
-   MODEL_TOOL_CALL_MAX_ITER=20
-   MODEL_STREAM_RESPONSES=1
+   refarm config profile coding --local --json
+   refarm runtime ensure --wait --next-command
    ```
 3. Start farmhand, run `refarm chat "describe the farmhand HTTP sidecar"`
 4. Verify streaming output and tool calls appear

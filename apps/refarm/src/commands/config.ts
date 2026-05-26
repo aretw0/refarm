@@ -26,6 +26,7 @@ import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
 	RUNTIME_ENGINE_AUTO_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 } from "./runtime-recovery.js";
 
 type ConfigKey =
@@ -35,6 +36,9 @@ type ConfigKey =
 	| "tractor.engine";
 interface RefarmCliConfig {
 	autostart?: string;
+	MODEL_HISTORY_TURNS?: string;
+	MODEL_STREAM_RESPONSES?: string;
+	MODEL_TOOL_CALL_MAX_ITER?: string;
 	operator?: {
 		openExternalLinks?: string | boolean;
 	};
@@ -75,6 +79,13 @@ interface UnsetConfigValue {
 	legacy?: boolean;
 }
 
+interface AppliedConfigProfile {
+	profile: "coding";
+	path: string;
+	scope: "home" | "local";
+	values: Record<string, string>;
+}
+
 interface JsonOptionCarrier {
 	json?: boolean;
 	opts?: () => { json?: boolean };
@@ -105,6 +116,11 @@ const OPEN_EXTERNAL_LINKS_ENV_VALUES: readonly string[] = [
 ];
 const TRACTOR_ENGINE_MODES_HELP = TRACTOR_ENGINE_MODES.join(" | ");
 const TRACTOR_ENGINE_ENV_HELP = TRACTOR_ENGINE_MODES.join(", ");
+const CODING_PROFILE_VALUES = {
+	MODEL_HISTORY_TURNS: "20",
+	MODEL_TOOL_CALL_MAX_ITER: "20",
+	MODEL_STREAM_RESPONSES: "1",
+} as const;
 
 function defaultDeps(): ConfigDeps {
 	return {
@@ -418,6 +434,50 @@ function configGetCommand(key: ConfigKey, opts: { local?: boolean }): string {
 	]);
 }
 
+function applyConfigProfile(
+	profile: string,
+	opts: { local?: boolean },
+	deps: ConfigDeps,
+): AppliedConfigProfile | null {
+	if (profile !== "coding") {
+		console.error(chalk.red(`✗  Unknown config profile: ${profile}`));
+		console.error(chalk.dim("   Use: coding"));
+		process.exitCode = 1;
+		return null;
+	}
+	const filePath = configPath(deps, opts);
+	const config = readConfig(filePath);
+	const values = { ...CODING_PROFILE_VALUES };
+	Object.assign(config, values);
+	writeConfig(filePath, config);
+	return {
+		profile,
+		path: filePath,
+		scope: configScope(opts),
+		values,
+	};
+}
+
+function printAppliedConfigProfile(result: AppliedConfigProfile): void {
+	console.log(chalk.green(`✓  ${result.profile} profile applied`));
+	console.log(chalk.dim(`   ${result.path}`));
+	for (const [key, value] of Object.entries(result.values)) {
+		console.log(`   ${key}=${value}`);
+	}
+}
+
+function printAppliedConfigProfileJson(result: AppliedConfigProfile): void {
+	printJson(
+		buildJsonSuccessEnvelope({
+			command: "config",
+			operation: "profile",
+			extra: result,
+			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+			nextCommands: [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, "refarm config --json"],
+		}),
+	);
+}
+
 function persistConfigValue(
 	key: ConfigKey,
 	value: string,
@@ -535,6 +595,7 @@ Examples:
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND} --json
   $ refarm config unset runtime.autostart
   $ refarm config set operator.openExternalLinks never
+  $ refarm config profile coding --local --json
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
   $ REFARM_TRACTOR_ENGINE=rust refarm runtime
   $ ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local
@@ -543,6 +604,9 @@ Keys:
   runtime.autostart  ${AUTOSTART_MODES_HELP}
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
+
+Profiles:
+  coding  MODEL_HISTORY_TURNS=20, MODEL_TOOL_CALL_MAX_ITER=20, MODEL_STREAM_RESPONSES=1
 
 Legacy aliases:
   farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
@@ -562,6 +626,48 @@ Notes:
 			}
 			printConfigSummary(deps);
 		})
+		.addCommand(
+			new Command("profile")
+				.description("Apply a named Refarm runtime profile")
+				.argument("<name>", "Profile name")
+				.option("--local", "Update project-local .refarm/config.json")
+				.option("--json", "Output machine-readable profile result")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm config profile coding --local
+  $ refarm config profile coding --local --json
+
+Profiles:
+  coding  Enables pi-agent coding defaults for this scope:
+          MODEL_HISTORY_TURNS=20
+          MODEL_TOOL_CALL_MAX_ITER=20
+          MODEL_STREAM_RESPONSES=1
+
+Notes:
+  Farmhand reads these values from ~/.refarm/config.json and ./.refarm/config.json
+  at runtime startup. Use --local for repository-specific agent behavior.
+  Restart or ensure the runtime after applying a profile.
+`,
+				)
+				.action(
+					(
+						profile: string,
+						opts: { local?: boolean } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						const result = applyConfigProfile(profile, opts, deps);
+						if (!result) return;
+						if (hasJsonOption(opts, command)) {
+							printAppliedConfigProfileJson(result);
+							return;
+						}
+						printAppliedConfigProfile(result);
+					},
+				),
+		)
 		.addCommand(
 			new Command("get")
 				.description("Show an effective config value")

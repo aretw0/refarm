@@ -35,6 +35,7 @@ import {
 const agentRuntimePlan = {
 	environment: {
 		packageManager: "refarm package-manager --json",
+		codingProfile: "refarm config profile coding --local --json",
 	},
 	runtime: {
 		status: `${RUNTIME_STATUS_COMMAND} --json`,
@@ -266,6 +267,7 @@ Notes:
 						agentRuntimePlan.runtime.ensure,
 						MODEL_CURRENT_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
+						agentRuntimePlan.environment.codingProfile,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
 						"refarm agent finish --next-command",
@@ -278,6 +280,7 @@ Notes:
 						SOW_JSON_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
+						agentRuntimePlan.environment.codingProfile,
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",
 					],

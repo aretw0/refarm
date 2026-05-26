@@ -169,6 +169,52 @@ describe("config command", () => {
 		});
 	});
 
+	it("applies local coding runtime profile as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["profile", "coding", "--local", "--json"], {
+			from: "user",
+		});
+
+		const configPath = path.join(cwd, ".refarm", "config.json");
+		const saved = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Record<string, string>;
+		expect(saved).toMatchObject({
+			MODEL_HISTORY_TURNS: "20",
+			MODEL_TOOL_CALL_MAX_ITER: "20",
+			MODEL_STREAM_RESPONSES: "1",
+		});
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			...configIdentity("profile"),
+			profile: "coding",
+			path: configPath,
+			scope: "local",
+			values: {
+				MODEL_HISTORY_TURNS: "20",
+				MODEL_TOOL_CALL_MAX_ITER: "20",
+				MODEL_STREAM_RESPONSES: "1",
+			},
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
+				"refarm config --json",
+			],
+		});
+	});
+
+	it("rejects unknown config profiles", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command().parseAsync(["profile", "python"], { from: "user" });
+
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(errors).toContain("Unknown config profile: python");
+		expect(process.exitCode).toBe(1);
+		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
+	});
+
 	it("marks persisted legacy config keys in JSON output", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -466,6 +512,25 @@ describe("config command", () => {
 		expect(help).toContain("legacy; prefer runtime.autostart");
 		expect(help).toContain("repository-specific operator preferences");
 		expect(help).toContain("REFARM_RUNTIME_AUTOSTART");
+	});
+
+	it("documents config profiles", () => {
+		const root = command();
+		const profileCommand = root.commands.find((subcommand) => subcommand.name() === "profile");
+		let help = "";
+		profileCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		profileCommand?.outputHelp();
+
+		expect(help).toContain("refarm config profile coding --local");
+		expect(help).toContain("MODEL_HISTORY_TURNS=20");
+		expect(help).toContain("MODEL_TOOL_CALL_MAX_ITER=20");
+		expect(help).toContain("MODEL_STREAM_RESPONSES=1");
+		expect(help).toContain("Restart or ensure the runtime");
 	});
 
 	it("sets operator external-link mode", async () => {
