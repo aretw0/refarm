@@ -119,6 +119,9 @@ describe("agent command", () => {
 				finishPackagePlanCommand: string;
 				finishPackageRunCommand: string;
 				finishPackageFixRunCommand: string;
+				finishAffectedPlanJsonCommand: string;
+				finishAffectedRunJsonCommand: string;
+				finishAffectedTestRunJsonCommand: string;
 				finishAffectedRunCommand: string;
 				finishAffectedTestRunCommand: string;
 			};
@@ -167,6 +170,9 @@ describe("agent command", () => {
 				finishPackagePlanCommand: "refarm agent finish --profile package --workspace <dir> --next-command",
 				finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
 				finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
+				finishAffectedPlanJsonCommand: "refarm agent finish --profile affected --json",
+				finishAffectedRunJsonCommand: "refarm agent finish --profile affected --run --json",
+				finishAffectedTestRunJsonCommand: "refarm agent finish --profile affected --include-tests --run --json",
 				finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
 				finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
 			},
@@ -181,6 +187,8 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --profile affected --json");
+		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --include-tests --run --next-command");
 		expect(payload.nextCommands).toEqual([
@@ -194,6 +202,8 @@ describe("agent command", () => {
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
 			"refarm agent finish --profile package --workspace <dir> --run --next-command",
+			"refarm agent finish --profile affected --json",
+			"refarm agent finish --profile affected --run --json",
 			"refarm agent finish --profile affected --run --next-command",
 			"refarm agent finish --profile affected --include-tests --run --next-command",
 		]);
