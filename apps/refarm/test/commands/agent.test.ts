@@ -122,9 +122,11 @@ describe("agent command", () => {
 				finishPackageFixRunCommand: string;
 				finishAffectedPlanJsonCommand: string;
 				finishAffectedRunJsonCommand: string;
+				finishAffectedUpstreamRunJsonCommand: string;
 				finishAffectedSinceRunJsonCommand: string;
 				finishAffectedTestRunJsonCommand: string;
 				finishAffectedRunCommand: string;
+				finishAffectedUpstreamRunCommand: string;
 				finishAffectedSinceRunCommand: string;
 				finishAffectedTestRunCommand: string;
 			};
@@ -175,9 +177,11 @@ describe("agent command", () => {
 				finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
 				finishAffectedPlanJsonCommand: "refarm agent finish --profile affected --json",
 				finishAffectedRunJsonCommand: "refarm agent finish --profile affected --run --json",
+				finishAffectedUpstreamRunJsonCommand: "refarm agent finish --profile affected --since upstream --run --json",
 				finishAffectedSinceRunJsonCommand: "refarm agent finish --profile affected --since <ref> --run --json",
 				finishAffectedTestRunJsonCommand: "refarm agent finish --profile affected --include-tests --run --json",
 				finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
+				finishAffectedUpstreamRunCommand: "refarm agent finish --profile affected --since upstream --run --next-command",
 				finishAffectedSinceRunCommand: "refarm agent finish --profile affected --since <ref> --run --next-command",
 				finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
 			},
@@ -194,8 +198,10 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --json");
+		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since upstream --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since <ref> --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since upstream --run --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since <ref> --run --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --include-tests --run --next-command");
 		expect(payload.nextCommands).toEqual([
@@ -211,8 +217,10 @@ describe("agent command", () => {
 			"refarm agent finish --profile package --workspace <dir> --run --next-command",
 			"refarm agent finish --profile affected --json",
 			"refarm agent finish --profile affected --run --json",
+			"refarm agent finish --profile affected --since upstream --run --json",
 			"refarm agent finish --profile affected --since <ref> --run --json",
 			"refarm agent finish --profile affected --run --next-command",
+			"refarm agent finish --profile affected --since upstream --run --next-command",
 			"refarm agent finish --profile affected --since <ref> --run --next-command",
 			"refarm agent finish --profile affected --include-tests --run --next-command",
 		]);
