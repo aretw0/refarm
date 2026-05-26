@@ -116,6 +116,7 @@ describe("agent command", () => {
 				quick: string;
 				quickCommand: string;
 				tidyCheck: string;
+				finishLanesJsonCommand: string;
 				finishPlanCommand: string;
 				finishRunCommand: string;
 				finishFixPlanCommand: string;
@@ -183,6 +184,7 @@ describe("agent command", () => {
 				quick: "refarm check --next-action --json",
 				quickCommand: "refarm check --next-command",
 				tidyCheck: "refarm tidy imports --check --json",
+				finishLanesJsonCommand: "refarm agent finish --lanes --json",
 				finishPlanCommand: "refarm agent finish --next-command",
 				finishRunCommand: "refarm agent finish --run --next-command",
 				finishFixPlanCommand: "refarm agent finish --fix --next-command",
@@ -236,6 +238,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm package-manager --json");
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
+		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
@@ -255,6 +258,7 @@ describe("agent command", () => {
 			"refarm model current --json",
 			"refarm package-manager --json",
 			"refarm config profile coding --local --json",
+			"refarm agent finish --lanes --json",
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
 			"refarm agent finish --profile package --workspace <dir> --run --next-command",

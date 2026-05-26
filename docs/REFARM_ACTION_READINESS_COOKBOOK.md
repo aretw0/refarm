@@ -130,8 +130,9 @@ uses those lane shortcuts.
 
 For renderers or agents that need labels, `verification.lanes` also lists the
 same lane IDs with command, description, and validation scope metadata.
-`refarm agent finish --lanes --json` exposes the same focused catalog without
-requiring the full agent handoff.
+`verification.finishLanesJsonCommand` points to
+`refarm agent finish --lanes --json`, which exposes the same focused catalog
+without requiring the full agent handoff.
 
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends
