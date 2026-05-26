@@ -388,11 +388,19 @@ describe("JSON next command contract", () => {
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const missingNextActions = payloads
+				.filter((payload) => !Array.isArray(payload.nextActions))
+				.map((payload) => payload.sampleId);
+			const missingNextCommands = payloads
+				.filter((payload) => !Array.isArray(payload.nextCommands))
+				.map((payload) => payload.sampleId);
 
 			expect(placeholders).toEqual([]);
 			expect(actionPlaceholders).toEqual([]);
 			expect(interactiveSow).toEqual([]);
 			expect(replOnly).toEqual([]);
+			expect(missingNextActions).toEqual([]);
+			expect(missingNextCommands).toEqual([]);
 		} finally {
 			config.cleanup();
 		}
