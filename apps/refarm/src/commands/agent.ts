@@ -728,6 +728,7 @@ Plugin lifecycle:
 Automation:
   $ refarm agent --json         Print runtime/model/plugin handoff commands
   $ refarm agent --next-command Print the first executable handoff command
+  $ refarm agent --json --next-command Print the first handoff command as JSON
   $ refarm agent finish --json  Print ordered verification commands before commit
   $ refarm agent finish --run --json Execute ordered verification commands
   $ refarm agent finish --run --next-command Print the failing recovery command

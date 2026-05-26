@@ -56,6 +56,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm plugin install");
 		expect(help).toContain("refarm agent --json");
 		expect(help).toContain("refarm agent --next-command");
+		expect(help).toContain("refarm agent --json --next-command");
 	});
 
 	it("prints help when invoked without subcommands", async () => {
