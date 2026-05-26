@@ -353,6 +353,7 @@ describe("agent command", () => {
 			ok: boolean;
 			error: string;
 			message: string;
+			nextActions: string[];
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
@@ -731,6 +732,7 @@ describe("agent command", () => {
 			ok: boolean;
 			error: string;
 			message: string;
+			nextActions: string[];
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
@@ -740,6 +742,10 @@ describe("agent command", () => {
 		});
 		expect(payload.message).toContain("Could not resolve upstream");
 		expect(payload.message).toContain("--since <ref>");
+		expect(payload.nextActions).toEqual([
+			"Pass an explicit Git ref with `refarm agent finish --profile affected --since <ref> --json`.",
+			"Configure the current branch upstream, then retry `refarm agent finish --profile affected --since upstream --json`.",
+		]);
 		logSpy.mockRestore();
 	});
 
