@@ -791,6 +791,7 @@ describe("agent command", () => {
 		await agentCommand.parseAsync(["finish", "--run"], { from: "user" });
 
 		expect(logSpy).toHaveBeenCalledWith("Refarm agent finish");
+		expect(logSpy).toHaveBeenCalledWith("Selection: quick");
 		expect(logSpy).toHaveBeenCalledWith(
 			"PASS tidy-imports-check: refarm tidy imports --check --json",
 		);
@@ -847,6 +848,60 @@ describe("agent command", () => {
 		expect(runRefarm).toHaveBeenCalledTimes(2);
 		expect(process.exitCode).toBe(1);
 		process.exitCode = originalExitCode;
+		logSpy.mockRestore();
+	});
+
+	it("prints selected affected workspaces in human finish reports", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-human-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(path.join(appDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { lint: "eslint ." },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export {};\n", "utf8");
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const runProcess = vi.fn((step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand({ runRefarm, runProcess });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--run",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		expect(logSpy).toHaveBeenCalledWith("Selection: affected (apps/refarm)");
 		logSpy.mockRestore();
 	});
 });

@@ -404,8 +404,12 @@ function resolveAffectedWorkspacesForSelection(
 	return selection.profile === "affected" ? affectedWorkspacesFromGit() : undefined;
 }
 
-function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
+function printAgentFinishRunHuman(
+	result: CommandPlanRunResult,
+	selection?: AgentFinishSelectionMetadata,
+): void {
 	console.log("Refarm agent finish");
+	if (selection) console.log(`Selection: ${formatFinishSelection(selection)}`);
 	for (const step of result.steps) {
 		console.log(`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}`);
 	}
@@ -423,6 +427,19 @@ function printAgentFinishRunHuman(result: CommandPlanRunResult): void {
 			console.log(`  ${command}`);
 		}
 	}
+}
+
+function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {
+	if (selection.profile === "affected") {
+		const workspaces = selection.affectedWorkspaces ?? [];
+		return workspaces.length > 0
+			? `affected (${workspaces.join(", ")})`
+			: "affected (no changed workspaces)";
+	}
+	if (selection.profile === "package") {
+		return `package (${selection.workspace ?? "."})`;
+	}
+	return selection.profile;
 }
 
 function resolveFinishOptions(self: Command, actionArg: unknown): AgentFinishOptions {
@@ -628,7 +645,10 @@ Notes:
 					const [nextAction] = result.nextActions;
 					if (nextAction) console.log(nextAction);
 				} else {
-					printAgentFinishRunHuman(result);
+					printAgentFinishRunHuman(
+						result,
+						finishSelectionMetadata(selection, affectedWorkspaces),
+					);
 				}
 				if (!result.ok) process.exitCode = 1;
 				return;
