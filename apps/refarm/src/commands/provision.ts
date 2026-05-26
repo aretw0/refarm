@@ -148,9 +148,9 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 		operation: "apply",
 		error: "missing-cloudflare-token",
 		message: "No Cloudflare token found.",
-		nextAction: "refarm sow --cloudflare",
+		nextAction: SOW_CLOUDFLARE_JSON_COMMAND,
 		nextActions: [
-			"refarm sow --cloudflare",
+			SOW_CLOUDFLARE_JSON_COMMAND,
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
 		nextCommand: SOW_CLOUDFLARE_JSON_COMMAND,
@@ -179,6 +179,9 @@ function buildTurboCacheFailurePayload(input: {
 	const nextCommand = input.nextAction.startsWith("refarm sow")
 		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
+	const nextAction = input.nextAction.startsWith("refarm sow")
+		? SOW_CLOUDFLARE_JSON_COMMAND
+		: input.nextAction;
 	const nextCommands = normalizeHandoffValues([
 		nextCommand,
 		"refarm provision cloudflare turbo-cache --dry-run",
@@ -188,9 +191,9 @@ function buildTurboCacheFailurePayload(input: {
 		operation: "apply",
 		error: input.error,
 		message: input.message,
-		nextAction: input.nextAction,
+		nextAction,
 		nextActions: [
-			input.nextAction,
+			nextAction,
 			"refarm provision cloudflare turbo-cache --dry-run",
 		],
 		nextCommand,

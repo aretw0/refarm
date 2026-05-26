@@ -659,7 +659,7 @@ describe("provision command", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "missing-cloudflare-token",
-			nextAction: "refarm sow --cloudflare",
+			nextAction: "refarm sow --cloudflare --json",
 			nextCommand: "refarm sow --cloudflare --json",
 		});
 		expect(process.exitCode).toBe(1);
@@ -723,7 +723,7 @@ describe("provision command", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "cloudflare-connect-failed",
-			nextAction: "refarm sow --cloudflare",
+			nextAction: "refarm sow --cloudflare --json",
 			nextCommand: "refarm sow --cloudflare --json",
 		});
 		expect(process.exitCode).toBe(1);
