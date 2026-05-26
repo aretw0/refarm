@@ -74,7 +74,7 @@ agent-driven.
 Run the contract test when touching public JSON handoffs:
 
 ```bash
-pnpm --filter @refarm.dev/refarm exec vitest run test/commands/json-next-command-contract.test.ts
+pnpm --filter @refarm.dev/refarm run test:handoffs
 ```
 
 It statically rejects placeholders, interactive credential collection, and

@@ -51,6 +51,7 @@
 		"deps:vitest-config-check": "node scripts/ci/check-vitest-config-deps.mjs",
 		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
 		"refarm:host:smoke": "node scripts/ci/run-workspace-script.mjs apps/refarm test:host-smoke",
+		"refarm:handoffs:test": "node scripts/ci/run-workspace-script.mjs apps/refarm test:handoffs",
 		"refarm:check:gate": "node scripts/ci/refarm-check-gate.mjs check",
 		"refarm:check:verify": "node scripts/ci/refarm-check-gate.mjs verify",
 		"refarm:health:gate": "node scripts/ci/refarm-check-gate.mjs health",
