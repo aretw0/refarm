@@ -1,7 +1,8 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
-import { refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
@@ -69,6 +70,16 @@ function tuiLaunchCommand(launcher: RefarmTuiLauncherMode): string {
 	return refarmCommand(["tui", "--launch", "--launcher", launcher]);
 }
 
+function tuiActionsSelectCommand(select: string): string {
+	return refarmCommand([
+		"tui",
+		"--actions",
+		"--select",
+		quoteCommandArg(select),
+		"--json",
+	]);
+}
+
 export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 	const resolvedDeps: TuiDeps = {
 		resolveStatusPayload,
@@ -122,6 +133,25 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		)
 		.action(async (options: TuiOptions) => {
 			if (options.select && !options.actions) {
+				if (options.json) {
+					const nextCommand = tuiActionsSelectCommand(options.select);
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "tui",
+							operation: "actions",
+							error: "select-requires-actions",
+							message: "--select requires --actions.",
+							nextAction: nextCommand,
+							nextCommand,
+							nextCommands: [nextCommand],
+							extra: {
+								select: options.select,
+							},
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
 				throw new Error("--select requires --actions.");
 			}
 

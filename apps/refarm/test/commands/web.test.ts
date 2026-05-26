@@ -340,6 +340,36 @@ describe("webCommand", () => {
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
+	it("prints structured JSON when Web action selection is missing --actions", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--select", "open-node", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "web",
+				operation: "actions",
+				error: "select-requires-actions",
+				message: "--select requires --actions.",
+				select: "open-node",
+				nextCommand: "refarm web --actions --select 'open-node' --json",
+				nextCommands: ["refarm web --actions --select 'open-node' --json"],
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
 	it("rejects Web action rows with launch-only flags", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,

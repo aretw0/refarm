@@ -341,6 +341,35 @@ describe("tuiCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints structured JSON when --select is used without --actions", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--select", "open-node", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tui",
+				operation: "actions",
+				error: "select-requires-actions",
+				message: "--select requires --actions.",
+				select: "open-node",
+				nextCommand: "refarm tui --actions --select 'open-node' --json",
+				nextCommands: ["refarm tui --actions --select 'open-node' --json"],
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
 	it("rejects --actions --select in human output when the action is unavailable", async () => {
 		resolveStatusPayload.mockResolvedValueOnce({
 			json: makeStatus({

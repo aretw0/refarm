@@ -6,6 +6,7 @@ import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -91,6 +92,16 @@ function webLaunchCommand(options: {
 	]);
 }
 
+function webActionsSelectCommand(select: string): string {
+	return refarmCommand([
+		"web",
+		"--actions",
+		"--select",
+		quoteCommandArg(select),
+		"--json",
+	]);
+}
+
 export function createWebCommand(deps?: Partial<WebDeps>): Command {
 	const resolvedDeps: WebDeps = {
 		resolveStatusPayload,
@@ -150,6 +161,25 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		)
 		.action(async (options: WebOptions) => {
 			if (options.select && !options.actions) {
+				if (options.json) {
+					const nextCommand = webActionsSelectCommand(options.select);
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "web",
+							operation: "actions",
+							error: "select-requires-actions",
+							message: "--select requires --actions.",
+							nextAction: nextCommand,
+							nextCommand,
+							nextCommands: [nextCommand],
+							extra: {
+								select: options.select,
+							},
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
 				throw new Error("--select requires --actions.");
 			}
 
