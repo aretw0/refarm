@@ -45,6 +45,59 @@ import {
 const AGENT_NEXT_ACTION_COMMAND = "refarm check --next-action --json";
 const AGENT_NEXT_COMMAND = "refarm check --next-command";
 
+const agentFinishLaneCatalog = [
+	{
+		id: "after-edit",
+		recommendedKey: "afterEdit",
+		command: "refarm agent finish --lane after-edit --run --json",
+		description: "Validate the current dirty tree after source edits.",
+		validationScope: "dirtyTree",
+	},
+	{
+		id: "after-commit",
+		recommendedKey: "afterCommit",
+		command: "refarm agent finish --lane after-commit --run --json",
+		description: "Validate committed branch changes against upstream.",
+		validationScope: "branchRange",
+	},
+	{
+		id: "before-push",
+		recommendedKey: "beforePush",
+		command: "refarm agent finish --lane before-push --run --json",
+		description: "Run final branch-local validation before pushing.",
+		validationScope: "branchRange",
+	},
+	{
+		id: "handoffs",
+		recommendedKey: "handoffs",
+		command: "refarm agent finish --lane handoffs --run --json",
+		description: "Validate public JSON handoff contracts after CLI contract changes.",
+		validationScope: "contract",
+	},
+	{
+		id: "with-package-tests",
+		recommendedKey: "withPackageTests",
+		command: "refarm agent finish --lane with-package-tests --run --json",
+		description: "Validate dirty-tree edits and include package tests.",
+		validationScope: "dirtyTree",
+	},
+] as const;
+
+type AgentFinishLane = typeof agentFinishLaneCatalog[number]["id"];
+type AgentFinishLaneRecommendedKey = typeof agentFinishLaneCatalog[number]["recommendedKey"];
+type AgentFinishLaneValidationScope = typeof agentFinishLaneCatalog[number]["validationScope"];
+
+const AGENT_FINISH_LANE_HELP = agentFinishLaneCatalog.map((lane) => lane.id).join(" | ");
+const agentFinishLanes = agentFinishLaneCatalog.map((lane) => ({
+	id: lane.id,
+	command: lane.command,
+	description: lane.description,
+	validationScope: lane.validationScope,
+}));
+const agentFinishRecommended = Object.fromEntries(
+	agentFinishLaneCatalog.map((lane) => [lane.recommendedKey, lane.command]),
+) as Record<AgentFinishLaneRecommendedKey, string>;
+
 const agentRuntimePlan = {
 	environment: {
 		packageManager: "refarm package-manager --json",
@@ -105,45 +158,8 @@ const agentRuntimePlan = {
 		finishAffectedUpstreamRunCommand: "refarm agent finish --profile affected --since upstream --run --next-command",
 		finishAffectedSinceRunCommand: "refarm agent finish --profile affected --since <ref> --run --next-command",
 		finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
-		recommended: {
-			afterEdit: "refarm agent finish --lane after-edit --run --json",
-			afterCommit: "refarm agent finish --lane after-commit --run --json",
-			beforePush: "refarm agent finish --lane before-push --run --json",
-			handoffs: "refarm agent finish --lane handoffs --run --json",
-			withPackageTests: "refarm agent finish --lane with-package-tests --run --json",
-		},
-		lanes: [
-			{
-				id: "after-edit",
-				command: "refarm agent finish --lane after-edit --run --json",
-				description: "Validate the current dirty tree after source edits.",
-				validationScope: "dirtyTree",
-			},
-			{
-				id: "after-commit",
-				command: "refarm agent finish --lane after-commit --run --json",
-				description: "Validate committed branch changes against upstream.",
-				validationScope: "branchRange",
-			},
-			{
-				id: "before-push",
-				command: "refarm agent finish --lane before-push --run --json",
-				description: "Run final branch-local validation before pushing.",
-				validationScope: "branchRange",
-			},
-			{
-				id: "handoffs",
-				command: "refarm agent finish --lane handoffs --run --json",
-				description: "Validate public JSON handoff contracts after CLI contract changes.",
-				validationScope: "contract",
-			},
-			{
-				id: "with-package-tests",
-				command: "refarm agent finish --lane with-package-tests --run --json",
-				description: "Validate dirty-tree edits and include package tests.",
-				validationScope: "dirtyTree",
-			},
-		],
+		recommended: agentFinishRecommended,
+		lanes: agentFinishLanes,
 	},
 };
 
@@ -182,8 +198,6 @@ interface AgentCommandDeps {
 }
 
 type AgentFinishProfile = "quick" | "package" | "affected";
-type AgentFinishLane = "after-commit" | "after-edit" | "before-push" | "handoffs" | "with-package-tests";
-
 interface AgentFinishOptions {
 	fix?: boolean;
 	includeTests?: boolean;
@@ -215,7 +229,7 @@ interface AgentFinishSelectionMetadata {
 	lane: AgentFinishLane | null;
 	since: string | null;
 	sinceRef: string | null;
-	validationScope: "branchRange" | "contract" | "dirtyTree" | "package" | "quick";
+	validationScope: AgentFinishLaneValidationScope | "package" | "quick";
 	workspace: string | null;
 	affectedWorkspaces?: string[];
 }
@@ -470,12 +484,8 @@ function parseFinishProfile(value: string | undefined): AgentFinishProfile {
 
 function parseFinishLane(value: string | undefined): AgentFinishLane | undefined {
 	if (!value) return undefined;
-	if (value === "after-commit") return "after-commit";
-	if (value === "after-edit") return "after-edit";
-	if (value === "before-push") return "before-push";
-	if (value === "handoffs") return "handoffs";
-	if (value === "with-package-tests") return "with-package-tests";
-	throw new Error("Unknown finish lane: " + value + ". Use: after-edit | after-commit | before-push | handoffs | with-package-tests");
+	if (agentFinishLaneCatalog.some((lane) => lane.id === value)) return value as AgentFinishLane;
+	throw new Error("Unknown finish lane: " + value + ". Use: " + AGENT_FINISH_LANE_HELP);
 }
 
 function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelection, "fix"> {
@@ -892,7 +902,7 @@ Notes:
 		.option("--fix", "Include import organization before verification")
 		.option("--include-tests", "Include package test scripts for package or affected profiles")
 		.option("--json", "Output machine-readable finish plan")
-		.option("--lane <name>", "Recommended finish lane: after-edit | after-commit | before-push | handoffs | with-package-tests")
+		.option("--lane <name>", `Recommended finish lane: ${AGENT_FINISH_LANE_HELP}`)
 		.option("--lanes", "List recommended finish lanes and commands")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
