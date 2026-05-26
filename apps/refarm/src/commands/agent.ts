@@ -41,6 +41,9 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 
+const AGENT_NEXT_ACTION_COMMAND = "refarm check --next-action --json";
+const AGENT_NEXT_COMMAND = "refarm check --next-command";
+
 const agentRuntimePlan = {
 	environment: {
 		packageManager: "refarm package-manager --json",
@@ -75,8 +78,8 @@ const agentRuntimePlan = {
 		install: "refarm plugin install --json",
 	},
 	verification: {
-		quick: "refarm check --next-action --json",
-		quickCommand: "refarm check --next-command",
+		quick: AGENT_NEXT_ACTION_COMMAND,
+		quickCommand: AGENT_NEXT_COMMAND,
 		health: "refarm health --next-action --json",
 		doctor: "refarm doctor --next-action --json",
 		doctorCommand: "refarm doctor --next-command",
@@ -132,6 +135,18 @@ const agentRuntimePlan = {
 		],
 	},
 };
+
+function buildAgentNextHandoffEnvelope() {
+	return buildJsonSuccessEnvelope({
+		command: "agent",
+		operation: "handoff",
+		nextAction: AGENT_NEXT_ACTION_COMMAND,
+		nextCommand: AGENT_NEXT_COMMAND,
+		nextActions: [AGENT_NEXT_ACTION_COMMAND],
+		nextCommands: [AGENT_NEXT_COMMAND],
+		extra: { action: "agent", status: "handoff" },
+	});
+}
 
 interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
@@ -725,35 +740,19 @@ Notes:
 	).action(function (this: Command) {
 		const options = this.opts<{ json?: boolean; nextAction?: boolean; nextCommand?: boolean }>();
 		if (options.nextCommand && options.json) {
-			printJson(buildJsonSuccessEnvelope({
-				command: "agent",
-				operation: "handoff",
-				nextAction: "refarm check --next-action --json",
-				nextCommand: "refarm check --next-command",
-				nextActions: ["refarm check --next-action --json"],
-				nextCommands: ["refarm check --next-command"],
-				extra: { action: "agent", status: "handoff" },
-			}));
+			printJson(buildAgentNextHandoffEnvelope());
 			return;
 		}
 		if (options.nextCommand) {
-			console.log("refarm check --next-command");
+			console.log(AGENT_NEXT_COMMAND);
 			return;
 		}
 		if (options.nextAction && options.json) {
-			printJson(buildJsonSuccessEnvelope({
-				command: "agent",
-				operation: "handoff",
-				nextAction: "refarm check --next-action --json",
-				nextCommand: "refarm check --next-command",
-				nextActions: ["refarm check --next-action --json"],
-				nextCommands: ["refarm check --next-command"],
-				extra: { action: "agent", status: "handoff" },
-			}));
+			printJson(buildAgentNextHandoffEnvelope());
 			return;
 		}
 		if (options.nextAction) {
-			console.log("refarm check --next-action --json");
+			console.log(AGENT_NEXT_ACTION_COMMAND);
 			return;
 		}
 		if (options.json) {
@@ -761,10 +760,10 @@ Notes:
 				buildJsonSuccessEnvelope({
 					command: "agent",
 					operation: "handoff",
-					nextAction: "refarm check --next-action --json",
-					nextCommand: "refarm check --next-command",
+					nextAction: AGENT_NEXT_ACTION_COMMAND,
+					nextCommand: AGENT_NEXT_COMMAND,
 					nextActions: [
-						"refarm check --next-action --json",
+						AGENT_NEXT_ACTION_COMMAND,
 						agentRuntimePlan.runtime.status,
 						agentRuntimePlan.runtime.ensure,
 						MODEL_CURRENT_JSON_COMMAND,
@@ -786,7 +785,7 @@ Notes:
 						agentRuntimePlan.verification.finishAffectedTestRunCommand,
 					],
 					nextCommands: [
-						"refarm check --next-command",
+						AGENT_NEXT_COMMAND,
 						agentRuntimePlan.runtime.ensure,
 						LOCAL_MODEL_JSON_COMMAND,
 						SOW_JSON_COMMAND,
