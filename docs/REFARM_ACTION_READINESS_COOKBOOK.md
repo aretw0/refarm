@@ -74,13 +74,15 @@ agent-driven.
 Run the contract test when touching public JSON handoffs:
 
 ```bash
+refarm agent finish --lane handoffs --run --json
 pnpm --filter @refarm.dev/refarm run test:handoffs
 ```
 
-It statically rejects placeholders, interactive credential collection, and
-REPL-only commands in executable handoff fields. It also exercises generated
-handoffs from the core agent, model, plugin, provision, renderer, and package
-manager commands.
+The finish lane is the operator-facing route; the package script is the focused
+test target behind it. The contract statically rejects placeholders,
+interactive credential collection, and REPL-only commands in executable handoff
+fields. It also exercises generated handoffs from the core agent, model,
+plugin, provision, renderer, and package manager commands.
 
 Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
 filtering, and deduplication for handoff lists. JSON emitters and command-result
@@ -104,6 +106,7 @@ refarm agent finish --lanes --json
 refarm agent finish --lanes --json --next-command
 refarm agent finish --lane after-edit --run --json
 refarm agent finish --lane before-push --run --json
+refarm agent finish --lane handoffs --run --json
 refarm agent finish --next-command
 refarm agent finish --json --next-command
 refarm agent finish --run --json
@@ -136,6 +139,7 @@ agents do not need to infer the default finish path from the command catalog:
 - `afterEdit`: dirty-tree validation after source edits;
 - `afterCommit`: branch validation after atomic commits;
 - `beforePush`: final branch-local validation against upstream;
+- `handoffs`: public JSON handoff contract validation;
 - `withPackageTests`: opt-in package tests when the slice requires them.
 
 The same names can be passed to `refarm agent finish --lane <name>` as stable
@@ -200,7 +204,7 @@ Plan and run envelopes include a `selection` block for deterministic routing:
 Use `selection.affectedWorkspaces` instead of scraping command strings when an
 agent needs to explain or branch on the package set selected by Git status. Use
 `selection.validationScope` to distinguish dirty-tree, branch-range, package,
-and quick validation without inferring from flags.
+contract, and quick validation without inferring from flags.
 
 ## Live status affordances
 
