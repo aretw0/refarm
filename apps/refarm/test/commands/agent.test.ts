@@ -311,6 +311,23 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("rejects since outside the affected finish profile", async () => {
+		const agentCommand = createAgentCommand();
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync(["finish", "--since", "HEAD~1"], {
+				from: "user",
+			});
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		expect(errorSpy).toHaveBeenCalledWith("--since only applies to --profile affected.");
+		errorSpy.mockRestore();
+	});
+
 	it("adds package validation steps from workspace scripts", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

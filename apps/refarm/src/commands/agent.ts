@@ -652,6 +652,11 @@ Notes:
 				process.exitCode = 1;
 				return;
 			}
+			if (options.since && profile !== "affected") {
+				console.error("--since only applies to --profile affected.");
+				process.exitCode = 1;
+				return;
+			}
 			const selection = {
 				fix: options.fix,
 				includeTests: options.includeTests,
