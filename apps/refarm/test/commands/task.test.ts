@@ -171,6 +171,64 @@ describe("refarm task run", () => {
 		spy.mockRestore();
 	});
 
+	it("dispatches effort as JSON", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(
+				[
+					"my-plugin",
+					"process",
+					"--direction",
+					"Test effort",
+					"--args",
+					'{"value":1}',
+					"--json",
+				],
+				{ from: "user" },
+			);
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			effortId: string;
+			transport: string;
+			plugin: string;
+			fn: string;
+			nextCommand: string;
+			nextCommands: string[];
+			effort: { direction: string; tasks: Array<{ args: unknown }> };
+		};
+		expect(payload).toEqual(
+			expect.objectContaining({
+				ok: true,
+				command: "task",
+				operation: "run",
+				effortId: "effort-abc",
+				transport: "file",
+				plugin: "my-plugin",
+				fn: "process",
+				nextCommand: "refarm task status effort-abc --transport file --watch",
+			}),
+		);
+		expect(payload.nextCommands).toContain("refarm task status effort-abc --transport file");
+		expect(payload.nextCommands).toContain("refarm task logs effort-abc --transport file");
+		expect(payload.effort.direction).toBe("Test effort");
+		expect(payload.effort.tasks[0]?.args).toEqual({ value: 1 });
+		expect(session.rememberRun).toHaveBeenCalledWith(
+			expect.objectContaining({ transport: "file" }),
+		);
+		spy.mockRestore();
+	});
+
 	it("dispatches pi-agent respond query args as prompt for compatibility", async () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
@@ -211,6 +269,44 @@ describe("refarm task run", () => {
 			.parseAsync(["p", "f", "--args", "not-json"], { from: "user" });
 
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("valid JSON"));
+		expect(adapter.submit).not.toHaveBeenCalled();
+		expect(session.rememberRun).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		spy.mockRestore();
+	});
+
+	it("prints structured JSON when --args is invalid JSON", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(["p", "f", "--args", "not-json", "--json"], {
+				from: "user",
+			});
+
+		expect(JSON.parse(String(spy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "task",
+				operation: "run",
+				error: "invalid-task-args-json",
+				message: "--args must be valid JSON.",
+				plugin: "p",
+				fn: "f",
+				transport: "file",
+				nextCommand: "refarm task run 'p' 'f' --args '{}' --transport file --json",
+			}),
+		);
+		expect(resolver).not.toHaveBeenCalled();
 		expect(adapter.submit).not.toHaveBeenCalled();
 		expect(session.rememberRun).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);

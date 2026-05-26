@@ -11,6 +11,7 @@ import { Command, InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -99,6 +100,24 @@ function printTaskJsonSuccess<TExtra extends object>(
 			nextCommands,
 		}),
 	);
+}
+
+function buildTaskRunCommand(
+	plugin: string,
+	fn: string,
+	options: { transport: string; json?: boolean } = { transport: "file" },
+): string {
+	return refarmCommand([
+		"task",
+		"run",
+		quoteCommandArg(plugin),
+		quoteCommandArg(fn),
+		"--args",
+		quoteCommandArg("{}"),
+		"--transport",
+		options.transport,
+		...(options.json ? ["--json"] : []),
+	]);
 }
 
 class FileTransportClient implements TaskOperationsAdapter {
@@ -414,6 +433,7 @@ Notes:
 			parseTaskTransport,
 			"file",
 		)
+		.option("--json", "Print machine-readable dispatch result")
 		.addHelpText(
 			"after",
 			`
@@ -435,21 +455,45 @@ Notes:
 			async (
 				plugin: string,
 				fn: string,
-				opts: { args: string; direction: string; transport: TaskTransport },
+				opts: { args: string; direction: string; transport: TaskTransport; json?: boolean },
 			) => {
-				const { transport, adapter } = resolveTaskAdapter(
-					opts.transport,
-					adapterResolver,
-				);
 				let parsedArgs: unknown;
 				try {
 					parsedArgs = JSON.parse(opts.args);
 				} catch {
+					if (opts.json) {
+						const nextCommand = buildTaskRunCommand(plugin, fn, {
+							transport: opts.transport,
+							json: true,
+						});
+						printJson(
+							buildJsonErrorEnvelope({
+								command: "task",
+								operation: "run",
+								error: "invalid-task-args-json",
+								message: "--args must be valid JSON.",
+								nextAction: nextCommand,
+								nextCommand,
+								nextCommands: [nextCommand],
+								extra: {
+									plugin,
+									fn,
+									transport: opts.transport,
+								},
+							}),
+						);
+						process.exitCode = 1;
+						return;
+					}
 					console.error(chalk.red("--args must be valid JSON"));
 					process.exitCode = 1;
 					return;
 				}
 				parsedArgs = normalizeTaskArgs(plugin, fn, parsedArgs);
+				const { transport, adapter } = resolveTaskAdapter(
+					opts.transport,
+					adapterResolver,
+				);
 
 				const effort: Effort = {
 					id: crypto.randomUUID(),
@@ -474,6 +518,25 @@ Notes:
 						transport,
 					});
 				});
+				if (opts.json) {
+					const watchCommand = buildTaskStatusCommand(effortId, transport, {
+						watch: true,
+					});
+					const logsCommand = buildTaskLogsCommand(effortId, transport);
+					printTaskJsonSuccess(
+						"run",
+						{
+							effortId,
+							transport,
+							plugin,
+							fn,
+							direction: effort.direction,
+							effort,
+						},
+						[watchCommand, statusCommand, logsCommand],
+					);
+					return;
+				}
 				console.log(chalk.green(`Effort dispatched: ${chalk.bold(effortId)}`));
 				console.log(chalk.gray(`  Use: ${statusCommand}`));
 			},
