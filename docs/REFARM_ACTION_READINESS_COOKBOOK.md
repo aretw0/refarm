@@ -90,9 +90,11 @@ It prints an ordered plan by default and only executes when `--run` is present:
 refarm agent --next-command
 refarm agent finish --json
 refarm agent finish --lanes --json
+refarm agent finish --lanes --json --next-command
 refarm agent finish --lane after-edit --run --json
 refarm agent finish --lane before-push --run --json
 refarm agent finish --next-command
+refarm agent finish --json --next-command
 refarm agent finish --run --json
 refarm agent finish --run --next-command
 refarm agent finish --profile affected --run --json

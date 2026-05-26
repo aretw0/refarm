@@ -742,9 +742,11 @@ Verification:
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
   $ refarm agent finish --lanes --json List recommended finish lanes
+  $ refarm agent finish --lanes --json --next-command Print first lane as JSON
   $ refarm agent finish --lane after-edit --run --json Verify dirty-tree edits
   $ refarm agent finish --lane before-push --run --json Verify branch changes
   $ refarm agent finish --next-command Print the first verification command
+  $ refarm agent finish --json --next-command Print first verification as JSON
   $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --profile package --workspace apps/refarm --run
   $ refarm agent finish --profile affected --run
@@ -870,9 +872,11 @@ Notes:
 				"Examples:",
 				"  $ refarm agent finish --json",
 				"  $ refarm agent finish --lanes --json",
+				"  $ refarm agent finish --lanes --json --next-command",
 				"  $ refarm agent finish --lane after-edit --run --json",
 				"  $ refarm agent finish --lane before-push --run --json",
 				"  $ refarm agent finish --next-command",
+				"  $ refarm agent finish --json --next-command",
 				"  $ refarm agent finish --fix --next-command",
 				"  $ refarm agent finish --run --json",
 				"  $ refarm agent finish --fix --run --json",

@@ -35,9 +35,11 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
 		expect(help).toContain("refarm agent finish --lanes --json");
+		expect(help).toContain("refarm agent finish --lanes --json --next-command");
 		expect(help).toContain("refarm agent finish --lane after-edit --run --json");
 		expect(help).toContain("refarm agent finish --lane before-push --run --json");
 		expect(help).toContain("refarm agent finish --next-command");
+		expect(help).toContain("refarm agent finish --json --next-command");
 		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
 		expect(help).toContain("refarm agent finish --profile affected --run");
