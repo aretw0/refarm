@@ -314,15 +314,33 @@ function findWorkspaceRoot(cwd = process.cwd()): string {
 	}
 	let current = path.resolve(cwd);
 	while (true) {
-		if (
-			fs.existsSync(path.join(current, "pnpm-workspace.yaml")) ||
-			fs.existsSync(path.join(current, ".git"))
-		) {
+		if (hasWorkspaceRootMarker(current)) {
 			return current;
 		}
 		const parent = path.dirname(current);
 		if (parent === current) return path.resolve(cwd);
 		current = parent;
+	}
+}
+
+function hasWorkspaceRootMarker(dir: string): boolean {
+	return fs.existsSync(path.join(dir, ".git")) ||
+		fs.existsSync(path.join(dir, "pnpm-workspace.yaml")) ||
+		packageJsonDeclaresWorkspaces(dir);
+}
+
+function packageJsonDeclaresWorkspaces(dir: string): boolean {
+	try {
+		const raw = fs.readFileSync(path.join(dir, "package.json"), "utf8");
+		const pkg = JSON.parse(raw) as { workspaces?: unknown };
+		return Array.isArray(pkg.workspaces) ||
+			(
+				typeof pkg.workspaces === "object" &&
+				pkg.workspaces !== null &&
+				Array.isArray((pkg.workspaces as { packages?: unknown }).packages)
+			);
+	} catch {
+		return false;
 	}
 }
 

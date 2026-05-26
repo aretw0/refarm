@@ -801,6 +801,55 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("resolves package profile workspaces from package.json workspaces outside git", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-workspaces-"));
+		tempDirs.push(root);
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				private: true,
+				workspaces: ["apps/*"],
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(appDir, { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit" },
+			}),
+			"utf8",
+		);
+		const originalCwd = process.cwd();
+		process.chdir(appDir);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"package",
+				"--workspace",
+				"apps/refarm",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { cwd?: string } }[];
+		};
+		const typeCheck = payload.steps.find((step) => step.id === "package-type-check");
+		expect(typeCheck?.command).toBe("npm --prefix apps/refarm run type-check");
+		expect(typeCheck?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
 	it("adds package validation steps for affected git workspaces", async () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-affected-"));
 		tempDirs.push(root);
