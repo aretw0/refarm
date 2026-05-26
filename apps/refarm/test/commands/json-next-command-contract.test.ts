@@ -164,6 +164,8 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(createAgentCommand(), ["--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lanes", "--json"]),
+			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
+			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "with-package-tests", "--json"]),
 			await parseCommandJson(createPackageManagerCommand({
 				cwd: () => ".",
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
