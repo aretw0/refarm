@@ -3,6 +3,8 @@ import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
+import { createTuiCommand } from "../../src/commands/tui.js";
+import { createWebCommand } from "../../src/commands/web.js";
 
 const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfNoEntry: false })
 	? join(process.cwd(), "src", "commands")
@@ -39,6 +41,41 @@ function generatedExecutableCommands(payloads: {
 		[payload.nextCommand, ...(payload.nextCommands ?? [])]
 			.filter((command): command is string => typeof command === "string"),
 	);
+}
+
+function makeReadyStatus(renderer: "tui" | "web") {
+	return {
+		schemaVersion: 1 as const,
+		host: {
+			app: "apps/refarm",
+			command: "refarm",
+			profile: "dev",
+			mode: renderer,
+		},
+		renderer: {
+			id: `refarm-${renderer}`,
+			kind: renderer,
+			capabilities: [],
+		},
+		runtime: {
+			ready: true,
+			namespace: "refarm-main",
+			databaseName: "refarm-main",
+		},
+		plugins: {
+			installed: 0,
+			active: 0,
+			rejectedSurfaces: 0,
+			surfaceActions: 0,
+		},
+		trust: {
+			profile: "dev",
+			warnings: 0,
+			critical: 0,
+		},
+		streams: { active: 0, terminal: 0 },
+		diagnostics: [],
+	};
 }
 
 async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<{
@@ -131,6 +168,17 @@ describe("JSON next command contract", () => {
 				cwd: () => ".",
 				env: { REFARM_PACKAGE_MANAGER: "npm" },
 			}), ["--json"]),
+			await parseCommandJson(createTuiCommand({
+				resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+				printStatusSummary: vi.fn(),
+				launch: vi.fn(),
+			}), ["--launch", "--dry-run", "--json"]),
+			await parseCommandJson(createWebCommand({
+				resolveStatusPayload: async () => ({ json: makeReadyStatus("web") }),
+				printStatusSummary: vi.fn(),
+				launch: vi.fn(),
+				open: vi.fn(),
+			}), ["--launch", "--dry-run", "--json"]),
 		];
 
 		const commands = generatedExecutableCommands(payloads);
