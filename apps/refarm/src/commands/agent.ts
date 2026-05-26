@@ -82,6 +82,7 @@ const agentRuntimePlan = {
 		finishPackagePlanCommand: "refarm agent finish --profile package --workspace <dir> --next-command",
 		finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
 		finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
+		finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
 	},
 };
 
@@ -90,7 +91,7 @@ interface AgentCommandDeps {
 	runProcess(step: CommandPlanStep): CommandPlanStepRunResult;
 }
 
-type AgentFinishProfile = "quick" | "package";
+type AgentFinishProfile = "quick" | "package" | "affected";
 
 interface AgentFinishOptions {
 	fix?: boolean;
@@ -161,6 +162,7 @@ function packageScriptStep(
 	workspace: string,
 	script: string,
 	description: string,
+	idPrefix = "package",
 ): CommandPlanStep {
 	const repoRoot = findWorkspaceRoot();
 	const cwd = path.resolve(repoRoot, workspace);
@@ -170,7 +172,7 @@ function packageScriptStep(
 		script,
 	});
 	return {
-		id: `package-${script}`,
+		id: `${idPrefix}-${script}`,
 		command: command.display,
 		args: [command.command, ...command.args],
 		description,
@@ -251,6 +253,13 @@ function packageScripts(workspace: string): Record<string, string> {
 }
 
 function packageFinishSteps(workspace: string): CommandPlanStep[] {
+	return packageFinishStepsForWorkspace(workspace, "package");
+}
+
+function packageFinishStepsForWorkspace(
+	workspace: string,
+	idPrefix: string,
+): CommandPlanStep[] {
 	const scripts = packageScripts(workspace);
 	const candidates = [
 		["type-check", "Run the package TypeScript/type validation."],
@@ -259,13 +268,91 @@ function packageFinishSteps(workspace: string): CommandPlanStep[] {
 	] as const;
 	return candidates
 		.filter(([script]) => typeof scripts[script] === "string")
-		.map(([script, description]) => packageScriptStep(workspace, script, description));
+		.map(([script, description]) => packageScriptStep(
+			workspace,
+			script,
+			description,
+			idPrefix,
+		));
+}
+
+function affectedPackageFinishSteps(): CommandPlanStep[] {
+	return affectedWorkspacesFromGit().flatMap((workspace) =>
+		packageFinishStepsForWorkspace(workspace, `package-${sanitizeStepId(workspace)}`),
+	);
+}
+
+function affectedWorkspacesFromGit(): string[] {
+	const repoRoot = findWorkspaceRoot();
+	try {
+		const status = execFileSync(
+			"git",
+			["status", "--short", "--untracked-files=all"],
+			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+		);
+		const workspaces = new Set<string>();
+		for (const changedPath of changedFilePaths(status)) {
+			const workspace = findPackageDir(repoRoot, changedPath);
+			if (workspace && workspace !== ".") workspaces.add(workspace);
+		}
+		return [...workspaces].sort();
+	} catch {
+		return [];
+	}
+}
+
+function changedFilePaths(status: string): string[] {
+	return status
+		.split(/\r?\n/)
+		.map((line) => line.trimEnd())
+		.filter(Boolean)
+		.map((line) => {
+			const rawPath = line.slice(3).trim();
+			const renamedPath = rawPath.includes(" -> ")
+				? rawPath.split(" -> ").at(-1)
+				: rawPath;
+			return unquoteGitPath(renamedPath ?? rawPath);
+		})
+		.filter(Boolean);
+}
+
+function unquoteGitPath(value: string): string {
+	if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+		try {
+			return JSON.parse(value) as string;
+		} catch {
+			return value.slice(1, -1);
+		}
+	}
+	return value;
+}
+
+function findPackageDir(cwd: string, changedPath: string): string | null {
+	const absolutePath = path.resolve(cwd, changedPath);
+	let current = fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()
+		? absolutePath
+		: path.dirname(absolutePath);
+	const root = path.resolve(cwd);
+	while (current.startsWith(root)) {
+		if (fs.existsSync(path.join(current, "package.json"))) {
+			return path.relative(root, current) || ".";
+		}
+		const parent = path.dirname(current);
+		if (parent === current) break;
+		current = parent;
+	}
+	return null;
+}
+
+function sanitizeStepId(value: string): string {
+	return value.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "root";
 }
 
 function parseFinishProfile(value: string | undefined): AgentFinishProfile {
 	if (!value || value === "quick") return "quick";
 	if (value === "package") return "package";
-	throw new Error(`Unknown finish profile: ${value}. Use: quick | package`);
+	if (value === "affected") return "affected";
+	throw new Error(`Unknown finish profile: ${value}. Use: quick | package | affected`);
 }
 
 function selectedFinishSteps(options: {
@@ -278,6 +365,9 @@ function selectedFinishSteps(options: {
 		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
 	if (options.profile === "package") {
 		return [...steps, ...packageFinishSteps(options.workspace ?? ".")];
+	}
+	if (options.profile === "affected") {
+		return [...steps, ...affectedPackageFinishSteps()];
 	}
 	return steps;
 }
@@ -377,6 +467,7 @@ Verification:
   $ refarm agent finish --next-command Print the first verification command
   $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --profile package --workspace apps/refarm --run
+  $ refarm agent finish --profile affected --run
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
 Plugin lifecycle:
@@ -415,6 +506,7 @@ Notes:
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",
 						agentRuntimePlan.verification.finishPackagePlanCommand,
+						agentRuntimePlan.verification.finishAffectedRunCommand,
 					],
 					nextCommands: [
 						"refarm check --next-command",
@@ -427,6 +519,7 @@ Notes:
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",
 						agentRuntimePlan.verification.finishPackageRunCommand,
+						agentRuntimePlan.verification.finishAffectedRunCommand,
 					],
 					extra: {
 						action: "agent",
@@ -447,7 +540,7 @@ Notes:
 		.option("--json", "Output machine-readable finish plan")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
-		.option("--profile <name>", "Validation profile: quick | package", "quick")
+		.option("--profile <name>", "Validation profile: quick | package | affected", "quick")
 		.option("--run", "Execute the finish plan and stop at the first failing step")
 		.option("--workspace <dir>", "Workspace/package directory for --profile package", ".")
 		.addHelpText(
@@ -462,12 +555,14 @@ Notes:
 				"  $ refarm agent finish --fix --run --json",
 				"  $ refarm agent finish --profile package --workspace apps/refarm --json",
 				"  $ refarm agent finish --profile package --workspace apps/refarm --run",
+				"  $ refarm agent finish --profile affected --run --json",
 				"  $ refarm agent finish --run --next-command",
 				"",
 				"Notes:",
 				"  Without --run this command only prints the commands a coding agent should run.",
 				"  --profile quick is the default end-of-slice gate.",
 				"  --profile package adds existing package scripts: type-check, lint, build.",
+				"  --profile affected adds package scripts for changed Git workspaces.",
 				"  --fix adds refarm tidy imports before the check-only verification steps.",
 				"  --run executes selected commands, stops at the first failure, and does not commit changes.",
 			].join("\n"),

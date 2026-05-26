@@ -91,6 +91,7 @@ refarm agent finish --json
 refarm agent finish --next-command
 refarm agent finish --run --json
 refarm agent finish --run --next-command
+refarm agent finish --profile affected --run --json
 ```
 
 The default plan is check-only: import organization check, health audit, then
@@ -109,6 +110,13 @@ while the default `finish --run` path should remain a verification-only signal.
 If a finish run fails, `nextCommand` should forward the failing command's
 recovery command, such as `refarm runtime start --wait`, instead of the whole
 plan.
+
+For code-editing slices, prefer `--profile affected` when Git status is the
+source of truth. It keeps the default check-only finish gate and appends
+package-level `type-check`, `lint`, and `build` scripts for changed workspaces
+that have those scripts. Use `--profile package --workspace <dir>` when the
+affected package is known explicitly or when validating a package without a Git
+diff.
 
 Each plan step declares an `effect`:
 

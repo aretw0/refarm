@@ -81,6 +81,19 @@ describe("GitStatusContextProvider", () => {
 		expect(affected?.content).toContain("- apps/refarm");
 		expect(affected?.content).not.toContain("- .");
 	});
+
+	it("does not suggest root package validation for repository-level changes", async () => {
+		execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		writeFileSync(path.join(tempDir, "package.json"), JSON.stringify({ name: "root" }), "utf8");
+		mkdirSync(path.join(tempDir, "docs"), { recursive: true });
+		writeFileSync(path.join(tempDir, "docs", "guide.md"), "# Guide\n", "utf8");
+
+		const provider = new GitStatusContextProvider();
+		const entries = await provider.provide({ cwd: tempDir });
+
+		const affected = entries.find((entry) => entry.label === "affected_workspaces");
+		expect(affected).toBeUndefined();
+	});
 });
 
 describe("FilesContextProvider", () => {

@@ -37,6 +37,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
+		expect(help).toContain("refarm agent finish --profile affected --run");
 		expect(help).toContain("refarm agent finish --run");
 		expect(help).toContain("refarm agent finish --run --json");
 		expect(help).toContain("refarm agent finish --run --next-command");
@@ -117,6 +118,7 @@ describe("agent command", () => {
 				finishPackagePlanCommand: string;
 				finishPackageRunCommand: string;
 				finishPackageFixRunCommand: string;
+				finishAffectedRunCommand: string;
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -163,6 +165,7 @@ describe("agent command", () => {
 				finishPackagePlanCommand: "refarm agent finish --profile package --workspace <dir> --next-command",
 				finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
 				finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
+				finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",
@@ -175,6 +178,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --next-command");
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
 			"refarm runtime ensure --wait --next-command",
@@ -186,6 +190,7 @@ describe("agent command", () => {
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
 			"refarm agent finish --profile package --workspace <dir> --run --next-command",
+			"refarm agent finish --profile affected --run --next-command",
 		]);
 		logSpy.mockRestore();
 	});
@@ -387,6 +392,99 @@ describe("agent command", () => {
 		const typeCheck = payload.steps.find((step) => step.id === "package-type-check");
 		expect(typeCheck?.command).toBe("npm --prefix apps/refarm run type-check");
 		expect(typeCheck?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
+	it("adds package validation steps for affected git workspaces", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-affected-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(path.join(appDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit", lint: "eslint ." },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export {};\n", "utf8");
+		const originalCwd = process.cwd();
+		process.chdir(appDir);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { cwd?: string } }[];
+			nextCommands: string[];
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"package-apps-refarm-type-check",
+			"package-apps-refarm-lint",
+		]);
+		expect(payload.nextCommands).toContain("npm --prefix apps/refarm run type-check");
+		expect(payload.nextCommands).toContain("npm --prefix apps/refarm run lint");
+		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
+	it("does not add root package scripts for repository-level affected files", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-root-docs-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				name: "root",
+				scripts: { "type-check": "turbo type-check" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		mkdirSync(path.join(root, "docs"), { recursive: true });
+		writeFileSync(path.join(root, "docs", "guide.md"), "# Guide\n", "utf8");
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string }[];
+			nextCommands: string[];
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+		]);
+		expect(payload.nextCommands).not.toContain("npm --prefix . run type-check");
 		logSpy.mockRestore();
 	});
 

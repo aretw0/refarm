@@ -56,7 +56,7 @@ function affectedWorkspaceCandidates(cwd: string, status: string): string[] {
 	const candidates = new Set<string>();
 	for (const changedPath of changedFilePaths(status)) {
 		const workspace = findPackageDir(cwd, changedPath);
-		if (workspace) candidates.add(workspace);
+		if (workspace && workspace !== ".") candidates.add(workspace);
 	}
 	return [...candidates].sort();
 }
