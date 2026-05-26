@@ -37,4 +37,15 @@ describe("splitLaunchCommand", () => {
 			display: "runner -C apps/dev run dev",
 		});
 	});
+
+	it("can carry an explicit working directory", () => {
+		expect(
+			createLaunchProcessSpec("tractor watch", { cwd: "/workspaces/refarm" }),
+		).toEqual({
+			command: "tractor",
+			args: ["watch"],
+			cwd: "/workspaces/refarm",
+			display: "tractor watch",
+		});
+	});
 });

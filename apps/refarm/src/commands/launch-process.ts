@@ -1,20 +1,23 @@
-import { spawn } from "node:child_process";
 import { splitCommandLine } from "@refarm.dev/cli/command-line";
+import { spawn } from "node:child_process";
 import type { PackageManagerName } from "./package-manager.js";
 
 export interface LaunchProcessSpec {
 	packageManager?: PackageManagerName;
 	command: string;
 	args: string[];
+	cwd?: string;
 	display: string;
 }
 
 export function createLaunchProcessSpec(
 	commandDisplay: string,
+	options: { cwd?: string } = {},
 ): LaunchProcessSpec {
 	const parsed = splitLaunchCommand(commandDisplay);
 	return {
 		...parsed,
+		...(options.cwd ? { cwd: options.cwd } : {}),
 		display: commandDisplay,
 	};
 }
@@ -37,7 +40,7 @@ export function splitLaunchCommand(command: string): {
 export function launchProcess(spec: LaunchProcessSpec): Promise<number> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(spec.command, spec.args, {
-			cwd: process.cwd(),
+			cwd: spec.cwd ?? process.cwd(),
 			stdio: "inherit",
 			env: process.env,
 		});

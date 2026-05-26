@@ -98,7 +98,7 @@ export function runTidyProcess(
 ): Promise<TidyRunResult> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(spec.command, spec.args, {
-			cwd: process.cwd(),
+			cwd: spec.cwd ?? process.cwd(),
 			env: process.env,
 			stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
 		});
