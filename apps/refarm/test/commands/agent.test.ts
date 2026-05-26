@@ -1357,18 +1357,78 @@ describe("agent command", () => {
 			error: string;
 			message: string;
 			nextActions: string[];
+			nextCommands: string[];
 			nextCommand: string;
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "invalid-agent-finish-since-ref",
-			nextCommand: "refarm agent finish --help",
+			nextCommand: "refarm agent finish --profile affected --json",
 		});
 		expect(payload.message).toContain("Could not resolve upstream");
 		expect(payload.message).toContain("--since <ref>");
 		expect(payload.nextActions).toEqual([
+			"Run the dirty-tree affected fallback while choosing an explicit Git ref or configuring upstream.",
 			"Pass an explicit Git ref with `refarm agent finish --profile affected --since <ref> --json`.",
 			"Configure the current branch upstream, then retry `refarm agent finish --profile affected --since upstream --json`.",
+		]);
+		expect(payload.nextCommands).toEqual([
+			"refarm agent finish --profile affected --json",
+			"refarm agent finish --help",
+		]);
+		logSpy.mockRestore();
+	});
+
+	it("preserves run intent in missing upstream JSON recovery", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-run-no-upstream-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "root" }), "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		const originalExitCode = process.exitCode;
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--since",
+				"upstream",
+				"--run",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "invalid-agent-finish-since-ref",
+			nextCommand: "refarm agent finish --profile affected --run --json",
+		});
+		expect(payload.nextCommands).toEqual([
+			"refarm agent finish --profile affected --run --json",
+			"refarm agent finish --help",
 		]);
 		logSpy.mockRestore();
 	});

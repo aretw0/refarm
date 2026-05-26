@@ -695,8 +695,14 @@ function reportAgentFinishOptionError(
 	options: AgentFinishOptions,
 	error = "invalid-agent-finish-options",
 ): void {
+	const fallbackCommand = error === "invalid-agent-finish-since-ref"
+		? options.run
+			? "refarm agent finish --profile affected --run --json"
+			: "refarm agent finish --profile affected --json"
+		: "refarm agent finish --help";
 	const nextActions = error === "invalid-agent-finish-since-ref"
 		? [
+			"Run the dirty-tree affected fallback while choosing an explicit Git ref or configuring upstream.",
 			"Pass an explicit Git ref with `refarm agent finish --profile affected --since <ref> --json`.",
 			"Configure the current branch upstream, then retry `refarm agent finish --profile affected --since upstream --json`.",
 		]
@@ -709,7 +715,10 @@ function reportAgentFinishOptionError(
 			message,
 			nextAction: nextActions[0]!,
 			nextActions,
-			nextCommand: "refarm agent finish --help",
+			nextCommand: fallbackCommand,
+			nextCommands: error === "invalid-agent-finish-since-ref"
+				? [fallbackCommand, "refarm agent finish --help"]
+				: [fallbackCommand],
 		}));
 	} else {
 		console.error(message);
