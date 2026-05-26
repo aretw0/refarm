@@ -37,6 +37,7 @@ import {
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_COMMAND,
 } from "./runtime-recovery.js";
 
@@ -312,7 +313,8 @@ export async function autoStartRuntime(
 
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
-		console.error(chalk.dim(`   Start now:        ${RUNTIME_START_COMMAND}`));
+		console.error(chalk.dim(`   Ensure runtime:   ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`));
+		console.error(chalk.dim(`   Start fallback:   ${RUNTIME_START_COMMAND}`));
 		for (const line of runtimeStartHelpLines(repoRoot)) {
 			console.error(chalk.dim(`   ${line}`));
 		}
@@ -328,7 +330,8 @@ export async function autoStartRuntime(
 	if (mode === "ask") {
 		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
 		if (!confirmed) {
-			console.error(chalk.dim(`\n   Start later:  ${RUNTIME_START_COMMAND}`));
+			console.error(chalk.dim(`\n   Ensure later: ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`));
+			console.error(chalk.dim(`   Start fallback: ${RUNTIME_START_COMMAND}`));
 			console.error(
 				chalk.dim(`   Next action:  ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
 			);

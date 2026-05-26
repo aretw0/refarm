@@ -24,7 +24,8 @@ export function isSidecarUnavailable(message: string): boolean {
 export function printSidecarUnavailable(): void {
 	console.error(chalk.red("✗  Refarm runtime is not running."));
 	console.error(chalk.dim(`   Status:     ${RUNTIME_STATUS_COMMAND}`));
-	console.error(chalk.dim(`   Start now:  ${RUNTIME_START_COMMAND}`));
+	console.error(chalk.dim(`   Ensure:     ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`));
+	console.error(chalk.dim(`   Start:      ${RUNTIME_START_COMMAND}`));
 	console.error(chalk.dim(`   Next:       ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`));
 	console.error(chalk.dim(`   Command:    ${RUNTIME_DOCTOR_NEXT_COMMAND}`));
 	console.error(chalk.dim(`   Diagnose:   ${RUNTIME_DOCTOR_COMMAND}`));

@@ -608,7 +608,10 @@ describe("refarm sessions", () => {
 			expect.stringContaining("Status:     refarm runtime status"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Start now:  refarm runtime start"),
+			expect.stringContaining("Ensure:     refarm runtime ensure --wait --next-command"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Start:      refarm runtime start"),
 		);
 		expect(process.exitCode).toBe(1);
 	});

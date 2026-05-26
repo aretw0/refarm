@@ -30,7 +30,8 @@ describe("sidecar-error", () => {
 		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm runtime is not running");
 		expect(output).toContain("Status:     refarm runtime status");
-		expect(output).toContain("Start now:  refarm runtime start");
+		expect(output).toContain("Ensure:     refarm runtime ensure --wait --next-command");
+		expect(output).toContain("Start:      refarm runtime start");
 		expect(output).toContain("Next:       refarm doctor --next-action");
 		expect(output).toContain("Command:    refarm doctor --next-command");
 		expect(output).toContain("Autostart:  refarm config set runtime.autostart always");
