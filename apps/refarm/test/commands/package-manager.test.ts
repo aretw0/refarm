@@ -105,10 +105,7 @@ describe("package manager command resolution", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand: "refarm tidy imports --dry-run --json",
-			nextCommands: [
-				"refarm tidy imports --dry-run --json",
-				"refarm plugin bundle <plugin.wasm> --dry-run --json",
-			],
+			nextCommands: ["refarm tidy imports --dry-run --json"],
 		});
 	});
 

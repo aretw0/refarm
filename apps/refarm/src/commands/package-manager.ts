@@ -120,7 +120,7 @@ export function createPackageManagerCommand(deps?: {
 						command: "package-manager",
 						operation: "current",
 						extra: status,
-						nextCommands: Object.values(status.handoffs),
+						nextCommands: [status.handoffs.tidyImportsDryRun],
 					}),
 				);
 				return;
