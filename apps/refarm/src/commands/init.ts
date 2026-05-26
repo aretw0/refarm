@@ -145,6 +145,7 @@ export const initCommand = new Command("init")
     }
 
     if (opts.json) {
+      const sowCommand = workspaceCommand(projectDir, "refarm sow --json");
       const modelCurrentCommand = workspaceCommand(projectDir, "refarm model current --json");
       const guideCommand = workspaceCommand(projectDir, "refarm guide --json");
       printJson(
@@ -157,8 +158,9 @@ export const initCommand = new Command("init")
             "refarm model current",
             "refarm guide",
           ],
-          nextCommand: modelCurrentCommand,
+          nextCommand: sowCommand,
           nextCommands: [
+            sowCommand,
             modelCurrentCommand,
             guideCommand,
           ],
