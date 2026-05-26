@@ -716,6 +716,52 @@ describe("refarm task list/logs/retry/cancel", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("retry prints adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "retry",
+			error: "task-retry-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			action: "retry",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport http",
+			nextCommand: "refarm task status effort-abc --transport http",
+			nextCommands: [
+				"refarm task status effort-abc --transport http",
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("cancel requests cancellation", async () => {
 		const adapter = createMockAdapter({
 			cancel: vi.fn().mockResolvedValue(true),
@@ -828,6 +874,52 @@ describe("refarm task list/logs/retry/cancel", () => {
 			nextCommand: "refarm task status effort-abc --transport file",
 		});
 		expect(payload.nextCommands).toContain("refarm doctor --next-command");
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("cancel prints adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "cancel",
+			error: "task-cancel-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			action: "cancel",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport http",
+			nextCommand: "refarm task status effort-abc --transport http",
+			nextCommands: [
+				"refarm task status effort-abc --transport http",
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
 		expect(session.rememberControl).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();

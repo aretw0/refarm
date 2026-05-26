@@ -102,6 +102,51 @@ function printTaskJsonSuccess<TExtra extends object>(
 	);
 }
 
+function reportTaskControlError(
+	operation: "retry" | "cancel",
+	effortId: string,
+	transport: TaskTransport,
+	err: unknown,
+	opts: { json?: boolean },
+): void {
+	const message = err instanceof Error ? err.message : String(err);
+	const statusCommand = buildTaskStatusCommand(effortId, transport);
+	if (opts.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "task",
+				operation,
+				error: `task-${operation}-failed`,
+				message,
+				nextAction: statusCommand,
+				nextActions: [statusCommand, RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+				nextCommand: statusCommand,
+				nextCommands: [
+					statusCommand,
+					RUNTIME_DOCTOR_NEXT_COMMAND,
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				],
+				extra: {
+					effortId,
+					transport,
+					action: operation,
+					accepted: false,
+				},
+			}),
+		);
+		process.exitCode = 1;
+		return;
+	}
+	console.error(
+		chalk.red(
+			`${operation === "retry" ? "Retry" : "Cancel"} failed for effort ${effortId}: ${message}`,
+		),
+	);
+	console.error(chalk.dim(`  Status:   ${statusCommand}`));
+	console.error(chalk.dim(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`));
+	process.exitCode = 1;
+}
+
 function buildTaskRunCommand(
 	plugin: string,
 	fn: string,
@@ -888,7 +933,15 @@ Notes:
 				adapterResolver,
 			);
 			const statusCommand = buildTaskStatusCommand(effortId, transport);
-			const accepted = await adapter.retry(effortId);
+			let accepted: boolean;
+			try {
+				accepted = await adapter.retry(effortId);
+			} catch (err) {
+				reportTaskControlError("retry", effortId, transport, err, {
+					json: opts.json,
+				});
+				return;
+			}
 			if (!accepted) {
 				if (opts.json) {
 					printJson(
@@ -964,7 +1017,15 @@ Notes:
 				adapterResolver,
 			);
 			const statusCommand = buildTaskStatusCommand(effortId, transport);
-			const accepted = await adapter.cancel(effortId);
+			let accepted: boolean;
+			try {
+				accepted = await adapter.cancel(effortId);
+			} catch (err) {
+				reportTaskControlError("cancel", effortId, transport, err, {
+					json: opts.json,
+				});
+				return;
+			}
 			if (!accepted) {
 				if (opts.json) {
 					printJson(
