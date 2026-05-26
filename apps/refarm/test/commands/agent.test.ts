@@ -34,6 +34,8 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
+		expect(help).toContain("refarm agent finish --lane after-edit --run --json");
+		expect(help).toContain("refarm agent finish --lane before-push --run --json");
 		expect(help).toContain("refarm agent finish --next-command");
 		expect(help).toContain("refarm agent finish --fix --run");
 		expect(help).toContain("refarm agent finish --profile package --workspace apps/refarm --run");
@@ -264,6 +266,7 @@ describe("agent command", () => {
 				profile: string;
 				fix: boolean;
 				includeTests: boolean;
+				lane: string | null;
 				validationScope: string;
 				workspace: string | null;
 			};
@@ -277,6 +280,7 @@ describe("agent command", () => {
 				profile: "quick",
 				fix: false,
 				includeTests: false,
+				lane: null,
 				validationScope: "quick",
 				workspace: null,
 			},
@@ -537,6 +541,7 @@ describe("agent command", () => {
 			selection: {
 				affectedWorkspaces?: string[];
 				includeTests: boolean;
+				lane: string | null;
 				profile: string;
 				validationScope: string;
 			};
@@ -554,6 +559,7 @@ describe("agent command", () => {
 		expect(payload.selection).toMatchObject({
 			profile: "affected",
 			includeTests: false,
+			lane: null,
 			validationScope: "dirtyTree",
 			affectedWorkspaces: ["apps/refarm"],
 		});
@@ -620,6 +626,7 @@ describe("agent command", () => {
 			steps: { id: string; command: string }[];
 			selection: {
 				affectedWorkspaces?: string[];
+				lane: string | null;
 				since: string | null;
 				sinceRef: string | null;
 				validationScope: string;
@@ -635,8 +642,58 @@ describe("agent command", () => {
 		expect(payload.selection).toMatchObject({
 			since: "HEAD~1",
 			sinceRef: "HEAD~1",
+			lane: null,
 			validationScope: "branchRange",
 			affectedWorkspaces: ["apps/refarm"],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("expands the after-edit finish lane to affected dirty-tree validation", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-lane-edit-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(path.join(appDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 1;\n", "utf8");
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--lane",
+				"after-edit",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			selection: {
+				affectedWorkspaces?: string[];
+				lane: string | null;
+				profile: string;
+				validationScope: string;
+			};
+		};
+		expect(payload.selection).toMatchObject({
+			affectedWorkspaces: ["apps/refarm"],
+			lane: "after-edit",
+			profile: "affected",
+			validationScope: "dirtyTree",
 		});
 		logSpy.mockRestore();
 	});
@@ -711,6 +768,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			selection: {
 				affectedWorkspaces?: string[];
+				lane: string | null;
 				since: string | null;
 				sinceRef: string | null;
 				validationScope: string;
@@ -719,8 +777,93 @@ describe("agent command", () => {
 		expect(payload.selection).toMatchObject({
 			since: "upstream",
 			sinceRef: "origin/main",
+			lane: null,
 			validationScope: "branchRange",
 			affectedWorkspaces: ["apps/refarm"],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("expands the before-push finish lane to upstream branch validation", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-lane-push-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(path.join(appDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 1;\n", "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		execFileSync("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], {
+			cwd: root,
+			stdio: "ignore",
+		});
+		execFileSync("git", ["remote", "add", "origin", "https://example.invalid/refarm.git"], {
+			cwd: root,
+			stdio: "ignore",
+		});
+		execFileSync("git", ["branch", "--set-upstream-to=origin/main", "main"], {
+			cwd: root,
+			stdio: "ignore",
+		});
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 2;\n", "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"change app",
+		], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--lane",
+				"before-push",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			selection: {
+				affectedWorkspaces?: string[];
+				lane: string | null;
+				since: string | null;
+				sinceRef: string | null;
+				validationScope: string;
+			};
+		};
+		expect(payload.selection).toMatchObject({
+			affectedWorkspaces: ["apps/refarm"],
+			lane: "before-push",
+			since: "upstream",
+			sinceRef: "origin/main",
+			validationScope: "branchRange",
 		});
 		logSpy.mockRestore();
 	});

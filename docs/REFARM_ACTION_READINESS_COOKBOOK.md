@@ -88,6 +88,8 @@ It prints an ordered plan by default and only executes when `--run` is present:
 
 ```bash
 refarm agent finish --json
+refarm agent finish --lane after-edit --run --json
+refarm agent finish --lane before-push --run --json
 refarm agent finish --next-command
 refarm agent finish --run --json
 refarm agent finish --run --next-command
@@ -120,6 +122,9 @@ to infer the default finish lane from the command catalog:
 - `afterCommit`: branch validation after atomic commits;
 - `beforePush`: final branch-local validation against upstream;
 - `withPackageTests`: opt-in package tests when the slice requires them.
+
+The same names can be passed to `refarm agent finish --lane <name>` as stable
+shortcuts for those recommended commands.
 
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends
@@ -160,6 +165,7 @@ Plan and run envelopes include a `selection` block for deterministic routing:
     "profile": "affected",
     "fix": false,
     "includeTests": false,
+    "lane": "after-edit",
     "since": null,
     "sinceRef": null,
     "validationScope": "dirtyTree",

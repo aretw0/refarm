@@ -112,11 +112,13 @@ interface AgentCommandDeps {
 }
 
 type AgentFinishProfile = "quick" | "package" | "affected";
+type AgentFinishLane = "after-commit" | "after-edit" | "before-push" | "with-package-tests";
 
 interface AgentFinishOptions {
 	fix?: boolean;
 	includeTests?: boolean;
 	json?: boolean;
+	lane?: string;
 	nextAction?: boolean;
 	nextCommand?: boolean;
 	profile?: string;
@@ -128,6 +130,7 @@ interface AgentFinishOptions {
 interface AgentFinishSelection {
 	fix?: boolean;
 	includeTests?: boolean;
+	lane?: AgentFinishLane;
 	profile: AgentFinishProfile;
 	since?: string;
 	sinceRef?: string;
@@ -138,6 +141,7 @@ interface AgentFinishSelectionMetadata {
 	profile: AgentFinishProfile;
 	fix: boolean;
 	includeTests: boolean;
+	lane: AgentFinishLane | null;
 	since: string | null;
 	sinceRef: string | null;
 	validationScope: "branchRange" | "dirtyTree" | "package" | "quick";
@@ -395,6 +399,25 @@ function parseFinishProfile(value: string | undefined): AgentFinishProfile {
 	throw new Error(`Unknown finish profile: ${value}. Use: quick | package | affected`);
 }
 
+function parseFinishLane(value: string | undefined): AgentFinishLane | undefined {
+	if (!value) return undefined;
+	if (value === "after-commit") return "after-commit";
+	if (value === "after-edit") return "after-edit";
+	if (value === "before-push") return "before-push";
+	if (value === "with-package-tests") return "with-package-tests";
+	throw new Error("Unknown finish lane: " + value + ". Use: after-edit | after-commit | before-push | with-package-tests");
+}
+
+function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelection, "fix"> {
+	if (lane === "after-commit" || lane === "before-push") {
+		return { lane, profile: "affected", since: "upstream" };
+	}
+	if (lane === "with-package-tests") {
+		return { lane, includeTests: true, profile: "affected" };
+	}
+	return { lane, profile: "affected" };
+}
+
 function selectedFinishSteps(options: {
 	fix?: boolean;
 	includeTests?: boolean;
@@ -449,6 +472,7 @@ function finishSelectionMetadata(
 		profile: selection.profile,
 		fix: Boolean(selection.fix),
 		includeTests: Boolean(selection.includeTests),
+		lane: selection.lane ?? null,
 		since: selection.profile === "affected" ? selection.since ?? null : null,
 		sinceRef: selection.profile === "affected" ? selection.sinceRef ?? selection.since ?? null : null,
 		validationScope: finishValidationScope(selection),
@@ -604,6 +628,8 @@ Verification:
   $ refarm check --next-command      Print the next executable recovery command
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
+  $ refarm agent finish --lane after-edit --run --json Verify dirty-tree edits
+  $ refarm agent finish --lane before-push --run --json Verify branch changes
   $ refarm agent finish --next-command Print the first verification command
   $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --profile package --workspace apps/refarm --run
@@ -695,6 +721,7 @@ Notes:
 		.option("--fix", "Include import organization before verification")
 		.option("--include-tests", "Include package test scripts for package or affected profiles")
 		.option("--json", "Output machine-readable finish plan")
+		.option("--lane <name>", "Recommended finish lane: after-edit | after-commit | before-push | with-package-tests")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
 		.option("--profile <name>", "Validation profile: quick | package | affected", "quick")
@@ -707,6 +734,8 @@ Notes:
 				"",
 				"Examples:",
 				"  $ refarm agent finish --json",
+				"  $ refarm agent finish --lane after-edit --run --json",
+				"  $ refarm agent finish --lane before-push --run --json",
 				"  $ refarm agent finish --next-command",
 				"  $ refarm agent finish --fix --next-command",
 				"  $ refarm agent finish --run --json",
@@ -721,6 +750,7 @@ Notes:
 				"Notes:",
 				"  Without --run this command only prints the commands a coding agent should run.",
 				"  --profile quick is the default end-of-slice gate.",
+				"  --lane selects a recommended finish command from refarm agent --json.",
 				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --profile affected adds package scripts for changed Git workspaces.",
 				"  --since <ref> lets affected include committed branch changes after atomic commits.",
@@ -732,6 +762,14 @@ Notes:
 		)
 		.action(function (this: Command, actionArg: unknown) {
 			const options = resolveFinishOptions(this, actionArg);
+			let lane: AgentFinishLane | undefined;
+			try {
+				lane = parseFinishLane(options.lane);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				reportAgentFinishOptionError(message, options);
+				return;
+			}
 			let profile: AgentFinishProfile;
 			try {
 				profile = parseFinishProfile(options.profile);
@@ -744,13 +782,19 @@ Notes:
 				reportAgentFinishOptionError("--since only applies to --profile affected.", options);
 				return;
 			}
-			const selection = {
-				fix: options.fix,
-				includeTests: options.includeTests,
-				profile,
-				since: options.since,
-				workspace: options.workspace,
-			};
+			const selection = lane
+				? {
+					...finishSelectionFromLane(lane),
+					fix: options.fix,
+					workspace: options.workspace,
+				}
+				: {
+					fix: options.fix,
+					includeTests: options.includeTests,
+					profile,
+					since: options.since,
+					workspace: options.workspace,
+				};
 			let selectionContext: AgentFinishSelectionContext;
 			try {
 				selectionContext = resolveFinishSelectionContext(selection);
