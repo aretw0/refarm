@@ -140,7 +140,7 @@ conditional coding workflow instruction: when the user asks for code edits, the
 agent should inspect the workspace, keep changes focused, verify before
 reporting completion, and prefer deterministic Refarm handoffs such as
 `refarm package-manager --json` and
-`refarm agent finish --profile affected --run --json`. The prompt avoids
+`refarm agent finish --lane after-edit --run --json`. The prompt avoids
 hardcoding a specific JavaScript package manager; package-manager selection
 remains delegated to Refarm's resolver.
 
@@ -209,6 +209,9 @@ already implemented for rapid iteration once the binary exists.
   branch/worktree against a Git ref.
 - `--since upstream` resolves the current branch upstream locally, so agents can
   validate branch changes without hardcoding `origin/develop` or fetching.
+- `refarm agent finish --lane <name>` provides stable shortcuts for the
+  recommended finish lanes (`after-edit`, `after-commit`, `before-push`, and
+  `with-package-tests`) while keeping the lower-level profile flags available.
 - `GitStatusContextProvider` now emits an `affected_workspaces` context block
   with workspace-relative package candidates and matching package validation
   commands. This lets pi-agent choose the package finish profile from context
