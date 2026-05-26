@@ -426,6 +426,29 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints the next finish command as JSON when requested", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--json", "--next-command"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			nextCommand: string;
+			selection: { validationScope: string };
+			status: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "plan",
+			nextCommand: "refarm tidy imports --check --json",
+			selection: { validationScope: "quick" },
+		});
+		logSpy.mockRestore();
+	});
+
 	it("prints the next fix finish command without executing it", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -483,6 +506,30 @@ describe("agent command", () => {
 			}),
 		]);
 		expect(payload.nextCommands).toContain("refarm agent finish --lane before-push --run --json");
+		logSpy.mockRestore();
+	});
+
+	it("prints the next finish lane command as JSON when requested", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--lanes",
+			"--json",
+			"--next-command",
+		], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			nextCommand: string;
+			status: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "lanes",
+			nextCommand: "refarm agent finish --lane after-edit --run --json",
+		});
 		logSpy.mockRestore();
 	});
 

@@ -148,6 +148,23 @@ function buildAgentNextHandoffEnvelope() {
 	});
 }
 
+function buildAgentFinishLanesEnvelope() {
+	const lanes = agentRuntimePlan.verification.lanes;
+	const commands = lanes.map((lane) => lane.command);
+	return buildJsonSuccessEnvelope({
+		command: "agent",
+		operation: "finish-lanes",
+		nextActions: commands,
+		nextCommands: commands,
+		extra: {
+			action: "finish",
+			status: "lanes",
+			lanes,
+			recommended: agentRuntimePlan.verification.recommended,
+		},
+	});
+}
+
 interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
 	runProcess(step: CommandPlanStep): CommandPlanStepRunResult;
@@ -542,6 +559,20 @@ function runAgentFinishPlan(
 	);
 }
 
+function buildAgentFinishPlanEnvelope(
+	selection: AgentFinishSelection & { affectedWorkspaces?: string[] },
+	affectedWorkspaces?: string[],
+) {
+	return {
+		...buildCommandPlanEnvelope({
+			action: "finish",
+			command: "agent",
+			operation: "finish",
+		}, selectedFinishSteps(selection)),
+		selection: finishSelectionMetadata(selection, affectedWorkspaces),
+	};
+}
+
 function finishSelectionMetadata(
 	selection: AgentFinishSelection,
 	affectedWorkspaces?: string[],
@@ -876,9 +907,17 @@ Notes:
 				}
 				const lanes = agentRuntimePlan.verification.lanes;
 				const commands = lanes.map((lane) => lane.command);
+				if (options.nextCommand && options.json) {
+					printJson(buildAgentFinishLanesEnvelope());
+					return;
+				}
 				if (options.nextCommand) {
 					const [nextCommand] = commands;
 					if (nextCommand) console.log(nextCommand);
+					return;
+				}
+				if (options.nextAction && options.json) {
+					printJson(buildAgentFinishLanesEnvelope());
 					return;
 				}
 				if (options.nextAction) {
@@ -887,18 +926,7 @@ Notes:
 					return;
 				}
 				if (options.json) {
-					printJson(buildJsonSuccessEnvelope({
-						command: "agent",
-						operation: "finish-lanes",
-						nextActions: commands,
-						nextCommands: commands,
-						extra: {
-							action: "finish",
-							status: "lanes",
-							lanes,
-							recommended: agentRuntimePlan.verification.recommended,
-						},
-					}));
+					printJson(buildAgentFinishLanesEnvelope());
 					return;
 				}
 				for (const lane of lanes) {
@@ -993,9 +1021,23 @@ Notes:
 				return;
 			}
 			const nextCommands = plannedFinishCommands(selectionWithAffected);
+			if (options.nextCommand && options.json) {
+				printJson(buildAgentFinishPlanEnvelope(
+					selectionWithAffected,
+					selectionContext.affectedWorkspaces,
+				));
+				return;
+			}
 			if (options.nextCommand) {
 				const [nextCommand] = nextCommands;
 				if (nextCommand) console.log(nextCommand);
+				return;
+			}
+			if (options.nextAction && options.json) {
+				printJson(buildAgentFinishPlanEnvelope(
+					selectionWithAffected,
+					selectionContext.affectedWorkspaces,
+				));
 				return;
 			}
 			if (options.nextAction) {
@@ -1004,17 +1046,10 @@ Notes:
 				return;
 			}
 			if (options.json) {
-				printJson({
-					...buildCommandPlanEnvelope({
-						action: "finish",
-						command: "agent",
-						operation: "finish",
-					}, selectedFinishSteps(selectionWithAffected)),
-					selection: finishSelectionMetadata(
-						selectionWithAffected,
-						selectionContext.affectedWorkspaces,
-					),
-				});
+				printJson(buildAgentFinishPlanEnvelope(
+					selectionWithAffected,
+					selectionContext.affectedWorkspaces,
+				));
 				return;
 			}
 			this.outputHelp();
