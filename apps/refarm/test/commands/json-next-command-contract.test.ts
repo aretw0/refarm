@@ -19,6 +19,7 @@ function commandSourceFiles(dir = COMMANDS_DIR): string[] {
 
 function hasInteractiveSowCommand(value: string): boolean {
 	return /\brefarm sow(?:\b| --(?:github|cloudflare|all)\b)/.test(value) &&
+		!/\brefarm sow\b[^"'`]*--json\b/.test(value) &&
 		!/\brefarm sow --model\b/.test(value);
 }
 
@@ -28,6 +29,16 @@ function hasPlaceholderCommand(value: string): boolean {
 
 function hasReplCommand(value: string): boolean {
 	return /["'`]\/[A-Za-z][^"'`]*["'`]/.test(value);
+}
+
+function generatedExecutableCommands(payloads: {
+	nextCommand?: string | null;
+	nextCommands?: string[];
+}[]): string[] {
+	return payloads.flatMap((payload) =>
+		[payload.nextCommand, ...(payload.nextCommands ?? [])]
+			.filter((command): command is string => typeof command === "string"),
+	);
 }
 
 async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<{
@@ -120,12 +131,13 @@ describe("JSON next command contract", () => {
 			}), ["--json"]),
 		];
 
-		const placeholders = payloads.flatMap((payload) =>
-			[payload.nextCommand, ...(payload.nextCommands ?? [])]
-				.filter((command): command is string => typeof command === "string")
-				.filter((command) => /<[^>]+>/.test(command)),
-		);
+		const commands = generatedExecutableCommands(payloads);
+		const placeholders = commands.filter((command) => /<[^>]+>/.test(command));
+		const interactiveSow = commands.filter(hasInteractiveSowCommand);
+		const replOnly = commands.filter((command) => /^\/[A-Za-z]/.test(command));
 
 		expect(placeholders).toEqual([]);
+		expect(interactiveSow).toEqual([]);
+		expect(replOnly).toEqual([]);
 	});
 });
