@@ -152,6 +152,7 @@ describe("agent command", () => {
 					command: string;
 					description: string;
 					id: string;
+					useWhen: string;
 					validationScope: string;
 				}[];
 			};
@@ -224,6 +225,7 @@ describe("agent command", () => {
 					expect.objectContaining({
 						id: "after-edit",
 						command: "refarm agent finish --lane after-edit --run --json",
+						useWhen: "After source edits, before an atomic commit.",
 						validationScope: "dirtyTree",
 					}),
 					expect.objectContaining({
@@ -239,6 +241,7 @@ describe("agent command", () => {
 					expect.objectContaining({
 						id: "handoffs",
 						command: "refarm agent finish --lane handoffs --run --json",
+						useWhen: "After changing public JSON output, nextCommands, or agent handoffs.",
 						validationScope: "contract",
 					}),
 					expect.objectContaining({
@@ -494,7 +497,7 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
-			lanes: { command: string; id: string; validationScope: string }[];
+			lanes: { command: string; id: string; useWhen: string; validationScope: string }[];
 			nextCommands: string[];
 			recommended: { afterEdit: string };
 		};
@@ -509,6 +512,7 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "after-edit",
 				command: "refarm agent finish --lane after-edit --run --json",
+				useWhen: "After source edits, before an atomic commit.",
 				validationScope: "dirtyTree",
 			}),
 			expect.objectContaining({
@@ -524,6 +528,7 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "handoffs",
 				command: "refarm agent finish --lane handoffs --run --json",
+				useWhen: "After changing public JSON output, nextCommands, or agent handoffs.",
 				validationScope: "contract",
 			}),
 			expect.objectContaining({
@@ -534,6 +539,25 @@ describe("agent command", () => {
 		]);
 		expect(payload.nextCommands).toContain("refarm agent finish --lane before-push --run --json");
 		expect(payload.nextCommands).toContain("refarm agent finish --lane handoffs --run --json");
+		logSpy.mockRestore();
+	});
+
+	it("prints human finish lanes with usage guidance", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--lanes"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith(
+			"after-edit: refarm agent finish --lane after-edit --run --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith("  Validate the current dirty tree after source edits.");
+		expect(logSpy).toHaveBeenCalledWith("  Use when: After source edits, before an atomic commit.");
+		expect(logSpy).toHaveBeenCalledWith(
+			"  Use when: After changing public JSON output, nextCommands, or agent handoffs.",
+		);
 		logSpy.mockRestore();
 	});
 

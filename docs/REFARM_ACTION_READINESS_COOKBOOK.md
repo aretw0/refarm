@@ -147,7 +147,9 @@ shortcuts for those recommended commands; `verification.recommended` already
 uses those lane shortcuts.
 
 For renderers or agents that need labels, `verification.lanes` also lists the
-same lane IDs with command, description, and validation scope metadata.
+same lane IDs with command, description, `useWhen`, and validation scope
+metadata. Use `useWhen` for operator-facing choice prompts and
+`validationScope` for automation policy.
 `verification.finishLanesJsonCommand` points to
 `refarm agent finish --lanes --json`, which exposes the same focused catalog
 without requiring the full agent handoff.

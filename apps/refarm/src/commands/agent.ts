@@ -51,6 +51,7 @@ const agentFinishLaneCatalog = [
 		recommendedKey: "afterEdit",
 		command: "refarm agent finish --lane after-edit --run --json",
 		description: "Validate the current dirty tree after source edits.",
+		useWhen: "After source edits, before an atomic commit.",
 		validationScope: "dirtyTree",
 	},
 	{
@@ -58,6 +59,7 @@ const agentFinishLaneCatalog = [
 		recommendedKey: "afterCommit",
 		command: "refarm agent finish --lane after-commit --run --json",
 		description: "Validate committed branch changes against upstream.",
+		useWhen: "After an atomic commit, before continuing the branch.",
 		validationScope: "branchRange",
 	},
 	{
@@ -65,6 +67,7 @@ const agentFinishLaneCatalog = [
 		recommendedKey: "beforePush",
 		command: "refarm agent finish --lane before-push --run --json",
 		description: "Run final branch-local validation before pushing.",
+		useWhen: "Before pushing a branch with an upstream configured.",
 		validationScope: "branchRange",
 	},
 	{
@@ -72,6 +75,7 @@ const agentFinishLaneCatalog = [
 		recommendedKey: "handoffs",
 		command: "refarm agent finish --lane handoffs --run --json",
 		description: "Validate public JSON handoff contracts after CLI contract changes.",
+		useWhen: "After changing public JSON output, nextCommands, or agent handoffs.",
 		validationScope: "contract",
 	},
 	{
@@ -79,6 +83,7 @@ const agentFinishLaneCatalog = [
 		recommendedKey: "withPackageTests",
 		command: "refarm agent finish --lane with-package-tests --run --json",
 		description: "Validate dirty-tree edits and include package tests.",
+		useWhen: "After source edits that need package test scripts in addition to type/lint/build.",
 		validationScope: "dirtyTree",
 	},
 ] as const;
@@ -92,6 +97,7 @@ const agentFinishLanes = agentFinishLaneCatalog.map((lane) => ({
 	id: lane.id,
 	command: lane.command,
 	description: lane.description,
+	useWhen: lane.useWhen,
 	validationScope: lane.validationScope,
 }));
 const agentFinishRecommended = Object.fromEntries(
@@ -982,6 +988,7 @@ Notes:
 				for (const lane of lanes) {
 					console.log(`${lane.id}: ${lane.command}`);
 					console.log(`  ${lane.description}`);
+					console.log(`  Use when: ${lane.useWhen}`);
 				}
 				return;
 			}
