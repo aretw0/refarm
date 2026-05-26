@@ -46,6 +46,24 @@ function generatedExecutableCommands(payloads: {
 	);
 }
 
+function generatedTemplates(payloads: {
+	verification?: {
+		templates?: {
+			command?: string;
+			parameters?: string[];
+		}[];
+	};
+}[]): { command: string; parameters: string[] }[] {
+	return payloads.flatMap((payload) =>
+		payload.verification?.templates
+			?.filter((template) => typeof template.command === "string")
+			.map((template) => ({
+				command: template.command!,
+				parameters: template.parameters ?? [],
+			})) ?? [],
+	);
+}
+
 function makeReadyStatus(renderer: "tui" | "web") {
 	return {
 		schemaVersion: 1 as const,
@@ -81,17 +99,22 @@ function makeReadyStatus(renderer: "tui" | "web") {
 	};
 }
 
-async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<{
+interface ParsedCommandJson {
 	nextCommand?: string | null;
 	nextCommands?: string[];
-}> {
+	verification?: {
+		templates?: {
+			command?: string;
+			parameters?: string[];
+		}[];
+	};
+}
+
+async function parseCommandJson(command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> }, args: string[]): Promise<ParsedCommandJson> {
 	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	try {
 		await command.parseAsync(args, { from: "user" });
-		return JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
-			nextCommand?: string | null;
-			nextCommands?: string[];
-		};
+		return JSON.parse(String(logSpy.mock.calls[0]?.[0])) as ParsedCommandJson;
 	} finally {
 		logSpy.mockRestore();
 	}
@@ -207,5 +230,39 @@ describe("JSON next command contract", () => {
 		expect(placeholders).toEqual([]);
 		expect(interactiveSow).toEqual([]);
 		expect(replOnly).toEqual([]);
+	});
+
+	it("keeps parameterized generated commands in templates", async () => {
+		const payloads = [
+			await parseCommandJson(createAgentCommand(), ["--json"]),
+		];
+		const commands = generatedExecutableCommands(payloads);
+		const templates = generatedTemplates(payloads);
+		const templateCommands = templates.map((template) => template.command);
+
+		expect(templateCommands).toContain(
+			"refarm agent finish --profile package --workspace <dir> --next-command",
+		);
+		expect(templateCommands).toContain(
+			"refarm agent finish --profile affected --since <ref> --run --json",
+		);
+		expect(commands).not.toContain(
+			"refarm agent finish --profile package --workspace <dir> --next-command",
+		);
+		expect(commands).not.toContain(
+			"refarm agent finish --profile affected --since <ref> --run --json",
+		);
+		expect(templates).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					command: "refarm agent finish --profile package --workspace <dir> --next-command",
+					parameters: ["dir"],
+				}),
+				expect.objectContaining({
+					command: "refarm agent finish --profile affected --since <ref> --run --json",
+					parameters: ["ref"],
+				}),
+			]),
+		);
 	});
 });
