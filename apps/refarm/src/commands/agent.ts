@@ -84,6 +84,7 @@ const agentRuntimePlan = {
 		finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
 		finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
 		finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
+		finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
 	},
 };
 
@@ -96,6 +97,7 @@ type AgentFinishProfile = "quick" | "package" | "affected";
 
 interface AgentFinishOptions {
 	fix?: boolean;
+	includeTests?: boolean;
 	json?: boolean;
 	nextAction?: boolean;
 	nextCommand?: boolean;
@@ -253,18 +255,20 @@ function packageScripts(workspace: string): Record<string, string> {
 	}
 }
 
-function packageFinishSteps(workspace: string): CommandPlanStep[] {
-	return packageFinishStepsForWorkspace(workspace, "package");
+function packageFinishSteps(workspace: string, includeTests = false): CommandPlanStep[] {
+	return packageFinishStepsForWorkspace(workspace, "package", includeTests);
 }
 
 function packageFinishStepsForWorkspace(
 	workspace: string,
 	idPrefix: string,
+	includeTests = false,
 ): CommandPlanStep[] {
 	const scripts = packageScripts(workspace);
 	const candidates = [
 		["type-check", "Run the package TypeScript/type validation."],
 		["lint", "Run the package lint validation."],
+		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
 		["build", "Build the package after source changes."],
 	] as const;
 	return candidates
@@ -277,9 +281,13 @@ function packageFinishStepsForWorkspace(
 		));
 }
 
-function affectedPackageFinishSteps(): CommandPlanStep[] {
+function affectedPackageFinishSteps(includeTests = false): CommandPlanStep[] {
 	return affectedWorkspacesFromGit().flatMap((workspace) =>
-		packageFinishStepsForWorkspace(workspace, `package-${sanitizeStepId(workspace)}`),
+		packageFinishStepsForWorkspace(
+			workspace,
+			`package-${sanitizeStepId(workspace)}`,
+			includeTests,
+		),
 	);
 }
 
@@ -310,6 +318,7 @@ function parseFinishProfile(value: string | undefined): AgentFinishProfile {
 
 function selectedFinishSteps(options: {
 	fix?: boolean;
+	includeTests?: boolean;
 	profile?: AgentFinishProfile;
 	workspace?: string;
 } = {}): CommandPlanStep[] {
@@ -317,16 +326,17 @@ function selectedFinishSteps(options: {
 		? agentFinishSteps
 		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
 	if (options.profile === "package") {
-		return [...steps, ...packageFinishSteps(options.workspace ?? ".")];
+		return [...steps, ...packageFinishSteps(options.workspace ?? ".", options.includeTests)];
 	}
 	if (options.profile === "affected") {
-		return [...steps, ...affectedPackageFinishSteps()];
+		return [...steps, ...affectedPackageFinishSteps(options.includeTests)];
 	}
 	return steps;
 }
 
 function plannedFinishCommands(options: {
 	fix?: boolean;
+	includeTests?: boolean;
 	profile?: AgentFinishProfile;
 	workspace?: string;
 } = {}): string[] {
@@ -337,6 +347,7 @@ function runAgentFinishPlan(
 	deps: AgentCommandDeps,
 	options: {
 		fix?: boolean;
+		includeTests?: boolean;
 		profile?: AgentFinishProfile;
 		workspace?: string;
 	} = {},
@@ -421,6 +432,7 @@ Verification:
   $ refarm agent finish --fix --run Organize imports, then verify
   $ refarm agent finish --profile package --workspace apps/refarm --run
   $ refarm agent finish --profile affected --run
+  $ refarm agent finish --profile affected --include-tests --run
   $ refarm agent finish --run       Execute end-of-slice checks and stop on failure
 
 Plugin lifecycle:
@@ -460,6 +472,7 @@ Notes:
 						"refarm agent finish --fix --next-command",
 						agentRuntimePlan.verification.finishPackagePlanCommand,
 						agentRuntimePlan.verification.finishAffectedRunCommand,
+						agentRuntimePlan.verification.finishAffectedTestRunCommand,
 					],
 					nextCommands: [
 						"refarm check --next-command",
@@ -473,6 +486,7 @@ Notes:
 						"refarm agent finish --fix --next-command",
 						agentRuntimePlan.verification.finishPackageRunCommand,
 						agentRuntimePlan.verification.finishAffectedRunCommand,
+						agentRuntimePlan.verification.finishAffectedTestRunCommand,
 					],
 					extra: {
 						action: "agent",
@@ -490,6 +504,7 @@ Notes:
 		.command("finish")
 		.description("Print the end-of-slice verification plan for coding agents")
 		.option("--fix", "Include import organization before verification")
+		.option("--include-tests", "Include package test scripts for package or affected profiles")
 		.option("--json", "Output machine-readable finish plan")
 		.option("--next-action", "Print the first finish action or failing recovery action")
 		.option("--next-command", "Print the first finish command or failing recovery command")
@@ -509,6 +524,7 @@ Notes:
 				"  $ refarm agent finish --profile package --workspace apps/refarm --json",
 				"  $ refarm agent finish --profile package --workspace apps/refarm --run",
 				"  $ refarm agent finish --profile affected --run --json",
+				"  $ refarm agent finish --profile affected --include-tests --run --json",
 				"  $ refarm agent finish --run --next-command",
 				"",
 				"Notes:",
@@ -516,6 +532,7 @@ Notes:
 				"  --profile quick is the default end-of-slice gate.",
 				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --profile affected adds package scripts for changed Git workspaces.",
+				"  --include-tests also adds existing package test scripts for package profiles.",
 				"  --fix adds refarm tidy imports before the check-only verification steps.",
 				"  --run executes selected commands, stops at the first failure, and does not commit changes.",
 			].join("\n"),
@@ -533,6 +550,7 @@ Notes:
 			}
 			const selection = {
 				fix: options.fix,
+				includeTests: options.includeTests,
 				profile,
 				workspace: options.workspace,
 			};

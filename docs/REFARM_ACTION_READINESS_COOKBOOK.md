@@ -92,6 +92,7 @@ refarm agent finish --next-command
 refarm agent finish --run --json
 refarm agent finish --run --next-command
 refarm agent finish --profile affected --run --json
+refarm agent finish --profile affected --include-tests --run --json
 ```
 
 The default plan is check-only: import organization check, health audit, then
@@ -117,6 +118,11 @@ package-level `type-check`, `lint`, and `build` scripts for changed workspaces
 that have those scripts. Use `--profile package --workspace <dir>` when the
 affected package is known explicitly or when validating a package without a Git
 diff.
+
+Keep package tests explicit. Add `--include-tests` when the slice needs package
+test scripts in addition to the default `type-check`, `lint`, and `build`
+scripts. This keeps the normal affected profile fast enough for frequent agent
+handoffs while preserving a deterministic test path.
 
 Each plan step declares an `effect`:
 
