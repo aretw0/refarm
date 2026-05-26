@@ -20,14 +20,41 @@ import {
 let stdoutWriteSpy: ReturnType<typeof vi.spyOn>;
 let stderrWriteSpy: ReturnType<typeof vi.spyOn>;
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+const providerEnvKeys = [
+	"MODEL_PROVIDER",
+	"MODEL_DEFAULT_PROVIDER",
+	"OPENAI_API_KEY",
+	"ANTHROPIC_API_KEY",
+	"GROQ_API_KEY",
+	"MISTRAL_API_KEY",
+	"GEMINI_API_KEY",
+	"XAI_API_KEY",
+	"DEEPSEEK_API_KEY",
+	"TOGETHER_API_KEY",
+	"OPENROUTER_API_KEY",
+] as const;
+const originalProviderEnv = Object.fromEntries(
+	providerEnvKeys.map((key) => [key, process.env[key]]),
+) as Record<typeof providerEnvKeys[number], string | undefined>;
 
 beforeEach(() => {
+	for (const key of providerEnvKeys) {
+		delete process.env[key];
+	}
 	stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 	stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 	consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
+	for (const key of providerEnvKeys) {
+		const value = originalProviderEnv[key];
+		if (value === undefined) {
+			delete process.env[key];
+		} else {
+			process.env[key] = value;
+		}
+	}
 	stdoutWriteSpy.mockRestore();
 	stderrWriteSpy.mockRestore();
 	consoleErrorSpy.mockRestore();
@@ -140,6 +167,7 @@ describe("checkSessionReadiness", () => {
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
 
 	beforeEach(() => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		delete process.env.MODEL_PROVIDER;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
