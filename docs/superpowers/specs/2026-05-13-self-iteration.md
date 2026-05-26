@@ -201,6 +201,10 @@ already implemented for rapid iteration once the binary exists.
 - `refarm agent finish --profile package --workspace <dir>` adds package-level
   validation by discovering existing `type-check`, `lint`, and `build` scripts
   through Refarm's package-manager resolver instead of hardcoding pnpm/npm/yarn.
+- `GitStatusContextProvider` now emits an `affected_workspaces` context block
+  with workspace-relative package candidates and matching package validation
+  commands. This lets pi-agent choose the package finish profile from context
+  instead of guessing from raw `git status` output.
 - Remaining work: make the instruction richer when the workspace exposes
   project-specific policies, for example AGENTS.md, Scarecrow policies, or
   package-level policy metadata.
