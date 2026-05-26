@@ -692,6 +692,57 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("reports a JSON recovery when upstream is missing", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-no-upstream-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "root" }), "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		const originalExitCode = process.exitCode;
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--since",
+				"upstream",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			message: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "invalid-agent-finish-since-ref",
+			nextCommand: "refarm agent finish --help",
+		});
+		expect(payload.message).toContain("Could not resolve upstream");
+		expect(payload.message).toContain("--since <ref>");
+		logSpy.mockRestore();
+	});
+
 	it("adds package test scripts only when requested", async () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-tests-"));
 		tempDirs.push(root);

@@ -361,12 +361,19 @@ function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string 
 
 function resolveSinceRef(repoRoot: string, since: string): string {
 	if (since !== "upstream") return since;
-	const upstream = execFileSync(
-		"git",
-		["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-		{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
-	).trim();
-	if (!upstream) throw new Error("Could not resolve upstream for the current branch.");
+	let upstream = "";
+	try {
+		upstream = execFileSync(
+			"git",
+			["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+		).trim();
+	} catch {
+		throw new Error("Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.");
+	}
+	if (!upstream) {
+		throw new Error("Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.");
+	}
 	return upstream;
 }
 
