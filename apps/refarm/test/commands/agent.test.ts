@@ -155,6 +155,12 @@ describe("agent command", () => {
 					useWhen: string;
 					validationScope: string;
 				}[];
+				templates: {
+					command: string;
+					id: string;
+					parameters: string[];
+					useWhen: string;
+				}[];
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -250,6 +256,20 @@ describe("agent command", () => {
 						validationScope: "dirtyTree",
 					}),
 				],
+				templates: expect.arrayContaining([
+					expect.objectContaining({
+						id: "package-workspace-plan",
+						command: "refarm agent finish --profile package --workspace <dir> --next-command",
+						parameters: ["dir"],
+						useWhen: "Validate a known workspace/package directory without using Git status.",
+					}),
+					expect.objectContaining({
+						id: "affected-since-ref-run-json",
+						command: "refarm agent finish --profile affected --since <ref> --run --json",
+						parameters: ["ref"],
+						useWhen: "Validate affected workspaces against an explicit Git ref.",
+					}),
+				]),
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",

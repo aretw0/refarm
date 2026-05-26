@@ -104,6 +104,39 @@ const agentFinishRecommended = Object.fromEntries(
 	agentFinishLaneCatalog.map((lane) => [lane.recommendedKey, lane.command]),
 ) as Record<AgentFinishLaneRecommendedKey, string>;
 
+const agentFinishTemplates = [
+	{
+		id: "package-workspace-plan",
+		command: "refarm agent finish --profile package --workspace <dir> --next-command",
+		parameters: ["dir"],
+		useWhen: "Validate a known workspace/package directory without using Git status.",
+	},
+	{
+		id: "package-workspace-run",
+		command: "refarm agent finish --profile package --workspace <dir> --run --next-command",
+		parameters: ["dir"],
+		useWhen: "Execute validation for a known workspace/package directory.",
+	},
+	{
+		id: "package-workspace-fix-run",
+		command: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
+		parameters: ["dir"],
+		useWhen: "Organize imports, then execute validation for a known workspace/package directory.",
+	},
+	{
+		id: "affected-since-ref-run-json",
+		command: "refarm agent finish --profile affected --since <ref> --run --json",
+		parameters: ["ref"],
+		useWhen: "Validate affected workspaces against an explicit Git ref.",
+	},
+	{
+		id: "affected-since-ref-run-command",
+		command: "refarm agent finish --profile affected --since <ref> --run --next-command",
+		parameters: ["ref"],
+		useWhen: "Print the next recovery command while validating against an explicit Git ref.",
+	},
+] as const;
+
 const agentRuntimePlan = {
 	environment: {
 		packageManager: "refarm package-manager --json",
@@ -166,6 +199,7 @@ const agentRuntimePlan = {
 		finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
 		recommended: agentFinishRecommended,
 		lanes: agentFinishLanes,
+		templates: agentFinishTemplates,
 	},
 };
 

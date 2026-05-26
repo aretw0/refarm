@@ -154,6 +154,11 @@ metadata. Use `useWhen` for operator-facing choice prompts and
 `refarm agent finish --lanes --json`, which exposes the same focused catalog
 without requiring the full agent handoff.
 
+Parameterized finish commands live under `verification.templates`. Those
+entries include the command string, required `parameters`, and `useWhen`
+guidance. Treat them as templates, not executable `nextCommands`; substitute
+the concrete workspace directory or Git ref before execution.
+
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends
 package-level `type-check`, `lint`, and `build` scripts for changed workspaces
