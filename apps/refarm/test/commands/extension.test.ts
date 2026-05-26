@@ -365,9 +365,10 @@ describe("extension command", () => {
 			ok: false,
 			error: "extension-publish-manual",
 			status: "manual",
-			nextAction: "refarm plugin bundle <plugin.wasm>",
+			nextAction: "Package the extension as a WASM plugin before bundling.",
 		});
 		expect(payload.nextActions).toContain("refarm plugin reload '@local/my-tool' --json");
+		expect(payload.nextActions).not.toContain("refarm plugin bundle <plugin.wasm>");
 		expect(payload.nextCommand).toBe("refarm extension list --json");
 		expect(payload.nextCommands).toContain("refarm plugin reload '@local/my-tool' --json");
 		expect(payload.nextCommands).toContain("refarm plugin status --json");

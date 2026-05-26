@@ -322,11 +322,11 @@ function publishExtensionPlan(name: string) {
     operation: "publish",
     error: "extension-publish-manual",
     message: `Publishing local extension '${name}' is not automated yet.`,
-    nextAction: "refarm plugin bundle <plugin.wasm>",
+    nextAction: "Package the extension as a WASM plugin before bundling.",
     nextActions: [
       "refarm extension list",
       reloadCommand,
-      "refarm plugin bundle <plugin.wasm>",
+      "Package the extension as a WASM plugin before bundling.",
       "refarm plugin status",
     ],
     nextCommand: EXTENSION_LIST_JSON_COMMAND,

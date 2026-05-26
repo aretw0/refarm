@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
+import { extensionCommand } from "../../src/commands/extension.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
@@ -31,6 +32,10 @@ function hasInteractiveSowCommand(value: string): boolean {
 
 function hasPlaceholderCommand(value: string): boolean {
 	return /["'`][^"'`]*(?:nextCommand|nextCommands|actionCommand)?[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(value);
+}
+
+function hasCommandLikePlaceholderAction(value: string): boolean {
+	return /["'`]\s*(?:refarm|git|gh|pnpm|npm|yarn|bun|cargo|node)\b[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(value);
 }
 
 function hasReplCommand(value: string): boolean {
@@ -188,6 +193,18 @@ describe("JSON next command contract", () => {
 		expect(violations).toEqual([]);
 	});
 
+	it("keeps command-like placeholders out of static action handoffs", () => {
+		const violations = commandSourceFiles().flatMap((file) => {
+			const source = readFileSync(file, "utf8");
+			return ["nextAction", "nextActions"]
+				.flatMap((property) => propertyBlocks(source, property)
+					.filter(hasCommandLikePlaceholderAction)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+		});
+
+		expect(violations).toEqual([]);
+	});
+
 	it("keeps REPL-only commands out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
@@ -209,6 +226,7 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "handoffs", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "with-package-tests", "--json"]),
+			await parseCommandJson(extensionCommand, ["publish", "my-tool", "--json"]),
 			await parseCommandJson(migrateCommand, ["--dry-run", "--json"]),
 			await parseCommandJson(createPackageManagerCommand({
 				cwd: () => ".",
