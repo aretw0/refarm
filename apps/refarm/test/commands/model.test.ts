@@ -169,6 +169,9 @@ describe("modelCommand", () => {
 				inspectProviders: string;
 				localNoKeyModel: string;
 				openExternalLinks: string;
+				setModel: string;
+				setWorkerModel: string;
+				setMonitorModel: string;
 			};
 			nextCommand: string;
 			nextCommands: string[];
@@ -205,6 +208,9 @@ describe("modelCommand", () => {
 			inspectProviders: "refarm model providers --json",
 			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 			openExternalLinks: "refarm config get operator.openExternalLinks --json",
+			setModel: "refarm model openai/gpt-5.5 --json",
+			setWorkerModel: "refarm model set --scope worker openai/gpt-5.3-codex-spark --json",
+			setMonitorModel: "refarm model set --scope monitor openai/gpt-5.5 --json",
 		});
 
 		logSpy.mockRestore();

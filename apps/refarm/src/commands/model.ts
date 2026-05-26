@@ -26,6 +26,8 @@ import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPENAI_MODEL_JSON_COMMAND,
+	OPENAI_MONITOR_MODEL_JSON_COMMAND,
+	OPENAI_WORKER_MODEL_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
@@ -126,6 +128,9 @@ export interface CurrentModelStatus {
 		inspectProviders: string;
 		localNoKeyModel: string;
 		openExternalLinks: string;
+		setModel: string;
+		setWorkerModel: string;
+		setMonitorModel: string;
 	};
 }
 
@@ -280,10 +285,24 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 	return [];
 }
 
+function currentModelHandoffs(): NonNullable<CurrentModelStatus["handoffs"]> {
+	return {
+		interactive: SOW_INTERACTIVE_COMMAND,
+		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
+		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
+		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
+		setModel: OPENAI_MODEL_JSON_COMMAND,
+		setWorkerModel: OPENAI_WORKER_MODEL_JSON_COMMAND,
+		setMonitorModel: OPENAI_MONITOR_MODEL_JSON_COMMAND,
+	};
+}
+
 function currentModelRecovery(
 	status: Pick<CurrentModelStatus, "credential">,
 ): Pick<CurrentModelStatus, "recommendations" | "handoffs"> {
-	if (status.credential.state !== "missing") return {};
+	if (status.credential.state !== "missing") {
+		return { handoffs: currentModelHandoffs() };
+	}
 	return {
 		recommendations: [
 			{
@@ -294,12 +313,7 @@ function currentModelRecovery(
 				command: SOW_JSON_COMMAND,
 			},
 		],
-		handoffs: {
-			interactive: SOW_INTERACTIVE_COMMAND,
-			inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
-			localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
-			openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
-		},
+		handoffs: currentModelHandoffs(),
 	};
 }
 
