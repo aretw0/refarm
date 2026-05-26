@@ -102,6 +102,9 @@ describe("agent command", () => {
 				finishRunCommand: string;
 				finishFixPlanCommand: string;
 				finishFixRunCommand: string;
+				finishPackagePlanCommand: string;
+				finishPackageRunCommand: string;
+				finishPackageFixRunCommand: string;
 			};
 			nextAction: string;
 			nextActions: string[];
@@ -145,6 +148,9 @@ describe("agent command", () => {
 				finishRunCommand: "refarm agent finish --run --next-command",
 				finishFixPlanCommand: "refarm agent finish --fix --next-command",
 				finishFixRunCommand: "refarm agent finish --fix --run --next-command",
+				finishPackagePlanCommand: "refarm agent finish --profile package --workspace <dir> --next-command",
+				finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
+				finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
 			},
 			nextAction: "refarm check --next-action --json",
 			nextCommand: "refarm check --next-command",
@@ -156,6 +162,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
+		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
 			"refarm runtime ensure --wait --next-command",
@@ -166,6 +173,7 @@ describe("agent command", () => {
 			"refarm config profile coding --local --json",
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
+			"refarm agent finish --profile package --workspace <dir> --run --next-command",
 		]);
 		logSpy.mockRestore();
 	});

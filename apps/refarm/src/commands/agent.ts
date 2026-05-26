@@ -79,6 +79,9 @@ const agentRuntimePlan = {
 		finishRunCommand: "refarm agent finish --run --next-command",
 		finishFixPlanCommand: "refarm agent finish --fix --next-command",
 		finishFixRunCommand: "refarm agent finish --fix --run --next-command",
+		finishPackagePlanCommand: "refarm agent finish --profile package --workspace <dir> --next-command",
+		finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
+		finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
 	},
 };
 
@@ -401,6 +404,7 @@ Notes:
 						"refarm plugin list --json",
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",
+						agentRuntimePlan.verification.finishPackagePlanCommand,
 					],
 					nextCommands: [
 						"refarm check --next-command",
@@ -412,6 +416,7 @@ Notes:
 						agentRuntimePlan.environment.codingProfile,
 						"refarm agent finish --next-command",
 						"refarm agent finish --fix --next-command",
+						agentRuntimePlan.verification.finishPackageRunCommand,
 					],
 					extra: {
 						action: "agent",
