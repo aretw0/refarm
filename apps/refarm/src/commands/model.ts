@@ -25,11 +25,12 @@ import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
+	OPENAI_MODEL_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
@@ -386,6 +387,27 @@ export function buildKnownModelProviders(): KnownModelProvider[] {
 	}));
 }
 
+function printModelValidationErrorJson(input: {
+	error: string;
+	message: string;
+	nextCommand?: string;
+	extra?: Record<string, unknown>;
+}): void {
+	const nextCommand = input.nextCommand ?? MODEL_CURRENT_JSON_COMMAND;
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "model",
+			operation: "mutate",
+			error: input.error,
+			message: input.message,
+			nextAction: nextCommand,
+			nextCommand,
+			nextCommands: [nextCommand, MODEL_PROVIDERS_JSON_COMMAND, LOCAL_MODEL_JSON_COMMAND],
+			extra: input.extra,
+		}),
+	);
+}
+
 export function printKnownModelProviders(): void {
 	console.log(chalk.bold("Known model providers"));
 	for (const provider of buildKnownModelProviders()) {
@@ -422,11 +444,31 @@ export async function setModelRoute(
 	const tokens = await deps.loadTokens();
 	const parsed = parseModelRef(ref, tokens.modelProvider);
 	if (!parsed) {
+		if (options.json) {
+			printModelValidationErrorJson({
+				error: "empty-model-ref",
+				message: "model ref cannot be empty.",
+				nextCommand: LOCAL_MODEL_JSON_COMMAND,
+				extra: { scope },
+			});
+			process.exitCode = 1;
+			return null;
+		}
 		console.error(chalk.red("✗  model ref cannot be empty."));
 		process.exitCode = 1;
 		return null;
 	}
 	if (!parsed.provider) {
+		if (options.json) {
+			printModelValidationErrorJson({
+				error: "model-provider-required",
+				message: `Could not infer provider for model "${parsed.modelId}".`,
+				nextCommand: LOCAL_MODEL_JSON_COMMAND,
+				extra: { scope, modelId: parsed.modelId },
+			});
+			process.exitCode = 1;
+			return null;
+		}
 		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
 		console.error(chalk.dim(`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`));
 		process.exitCode = 1;
@@ -472,11 +514,30 @@ export async function setFallbackModelRoute(
 	}
 	const parsed = parseModelRef(ref, tokens.modelFallbackProvider ?? tokens.modelProvider);
 	if (!parsed) {
+		if (options.json) {
+			printModelValidationErrorJson({
+				error: "empty-fallback-model-ref",
+				message: "fallback model ref cannot be empty.",
+				nextCommand: LOCAL_MODEL_JSON_COMMAND,
+			});
+			process.exitCode = 1;
+			return null;
+		}
 		console.error(chalk.red("✗  fallback model ref cannot be empty."));
 		process.exitCode = 1;
 		return null;
 	}
 	if (!parsed.provider) {
+		if (options.json) {
+			printModelValidationErrorJson({
+				error: "fallback-model-provider-required",
+				message: `Could not infer provider for fallback model "${parsed.modelId}".`,
+				nextCommand: LOCAL_MODEL_JSON_COMMAND,
+				extra: { modelId: parsed.modelId },
+			});
+			process.exitCode = 1;
+			return null;
+		}
 		console.error(chalk.red(`✗  Could not infer provider for fallback model "${parsed.modelId}".`));
 		console.error(chalk.dim(`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`));
 		process.exitCode = 1;
@@ -507,6 +568,15 @@ export async function resetScopedModelRoute(
 	options: { json?: boolean } = {},
 ): Promise<ModelResetMutationResult | null> {
 	if (scope === "default") {
+		if (options.json) {
+			printModelValidationErrorJson({
+				error: "default-route-reset-not-supported",
+				message: "Default route reset is explicit: set the desired provider/model.",
+				nextCommand: OPENAI_MODEL_JSON_COMMAND,
+			});
+			process.exitCode = 1;
+			return null;
+		}
 		console.error(chalk.red("✗  Default route reset is explicit: set the desired provider/model."));
 		console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
 		process.exitCode = 1;
@@ -546,6 +616,15 @@ export async function setModelBaseUrl(
 		return result;
 	}
 	if (!trimmed) {
+		if (options.json) {
+			printModelValidationErrorJson({
+				error: "empty-model-base-url",
+				message: "base URL cannot be empty.",
+				nextCommand: MODEL_CURRENT_JSON_COMMAND,
+			});
+			process.exitCode = 1;
+			return null;
+		}
 		console.error(chalk.red("✗  base URL cannot be empty."));
 		process.exitCode = 1;
 		return null;
@@ -719,6 +798,19 @@ Notes:
 			) => {
 				const scope = parseModelScope(opts.scope);
 				if (!scope) {
+					if (hasJsonOption(opts, command)) {
+						printModelValidationErrorJson({
+							error: "unknown-model-scope",
+							message: `Unknown model scope: ${opts.scope ?? ""}`,
+							nextCommand: MODEL_CURRENT_JSON_COMMAND,
+							extra: {
+								scope: opts.scope ?? "",
+								allowedScopes: MODEL_SCOPES,
+							},
+						});
+						process.exitCode = 1;
+						return;
+					}
 					console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
 					console.error(chalk.dim("   Use: worker, monitor"));
 					process.exitCode = 1;
@@ -794,6 +886,19 @@ Notes:
 			) => {
 				const scope = parseModelScope(opts.scope);
 				if (!scope) {
+					if (hasJsonOption(opts, command)) {
+						printModelValidationErrorJson({
+							error: "unknown-model-scope",
+							message: `Unknown model scope: ${opts.scope ?? ""}`,
+							nextCommand: MODEL_CURRENT_JSON_COMMAND,
+							extra: {
+								scope: opts.scope ?? "",
+								allowedScopes: MODEL_SCOPES,
+							},
+						});
+						process.exitCode = 1;
+						return;
+					}
 					console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
 					console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
 					process.exitCode = 1;

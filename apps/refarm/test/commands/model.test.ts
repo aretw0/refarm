@@ -866,6 +866,69 @@ describe("modelCommand", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("prints structured JSON when model ref is empty", async () => {
+		const deps = makeDeps({ modelProvider: "openai" });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(["set", "", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			message: string;
+			nextCommand: string;
+			nextCommands: string[];
+			scope: string;
+		};
+		expect(payload).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "model",
+				operation: "mutate",
+				error: "empty-model-ref",
+				message: "model ref cannot be empty.",
+				nextCommand: "refarm sow --model ollama/llama3.2 --json",
+				scope: "default",
+			}),
+		);
+		expect(payload.nextCommands).toContain("refarm model providers --json");
+		expect(payload.nextCommands).toContain("refarm sow --model ollama/llama3.2 --json");
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
+
+	it("prints structured JSON when model provider cannot be inferred", async () => {
+		const deps = makeDeps();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(["set", "local-model", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			modelId: string;
+			nextCommand: string;
+		};
+		expect(payload).toEqual(
+			expect.objectContaining({
+				ok: false,
+				error: "model-provider-required",
+				modelId: "local-model",
+				nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			}),
+		);
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
+
 	it("sets exitCode when fallback model ref is empty", async () => {
 		const deps = makeDeps();
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -879,6 +942,30 @@ describe("modelCommand", () => {
 		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints structured JSON when fallback model ref is empty", async () => {
+		const deps = makeDeps();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(["fallback", "", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "model",
+				operation: "mutate",
+				error: "empty-fallback-model-ref",
+				message: "fallback model ref cannot be empty.",
+				nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			}),
+		);
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
 	});
 
 	it("sets exitCode when model scope is invalid", async () => {
@@ -895,5 +982,32 @@ describe("modelCommand", () => {
 		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints structured JSON when model scope is invalid", async () => {
+		const deps = makeDeps();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createModelCommand(deps).parseAsync(
+			["set", "--scope", "planner", "openai/gpt-5.5", "--json"],
+			{ from: "user" },
+		);
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "model",
+				operation: "mutate",
+				error: "unknown-model-scope",
+				message: "Unknown model scope: planner",
+				scope: "planner",
+				allowedScopes: ["default", "worker", "monitor"],
+				nextCommand: "refarm model current --json",
+			}),
+		);
+		expect(deps.saveTokens).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
 	});
 });
