@@ -693,6 +693,46 @@ async function ensurePiAgentReady(
 		if (reload?.reloaded.includes(PI_AGENT_PLUGIN_ID)) return true;
 		const refreshed = await readPluginState();
 		if (refreshed?.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+		if (json && reload?.skipped.includes(PI_AGENT_PLUGIN_ID)) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "ask",
+					operation: "plugin-readiness",
+					error: "pi-agent-reload-failed",
+					message: "pi-agent reload was requested but the runtime skipped it.",
+					nextAction: PI_AGENT_RELOAD_JSON_COMMAND,
+					nextActions: [
+						PI_AGENT_RELOAD_JSON_COMMAND,
+						RUNTIME_START_COMMAND,
+						RUNTIME_DOCTOR_COMMAND,
+					],
+					nextCommand: PI_AGENT_RELOAD_JSON_COMMAND,
+					nextCommands: [
+						PI_AGENT_RELOAD_JSON_COMMAND,
+						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+					],
+					extra: {
+						action: "ask",
+						installed: true,
+						known: state.known.includes(PI_AGENT_PLUGIN_ID),
+						reloaded: reload.reloaded,
+						skipped: reload.skipped,
+						deferred: reload.deferred,
+						recommendations: [
+							{
+								diagnostic: "pi-agent-reload-failed",
+								severity: "failure",
+								summary: "The runtime did not reload pi-agent.",
+								action: "Inspect plugin status and retry pi-agent reload.",
+								command: PI_AGENT_RELOAD_JSON_COMMAND,
+							},
+						],
+					},
+				}),
+			);
+			return false;
+		}
 	}
 
 	if (json) {

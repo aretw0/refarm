@@ -657,6 +657,67 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("reports skipped pi-agent auto-reloads as JSON failures", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: ["@refarm/pi-agent"],
+				loaded: [],
+				known: ["@refarm/pi-agent"],
+			}),
+			reloadPlugins: vi.fn().mockResolvedValue({
+				reloaded: [],
+				deferred: [],
+				skipped: ["@refarm/pi-agent"],
+			}),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			command: "ask",
+			operation: "plugin-readiness",
+			error: "pi-agent-reload-failed",
+			message: "pi-agent reload was requested but the runtime skipped it.",
+			installed: true,
+			known: true,
+			reloaded: [],
+			deferred: [],
+			skipped: ["@refarm/pi-agent"],
+			nextAction: "refarm plugin reload @refarm/pi-agent --json",
+			nextCommand: "refarm plugin reload @refarm/pi-agent --json",
+			nextCommands: [
+				"refarm plugin reload @refarm/pi-agent --json",
+				"refarm runtime ensure --wait --next-command",
+				"refarm doctor --next-command",
+			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "pi-agent-reload-failed",
+					command: "refarm plugin reload @refarm/pi-agent --json",
+				}),
+			],
+		});
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("starts a fresh session for --new even when an old active pointer exists", async () => {
 		const deps = makeDeps({
 			readActiveSessionId: vi
