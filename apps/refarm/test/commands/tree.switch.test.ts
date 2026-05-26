@@ -205,6 +205,44 @@ describe("refarm tree switch and guards", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("prints session switch verification failures as JSON", async () => {
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
+		vi.spyOn(fs, "readFileSync")
+			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
+			.mockReturnValueOnce("urn:refarm:session:v1:other00000001");
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(
+			() => undefined as string | undefined,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "switch",
+			scope: "session",
+			ok: false,
+			error: "session-tree-switch-failed",
+			prefix: "abc123",
+			sessionId: SESSION["@id"],
+			currentSessionIdBefore: "urn:refarm:session:v1:previous0001",
+			nextAction: "refarm tree preview abc123def456 --switch --json",
+			nextCommand: "refarm tree preview abc123def456 --switch --json",
+			nextCommands: [
+				"refarm tree preview abc123def456 --switch --json",
+				"refarm tree list --scope session --json",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it("rejects already-active session tree switches before writing", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
@@ -221,6 +259,38 @@ describe("refarm tree switch and guards", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Session "abc123def456" is already active.'),
 		);
+		expect(process.exitCode).toBe(1);
+		expect(writeSpy).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints already-active session tree switches as JSON", async () => {
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
+		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "switch",
+			scope: "session",
+			ok: false,
+			error: "session-tree-already-active",
+			message: 'Session "abc123def456" is already active.',
+			prefix: "abc123",
+			sessionId: SESSION["@id"],
+			nextAction: "refarm tree show abc123def456 --json",
+			nextCommand: "refarm tree show abc123def456 --json",
+		});
 		expect(process.exitCode).toBe(1);
 		expect(writeSpy).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();

@@ -340,6 +340,21 @@ export async function previewSessionTree(
 	if (!history) return;
 	const branchPointEntryId = opts.at ?? history.session.leaf_entry_id ?? null;
 	if (opts.at && !history.entries.some((entry) => entry.id === opts.at)) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: "preview",
+				error: "session-tree-entry-not-found",
+				message: `No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
+				prefix,
+				nextAction: `refarm tree show ${formatSessionId(history.session["@id"])} --json`,
+				nextCommand: `refarm tree show ${formatSessionId(history.session["@id"])} --json`,
+				extra: {
+					entryId: opts.at,
+					sessionId: history.session["@id"],
+				},
+			});
+			return;
+		}
 		console.error(
 			chalk.red(
 				`✗  No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
@@ -399,6 +414,20 @@ export async function switchSessionTree(
 	const node = createSessionTimelineNode(history.session);
 	const currentSessionIdBefore = readActiveSessionId();
 	if (currentSessionIdBefore === node.nodeId) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: "switch",
+				error: "session-tree-already-active",
+				message: `Session "${node.metadata.shortId}" is already active.`,
+				prefix,
+				nextAction: `refarm tree show ${node.metadata.shortId} --json`,
+				nextCommand: `refarm tree show ${node.metadata.shortId} --json`,
+				extra: {
+					sessionId: node.nodeId,
+				},
+			});
+			return;
+		}
 		console.error(
 			chalk.red(`✗  Session "${node.metadata.shortId}" is already active.`),
 		);
@@ -413,6 +442,25 @@ export async function switchSessionTree(
 		).currentSessionIdAfter;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: "switch",
+				error: "session-tree-switch-failed",
+				message,
+				prefix,
+				nextAction: `refarm tree preview ${node.metadata.shortId} --switch --json`,
+				nextCommand: `refarm tree preview ${node.metadata.shortId} --switch --json`,
+				nextCommands: [
+					`refarm tree preview ${node.metadata.shortId} --switch --json`,
+					TREE_SESSION_LIST_JSON_COMMAND,
+				],
+				extra: {
+					sessionId: node.nodeId,
+					currentSessionIdBefore,
+				},
+			});
+			return;
+		}
 		console.error(chalk.red(`✗  ${message}`));
 		process.exitCode = 1;
 		return;

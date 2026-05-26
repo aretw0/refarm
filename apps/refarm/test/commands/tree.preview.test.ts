@@ -207,13 +207,42 @@ describe("refarm tree preview", () => {
 		const command = createTreeCommand();
 		await command.commands
 			.find((c) => c.name() === "preview")!
-			.parseAsync(["abc123", "--at", "missing-entry", "--json"], {
+			.parseAsync(["abc123", "--at", "missing-entry"], {
 				from: "user",
 			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('No entry "missing-entry"'),
 		);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints missing session preview entries as JSON", async () => {
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--at", "missing-entry", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "preview",
+			scope: "session",
+			ok: false,
+			error: "session-tree-entry-not-found",
+			message: 'No entry "missing-entry" in session abc123def456.',
+			prefix: "abc123",
+			entryId: "missing-entry",
+			sessionId: SESSION["@id"],
+			nextAction: "refarm tree show abc123def456 --json",
+			nextCommand: "refarm tree show abc123def456 --json",
+		});
 		expect(process.exitCode).toBe(1);
 	});
 
