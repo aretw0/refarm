@@ -492,6 +492,7 @@ function buildAskErrorPayload(message: string): {
 			nextActions: [
 				PI_AGENT_INSTALL_COMMAND,
 				"/reload @refarm/pi-agent",
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_START_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 			],
@@ -523,10 +524,10 @@ function buildAskErrorPayload(message: string): {
 			operation: "submit",
 			error: "runtime-unavailable",
 			message,
-			nextAction: RUNTIME_START_COMMAND,
+			nextAction: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			nextActions: [
-				RUNTIME_START_COMMAND,
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				RUNTIME_START_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 			],
 			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -703,6 +704,7 @@ async function ensurePiAgentReady(
 					nextAction: PI_AGENT_RELOAD_JSON_COMMAND,
 					nextActions: [
 						PI_AGENT_RELOAD_JSON_COMMAND,
+						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 						RUNTIME_START_COMMAND,
 						RUNTIME_DOCTOR_COMMAND,
 					],
@@ -749,6 +751,7 @@ async function ensurePiAgentReady(
 					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
 						? ["/reload @refarm/pi-agent"]
 						: [PI_AGENT_INSTALL_COMMAND]),
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
 				],

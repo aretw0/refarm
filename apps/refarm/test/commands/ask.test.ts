@@ -593,7 +593,7 @@ describe("refarm ask", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: false,
 			error: "runtime-unavailable",
-			nextAction: "refarm runtime start",
+			nextAction: "refarm runtime ensure --wait --next-command",
 			nextCommand: "refarm runtime ensure --wait --next-command",
 			nextCommands: [
 				"refarm runtime ensure --wait --next-command",
