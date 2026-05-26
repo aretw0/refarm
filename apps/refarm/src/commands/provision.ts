@@ -46,7 +46,7 @@ function optionIsEnabled(command: Command, name: string): boolean {
 
 function provisionNextActions(): string[] {
 	return [
-		"refarm sow --cloudflare",
+		SOW_CLOUDFLARE_JSON_COMMAND,
 		"refarm provision cloudflare turbo-cache --dry-run",
 		"refarm provision cloudflare turbo-cache --github-secrets",
 	];
@@ -133,7 +133,7 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 		},
 		plan: cloudflareTurboCachePlan(input),
 		nextActions: [
-			"refarm sow --cloudflare",
+			SOW_CLOUDFLARE_JSON_COMMAND,
 			"refarm provision cloudflare turbo-cache --github-secrets",
 		],
 		nextCommands: [

@@ -385,6 +385,9 @@ describe("JSON next command contract", () => {
 			const interactiveSow = commandEntries
 				.filter(({ command }) => hasInteractiveSowCommand(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const actionInteractiveSow = actionEntries
+				.filter(({ action }) => hasInteractiveSowCommand(action))
+				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
@@ -398,6 +401,7 @@ describe("JSON next command contract", () => {
 			expect(placeholders).toEqual([]);
 			expect(actionPlaceholders).toEqual([]);
 			expect(interactiveSow).toEqual([]);
+			expect(actionInteractiveSow).toEqual([]);
 			expect(replOnly).toEqual([]);
 			expect(missingNextActions).toEqual([]);
 			expect(missingNextCommands).toEqual([]);

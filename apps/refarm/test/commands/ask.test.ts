@@ -357,7 +357,7 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "model-credentials-missing",
-			nextAction: "refarm sow",
+			nextAction: "refarm sow --model ollama/llama3.2 --json",
 			nextCommand: "refarm sow --model ollama/llama3.2 --json",
 			handoffs: {
 				interactive: "refarm sow",
@@ -370,7 +370,9 @@ describe("refarm ask", () => {
 		expect(payload.nextActions).toContain(
 			"refarm sow --model ollama/llama3.2 --json",
 		);
+		expect(payload.nextActions).toContain("refarm sow --json");
 		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(payload.nextActions).not.toContain("refarm sow");
 		expect(payload.nextCommands).not.toContain("refarm sow");
 		expect(payload.nextCommands).toContain(
 			"refarm sow --model ollama/llama3.2 --json",
@@ -561,8 +563,14 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "model-provider-unavailable",
 			provider: "openai",
-			nextAction: "refarm sow",
+			nextAction: "refarm model current --json",
 			nextCommand: "refarm model current --json",
+			nextActions: [
+				"refarm model current --json",
+				"refarm model providers --json",
+				"refarm model openai/gpt-5.5 --json",
+				"refarm sow --json",
+			],
 			nextCommands: [
 				"refarm model current --json",
 				"refarm model providers --json",

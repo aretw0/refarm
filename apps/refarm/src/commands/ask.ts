@@ -567,15 +567,15 @@ function buildAskErrorPayload(message: string): {
 			operation: "submit",
 			error: "model-provider-unavailable",
 			message: `Model provider unavailable: ${provider}`,
-			nextAction: provider === "ollama" ? "ollama serve" : SOW_INTERACTIVE_COMMAND,
+			nextAction: providerNextCommands[0]!,
 			nextActions:
 				provider === "ollama"
-					? ["ollama serve", SOW_INTERACTIVE_COMMAND]
+					? ["ollama serve", SOW_JSON_COMMAND]
 					: [
-							SOW_INTERACTIVE_COMMAND,
 							MODEL_CURRENT_JSON_COMMAND,
 							MODEL_PROVIDERS_JSON_COMMAND,
 							OPENAI_MODEL_JSON_COMMAND,
+							SOW_JSON_COMMAND,
 						],
 			nextCommand: providerNextCommands[0],
 			nextCommands: providerNextCommands,
@@ -617,10 +617,10 @@ function printMissingModelCredentials(json: boolean): void {
 				operation: "credentials",
 				error: "model-credentials-missing",
 				message: "No usable model credentials configured.",
-				nextAction: SOW_INTERACTIVE_COMMAND,
+				nextAction: LOCAL_MODEL_JSON_COMMAND,
 				nextActions: [
-					SOW_INTERACTIVE_COMMAND,
 					LOCAL_MODEL_JSON_COMMAND,
+					SOW_JSON_COMMAND,
 					MODEL_CURRENT_JSON_COMMAND,
 					MODEL_PROVIDERS_JSON_COMMAND,
 					"ollama serve",
