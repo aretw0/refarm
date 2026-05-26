@@ -1,5 +1,12 @@
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { formatSessionId } from "./session-ids.js";
 import {
 	readActiveSessionId,
@@ -17,6 +24,8 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineNode,
 } from "./tree-model.js";
+
+const TREE_SESSION_LIST_JSON_COMMAND = "refarm tree list --scope session --json";
 
 interface SessionNode {
 	"@id": string;
@@ -57,6 +66,40 @@ function formatAge(createdAtNs: number | undefined): string {
 	return "just now";
 }
 
+function printSessionTreeErrorJson(input: {
+	operation: "show" | "preview" | "switch" | "fork";
+	error: string;
+	message: string;
+	prefix?: string;
+	matches?: string[];
+	nextAction?: string;
+	nextCommand?: string;
+	nextCommands?: string[];
+	extra?: Record<string, unknown>;
+}): void {
+	const nextAction = input.nextAction ?? TREE_SESSION_LIST_JSON_COMMAND;
+	const nextCommand = input.nextCommand ?? TREE_SESSION_LIST_JSON_COMMAND;
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "tree",
+			operation: input.operation,
+			error: input.error,
+			message: input.message,
+			nextAction,
+			nextActions: [nextAction],
+			nextCommand,
+			nextCommands: input.nextCommands ?? [nextCommand],
+			extra: {
+				scope: REFARM_TREE_SESSION_SCOPE,
+				...(input.prefix ? { prefix: input.prefix } : {}),
+				...(input.matches ? { matches: input.matches } : {}),
+				...(input.extra ?? {}),
+			},
+		}),
+	);
+	process.exitCode = 1;
+}
+
 function createSessionTimelineNode(
 	session: SessionNode,
 ): RefarmSessionTimelineNode {
@@ -86,7 +129,12 @@ async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	return body.sessions ?? [];
 }
 
-async function fetchSessionHistory(prefix: string): Promise<SessionHistory | null> {
+async function fetchSessionHistory(
+	prefix: string,
+	opts: { json?: boolean; operation: "show" | "preview" | "switch" | "fork" } = {
+		operation: "show",
+	},
+): Promise<SessionHistory | null> {
 	const response = await fetch(
 		sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
 	);
@@ -95,11 +143,30 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory | nul
 		matches?: string[];
 	};
 	if (response.status === 404) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "session-tree-node-not-found",
+				message: `No timeline node matching "${prefix}".`,
+				prefix,
+			});
+			return null;
+		}
 		console.error(chalk.red(`✗  No timeline node matching "${prefix}"`));
 		process.exitCode = 1;
 		return null;
 	}
 	if (response.status === 409) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "ambiguous-session-tree-node",
+				message: body.error ?? `Ambiguous timeline node "${prefix}".`,
+				prefix,
+				matches: body.matches ?? [],
+			});
+			return null;
+		}
 		console.error(
 			chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`),
 		);
@@ -109,6 +176,24 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory | nul
 		return null;
 	}
 	if (!response.ok) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "session-tree-history-failed",
+				message: body.error ?? `HTTP ${response.status}`,
+				prefix,
+				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+				nextCommands: [
+					RUNTIME_DOCTOR_NEXT_COMMAND,
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				],
+				extra: {
+					statusCommand: RUNTIME_STATUS_COMMAND,
+				},
+			});
+			return null;
+		}
 		console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
 		process.exitCode = 1;
 		return null;
@@ -190,7 +275,10 @@ export async function showSessionTree(
 ): Promise<void> {
 	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "show",
+		});
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
@@ -237,7 +325,10 @@ export async function previewSessionTree(
 ): Promise<void> {
 	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "preview",
+		});
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
@@ -292,7 +383,10 @@ export async function switchSessionTree(
 ): Promise<void> {
 	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "switch",
+		});
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
@@ -347,7 +441,10 @@ export async function previewSessionSwitchTree(
 ): Promise<void> {
 	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "preview",
+		});
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
