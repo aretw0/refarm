@@ -277,16 +277,14 @@ describe("agent command", () => {
 			"refarm agent finish --json --next-command",
 			"refarm agent finish --next-command",
 			"refarm agent finish --fix --next-command",
-			"refarm agent finish --profile package --workspace <dir> --run --next-command",
 			"refarm agent finish --profile affected --json",
 			"refarm agent finish --profile affected --run --json",
 			"refarm agent finish --profile affected --since upstream --run --json",
-			"refarm agent finish --profile affected --since <ref> --run --json",
 			"refarm agent finish --profile affected --run --next-command",
 			"refarm agent finish --profile affected --since upstream --run --next-command",
-			"refarm agent finish --profile affected --since <ref> --run --next-command",
 			"refarm agent finish --profile affected --include-tests --run --next-command",
 		]);
+		expect(payload.nextCommands.some((command) => /<[^>]+>/.test(command))).toBe(false);
 		logSpy.mockRestore();
 	});
 
