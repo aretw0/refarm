@@ -100,6 +100,7 @@ function makeReadyStatus(renderer: "tui" | "web") {
 }
 
 interface ParsedCommandJson {
+	nextActions?: string[];
 	nextCommand?: string | null;
 	nextCommands?: string[];
 	verification?: {
@@ -238,6 +239,7 @@ describe("JSON next command contract", () => {
 			await parseCommandJson(createAgentCommand(), ["--json"]),
 		];
 		const commands = generatedExecutableCommands(payloads);
+		const actions = payloads.flatMap((payload) => payload.nextActions ?? []);
 		const templates = generatedTemplates(payloads);
 		const templateCommands = templates.map((template) => template.command);
 
@@ -253,6 +255,13 @@ describe("JSON next command contract", () => {
 		expect(commands).not.toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
 		);
+		expect(actions).not.toContain(
+			"refarm agent finish --profile package --workspace <dir> --next-command",
+		);
+		expect(actions).not.toContain(
+			"refarm agent finish --profile affected --since <ref> --run --json",
+		);
+		expect(actions.filter((action) => /<[^>]+>/.test(action))).toEqual([]);
 		expect(templates).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({

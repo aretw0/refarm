@@ -49,7 +49,9 @@ Machine-readable Refarm command output should separate human guidance from
 commands an operator agent can execute directly:
 
 - `nextAction` / `nextActions` describe the next useful operator intent. They
-  may include human language, REPL-only instructions, or manual steps.
+  may include human language, REPL-only instructions, or manual steps. When an
+  action is expressed as a command-like string, keep it concrete; put
+  parameterized variants in explicit template catalogs instead.
 - `nextCommand` / `nextCommands` contain shell-ready commands only. Do not put
   placeholders such as `<url>` or REPL commands such as `/reload` in these
   fields.

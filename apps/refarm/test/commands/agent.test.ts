@@ -289,15 +289,13 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm agent finish --json --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --fix --next-command");
-		expect(payload.nextActions).toContain("refarm agent finish --profile package --workspace <dir> --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since upstream --run --json");
-		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since <ref> --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --run --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since upstream --run --next-command");
-		expect(payload.nextActions).toContain("refarm agent finish --profile affected --since <ref> --run --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --profile affected --include-tests --run --next-command");
+		expect(payload.nextActions.some((action) => /<[^>]+>/.test(action))).toBe(false);
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
 			"refarm runtime ensure --wait --next-command",
