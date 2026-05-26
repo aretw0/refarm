@@ -62,6 +62,10 @@ describe("GitStatusContextProvider", () => {
 		const affected = entries.find((entry) => entry.label === "affected_workspaces");
 		expect(affected?.content).toContain("Changed workspace candidates:");
 		expect(affected?.content).toContain("- apps/refarm");
+		expect(affected?.content).toContain("Preferred aggregate validation command:");
+		expect(affected?.content).toContain(
+			"refarm agent finish --profile affected --run --json",
+		);
 		expect(affected?.content).toContain(
 			"refarm agent finish --profile package --workspace apps/refarm --run --json",
 		);
