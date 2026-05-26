@@ -177,6 +177,7 @@ const agentRuntimePlan = {
 		doctor: "refarm doctor --next-action --json",
 		doctorCommand: "refarm doctor --next-command",
 		tidyCheck: "refarm tidy imports --check --json",
+		finishTemplatesJsonCommand: "refarm agent finish --templates --json",
 		finishLanesJsonCommand: "refarm agent finish --lanes --json",
 		finishLanesNextJsonCommand: "refarm agent finish --lanes --json --next-command",
 		finishPlanJsonCommand: "refarm agent finish --json",
@@ -232,6 +233,23 @@ function buildAgentFinishLanesEnvelope() {
 	});
 }
 
+function buildAgentFinishTemplatesEnvelope() {
+	return buildJsonSuccessEnvelope({
+		command: "agent",
+		operation: "finish-templates",
+		nextAction: "Substitute template parameters before executing a finish command.",
+		nextActions: [
+			"Substitute template parameters before executing a finish command.",
+		],
+		nextCommands: [],
+		extra: {
+			action: "finish",
+			status: "templates",
+			templates: agentRuntimePlan.verification.templates,
+		},
+	});
+}
+
 interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
 	runProcess(step: CommandPlanStep): CommandPlanStepRunResult;
@@ -249,6 +267,7 @@ interface AgentFinishOptions {
 	profile?: string;
 	run?: boolean;
 	since?: string;
+	templates?: boolean;
 	workspace?: string;
 }
 
@@ -576,6 +595,31 @@ function lanesConflictMessage(options: AgentFinishOptions): string | null {
 	return null;
 }
 
+function templatesConflictMessage(options: AgentFinishOptions): string | null {
+	if (options.nextCommand === true) {
+		return "--templates does not provide an executable next command. Use --templates --json or --templates --next-action.";
+	}
+	if (options.run === true) return "--templates cannot be combined with --run.";
+	if (typeof options.lane === "string" && options.lane.length > 0) {
+		return "--templates cannot be combined with --lane. Choose a concrete command after substituting parameters.";
+	}
+	if (options.lanes === true) return "--templates cannot be combined with --lanes. Choose one catalog.";
+	if (typeof options.profile === "string" && options.profile !== "quick") {
+		return "--templates cannot be combined with --profile. It is not profile-specific.";
+	}
+	if (typeof options.since === "string" && options.since.length > 0) {
+		return "--templates cannot be combined with --since. Templates only describe required parameters.";
+	}
+	if (options.includeTests === true) {
+		return "--templates cannot be combined with --include-tests. It only lists command templates.";
+	}
+	if (typeof options.workspace === "string" && options.workspace.length > 0 && options.workspace !== ".") {
+		return "--templates cannot be combined with --workspace. Templates require placeholder substitution.";
+	}
+	if (options.fix === true) return "--templates cannot be combined with --fix. It only lists command templates.";
+	return null;
+}
+
 function selectedFinishSteps(options: {
 	fix?: boolean;
 	includeTests?: boolean;
@@ -820,6 +864,7 @@ Verification:
   $ refarm check --next-command      Print the next executable recovery command
   $ refarm tidy imports --check --json Check import organization
   $ refarm agent finish --json      Print an end-of-slice verification plan
+  $ refarm agent finish --templates --json List parameterized finish templates
   $ refarm agent finish --lanes --json List recommended finish lanes
   $ refarm agent finish --lanes --json --next-command Print first lane as JSON
   $ refarm agent finish --lane after-edit --run --json Verify dirty-tree edits
@@ -885,6 +930,7 @@ Notes:
 						agentRuntimePlan.environment.codingProfile,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
+						agentRuntimePlan.verification.finishTemplatesJsonCommand,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
 						agentRuntimePlan.verification.recommended.handoffs,
@@ -910,6 +956,7 @@ Notes:
 						MODEL_CURRENT_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
 						agentRuntimePlan.environment.codingProfile,
+						agentRuntimePlan.verification.finishTemplatesJsonCommand,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
 						agentRuntimePlan.verification.recommended.handoffs,
@@ -949,6 +996,7 @@ Notes:
 		.option("--profile <name>", "Validation profile: quick | package | affected", "quick")
 		.option("--run", "Execute the finish plan and stop at the first failing step")
 		.option("--since <ref>", "For --profile affected, compare changed files against a Git ref")
+		.option("--templates", "List parameterized finish command templates")
 		.option("--workspace <dir>", "Workspace/package directory for --profile package", ".")
 		.addHelpText(
 			"after",
@@ -958,6 +1006,7 @@ Notes:
 				"  $ refarm agent finish --json",
 				"  $ refarm agent finish --lanes --json",
 				"  $ refarm agent finish --lanes --json --next-command",
+				"  $ refarm agent finish --templates --json",
 				"  $ refarm agent finish --lane after-edit --run --json",
 				"  $ refarm agent finish --lane before-push --run --json",
 				"  $ refarm agent finish --lane handoffs --run --json",
@@ -978,6 +1027,7 @@ Notes:
 				"  --profile quick is the default end-of-slice gate.",
 				"  --lane selects a recommended finish command from refarm agent --json.",
 				"  --lanes prints the same recommended lane catalog without the full agent handoff.",
+				"  --templates prints parameterized commands that require substituting <dir> or <ref>.",
 				"  --profile package adds existing package scripts: type-check, lint, build.",
 				"  --profile affected adds package scripts for changed Git workspaces.",
 				"  --since <ref> lets affected include committed branch changes after atomic commits.",
@@ -1023,6 +1073,31 @@ Notes:
 					console.log(`${lane.id}: ${lane.command}`);
 					console.log(`  ${lane.description}`);
 					console.log(`  Use when: ${lane.useWhen}`);
+				}
+				return;
+			}
+			if (options.templates) {
+				const conflictMessage = templatesConflictMessage(options);
+				if (conflictMessage) {
+					reportAgentFinishOptionError(conflictMessage, options);
+					return;
+				}
+				if (options.nextAction && options.json) {
+					printJson(buildAgentFinishTemplatesEnvelope());
+					return;
+				}
+				if (options.nextAction) {
+					console.log("Substitute template parameters before executing a finish command.");
+					return;
+				}
+				if (options.json) {
+					printJson(buildAgentFinishTemplatesEnvelope());
+					return;
+				}
+				for (const template of agentRuntimePlan.verification.templates) {
+					console.log(`${template.id}: ${template.command}`);
+					console.log(`  Parameters: ${template.parameters.join(", ")}`);
+					console.log(`  Use when: ${template.useWhen}`);
 				}
 				return;
 			}

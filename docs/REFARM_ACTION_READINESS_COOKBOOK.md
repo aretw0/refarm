@@ -102,6 +102,7 @@ It prints an ordered plan by default and only executes when `--run` is present:
 ```bash
 refarm agent --next-command
 refarm agent finish --json
+refarm agent finish --templates --json
 refarm agent finish --lanes --json
 refarm agent finish --lanes --json --next-command
 refarm agent finish --lane after-edit --run --json
@@ -158,6 +159,9 @@ Parameterized finish commands live under `verification.templates`. Those
 entries include the command string, required `parameters`, and `useWhen`
 guidance. Treat them as templates, not executable `nextCommands`; substitute
 the concrete workspace directory or Git ref before execution.
+`verification.finishTemplatesJsonCommand` points to
+`refarm agent finish --templates --json`, which exposes only that template
+catalog when an agent does not need the full handoff payload.
 
 For code-editing slices, prefer `--profile affected` when Git status is the
 source of truth. It keeps the default check-only finish gate and appends

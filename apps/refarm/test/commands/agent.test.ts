@@ -34,6 +34,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm tidy imports --check");
 		expect(help).toContain("refarm tidy imports");
 		expect(help).toContain("refarm agent finish --json");
+		expect(help).toContain("refarm agent finish --templates --json");
 		expect(help).toContain("refarm agent finish --lanes --json");
 		expect(help).toContain("refarm agent finish --lanes --json --next-command");
 		expect(help).toContain("refarm agent finish --lane after-edit --run --json");
@@ -200,6 +201,7 @@ describe("agent command", () => {
 				quick: "refarm check --next-action --json",
 				quickCommand: "refarm check --next-command",
 				tidyCheck: "refarm tidy imports --check --json",
+				finishTemplatesJsonCommand: "refarm agent finish --templates --json",
 				finishLanesJsonCommand: "refarm agent finish --lanes --json",
 				finishLanesNextJsonCommand: "refarm agent finish --lanes --json --next-command",
 				finishPlanJsonCommand: "refarm agent finish --json",
@@ -279,6 +281,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm package-manager --json");
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
+		expect(payload.nextActions).toContain("refarm agent finish --templates --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --lane handoffs --run --json");
@@ -303,6 +306,7 @@ describe("agent command", () => {
 			"refarm model current --json",
 			"refarm package-manager --json",
 			"refarm config profile coding --local --json",
+			"refarm agent finish --templates --json",
 			"refarm agent finish --lanes --json",
 			"refarm agent finish --lanes --json --next-command",
 			"refarm agent finish --lane handoffs --run --json",
@@ -562,6 +566,48 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints finish templates as a focused JSON handoff", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--templates", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			operation: string;
+			status: string;
+			nextAction: string;
+			nextCommand: string | null;
+			nextCommands: string[];
+			templates: { command: string; id: string; parameters: string[]; useWhen: string }[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			operation: "finish-templates",
+			status: "templates",
+			nextAction: "Substitute template parameters before executing a finish command.",
+			nextCommand: null,
+			nextCommands: [],
+		});
+		expect(payload.templates).toEqual(expect.arrayContaining([
+			expect.objectContaining({
+				id: "package-workspace-plan",
+				command: "refarm agent finish --profile package --workspace <dir> --next-command",
+				parameters: ["dir"],
+				useWhen: "Validate a known workspace/package directory without using Git status.",
+			}),
+			expect.objectContaining({
+				id: "affected-since-ref-run-json",
+				command: "refarm agent finish --profile affected --since <ref> --run --json",
+				parameters: ["ref"],
+				useWhen: "Validate affected workspaces against an explicit Git ref.",
+			}),
+		]));
+		logSpy.mockRestore();
+	});
+
 	it("prints human finish lanes with usage guidance", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -577,6 +623,42 @@ describe("agent command", () => {
 		expect(logSpy).toHaveBeenCalledWith("  Use when: After source edits, before an atomic commit.");
 		expect(logSpy).toHaveBeenCalledWith(
 			"  Use when: After changing public JSON output, nextCommands, or agent handoffs.",
+		);
+		logSpy.mockRestore();
+	});
+
+	it("prints human finish templates with substitution guidance", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--templates"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith(
+			"package-workspace-plan: refarm agent finish --profile package --workspace <dir> --next-command",
+		);
+		expect(logSpy).toHaveBeenCalledWith("  Parameters: dir");
+		expect(logSpy).toHaveBeenCalledWith(
+			"  Use when: Validate a known workspace/package directory without using Git status.",
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"affected-since-ref-run-json: refarm agent finish --profile affected --since <ref> --run --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith("  Parameters: ref");
+		logSpy.mockRestore();
+	});
+
+	it("prints finish template next action without JSON", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync(["finish", "--templates", "--next-action"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith(
+			"Substitute template parameters before executing a finish command.",
 		);
 		logSpy.mockRestore();
 	});
@@ -630,6 +712,59 @@ describe("agent command", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			message: "--lanes cannot be combined with --lane. Choose a lane after listing them.",
+			nextCommand: "refarm agent finish --help",
+		});
+		logSpy.mockRestore();
+	});
+
+	it("rejects executable finish template catalog combinations", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync(["finish", "--templates", "--run", "--json"], {
+				from: "user",
+			});
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			message: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			message: "--templates cannot be combined with --run.",
+			nextCommand: "refarm agent finish --help",
+		});
+		logSpy.mockRestore();
+	});
+
+	it("rejects finish template next-command requests", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync(["finish", "--templates", "--next-command", "--json"], {
+				from: "user",
+			});
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			message: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			message:
+				"--templates does not provide an executable next command. Use --templates --json or --templates --next-action.",
 			nextCommand: "refarm agent finish --help",
 		});
 		logSpy.mockRestore();

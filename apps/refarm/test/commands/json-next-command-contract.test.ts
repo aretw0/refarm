@@ -189,6 +189,7 @@ describe("JSON next command contract", () => {
 		const payloads = [
 			await parseCommandJson(createAgentCommand(), ["--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--json"]),
+			await parseCommandJson(createAgentCommand(), ["finish", "--templates", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lanes", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "after-edit", "--json"]),
 			await parseCommandJson(createAgentCommand(), ["finish", "--lane", "handoffs", "--json"]),
