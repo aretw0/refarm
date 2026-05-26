@@ -71,6 +71,17 @@ in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
 human-facing intent and the executable command when a flow is meant to be
 agent-driven.
 
+Run the contract test when touching public JSON handoffs:
+
+```bash
+pnpm --filter @refarm.dev/refarm exec vitest run test/commands/json-next-command-contract.test.ts
+```
+
+It statically rejects placeholders, interactive credential collection, and
+REPL-only commands in executable handoff fields. It also exercises generated
+handoffs from the core agent, model, plugin, provision, renderer, and package
+manager commands.
+
 Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
 filtering, and deduplication for handoff lists. JSON emitters and command-result
 readers should reuse that helper instead of open-coding their own list cleanup.
