@@ -20,6 +20,7 @@ import {
 	CHAT_RUNTIME_COMMANDS_HELP,
 	parseChatLine,
 } from "./chat-repl.js";
+import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	defaultModelDeps,
 	printCurrentModel,
@@ -37,6 +38,11 @@ import {
 	type RuntimePluginState,
 } from "./runtime-plugins.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
+import {
+	autoStartRuntime,
+	defaultLaunchDeps,
+	findRepoRoot,
+} from "./session-launch.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
@@ -66,6 +72,7 @@ export interface ChatDeps {
 	readPluginState?(): Promise<RuntimePluginState | null>;
 	model?: ModelCommandDeps;
 	configureCredentials?(args?: string[]): Promise<void>;
+	recoverRuntime?(): Promise<boolean>;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
 	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
@@ -302,6 +309,7 @@ export function defaultChatDeps(): ChatDeps {
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
 		configureCredentials: runSowCommand,
+		recoverRuntime: () => autoStartRuntime(findRepoRoot(), defaultLaunchDeps()),
 	};
 }
 
@@ -383,7 +391,12 @@ async function runTurn(
 	});
 
 	const submittedAtMs = Date.now();
-	const effortId = await deps.submitEffort(effort);
+	const effortId = await submitEffortWithRuntimeRecovery(effort, {
+		...deps,
+		onRecoveringRuntime: () => {
+			console.error(chalk.yellow("\nRefarm runtime stopped responding."));
+		},
+	});
 
 	const stopSpinner = startThinkingSpinner(deps.spinnerMessage?.bind(deps));
 	let spinnerCleared = false;

@@ -74,17 +74,16 @@ deterministic recovery commands such as `refarm runtime ensure --wait --next-com
 
 ---
 
-## Gap 2 — Crash resilience after auto-start (ADR-065 Phase 3)
+## Gap 2 — Crash resilience after auto-start (ADR-065 Phase 3) — ADDRESSED
 
-If farmhand crashes after being auto-started, the next effort submission gets
-a connection refused. Today there is no recovery path.
+If the selected runtime crashes after the REPL is already open, effort
+submission now detects connection-level sidecar failures, runs the same runtime
+auto-start policy used at session launch, and retries the same effort once after
+recovery. The session ID and readline history remain intact because the REPL was
+already paused for the active turn.
 
-**Target behavior**: on connection refused during an effort submission, pause
-the REPL, print `Farmhand stopped responding — restart? (Y/n)`, and restart
-if confirmed. The session ID is preserved; no history is lost.
-
-**Files to touch**: `chat.ts` — wrap `deps.submitEffort()` in a try/catch that
-detects `ECONNREFUSED`, calls `deps.spawnFarmhand()`, polls until ready, retries.
+Non-connection submission errors, such as runtime HTTP failures, are not treated
+as restart signals; they still surface as normal task/runtime errors.
 
 ---
 
@@ -152,12 +151,11 @@ deterministic install/reload/runtime recovery commands.
 2. Validate first-run devcontainer path end-to-end after a clean rebuild
 
 **Next sprint:**
-3. Crash resilience after runtime failure mid-session (Gap 2)
-4. TUI-backed config surface for no-argument `refarm config`
-5. Package-level validation profiles for coding-agent verification
+3. TUI-backed config surface for no-argument `refarm config`
+4. Package-level validation profiles for coding-agent verification
 
 **After daily-driver milestone:**
-6. TUI mode — `refarm` bare launches a full-screen TUI (already partially
+5. TUI mode — `refarm` bare launches a full-screen TUI (already partially
    implemented in `tui.ts` and `tui-actions.ts`, gated behind `--launch` flag)
 
 ---
