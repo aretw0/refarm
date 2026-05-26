@@ -31,7 +31,7 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -480,6 +480,26 @@ function resolveFinishOptions(self: Command, actionArg: unknown): AgentFinishOpt
 	};
 }
 
+function reportAgentFinishOptionError(
+	message: string,
+	options: AgentFinishOptions,
+	error = "invalid-agent-finish-options",
+): void {
+	if (options.json) {
+		printJson(buildJsonErrorEnvelope({
+			command: "agent",
+			operation: "finish",
+			error,
+			message,
+			nextAction: "Run `refarm agent finish --help` and choose a valid finish profile.",
+			nextCommand: "refarm agent finish --help",
+		}));
+	} else {
+		console.error(message);
+	}
+	process.exitCode = 1;
+}
+
 export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	const resolvedDeps: AgentCommandDeps = {
 		runRefarm: runRefarmCommand,
@@ -648,13 +668,11 @@ Notes:
 				profile = parseFinishProfile(options.profile);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				console.error(message);
-				process.exitCode = 1;
+				reportAgentFinishOptionError(message, options);
 				return;
 			}
 			if (options.since && profile !== "affected") {
-				console.error("--since only applies to --profile affected.");
-				process.exitCode = 1;
+				reportAgentFinishOptionError("--since only applies to --profile affected.", options);
 				return;
 			}
 			const selection = {
@@ -669,8 +687,7 @@ Notes:
 				affectedWorkspaces = resolveAffectedWorkspacesForSelection(selection);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				console.error(message);
-				process.exitCode = 1;
+				reportAgentFinishOptionError(message, options, "invalid-agent-finish-since-ref");
 				return;
 			}
 			const selectionWithAffected = {

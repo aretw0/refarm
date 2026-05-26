@@ -328,6 +328,34 @@ describe("agent command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints finish option errors as JSON when requested", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const originalExitCode = process.exitCode;
+
+		try {
+			await agentCommand.parseAsync(["finish", "--since", "HEAD~1", "--json"], {
+				from: "user",
+			});
+		} finally {
+			process.exitCode = originalExitCode;
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			message: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "invalid-agent-finish-options",
+			message: "--since only applies to --profile affected.",
+			nextCommand: "refarm agent finish --help",
+		});
+		logSpy.mockRestore();
+	});
+
 	it("adds package validation steps from workspace scripts", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
