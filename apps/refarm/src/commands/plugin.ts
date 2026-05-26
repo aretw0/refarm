@@ -585,6 +585,29 @@ async function reloadRuntimePluginCommand(
 	}
 
 	if (options.json) {
+		if (result.skipped.length > 0) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "reload",
+					error: "runtime-plugin-reload-partial",
+					message: "One or more runtime plugins failed to reload.",
+					nextAction: PLUGIN_STATUS_JSON_COMMAND,
+					nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+					nextCommands: [
+						PLUGIN_STATUS_JSON_COMMAND,
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+					],
+					extra: {
+						requested: pluginIds,
+						reloaded: result.reloaded,
+						skipped: result.skipped,
+					},
+				}),
+			);
+			process.exitCode = 1;
+			return;
+		}
 		printJson(
 			buildJsonSuccessEnvelope({
 				command: "plugin",
@@ -606,6 +629,9 @@ async function reloadRuntimePluginCommand(
 	}
 	for (const pluginId of result.skipped) {
 		console.error(`  ✗ ${pluginId} failed to reload`);
+	}
+	if (result.skipped.length > 0) {
+		process.exitCode = 1;
 	}
 	if (result.reloaded.length === 0 && result.skipped.length === 0) {
 		console.log("  No plugins to reload.");
