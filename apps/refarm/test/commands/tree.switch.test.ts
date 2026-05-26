@@ -245,10 +245,10 @@ describe("refarm tree switch and guards", () => {
 		"0",
 		"201",
 		"1abc",
-	])("fails closed for invalid session list limit %s", async (limit) => {
+	])("prints structured JSON for invalid session list limit %s", async (limit) => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
 		await command.commands
@@ -257,8 +257,16 @@ describe("refarm tree switch and guards", () => {
 				from: "user",
 			});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(`Invalid --limit "${limit}"`),
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message: `Invalid --limit "${limit}". Use an integer from 1 to 200.`,
+				limit,
+				nextCommand: "refarm tree list --json",
+			}),
 		);
 		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
@@ -269,8 +277,8 @@ describe("refarm tree switch and guards", () => {
 		"0",
 		"201",
 		"1abc",
-	])("fails closed for invalid all list limit %s", async (limit) => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+	])("prints structured JSON for invalid all list limit %s", async (limit) => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
 		await command.commands
@@ -279,8 +287,16 @@ describe("refarm tree switch and guards", () => {
 				from: "user",
 			});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(`Invalid --limit "${limit}"`),
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message: `Invalid --limit "${limit}". Use an integer from 1 to 200.`,
+				limit,
+				nextCommand: "refarm tree list --json",
+			}),
 		);
 		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
@@ -290,8 +306,8 @@ describe("refarm tree switch and guards", () => {
 		"0",
 		"201",
 		"1abc",
-	])("fails closed for invalid git list limit %s", async (limit) => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+	])("prints structured JSON for invalid git list limit %s", async (limit) => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
 		await command.commands
@@ -300,8 +316,16 @@ describe("refarm tree switch and guards", () => {
 				from: "user",
 			});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(`Invalid --limit "${limit}"`),
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message: `Invalid --limit "${limit}". Use an integer from 1 to 200.`,
+				limit,
+				nextCommand: "refarm tree list --json",
+			}),
 		);
 		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
@@ -327,6 +351,36 @@ describe("refarm tree switch and guards", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("prints structured JSON for unsupported list scopes", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "crdt", "--json"], {
+				from: "user",
+			});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "unsupported-tree-list-scope",
+				message:
+					'refarm tree list currently supports --scope session|git|all; received "crdt".',
+				scope: "crdt",
+				allowedScopes: ["session", "git", "all"],
+				nextCommand: "refarm tree list --scope all --json",
+			}),
+		);
+		expect(process.exitCode).toBe(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it.each([
 		["show", ["abc123", "--scope", "all"]],
 		["preview", ["abc123", "--scope", "all"]],
@@ -344,6 +398,34 @@ describe("refarm tree switch and guards", () => {
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--scope session|git for this operation"),
+		);
+		expect(process.exitCode).toBe(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints structured JSON when all scope is used outside read-only list", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123", "--scope", "all", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "show",
+				error: "unsupported-tree-scope",
+				message:
+					'refarm tree currently supports --scope session|git for this operation; received "all".',
+				scope: "all",
+				allowedScopes: ["session", "git"],
+				nextCommand: "refarm tree list --scope all --json",
+			}),
 		);
 		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
