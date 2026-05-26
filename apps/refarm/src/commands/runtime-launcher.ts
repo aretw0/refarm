@@ -71,12 +71,18 @@ export function resolveRuntimeLaunchCommand(
 
 export function startRuntimeProcess(command: RuntimeLaunchCommand): RuntimeProcess {
 	const outputFd = command.logPath ? openRuntimeStartLog(command.logPath) : "ignore";
-	const child = spawn(command.command, command.args, {
-		detached: true,
-		stdio: ["ignore", outputFd, outputFd],
-	});
-	child.unref();
-	return child;
+	try {
+		const child = spawn(command.command, command.args, {
+			detached: true,
+			stdio: ["ignore", outputFd, outputFd],
+		});
+		child.unref();
+		return child;
+	} finally {
+		if (typeof outputFd === "number") {
+			fs.closeSync(outputFd);
+		}
+	}
 }
 
 function openRuntimeStartLog(logPath: string): number {
