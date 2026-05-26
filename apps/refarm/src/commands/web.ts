@@ -14,7 +14,7 @@ import {
 	openStartMessage,
 } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import { assertLaunchGuardOptions } from "./launch-guards.js";
+import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
 import { launchProcess, type LaunchProcessSpec } from "./launch-process.js";
 import {
@@ -100,6 +100,49 @@ function webActionsSelectCommand(select: string): string {
 		quoteCommandArg(select),
 		"--json",
 	]);
+}
+
+function webLaunchGuardRecoveryCommand(options: WebOptions): string {
+	const launcher = resolveLaunchMode(options.launcher ?? "dev", WEB_LAUNCHER_MODES);
+	return refarmCommand([
+		"web",
+		"--launch",
+		"--launcher",
+		launcher,
+		"--dry-run",
+		"--json",
+	]);
+}
+
+function emitWebLaunchGuardError(options: WebOptions): boolean {
+	const input = {
+		json: options.json,
+		markdown: options.markdown,
+		launch: options.launch,
+		dryRun: options.dryRun,
+		requiresLaunch: [{ enabled: options.open, flag: "--open" }],
+	};
+	const error = resolveLaunchGuardError(input);
+	if (!error) return false;
+	if (!options.json) {
+		assertLaunchGuardOptions(input);
+		return true;
+	}
+	const nextCommand = webLaunchGuardRecoveryCommand(options);
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "web",
+			operation: "launch",
+			error: error.code,
+			message: error.message,
+			nextAction: nextCommand,
+			nextCommand,
+			nextCommands: [nextCommand],
+			extra: error.flag ? { flag: error.flag } : undefined,
+		}),
+	);
+	process.exitCode = 1;
+	return true;
 }
 
 export function createWebCommand(deps?: Partial<WebDeps>): Command {
@@ -189,13 +232,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				return;
 			}
 
-			assertLaunchGuardOptions({
-				json: options.json,
-				markdown: options.markdown,
-				launch: options.launch,
-				dryRun: options.dryRun,
-				requiresLaunch: [{ enabled: options.open, flag: "--open" }],
-			});
+			if (emitWebLaunchGuardError(options)) return;
 
 			const launchMode = resolveLaunchMode(
 				options.launcher ?? "dev",

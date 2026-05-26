@@ -5,7 +5,7 @@ import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import { assertLaunchGuardOptions } from "./launch-guards.js";
+import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
 import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import {
@@ -78,6 +78,51 @@ function tuiActionsSelectCommand(select: string): string {
 		quoteCommandArg(select),
 		"--json",
 	]);
+}
+
+function tuiLaunchGuardRecoveryCommand(options: TuiOptions): string {
+	const launcher = resolveLaunchMode(options.launcher ?? "watch", TUI_LAUNCHER_MODES);
+	return refarmCommand([
+		"tui",
+		"--launch",
+		"--launcher",
+		launcher,
+		"--dry-run",
+		"--json",
+	]);
+}
+
+function emitTuiLaunchGuardError(options: TuiOptions): boolean {
+	const error = resolveLaunchGuardError({
+		json: options.json,
+		markdown: options.markdown,
+		launch: options.launch,
+		dryRun: options.dryRun,
+	});
+	if (!error) return false;
+	if (!options.json) {
+		assertLaunchGuardOptions({
+			json: options.json,
+			markdown: options.markdown,
+			launch: options.launch,
+			dryRun: options.dryRun,
+		});
+		return true;
+	}
+	const nextCommand = tuiLaunchGuardRecoveryCommand(options);
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "tui",
+			operation: "launch",
+			error: error.code,
+			message: error.message,
+			nextAction: nextCommand,
+			nextCommand,
+			nextCommands: [nextCommand],
+		}),
+	);
+	process.exitCode = 1;
+	return true;
 }
 
 export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
@@ -161,12 +206,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				return;
 			}
 
-			assertLaunchGuardOptions({
-				json: options.json,
-				markdown: options.markdown,
-				launch: options.launch,
-				dryRun: options.dryRun,
-			});
+			if (emitTuiLaunchGuardError(options)) return;
 
 			const launchMode = resolveLaunchMode(
 				options.launcher ?? "watch",

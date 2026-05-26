@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assertLaunchGuardOptions } from "../../src/commands/launch-guards.js";
+import {
+	assertLaunchGuardOptions,
+	resolveLaunchGuardError,
+} from "../../src/commands/launch-guards.js";
 
 describe("assertLaunchGuardOptions", () => {
 	it("rejects --json with --markdown", () => {
@@ -47,5 +50,27 @@ describe("assertLaunchGuardOptions", () => {
 				json: true,
 			}),
 		).not.toThrow();
+	});
+});
+
+describe("resolveLaunchGuardError", () => {
+	it("returns structured guard errors without throwing", () => {
+		expect(resolveLaunchGuardError({ launch: true, json: true })).toEqual({
+			code: "launch-json-requires-dry-run",
+			message: "--launch --json requires --dry-run.",
+		});
+		expect(
+			resolveLaunchGuardError({
+				requiresLaunch: [{ enabled: true, flag: "--open" }],
+			}),
+		).toEqual({
+			code: "flag-requires-launch",
+			message: "--open requires --launch.",
+			flag: "--open",
+		});
+	});
+
+	it("returns null for valid guard combinations", () => {
+		expect(resolveLaunchGuardError({ launch: true, dryRun: true, json: true })).toBeNull();
 	});
 });

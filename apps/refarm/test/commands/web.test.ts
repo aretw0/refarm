@@ -488,7 +488,7 @@ describe("webCommand", () => {
 		expect(launch).not.toHaveBeenCalled();
 	});
 
-	it("rejects --launch with --json", async () => {
+	it("rejects --launch with --markdown", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,
 			printStatusSummary,
@@ -497,9 +497,36 @@ describe("webCommand", () => {
 		});
 
 		await expect(
-			command.parseAsync(["--launch", "--json"], { from: "user" }),
-		).rejects.toThrow(/requires --dry-run/);
+			command.parseAsync(["--launch", "--markdown"], { from: "user" }),
+		).rejects.toThrow(/cannot be combined/);
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
+	});
+
+	it("prints structured JSON when --launch --json is missing --dry-run", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "web",
+				operation: "launch",
+				error: "launch-json-requires-dry-run",
+				message: "--launch --json requires --dry-run.",
+				nextCommand: "refarm web --launch --launcher dev --dry-run --json",
+				nextCommands: ["refarm web --launch --launcher dev --dry-run --json"],
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
 	});
 
 	it("rejects --dry-run without --launch", async () => {
