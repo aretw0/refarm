@@ -13,13 +13,19 @@ export class GitStatusContextProvider implements ContextProvider {
 
 	async provide(request: ContextRequest): Promise<ContextEntry[]> {
 		try {
+			const rootResult = await execFileAsync(
+				"git",
+				["rev-parse", "--show-toplevel"],
+				{ cwd: request.cwd },
+			);
+			const gitRoot = rootResult.stdout.trim() || request.cwd;
 			const statusResult = await execFileAsync(
 				"git",
 				["status", "--short", "--untracked-files=all"],
-				{ cwd: request.cwd },
+				{ cwd: gitRoot },
 			);
 			const logResult = await execFileAsync("git", ["log", "--oneline", "-5"], {
-				cwd: request.cwd,
+				cwd: gitRoot,
 			}).catch(() => ({ stdout: "" }));
 			const content = [
 				statusResult.stdout.trim() || "(no changes)",
@@ -29,7 +35,7 @@ export class GitStatusContextProvider implements ContextProvider {
 			].join("\n");
 			const entries: ContextEntry[] = [{ label: "git_status", content, priority: 30 }];
 			const affectedWorkspaces = affectedWorkspaceCandidates(
-				request.cwd,
+				gitRoot,
 				statusResult.stdout,
 			);
 			if (affectedWorkspaces.length > 0) {

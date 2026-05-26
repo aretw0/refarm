@@ -66,6 +66,21 @@ describe("GitStatusContextProvider", () => {
 			"refarm agent finish --profile package --workspace apps/refarm --run --json",
 		);
 	});
+
+	it("reports affected workspaces relative to git root from package subdirs", async () => {
+		execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		const appDir = path.join(tempDir, "apps", "refarm");
+		mkdirSync(appDir, { recursive: true });
+		writeFileSync(path.join(appDir, "package.json"), JSON.stringify({ name: "refarm" }), "utf8");
+		writeFileSync(path.join(appDir, "index.ts"), "export const value = 1;\n", "utf8");
+
+		const provider = new GitStatusContextProvider();
+		const entries = await provider.provide({ cwd: appDir });
+
+		const affected = entries.find((entry) => entry.label === "affected_workspaces");
+		expect(affected?.content).toContain("- apps/refarm");
+		expect(affected?.content).not.toContain("- .");
+	});
 });
 
 describe("FilesContextProvider", () => {
