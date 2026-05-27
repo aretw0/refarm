@@ -181,6 +181,7 @@ export interface RefarmTimelinePreviewEnvelope {
 	nextActions: RefarmExecutionPlanHandoff["nextActions"];
 	nextCommand: RefarmExecutionPlanHandoff["nextCommand"];
 	nextCommands: RefarmExecutionPlanHandoff["nextCommands"];
+	templates: RefarmExecutionPlanHandoff["templates"];
 }
 
 export interface RefarmSessionTimelinePreviewEnvelope

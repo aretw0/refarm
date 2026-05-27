@@ -27,12 +27,22 @@ export interface RefarmExecutionPlanHandoff {
 	nextActions: string[];
 	nextCommand: string | null;
 	nextCommands: string[];
+	templates: Array<{
+		id: string;
+		command: string;
+		parameters: string[];
+		useWhen: string;
+	}>;
 }
 
 export type RefarmExecutionPlanHandoffInput = Pick<
 	RefarmExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
 	"readyToExecute" | "blockedReason" | "recommendedCommand"
 >;
+
+function commandTemplateParameters(command: string): string[] {
+	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
+}
 
 export function formatExecutionPlanReadinessLine(
 	plan: RefarmExecutionPlanReadinessInput,
@@ -56,10 +66,21 @@ export function createExecutionPlanHandoff(
 		? plan.recommendedCommand
 		: plan.blockedReason ?? plan.recommendedCommand;
 	const nextCommands = plan.readyToExecute ? [plan.recommendedCommand] : [];
+	const parameters = commandTemplateParameters(plan.recommendedCommand);
 	return {
 		nextAction,
 		nextActions: nextAction ? [nextAction] : [],
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
+		templates: parameters.length > 0
+			? [
+					{
+						id: "execution-plan-command",
+						command: plan.recommendedCommand,
+						parameters,
+						useWhen: plan.blockedReason ?? "After substituting concrete parameters for the execution plan command.",
+					},
+				]
+			: [],
 	};
 }

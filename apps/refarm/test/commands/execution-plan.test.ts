@@ -42,6 +42,7 @@ describe("execution plan handoffs", () => {
 			nextActions: ["refarm tree switch abc123"],
 			nextCommand: "refarm tree switch abc123",
 			nextCommands: ["refarm tree switch abc123"],
+			templates: [],
 		});
 	});
 
@@ -60,6 +61,14 @@ describe("execution plan handoffs", () => {
 			],
 			nextCommand: null,
 			nextCommands: [],
+			templates: [
+				{
+					id: "execution-plan-command",
+					command: "refarm tree fork --scope git abc123 --name <branch-name>",
+					parameters: ["branch-name"],
+					useWhen: "Provide --name <branch-name> before executing tree fork.",
+				},
+			],
 		});
 	});
 });
