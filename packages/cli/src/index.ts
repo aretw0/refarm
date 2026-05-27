@@ -133,6 +133,7 @@ export type {
 	OperatorResumeFinishSummary,
 	OperatorResumeInput,
 	OperatorResumeModelRoute,
+	OperatorResumeSessionRecord,
 	OperatorResumeRuntimeSummary,
 	OperatorResumeSessionSummary,
 	OperatorResumeSummary,

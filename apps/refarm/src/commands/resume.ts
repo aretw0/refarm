@@ -2,6 +2,7 @@ import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
+	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
 import { Command } from "commander";
 import { loadChatHistory } from "./chat-history.js";
@@ -11,6 +12,7 @@ import {
 	type ResolveStatusPayloadResult,
 } from "./status.js";
 import { readActiveSessionId } from "./session-lock.js";
+import { loadRecentRuntimeSessions } from "./session-history.js";
 import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
@@ -28,6 +30,7 @@ export interface ResumeDeps {
 	sessionRecorder: TaskSessionRecorder;
 	finishRecorder: AgentFinishSessionRecorder;
 	readActiveSessionId(): string | null;
+	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
 }
 
@@ -42,6 +45,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		sessionRecorder: createTaskSessionRecorder(),
 		finishRecorder: createAgentFinishSessionRecorder(),
 		readActiveSessionId,
+		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
 		...deps,
 	};
@@ -78,6 +82,9 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
+	const recentSessions = options.status === false
+		? []
+		: await deps.loadRecentSessions();
 	const statusResult = options.status === false
 		? undefined
 		: await deps.resolveStatusPayload({ renderer: "headless" });
@@ -90,6 +97,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 					status,
 					taskCheckpoint,
 					activeSessionId,
+					recentSessions,
 					recentPrompts,
 					finish,
 				}),
@@ -101,6 +109,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			status,
 			taskCheckpoint,
 			activeSessionId,
+			recentSessions,
 			recentPrompts,
 			finish,
 		});
@@ -109,6 +118,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			status,
 			taskCheckpoint,
 			activeSessionId,
+			recentSessions,
 			recentPrompts,
 			finish,
 		}).nextCommands;

@@ -29,6 +29,16 @@ describe("operator resume", () => {
 		const summary = buildOperatorResumeSummary({
 			status,
 			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+			recentSessions: [
+				{
+					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					shortId: "ef1234567890",
+					name: "planning",
+					hasHistory: true,
+					showCommand: "refarm sessions show ef1234567890 --json",
+					useCommand: "refarm sessions use ef1234567890 --json",
+				},
+			],
 			recentPrompts: ["new prompt", "older prompt"],
 			finish: {
 				updatedAt: "2026-05-27T12:05:00.000Z",
@@ -69,6 +79,16 @@ describe("operator resume", () => {
 				status: "active",
 				shortId: "ef1234567890",
 				showCommand: "refarm tree show ef1234567890 --json",
+				recentSessions: [
+					{
+						sessionId: "urn:refarm:session:v1:abcdef1234567890",
+						shortId: "ef1234567890",
+						name: "planning",
+						hasHistory: true,
+						showCommand: "refarm sessions show ef1234567890 --json",
+						useCommand: "refarm sessions use ef1234567890 --json",
+					},
+				],
 			},
 			recentPrompts: ["new prompt", "older prompt"],
 			finish: {
@@ -130,6 +150,16 @@ describe("operator resume", () => {
 						],
 					},
 					activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+					recentSessions: [
+						{
+							sessionId: "urn:refarm:session:v1:abcdef1234567890",
+							shortId: "ef1234567890",
+							name: "shipping",
+							hasHistory: true,
+							showCommand: "refarm sessions show ef1234567890 --json",
+							useCommand: "refarm sessions use ef1234567890 --json",
+						},
+					],
 					recentPrompts: ["ship it"],
 					finish: {
 						updatedAt: "2026-05-27T12:05:00.000Z",
@@ -142,5 +172,19 @@ describe("operator resume", () => {
 				}),
 			),
 		).toContain("Finish: failed");
+		expect(
+			formatOperatorResumeSummary(
+				buildOperatorResumeSummary({
+					recentSessions: [
+						{
+							sessionId: "urn:refarm:session:v1:abcdef1234567890",
+							name: "shipping",
+							hasHistory: true,
+							showCommand: "refarm sessions show ef1234567890 --json",
+						},
+					],
+				}),
+			),
+		).toContain("Recent sessions:");
 	});
 });

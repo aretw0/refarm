@@ -35,6 +35,16 @@ export interface OperatorResumeCommands {
 	sessionShow: (sessionId: string) => string;
 }
 
+export interface OperatorResumeSessionRecord {
+	sessionId: string;
+	shortId?: string;
+	name?: string | null;
+	createdAtNs?: number | null;
+	hasHistory?: boolean;
+	showCommand?: string;
+	useCommand?: string;
+}
+
 export interface OperatorResumeFinishRecord {
 	updatedAt: string;
 	status: "passed" | "failed";
@@ -52,6 +62,7 @@ export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
 	activeSessionId?: string | null;
+	recentSessions?: readonly OperatorResumeSessionRecord[];
 	recentPrompts?: readonly string[];
 	finish?: OperatorResumeFinishRecord | null;
 	commands?: Partial<OperatorResumeCommands>;
@@ -76,6 +87,7 @@ export interface OperatorResumeSessionSummary {
 	activeSessionId?: string;
 	shortId?: string;
 	showCommand?: string;
+	recentSessions: readonly OperatorResumeSessionRecord[];
 }
 
 export interface OperatorResumeFinishSummary {
@@ -162,6 +174,7 @@ export function buildOperatorResumeSummary(
 			? formatOperatorResumeSessionId(input.activeSessionId)
 			: undefined,
 		showCommand: sessionShowCommand,
+		recentSessions: (input.recentSessions ?? []).slice(0, 5),
 	};
 	const finish: OperatorResumeFinishSummary = input.finish
 		? {
@@ -184,6 +197,7 @@ export function buildOperatorResumeSummary(
 	return {
 		status: runtime ||
 			session.status === "active" ||
+			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
 			(input.recentPrompts?.length ?? 0) > 0 ||
 			finish.status !== "none"
@@ -208,6 +222,8 @@ export function operatorResumeNextCommands(
 	}
 	if (summary.session.showCommand) {
 		nextCommands.push(summary.session.showCommand);
+	} else if (summary.session.recentSessions[0]?.showCommand) {
+		nextCommands.push(summary.session.recentSessions[0].showCommand);
 	}
 	if (summary.finish.status === "failed") {
 		nextCommands.push(...summary.finish.nextCommands);
@@ -263,6 +279,22 @@ export function formatOperatorResumeSummary(
 		}
 	} else {
 		lines.push("Session: none");
+	}
+	if (summary.session.recentSessions.length > 0) {
+		lines.push("Recent sessions:");
+		for (const session of summary.session.recentSessions) {
+			const name = session.name ? ` name=${session.name}` : "";
+			const history = session.hasHistory ? " history=yes" : " history=no";
+			const active =
+				session.sessionId === summary.session.activeSessionId ? " *" : "";
+			lines.push(
+				`  ${active}${session.shortId ?? formatOperatorResumeSessionId(session.sessionId)}${name}${history}`,
+			);
+			if (session.showCommand) lines.push(`    show: ${session.showCommand}`);
+			if (session.useCommand) lines.push(`    use:  ${session.useCommand}`);
+		}
+	} else {
+		lines.push("Recent sessions: none");
 	}
 	if (summary.recentPrompts.length > 0) {
 		lines.push("Recent prompts:");
