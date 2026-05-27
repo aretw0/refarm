@@ -2,6 +2,7 @@ import {
 	openHostBrowserUrl,
 	resolveBrowserOpenSpec,
 } from "@refarm.dev/cli/browser-open";
+import { launchProcess, type LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
@@ -16,7 +17,6 @@ import {
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
-import { launchProcess, type LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,

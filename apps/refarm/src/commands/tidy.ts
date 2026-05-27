@@ -1,3 +1,4 @@
+import type { LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import { Command } from "commander";
 import { spawn } from "node:child_process";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
@@ -6,11 +7,9 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "./json-output.js";
-import type { LaunchProcessSpec } from "./launch-process.js";
 import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
-	type PackageManagerName,
 } from "./package-manager.js";
 
 export interface TidyImportsOptions {
@@ -38,7 +37,7 @@ export interface TidyImportsPlan {
 	action: "imports";
 	check: boolean;
 	files: string[];
-	packageManager: PackageManagerName | null;
+	packageManager: string | null;
 	processCommand: string;
 	processArgs: string[];
 	display: string;

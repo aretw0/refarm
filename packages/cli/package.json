@@ -49,6 +49,10 @@
 		"./operator-resume": {
 			"types": "./dist/operator-resume.d.ts",
 			"import": "./dist/operator-resume.js"
+		},
+		"./launch-process": {
+			"types": "./dist/launch-process.d.ts",
+			"import": "./dist/launch-process.js"
 		}
 	},
 	"scripts": {

@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**90/100**
+**91/100**
 
 Strong enough to use Refarm as the daily development driver while still
 spending regular work on hardening Refarm itself.
@@ -34,6 +34,8 @@ What is already solid:
 - `@refarm.dev/cli` owns status, browser-open, command-line parsing, handoff
   command helpers, JSON output envelopes, command result parsing, and command
   plan execution/envelopes.
+- `@refarm.dev/cli` also owns launch process specs and launcher command parsing,
+  while app commands keep product-specific launch modes and renderer behavior.
 - Execution-plan readiness/handoffs and host action affordance selection now
   live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
   where compatibility is still useful.
@@ -63,8 +65,8 @@ What still blocks the 95/100 product target:
 
 - `apps/refarm`: product commands, human output, final CLI UX.
 - `packages/cli`: reusable CLI primitives, JSON envelopes, handoff commands,
-  command plans, execution plans, action affordances, process specs, status
-  schemas.
+  command plans, execution plans, action affordances, launch process specs,
+  status schemas.
 - `packages/config`: defaults, provider/model/package-manager policy.
 - `farmhand`, runtime, tractor: execution, state, task/plugin lifecycle,
   sandboxing, logs, and recovery behavior.

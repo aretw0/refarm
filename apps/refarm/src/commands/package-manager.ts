@@ -1,3 +1,4 @@
+import type { LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import {
 	PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS,
 	packageBinaryCommand as createSharedPackageBinaryCommand,
@@ -10,7 +11,6 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
-import type { LaunchProcessSpec } from "./launch-process.js";
 
 export type { PackageManagerName } from "@refarm.dev/config";
 export const PACKAGE_MANAGERS = SHARED_PACKAGE_MANAGERS;

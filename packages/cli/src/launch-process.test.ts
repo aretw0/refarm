@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	createLaunchProcessSpec,
 	splitLaunchCommand,
-} from "../../src/commands/launch-process.js";
+} from "./launch-process.js";
 
 describe("splitLaunchCommand", () => {
 	it("splits launcher command into command + args", () => {

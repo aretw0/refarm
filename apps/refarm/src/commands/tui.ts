@@ -1,3 +1,8 @@
+import {
+	createLaunchProcessSpec,
+	launchProcess,
+	type LaunchProcessSpec,
+} from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
@@ -7,7 +12,6 @@ import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
-import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -26,11 +30,7 @@ const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
 export type RefarmTuiLauncherMode = (typeof TUI_LAUNCHER_MODES)[number];
 
-export interface TuiLaunchSpec {
-	command: string;
-	args: string[];
-	display: string;
-}
+export type TuiLaunchSpec = LaunchProcessSpec;
 
 interface TuiOptions {
 	input?: string;

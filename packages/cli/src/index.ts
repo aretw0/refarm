@@ -141,3 +141,11 @@ export type {
 	OperatorResumeTaskRecord,
 	OperatorResumeTaskSummary,
 } from "./operator-resume.js";
+export {
+	createLaunchProcessSpec,
+	launchProcess,
+	splitLaunchCommand,
+} from "./launch-process.js";
+export type {
+	LaunchProcessSpec,
+} from "./launch-process.js";
