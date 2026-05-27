@@ -4,18 +4,18 @@ import {
 	type RefarmStatusJson,
 } from "./status.js";
 
-export const REFARM_RUNTIME_STATUS_COMMAND = "refarm runtime status";
-export const REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND =
+export const RUNTIME_STATUS_COMMAND = "refarm runtime status";
+export const RUNTIME_ENSURE_WAIT_NEXT_COMMAND =
 	"refarm runtime ensure --wait --next-command";
-export const REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND =
+export const RUNTIME_DOCTOR_NEXT_ACTION_COMMAND =
 	"refarm doctor --next-action";
-export const REFARM_RUNTIME_DOCTOR_NEXT_COMMAND =
+export const RUNTIME_DOCTOR_NEXT_COMMAND =
 	"refarm doctor --next-command";
 
-export const REFARM_RUNTIME_NOT_READY_LAUNCH_HINT =
-	` Run \`${REFARM_RUNTIME_STATUS_COMMAND}\`, then \`${REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`.`;
+export const RUNTIME_NOT_READY_LAUNCH_HINT =
+	` Run \`${RUNTIME_STATUS_COMMAND}\`, then \`${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`.`;
 
-export interface RefarmLaunchReadiness {
+export interface LaunchReadiness {
 	readyToExecute: boolean;
 	failures: string[];
 	blockedReason?: string;
@@ -25,7 +25,7 @@ export interface RefarmLaunchReadiness {
 export function resolveLaunchReadiness(
 	json: RefarmStatusJson,
 	target: string,
-): RefarmLaunchReadiness {
+): LaunchReadiness {
 	const diagnostics = classifyRefarmStatusDiagnostics(json);
 	if (diagnostics.failures.length === 0) {
 		return { readyToExecute: true, failures: [], recoveryCommands: [] };
@@ -34,15 +34,15 @@ export function resolveLaunchReadiness(
 		REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
 	);
 	const recoveryHint = runtimeNotReady
-		? REFARM_RUNTIME_NOT_READY_LAUNCH_HINT
-		: ` Run \`${REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\` for the next recovery action.`;
+		? RUNTIME_NOT_READY_LAUNCH_HINT
+		: ` Run \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\` for the next recovery action.`;
 	return {
 		readyToExecute: false,
 		failures: diagnostics.failures,
 		blockedReason: `Cannot launch ${target} due status failures: ${diagnostics.failures.join(", ")}.${recoveryHint}`,
 		recoveryCommands: runtimeNotReady
-			? [REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND, REFARM_RUNTIME_DOCTOR_NEXT_COMMAND]
-			: [REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
+			? [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND]
+			: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND],
 	};
 }
 
@@ -53,3 +53,14 @@ export function assertLaunchAllowed(
 	const readiness = resolveLaunchReadiness(json, target);
 	if (readiness.blockedReason) throw new Error(readiness.blockedReason);
 }
+
+export const REFARM_RUNTIME_STATUS_COMMAND = RUNTIME_STATUS_COMMAND;
+export const REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND =
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND;
+export const REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND =
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND;
+export const REFARM_RUNTIME_DOCTOR_NEXT_COMMAND =
+	RUNTIME_DOCTOR_NEXT_COMMAND;
+export const REFARM_RUNTIME_NOT_READY_LAUNCH_HINT =
+	RUNTIME_NOT_READY_LAUNCH_HINT;
+export type RefarmLaunchReadiness = LaunchReadiness;

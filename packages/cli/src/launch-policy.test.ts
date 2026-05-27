@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	assertLaunchAllowed,
+	REFARM_RUNTIME_STATUS_COMMAND,
+	RUNTIME_STATUS_COMMAND,
 	resolveLaunchReadiness,
 } from "./launch-policy.js";
 import type { RefarmStatusJson } from "./status.js";
@@ -50,6 +52,10 @@ function makeStatus(overrides: Partial<TestStatus> = {}): RefarmStatusJson {
 }
 
 describe("assertLaunchAllowed", () => {
+	it("keeps Refarm command aliases compatible with agnostic names", () => {
+		expect(REFARM_RUNTIME_STATUS_COMMAND).toBe(RUNTIME_STATUS_COMMAND);
+	});
+
 	it("resolves launch readiness and recovery commands without throwing", () => {
 		expect(
 			resolveLaunchReadiness(

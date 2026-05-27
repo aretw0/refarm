@@ -4,6 +4,7 @@ export {
 	resolveLaunchReadiness,
 } from "@refarm.dev/cli/launch-policy";
 export type {
+	LaunchReadiness,
 	RefarmLaunchReadiness,
 } from "@refarm.dev/cli/launch-policy";
 

@@ -36,7 +36,8 @@ What is already solid:
   plan execution/envelopes.
 - `@refarm.dev/cli` also owns launch process specs, launch readiness policy,
   and launcher command parsing, while app commands keep product-specific launch
-  modes and renderer behavior.
+  modes and renderer behavior. The launch policy exposes agnostic primary names
+  with Refarm aliases where compatibility is useful.
 - Execution-plan readiness/handoffs and host action affordance selection now
   live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
   where compatibility is still useful.
