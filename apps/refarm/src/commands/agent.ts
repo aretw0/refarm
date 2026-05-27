@@ -51,11 +51,15 @@ import {
 const AGENT_NEXT_ACTION_COMMAND = "refarm check --next-action --json";
 const AGENT_NEXT_COMMAND = "refarm check --next-command";
 
+function agentFinishCommand(args: string[]): string {
+	return refarmCommand(["agent", "finish", ...args]);
+}
+
 const agentFinishLaneCatalog = [
 	{
 		id: "after-edit",
 		recommendedKey: "afterEdit",
-		command: "refarm agent finish --lane after-edit --run --json",
+		command: agentFinishCommand(["--lane", "after-edit", "--run", "--json"]),
 		description: "Validate the current dirty tree after source edits.",
 		useWhen: "After source edits, before an atomic commit.",
 		validationScope: "dirtyTree",
@@ -63,7 +67,7 @@ const agentFinishLaneCatalog = [
 	{
 		id: "after-commit",
 		recommendedKey: "afterCommit",
-		command: "refarm agent finish --lane after-commit --run --json",
+		command: agentFinishCommand(["--lane", "after-commit", "--run", "--json"]),
 		description: "Validate the most recent atomic commit.",
 		useWhen: "After an atomic commit, before continuing the branch.",
 		validationScope: "lastCommit",
@@ -71,7 +75,7 @@ const agentFinishLaneCatalog = [
 	{
 		id: "before-push",
 		recommendedKey: "beforePush",
-		command: "refarm agent finish --lane before-push --run --json",
+		command: agentFinishCommand(["--lane", "before-push", "--run", "--json"]),
 		description: "Run final branch-local validation before pushing.",
 		useWhen: "Before pushing a branch with an upstream configured.",
 		validationScope: "branchRange",
@@ -79,7 +83,7 @@ const agentFinishLaneCatalog = [
 	{
 		id: "handoffs",
 		recommendedKey: "handoffs",
-		command: "refarm agent finish --lane handoffs --run --json",
+		command: agentFinishCommand(["--lane", "handoffs", "--run", "--json"]),
 		description: "Validate public JSON handoff contracts after CLI contract changes.",
 		useWhen: "After changing public JSON output, nextCommands, or agent handoffs.",
 		validationScope: "contract",
@@ -87,7 +91,12 @@ const agentFinishLaneCatalog = [
 	{
 		id: "with-package-tests",
 		recommendedKey: "withPackageTests",
-		command: "refarm agent finish --lane with-package-tests --run --json",
+		command: agentFinishCommand([
+			"--lane",
+			"with-package-tests",
+			"--run",
+			"--json",
+		]),
 		description: "Validate dirty-tree edits and include package tests.",
 		useWhen: "After source edits that need package test scripts in addition to type/lint/build.",
 		validationScope: "dirtyTree",
@@ -113,31 +122,66 @@ const agentFinishRecommended = Object.fromEntries(
 const agentFinishTemplates = [
 	{
 		id: "package-workspace-plan",
-		command: "refarm agent finish --profile package --workspace <dir> --next-command",
+		command: agentFinishCommand([
+			"--profile",
+			"package",
+			"--workspace",
+			"<dir>",
+			"--next-command",
+		]),
 		parameters: ["dir"],
 		useWhen: "Validate a known workspace/package directory without using Git status.",
 	},
 	{
 		id: "package-workspace-run",
-		command: "refarm agent finish --profile package --workspace <dir> --run --next-command",
+		command: agentFinishCommand([
+			"--profile",
+			"package",
+			"--workspace",
+			"<dir>",
+			"--run",
+			"--next-command",
+		]),
 		parameters: ["dir"],
 		useWhen: "Execute validation for a known workspace/package directory.",
 	},
 	{
 		id: "package-workspace-fix-run",
-		command: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
+		command: agentFinishCommand([
+			"--fix",
+			"--profile",
+			"package",
+			"--workspace",
+			"<dir>",
+			"--run",
+			"--next-command",
+		]),
 		parameters: ["dir"],
 		useWhen: "Organize imports, then execute validation for a known workspace/package directory.",
 	},
 	{
 		id: "affected-since-ref-run-json",
-		command: "refarm agent finish --profile affected --since <ref> --run --json",
+		command: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--since",
+			"<ref>",
+			"--run",
+			"--json",
+		]),
 		parameters: ["ref"],
 		useWhen: "Validate affected workspaces against an explicit Git ref.",
 	},
 	{
 		id: "affected-since-ref-run-command",
-		command: "refarm agent finish --profile affected --since <ref> --run --next-command",
+		command: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--since",
+			"<ref>",
+			"--run",
+			"--next-command",
+		]),
 		parameters: ["ref"],
 		useWhen: "Print the next recovery command while validating against an explicit Git ref.",
 	},
