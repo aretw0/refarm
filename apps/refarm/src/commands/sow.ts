@@ -1,6 +1,9 @@
 import { ExitPromptError } from "@inquirer/core";
 import { hasUsableModelCredential } from "@refarm.dev/config";
-import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
+import {
+	OperatorPromptCancelledError,
+	createStdioOperatorChannel,
+} from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -322,7 +325,9 @@ export const sowCommand = new Command("sow")
 				);
 			}
 		} catch (error) {
-			if (!(error instanceof ExitPromptError)) throw error;
+			if (!(error instanceof ExitPromptError) && !(error instanceof OperatorPromptCancelledError)) {
+				throw error;
+			}
 			console.log(chalk.gray("\n  Cancelled."));
 		}
 	});

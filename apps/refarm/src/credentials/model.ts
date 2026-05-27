@@ -3,7 +3,6 @@ import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import type { CollectContext, CredentialProvider } from "./types.js";
-import { secretInput } from "../prompts/secret-input.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
 import type { OAuthCredentials, OAuthProviderInterface } from "./oauth/index.js";
 
@@ -127,7 +126,11 @@ async function runOAuthFlow(
 async function runApiKeyFlow(ctx: CollectContext, p: typeof API_KEY_PROVIDERS[number]): Promise<ModelCredential> {
 	console.log(chalk.cyan(`\n  Get your key at: ${p.url}`));
 	ctx.tryOpenUrl(p.url);
-	const apiKey = await secretInput({ message: "Paste your API key:" });
+	const apiKey = await operator(ctx).ask({
+		type: "secret",
+		question: "Paste your API key",
+		visibleTail: 4,
+	});
 	const tail = apiKey.slice(-6);
 	console.log(chalk.green(`  ✓ ${p.label} — key saved (...${tail})`));
 	return { provider: p.id, apiKey };

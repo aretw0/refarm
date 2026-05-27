@@ -275,9 +275,6 @@ importers:
       '@inquirer/core':
         specifier: ^11.1.10
         version: 11.1.10(@types/node@25.9.0)
-      '@inquirer/prompts':
-        specifier: ^8.4.3
-        version: 8.4.3(@types/node@25.9.0)
       '@refarm.dev/cli':
         specifier: workspace:*
         version: link:../../packages/cli

@@ -78,9 +78,8 @@ refarm config set operator.openExternalLinks never
 
 Use `never` for headless operator flows where printed URLs are preferred.
 
-Provider selection and OAuth text prompts go through the shared operator prompt
-contract. Secret API key entry still uses the app's no-echo prompt until the
-shared prompt contract has a secure secret primitive.
+Provider selection, OAuth text prompts, and secret credential entry go through
+the shared operator prompt contract.
 
 ## Session Recovery
 

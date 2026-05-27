@@ -5,11 +5,6 @@ vi.mock("@refarm.dev/root", () => ({
 	isContainer: vi.fn().mockReturnValue(false),
 }));
 
-// secretInput would block on TTY — mock it to resolve immediately
-vi.mock("../prompts/secret-input.js", () => ({
-	secretInput: vi.fn().mockResolvedValue("sk-test-key"),
-}));
-
 // OAuth flows open browsers — mock them out
 vi.mock("./oauth/index.js", () => ({
 	anthropicOAuthProvider: {
@@ -153,7 +148,7 @@ describe("modelCredentialProvider — API key path", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		ctx = makeCtx(["api:openai"]);
+		ctx = makeCtx(["api:openai", "sk-test-key"]);
 	});
 
 	it("returns provider id and the pasted key", async () => {
