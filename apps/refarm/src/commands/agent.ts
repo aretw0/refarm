@@ -63,9 +63,9 @@ const agentFinishLaneCatalog = [
 		id: "after-commit",
 		recommendedKey: "afterCommit",
 		command: "refarm agent finish --lane after-commit --run --json",
-		description: "Validate committed branch changes against upstream.",
+		description: "Validate the most recent atomic commit.",
 		useWhen: "After an atomic commit, before continuing the branch.",
-		validationScope: "branchRange",
+		validationScope: "lastCommit",
 	},
 	{
 		id: "before-push",
@@ -574,7 +574,10 @@ function parseFinishLane(value: string | undefined): AgentFinishLane | undefined
 }
 
 function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelection, "fix"> {
-	if (lane === "after-commit" || lane === "before-push") {
+	if (lane === "after-commit") {
+		return { lane, profile: "affected", since: "HEAD~1" };
+	}
+	if (lane === "before-push") {
 		return { lane, profile: "affected", since: "upstream" };
 	}
 	if (lane === "with-package-tests") {
@@ -734,6 +737,7 @@ function finishSelectionMetadata(
 function finishValidationScope(
 	selection: AgentFinishSelection,
 ): AgentFinishSelectionMetadata["validationScope"] {
+	if (selection.lane === "after-commit") return "lastCommit";
 	if (selection.profile === "affected") {
 		return selection.since ? "branchRange" : "dirtyTree";
 	}

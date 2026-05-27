@@ -107,6 +107,9 @@ refarm agent finish --lane after-commit --run --json
 refarm resume --no-status --json
 ```
 
+This validates the most recent commit. Use `before-push` for the wider
+branch-against-upstream gate.
+
 Before pushing:
 
 ```bash

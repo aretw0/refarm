@@ -271,7 +271,7 @@ describe("agent command", () => {
 					expect.objectContaining({
 						id: "after-commit",
 						command: "refarm agent finish --lane after-commit --run --json",
-						validationScope: "branchRange",
+						validationScope: "lastCommit",
 					}),
 					expect.objectContaining({
 						id: "before-push",
@@ -591,7 +591,7 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "after-commit",
 				command: "refarm agent finish --lane after-commit --run --json",
-				validationScope: "branchRange",
+				validationScope: "lastCommit",
 			}),
 			expect.objectContaining({
 				id: "before-push",
@@ -1457,6 +1457,87 @@ describe("agent command", () => {
 			lane: null,
 			validationScope: "branchRange",
 			affectedWorkspaces: ["apps/refarm"],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("expands the after-commit finish lane to the most recent commit", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-lane-commit-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init", "--initial-branch=main"], { cwd: root, stdio: "ignore" });
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(path.join(appDir, "src"), { recursive: true });
+		mkdirSync(path.join(root, "docs"), { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 1;\n", "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"initial",
+		], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(root, "docs", "guide.md"), "# Guide\n", "utf8");
+		execFileSync("git", ["add", "."], { cwd: root, stdio: "ignore" });
+		execFileSync("git", [
+			"-c",
+			"user.name=Refarm Test",
+			"-c",
+			"user.email=refarm-test@example.com",
+			"commit",
+			"-m",
+			"docs",
+		], { cwd: root, stdio: "ignore" });
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--lane",
+				"after-commit",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string }[];
+			nextCommands: string[];
+			selection: {
+				affectedWorkspaces?: string[];
+				lane: string | null;
+				since: string | null;
+				sinceRef: string | null;
+				validationScope: string;
+			};
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+		]);
+		expect(payload.nextCommands).not.toContain("npm --prefix apps/refarm run type-check");
+		expect(payload.selection).toMatchObject({
+			affectedWorkspaces: [],
+			lane: "after-commit",
+			since: "HEAD~1",
+			sinceRef: "HEAD~1",
+			validationScope: "lastCommit",
 		});
 		logSpy.mockRestore();
 	});

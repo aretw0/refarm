@@ -146,7 +146,7 @@ plan.
 agents do not need to infer the default finish path from the command catalog:
 
 - `afterEdit`: dirty-tree validation after source edits;
-- `afterCommit`: branch validation after atomic commits;
+- `afterCommit`: most-recent-commit validation after atomic commits;
 - `beforePush`: final branch-local validation against upstream;
 - `handoffs`: public JSON handoff contract validation;
 - `withPackageTests`: opt-in package tests when the slice requires them.
@@ -179,14 +179,20 @@ that have those scripts. Use `--profile package --workspace <dir>` when the
 affected package is known explicitly or when validating a package without a Git
 diff.
 
-After committing an atomic slice, add `--since <ref>` to keep affected
-workspace selection tied to branch changes instead of only the current dirty
-tree. Use `--since upstream` when the current branch has an upstream configured;
-it resolves locally and does not fetch from the network. This is useful for final
-branch-local validation before push:
+After committing an atomic slice, use the `after-commit` lane. It validates the
+most recent commit (`HEAD~1..HEAD`) so docs-only and small commits stay cheap:
+
+```bash
+refarm agent finish --lane after-commit --run --json
+```
+
+For final branch-local validation before push, add `--since <ref>` or use the
+`before-push` lane. Use `--since upstream` when the current branch has an
+upstream configured; it resolves locally and does not fetch from the network:
 
 ```bash
 refarm agent finish --profile affected --since upstream --run --json
+refarm agent finish --lane before-push --run --json
 ```
 
 Keep package tests explicit. Add `--include-tests` when the slice needs package
