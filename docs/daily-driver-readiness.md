@@ -19,10 +19,10 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**84/100**
+**85/100**
 
-Strong enough to keep developing with Refarm in the loop, not yet strong enough
-to stop spending regular work on Refarm itself.
+Strong enough to use Refarm as the daily development driver while still
+spending regular work on hardening Refarm itself.
 
 What is already solid:
 
@@ -40,14 +40,16 @@ What is already solid:
 - `refarm resume` now provides an operator-level runtime, active-session,
   recent-session, recent-prompt, finish-gate, and worker checkpoint view backed
   by a shared `@refarm.dev/cli` resume envelope.
+- The short daily-driver operator loop is maintained in
+  `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 
-What still blocks the 85/100 target:
+What still blocks the 95/100 product target:
 
 - Some scripts and legacy toolbox flows still execute shell command strings.
 - Operator resume can still grow deeper session-entry summaries, but already
   exposes recent runtime sessions and recovery commands.
 - `agent finish` can be faster and more selective for common local edits.
-- The core operator workflow needs one short maintained guide.
+- The interactive TUI/Web operator surfaces still need more runtime controls.
 
 ## Boundary Rule
 

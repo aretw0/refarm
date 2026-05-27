@@ -22,6 +22,7 @@
 - **[Sovereign Workflow](WORKFLOW.md)** — SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](DEVOPS.md)** — Dev containers, CI, security, hardware requirements.
 - **[Process Playbook](PROCESS_PLAYBOOK.md)** — Daily operational commands: services, agents, smoke gates, troubleshooting.
+- **[Operator Daily Driver](REFARM_OPERATOR_DAILY_DRIVER.md)** — Short maintained loop for using Refarm as the daily CLI driver.
 - **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
 - **[Colony Playbook](COLONY_PLAYBOOK.md)** — Parallel agent batch execution guide.
 - **[Known Limitations](KNOWN_LIMITATIONS.md)** — Technical hurdles, resource quotas, expected build behavior.
@@ -85,7 +86,7 @@
 1. Leia [ARCHITECTURE.md](ARCHITECTURE.md) (visão geral)
 2. Entenda [WORKFLOW.md](WORKFLOW.md) (processo de desenvolvimento)
 3. Veja [roadmaps/MAIN.md](../roadmaps/MAIN.md) (próximos passos)
-4. Siga o [PROCESS_PLAYBOOK.md](PROCESS_PLAYBOOK.md) para comandos do dia-a-dia
+4. Siga o [REFARM_OPERATOR_DAILY_DRIVER.md](REFARM_OPERATOR_DAILY_DRIVER.md) para o fluxo curto de daily driver
 
 ### Onde documentar decisões?
 
