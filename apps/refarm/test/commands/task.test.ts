@@ -429,6 +429,41 @@ describe("refarm task status", () => {
 		spy.mockRestore();
 	});
 
+	it("prints status transport in JSON output when found", async () => {
+		const result: EffortResult = {
+			effortId: "effort-abc",
+			status: "done",
+			results: [],
+			submittedAt: new Date().toISOString(),
+			completedAt: new Date().toISOString(),
+		};
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(result),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			transport: string;
+			nextCommand: string;
+		};
+		expect(payload.transport).toBe("http");
+		expect(payload.nextCommand).toBe(
+			"refarm task logs effort-abc --transport http",
+		);
+		spy.mockRestore();
+	});
+
 	it("prints status not-found JSON with follow-up commands", async () => {
 		const adapter = createMockAdapter({
 			query: vi.fn().mockResolvedValue(null),
@@ -448,6 +483,7 @@ describe("refarm task status", () => {
 			ok: boolean;
 			command: string;
 			operation: string;
+			transport: string;
 			status: string;
 			nextActions: string[];
 			nextCommand: string;
@@ -456,6 +492,7 @@ describe("refarm task status", () => {
 		expect(payload.ok).toBe(true);
 		expect(payload.command).toBe("task");
 		expect(payload.operation).toBe("status");
+		expect(payload.transport).toBe("file");
 		expect(payload.status).toBe("not-found");
 		expect(payload.nextCommand).toBe(
 			"refarm task status effort-abc --transport file --watch",
@@ -581,6 +618,48 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("list prints transport in JSON output", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 1,
+				inProgress: 0,
+				done: 0,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-abc",
+					status: "pending",
+					results: [],
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--transport", "http", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			transport: string;
+			nextCommands: string[];
+		};
+		expect(payload.transport).toBe("http");
+		expect(payload.nextCommands).toContain(
+			"refarm task status effort-abc --transport http",
+		);
+		spy.mockRestore();
+	});
+
 	it("logs prints entries", async () => {
 		const logs: EffortLogEntry[] = [
 			{
@@ -633,12 +712,14 @@ describe("refarm task list/logs/retry/cancel", () => {
 			ok: boolean;
 			command: string;
 			operation: string;
+			transport: string;
 			logs: EffortLogEntry[];
 			nextCommand: string;
 		};
 		expect(payload.ok).toBe(true);
 		expect(payload.command).toBe("task");
 		expect(payload.operation).toBe("logs");
+		expect(payload.transport).toBe("file");
 		expect(payload.logs).toEqual([]);
 		expect(payload.nextCommand).toBe(
 			"refarm task status effort-abc --transport file",

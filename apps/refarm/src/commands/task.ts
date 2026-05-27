@@ -691,7 +691,7 @@ Notes:
 							});
 							printTaskJsonSuccess(
 								"status",
-								{ effortId, status: "not-found" },
+								{ effortId, transport, status: "not-found" },
 								[statusCommand, buildTaskLogsCommand(effortId, transport)],
 							);
 						} else {
@@ -713,6 +713,7 @@ Notes:
 							"status",
 							{
 								effortId,
+								transport,
 								status: result.status,
 								attempts,
 								ageSeconds,
@@ -895,7 +896,7 @@ Notes:
 							buildTaskLogsCommand(efforts[0].effortId, transport),
 						]
 					: [];
-				printTaskJsonSuccess("list", { summary, efforts }, nextCommands);
+				printTaskJsonSuccess("list", { transport, summary, efforts }, nextCommands);
 				return;
 			}
 
@@ -963,7 +964,7 @@ Notes:
 					if (opts.json) {
 						printTaskJsonSuccess(
 							"logs",
-							{ effortId, logs: [] },
+							{ effortId, transport, logs: [] },
 							[buildTaskStatusCommand(effortId, transport)],
 						);
 						return;
@@ -976,7 +977,7 @@ Notes:
 				if (opts.json) {
 					printTaskJsonSuccess(
 						"logs",
-						{ effortId, logs: sliced },
+						{ effortId, transport, logs: sliced },
 						[buildTaskStatusCommand(effortId, transport)],
 					);
 					return;
