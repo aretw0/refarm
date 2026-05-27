@@ -1,3 +1,4 @@
+import { launchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -10,7 +11,6 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -295,12 +295,13 @@ async function runSowCommand(args: string[] = []): Promise<void> {
 	if (!node || !entrypoint) {
 		throw new Error("Cannot locate the refarm CLI entrypoint for credential setup.");
 	}
-	const result = spawnSync(node, [entrypoint, "sow", ...args], { stdio: "inherit" });
-	if (result.error) throw result.error;
-	if (result.status !== 0) {
-		throw new Error(
-			`Credential setup exited with ${result.status ?? result.signal ?? "unknown status"}`,
-		);
+	const exitCode = await launchProcess({
+		command: node,
+		args: [entrypoint, "sow", ...args],
+		display: ["refarm", "sow", ...args].join(" "),
+	});
+	if (exitCode !== 0) {
+		throw new Error(`Credential setup exited with ${exitCode}`);
 	}
 }
 

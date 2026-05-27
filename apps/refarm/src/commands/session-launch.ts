@@ -3,6 +3,7 @@
  * No readline REPL, no Commander. Just policy.
  */
 
+import { launchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	hasUsableModelCredential,
 	hasUsableModelCredentialSource,
@@ -12,7 +13,6 @@ import {
 	type OperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -287,7 +287,11 @@ export function defaultLaunchDeps(): LaunchDeps {
 			}
 			// Re-invoke the same CLI binary with the `sow` subcommand.
 			// process.argv[0] = node binary, process.argv[1] = refarm entry script.
-			spawnSync(process.argv[0]!, [process.argv[1]!, "sow"], { stdio: "inherit" });
+			await launchProcess({
+				command: process.argv[0]!,
+				args: [process.argv[1]!, "sow"],
+				display: "refarm sow",
+			});
 			return detectProvider();
 		},
 	};
