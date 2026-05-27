@@ -34,6 +34,11 @@ import {
 } from "./json-output.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
+	PLUGIN_INSTALL_COMMAND as PI_AGENT_INSTALL_COMMAND,
+	PLUGIN_INSTALL_JSON_COMMAND as PI_AGENT_INSTALL_JSON_COMMAND,
+	PI_AGENT_RELOAD_JSON_COMMAND,
+} from "./plugin-handoffs.js";
+import {
 	readRuntimePluginState,
 	reloadRuntimePlugins,
 	type RuntimePluginReloadResult,
@@ -70,9 +75,6 @@ import {
 } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
-const PI_AGENT_INSTALL_COMMAND = "refarm plugin install";
-const PI_AGENT_INSTALL_JSON_COMMAND = "refarm plugin install --json";
-const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 
 export interface AskDeps {

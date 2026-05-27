@@ -6,6 +6,10 @@ import {
 	type ChatDeps,
 } from "./chat.js";
 import {
+	PLUGIN_INSTALL_JSON_COMMAND as PI_AGENT_INSTALL_JSON_COMMAND,
+	PI_AGENT_RELOAD_JSON_COMMAND,
+} from "./plugin-handoffs.js";
+import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 } from "./runtime-recovery.js";
@@ -28,9 +32,6 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { sidecarUrl } from "./sidecar-url.js";
-
-const PI_AGENT_INSTALL_JSON_COMMAND = "refarm plugin install --json";
-const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;

@@ -1,5 +1,5 @@
-import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
+import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
@@ -22,6 +22,12 @@ import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
+import {
+	PI_AGENT_RELOAD_JSON_COMMAND,
+	PLUGIN_INSTALL_COMMAND,
+	PLUGIN_INSTALL_JSON_COMMAND,
+	PLUGIN_STATUS_JSON_COMMAND,
+} from "./plugin-handoffs.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
@@ -48,10 +54,7 @@ const BUNDLED_PLUGINS = [
 
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
-const PLUGIN_INSTALL_COMMAND = "refarm plugin install";
-const PLUGIN_INSTALL_JSON_COMMAND = "refarm plugin install --json";
-const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
-const PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
+const PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND = PI_AGENT_RELOAD_JSON_COMMAND;
 
 function pluginBundleCommand(
 	input: string,
