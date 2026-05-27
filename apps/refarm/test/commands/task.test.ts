@@ -518,6 +518,25 @@ describe("refarm task list/logs/retry/cancel", () => {
 		process.exitCode = undefined;
 	});
 
+	it("documents task list transport and continuation behavior", () => {
+		const taskCommand = createTaskCommand();
+		const listCommand = taskCommand.commands.find(
+			(command) => command.name() === "list",
+		);
+		let help = "";
+		listCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		listCommand?.outputHelp();
+
+		expect(help).toContain("refarm task list --transport http --json");
+		expect(help).toContain("JSON output includes status/log nextCommands");
+		expect(help).toContain("Use resume to continue from the local checkpoint");
+	});
+
 	it("list prints summary and effort rows", async () => {
 		const adapter = createMockAdapter({
 			summary: vi.fn().mockResolvedValue({

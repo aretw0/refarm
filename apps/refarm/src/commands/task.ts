@@ -855,6 +855,23 @@ Notes:
 			"file",
 		)
 		.option("--json", "Print machine-readable JSON output")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm task list
+  $ refarm task list --json
+  $ refarm task list --transport http --json
+  $ refarm task resume --json
+
+Notes:
+  file transport reads local queue/result files under ~/.refarm.
+  http transport queries the running Refarm runtime sidecar.
+  JSON output includes status/log nextCommands for the newest effort when one exists.
+  Use resume to continue from the local checkpoint after a previous run/status/logs command.
+`,
+		)
 		.action(async (opts: { transport: TaskTransport; json?: boolean }) => {
 			const { transport, adapter } = resolveTaskAdapter(
 				opts.transport,
