@@ -78,8 +78,8 @@ refarm config set operator.openExternalLinks never
 
 Use `never` for headless operator flows where printed URLs are preferred.
 
-Provider selection, OAuth text prompts, and secret credential entry go through
-the shared operator prompt contract.
+Provider selection, GitHub owner input, OAuth text prompts, and secret
+credential entry go through the shared operator prompt contract.
 
 ## Session Recovery
 

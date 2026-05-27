@@ -1,16 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockSaveTokens, mockLoadTokens, mockInquirerPrompt, mockGithubCollect, mockCloudflareCollect, mockModelCollect } =
+const { mockSaveTokens, mockLoadTokens, mockOperatorAsk, mockGithubCollect, mockCloudflareCollect, mockModelCollect } =
 	vi.hoisted(() => ({
 		mockSaveTokens: vi.fn().mockResolvedValue({}),
 		mockLoadTokens: vi.fn().mockResolvedValue({}),
-		mockInquirerPrompt: vi.fn(),
+		mockOperatorAsk: vi.fn().mockResolvedValue("my-org"),
 		mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
 		mockCloudflareCollect: vi.fn().mockResolvedValue("cf_test_cloudflare"),
 		mockModelCollect: vi.fn().mockResolvedValue({ provider: "anthropic", apiKey: "sk-ant-test" }),
 	}));
 
-vi.mock("inquirer", () => ({ default: { prompt: mockInquirerPrompt } }));
+vi.mock("@refarm.dev/prompt-contract-v1", () => ({
+	OperatorPromptCancelledError: class OperatorPromptCancelledError extends Error {
+		constructor(message = "Operator prompt cancelled") {
+			super(message);
+			this.name = "OperatorPromptCancelledError";
+		}
+	},
+	createStdioOperatorChannel: vi.fn(() => ({ ask: mockOperatorAsk })),
+}));
 
 vi.mock("../../src/credentials/index.js", () => ({
 	githubCredentialProvider: {
@@ -344,7 +352,7 @@ describe("sowCommand — --all flag", () => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
-		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
+		mockOperatorAsk.mockResolvedValue("my-org");
 		mockModelCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
 	});
 
@@ -414,11 +422,16 @@ describe("sowCommand — --github flag", () => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
-		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
+		mockOperatorAsk.mockResolvedValue("my-org");
 	});
 
 	it("prompts for GitHub when --github is passed", async () => {
 		await sowCommand.parseAsync(["--github"], { from: "user" });
+		expect(mockOperatorAsk).toHaveBeenCalledWith({
+			type: "text",
+			question: "Your GitHub username or org",
+			default: "refarm-dev",
+		});
 		expect(mockGithubCollect).toHaveBeenCalledOnce();
 	});
 
@@ -477,7 +490,7 @@ describe("sowCommand — --all credentials", () => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
-		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
+		mockOperatorAsk.mockResolvedValue("my-org");
 		mockModelCollect.mockResolvedValue({ provider: "groq", apiKey: "gsk-test" });
 	});
 

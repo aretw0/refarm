@@ -7,7 +7,6 @@ import {
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import inquirer from "inquirer";
 import {
 	cloudflareCredentialProvider,
 	githubCredentialProvider,
@@ -255,14 +254,11 @@ export const sowCommand = new Command("sow")
 			}
 
 			if (configureGithub) {
-				const { owner } = await inquirer.prompt([
-					{
-						type: "input",
-						name: "owner",
-						message: "Your GitHub username or org:",
-						default: stringValue(stored.githubOwner) ?? "refarm-dev",
-					},
-				]);
+				const owner = await ctx.operator.ask({
+					type: "text",
+					question: "Your GitHub username or org",
+					default: stringValue(stored.githubOwner) ?? "refarm-dev",
+				});
 				const githubToken = await githubCredentialProvider.collect(ctx);
 				await silo.saveTokens({ githubToken, githubOwner: owner });
 				currentTokens = { ...currentTokens, githubToken, githubOwner: owner };
