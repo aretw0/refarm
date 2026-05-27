@@ -124,6 +124,10 @@ function generatedTemplates(payloads: {
 	);
 }
 
+function commandTemplateParameters(command: string): string[] {
+	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
+}
+
 function makeReadyStatus(renderer: "tui" | "web") {
 	return {
 		schemaVersion: 1 as const,
@@ -442,11 +446,26 @@ describe("JSON next command contract", () => {
 				command: createAgentCommand(),
 				args: ["--json"],
 			}),
+			await parseCommandJson({
+				id: "package-manager",
+				command: createPackageManagerCommand({
+					cwd: () => ".",
+					env: { REFARM_PACKAGE_MANAGER: "npm" },
+				}),
+				args: ["--json"],
+			}),
 		];
 		const commands = generatedExecutableCommands(payloads);
 		const actions = payloads.flatMap((payload) => payload.nextActions ?? []);
 		const templates = generatedTemplates(payloads);
 		const templateCommands = templates.map((template) => template.command);
+		const templatesWithUndeclaredParameters = templates
+			.filter((template) => /<[^>]+>/.test(template.command))
+			.filter((template) =>
+				commandTemplateParameters(template.command)
+					.some((parameter) => !template.parameters.includes(parameter)),
+			)
+			.map((template) => template.command);
 
 		expect(templateCommands).toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
@@ -454,19 +473,29 @@ describe("JSON next command contract", () => {
 		expect(templateCommands).toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
 		);
+		expect(templateCommands).toContain(
+			"refarm plugin bundle <plugin.wasm> --dry-run --json",
+		);
 		expect(commands).not.toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
 		);
 		expect(commands).not.toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
 		);
+		expect(commands).not.toContain(
+			"refarm plugin bundle <plugin.wasm> --dry-run --json",
+		);
 		expect(actions).not.toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
 		);
 		expect(actions).not.toContain(
 			"refarm agent finish --profile affected --since <ref> --run --json",
+		);
+		expect(actions).not.toContain(
+			"refarm plugin bundle <plugin.wasm> --dry-run --json",
 		);
 		expect(actions.filter((action) => /<[^>]+>/.test(action))).toEqual([]);
+		expect(templatesWithUndeclaredParameters).toEqual([]);
 		expect(templates).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
@@ -476,6 +505,10 @@ describe("JSON next command contract", () => {
 				expect.objectContaining({
 					command: "refarm agent finish --profile affected --since <ref> --run --json",
 					parameters: ["ref"],
+				}),
+				expect.objectContaining({
+					command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					parameters: ["plugin.wasm"],
 				}),
 			]),
 		);
