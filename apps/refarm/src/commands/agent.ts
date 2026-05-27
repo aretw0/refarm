@@ -5,8 +5,8 @@ import {
 	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
+import { readGitCommand } from "@refarm.dev/cli/git-command";
 import { Command } from "commander";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -385,11 +385,7 @@ function packageScriptStep(
 
 function findWorkspaceRoot(cwd = process.cwd()): string {
 	try {
-		const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-			cwd,
-			encoding: "utf-8",
-			stdio: ["ignore", "pipe", "ignore"],
-		}).trim();
+		const root = readGitCommand(["rev-parse", "--show-toplevel"], { cwd });
 		if (root) return root;
 	} catch {
 		// Fall back to marker walking outside Git repositories.
@@ -488,18 +484,16 @@ function affectedPackageFinishSteps(
 function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
 	try {
-		const status = execFileSync(
-			"git",
+		const status = readGitCommand(
 			["status", "--short", "--untracked-files=all"],
-			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+			{ cwd: repoRoot },
 		);
 		if (!options.since) {
 			return affectedWorkspacePackagesFromGitStatus(repoRoot, status);
 		}
-		const diff = execFileSync(
-			"git",
+		const diff = readGitCommand(
 			["diff", "--name-only", options.since, "--"],
-			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+			{ cwd: repoRoot },
 		);
 		return affectedWorkspacePackagesFromChangedPaths(repoRoot, [
 			...changedFilePathsFromGitNameOnly(diff),
@@ -517,10 +511,9 @@ function resolveSinceRef(repoRoot: string, since: string): string {
 	if (since !== "upstream") return since;
 	let upstream = "";
 	try {
-		upstream = execFileSync(
-			"git",
+		upstream = readGitCommand(
 			["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-			{ cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+			{ cwd: repoRoot },
 		).trim();
 	} catch {
 		throw new Error("Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.");

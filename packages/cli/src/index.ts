@@ -43,6 +43,7 @@ export {
 	runGitCommand,
 } from "./git-command.js";
 export type {
+	GitCommandOptions,
 	GitCommandResult,
 } from "./git-command.js";
 export {

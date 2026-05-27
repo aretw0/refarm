@@ -38,6 +38,25 @@ describe("git command helpers", () => {
 		);
 	});
 
+	it("passes an explicit working directory when provided", () => {
+		spawnSyncMock.mockReturnValueOnce({
+			status: 0,
+			stdout: "",
+			stderr: "",
+			output: [],
+			pid: 0,
+			signal: null,
+		});
+
+		runGitCommand(["status", "--short"], { cwd: "/workspaces/refarm" });
+
+		expect(spawnSyncMock).toHaveBeenCalledWith(
+			"git",
+			["status", "--short"],
+			{ cwd: "/workspaces/refarm", encoding: "utf8" },
+		);
+	});
+
 	it("reads trimmed stdout and throws with stderr details on failure", () => {
 		spawnSyncMock
 			.mockReturnValueOnce({

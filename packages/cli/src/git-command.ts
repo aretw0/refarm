@@ -6,8 +6,16 @@ export interface GitCommandResult {
 	stderr: string;
 }
 
-export function runGitCommand(args: string[]): GitCommandResult {
+export interface GitCommandOptions {
+	cwd?: string;
+}
+
+export function runGitCommand(
+	args: string[],
+	options: GitCommandOptions = {},
+): GitCommandResult {
 	const result = spawnSync("git", args, {
+		...(options.cwd ? { cwd: options.cwd } : {}),
 		encoding: "utf8",
 	});
 	return {
@@ -17,8 +25,11 @@ export function runGitCommand(args: string[]): GitCommandResult {
 	};
 }
 
-export function readGitCommand(args: string[]): string {
-	const result = runGitCommand(args);
+export function readGitCommand(
+	args: string[],
+	options: GitCommandOptions = {},
+): string {
+	const result = runGitCommand(args, options);
 	if (result.status !== 0) {
 		const detail =
 			result.stderr || result.stdout || `git ${args.join(" ")} failed`;
