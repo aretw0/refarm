@@ -149,6 +149,18 @@ describe("command plan runner", () => {
 				nextCommand: "refarm runtime start --wait",
 				stdout: "nested stdout",
 				stderr: "nested stderr",
+				nested: {
+					stdout: "nested child stdout",
+					stderr: "nested child stderr",
+					nextCommand: "refarm doctor --next-command",
+				},
+				results: [
+					{
+						stdout: "array stdout",
+						stderr: "array stderr",
+						ok: false,
+					},
+				],
 			},
 		})).toEqual({
 			id: "first",
@@ -160,6 +172,14 @@ describe("command plan runner", () => {
 			payload: {
 				ok: false,
 				nextCommand: "refarm runtime start --wait",
+				nested: {
+					nextCommand: "refarm doctor --next-command",
+				},
+				results: [
+					{
+						ok: false,
+					},
+				],
 			},
 		});
 	});

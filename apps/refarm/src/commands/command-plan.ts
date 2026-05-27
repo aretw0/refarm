@@ -184,12 +184,17 @@ export function commandPlanStepSummary(
 }
 
 function commandPlanPayloadSummary(payload: unknown): unknown {
-	if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+	if (!payload || typeof payload !== "object") {
 		return payload;
 	}
-	const { stdout: _stdout, stderr: _stderr, ...summary } =
-		payload as Record<string, unknown>;
-	return summary;
+	if (Array.isArray(payload)) {
+		return payload.map(commandPlanPayloadSummary);
+	}
+	return Object.fromEntries(
+		Object.entries(payload as Record<string, unknown>)
+			.filter(([key]) => key !== "stdout" && key !== "stderr")
+			.map(([key, value]) => [key, commandPlanPayloadSummary(value)]),
+	);
 }
 
 export function runCommandPlan(
