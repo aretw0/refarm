@@ -122,6 +122,7 @@ export {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeModelRoute,
+	formatOperatorResumeSessionId,
 	formatOperatorResumeSummary,
 	operatorResumeNextCommands,
 } from "./operator-resume.js";
@@ -131,6 +132,7 @@ export type {
 	OperatorResumeInput,
 	OperatorResumeModelRoute,
 	OperatorResumeRuntimeSummary,
+	OperatorResumeSessionSummary,
 	OperatorResumeSummary,
 	OperatorResumeTaskCheckpoint,
 	OperatorResumeTaskRecord,

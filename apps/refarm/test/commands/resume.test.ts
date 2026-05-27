@@ -51,6 +51,9 @@ describe("resume command", () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(checkpoint),
+			readActiveSessionId: vi.fn().mockReturnValue(
+				"urn:refarm:session:v1:abcdef1234567890",
+			),
 		});
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -60,6 +63,9 @@ describe("resume command", () => {
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm task status effort-1 --transport http --watch"),
 		);
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm tree show ef1234567890 --json"),
+		);
 		spy.mockRestore();
 	});
 
@@ -67,6 +73,7 @@ describe("resume command", () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
 		});
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -84,6 +91,7 @@ describe("resume command", () => {
 		const command = createResumeCommand({
 			resolveStatusPayload,
 			sessionRecorder: recorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
 		});
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 

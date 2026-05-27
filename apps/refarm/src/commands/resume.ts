@@ -9,6 +9,7 @@ import {
 	resolveStatusPayload,
 	type ResolveStatusPayloadResult,
 } from "./status.js";
+import { readActiveSessionId } from "./session-lock.js";
 import {
 	createTaskSessionRecorder,
 	type TaskSessionCheckpoint,
@@ -20,6 +21,7 @@ export interface ResumeDeps {
 		renderer?: string;
 	}): Promise<ResolveStatusPayloadResult>;
 	sessionRecorder: TaskSessionRecorder;
+	readActiveSessionId(): string | null;
 }
 
 interface ResumeOptions {
@@ -31,6 +33,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 	const resolvedDeps: ResumeDeps = {
 		resolveStatusPayload,
 		sessionRecorder: createTaskSessionRecorder(),
+		readActiveSessionId,
 		...deps,
 	};
 
@@ -63,6 +66,7 @@ Notes:
 
 async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<void> {
 	const taskCheckpoint = deps.sessionRecorder.getCheckpoint();
+	const activeSessionId = deps.readActiveSessionId();
 	const statusResult = options.status === false
 		? undefined
 		: await deps.resolveStatusPayload({ renderer: "headless" });
@@ -70,15 +74,26 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		const status = statusResult?.json;
 
 		if (options.json) {
-			printJson(buildOperatorResumeEnvelope({ status, taskCheckpoint }));
+			printJson(
+				buildOperatorResumeEnvelope({
+					status,
+					taskCheckpoint,
+					activeSessionId,
+				}),
+			);
 			return;
 		}
 
-		const summary = buildOperatorResumeSummary({ status, taskCheckpoint });
+		const summary = buildOperatorResumeSummary({
+			status,
+			taskCheckpoint,
+			activeSessionId,
+		});
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = buildOperatorResumeEnvelope({
 			status,
 			taskCheckpoint,
+			activeSessionId,
 		}).nextCommands;
 		if (nextCommands.length > 0) {
 			console.log("");

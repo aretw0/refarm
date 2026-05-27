@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
+	formatOperatorResumeSessionId,
 	formatOperatorResumeSummary,
 	operatorResumeNextCommands,
 } from "./operator-resume.js";
@@ -27,6 +28,7 @@ describe("operator resume", () => {
 	it("summarizes runtime and task checkpoint state", () => {
 		const summary = buildOperatorResumeSummary({
 			status,
+			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
 				activeEffortId: "effort-1",
@@ -50,6 +52,11 @@ describe("operator resume", () => {
 		expect(summary).toMatchObject({
 			status: "ok",
 			runtime: { ready: false, namespace: "refarm-main" },
+			session: {
+				status: "active",
+				shortId: "ef1234567890",
+				showCommand: "refarm tree show ef1234567890 --json",
+			},
 			tasks: {
 				totalEfforts: 1,
 				activeEffort: { effortId: "effort-1" },
@@ -57,6 +64,7 @@ describe("operator resume", () => {
 		});
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime doctor --next-command",
+			"refarm tree show ef1234567890 --json",
 			"refarm task status effort-1 --transport http --watch",
 			"refarm task logs effort-1 --transport http",
 		]);
@@ -70,7 +78,15 @@ describe("operator resume", () => {
 			nextCommand: "refarm task list --json",
 			nextCommands: ["refarm task list --json"],
 			status: "ok",
+			session: { status: "none" },
 		});
+	});
+
+	it("formats active session ids for tree commands", () => {
+		expect(formatOperatorResumeSessionId("urn:refarm:session:v1:abcdef1234567890")).toBe(
+			"ef1234567890",
+		);
+		expect(formatOperatorResumeSessionId("short")).toBe("short");
 	});
 
 	it("formats a concise operator view", () => {
@@ -91,8 +107,9 @@ describe("operator resume", () => {
 							},
 						],
 					},
+					activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 				}),
 			),
-		).toContain("model:  worker openai/gpt-5.3-codex-spark");
+		).toContain("Session: active=ef1234567890");
 	});
 });

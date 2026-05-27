@@ -32,11 +32,13 @@ export interface OperatorResumeTaskCheckpoint {
 export interface OperatorResumeCommands {
 	runtimeDoctor: string;
 	taskList: string;
+	sessionShow: (sessionId: string) => string;
 }
 
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
+	activeSessionId?: string | null;
 	commands?: Partial<OperatorResumeCommands>;
 }
 
@@ -54,9 +56,17 @@ export interface OperatorResumeRuntimeSummary {
 	diagnostics: readonly string[];
 }
 
+export interface OperatorResumeSessionSummary {
+	status: "none" | "active";
+	activeSessionId?: string;
+	shortId?: string;
+	showCommand?: string;
+}
+
 export interface OperatorResumeSummary {
 	status: "empty" | "ok";
 	runtime?: OperatorResumeRuntimeSummary;
+	session: OperatorResumeSessionSummary;
 	tasks: OperatorResumeTaskSummary;
 }
 
@@ -66,7 +76,13 @@ export type OperatorResumeEnvelope =
 const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	runtimeDoctor: "refarm runtime doctor --next-command",
 	taskList: "refarm task list --json",
+	sessionShow: (sessionId) => `refarm tree show ${formatOperatorResumeSessionId(sessionId)} --json`,
 };
+
+export function formatOperatorResumeSessionId(id: string): string {
+	const parts = id.split(":");
+	return parts.at(-1)?.slice(-12) ?? id;
+}
 
 export function formatOperatorResumeModelRoute(
 	route: OperatorResumeModelRoute | undefined,
@@ -104,9 +120,25 @@ export function buildOperatorResumeSummary(
 		recentEfforts: efforts.slice(0, 10),
 		totalEfforts: efforts.length,
 	};
+	const sessionShowCommand = input.activeSessionId
+		? (input.commands?.sessionShow ?? DEFAULT_OPERATOR_RESUME_COMMANDS.sessionShow)(
+				input.activeSessionId,
+			)
+		: undefined;
+	const session: OperatorResumeSessionSummary = {
+		status: input.activeSessionId ? "active" : "none",
+		activeSessionId: input.activeSessionId ?? undefined,
+		shortId: input.activeSessionId
+			? formatOperatorResumeSessionId(input.activeSessionId)
+			: undefined,
+		showCommand: sessionShowCommand,
+	};
 	return {
-		status: runtime || efforts.length > 0 ? "ok" : "empty",
+		status: runtime || session.status === "active" || efforts.length > 0
+			? "ok"
+			: "empty",
 		runtime,
+		session,
 		tasks,
 	};
 }
@@ -119,6 +151,9 @@ export function operatorResumeNextCommands(
 	const nextCommands: string[] = [];
 	if (summary.runtime && !summary.runtime.ready) {
 		nextCommands.push(resolved.runtimeDoctor);
+	}
+	if (summary.session.showCommand) {
+		nextCommands.push(summary.session.showCommand);
 	}
 	if (summary.tasks.activeEffort) {
 		nextCommands.push(
@@ -161,6 +196,16 @@ export function formatOperatorResumeSummary(
 		}
 	} else {
 		lines.push("Runtime: not inspected");
+	}
+	if (summary.session.status === "active" && summary.session.activeSessionId) {
+		lines.push(
+			`Session: active=${summary.session.shortId ?? summary.session.activeSessionId}`,
+		);
+		if (summary.session.showCommand) {
+			lines.push(`  show: ${summary.session.showCommand}`);
+		}
+	} else {
+		lines.push("Session: none");
 	}
 
 	if (summary.tasks.totalEfforts === 0) {
