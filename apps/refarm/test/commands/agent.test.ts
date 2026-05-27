@@ -130,17 +130,12 @@ describe("agent command", () => {
 				finishRunCommand: string;
 				finishFixPlanCommand: string;
 				finishFixRunCommand: string;
-				finishPackagePlanCommand: string;
-				finishPackageRunCommand: string;
-				finishPackageFixRunCommand: string;
 				finishAffectedPlanJsonCommand: string;
 				finishAffectedRunJsonCommand: string;
 				finishAffectedUpstreamRunJsonCommand: string;
-				finishAffectedSinceRunJsonCommand: string;
 				finishAffectedTestRunJsonCommand: string;
 				finishAffectedRunCommand: string;
 				finishAffectedUpstreamRunCommand: string;
-				finishAffectedSinceRunCommand: string;
 				finishAffectedTestRunCommand: string;
 				recommended: {
 					afterCommit: string;
@@ -210,17 +205,12 @@ describe("agent command", () => {
 				finishRunCommand: "refarm agent finish --run --next-command",
 				finishFixPlanCommand: "refarm agent finish --fix --next-command",
 				finishFixRunCommand: "refarm agent finish --fix --run --next-command",
-				finishPackagePlanCommand: "refarm agent finish --profile package --workspace <dir> --next-command",
-				finishPackageRunCommand: "refarm agent finish --profile package --workspace <dir> --run --next-command",
-				finishPackageFixRunCommand: "refarm agent finish --fix --profile package --workspace <dir> --run --next-command",
 				finishAffectedPlanJsonCommand: "refarm agent finish --profile affected --json",
 				finishAffectedRunJsonCommand: "refarm agent finish --profile affected --run --json",
 				finishAffectedUpstreamRunJsonCommand: "refarm agent finish --profile affected --since upstream --run --json",
-				finishAffectedSinceRunJsonCommand: "refarm agent finish --profile affected --since <ref> --run --json",
 				finishAffectedTestRunJsonCommand: "refarm agent finish --profile affected --include-tests --run --json",
 				finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
 				finishAffectedUpstreamRunCommand: "refarm agent finish --profile affected --since upstream --run --next-command",
-				finishAffectedSinceRunCommand: "refarm agent finish --profile affected --since <ref> --run --next-command",
 				finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
 				recommended: {
 					afterEdit: "refarm agent finish --lane after-edit --run --json",
@@ -320,6 +310,11 @@ describe("agent command", () => {
 			"refarm agent finish --profile affected --include-tests --run --next-command",
 		]);
 		expect(payload.nextCommands.some((command) => /<[^>]+>/.test(command))).toBe(false);
+		const payloadWithoutTemplates = {
+			...payload,
+			verification: { ...payload.verification, templates: [] },
+		};
+		expect(JSON.stringify(payloadWithoutTemplates)).not.toMatch(/<[^>]+>/);
 		logSpy.mockRestore();
 	});
 
