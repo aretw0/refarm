@@ -10,6 +10,7 @@ import {
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 export type { PackageManagerName } from "@refarm.dev/config";
@@ -84,7 +85,12 @@ export function buildPackageManagerStatus(options: {
 		overrideValid: Boolean(env[PACKAGE_MANAGER_OVERRIDE]) && !diagnostic,
 		validPackageManagers: PACKAGE_MANAGERS,
 		handoffs: {
-			tidyImportsDryRun: "refarm tidy imports --dry-run --json",
+			tidyImportsDryRun: refarmCommand([
+				"tidy",
+				"imports",
+				"--dry-run",
+				"--json",
+			]),
 		},
 		commands: {
 			tidyImportsCheck,
@@ -93,7 +99,13 @@ export function buildPackageManagerStatus(options: {
 		templates: [
 			{
 				id: "plugin-bundle-dry-run",
-				command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+				command: refarmCommand([
+					"plugin",
+					"bundle",
+					"<plugin.wasm>",
+					"--dry-run",
+					"--json",
+				]),
 				parameters: ["plugin.wasm"],
 				useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
 			},
