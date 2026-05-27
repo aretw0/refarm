@@ -12,7 +12,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_STATUS_COMMAND
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { findSessionIdPrefixMatches, formatSessionId } from "./session-ids.js";
 import {
@@ -65,7 +65,7 @@ interface SessionForkReport {
 	branchEntryId?: string;
 }
 
-const SESSIONS_LIST_JSON_COMMAND = "refarm sessions list --json";
+const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
@@ -106,11 +106,11 @@ function writeActiveSessionOrReport(
 					operation: opts.operation ?? "active",
 					error: "active-session-write-failed",
 					message,
-					nextAction: "refarm sessions list --json",
-					nextActions: ["refarm sessions list --json", RUNTIME_DOCTOR_COMMAND],
-					nextCommand: "refarm sessions list --json",
+					nextAction: SESSIONS_LIST_JSON_COMMAND,
+					nextActions: [SESSIONS_LIST_JSON_COMMAND, RUNTIME_DOCTOR_COMMAND],
+					nextCommand: SESSIONS_LIST_JSON_COMMAND,
 					nextCommands: [
-						"refarm sessions list --json",
+						SESSIONS_LIST_JSON_COMMAND,
 						RUNTIME_DOCTOR_NEXT_COMMAND,
 					],
 					extra: {
@@ -143,8 +143,8 @@ function printSessionPrefixError(
 					kind === "not-found"
 						? "session-not-found"
 						: "ambiguous-session-prefix",
-				nextAction: "refarm sessions list --json",
-				nextCommand: "refarm sessions list --json",
+				nextAction: SESSIONS_LIST_JSON_COMMAND,
+				nextCommand: SESSIONS_LIST_JSON_COMMAND,
 				extra: {
 					action: "sessions",
 					prefix,
