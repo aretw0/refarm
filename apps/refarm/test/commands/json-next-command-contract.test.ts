@@ -128,6 +128,35 @@ function commandTemplateParameters(command: string): string[] {
 	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
 }
 
+function generatedCommandFieldPlaceholderLeaks(
+	value: unknown,
+	options: { inTemplates?: boolean; path?: string[] } = {},
+): string[] {
+	const path = options.path ?? [];
+	if (typeof value === "string") {
+		const key = path.at(-1) ?? "";
+		if (!options.inTemplates && /command/i.test(key) && /<[^>]+>/.test(value)) {
+			return [`${path.join(".")}: ${value}`];
+		}
+		return [];
+	}
+	if (!value || typeof value !== "object") return [];
+	if (Array.isArray(value)) {
+		return value.flatMap((entry, index) =>
+			generatedCommandFieldPlaceholderLeaks(entry, {
+				inTemplates: options.inTemplates,
+				path: [...path, String(index)],
+			}),
+		);
+	}
+	return Object.entries(value).flatMap(([key, entry]) =>
+		generatedCommandFieldPlaceholderLeaks(entry, {
+			inTemplates: options.inTemplates || key === "templates",
+			path: [...path, key],
+		}),
+	);
+}
+
 function makeReadyStatus(renderer: "tui" | "web") {
 	return {
 		schemaVersion: 1 as const,
@@ -422,18 +451,23 @@ describe("JSON next command contract", () => {
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
 				.map((payload) => payload.sampleId);
-			const missingNextCommands = payloads
-				.filter((payload) => !Array.isArray(payload.nextCommands))
-				.map((payload) => payload.sampleId);
+				const missingNextCommands = payloads
+					.filter((payload) => !Array.isArray(payload.nextCommands))
+					.map((payload) => payload.sampleId);
+				const commandFieldPlaceholderLeaks = payloads.flatMap((payload) =>
+					generatedCommandFieldPlaceholderLeaks(payload)
+						.map((leak) => `${payload.sampleId}.${leak}`),
+				);
 
-			expect(placeholders).toEqual([]);
-			expect(actionPlaceholders).toEqual([]);
-			expect(interactiveSow).toEqual([]);
-			expect(actionInteractiveSow).toEqual([]);
-			expect(handoffPlaceholders).toEqual([]);
-			expect(replOnly).toEqual([]);
-			expect(missingNextActions).toEqual([]);
-			expect(missingNextCommands).toEqual([]);
+				expect(placeholders).toEqual([]);
+				expect(actionPlaceholders).toEqual([]);
+				expect(interactiveSow).toEqual([]);
+				expect(actionInteractiveSow).toEqual([]);
+				expect(handoffPlaceholders).toEqual([]);
+				expect(commandFieldPlaceholderLeaks).toEqual([]);
+				expect(replOnly).toEqual([]);
+				expect(missingNextActions).toEqual([]);
+				expect(missingNextCommands).toEqual([]);
 		} finally {
 			config.cleanup();
 		}
