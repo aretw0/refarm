@@ -775,6 +775,9 @@ describe("plugin bundle", () => {
 			bundleCommand: string;
 			packageManager: string;
 			packageManagerCommand: string;
+			processCommand: string;
+			processArgs: string[];
+			display: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
@@ -787,6 +790,19 @@ describe("plugin bundle", () => {
 				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
 			packageManager: "pnpm",
 			packageManagerCommand: "pnpm",
+			processCommand: "pnpm",
+			processArgs: [
+				"exec",
+				"jco",
+				"transpile",
+				"my plugin.wasm",
+				"-o",
+				"./out dir",
+				"--name",
+				"my plugin",
+			],
+			display:
+				"pnpm exec jco transpile 'my plugin.wasm' -o './out dir' --name 'my plugin'",
 			nextCommand:
 				"refarm plugin bundle 'my plugin.wasm' -o './out dir' --name 'my plugin'",
 		});
@@ -858,6 +874,9 @@ describe("plugin bundle", () => {
 			message: string;
 			packageManager: string;
 			packageManagerCommand: string;
+			processCommand: string;
+			processArgs: string[];
+			display: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
@@ -867,6 +886,18 @@ describe("plugin bundle", () => {
 			message: "jco not found",
 			packageManager: "pnpm",
 			packageManagerCommand: "pnpm",
+			processCommand: "pnpm",
+			processArgs: [
+				"exec",
+				"jco",
+				"transpile",
+				"bad-plugin.wasm",
+				"-o",
+				"./dist",
+				"--name",
+				"bad-plugin",
+			],
+			display: "pnpm exec jco transpile bad-plugin.wasm -o ./dist --name bad-plugin",
 			nextCommand:
 				"refarm plugin bundle 'bad-plugin.wasm' -o './dist' --name 'bad-plugin'",
 		});
