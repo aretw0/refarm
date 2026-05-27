@@ -31,3 +31,30 @@ export type {
 	JsonSuccessEnvelope,
 	JsonSuccessEnvelopeInput,
 } from "./json-output.js";
+export {
+	commandPayloadNextActions,
+	commandPayloadNextCommands,
+	commandPayloadOk,
+	commandPayloadRecommendations,
+	parseCommandJsonPayload,
+} from "./command-result.js";
+export {
+	buildCommandPlanEnvelope,
+	buildCommandPlanRunEnvelope,
+	commandPlanEffects,
+	commandPlanStepCommands,
+	commandPlanStepSummary,
+	commandPlanWrites,
+	runCommandPlan,
+} from "./command-plan.js";
+export type {
+	CommandPlanEffect,
+	CommandPlanEnvelope,
+	CommandPlanEnvelopeContext,
+	CommandPlanEnvelopeExtra,
+	CommandPlanRunEnvelope,
+	CommandPlanRunResult,
+	CommandPlanStep,
+	CommandPlanStepRunResult,
+	CommandPlanStepSummary,
+} from "./command-plan.js";

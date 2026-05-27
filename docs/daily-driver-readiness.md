@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**72/100**
+**75/100**
 
 Strong enough to keep developing with Refarm in the loop, not yet strong enough
 to stop spending regular work on Refarm itself.
@@ -32,12 +32,11 @@ What is already solid:
 - Task logs and resume now preserve model-route context.
 - Package-manager-sensitive commands are becoming structured and spawn-safe.
 - `@refarm.dev/cli` owns status, browser-open, command-line parsing, handoff
-  command helpers, and JSON output envelopes.
+  command helpers, JSON output envelopes, command result parsing, and command
+  plan execution/envelopes.
 
 What still blocks the 85/100 target:
 
-- `command-plan` still lives in `apps/refarm`; it should become a shared CLI
-  primitive after one more compatibility pass.
 - Some scripts and legacy toolbox flows still execute shell command strings.
 - Resume is still task-centric; operator-level resume/status needs a single
   daily-driver view.

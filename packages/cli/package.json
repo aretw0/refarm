@@ -29,6 +29,14 @@
 		"./json-output": {
 			"types": "./dist/json-output.d.ts",
 			"import": "./dist/json-output.js"
+		},
+		"./command-result": {
+			"types": "./dist/command-result.d.ts",
+			"import": "./dist/command-result.js"
+		},
+		"./command-plan": {
+			"types": "./dist/command-plan.d.ts",
+			"import": "./dist/command-plan.js"
 		}
 	},
 	"scripts": {
