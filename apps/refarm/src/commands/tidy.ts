@@ -1,6 +1,10 @@
-import type { LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
+import {
+	runLaunchProcess,
+	type LaunchProcessRunOptions,
+	type LaunchProcessRunResult,
+	type LaunchProcessSpec,
+} from "@refarm.dev/cli/launch-process";
 import { Command } from "commander";
-import { spawn } from "node:child_process";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
@@ -18,15 +22,8 @@ export interface TidyImportsOptions {
 	json?: boolean;
 }
 
-export interface TidyRunOptions {
-	capture: boolean;
-}
-
-export interface TidyRunResult {
-	exitCode: number;
-	stdout?: string;
-	stderr?: string;
-}
+export type TidyRunOptions = LaunchProcessRunOptions;
+export type TidyRunResult = LaunchProcessRunResult;
 
 export interface TidyDeps {
 	cwd(): string;
@@ -95,34 +92,7 @@ export function runTidyProcess(
 	spec: LaunchProcessSpec,
 	options: TidyRunOptions,
 ): Promise<TidyRunResult> {
-	return new Promise((resolve, reject) => {
-		const child = spawn(spec.command, spec.args, {
-			cwd: spec.cwd ?? process.cwd(),
-			env: process.env,
-			stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
-		});
-		let stdout = "";
-		let stderr = "";
-
-		if (options.capture) {
-			child.stdout?.setEncoding("utf-8");
-			child.stderr?.setEncoding("utf-8");
-			child.stdout?.on("data", (chunk: string) => {
-				stdout += chunk;
-			});
-			child.stderr?.on("data", (chunk: string) => {
-				stderr += chunk;
-			});
-		}
-
-		child.once("error", reject);
-		child.once("close", (code) => {
-			resolve({
-				exitCode: code ?? 0,
-				...(options.capture ? { stdout, stderr } : {}),
-			});
-		});
-	});
+	return runLaunchProcess(spec, options);
 }
 
 export function createTidyCommand(deps?: Partial<TidyDeps>): Command {

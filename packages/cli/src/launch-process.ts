@@ -9,6 +9,17 @@ export interface LaunchProcessSpec {
 	display: string;
 }
 
+export interface LaunchProcessRunOptions {
+	capture?: boolean;
+	env?: NodeJS.ProcessEnv;
+}
+
+export interface LaunchProcessRunResult {
+	exitCode: number;
+	stdout?: string;
+	stderr?: string;
+}
+
 export function createLaunchProcessSpec(
 	commandDisplay: string,
 	options: { cwd?: string } = {},
@@ -36,20 +47,44 @@ export function splitLaunchCommand(command: string): {
 	};
 }
 
-export function launchProcess(spec: LaunchProcessSpec): Promise<number> {
+export function runLaunchProcess(
+	spec: LaunchProcessSpec,
+	options: LaunchProcessRunOptions = {},
+): Promise<LaunchProcessRunResult> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(spec.command, spec.args, {
 			cwd: spec.cwd ?? process.cwd(),
-			stdio: "inherit",
-			env: process.env,
+			stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
+			env: options.env ?? process.env,
 		});
+		let stdout = "";
+		let stderr = "";
+
+		if (options.capture) {
+			child.stdout?.setEncoding("utf-8");
+			child.stderr?.setEncoding("utf-8");
+			child.stdout?.on("data", (chunk: string) => {
+				stdout += chunk;
+			});
+			child.stderr?.on("data", (chunk: string) => {
+				stderr += chunk;
+			});
+		}
 
 		child.once("error", (error) => {
 			reject(error);
 		});
 
 		child.once("close", (code) => {
-			resolve(code ?? 0);
+			resolve({
+				exitCode: code ?? 0,
+				...(options.capture ? { stdout, stderr } : {}),
+			});
 		});
 	});
+}
+
+export async function launchProcess(spec: LaunchProcessSpec): Promise<number> {
+	const result = await runLaunchProcess(spec);
+	return result.exitCode;
 }

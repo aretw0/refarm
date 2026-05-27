@@ -144,10 +144,13 @@ export type {
 export {
 	createLaunchProcessSpec,
 	launchProcess,
+	runLaunchProcess,
 	splitLaunchCommand,
 } from "./launch-process.js";
 export type {
 	LaunchProcessSpec,
+	LaunchProcessRunOptions,
+	LaunchProcessRunResult,
 } from "./launch-process.js";
 export {
 	assertLaunchAllowed,
