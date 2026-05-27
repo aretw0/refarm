@@ -76,8 +76,15 @@ describe("package manager command resolution", () => {
 			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
 			handoffs: {
 				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
-				pluginBundleDryRun: "refarm plugin bundle <plugin.wasm> --dry-run --json",
 			},
+			templates: [
+				{
+					id: "plugin-bundle-dry-run",
+					command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					parameters: ["plugin.wasm"],
+					useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
+				},
+			],
 		});
 	});
 
@@ -100,8 +107,15 @@ describe("package manager command resolution", () => {
 			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
 			handoffs: {
 				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
-				pluginBundleDryRun: "refarm plugin bundle <plugin.wasm> --dry-run --json",
 			},
+			templates: [
+				{
+					id: "plugin-bundle-dry-run",
+					command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					parameters: ["plugin.wasm"],
+					useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
+				},
+			],
 			nextAction: null,
 			nextActions: [],
 			nextCommand: "refarm tidy imports --dry-run --json",

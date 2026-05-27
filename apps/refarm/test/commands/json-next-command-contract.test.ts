@@ -91,7 +91,22 @@ function generatedActionEntries(payloads: Array<{
 	);
 }
 
+function generatedHandoffEntries(payloads: Array<{
+	handoffs?: Record<string, unknown>;
+	sampleId: string;
+}>): Array<{ handoff: string; key: string; sampleId: string }> {
+	return payloads.flatMap((payload) =>
+		Object.entries(payload.handoffs ?? {})
+			.filter((entry): entry is [string, string] => typeof entry[1] === "string")
+			.map(([key, handoff]) => ({ handoff, key, sampleId: payload.sampleId })),
+	);
+}
+
 function generatedTemplates(payloads: {
+	templates?: {
+		command?: string;
+		parameters?: string[];
+	}[];
 	verification?: {
 		templates?: {
 			command?: string;
@@ -100,7 +115,7 @@ function generatedTemplates(payloads: {
 	};
 }[]): { command: string; parameters: string[] }[] {
 	return payloads.flatMap((payload) =>
-		payload.verification?.templates
+		[...(payload.templates ?? []), ...(payload.verification?.templates ?? [])]
 			?.filter((template) => typeof template.command === "string")
 			.map((template) => ({
 				command: template.command!,
@@ -160,10 +175,15 @@ function createTempConfigCommand() {
 }
 
 interface ParsedCommandJson {
+	handoffs?: Record<string, unknown>;
 	nextAction?: string | null;
 	nextActions?: string[];
 	nextCommand?: string | null;
 	nextCommands?: string[];
+	templates?: {
+		command?: string;
+		parameters?: string[];
+	}[];
 	verification?: {
 		templates?: {
 			command?: string;
@@ -376,6 +396,7 @@ describe("JSON next command contract", () => {
 
 			const commandEntries = generatedCommandEntries(payloads);
 			const actionEntries = generatedActionEntries(payloads);
+			const handoffEntries = generatedHandoffEntries(payloads);
 			const placeholders = commandEntries
 				.filter(({ command }) => /<[^>]+>/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
@@ -388,6 +409,9 @@ describe("JSON next command contract", () => {
 			const actionInteractiveSow = actionEntries
 				.filter(({ action }) => hasInteractiveSowCommand(action))
 				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
+			const handoffPlaceholders = handoffEntries
+				.filter(({ handoff }) => /<[^>]+>/.test(handoff))
+				.map(({ handoff, key, sampleId }) => `${sampleId}.${key}: ${handoff}`);
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
@@ -402,6 +426,7 @@ describe("JSON next command contract", () => {
 			expect(actionPlaceholders).toEqual([]);
 			expect(interactiveSow).toEqual([]);
 			expect(actionInteractiveSow).toEqual([]);
+			expect(handoffPlaceholders).toEqual([]);
 			expect(replOnly).toEqual([]);
 			expect(missingNextActions).toEqual([]);
 			expect(missingNextCommands).toEqual([]);

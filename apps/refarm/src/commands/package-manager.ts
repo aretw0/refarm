@@ -29,8 +29,13 @@ export interface PackageManagerStatus {
 	validPackageManagers: readonly PackageManagerName[];
 	handoffs: {
 		tidyImportsDryRun: string;
-		pluginBundleDryRun: string;
 	};
+	templates: Array<{
+		id: string;
+		command: string;
+		parameters: string[];
+		useWhen: string;
+	}>;
 }
 
 export function detectPackageManager(options: {
@@ -65,8 +70,15 @@ export function buildPackageManagerStatus(options: {
 		validPackageManagers: PACKAGE_MANAGERS,
 		handoffs: {
 			tidyImportsDryRun: "refarm tidy imports --dry-run --json",
-			pluginBundleDryRun: "refarm plugin bundle <plugin.wasm> --dry-run --json",
 		},
+		templates: [
+			{
+				id: "plugin-bundle-dry-run",
+				command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+				parameters: ["plugin.wasm"],
+				useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
+			},
+		],
 	};
 }
 
