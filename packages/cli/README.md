@@ -1,21 +1,28 @@
 # @refarm.dev/cli
 
-The Refarm CLI is the primary developer tool for scaffolding, validating, and managing the sovereign microkernel and its ecosystem of plugins.
+Shared CLI contracts and process-safe helpers used by the Refarm app and other
+operator surfaces.
 
-## Features
+This package is not the Refarm application entrypoint. It holds reusable
+building blocks that should remain useful outside the app layer:
 
-- **`refarm status`**: Check the current resolution state of the monorepo.
-- **`refarm health`**: Run automated diagnostics on the project structure (Planned).
-- **`refarm create`**: Scaffold new plugins and components (Planned).
+- JSON success/error envelopes and command-result parsing.
+- Command handoff builders, including agnostic binary command helpers.
+- Command plan and execution plan envelopes.
+- Surface action affordance formatting and selection.
+- Browser-open, launch-process, launch-readiness, Git, and GitHub Actions
+  adapters.
+- Refarm status schema contracts and compatibility aliases where public callers
+  still rely on Refarm-specific names.
 
-## Usage
+## Boundary
 
-```bash
-# Register the command globally (dev)
-npm link
+Keep product orchestration in `apps/refarm`. Move reusable contracts and
+spawn-safe process helpers here when more than one surface or command can use
+them.
 
-# Use the command
-refarm --help
-```
+Prefer agnostic primary names for new reusable helpers. Keep Refarm-specific
+exports only when they describe a public Refarm contract or preserve compatibility
+for existing callers.
 
 See [ROADMAP.md](./ROADMAP.md) for the strategic evolution of the CLI.

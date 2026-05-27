@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/cli",
 	"version": "0.1.0",
-	"description": "Refarm CLI library \u2014 status builder and shared types.",
+	"description": "Shared CLI primitives and Refarm status contracts.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
