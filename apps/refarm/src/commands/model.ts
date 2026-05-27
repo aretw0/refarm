@@ -108,6 +108,12 @@ export interface CurrentModelStatus {
 		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
 		status: string | null;
 	};
+	routeCredentials: Record<ModelScope, {
+		provider: string | undefined;
+		envKey: string | undefined;
+		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
+		status: string | null;
+	}>;
 	baseUrl: string | undefined;
 	fallback: string | undefined;
 	source: {
@@ -172,6 +178,19 @@ function modelCredentialState(
 	tokens: ModelTokens,
 ): CurrentModelStatus["credential"]["state"] {
 	return resolveModelCredentialStatus(provider, tokens, process.env).state;
+}
+
+function modelRouteCredentialStatus(
+	provider: string | undefined,
+	tokens: ModelTokens,
+): CurrentModelStatus["routeCredentials"][ModelScope] {
+	const status = resolveModelCredentialStatus(provider, tokens, process.env);
+	return {
+		provider,
+		envKey: "envKey" in status ? status.envKey : undefined,
+		state: status.state,
+		status: modelCredentialStatus(provider, tokens),
+	};
 }
 
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
@@ -273,14 +292,75 @@ function currentModelNextCommands(status: CurrentModelStatus): string[] {
 }
 
 function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
-	if (status.credential.state === "missing") {
-		return [
+	const commands: string[] = [];
+	const seenMissingProviders = new Set<string>();
+	for (const scope of MODEL_SCOPES) {
+		const credential = status.routeCredentials[scope];
+		if (credential.state !== "missing") continue;
+		const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
+		if (seenMissingProviders.has(providerKey)) continue;
+		seenMissingProviders.add(providerKey);
+		if (scope === "default") {
+			commands.push(
+				SOW_JSON_COMMAND,
+				MODEL_PROVIDERS_JSON_COMMAND,
+				refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
+			);
+			continue;
+		}
+		commands.push(
 			SOW_JSON_COMMAND,
 			MODEL_PROVIDERS_JSON_COMMAND,
-			refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
-		];
+			refarmCommand([
+				"model",
+				"set",
+				"--scope",
+				scope,
+				quoteCommandArg(OLLAMA_DEFAULT_REF),
+				"--json",
+			]),
+		);
 	}
-	return [];
+	return Array.from(new Set(commands));
+}
+
+function currentModelMissingRecommendations(
+	status: Pick<CurrentModelStatus, "routeCredentials">,
+): NonNullable<CurrentModelStatus["recommendations"]> {
+	const recommendations: NonNullable<CurrentModelStatus["recommendations"]> = [];
+	const seenMissingProviders = new Set<string>();
+	for (const scope of MODEL_SCOPES) {
+		const credential = status.routeCredentials[scope];
+		if (credential.state !== "missing") continue;
+		const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
+		if (seenMissingProviders.has(providerKey)) continue;
+		seenMissingProviders.add(providerKey);
+		if (scope === "default") {
+			recommendations.push({
+				diagnostic: "model-credentials-missing",
+				severity: "failure",
+				summary: "The current model route requires credentials that are not available.",
+				action: "Inspect provider requirements or run the credential handoff.",
+				command: SOW_JSON_COMMAND,
+			});
+			continue;
+		}
+		recommendations.push({
+			diagnostic: `model-${scope}-credentials-missing`,
+			severity: "failure",
+			summary: `The ${scope} model route requires credentials that are not available.`,
+			action: "Configure credentials or switch the scoped route to a no-key local model.",
+			command: refarmCommand([
+				"model",
+				"set",
+				"--scope",
+				scope,
+				quoteCommandArg(OLLAMA_DEFAULT_REF),
+				"--json",
+			]),
+		});
+	}
+	return recommendations;
 }
 
 function currentModelHandoffs(
@@ -312,21 +392,14 @@ function currentModelHandoffs(
 }
 
 function currentModelRecovery(
-	status: Pick<CurrentModelStatus, "credential" | "current" | "routes">,
+	status: Pick<CurrentModelStatus, "credential" | "current" | "routes" | "routeCredentials">,
 ): Pick<CurrentModelStatus, "recommendations" | "handoffs"> {
-	if (status.credential.state !== "missing") {
+	const recommendations = currentModelMissingRecommendations(status);
+	if (recommendations.length === 0) {
 		return { handoffs: currentModelHandoffs(status) };
 	}
 	return {
-		recommendations: [
-			{
-				diagnostic: "model-credentials-missing",
-				severity: "failure",
-				summary: "The current model route requires credentials that are not available.",
-				action: "Inspect provider requirements or run the credential handoff.",
-				command: SOW_JSON_COMMAND,
-			},
-		],
+		recommendations,
 		handoffs: currentModelHandoffs(status),
 	};
 }
@@ -362,6 +435,11 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	const workerRoute = formatModelRef(worker.provider, worker.modelId);
 	const monitor = effectiveModelRouteForScope(tokens, "monitor", { env: process.env });
 	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
+	const routeCredentials: CurrentModelStatus["routeCredentials"] = {
+		default: modelRouteCredentialStatus(provider, tokens),
+		worker: modelRouteCredentialStatus(worker.provider, tokens),
+		monitor: modelRouteCredentialStatus(monitor.provider, tokens),
+	};
 	const envOverrides = activeModelEnvOverrides();
 	let sourceKind: CurrentModelStatus["source"]["kind"];
 	if (envOverrides.length > 0) {
@@ -392,6 +470,7 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 			state: credentialState,
 			status: credentialStatus,
 		},
+		routeCredentials,
 		baseUrl,
 		fallback: fallbackRef,
 		source: {

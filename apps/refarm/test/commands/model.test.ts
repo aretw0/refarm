@@ -166,6 +166,11 @@ describe("modelCommand", () => {
 			operation: string;
 			current: { ref: string };
 			routes: { default: string; worker: string; monitor: string };
+			routeCredentials: {
+				default: { state: string };
+				worker: { state: string };
+				monitor: { state: string };
+			};
 			source: { kind: string; envOverrides: string[] };
 			credential: { envKey: string; state: string; status: string };
 			handoffs: {
@@ -194,6 +199,8 @@ describe("modelCommand", () => {
 		expect(payload.credential.envKey).toBe("OPENAI_API_KEY");
 		expect(payload.credential.state).toBe("missing");
 		expect(payload.credential.status).toBe("missing (run refarm sow)");
+		expect(payload.routeCredentials.default.state).toBe("missing");
+		expect(payload.routeCredentials.worker.state).toBe("missing");
 		expect(payload.source.kind).toBe("identity");
 		expect(payload.nextCommand).toBe("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
@@ -216,6 +223,72 @@ describe("modelCommand", () => {
 			setWorkerModel: "refarm model set --scope worker 'openai/gpt-5.3-codex-spark' --json",
 			setMonitorModel: "refarm model set --scope monitor 'openai/gpt-5.5' --json",
 		});
+
+		logSpy.mockRestore();
+	});
+
+	it("reports missing scoped route credentials even when the default route needs no key", () => {
+		const status = buildCurrentModelStatus({
+			modelProvider: "ollama",
+			modelId: "llama3.2",
+			modelRoutes: {
+				worker: "openai/gpt-5.3-codex-spark",
+			},
+		});
+
+		expect(status.credential.state).toBe("not-required");
+		expect(status.routeCredentials.default.state).toBe("not-required");
+		expect(status.routeCredentials.worker).toMatchObject({
+			provider: "openai",
+			envKey: "OPENAI_API_KEY",
+			state: "missing",
+			status: "missing (run refarm sow)",
+		});
+		expect(status.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-worker-credentials-missing",
+				command: "refarm model set --scope worker 'ollama/llama3.2' --json",
+			}),
+		]);
+	});
+
+	it("prints scoped credential recovery commands as JSON", async () => {
+		const deps = makeDeps({
+			modelProvider: "ollama",
+			modelId: "llama3.2",
+			modelRoutes: {
+				worker: "openai/gpt-5.3-codex-spark",
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			nextCommand: string;
+			nextCommands: string[];
+			routeCredentials: Record<string, { state: string; envKey?: string }>;
+			recommendations: {
+				diagnostic: string;
+				command: string;
+			}[];
+		};
+		expect(payload.routeCredentials.worker).toMatchObject({
+			state: "missing",
+			envKey: "OPENAI_API_KEY",
+		});
+		expect(payload.nextCommand).toBe("refarm sow --json");
+		expect(payload.nextCommands).toContain("refarm model providers --json");
+		expect(payload.nextCommands).toContain(
+			"refarm model set --scope worker 'ollama/llama3.2' --json",
+		);
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-worker-credentials-missing",
+				command: "refarm model set --scope worker 'ollama/llama3.2' --json",
+			}),
+		]);
 
 		logSpy.mockRestore();
 	});
