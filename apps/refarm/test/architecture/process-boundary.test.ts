@@ -17,6 +17,14 @@ const LEGACY_REFARM_ACTION_ALIAS_PATTERNS = [
 	/\bresolveRefarmAction[A-Za-z0-9_]*/,
 	/\bgetRefarmStatusAvailableActions\b/,
 ] as const;
+const HARDCODED_PACKAGE_MANAGER_EXECUTION_PATTERNS = [
+	/\bcommand:\s*["']pnpm["']/,
+	/\bcommand:\s*["']npm["']/,
+	/\bcommand:\s*["']yarn["']/,
+	/\bcommand:\s*["']bun["']/,
+	/\bspawn(?:Sync)?\(\s*["'](?:pnpm|npm|yarn|bun)["']/,
+	/\bexecFile(?:Sync)?\(\s*["'](?:pnpm|npm|yarn|bun)["']/,
+] as const;
 
 function sourceFiles(dir: string): string[] {
 	const files: string[] = [];
@@ -51,5 +59,16 @@ describe("process execution boundary", () => {
 		});
 
 		expect(offenders.map((filePath) => path.relative(APP_COMMANDS_DIR, filePath))).toEqual([]);
+	});
+
+	it("routes package manager execution through resolver helpers", () => {
+		const offenders = sourceFiles(APP_SRC_DIR).filter((filePath) => {
+			const source = readFileSync(filePath, "utf-8");
+			return HARDCODED_PACKAGE_MANAGER_EXECUTION_PATTERNS.some((pattern) =>
+				pattern.test(source),
+			);
+		});
+
+		expect(offenders.map((filePath) => path.relative(APP_SRC_DIR, filePath))).toEqual([]);
 	});
 });
