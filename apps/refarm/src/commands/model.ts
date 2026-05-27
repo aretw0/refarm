@@ -252,6 +252,12 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (status.fallback) console.log(`  fallback: ${status.fallback}`);
 	if (status.routes.worker) console.log(`  worker:   ${status.routes.worker}`);
 	if (status.routes.monitor) console.log(`  monitor:  ${status.routes.monitor}`);
+	for (const recommendation of status.recommendations ?? []) {
+		console.log(chalk.yellow(`  warning: ${recommendation.summary}`));
+		if (recommendation.command) {
+			console.log(chalk.dim(`  fix:     ${recommendation.command}`));
+		}
+	}
 	if (status.source.kind === "environment") {
 		console.log(chalk.dim("  source:   environment overrides are active"));
 		console.log(chalk.dim(`  env:      ${status.source.envOverrides.join(", ")}`));

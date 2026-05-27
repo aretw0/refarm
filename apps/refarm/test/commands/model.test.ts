@@ -126,6 +126,28 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints human recovery for missing scoped route credentials", async () => {
+		const deps = makeDeps({
+			modelProvider: "ollama",
+			modelId: "llama3.2",
+			modelRoutes: {
+				worker: "openai/gpt-5.3-codex-spark",
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("current: ollama/llama3.2");
+		expect(output).toContain("worker:   openai/gpt-5.3-codex-spark");
+		expect(output).toContain("warning: The worker model route requires credentials");
+		expect(output).toContain("fix:     refarm model set --scope worker 'ollama/llama3.2' --json");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints the default route when only the default provider key env is set", async () => {
 		process.env.OPENAI_API_KEY = "sk-env-test";
 		const command = createModelCommand(makeDeps());
