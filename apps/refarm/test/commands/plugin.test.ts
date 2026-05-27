@@ -10,7 +10,7 @@ const {
 	mockMkdir,
 	mockRequireResolve,
 	mockDigest,
-	mockExecFileSync,
+	mockRunLaunchProcess,
 } = vi.hoisted(() => {
 	const mockDigest = vi.fn().mockReturnValue("abc123");
 	return {
@@ -22,7 +22,7 @@ const {
 		mockMkdir: vi.fn().mockResolvedValue(undefined),
 		mockRequireResolve: vi.fn(),
 		mockDigest,
-		mockExecFileSync: vi.fn(),
+		mockRunLaunchProcess: vi.fn(),
 	};
 });
 
@@ -59,7 +59,15 @@ vi.mock("node:module", () => ({
 	),
 }));
 
-vi.mock("node:child_process", () => ({ execFileSync: mockExecFileSync }));
+vi.mock("@refarm.dev/cli/launch-process", async () => {
+	const actual = await vi.importActual<typeof import("@refarm.dev/cli/launch-process")>(
+		"@refarm.dev/cli/launch-process",
+	);
+	return {
+		...actual,
+		runLaunchProcess: mockRunLaunchProcess,
+	};
+});
 
 import { pluginCommand } from "../../src/commands/plugin.js";
 
@@ -715,7 +723,7 @@ describe("plugin bundle", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.env.REFARM_PACKAGE_MANAGER = "pnpm";
-		mockExecFileSync.mockReturnValue(undefined);
+		mockRunLaunchProcess.mockResolvedValue({ exitCode: 0 });
 	});
 
 	afterEach(() => {
@@ -732,10 +740,12 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm", "-o", "./out");
 
-		expect(mockExecFileSync).toHaveBeenCalledWith(
-			"pnpm",
-			expect.arrayContaining(["exec", "jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
-			expect.objectContaining({ stdio: "inherit" }),
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			expect.objectContaining({
+				command: "pnpm",
+				args: expect.arrayContaining(["exec", "jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
+			}),
+			{ capture: false },
 		);
 		consoleSpy.mockRestore();
 	});
@@ -767,7 +777,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my plugin.wasm", "-o", "./out dir", "--dry-run", "--json");
 
-		expect(mockExecFileSync).not.toHaveBeenCalled();
+		expect(mockRunLaunchProcess).not.toHaveBeenCalled();
 		expect(errorSpy).not.toHaveBeenCalled();
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
@@ -816,10 +826,12 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm");
 
-		expect(mockExecFileSync).toHaveBeenCalledWith(
-			"pnpm",
-			expect.arrayContaining(["--name", "my-plugin"]),
-			expect.any(Object),
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			expect.objectContaining({
+				command: "pnpm",
+				args: expect.arrayContaining(["--name", "my-plugin"]),
+			}),
+			{ capture: false },
 		);
 		consoleSpy.mockRestore();
 	});
@@ -829,16 +841,48 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm", "--name", "custom-name");
 
-		expect(mockExecFileSync).toHaveBeenCalledWith(
-			"pnpm",
-			expect.arrayContaining(["--name", "custom-name"]),
-			expect.any(Object),
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			expect.objectContaining({
+				command: "pnpm",
+				args: expect.arrayContaining(["--name", "custom-name"]),
+			}),
+			{ capture: false },
 		);
 		consoleSpy.mockRestore();
 	});
 
+	it("captures bundle output in JSON mode", async () => {
+		mockRunLaunchProcess.mockResolvedValue({
+			exitCode: 0,
+			stdout: "generated component\n",
+			stderr: "jco warning\n",
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("bundle", "my-plugin.wasm", "--json");
+
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			expect.objectContaining({
+				command: "pnpm",
+				args: expect.arrayContaining(["jco", "transpile", "my-plugin.wasm"]),
+			}),
+			{ capture: true },
+		);
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			stdout: string;
+			stderr: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			stdout: "generated component\n",
+			stderr: "jco warning\n",
+		});
+		logSpy.mockRestore();
+	});
+
 	it("sets process.exitCode = 1 when jco fails", async () => {
-		mockExecFileSync.mockImplementation(() => {
+		mockRunLaunchProcess.mockImplementation(() => {
 			throw new Error("jco not found");
 		});
 		const originalExitCode = process.exitCode;
@@ -858,7 +902,7 @@ describe("plugin bundle", () => {
 	});
 
 	it("prints bundle failures as JSON without human stderr", async () => {
-		mockExecFileSync.mockImplementation(() => {
+		mockRunLaunchProcess.mockImplementation(() => {
 			throw new Error("jco not found");
 		});
 		const originalExitCode = process.exitCode;
@@ -867,6 +911,13 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "bad-plugin.wasm", "--json");
 
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			expect.objectContaining({
+				command: "pnpm",
+				args: expect.arrayContaining(["jco", "transpile", "bad-plugin.wasm"]),
+			}),
+			{ capture: true },
+		);
 		expect(errorSpy).not.toHaveBeenCalled();
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;

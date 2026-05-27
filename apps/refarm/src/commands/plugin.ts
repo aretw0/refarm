@@ -1,6 +1,6 @@
 import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import { Command } from "commander";
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -782,7 +782,7 @@ pluginCommand
 			`  REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
 		].join("\n"),
 	)
-	.action((input: string, options: { output: string; name?: string; dryRun?: boolean; json?: boolean }) => {
+	.action(async (input: string, options: { output: string; name?: string; dryRun?: boolean; json?: boolean }) => {
 		const name = options.name ?? basename(input, extname(input));
 		const command = createPackageBinaryCommand("jco", [
 			"transpile",
@@ -829,13 +829,26 @@ pluginCommand
 		if (!options.json) {
 			console.log(`Bundling plugin ${name} from ${input}...`);
 		}
+		let result:
+			| Awaited<ReturnType<typeof runLaunchProcess>>
+			| undefined;
 		try {
 			if (!options.json) {
 				console.log(`  → ${command.display}`);
 			}
-			execFileSync(command.command, command.args, {
-				stdio: "inherit",
-			});
+			result = await runLaunchProcess(
+				{
+					...command,
+					display: command.display,
+				},
+				{
+					capture: options.json === true,
+				},
+			);
+			if (result.exitCode !== 0) {
+				const detail = result.stderr?.trim() || result.stdout?.trim();
+				throw new Error(detail || `jco exited with code ${result.exitCode}`);
+			}
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
@@ -853,6 +866,8 @@ pluginCommand
 							processArgs: command.args,
 							display: command.display,
 							args: command.args,
+							stdout: result.stdout,
+							stderr: result.stderr,
 							artifact: `${options.output}/${name}.js`,
 						},
 					}),
@@ -892,6 +907,9 @@ pluginCommand
 							processArgs: command.args,
 							display: command.display,
 							args: command.args,
+							exitCode: result?.exitCode ?? 1,
+							stdout: result?.stdout,
+							stderr: result?.stderr,
 						},
 					}),
 				);
@@ -902,6 +920,6 @@ pluginCommand
 					`    Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
 				);
 			}
-			process.exitCode = 1;
+			process.exitCode = result?.exitCode && result.exitCode !== 0 ? result.exitCode : 1;
 		}
 	});
