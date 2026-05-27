@@ -53,6 +53,10 @@
 		"./launch-process": {
 			"types": "./dist/launch-process.d.ts",
 			"import": "./dist/launch-process.js"
+		},
+		"./launch-policy": {
+			"types": "./dist/launch-policy.d.ts",
+			"import": "./dist/launch-policy.js"
 		}
 	},
 	"scripts": {

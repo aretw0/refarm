@@ -149,3 +149,15 @@ export {
 export type {
 	LaunchProcessSpec,
 } from "./launch-process.js";
+export {
+	assertLaunchAllowed,
+	REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	REFARM_RUNTIME_DOCTOR_NEXT_COMMAND,
+	REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	REFARM_RUNTIME_NOT_READY_LAUNCH_HINT,
+	REFARM_RUNTIME_STATUS_COMMAND,
+	resolveLaunchReadiness,
+} from "./launch-policy.js";
+export type {
+	RefarmLaunchReadiness,
+} from "./launch-policy.js";
