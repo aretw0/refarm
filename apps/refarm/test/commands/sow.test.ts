@@ -507,14 +507,13 @@ describe("sowCommand — --all credentials", () => {
 });
 
 describe("sowCommand — SIGINT handling", () => {
-	it("exits gracefully on ExitPromptError", async () => {
+	it("exits gracefully on legacy ExitPromptError-shaped cancellation", async () => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({});
-		const { ExitPromptError } = await import("@inquirer/core");
-		mockModelCollect.mockRejectedValueOnce(
-			new ExitPromptError("User force closed the prompt with SIGINT"),
-		);
+		const error = new Error("User force closed the prompt with SIGINT");
+		error.name = "ExitPromptError";
+		mockModelCollect.mockRejectedValueOnce(error);
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(process.exitCode).toBeUndefined();
 	});

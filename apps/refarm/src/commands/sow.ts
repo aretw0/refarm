@@ -1,4 +1,3 @@
-import { ExitPromptError } from "@inquirer/core";
 import { hasUsableModelCredential } from "@refarm.dev/config";
 import {
 	OperatorPromptCancelledError,
@@ -46,6 +45,13 @@ function hasModelCredential(tokens: Record<string, unknown>): boolean {
 	const provider = stringValue(tokens.modelProvider);
 	if (!provider) return false;
 	return hasUsableModelCredential(provider, tokens, process.env);
+}
+
+function isPromptCancelledError(error: unknown): boolean {
+	return (
+		error instanceof OperatorPromptCancelledError ||
+		(error instanceof Error && error.name === "ExitPromptError")
+	);
 }
 
 interface SowOptions {
@@ -321,9 +327,7 @@ export const sowCommand = new Command("sow")
 				);
 			}
 		} catch (error) {
-			if (!(error instanceof ExitPromptError) && !(error instanceof OperatorPromptCancelledError)) {
-				throw error;
-			}
+			if (!isPromptCancelledError(error)) throw error;
 			console.log(chalk.gray("\n  Cancelled."));
 		}
 	});

@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**89/100**
+**90/100**
 
 Strong enough to use Refarm as the daily development driver while still
 spending regular work on hardening Refarm itself.
@@ -51,8 +51,9 @@ What is already solid:
 What still blocks the 95/100 product target:
 
 - Some scripts and legacy toolbox flows still execute shell command strings.
-- `@inquirer/core` remains only as a cancellation compatibility dependency for
-  flows that can still throw `ExitPromptError`.
+- Remaining direct app prompts are now expected to go through
+  `@refarm.dev/prompt-contract-v1`; legacy `ExitPromptError` cancellation is
+  recognized by shape for compatibility without a direct app dependency.
 - Operator resume can still grow deeper session-entry summaries, but already
   exposes recent runtime sessions and recovery commands.
 - `agent finish` can be faster and more selective for common local edits.
