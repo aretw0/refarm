@@ -8,9 +8,4 @@ export type {
 	ExecutionPlanHandoffInput,
 	ExecutionPlanReadinessInput,
 	ExecutionPlanReadinessLine,
-	RefarmExecutionPlanBase,
-	RefarmExecutionPlanHandoff,
-	RefarmExecutionPlanHandoffInput,
-	RefarmExecutionPlanReadinessInput,
-	RefarmExecutionPlanReadinessLine,
 } from "@refarm.dev/cli/execution-plan";
