@@ -14,6 +14,7 @@ import {
 } from "./session-lock.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
 	buildSessionForkPreviewEnvelope,
 	buildSessionSwitchEnvelope,
@@ -24,8 +25,6 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineNode,
 } from "./tree-model.js";
-
-const TREE_SESSION_LIST_JSON_COMMAND = "refarm tree list --scope session --json";
 
 interface SessionNode {
 	"@id": string;

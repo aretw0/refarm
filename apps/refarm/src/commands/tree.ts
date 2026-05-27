@@ -12,6 +12,10 @@ import {
 	switchGitTree,
 } from "./tree-git.js";
 import {
+	TREE_LIST_ALL_JSON_COMMAND,
+	TREE_LIST_JSON_COMMAND,
+} from "./tree-handoffs.js";
+import {
 	buildAllTimelineListEnvelope,
 	outputTreeJson,
 	REFARM_TREE_ALL_SCOPE,
@@ -32,9 +36,6 @@ import {
 type RefarmTimelineListScope =
 	| RefarmTimelineScope
 	| typeof REFARM_TREE_ALL_SCOPE;
-
-const TREE_LIST_JSON_COMMAND = "refarm tree list --json";
-const TREE_LIST_ALL_JSON_COMMAND = "refarm tree list --scope all --json";
 
 function printTreeValidationJson(input: {
 	operation: string;

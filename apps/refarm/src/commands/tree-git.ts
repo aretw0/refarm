@@ -9,6 +9,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 } from "./runtime-recovery.js";
+import { TREE_GIT_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
 	buildGitBranchPreviewEnvelope,
 	buildGitForkEnvelope,
@@ -20,8 +21,6 @@ import {
 	REFARM_TREE_GIT_SCOPE,
 	type RefarmGitTimelineNode,
 } from "./tree-model.js";
-
-const TREE_GIT_LIST_JSON_COMMAND = "refarm tree list --scope git --json";
 
 function createGitTimelineNode(line: string): RefarmGitTimelineNode | null {
 	const [hash, parents, refs, timestamp, subject] = line.split("\u001f");
