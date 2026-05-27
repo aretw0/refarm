@@ -5,7 +5,7 @@ import {
 } from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
+import { formatSurfaceActionReadinessOutput } from "./action-affordances.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
@@ -268,7 +268,7 @@ async function emitTuiActionRows(
 		},
 		run: (json) => {
 			console.log(
-				formatRefarmActionReadinessOutput(json, {
+				formatSurfaceActionReadinessOutput(json, {
 					renderer: "tui",
 					json: options.json,
 					select: options.select,

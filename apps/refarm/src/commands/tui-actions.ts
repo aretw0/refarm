@@ -1,50 +1,50 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
-	createRefarmActionAffordanceRows,
-	createRefarmRendererActionDryRunEnvelope,
-	formatRefarmActionAffordanceRows,
-	formatRefarmActionAffordanceSelection,
-	resolveRefarmActionAffordanceSelection,
-	type RefarmActionAffordanceRow,
-	type RefarmActionAffordanceSelectionMetadata,
-	type RefarmActionAffordanceSelectionReason,
-	type RefarmActionReadinessDryRunEnvelope,
+	createRendererSurfaceActionDryRunEnvelope,
+	createSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceSelection,
+	resolveSurfaceActionAffordanceSelection,
+	type SurfaceActionAffordanceRow,
+	type SurfaceActionAffordanceSelectionMetadata,
+	type SurfaceActionAffordanceSelectionReason,
+	type SurfaceActionReadinessDryRunEnvelope,
 } from "./action-affordances.js";
 
-export type TuiSurfaceActionRow = RefarmActionAffordanceRow;
+export type TuiSurfaceActionRow = SurfaceActionAffordanceRow;
 export type TuiSurfaceActionSelectionReason =
-	RefarmActionAffordanceSelectionReason;
+	SurfaceActionAffordanceSelectionReason;
 
 export interface TuiSurfaceActionSelectionResult {
 	selected?: TuiSurfaceActionRow;
 	reason: TuiSurfaceActionSelectionReason;
-	selection: RefarmActionAffordanceSelectionMetadata;
+	selection: SurfaceActionAffordanceSelectionMetadata;
 	rows: readonly TuiSurfaceActionRow[];
 }
 
 export type TuiSurfaceActionDryRunEnvelope =
-	RefarmActionReadinessDryRunEnvelope & {
+	SurfaceActionReadinessDryRunEnvelope & {
 		renderer: "tui";
 	};
 
 export function createTuiSurfaceActionRows(
 	status: RefarmStatusJson,
 ): TuiSurfaceActionRow[] {
-	return createRefarmActionAffordanceRows(status);
+	return createSurfaceActionAffordanceRows(status);
 }
 
 export function resolveTuiSurfaceActionSelection(
 	status: RefarmStatusJson,
 	selection: string,
 ): TuiSurfaceActionSelectionResult {
-	return resolveRefarmActionAffordanceSelection(status, selection);
+	return resolveSurfaceActionAffordanceSelection(status, selection);
 }
 
 export function createTuiSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: TuiSurfaceActionSelectionResult,
 ): TuiSurfaceActionDryRunEnvelope {
-	return createRefarmRendererActionDryRunEnvelope(
+	return createRendererSurfaceActionDryRunEnvelope(
 		status,
 		"tui",
 		selection,
@@ -54,15 +54,15 @@ export function createTuiSurfaceActionDryRunEnvelope(
 export function formatTuiSurfaceActionRows(
 	rows: readonly TuiSurfaceActionRow[],
 ): string {
-	return formatRefarmActionAffordanceRows(rows, "Available TUI actions:");
+	return formatSurfaceActionAffordanceRows(rows, "Available TUI actions:");
 }
 
 export function formatTuiSurfaceActionSelection(
 	selected: TuiSurfaceActionRow,
 	rows: readonly TuiSurfaceActionRow[],
-	selection?: RefarmActionAffordanceSelectionMetadata,
+	selection?: SurfaceActionAffordanceSelectionMetadata,
 ): string {
-	return formatRefarmActionAffordanceSelection(selected, rows, {
+	return formatSurfaceActionAffordanceSelection(selected, rows, {
 		selectedHeading: "Selected TUI action:",
 		availableHeading: "Available TUI actions:",
 		selection,

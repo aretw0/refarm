@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import {
-	formatRefarmActionSelectionChoices,
-	resolveRefarmActionAffordanceSelection,
+	formatSurfaceActionSelectionChoices,
+	resolveSurfaceActionAffordanceSelection,
 } from "./action-affordances.js";
 import {
 	createHeadlessStatusSurfaceActionBlockedDryRunEnvelope,
@@ -97,7 +97,7 @@ async function emitHeadlessActionRequest(
 				throw new Error("Missing --action-request action ID or row index.");
 			}
 
-			const selectedAction = resolveRefarmActionAffordanceSelection(
+			const selectedAction = resolveSurfaceActionAffordanceSelection(
 				json,
 				actionSelection,
 			);
@@ -122,7 +122,7 @@ async function emitHeadlessActionRequest(
 
 			if (!resolution.request) {
 				throw new Error(
-					`Action "${selectedAction.selected.id}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
+					`Action "${selectedAction.selected.id}" is not available. Available selections: ${formatSurfaceActionSelectionChoices(selectedAction.rows)}.`,
 				);
 			}
 

@@ -1,50 +1,50 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
-	createRefarmActionAffordanceRows,
-	createRefarmRendererActionDryRunEnvelope,
-	formatRefarmActionAffordanceRows,
-	formatRefarmActionAffordanceSelection,
-	resolveRefarmActionAffordanceSelection,
-	type RefarmActionAffordanceRow,
-	type RefarmActionAffordanceSelectionMetadata,
-	type RefarmActionAffordanceSelectionReason,
-	type RefarmActionReadinessDryRunEnvelope,
+	createRendererSurfaceActionDryRunEnvelope,
+	createSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceSelection,
+	resolveSurfaceActionAffordanceSelection,
+	type SurfaceActionAffordanceRow,
+	type SurfaceActionAffordanceSelectionMetadata,
+	type SurfaceActionAffordanceSelectionReason,
+	type SurfaceActionReadinessDryRunEnvelope,
 } from "./action-affordances.js";
 
-export type WebSurfaceActionRow = RefarmActionAffordanceRow;
+export type WebSurfaceActionRow = SurfaceActionAffordanceRow;
 export type WebSurfaceActionSelectionReason =
-	RefarmActionAffordanceSelectionReason;
+	SurfaceActionAffordanceSelectionReason;
 
 export interface WebSurfaceActionSelectionResult {
 	selected?: WebSurfaceActionRow;
 	reason: WebSurfaceActionSelectionReason;
-	selection: RefarmActionAffordanceSelectionMetadata;
+	selection: SurfaceActionAffordanceSelectionMetadata;
 	rows: readonly WebSurfaceActionRow[];
 }
 
 export type WebSurfaceActionDryRunEnvelope =
-	RefarmActionReadinessDryRunEnvelope & {
+	SurfaceActionReadinessDryRunEnvelope & {
 		renderer: "web";
 	};
 
 export function createWebSurfaceActionRows(
 	status: RefarmStatusJson,
 ): WebSurfaceActionRow[] {
-	return createRefarmActionAffordanceRows(status);
+	return createSurfaceActionAffordanceRows(status);
 }
 
 export function resolveWebSurfaceActionSelection(
 	status: RefarmStatusJson,
 	selection: string,
 ): WebSurfaceActionSelectionResult {
-	return resolveRefarmActionAffordanceSelection(status, selection);
+	return resolveSurfaceActionAffordanceSelection(status, selection);
 }
 
 export function createWebSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: WebSurfaceActionSelectionResult,
 ): WebSurfaceActionDryRunEnvelope {
-	return createRefarmRendererActionDryRunEnvelope(
+	return createRendererSurfaceActionDryRunEnvelope(
 		status,
 		"web",
 		selection,
@@ -54,15 +54,15 @@ export function createWebSurfaceActionDryRunEnvelope(
 export function formatWebSurfaceActionRows(
 	rows: readonly WebSurfaceActionRow[],
 ): string {
-	return formatRefarmActionAffordanceRows(rows, "Available Web actions:");
+	return formatSurfaceActionAffordanceRows(rows, "Available Web actions:");
 }
 
 export function formatWebSurfaceActionSelection(
 	selected: WebSurfaceActionRow,
 	rows: readonly WebSurfaceActionRow[],
-	selection?: RefarmActionAffordanceSelectionMetadata,
+	selection?: SurfaceActionAffordanceSelectionMetadata,
 ): string {
-	return formatRefarmActionAffordanceSelection(selected, rows, {
+	return formatSurfaceActionAffordanceSelection(selected, rows, {
 		selectedHeading: "Selected Web action:",
 		availableHeading: "Available Web actions:",
 		selection,
