@@ -1,8 +1,8 @@
 import { SiloCore } from "@refarm.dev/silo";
 import { SowerCore } from "@refarm.dev/sower";
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import inquirer from "inquirer";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import {
@@ -88,17 +88,16 @@ export const initCommand = new Command("init")
       console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));
     }
 
-    const answers = await inquirer.prompt([
-      {
-        type: "list",
-        name: "template",
-        message: "Choose a template to start with:",
-        choices: [
-          { name: "Workspace App", value: "workspace" },
-          { name: "Rust Plugin (Heartwood)", value: "rust-plugin" }
-        ]
-      }
-    ]);
+    const operator = createStdioOperatorChannel();
+    const template = await operator.ask({
+      type: "select",
+      question: "Choose a template to start with",
+      default: "workspace",
+      options: [
+        { label: "Workspace App", value: "workspace" },
+        { label: "Rust Plugin (Heartwood)", value: "rust-plugin" },
+      ],
+    });
 
     const core = new SowerCore();
     
@@ -106,7 +105,7 @@ export const initCommand = new Command("init")
         mkdirSync(projectDir, { recursive: true });
     }
 
-    const result = await core.scaffold(answers.template, { name, targetDir: projectDir });
+    const result = await core.scaffold(template, { name, targetDir: projectDir });
 
     if (result) {
       const refarmDir = path.join(projectDir, ".refarm");

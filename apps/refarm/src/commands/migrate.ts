@@ -1,8 +1,8 @@
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import inquirer from "inquirer";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { joinCommand, quoteCommandArg, refarmCommand } from "./command-handoff.js";
@@ -35,6 +35,10 @@ function migrateApplyCommand(targetUrl: string): string {
 
 function migrateVerifyCommand(targetUrl: string): string {
 	return joinCommand(["git", "ls-remote", quoteCommandArg(targetUrl), "HEAD"]);
+}
+
+function isSupportedTargetUrl(value: string): boolean {
+	return value.startsWith("http") || value.startsWith("git@");
 }
 
 function migrateJsonNextCommands(input: {
@@ -110,15 +114,18 @@ export const migrateCommand = new Command("migrate")
             process.exitCode = 1;
             return;
         }
-        const answers = await inquirer.prompt([
-            {
-                type: "input",
-                name: "targetUrl",
-                message: "Enter the target Git URL (e.g., a private GitHub/GitLab repo):",
-                validate: (input) => input.startsWith("http") || input.startsWith("git@")
-            }
-        ]);
-        targetUrl = answers.targetUrl;
+        const operator = createStdioOperatorChannel();
+        const promptedTargetUrl = await operator.ask({
+            type: "text",
+            question: "Enter the target Git URL",
+            placeholder: "https://github.com/user/fork.git or git@github.com:user/fork.git",
+        });
+        if (!isSupportedTargetUrl(promptedTargetUrl)) {
+            console.error(chalk.red("Error: Target Git URL must start with http or git@."));
+            process.exitCode = 1;
+            return;
+        }
+        targetUrl = promptedTargetUrl;
     }
 
     if (!targetUrl) {

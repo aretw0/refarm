@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockMirrorRepo, mockSiloResolve, mockInquirerPrompt } = vi.hoisted(() => ({
+const { mockMirrorRepo, mockSiloResolve, mockOperatorAsk } = vi.hoisted(() => ({
   mockMirrorRepo: vi.fn().mockResolvedValue({ status: "dry-run" }),
   mockSiloResolve: vi.fn().mockResolvedValue(new Map([
     ["REFARM_GITHUB_TOKEN", "ghp_test"],
   ])),
-  mockInquirerPrompt: vi.fn().mockResolvedValue({ targetUrl: "https://github.com/user/fork.git" }),
+  mockOperatorAsk: vi.fn().mockResolvedValue("https://github.com/user/fork.git"),
 }));
 
-vi.mock("inquirer", () => ({ default: { prompt: mockInquirerPrompt } }));
+vi.mock("@refarm.dev/prompt-contract-v1", () => ({
+  createStdioOperatorChannel: vi.fn(() => ({ ask: mockOperatorAsk })),
+}));
 
 vi.mock("@refarm.dev/silo", () => ({
   SiloCore: vi.fn().mockImplementation(function () {
@@ -46,6 +48,7 @@ describe("migrateCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.exitCode = undefined;
+    mockOperatorAsk.mockResolvedValue("https://github.com/user/fork.git");
   });
 
   it("documents dry-run and mirror impact in help", () => {
@@ -76,6 +79,34 @@ describe("migrateCommand", () => {
     await expect(
       migrateCommand.parseAsync(["--target", "https://github.com/user/fork.git", "--dry-run"], { from: "user" })
     ).resolves.not.toThrow();
+  });
+
+  it("prompts for target URL through the operator channel when missing", async () => {
+    await migrateCommand.parseAsync(["--dry-run"], { from: "user" });
+    expect(mockOperatorAsk).toHaveBeenCalledWith({
+      type: "text",
+      question: "Enter the target Git URL",
+      placeholder: "https://github.com/user/fork.git or git@github.com:user/fork.git",
+    });
+    expect(mockMirrorRepo).toHaveBeenCalledWith(
+      expect.any(String),
+      "https://github.com/user/fork.git",
+      expect.objectContaining({ dryRun: true }),
+    );
+  });
+
+  it("rejects an unsupported prompted target URL", async () => {
+    mockOperatorAsk.mockResolvedValueOnce("not-a-git-url");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await migrateCommand.parseAsync(["--dry-run"], { from: "user" });
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Target Git URL must start with http or git@"),
+    );
+    expect(mockMirrorRepo).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+    errorSpy.mockRestore();
   });
 
   it("prints dry-run mirror result as JSON", async () => {
@@ -163,7 +194,7 @@ describe("migrateCommand", () => {
 
     await migrateCommand.parseAsync(["--dry-run", "--json"], { from: "user" });
 
-    expect(mockInquirerPrompt).not.toHaveBeenCalled();
+    expect(mockOperatorAsk).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
     const payload = JSON.parse(logs.join("\n")) as {
       ok: boolean;

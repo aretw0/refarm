@@ -7,7 +7,7 @@ const {
   mockExistsSync,
   mockMkdirSync,
   mockWriteFileSync,
-  mockInquirerPrompt,
+  mockOperatorAsk,
 } = vi.hoisted(() => ({
   mockScaffold: vi.fn().mockResolvedValue({ config: { type: "app" }, tier: "persistent" }),
   mockBootstrapIdentity: vi.fn().mockResolvedValue({
@@ -17,11 +17,11 @@ const {
   mockExistsSync: vi.fn().mockReturnValue(false),
   mockMkdirSync: vi.fn(),
   mockWriteFileSync: vi.fn(),
-  mockInquirerPrompt: vi.fn().mockResolvedValue({ template: "workspace" }),
+  mockOperatorAsk: vi.fn().mockResolvedValue("workspace"),
 }));
 
-vi.mock("inquirer", () => ({
-  default: { prompt: mockInquirerPrompt },
+vi.mock("@refarm.dev/prompt-contract-v1", () => ({
+  createStdioOperatorChannel: vi.fn(() => ({ ask: mockOperatorAsk })),
 }));
 
 vi.mock("@refarm.dev/sower", () => ({
@@ -60,7 +60,7 @@ describe("initCommand — mocked initialization flow", () => {
       publicKey: "pk_test",
       timestamp: "2026-01-01T00:00:00.000Z",
     });
-    mockInquirerPrompt.mockResolvedValue({ template: "workspace" });
+    mockOperatorAsk.mockResolvedValue("workspace");
     process.exitCode = undefined;
   });
 
@@ -124,6 +124,15 @@ describe("initCommand — mocked initialization flow", () => {
 
   it("passes the selected template as the first argument to scaffold", async () => {
     await runInit();
+    expect(mockOperatorAsk).toHaveBeenCalledWith({
+      type: "select",
+      question: "Choose a template to start with",
+      default: "workspace",
+      options: [
+        { label: "Workspace App", value: "workspace" },
+        { label: "Rust Plugin (Heartwood)", value: "rust-plugin" },
+      ],
+    });
     expect(mockScaffold).toHaveBeenCalledWith(
       "workspace",
       expect.objectContaining({ name: "test-workspace" })

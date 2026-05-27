@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**88/100**
+**89/100**
 
 Strong enough to use Refarm as the daily development driver while still
 spending regular work on hardening Refarm itself.
@@ -40,17 +40,19 @@ What is already solid:
 - `refarm resume` now provides an operator-level runtime, active-session,
   recent-session, recent-prompt, finish-gate, and worker checkpoint view backed
   by a shared `@refarm.dev/cli` resume envelope.
-- Model credential provider selection, GitHub owner text prompts, OAuth text
-  prompts, and secret credential entry now route through the shared
-  `@refarm.dev/prompt-contract-v1` operator channel instead of being hardwired
-  to the app prompt library.
+- Model credential provider selection, init template selection, GitHub owner
+  text prompts, migrate target URL prompts, OAuth text prompts, and secret
+  credential entry now route through the shared
+  `@refarm.dev/prompt-contract-v1` operator channel instead of command-local
+  prompt libraries.
 - The short daily-driver operator loop is maintained in
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 
 What still blocks the 95/100 product target:
 
 - Some scripts and legacy toolbox flows still execute shell command strings.
-- Legacy `init` and `migrate` prompts still use command-local Inquirer flows.
+- `@inquirer/core` remains only as a cancellation compatibility dependency for
+  flows that can still throw `ExitPromptError`.
 - Operator resume can still grow deeper session-entry summaries, but already
   exposes recent runtime sessions and recovery commands.
 - `agent finish` can be faster and more selective for common local edits.
