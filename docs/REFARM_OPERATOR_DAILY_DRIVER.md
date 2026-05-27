@@ -147,6 +147,11 @@ refarm agent finish --fix --run --json
 When in doubt, keep the app thin but pragmatic: reusable contracts move down,
 product-specific orchestration stays in `apps/refarm`.
 
+The app boundary is now guarded by `apps/refarm/test/architecture`: app source
+does not import `node:child_process`, does not execute package managers directly,
+and app commands use agnostic surface-action helper names. Keep compatibility
+aliases in shared packages, not in app-local wrappers.
+
 ## Stop Condition
 
 A slice is mature enough to commit when:

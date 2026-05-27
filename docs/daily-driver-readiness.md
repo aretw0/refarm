@@ -46,6 +46,10 @@ What is already solid:
 - Execution-plan readiness/handoffs and host action affordance selection now
   live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
   where compatibility is still useful.
+- `apps/refarm` is guarded against direct `node:child_process` imports, direct
+  hardcoded package-manager execution, and internal use of legacy
+  `RefarmAction*` aliases. Process and package-manager execution must route
+  through shared adapters/resolvers.
 - `refarm resume` now provides an operator-level runtime, active-session,
   recent-session, recent-prompt, finish-gate, and worker checkpoint view backed
   by a shared `@refarm.dev/cli` resume envelope.
