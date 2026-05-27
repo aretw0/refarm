@@ -1,14 +1,27 @@
 import type { RefarmStatusJson } from "./status.js";
 import { describe, expect, it } from "vitest";
 import {
+	createRefarmActionAffordanceRows,
+	createRefarmActionReadinessDryRunEnvelope,
+	createRefarmActionReadinessLine,
+	createRefarmRendererActionDryRunEnvelope,
+	formatRefarmActionAffordanceRows,
+	formatRefarmActionAffordanceSelection,
+	formatRefarmActionIds,
+	formatRefarmActionReadinessOutput,
+	formatRefarmActionSelectionChoices,
 	createSurfaceActionAffordanceRows,
 	createSurfaceActionReadinessDryRunEnvelope,
 	createSurfaceActionReadinessLine,
+	createRendererSurfaceActionDryRunEnvelope,
 	formatSurfaceActionAffordanceRows,
 	formatSurfaceActionAffordanceSelection,
 	formatSurfaceActionIds,
 	formatSurfaceActionSelectionChoices,
+	formatSurfaceActionReadinessOutput,
+	getRefarmStatusAvailableActions,
 	getStatusAvailableSurfaceActions,
+	resolveRefarmActionAffordanceSelection,
 	resolveSurfaceActionAffordanceSelection,
 } from "./action-affordances.js";
 
@@ -50,6 +63,38 @@ function makeStatus(
 }
 
 describe("Refarm action affordance helpers", () => {
+	it("keeps Refarm aliases compatible with agnostic surface action names", () => {
+		expect(getRefarmStatusAvailableActions).toBe(getStatusAvailableSurfaceActions);
+		expect(createRefarmActionAffordanceRows).toBe(
+			createSurfaceActionAffordanceRows,
+		);
+		expect(resolveRefarmActionAffordanceSelection).toBe(
+			resolveSurfaceActionAffordanceSelection,
+		);
+		expect(formatRefarmActionAffordanceRows).toBe(
+			formatSurfaceActionAffordanceRows,
+		);
+		expect(createRefarmActionReadinessLine).toBe(
+			createSurfaceActionReadinessLine,
+		);
+		expect(createRefarmActionReadinessDryRunEnvelope).toBe(
+			createSurfaceActionReadinessDryRunEnvelope,
+		);
+		expect(createRefarmRendererActionDryRunEnvelope).toBe(
+			createRendererSurfaceActionDryRunEnvelope,
+		);
+		expect(formatRefarmActionReadinessOutput).toBe(
+			formatSurfaceActionReadinessOutput,
+		);
+		expect(formatRefarmActionAffordanceSelection).toBe(
+			formatSurfaceActionAffordanceSelection,
+		);
+		expect(formatRefarmActionIds).toBe(formatSurfaceActionIds);
+		expect(formatRefarmActionSelectionChoices).toBe(
+			formatSurfaceActionSelectionChoices,
+		);
+	});
+
 	it("reads available actions from status with an empty fallback", () => {
 		expect(getStatusAvailableSurfaceActions(makeStatus())).toHaveLength(2);
 		expect(

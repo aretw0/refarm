@@ -2,7 +2,50 @@ import { describe, expect, it } from "vitest";
 import {
 	createExecutionPlanHandoff,
 	formatExecutionPlanReadinessLine,
+	type ExecutionPlanBase,
+	type ExecutionPlanHandoff,
+	type ExecutionPlanHandoffInput,
+	type ExecutionPlanReadinessInput,
+	type ExecutionPlanReadinessLine,
+	type RefarmExecutionPlanBase,
+	type RefarmExecutionPlanHandoff,
+	type RefarmExecutionPlanHandoffInput,
+	type RefarmExecutionPlanReadinessInput,
+	type RefarmExecutionPlanReadinessLine,
 } from "./execution-plan.js";
+
+type AssertSameType<Left, Right> =
+	(<Value>() => Value extends Left ? 1 : 2) extends
+	(<Value>() => Value extends Right ? 1 : 2) ? true : never;
+
+const _refarmExecutionPlanBaseAlias: AssertSameType<
+	RefarmExecutionPlanBase<"run", Record<string, unknown>, { kind: "test" }>,
+	ExecutionPlanBase<"run", Record<string, unknown>, { kind: "test" }>
+> = true;
+const _refarmExecutionPlanReadinessInputAlias: AssertSameType<
+	RefarmExecutionPlanReadinessInput,
+	ExecutionPlanReadinessInput
+> = true;
+const _refarmExecutionPlanReadinessLineAlias: AssertSameType<
+	RefarmExecutionPlanReadinessLine,
+	ExecutionPlanReadinessLine
+> = true;
+const _refarmExecutionPlanHandoffAlias: AssertSameType<
+	RefarmExecutionPlanHandoff,
+	ExecutionPlanHandoff
+> = true;
+const _refarmExecutionPlanHandoffInputAlias: AssertSameType<
+	RefarmExecutionPlanHandoffInput,
+	ExecutionPlanHandoffInput
+> = true;
+
+void [
+	_refarmExecutionPlanBaseAlias,
+	_refarmExecutionPlanReadinessInputAlias,
+	_refarmExecutionPlanReadinessLineAlias,
+	_refarmExecutionPlanHandoffAlias,
+	_refarmExecutionPlanHandoffInputAlias,
+];
 
 describe("execution plan readiness", () => {
 	it("formats blocked plans with their deterministic reason", () => {

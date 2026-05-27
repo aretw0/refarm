@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
 	assertLaunchAllowed,
+	REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	REFARM_RUNTIME_DOCTOR_NEXT_COMMAND,
+	REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	REFARM_RUNTIME_NOT_READY_LAUNCH_HINT,
 	REFARM_RUNTIME_STATUS_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_NOT_READY_LAUNCH_HINT,
 	RUNTIME_STATUS_COMMAND,
 	resolveLaunchReadiness,
 } from "./launch-policy.js";
@@ -54,6 +62,18 @@ function makeStatus(overrides: Partial<TestStatus> = {}): RefarmStatusJson {
 describe("assertLaunchAllowed", () => {
 	it("keeps Refarm command aliases compatible with agnostic names", () => {
 		expect(REFARM_RUNTIME_STATUS_COMMAND).toBe(RUNTIME_STATUS_COMMAND);
+		expect(REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND).toBe(
+			RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+		);
+		expect(REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND).toBe(
+			RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+		);
+		expect(REFARM_RUNTIME_DOCTOR_NEXT_COMMAND).toBe(
+			RUNTIME_DOCTOR_NEXT_COMMAND,
+		);
+		expect(REFARM_RUNTIME_NOT_READY_LAUNCH_HINT).toBe(
+			RUNTIME_NOT_READY_LAUNCH_HINT,
+		);
 	});
 
 	it("resolves launch readiness and recovery commands without throwing", () => {
