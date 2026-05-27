@@ -34,6 +34,9 @@ describe("task session commands", () => {
 		expect(buildTaskLogsCommand("effort-1", "http")).toBe(
 			"refarm task logs effort-1 --transport http",
 		);
+		expect(buildTaskStatusCommand("effort with space", "file")).toBe(
+			"refarm task status 'effort with space' --transport file",
+		);
 	});
 });
 

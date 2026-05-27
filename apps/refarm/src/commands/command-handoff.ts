@@ -2,6 +2,10 @@ export function quoteCommandArg(value: string): string {
 	return `'${value.replace(/'/g, "'\"'\"'")}'`;
 }
 
+export function quoteCommandArgIfNeeded(value: string): string {
+	return /^[A-Za-z0-9._:@/-]+$/.test(value) ? value : quoteCommandArg(value);
+}
+
 export function joinCommand(parts: string[]): string {
 	return parts.join(" ");
 }

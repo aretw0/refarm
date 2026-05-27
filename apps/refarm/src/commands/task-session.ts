@@ -7,6 +7,7 @@ EffortStatus,
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { quoteCommandArgIfNeeded, refarmCommand } from "./command-handoff.js";
 import { isFinalEffortStatus } from "./task-status.js";
 
 const SESSION_VERSION = 1 as const;
@@ -65,16 +66,24 @@ export function buildTaskStatusCommand(
 	transport: string,
 	options: { watch?: boolean } = {},
 ): string {
-	return [
-		`refarm task status ${effortId} --transport ${transport}`,
-		options.watch ? "--watch" : "",
-	]
-		.filter(Boolean)
-		.join(" ");
+	return refarmCommand([
+		"task",
+		"status",
+		quoteCommandArgIfNeeded(effortId),
+		"--transport",
+		quoteCommandArgIfNeeded(transport),
+		...(options.watch ? ["--watch"] : []),
+	]);
 }
 
 export function buildTaskLogsCommand(effortId: string, transport: string): string {
-	return `refarm task logs ${effortId} --transport ${transport}`;
+	return refarmCommand([
+		"task",
+		"logs",
+		quoteCommandArgIfNeeded(effortId),
+		"--transport",
+		quoteCommandArgIfNeeded(transport),
+	]);
 }
 
 function buildStatusCommand(effortId: string, transport: string): string {
