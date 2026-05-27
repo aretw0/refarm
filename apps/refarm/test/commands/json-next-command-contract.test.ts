@@ -13,10 +13,11 @@ import { createPackageManagerCommand } from "../../src/commands/package-manager.
 import { pluginCommand } from "../../src/commands/plugin.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
+import { createTasksCommand } from "../../src/commands/tasks.js";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
-import { HISTORY, makeJsonFetch } from "./tree.fixtures.js";
+import { HISTORY } from "./tree.fixtures.js";
 
 const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfNoEntry: false })
 	? join(process.cwd(), "src", "commands")
@@ -209,6 +210,34 @@ function createTempConfigCommand() {
 	};
 }
 
+function makeContractFetch() {
+	return vi.fn().mockImplementation(async (url: string | URL) => {
+		const value = String(url);
+		if (value.includes("/tasks")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					tasks: [
+						{
+							"@id": "urn:refarm:task:v1:abc123def456",
+							"@type": "Task",
+							title: "contract task",
+							status: "active",
+							created_at_ns: 1_700_000_000_000_000_000,
+						},
+					],
+				}),
+			};
+		}
+		return {
+			ok: true,
+			status: 200,
+			json: async () => HISTORY,
+		};
+	});
+}
+
 interface ParsedCommandJson {
 	handoffs?: Record<string, unknown>;
 	nextAction?: string | null;
@@ -336,7 +365,7 @@ describe("JSON next command contract", () => {
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
 		try {
-			vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
+			vi.stubGlobal("fetch", makeContractFetch());
 			const payloads = await parseCommandJsonSamples([
 				{ id: "agent-handoff", command: createAgentCommand(), args: ["--json"] },
 				{ id: "agent-finish-plan", command: createAgentCommand(), args: ["finish", "--json"] },
@@ -397,6 +426,11 @@ describe("JSON next command contract", () => {
 				{
 					id: "sessions-list",
 					command: createSessionsCommand(),
+					args: ["--json"],
+				},
+				{
+					id: "tasks-list",
+					command: createTasksCommand(),
 					args: ["--json"],
 				},
 				{
