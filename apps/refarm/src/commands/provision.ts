@@ -9,7 +9,7 @@ import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import { normalizeHandoffValues } from "./command-handoff.js";
+import { normalizeHandoffValues, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -37,7 +37,24 @@ interface ProvisionCommandOptions {
 const PROVISION_SCHEMA_VERSION = 1;
 const DEFAULT_TURBO_CACHE_BUCKET = "refarm-turbo-cache";
 const DEFAULT_TURBO_CACHE_TEAM = "refarm";
-const SOW_CLOUDFLARE_JSON_COMMAND = "refarm sow --cloudflare --json";
+const SOW_CLOUDFLARE_COMMAND = refarmCommand(["sow", "--cloudflare"]);
+const SOW_CLOUDFLARE_JSON_COMMAND = refarmCommand([
+	"sow",
+	"--cloudflare",
+	"--json",
+]);
+const TURBO_CACHE_DRY_RUN_COMMAND = refarmCommand([
+	"provision",
+	"cloudflare",
+	"turbo-cache",
+	"--dry-run",
+]);
+const TURBO_CACHE_GITHUB_SECRETS_COMMAND = refarmCommand([
+	"provision",
+	"cloudflare",
+	"turbo-cache",
+	"--github-secrets",
+]);
 
 function optionIsEnabled(command: Command, name: string): boolean {
 	const opts = command.optsWithGlobals<Record<string, unknown>>();
@@ -47,15 +64,15 @@ function optionIsEnabled(command: Command, name: string): boolean {
 function provisionNextActions(): string[] {
 	return [
 		SOW_CLOUDFLARE_JSON_COMMAND,
-		"refarm provision cloudflare turbo-cache --dry-run",
-		"refarm provision cloudflare turbo-cache --github-secrets",
+		TURBO_CACHE_DRY_RUN_COMMAND,
+		TURBO_CACHE_GITHUB_SECRETS_COMMAND,
 	];
 }
 
 function provisionNextCommands(): string[] {
 	return [
-		"refarm provision cloudflare turbo-cache --dry-run",
-		"refarm provision cloudflare turbo-cache --github-secrets",
+		TURBO_CACHE_DRY_RUN_COMMAND,
+		TURBO_CACHE_GITHUB_SECRETS_COMMAND,
 	];
 }
 
@@ -134,10 +151,10 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 		plan: cloudflareTurboCachePlan(input),
 		nextActions: [
 			SOW_CLOUDFLARE_JSON_COMMAND,
-			"refarm provision cloudflare turbo-cache --github-secrets",
+			TURBO_CACHE_GITHUB_SECRETS_COMMAND,
 		],
 		nextCommands: [
-			"refarm provision cloudflare turbo-cache --github-secrets",
+			TURBO_CACHE_GITHUB_SECRETS_COMMAND,
 		],
 	};
 }
@@ -151,12 +168,12 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 		nextAction: SOW_CLOUDFLARE_JSON_COMMAND,
 		nextActions: [
 			SOW_CLOUDFLARE_JSON_COMMAND,
-			"refarm provision cloudflare turbo-cache --dry-run",
+			TURBO_CACHE_DRY_RUN_COMMAND,
 		],
 		nextCommand: SOW_CLOUDFLARE_JSON_COMMAND,
 		nextCommands: [
 			SOW_CLOUDFLARE_JSON_COMMAND,
-			"refarm provision cloudflare turbo-cache --dry-run",
+			TURBO_CACHE_DRY_RUN_COMMAND,
 		],
 		extra: {
 			schemaVersion: PROVISION_SCHEMA_VERSION,
@@ -184,7 +201,7 @@ function buildTurboCacheFailurePayload(input: {
 		: input.nextAction;
 	const nextCommands = normalizeHandoffValues([
 		nextCommand,
-		"refarm provision cloudflare turbo-cache --dry-run",
+		TURBO_CACHE_DRY_RUN_COMMAND,
 	]);
 	return buildJsonErrorEnvelope({
 		command: "provision",
@@ -194,7 +211,7 @@ function buildTurboCacheFailurePayload(input: {
 		nextAction,
 		nextActions: [
 			nextAction,
-			"refarm provision cloudflare turbo-cache --dry-run",
+			TURBO_CACHE_DRY_RUN_COMMAND,
 		],
 		nextCommand,
 		nextCommands,
@@ -218,11 +235,11 @@ function buildTurboCacheApplyPayload(input: {
 }) {
 	const nextCommands = input.githubSecretsWritten
 		? ["gh secret list"]
-		: ["refarm provision cloudflare turbo-cache --github-secrets"];
+		: [TURBO_CACHE_GITHUB_SECRETS_COMMAND];
 	const nextActions = input.githubSecretsWritten
 		? ["gh secret list", "push a commit and watch GitHub Actions"]
 		: [
-				"refarm provision cloudflare turbo-cache --github-secrets",
+				TURBO_CACHE_GITHUB_SECRETS_COMMAND,
 				"copy TURBO_CACHE_API_URL and TURBO_CACHE_TOKEN into GitHub Actions secrets",
 			];
 	return buildJsonSuccessEnvelope({
@@ -443,7 +460,7 @@ const cloudflareCommand = new Command("cloudflare")
 								options: opts,
 								error: "cloudflare-connect-failed",
 								message: String(err),
-								nextAction: "refarm sow --cloudflare",
+								nextAction: SOW_CLOUDFLARE_COMMAND,
 							}),
 						);
 						process.exitCode = 1;
@@ -474,7 +491,7 @@ const cloudflareCommand = new Command("cloudflare")
 								options: opts,
 								error: "cloudflare-provision-failed",
 								message: enriched.message,
-								nextAction: "refarm provision cloudflare turbo-cache --dry-run",
+								nextAction: TURBO_CACHE_DRY_RUN_COMMAND,
 							}),
 						);
 						process.exitCode = 1;
