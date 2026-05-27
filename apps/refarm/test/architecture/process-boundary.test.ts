@@ -25,6 +25,11 @@ const HARDCODED_PACKAGE_MANAGER_EXECUTION_PATTERNS = [
 	/\bspawn(?:Sync)?\(\s*["'](?:pnpm|npm|yarn|bun)["']/,
 	/\bexecFile(?:Sync)?\(\s*["'](?:pnpm|npm|yarn|bun)["']/,
 ] as const;
+const HARDCODED_REFARM_CONTRACT_FIELD_PATTERNS = [
+	/\bcommand:\s*["']refarm\s/,
+	/\bnextAction:\s*["']refarm\s/,
+	/\bnextCommand:\s*["']refarm\s/,
+] as const;
 
 function sourceFiles(dir: string): string[] {
 	const files: string[] = [];
@@ -38,6 +43,10 @@ function sourceFiles(dir: string): string[] {
 		if (/\.[cm]?[jt]s$/.test(entry)) files.push(filePath);
 	}
 	return files;
+}
+
+function runtimeSourceFiles(dir: string): string[] {
+	return sourceFiles(dir).filter((filePath) => !/\.test\.[cm]?[jt]s$/.test(filePath));
 }
 
 describe("process execution boundary", () => {
@@ -70,5 +79,16 @@ describe("process execution boundary", () => {
 		});
 
 		expect(offenders.map((filePath) => path.relative(APP_SRC_DIR, filePath))).toEqual([]);
+	});
+
+	it("builds refarm command contract fields through handoff helpers", () => {
+		const offenders = runtimeSourceFiles(APP_COMMANDS_DIR).filter((filePath) => {
+			const source = readFileSync(filePath, "utf-8");
+			return HARDCODED_REFARM_CONTRACT_FIELD_PATTERNS.some((pattern) =>
+				pattern.test(source),
+			);
+		});
+
+		expect(offenders.map((filePath) => path.relative(APP_COMMANDS_DIR, filePath))).toEqual([]);
 	});
 });
