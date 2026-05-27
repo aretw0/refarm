@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { splitCommandLine } from "./command-line.js";
 
 export interface LaunchProcessSpec {
@@ -18,6 +20,15 @@ export interface LaunchProcessRunResult {
 	exitCode: number;
 	stdout?: string;
 	stderr?: string;
+}
+
+export interface DetachedLaunchProcessOptions {
+	logPath?: string;
+	env?: NodeJS.ProcessEnv;
+}
+
+export interface DetachedLaunchProcess {
+	unref(): void;
 }
 
 export function createLaunchProcessSpec(
@@ -87,4 +98,30 @@ export function runLaunchProcess(
 export async function launchProcess(spec: LaunchProcessSpec): Promise<number> {
 	const result = await runLaunchProcess(spec);
 	return result.exitCode;
+}
+
+export function launchDetachedProcess(
+	spec: LaunchProcessSpec,
+	options: DetachedLaunchProcessOptions = {},
+): DetachedLaunchProcess {
+	const outputFd = options.logPath ? openLaunchProcessLog(options.logPath) : "ignore";
+	try {
+		const child = spawn(spec.command, spec.args, {
+			cwd: spec.cwd ?? process.cwd(),
+			detached: true,
+			env: options.env ?? process.env,
+			stdio: ["ignore", outputFd, outputFd],
+		});
+		child.unref();
+		return child;
+	} finally {
+		if (typeof outputFd === "number") {
+			fs.closeSync(outputFd);
+		}
+	}
+}
+
+function openLaunchProcessLog(logPath: string): number {
+	fs.mkdirSync(path.dirname(logPath), { recursive: true });
+	return fs.openSync(logPath, "a");
 }

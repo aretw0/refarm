@@ -155,11 +155,14 @@ export type {
 } from "./operator-resume.js";
 export {
 	createLaunchProcessSpec,
+	launchDetachedProcess,
 	launchProcess,
 	runLaunchProcess,
 	splitLaunchCommand,
 } from "./launch-process.js";
 export type {
+	DetachedLaunchProcess,
+	DetachedLaunchProcessOptions,
 	LaunchProcessSpec,
 	LaunchProcessRunOptions,
 	LaunchProcessRunResult,

@@ -1,4 +1,8 @@
-import { spawn } from "node:child_process";
+import {
+	launchDetachedProcess,
+	type DetachedLaunchProcess,
+	type LaunchProcessSpec,
+} from "@refarm.dev/cli/launch-process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -13,9 +17,7 @@ export interface RuntimeLaunchCommand {
 	logPath?: string;
 }
 
-export interface RuntimeProcess {
-	unref(): void;
-}
+export type RuntimeProcess = DetachedLaunchProcess;
 
 const RUNTIME_STARTERS: Record<
 	LaunchRuntimeEngine,
@@ -70,24 +72,12 @@ export function resolveRuntimeLaunchCommand(
 }
 
 export function startRuntimeProcess(command: RuntimeLaunchCommand): RuntimeProcess {
-	const outputFd = command.logPath ? openRuntimeStartLog(command.logPath) : "ignore";
-	try {
-		const child = spawn(command.command, command.args, {
-			detached: true,
-			stdio: ["ignore", outputFd, outputFd],
-		});
-		child.unref();
-		return child;
-	} finally {
-		if (typeof outputFd === "number") {
-			fs.closeSync(outputFd);
-		}
-	}
-}
-
-function openRuntimeStartLog(logPath: string): number {
-	fs.mkdirSync(path.dirname(logPath), { recursive: true });
-	return fs.openSync(logPath, "a");
+	const spec: LaunchProcessSpec = {
+		command: command.command,
+		args: command.args,
+		display: command.display,
+	};
+	return launchDetachedProcess(spec, { logPath: command.logPath });
 }
 
 export function runtimeStartHelpLines(repoRoot: string): string[] {

@@ -1,6 +1,10 @@
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	createLaunchProcessSpec,
+	launchDetachedProcess,
 	runLaunchProcess,
 	splitLaunchCommand,
 } from "./launch-process.js";
@@ -68,5 +72,28 @@ describe("splitLaunchCommand", () => {
 			stdout: "ok",
 			stderr: "warn",
 		});
+	});
+
+	it("can launch a detached process and capture output to a log", async () => {
+		const root = join(tmpdir(), `refarm-launch-process-${Date.now()}`);
+		const logPath = join(root, "process.log");
+		const script = join(root, "write-log.js");
+		mkdirSync(root, { recursive: true });
+		writeFileSync(script, "process.stdout.write('detached ok');");
+
+		try {
+			launchDetachedProcess(
+				{
+					command: process.execPath,
+					args: [script],
+					display: "node write-log.js",
+				},
+				{ logPath },
+			);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			expect(readFileSync(logPath, "utf-8")).toContain("detached ok");
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 });
