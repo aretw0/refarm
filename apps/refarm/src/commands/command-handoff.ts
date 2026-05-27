@@ -1,4 +1,5 @@
 export {
+	binaryCommand,
 	joinCommand,
 	normalizeHandoffValues,
 	quoteCommandArg,

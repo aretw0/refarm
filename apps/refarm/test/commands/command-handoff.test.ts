@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	binaryCommand,
 	joinCommand,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
@@ -31,6 +32,11 @@ describe("command handoff helpers", () => {
 		expect(refarmCommand(["ask", quoteCommandArg("hello"), "--json"])).toBe(
 			"refarm ask 'hello' --json",
 		);
+	});
+
+	it("exposes the agnostic binary command builder", () => {
+		const args = ["ask", quoteCommandArg("hello"), "--json"];
+		expect(binaryCommand("refarm", args)).toBe(refarmCommand(args));
 	});
 
 	it("builds workspace-scoped command strings", () => {
