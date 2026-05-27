@@ -37,6 +37,9 @@ describe("task session commands", () => {
 		expect(buildTaskStatusCommand("effort with space", "file")).toBe(
 			"refarm task status 'effort with space' --transport file",
 		);
+		expect(buildTaskLogsCommand("effort with ' quote", "file")).toBe(
+			"refarm task logs 'effort with '\"'\"' quote' --transport file",
+		);
 	});
 });
 
