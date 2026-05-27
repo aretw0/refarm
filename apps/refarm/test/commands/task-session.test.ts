@@ -107,6 +107,37 @@ describe("FileTaskSessionRecorder", () => {
 		expect(checkpoint?.efforts[0]!.lastStatus).toBe("done");
 	});
 
+	it("treats partial and timed-out efforts as terminal for resume", () => {
+		for (const status of ["partial", "timed-out"] as const) {
+			const baseDir = createTempDir();
+			const recorder = new FileTaskSessionRecorder(baseDir);
+			const effort: Effort = {
+				id: `effort-${status}`,
+				direction: "Test",
+				tasks: [{ id: "t1", pluginId: "p", fn: "f" }],
+				source: "refarm-cli",
+				submittedAt: new Date().toISOString(),
+			};
+			recorder.rememberRun({ effort, transport: "file" });
+
+			const result: EffortResult = {
+				effortId: effort.id,
+				status,
+				results: [],
+				submittedAt: effort.submittedAt,
+			};
+			recorder.rememberStatus({
+				effortId: effort.id,
+				transport: "file",
+				result,
+			});
+
+			const checkpoint = recorder.getCheckpoint();
+			expect(checkpoint?.activeEffortId).toBeUndefined();
+			expect(checkpoint?.efforts[0]!.lastStatus).toBe(status);
+		}
+	});
+
 	it("marks first non-terminal effort as active when listing", () => {
 		const baseDir = createTempDir();
 		const recorder = new FileTaskSessionRecorder(baseDir);

@@ -11,7 +11,13 @@ import path from "node:path";
 const SESSION_VERSION = 1 as const;
 const DEFAULT_MAX_EFFORTS = 25;
 
-const FINAL_STATUSES = new Set<EffortStatus>(["done", "failed", "cancelled"]);
+const FINAL_STATUSES = new Set<EffortStatus>([
+	"done",
+	"partial",
+	"failed",
+	"timed-out",
+	"cancelled",
+]);
 
 export type SessionStatus = EffortStatus | "not-found";
 
