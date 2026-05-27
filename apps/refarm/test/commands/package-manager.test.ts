@@ -77,6 +77,20 @@ describe("package manager command resolution", () => {
 			handoffs: {
 				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
 			},
+			commands: {
+				tidyImportsCheck: {
+					packageManager: "bun",
+					command: "bun",
+					args: ["--cwd", ".", "run", "imports:organize", "--check"],
+					display: "bun --cwd . run imports:organize --check",
+				},
+				tidyImportsApply: {
+					packageManager: "bun",
+					command: "bun",
+					args: ["--cwd", ".", "run", "imports:organize"],
+					display: "bun --cwd . run imports:organize",
+				},
+			},
 			templates: [
 				{
 					id: "plugin-bundle-dry-run",
@@ -107,6 +121,20 @@ describe("package manager command resolution", () => {
 			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
 			handoffs: {
 				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
+			},
+			commands: {
+				tidyImportsCheck: {
+					packageManager: "npm",
+					command: "npm",
+					args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
+					display: "npm --prefix . run imports:organize -- --check",
+				},
+				tidyImportsApply: {
+					packageManager: "npm",
+					command: "npm",
+					args: ["--prefix", ".", "run", "imports:organize"],
+					display: "npm --prefix . run imports:organize",
+				},
 			},
 			templates: [
 				{

@@ -30,6 +30,10 @@ export interface PackageManagerStatus {
 	handoffs: {
 		tidyImportsDryRun: string;
 	};
+	commands: {
+		tidyImportsCheck: LaunchProcessSpec;
+		tidyImportsApply: LaunchProcessSpec;
+	};
 	templates: Array<{
 		id: string;
 		command: string;
@@ -62,6 +66,17 @@ export function buildPackageManagerStatus(options: {
 	const env = options.env ?? process.env;
 	const cwd = options.cwd ?? process.cwd();
 	const diagnostic = packageManagerOverrideDiagnostic(env);
+	const tidyImportsCheck = createSharedPackageScriptCommand({
+		cwd,
+		script: "imports:organize",
+		args: ["--check"],
+		env,
+	});
+	const tidyImportsApply = createSharedPackageScriptCommand({
+		cwd,
+		script: "imports:organize",
+		env,
+	});
 	return {
 		packageManager: detectSharedPackageManager({ cwd, env }),
 		cwd,
@@ -70,6 +85,10 @@ export function buildPackageManagerStatus(options: {
 		validPackageManagers: PACKAGE_MANAGERS,
 		handoffs: {
 			tidyImportsDryRun: "refarm tidy imports --dry-run --json",
+		},
+		commands: {
+			tidyImportsCheck,
+			tidyImportsApply,
 		},
 		templates: [
 			{
@@ -97,6 +116,8 @@ function printPackageManagerStatus(status: PackageManagerStatus): void {
 	console.log(`  valid:    ${status.validPackageManagers.join(", ")}`);
 	console.log(chalk.dim(`  cwd:      ${status.cwd}`));
 	console.log(chalk.dim(`  inspect:  ${status.handoffs.tidyImportsDryRun}`));
+	console.log(chalk.dim(`  check:    ${status.commands.tidyImportsCheck.display}`));
+	console.log(chalk.dim(`  apply:    ${status.commands.tidyImportsApply.display}`));
 }
 
 export function createPackageManagerCommand(deps?: {
