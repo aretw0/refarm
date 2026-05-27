@@ -57,6 +57,10 @@
 		"./launch-policy": {
 			"types": "./dist/launch-policy.d.ts",
 			"import": "./dist/launch-policy.js"
+		},
+		"./git-command": {
+			"types": "./dist/git-command.d.ts",
+			"import": "./dist/git-command.js"
 		}
 	},
 	"scripts": {

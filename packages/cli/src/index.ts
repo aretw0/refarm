@@ -39,6 +39,13 @@ export {
 	parseCommandJsonPayload,
 } from "./command-result.js";
 export {
+	readGitCommand,
+	runGitCommand,
+} from "./git-command.js";
+export type {
+	GitCommandResult,
+} from "./git-command.js";
+export {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
 	commandPlanEffects,

@@ -1,5 +1,8 @@
+import {
+	readGitCommand,
+	runGitCommand,
+} from "@refarm.dev/cli/git-command";
 import chalk from "chalk";
-import * as childProcess from "node:child_process";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
@@ -40,23 +43,16 @@ function createGitTimelineNode(line: string): RefarmGitTimelineNode | null {
 }
 
 function runGit(args: string[]): string {
-	const result = childProcess.spawnSync("git", args, {
-		encoding: "utf8",
-	});
-	if (result.status !== 0) {
-		const detail =
-			result.stderr || result.stdout || `git ${args.join(" ")} failed`;
-		throw new Error(detail.trim());
-	}
-	return result.stdout.trim();
+	return readGitCommand(args);
 }
 
 function gitBranchExists(name: string): boolean {
-	const result = childProcess.spawnSync(
-		"git",
-		["show-ref", "--verify", "--quiet", `refs/heads/${name}`],
-		{ encoding: "utf8" },
-	);
+	const result = runGitCommand([
+		"show-ref",
+		"--verify",
+		"--quiet",
+		`refs/heads/${name}`,
+	]);
 	if (result.status === 0) return true;
 	if (result.status === 1) return false;
 	const detail =
