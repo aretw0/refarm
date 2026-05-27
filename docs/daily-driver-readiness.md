@@ -33,7 +33,8 @@ What is already solid:
 - Package-manager-sensitive commands are becoming structured and spawn-safe.
 - `@refarm.dev/cli` owns status, browser-open, command-line parsing, handoff
   command helpers, JSON output envelopes, command result parsing, and command
-  plan execution/envelopes.
+  plan execution/envelopes. Command handoff now exposes agnostic binary command
+  construction while keeping Refarm-specific helpers as compatibility wrappers.
 - `@refarm.dev/cli` also owns launch process specs, detached process launch,
   launch readiness policy, and launcher command parsing, while app commands keep
   product-specific launch modes and renderer behavior. The launch policy exposes
