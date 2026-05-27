@@ -142,6 +142,21 @@ describe("package manager config", () => {
         });
     });
 
+    it("quotes display-only script command arguments when shell needs it", () => {
+        expect(
+            createPackageScriptCommand({
+                cwd: "apps/my app",
+                script: "check:types",
+                args: ["--filter", "src/my file.ts"],
+                env: { REFARM_PACKAGE_MANAGER: "pnpm" },
+            }),
+        ).toMatchObject({
+            command: "pnpm",
+            args: ["-C", "apps/my app", "run", "check:types", "--filter", "src/my file.ts"],
+            display: "pnpm -C 'apps/my app' run check:types --filter 'src/my file.ts'",
+        });
+    });
+
     it("falls back to npm when no supported package manager is configured", () => {
         expect(detectPackageManager({ cwd: tmpdir(), env: {} })).toBe("npm");
     });
@@ -182,6 +197,18 @@ describe("package manager config", () => {
             command: "bun",
             args: ["x", "turbo", "gen", "package"],
             display: "bun x turbo gen package",
+        });
+    });
+
+    it("quotes display-only binary command arguments when shell needs it", () => {
+        expect(
+            packageBinaryCommand("my tool", ["--input", "plugin path.wasm"], {
+                env: { REFARM_PACKAGE_MANAGER: "npm" },
+            }),
+        ).toMatchObject({
+            command: "npm",
+            args: ["exec", "--", "my tool", "--input", "plugin path.wasm"],
+            display: "npm exec -- 'my tool' --input 'plugin path.wasm'",
         });
     });
 

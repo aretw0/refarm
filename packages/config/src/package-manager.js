@@ -68,6 +68,14 @@ function relativeCwd(cwd, repoRoot) {
     return relative && !relative.startsWith("..") ? relative : cwd;
 }
 
+function quoteDisplayArgIfNeeded(value) {
+    return /^[A-Za-z0-9._:@/-]+$/.test(value) ? value : `'${value.replace(/'/g, "'\"'\"'")}'`;
+}
+
+function formatDisplayArgs(args) {
+    return args.map(quoteDisplayArgIfNeeded).join(" ");
+}
+
 export function createPackageScriptCommand({
     cwd,
     script,
@@ -80,6 +88,8 @@ export function createPackageScriptCommand({
         env,
     });
     const commandCwd = relativeCwd(cwd, repoRoot);
+    const displayCwd = quoteDisplayArgIfNeeded(commandCwd);
+    const displayScript = quoteDisplayArgIfNeeded(script);
 
     switch (packageManager) {
         case "pnpm":
@@ -87,28 +97,28 @@ export function createPackageScriptCommand({
                 packageManager,
                 command: "pnpm",
                 args: ["-C", commandCwd, "run", script, ...args],
-                display: `pnpm -C ${commandCwd} run ${script}${formatArgsDisplay(args)}`,
+                display: `pnpm -C ${displayCwd} run ${displayScript}${formatArgsDisplay(args)}`,
             };
         case "npm":
             return {
                 packageManager,
                 command: "npm",
                 args: ["--prefix", commandCwd, "run", script, ...(args.length > 0 ? ["--", ...args] : [])],
-                display: `npm --prefix ${commandCwd} run ${script}${formatNpmArgsDisplay(args)}`,
+                display: `npm --prefix ${displayCwd} run ${displayScript}${formatNpmArgsDisplay(args)}`,
             };
         case "yarn":
             return {
                 packageManager,
                 command: "yarn",
                 args: ["--cwd", commandCwd, "run", script, ...args],
-                display: `yarn --cwd ${commandCwd} run ${script}${formatArgsDisplay(args)}`,
+                display: `yarn --cwd ${displayCwd} run ${displayScript}${formatArgsDisplay(args)}`,
             };
         case "bun":
             return {
                 packageManager,
                 command: "bun",
                 args: ["--cwd", commandCwd, "run", script, ...args],
-                display: `bun --cwd ${commandCwd} run ${script}${formatArgsDisplay(args)}`,
+                display: `bun --cwd ${displayCwd} run ${displayScript}${formatArgsDisplay(args)}`,
             };
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
@@ -116,11 +126,11 @@ export function createPackageScriptCommand({
 }
 
 function formatArgsDisplay(args) {
-    return args.length > 0 ? ` ${args.join(" ")}` : "";
+    return args.length > 0 ? ` ${formatDisplayArgs(args)}` : "";
 }
 
 function formatNpmArgsDisplay(args) {
-    return args.length > 0 ? ` -- ${args.join(" ")}` : "";
+    return args.length > 0 ? ` -- ${formatDisplayArgs(args)}` : "";
 }
 
 export function packageScriptCommand(script, { cwd = process.cwd(), env = process.env } = {}) {
@@ -215,6 +225,7 @@ export function packageBinaryCommand(
 ) {
     const packageManager = detectPackageManager({ cwd, env });
     const allArgs = [binary, ...args];
+    const displayArgs = formatDisplayArgs(allArgs);
 
     switch (packageManager) {
         case "pnpm":
@@ -222,28 +233,28 @@ export function packageBinaryCommand(
                 packageManager,
                 command: "pnpm",
                 args: ["exec", ...allArgs],
-                display: `pnpm exec ${allArgs.join(" ")}`,
+                display: `pnpm exec ${displayArgs}`,
             };
         case "npm":
             return {
                 packageManager,
                 command: "npm",
                 args: ["exec", "--", ...allArgs],
-                display: `npm exec -- ${allArgs.join(" ")}`,
+                display: `npm exec -- ${displayArgs}`,
             };
         case "yarn":
             return {
                 packageManager,
                 command: "yarn",
                 args: allArgs,
-                display: `yarn ${allArgs.join(" ")}`,
+                display: `yarn ${displayArgs}`,
             };
         case "bun":
             return {
                 packageManager,
                 command: "bun",
                 args: ["x", ...allArgs],
-                display: `bun x ${allArgs.join(" ")}`,
+                display: `bun x ${displayArgs}`,
             };
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
