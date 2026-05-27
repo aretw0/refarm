@@ -15,6 +15,7 @@ import { provisionCommand } from "../../src/commands/provision.js";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
+import { HISTORY, makeJsonFetch } from "./tree.fixtures.js";
 
 const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfNoEntry: false })
 	? join(process.cwd(), "src", "commands")
@@ -334,6 +335,7 @@ describe("JSON next command contract", () => {
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
 		try {
+			vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 			const payloads = await parseCommandJsonSamples([
 				{ id: "agent-handoff", command: createAgentCommand(), args: ["--json"] },
 				{ id: "agent-finish-plan", command: createAgentCommand(), args: ["finish", "--json"] },
@@ -407,6 +409,11 @@ describe("JSON next command contract", () => {
 					args: ["show", "abc123", "--scope", "all", "--json"],
 				},
 				{
+					id: "tree-session-preview-template",
+					command: createTreeCommand(),
+					args: ["preview", "abc123", "--json"],
+				},
+				{
 					id: "tui-launch-dry-run",
 					command: createTuiCommand({
 						resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
@@ -451,24 +458,25 @@ describe("JSON next command contract", () => {
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
 				.map((payload) => payload.sampleId);
-				const missingNextCommands = payloads
-					.filter((payload) => !Array.isArray(payload.nextCommands))
-					.map((payload) => payload.sampleId);
-				const commandFieldPlaceholderLeaks = payloads.flatMap((payload) =>
-					generatedCommandFieldPlaceholderLeaks(payload)
-						.map((leak) => `${payload.sampleId}.${leak}`),
-				);
+			const missingNextCommands = payloads
+				.filter((payload) => !Array.isArray(payload.nextCommands))
+				.map((payload) => payload.sampleId);
+			const commandFieldPlaceholderLeaks = payloads.flatMap((payload) =>
+				generatedCommandFieldPlaceholderLeaks(payload)
+					.map((leak) => `${payload.sampleId}.${leak}`),
+			);
 
-				expect(placeholders).toEqual([]);
-				expect(actionPlaceholders).toEqual([]);
-				expect(interactiveSow).toEqual([]);
-				expect(actionInteractiveSow).toEqual([]);
-				expect(handoffPlaceholders).toEqual([]);
-				expect(commandFieldPlaceholderLeaks).toEqual([]);
-				expect(replOnly).toEqual([]);
-				expect(missingNextActions).toEqual([]);
-				expect(missingNextCommands).toEqual([]);
+			expect(placeholders).toEqual([]);
+			expect(actionPlaceholders).toEqual([]);
+			expect(interactiveSow).toEqual([]);
+			expect(actionInteractiveSow).toEqual([]);
+			expect(handoffPlaceholders).toEqual([]);
+			expect(commandFieldPlaceholderLeaks).toEqual([]);
+			expect(replOnly).toEqual([]);
+			expect(missingNextActions).toEqual([]);
+			expect(missingNextCommands).toEqual([]);
 		} finally {
+			vi.unstubAllGlobals();
 			config.cleanup();
 		}
 	});

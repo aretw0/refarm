@@ -47,31 +47,30 @@ describe("refarm tree preview", () => {
 			scope: "session",
 			operation: "preview",
 			reason: "dry-run",
-			nextAction:
-				"Provide --name <branch-name> before executing session fork.",
-			nextActions: [
-				"Provide --name <branch-name> before executing session fork.",
-			],
+				nextAction:
+					"Provide a branch name with --name before executing session fork.",
+				nextActions: [
+					"Provide a branch name with --name before executing session fork.",
+				],
 			nextCommand: null,
 			nextCommands: [],
 			plan: {
 				action: "fork",
 				destructive: false,
 				readyToExecute: false,
-				blockedReason:
-					"Provide --name <branch-name> before executing session fork.",
-				recommendedCommand:
-					"refarm sessions fork abc123def456 --at entry-2 --name <branch-name>",
+					blockedReason:
+						"Provide a branch name with --name before executing session fork.",
+					recommendedCommand: null,
 				effects: {
 					activePointerChanged: true,
 					branchCreated: true,
 				},
 				substrate: {
-					kind: "session-fork",
-					branchPointEntryId: "entry-2",
-					branchName: "<branch-name>",
-					activeSessionWillSwitch: true,
-				},
+						kind: "session-fork",
+						branchPointEntryId: "entry-2",
+						branchName: null,
+						activeSessionWillSwitch: true,
+					},
 			},
 		});
 	});
@@ -98,18 +97,17 @@ describe("refarm tree preview", () => {
 				action: "fork",
 				destructive: false,
 				readyToExecute: false,
-				recommendedCommand:
-					"refarm sessions fork abc123def456 --at entry-1 --name <branch-name>",
+					recommendedCommand: null,
 				effects: {
 					activePointerChanged: true,
 					branchCreated: true,
 				},
 				substrate: {
-					kind: "session-fork",
-					branchPointEntryId: "entry-1",
-					branchName: "<branch-name>",
-					activeSessionWillSwitch: true,
-				},
+						kind: "session-fork",
+						branchPointEntryId: "entry-1",
+						branchName: null,
+						activeSessionWillSwitch: true,
+					},
 			},
 		});
 	});
@@ -279,9 +277,9 @@ describe("refarm tree preview", () => {
 			scope: "git",
 			operation: "preview",
 			reason: "dry-run",
-			nextAction: "Provide --name <branch-name> before executing tree fork.",
+			nextAction: "Provide a branch name with --name before executing tree fork.",
 			nextActions: [
-				"Provide --name <branch-name> before executing tree fork.",
+				"Provide a branch name with --name before executing tree fork.",
 			],
 			nextCommand: null,
 			nextCommands: [],
@@ -289,20 +287,19 @@ describe("refarm tree preview", () => {
 				action: "fork",
 				destructive: false,
 				readyToExecute: false,
-				blockedReason:
-					"Provide --name <branch-name> before executing tree fork.",
-				recommendedCommand:
-					"refarm tree fork --scope git abcdef123456 --name <branch-name>",
+					blockedReason:
+						"Provide a branch name with --name before executing tree fork.",
+					recommendedCommand: null,
 				effects: {
 					activePointerChanged: false,
 					branchCreated: true,
 				},
 				substrate: {
-					kind: "git-branch",
-					baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
-					branchName: "<branch-name>",
-					worktreeSwitched: false,
-				},
+						kind: "git-branch",
+						baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
+						branchName: null,
+						worktreeSwitched: false,
+					},
 			},
 		});
 	});

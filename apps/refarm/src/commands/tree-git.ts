@@ -254,7 +254,11 @@ export function previewGitTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+	console.log(
+		chalk.dim(
+			`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+		),
+	);
 }
 
 export function previewGitSwitchTree(

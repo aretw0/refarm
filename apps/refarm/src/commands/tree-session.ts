@@ -389,7 +389,11 @@ export async function previewSessionTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+		console.log(
+			chalk.dim(
+				`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+			),
+		);
 }
 
 export async function switchSessionTree(
@@ -534,5 +538,9 @@ export async function previewSessionSwitchTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+	console.log(
+		chalk.dim(
+			`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+		),
+	);
 }

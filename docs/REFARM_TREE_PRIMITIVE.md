@@ -288,8 +288,8 @@ plan/readiness contract for this session operation:
     "action": "fork",
     "destructive": false,
     "readyToExecute": false,
-    "blockedReason": "Provide --name <branch-name> before executing session fork.",
-    "recommendedCommand": "refarm sessions fork abc123def456 --at entry-2 --name <branch-name>",
+    "blockedReason": "Provide a branch name with --name before executing session fork.",
+    "recommendedCommand": null,
     "effects": {
       "activePointerChanged": true,
       "branchCreated": true
@@ -297,10 +297,20 @@ plan/readiness contract for this session operation:
     "substrate": {
       "kind": "session-fork",
       "branchPointEntryId": "entry-2",
-      "branchName": "<branch-name>",
+      "branchName": null,
       "activeSessionWillSwitch": true
     }
-  }
+  },
+  "nextCommand": null,
+  "nextCommands": [],
+  "templates": [
+    {
+      "id": "execution-plan-command",
+      "command": "refarm sessions fork abc123def456 --at entry-2 --name <branch-name>",
+      "parameters": ["branch-name"],
+      "useWhen": "Provide a branch name with --name before executing session fork."
+    }
+  ]
 }
 ```
 
@@ -404,8 +414,8 @@ Git fork preview stays non-mutating and, without `--name`, deliberately reports
     "action": "fork",
     "destructive": false,
     "readyToExecute": false,
-    "blockedReason": "Provide --name <branch-name> before executing tree fork.",
-    "recommendedCommand": "refarm tree fork --scope git abcdef123456 --name <branch-name>",
+    "blockedReason": "Provide a branch name with --name before executing tree fork.",
+    "recommendedCommand": null,
     "effects": {
       "activePointerChanged": false,
       "branchCreated": true
@@ -413,10 +423,20 @@ Git fork preview stays non-mutating and, without `--name`, deliberately reports
     "substrate": {
       "kind": "git-branch",
       "baseCommit": "abcdef1234567890abcdef1234567890abcdef12",
-      "branchName": "<branch-name>",
+      "branchName": null,
       "worktreeSwitched": false
     }
-  }
+  },
+  "nextCommand": null,
+  "nextCommands": [],
+  "templates": [
+    {
+      "id": "execution-plan-command",
+      "command": "refarm tree fork --scope git abcdef123456 --name <branch-name>",
+      "parameters": ["branch-name"],
+      "useWhen": "Provide a branch name with --name before executing tree fork."
+    }
+  ]
 }
 ```
 

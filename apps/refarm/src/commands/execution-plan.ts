@@ -7,7 +7,7 @@ export interface RefarmExecutionPlanBase<
 	destructive: boolean;
 	readyToExecute: boolean;
 	blockedReason?: string;
-	recommendedCommand: string;
+	recommendedCommand: string | null;
 	effects: Effects;
 	substrate: Substrate;
 }
@@ -35,10 +35,12 @@ export interface RefarmExecutionPlanHandoff {
 	}>;
 }
 
-export type RefarmExecutionPlanHandoffInput = Pick<
+export interface RefarmExecutionPlanHandoffInput extends Pick<
 	RefarmExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
 	"readyToExecute" | "blockedReason" | "recommendedCommand"
->;
+> {
+	commandTemplate?: string;
+}
 
 function commandTemplateParameters(command: string): string[] {
 	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
@@ -62,11 +64,13 @@ export function formatExecutionPlanReadinessLine(
 export function createExecutionPlanHandoff(
 	plan: RefarmExecutionPlanHandoffInput,
 ): RefarmExecutionPlanHandoff {
+	const command = plan.recommendedCommand ?? null;
+	const templateCommand = plan.commandTemplate ?? command;
 	const nextAction = plan.readyToExecute
-		? plan.recommendedCommand
-		: plan.blockedReason ?? plan.recommendedCommand;
-	const nextCommands = plan.readyToExecute ? [plan.recommendedCommand] : [];
-	const parameters = commandTemplateParameters(plan.recommendedCommand);
+		? command
+		: plan.blockedReason ?? command;
+	const nextCommands = plan.readyToExecute && command ? [command] : [];
+	const parameters = templateCommand ? commandTemplateParameters(templateCommand) : [];
 	return {
 		nextAction,
 		nextActions: nextAction ? [nextAction] : [],
@@ -76,7 +80,7 @@ export function createExecutionPlanHandoff(
 			? [
 					{
 						id: "execution-plan-command",
-						command: plan.recommendedCommand,
+						command: templateCommand!,
 						parameters,
 						useWhen: plan.blockedReason ?? "After substituting concrete parameters for the execution plan command.",
 					},

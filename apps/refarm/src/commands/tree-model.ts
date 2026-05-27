@@ -112,7 +112,7 @@ export type RefarmSessionTimelineForkPreviewPlan = RefarmExecutionPlanBase<
 	{
 		kind: "session-fork";
 		branchPointEntryId: string | null;
-		branchName: string;
+		branchName: string | null;
 		activeSessionWillSwitch: true;
 	}
 >;
@@ -144,7 +144,7 @@ export type RefarmGitTimelineBranchPreviewPlan = RefarmExecutionPlanBase<
 	{
 		kind: "git-branch";
 		baseCommit: string;
-		branchName: string;
+		branchName: string | null;
 		worktreeSwitched: false;
 	}
 >;
@@ -347,6 +347,7 @@ export function buildSessionForkPreviewEnvelope(args: {
 	const { node, branchPointEntryId, name } = args;
 	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
 	const branchName = name ?? "<branch-name>";
+	const command = `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`;
 	const plan: RefarmSessionTimelineForkPreviewPlan = {
 		action: "fork",
 		destructive: false,
@@ -355,9 +356,9 @@ export function buildSessionForkPreviewEnvelope(args: {
 			? {}
 			: {
 					blockedReason:
-						"Provide --name <branch-name> before executing session fork.",
+						"Provide a branch name with --name before executing session fork.",
 				}),
-		recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`,
+		recommendedCommand: name ? command : null,
 		effects: {
 			activePointerChanged: true,
 			branchCreated: true,
@@ -365,7 +366,7 @@ export function buildSessionForkPreviewEnvelope(args: {
 		substrate: {
 			kind: "session-fork",
 			branchPointEntryId,
-			branchName,
+			branchName: name ?? null,
 			activeSessionWillSwitch: true,
 		},
 	};
@@ -377,7 +378,7 @@ export function buildSessionForkPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...createExecutionPlanHandoff(plan),
+		...createExecutionPlanHandoff({ ...plan, commandTemplate: command }),
 	};
 }
 
@@ -452,9 +453,10 @@ export function buildGitBranchPreviewEnvelope(args: {
 }): RefarmGitTimelinePreviewEnvelope {
 	const { node, name, branchAlreadyExists } = args;
 	const branchName = name ?? "<branch-name>";
+	const command = `refarm tree fork --scope git ${node.metadata.shortId} --name ${branchName}`;
 	const readyToExecute = Boolean(name) && branchAlreadyExists === false;
 	const blockedReason = !name
-		? "Provide --name <branch-name> before executing tree fork."
+		? "Provide a branch name with --name before executing tree fork."
 		: branchAlreadyExists
 			? `Git branch "${name}" already exists.`
 			: undefined;
@@ -463,7 +465,7 @@ export function buildGitBranchPreviewEnvelope(args: {
 		destructive: false,
 		readyToExecute,
 		...(blockedReason ? { blockedReason } : {}),
-		recommendedCommand: `refarm tree fork --scope git ${node.metadata.shortId} --name ${branchName}`,
+		recommendedCommand: name ? command : null,
 		effects: {
 			activePointerChanged: false,
 			branchCreated: true,
@@ -471,7 +473,7 @@ export function buildGitBranchPreviewEnvelope(args: {
 		substrate: {
 			kind: "git-branch",
 			baseCommit: node.nodeId,
-			branchName,
+			branchName: name ?? null,
 			worktreeSwitched: false,
 		},
 	};
@@ -483,7 +485,7 @@ export function buildGitBranchPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...createExecutionPlanHandoff(plan),
+		...createExecutionPlanHandoff({ ...plan, commandTemplate: command }),
 	};
 }
 

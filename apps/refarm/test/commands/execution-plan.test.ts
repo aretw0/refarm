@@ -48,26 +48,27 @@ describe("execution plan handoffs", () => {
 
 	it("keeps blocked plans as operator actions instead of executable commands", () => {
 		expect(
-			createExecutionPlanHandoff({
-				readyToExecute: false,
-				blockedReason: "Provide --name <branch-name> before executing tree fork.",
-				recommendedCommand:
-					"refarm tree fork --scope git abc123 --name <branch-name>",
-			}),
-		).toEqual({
-			nextAction: "Provide --name <branch-name> before executing tree fork.",
-			nextActions: [
-				"Provide --name <branch-name> before executing tree fork.",
-			],
+				createExecutionPlanHandoff({
+					readyToExecute: false,
+					blockedReason: "Provide a branch name with --name before executing tree fork.",
+					recommendedCommand: null,
+					commandTemplate:
+						"refarm tree fork --scope git abc123 --name <branch-name>",
+				}),
+			).toEqual({
+				nextAction: "Provide a branch name with --name before executing tree fork.",
+				nextActions: [
+					"Provide a branch name with --name before executing tree fork.",
+				],
 			nextCommand: null,
 			nextCommands: [],
 			templates: [
 				{
-					id: "execution-plan-command",
-					command: "refarm tree fork --scope git abc123 --name <branch-name>",
-					parameters: ["branch-name"],
-					useWhen: "Provide --name <branch-name> before executing tree fork.",
-				},
+						id: "execution-plan-command",
+						command: "refarm tree fork --scope git abc123 --name <branch-name>",
+						parameters: ["branch-name"],
+						useWhen: "Provide a branch name with --name before executing tree fork.",
+					},
 			],
 		});
 	});
