@@ -118,6 +118,16 @@ describe("agent command", () => {
 				setMonitorModel: string;
 			};
 			plugins: { install: string };
+			workers: {
+				list: string;
+				resume: string;
+				templates: {
+					command: string;
+					id: string;
+					parameters: string[];
+					useWhen: string;
+				}[];
+			};
 			verification: {
 				quick: string;
 				quickCommand: string;
@@ -192,6 +202,27 @@ describe("agent command", () => {
 				setMonitorModel: "refarm model set --scope monitor openai/gpt-5.5 --json",
 			},
 			plugins: { install: "refarm plugin install --json" },
+			workers: {
+				list: "refarm task list --json",
+				resume: "refarm task resume --json",
+				templates: expect.arrayContaining([
+					expect.objectContaining({
+						id: "worker-task-run",
+						command: "refarm task run <plugin> <fn> --args '{}' --json",
+						parameters: ["plugin", "fn"],
+					}),
+					expect.objectContaining({
+						id: "worker-task-status",
+						command: "refarm task status <effort-id> --json",
+						parameters: ["effort-id"],
+					}),
+					expect.objectContaining({
+						id: "worker-task-logs",
+						command: "refarm task logs <effort-id> --json",
+						parameters: ["effort-id"],
+					}),
+				]),
+			},
 			verification: {
 				quick: "refarm check --next-action --json",
 				quickCommand: "refarm check --next-command",
@@ -271,6 +302,8 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm package-manager --json");
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
+		expect(payload.nextActions).toContain("refarm task list --json");
+		expect(payload.nextActions).toContain("refarm task resume --json");
 		expect(payload.nextActions).toContain("refarm agent finish --templates --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json --next-command");
@@ -294,6 +327,8 @@ describe("agent command", () => {
 			"refarm model current --json",
 			"refarm package-manager --json",
 			"refarm config profile coding --local --json",
+			"refarm task list --json",
+			"refarm task resume --json",
 			"refarm agent finish --templates --json",
 			"refarm agent finish --lanes --json",
 			"refarm agent finish --lanes --json --next-command",
@@ -310,10 +345,18 @@ describe("agent command", () => {
 			"refarm agent finish --profile affected --include-tests --run --next-command",
 		]);
 		expect(payload.nextCommands.some((command) => /<[^>]+>/.test(command))).toBe(false);
-		const payloadWithoutTemplates = {
-			...payload,
-			verification: { ...payload.verification, templates: [] },
+		const stripTemplates = (value: unknown): unknown => {
+			if (Array.isArray(value)) return value.map(stripTemplates);
+			if (!value || typeof value !== "object") return value;
+			return Object.fromEntries(
+				Object.entries(value)
+					.map(([key, entry]) => [
+						key,
+						key === "templates" ? [] : stripTemplates(entry),
+					]),
+			);
 		};
+		const payloadWithoutTemplates = stripTemplates(payload);
 		expect(JSON.stringify(payloadWithoutTemplates)).not.toMatch(/<[^>]+>/);
 		logSpy.mockRestore();
 	});

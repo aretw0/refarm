@@ -170,6 +170,30 @@ const agentRuntimePlan = {
 		list: "refarm plugin list --json",
 		install: "refarm plugin install --json",
 	},
+	workers: {
+		list: "refarm task list --json",
+		resume: "refarm task resume --json",
+		templates: [
+			{
+				id: "worker-task-run",
+				command: "refarm task run <plugin> <fn> --args '{}' --json",
+				parameters: ["plugin", "fn"],
+				useWhen: "Dispatch a concrete plugin function as an asynchronous worker effort.",
+			},
+			{
+				id: "worker-task-status",
+				command: "refarm task status <effort-id> --json",
+				parameters: ["effort-id"],
+				useWhen: "Inspect a concrete worker effort after dispatch.",
+			},
+			{
+				id: "worker-task-logs",
+				command: "refarm task logs <effort-id> --json",
+				parameters: ["effort-id"],
+				useWhen: "Inspect logs for a concrete worker effort after dispatch.",
+			},
+		],
+	},
 	verification: {
 		quick: AGENT_NEXT_ACTION_COMMAND,
 		quickCommand: AGENT_NEXT_COMMAND,
@@ -889,7 +913,7 @@ Automation:
 Notes:
   This command is kept as the stable namespace for future agent runtime controls.
   Today, use runtime/status/doctor for the host, sow/model for credentials and
-  routing, and plugin for installation.
+  routing, plugin for installation, and task for worker efforts.
 `,
 	).action(function (this: Command) {
 		const options = this.opts<{ json?: boolean; nextAction?: boolean; nextCommand?: boolean }>();
@@ -925,6 +949,8 @@ Notes:
 						agentRuntimePlan.environment.codingProfile,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						"refarm plugin list --json",
+						agentRuntimePlan.workers.list,
+						agentRuntimePlan.workers.resume,
 						agentRuntimePlan.verification.finishTemplatesJsonCommand,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
@@ -948,6 +974,8 @@ Notes:
 						MODEL_CURRENT_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
 						agentRuntimePlan.environment.codingProfile,
+						agentRuntimePlan.workers.list,
+						agentRuntimePlan.workers.resume,
 						agentRuntimePlan.verification.finishTemplatesJsonCommand,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
