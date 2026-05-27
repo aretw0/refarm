@@ -29,6 +29,7 @@ describe("operator resume", () => {
 		const summary = buildOperatorResumeSummary({
 			status,
 			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+			recentPrompts: ["new prompt", "older prompt"],
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
 				activeEffortId: "effort-1",
@@ -57,6 +58,7 @@ describe("operator resume", () => {
 				shortId: "ef1234567890",
 				showCommand: "refarm tree show ef1234567890 --json",
 			},
+			recentPrompts: ["new prompt", "older prompt"],
 			tasks: {
 				totalEfforts: 1,
 				activeEffort: { effortId: "effort-1" },
@@ -79,6 +81,7 @@ describe("operator resume", () => {
 			nextCommands: ["refarm task list --json"],
 			status: "ok",
 			session: { status: "none" },
+			recentPrompts: [],
 		});
 	});
 
@@ -108,8 +111,9 @@ describe("operator resume", () => {
 						],
 					},
 					activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+					recentPrompts: ["ship it"],
 				}),
 			),
-		).toContain("Session: active=ef1234567890");
+		).toContain("Recent prompts:\n  ship it");
 	});
 });

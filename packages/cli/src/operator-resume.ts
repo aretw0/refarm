@@ -39,6 +39,7 @@ export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
 	activeSessionId?: string | null;
+	recentPrompts?: readonly string[];
 	commands?: Partial<OperatorResumeCommands>;
 }
 
@@ -67,6 +68,7 @@ export interface OperatorResumeSummary {
 	status: "empty" | "ok";
 	runtime?: OperatorResumeRuntimeSummary;
 	session: OperatorResumeSessionSummary;
+	recentPrompts: readonly string[];
 	tasks: OperatorResumeTaskSummary;
 }
 
@@ -134,11 +136,15 @@ export function buildOperatorResumeSummary(
 		showCommand: sessionShowCommand,
 	};
 	return {
-		status: runtime || session.status === "active" || efforts.length > 0
+		status: runtime ||
+			session.status === "active" ||
+			efforts.length > 0 ||
+			(input.recentPrompts?.length ?? 0) > 0
 			? "ok"
 			: "empty",
 		runtime,
 		session,
+		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		tasks,
 	};
 }
@@ -206,6 +212,14 @@ export function formatOperatorResumeSummary(
 		}
 	} else {
 		lines.push("Session: none");
+	}
+	if (summary.recentPrompts.length > 0) {
+		lines.push("Recent prompts:");
+		for (const prompt of summary.recentPrompts) {
+			lines.push(`  ${prompt}`);
+		}
+	} else {
+		lines.push("Recent prompts: none");
 	}
 
 	if (summary.tasks.totalEfforts === 0) {

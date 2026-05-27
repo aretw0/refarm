@@ -4,6 +4,7 @@ import {
 	formatOperatorResumeSummary,
 } from "@refarm.dev/cli/operator-resume";
 import { Command } from "commander";
+import { loadChatHistory } from "./chat-history.js";
 import { printJson } from "./json-output.js";
 import {
 	resolveStatusPayload,
@@ -22,6 +23,7 @@ export interface ResumeDeps {
 	}): Promise<ResolveStatusPayloadResult>;
 	sessionRecorder: TaskSessionRecorder;
 	readActiveSessionId(): string | null;
+	loadChatHistory(): string[];
 }
 
 interface ResumeOptions {
@@ -34,6 +36,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		resolveStatusPayload,
 		sessionRecorder: createTaskSessionRecorder(),
 		readActiveSessionId,
+		loadChatHistory,
 		...deps,
 	};
 
@@ -67,6 +70,7 @@ Notes:
 async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<void> {
 	const taskCheckpoint = deps.sessionRecorder.getCheckpoint();
 	const activeSessionId = deps.readActiveSessionId();
+	const recentPrompts = deps.loadChatHistory().slice(0, 5);
 	const statusResult = options.status === false
 		? undefined
 		: await deps.resolveStatusPayload({ renderer: "headless" });
@@ -79,6 +83,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 					status,
 					taskCheckpoint,
 					activeSessionId,
+					recentPrompts,
 				}),
 			);
 			return;
@@ -88,12 +93,14 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			status,
 			taskCheckpoint,
 			activeSessionId,
+			recentPrompts,
 		});
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = buildOperatorResumeEnvelope({
 			status,
 			taskCheckpoint,
 			activeSessionId,
+			recentPrompts,
 		}).nextCommands;
 		if (nextCommands.length > 0) {
 			console.log("");
