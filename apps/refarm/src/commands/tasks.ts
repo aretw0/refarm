@@ -12,7 +12,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_STATUS_COMMAND
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
@@ -104,7 +104,7 @@ function statusLabel(status: string | undefined): string {
 }
 
 function tasksListJsonCommand(): string {
-	return "refarm tasks --json";
+	return refarmCommand(["tasks", "--json"]);
 }
 
 function tasksShowJsonCommand(prefix: string): string {
@@ -211,8 +211,8 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 				printTaskErrorJson({
 					error: "task-not-found",
 					prefix,
-					nextAction: "refarm tasks --json",
-					nextCommand: "refarm tasks --json",
+					nextAction: tasksListJsonCommand(),
+					nextCommand: tasksListJsonCommand(),
 				});
 				return;
 			}
@@ -227,8 +227,8 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 					message: parsed.error,
 					prefix,
 					matches: parsed.matches ?? [],
-					nextAction: "refarm tasks --json",
-					nextCommand: "refarm tasks --json",
+					nextAction: tasksListJsonCommand(),
+					nextCommand: tasksListJsonCommand(),
 				});
 				return;
 			}
