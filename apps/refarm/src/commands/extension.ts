@@ -12,6 +12,32 @@ import {
 
 const EXTENSION_LIST_JSON_COMMAND = "refarm extension list --json";
 const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
+const EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND = refarmCommand([
+  "extension",
+  "save",
+  "my-tool",
+  "--global",
+]);
+const EXAMPLE_EXTENSION_SAVE_LOCAL_COMMAND = refarmCommand([
+  "extension",
+  "save",
+  "my-tool",
+  "--local",
+]);
+const EXAMPLE_EXTENSION_SAVE_GLOBAL_JSON_COMMAND = refarmCommand([
+  "extension",
+  "save",
+  "my-tool",
+  "--global",
+  "--json",
+]);
+const EXAMPLE_EXTENSION_SAVE_LOCAL_JSON_COMMAND = refarmCommand([
+  "extension",
+  "save",
+  "my-tool",
+  "--local",
+  "--json",
+]);
 
 function extensionSaveCommand(
   name: string,
@@ -226,15 +252,15 @@ async function saveExtension(
           error: "invalid-extension-name",
           message:
             "Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
-          nextAction: "refarm extension save my-tool --global",
+          nextAction: EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND,
           nextActions: [
-            "refarm extension save my-tool --global",
-            "refarm extension save my-tool --local",
+            EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND,
+            EXAMPLE_EXTENSION_SAVE_LOCAL_COMMAND,
           ],
-          nextCommand: "refarm extension save my-tool --global --json",
+          nextCommand: EXAMPLE_EXTENSION_SAVE_GLOBAL_JSON_COMMAND,
           nextCommands: [
-            "refarm extension save my-tool --global --json",
-            "refarm extension save my-tool --local --json",
+            EXAMPLE_EXTENSION_SAVE_GLOBAL_JSON_COMMAND,
+            EXAMPLE_EXTENSION_SAVE_LOCAL_JSON_COMMAND,
           ],
           extra: {
             name,
