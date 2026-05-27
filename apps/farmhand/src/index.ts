@@ -387,7 +387,16 @@ async function main() {
 			);
 		}
 
-		return { status, result, error };
+		return {
+			status,
+			result,
+			error,
+			meta: {
+				modelScope: scope,
+				modelProvider: route.provider,
+				modelId: route.modelId,
+			},
+		};
 	};
 
 	const pluginTracker = new PluginUsageTracker();
