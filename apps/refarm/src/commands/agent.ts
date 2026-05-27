@@ -878,6 +878,13 @@ Agent usage:
   $ refarm model base-url ...   Set a self-hosted/OpenAI-compatible endpoint
   $ refarm model fallback ...   Set a retry route for provider failures
 
+Worker efforts:
+  $ refarm task list --json     Inspect queued and recent async efforts
+  $ refarm task resume          Resume from the local task checkpoint
+  $ refarm task run <plugin> <fn> --args '{}' --json Dispatch a worker effort
+  $ refarm task status <effort-id> --json Inspect a worker effort
+  $ refarm task logs <effort-id> --json Inspect effort logs and model route
+
 Verification:
   $ refarm check --next-action --json Composite health + doctor gate
   $ refarm check --next-command      Print the next executable recovery command

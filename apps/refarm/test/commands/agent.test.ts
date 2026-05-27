@@ -57,6 +57,11 @@ describe("agent command", () => {
 		expect(help).toContain("refarm model openai/gpt-5.5");
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
+		expect(help).toContain("refarm task list --json");
+		expect(help).toContain("refarm task resume");
+		expect(help).toContain("refarm task run <plugin> <fn> --args '{}' --json");
+		expect(help).toContain("refarm task status <effort-id> --json");
+		expect(help).toContain("refarm task logs <effort-id> --json");
 		expect(help).toContain("refarm plugin install");
 		expect(help).toContain("refarm agent --json");
 		expect(help).toContain("refarm agent --next-command");
@@ -87,6 +92,9 @@ describe("agent command", () => {
 		expect(output).toContain("refarm model current");
 		expect(output).toContain("refarm model providers");
 		expect(output).toContain("refarm model base-url");
+		expect(output).toContain("refarm task list --json");
+		expect(output).toContain("refarm task resume");
+		expect(output).toContain("refarm task logs <effort-id> --json");
 	});
 
 	it("prints a machine-readable agent handoff plan", async () => {
