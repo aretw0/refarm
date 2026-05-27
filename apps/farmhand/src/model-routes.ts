@@ -73,9 +73,19 @@ export function createModelRouteResolver(store: ModelRouteStore): {
 export function withModelRouteEnv<T>(
 	route: EffectiveModelRoute,
 	fn: () => Promise<T>,
+	options: { managedEnvKeys?: string[] } = {},
 ): Promise<T> {
 	const previousProvider = process.env.MODEL_PROVIDER;
 	const previousModel = process.env.MODEL_ID;
+	const previousBaseUrl = process.env.MODEL_BASE_URL;
+	const managedKeys = new Set(options.managedEnvKeys ?? []);
+	const previousProviderManaged = managedKeys.has("MODEL_PROVIDER");
+	const baseUrlManaged = managedKeys.has("MODEL_BASE_URL");
+	const routeProviderDiffersFromManagedDefault =
+		previousProviderManaged &&
+		previousProvider !== undefined &&
+		route.provider !== undefined &&
+		route.provider.trim().toLowerCase() !== previousProvider.trim().toLowerCase();
 	if (route.provider) {
 		process.env.MODEL_PROVIDER = route.provider;
 	} else {
@@ -85,6 +95,9 @@ export function withModelRouteEnv<T>(
 		process.env.MODEL_ID = route.modelId;
 	} else {
 		delete process.env.MODEL_ID;
+	}
+	if (baseUrlManaged && routeProviderDiffersFromManagedDefault) {
+		delete process.env.MODEL_BASE_URL;
 	}
 
 	return fn().finally(() => {
@@ -97,6 +110,11 @@ export function withModelRouteEnv<T>(
 			delete process.env.MODEL_ID;
 		} else {
 			process.env.MODEL_ID = previousModel;
+		}
+		if (previousBaseUrl === undefined) {
+			delete process.env.MODEL_BASE_URL;
+		} else {
+			process.env.MODEL_BASE_URL = previousBaseUrl;
 		}
 	});
 }

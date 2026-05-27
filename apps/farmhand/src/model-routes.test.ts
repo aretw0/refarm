@@ -12,6 +12,7 @@ describe("model routes", () => {
 		delete process.env.MODEL_PROVIDER;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.MODEL_ID;
+		delete process.env.MODEL_BASE_URL;
 	});
 
 	it("uses gpt-5.5 as OpenAI default route", () => {
@@ -234,6 +235,61 @@ describe("model routes", () => {
 
 		expect(process.env.MODEL_PROVIDER).toBe("openai");
 		expect(process.env.MODEL_ID).toBe("gpt-5.5");
+	});
+
+	it("clears Silo-managed base URL when a scoped route changes provider", async () => {
+		process.env.MODEL_PROVIDER = "vllm";
+		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
+		process.env.MODEL_BASE_URL = "http://127.0.0.1:8000";
+
+		await withModelRouteEnv(
+			{ provider: "openai", modelId: "gpt-5.3-codex-spark" },
+			async () => {
+				expect(process.env.MODEL_PROVIDER).toBe("openai");
+				expect(process.env.MODEL_ID).toBe("gpt-5.3-codex-spark");
+				expect(process.env.MODEL_BASE_URL).toBeUndefined();
+			},
+			{ managedEnvKeys: ["MODEL_PROVIDER", "MODEL_ID", "MODEL_BASE_URL"] },
+		);
+
+		expect(process.env.MODEL_PROVIDER).toBe("vllm");
+		expect(process.env.MODEL_ID).toBe("Qwen3-Coder-480B-A35B-Instruct");
+		expect(process.env.MODEL_BASE_URL).toBe("http://127.0.0.1:8000");
+	});
+
+	it("preserves operator base URL while applying a scoped route", async () => {
+		process.env.MODEL_PROVIDER = "vllm";
+		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
+		process.env.MODEL_BASE_URL = "http://operator.local";
+
+		await withModelRouteEnv(
+			{ provider: "openai", modelId: "gpt-5.3-codex-spark" },
+			async () => {
+				expect(process.env.MODEL_PROVIDER).toBe("openai");
+				expect(process.env.MODEL_ID).toBe("gpt-5.3-codex-spark");
+				expect(process.env.MODEL_BASE_URL).toBe("http://operator.local");
+			},
+			{ managedEnvKeys: [] },
+		);
+
+		expect(process.env.MODEL_PROVIDER).toBe("vllm");
+		expect(process.env.MODEL_ID).toBe("Qwen3-Coder-480B-A35B-Instruct");
+		expect(process.env.MODEL_BASE_URL).toBe("http://operator.local");
+	});
+
+	it("keeps Silo-managed base URL when the scoped route stays on the same provider", async () => {
+		process.env.MODEL_PROVIDER = "vllm";
+		process.env.MODEL_ID = "Qwen3-Coder-480B-A35B-Instruct";
+		process.env.MODEL_BASE_URL = "http://127.0.0.1:8000";
+
+		await withModelRouteEnv(
+			{ provider: "vllm", modelId: "Qwen3-Coder-480B-A35B-Instruct" },
+			async () => {
+				expect(process.env.MODEL_PROVIDER).toBe("vllm");
+				expect(process.env.MODEL_BASE_URL).toBe("http://127.0.0.1:8000");
+			},
+			{ managedEnvKeys: ["MODEL_PROVIDER", "MODEL_ID", "MODEL_BASE_URL"] },
+		);
 	});
 
 	it("refreshes route tokens and keeps last known value on load failure", async () => {

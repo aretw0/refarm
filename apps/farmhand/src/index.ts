@@ -363,14 +363,17 @@ async function main() {
 		const route = routeForScope(tokens, scope, {
 			env: routeResolutionEnv(process.env, siloModelEnvInjector.managedEnvKeys()),
 		});
-		await withModelRouteEnv(route, () =>
-			executeTask(captureTractor, {
-				taskId: task.id,
-				effortId,
-				pluginId: task.pluginId,
-				fn: task.fn,
-				args: task.args,
-			}),
+		await withModelRouteEnv(
+			route,
+			() =>
+				executeTask(captureTractor, {
+					taskId: task.id,
+					effortId,
+					pluginId: task.pluginId,
+					fn: task.fn,
+					args: task.args,
+				}),
+			{ managedEnvKeys: siloModelEnvInjector.managedEnvKeys() },
 		);
 
 		try {
