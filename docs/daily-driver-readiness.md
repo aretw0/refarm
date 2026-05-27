@@ -38,6 +38,9 @@ What is already solid:
   and launcher command parsing, while app commands keep product-specific launch
   modes and renderer behavior. The launch policy exposes agnostic primary names
   with Refarm aliases where compatibility is useful.
+- Git command execution helpers now live in `@refarm.dev/cli`; tree and finish
+  flows keep their product policy in `apps/refarm` while sharing the same Git
+  process boundary.
 - Execution-plan readiness/handoffs and host action affordance selection now
   live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
   where compatibility is still useful.
@@ -68,7 +71,7 @@ What still blocks the 95/100 product target:
 - `apps/refarm`: product commands, human output, final CLI UX.
 - `packages/cli`: reusable CLI primitives, JSON envelopes, handoff commands,
   command plans, execution plans, action affordances, launch process specs,
-  launch readiness policy, status schemas.
+  launch readiness policy, Git command helpers, status schemas.
 - `packages/config`: defaults, provider/model/package-manager policy.
 - `farmhand`, runtime, tractor: execution, state, task/plugin lifecycle,
   sandboxing, logs, and recovery behavior.
