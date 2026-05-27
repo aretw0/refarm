@@ -63,7 +63,7 @@ function oauthCredentialsFor(
 
 export function createSiloModelEnvInjector(
 	options: SiloModelEnvInjectorOptions,
-): { inject(): Promise<void> } {
+): { inject(): Promise<void>; managedEnvKeys(): string[] } {
 	const env = options.env ?? process.env;
 	const warn = options.warn ?? ((message) => console.warn(message));
 	const managedEnvKeys = new Set<string>();
@@ -82,6 +82,9 @@ export function createSiloModelEnvInjector(
 	}
 
 	return {
+		managedEnvKeys() {
+			return [...managedEnvKeys];
+		},
 		async inject() {
 			try {
 				const tokens = await options.store.loadTokens();

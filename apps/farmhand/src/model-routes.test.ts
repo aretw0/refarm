@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	createModelRouteResolver,
+	routeResolutionEnv,
 	routeForScope,
 	scopeForEffortSource,
 	withModelRouteEnv,
@@ -121,6 +122,48 @@ describe("model routes", () => {
 		).toEqual({
 			provider: "anthropic",
 			modelId: "claude-sonnet-4-6",
+		});
+	});
+
+	it("ignores Silo-managed default route env while preserving operator env for scoped routes", () => {
+		const tokens = {
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: { worker: "anthropic/claude-sonnet-4-6" },
+		};
+
+		expect(
+			routeForScope(
+				tokens,
+				"worker",
+				{
+					env: routeResolutionEnv(
+						{
+							MODEL_PROVIDER: "openai",
+							MODEL_ID: "gpt-5.5",
+							OPENAI_API_KEY: "sk-managed",
+						},
+						["MODEL_PROVIDER", "MODEL_ID", "OPENAI_API_KEY"],
+					),
+				},
+			),
+		).toEqual({
+			provider: "anthropic",
+			modelId: "claude-sonnet-4-6",
+		});
+
+		expect(
+			routeForScope(tokens, "worker", {
+				env: routeResolutionEnv(
+					{
+						MODEL_PROVIDER: "gemini",
+					},
+					[],
+				),
+			}),
+		).toEqual({
+			provider: "gemini",
+			modelId: "gemini-3-flash-preview",
 		});
 	});
 

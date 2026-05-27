@@ -40,6 +40,7 @@ import { LocalExtensionRegistry } from "./local-extensions.js";
 import {
 	createModelRouteResolver,
 	routeForScope,
+	routeResolutionEnv,
 	scopeForEffortSource,
 	withModelRouteEnv,
 } from "./model-routes.js";
@@ -359,7 +360,9 @@ async function main() {
 		const scope = scopeForEffortSource(effort.source);
 		await injectSiloModelEnv();
 		const tokens = await modelRouteResolver.refreshTokens();
-		const route = routeForScope(tokens, scope);
+		const route = routeForScope(tokens, scope, {
+			env: routeResolutionEnv(process.env, siloModelEnvInjector.managedEnvKeys()),
+		});
 		await withModelRouteEnv(route, () =>
 			executeTask(captureTractor, {
 				taskId: task.id,

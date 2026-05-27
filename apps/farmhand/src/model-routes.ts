@@ -17,6 +17,19 @@ export interface ModelRouteOptions {
 	env?: NodeJS.ProcessEnv;
 }
 
+export function routeResolutionEnv(
+	env: NodeJS.ProcessEnv,
+	managedKeys: string[],
+): NodeJS.ProcessEnv {
+	const routeEnv = { ...env };
+	for (const key of managedKeys) {
+		if (key === "MODEL_PROVIDER" || key === "MODEL_ID") {
+			delete routeEnv[key];
+		}
+	}
+	return routeEnv;
+}
+
 export function scopeForEffortSource(source: string | undefined): ModelScope {
 	if (source === "refarm-ask" || source === "refarm-chat") return "default";
 	if (source === "refarm-monitor") return "monitor";
