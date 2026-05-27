@@ -1,4 +1,8 @@
-import type { Effort, EffortResult } from "@refarm.dev/effort-contract-v1";
+import type {
+	Effort,
+	EffortLogEntry,
+	EffortResult,
+} from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,6 +11,7 @@ import {
 	buildTaskLogsCommand,
 	buildTaskStatusCommand,
 	FileTaskSessionRecorder,
+	formatTaskSessionModelRoute,
 } from "../../src/commands/task-session.js";
 
 const tempDirs: string[] = [];
@@ -157,5 +162,55 @@ describe("FileTaskSessionRecorder", () => {
 
 		const checkpoint = recorder.getCheckpoint();
 		expect(checkpoint?.activeEffortId).toBe("pending-1");
+	});
+
+	it("remembers the latest model route observed in task logs", () => {
+		const baseDir = createTempDir();
+		const recorder = new FileTaskSessionRecorder(baseDir);
+		const logs: EffortLogEntry[] = [
+			{
+				timestamp: "2026-05-27T12:00:00.000Z",
+				level: "info",
+				event: "processing_started",
+				message: "started",
+				effortId: "effort-model",
+				meta: {
+					modelScope: "default",
+					modelProvider: "openai",
+					modelId: "gpt-5.5",
+				},
+			},
+			{
+				timestamp: "2026-05-27T12:00:01.000Z",
+				level: "info",
+				event: "task_attempt_succeeded",
+				message: "done",
+				effortId: "effort-model",
+				taskId: "task-1",
+				meta: {
+					modelScope: "worker",
+					modelProvider: "openai",
+					modelId: "gpt-5.3-codex-spark",
+				},
+			},
+		];
+
+		recorder.rememberLogs({
+			effortId: "effort-model",
+			transport: "file",
+			logs,
+		});
+
+		const checkpoint = recorder.getCheckpoint();
+		expect(checkpoint?.efforts[0]!.lastLogAt).toBe(logs[1]!.timestamp);
+		expect(checkpoint?.efforts[0]!.lastModelRoute).toEqual({
+			scope: "worker",
+			provider: "openai",
+			modelId: "gpt-5.3-codex-spark",
+			ref: "openai/gpt-5.3-codex-spark",
+		});
+		expect(
+			formatTaskSessionModelRoute(checkpoint?.efforts[0]!.lastModelRoute),
+		).toBe("worker openai/gpt-5.3-codex-spark");
 	});
 });

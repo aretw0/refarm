@@ -29,6 +29,7 @@ import {
 	buildTaskLogsCommand,
 	buildTaskStatusCommand,
 	createTaskSessionRecorder,
+	formatTaskSessionModelRoute,
 	type TaskSessionRecorder,
 } from "./task-session.js";
 import { isFinalEffortStatus } from "./task-status.js";
@@ -856,6 +857,8 @@ Notes:
 				console.log(
 					`  ${effort.effortId}  status=${status} transport=${effort.transport} touched=${lastTouch}`,
 				);
+				const modelRoute = formatTaskSessionModelRoute(effort.lastModelRoute);
+				if (modelRoute) console.log(chalk.gray(`    model:  ${modelRoute}`));
 				console.log(chalk.gray(`    status: ${effort.statusCommand}`));
 				console.log(chalk.gray(`    logs:   ${effort.logsCommand}`));
 			}

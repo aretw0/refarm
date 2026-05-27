@@ -15,6 +15,13 @@ const DEFAULT_MAX_EFFORTS = 25;
 
 export type SessionStatus = EffortStatus | "not-found";
 
+export interface TaskSessionModelRoute {
+	scope?: string;
+	provider?: string;
+	modelId?: string;
+	ref?: string;
+}
+
 export interface TaskSessionEffortRecord {
 	effortId: string;
 	transport: string;
@@ -25,6 +32,7 @@ export interface TaskSessionEffortRecord {
 	lastStatusAt?: string;
 	lastCommand?: "run" | "status" | "list" | "logs" | "retry" | "cancel";
 	lastLogAt?: string;
+	lastModelRoute?: TaskSessionModelRoute;
 	statusCommand: string;
 	logsCommand: string;
 }
@@ -102,6 +110,57 @@ function emptyCheckpoint(): TaskSessionCheckpoint {
 	};
 }
 
+function normalizeModelRoute(raw: unknown): TaskSessionModelRoute | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const maybe = raw as Record<string, unknown>;
+	const scope = typeof maybe.scope === "string" ? maybe.scope : undefined;
+	const provider =
+		typeof maybe.provider === "string" ? maybe.provider : undefined;
+	const modelId =
+		typeof maybe.modelId === "string" ? maybe.modelId : undefined;
+	const ref = typeof maybe.ref === "string" ? maybe.ref : undefined;
+	if (!scope && !provider && !modelId && !ref) return undefined;
+	return { scope, provider, modelId, ref };
+}
+
+function modelRouteFromLogMeta(meta: unknown): TaskSessionModelRoute | undefined {
+	if (!meta || typeof meta !== "object") return undefined;
+	const current = meta as Record<string, unknown>;
+	const scope =
+		typeof current.modelScope === "string" ? current.modelScope : undefined;
+	const provider =
+		typeof current.modelProvider === "string"
+			? current.modelProvider
+			: undefined;
+	const modelId =
+		typeof current.modelId === "string" ? current.modelId : undefined;
+	const ref =
+		provider && modelId ? `${provider}/${modelId}` : provider ?? modelId;
+	if (!scope && !provider && !modelId && !ref) return undefined;
+	return { scope, provider, modelId, ref };
+}
+
+function latestModelRouteFromLogs(
+	logs: EffortLogEntry[],
+): TaskSessionModelRoute | undefined {
+	for (const entry of logs.slice().reverse()) {
+		const route = modelRouteFromLogMeta(entry.meta);
+		if (route) return route;
+	}
+	return undefined;
+}
+
+export function formatTaskSessionModelRoute(
+	route: TaskSessionModelRoute | undefined,
+): string | undefined {
+	if (!route) return undefined;
+	const ref = route.ref ?? (route.provider && route.modelId
+		? `${route.provider}/${route.modelId}`
+		: route.provider ?? route.modelId);
+	if (route.scope && ref) return `${route.scope} ${ref}`;
+	return route.scope ?? ref;
+}
+
 function normalizeCheckpoint(raw: unknown): TaskSessionCheckpoint {
 	if (!raw || typeof raw !== "object") return emptyCheckpoint();
 	const maybe = raw as Record<string, unknown>;
@@ -143,6 +202,7 @@ function normalizeCheckpoint(raw: unknown): TaskSessionCheckpoint {
 							typeof current.lastLogAt === "string"
 								? current.lastLogAt
 								: undefined,
+						lastModelRoute: normalizeModelRoute(current.lastModelRoute),
 						statusCommand:
 							typeof current.statusCommand === "string"
 								? current.statusCommand
@@ -245,6 +305,8 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 			effort.lastCommand = "logs";
 			const tail = input.logs[input.logs.length - 1];
 			effort.lastLogAt = tail?.timestamp;
+			const route = latestModelRouteFromLogs(input.logs);
+			if (route) effort.lastModelRoute = route;
 		});
 	}
 
