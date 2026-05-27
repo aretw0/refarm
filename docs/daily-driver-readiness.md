@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**78/100**
+**80/100**
 
 Strong enough to keep developing with Refarm in the loop, not yet strong enough
 to stop spending regular work on Refarm itself.
@@ -37,12 +37,14 @@ What is already solid:
 - Execution-plan readiness/handoffs and host action affordance selection now
   live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
   where compatibility is still useful.
+- `refarm resume` now provides an operator-level runtime + worker checkpoint
+  view backed by a shared `@refarm.dev/cli` resume envelope.
 
 What still blocks the 85/100 target:
 
 - Some scripts and legacy toolbox flows still execute shell command strings.
-- Resume is still task-centric; operator-level resume/status needs a single
-  daily-driver view.
+- Operator resume still needs to include interactive sessions, recent prompts,
+  and finish-gate history.
 - `agent finish` can be faster and more selective for common local edits.
 - The core operator workflow needs one short maintained guide.
 

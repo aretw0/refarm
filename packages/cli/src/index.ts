@@ -118,3 +118,21 @@ export type {
 	SurfaceActionReadinessDryRunEnvelopeOptions,
 	SurfaceActionReadinessOutputOptions,
 } from "./action-affordances.js";
+export {
+	buildOperatorResumeEnvelope,
+	buildOperatorResumeSummary,
+	formatOperatorResumeModelRoute,
+	formatOperatorResumeSummary,
+	operatorResumeNextCommands,
+} from "./operator-resume.js";
+export type {
+	OperatorResumeCommands,
+	OperatorResumeEnvelope,
+	OperatorResumeInput,
+	OperatorResumeModelRoute,
+	OperatorResumeRuntimeSummary,
+	OperatorResumeSummary,
+	OperatorResumeTaskCheckpoint,
+	OperatorResumeTaskRecord,
+	OperatorResumeTaskSummary,
+} from "./operator-resume.js";

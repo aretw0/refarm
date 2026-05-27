@@ -152,6 +152,7 @@ const agentRuntimePlan = {
 	usage: {
 		ask: `refarm ask "hello" --json`,
 		session: "refarm",
+		resume: "refarm resume --json",
 		tidyCheck: "refarm tidy imports --check --json",
 		tidyApply: "refarm tidy imports --json",
 	},
@@ -868,6 +869,7 @@ Runtime commands:
 Agent usage:
   $ refarm ask "hello"          Send one prompt through the configured runtime
   $ refarm                     Start or resume an interactive session
+  $ refarm resume              Show runtime and worker resume hints
   $ refarm tidy imports --check Check import organization before committing
   $ refarm tidy imports         Organize imports after an editing slice
   $ refarm sow                  Configure credentials without editing files
@@ -951,6 +953,7 @@ Notes:
 						AGENT_NEXT_ACTION_COMMAND,
 						agentRuntimePlan.runtime.status,
 						agentRuntimePlan.runtime.ensure,
+						agentRuntimePlan.usage.resume,
 						MODEL_CURRENT_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
 						agentRuntimePlan.environment.codingProfile,
@@ -976,6 +979,7 @@ Notes:
 					nextCommands: [
 						AGENT_NEXT_COMMAND,
 						agentRuntimePlan.runtime.ensure,
+						agentRuntimePlan.usage.resume,
 						LOCAL_MODEL_JSON_COMMAND,
 						SOW_JSON_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,

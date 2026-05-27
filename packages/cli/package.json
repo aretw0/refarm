@@ -45,6 +45,10 @@
 		"./action-affordances": {
 			"types": "./dist/action-affordances.d.ts",
 			"import": "./dist/action-affordances.js"
+		},
+		"./operator-resume": {
+			"types": "./dist/operator-resume.d.ts",
+			"import": "./dist/operator-resume.js"
 		}
 	},
 	"scripts": {

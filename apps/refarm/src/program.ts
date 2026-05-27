@@ -16,6 +16,7 @@ import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
 import { provisionCommand } from "./commands/provision.js";
+import { resumeCommand } from "./commands/resume.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -95,6 +96,7 @@ program
 			"Common workflows:",
 			"  $ refarm                         Start or resume the interactive agent session",
 			"  $ refarm ask \"hello\"             Send one prompt and exit",
+			"  $ refarm resume                  Show runtime and worker resume hints",
 			"  $ refarm sow                     Configure credentials and model provider",
 			"  $ refarm runtime                 Inspect selected runtime engine and autostart",
 			"  $ refarm health                  Audit project structure and package alignment",
@@ -233,6 +235,7 @@ program.addCommand(extensionCommand);
 program.addCommand(agentCommand);
 program.addCommand(openUrlCommand);
 program.addCommand(actionsCommand);
+program.addCommand(resumeCommand);
 program.addCommand(statusCommand);
 program.addCommand(runtimeCommand);
 program.addCommand(taskCommand);

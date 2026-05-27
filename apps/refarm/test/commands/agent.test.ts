@@ -58,6 +58,7 @@ describe("agent command", () => {
 		expect(help).toContain("refarm model base-url");
 		expect(help).toContain("refarm model fallback");
 		expect(help).toContain("refarm task list --json");
+		expect(help).toContain("refarm resume");
 		expect(help).toContain("refarm task resume");
 		expect(help).toContain("refarm task run <plugin> <fn> --args '{}' --json");
 		expect(help).toContain("refarm task status <effort-id> --json");
@@ -93,6 +94,7 @@ describe("agent command", () => {
 		expect(output).toContain("refarm model providers");
 		expect(output).toContain("refarm model base-url");
 		expect(output).toContain("refarm task list --json");
+		expect(output).toContain("refarm resume");
 		expect(output).toContain("refarm task resume");
 		expect(output).toContain("refarm task logs <effort-id> --json");
 	});
@@ -113,7 +115,7 @@ describe("agent command", () => {
 				start: string;
 				doctorCommand: string;
 			};
-			usage: { tidyCheck: string; tidyApply: string };
+			usage: { resume: string; tidyCheck: string; tidyApply: string };
 			credentials: {
 				configureInteractive: string;
 				configureJson: string;
@@ -195,6 +197,7 @@ describe("agent command", () => {
 				doctorCommand: "refarm doctor --next-command",
 			},
 			usage: {
+				resume: "refarm resume --json",
 				tidyCheck: "refarm tidy imports --check --json",
 				tidyApply: "refarm tidy imports --json",
 			},
@@ -311,6 +314,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm task list --json");
+		expect(payload.nextActions).toContain("refarm resume --json");
 		expect(payload.nextActions).toContain("refarm task resume --json");
 		expect(payload.nextActions).toContain("refarm agent finish --templates --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
@@ -330,6 +334,7 @@ describe("agent command", () => {
 		expect(payload.nextCommands).toEqual([
 			"refarm check --next-command",
 			"refarm runtime ensure --wait --next-command",
+			"refarm resume --json",
 			"refarm sow --model ollama/llama3.2 --json",
 			"refarm sow --json",
 			"refarm model current --json",
