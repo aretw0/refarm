@@ -10,12 +10,12 @@ import {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
 import {
-	getRefarmStatusAvailableActions,
-	type RefarmActionAffordanceSelectionMetadata,
+	getStatusAvailableSurfaceActions,
+	type SurfaceActionAffordanceSelectionMetadata,
 } from "./action-affordances.js";
 import {
 	formatExecutionPlanReadinessLine,
-	type RefarmExecutionPlanReadinessLine,
+	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
 
 export type HeadlessSurfaceActionMountSource =
@@ -66,8 +66,8 @@ export interface HeadlessSurfaceActionDryRunEnvelope {
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
 	renderer: "headless";
-	readiness: RefarmExecutionPlanReadinessLine;
-	selection?: RefarmActionAffordanceSelectionMetadata;
+	readiness: ExecutionPlanReadinessLine;
+	selection?: SurfaceActionAffordanceSelectionMetadata;
 	actionRequest?: HomesteadSurfaceRenderActionRequest;
 	availableActions: readonly HomesteadSurfaceRenderAction[];
 }
@@ -102,13 +102,13 @@ export function createHeadlessStatusSurfaceHostContext(
 			rendererKind: status.renderer.kind,
 			...options.hostData,
 		},
-		actions: [...getRefarmStatusAvailableActions(status)],
+		actions: [...getStatusAvailableSurfaceActions(status)],
 	};
 }
 
 export function createHeadlessStatusSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
-	selection: RefarmActionAffordanceSelectionMetadata,
+	selection: SurfaceActionAffordanceSelectionMetadata,
 	request: HomesteadSurfaceRenderActionRequest,
 	availableActions: readonly HomesteadSurfaceRenderAction[],
 ): HeadlessSurfaceActionDryRunEnvelope {
@@ -137,9 +137,9 @@ export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
 function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
 	status: RefarmStatusJson,
 	options: {
-		readiness: RefarmExecutionPlanReadinessLine;
+		readiness: ExecutionPlanReadinessLine;
 		availableActions: readonly HomesteadSurfaceRenderAction[];
-		selection?: RefarmActionAffordanceSelectionMetadata;
+		selection?: SurfaceActionAffordanceSelectionMetadata;
 		actionRequest?: HomesteadSurfaceRenderActionRequest;
 	},
 ): HeadlessSurfaceActionDryRunEnvelope {

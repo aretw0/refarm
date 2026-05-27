@@ -4,10 +4,10 @@ import type {
 } from "./status.js";
 import {
 	formatExecutionPlanReadinessLine,
-	type RefarmExecutionPlanReadinessLine,
+	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
 
-export interface RefarmActionAffordanceRow {
+export interface SurfaceActionAffordanceRow {
 	index: number;
 	id: string;
 	label: string;
@@ -15,52 +15,52 @@ export interface RefarmActionAffordanceRow {
 	display: string;
 }
 
-export type RefarmActionAffordanceSelectionReason =
+export type SurfaceActionAffordanceSelectionReason =
 	| "selected"
 	| "missing-action"
 	| "no-actions";
 
-export type RefarmActionAffordanceSelectionSource = "id" | "index";
+export type SurfaceActionAffordanceSelectionSource = "id" | "index";
 
-export interface RefarmActionAffordanceSelectionMetadata {
+export interface SurfaceActionAffordanceSelectionMetadata {
 	requested: string;
-	source: RefarmActionAffordanceSelectionSource;
+	source: SurfaceActionAffordanceSelectionSource;
 	resolvedId?: string;
 	index?: number;
 }
 
-export interface RefarmActionAffordanceSelectionResult {
-	selected?: RefarmActionAffordanceRow;
-	reason: RefarmActionAffordanceSelectionReason;
-	selection: RefarmActionAffordanceSelectionMetadata;
-	rows: readonly RefarmActionAffordanceRow[];
+export interface SurfaceActionAffordanceSelectionResult {
+	selected?: SurfaceActionAffordanceRow;
+	reason: SurfaceActionAffordanceSelectionReason;
+	selection: SurfaceActionAffordanceSelectionMetadata;
+	rows: readonly SurfaceActionAffordanceRow[];
 }
 
-export interface RefarmActionReadinessDryRunEnvelope {
+export interface SurfaceActionReadinessDryRunEnvelope {
 	schemaVersion: 1;
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
-	readiness: RefarmExecutionPlanReadinessLine;
+	readiness: ExecutionPlanReadinessLine;
 	command?: string;
 	renderer: string;
-	selection?: RefarmActionAffordanceSelectionMetadata;
-	selectedAction?: RefarmActionAffordanceRow;
-	actionRows: readonly RefarmActionAffordanceRow[];
+	selection?: SurfaceActionAffordanceSelectionMetadata;
+	selectedAction?: SurfaceActionAffordanceRow;
+	actionRows: readonly SurfaceActionAffordanceRow[];
 }
 
-export interface RefarmActionReadinessDryRunEnvelopeOptions {
+export interface SurfaceActionReadinessDryRunEnvelopeOptions {
 	renderer: string;
 	command?: string;
-	selection?: RefarmActionAffordanceSelectionResult;
+	selection?: SurfaceActionAffordanceSelectionResult;
 }
 
-export interface RefarmActionAffordanceSelectionFormatOptions {
+export interface SurfaceActionAffordanceSelectionFormatOptions {
 	selectedHeading: string;
 	availableHeading: string;
-	selection?: RefarmActionAffordanceSelectionMetadata;
+	selection?: SurfaceActionAffordanceSelectionMetadata;
 }
 
-export interface RefarmActionReadinessOutputOptions<
+export interface SurfaceActionReadinessOutputOptions<
 	RendererKind extends string,
 > {
 	renderer: RendererKind;
@@ -72,29 +72,29 @@ export interface RefarmActionReadinessOutputOptions<
 	selectedHeading: string;
 }
 
-export function getRefarmStatusAvailableActions(
+export function getStatusAvailableSurfaceActions(
 	status: RefarmStatusJson,
 ): readonly RefarmStatusSurfaceAction[] {
 	return status.plugins.availableActions ?? [];
 }
 
-export function createRefarmActionAffordanceRows(
+export function createSurfaceActionAffordanceRows(
 	status: RefarmStatusJson,
-): RefarmActionAffordanceRow[] {
-	return getRefarmStatusAvailableActions(status).map((action, index) =>
-		createRefarmActionAffordanceRow(action, index),
+): SurfaceActionAffordanceRow[] {
+	return getStatusAvailableSurfaceActions(status).map((action, index) =>
+		createSurfaceActionAffordanceRow(action, index),
 	);
 }
 
-export function resolveRefarmActionAffordanceSelection(
+export function resolveSurfaceActionAffordanceSelection(
 	status: RefarmStatusJson,
 	selection: string,
-): RefarmActionAffordanceSelectionResult {
-	const rows = createRefarmActionAffordanceRows(status);
+): SurfaceActionAffordanceSelectionResult {
+	const rows = createSurfaceActionAffordanceRows(status);
 	const normalizedSelection = selection.trim();
 	const selectionSource =
-		getRefarmActionAffordanceSelectionSource(normalizedSelection);
-	const selectionMetadata: RefarmActionAffordanceSelectionMetadata = {
+		getSurfaceActionAffordanceSelectionSource(normalizedSelection);
+	const selectionMetadata: SurfaceActionAffordanceSelectionMetadata = {
 		requested: normalizedSelection,
 		source: selectionSource,
 	};
@@ -103,7 +103,7 @@ export function resolveRefarmActionAffordanceSelection(
 		return { reason: "no-actions", selection: selectionMetadata, rows };
 	}
 
-	const selectedByIndex = resolveRefarmActionAffordanceRowIndex(
+	const selectedByIndex = resolveSurfaceActionAffordanceRowIndex(
 		rows,
 		normalizedSelection,
 	);
@@ -126,19 +126,19 @@ export function resolveRefarmActionAffordanceSelection(
 	};
 }
 
-export function formatRefarmActionAffordanceRows(
-	rows: readonly RefarmActionAffordanceRow[],
+export function formatSurfaceActionAffordanceRows(
+	rows: readonly SurfaceActionAffordanceRow[],
 	heading = "Available actions:",
 ): string {
 	if (rows.length === 0) return `${heading}\n  none`;
 	return [heading, ...rows.map((row) => `  ${row.display}`)].join("\n");
 }
 
-export function createRefarmActionReadinessLine(
+export function createSurfaceActionReadinessLine(
 	status: RefarmStatusJson,
-	selection?: RefarmActionAffordanceSelectionResult,
-): RefarmExecutionPlanReadinessLine {
-	const rows = selection?.rows ?? createRefarmActionAffordanceRows(status);
+	selection?: SurfaceActionAffordanceSelectionResult,
+): ExecutionPlanReadinessLine {
+	const rows = selection?.rows ?? createSurfaceActionAffordanceRows(status);
 	if (selection?.reason === "missing-action") {
 		return formatExecutionPlanReadinessLine({
 			readyToExecute: false,
@@ -154,15 +154,15 @@ export function createRefarmActionReadinessLine(
 	return formatExecutionPlanReadinessLine({ readyToExecute: true });
 }
 
-export function createRefarmActionReadinessDryRunEnvelope(
+export function createSurfaceActionReadinessDryRunEnvelope(
 	status: RefarmStatusJson,
-	options: RefarmActionReadinessDryRunEnvelopeOptions,
-): RefarmActionReadinessDryRunEnvelope {
+	options: SurfaceActionReadinessDryRunEnvelopeOptions,
+): SurfaceActionReadinessDryRunEnvelope {
 	return {
 		schemaVersion: 1,
 		statusSchemaVersion: status.schemaVersion,
 		reason: "dry-run",
-		readiness: createRefarmActionReadinessLine(status, options.selection),
+		readiness: createSurfaceActionReadinessLine(status, options.selection),
 		...(options.command ? { command: options.command } : {}),
 		renderer: options.renderer,
 		selection: options.selection?.selected
@@ -170,46 +170,46 @@ export function createRefarmActionReadinessDryRunEnvelope(
 			: undefined,
 		selectedAction: options.selection?.selected,
 		actionRows:
-			options.selection?.rows ?? createRefarmActionAffordanceRows(status),
+			options.selection?.rows ?? createSurfaceActionAffordanceRows(status),
 	};
 }
 
-export function createRefarmRendererActionDryRunEnvelope<
+export function createRendererSurfaceActionDryRunEnvelope<
 	RendererKind extends string,
 >(
 	status: RefarmStatusJson,
 	renderer: RendererKind,
-	selection?: RefarmActionAffordanceSelectionResult,
+	selection?: SurfaceActionAffordanceSelectionResult,
 	command?: string,
-): RefarmActionReadinessDryRunEnvelope & {
+): SurfaceActionReadinessDryRunEnvelope & {
 	renderer: RendererKind;
 	command?: string;
 } {
-	return createRefarmActionReadinessDryRunEnvelope(status, {
+	return createSurfaceActionReadinessDryRunEnvelope(status, {
 		renderer,
 		selection,
 		...(command ? { command } : {}),
-	}) as RefarmActionReadinessDryRunEnvelope & {
+	}) as SurfaceActionReadinessDryRunEnvelope & {
 		renderer: RendererKind;
 		command?: string;
 	};
 }
 
-export function formatRefarmActionReadinessOutput<
+export function formatSurfaceActionReadinessOutput<
 	RendererKind extends string,
 >(
 	status: RefarmStatusJson,
-	options: RefarmActionReadinessOutputOptions<RendererKind>,
+	options: SurfaceActionReadinessOutputOptions<RendererKind>,
 ): string {
 	if (options.select) {
-		const selection = resolveRefarmActionAffordanceSelection(
+		const selection = resolveSurfaceActionAffordanceSelection(
 			status,
 			options.select,
 		);
 		if (!selection.selected) {
 			if (options.json) {
 				return JSON.stringify(
-					createRefarmRendererActionDryRunEnvelope(
+					createRendererSurfaceActionDryRunEnvelope(
 						status,
 						options.renderer,
 						selection,
@@ -220,13 +220,13 @@ export function formatRefarmActionReadinessOutput<
 				);
 			}
 			throw new Error(
-				`${options.unavailableSubject} "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
+				`${options.unavailableSubject} "${options.select}" is not available. Available selections: ${formatSurfaceActionSelectionChoices(selection.rows)}.`,
 			);
 		}
 
 		if (options.json) {
 			return JSON.stringify(
-				createRefarmRendererActionDryRunEnvelope(
+				createRendererSurfaceActionDryRunEnvelope(
 					status,
 					options.renderer,
 					selection,
@@ -237,7 +237,7 @@ export function formatRefarmActionReadinessOutput<
 			);
 		}
 
-		return formatRefarmActionAffordanceSelection(
+		return formatSurfaceActionAffordanceSelection(
 			selection.selected,
 			selection.rows,
 			{
@@ -248,10 +248,10 @@ export function formatRefarmActionReadinessOutput<
 		);
 	}
 
-	const rows = createRefarmActionAffordanceRows(status);
+	const rows = createSurfaceActionAffordanceRows(status);
 	if (options.json) {
 		return JSON.stringify(
-			createRefarmRendererActionDryRunEnvelope(
+			createRendererSurfaceActionDryRunEnvelope(
 				status,
 				options.renderer,
 				undefined,
@@ -262,13 +262,13 @@ export function formatRefarmActionReadinessOutput<
 		);
 	}
 
-	return formatRefarmActionAffordanceRows(rows, options.rowsHeading);
+	return formatSurfaceActionAffordanceRows(rows, options.rowsHeading);
 }
 
-export function formatRefarmActionAffordanceSelection(
-	selected: RefarmActionAffordanceRow,
-	rows: readonly RefarmActionAffordanceRow[],
-	options: RefarmActionAffordanceSelectionFormatOptions,
+export function formatSurfaceActionAffordanceSelection(
+	selected: SurfaceActionAffordanceRow,
+	rows: readonly SurfaceActionAffordanceRow[],
+	options: SurfaceActionAffordanceSelectionFormatOptions,
 ): string {
 	const selectionLines = options.selection
 		? [
@@ -283,11 +283,11 @@ export function formatRefarmActionAffordanceSelection(
 		options.selectedHeading,
 		`  ${selected.display}`,
 		...selectionLines,
-		formatRefarmActionAffordanceRows(rows, options.availableHeading),
+		formatSurfaceActionAffordanceRows(rows, options.availableHeading),
 	].join("\n");
 }
 
-export function formatRefarmActionIds(
+export function formatSurfaceActionIds(
 	actions: readonly { id: string }[],
 ): string {
 	return actions.length > 0
@@ -295,7 +295,7 @@ export function formatRefarmActionIds(
 		: "none";
 }
 
-export function formatRefarmActionSelectionChoices(
+export function formatSurfaceActionSelectionChoices(
 	rows: readonly { id: string; index?: number }[],
 ): string {
 	if (rows.length === 0) return "none";
@@ -306,10 +306,10 @@ export function formatRefarmActionSelectionChoices(
 		.join(", ");
 }
 
-function createRefarmActionAffordanceRow(
+function createSurfaceActionAffordanceRow(
 	action: RefarmStatusSurfaceAction,
 	index: number,
-): RefarmActionAffordanceRow {
+): SurfaceActionAffordanceRow {
 	const rowIndex = index + 1;
 	const intent = action.intent ? ` (${action.intent})` : "";
 	return {
@@ -321,19 +321,60 @@ function createRefarmActionAffordanceRow(
 	};
 }
 
-function getRefarmActionAffordanceSelectionSource(
+function getSurfaceActionAffordanceSelectionSource(
 	selection: string,
-): RefarmActionAffordanceSelectionSource {
+): SurfaceActionAffordanceSelectionSource {
 	return /^\d+$/.test(selection) ? "index" : "id";
 }
 
-function resolveRefarmActionAffordanceRowIndex(
-	rows: readonly RefarmActionAffordanceRow[],
+function resolveSurfaceActionAffordanceRowIndex(
+	rows: readonly SurfaceActionAffordanceRow[],
 	selection: string,
-): RefarmActionAffordanceRow | undefined {
-	if (getRefarmActionAffordanceSelectionSource(selection) !== "index") {
+): SurfaceActionAffordanceRow | undefined {
+	if (getSurfaceActionAffordanceSelectionSource(selection) !== "index") {
 		return undefined;
 	}
 	const index = Number.parseInt(selection, 10);
 	return rows.find((row) => row.index === index);
 }
+
+export type RefarmActionAffordanceRow = SurfaceActionAffordanceRow;
+export type RefarmActionAffordanceSelectionReason =
+	SurfaceActionAffordanceSelectionReason;
+export type RefarmActionAffordanceSelectionSource =
+	SurfaceActionAffordanceSelectionSource;
+export type RefarmActionAffordanceSelectionMetadata =
+	SurfaceActionAffordanceSelectionMetadata;
+export type RefarmActionAffordanceSelectionResult =
+	SurfaceActionAffordanceSelectionResult;
+export type RefarmActionReadinessDryRunEnvelope =
+	SurfaceActionReadinessDryRunEnvelope;
+export type RefarmActionReadinessDryRunEnvelopeOptions =
+	SurfaceActionReadinessDryRunEnvelopeOptions;
+export type RefarmActionAffordanceSelectionFormatOptions =
+	SurfaceActionAffordanceSelectionFormatOptions;
+export type RefarmActionReadinessOutputOptions<
+	RendererKind extends string,
+> = SurfaceActionReadinessOutputOptions<RendererKind>;
+
+export const getRefarmStatusAvailableActions =
+	getStatusAvailableSurfaceActions;
+export const createRefarmActionAffordanceRows =
+	createSurfaceActionAffordanceRows;
+export const resolveRefarmActionAffordanceSelection =
+	resolveSurfaceActionAffordanceSelection;
+export const formatRefarmActionAffordanceRows =
+	formatSurfaceActionAffordanceRows;
+export const createRefarmActionReadinessLine =
+	createSurfaceActionReadinessLine;
+export const createRefarmActionReadinessDryRunEnvelope =
+	createSurfaceActionReadinessDryRunEnvelope;
+export const createRefarmRendererActionDryRunEnvelope =
+	createRendererSurfaceActionDryRunEnvelope;
+export const formatRefarmActionReadinessOutput =
+	formatSurfaceActionReadinessOutput;
+export const formatRefarmActionAffordanceSelection =
+	formatSurfaceActionAffordanceSelection;
+export const formatRefarmActionIds = formatSurfaceActionIds;
+export const formatRefarmActionSelectionChoices =
+	formatSurfaceActionSelectionChoices;

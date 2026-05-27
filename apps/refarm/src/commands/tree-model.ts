@@ -1,7 +1,7 @@
 import {
 	createExecutionPlanHandoff,
-	type RefarmExecutionPlanBase,
-	type RefarmExecutionPlanHandoff,
+	type ExecutionPlanBase,
+	type ExecutionPlanHandoff,
 } from "./execution-plan.js";
 import { printJson } from "./json-output.js";
 
@@ -103,7 +103,7 @@ export interface RefarmSessionTimelineShowEnvelope
 	total: number;
 }
 
-export type RefarmSessionTimelineForkPreviewPlan = RefarmExecutionPlanBase<
+export type RefarmSessionTimelineForkPreviewPlan = ExecutionPlanBase<
 	"fork",
 	{
 		activePointerChanged: true;
@@ -117,7 +117,7 @@ export type RefarmSessionTimelineForkPreviewPlan = RefarmExecutionPlanBase<
 	}
 >;
 
-export type RefarmSessionTimelineSwitchPreviewPlan = RefarmExecutionPlanBase<
+export type RefarmSessionTimelineSwitchPreviewPlan = ExecutionPlanBase<
 	"switch",
 	{
 		activePointerChanged: true;
@@ -135,7 +135,7 @@ export type RefarmSessionTimelinePreviewPlan =
 	| RefarmSessionTimelineForkPreviewPlan
 	| RefarmSessionTimelineSwitchPreviewPlan;
 
-export type RefarmGitTimelineBranchPreviewPlan = RefarmExecutionPlanBase<
+export type RefarmGitTimelineBranchPreviewPlan = ExecutionPlanBase<
 	"fork",
 	{
 		activePointerChanged: false;
@@ -149,7 +149,7 @@ export type RefarmGitTimelineBranchPreviewPlan = RefarmExecutionPlanBase<
 	}
 >;
 
-export type RefarmGitTimelineSwitchPreviewPlan = RefarmExecutionPlanBase<
+export type RefarmGitTimelineSwitchPreviewPlan = ExecutionPlanBase<
 	"switch",
 	{
 		activePointerChanged: true;
@@ -177,11 +177,11 @@ export interface RefarmTimelinePreviewEnvelope {
 	reason: "dry-run";
 	target: RefarmTimelineNode;
 	plan: RefarmSessionTimelinePreviewPlan | RefarmGitTimelinePreviewPlan;
-	nextAction: RefarmExecutionPlanHandoff["nextAction"];
-	nextActions: RefarmExecutionPlanHandoff["nextActions"];
-	nextCommand: RefarmExecutionPlanHandoff["nextCommand"];
-	nextCommands: RefarmExecutionPlanHandoff["nextCommands"];
-	templates: RefarmExecutionPlanHandoff["templates"];
+	nextAction: ExecutionPlanHandoff["nextAction"];
+	nextActions: ExecutionPlanHandoff["nextActions"];
+	nextCommand: ExecutionPlanHandoff["nextCommand"];
+	nextCommands: ExecutionPlanHandoff["nextCommands"];
+	templates: ExecutionPlanHandoff["templates"];
 }
 
 export interface RefarmSessionTimelinePreviewEnvelope

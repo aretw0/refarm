@@ -1,4 +1,4 @@
-export interface RefarmExecutionPlanBase<
+export interface ExecutionPlanBase<
 	Action extends string,
 	Effects extends Record<string, unknown>,
 	Substrate extends { kind: string },
@@ -12,17 +12,17 @@ export interface RefarmExecutionPlanBase<
 	substrate: Substrate;
 }
 
-export interface RefarmExecutionPlanReadinessInput {
+export interface ExecutionPlanReadinessInput {
 	readyToExecute: boolean;
 	blockedReason?: string;
 }
 
-export interface RefarmExecutionPlanReadinessLine {
+export interface ExecutionPlanReadinessLine {
 	status: "blocked" | "ready";
 	label: string;
 }
 
-export interface RefarmExecutionPlanHandoff {
+export interface ExecutionPlanHandoff {
 	nextAction: string | null;
 	nextActions: string[];
 	nextCommand: string | null;
@@ -35,21 +35,31 @@ export interface RefarmExecutionPlanHandoff {
 	}>;
 }
 
-export interface RefarmExecutionPlanHandoffInput
+export interface ExecutionPlanHandoffInput
 	extends Pick<
-		RefarmExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
+		ExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
 		"readyToExecute" | "blockedReason" | "recommendedCommand"
 	> {
 	commandTemplate?: string;
 }
+
+export type RefarmExecutionPlanBase<
+	Action extends string,
+	Effects extends Record<string, unknown>,
+	Substrate extends { kind: string },
+> = ExecutionPlanBase<Action, Effects, Substrate>;
+export type RefarmExecutionPlanReadinessInput = ExecutionPlanReadinessInput;
+export type RefarmExecutionPlanReadinessLine = ExecutionPlanReadinessLine;
+export type RefarmExecutionPlanHandoff = ExecutionPlanHandoff;
+export type RefarmExecutionPlanHandoffInput = ExecutionPlanHandoffInput;
 
 function commandTemplateParameters(command: string): string[] {
 	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
 }
 
 export function formatExecutionPlanReadinessLine(
-	plan: RefarmExecutionPlanReadinessInput,
-): RefarmExecutionPlanReadinessLine {
+	plan: ExecutionPlanReadinessInput,
+): ExecutionPlanReadinessLine {
 	if (plan.blockedReason) {
 		return {
 			status: "blocked",
@@ -63,8 +73,8 @@ export function formatExecutionPlanReadinessLine(
 }
 
 export function createExecutionPlanHandoff(
-	plan: RefarmExecutionPlanHandoffInput,
-): RefarmExecutionPlanHandoff {
+	plan: ExecutionPlanHandoffInput,
+): ExecutionPlanHandoff {
 	const command = plan.recommendedCommand ?? null;
 	const templateCommand = plan.commandTemplate ?? command;
 	const nextAction = plan.readyToExecute

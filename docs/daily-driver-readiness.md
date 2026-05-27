@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**77/100**
+**78/100**
 
 Strong enough to keep developing with Refarm in the loop, not yet strong enough
 to stop spending regular work on Refarm itself.
@@ -35,7 +35,8 @@ What is already solid:
   command helpers, JSON output envelopes, command result parsing, and command
   plan execution/envelopes.
 - Execution-plan readiness/handoffs and host action affordance selection now
-  live in `@refarm.dev/cli`.
+  live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
+  where compatibility is still useful.
 
 What still blocks the 85/100 target:
 

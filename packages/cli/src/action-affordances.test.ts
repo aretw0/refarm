@@ -1,15 +1,15 @@
 import type { RefarmStatusJson } from "./status.js";
 import { describe, expect, it } from "vitest";
 import {
-	createRefarmActionAffordanceRows,
-	createRefarmActionReadinessDryRunEnvelope,
-	createRefarmActionReadinessLine,
-	formatRefarmActionAffordanceRows,
-	formatRefarmActionAffordanceSelection,
-	formatRefarmActionIds,
-	formatRefarmActionSelectionChoices,
-	getRefarmStatusAvailableActions,
-	resolveRefarmActionAffordanceSelection,
+	createSurfaceActionAffordanceRows,
+	createSurfaceActionReadinessDryRunEnvelope,
+	createSurfaceActionReadinessLine,
+	formatSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceSelection,
+	formatSurfaceActionIds,
+	formatSurfaceActionSelectionChoices,
+	getStatusAvailableSurfaceActions,
+	resolveSurfaceActionAffordanceSelection,
 } from "./action-affordances.js";
 
 function makeStatus(
@@ -51,9 +51,9 @@ function makeStatus(
 
 describe("Refarm action affordance helpers", () => {
 	it("reads available actions from status with an empty fallback", () => {
-		expect(getRefarmStatusAvailableActions(makeStatus())).toHaveLength(2);
+		expect(getStatusAvailableSurfaceActions(makeStatus())).toHaveLength(2);
 		expect(
-			getRefarmStatusAvailableActions({
+			getStatusAvailableSurfaceActions({
 				...makeStatus(),
 				plugins: {
 					installed: 0,
@@ -66,7 +66,7 @@ describe("Refarm action affordance helpers", () => {
 	});
 
 	it("creates stable rows shared by TUI and headless selection UX", () => {
-		expect(createRefarmActionAffordanceRows(makeStatus())).toEqual([
+		expect(createSurfaceActionAffordanceRows(makeStatus())).toEqual([
 			{
 				index: 1,
 				id: "open-node",
@@ -86,21 +86,21 @@ describe("Refarm action affordance helpers", () => {
 
 	it("formats rows with a caller-owned heading", () => {
 		expect(
-			formatRefarmActionAffordanceRows(
-				createRefarmActionAffordanceRows(makeStatus()),
+			formatSurfaceActionAffordanceRows(
+				createSurfaceActionAffordanceRows(makeStatus()),
 				"Available TUI actions:",
 			),
 		).toBe(`Available TUI actions:
   [1] Open node — open-node (node:open)
   [2] Inspect trust — inspect-trust`);
-		expect(formatRefarmActionAffordanceRows([])).toBe(
+		expect(formatSurfaceActionAffordanceRows([])).toBe(
 			"Available actions:\n  none",
 		);
 	});
 
 	it("resolves selections by one-based row index or stable id", () => {
 		expect(
-			resolveRefarmActionAffordanceSelection(makeStatus(), "1"),
+			resolveSurfaceActionAffordanceSelection(makeStatus(), "1"),
 		).toMatchObject({
 			reason: "selected",
 			selected: { id: "open-node" },
@@ -112,7 +112,7 @@ describe("Refarm action affordance helpers", () => {
 			},
 		});
 		expect(
-			resolveRefarmActionAffordanceSelection(makeStatus(), " inspect-trust "),
+			resolveSurfaceActionAffordanceSelection(makeStatus(), " inspect-trust "),
 		).toMatchObject({
 			reason: "selected",
 			selected: { index: 2, id: "inspect-trust" },
@@ -127,10 +127,10 @@ describe("Refarm action affordance helpers", () => {
 
 	it("creates shared dry-run envelopes for action readiness commands", () => {
 		const status = makeStatus();
-		const selection = resolveRefarmActionAffordanceSelection(status, "2");
+		const selection = resolveSurfaceActionAffordanceSelection(status, "2");
 
 		expect(
-			createRefarmActionReadinessDryRunEnvelope(status, {
+			createSurfaceActionReadinessDryRunEnvelope(status, {
 				command: "actions",
 				renderer: "headless",
 				selection,
@@ -153,7 +153,7 @@ describe("Refarm action affordance helpers", () => {
 		});
 
 		expect(
-			createRefarmActionReadinessDryRunEnvelope(status, {
+			createSurfaceActionReadinessDryRunEnvelope(status, {
 				renderer: "web",
 			}),
 		).toMatchObject({
@@ -165,21 +165,21 @@ describe("Refarm action affordance helpers", () => {
 	});
 
 	it("shares execution-plan readiness formatting for blocked action sets", () => {
-		expect(createRefarmActionReadinessLine(makeStatus([]))).toEqual({
+		expect(createSurfaceActionReadinessLine(makeStatus([]))).toEqual({
 			status: "blocked",
 			label: "Blocked: no host actions available",
 		});
 		expect(
-			createRefarmActionReadinessLine(
+			createSurfaceActionReadinessLine(
 				makeStatus(),
-				resolveRefarmActionAffordanceSelection(makeStatus(), "missing"),
+				resolveSurfaceActionAffordanceSelection(makeStatus(), "missing"),
 			),
 		).toEqual({
 			status: "blocked",
 			label: 'Blocked: host action "missing" is not available',
 		});
 		expect(
-			createRefarmActionReadinessDryRunEnvelope(makeStatus([]), {
+			createSurfaceActionReadinessDryRunEnvelope(makeStatus([]), {
 				renderer: "tui",
 			}),
 		).toMatchObject({
@@ -194,10 +194,10 @@ describe("Refarm action affordance helpers", () => {
 
 	it("formats selected action context with caller-owned headings", () => {
 		const status = makeStatus();
-		const selection = resolveRefarmActionAffordanceSelection(status, "2");
+		const selection = resolveSurfaceActionAffordanceSelection(status, "2");
 
 		expect(
-			formatRefarmActionAffordanceSelection(
+			formatSurfaceActionAffordanceSelection(
 				selection.selected!,
 				selection.rows,
 				{
@@ -219,26 +219,26 @@ Available host actions:
 
 	it("reports missing selections and formats available IDs", () => {
 		expect(
-			resolveRefarmActionAffordanceSelection(makeStatus(), "missing"),
+			resolveSurfaceActionAffordanceSelection(makeStatus(), "missing"),
 		).toMatchObject({
 			reason: "missing-action",
 			selection: { requested: "missing", source: "id" },
 		});
 		expect(
-			resolveRefarmActionAffordanceSelection(makeStatus([]), "1"),
+			resolveSurfaceActionAffordanceSelection(makeStatus([]), "1"),
 		).toMatchObject({
 			reason: "no-actions",
 			selection: { requested: "1", source: "index" },
 		});
 		expect(
-			formatRefarmActionIds(getRefarmStatusAvailableActions(makeStatus())),
+			formatSurfaceActionIds(getStatusAvailableSurfaceActions(makeStatus())),
 		).toBe("open-node, inspect-trust");
-		expect(formatRefarmActionIds([])).toBe("none");
+		expect(formatSurfaceActionIds([])).toBe("none");
 		expect(
-			formatRefarmActionSelectionChoices(
-				createRefarmActionAffordanceRows(makeStatus()),
+			formatSurfaceActionSelectionChoices(
+				createSurfaceActionAffordanceRows(makeStatus()),
 			),
 		).toBe("[1] open-node, [2] inspect-trust");
-		expect(formatRefarmActionSelectionChoices([])).toBe("none");
+		expect(formatSurfaceActionSelectionChoices([])).toBe("none");
 	});
 });
