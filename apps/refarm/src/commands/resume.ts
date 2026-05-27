@@ -12,6 +12,10 @@ import {
 } from "./status.js";
 import { readActiveSessionId } from "./session-lock.js";
 import {
+	createAgentFinishSessionRecorder,
+	type AgentFinishSessionRecorder,
+} from "./agent-finish-session.js";
+import {
 	createTaskSessionRecorder,
 	type TaskSessionCheckpoint,
 	type TaskSessionRecorder,
@@ -22,6 +26,7 @@ export interface ResumeDeps {
 		renderer?: string;
 	}): Promise<ResolveStatusPayloadResult>;
 	sessionRecorder: TaskSessionRecorder;
+	finishRecorder: AgentFinishSessionRecorder;
 	readActiveSessionId(): string | null;
 	loadChatHistory(): string[];
 }
@@ -35,6 +40,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 	const resolvedDeps: ResumeDeps = {
 		resolveStatusPayload,
 		sessionRecorder: createTaskSessionRecorder(),
+		finishRecorder: createAgentFinishSessionRecorder(),
 		readActiveSessionId,
 		loadChatHistory,
 		...deps,
@@ -69,6 +75,7 @@ Notes:
 
 async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<void> {
 	const taskCheckpoint = deps.sessionRecorder.getCheckpoint();
+	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
 	const statusResult = options.status === false
@@ -84,6 +91,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 					taskCheckpoint,
 					activeSessionId,
 					recentPrompts,
+					finish,
 				}),
 			);
 			return;
@@ -94,6 +102,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			taskCheckpoint,
 			activeSessionId,
 			recentPrompts,
+			finish,
 		});
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = buildOperatorResumeEnvelope({
@@ -101,6 +110,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			taskCheckpoint,
 			activeSessionId,
 			recentPrompts,
+			finish,
 		}).nextCommands;
 		if (nextCommands.length > 0) {
 			console.log("");

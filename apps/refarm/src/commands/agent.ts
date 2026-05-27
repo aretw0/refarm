@@ -9,6 +9,11 @@ import { Command } from "commander";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import {
+	buildAgentFinishRecord,
+	createAgentFinishSessionRecorder,
+	type AgentFinishSessionRecorder,
+} from "./agent-finish-session.js";
 import { refarmCommand } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
@@ -273,6 +278,7 @@ function buildAgentFinishTemplatesEnvelope() {
 interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
 	runProcess(step: CommandPlanStep): CommandPlanStepRunResult;
+	finishRecorder: AgentFinishSessionRecorder;
 }
 
 type AgentFinishProfile = "quick" | "package" | "affected";
@@ -735,6 +741,25 @@ function finishValidationScope(
 	return selection.profile;
 }
 
+function finishRunResumeCommand(selection: AgentFinishSelectionMetadata): string {
+	const args = ["agent", "finish"];
+	if (selection.lane) {
+		args.push("--lane", selection.lane);
+	} else if (selection.profile !== "quick") {
+		args.push("--profile", selection.profile);
+	}
+	if (selection.profile === "package" && selection.workspace) {
+		args.push("--workspace", selection.workspace);
+	}
+	if (selection.profile === "affected" && selection.sinceRef) {
+		args.push("--since", selection.sinceRef);
+	}
+	if (selection.includeTests) args.push("--include-tests");
+	if (selection.fix) args.push("--fix");
+	args.push("--run", "--json");
+	return refarmCommand(args);
+}
+
 function resolveFinishSelectionContext(
 	selection: AgentFinishSelection,
 ): AgentFinishSelectionContext {
@@ -844,6 +869,7 @@ export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	const resolvedDeps: AgentCommandDeps = {
 		runRefarm: runRefarmCommand,
 		runProcess: runProcessCommand,
+		finishRecorder: createAgentFinishSessionRecorder(),
 		...deps,
 	};
 	// Agent runtime commands (status, repl, start/stop) live here.
@@ -1187,6 +1213,17 @@ Notes:
 			};
 			if (options.run) {
 				const result = runAgentFinishPlan(resolvedDeps, selectionWithAffected);
+				const selectionMetadata = finishSelectionMetadata(
+					selectionWithAffected,
+					selectionContext.affectedWorkspaces,
+				);
+				resolvedDeps.finishRecorder.rememberRun(
+					buildAgentFinishRecord({
+						result,
+						selection: selectionMetadata,
+						command: finishRunResumeCommand(selectionMetadata),
+					}),
+				);
 				if (options.json) {
 					printJson({
 						...buildCommandPlanRunEnvelope({
@@ -1194,10 +1231,7 @@ Notes:
 							command: "agent",
 							operation: "finish",
 						}, result),
-						selection: finishSelectionMetadata(
-							selectionWithAffected,
-							selectionContext.affectedWorkspaces,
-						),
+						selection: selectionMetadata,
 					});
 				} else if (options.nextCommand) {
 					const [nextCommand] = result.nextCommands;
@@ -1208,10 +1242,7 @@ Notes:
 				} else {
 					printAgentFinishRunHuman(
 						result,
-						finishSelectionMetadata(
-							selectionWithAffected,
-							selectionContext.affectedWorkspaces,
-						),
+						selectionMetadata,
 					);
 				}
 				if (!result.ok) process.exitCode = 1;

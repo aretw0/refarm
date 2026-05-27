@@ -1779,7 +1779,12 @@ describe("agent command", () => {
 			stderr: "",
 			payload: { ok: true },
 		}));
-		const agentCommand = createAgentCommand({ runRefarm });
+		const finishRecorder = {
+			rememberRun: vi.fn(),
+			getCheckpoint: vi.fn(),
+			getLatest: vi.fn(),
+		};
+		const agentCommand = createAgentCommand({ runRefarm, finishRecorder });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await agentCommand.parseAsync(["finish", "--run", "--json"], {
@@ -1812,6 +1817,16 @@ describe("agent command", () => {
 			"--check",
 			"--json",
 		]);
+		expect(finishRecorder.rememberRun).toHaveBeenCalledWith(
+			expect.objectContaining({
+				status: "passed",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				nextCommands: [],
+			}),
+		);
 		expect(runRefarm).toHaveBeenCalledTimes(3);
 		logSpy.mockRestore();
 	});

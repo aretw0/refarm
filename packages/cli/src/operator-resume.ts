@@ -35,11 +35,25 @@ export interface OperatorResumeCommands {
 	sessionShow: (sessionId: string) => string;
 }
 
+export interface OperatorResumeFinishRecord {
+	updatedAt: string;
+	status: "passed" | "failed";
+	command: string;
+	profile?: string | null;
+	lane?: string | null;
+	validationScope?: string | null;
+	failedStepId?: string | null;
+	failedCommand?: string | null;
+	nextCommands: readonly string[];
+	remainingCommands: readonly string[];
+}
+
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
 	activeSessionId?: string | null;
 	recentPrompts?: readonly string[];
+	finish?: OperatorResumeFinishRecord | null;
 	commands?: Partial<OperatorResumeCommands>;
 }
 
@@ -64,11 +78,25 @@ export interface OperatorResumeSessionSummary {
 	showCommand?: string;
 }
 
+export interface OperatorResumeFinishSummary {
+	status: "none" | "passed" | "failed";
+	updatedAt?: string;
+	command?: string;
+	profile?: string | null;
+	lane?: string | null;
+	validationScope?: string | null;
+	failedStepId?: string | null;
+	failedCommand?: string | null;
+	nextCommands: readonly string[];
+	remainingCommands: readonly string[];
+}
+
 export interface OperatorResumeSummary {
 	status: "empty" | "ok";
 	runtime?: OperatorResumeRuntimeSummary;
 	session: OperatorResumeSessionSummary;
 	recentPrompts: readonly string[];
+	finish: OperatorResumeFinishSummary;
 	tasks: OperatorResumeTaskSummary;
 }
 
@@ -135,16 +163,36 @@ export function buildOperatorResumeSummary(
 			: undefined,
 		showCommand: sessionShowCommand,
 	};
+	const finish: OperatorResumeFinishSummary = input.finish
+		? {
+				status: input.finish.status,
+				updatedAt: input.finish.updatedAt,
+				command: input.finish.command,
+				profile: input.finish.profile ?? null,
+				lane: input.finish.lane ?? null,
+				validationScope: input.finish.validationScope ?? null,
+				failedStepId: input.finish.failedStepId ?? null,
+				failedCommand: input.finish.failedCommand ?? null,
+				nextCommands: input.finish.nextCommands,
+				remainingCommands: input.finish.remainingCommands,
+			}
+		: {
+				status: "none",
+				nextCommands: [],
+				remainingCommands: [],
+			};
 	return {
 		status: runtime ||
 			session.status === "active" ||
 			efforts.length > 0 ||
-			(input.recentPrompts?.length ?? 0) > 0
+			(input.recentPrompts?.length ?? 0) > 0 ||
+			finish.status !== "none"
 			? "ok"
 			: "empty",
 		runtime,
 		session,
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
+		finish,
 		tasks,
 	};
 }
@@ -160,6 +208,9 @@ export function operatorResumeNextCommands(
 	}
 	if (summary.session.showCommand) {
 		nextCommands.push(summary.session.showCommand);
+	}
+	if (summary.finish.status === "failed") {
+		nextCommands.push(...summary.finish.nextCommands);
 	}
 	if (summary.tasks.activeEffort) {
 		nextCommands.push(
@@ -220,6 +271,26 @@ export function formatOperatorResumeSummary(
 		}
 	} else {
 		lines.push("Recent prompts: none");
+	}
+	if (summary.finish.status === "none") {
+		lines.push("Finish: none");
+	} else {
+		const lane = summary.finish.lane ? ` lane=${summary.finish.lane}` : "";
+		const profile = summary.finish.profile
+			? ` profile=${summary.finish.profile}`
+			: "";
+		lines.push(
+			`Finish: ${summary.finish.status}${profile}${lane}${summary.finish.updatedAt ? ` updated=${summary.finish.updatedAt}` : ""}`,
+		);
+		if (summary.finish.failedStepId) {
+			lines.push(`  failedStep: ${summary.finish.failedStepId}`);
+		}
+		if (summary.finish.command) {
+			lines.push(`  command: ${summary.finish.command}`);
+		}
+		for (const command of summary.finish.nextCommands) {
+			lines.push(`  next: ${command}`);
+		}
 	}
 
 	if (summary.tasks.totalEfforts === 0) {

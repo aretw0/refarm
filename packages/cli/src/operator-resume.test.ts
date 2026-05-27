@@ -30,6 +30,18 @@ describe("operator resume", () => {
 			status,
 			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 			recentPrompts: ["new prompt", "older prompt"],
+			finish: {
+				updatedAt: "2026-05-27T12:05:00.000Z",
+				status: "failed",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "health",
+				failedCommand: "refarm health --next-action --json",
+				nextCommands: ["refarm runtime start --wait"],
+				remainingCommands: ["refarm check --next-action --json"],
+			},
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
 				activeEffortId: "effort-1",
@@ -59,6 +71,11 @@ describe("operator resume", () => {
 				showCommand: "refarm tree show ef1234567890 --json",
 			},
 			recentPrompts: ["new prompt", "older prompt"],
+			finish: {
+				status: "failed",
+				failedStepId: "health",
+				nextCommands: ["refarm runtime start --wait"],
+			},
 			tasks: {
 				totalEfforts: 1,
 				activeEffort: { effortId: "effort-1" },
@@ -67,6 +84,7 @@ describe("operator resume", () => {
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime doctor --next-command",
 			"refarm tree show ef1234567890 --json",
+			"refarm runtime start --wait",
 			"refarm task status effort-1 --transport http --watch",
 			"refarm task logs effort-1 --transport http",
 		]);
@@ -82,6 +100,7 @@ describe("operator resume", () => {
 			status: "ok",
 			session: { status: "none" },
 			recentPrompts: [],
+			finish: { status: "none" },
 		});
 	});
 
@@ -112,8 +131,16 @@ describe("operator resume", () => {
 					},
 					activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 					recentPrompts: ["ship it"],
+					finish: {
+						updatedAt: "2026-05-27T12:05:00.000Z",
+						status: "failed",
+						command: "refarm agent finish --run --json",
+						failedStepId: "health",
+						nextCommands: ["refarm runtime start --wait"],
+						remainingCommands: [],
+					},
 				}),
 			),
-		).toContain("Recent prompts:\n  ship it");
+		).toContain("Finish: failed");
 	});
 });

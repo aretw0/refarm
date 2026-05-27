@@ -1,5 +1,6 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { describe, expect, it, vi } from "vitest";
+import type { AgentFinishSessionRecorder } from "../../src/commands/agent-finish-session.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
 import type {
 	TaskSessionCheckpoint,
@@ -32,6 +33,23 @@ function recorder(checkpoint: TaskSessionCheckpoint | null): TaskSessionRecorder
 	};
 }
 
+function finishRecorder(
+	latest: ReturnType<AgentFinishSessionRecorder["getLatest"]>,
+): AgentFinishSessionRecorder {
+	return {
+		rememberRun: vi.fn(),
+		getCheckpoint: vi.fn().mockReturnValue(
+			latest
+				? {
+						version: 1,
+						latest,
+					}
+				: null,
+		),
+		getLatest: vi.fn().mockReturnValue(latest),
+	};
+}
+
 describe("resume command", () => {
 	it("prints the operator resume view", async () => {
 		const checkpoint: TaskSessionCheckpoint = {
@@ -51,6 +69,18 @@ describe("resume command", () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(checkpoint),
+			finishRecorder: finishRecorder({
+				updatedAt: "2026-05-27T12:05:00.000Z",
+				status: "failed",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "health",
+				failedCommand: "refarm health --next-action --json",
+				nextCommands: ["refarm runtime start --wait"],
+				remainingCommands: [],
+			}),
 			readActiveSessionId: vi.fn().mockReturnValue(
 				"urn:refarm:session:v1:abcdef1234567890",
 			),
@@ -68,6 +98,10 @@ describe("resume command", () => {
 			expect.stringContaining("refarm tree show ef1234567890 --json"),
 		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("ship it"));
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Finish: failed"));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm runtime start --wait"),
+		);
 		spy.mockRestore();
 	});
 
@@ -75,6 +109,7 @@ describe("resume command", () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
 			readActiveSessionId: vi.fn().mockReturnValue(null),
 			loadChatHistory: vi.fn().mockReturnValue([]),
 		});
@@ -94,6 +129,7 @@ describe("resume command", () => {
 		const command = createResumeCommand({
 			resolveStatusPayload,
 			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
 			readActiveSessionId: vi.fn().mockReturnValue(null),
 			loadChatHistory: vi.fn().mockReturnValue([]),
 		});

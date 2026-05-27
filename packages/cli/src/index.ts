@@ -129,6 +129,8 @@ export {
 export type {
 	OperatorResumeCommands,
 	OperatorResumeEnvelope,
+	OperatorResumeFinishRecord,
+	OperatorResumeFinishSummary,
 	OperatorResumeInput,
 	OperatorResumeModelRoute,
 	OperatorResumeRuntimeSummary,
