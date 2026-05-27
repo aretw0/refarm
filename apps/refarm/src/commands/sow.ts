@@ -1,5 +1,6 @@
 import { ExitPromptError } from "@inquirer/core";
 import { hasUsableModelCredential } from "@refarm.dev/config";
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -74,7 +75,7 @@ export const sowCommand = new Command("sow")
 			const silo = new SiloCore();
 			const stored = (await silo.loadTokens()) as Record<string, unknown>;
 			let currentTokens = { ...stored };
-			const ctx = { tryOpenUrl };
+			const ctx = { tryOpenUrl, operator: createStdioOperatorChannel() };
 			const initialModelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 			let modelRef = initialModelRef;
 			if (opts.model !== undefined && !initialModelRef) {

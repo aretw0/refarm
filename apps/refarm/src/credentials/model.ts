@@ -1,7 +1,6 @@
 import chalk from "chalk";
-import inquirer from "inquirer";
-import { select, Separator } from "@inquirer/prompts";
 import { modelCredentialEnvKey } from "@refarm.dev/config";
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import type { CollectContext, CredentialProvider } from "./types.js";
 import { secretInput } from "../prompts/secret-input.js";
@@ -46,11 +45,40 @@ const API_KEY_PROVIDERS = [
 
 type ApiKeyProviderId = typeof API_KEY_PROVIDERS[number]["id"];
 
-async function promptCode(message: string): Promise<string> {
-	const { code } = await inquirer.prompt<{ code: string }>([
-		{ type: "input", name: "code", message },
-	]);
-	return code;
+type Choice =
+	| { kind: "oauth"; id: string }
+	| { kind: "api"; id: ApiKeyProviderId }
+	| { kind: "ollama" };
+
+const CHOICE_PREFIX = {
+	oauth: "oauth:",
+	api: "api:",
+	ollama: "local:ollama",
+} as const;
+
+function encodeChoice(choice: Choice): string {
+	if (choice.kind === "oauth") return `${CHOICE_PREFIX.oauth}${choice.id}`;
+	if (choice.kind === "api") return `${CHOICE_PREFIX.api}${choice.id}`;
+	return CHOICE_PREFIX.ollama;
+}
+
+function decodeChoice(value: string): Choice {
+	if (value === CHOICE_PREFIX.ollama) return { kind: "ollama" };
+	if (value.startsWith(CHOICE_PREFIX.oauth)) {
+		return { kind: "oauth", id: value.slice(CHOICE_PREFIX.oauth.length) };
+	}
+	if (value.startsWith(CHOICE_PREFIX.api)) {
+		return { kind: "api", id: value.slice(CHOICE_PREFIX.api.length) as ApiKeyProviderId };
+	}
+	throw new Error(`Unknown model provider choice "${value}".`);
+}
+
+function operator(ctx: CollectContext) {
+	return ctx.operator ?? createStdioOperatorChannel();
+}
+
+async function promptCode(ctx: CollectContext, message: string): Promise<string> {
+	return operator(ctx).ask({ type: "text", question: message });
 }
 
 async function runOAuthFlow(
@@ -80,7 +108,7 @@ async function runOAuthFlow(
 			}
 			ctx.tryOpenUrl(url);
 		},
-		onPrompt: async ({ message }) => promptCode(message),
+		onPrompt: async ({ message }) => promptCode(ctx, message),
 		onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
 		...(callbackCanReachBrowser && containerEnv ? {
 			callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
@@ -89,7 +117,7 @@ async function runOAuthFlow(
 		// browser cannot reach the callback server, so prompt for the code.
 		...(needsManualCode ? {
 			skipCallbackServer: true,
-			onManualCodeInput: () => promptCode("Paste the redirect URL or authorization code:"),
+			onManualCodeInput: () => promptCode(ctx, "Paste the redirect URL or authorization code:"),
 		} : {}),
 	});
 	console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
@@ -115,27 +143,29 @@ export const modelCredentialProvider: CredentialProvider & {
 		console.log(chalk.bold("\n  Model Provider"));
 		console.log(chalk.gray("  Choose how to connect to an AI model.\n"));
 
-		type Choice =
-			| { kind: "oauth"; id: string }
-			| { kind: "api"; id: ApiKeyProviderId }
-			| { kind: "ollama" };
-
-		const choices = [
-			new Separator("── Subscription ──"),
-			...OAUTH_PROVIDERS.map((p) => ({
-				name: p.name,
-				value: { kind: "oauth" as const, id: p.id },
-			})),
-			new Separator("── API key ──"),
-			...API_KEY_PROVIDERS.map((p) => ({
-				name: p.label,
-				value: { kind: "api" as const, id: p.id },
-			})),
-			new Separator("── Local ──"),
-			{ name: "Ollama  (no key required)", value: { kind: "ollama" as const } },
-		];
-
-		const choice = await select<Choice>({ message: "Select provider:", choices, pageSize: 16 });
+		const selected = await operator(ctx).ask({
+			type: "select",
+			question: "Select provider:",
+			default: encodeChoice({ kind: "oauth", id: "openai-codex" }),
+			options: [
+				...OAUTH_PROVIDERS.map((p) => ({
+					value: encodeChoice({ kind: "oauth" as const, id: p.id }),
+					label: `Subscription - ${p.name}`,
+					description: "Use a logged-in provider account when supported.",
+				})),
+				...API_KEY_PROVIDERS.map((p) => ({
+					value: encodeChoice({ kind: "api" as const, id: p.id }),
+					label: `API key - ${p.label}`,
+					description: `Stored in Silo as ${p.envKey}.`,
+				})),
+				{
+					value: encodeChoice({ kind: "ollama" }),
+					label: "Local - Ollama  (no key required)",
+					description: "Run with local model infrastructure.",
+				},
+			],
+		});
+		const choice = decodeChoice(selected);
 
 		if (choice.kind === "ollama") {
 			console.log(chalk.green("  ✓ Ollama selected — make sure Ollama is running: ollama serve"));

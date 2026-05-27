@@ -1,5 +1,8 @@
+import type { OperatorChannel } from "@refarm.dev/prompt-contract-v1";
+
 export interface CollectContext {
 	tryOpenUrl: (url: string) => void;
+	operator?: OperatorChannel;
 }
 
 export interface CredentialProvider {
