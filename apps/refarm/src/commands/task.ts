@@ -91,6 +91,7 @@ function printTaskJsonSuccess<TExtra extends object>(
 			command: "task",
 			operation,
 			extra,
+			nextActions: nextCommands,
 			nextCommands,
 		}),
 	);

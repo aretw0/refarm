@@ -203,6 +203,7 @@ describe("refarm task run", () => {
 			transport: string;
 			plugin: string;
 			fn: string;
+			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
 			effort: { direction: string; tasks: Array<{ args: unknown }> };
@@ -219,6 +220,7 @@ describe("refarm task run", () => {
 				nextCommand: "refarm task status effort-abc --transport file --watch",
 			}),
 		);
+		expect(payload.nextActions).toEqual(payload.nextCommands);
 		expect(payload.nextCommands).toContain("refarm task status effort-abc --transport file");
 		expect(payload.nextCommands).toContain("refarm task logs effort-abc --transport file");
 		expect(payload.effort.direction).toBe("Test effort");
@@ -447,6 +449,7 @@ describe("refarm task status", () => {
 			command: string;
 			operation: string;
 			status: string;
+			nextActions: string[];
 			nextCommand: string;
 			nextCommands: string[];
 		};
@@ -460,6 +463,7 @@ describe("refarm task status", () => {
 		expect(payload.nextCommands).toContain(
 			"refarm task logs effort-abc --transport file",
 		);
+		expect(payload.nextActions).toEqual(payload.nextCommands);
 		spy.mockRestore();
 	});
 
