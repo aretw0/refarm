@@ -3,11 +3,19 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const APP_SRC_DIR = path.resolve(__dirname, "../../src");
+const APP_COMMANDS_DIR = path.join(APP_SRC_DIR, "commands");
 const PROCESS_MODULE_PATTERNS = [
 	/from\s+["']node:child_process["']/,
 	/from\s+["']child_process["']/,
 	/require\(["']node:child_process["']\)/,
 	/require\(["']child_process["']\)/,
+] as const;
+const LEGACY_REFARM_ACTION_ALIAS_PATTERNS = [
+	/\bRefarmAction[A-Za-z0-9_]*/,
+	/\bcreateRefarmAction[A-Za-z0-9_]*/,
+	/\bformatRefarmAction[A-Za-z0-9_]*/,
+	/\bresolveRefarmAction[A-Za-z0-9_]*/,
+	/\bgetRefarmStatusAvailableActions\b/,
 ] as const;
 
 function sourceFiles(dir: string): string[] {
@@ -32,5 +40,16 @@ describe("process execution boundary", () => {
 		});
 
 		expect(offenders.map((filePath) => path.relative(APP_SRC_DIR, filePath))).toEqual([]);
+	});
+
+	it("uses agnostic surface action helper names in app commands", () => {
+		const offenders = sourceFiles(APP_COMMANDS_DIR).filter((filePath) => {
+			const source = readFileSync(filePath, "utf-8");
+			return LEGACY_REFARM_ACTION_ALIAS_PATTERNS.some((pattern) =>
+				pattern.test(source),
+			);
+		});
+
+		expect(offenders.map((filePath) => path.relative(APP_COMMANDS_DIR, filePath))).toEqual([]);
 	});
 });
