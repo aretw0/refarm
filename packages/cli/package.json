@@ -25,6 +25,10 @@
 		"./command-handoff": {
 			"types": "./dist/command-handoff.d.ts",
 			"import": "./dist/command-handoff.js"
+		},
+		"./json-output": {
+			"types": "./dist/json-output.d.ts",
+			"import": "./dist/json-output.js"
 		}
 	},
 	"scripts": {
