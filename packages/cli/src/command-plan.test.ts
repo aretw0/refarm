@@ -6,7 +6,9 @@ import {
 	commandPlanStepCommands,
 	commandPlanStepSummary,
 	commandPlanWrites,
+	runCommandPlanCliStep,
 	runCommandPlan,
+	runCommandPlanProcessStep,
 	type CommandPlanStep,
 } from "./command-plan.js";
 
@@ -188,6 +190,60 @@ describe("command plan runner", () => {
 				display: "npm --prefix apps/refarm run type-check",
 				packageManager: "npm",
 			},
+		});
+	});
+
+	it("runs CLI steps and parses JSON payloads from stdout", () => {
+		expect(
+			runCommandPlanCliStep(
+				[
+					"console.log('prefix'); console.log(JSON.stringify({ ok: true, nextCommand: 'refarm next' }));",
+				],
+				{
+					executable: process.execPath,
+					entrypoint: "-e",
+					command: "node -e <script>",
+				},
+			),
+		).toMatchObject({
+			ok: true,
+			exitCode: 0,
+			command: "node -e <script>",
+			payload: {
+				ok: true,
+				nextCommand: "refarm next",
+			},
+		});
+	});
+
+	it("uses an executable argv display when CLI step command is not provided", () => {
+		expect(
+			runCommandPlanCliStep(["process.exit(0);"], {
+				executable: process.execPath,
+				entrypoint: "-e",
+			}).command,
+		).toContain("'-e' 'process.exit(0);'");
+	});
+
+	it("runs process steps from process metadata", () => {
+		expect(
+			runCommandPlanProcessStep({
+				id: "process",
+				command: "node -e <script>",
+				args: [],
+				description: "Run process.",
+				process: {
+					command: process.execPath,
+					args: ["-e", "process.stdout.write('ok'); process.exit(3);"],
+					display: "node -e <script>",
+				},
+			}),
+		).toMatchObject({
+			id: "process",
+			ok: false,
+			exitCode: 3,
+			stdout: "ok",
+			stderr: "",
 		});
 	});
 });

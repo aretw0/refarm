@@ -6,7 +6,7 @@ import {
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
 import { Command } from "commander";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -20,11 +20,12 @@ import {
 	buildCommandPlanRunEnvelope,
 	commandPlanStepCommands,
 	runCommandPlan,
+	runCommandPlanCliStep,
+	runCommandPlanProcessStep,
 	type CommandPlanRunResult,
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
 } from "./command-plan.js";
-import { parseCommandJsonPayload } from "./command-result.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -325,43 +326,17 @@ interface AgentFinishSelectionContext {
 }
 
 function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
-	const result = spawnSync(process.argv[0]!, [process.argv[1]!, ...args], {
-		cwd: process.cwd(),
-		env: process.env,
-		encoding: "utf-8",
-	});
-	const exitCode = result.status ?? (result.error ? 1 : 0);
-	const stdout = result.stdout ?? "";
-	const stderr = result.stderr ?? "";
-	const payload = parseCommandJsonPayload(stdout);
-	return {
-		id: args.join(" "),
+	return runCommandPlanCliStep(args, {
+		executable: process.argv[0]!,
+		entrypoint: process.argv[1]!,
 		command: refarmCommand(args),
-		args,
 		description: "Refarm command execution result.",
-		ok: exitCode === 0,
-		exitCode,
-		stdout,
-		stderr,
-		...(payload !== undefined ? { payload } : {}),
-	};
+	});
 }
 
 function runProcessCommand(step: CommandPlanStep): CommandPlanStepRunResult {
 	if (!step.process) return runRefarmCommand(step.args);
-	const result = spawnSync(step.process.command, step.process.args, {
-		cwd: step.process.cwd ?? process.cwd(),
-		env: process.env,
-		encoding: "utf-8",
-	});
-	const exitCode = result.status ?? (result.error ? 1 : 0);
-	return {
-		...step,
-		ok: exitCode === 0,
-		exitCode,
-		stdout: result.stdout ?? "",
-		stderr: result.stderr ?? "",
-	};
+	return runCommandPlanProcessStep(step);
 }
 
 function finishStep(

@@ -1,9 +1,14 @@
-import { normalizeHandoffValues } from "./command-handoff.js";
+import { spawnSync } from "node:child_process";
+import {
+	normalizeHandoffValues,
+	shellCommand,
+} from "./command-handoff.js";
 import {
 	commandPayloadNextActions,
 	commandPayloadNextCommands,
 	commandPayloadOk,
 	commandPayloadRecommendations,
+	parseCommandJsonPayload,
 } from "./command-result.js";
 import {
 	buildJsonSuccessEnvelope,
@@ -33,6 +38,18 @@ export interface CommandPlanStepRunResult extends CommandPlanStep {
 	stdout: string;
 	stderr: string;
 	payload?: unknown;
+}
+
+export interface CommandPlanCommandRunOptions {
+	cwd?: string;
+	env?: NodeJS.ProcessEnv;
+}
+
+export interface CommandPlanCliStepRunOptions extends CommandPlanCommandRunOptions {
+	executable: string;
+	entrypoint: string;
+	command?: string;
+	description?: string;
 }
 
 export interface CommandPlanRunResult {
@@ -195,6 +212,54 @@ function commandPlanPayloadSummary(payload: unknown): unknown {
 			.filter(([key]) => key !== "stdout" && key !== "stderr")
 			.map(([key, value]) => [key, commandPlanPayloadSummary(value)]),
 	);
+}
+
+export function runCommandPlanCliStep(
+	args: string[],
+	options: CommandPlanCliStepRunOptions,
+): CommandPlanStepRunResult {
+	const result = spawnSync(options.executable, [options.entrypoint, ...args], {
+		cwd: options.cwd ?? process.cwd(),
+		env: options.env ?? process.env,
+		encoding: "utf-8",
+	});
+	const exitCode = result.status ?? (result.error ? 1 : 0);
+	const stdout = result.stdout ?? "";
+	const stderr = result.stderr ?? "";
+	const payload = parseCommandJsonPayload(stdout);
+	return {
+		id: args.join(" "),
+		command: options.command ?? shellCommand(options.executable, [options.entrypoint, ...args]),
+		args,
+		description: options.description ?? "CLI command execution result.",
+		ok: exitCode === 0,
+		exitCode,
+		stdout,
+		stderr,
+		...(payload !== undefined ? { payload } : {}),
+	};
+}
+
+export function runCommandPlanProcessStep(
+	step: CommandPlanStep,
+	options: CommandPlanCommandRunOptions = {},
+): CommandPlanStepRunResult {
+	if (!step.process) {
+		throw new Error(`Command plan step ${step.id} has no process metadata.`);
+	}
+	const result = spawnSync(step.process.command, step.process.args, {
+		cwd: step.process.cwd ?? options.cwd ?? process.cwd(),
+		env: options.env ?? process.env,
+		encoding: "utf-8",
+	});
+	const exitCode = result.status ?? (result.error ? 1 : 0);
+	return {
+		...step,
+		ok: exitCode === 0,
+		exitCode,
+		stdout: result.stdout ?? "",
+		stderr: result.stderr ?? "",
+	};
 }
 
 export function runCommandPlan(

@@ -46,8 +46,12 @@ export {
 	commandPlanStepSummary,
 	commandPlanWrites,
 	runCommandPlan,
+	runCommandPlanCliStep,
+	runCommandPlanProcessStep,
 } from "./command-plan.js";
 export type {
+	CommandPlanCliStepRunOptions,
+	CommandPlanCommandRunOptions,
 	CommandPlanEffect,
 	CommandPlanEnvelope,
 	CommandPlanEnvelopeContext,
