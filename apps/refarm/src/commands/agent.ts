@@ -252,22 +252,66 @@ const agentRuntimePlan = {
 		doctor: "refarm doctor --next-action --json",
 		doctorCommand: "refarm doctor --next-command",
 		tidyCheck: "refarm tidy imports --check --json",
-		finishTemplatesJsonCommand: "refarm agent finish --templates --json",
-		finishLanesJsonCommand: "refarm agent finish --lanes --json",
-		finishLanesNextJsonCommand: "refarm agent finish --lanes --json --next-command",
-		finishPlanJsonCommand: "refarm agent finish --json",
-		finishPlanNextJsonCommand: "refarm agent finish --json --next-command",
-		finishPlanCommand: "refarm agent finish --next-command",
-		finishRunCommand: "refarm agent finish --run --next-command",
-		finishFixPlanCommand: "refarm agent finish --fix --next-command",
-		finishFixRunCommand: "refarm agent finish --fix --run --next-command",
-		finishAffectedPlanJsonCommand: "refarm agent finish --profile affected --json",
-		finishAffectedRunJsonCommand: "refarm agent finish --profile affected --run --json",
-		finishAffectedUpstreamRunJsonCommand: "refarm agent finish --profile affected --since upstream --run --json",
-		finishAffectedTestRunJsonCommand: "refarm agent finish --profile affected --include-tests --run --json",
-		finishAffectedRunCommand: "refarm agent finish --profile affected --run --next-command",
-		finishAffectedUpstreamRunCommand: "refarm agent finish --profile affected --since upstream --run --next-command",
-		finishAffectedTestRunCommand: "refarm agent finish --profile affected --include-tests --run --next-command",
+		finishTemplatesJsonCommand: agentFinishCommand(["--templates", "--json"]),
+		finishLanesJsonCommand: agentFinishCommand(["--lanes", "--json"]),
+		finishLanesNextJsonCommand: agentFinishCommand([
+			"--lanes",
+			"--json",
+			"--next-command",
+		]),
+		finishPlanJsonCommand: agentFinishCommand(["--json"]),
+		finishPlanNextJsonCommand: agentFinishCommand(["--json", "--next-command"]),
+		finishPlanCommand: agentFinishCommand(["--next-command"]),
+		finishRunCommand: agentFinishCommand(["--run", "--next-command"]),
+		finishFixPlanCommand: agentFinishCommand(["--fix", "--next-command"]),
+		finishFixRunCommand: agentFinishCommand(["--fix", "--run", "--next-command"]),
+		finishAffectedPlanJsonCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--json",
+		]),
+		finishAffectedRunJsonCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--run",
+			"--json",
+		]),
+		finishAffectedUpstreamRunJsonCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--since",
+			"upstream",
+			"--run",
+			"--json",
+		]),
+		finishAffectedTestRunJsonCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--include-tests",
+			"--run",
+			"--json",
+		]),
+		finishAffectedRunCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--run",
+			"--next-command",
+		]),
+		finishAffectedUpstreamRunCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--since",
+			"upstream",
+			"--run",
+			"--next-command",
+		]),
+		finishAffectedTestRunCommand: agentFinishCommand([
+			"--profile",
+			"affected",
+			"--include-tests",
+			"--run",
+			"--next-command",
+		]),
 		recommended: agentFinishRecommended,
 		lanes: agentFinishLanes,
 		templates: agentFinishTemplates,
@@ -852,9 +896,9 @@ function reportAgentFinishOptionError(
 ): void {
 	const fallbackCommand = error === "invalid-agent-finish-since-ref"
 		? options.run
-			? "refarm agent finish --profile affected --run --json"
-			: "refarm agent finish --profile affected --json"
-		: "refarm agent finish --help";
+			? agentFinishCommand(["--profile", "affected", "--run", "--json"])
+			: agentFinishCommand(["--profile", "affected", "--json"])
+		: agentFinishCommand(["--help"]);
 	const nextActions = error === "invalid-agent-finish-since-ref"
 		? [
 			"Run the dirty-tree affected fallback while choosing an explicit Git ref or configuring upstream.",
@@ -872,7 +916,7 @@ function reportAgentFinishOptionError(
 			nextActions,
 			nextCommand: fallbackCommand,
 			nextCommands: error === "invalid-agent-finish-since-ref"
-				? [fallbackCommand, "refarm agent finish --help"]
+				? [fallbackCommand, agentFinishCommand(["--help"])]
 				: [fallbackCommand],
 		}));
 	} else {
