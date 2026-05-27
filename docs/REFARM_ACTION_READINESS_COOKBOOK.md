@@ -55,6 +55,11 @@ commands an operator agent can execute directly:
 - `nextCommand` / `nextCommands` contain shell-ready commands only. Do not put
   placeholders such as `<url>` or REPL commands such as `/reload` in these
   fields.
+- `templates` contain parameterized command templates for flows that are
+  blocked until the operator supplies values. Each entry should include
+  `command`, declared `parameters`, and `useWhen` guidance. Treat templates as
+  input forms, not executable commands; every `<parameter>` in `command` must be
+  listed in `parameters`.
 - Prefer `refarm ...` commands for continuation when the CLI can express the
   action. Use lower-level commands such as `git ls-remote ...` or
   `gh secret list` only when they are the deterministic verification surface.
@@ -83,8 +88,9 @@ pnpm --filter @refarm.dev/refarm run test:handoffs
 The finish lane is the operator-facing route; the package script is the focused
 test target behind it. The contract statically rejects placeholders,
 interactive credential collection, and REPL-only commands in executable handoff
-fields. It also exercises generated handoffs from the core agent, model,
-plugin, provision, renderer, and package manager commands.
+fields. It also requires generated handoff arrays and declared template
+parameters, and exercises generated handoffs from the core agent, model,
+plugin, provision, renderer, package manager, and tree commands.
 
 Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
 filtering, and deduplication for handoff lists. JSON emitters and command-result
@@ -157,10 +163,11 @@ metadata. Use `useWhen` for operator-facing choice prompts and
 `refarm agent finish --lanes --json`, which exposes the same focused catalog
 without requiring the full agent handoff.
 
-Parameterized finish commands live under `verification.templates`. Those
-entries include the command string, required `parameters`, and `useWhen`
-guidance. Treat them as templates, not executable `nextCommands`; substitute
-the concrete workspace directory or Git ref before execution.
+Parameterized finish commands live under `verification.templates`. That is one
+template surface in the broader JSON handoff contract: entries include the
+command string, required `parameters`, and `useWhen` guidance. Treat them as
+templates, not executable `nextCommands`; substitute the concrete workspace
+directory or Git ref before execution.
 `verification.finishTemplatesJsonCommand` points to
 `refarm agent finish --templates --json`, which exposes only that template
 catalog when an agent does not need the full handoff payload.

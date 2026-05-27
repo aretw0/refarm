@@ -267,9 +267,12 @@ refarm tree switch --scope git experiment/refactor
 
 Preview commands are non-mutating. Blocked-but-resolvable previews should return
 operator-readable readiness (`Blocked: ...`) and, for JSON output,
-`readyToExecute: false`. Execution remains explicit via `tree fork` or
-`tree switch`. After changing tree contracts or adapter boundaries, run
-`pnpm run refarm:tree:verify` before considering the tree slice closed.
+`readyToExecute: false`. When a missing value can be supplied later, JSON output
+may include `templates` with declared parameters; `nextCommands` should stay
+empty until a concrete command is available. Execution remains explicit via
+`tree fork` or `tree switch`. After changing tree contracts or adapter
+boundaries, run `pnpm run refarm:tree:verify` before considering the tree slice
+closed.
 
 ### Scenario 4 — Port conflict at startup
 
