@@ -7,17 +7,10 @@ EffortStatus,
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { isFinalEffortStatus } from "./task-status.js";
 
 const SESSION_VERSION = 1 as const;
 const DEFAULT_MAX_EFFORTS = 25;
-
-const FINAL_STATUSES = new Set<EffortStatus>([
-	"done",
-	"partial",
-	"failed",
-	"timed-out",
-	"cancelled",
-]);
 
 export type SessionStatus = EffortStatus | "not-found";
 
@@ -204,7 +197,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 				effort.submittedAt = input.result.submittedAt;
 			}
 
-			if (input.result && !FINAL_STATUSES.has(input.result.status)) {
+			if (input.result && !isFinalEffortStatus(input.result.status)) {
 				state.activeEffortId = input.effortId;
 			} else if (state.activeEffortId === input.effortId) {
 				state.activeEffortId = undefined;
@@ -227,7 +220,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 			}
 
 			const firstActive = input.efforts.find(
-				(result) => !FINAL_STATUSES.has(result.status),
+				(result) => !isFinalEffortStatus(result.status),
 			);
 			state.activeEffortId = firstActive?.effortId;
 		});

@@ -31,6 +31,7 @@ import {
 	createTaskSessionRecorder,
 	type TaskSessionRecorder,
 } from "./task-session.js";
+import { isFinalEffortStatus } from "./task-status.js";
 
 interface TaskOperationsAdapter extends EffortTransportAdapter {
 	list(): Promise<EffortResult[]>;
@@ -40,13 +41,6 @@ interface TaskOperationsAdapter extends EffortTransportAdapter {
 	summary(): Promise<EffortSummary>;
 }
 
-const FINAL_STATUSES = new Set([
-	"done",
-	"partial",
-	"failed",
-	"timed-out",
-	"cancelled",
-]);
 const TASK_TRANSPORTS = ["file", "http"] as const;
 type TaskTransport = (typeof TASK_TRANSPORTS)[number];
 
@@ -708,7 +702,7 @@ Notes:
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
 					if (opts.json) {
-						const nextCommands = FINAL_STATUSES.has(result.status)
+						const nextCommands = isFinalEffortStatus(result.status)
 							? [buildTaskLogsCommand(effortId, transport)]
 							: [
 									buildTaskStatusCommand(effortId, transport, { watch: true }),
@@ -756,7 +750,7 @@ Notes:
 							);
 						}
 					}
-					return FINAL_STATUSES.has(result.status);
+					return isFinalEffortStatus(result.status);
 				};
 
 				if (!opts.watch) {
