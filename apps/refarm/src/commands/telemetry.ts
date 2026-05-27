@@ -6,13 +6,14 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import { refarmCommand } from "./command-handoff.js";
 import { printJson } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_STATUS_COMMAND
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import {
 	isSidecarUnavailable,
@@ -46,6 +47,14 @@ const PROFILE_THRESHOLDS: Record<ThresholdProfileName, TelemetryThresholds> = {
 		failRateWarn: 30,
 	},
 };
+
+const TASK_LIST_JSON_COMMAND = refarmCommand(["task", "list", "--json"]);
+const FAILED_TASKS_JSON_COMMAND = refarmCommand([
+	"tasks",
+	"--status",
+	"failed",
+	"--json",
+]);
 
 export interface RuntimeTelemetrySnapshot {
 	queueDepth: number;
@@ -180,35 +189,35 @@ export function buildTelemetryRecommendations(
 					diagnostic,
 					summary: "The task queue is above the configured warning threshold.",
 					action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
-					command: "refarm task list --json",
+					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "saturation:inflight":
 				return {
 					diagnostic,
 					summary: "In-flight effort count is above the configured warning threshold.",
 					action: "Wait for active efforts to settle or increase worker capacity before starting more work.",
-					command: "refarm task list --json",
+					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "reliability:failures-present":
 				return {
 					diagnostic,
 					summary: "Failed efforts are present in the current telemetry snapshot.",
 					action: "Inspect failed effort logs and retry only after the failure cause is understood.",
-					command: "refarm task list --json",
+					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "reliability:failures-recent":
 				return {
 					diagnostic,
 					summary: "Recent telemetry window includes failed efforts.",
 					action: "Inspect recent failures before continuing automated execution.",
-					command: "refarm tasks --status failed --json",
+					command: FAILED_TASKS_JSON_COMMAND,
 				};
 			case "reliability:failure-rate":
 				return {
 					diagnostic,
 					summary: "Recent failure rate is above the configured warning threshold.",
 					action: "Pause non-essential automation and investigate the dominant failing tasks.",
-					command: "refarm tasks --status failed --json",
+					command: FAILED_TASKS_JSON_COMMAND,
 				};
 			default:
 				return {
