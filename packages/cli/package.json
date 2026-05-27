@@ -21,6 +21,10 @@
 		"./command-line": {
 			"types": "./dist/command-line.d.ts",
 			"import": "./dist/command-line.js"
+		},
+		"./command-handoff": {
+			"types": "./dist/command-handoff.d.ts",
+			"import": "./dist/command-handoff.js"
 		}
 	},
 	"scripts": {
