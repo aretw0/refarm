@@ -10,6 +10,7 @@ export {
 	REFARM_STATUS_SCHEMA_VERSION,
 } from "./status.js";
 export {
+	binaryCommand,
 	joinCommand,
 	normalizeHandoffValues,
 	quoteCommandArg,

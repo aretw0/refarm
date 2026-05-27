@@ -24,8 +24,12 @@ export function shellCommand(command: string, args: string[] = []): string {
 	return joinCommand([command, ...args.map(quoteCommandArg)]);
 }
 
+export function binaryCommand(binary: string, args: string[]): string {
+	return joinCommand([binary, ...args]);
+}
+
 export function refarmCommand(args: string[]): string {
-	return joinCommand(["refarm", ...args]);
+	return binaryCommand("refarm", args);
 }
 
 export function workspaceCommand(cwd: string, command: string): string {
