@@ -41,6 +41,8 @@ What is already solid:
 - Git command execution helpers now live in `@refarm.dev/cli`; tree and finish
   flows keep their product policy in `apps/refarm` while sharing the same Git
   process boundary.
+- GitHub Actions secret writes now use a shared `@refarm.dev/cli` adapter for
+  `gh secret set`, keeping provision commands focused on product orchestration.
 - Execution-plan readiness/handoffs and host action affordance selection now
   live in `@refarm.dev/cli` with agnostic primary names and Refarm aliases
   where compatibility is still useful.
@@ -71,8 +73,8 @@ What still blocks the 95/100 product target:
 - `apps/refarm`: product commands, human output, final CLI UX.
 - `packages/cli`: reusable CLI primitives, JSON envelopes, handoff commands,
   command plans, execution plans, action affordances, launch process specs,
-  detached process launch, launch readiness policy, Git command helpers, status
-  schemas.
+  detached process launch, launch readiness policy, Git command helpers, GitHub
+  Actions CLI adapters, status schemas.
 - `packages/config`: defaults, provider/model/package-manager policy.
 - `farmhand`, runtime, tractor: execution, state, task/plugin lifecycle,
   sandboxing, logs, and recovery behavior.

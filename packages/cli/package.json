@@ -61,6 +61,10 @@
 		"./git-command": {
 			"types": "./dist/git-command.d.ts",
 			"import": "./dist/git-command.js"
+		},
+		"./github-actions": {
+			"types": "./dist/github-actions.d.ts",
+			"import": "./dist/github-actions.js"
 		}
 	},
 	"scripts": {

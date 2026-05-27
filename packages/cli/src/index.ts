@@ -47,6 +47,12 @@ export type {
 	GitCommandResult,
 } from "./git-command.js";
 export {
+	setGitHubActionsSecret,
+} from "./github-actions.js";
+export type {
+	GitHubActionsSecretOptions,
+} from "./github-actions.js";
+export {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
 	commandPlanEffects,

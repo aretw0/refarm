@@ -1,3 +1,4 @@
+import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
 import {
 	CloudflareProvider,
 	CloudflareTurboCacheProvisioner,
@@ -8,7 +9,6 @@ import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import { spawnSync } from "node:child_process";
 import { normalizeHandoffValues } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
@@ -295,23 +295,6 @@ function renderCloudflarePlan(input: TurboCacheCommandOptions): void {
 	console.log(chalk.bold("CI secrets produced:"));
 	for (const secret of plan.ciSecrets) {
 		console.log(`  - ${secret}`);
-	}
-}
-
-function setGitHubActionsSecret(name: string, value: string): void {
-	const result = spawnSync("gh", ["secret", "set", name], {
-		input: value,
-		encoding: "utf-8",
-		stdio: ["pipe", "pipe", "pipe"],
-	});
-
-	if (result.status !== 0) {
-		const message =
-			result.stderr?.trim() ||
-			result.stdout?.trim() ||
-			result.error?.message ||
-			`gh secret set ${name} failed`;
-		throw new Error(message);
 	}
 }
 
