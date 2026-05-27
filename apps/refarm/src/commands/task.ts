@@ -61,6 +61,21 @@ function parsePositiveIntOption(value: string, label: string): number {
 	return parsed;
 }
 
+function formatLogMeta(meta: Record<string, unknown> | undefined): string {
+	if (!meta) return "";
+	const modelScope = typeof meta.modelScope === "string" ? meta.modelScope : undefined;
+	const modelProvider = typeof meta.modelProvider === "string" ? meta.modelProvider : undefined;
+	const modelId = typeof meta.modelId === "string" ? meta.modelId : undefined;
+	const modelRoute = modelProvider && modelId
+		? `${modelProvider}/${modelId}`
+		: modelProvider ?? modelId;
+	const parts = [
+		modelScope ? `scope=${modelScope}` : undefined,
+		modelRoute ? `model=${modelRoute}` : undefined,
+	].filter((part): part is string => Boolean(part));
+	return parts.length > 0 ? ` ${parts.join(" ")}` : "";
+}
+
 function baseSummary(): EffortSummary {
 	return {
 		total: 0,
@@ -989,8 +1004,9 @@ Notes:
 						typeof entry.attempt === "number"
 							? ` attempt=${entry.attempt}`
 							: "";
+					const metaPart = formatLogMeta(entry.meta);
 					console.log(
-						`${entry.timestamp} [${entry.level}] ${entry.event}${taskPart}${attemptPart} — ${entry.message}`,
+						`${entry.timestamp} [${entry.level}] ${entry.event}${taskPart}${attemptPart}${metaPart} — ${entry.message}`,
 					);
 				}
 			},

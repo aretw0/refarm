@@ -693,6 +693,43 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("logs prints model route metadata when present", async () => {
+		const logs: EffortLogEntry[] = [
+			{
+				effortId: "effort-abc",
+				timestamp: new Date().toISOString(),
+				level: "info",
+				event: "task_attempt_succeeded",
+				message: "Task succeeded",
+				taskId: "task-1",
+				attempt: 1,
+				meta: {
+					modelScope: "worker",
+					modelProvider: "openai",
+					modelId: "gpt-5.3-codex-spark",
+				},
+			},
+		];
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockResolvedValue(logs),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc"], { from: "user" });
+
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("scope=worker model=openai/gpt-5.3-codex-spark"),
+		);
+		spy.mockRestore();
+	});
+
 	it("logs prints empty JSON with status follow-up", async () => {
 		const adapter = createMockAdapter({
 			logs: vi.fn().mockResolvedValue([]),
