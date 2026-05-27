@@ -73,6 +73,7 @@ import { sidecarUrl } from "./sidecar-url.js";
 const PI_AGENT_INSTALL_COMMAND = "refarm plugin install";
 const PI_AGENT_INSTALL_JSON_COMMAND = "refarm plugin install --json";
 const PI_AGENT_RELOAD_JSON_COMMAND = "refarm plugin reload @refarm/pi-agent --json";
+const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -929,10 +930,10 @@ Runtime:
 												? "ambiguous-session-prefix"
 												: "session-not-found",
 											message,
-											nextAction: "refarm sessions list --json",
-											nextActions: ["refarm sessions list --json"],
-											nextCommand: "refarm sessions list --json",
-											nextCommands: ["refarm sessions list --json"],
+											nextAction: SESSIONS_LIST_JSON_COMMAND,
+											nextActions: [SESSIONS_LIST_JSON_COMMAND],
+											nextCommand: SESSIONS_LIST_JSON_COMMAND,
+											nextCommands: [SESSIONS_LIST_JSON_COMMAND],
 											extra: { action: "ask" },
 										}),
 									);
