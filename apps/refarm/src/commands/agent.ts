@@ -14,7 +14,7 @@ import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
-import { refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
@@ -227,19 +227,37 @@ const agentRuntimePlan = {
 		templates: [
 			{
 				id: "worker-task-run",
-				command: "refarm task run <plugin> <fn> --args '{}' --json",
+				command: refarmCommand([
+					"task",
+					"run",
+					"<plugin>",
+					"<fn>",
+					"--args",
+					quoteCommandArg("{}"),
+					"--json",
+				]),
 				parameters: ["plugin", "fn"],
 				useWhen: "Dispatch a concrete plugin function as an asynchronous worker effort.",
 			},
 			{
 				id: "worker-task-status",
-				command: "refarm task status <effort-id> --json",
+				command: refarmCommand([
+					"task",
+					"status",
+					"<effort-id>",
+					"--json",
+				]),
 				parameters: ["effort-id"],
 				useWhen: "Inspect a concrete worker effort after dispatch.",
 			},
 			{
 				id: "worker-task-logs",
-				command: "refarm task logs <effort-id> --json",
+				command: refarmCommand([
+					"task",
+					"logs",
+					"<effort-id>",
+					"--json",
+				]),
 				parameters: ["effort-id"],
 				useWhen: "Inspect logs for a concrete worker effort after dispatch.",
 			},
