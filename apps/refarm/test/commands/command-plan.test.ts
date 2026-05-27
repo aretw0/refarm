@@ -122,6 +122,7 @@ describe("command plan runner", () => {
 				{
 					id: "first",
 					command: "refarm first --json",
+					description: "First step.",
 					ok: false,
 					exitCode: 1,
 					effect: "verify",
@@ -152,12 +153,44 @@ describe("command plan runner", () => {
 		})).toEqual({
 			id: "first",
 			command: "refarm first --json",
+			description: "First step.",
 			ok: false,
 			exitCode: 1,
 			effect: "verify",
 			payload: {
 				ok: false,
 				nextCommand: "refarm runtime start --wait",
+			},
+		});
+	});
+
+	it("keeps process metadata in command plan step summaries", () => {
+		expect(commandPlanStepSummary({
+			...steps[0]!,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+			process: {
+				command: "npm",
+				args: ["--prefix", "apps/refarm", "run", "type-check"],
+				cwd: "/workspaces/refarm",
+				display: "npm --prefix apps/refarm run type-check",
+				packageManager: "npm",
+			},
+		})).toEqual({
+			id: "first",
+			command: "refarm first --json",
+			description: "First step.",
+			ok: true,
+			exitCode: 0,
+			effect: "verify",
+			process: {
+				command: "npm",
+				args: ["--prefix", "apps/refarm", "run", "type-check"],
+				cwd: "/workspaces/refarm",
+				display: "npm --prefix apps/refarm run type-check",
+				packageManager: "npm",
 			},
 		});
 	});

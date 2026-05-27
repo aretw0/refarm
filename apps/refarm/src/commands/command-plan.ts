@@ -51,9 +51,11 @@ export interface CommandPlanRunResult {
 export interface CommandPlanStepSummary {
 	id: string;
 	command: string;
+	description: string;
 	ok: boolean;
 	exitCode: number;
 	effect?: CommandPlanEffect;
+	process?: CommandPlanStep["process"];
 	payload?: unknown;
 }
 
@@ -172,9 +174,11 @@ export function commandPlanStepSummary(
 	return {
 		id: step.id,
 		command: step.command,
+		description: step.description,
 		ok: step.ok,
 		exitCode: step.exitCode,
 		...(step.effect ? { effect: step.effect } : {}),
+		...(step.process ? { process: step.process } : {}),
 		...(step.payload !== undefined ? { payload: commandPlanPayloadSummary(step.payload) } : {}),
 	};
 }
