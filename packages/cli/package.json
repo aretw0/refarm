@@ -37,6 +37,14 @@
 		"./command-plan": {
 			"types": "./dist/command-plan.d.ts",
 			"import": "./dist/command-plan.js"
+		},
+		"./execution-plan": {
+			"types": "./dist/execution-plan.d.ts",
+			"import": "./dist/execution-plan.js"
+		},
+		"./action-affordances": {
+			"types": "./dist/action-affordances.d.ts",
+			"import": "./dist/action-affordances.js"
 		}
 	},
 	"scripts": {

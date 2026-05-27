@@ -58,3 +58,38 @@ export type {
 	CommandPlanStepRunResult,
 	CommandPlanStepSummary,
 } from "./command-plan.js";
+export {
+	createExecutionPlanHandoff,
+	formatExecutionPlanReadinessLine,
+} from "./execution-plan.js";
+export type {
+	RefarmExecutionPlanBase,
+	RefarmExecutionPlanHandoff,
+	RefarmExecutionPlanHandoffInput,
+	RefarmExecutionPlanReadinessInput,
+	RefarmExecutionPlanReadinessLine,
+} from "./execution-plan.js";
+export {
+	createRefarmActionAffordanceRows,
+	createRefarmActionReadinessDryRunEnvelope,
+	createRefarmActionReadinessLine,
+	createRefarmRendererActionDryRunEnvelope,
+	formatRefarmActionAffordanceRows,
+	formatRefarmActionAffordanceSelection,
+	formatRefarmActionIds,
+	formatRefarmActionReadinessOutput,
+	formatRefarmActionSelectionChoices,
+	getRefarmStatusAvailableActions,
+	resolveRefarmActionAffordanceSelection,
+} from "./action-affordances.js";
+export type {
+	RefarmActionAffordanceRow,
+	RefarmActionAffordanceSelectionFormatOptions,
+	RefarmActionAffordanceSelectionMetadata,
+	RefarmActionAffordanceSelectionReason,
+	RefarmActionAffordanceSelectionResult,
+	RefarmActionAffordanceSelectionSource,
+	RefarmActionReadinessDryRunEnvelope,
+	RefarmActionReadinessDryRunEnvelopeOptions,
+	RefarmActionReadinessOutputOptions,
+} from "./action-affordances.js";

@@ -19,7 +19,7 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**75/100**
+**77/100**
 
 Strong enough to keep developing with Refarm in the loop, not yet strong enough
 to stop spending regular work on Refarm itself.
@@ -34,6 +34,8 @@ What is already solid:
 - `@refarm.dev/cli` owns status, browser-open, command-line parsing, handoff
   command helpers, JSON output envelopes, command result parsing, and command
   plan execution/envelopes.
+- Execution-plan readiness/handoffs and host action affordance selection now
+  live in `@refarm.dev/cli`.
 
 What still blocks the 85/100 target:
 
@@ -47,7 +49,8 @@ What still blocks the 85/100 target:
 
 - `apps/refarm`: product commands, human output, final CLI UX.
 - `packages/cli`: reusable CLI primitives, JSON envelopes, handoff commands,
-  command plans, process specs, status schemas.
+  command plans, execution plans, action affordances, process specs, status
+  schemas.
 - `packages/config`: defaults, provider/model/package-manager policy.
 - `farmhand`, runtime, tractor: execution, state, task/plugin lifecycle,
   sandboxing, logs, and recovery behavior.
