@@ -106,26 +106,30 @@ function generatedHandoffEntries(payloads: Array<{
 	);
 }
 
-function generatedTemplates(payloads: {
-	templates?: {
-		command?: string;
-		parameters?: string[];
-	}[];
-	verification?: {
-		templates?: {
-			command?: string;
-			parameters?: string[];
-		}[];
-	};
-}[]): { command: string; parameters: string[] }[] {
-	return payloads.flatMap((payload) =>
-		[...(payload.templates ?? []), ...(payload.verification?.templates ?? [])]
-			?.filter((template) => typeof template.command === "string")
-			.map((template) => ({
-				command: template.command!,
-				parameters: template.parameters ?? [],
-			})) ?? [],
-	);
+function generatedTemplates(payloads: unknown[]): { command: string; parameters: string[] }[] {
+	return payloads.flatMap((payload) => collectGeneratedTemplates(payload));
+}
+
+function collectGeneratedTemplates(value: unknown): { command: string; parameters: string[] }[] {
+	if (!value || typeof value !== "object") return [];
+	if (Array.isArray(value)) return value.flatMap(collectGeneratedTemplates);
+	return Object.entries(value).flatMap(([key, entry]) => {
+		const nested = collectGeneratedTemplates(entry);
+		if (key !== "templates" || !Array.isArray(entry)) return nested;
+		return [
+			...entry
+				.filter((template): template is { command: string; parameters?: string[] } =>
+					Boolean(template) &&
+					typeof template === "object" &&
+					typeof (template as { command?: unknown }).command === "string",
+				)
+				.map((template) => ({
+					command: template.command,
+					parameters: template.parameters ?? [],
+				})),
+			...nested,
+		];
+	});
 }
 
 function commandTemplateParameters(command: string): string[] {
