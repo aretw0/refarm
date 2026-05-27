@@ -13,6 +13,7 @@ import { createPackageManagerCommand } from "../../src/commands/package-manager.
 import { pluginCommand } from "../../src/commands/plugin.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
+import { createTaskCommand } from "../../src/commands/task.js";
 import { createTasksCommand } from "../../src/commands/tasks.js";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
@@ -238,6 +239,62 @@ function makeContractFetch() {
 	});
 }
 
+function createContractTaskCommand() {
+	const effort = {
+		effortId: "effort-abc",
+		status: "in-progress",
+		submittedAt: "2026-05-01T00:00:00.000Z",
+		results: [],
+	};
+	const adapter = {
+		submit: vi.fn().mockResolvedValue("effort-abc"),
+		query: vi.fn().mockResolvedValue(effort),
+		list: vi.fn().mockResolvedValue([effort]),
+		logs: vi.fn().mockResolvedValue([
+			{
+				timestamp: "2026-05-01T00:00:01.000Z",
+				level: "info",
+				event: "started",
+				message: "started",
+			},
+		]),
+		retry: vi.fn().mockResolvedValue(true),
+		cancel: vi.fn().mockResolvedValue(true),
+		summary: vi.fn().mockResolvedValue({
+			total: 1,
+			pending: 0,
+			inProgress: 1,
+			done: 0,
+			partial: 0,
+			failed: 0,
+			timedOut: 0,
+			cancelled: 0,
+		}),
+	};
+	const recorder = {
+		rememberRun: vi.fn(),
+		rememberStatus: vi.fn(),
+		rememberList: vi.fn(),
+		rememberLogs: vi.fn(),
+		rememberControl: vi.fn(),
+		getCheckpoint: vi.fn().mockReturnValue({
+			version: 1,
+			updatedAt: "2026-05-01T00:00:02.000Z",
+			activeEffortId: "effort-abc",
+			efforts: [
+				{
+					effortId: "effort-abc",
+					transport: "file",
+					lastStatus: "in-progress",
+					statusCommand: "refarm task status effort-abc --transport file",
+					logsCommand: "refarm task logs effort-abc --transport file",
+				},
+			],
+		}),
+	};
+	return createTaskCommand(() => adapter as never, recorder as never);
+}
+
 interface ParsedCommandJson {
 	handoffs?: Record<string, unknown>;
 	nextAction?: string | null;
@@ -432,6 +489,16 @@ describe("JSON next command contract", () => {
 					id: "tasks-list",
 					command: createTasksCommand(),
 					args: ["--json"],
+				},
+				{
+					id: "task-list",
+					command: createContractTaskCommand(),
+					args: ["list", "--json"],
+				},
+				{
+					id: "task-resume",
+					command: createContractTaskCommand(),
+					args: ["resume", "--json"],
 				},
 				{
 					id: "tree-invalid-list-scope",
