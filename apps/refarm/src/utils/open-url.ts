@@ -1,7 +1,6 @@
-import { execFile } from "node:child_process";
 import {
 	openHostBrowserUrl,
-	type BrowserOpenSpec,
+	runBestEffortBrowserOpenCandidate,
 } from "@refarm.dev/cli/browser-open";
 import { loadConfig } from "@refarm.dev/config";
 import { hasTty, isCI } from "@refarm.dev/root";
@@ -15,9 +14,11 @@ import {
 export function tryOpenUrl(url: string): void {
 	if (!shouldOpenExternalLinks()) return;
 
-	void openHostBrowserUrl(url, { run: runBestEffortOpenCandidate }).catch(() => {
-		// best-effort — callers print the URL and manual fallback instructions.
-	});
+	void openHostBrowserUrl(url, { run: runBestEffortBrowserOpenCandidate }).catch(
+		() => {
+			// best-effort — callers print the URL and manual fallback instructions.
+		},
+	);
 }
 
 export function shouldOpenExternalLinks(): boolean {
@@ -41,23 +42,4 @@ function resolveOpenExternalLinksMode(): OpenExternalLinksMode {
 	} catch {
 		return "auto";
 	}
-}
-
-function runBestEffortOpenCandidate(spec: BrowserOpenSpec): Promise<void> {
-	return new Promise((resolve, reject) => {
-		try {
-			const child = execFile(
-				spec.command,
-				spec.args,
-				{ timeout: 5000 },
-				(error) => {
-					if (error) reject(error);
-					else resolve();
-				},
-			);
-			child.unref();
-		} catch (error) {
-			reject(error);
-		}
-	});
 }

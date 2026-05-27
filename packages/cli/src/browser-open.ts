@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { splitCommandLine } from "./command-line.js";
 
 export interface BrowserOpenSpec {
@@ -20,6 +20,10 @@ export interface ResolveBrowserOpenCandidatesOptions {
 export interface OpenHostBrowserUrlOptions
 	extends ResolveBrowserOpenCandidatesOptions {
 	run?: (candidate: BrowserOpenSpec) => Promise<void>;
+}
+
+export interface BestEffortBrowserOpenOptions {
+	timeoutMs?: number;
 }
 
 export function resolveBrowserOpenSpec(
@@ -160,6 +164,28 @@ export function runBrowserOpenCandidate(
 				),
 			);
 		});
+	});
+}
+
+export function runBestEffortBrowserOpenCandidate(
+	spec: BrowserOpenSpec,
+	options: BestEffortBrowserOpenOptions = {},
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		try {
+			const child = execFile(
+				spec.command,
+				spec.args,
+				{ timeout: options.timeoutMs ?? 5000 },
+				(error) => {
+					if (error) reject(error);
+					else resolve();
+				},
+			);
+			child.unref();
+		} catch (error) {
+			reject(error);
+		}
 	});
 }
 
