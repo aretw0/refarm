@@ -1,16 +1,17 @@
+import { refarmCommand } from "./command-handoff.js";
 import {
 	classifyRefarmStatusDiagnostics,
 	REFARM_STATUS_DIAGNOSTICS,
 	type RefarmStatusJson,
 } from "./status.js";
 
-export const RUNTIME_STATUS_COMMAND = "refarm runtime status";
+export const RUNTIME_STATUS_COMMAND = refarmCommand(["runtime", "status"]);
 export const RUNTIME_ENSURE_WAIT_NEXT_COMMAND =
-	"refarm runtime ensure --wait --next-command";
+	refarmCommand(["runtime", "ensure", "--wait", "--next-command"]);
 export const RUNTIME_DOCTOR_NEXT_ACTION_COMMAND =
-	"refarm doctor --next-action";
+	refarmCommand(["doctor", "--next-action"]);
 export const RUNTIME_DOCTOR_NEXT_COMMAND =
-	"refarm doctor --next-command";
+	refarmCommand(["doctor", "--next-command"]);
 
 export const RUNTIME_NOT_READY_LAUNCH_HINT =
 	` Run \`${RUNTIME_STATUS_COMMAND}\`, then \`${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`.`;
