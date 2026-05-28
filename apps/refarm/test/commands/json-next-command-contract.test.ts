@@ -34,6 +34,11 @@ const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfN
 	? join(process.cwd(), "src", "commands")
 	: join(process.cwd(), "apps", "refarm", "src", "commands");
 
+const PACKAGE_CLI_SRC_DIR = [
+	join(process.cwd(), "../../packages/cli/src"),
+	join(process.cwd(), "packages", "cli", "src"),
+].find((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());
+
 function commandSourceFiles(dir = COMMANDS_DIR): string[] {
 	return readdirSync(dir)
 		.flatMap((entry) => {
@@ -41,6 +46,10 @@ function commandSourceFiles(dir = COMMANDS_DIR): string[] {
 			return statSync(path).isDirectory() ? commandSourceFiles(path) : [path];
 		})
 		.filter((path) => path.endsWith(".ts"));
+}
+
+function optionalSourceFiles(dir: string | undefined): string[] {
+	return dir ? commandSourceFiles(dir) : [];
 }
 
 function hasInteractiveSowCommand(value: string): boolean {
@@ -59,6 +68,10 @@ function hasCommandLikePlaceholderAction(value: string): boolean {
 
 function hasReplCommand(value: string): boolean {
 	return /["'`]\/[A-Za-z][^"'`]*["'`]/.test(value);
+}
+
+function hasHardcodedPackageManagerCommand(value: string): boolean {
+	return /["'`]\s*(?:pnpm|npm|yarn|bun)\b/.test(value);
 }
 
 function generatedExecutableCommands(payloads: {
@@ -710,6 +723,22 @@ describe("JSON next command contract", () => {
 			return ["nextCommand", "nextCommands", "actionCommand"]
 				.flatMap((property) => propertyBlocks(source, property)
 					.filter(hasReplCommand)
+					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+		});
+
+		expect(violations).toEqual([]);
+	});
+
+	it("keeps package-manager-specific commands out of static executable handoffs", () => {
+		const files = [
+			...commandSourceFiles(),
+			...optionalSourceFiles(PACKAGE_CLI_SRC_DIR),
+		];
+		const violations = files.flatMap((file) => {
+			const source = readFileSync(file, "utf8");
+			return ["nextCommand", "nextCommands", "actionCommand"]
+				.flatMap((property) => propertyBlocks(source, property)
+					.filter(hasHardcodedPackageManagerCommand)
 					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
 		});
 
