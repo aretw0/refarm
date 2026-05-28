@@ -1,4 +1,12 @@
-import { modelCredentialEnvKey } from "@refarm.dev/config";
+import {
+	MODEL_BASE_URL_ENV_VAR,
+	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+	MODEL_FALLBACK_PROVIDER_ENV_VAR,
+	MODEL_ID_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
+	modelCredentialEnvKey,
+} from "@refarm.dev/config";
 
 export interface OAuthCreds {
 	access: string;
@@ -91,31 +99,31 @@ export function createSiloModelEnvInjector(
 				clearManagedEnv();
 				const provider = stringValue(tokens.modelProvider);
 				const oauthProvider = stringValue(tokens.oauthProvider);
-				const envProvider = stringValue(env.MODEL_PROVIDER);
-				const envDefaultProvider = stringValue(env.MODEL_DEFAULT_PROVIDER);
+				const envProvider = stringValue(env[MODEL_PROVIDER_ENV_VAR]);
+				const envDefaultProvider = stringValue(env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
 				const routeProviderOverridden = Boolean(envProvider ?? envDefaultProvider);
 				const effectiveProvider = envProvider ?? envDefaultProvider ?? provider;
 
-				if (provider && !routeProviderOverridden) setManagedEnv("MODEL_PROVIDER", provider);
+				if (provider && !routeProviderOverridden) setManagedEnv(MODEL_PROVIDER_ENV_VAR, provider);
 				const modelId = stringValue(tokens.modelId) ?? stringValue(tokens.model);
 				if (modelId && (!routeProviderOverridden || effectiveProvider === provider)) {
-					setManagedEnv("MODEL_ID", modelId);
+					setManagedEnv(MODEL_ID_ENV_VAR, modelId);
 				}
 				const baseUrl = stringValue(tokens.modelBaseUrl);
 				if (baseUrl && (!routeProviderOverridden || effectiveProvider === provider)) {
-					setManagedEnv("MODEL_BASE_URL", baseUrl);
+					setManagedEnv(MODEL_BASE_URL_ENV_VAR, baseUrl);
 				}
 				const fallbackProvider = stringValue(tokens.modelFallbackProvider);
 				if (fallbackProvider) {
-					const envFallbackProvider = stringValue(env.MODEL_FALLBACK_PROVIDER);
+					const envFallbackProvider = stringValue(env[MODEL_FALLBACK_PROVIDER_ENV_VAR]);
 					const fallbackProviderOverridden = Boolean(envFallbackProvider);
-					setManagedEnv("MODEL_FALLBACK_PROVIDER", fallbackProvider);
+					setManagedEnv(MODEL_FALLBACK_PROVIDER_ENV_VAR, fallbackProvider);
 					const fallbackModelId = stringValue(tokens.modelFallbackModelId);
 					if (
 						fallbackModelId &&
 						(!fallbackProviderOverridden || envFallbackProvider === fallbackProvider)
 					) {
-						setManagedEnv("MODEL_FALLBACK_MODEL_ID", fallbackModelId);
+						setManagedEnv(MODEL_FALLBACK_MODEL_ID_ENV_VAR, fallbackModelId);
 					}
 				}
 

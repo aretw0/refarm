@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
     DEFAULT_MODEL_PROVIDER,
+    MODEL_BASE_URL_ENV_VAR,
     MODEL_DEFAULT_PROVIDER_ENV_VAR,
+    MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+    MODEL_FALLBACK_PROVIDER_ENV_VAR,
     MODEL_ID_ENV_VAR,
     MODEL_PROVIDER_ENV_VAR,
     MODEL_ROUTE_ENV_VARS,
+    MODEL_RUNTIME_ENV_VARS,
     defaultProviderModelId,
     defaultProviderModelRef,
     effectiveModelRouteForScope,
@@ -35,10 +39,21 @@ describe("model routing config", () => {
         expect(MODEL_PROVIDER_ENV_VAR).toBe("MODEL_PROVIDER");
         expect(MODEL_DEFAULT_PROVIDER_ENV_VAR).toBe("MODEL_DEFAULT_PROVIDER");
         expect(MODEL_ID_ENV_VAR).toBe("MODEL_ID");
+        expect(MODEL_BASE_URL_ENV_VAR).toBe("MODEL_BASE_URL");
+        expect(MODEL_FALLBACK_PROVIDER_ENV_VAR).toBe("MODEL_FALLBACK_PROVIDER");
+        expect(MODEL_FALLBACK_MODEL_ID_ENV_VAR).toBe("MODEL_FALLBACK_MODEL_ID");
         expect(MODEL_ROUTE_ENV_VARS).toEqual([
             MODEL_PROVIDER_ENV_VAR,
             MODEL_DEFAULT_PROVIDER_ENV_VAR,
             MODEL_ID_ENV_VAR,
+        ]);
+        expect(MODEL_RUNTIME_ENV_VARS).toEqual([
+            MODEL_PROVIDER_ENV_VAR,
+            MODEL_DEFAULT_PROVIDER_ENV_VAR,
+            MODEL_ID_ENV_VAR,
+            MODEL_BASE_URL_ENV_VAR,
+            MODEL_FALLBACK_PROVIDER_ENV_VAR,
+            MODEL_FALLBACK_MODEL_ID_ENV_VAR,
         ]);
     });
 

@@ -13,11 +13,14 @@ import {
 	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
+	MODEL_BASE_URL_ENV_VAR,
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+	MODEL_FALLBACK_PROVIDER_ENV_VAR,
 	MODEL_ID_ENV_VAR,
 	MODEL_PROVIDER_ENV_VAR,
 	MODEL_PROVIDERS,
-	MODEL_ROUTE_ENV_VARS,
+	MODEL_RUNTIME_ENV_VARS,
 	MODEL_SCOPES,
 	modelRouteTokenUpdate,
 	parseModelRef,
@@ -42,15 +45,6 @@ const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
-const MODEL_BASE_URL_ENV_VAR = "MODEL_BASE_URL";
-const MODEL_FALLBACK_PROVIDER_ENV_VAR = "MODEL_FALLBACK_PROVIDER";
-const MODEL_FALLBACK_MODEL_ID_ENV_VAR = "MODEL_FALLBACK_MODEL_ID";
-const MODEL_ENV_OVERRIDE_VARS = [
-	...MODEL_ROUTE_ENV_VARS,
-	MODEL_BASE_URL_ENV_VAR,
-	MODEL_FALLBACK_PROVIDER_ENV_VAR,
-	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
-] as const;
 
 interface JsonOptionCarrier {
 	json?: boolean;
@@ -215,7 +209,7 @@ function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 }
 
 function activeModelEnvOverrides(): string[] {
-	return MODEL_ENV_OVERRIDE_VARS.filter((name) => Boolean(process.env[name]));
+	return MODEL_RUNTIME_ENV_VARS.filter((name) => Boolean(process.env[name]));
 }
 
 function hasJsonOption(

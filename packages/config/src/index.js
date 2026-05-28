@@ -2,12 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 export {
     DEFAULT_MODEL_PROVIDER,
+    MODEL_BASE_URL_ENV_VAR,
     MODEL_DEFAULT_PROVIDER_ENV_VAR,
     MODEL_CREDENTIAL_ENV_KEYS,
+    MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+    MODEL_FALLBACK_PROVIDER_ENV_VAR,
     MODEL_ID_ENV_VAR,
     MODEL_PROVIDER_ENV_VAR,
     MODEL_PROVIDERS,
     MODEL_ROUTE_ENV_VARS,
+    MODEL_RUNTIME_ENV_VARS,
     MODEL_SCOPES,
     defaultProviderModelId,
     defaultProviderModelRef,

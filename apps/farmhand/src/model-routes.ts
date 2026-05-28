@@ -1,5 +1,8 @@
 import {
 	effectiveModelRouteForScope,
+	MODEL_BASE_URL_ENV_VAR,
+	MODEL_ID_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
 	type EffectiveModelRoute,
 	type ModelScope,
 } from "@refarm.dev/config";
@@ -23,7 +26,7 @@ export function routeResolutionEnv(
 ): NodeJS.ProcessEnv {
 	const routeEnv = { ...env };
 	for (const key of managedKeys) {
-		if (key === "MODEL_PROVIDER" || key === "MODEL_ID") {
+		if (key === MODEL_PROVIDER_ENV_VAR || key === MODEL_ID_ENV_VAR) {
 			delete routeEnv[key];
 		}
 	}
@@ -75,46 +78,46 @@ export function withModelRouteEnv<T>(
 	fn: () => Promise<T>,
 	options: { managedEnvKeys?: string[] } = {},
 ): Promise<T> {
-	const previousProvider = process.env.MODEL_PROVIDER;
-	const previousModel = process.env.MODEL_ID;
-	const previousBaseUrl = process.env.MODEL_BASE_URL;
+	const previousProvider = process.env[MODEL_PROVIDER_ENV_VAR];
+	const previousModel = process.env[MODEL_ID_ENV_VAR];
+	const previousBaseUrl = process.env[MODEL_BASE_URL_ENV_VAR];
 	const managedKeys = new Set(options.managedEnvKeys ?? []);
-	const previousProviderManaged = managedKeys.has("MODEL_PROVIDER");
-	const baseUrlManaged = managedKeys.has("MODEL_BASE_URL");
+	const previousProviderManaged = managedKeys.has(MODEL_PROVIDER_ENV_VAR);
+	const baseUrlManaged = managedKeys.has(MODEL_BASE_URL_ENV_VAR);
 	const routeProviderDiffersFromManagedDefault =
 		previousProviderManaged &&
 		previousProvider !== undefined &&
 		route.provider !== undefined &&
 		route.provider.trim().toLowerCase() !== previousProvider.trim().toLowerCase();
 	if (route.provider) {
-		process.env.MODEL_PROVIDER = route.provider;
+		process.env[MODEL_PROVIDER_ENV_VAR] = route.provider;
 	} else {
-		delete process.env.MODEL_PROVIDER;
+		delete process.env[MODEL_PROVIDER_ENV_VAR];
 	}
 	if (route.modelId) {
-		process.env.MODEL_ID = route.modelId;
+		process.env[MODEL_ID_ENV_VAR] = route.modelId;
 	} else {
-		delete process.env.MODEL_ID;
+		delete process.env[MODEL_ID_ENV_VAR];
 	}
 	if (baseUrlManaged && routeProviderDiffersFromManagedDefault) {
-		delete process.env.MODEL_BASE_URL;
+		delete process.env[MODEL_BASE_URL_ENV_VAR];
 	}
 
 	return fn().finally(() => {
 		if (previousProvider === undefined) {
-			delete process.env.MODEL_PROVIDER;
+			delete process.env[MODEL_PROVIDER_ENV_VAR];
 		} else {
-			process.env.MODEL_PROVIDER = previousProvider;
+			process.env[MODEL_PROVIDER_ENV_VAR] = previousProvider;
 		}
 		if (previousModel === undefined) {
-			delete process.env.MODEL_ID;
+			delete process.env[MODEL_ID_ENV_VAR];
 		} else {
-			process.env.MODEL_ID = previousModel;
+			process.env[MODEL_ID_ENV_VAR] = previousModel;
 		}
 		if (previousBaseUrl === undefined) {
-			delete process.env.MODEL_BASE_URL;
+			delete process.env[MODEL_BASE_URL_ENV_VAR];
 		} else {
-			process.env.MODEL_BASE_URL = previousBaseUrl;
+			process.env[MODEL_BASE_URL_ENV_VAR] = previousBaseUrl;
 		}
 	});
 }
