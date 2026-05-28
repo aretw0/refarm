@@ -981,6 +981,11 @@ describe("JSON next command contract", () => {
 					args: ["ensure", "--wait", "--json"],
 				},
 				{
+					id: "runtime-start-dry-run",
+					command: createContractRuntimeCommand(),
+					args: ["start", "--dry-run", "--json"],
+				},
+				{
 					id: "sessions-list",
 					command: createContractSessionsCommand(),
 					args: ["--json"],
