@@ -9,6 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+	OPEN_EXTERNAL_LINKS_ENV_VAR,
 	parseOpenExternalLinksMode,
 	resolveCliOpenExternalLinksMode,
 	type OpenExternalLinksMode,
@@ -179,8 +180,8 @@ function resolveOpenExternalLinksMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
 ): { value: OpenExternalLinksMode; source: string } {
-	const envMode = parseOpenExternalLinksMode(process.env.REFARM_OPEN_EXTERNAL_LINKS);
-	if (envMode) return { value: envMode, source: "env:REFARM_OPEN_EXTERNAL_LINKS" };
+	const envMode = parseOpenExternalLinksMode(process.env[OPEN_EXTERNAL_LINKS_ENV_VAR]);
+	if (envMode) return { value: envMode, source: `env:${OPEN_EXTERNAL_LINKS_ENV_VAR}` };
 
 	if (!opts.local) {
 		return resolveCliOpenExternalLinksMode({
@@ -266,8 +267,8 @@ function warnIgnoredAutostartEnvOverrides(): void {
 
 function warnIgnoredOpenExternalLinksEnvOverride(): void {
 	warnIgnoredEnvOverride(
-		"REFARM_OPEN_EXTERNAL_LINKS",
-		process.env.REFARM_OPEN_EXTERNAL_LINKS,
+		OPEN_EXTERNAL_LINKS_ENV_VAR,
+		process.env[OPEN_EXTERNAL_LINKS_ENV_VAR],
 		OPEN_EXTERNAL_LINKS_ENV_VALUES,
 		parseOpenExternalLinksMode,
 	);
@@ -615,7 +616,7 @@ Legacy aliases:
 
 Notes:
   REFARM_RUNTIME_AUTOSTART can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
-  REFARM_OPEN_EXTERNAL_LINKS can be ${OPEN_EXTERNAL_LINKS_MODES_HELP} for one-shot link policy.
+  ${OPEN_EXTERNAL_LINKS_ENV_VAR} can be ${OPEN_EXTERNAL_LINKS_MODES_HELP} for one-shot link policy.
   REFARM_TRACTOR_ENGINE can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
   Without a subcommand, config prints the effective values and their sources.
   The no-argument form is reserved for the future interactive configuration surface.
@@ -697,7 +698,7 @@ Legacy aliases:
 
 Notes:
   Without --local, project-local config overrides home config. Environment
-  overrides such as REFARM_RUNTIME_AUTOSTART, REFARM_OPEN_EXTERNAL_LINKS, and REFARM_TRACTOR_ENGINE still
+  overrides such as REFARM_RUNTIME_AUTOSTART, ${OPEN_EXTERNAL_LINKS_ENV_VAR}, and REFARM_TRACTOR_ENGINE still
   take precedence and are shown in the source line.
 `,
 				)
@@ -791,7 +792,7 @@ Legacy aliases:
 Notes:
   Use --local for repository-specific operator preferences. Home config is the
   default and applies across Refarm workspaces for the current user.
-  For one-shot overrides, use REFARM_RUNTIME_AUTOSTART, REFARM_OPEN_EXTERNAL_LINKS,
+  For one-shot overrides, use REFARM_RUNTIME_AUTOSTART, ${OPEN_EXTERNAL_LINKS_ENV_VAR},
   or REFARM_TRACTOR_ENGINE without changing persisted config.
 `,
 				)

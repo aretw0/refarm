@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { OPEN_EXTERNAL_LINKS_ENV_VAR } from "./open-external-links.js";
 
 const mockOpenHostBrowserUrl = vi.hoisted(() => vi.fn());
 const mockLoadConfig = vi.hoisted(() => vi.fn());
@@ -10,6 +11,7 @@ const mockIsCI = vi.hoisted(() => vi.fn());
 
 vi.mock("@refarm.dev/cli/browser-open", () => ({
 	openHostBrowserUrl: mockOpenHostBrowserUrl,
+	runBestEffortBrowserOpenCandidate: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/config", () => ({
@@ -74,7 +76,7 @@ describe("tryOpenUrl", () => {
 	});
 
 	it("respects REFARM_OPEN_EXTERNAL_LINKS=never", async () => {
-		process.env["REFARM_OPEN_EXTERNAL_LINKS"] = "never";
+		process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = "never";
 		const { tryOpenUrl } = await import("./open-url.js");
 		tryOpenUrl("https://example.com");
 		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();

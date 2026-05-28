@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createConfigCommand } from "../../src/commands/config.js";
+import { OPEN_EXTERNAL_LINKS_ENV_VAR } from "../../src/utils/open-external-links.js";
 
 function makeTempDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "refarm-config-"));
@@ -47,11 +48,11 @@ describe("config command", () => {
 		home = makeTempDir();
 		originalAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
 		originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
-		originalOpenExternalLinks = process.env.REFARM_OPEN_EXTERNAL_LINKS;
+		originalOpenExternalLinks = process.env[OPEN_EXTERNAL_LINKS_ENV_VAR];
 		originalTractorEngine = process.env.REFARM_TRACTOR_ENGINE;
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
 		delete process.env.REFARM_RUNTIME_AUTOSTART;
-		delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
+		delete process.env[OPEN_EXTERNAL_LINKS_ENV_VAR];
 		delete process.env.REFARM_TRACTOR_ENGINE;
 		vi.clearAllMocks();
 		process.exitCode = undefined;
@@ -69,9 +70,9 @@ describe("config command", () => {
 			process.env.REFARM_RUNTIME_AUTOSTART = originalRuntimeAutostart;
 		}
 		if (originalOpenExternalLinks === undefined) {
-			delete process.env.REFARM_OPEN_EXTERNAL_LINKS;
+			delete process.env[OPEN_EXTERNAL_LINKS_ENV_VAR];
 		} else {
-			process.env.REFARM_OPEN_EXTERNAL_LINKS = originalOpenExternalLinks;
+			process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = originalOpenExternalLinks;
 		}
 		if (originalTractorEngine === undefined) {
 			delete process.env.REFARM_TRACTOR_ENGINE;
@@ -580,7 +581,7 @@ describe("config command", () => {
 			JSON.stringify({ operator: { openExternalLinks: "never" } }),
 			"utf-8",
 		);
-		process.env.REFARM_OPEN_EXTERNAL_LINKS = "auto";
+		process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = "auto";
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await command().parseAsync(["get", "operator.openExternalLinks"], {
@@ -616,7 +617,7 @@ describe("config command", () => {
 	});
 
 	it("warns about invalid summary env overrides", async () => {
-		process.env.REFARM_OPEN_EXTERNAL_LINKS = "browser";
+		process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = "browser";
 		process.env.REFARM_TRACTOR_ENGINE = "python";
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

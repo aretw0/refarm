@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 
 export type OpenExternalLinksMode = "auto" | "never";
+export const OPEN_EXTERNAL_LINKS_ENV_VAR = "REFARM_OPEN_EXTERNAL_LINKS";
 
 export interface RefarmOpenLinkConfig {
 	operator?: {
@@ -34,8 +35,8 @@ export function resolveCliOpenExternalLinksMode(
 	deps: OpenExternalLinksDeps = {},
 ): { value: OpenExternalLinksMode; source: string } | null {
 	const env = deps.env ?? process.env;
-	const envMode = parseOpenExternalLinksMode(env.REFARM_OPEN_EXTERNAL_LINKS);
-	if (envMode) return { value: envMode, source: "env:REFARM_OPEN_EXTERNAL_LINKS" };
+	const envMode = parseOpenExternalLinksMode(env[OPEN_EXTERNAL_LINKS_ENV_VAR]);
+	if (envMode) return { value: envMode, source: `env:${OPEN_EXTERNAL_LINKS_ENV_VAR}` };
 
 	const home = deps.home ?? os.homedir();
 	const cwd = deps.cwd ?? process.cwd();
