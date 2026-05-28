@@ -1091,6 +1091,11 @@ describe("JSON next command contract", () => {
 					args: ["list", "--scope", "all", "--json"],
 				},
 				{
+					id: "tree-show-session",
+					command: createTreeCommand(),
+					args: ["show", "abc123", "--json"],
+				},
+				{
 					id: "tree-session-preview-template",
 					command: createTreeCommand(),
 					args: ["preview", "abc123", "--json"],

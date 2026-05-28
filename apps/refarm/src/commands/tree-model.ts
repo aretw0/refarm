@@ -92,6 +92,10 @@ export interface RefarmTimelineShowEnvelope {
 	scope: RefarmTimelineScope;
 	operation: "show";
 	node: RefarmTimelineNode;
+	nextAction: null;
+	nextActions: [];
+	nextCommand: null;
+	nextCommands: [];
 }
 
 export interface RefarmGitTimelineShowEnvelope
@@ -341,6 +345,10 @@ export function buildSessionTimelineShowEnvelope(
 		scope: REFARM_TREE_SESSION_SCOPE,
 		operation: "show",
 		...args,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 
@@ -353,6 +361,10 @@ export function buildGitTimelineShowEnvelope(
 		scope: REFARM_TREE_GIT_SCOPE,
 		operation: "show",
 		node,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 

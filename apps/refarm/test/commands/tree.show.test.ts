@@ -38,6 +38,10 @@ describe("refarm tree show", () => {
 			command: "tree",
 			scope: "session",
 			operation: "show",
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 			total: 2,
 			node: { nodeId: SESSION["@id"], kind: "session" },
 		});
@@ -59,6 +63,10 @@ describe("refarm tree show", () => {
 			command: "tree",
 			scope: "git",
 			operation: "show",
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 			node: {
 				nodeId: "abcdef1234567890abcdef1234567890abcdef12",
 				kind: "git",
