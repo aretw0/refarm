@@ -1,3 +1,4 @@
+import { MODEL_ID_ENV_VAR } from "@refarm.dev/config";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -15,7 +16,7 @@ const CONFIG_ENV_MAP: Record<string, string> = {
 	MODEL_TOOL_CALL_MAX_ITER: "MODEL_TOOL_CALL_MAX_ITER",
 	MODEL_STREAM_RESPONSES: "MODEL_STREAM_RESPONSES",
 	MODEL_SYSTEM: "MODEL_SYSTEM",
-	MODEL_ID: "MODEL_ID",
+	MODEL_ID: MODEL_ID_ENV_VAR,
 };
 
 async function readJsonConfig(filePath: string): Promise<Record<string, unknown> | null> {
