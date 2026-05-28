@@ -8,6 +8,7 @@ import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
 import { extensionCommand } from "../../src/commands/extension.js";
+import { healthCommand } from "../../src/commands/health.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
@@ -540,6 +541,7 @@ describe("JSON next command contract", () => {
 					args: ["--input", status.path, "--json"],
 				},
 				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
+				{ id: "health", command: healthCommand, args: ["--json"] },
 				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
 				{
 					id: "open-url-dry-run",
