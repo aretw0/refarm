@@ -855,6 +855,7 @@ describe("JSON next command contract", () => {
 				},
 				{ id: "extension-list", command: extensionCommand, args: ["list", "--json"] },
 				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
+				{ id: "extension-save-missing-scope", command: extensionCommand, args: ["save", "my-tool", "--json"] },
 				{ id: "guide", command: createContractGuideCommand(), args: ["--json"] },
 				{
 					id: "headless-action-request",
