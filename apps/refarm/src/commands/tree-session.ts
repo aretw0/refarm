@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { refarmCommand } from "./command-handoff.js";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
@@ -25,6 +26,14 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineNode,
 } from "./tree-model.js";
+
+function treeShowCommand(id: string): string {
+	return refarmCommand(["tree", "show", id, "--json"]);
+}
+
+function treePreviewSwitchCommand(id: string): string {
+	return refarmCommand(["tree", "preview", id, "--switch", "--json"]);
+}
 
 interface SessionNode {
 	"@id": string;
@@ -345,8 +354,8 @@ export async function previewSessionTree(
 				error: "session-tree-entry-not-found",
 				message: `No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
 				prefix,
-				nextAction: `refarm tree show ${formatSessionId(history.session["@id"])} --json`,
-				nextCommand: `refarm tree show ${formatSessionId(history.session["@id"])} --json`,
+				nextAction: treeShowCommand(formatSessionId(history.session["@id"])),
+				nextCommand: treeShowCommand(formatSessionId(history.session["@id"])),
 				extra: {
 					entryId: opts.at,
 					sessionId: history.session["@id"],
@@ -423,8 +432,8 @@ export async function switchSessionTree(
 				error: "session-tree-already-active",
 				message: `Session "${node.metadata.shortId}" is already active.`,
 				prefix,
-				nextAction: `refarm tree show ${node.metadata.shortId} --json`,
-				nextCommand: `refarm tree show ${node.metadata.shortId} --json`,
+				nextAction: treeShowCommand(node.metadata.shortId),
+				nextCommand: treeShowCommand(node.metadata.shortId),
 				extra: {
 					sessionId: node.nodeId,
 				},
@@ -451,10 +460,10 @@ export async function switchSessionTree(
 				error: "session-tree-switch-failed",
 				message,
 				prefix,
-				nextAction: `refarm tree preview ${node.metadata.shortId} --switch --json`,
-				nextCommand: `refarm tree preview ${node.metadata.shortId} --switch --json`,
+				nextAction: treePreviewSwitchCommand(node.metadata.shortId),
+				nextCommand: treePreviewSwitchCommand(node.metadata.shortId),
 				nextCommands: [
-					`refarm tree preview ${node.metadata.shortId} --switch --json`,
+					treePreviewSwitchCommand(node.metadata.shortId),
 					TREE_SESSION_LIST_JSON_COMMAND,
 				],
 				extra: {

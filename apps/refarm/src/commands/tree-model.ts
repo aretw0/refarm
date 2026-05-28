@@ -1,3 +1,4 @@
+import { refarmCommand } from "./command-handoff.js";
 import {
 	createExecutionPlanHandoff,
 	type ExecutionPlanBase,
@@ -345,9 +346,15 @@ export function buildSessionForkPreviewEnvelope(args: {
 	name?: string;
 }): RefarmSessionTimelinePreviewEnvelope {
 	const { node, branchPointEntryId, name } = args;
-	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
 	const branchName = name ?? "<branch-name>";
-	const command = `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`;
+	const command = refarmCommand([
+		"sessions",
+		"fork",
+		node.metadata.shortId,
+		...(branchPointEntryId ? ["--at", branchPointEntryId] : []),
+		"--name",
+		branchName,
+	]);
 	const plan: RefarmSessionTimelineForkPreviewPlan = {
 		action: "fork",
 		destructive: false,
@@ -397,7 +404,7 @@ export function buildSessionSwitchPreviewEnvelope(args: {
 					blockedReason: `Session "${node.metadata.shortId}" is already active.`,
 				}
 			: {}),
-		recommendedCommand: `refarm tree switch ${node.metadata.shortId}`,
+		recommendedCommand: refarmCommand(["tree", "switch", node.metadata.shortId]),
 		effects: {
 			activePointerChanged: true,
 			branchCreated: false,
@@ -441,7 +448,7 @@ export function buildSessionSwitchEnvelope(args: {
 			currentSessionIdBefore,
 			currentSessionIdAfter,
 			targetSessionId: node.nodeId,
-			command: `refarm tree switch ${node.metadata.shortId}`,
+			command: refarmCommand(["tree", "switch", node.metadata.shortId]),
 		},
 	};
 }
@@ -453,7 +460,15 @@ export function buildGitBranchPreviewEnvelope(args: {
 }): RefarmGitTimelinePreviewEnvelope {
 	const { node, name, branchAlreadyExists } = args;
 	const branchName = name ?? "<branch-name>";
-	const command = `refarm tree fork --scope git ${node.metadata.shortId} --name ${branchName}`;
+	const command = refarmCommand([
+		"tree",
+		"fork",
+		"--scope",
+		"git",
+		node.metadata.shortId,
+		"--name",
+		branchName,
+	]);
 	const readyToExecute = Boolean(name) && branchAlreadyExists === false;
 	const blockedReason = !name
 		? "Provide a branch name with --name before executing tree fork."
@@ -509,7 +524,13 @@ export function buildGitSwitchPreviewEnvelope(args: {
 						blockedReason:
 							"Git worktree must be clean before tree switch execution.",
 					}),
-		recommendedCommand: `refarm tree switch --scope git ${name}`,
+		recommendedCommand: refarmCommand([
+			"tree",
+			"switch",
+			"--scope",
+			"git",
+			name,
+		]),
 		effects: {
 			activePointerChanged: true,
 			branchCreated: false,
