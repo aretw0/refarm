@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	binaryCommand,
@@ -61,4 +64,29 @@ describe("command handoff helpers", () => {
 			"refarm check",
 		]);
 	});
+
+	it("keeps cli source handoff commands behind helpers", () => {
+		const srcDir = path.dirname(fileURLToPath(import.meta.url));
+		const sourceFiles = listSourceFiles(srcDir).filter(
+			(file) => !file.endsWith(".test.ts"),
+		);
+		const offenders = sourceFiles.flatMap((file) => {
+			const source = readFileSync(file, "utf8");
+			const matches = source.match(/["'`]refarm\s+[a-z][^"'`]*/g) ?? [];
+			return matches.map((match) => `${path.relative(srcDir, file)}: ${match}`);
+		});
+
+		expect(offenders).toEqual([]);
+	});
 });
+
+function listSourceFiles(dir: string): string[] {
+	return readdirSync(dir).flatMap((entry) => {
+		const fullPath = path.join(dir, entry);
+		const stats = statSync(fullPath);
+		if (stats.isDirectory()) {
+			return entry === "__fixtures__" ? [] : listSourceFiles(fullPath);
+		}
+		return fullPath.endsWith(".ts") ? [fullPath] : [];
+	});
+}
