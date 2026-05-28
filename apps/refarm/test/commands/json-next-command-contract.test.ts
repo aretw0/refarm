@@ -20,6 +20,8 @@ import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
 import { createTaskCommand } from "../../src/commands/task.js";
 import { createTasksCommand } from "../../src/commands/tasks.js";
+import { createTelemetryCommand } from "../../src/commands/telemetry.js";
+import { createTidyCommand } from "../../src/commands/tidy.js";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
@@ -388,6 +390,43 @@ function createContractRuntimeCommand() {
 	});
 }
 
+function createContractTelemetryCommand() {
+	return createTelemetryCommand({
+		fetchTelemetry: vi.fn().mockResolvedValue({
+			queueDepth: 12,
+			inFlight: 5,
+			cancelRequests: 0,
+			generatedAt: "2026-05-01T00:00:00.000Z",
+			total: 20,
+			pending: 12,
+			inProgress: 5,
+			done: 2,
+			failed: 1,
+			cancelled: 0,
+		}),
+		fetchTelemetryWindow: vi.fn().mockResolvedValue({
+			windowMinutes: 60,
+			since: "2026-05-01T00:00:00.000Z",
+			terminal: 4,
+			failureRatePct: 25,
+			generatedAt: "2026-05-01T01:00:00.000Z",
+			total: 6,
+			pending: 0,
+			inProgress: 2,
+			done: 3,
+			failed: 1,
+			cancelled: 0,
+		}),
+	});
+}
+
+function createContractTidyCommand() {
+	return createTidyCommand({
+		cwd: () => ".",
+		run: vi.fn().mockResolvedValue({ exitCode: 0 }),
+	});
+}
+
 interface ParsedCommandJson {
 	handoffs?: Record<string, unknown>;
 	nextAction?: string | null;
@@ -638,6 +677,16 @@ describe("JSON next command contract", () => {
 					id: "task-resume",
 					command: createContractTaskCommand(),
 					args: ["resume", "--json"],
+				},
+				{
+					id: "telemetry",
+					command: createContractTelemetryCommand(),
+					args: ["--json"],
+				},
+				{
+					id: "tidy-imports-dry-run",
+					command: createContractTidyCommand(),
+					args: ["imports", "--check", "--dry-run", "--json", "apps/refarm/src/program.ts"],
 				},
 				{
 					id: "tree-invalid-list-scope",
