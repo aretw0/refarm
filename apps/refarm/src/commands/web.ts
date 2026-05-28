@@ -19,6 +19,7 @@ import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guar
 import { resolveLaunchMode } from "./launch-policy.js";
 import {
 	createPackageScriptCommand,
+	PACKAGE_MANAGER_OVERRIDE,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
@@ -173,7 +174,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				"Notes:",
 				"  Without --launch, this runs a renderer preflight only.",
 				"  --dry-run prints launch readiness and the resolved process command without starting it.",
-				`  Override package-manager detection with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGERS.join("|")}.`,
+				`  Override package-manager detection with ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGERS.join("|")}.`,
 				"  --open follows operator.openExternalLinks; set it with refarm config.",
 			].join("\n"),
 		)

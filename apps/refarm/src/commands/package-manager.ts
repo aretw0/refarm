@@ -16,7 +16,7 @@ import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 export type { PackageManagerName } from "@refarm.dev/config";
 export const PACKAGE_MANAGERS = SHARED_PACKAGE_MANAGERS;
-const PACKAGE_MANAGER_OVERRIDE = PACKAGE_MANAGER_OVERRIDE_ENV_VAR;
+export const PACKAGE_MANAGER_OVERRIDE = PACKAGE_MANAGER_OVERRIDE_ENV_VAR;
 
 export interface RefarmPackageScriptCommandOptions
 	extends PackageScriptCommandOptions {
@@ -147,7 +147,7 @@ export function createPackageManagerCommand(deps?: {
 				"Examples:",
 				"  $ refarm package-manager",
 				"  $ refarm package-manager --json",
-				"  $ REFARM_PACKAGE_MANAGER=npm refarm package-manager --json",
+				`  $ ${PACKAGE_MANAGER_OVERRIDE}=npm refarm package-manager --json`,
 				"",
 				"Notes:",
 				"  Refarm detects packageManager from package.json, then lockfiles, then npm.",

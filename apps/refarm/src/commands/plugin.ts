@@ -20,6 +20,7 @@ import {
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
+	PACKAGE_MANAGER_OVERRIDE,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
 import {
@@ -775,14 +776,14 @@ pluginCommand
 			"  $ refarm plugin bundle ./plugin.wasm",
 			"  $ refarm plugin bundle ./plugin.wasm --dry-run --json",
 			"  $ refarm plugin bundle ./plugin.wasm --name my-plugin --output ./dist",
-			"  $ REFARM_PACKAGE_MANAGER=npm refarm plugin bundle ./plugin.wasm",
+			`  $ ${PACKAGE_MANAGER_OVERRIDE}=npm refarm plugin bundle ./plugin.wasm`,
 			"",
 			"Notes:",
 			"  This command runs jco through the detected package manager.",
 			"  Refarm maps this to pnpm exec, npm exec --, yarn, or bun x",
 			"  based on the project packageManager field or lockfile.",
 			"  Override detection with",
-			`  REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
+			`  ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
 		].join("\n"),
 	)
 	.action(async (input: string, options: { output: string; name?: string; dryRun?: boolean; json?: boolean }) => {
@@ -887,7 +888,7 @@ pluginCommand
 						operation: "bundle",
 						error: "plugin-bundle-failed",
 						message,
-						nextAction: `Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}, or install jco for the detected package manager.`,
+						nextAction: `Override package manager with ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGER_OVERRIDE_HELP}, or install jco for the detected package manager.`,
 						nextCommand: bundleRefarmCommand,
 						nextCommands: [
 							bundleRefarmCommand,
@@ -920,7 +921,7 @@ pluginCommand
 				console.error(`  ✗ Bundle failed: ${message}`);
 				console.error(`    Command: ${command.display}`);
 				console.error(
-					`    Override package manager with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
+					`    Override package manager with ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGER_OVERRIDE_HELP}.`,
 				);
 			}
 			process.exitCode = result?.exitCode && result.exitCode !== 0 ? result.exitCode : 1;

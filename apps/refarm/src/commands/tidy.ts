@@ -13,6 +13,7 @@ import {
 } from "./json-output.js";
 import {
 	createPackageScriptCommand,
+	PACKAGE_MANAGER_OVERRIDE,
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
 
@@ -117,7 +118,7 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 				"Notes:",
 				"  imports defaults to changed source files, matching the imports:organize package script.",
 				"  It skips generated artifacts such as dist/, build/, .turbo/, node_modules/, and .d.ts.",
-				`  Override package-manager detection with REFARM_PACKAGE_MANAGER=${PACKAGE_MANAGERS.join("|")}.`,
+				`  Override package-manager detection with ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGERS.join("|")}.`,
 			].join("\n"),
 		);
 
