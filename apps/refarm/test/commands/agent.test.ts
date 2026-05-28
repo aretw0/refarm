@@ -1742,6 +1742,54 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("adds import organizer validation for affected script changes", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-scripts-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		mkdirSync(path.join(root, "scripts"), { recursive: true });
+		writeFileSync(
+			path.join(root, "scripts", "organize-imports-lib.mjs"),
+			"export const changed = true;\n",
+			"utf8",
+		);
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { command?: string } }[];
+			selection: {
+				affectedScriptChecks?: string[];
+				affectedWorkspaces?: string[];
+			};
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"script-organize-imports-test",
+		]);
+		expect(payload.steps.at(-1)?.command).toBe(
+			"node --test scripts/ci/test-organize-imports-lib.mjs",
+		);
+		expect(payload.steps.at(-1)?.process?.command).toBe("node");
+		expect(payload.selection.affectedScriptChecks).toEqual(["organize-imports"]);
+		expect(payload.selection.affectedWorkspaces).toEqual([]);
+		logSpy.mockRestore();
+	});
+
 	it("adds package test scripts only when requested", async () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-tests-"));
 		tempDirs.push(root);

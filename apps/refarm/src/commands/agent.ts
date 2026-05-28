@@ -1,7 +1,6 @@
 import { readGitCommand } from "@refarm.dev/cli/git-command";
 import {
 	affectedWorkspacePackagesFromChangedPaths,
-	affectedWorkspacePackagesFromGitStatus,
 	changedFilePathsFromGitNameOnly,
 	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
@@ -413,6 +412,7 @@ interface AgentFinishSelection {
 	includeTests?: boolean;
 	lane?: AgentFinishLane;
 	profile: AgentFinishProfile;
+	affectedScriptChecks?: string[];
 	since?: string;
 	sinceRef?: string;
 	workspace?: string;
@@ -427,10 +427,12 @@ interface AgentFinishSelectionMetadata {
 	sinceRef: string | null;
 	validationScope: AgentFinishLaneValidationScope | "package" | "quick";
 	workspace: string | null;
+	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
 }
 
 interface AgentFinishSelectionContext {
+	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
 	sinceRef?: string;
 }
@@ -556,6 +558,41 @@ function handoffContractStep(): CommandPlanStep {
 	);
 }
 
+function scriptTestStep(input: {
+	id: string;
+	args: string[];
+	description: string;
+}): CommandPlanStep {
+	const repoRoot = findWorkspaceRoot();
+	return {
+		id: input.id,
+		command: input.args.join(" "),
+		args: input.args,
+		description: input.description,
+		effect: "verify",
+		process: {
+			command: input.args[0]!,
+			args: input.args.slice(1),
+			cwd: repoRoot,
+			display: input.args.join(" "),
+			packageManager: null,
+		},
+	};
+}
+
+function affectedScriptFinishSteps(checks: string[] = []): CommandPlanStep[] {
+	return checks.map((check) => {
+		if (check === "organize-imports") {
+			return scriptTestStep({
+				id: "script-organize-imports-test",
+				args: ["node", "--test", "scripts/ci/test-organize-imports-lib.mjs"],
+				description: "Run the import organizer unit tests.",
+			});
+		}
+		throw new Error(`Unknown affected script check: ${check}`);
+	});
+}
+
 function packageFinishStepsForWorkspace(
 	workspace: string,
 	idPrefix: string,
@@ -592,6 +629,13 @@ function affectedPackageFinishSteps(
 }
 
 function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
+	return affectedWorkspacePackagesFromChangedPaths(
+		options.repoRoot ?? findWorkspaceRoot(),
+		changedPathsFromGit(options),
+	);
+}
+
+function changedPathsFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
 	try {
 		const status = readGitCommand(
@@ -599,22 +643,36 @@ function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string 
 			{ cwd: repoRoot },
 		);
 		if (!options.since) {
-			return affectedWorkspacePackagesFromGitStatus(repoRoot, status);
+			return changedFilePathsFromGitStatus(status);
 		}
 		const diff = readGitCommand(
 			["diff", "--name-only", options.since, "--"],
 			{ cwd: repoRoot },
 		);
-		return affectedWorkspacePackagesFromChangedPaths(repoRoot, [
+		return [
 			...changedFilePathsFromGitNameOnly(diff),
 			...changedFilePathsFromGitStatus(status),
-		]);
+		];
 	} catch {
 		if (options.since) {
 			throw new Error(`Could not inspect changed workspaces since ${options.since}. Check that the ref exists.`);
 		}
 		return [];
 	}
+}
+
+function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
+	const checks = new Set<string>();
+	for (const file of paths) {
+		if (
+			file === "scripts/organize-imports-lib.mjs" ||
+			file === "scripts/organize-imports.mjs" ||
+			file === "scripts/ci/test-organize-imports-lib.mjs"
+		) {
+			checks.add("organize-imports");
+		}
+	}
+	return [...checks].sort();
 }
 
 function resolveSinceRef(repoRoot: string, since: string): string {
@@ -733,6 +791,7 @@ function selectedFinishSteps(options: {
 	lane?: AgentFinishLane;
 	profile?: AgentFinishProfile;
 	workspace?: string;
+	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
 } = {}): CommandPlanStep[] {
 	const steps = options.fix
@@ -745,10 +804,14 @@ function selectedFinishSteps(options: {
 		return [...steps, ...packageFinishSteps(options.workspace ?? ".", options.includeTests)];
 	}
 	if (options.profile === "affected") {
-		return [...steps, ...affectedPackageFinishSteps(
-			options.includeTests,
-			options.affectedWorkspaces,
-		)];
+		return [
+			...steps,
+			...affectedScriptFinishSteps(options.affectedScriptChecks),
+			...affectedPackageFinishSteps(
+				options.includeTests,
+				options.affectedWorkspaces,
+			),
+		];
 	}
 	return steps;
 }
@@ -759,6 +822,8 @@ function plannedFinishCommands(options: {
 	lane?: AgentFinishLane;
 	profile?: AgentFinishProfile;
 	workspace?: string;
+	affectedScriptChecks?: string[];
+	affectedWorkspaces?: string[];
 } = {}): string[] {
 	return commandPlanStepCommands(selectedFinishSteps(options));
 }
@@ -771,6 +836,7 @@ function runAgentFinishPlan(
 		lane?: AgentFinishLane;
 		profile?: AgentFinishProfile;
 		workspace?: string;
+		affectedScriptChecks?: string[];
 		affectedWorkspaces?: string[];
 	} = {},
 ): CommandPlanRunResult {
@@ -780,7 +846,10 @@ function runAgentFinishPlan(
 }
 
 function buildAgentFinishPlanEnvelope(
-	selection: AgentFinishSelection & { affectedWorkspaces?: string[] },
+	selection: AgentFinishSelection & {
+		affectedScriptChecks?: string[];
+		affectedWorkspaces?: string[];
+	},
 	affectedWorkspaces?: string[],
 ) {
 	return {
@@ -807,7 +876,10 @@ function finishSelectionMetadata(
 		validationScope: finishValidationScope(selection),
 		workspace: selection.profile === "package" ? selection.workspace ?? "." : null,
 		...(selection.profile === "affected"
-			? { affectedWorkspaces: affectedWorkspaces ?? [] }
+			? {
+					affectedScriptChecks: selection.affectedScriptChecks ?? [],
+					affectedWorkspaces: affectedWorkspaces ?? [],
+				}
 			: {}),
 	};
 }
@@ -848,8 +920,10 @@ function resolveFinishSelectionContext(
 	if (selection.profile !== "affected") return {};
 	const repoRoot = findWorkspaceRoot();
 	const sinceRef = selection.since ? resolveSinceRef(repoRoot, selection.since) : undefined;
+	const changedPaths = changedPathsFromGit({ repoRoot, since: sinceRef });
 	return {
-		affectedWorkspaces: affectedWorkspacesFromGit({ repoRoot, since: sinceRef }),
+		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths),
+		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
 		...(sinceRef ? { sinceRef } : {}),
 	};
 }
@@ -1289,6 +1363,9 @@ Notes:
 			const selectionWithAffected = {
 				...selection,
 				...(selectionContext.sinceRef ? { sinceRef: selectionContext.sinceRef } : {}),
+				...(selectionContext.affectedScriptChecks
+					? { affectedScriptChecks: selectionContext.affectedScriptChecks }
+					: {}),
 				...(selectionContext.affectedWorkspaces
 					? { affectedWorkspaces: selectionContext.affectedWorkspaces }
 					: {}),
