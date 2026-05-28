@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import { describe, expect, it } from "vitest";
 import {
 	createWebSurfaceActionDryRunEnvelope,
 	createWebSurfaceActionRows,
@@ -104,6 +104,10 @@ Available Web actions:
 			reason: "dry-run",
 			readiness: { status: "ready", label: "Ready: yes" },
 			renderer: "web",
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 			selection: {
 				requested: "2",
 				source: "index",
