@@ -1,3 +1,4 @@
+import { refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
@@ -116,9 +117,10 @@ export type OperatorResumeEnvelope =
 	JsonSuccessEnvelope<OperatorResumeSummary>;
 
 const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
-	runtimeDoctor: "refarm runtime doctor --next-command",
-	taskList: "refarm task list --json",
-	sessionShow: (sessionId) => `refarm tree show ${formatOperatorResumeSessionId(sessionId)} --json`,
+	runtimeDoctor: refarmCommand(["runtime", "doctor", "--next-command"]),
+	taskList: refarmCommand(["task", "list", "--json"]),
+	sessionShow: (sessionId) =>
+		refarmCommand(["tree", "show", formatOperatorResumeSessionId(sessionId), "--json"]),
 };
 
 export function formatOperatorResumeSessionId(id: string): string {
