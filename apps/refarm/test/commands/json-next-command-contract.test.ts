@@ -437,6 +437,90 @@ function createContractRuntimeCommand() {
 	});
 }
 
+function createContractSessionsCommand() {
+	const session = {
+		"@id": "urn:refarm:session:v1:abc123def456",
+		"@type": "Session",
+		name: "contract session",
+		created_at_ns: 1_700_000_000_000_000_000,
+		leaf_entry_id: "entry-abc",
+	};
+	const fork = {
+		"@id": "urn:refarm:session:v1:fork123def456",
+		"@type": "Session",
+		name: "experiment",
+		created_at_ns: 1_700_000_000_000_000_001,
+		leaf_entry_id: "entry-fork",
+		parent_session_id: session["@id"],
+	};
+	let activeSessionId: string | null = session["@id"];
+	const fetch = vi.fn().mockImplementation(async (url: string | URL, init?: RequestInit) => {
+		const value = String(url);
+		if (value.endsWith("/sessions") && init?.method === "POST") {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({ session }),
+			};
+		}
+		if (value.endsWith("/sessions")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [session] }),
+			};
+		}
+		if (value.endsWith("/fork")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({ session: fork }),
+			};
+		}
+		if (value.endsWith("/history")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session,
+					entries: [
+						{
+							id: "entry-abc",
+							kind: "user",
+							content: "hello",
+							timestamp_ns: 1_700_000_000_000_000_000,
+						},
+					],
+					total: 1,
+				}),
+			};
+		}
+		return {
+			ok: false,
+			status: 404,
+			json: async () => ({ error: "not found" }),
+		};
+	});
+	return createSessionsCommand({
+		clearActiveSessionId: vi.fn().mockImplementation(() => {
+			activeSessionId = null;
+			return true;
+		}),
+		fetch,
+		readActiveSessionId: vi.fn().mockImplementation(() => activeSessionId),
+		sidecarUrl: (path) => `http://contract.test${path}`,
+		writeActiveSessionIdAndVerify: vi.fn().mockImplementation((sessionId: string) => {
+			activeSessionId = sessionId;
+		}),
+	});
+}
+
+function createContractSessionsSubcommand(name: string) {
+	const command = createContractSessionsCommand().commands.find((entry) => entry.name() === name);
+	if (!command) throw new Error(`Missing sessions subcommand ${name}`);
+	return command;
+}
+
 function createContractSowCommand() {
 	const tokens: Record<string, unknown> = { modelProvider: "openai" };
 	return createSowCommand({
@@ -743,7 +827,32 @@ describe("JSON next command contract", () => {
 				},
 				{
 					id: "sessions-list",
-					command: createSessionsCommand(),
+					command: createContractSessionsCommand(),
+					args: ["--json"],
+				},
+				{
+					id: "sessions-new",
+					command: createContractSessionsSubcommand("new"),
+					args: ["--name", "planning", "--json"],
+				},
+				{
+					id: "sessions-use",
+					command: createContractSessionsSubcommand("use"),
+					args: ["abc123", "--json"],
+				},
+				{
+					id: "sessions-show",
+					command: createContractSessionsSubcommand("show"),
+					args: ["abc123", "--json"],
+				},
+				{
+					id: "sessions-fork",
+					command: createContractSessionsSubcommand("fork"),
+					args: ["abc123", "--name", "experiment", "--json"],
+				},
+				{
+					id: "sessions-clear",
+					command: createContractSessionsSubcommand("clear"),
 					args: ["--json"],
 				},
 				{

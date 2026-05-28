@@ -65,6 +65,24 @@ interface SessionForkReport {
 	branchEntryId?: string;
 }
 
+type SessionsFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
+
+interface SessionsCommandDeps {
+	clearActiveSessionId?: () => boolean;
+	fetch?: SessionsFetch;
+	readActiveSessionId?: () => string | null;
+	sidecarUrl?: (path: string) => string;
+	writeActiveSessionIdAndVerify?: (sessionId: string) => void;
+}
+
+interface SessionsCommandServices {
+	clearActiveSessionId: () => boolean;
+	fetch: SessionsFetch;
+	readActiveSessionId: () => string | null;
+	sidecarUrl: (path: string) => string;
+	writeActiveSessionIdAndVerify: (sessionId: string) => void;
+}
+
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 
 function sessionShowJsonCommand(sessionId: string): string {
@@ -90,12 +108,26 @@ function printSessionJsonSuccess<TExtra extends object>(
 	);
 }
 
+function resolveSessionsCommandServices(
+	deps: SessionsCommandDeps = {},
+): SessionsCommandServices {
+	return {
+		clearActiveSessionId: deps.clearActiveSessionId ?? clearActiveSessionId,
+		fetch: deps.fetch ?? ((input, init) => fetch(input, init)),
+		readActiveSessionId: deps.readActiveSessionId ?? readActiveSessionId,
+		sidecarUrl: deps.sidecarUrl ?? sidecarUrl,
+		writeActiveSessionIdAndVerify:
+			deps.writeActiveSessionIdAndVerify ?? writeActiveSessionIdAndVerify,
+	};
+}
+
 function writeActiveSessionOrReport(
+	services: SessionsCommandServices,
 	targetSessionId: string,
 	opts: { json?: boolean; operation?: string } = {},
 ): boolean {
 	try {
-		writeActiveSessionIdAndVerify(targetSessionId);
+		services.writeActiveSessionIdAndVerify(targetSessionId);
 		return true;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
@@ -180,7 +212,8 @@ function formatAge(createdAtNs: number | undefined): string {
 	return "just now";
 }
 
-export function createSessionsCommand(): Command {
+export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
+	const services = resolveSessionsCommandServices(deps);
 	return new Command("sessions")
 		.description("List and manage conversation sessions")
 		.option("--json", "Output machine-readable session list")
@@ -212,7 +245,7 @@ export function createSessionsCommand(): Command {
 				.description("List recent sessions (default)")
 				.option("--json", "Output machine-readable session list")
 				.action(async (opts: { json?: boolean }) => {
-					await listSessions({ json: opts.json });
+					await listSessions(services, { json: opts.json });
 				}),
 		)
 		.addCommand(
@@ -221,7 +254,7 @@ export function createSessionsCommand(): Command {
 				.argument("<id>", "Session ID or unique prefix")
 				.option("--json", "Output machine-readable active session update")
 				.action(async (prefix: string, opts: { json?: boolean }) => {
-					await useSession(prefix, { json: opts.json });
+					await useSession(services, prefix, { json: opts.json });
 				}),
 		)
 		.addCommand(
@@ -230,7 +263,7 @@ export function createSessionsCommand(): Command {
 				.option("--name <name>", "Optional session name")
 				.option("--json", "Output machine-readable created session metadata")
 				.action(async (opts: { name?: string; json?: boolean }) => {
-					await createSession(opts);
+					await createSession(services, opts);
 				}),
 		)
 		.addCommand(
@@ -239,7 +272,7 @@ export function createSessionsCommand(): Command {
 				.argument("<id>", "Session ID or unique prefix")
 				.option("--json", "Output machine-readable session history")
 				.action(async (prefix: string, opts: { json?: boolean }) => {
-					await showSession(prefix, { json: opts.json });
+					await showSession(services, prefix, { json: opts.json });
 				}),
 		)
 		.addCommand(
@@ -256,7 +289,7 @@ export function createSessionsCommand(): Command {
 				.option("--json", "Output machine-readable fork result")
 				.action(
 					async (prefix: string, opts: { at?: string; name?: string; json?: boolean }) => {
-						await forkSession(prefix, opts);
+						await forkSession(services, prefix, opts);
 					},
 				),
 		)
@@ -265,7 +298,7 @@ export function createSessionsCommand(): Command {
 				.description("Clear the active session (next ask starts fresh)")
 				.option("--json", "Output machine-readable clear result")
 				.action((opts: { json?: boolean }) => {
-					const cleared = clearActiveSessionId();
+					const cleared = services.clearActiveSessionId();
 					if (opts.json) {
 						const report: ActiveSessionReport = {
 							action: "cleared",
@@ -284,12 +317,12 @@ export function createSessionsCommand(): Command {
 		)
 		.action(async (opts: { json?: boolean }) => {
 			// default action: list
-			await listSessions({ json: opts.json });
+			await listSessions(services, { json: opts.json });
 		});
 }
 
-async function fetchSessions(): Promise<SessionNode[]> {
-	const response = await fetch(sidecarUrl("/sessions"));
+async function fetchSessions(services: SessionsCommandServices): Promise<SessionNode[]> {
+	const response = await services.fetch(services.sidecarUrl("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -297,12 +330,15 @@ async function fetchSessions(): Promise<SessionNode[]> {
 	return body.sessions ?? [];
 }
 
-async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
-	const activeId = readActiveSessionId();
+async function listSessions(
+	services: SessionsCommandServices,
+	opts: { json?: boolean } = {},
+): Promise<void> {
+	const activeId = services.readActiveSessionId();
 
 	let sessions: SessionNode[];
 	try {
-		sessions = await fetchSessions();
+		sessions = await fetchSessions(services);
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
@@ -375,11 +411,14 @@ async function listSessions(opts: { json?: boolean } = {}): Promise<void> {
 	);
 }
 
-async function createSession(opts: { name?: string; json?: boolean }): Promise<void> {
+async function createSession(
+	services: SessionsCommandServices,
+	opts: { name?: string; json?: boolean },
+): Promise<void> {
 	let created: SessionNode;
 	try {
 		const body = opts.name ? { name: opts.name } : {};
-		const response = await fetch(sidecarUrl("/sessions"), {
+		const response = await services.fetch(services.sidecarUrl("/sessions"), {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
@@ -471,7 +510,7 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(created["@id"], { json: opts.json, operation: "new" })) return;
+	if (!writeActiveSessionOrReport(services, created["@id"], { json: opts.json, operation: "new" })) return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "created",
@@ -494,12 +533,13 @@ async function createSession(opts: { name?: string; json?: boolean }): Promise<v
 }
 
 async function useSession(
+	services: SessionsCommandServices,
 	prefix: string,
 	opts: { json?: boolean } = {},
 ): Promise<void> {
 	let sessions: SessionNode[];
 	try {
-		sessions = await fetchSessions();
+		sessions = await fetchSessions(services);
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
@@ -525,7 +565,7 @@ async function useSession(
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(matches[0]!["@id"], { json: opts.json, operation: "use" })) return;
+	if (!writeActiveSessionOrReport(services, matches[0]!["@id"], { json: opts.json, operation: "use" })) return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "switched",
@@ -544,6 +584,7 @@ async function useSession(
 }
 
 async function forkSession(
+	services: SessionsCommandServices,
 	prefix: string,
 	opts: { at?: string; name?: string; json?: boolean },
 ): Promise<void> {
@@ -553,8 +594,8 @@ async function forkSession(
 
 	let fork: SessionNode;
 	try {
-		const response = await fetch(
-			sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/fork`),
+		const response = await services.fetch(
+			services.sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/fork`),
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -616,7 +657,7 @@ async function forkSession(
 	}
 
 	// Auto-switch to the new fork.
-	if (!writeActiveSessionOrReport(fork["@id"], { json: opts.json, operation: "fork" })) return;
+	if (!writeActiveSessionOrReport(services, fork["@id"], { json: opts.json, operation: "fork" })) return;
 	if (opts.json) {
 		const report: SessionForkReport = {
 			action: "forked",
@@ -645,6 +686,7 @@ async function forkSession(
 }
 
 async function showSession(
+	services: SessionsCommandServices,
 	prefix: string,
 	opts: { json?: boolean } = {},
 ): Promise<void> {
@@ -652,8 +694,8 @@ async function showSession(
 	const encodedId = encodeURIComponent(prefix);
 	let history: SessionHistory;
 	try {
-		const response = await fetch(
-			sidecarUrl(`/sessions/${encodedId}/history`),
+		const response = await services.fetch(
+			services.sidecarUrl(`/sessions/${encodedId}/history`),
 		);
 		const body = (await response.json()) as SessionHistory & {
 			error?: string;
