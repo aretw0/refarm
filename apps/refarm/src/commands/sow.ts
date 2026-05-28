@@ -46,10 +46,13 @@ function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function hasModelCredential(tokens: Record<string, unknown>): boolean {
+function hasModelCredential(
+	tokens: Record<string, unknown>,
+	env: NodeJS.ProcessEnv,
+): boolean {
 	const provider = stringValue(tokens.modelProvider);
 	if (!provider) return false;
-	return hasUsableModelCredential(provider, tokens, process.env);
+	return hasUsableModelCredential(provider, tokens, env);
 }
 
 function isPromptCancelledError(error: unknown): boolean {
@@ -67,15 +70,50 @@ interface SowOptions {
 	json?: boolean;
 }
 
-function credentialSummary(tokens: Record<string, unknown>) {
+interface SowSilo {
+	loadTokens(): Promise<unknown>;
+	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
+}
+
+export interface SowDeps {
+	createSilo(): SowSilo;
+	createOperator(): ReturnType<typeof createStdioOperatorChannel>;
+	env(): NodeJS.ProcessEnv;
+	tryOpenUrl: typeof tryOpenUrl;
+	providers: {
+		model: typeof modelCredentialProvider;
+		github: typeof githubCredentialProvider;
+		cloudflare: typeof cloudflareCredentialProvider;
+	};
+}
+
+function defaultSowDeps(): SowDeps {
 	return {
-		model: hasModelCredential(tokens),
+		createSilo: () => new SiloCore(),
+		createOperator: createStdioOperatorChannel,
+		env: () => process.env,
+		tryOpenUrl,
+		providers: {
+			model: modelCredentialProvider,
+			github: githubCredentialProvider,
+			cloudflare: cloudflareCredentialProvider,
+		},
+	};
+}
+
+function credentialSummary(
+	tokens: Record<string, unknown>,
+	env: NodeJS.ProcessEnv,
+) {
+	return {
+		model: hasModelCredential(tokens, env),
 		github: Boolean(stringValue(tokens.githubToken)),
 		cloudflare: Boolean(stringValue(tokens.cloudflareToken)),
 	};
 }
 
-export const sowCommand = new Command("sow")
+export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
+	return new Command("sow")
 	.description(SOW_COMMAND_DESCRIPTION)
 	.option("--model <ref>", SOW_MODEL_OPTION_DESCRIPTION)
 	.option("--github", "Configure GitHub credentials")
@@ -85,10 +123,11 @@ export const sowCommand = new Command("sow")
 	.addHelpText("after", SOW_HELP_TEXT)
 	.action(async (opts: SowOptions) => {
 		try {
-			const silo = new SiloCore();
+			const silo = deps.createSilo();
 			const stored = (await silo.loadTokens()) as Record<string, unknown>;
 			let currentTokens = { ...stored };
-			const ctx = { tryOpenUrl, operator: createStdioOperatorChannel() };
+			const env = deps.env();
+			const ctx = { tryOpenUrl: deps.tryOpenUrl, operator: deps.createOperator() };
 			const initialModelRef = parseModelRef(opts.model, stringValue(stored.modelProvider));
 			let modelRef = initialModelRef;
 			if (opts.model !== undefined && !initialModelRef) {
@@ -136,7 +175,7 @@ export const sowCommand = new Command("sow")
 				return;
 			}
 
-			const needsModel = !hasModelCredential(stored);
+			const needsModel = !hasModelCredential(stored, env);
 			const configureModelRef = modelRef !== null;
 			const configureModel = (needsModel && !configureModelRef) || Boolean(opts.all);
 			const configureGithub = Boolean(opts.github) || Boolean(opts.all);
@@ -151,7 +190,7 @@ export const sowCommand = new Command("sow")
 							extra: {
 								action: "sow",
 								status: "configured",
-								credentials: credentialSummary(currentTokens),
+								credentials: credentialSummary(currentTokens, env),
 							},
 						}),
 					);
@@ -220,7 +259,7 @@ export const sowCommand = new Command("sow")
 				if (!needsModel) {
 					console.log(chalk.dim(`  Model: reconfiguring (was: ${stringValue(stored.modelProvider)})`));
 				}
-				const credential = await modelCredentialProvider.collectModel(ctx);
+				const credential = await deps.providers.model.collectModel(ctx);
 
 				if (credential.oauthCredentials) {
 					const modelProvider = OAUTH_PROVIDER_TO_MODEL_PROVIDER[credential.provider] ?? credential.provider;
@@ -270,13 +309,13 @@ export const sowCommand = new Command("sow")
 					question: "Your GitHub username or org",
 					default: stringValue(stored.githubOwner) ?? "refarm-dev",
 				});
-				const githubToken = await githubCredentialProvider.collect(ctx);
+				const githubToken = await deps.providers.github.collect(ctx);
 				await silo.saveTokens({ githubToken, githubOwner: owner });
 				currentTokens = { ...currentTokens, githubToken, githubOwner: owner };
 			}
 
 			if (configureCloudflare) {
-				const cloudflareToken = await cloudflareCredentialProvider.collect(ctx);
+				const cloudflareToken = await deps.providers.cloudflare.collect(ctx);
 				await silo.saveTokens({ cloudflareToken });
 				currentTokens = { ...currentTokens, cloudflareToken };
 			}
@@ -300,7 +339,7 @@ export const sowCommand = new Command("sow")
 						extra: {
 							action: "sow",
 							status: configureModelRef ? "updated" : "configured",
-							credentials: credentialSummary(currentTokens),
+							credentials: credentialSummary(currentTokens, env),
 							modelRoute: modelRef?.provider
 								? {
 										scope: "default",
@@ -336,3 +375,6 @@ export const sowCommand = new Command("sow")
 			console.log(chalk.gray("\n  Cancelled."));
 		}
 	});
+}
+
+export const sowCommand = createSowCommand();

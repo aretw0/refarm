@@ -19,6 +19,7 @@ import { provisionCommand } from "../../src/commands/provision.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
+import { createSowCommand } from "../../src/commands/sow.js";
 import { createTaskCommand } from "../../src/commands/task.js";
 import { createTasksCommand } from "../../src/commands/tasks.js";
 import { createTelemetryCommand } from "../../src/commands/telemetry.js";
@@ -408,6 +409,40 @@ function createContractRuntimeCommand() {
 	});
 }
 
+function createContractSowCommand() {
+	const tokens: Record<string, unknown> = { modelProvider: "openai" };
+	return createSowCommand({
+		createSilo: () => ({
+			loadTokens: vi.fn().mockResolvedValue(tokens),
+			saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
+				Object.assign(tokens, update);
+				return {};
+			}),
+		}),
+		createOperator: () => ({ ask: vi.fn() }),
+		env: () => ({}),
+		tryOpenUrl: vi.fn(),
+		providers: {
+			model: {
+				id: "model",
+				label: "Model Provider",
+				collect: vi.fn(),
+				collectModel: vi.fn(),
+			},
+			github: {
+				id: "github",
+				label: "GitHub",
+				collect: vi.fn(),
+			},
+			cloudflare: {
+				id: "cloudflare",
+				label: "Cloudflare",
+				collect: vi.fn(),
+			},
+		},
+	});
+}
+
 function createContractTelemetryCommand() {
 	return createTelemetryCommand({
 		fetchTelemetry: vi.fn().mockResolvedValue({
@@ -681,6 +716,11 @@ describe("JSON next command contract", () => {
 					id: "sessions-list",
 					command: createSessionsCommand(),
 					args: ["--json"],
+				},
+				{
+					id: "sow-model-route",
+					command: createContractSowCommand(),
+					args: ["--model", "openai/gpt-5.5", "--json"],
 				},
 				{
 					id: "tasks-list",
