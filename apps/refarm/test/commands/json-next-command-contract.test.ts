@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createAgentCommand } from "../../src/commands/agent.js";
+import { createCheckCommand } from "../../src/commands/check.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { extensionCommand } from "../../src/commands/extension.js";
@@ -300,6 +301,55 @@ function createContractTaskCommand() {
 	return createTaskCommand(() => adapter as never, recorder as never);
 }
 
+function createContractCheckCommand() {
+	return createCheckCommand({
+		runHealth: vi.fn().mockResolvedValue({
+			command: "health",
+			operation: "audit",
+			ok: true,
+			issueCount: 0,
+			results: { git: [], builds: [], alignment: [] },
+			resolution: [],
+			recommendations: [],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+		}),
+		runDoctor: vi.fn().mockResolvedValue({
+			command: "doctor",
+			operation: "diagnose",
+			ok: false,
+			failureCount: 1,
+			warningCount: 0,
+			failures: ["runtime:not-ready"],
+			warnings: [],
+			informational: [],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "Runtime is not ready.",
+					action: "Start the runtime.",
+					command: "refarm runtime ensure --wait --next-command",
+				},
+			],
+			nextAction: "Start the runtime.",
+			nextActions: ["Start the runtime."],
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: ["refarm runtime ensure --wait --next-command"],
+			host: {
+				app: "apps/refarm",
+				command: "refarm",
+				profile: "dev",
+				version: "0.1.0",
+				packageManager: "pnpm",
+			},
+			status: makeReadyStatus("tui"),
+		}),
+	});
+}
+
 interface ParsedCommandJson {
 	handoffs?: Record<string, unknown>;
 	nextAction?: string | null;
@@ -459,6 +509,11 @@ describe("JSON next command contract", () => {
 						cwd: () => ".",
 						env: { REFARM_PACKAGE_MANAGER: "npm" },
 					}),
+					args: ["--json"],
+				},
+				{
+					id: "check",
+					command: createContractCheckCommand(),
 					args: ["--json"],
 				},
 				{
