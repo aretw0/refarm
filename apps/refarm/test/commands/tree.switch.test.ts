@@ -63,6 +63,13 @@ describe("refarm tree switch and guards", () => {
 			scope: "git",
 			operation: "switch",
 			reason: "executed",
+			nextAction: "refarm tree show --scope git safe/fork --json",
+			nextActions: ["refarm tree show --scope git safe/fork --json"],
+			nextCommand: "refarm tree show --scope git safe/fork --json",
+			nextCommands: [
+				"refarm tree show --scope git safe/fork --json",
+				"refarm tree list --scope git --json",
+			],
 			result: {
 				kind: "git-switch",
 				destructive: false,
@@ -162,6 +169,13 @@ describe("refarm tree switch and guards", () => {
 			scope: "session",
 			operation: "switch",
 			reason: "executed",
+			nextAction: "refarm tree show abc123def456 --json",
+			nextActions: ["refarm tree show abc123def456 --json"],
+			nextCommand: "refarm tree show abc123def456 --json",
+			nextCommands: [
+				"refarm tree show abc123def456 --json",
+				"refarm tree list --scope session --json",
+			],
 			result: {
 				kind: "session-switch",
 				destructive: false,

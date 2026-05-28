@@ -70,6 +70,16 @@ describe("refarm tree fork", () => {
 			scope: "git",
 			operation: "fork",
 			reason: "executed",
+			nextAction: "refarm tree preview --scope git safe/fork --switch --json",
+			nextActions: [
+				"refarm tree preview --scope git safe/fork --switch --json",
+			],
+			nextCommand: "refarm tree preview --scope git safe/fork --switch --json",
+			nextCommands: [
+				"refarm tree preview --scope git safe/fork --switch --json",
+				"refarm tree show --scope git abcdef123456 --json",
+				"refarm tree list --scope git --json",
+			],
 			result: {
 				kind: "git-branch",
 				destructive: false,
