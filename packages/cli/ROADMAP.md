@@ -26,10 +26,38 @@ application lives in `apps/refarm`.
   `node:child_process` directly.
 - Keep package-manager commands structured and resolver-driven.
 
+## Boundary Map
+
+Keep these modules agnostic by default:
+
+- `command-handoff`
+- `command-line`
+- `command-result`
+- `command-plan`
+- `execution-plan`
+- `browser-open`
+- `launch-process`
+- `git-command`
+- `github-actions`
+
+Treat these modules as Refarm compatibility contracts until they can move to a
+dedicated operator/refarm contract package:
+
+- `status`
+- `action-affordances`
+- `launch-policy`
+- `operator-resume`
+
+New Refarm-specific product behavior should start in `apps/refarm` or a
+dedicated Refarm contract package, not in this package's generic primitive
+surface.
+
 ## Next Hardening
 
 - Continue moving reusable command contracts down from `apps/refarm` when at
   least two surfaces need them.
+- Extract Refarm-specific contracts from this package only when the destination
+  package and compatibility exports are clear.
 - Add compatibility tests whenever a Refarm-specific alias remains around an
   agnostic primary helper.
 - Keep README and package exports aligned as new subpath modules are added.

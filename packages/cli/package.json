@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/cli",
 	"version": "0.1.0",
-	"description": "Shared CLI primitives and Refarm status contracts.",
+	"description": "Shared CLI primitives, process adapters, and compatibility Refarm contracts.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
