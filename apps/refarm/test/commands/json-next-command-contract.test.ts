@@ -12,6 +12,7 @@ import { extensionCommand } from "../../src/commands/extension.js";
 import { createGuideCommand } from "../../src/commands/guide.js";
 import { headlessCommand } from "../../src/commands/headless.js";
 import { healthCommand } from "../../src/commands/health.js";
+import { createInitCommand } from "../../src/commands/init.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
@@ -305,6 +306,28 @@ function createContractGuideCommand() {
 		}),
 		writeFile: vi.fn(),
 	});
+}
+
+function createContractInitCommand() {
+	const cwd = mkdtempSync(join(tmpdir(), "refarm-init-contract-"));
+	return {
+		cleanup: () => rmSync(cwd, { recursive: true, force: true }),
+		command: createInitCommand({
+			cwd: () => cwd,
+			createOperator: () => ({
+				ask: vi.fn().mockResolvedValue("workspace"),
+			}),
+			createSilo: () => ({
+				bootstrapIdentity: vi.fn().mockResolvedValue({
+					publicKey: "pk_contract",
+					timestamp: "2026-05-01T00:00:00.000Z",
+				}),
+			}),
+			createSower: () => ({
+				scaffold: vi.fn().mockResolvedValue({ config: { type: "app" } }),
+			}),
+		}),
+	};
 }
 
 function makeContractFetch() {
@@ -753,6 +776,7 @@ describe("JSON next command contract", () => {
 
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
+		const init = createContractInitCommand();
 		const status = createTempStatusFile(["runtime:not-ready"]);
 		try {
 			vi.stubGlobal("fetch", makeContractFetch());
@@ -793,6 +817,11 @@ describe("JSON next command contract", () => {
 					],
 				},
 				{ id: "health", command: healthCommand, args: ["--json"] },
+				{
+					id: "init",
+					command: init.command,
+					args: ["contract-workspace", "--template", "workspace", "--json"],
+				},
 				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
 				{
 					id: "open-url-dry-run",
@@ -1035,6 +1064,7 @@ describe("JSON next command contract", () => {
 		} finally {
 			vi.unstubAllGlobals();
 			status.cleanup();
+			init.cleanup();
 			config.cleanup();
 		}
 	});

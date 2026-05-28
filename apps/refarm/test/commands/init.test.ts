@@ -80,7 +80,9 @@ describe("initCommand — mocked initialization flow", () => {
 
     expect(help).toContain("refarm init my-workspace --force");
     expect(help).toContain("refarm init my-workspace --json");
+    expect(help).toContain("refarm init my-workspace --template workspace --json");
     expect(help).toContain("--force reinitializes");
+    expect(help).toContain("--template skips the interactive template prompt");
     expect(help).toContain("workspace identity is metadata");
     expect(help).toContain("~/.refarm/identity.json");
     expect(help).toContain("run refarm sow to configure model credentials");
@@ -135,6 +137,16 @@ describe("initCommand — mocked initialization flow", () => {
     });
     expect(mockScaffold).toHaveBeenCalledWith(
       "workspace",
+      expect.objectContaining({ name: "test-workspace" })
+    );
+  });
+
+  it("uses --template without prompting", async () => {
+    await initCommand.parseAsync(["test-workspace", "--template", "rust-plugin"], { from: "user" });
+
+    expect(mockOperatorAsk).not.toHaveBeenCalled();
+    expect(mockScaffold).toHaveBeenCalledWith(
+      "rust-plugin",
       expect.objectContaining({ name: "test-workspace" })
     );
   });

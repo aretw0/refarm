@@ -1,6 +1,6 @@
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import { SowerCore } from "@refarm.dev/sower";
-import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -19,15 +19,49 @@ import {
 interface InitOptions {
   force?: boolean;
   json?: boolean;
+  template?: string;
 }
 
 const INIT_SCHEMA_VERSION = 1;
+
+interface InitCommandDeps {
+  cwd?: () => string;
+  createOperator?: () => {
+    ask: (prompt: {
+      type: "select";
+      question: string;
+      default: string;
+      options: Array<{ label: string; value: string }>;
+    }) => Promise<string>;
+  };
+  createSilo?: () => {
+    bootstrapIdentity: () => Promise<{ publicKey: string; timestamp: string }>;
+  };
+  createSower?: () => {
+    scaffold: (
+      template: string,
+      options: { name: string; targetDir: string },
+    ) => Promise<{ config: Record<string, unknown> } | null | undefined>;
+  };
+  existsSync?: typeof existsSync;
+  mkdirSync?: typeof mkdirSync;
+  writeFileSync?: typeof writeFileSync;
+}
 
 function initForceCommand(name: string): string {
   return refarmCommand(["init", quoteCommandArg(name), "--force"]);
 }
 
-export const initCommand = new Command("init")
+export function createInitCommand(deps: InitCommandDeps = {}): Command {
+  const cwd = deps.cwd ?? (() => process.cwd());
+  const createOperator = deps.createOperator ?? createStdioOperatorChannel;
+  const createSower = deps.createSower ?? (() => new SowerCore());
+  const createSilo = deps.createSilo ?? (() => new SiloCore());
+  const fileExists = deps.existsSync ?? existsSync;
+  const makeDir = deps.mkdirSync ?? mkdirSync;
+  const writeFile = deps.writeFileSync ?? writeFileSync;
+
+  return new Command("init")
   .description("Initialize a new Refarm workspace")
   .addHelpText(
     "after",
@@ -38,12 +72,14 @@ export const initCommand = new Command("init")
       "  $ refarm init .",
       "  $ refarm init my-workspace --force",
       "  $ refarm init my-workspace --json",
+      "  $ refarm init my-workspace --template workspace --json",
       "",
       "Notes:",
       "  This creates refarm.config.json and .refarm/identity.json.",
       "  The workspace identity is metadata; operator credentials are saved later",
       "  under ~/.refarm/identity.json by refarm sow.",
       "  --force reinitializes an existing workspace and can overwrite generated metadata.",
+      "  --template skips the interactive template prompt; supported values include workspace and rust-plugin.",
       "  After init, run refarm sow to configure model credentials.",
       "  Use refarm model current to inspect the default route, and refarm guide",
       "  to generate a local setup audit with GitHub/Cloudflare next steps.",
@@ -52,12 +88,13 @@ export const initCommand = new Command("init")
   .argument("[name]", "Project name", "my-workspace")
   .option("--force", "Reinitialize even if already initialized (destructive)")
   .option("--json", "Output machine-readable initialization result")
+  .option("--template <id>", "Template to scaffold without prompting")
   .action(async (name, opts: InitOptions) => {
-    const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
+    const projectDir = name === "." ? cwd() : path.join(cwd(), name);
     const configPath = path.join(projectDir, "refarm.config.json");
     const identityPath = path.join(projectDir, ".refarm", "identity.json");
 
-    if (!opts.force && (existsSync(configPath) || existsSync(identityPath))) {
+    if (!opts.force && (fileExists(configPath) || fileExists(identityPath))) {
       if (opts.json) {
         printJson(
           buildJsonErrorEnvelope({
@@ -88,8 +125,7 @@ export const initCommand = new Command("init")
       console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));
     }
 
-    const operator = createStdioOperatorChannel();
-    const template = await operator.ask({
+    const template = opts.template ?? await createOperator().ask({
       type: "select",
       question: "Choose a template to start with",
       default: "workspace",
@@ -99,10 +135,10 @@ export const initCommand = new Command("init")
       ],
     });
 
-    const core = new SowerCore();
+    const core = createSower();
     
-    if (!existsSync(projectDir)) {
-        mkdirSync(projectDir, { recursive: true });
+    if (!fileExists(projectDir)) {
+        makeDir(projectDir, { recursive: true });
     }
 
     const result = await core.scaffold(template, { name, targetDir: projectDir });
@@ -110,14 +146,14 @@ export const initCommand = new Command("init")
     if (result) {
       const refarmDir = path.join(projectDir, ".refarm");
       // 1. Create directories
-      if (!existsSync(refarmDir)) {
-        mkdirSync(refarmDir, { recursive: true });
+      if (!fileExists(refarmDir)) {
+        makeDir(refarmDir, { recursive: true });
       }
       
       if (!opts.json) {
         console.log(chalk.blue("Generating workspace identity..."));
       }
-      const silo = new SiloCore();
+      const silo = createSilo();
       const identity = await silo.bootstrapIdentity();
 
 
@@ -127,7 +163,7 @@ export const initCommand = new Command("init")
         bootstrappedAt: identity.timestamp,
         name
       };
-      writeFileSync(path.join(refarmDir, "identity.json"), JSON.stringify(identityMetadata, null, 2));
+      writeFile(path.join(refarmDir, "identity.json"), JSON.stringify(identityMetadata, null, 2));
       if (!opts.json) {
         console.log(chalk.gray(`  - .refarm/identity.json (identity metadata)`));
       }
@@ -137,7 +173,7 @@ export const initCommand = new Command("init")
         ...result.config,
         brand: { name, slug: name.toLowerCase().replace(/\s+/g, "-") }
       };
-      writeFileSync(path.join(projectDir, "refarm.config.json"), JSON.stringify(config, null, 2));
+      writeFile(path.join(projectDir, "refarm.config.json"), JSON.stringify(config, null, 2));
       if (!opts.json) {
         console.log(chalk.gray(`  - refarm.config.json`));
       }
@@ -179,3 +215,6 @@ export const initCommand = new Command("init")
     console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to configure model credentials.`);
     console.log(chalk.dim(`Then run ${chalk.cyan("refarm guide")} for GitHub/Cloudflare setup hints.`));
   });
+}
+
+export const initCommand = createInitCommand();
