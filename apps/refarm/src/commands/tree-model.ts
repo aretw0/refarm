@@ -62,6 +62,10 @@ export interface RefarmTimelineListEnvelope {
 	scope: RefarmTimelineEnvelopeScope;
 	operation: "list";
 	nodes: RefarmTimelineNode[];
+	nextAction: null;
+	nextActions: [];
+	nextCommand: null;
+	nextCommands: [];
 }
 
 export interface RefarmSessionTimelineListEnvelope
@@ -289,6 +293,10 @@ export function buildSessionTimelineListEnvelope(
 		scope: REFARM_TREE_SESSION_SCOPE,
 		operation: "list",
 		nodes,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 
@@ -301,6 +309,10 @@ export function buildGitTimelineListEnvelope(
 		scope: REFARM_TREE_GIT_SCOPE,
 		operation: "list",
 		nodes,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 
@@ -313,6 +325,10 @@ export function buildAllTimelineListEnvelope(
 		scope: REFARM_TREE_ALL_SCOPE,
 		operation: "list",
 		nodes,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 

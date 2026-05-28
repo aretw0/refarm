@@ -273,6 +273,10 @@ describe("refarm tree list", () => {
 			command: "tree",
 			scope: "all",
 			operation: "list",
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 		});
 		expect(payload).not.toHaveProperty("target");
 		expect(payload).not.toHaveProperty("plan");
