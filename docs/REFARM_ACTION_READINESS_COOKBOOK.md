@@ -90,8 +90,8 @@ test target behind it. The contract statically rejects placeholders,
 interactive credential collection, and REPL-only commands in executable handoff
 fields. It also requires generated handoff arrays and declared template
 parameters, and exercises generated handoffs from the core agent, model,
-plugin, provision, renderer, package manager, tree, check, doctor, health,
-resume, runtime, telemetry, and tidy commands.
+plugin, provision, renderer, package manager, tree, check, doctor, guide,
+health, resume, runtime, telemetry, and tidy commands.
 
 Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
 filtering, and deduplication for handoff lists. JSON emitters and command-result

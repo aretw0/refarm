@@ -15,6 +15,22 @@ interface GuideOptions {
   json?: boolean;
 }
 
+interface GuideConfig {
+  brand?: unknown;
+}
+
+interface GuideSilo {
+  provision(scope: "object"): Promise<unknown>;
+  loadTokens(): Promise<unknown>;
+}
+
+export interface GuideDeps {
+  env(): NodeJS.ProcessEnv;
+  loadConfig(): GuideConfig;
+  createSilo(config: GuideConfig): GuideSilo;
+  writeFile(path: string, content: string): void;
+}
+
 interface GuideCheck {
   id: string;
   name: string;
@@ -55,7 +71,17 @@ function renderGuideMarkdown(report: GuideReport): string {
   return guideContent;
 }
 
-export const guideCommand = new Command("guide")
+function defaultGuideDeps(): GuideDeps {
+  return {
+    env: () => process.env,
+    loadConfig,
+    createSilo: (config) => new SiloCore(config),
+    writeFile: writeFileSync,
+  };
+}
+
+export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Command {
+  return new Command("guide")
   .description("Generate a local refarm-audit.md setup report")
   .addHelpText(
     "after",
@@ -83,15 +109,15 @@ export const guideCommand = new Command("guide")
       console.log(chalk.blue("Generating setup audit..."));
     }
 
-    const config = loadConfig();
-    const silo = new SiloCore(config);
+    const config = deps.loadConfig();
+    const silo = deps.createSilo(config);
     const infraTokens = await silo.provision("object") as unknown as Record<
       string,
       unknown
     >;
     const modelTokens = await silo.loadTokens() as Record<string, unknown>;
     const effectiveModel = effectiveModelRouteForScope(modelTokens, "default", {
-      env: process.env,
+      env: deps.env(),
     });
     const modelProvider = effectiveModel.provider ?? DEFAULT_MODEL_PROVIDER;
     const modelRef = effectiveModel.modelId
@@ -100,7 +126,7 @@ export const guideCommand = new Command("guide")
     const modelStatus = modelCredentialStatus(
       modelProvider,
       modelTokens,
-      process.env,
+      deps.env(),
     );
     const modelReady = modelStatus.state !== "missing";
 
@@ -112,7 +138,7 @@ export const guideCommand = new Command("guide")
         status: modelReady ? "ready" : "missing",
         action: modelReady
           ? `Inspect route with 'refarm model current' (${modelRef}).`
-          : `Run 'refarm sow' to configure ${modelRef}.`,
+          : `Configure model credentials for ${modelRef}.`,
         actionCommand: modelReady ? "refarm model current --json" : "refarm model providers --json",
       },
       {
@@ -120,7 +146,7 @@ export const guideCommand = new Command("guide")
         name: "GITHUB_TOKEN",
         ok: Boolean(infraTokens.REFARM_GITHUB_TOKEN),
         status: infraTokens.REFARM_GITHUB_TOKEN ? "ready" : "missing",
-        action: "Run 'refarm sow --github' to add your PAT.",
+        action: "Configure GitHub credentials interactively.",
         actionCommand: "gh auth status",
       },
       {
@@ -128,7 +154,7 @@ export const guideCommand = new Command("guide")
         name: "CLOUDFLARE_API_TOKEN",
         ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
         status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
-        action: "Run 'refarm sow --cloudflare' to add your API token.",
+        action: "Configure Cloudflare credentials interactively.",
         actionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
       },
       {
@@ -164,6 +190,9 @@ export const guideCommand = new Command("guide")
     }
 
     const guideContent = renderGuideMarkdown(report);
-    writeFileSync("refarm-audit.md", guideContent);
+    deps.writeFile("refarm-audit.md", guideContent);
     console.log(chalk.green("refarm-audit.md written."));
   });
+}
+
+export const guideCommand = createGuideCommand();

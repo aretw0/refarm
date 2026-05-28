@@ -88,7 +88,7 @@ describe("guideCommand", () => {
     expect(content).toContain("GITHUB_TOKEN");
     expect(content).toContain("Model Credentials");
     expect(content).toContain("refarm model current");
-    expect(content).toContain("refarm sow --cloudflare");
+    expect(content).toContain("Configure Cloudflare credentials interactively.");
   });
 
   it("prints setup audit as JSON without writing markdown", async () => {
@@ -133,9 +133,9 @@ describe("guideCommand", () => {
         }),
       ]),
     );
-    expect(payload.nextAction).toBe("Run 'refarm sow --cloudflare' to add your API token.");
+    expect(payload.nextAction).toBe("Configure Cloudflare credentials interactively.");
     expect(payload.nextActions).toContain(
-      "Run 'refarm sow --cloudflare' to add your API token.",
+      "Configure Cloudflare credentials interactively.",
     );
     expect(payload.nextCommand).toBe("refarm provision cloudflare turbo-cache --dry-run --json");
     expect(payload.nextCommands).toEqual(["refarm provision cloudflare turbo-cache --dry-run --json"]);

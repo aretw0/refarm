@@ -8,6 +8,7 @@ import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
 import { extensionCommand } from "../../src/commands/extension.js";
+import { createGuideCommand } from "../../src/commands/guide.js";
 import { healthCommand } from "../../src/commands/health.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
@@ -239,6 +240,23 @@ function createTempStatusFile(diagnostics: string[]) {
 		path,
 		cleanup: () => rmSync(dir, { recursive: true, force: true }),
 	};
+}
+
+function createContractGuideCommand() {
+	return createGuideCommand({
+		env: () => ({}),
+		loadConfig: () => ({ brand: { name: "contract farm" } }),
+		createSilo: () => ({
+			provision: vi.fn().mockResolvedValue({
+				REFARM_GITHUB_TOKEN: "ghp_contract",
+			}),
+			loadTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelApiKey: "sk-contract",
+			}),
+		}),
+		writeFile: vi.fn(),
+	});
 }
 
 function makeContractFetch() {
@@ -580,6 +598,7 @@ describe("JSON next command contract", () => {
 					args: ["--input", status.path, "--json"],
 				},
 				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
+				{ id: "guide", command: createContractGuideCommand(), args: ["--json"] },
 				{ id: "health", command: healthCommand, args: ["--json"] },
 				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
 				{
