@@ -187,11 +187,19 @@ describe("extension command", () => {
 				command: string;
 				operation: string;
 				ok: boolean;
+				nextAction: string | null;
+				nextActions: string[];
+				nextCommand: string | null;
+				nextCommands: string[];
 				extensions: Array<{ id: string; scope: string }>;
 			};
 			expect(payload.command).toBe("extension");
 			expect(payload.operation).toBe("list");
 			expect(payload.ok).toBe(true);
+			expect(payload.nextAction).toBeNull();
+			expect(payload.nextActions).toEqual([]);
+			expect(payload.nextCommand).toBeNull();
+			expect(payload.nextCommands).toEqual([]);
 			expect(payload.extensions).toEqual([
 				expect.objectContaining({
 					id: "@local/my-tool",

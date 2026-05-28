@@ -8,6 +8,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
+	type JsonSuccessEnvelope,
 } from "./json-output.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
@@ -122,12 +123,9 @@ export interface ExtensionEntry {
   scope: "project" | "global";
 }
 
-export interface ExtensionListReport {
-  command: "extension";
-  operation: "list";
-  ok: true;
-  extensions: ExtensionEntry[];
-}
+export type ExtensionListReport = JsonSuccessEnvelope<{
+	extensions: ExtensionEntry[];
+}>;
 
 export interface CreatedExtensionReport extends ExtensionEntry {
   command: "extension";
@@ -167,12 +165,13 @@ export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
 }
 
 export function buildExtensionListReport(cwd: string, homeDir: string): ExtensionListReport {
-  return {
-    command: "extension",
-    operation: "list",
-    ok: true,
-    extensions: listExtensions(cwd, homeDir),
-  };
+	return buildJsonSuccessEnvelope({
+		command: "extension",
+		operation: "list",
+		extra: {
+			extensions: listExtensions(cwd, homeDir),
+		},
+	});
 }
 
 function printCreatedExtension(report: CreatedExtensionReport): void {

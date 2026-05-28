@@ -820,6 +820,7 @@ describe("JSON next command contract", () => {
 					command: doctorCommand,
 					args: ["--input", status.path, "--json"],
 				},
+				{ id: "extension-list", command: extensionCommand, args: ["list", "--json"] },
 				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
 				{ id: "guide", command: createContractGuideCommand(), args: ["--json"] },
 				{
