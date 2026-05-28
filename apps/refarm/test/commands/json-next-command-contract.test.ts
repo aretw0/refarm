@@ -12,6 +12,7 @@ import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
 import { provisionCommand } from "../../src/commands/provision.js";
+import { createResumeCommand } from "../../src/commands/resume.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
 import { createTaskCommand } from "../../src/commands/task.js";
 import { createTasksCommand } from "../../src/commands/tasks.js";
@@ -483,6 +484,30 @@ describe("JSON next command contract", () => {
 					id: "provision-cloudflare-turbo-cache",
 					command: provisionCommand,
 					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
+				},
+				{
+					id: "resume",
+					command: createResumeCommand({
+						resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+						sessionRecorder: {
+							rememberRun: vi.fn(),
+							rememberStatus: vi.fn(),
+							rememberList: vi.fn(),
+							rememberLogs: vi.fn(),
+							rememberControl: vi.fn(),
+							getCheckpoint: vi.fn().mockReturnValue(null),
+						},
+						finishRecorder: {
+							rememberRun: vi.fn(),
+							getCheckpoint: vi.fn().mockReturnValue(null),
+							getLatest: vi.fn().mockReturnValue(null),
+						},
+						readActiveSessionId: vi.fn().mockReturnValue(null),
+						loadRecentSessions: vi.fn().mockResolvedValue([]),
+						loadChatHistory: vi.fn().mockReturnValue([]),
+						loadModelTokens: vi.fn().mockResolvedValue({}),
+					}),
+					args: ["--json"],
 				},
 				{
 					id: "sessions-list",
