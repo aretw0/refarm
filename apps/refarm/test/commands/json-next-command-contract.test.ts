@@ -10,6 +10,7 @@ import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
 import { extensionCommand } from "../../src/commands/extension.js";
 import { createGuideCommand } from "../../src/commands/guide.js";
+import { headlessCommand } from "../../src/commands/headless.js";
 import { healthCommand } from "../../src/commands/health.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
@@ -38,6 +39,11 @@ const PACKAGE_CLI_SRC_DIR = [
 	join(process.cwd(), "../../packages/cli/src"),
 	join(process.cwd(), "packages", "cli", "src"),
 ].find((dir) => statSync(dir, { throwIfNoEntry: false })?.isDirectory());
+
+const STATUS_WITH_ACTIONS_FIXTURE = [
+	join(process.cwd(), "test", "fixtures", "status-with-actions.json"),
+	join(process.cwd(), "apps", "refarm", "test", "fixtures", "status-with-actions.json"),
+].find((file) => statSync(file, { throwIfNoEntry: false })?.isFile());
 
 function commandSourceFiles(dir = COMMANDS_DIR): string[] {
 	return readdirSync(dir)
@@ -776,6 +782,16 @@ describe("JSON next command contract", () => {
 				},
 				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
 				{ id: "guide", command: createContractGuideCommand(), args: ["--json"] },
+				{
+					id: "headless-action-request",
+					command: headlessCommand,
+					args: [
+						"--input",
+						STATUS_WITH_ACTIONS_FIXTURE ?? "test/fixtures/status-with-actions.json",
+						"--action-request",
+						"inspect-trust",
+					],
+				},
 				{ id: "health", command: healthCommand, args: ["--json"] },
 				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
 				{

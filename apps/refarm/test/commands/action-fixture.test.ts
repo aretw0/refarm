@@ -170,6 +170,10 @@ describe("status-with-actions fixture", () => {
 				label: "Blocked: no host actions available",
 			},
 			availableActions: [],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 		});
 		logSpy.mockRestore();
 	});

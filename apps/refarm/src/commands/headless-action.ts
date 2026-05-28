@@ -70,6 +70,10 @@ export interface HeadlessSurfaceActionDryRunEnvelope {
 	selection?: SurfaceActionAffordanceSelectionMetadata;
 	actionRequest?: HomesteadSurfaceRenderActionRequest;
 	availableActions: readonly HomesteadSurfaceRenderAction[];
+	nextAction: null;
+	nextActions: [];
+	nextCommand: null;
+	nextCommands: [];
 }
 
 export function createHeadlessStatusSurfaceRenderRequest(
@@ -154,6 +158,10 @@ function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
 		...(options.selection ? { selection: options.selection } : {}),
 		...(options.actionRequest ? { actionRequest: options.actionRequest } : {}),
 		availableActions: options.availableActions,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 

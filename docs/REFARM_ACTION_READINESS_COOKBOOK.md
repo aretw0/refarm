@@ -91,7 +91,8 @@ interactive credential collection, and REPL-only commands in executable handoff
 fields. It also requires generated handoff arrays and declared template
 parameters, and exercises generated handoffs from the action, core agent, model,
 plugin, provision, renderer, package manager, tree, check, doctor, guide,
-health, resume, runtime, sessions, sow, task, telemetry, and tidy commands.
+headless, health, resume, runtime, sessions, sow, task, telemetry, and tidy
+commands.
 
 Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
 filtering, and deduplication for handoff lists. JSON emitters and command-result
