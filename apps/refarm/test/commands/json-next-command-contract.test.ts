@@ -479,6 +479,22 @@ function createContractRuntimeCommand() {
 	});
 }
 
+function createContractModelCommand() {
+	const tokens: Record<string, unknown> = {
+		modelProvider: "openai",
+		modelId: "gpt-5.5",
+		modelRoutes: {
+			worker: { provider: "openai", modelId: "gpt-5.3-codex-spark" },
+		},
+	};
+	return createModelCommand({
+		loadTokens: async () => tokens,
+		saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
+			Object.assign(tokens, update);
+		}),
+	});
+}
+
 function createContractSessionsCommand() {
 	const session = {
 		"@id": "urn:refarm:session:v1:abc123def456",
@@ -843,19 +859,33 @@ describe("JSON next command contract", () => {
 				},
 				{
 					id: "model-current",
-					command: createModelCommand({
-						loadTokens: async () => ({}),
-						saveTokens: vi.fn(),
-					}),
+					command: createContractModelCommand(),
 					args: ["current", "--json"],
 				},
 				{
 					id: "model-providers",
-					command: createModelCommand({
-						loadTokens: async () => ({}),
-						saveTokens: vi.fn(),
-					}),
+					command: createContractModelCommand(),
 					args: ["providers", "--json"],
+				},
+				{
+					id: "model-set-route",
+					command: createContractModelCommand(),
+					args: ["set", "anthropic/claude-sonnet-4.5", "--json"],
+				},
+				{
+					id: "model-set-fallback",
+					command: createContractModelCommand(),
+					args: ["fallback", "ollama/qwen2.5-coder", "--json"],
+				},
+				{
+					id: "model-base-url",
+					command: createContractModelCommand(),
+					args: ["base-url", "http://127.0.0.1:8000", "--json"],
+				},
+				{
+					id: "model-reset-worker",
+					command: createContractModelCommand(),
+					args: ["reset", "--scope", "worker", "--json"],
 				},
 				{ id: "plugin-list", command: pluginCommand, args: ["list", "--json"] },
 				{ id: "provision-list", command: provisionCommand, args: ["list", "--json"] },
