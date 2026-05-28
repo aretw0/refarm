@@ -13,7 +13,11 @@ import {
 	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
+	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_ID_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
 	MODEL_PROVIDERS,
+	MODEL_ROUTE_ENV_VARS,
 	MODEL_SCOPES,
 	modelRouteTokenUpdate,
 	parseModelRef,
@@ -38,6 +42,15 @@ const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+const MODEL_BASE_URL_ENV_VAR = "MODEL_BASE_URL";
+const MODEL_FALLBACK_PROVIDER_ENV_VAR = "MODEL_FALLBACK_PROVIDER";
+const MODEL_FALLBACK_MODEL_ID_ENV_VAR = "MODEL_FALLBACK_MODEL_ID";
+const MODEL_ENV_OVERRIDE_VARS = [
+	...MODEL_ROUTE_ENV_VARS,
+	MODEL_BASE_URL_ENV_VAR,
+	MODEL_FALLBACK_PROVIDER_ENV_VAR,
+	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+] as const;
 
 interface JsonOptionCarrier {
 	json?: boolean;
@@ -202,14 +215,7 @@ function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 }
 
 function activeModelEnvOverrides(): string[] {
-	return [
-		"MODEL_PROVIDER",
-		"MODEL_DEFAULT_PROVIDER",
-		"MODEL_ID",
-		"MODEL_BASE_URL",
-		"MODEL_FALLBACK_PROVIDER",
-		"MODEL_FALLBACK_MODEL_ID",
-	].filter((name) => Boolean(process.env[name]));
+	return MODEL_ENV_OVERRIDE_VARS.filter((name) => Boolean(process.env[name]));
 }
 
 function hasJsonOption(
@@ -415,7 +421,9 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
 	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
-	const routeProviderOverridden = Boolean(process.env.MODEL_PROVIDER ?? process.env.MODEL_DEFAULT_PROVIDER);
+	const routeProviderOverridden = Boolean(
+		process.env[MODEL_PROVIDER_ENV_VAR] ?? process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR],
+	);
 	const storedProviderMatchesRoute =
 		!routeProviderOverridden ||
 		tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
@@ -423,14 +431,14 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	const credentialEnv = modelCredentialEnvKey(provider);
 	const credentialState = modelCredentialState(provider, tokens);
 	const credentialStatus = modelCredentialStatus(provider, tokens);
-	const baseUrl = process.env.MODEL_BASE_URL ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
+	const baseUrl = process.env[MODEL_BASE_URL_ENV_VAR] ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
 	const fallbackProvider =
-		process.env.MODEL_FALLBACK_PROVIDER ?? tokens.modelFallbackProvider;
+		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ?? tokens.modelFallbackProvider;
 	let fallbackRef: string | undefined;
 	if (fallbackProvider) {
 		const fallbackModelId =
-			process.env.MODEL_FALLBACK_MODEL_ID ??
-			(process.env.MODEL_FALLBACK_PROVIDER ? undefined : tokens.modelFallbackModelId) ??
+			process.env[MODEL_FALLBACK_MODEL_ID_ENV_VAR] ??
+			(process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ? undefined : tokens.modelFallbackModelId) ??
 			defaultModelForProvider(fallbackProvider);
 		fallbackRef = formatModelRef(
 			fallbackProvider,
@@ -784,10 +792,10 @@ Examples:
 Notes:
   Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
   them before each task, so the next ask/chat turn or worker task uses the new route.
-  MODEL_PROVIDER, MODEL_ID, and MODEL_BASE_URL can override the primary route
+  ${MODEL_PROVIDER_ENV_VAR}, ${MODEL_ID_ENV_VAR}, and ${MODEL_BASE_URL_ENV_VAR} can override the primary route
   for one command without changing persisted config.
-  MODEL_FALLBACK_PROVIDER can retry a different provider when the primary fails.
-  MODEL_FALLBACK_MODEL_ID can override that fallback provider's default model.
+  ${MODEL_FALLBACK_PROVIDER_ENV_VAR} can retry a different provider when the primary fails.
+  ${MODEL_FALLBACK_MODEL_ID_ENV_VAR} can override that fallback provider's default model.
   For OpenAI workers, the default scoped route is ${OPENAI_WORKER_REF}.
   For OpenAI monitors, the default scoped route is ${OPENAI_MONITOR_REF}.
 `,
@@ -869,7 +877,7 @@ Examples:
 
 Notes:
   The fallback route is saved in ~/.refarm/identity.json and injected by
-  farmhand as MODEL_FALLBACK_PROVIDER and MODEL_FALLBACK_MODEL_ID. Environment
+  farmhand as ${MODEL_FALLBACK_PROVIDER_ENV_VAR} and ${MODEL_FALLBACK_MODEL_ID_ENV_VAR}. Environment
   variables still take precedence for one-off operator overrides.
 `,
 		)

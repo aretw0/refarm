@@ -17,7 +17,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEFAULT_MODEL_PROVIDER } from "../model-routing.js";
+import {
+	DEFAULT_MODEL_PROVIDER,
+	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
+} from "../model-routing.js";
 import {
 	resolveAutostartMode,
 	resolveTractorEngineMode,
@@ -102,7 +106,9 @@ export function refarmSearchDirs(): string[] {
 }
 
 function detectProvider(): boolean {
-	const envProvider = stringValue(process.env.MODEL_PROVIDER) ?? stringValue(process.env.MODEL_DEFAULT_PROVIDER);
+	const envProvider =
+		stringValue(process.env[MODEL_PROVIDER_ENV_VAR]) ??
+		stringValue(process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
 	if (envProvider) return hasProviderCredential(envProvider, {});
 	if (hasProviderCredential(DEFAULT_MODEL_PROVIDER, {})) return true;
 
@@ -160,7 +166,9 @@ function parseEnvFile(filePath: string): Record<string, string> {
 
 function hasEnvProvider(filePath: string): boolean {
 	const env = parseEnvFile(filePath);
-	const provider = stringValue(env.MODEL_PROVIDER) ?? stringValue(env.MODEL_DEFAULT_PROVIDER);
+	const provider =
+		stringValue(env[MODEL_PROVIDER_ENV_VAR]) ??
+		stringValue(env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
 	const mergedEnv = { ...process.env, ...env };
 	if (provider) return hasProviderCredential(provider, {}, mergedEnv);
 	return hasProviderCredential(DEFAULT_MODEL_PROVIDER, {}, mergedEnv);
