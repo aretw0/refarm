@@ -76,6 +76,7 @@ import {
 import { sidecarUrl } from "./sidecar-url.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
+const OLLAMA_SERVE_COMMAND = "ollama serve";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -556,14 +557,14 @@ function buildAskErrorPayload(message: string): {
 		const providerNextCommands =
 			provider === "ollama"
 				? [
-						"ollama serve",
-						"refarm model current --json",
-						"refarm model providers --json",
+						OLLAMA_SERVE_COMMAND,
+						MODEL_CURRENT_JSON_COMMAND,
+						MODEL_PROVIDERS_JSON_COMMAND,
 					]
 				: [
-						"refarm model current --json",
-						"refarm model providers --json",
-						`refarm model ${OPENAI_DEFAULT_REF} --json`,
+						MODEL_CURRENT_JSON_COMMAND,
+						MODEL_PROVIDERS_JSON_COMMAND,
+						OPENAI_MODEL_JSON_COMMAND,
 					];
 		return buildJsonErrorEnvelope({
 			command: "ask",
@@ -573,7 +574,7 @@ function buildAskErrorPayload(message: string): {
 			nextAction: providerNextCommands[0]!,
 			nextActions:
 				provider === "ollama"
-					? ["ollama serve", SOW_JSON_COMMAND]
+					? [OLLAMA_SERVE_COMMAND, SOW_JSON_COMMAND]
 					: [
 							MODEL_CURRENT_JSON_COMMAND,
 							MODEL_PROVIDERS_JSON_COMMAND,
@@ -626,7 +627,7 @@ function printMissingModelCredentials(json: boolean): void {
 					SOW_JSON_COMMAND,
 					MODEL_CURRENT_JSON_COMMAND,
 					MODEL_PROVIDERS_JSON_COMMAND,
-					"ollama serve",
+					OLLAMA_SERVE_COMMAND,
 				],
 				nextCommand: LOCAL_MODEL_JSON_COMMAND,
 				nextCommands: [
@@ -634,7 +635,7 @@ function printMissingModelCredentials(json: boolean): void {
 					SOW_JSON_COMMAND,
 					MODEL_PROVIDERS_JSON_COMMAND,
 					MODEL_CURRENT_JSON_COMMAND,
-					"ollama serve",
+					OLLAMA_SERVE_COMMAND,
 				],
 				extra: {
 					action: "ask",
