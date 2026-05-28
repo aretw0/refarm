@@ -16,6 +16,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -840,7 +841,7 @@ Runtime:
   Always autostart:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   Disable autostart:      ${RUNTIME_AUTOSTART_NEVER_COMMAND}
   Select runtime engine:  ${RUNTIME_ENGINE_AUTO_COMMAND}
-  One-shot override:      REFARM_RUNTIME_AUTOSTART=always refarm ask "hello"
+  One-shot override:      ${RUNTIME_AUTOSTART_ENV_VAR}=always refarm ask "hello"
 `,
 		)
 		.action(

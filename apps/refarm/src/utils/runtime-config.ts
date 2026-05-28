@@ -1,15 +1,18 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import {
 	parseRuntimeAutostartMode,
 	parseRuntimeEngineMode,
 	type RuntimeAutostartMode,
 	type RuntimeEngineMode,
 } from "@refarm.dev/runtime";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 export type AutostartMode = RuntimeAutostartMode;
 export type TractorEngineMode = RuntimeEngineMode;
+export const RUNTIME_AUTOSTART_ENV_VAR = "REFARM_RUNTIME_AUTOSTART";
+export const LEGACY_FARMHAND_AUTOSTART_ENV_VAR = "REFARM_FARMHAND_AUTOSTART";
+export const TRACTOR_ENGINE_ENV_VAR = "REFARM_TRACTOR_ENGINE";
 
 export interface RuntimeConfigDeps {
 	cwd?: string;
@@ -56,11 +59,11 @@ export function resolveAutostartMode(
 	options: { local?: boolean } = {},
 ): { value: AutostartMode; source: string } {
 	const env = deps.env ?? process.env;
-	const runtimeEnvMode = parseAutostartMode(env.REFARM_RUNTIME_AUTOSTART);
-	if (runtimeEnvMode) return { value: runtimeEnvMode, source: "env:REFARM_RUNTIME_AUTOSTART" };
+	const runtimeEnvMode = parseAutostartMode(env[RUNTIME_AUTOSTART_ENV_VAR]);
+	if (runtimeEnvMode) return { value: runtimeEnvMode, source: `env:${RUNTIME_AUTOSTART_ENV_VAR}` };
 
-	const farmhandEnvMode = parseAutostartMode(env.REFARM_FARMHAND_AUTOSTART);
-	if (farmhandEnvMode) return { value: farmhandEnvMode, source: "env:REFARM_FARMHAND_AUTOSTART" };
+	const farmhandEnvMode = parseAutostartMode(env[LEGACY_FARMHAND_AUTOSTART_ENV_VAR]);
+	if (farmhandEnvMode) return { value: farmhandEnvMode, source: `env:${LEGACY_FARMHAND_AUTOSTART_ENV_VAR}` };
 
 	let resolved: { value: AutostartMode; source: string } | null = null;
 	for (const filePath of configPaths(deps, options.local)) {
@@ -75,8 +78,8 @@ export function resolveTractorEngineMode(
 	options: { local?: boolean } = {},
 ): { value: TractorEngineMode; source: string } {
 	const env = deps.env ?? process.env;
-	const envMode = parseTractorEngineMode(env.REFARM_TRACTOR_ENGINE);
-	if (envMode) return { value: envMode, source: "env:REFARM_TRACTOR_ENGINE" };
+	const envMode = parseTractorEngineMode(env[TRACTOR_ENGINE_ENV_VAR]);
+	if (envMode) return { value: envMode, source: `env:${TRACTOR_ENGINE_ENV_VAR}` };
 
 	let resolved: { value: TractorEngineMode; source: string } | null = null;
 	for (const filePath of configPaths(deps, options.local)) {

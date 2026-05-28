@@ -15,9 +15,12 @@ import {
 	type OpenExternalLinksMode,
 } from "../utils/open-external-links.js";
 import {
+	LEGACY_FARMHAND_AUTOSTART_ENV_VAR,
 	parseTractorEngineMode,
 	resolveAutostartMode as resolveRuntimeAutostartMode,
 	resolveTractorEngineMode as resolveRuntimeTractorEngineMode,
+	RUNTIME_AUTOSTART_ENV_VAR,
+	TRACTOR_ENGINE_ENV_VAR,
 	type AutostartMode,
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
@@ -252,14 +255,14 @@ function warnIgnoredEnvOverride(
 
 function warnIgnoredAutostartEnvOverrides(): void {
 	warnIgnoredEnvOverride(
-		"REFARM_RUNTIME_AUTOSTART",
-		process.env.REFARM_RUNTIME_AUTOSTART,
+		RUNTIME_AUTOSTART_ENV_VAR,
+		process.env[RUNTIME_AUTOSTART_ENV_VAR],
 		AUTOSTART_MODES,
 		parseAutostartMode,
 	);
 	warnIgnoredEnvOverride(
-		"REFARM_FARMHAND_AUTOSTART",
-		process.env.REFARM_FARMHAND_AUTOSTART,
+		LEGACY_FARMHAND_AUTOSTART_ENV_VAR,
+		process.env[LEGACY_FARMHAND_AUTOSTART_ENV_VAR],
 		AUTOSTART_MODES,
 		parseAutostartMode,
 	);
@@ -276,8 +279,8 @@ function warnIgnoredOpenExternalLinksEnvOverride(): void {
 
 function warnIgnoredTractorEngineEnvOverride(): void {
 	warnIgnoredEnvOverride(
-		"REFARM_TRACTOR_ENGINE",
-		process.env.REFARM_TRACTOR_ENGINE,
+		TRACTOR_ENGINE_ENV_VAR,
+		process.env[TRACTOR_ENGINE_ENV_VAR],
 		TRACTOR_ENGINE_MODES,
 		parseTractorEngineMode,
 	);
@@ -600,7 +603,7 @@ Examples:
   $ refarm config set operator.openExternalLinks never
   $ refarm config profile coding --local --json
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
-  $ REFARM_TRACTOR_ENGINE=rust refarm runtime
+  $ ${TRACTOR_ENGINE_ENV_VAR}=rust refarm runtime
   $ ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local
 
 Keys:
@@ -615,9 +618,9 @@ Legacy aliases:
   farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
-  REFARM_RUNTIME_AUTOSTART can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
+  ${RUNTIME_AUTOSTART_ENV_VAR} can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
   ${OPEN_EXTERNAL_LINKS_ENV_VAR} can be ${OPEN_EXTERNAL_LINKS_MODES_HELP} for one-shot link policy.
-  REFARM_TRACTOR_ENGINE can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
+  ${TRACTOR_ENGINE_ENV_VAR} can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
   Without a subcommand, config prints the effective values and their sources.
   The no-argument form is reserved for the future interactive configuration surface.
 `,
@@ -698,7 +701,7 @@ Legacy aliases:
 
 Notes:
   Without --local, project-local config overrides home config. Environment
-  overrides such as REFARM_RUNTIME_AUTOSTART, ${OPEN_EXTERNAL_LINKS_ENV_VAR}, and REFARM_TRACTOR_ENGINE still
+  overrides such as ${RUNTIME_AUTOSTART_ENV_VAR}, ${OPEN_EXTERNAL_LINKS_ENV_VAR}, and ${TRACTOR_ENGINE_ENV_VAR} still
   take precedence and are shown in the source line.
 `,
 				)
@@ -743,7 +746,7 @@ Legacy aliases:
 
 Notes:
   Unset only changes persisted config. Environment overrides such as
-  REFARM_RUNTIME_AUTOSTART still take precedence until removed from the shell.
+  ${RUNTIME_AUTOSTART_ENV_VAR} still take precedence until removed from the shell.
 `,
 				)
 				.action(
@@ -792,8 +795,8 @@ Legacy aliases:
 Notes:
   Use --local for repository-specific operator preferences. Home config is the
   default and applies across Refarm workspaces for the current user.
-  For one-shot overrides, use REFARM_RUNTIME_AUTOSTART, ${OPEN_EXTERNAL_LINKS_ENV_VAR},
-  or REFARM_TRACTOR_ENGINE without changing persisted config.
+  For one-shot overrides, use ${RUNTIME_AUTOSTART_ENV_VAR}, ${OPEN_EXTERNAL_LINKS_ENV_VAR},
+  or ${TRACTOR_ENGINE_ENV_VAR} without changing persisted config.
 `,
 				)
 				.action(

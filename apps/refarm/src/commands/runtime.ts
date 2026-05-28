@@ -5,6 +5,7 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, readFileSync } from "node:fs";
+import { TRACTOR_ENGINE_ENV_VAR } from "../utils/runtime-config.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -309,13 +310,13 @@ Examples:
   $ refarm runtime --json
   $ refarm runtime status --json
   $ refarm config set tractor.engine rust
-  $ REFARM_TRACTOR_ENGINE=ts refarm runtime
+  $ ${TRACTOR_ENGINE_ENV_VAR}=ts refarm runtime
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
 
 Notes:
   tractor.engine=auto prefers the Rust Tractor daemon when its local binary is
   available, and otherwise falls back to the TypeScript Farmhand runtime.
-  REFARM_TRACTOR_ENGINE can be ${RUNTIME_ENGINE_ENV_HELP} for one-shot selection.
+  ${TRACTOR_ENGINE_ENV_VAR} can be ${RUNTIME_ENGINE_ENV_HELP} for one-shot selection.
   runtime.autostart controls whether CLI flows ask before starting the selected
   runtime, start it automatically, or never start it.
 `,
@@ -494,7 +495,7 @@ Examples:
   $ ${RUNTIME_START_COMMAND}
   $ ${RUNTIME_START_WAIT_COMMAND}
   $ refarm runtime start --dry-run
-  $ REFARM_TRACTOR_ENGINE=rust refarm runtime start
+  $ ${TRACTOR_ENGINE_ENV_VAR}=rust refarm runtime start
 
 Notes:
   This uses the same engine selection as refarm ask/session autostart.
