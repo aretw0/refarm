@@ -29,6 +29,8 @@ import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 } from "./runtime-recovery.js";
 
+const CONFIG_JSON_COMMAND = refarmCommand(["config", "--json"]);
+
 type ConfigKey =
 	| "farmhand.autostart"
 	| "runtime.autostart"
@@ -473,7 +475,7 @@ function printAppliedConfigProfileJson(result: AppliedConfigProfile): void {
 			operation: "profile",
 			extra: result,
 			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-			nextCommands: [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, "refarm config --json"],
+			nextCommands: [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, CONFIG_JSON_COMMAND],
 		}),
 	);
 }
