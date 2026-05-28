@@ -5,7 +5,8 @@ operator-first daily driver before optimizing it for external users.
 
 ## Score
 
-Target: **85/100** for daily use, **95/100** for selling the experience.
+Target: **80/100** for assisted daily use, **85/100** for primary daily use,
+and **95/100** for selling the experience.
 
 | Area | Weight | What counts |
 | --- | ---: | --- |
@@ -19,10 +20,15 @@ Target: **85/100** for daily use, **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**92/100**
+**72/100 for total operator migration**
 
-Strong enough to use Refarm as the daily development driver while still
-spending regular work on hardening Refarm itself.
+Strong enough to keep using Refarm to harden Refarm, but not yet strong enough
+to make it the only operator surface for all work without frequent expert
+intervention.
+
+The previous score was tracking local self-development momentum. This score
+tracks a stricter question: "Can the operator migrate fully and spend most work
+on non-Refarm tasks while Refarm still operates and recovers itself?"
 
 What is already solid:
 
@@ -72,6 +78,57 @@ What still blocks the 95/100 product target:
   exposes recent runtime sessions and recovery commands.
 - `agent finish` can be faster and more selective for common local edits.
 - The interactive TUI/Web operator surfaces still need more runtime controls.
+
+What blocks primary daily-driver migration:
+
+- `refarm resume` needs to become the canonical first diagnostic for every
+  interrupted slice, including clearer links between the last finish failure,
+  recent task checkpoints, model route, and runtime readiness.
+- Public JSON command contracts need wider conformance tests beyond the current
+  high-value handoff surfaces.
+- Runtime recovery needs fewer paths that rely on the operator remembering
+  which low-level command to run next.
+- The model/credential path is inspectable, but runtime provider switching,
+  login, and scoped model changes still need a smoother non-interactive loop.
+- The app has correctly acted as the proving ground, but mature contracts must
+  continue moving down into shared packages once a second consumer or repeated
+  product flow proves reuse.
+
+## Migration Gates
+
+Use these gates as the stop condition before the operator depends on Refarm as
+the primary daily driver:
+
+1. Resume gate: `refarm resume --json` can explain the current runtime, active
+   session, recent task, model route, and last finish result with executable
+   `nextCommands`.
+2. Finish gate: `refarm agent finish --lane after-edit --run --json` and
+   `after-commit` pass reliably for small slices without manual command
+   selection.
+3. Handoff gate: `refarm agent finish --lane handoffs --run --json` passes
+   after public JSON output changes and catches placeholders, REPL-only
+   commands, and missing template metadata.
+4. Model gate: `refarm model current --json`, `refarm model providers --json`,
+   and `refarm sow --model <provider/model>` provide enough state and recovery
+   commands to fix credentials or switch to a no-key local route.
+5. Runtime gate: `refarm runtime ensure --wait`, `runtime doctor
+   --next-command`, and `check --next-action --json` converge without requiring
+   undocumented manual steps.
+6. Boundary gate: new reusable command/process/env/prompt contracts live in
+   `packages/*`; `apps/refarm` keeps product orchestration and human UX.
+
+## Next Hardening Order
+
+1. Resume and observability: make `refarm resume --json` the richest, safest
+   continuation point.
+2. Public JSON conformance: broaden contract tests for commands that an agent
+   will execute as handoffs.
+3. Runtime recovery: reduce "know this command" gaps by threading
+   `nextCommand` through failures.
+4. Model and credential operations: make provider/model/login changes
+   non-interactive where possible and resumable where not.
+5. Primitive extraction: move repeated contracts down only after repeated app
+   use proves the boundary.
 
 ## Boundary Rule
 
