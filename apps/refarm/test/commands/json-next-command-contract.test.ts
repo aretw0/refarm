@@ -888,6 +888,11 @@ describe("JSON next command contract", () => {
 					args: ["reset", "--scope", "worker", "--json"],
 				},
 				{ id: "plugin-list", command: pluginCommand, args: ["list", "--json"] },
+				{
+					id: "plugin-bundle-dry-run",
+					command: pluginCommand,
+					args: ["bundle", "contract-plugin.wasm", "--dry-run", "--json"],
+				},
 				{ id: "provision-list", command: provisionCommand, args: ["list", "--json"] },
 				{ id: "provision-cloudflare", command: provisionCommand, args: ["cloudflare", "--dry-run", "--json"] },
 				{
