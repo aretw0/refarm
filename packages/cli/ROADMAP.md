@@ -36,7 +36,8 @@ Keep these modules agnostic by default:
 - `command-result`
 - `command-plan`
 - `execution-plan`
-- `browser-open`
+- `browser-open` (`BROWSER_OPEN_COMMAND` is the primary opener override;
+  `REFARM_BROWSER_OPEN_COMMAND` remains as a compatibility alias)
 - `launch-process`
 - `git-command`
 - `github-actions`

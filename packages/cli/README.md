@@ -26,4 +26,8 @@ Prefer agnostic primary names for new reusable helpers. Keep Refarm-specific
 exports only when they describe a public Refarm contract or preserve compatibility
 for existing callers.
 
+For host browser handoff, prefer `BROWSER_OPEN_COMMAND` as the generic override.
+`REFARM_BROWSER_OPEN_COMMAND` remains supported only as a Refarm compatibility
+alias.
+
 See [ROADMAP.md](./ROADMAP.md) for the strategic evolution of the CLI.
