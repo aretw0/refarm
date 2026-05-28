@@ -9,9 +9,13 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "./json-output.js";
+import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
-const EXTENSION_LIST_JSON_COMMAND = "refarm extension list --json";
-const PLUGIN_STATUS_JSON_COMMAND = "refarm plugin status --json";
+const EXTENSION_LIST_JSON_COMMAND = refarmCommand([
+  "extension",
+  "list",
+  "--json",
+]);
 const EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND = refarmCommand([
   "extension",
   "save",

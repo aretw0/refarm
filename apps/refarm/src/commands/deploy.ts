@@ -6,9 +6,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { refarmCommand } from "./command-handoff.js";
 import {
-  buildJsonErrorEnvelope,
-  buildJsonSuccessEnvelope,
-  printJson,
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
 } from "./json-output.js";
 
 interface DeployResult {
@@ -28,8 +28,12 @@ interface DeployCommandOptions {
 }
 
 const DEPLOY_SCHEMA_VERSION = 1;
-const DEPLOY_DRY_RUN_COMMAND = "refarm deploy --dry-run";
-const DEPLOY_HEALTH_COMMAND = "refarm health --next-action --json";
+const DEPLOY_DRY_RUN_COMMAND = refarmCommand(["deploy", "--dry-run"]);
+const DEPLOY_HEALTH_COMMAND = refarmCommand([
+  "health",
+  "--next-action",
+  "--json",
+]);
 
 function parseDeployTarget(value: string): DeployTarget {
 	if ((DEPLOY_TARGETS as readonly string[]).includes(value)) {

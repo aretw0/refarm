@@ -17,6 +17,7 @@ import {
 	parseModelRef,
 } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
+import { refarmCommand } from "./command-handoff.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -35,7 +36,11 @@ import {
 	SOW_MODEL_OPTION_DESCRIPTION,
 } from "./sow-metadata.js";
 
-const CHECK_NEXT_ACTION_JSON_COMMAND = "refarm check --next-action --json";
+const CHECK_NEXT_ACTION_JSON_COMMAND = refarmCommand([
+	"check",
+	"--next-action",
+	"--json",
+]);
 
 function stringValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;

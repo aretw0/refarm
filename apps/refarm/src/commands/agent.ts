@@ -1,3 +1,4 @@
+import { readGitCommand } from "@refarm.dev/cli/git-command";
 import {
 	affectedWorkspacePackagesFromChangedPaths,
 	affectedWorkspacePackagesFromGitStatus,
@@ -5,7 +6,6 @@ import {
 	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
-import { readGitCommand } from "@refarm.dev/cli/git-command";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,8 +48,12 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 
-const AGENT_NEXT_ACTION_COMMAND = "refarm check --next-action --json";
-const AGENT_NEXT_COMMAND = "refarm check --next-command";
+const AGENT_NEXT_ACTION_COMMAND = refarmCommand([
+	"check",
+	"--next-action",
+	"--json",
+]);
+const AGENT_NEXT_COMMAND = refarmCommand(["check", "--next-command"]);
 
 function agentFinishCommand(args: string[]): string {
 	return refarmCommand(["agent", "finish", ...args]);
