@@ -40,11 +40,12 @@ export interface PackageSpawnCommand {
 }
 
 export interface PackageManagerOverrideDiagnostic {
-    name: "REFARM_PACKAGE_MANAGER";
+    name: typeof PACKAGE_MANAGER_OVERRIDE_ENV_VAR;
     value: string;
     valid: readonly PackageManagerName[];
 }
 
+export const PACKAGE_MANAGER_OVERRIDE_ENV_VAR: "REFARM_PACKAGE_MANAGER";
 export const PACKAGE_MANAGERS: readonly PackageManagerName[];
 
 export function parsePackageManager(value: unknown): PackageManagerName | null;

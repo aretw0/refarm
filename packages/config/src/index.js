@@ -32,6 +32,7 @@ export {
     normalizePluginId,
 } from "./plugin-identity.js";
 export {
+    PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,

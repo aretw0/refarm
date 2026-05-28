@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+    PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
@@ -16,20 +17,20 @@ import {
 
 describe("package manager config", () => {
     it("honors REFARM_PACKAGE_MANAGER as an operator override", () => {
-        expect(detectPackageManager({ env: { REFARM_PACKAGE_MANAGER: " bun " } })).toBe("bun");
-        expect(packageScriptCommand("test", { env: { REFARM_PACKAGE_MANAGER: " bun " } })).toMatchObject({
+        expect(detectPackageManager({ env: { [PACKAGE_MANAGER_OVERRIDE_ENV_VAR]: " bun " } })).toBe("bun");
+        expect(packageScriptCommand("test", { env: { [PACKAGE_MANAGER_OVERRIDE_ENV_VAR]: " bun " } })).toMatchObject({
             packageManager: "bun",
             command: "bun run test",
         });
     });
 
     it("describes ignored invalid REFARM_PACKAGE_MANAGER overrides", () => {
-        expect(packageManagerOverrideDiagnostic({ REFARM_PACKAGE_MANAGER: "pip" })).toEqual({
-            name: "REFARM_PACKAGE_MANAGER",
+        expect(packageManagerOverrideDiagnostic({ [PACKAGE_MANAGER_OVERRIDE_ENV_VAR]: "pip" })).toEqual({
+            name: PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
             value: "pip",
             valid: PACKAGE_MANAGERS,
         });
-        expect(packageManagerOverrideDiagnostic({ REFARM_PACKAGE_MANAGER: "pnpm" })).toBeNull();
+        expect(packageManagerOverrideDiagnostic({ [PACKAGE_MANAGER_OVERRIDE_ENV_VAR]: "pnpm" })).toBeNull();
         expect(packageManagerOverrideDiagnostic({})).toBeNull();
     });
 

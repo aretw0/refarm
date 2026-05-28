@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
+export const PACKAGE_MANAGER_OVERRIDE_ENV_VAR = "REFARM_PACKAGE_MANAGER";
 
 export function parsePackageManager(value) {
     if (typeof value !== "string") return null;
@@ -10,10 +11,10 @@ export function parsePackageManager(value) {
 }
 
 export function packageManagerOverrideDiagnostic(env = process.env) {
-    const value = env.REFARM_PACKAGE_MANAGER;
+    const value = env[PACKAGE_MANAGER_OVERRIDE_ENV_VAR];
     if (value === undefined || parsePackageManager(value)) return null;
     return {
-        name: "REFARM_PACKAGE_MANAGER",
+        name: PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
         value,
         valid: PACKAGE_MANAGERS,
     };
@@ -56,7 +57,7 @@ function detectPackageManagerFromLockfile(dir) {
 }
 
 export function detectPackageManager({ cwd = process.cwd(), env = process.env } = {}) {
-    const override = parsePackageManager(env.REFARM_PACKAGE_MANAGER);
+    const override = parsePackageManager(env[PACKAGE_MANAGER_OVERRIDE_ENV_VAR]);
     if (override) return override;
 
     return detectPackageManagerFromPackageJson(cwd) ?? "npm";
