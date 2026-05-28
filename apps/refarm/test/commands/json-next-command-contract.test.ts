@@ -2,6 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createCheckCommand } from "../../src/commands/check.js";
 import { createConfigCommand } from "../../src/commands/config.js";
@@ -207,6 +208,33 @@ function makeReadyStatus(renderer: "tui" | "web") {
 		streams: { active: 0, terminal: 0 },
 		diagnostics: [],
 	};
+}
+
+function makeStatusWithActions() {
+	return {
+		...makeReadyStatus("tui"),
+		plugins: {
+			installed: 1,
+			active: 1,
+			rejectedSurfaces: 0,
+			surfaceActions: 1,
+			availableActions: [
+				{
+					id: "inspect-trust",
+					label: "Inspect trust",
+					intent: "trust:inspect",
+				},
+			],
+		},
+	};
+}
+
+function createContractActionsCommand() {
+	return createActionsCommand({
+		resolveStatusPayload: vi.fn().mockResolvedValue({
+			json: makeStatusWithActions(),
+		}),
+	});
 }
 
 function createTempConfigCommand() {
@@ -610,6 +638,7 @@ describe("JSON next command contract", () => {
 		try {
 			vi.stubGlobal("fetch", makeContractFetch());
 			const payloads = await parseCommandJsonSamples([
+				{ id: "actions", command: createContractActionsCommand(), args: ["--select", "inspect-trust", "--json"] },
 				{ id: "agent-handoff", command: createAgentCommand(), args: ["--json"] },
 				{ id: "agent-finish-plan", command: createAgentCommand(), args: ["finish", "--json"] },
 				{ id: "agent-finish-templates", command: createAgentCommand(), args: ["finish", "--templates", "--json"] },

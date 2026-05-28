@@ -89,7 +89,7 @@ The finish lane is the operator-facing route; the package script is the focused
 test target behind it. The contract statically rejects placeholders,
 interactive credential collection, and REPL-only commands in executable handoff
 fields. It also requires generated handoff arrays and declared template
-parameters, and exercises generated handoffs from the core agent, model,
+parameters, and exercises generated handoffs from the action, core agent, model,
 plugin, provision, renderer, package manager, tree, check, doctor, guide,
 health, resume, runtime, sow, telemetry, and tidy commands.
 

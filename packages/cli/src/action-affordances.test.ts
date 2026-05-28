@@ -1,29 +1,29 @@
-import type { RefarmStatusJson } from "./status.js";
 import { describe, expect, it } from "vitest";
 import {
 	createRefarmActionAffordanceRows,
 	createRefarmActionReadinessDryRunEnvelope,
 	createRefarmActionReadinessLine,
 	createRefarmRendererActionDryRunEnvelope,
+	createRendererSurfaceActionDryRunEnvelope,
+	createSurfaceActionAffordanceRows,
+	createSurfaceActionReadinessDryRunEnvelope,
+	createSurfaceActionReadinessLine,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
 	formatRefarmActionIds,
 	formatRefarmActionReadinessOutput,
 	formatRefarmActionSelectionChoices,
-	createSurfaceActionAffordanceRows,
-	createSurfaceActionReadinessDryRunEnvelope,
-	createSurfaceActionReadinessLine,
-	createRendererSurfaceActionDryRunEnvelope,
 	formatSurfaceActionAffordanceRows,
 	formatSurfaceActionAffordanceSelection,
 	formatSurfaceActionIds,
-	formatSurfaceActionSelectionChoices,
 	formatSurfaceActionReadinessOutput,
+	formatSurfaceActionSelectionChoices,
 	getRefarmStatusAvailableActions,
 	getStatusAvailableSurfaceActions,
 	resolveRefarmActionAffordanceSelection,
 	resolveSurfaceActionAffordanceSelection,
 } from "./action-affordances.js";
+import type { RefarmStatusJson } from "./status.js";
 
 function makeStatus(
 	actions: RefarmStatusJson["plugins"]["availableActions"] = [
@@ -195,6 +195,10 @@ describe("Refarm action affordance helpers", () => {
 			},
 			selectedAction: { id: "inspect-trust", index: 2 },
 			actionRows: [{ id: "open-node" }, { id: "inspect-trust" }],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 		});
 
 		expect(

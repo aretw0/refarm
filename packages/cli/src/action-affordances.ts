@@ -1,11 +1,11 @@
-import type {
-	RefarmStatusJson,
-	RefarmStatusSurfaceAction,
-} from "./status.js";
 import {
 	formatExecutionPlanReadinessLine,
 	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
+import type {
+RefarmStatusJson,
+RefarmStatusSurfaceAction,
+} from "./status.js";
 
 export interface SurfaceActionAffordanceRow {
 	index: number;
@@ -46,6 +46,10 @@ export interface SurfaceActionReadinessDryRunEnvelope {
 	selection?: SurfaceActionAffordanceSelectionMetadata;
 	selectedAction?: SurfaceActionAffordanceRow;
 	actionRows: readonly SurfaceActionAffordanceRow[];
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export interface SurfaceActionReadinessDryRunEnvelopeOptions {
@@ -171,6 +175,10 @@ export function createSurfaceActionReadinessDryRunEnvelope(
 		selectedAction: options.selection?.selected,
 		actionRows:
 			options.selection?.rows ?? createSurfaceActionAffordanceRows(status),
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 
