@@ -350,6 +350,18 @@ function makeContractFetch() {
 				}),
 			};
 		}
+		if (value.includes("/plugins")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					installed: ["@refarm/pi-agent"],
+					loaded: ["@refarm/pi-agent"],
+					local: [],
+					known: ["@refarm/pi-agent"],
+				}),
+			};
+		}
 		return {
 			ok: true,
 			status: 200,
@@ -889,6 +901,7 @@ describe("JSON next command contract", () => {
 					args: ["reset", "--scope", "worker", "--json"],
 				},
 				{ id: "plugin-list", command: pluginCommand, args: ["list", "--json"] },
+				{ id: "plugin-status", command: pluginCommand, args: ["status", "--json"] },
 				{
 					id: "plugin-bundle-dry-run",
 					command: pluginCommand,

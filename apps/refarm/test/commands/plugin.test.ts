@@ -458,6 +458,7 @@ describe("plugin status", () => {
 				local: boolean;
 			}>;
 			nextAction?: string;
+			nextActions?: string[];
 			nextCommand?: string;
 			nextCommands?: string[];
 		};
@@ -480,6 +481,10 @@ describe("plugin status", () => {
 			},
 		]);
 		expect(payload.nextAction).toBe("refarm plugin reload @refarm/pi-agent --json");
+		expect(payload.nextActions).toEqual([
+			"refarm plugin reload @refarm/pi-agent --json",
+			"refarm plugin status --json",
+		]);
 		expect(payload.nextCommand).toBe("refarm plugin reload @refarm/pi-agent --json");
 		expect(payload.nextCommands).toEqual([
 			"refarm plugin reload @refarm/pi-agent --json",

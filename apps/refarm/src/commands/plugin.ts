@@ -110,9 +110,10 @@ interface RuntimePluginStatusReport {
 	ok: boolean;
 	available: boolean;
 	plugins: RuntimePluginStatusEntry[];
-	nextAction?: string;
-	nextCommand?: string;
-	nextCommands?: string[];
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 	recommendations?: RuntimePluginRecommendation[];
 	recovery?: {
 		ensure: string;
@@ -430,6 +431,11 @@ function buildRuntimePluginStatusReport(
 			available: false,
 			plugins: [],
 			nextAction: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+			nextActions: [
+				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				RUNTIME_START_WAIT_COMMAND,
+				RUNTIME_DOCTOR_NEXT_COMMAND,
+			],
 			nextCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			nextCommands: [
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -451,6 +457,19 @@ function buildRuntimePluginStatusReport(
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
 	const piAgentInstalled = state.installed.includes(PI_AGENT_PLUGIN_ID);
 	const piAgentLoaded = state.loaded.includes(PI_AGENT_PLUGIN_ID);
+	const nextCommands = piAgentLoaded
+		? []
+		: [
+				...(piAgentInstalled
+					? [PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND]
+					: [PLUGIN_INSTALL_JSON_COMMAND]),
+				PLUGIN_STATUS_JSON_COMMAND,
+			];
+	const nextAction = piAgentLoaded
+		? null
+		: piAgentInstalled
+			? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
+			: PLUGIN_INSTALL_COMMAND;
 	return {
 		command: "plugin",
 		operation: "status",
@@ -462,22 +481,10 @@ function buildRuntimePluginStatusReport(
 			loaded: state.loaded.includes(id),
 			local: state.local.includes(id),
 		})),
-		...(piAgentLoaded
-			? {}
-			: {
-					nextAction: piAgentInstalled
-						? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
-						: PLUGIN_INSTALL_COMMAND,
-					nextCommand: piAgentInstalled
-						? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
-						: PLUGIN_INSTALL_JSON_COMMAND,
-					nextCommands: [
-						...(piAgentInstalled
-							? [PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND]
-							: [PLUGIN_INSTALL_JSON_COMMAND]),
-						PLUGIN_STATUS_JSON_COMMAND,
-					],
-				}),
+		nextAction,
+		nextActions: nextCommands,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 	};
 }
 
