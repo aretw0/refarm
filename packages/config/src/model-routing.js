@@ -1,5 +1,13 @@
 export const MODEL_SCOPES = ["default", "worker", "monitor"];
 export const DEFAULT_MODEL_PROVIDER = "openai";
+export const MODEL_PROVIDER_ENV_VAR = "MODEL_PROVIDER";
+export const MODEL_DEFAULT_PROVIDER_ENV_VAR = "MODEL_DEFAULT_PROVIDER";
+export const MODEL_ID_ENV_VAR = "MODEL_ID";
+export const MODEL_ROUTE_ENV_VARS = [
+    MODEL_PROVIDER_ENV_VAR,
+    MODEL_DEFAULT_PROVIDER_ENV_VAR,
+    MODEL_ID_ENV_VAR,
+];
 export const MODEL_PROVIDERS = [
     "openai",
     "anthropic",
@@ -198,9 +206,9 @@ function parseRouteRef(value, storedProvider) {
 }
 
 export function effectiveModelRouteForScope(tokens = {}, scope, { env = defaultEnv() } = {}) {
-    const envProvider = stringValue(env.MODEL_PROVIDER);
-    const envDefaultProvider = stringValue(env.MODEL_DEFAULT_PROVIDER);
-    const envModelId = stringValue(env.MODEL_ID);
+    const envProvider = stringValue(env[MODEL_PROVIDER_ENV_VAR]);
+    const envDefaultProvider = stringValue(env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
+    const envModelId = stringValue(env[MODEL_ID_ENV_VAR]);
     const storedProvider = stringValue(tokens.modelProvider);
     const provider = envProvider ?? envDefaultProvider ?? storedProvider ?? DEFAULT_MODEL_PROVIDER;
     const sameStoredProvider =

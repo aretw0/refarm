@@ -2,6 +2,14 @@ export type ModelScope = "default" | "worker" | "monitor";
 
 export const MODEL_SCOPES: readonly ModelScope[];
 export const DEFAULT_MODEL_PROVIDER: string;
+export const MODEL_PROVIDER_ENV_VAR: "MODEL_PROVIDER";
+export const MODEL_DEFAULT_PROVIDER_ENV_VAR: "MODEL_DEFAULT_PROVIDER";
+export const MODEL_ID_ENV_VAR: "MODEL_ID";
+export const MODEL_ROUTE_ENV_VARS: readonly [
+    typeof MODEL_PROVIDER_ENV_VAR,
+    typeof MODEL_DEFAULT_PROVIDER_ENV_VAR,
+    typeof MODEL_ID_ENV_VAR,
+];
 export const MODEL_PROVIDERS: readonly string[];
 export const MODEL_CREDENTIAL_ENV_KEYS: Readonly<Record<string, string>>;
 

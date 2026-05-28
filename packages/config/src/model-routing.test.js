@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
     DEFAULT_MODEL_PROVIDER,
+    MODEL_DEFAULT_PROVIDER_ENV_VAR,
+    MODEL_ID_ENV_VAR,
+    MODEL_PROVIDER_ENV_VAR,
+    MODEL_ROUTE_ENV_VARS,
     defaultProviderModelId,
     defaultProviderModelRef,
     effectiveModelRouteForScope,
@@ -25,6 +29,17 @@ import {
 describe("model routing config", () => {
     it("exposes the shared default provider", () => {
         expect(DEFAULT_MODEL_PROVIDER).toBe("openai");
+    });
+
+    it("exposes model route env var contracts", () => {
+        expect(MODEL_PROVIDER_ENV_VAR).toBe("MODEL_PROVIDER");
+        expect(MODEL_DEFAULT_PROVIDER_ENV_VAR).toBe("MODEL_DEFAULT_PROVIDER");
+        expect(MODEL_ID_ENV_VAR).toBe("MODEL_ID");
+        expect(MODEL_ROUTE_ENV_VARS).toEqual([
+            MODEL_PROVIDER_ENV_VAR,
+            MODEL_DEFAULT_PROVIDER_ENV_VAR,
+            MODEL_ID_ENV_VAR,
+        ]);
     });
 
     it("resolves provider defaults used by refarm runtimes", () => {
@@ -89,7 +104,7 @@ describe("model routing config", () => {
                 "worker",
                 {
                     env: {
-                        MODEL_PROVIDER: "gemini",
+                        [MODEL_PROVIDER_ENV_VAR]: "gemini",
                     },
                 },
             ),
@@ -109,7 +124,7 @@ describe("model routing config", () => {
                 "default",
                 {
                     env: {
-                        MODEL_PROVIDER: "gemini",
+                        [MODEL_PROVIDER_ENV_VAR]: "gemini",
                     },
                 },
             ),
@@ -129,7 +144,7 @@ describe("model routing config", () => {
                 "default",
                 {
                     env: {
-                        MODEL_PROVIDER: "openai",
+                        [MODEL_PROVIDER_ENV_VAR]: "openai",
                     },
                 },
             ),
