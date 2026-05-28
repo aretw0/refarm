@@ -10,12 +10,12 @@ export {
 	REFARM_STATUS_SCHEMA_VERSION,
 } from "./status.js";
 export {
+	applicationCommand,
 	binaryCommand,
 	joinCommand,
 	normalizeHandoffValues,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
-	refarmCommand,
 	shellCommand,
 	workspaceCommand,
 } from "./command-handoff.js";

@@ -57,6 +57,18 @@ export function changedSourceFiles(root = process.cwd()) {
 export function organizeImportText(fileName, text, root = process.cwd()) {
 	const absolute = path.resolve(root, fileName);
 	let currentText = text;
+	const sourceFile = ts.createSourceFile(
+		absolute,
+		currentText,
+		ts.ScriptTarget.Latest,
+		true,
+	);
+	const importSpans = sourceFile.statements
+		.filter(ts.isImportDeclaration)
+		.map((statement) => ({
+			start: statement.getFullStart(),
+			end: statement.end,
+		}));
 	const snapshots = new Map([[absolute, ts.ScriptSnapshot.fromString(currentText)]]);
 	const updateSnapshot = (next) => {
 		currentText = next;
@@ -71,9 +83,12 @@ export function organizeImportText(fileName, text, root = process.cwd()) {
 
 	for (const fileChanges of changes) {
 		if (path.resolve(fileChanges.fileName) !== absolute) continue;
-		updateSnapshot(applyTextChanges(currentText, fileChanges.textChanges));
+		const importTextChanges = fileChanges.textChanges.filter((change) =>
+			textChangeOverlapsSpans(change, importSpans),
+		);
+		updateSnapshot(applyTextChanges(currentText, importTextChanges));
 	}
-	return normalizeMultilineImportIndent(currentText);
+	return normalizeMultilineNamedBindingIndent(currentText);
 }
 
 export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
@@ -131,19 +146,28 @@ function applyTextChanges(text, changes) {
 	return next;
 }
 
-function normalizeMultilineImportIndent(text) {
+function textChangeOverlapsSpans(change, spans) {
+	const start = change.span.start;
+	const end = change.span.start + change.span.length;
+	return spans.some((span) =>
+		(start >= span.start && start <= span.end) ||
+		(start < span.end && end > span.start),
+	);
+}
+
+function normalizeMultilineNamedBindingIndent(text) {
 	const lines = text.split("\n");
-	let inNamedImport = false;
+	let inNamedBinding = false;
 	return lines.map((line) => {
-		if (/^import\s+\{\s*$/.test(line)) {
-			inNamedImport = true;
+		if (/^(?:import|export)(?:\s+type)?\s+\{\s*$/.test(line)) {
+			inNamedBinding = true;
 			return line;
 		}
-		if (inNamedImport && /^\}\s+from\s+/.test(line)) {
-			inNamedImport = false;
+		if (inNamedBinding && /^\}\s+from\s+/.test(line)) {
+			inNamedBinding = false;
 			return line;
 		}
-		if (inNamedImport && line.trim().length > 0 && !/^\s/.test(line)) {
+		if (inNamedBinding && line.trim().length > 0 && !/^\s/.test(line)) {
 			return `\t${line}`;
 		}
 		return line;

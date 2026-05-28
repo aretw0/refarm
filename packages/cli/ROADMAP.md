@@ -31,7 +31,7 @@ application lives in `apps/refarm`.
 Keep these modules agnostic by default:
 
 - `command-handoff` (`applicationCommand`/`binaryCommand` are the primary
-  helpers; `refarmCommand` remains as a compatibility wrapper)
+  helpers; app-specific wrappers stay outside this package)
 - `command-line`
 - `command-result`
 - `command-plan`
@@ -60,6 +60,6 @@ surface.
   least two surfaces need them.
 - Extract Refarm-specific contracts from this package only when the destination
   package and compatibility exports are clear.
-- Add compatibility tests whenever a Refarm-specific alias remains around an
+- Add compatibility tests whenever a Refarm-specific contract remains around an
   agnostic primary helper.
 - Keep README and package exports aligned as new subpath modules are added.

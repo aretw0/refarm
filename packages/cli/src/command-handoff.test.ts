@@ -9,7 +9,6 @@ import {
 	normalizeHandoffValues,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
-	refarmCommand,
 	shellCommand,
 	workspaceCommand,
 } from "./command-handoff.js";
@@ -33,22 +32,15 @@ describe("command handoff helpers", () => {
 		);
 	});
 
-	it("builds refarm command strings", () => {
-		expect(refarmCommand(["ask", quoteCommandArg("hello"), "--json"])).toBe(
-			"refarm ask 'hello' --json",
-		);
-	});
-
 	it("builds application command strings without product-specific naming", () => {
 		expect(applicationCommand("tool", ["ask", quoteCommandArg("hello")])).toBe(
 			"tool ask 'hello'",
 		);
 	});
 
-	it("keeps refarmCommand as a compatibility wrapper for binaryCommand", () => {
+	it("keeps applicationCommand as a product-agnostic binary wrapper", () => {
 		const args = ["ask", quoteCommandArg("hello"), "--json"];
-		expect(binaryCommand("refarm", args)).toBe(refarmCommand(args));
-		expect(applicationCommand("refarm", args)).toBe(refarmCommand(args));
+		expect(binaryCommand("tool", args)).toBe(applicationCommand("tool", args));
 	});
 
 	it("builds workspace-scoped command strings", () => {

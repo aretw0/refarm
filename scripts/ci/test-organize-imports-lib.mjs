@@ -60,4 +60,35 @@ describe("organize-imports-lib", () => {
 			rmSync(root, { recursive: true, force: true });
 		}
 	});
+
+	it("keeps multiline export lists indented after organization", () => {
+		const root = mkdtempSync(path.join(tmpdir(), "refarm-organize-imports-"));
+		const sourceDir = path.join(root, "src");
+		mkdirSync(sourceDir, { recursive: true });
+		writeFileSync(path.join(sourceDir, "a.ts"), "export const a = 1;\n");
+
+		try {
+			const input = [
+				"export {",
+				"b,",
+				"a",
+				'} from "./a";',
+				"",
+			].join("\n");
+			const output = organizeImportText("src/main.ts", input, root);
+
+			assert.equal(
+				output,
+				[
+					"export {",
+					"\tb,",
+					"\ta",
+					'} from "./a";',
+					"",
+				].join("\n"),
+			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
 });

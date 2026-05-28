@@ -32,10 +32,6 @@ export function applicationCommand(binary: string, args: string[]): string {
 	return binaryCommand(binary, args);
 }
 
-export function refarmCommand(args: string[]): string {
-	return applicationCommand("refarm", args);
-}
-
 export function workspaceCommand(cwd: string, command: string): string {
 	return joinCommand(["cd", quoteCommandArg(cwd), "&&", command]);
 }
