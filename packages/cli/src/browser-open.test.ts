@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	BROWSER_OPEN_COMMAND_ENV_VAR,
+	LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR,
 	openHostBrowserUrl,
 	resolveBrowserOpenCandidates,
 	resolveBrowserOpenSpec,
@@ -70,13 +72,13 @@ describe("resolveBrowserOpenCandidates", () => {
 		);
 	});
 
-	it("allows an explicit REFARM_BROWSER_OPEN_COMMAND override", () => {
+	it("allows an explicit BROWSER_OPEN_COMMAND override", () => {
 		const candidates = resolveBrowserOpenCandidates(
 			"https://example.test/auth",
 			{
 				platform: "linux",
 				env: {
-					REFARM_BROWSER_OPEN_COMMAND: "custom-open --flag",
+					[BROWSER_OPEN_COMMAND_ENV_VAR]: "custom-open --flag",
 				},
 			},
 		);
@@ -88,13 +90,14 @@ describe("resolveBrowserOpenCandidates", () => {
 		});
 	});
 
-	it("keeps quoted REFARM_BROWSER_OPEN_COMMAND words intact", () => {
+	it("keeps quoted BROWSER_OPEN_COMMAND words intact", () => {
 		const candidates = resolveBrowserOpenCandidates(
 			"https://example.test/auth",
 			{
 				platform: "linux",
 				env: {
-					REFARM_BROWSER_OPEN_COMMAND: "\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\"",
+					[BROWSER_OPEN_COMMAND_ENV_VAR]:
+						"\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\"",
 				},
 			},
 		);
@@ -104,6 +107,43 @@ describe("resolveBrowserOpenCandidates", () => {
 			args: ["--profile", "Refarm Dev", "https://example.test/auth"],
 			display:
 				"\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\" https://example.test/auth",
+		});
+	});
+
+	it("keeps REFARM_BROWSER_OPEN_COMMAND as a legacy override", () => {
+		const candidates = resolveBrowserOpenCandidates(
+			"https://example.test/auth",
+			{
+				platform: "linux",
+				env: {
+					[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR]: "legacy-open --flag",
+				},
+			},
+		);
+
+		expect(candidates[0]).toEqual({
+			command: "legacy-open",
+			args: ["--flag", "https://example.test/auth"],
+			display: "legacy-open --flag https://example.test/auth",
+		});
+	});
+
+	it("prefers BROWSER_OPEN_COMMAND over the legacy Refarm override", () => {
+		const candidates = resolveBrowserOpenCandidates(
+			"https://example.test/auth",
+			{
+				platform: "linux",
+				env: {
+					[BROWSER_OPEN_COMMAND_ENV_VAR]: "generic-open",
+					[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR]: "legacy-open",
+				},
+			},
+		);
+
+		expect(candidates[0]).toEqual({
+			command: "generic-open",
+			args: ["https://example.test/auth"],
+			display: "generic-open https://example.test/auth",
 		});
 	});
 });

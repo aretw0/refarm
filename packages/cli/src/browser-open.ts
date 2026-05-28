@@ -26,6 +26,9 @@ export interface BestEffortBrowserOpenOptions {
 	timeoutMs?: number;
 }
 
+export const BROWSER_OPEN_COMMAND_ENV_VAR = "BROWSER_OPEN_COMMAND";
+export const LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR = "REFARM_BROWSER_OPEN_COMMAND";
+
 export function resolveBrowserOpenSpec(
 	url: string,
 	platform: NodeJS.Platform = process.platform,
@@ -73,14 +76,18 @@ export function resolveBrowserOpenCandidates(
 		candidates.push({ command, args, display });
 	};
 
-	if (env.REFARM_BROWSER_OPEN_COMMAND) {
-		const parts = splitBrowserOpenCommand(env.REFARM_BROWSER_OPEN_COMMAND);
+	const configuredCommand = resolveConfiguredBrowserOpenCommand(env);
+	if (configuredCommand) {
+		const parts = splitBrowserOpenCommand(
+			configuredCommand.commandLine,
+			configuredCommand.envVar,
+		);
 		const [command, ...args] = parts;
 		if (command) {
 			add(
 				command,
 				[...args, url],
-				`${env.REFARM_BROWSER_OPEN_COMMAND} ${url}`,
+				`${configuredCommand.commandLine} ${url}`,
 			);
 		}
 	}
@@ -108,8 +115,11 @@ export function resolveBrowserOpenCandidates(
 	return candidates;
 }
 
-export function splitBrowserOpenCommand(commandLine: string): string[] {
-	return splitCommandLine(commandLine, "REFARM_BROWSER_OPEN_COMMAND");
+export function splitBrowserOpenCommand(
+	commandLine: string,
+	envVar = BROWSER_OPEN_COMMAND_ENV_VAR,
+): string[] {
+	return splitCommandLine(commandLine, envVar);
 }
 
 export async function openHostBrowserUrl(
@@ -191,4 +201,23 @@ export function runBestEffortBrowserOpenCandidate(
 
 function formatBrowserOpenError(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function resolveConfiguredBrowserOpenCommand(
+	env: NodeJS.ProcessEnv,
+): { envVar: string; commandLine: string } | null {
+	const commandLine = env[BROWSER_OPEN_COMMAND_ENV_VAR];
+	if (commandLine) {
+		return { envVar: BROWSER_OPEN_COMMAND_ENV_VAR, commandLine };
+	}
+
+	const legacyCommandLine = env[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR];
+	if (legacyCommandLine) {
+		return {
+			envVar: LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR,
+			commandLine: legacyCommandLine,
+		};
+	}
+
+	return null;
 }
