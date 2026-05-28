@@ -15,6 +15,7 @@ import { createPackageManagerCommand } from "../../src/commands/package-manager.
 import { pluginCommand } from "../../src/commands/plugin.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
+import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import { createSessionsCommand } from "../../src/commands/sessions.js";
 import { createTaskCommand } from "../../src/commands/task.js";
 import { createTasksCommand } from "../../src/commands/tasks.js";
@@ -370,6 +371,22 @@ function createContractCheckCommand() {
 	});
 }
 
+function createContractRuntimeCommand() {
+	return createRuntimeCommand({
+		repoRoot: () => "/repo",
+		readEngine: () => "ts",
+		readAutostart: () => "ask",
+		probeReady: vi.fn().mockResolvedValue(false),
+		resolveRuntime: () => ({
+			configuredEngine: "ts",
+			activeEngine: "ts",
+			reason: "configured-ts",
+		}),
+		startRuntime: vi.fn(),
+		waitUntilReady: vi.fn().mockResolvedValue(false),
+	});
+}
+
 interface ParsedCommandJson {
 	handoffs?: Record<string, unknown>;
 	nextAction?: string | null;
@@ -589,6 +606,16 @@ describe("JSON next command contract", () => {
 						loadModelTokens: vi.fn().mockResolvedValue({}),
 					}),
 					args: ["--json"],
+				},
+				{
+					id: "runtime-status",
+					command: createContractRuntimeCommand(),
+					args: ["status", "--json"],
+				},
+				{
+					id: "runtime-ensure",
+					command: createContractRuntimeCommand(),
+					args: ["ensure", "--wait", "--json"],
 				},
 				{
 					id: "sessions-list",
