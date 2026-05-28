@@ -762,6 +762,26 @@ describe("JSON next command contract", () => {
 					args: ["list", "--json"],
 				},
 				{
+					id: "task-status",
+					command: createContractTaskCommand(),
+					args: ["status", "effort-abc", "--json"],
+				},
+				{
+					id: "task-logs",
+					command: createContractTaskCommand(),
+					args: ["logs", "effort-abc", "--json"],
+				},
+				{
+					id: "task-retry",
+					command: createContractTaskCommand(),
+					args: ["retry", "effort-abc", "--json"],
+				},
+				{
+					id: "task-cancel",
+					command: createContractTaskCommand(),
+					args: ["cancel", "effort-abc", "--json"],
+				},
+				{
 					id: "task-resume",
 					command: createContractTaskCommand(),
 					args: ["resume", "--json"],
