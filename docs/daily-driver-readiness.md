@@ -58,8 +58,8 @@ What is already solid:
   `RefarmAction*` aliases. Process and package-manager execution must route
   through shared adapters/resolvers.
 - `refarm resume` now provides an operator-level runtime, active-session,
-  recent-session, recent-prompt, finish-gate, and worker checkpoint view backed
-  by a shared `@refarm.dev/cli` resume envelope.
+  current-model-route, recent-session, recent-prompt, finish-gate, and worker
+  checkpoint view backed by a shared `@refarm.dev/cli` resume envelope.
 - Model credential provider selection, init template selection, GitHub owner
   text prompts, migrate target URL prompts, OAuth text prompts, and secret
   credential entry now route through the shared
