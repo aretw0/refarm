@@ -138,7 +138,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 							operation: "credentials",
 							error: "empty-model",
 							message: "--model cannot be empty.",
-							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							nextAction: refarmCommand(["sow", "--model", OLLAMA_DEFAULT_REF]),
 							nextCommand: LOCAL_MODEL_JSON_COMMAND,
 							extra: { action: "sow" },
 						}),
@@ -158,7 +158,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 							operation: "credentials",
 							error: "model-provider-required",
 							message: `Could not infer provider for model "${initialModelRef.modelId}".`,
-							nextAction: `refarm sow --model ${OLLAMA_DEFAULT_REF}`,
+							nextAction: refarmCommand(["sow", "--model", OLLAMA_DEFAULT_REF]),
 							nextCommand: LOCAL_MODEL_JSON_COMMAND,
 							extra: {
 								action: "sow",
@@ -210,8 +210,8 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 			];
 			if (opts.json && interactivePrompts.length > 0) {
 				const nextAction = configureModel
-					? "refarm sow"
-					: `refarm sow --${interactivePrompts[0]}`;
+					? refarmCommand(["sow"])
+					: refarmCommand(["sow", `--${interactivePrompts[0]}`]);
 				const nextCommands = configureModel
 					? [
 							LOCAL_MODEL_JSON_COMMAND,

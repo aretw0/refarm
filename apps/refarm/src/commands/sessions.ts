@@ -84,6 +84,7 @@ interface SessionsCommandServices {
 }
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
+const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
 
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
@@ -365,7 +366,7 @@ async function listSessions(
 						sessionShowJsonCommand(report.sessions[0]["@id"]),
 						SESSIONS_LIST_JSON_COMMAND,
 					]
-				: ["refarm sessions new --json"];
+				: [SESSIONS_NEW_JSON_COMMAND];
 		printSessionJsonSuccess("list", report, nextCommands);
 		return;
 	}
