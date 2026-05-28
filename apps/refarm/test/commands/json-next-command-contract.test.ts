@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { createAgentCommand } from "../../src/commands/agent.js";
 import { createCheckCommand } from "../../src/commands/check.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
+import { doctorCommand } from "../../src/commands/doctor.js";
 import { extensionCommand } from "../../src/commands/extension.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
 import { createModelCommand } from "../../src/commands/model.js";
@@ -214,6 +215,25 @@ function createTempConfigCommand() {
 			cwd: () => cwd,
 			home: () => home,
 		}),
+	};
+}
+
+function createTempStatusFile(diagnostics: string[]) {
+	const dir = mkdtempSync(join(tmpdir(), "refarm-status-contract-"));
+	const path = join(dir, "status.json");
+	const status = {
+		...makeReadyStatus("tui"),
+		runtime: {
+			ready: !diagnostics.includes("runtime:not-ready"),
+			namespace: "refarm-main",
+			databaseName: "refarm-main",
+		},
+		diagnostics,
+	};
+	writeFileSync(path, `${JSON.stringify(status, null, 2)}\n`);
+	return {
+		path,
+		cleanup: () => rmSync(dir, { recursive: true, force: true }),
 	};
 }
 
@@ -476,6 +496,7 @@ describe("JSON next command contract", () => {
 
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
+		const status = createTempStatusFile(["runtime:not-ready"]);
 		try {
 			vi.stubGlobal("fetch", makeContractFetch());
 			const payloads = await parseCommandJsonSamples([
@@ -495,6 +516,11 @@ describe("JSON next command contract", () => {
 					id: "deploy-invalid-target",
 					command: deployCommand,
 					args: ["--target", "workers", "--dry-run", "--json"],
+				},
+				{
+					id: "doctor-input",
+					command: doctorCommand,
+					args: ["--input", status.path, "--json"],
 				},
 				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
 				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
@@ -668,6 +694,7 @@ describe("JSON next command contract", () => {
 			expect(missingNextCommands).toEqual([]);
 		} finally {
 			vi.unstubAllGlobals();
+			status.cleanup();
 			config.cleanup();
 		}
 	});
