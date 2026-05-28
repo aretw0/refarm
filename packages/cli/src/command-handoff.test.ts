@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+	applicationCommand,
 	binaryCommand,
 	joinCommand,
 	normalizeHandoffValues,
@@ -38,9 +39,16 @@ describe("command handoff helpers", () => {
 		);
 	});
 
+	it("builds application command strings without product-specific naming", () => {
+		expect(applicationCommand("tool", ["ask", quoteCommandArg("hello")])).toBe(
+			"tool ask 'hello'",
+		);
+	});
+
 	it("keeps refarmCommand as a compatibility wrapper for binaryCommand", () => {
 		const args = ["ask", quoteCommandArg("hello"), "--json"];
 		expect(binaryCommand("refarm", args)).toBe(refarmCommand(args));
+		expect(applicationCommand("refarm", args)).toBe(refarmCommand(args));
 	});
 
 	it("builds workspace-scoped command strings", () => {

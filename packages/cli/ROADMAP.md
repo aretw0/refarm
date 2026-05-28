@@ -30,7 +30,8 @@ application lives in `apps/refarm`.
 
 Keep these modules agnostic by default:
 
-- `command-handoff`
+- `command-handoff` (`applicationCommand`/`binaryCommand` are the primary
+  helpers; `refarmCommand` remains as a compatibility wrapper)
 - `command-line`
 - `command-result`
 - `command-plan`

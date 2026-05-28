@@ -28,8 +28,12 @@ export function binaryCommand(binary: string, args: string[]): string {
 	return joinCommand([binary, ...args]);
 }
 
+export function applicationCommand(binary: string, args: string[]): string {
+	return binaryCommand(binary, args);
+}
+
 export function refarmCommand(args: string[]): string {
-	return binaryCommand("refarm", args);
+	return applicationCommand("refarm", args);
 }
 
 export function workspaceCommand(cwd: string, command: string): string {
