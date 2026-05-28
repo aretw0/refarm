@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentFinishSessionRecorder } from "../../src/commands/agent-finish-session.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
 import type {
-	TaskSessionCheckpoint,
-	TaskSessionRecorder,
+TaskSessionCheckpoint,
+TaskSessionRecorder,
 } from "../../src/commands/task-session.js";
 
 const status: RefarmStatusJson = {
@@ -84,6 +84,10 @@ describe("resume command", () => {
 			readActiveSessionId: vi.fn().mockReturnValue(
 				"urn:refarm:session:v1:abcdef1234567890",
 			),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([
 				{
 					sessionId: "urn:refarm:session:v1:abcdef1234567890",
@@ -101,6 +105,7 @@ describe("resume command", () => {
 		await command.parseAsync([], { from: "user" });
 
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Operator resume"));
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Model: default openai/gpt-5.5"));
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm task status effort-1 --transport http --watch"),
 		);
@@ -123,6 +128,10 @@ describe("resume command", () => {
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
 			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([]),
 			loadChatHistory: vi.fn().mockReturnValue([]),
 		});
@@ -132,8 +141,9 @@ describe("resume command", () => {
 
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"command": "resume"'));
 		expect(spy).toHaveBeenCalledWith(
-			expect.stringContaining('"nextCommand": "refarm task list --json"'),
+			expect.stringContaining('"nextCommand": "refarm model current --json"'),
 		);
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"model": {'));
 		spy.mockRestore();
 	});
 
@@ -145,6 +155,7 @@ describe("resume command", () => {
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
 			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({}),
 			loadRecentSessions,
 			loadChatHistory: vi.fn().mockReturnValue([]),
 		});

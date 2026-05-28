@@ -28,6 +28,17 @@ describe("operator resume", () => {
 	it("summarizes runtime and task checkpoint state", () => {
 		const summary = buildOperatorResumeSummary({
 			status,
+			model: {
+				current: {
+					scope: "default",
+					provider: "openai",
+					modelId: "gpt-5.5",
+					ref: "openai/gpt-5.5",
+				},
+				credential: { state: "env", status: "OPENAI_API_KEY env" },
+				source: "identity",
+				inspectCommand: "refarm model current --json",
+			},
 			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 			recentSessions: [
 				{
@@ -75,6 +86,10 @@ describe("operator resume", () => {
 		expect(summary).toMatchObject({
 			status: "ok",
 			runtime: { ready: false, namespace: "refarm-main" },
+			model: {
+				current: { ref: "openai/gpt-5.5" },
+				inspectCommand: "refarm model current --json",
+			},
 			session: {
 				status: "active",
 				shortId: "ef1234567890",
@@ -103,6 +118,7 @@ describe("operator resume", () => {
 		});
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime doctor --next-command",
+			"refarm model current --json",
 			"refarm tree show ef1234567890 --json",
 			"refarm runtime start --wait",
 			"refarm task status effort-1 --transport http --watch",
@@ -149,6 +165,12 @@ describe("operator resume", () => {
 							},
 						],
 					},
+					model: {
+						current: { ref: "openai/gpt-5.5" },
+						credential: { status: "OPENAI_API_KEY env" },
+						source: "identity",
+						inspectCommand: "refarm model current --json",
+					},
 					activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 					recentSessions: [
 						{
@@ -172,6 +194,16 @@ describe("operator resume", () => {
 				}),
 			),
 		).toContain("Finish: failed");
+		expect(
+			formatOperatorResumeSummary(
+				buildOperatorResumeSummary({
+					model: {
+						current: { ref: "openai/gpt-5.5" },
+						inspectCommand: "refarm model current --json",
+					},
+				}),
+			),
+		).toContain("Model: openai/gpt-5.5");
 		expect(
 			formatOperatorResumeSummary(
 				buildOperatorResumeSummary({

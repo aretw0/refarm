@@ -33,6 +33,7 @@ export interface OperatorResumeTaskCheckpoint {
 export interface OperatorResumeCommands {
 	runtimeDoctor: string;
 	taskList: string;
+	modelCurrent: string;
 	sessionShow: (sessionId: string) => string;
 }
 
@@ -61,6 +62,7 @@ export interface OperatorResumeFinishRecord {
 
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
+	model?: OperatorResumeModelSummary;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
 	activeSessionId?: string | null;
 	recentSessions?: readonly OperatorResumeSessionRecord[];
@@ -81,6 +83,18 @@ export interface OperatorResumeRuntimeSummary {
 	namespace: string;
 	engine?: RefarmStatusJson["runtime"]["engine"];
 	diagnostics: readonly string[];
+}
+
+export interface OperatorResumeModelSummary {
+	current: OperatorResumeModelRoute;
+	routes?: Partial<Record<string, string>>;
+	credential?: {
+		state?: string;
+		status?: string | null;
+		envKey?: string;
+	};
+	source?: string;
+	inspectCommand?: string;
 }
 
 export interface OperatorResumeSessionSummary {
@@ -107,6 +121,7 @@ export interface OperatorResumeFinishSummary {
 export interface OperatorResumeSummary {
 	status: "empty" | "ok";
 	runtime?: OperatorResumeRuntimeSummary;
+	model?: OperatorResumeModelSummary;
 	session: OperatorResumeSessionSummary;
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
@@ -123,6 +138,7 @@ function refarmAppCommand(args: string[]): string {
 const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	runtimeDoctor: refarmAppCommand(["runtime", "doctor", "--next-command"]),
 	taskList: refarmAppCommand(["task", "list", "--json"]),
+	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
 	sessionShow: (sessionId) =>
 		refarmAppCommand([
 			"tree",
@@ -206,8 +222,9 @@ export function buildOperatorResumeSummary(
 				remainingCommands: [],
 			};
 	return {
-		status: runtime ||
-			session.status === "active" ||
+			status: runtime ||
+				Boolean(input.model) ||
+				session.status === "active" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
 			(input.recentPrompts?.length ?? 0) > 0 ||
@@ -215,6 +232,7 @@ export function buildOperatorResumeSummary(
 			? "ok"
 			: "empty",
 		runtime,
+		model: input.model,
 		session,
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
@@ -230,6 +248,11 @@ export function operatorResumeNextCommands(
 	const nextCommands: string[] = [];
 	if (summary.runtime && !summary.runtime.ready) {
 		nextCommands.push(resolved.runtimeDoctor);
+	}
+	if (summary.model?.inspectCommand) {
+		nextCommands.push(summary.model.inspectCommand);
+	} else if (summary.model) {
+		nextCommands.push(resolved.modelCurrent);
 	}
 	if (summary.session.showCommand) {
 		nextCommands.push(summary.session.showCommand);
@@ -280,6 +303,23 @@ export function formatOperatorResumeSummary(
 		}
 	} else {
 		lines.push("Runtime: not inspected");
+	}
+	if (summary.model) {
+		const current = formatOperatorResumeModelRoute(summary.model.current);
+		lines.push(`Model: ${current ?? "<not configured>"}`);
+		if (summary.model.credential?.status) {
+			lines.push(`  credential: ${summary.model.credential.status}`);
+		} else if (summary.model.credential?.state) {
+			lines.push(`  credential: ${summary.model.credential.state}`);
+		}
+		if (summary.model.source) {
+			lines.push(`  source: ${summary.model.source}`);
+		}
+		if (summary.model.inspectCommand) {
+			lines.push(`  inspect: ${summary.model.inspectCommand}`);
+		}
+	} else {
+		lines.push("Model: not inspected");
 	}
 	if (summary.session.status === "active" && summary.session.activeSessionId) {
 		lines.push(

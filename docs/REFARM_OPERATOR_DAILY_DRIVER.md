@@ -15,8 +15,8 @@ refarm runtime doctor --next-command
 ```
 
 Use `refarm resume` first. It combines runtime readiness, recent sessions,
-recent prompts, task checkpoints, and the last finish gate. If it prints
-`nextCommands`, run the first command before guessing.
+recent prompts, current model route, task checkpoints, and the last finish gate.
+If it prints `nextCommands`, run the first command before guessing.
 
 When the runtime is not ready:
 

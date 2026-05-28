@@ -2,21 +2,28 @@ import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
+	type OperatorResumeModelSummary,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
 import { Command } from "commander";
-import { loadChatHistory } from "./chat-history.js";
-import { printJson } from "./json-output.js";
-import {
-	resolveStatusPayload,
-	type ResolveStatusPayloadResult,
-} from "./status.js";
-import { readActiveSessionId } from "./session-lock.js";
-import { loadRecentRuntimeSessions } from "./session-history.js";
 import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
+import { loadChatHistory } from "./chat-history.js";
+import { MODEL_CURRENT_JSON_COMMAND } from "./credential-handoffs.js";
+import { printJson } from "./json-output.js";
+import {
+	buildCurrentModelStatus,
+	defaultModelDeps,
+	type ModelTokens,
+} from "./model.js";
+import { loadRecentRuntimeSessions } from "./session-history.js";
+import { readActiveSessionId } from "./session-lock.js";
+import {
+	resolveStatusPayload,
+	type ResolveStatusPayloadResult,
+} from "./status.js";
 import {
 	createTaskSessionRecorder,
 	type TaskSessionCheckpoint,
@@ -32,6 +39,7 @@ export interface ResumeDeps {
 	readActiveSessionId(): string | null;
 	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
+	loadModelTokens(): Promise<ModelTokens>;
 }
 
 interface ResumeOptions {
@@ -47,6 +55,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		readActiveSessionId,
 		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
+		loadModelTokens: defaultModelDeps().loadTokens,
 		...deps,
 	};
 
@@ -82,6 +91,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
+	const model = await loadModelResumeSummary(deps);
 	const recentSessions = options.status === false
 		? []
 		: await deps.loadRecentSessions();
@@ -95,6 +105,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			printJson(
 				buildOperatorResumeEnvelope({
 					status,
+					model,
 					taskCheckpoint,
 					activeSessionId,
 					recentSessions,
@@ -107,6 +118,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 
 		const summary = buildOperatorResumeSummary({
 			status,
+			model,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
@@ -116,6 +128,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = buildOperatorResumeEnvelope({
 			status,
+			model,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
@@ -131,6 +144,33 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 		}
 	} finally {
 		await statusResult?.shutdown?.();
+	}
+}
+
+async function loadModelResumeSummary(
+	deps: Pick<ResumeDeps, "loadModelTokens">,
+): Promise<OperatorResumeModelSummary | undefined> {
+	try {
+		const tokens = await deps.loadModelTokens();
+		const status = buildCurrentModelStatus(tokens);
+		return {
+			current: {
+				scope: "default",
+				provider: status.current.provider,
+				modelId: status.current.modelId,
+				ref: status.current.ref,
+			},
+			routes: status.routes,
+			credential: {
+				state: status.credential.state,
+				status: status.credential.status,
+				envKey: status.credential.envKey,
+			},
+			source: status.source.kind,
+			inspectCommand: MODEL_CURRENT_JSON_COMMAND,
+		};
+	} catch {
+		return undefined;
 	}
 }
 
