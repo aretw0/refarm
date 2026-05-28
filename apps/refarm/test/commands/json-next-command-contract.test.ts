@@ -333,6 +333,27 @@ function createContractInitCommand() {
 function makeContractFetch() {
 	return vi.fn().mockImplementation(async (url: string | URL) => {
 		const value = String(url);
+		if (value.includes("/tasks/")) {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					task: {
+						"@id": "urn:refarm:task:v1:abc123def456",
+						"@type": "Task",
+						title: "contract task",
+						status: "active",
+					},
+					events: [
+						{
+							"@id": "urn:refarm:task-event:v1:event123",
+							task_id: "urn:refarm:task:v1:abc123def456",
+							event: "status_changed",
+						},
+					],
+				}),
+			};
+		}
 		if (value.includes("/tasks")) {
 			return {
 				ok: true,
@@ -987,6 +1008,11 @@ describe("JSON next command contract", () => {
 					id: "tasks-list",
 					command: createTasksCommand(),
 					args: ["--json"],
+				},
+				{
+					id: "tasks-show",
+					command: createTasksCommand().commands.find((command) => command.name() === "show")!,
+					args: ["abc123def456", "--json"],
 				},
 				{
 					id: "task-list",
