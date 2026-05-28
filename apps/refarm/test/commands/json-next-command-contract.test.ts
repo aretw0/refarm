@@ -844,6 +844,16 @@ describe("JSON next command contract", () => {
 					args: ["set", "operator.openExternalLinks", "never", "--local", "--json"],
 				},
 				{
+					id: "config-get-local",
+					command: config.command,
+					args: ["get", "operator.openExternalLinks", "--local", "--json"],
+				},
+				{
+					id: "config-unset-local",
+					command: config.command,
+					args: ["unset", "operator.openExternalLinks", "--local", "--json"],
+				},
+				{
 					id: "deploy-invalid-target",
 					command: deployCommand,
 					args: ["--target", "workers", "--dry-run", "--json"],
