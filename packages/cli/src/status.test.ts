@@ -461,7 +461,7 @@ describe("formatRefarmStatusMarkdown", () => {
 });
 
 describe("formatRefarmStatusSummary", () => {
-	it("renders a deterministic human summary", () => {
+	it("renders a deterministic operator summary", () => {
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson(BASE_OPTIONS),
 		);
@@ -472,7 +472,7 @@ describe("formatRefarmStatusSummary", () => {
 		expect(summary).toContain("  - runtime:not-ready");
 	});
 
-	it("renders tractor engine details in human summaries", () => {
+	it("renders tractor engine details in operator summaries", () => {
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson({
 				...BASE_OPTIONS,
@@ -493,7 +493,7 @@ describe("formatRefarmStatusSummary", () => {
 		);
 	});
 
-	it("renders available action details in human summaries", () => {
+	it("renders available action details in operator summaries", () => {
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson({
 				...BASE_OPTIONS,

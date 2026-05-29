@@ -298,7 +298,7 @@ describe("actionsCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects unavailable host action selections in human output", async () => {
+	it("rejects unavailable host action selections in operator output", async () => {
 		const command = createActionsCommand({ resolveStatusPayload });
 
 		await expect(

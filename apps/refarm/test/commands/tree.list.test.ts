@@ -165,7 +165,7 @@ describe("refarm tree list", () => {
 		});
 	});
 
-	it("lists session timeline switch affordances in human output", async () => {
+	it("lists session timeline switch affordances in operator output", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -365,7 +365,7 @@ describe("refarm tree list", () => {
 		]);
 	});
 
-	it("lists all timeline nodes in human output", async () => {
+	it("lists all timeline nodes in operator output", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -382,7 +382,7 @@ describe("refarm tree list", () => {
 		expect(output).toContain("refarm tree show --scope git <commit>");
 	});
 
-	it("prints empty all-scope human output without mutating state", async () => {
+	it("prints empty all-scope operator output without mutating state", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [] }));
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -427,7 +427,7 @@ describe("refarm tree list", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
-	it("lists git tree execution affordances in human output", async () => {
+	it("lists git tree execution affordances in operator output", async () => {
 		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

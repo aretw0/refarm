@@ -183,7 +183,7 @@ describe("plugin install", () => {
 		consoleSpy.mockRestore();
 	});
 
-	it("prints install results as JSON without human log lines", async () => {
+	it("prints install results as JSON without operator log lines", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
 		mockReadFileSync
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
@@ -611,7 +611,7 @@ describe("plugin status", () => {
 		errorSpy.mockRestore();
 	});
 
-	it("sets exitCode for partial runtime plugin reloads in human output", async () => {
+	it("sets exitCode for partial runtime plugin reloads in operator output", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
@@ -906,7 +906,7 @@ describe("plugin bundle", () => {
 		consoleSpy.mockRestore();
 	});
 
-	it("prints bundle failures as JSON without human stderr", async () => {
+	it("prints bundle failures as JSON without operator stderr", async () => {
 		mockRunLaunchProcess.mockImplementation(() => {
 			throw new Error("jco not found");
 		});

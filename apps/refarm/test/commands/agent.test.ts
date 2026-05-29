@@ -657,7 +657,7 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints human finish lanes with usage guidance", async () => {
+	it("prints operator finish lanes with usage guidance", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -676,7 +676,7 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints human finish templates with substitution guidance", async () => {
+	it("prints operator finish templates with substitution guidance", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -2141,7 +2141,7 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints a concise human finish run report", async () => {
+	it("prints a concise operator finish run report", async () => {
 		const runRefarm = vi.fn((args: string[]) => ({
 			id: args.join(" "),
 			command: `refarm ${args.join(" ")}`,
@@ -2168,7 +2168,7 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints remaining finish commands after a human failure report", async () => {
+	it("prints remaining finish commands after a operator failure report", async () => {
 		const runRefarm = vi
 			.fn()
 			.mockImplementationOnce((args: string[]) => ({
@@ -2219,8 +2219,8 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints selected affected workspaces in human finish reports", async () => {
-		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-human-"));
+	it("prints selected affected workspaces in operator finish reports", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-operator-"));
 		tempDirs.push(root);
 		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
 		const appDir = path.join(root, "apps", "refarm");
@@ -2273,8 +2273,8 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints affected script checks in human finish reports", async () => {
-		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-scripts-human-"));
+	it("prints affected script checks in operator finish reports", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-scripts-operator-"));
 		tempDirs.push(root);
 		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
 		mkdirSync(path.join(root, "scripts"), { recursive: true });

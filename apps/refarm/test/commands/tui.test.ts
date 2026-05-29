@@ -370,7 +370,7 @@ describe("tuiCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects --actions --select in human output when the action is unavailable", async () => {
+	it("rejects --actions --select in operator output when the action is unavailable", async () => {
 		resolveStatusPayload.mockResolvedValueOnce({
 			json: makeStatus({
 				plugins: {

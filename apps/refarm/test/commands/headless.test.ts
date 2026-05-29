@@ -223,7 +223,7 @@ describe("headlessCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects --action-request with human output flags", async () => {
+	it("rejects --action-request with operator output flags", async () => {
 		await expect(
 			headlessCommand.parseAsync(
 				["--action-request", "open-node", "--summary"],

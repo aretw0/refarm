@@ -634,7 +634,7 @@ describe("provision command", () => {
 		errorSpy.mockRestore();
 	});
 
-	it("reports missing Cloudflare token as JSON without human stderr", async () => {
+	it("reports missing Cloudflare token as JSON without operator stderr", async () => {
 		mockLoadTokens.mockResolvedValue(null);
 		const logs: string[] = [];
 		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {

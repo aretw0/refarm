@@ -476,7 +476,7 @@ describe("refarm tree preview", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
-	it("shows blocked session switch readiness in human preview output", async () => {
+	it("shows blocked session switch readiness in operator preview output", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
@@ -580,7 +580,7 @@ describe("refarm tree preview", () => {
 		});
 	});
 
-	it("shows blocked git fork readiness in human preview output", async () => {
+	it("shows blocked git fork readiness in operator preview output", async () => {
 		spawnSyncMock
 			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
 			.mockReturnValueOnce(makeSpawnResult(0));
@@ -628,7 +628,7 @@ describe("refarm tree preview", () => {
 		});
 	});
 
-	it("shows ready session switch preview in human output", async () => {
+	it("shows ready session switch preview in operator output", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(fs, "readFileSync").mockImplementation(() => {

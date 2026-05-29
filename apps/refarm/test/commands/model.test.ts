@@ -126,7 +126,7 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints human recovery for missing scoped route credentials", async () => {
+	it("prints operator recovery for missing scoped route credentials", async () => {
 		const deps = makeDeps({
 			modelProvider: "ollama",
 			modelId: "llama3.2",

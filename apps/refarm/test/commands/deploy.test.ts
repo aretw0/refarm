@@ -151,7 +151,7 @@ describe("deployCommand", () => {
     errorSpy.mockRestore();
   });
 
-  it("prints deploy failures as JSON without human stderr", async () => {
+  it("prints deploy failures as JSON without operator stderr", async () => {
     mockDeploy.mockResolvedValueOnce({ status: "failure", message: "upload failed" });
     const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
