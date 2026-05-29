@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
 import http from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpSidecar } from "./http.js";
 import { createPluginsRouteHandler } from "./plugins.js";
@@ -122,12 +125,14 @@ describe("createPluginsRouteHandler", () => {
 	let port: number;
 	let target: ReturnType<typeof makeTarget>;
 	let tracker: PluginUsageTracker;
+	let baseDir: string;
 
 	async function startSidecar(idle = true) {
+		baseDir = mkdtempSync(join(tmpdir(), "farmhand-plugins-test-"));
 		target = makeTarget();
 		tracker = makeTracker(idle);
 		sidecar = new HttpSidecar(0, makeAdapter());
-		sidecar.addRouteHandler(createPluginsRouteHandler(target, "/tmp/test-refarm", tracker));
+		sidecar.addRouteHandler(createPluginsRouteHandler(target, baseDir, tracker));
 		await sidecar.start();
 		const addr = sidecar.httpServer.address();
 		port = typeof addr === "object" && addr !== null ? addr.port : 0;
@@ -135,6 +140,7 @@ describe("createPluginsRouteHandler", () => {
 
 	afterEach(async () => {
 		await sidecar.stop();
+		rmSync(baseDir, { recursive: true, force: true });
 		vi.clearAllMocks();
 		// Reset mock queues and re-establish base return values
 		vi.mocked(loadInstalledPlugins).mockReset().mockResolvedValue({ loaded: 1, skipped: 0 });
@@ -187,7 +193,7 @@ describe("createPluginsRouteHandler", () => {
 			await request(port, "POST", "/plugins/reload");
 			expect(loadInstalledPlugins).toHaveBeenCalledWith(
 				target,
-				"/tmp/test-refarm",
+				baseDir,
 				{ pluginFilter: ["plugin-a"] },
 			);
 		});
@@ -211,7 +217,7 @@ describe("createPluginsRouteHandler", () => {
 			expect(res.status).toBe(200);
 			expect(loadInstalledPlugins).toHaveBeenCalledWith(
 				target,
-				"/tmp/test-refarm",
+				baseDir,
 				{ pluginFilter: ["@refarm/pi-agent"] },
 			);
 		});
