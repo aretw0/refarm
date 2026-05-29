@@ -41,11 +41,8 @@ import {
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
-	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_START_WAIT_COMMAND,
-	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 
 const AGENT_NEXT_ACTION_COMMAND = refarmCommand([
