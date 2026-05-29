@@ -956,9 +956,13 @@ function printAgentFinishRunHuman(
 function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {
 	if (selection.profile === "affected") {
 		const workspaces = selection.affectedWorkspaces ?? [];
+		const scripts = selection.affectedScriptChecks ?? [];
 		const since = formatSinceSelection(selection);
-		return workspaces.length > 0
-			? `affected${since} (${workspaces.join(", ")})`
+		const parts: string[] = [];
+		if (workspaces.length > 0) parts.push(workspaces.join(", "));
+		if (scripts.length > 0) parts.push(`scripts: ${scripts.join(", ")}`);
+		return parts.length > 0
+			? `affected${since} (${parts.join("; ")})`
 			: `affected${since} (no changed workspaces)`;
 	}
 	if (selection.profile === "package") {

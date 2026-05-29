@@ -2272,4 +2272,43 @@ describe("agent command", () => {
 		expect(logSpy).toHaveBeenCalledWith("Selection: affected (apps/refarm)");
 		logSpy.mockRestore();
 	});
+
+	it("prints affected script checks in human finish reports", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-scripts-human-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		mkdirSync(path.join(root, "scripts"), { recursive: true });
+		writeFileSync(
+			path.join(root, "scripts", "organize-imports-lib.mjs"),
+			"export const changed = true;\n",
+			"utf8",
+		);
+		const runProcess = vi.fn((step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand({ runProcess });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--run",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		expect(logSpy).toHaveBeenCalledWith(
+			"Selection: affected (scripts: organize-imports)",
+		);
+		logSpy.mockRestore();
+	});
 });
