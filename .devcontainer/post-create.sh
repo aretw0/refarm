@@ -110,13 +110,6 @@ fi
 
 log "Starting post-create setup..."
 
-# 0a) Repair .git/objects ownership — the container runtime (or Dockerfile RUN steps)
-# may clone/initialize the repo as root, leaving some object subdirs as drwxr-xr-x.
-# This causes "insufficient permission" errors on the first commit after creation.
-if [ -d "$ROOT/.git/objects" ]; then
-  sudo chown -R "$(id -u):$(id -g)" "$ROOT/.git/objects" 2>/dev/null || true
-fi
-
 # 0) Git symlink support — must run before any checkout/npm ci
 # core.symlinks=false (Windows NTFS default) materializes symlinks as regular files.
 # In a Linux devcontainer the filesystem supports symlinks natively, so enable it
@@ -130,8 +123,13 @@ git config core.quotepath false
 git config i18n.commitEncoding UTF-8
 git config i18n.logOutputEncoding UTF-8
 
-# 1) Cache and tool directories
+# 1) Ownership and tool directories
 log "Preparing cache directories and permissions..."
+# Repair .git/objects ownership — the container runtime may clone as root, leaving
+# some object subdirs as drwxr-xr-x and causing "insufficient permission" on commit.
+if [ -d "$ROOT/.git/objects" ]; then
+  sudo chown -R "$(id -u):$(id -g)" "$ROOT/.git/objects" 2>/dev/null || true
+fi
 for dir in \
   /home/vscode/.local \
   /home/vscode/.local/state \
