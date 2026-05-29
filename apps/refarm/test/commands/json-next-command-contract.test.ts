@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
+import { createAskCommand } from "../../src/commands/ask.js";
 import { createCheckCommand } from "../../src/commands/check.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
@@ -247,6 +248,16 @@ function makeStatusWithActions() {
 			],
 		},
 	};
+}
+
+function createContractAskCommand() {
+	return createAskCommand({
+		submitEffort: vi.fn(),
+		followStream: vi.fn(),
+		resolveSessionIdPrefix: vi.fn().mockRejectedValue(
+			new Error("No session matching abc123"),
+		),
+	});
 }
 
 function createContractActionsCommand() {
@@ -838,6 +849,16 @@ describe("JSON next command contract", () => {
 				{ id: "agent-finish-after-edit", command: createAgentCommand(), args: ["finish", "--lane", "after-edit", "--json"] },
 				{ id: "agent-finish-handoffs", command: createAgentCommand(), args: ["finish", "--lane", "handoffs", "--json"] },
 				{ id: "agent-finish-with-package-tests", command: createAgentCommand(), args: ["finish", "--lane", "with-package-tests", "--json"] },
+				{
+					id: "ask-conflict",
+					command: createAskCommand({ submitEffort: vi.fn(), followStream: vi.fn() }),
+					args: ["hello", "--new", "--session", "abc", "--json"],
+				},
+				{
+					id: "ask-session-not-found",
+					command: createContractAskCommand(),
+					args: ["hello", "--session", "abc123", "--json"],
+				},
 				{
 					id: "config-set-local",
 					command: config.command,
