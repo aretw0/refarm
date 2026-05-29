@@ -230,10 +230,17 @@ describe("refarm ask", () => {
 			command: "ask",
 			operation: "submit",
 			ok: true,
-			nextAction: null,
-			nextActions: [],
-			nextCommand: null,
-			nextCommands: [],
+			nextAction: "refarm resume --json",
+			nextActions: [
+				"refarm resume --json",
+				"refarm agent finish --lane after-edit --run --json",
+			],
+			nextCommand: "refarm resume --json",
+			nextCommands: [
+				"refarm resume --json",
+				"refarm sessions show urn:refarm:session:v1:jsonactive --json",
+				"refarm agent finish --lane after-edit --run --json",
+			],
 			metadata: {
 				model: "claude-sonnet-4-6",
 				tokens_in: 50,
@@ -844,10 +851,17 @@ describe("refarm ask", () => {
 			command: "ask",
 			operation: "submit",
 			ok: true,
-			nextAction: null,
-			nextActions: [],
-			nextCommand: null,
-			nextCommands: [],
+			nextAction: "refarm resume --json",
+			nextActions: [
+				"refarm resume --json",
+				"refarm agent finish --lane after-edit --run --json",
+			],
+			nextCommand: "refarm resume --json",
+			nextCommands: [
+				"refarm resume --json",
+				"refarm sessions show urn:refarm:session:v1:jsonfallback --json",
+				"refarm agent finish --lane after-edit --run --json",
+			],
 			metadata: { model: "mock-model", tokens_in: 1, tokens_out: 2 },
 		});
 

@@ -34,6 +34,7 @@ import {
 	OPENAI_MONITOR_MODEL_JSON_COMMAND,
 	OPENAI_WORKER_MODEL_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
+	RESUME_JSON_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
@@ -204,8 +205,8 @@ const agentRuntimePlan = {
 	},
 	usage: {
 		ask: `refarm ask "hello" --json`,
-		session: "refarm",
-		resume: "refarm resume --json",
+		session: refarmCommand(["sessions", "list", "--json"]),
+		resume: RESUME_JSON_COMMAND,
 		tidyCheck: "refarm tidy imports --check --json",
 		tidyApply: "refarm tidy imports --json",
 	},

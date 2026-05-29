@@ -19,12 +19,14 @@ import path from "node:path";
 import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
+	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPENAI_DEFAULT_REF,
 	OPENAI_MODEL_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
+	RESUME_JSON_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
@@ -605,10 +607,24 @@ function printAskErrorJson(message: string): void {
 }
 
 function printAskSuccessJson(result: AskJsonResult): void {
+	const sessionShowTemplate = refarmCommand([
+		"sessions",
+		"show",
+		result.sessionId,
+		"--json",
+	]);
 	printJson(
 		buildJsonSuccessEnvelope({
 			command: "ask",
 			operation: "submit",
+			nextAction: RESUME_JSON_COMMAND,
+			nextActions: [RESUME_JSON_COMMAND, AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND],
+			nextCommand: RESUME_JSON_COMMAND,
+			nextCommands: [
+				RESUME_JSON_COMMAND,
+				sessionShowTemplate,
+				AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
+			],
 			extra: result,
 		}),
 	);

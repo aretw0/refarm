@@ -9,6 +9,16 @@ export const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
 export const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 export const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 
+export const RESUME_JSON_COMMAND = refarmCommand(["resume", "--json"]);
+export const AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND = refarmCommand([
+	"agent",
+	"finish",
+	"--lane",
+	"after-edit",
+	"--run",
+	"--json",
+]);
+
 export const SOW_INTERACTIVE_COMMAND = refarmCommand(["sow"]);
 export const SOW_JSON_COMMAND = refarmCommand(["sow", "--json"]);
 export const MODEL_CURRENT_JSON_COMMAND = refarmCommand([
