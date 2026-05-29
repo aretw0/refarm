@@ -127,7 +127,11 @@ describe("sowCommand — default (no flags)", () => {
 			ok: true,
 			status: "configured",
 			credentials: { model: true, github: false, cloudflare: false },
-			nextActions: [],
+			nextCommand: "refarm check --next-action --json",
+			nextCommands: [
+				"refarm check --next-action --json",
+				"refarm model current --json",
+			],
 		});
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).not.toHaveBeenCalled();

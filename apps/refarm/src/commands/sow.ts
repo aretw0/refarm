@@ -187,6 +187,12 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 						buildJsonSuccessEnvelope({
 							command: "sow",
 							operation: "credentials",
+							nextAction: CHECK_NEXT_ACTION_JSON_COMMAND,
+							nextCommand: CHECK_NEXT_ACTION_JSON_COMMAND,
+							nextCommands: [
+								CHECK_NEXT_ACTION_JSON_COMMAND,
+								MODEL_CURRENT_JSON_COMMAND,
+							],
 							extra: {
 								action: "sow",
 								status: "configured",
