@@ -381,11 +381,17 @@ export function formatOperatorResumeSummary(
 		if (summary.finish.failedStepId) {
 			lines.push(`  failedStep: ${summary.finish.failedStepId}`);
 		}
+		if (summary.finish.failedCommand) {
+			lines.push(`  failedCommand: ${summary.finish.failedCommand}`);
+		}
 		if (summary.finish.command) {
 			lines.push(`  command: ${summary.finish.command}`);
 		}
 		for (const command of summary.finish.nextCommands) {
 			lines.push(`  next: ${command}`);
+		}
+		if (summary.finish.remainingCommands.length > 0) {
+			lines.push(`  remaining: ${summary.finish.remainingCommands.length} command${summary.finish.remainingCommands.length === 1 ? "" : "s"}`);
 		}
 	}
 

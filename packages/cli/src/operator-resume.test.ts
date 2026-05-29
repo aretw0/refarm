@@ -206,75 +206,57 @@ describe("operator resume", () => {
 	});
 
 	it("formats a concise operator view", () => {
-		expect(
-			formatOperatorResumeSummary(
-				buildOperatorResumeSummary({
-					taskCheckpoint: {
-						updatedAt: "2026-05-27T12:00:00.000Z",
-						efforts: [
-							{
-								effortId: "effort-1",
-								transport: "file",
-								lastStatus: "done",
-								lastLogAt: "2026-05-27T12:01:00.000Z",
-								lastModelRoute: { scope: "worker", ref: "openai/gpt-5.3-codex-spark" },
-								statusCommand: "refarm task status effort-1 --transport file",
-								logsCommand: "refarm task logs effort-1 --transport file",
-							},
-						],
-					},
-					model: {
-						current: { ref: "openai/gpt-5.5" },
-						credential: { status: "OPENAI_API_KEY env" },
-						source: "identity",
-						inspectCommand: "refarm model current --json",
-					},
-					activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
-					recentSessions: [
+		const formatted = formatOperatorResumeSummary(
+			buildOperatorResumeSummary({
+				taskCheckpoint: {
+					updatedAt: "2026-05-27T12:00:00.000Z",
+					efforts: [
 						{
-							sessionId: "urn:refarm:session:v1:abcdef1234567890",
-							shortId: "ef1234567890",
-							name: "shipping",
-							hasHistory: true,
-							showCommand: "refarm sessions show ef1234567890 --json",
-							useCommand: "refarm sessions use ef1234567890 --json",
+							effortId: "effort-1",
+							transport: "file",
+							lastStatus: "done",
+							lastLogAt: "2026-05-27T12:01:00.000Z",
+							lastModelRoute: { scope: "worker", ref: "openai/gpt-5.3-codex-spark" },
+							statusCommand: "refarm task status effort-1 --transport file",
+							logsCommand: "refarm task logs effort-1 --transport file",
 						},
 					],
-					recentPrompts: ["ship it"],
-					finish: {
-						updatedAt: "2026-05-27T12:05:00.000Z",
-						status: "failed",
-						command: "refarm agent finish --run --json",
-						failedStepId: "health",
-						nextCommands: ["refarm runtime start --wait"],
-						remainingCommands: [],
+				},
+				model: {
+					current: { ref: "openai/gpt-5.5" },
+					credential: { status: "OPENAI_API_KEY env" },
+					source: "identity",
+					inspectCommand: "refarm model current --json",
+				},
+				activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+				recentSessions: [
+					{
+						sessionId: "urn:refarm:session:v1:abcdef1234567890",
+						shortId: "ef1234567890",
+						name: "shipping",
+						hasHistory: true,
+						showCommand: "refarm sessions show ef1234567890 --json",
+						useCommand: "refarm sessions use ef1234567890 --json",
 					},
-				}),
-			),
-		).toContain("Finish: failed");
-		expect(
-			formatOperatorResumeSummary(
-				buildOperatorResumeSummary({
-					model: {
-						current: { ref: "openai/gpt-5.5" },
-						inspectCommand: "refarm model current --json",
-					},
-				}),
-			),
-		).toContain("Model: openai/gpt-5.5");
-		expect(
-			formatOperatorResumeSummary(
-				buildOperatorResumeSummary({
-					recentSessions: [
-						{
-							sessionId: "urn:refarm:session:v1:abcdef1234567890",
-							name: "shipping",
-							hasHistory: true,
-							showCommand: "refarm sessions show ef1234567890 --json",
-						},
-					],
-				}),
-			),
-		).toContain("Recent sessions:");
+				],
+				recentPrompts: ["ship it"],
+				finish: {
+					updatedAt: "2026-05-27T12:05:00.000Z",
+					status: "failed",
+					command: "refarm agent finish --run --json",
+					failedStepId: "health",
+					failedCommand: "refarm health --next-action --json",
+					nextCommands: ["refarm runtime start --wait"],
+					remainingCommands: ["refarm check --next-action --json"],
+				},
+			}),
+		);
+		expect(formatted).toContain("Finish: failed");
+		expect(formatted).toContain("failedStep: health");
+		expect(formatted).toContain("failedCommand: refarm health --next-action --json");
+		expect(formatted).toContain("next: refarm runtime start --wait");
+		expect(formatted).toContain("remaining: 1 command");
+		expect(formatted).toContain("Model: openai/gpt-5.5");
+		expect(formatted).toContain("Recent sessions:");
 	});
 });
