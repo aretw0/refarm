@@ -20,7 +20,7 @@ and **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**77/100 for total operator migration**
+**79/100 for total operator migration**
 
 Strong enough to keep using Refarm to harden Refarm, but not yet strong enough
 to make it the only operator surface for all work without frequent expert
@@ -46,6 +46,12 @@ What is already solid:
   The `actionCommand` field pattern is now guarded by the boundary test.
 - `sow --json` already-configured path now emits `check` and `model current` as
   next steps instead of returning empty nextCommands.
+- The full operator loop is now self-guiding: `ask --json` success → resume +
+  session show + after-edit finish; `agent finish --run --json` pass → resume;
+  `task status` done → logs + resume; `tidy imports --json` success → resume
+  (or after-edit finish for `--check` pass); `runtime ensure --json` ready →
+  resume. Terminal states across all major commands now point back to the
+  canonical operator view.
 - Runtime recovery commands and `nextCommands` exist across the main workflows.
 - Model defaults, scoped routes, and credential gaps are visible; `nextCommands`
   surfaces model inspect only when credentials are missing, not on every resume.
