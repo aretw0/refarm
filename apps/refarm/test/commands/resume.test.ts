@@ -147,6 +147,38 @@ describe("resume command", () => {
 		spy.mockRestore();
 	});
 
+	it("surfaces failedCommand and remaining count in operator output", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder({
+				updatedAt: "2026-05-27T12:05:00.000Z",
+				status: "failed",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "health",
+				failedCommand: "refarm health --next-action --json",
+				nextCommands: ["refarm runtime ensure --wait --next-command"],
+				remainingCommands: ["refarm check --next-action --json"],
+			}),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+		});
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync([], { from: "user" });
+
+		const output = spy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("failedStep: health");
+		expect(output).toContain("failedCommand: refarm health --next-action --json");
+		expect(output).toContain("remaining: 1 command");
+		spy.mockRestore();
+	});
+
 	it("can skip runtime status inspection", async () => {
 		const resolveStatusPayload = vi.fn().mockResolvedValue({ json: status });
 		const loadRecentSessions = vi.fn().mockResolvedValue([]);

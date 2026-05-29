@@ -130,6 +130,13 @@ log "Preparing cache directories and permissions..."
 if [ -d "$ROOT/.git/objects" ]; then
   sudo chown -R "$(id -u):$(id -g)" "$ROOT/.git/objects" 2>/dev/null || true
 fi
+# Repair dist/ ownership across all packages — pnpm/turbo build may fail with
+# EACCES if dist files were created by root in a prior container lifecycle.
+find "$ROOT" -path "*/node_modules" -prune -o -name "dist" -type d -print | while read -r dist_dir; do
+  if [ -d "$dist_dir" ] && ! [ -w "$dist_dir" ]; then
+    sudo chown -R "$(id -u):$(id -g)" "$dist_dir" 2>/dev/null || true
+  fi
+done
 for dir in \
   /home/vscode/.local \
   /home/vscode/.local/state \

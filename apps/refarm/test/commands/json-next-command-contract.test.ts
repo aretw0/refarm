@@ -260,6 +260,53 @@ function createContractAskCommand() {
 	});
 }
 
+function createContractResumeWithFinishCommand() {
+	return createResumeCommand({
+		resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+		sessionRecorder: {
+			rememberRun: vi.fn(),
+			rememberStatus: vi.fn(),
+			rememberList: vi.fn(),
+			rememberLogs: vi.fn(),
+			rememberControl: vi.fn(),
+			getCheckpoint: vi.fn().mockReturnValue({
+				version: 1,
+				updatedAt: "2026-05-01T00:00:00.000Z",
+				activeEffortId: "effort-abc",
+				efforts: [
+					{
+						effortId: "effort-abc",
+						transport: "http",
+						lastStatus: "in-progress",
+						statusCommand: "refarm task status effort-abc --transport http",
+						logsCommand: "refarm task logs effort-abc --transport http",
+					},
+				],
+			}),
+		},
+		finishRecorder: {
+			rememberRun: vi.fn(),
+			getCheckpoint: vi.fn().mockReturnValue(null),
+			getLatest: vi.fn().mockReturnValue({
+				updatedAt: "2026-05-01T00:01:00.000Z",
+				status: "failed",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "health",
+				failedCommand: "refarm health --next-action --json",
+				nextCommands: ["refarm runtime ensure --wait --next-command"],
+				remainingCommands: ["refarm check --next-action --json"],
+			}),
+		},
+		readActiveSessionId: vi.fn().mockReturnValue(null),
+		loadRecentSessions: vi.fn().mockResolvedValue([]),
+		loadChatHistory: vi.fn().mockReturnValue([]),
+		loadModelTokens: vi.fn().mockResolvedValue({}),
+	});
+}
+
 function createContractActionsCommand() {
 	return createActionsCommand({
 		resolveStatusPayload: vi.fn().mockResolvedValue({
@@ -966,6 +1013,11 @@ describe("JSON next command contract", () => {
 					id: "provision-cloudflare-turbo-cache",
 					command: provisionCommand,
 					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
+				},
+				{
+					id: "resume-with-finish",
+					command: createContractResumeWithFinishCommand(),
+					args: ["--json"],
 				},
 				{
 					id: "resume",
