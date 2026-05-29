@@ -294,6 +294,7 @@ export function buildOperatorResumeEnvelope(
 	return buildJsonSuccessEnvelope<OperatorResumeSummary>({
 		command: "resume",
 		operation: "operator",
+		nextActions: nextCommands,
 		nextCommands,
 		extra: summary,
 	});
