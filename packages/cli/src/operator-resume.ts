@@ -245,23 +245,35 @@ export function operatorResumeNextCommands(
 	commands: Partial<OperatorResumeCommands> = {},
 ): string[] {
 	const resolved = { ...DEFAULT_OPERATOR_RESUME_COMMANDS, ...commands };
-	const nextCommands: string[] = [];
+
+	// Emergency: runtime not ready — fix that first, everything else is noise.
 	if (summary.runtime && !summary.runtime.ready) {
-		nextCommands.push(resolved.runtimeDoctor);
+		const recovery = summary.finish.status === "failed"
+			? summary.finish.nextCommands
+			: [];
+		return [...new Set([resolved.runtimeDoctor, ...recovery])];
 	}
-	if (summary.model?.inspectCommand) {
-		nextCommands.push(summary.model.inspectCommand);
-	} else if (summary.model) {
-		nextCommands.push(resolved.modelCurrent);
-	}
-	if (summary.session.showCommand) {
-		nextCommands.push(summary.session.showCommand);
-	} else if (summary.session.recentSessions[0]?.showCommand) {
-		nextCommands.push(summary.session.recentSessions[0].showCommand);
-	}
+
+	const nextCommands: string[] = [];
+
+	// Recovery: finish failed — the most urgent resumption point.
 	if (summary.finish.status === "failed") {
 		nextCommands.push(...summary.finish.nextCommands);
 	}
+
+	// Context: show the active or most recent session.
+	const sessionCommand = summary.session.showCommand
+		?? summary.session.recentSessions[0]?.showCommand;
+	if (sessionCommand) nextCommands.push(sessionCommand);
+
+	// Model: only surface when credentials are missing, not on every resume.
+	if (summary.model?.credential?.state === "missing") {
+		nextCommands.push(
+			summary.model.inspectCommand ?? resolved.modelCurrent,
+		);
+	}
+
+	// Task: active effort takes priority over generic list.
 	if (summary.tasks.activeEffort) {
 		nextCommands.push(
 			`${summary.tasks.activeEffort.statusCommand} --watch`,
@@ -270,6 +282,7 @@ export function operatorResumeNextCommands(
 	} else {
 		nextCommands.push(resolved.taskList);
 	}
+
 	return [...new Set(nextCommands)];
 }
 

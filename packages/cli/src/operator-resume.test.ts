@@ -116,13 +116,10 @@ describe("operator resume", () => {
 				activeEffort: { effortId: "effort-1" },
 			},
 		});
+		// Emergency mode: runtime not ready → only runtime recovery, no noise.
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime doctor --next-command",
-			"refarm model current --json",
-			"refarm tree show ef1234567890 --json",
 			"refarm runtime start --wait",
-			"refarm task status effort-1 --transport http --watch",
-			"refarm task logs effort-1 --transport http",
 		]);
 	});
 
@@ -138,6 +135,67 @@ describe("operator resume", () => {
 			recentPrompts: [],
 			finish: { status: "none" },
 		});
+	});
+
+	it("prioritizes finish recovery when runtime is ready", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+			finish: {
+				updatedAt: "2026-05-27T12:05:00.000Z",
+				status: "failed",
+				command: "refarm agent finish --run --json",
+				profile: "quick",
+				lane: null,
+				validationScope: "quick",
+				failedStepId: "health",
+				failedCommand: "refarm health --next-action --json",
+				nextCommands: ["refarm runtime ensure --wait --next-command"],
+				remainingCommands: ["refarm check --next-action --json"],
+			},
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				activeEffortId: undefined,
+				efforts: [],
+			},
+		});
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"refarm runtime ensure --wait --next-command",
+			"refarm tree show ef1234567890 --json",
+			"refarm task list --json",
+		]);
+	});
+
+	it("surfaces missing model credentials when runtime is ready", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			model: {
+				current: { scope: "default", provider: "openai" },
+				credential: { state: "missing" },
+				inspectCommand: "refarm model current --json",
+			},
+		});
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"refarm model current --json",
+			"refarm task list --json",
+		]);
+	});
+
+	it("omits model inspect when credentials are healthy", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			model: {
+				current: { scope: "default", provider: "openai", modelId: "gpt-5.5" },
+				credential: { state: "env", status: "OPENAI_API_KEY env" },
+				inspectCommand: "refarm model current --json",
+			},
+		});
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"refarm task list --json",
+		]);
 	});
 
 	it("formats active session ids for tree commands", () => {
