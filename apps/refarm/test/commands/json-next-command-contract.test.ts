@@ -321,6 +321,40 @@ function createContractResumeWithFinishCommand() {
 	});
 }
 
+function createContractResumePassedFinishCommand() {
+	return createResumeCommand({
+		resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+		sessionRecorder: {
+			rememberRun: vi.fn(),
+			rememberStatus: vi.fn(),
+			rememberList: vi.fn(),
+			rememberLogs: vi.fn(),
+			rememberControl: vi.fn(),
+			getCheckpoint: vi.fn().mockReturnValue(null),
+		},
+		finishRecorder: {
+			rememberRun: vi.fn(),
+			getCheckpoint: vi.fn().mockReturnValue(null),
+			getLatest: vi.fn().mockReturnValue({
+				updatedAt: "2026-05-01T00:01:00.000Z",
+				status: "passed",
+				command: "refarm agent finish --lane after-edit --run --json",
+				profile: "affected",
+				lane: "after-edit",
+				validationScope: "dirtyTree",
+				failedStepId: null,
+				failedCommand: null,
+				nextCommands: [],
+				remainingCommands: [],
+			}),
+		},
+		readActiveSessionId: vi.fn().mockReturnValue(null),
+		loadRecentSessions: vi.fn().mockResolvedValue([]),
+		loadChatHistory: vi.fn().mockReturnValue([]),
+		loadModelTokens: vi.fn().mockResolvedValue({}),
+	});
+}
+
 function createContractActionsCommand() {
 	return createActionsCommand({
 		resolveStatusPayload: vi.fn().mockResolvedValue({
@@ -1034,6 +1068,11 @@ describe("JSON next command contract", () => {
 					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
 				},
 				{
+					id: "resume-with-passed-finish",
+					command: createContractResumePassedFinishCommand(),
+					args: ["--json"],
+				},
+				{
 					id: "resume-with-finish",
 					command: createContractResumeWithFinishCommand(),
 					args: ["--json"],
@@ -1260,7 +1299,7 @@ describe("JSON next command contract", () => {
 			init.cleanup();
 			config.cleanup();
 		}
-	});
+	}, 45_000);
 
 	it("keeps parameterized generated commands in templates", async () => {
 		const payloads = [

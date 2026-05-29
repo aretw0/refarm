@@ -39,6 +39,13 @@ For one-shot agent work:
 refarm ask "summarize the current task"
 ```
 
+For one-shot agentic work in JSON mode (self-guiding):
+
+```bash
+refarm ask "do X" --json
+# nextCommands includes: resume --json, sessions show, agent finish after-edit
+```
+
 For task-style worker execution:
 
 ```bash
@@ -49,8 +56,16 @@ refarm task logs <effort-id> --transport http
 ```
 
 Prefer commands that emit JSON when another agent or script will consume the
-result. Public JSON commands should expose `ok`, `nextCommand`, `nextCommands`,
-and enough context to recover without hidden session knowledge.
+result. Public JSON commands expose `ok`, `nextCommand`, `nextCommands`, and
+enough context to recover without hidden session knowledge.
+
+When running in agentic JSON mode, commands are self-guiding:
+- `ask --json` success → `nextCommands`: resume, session show, after-edit finish
+- `agent finish --run --json` pass → `nextCommands`: resume
+- `task status --json` done/failed → `nextCommands`: logs, resume
+- `runtime ensure --wait --json` ready → `nextCommands`: resume
+- `tidy imports --json` success → `nextCommands`: resume (or after-edit for `--check`)
+- `sow --json` configured → `nextCommands`: check, model current
 
 ## Model And Credentials
 
