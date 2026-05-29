@@ -35,6 +35,7 @@ export function buildSystemPrompt(entries: ContextEntry[]): string {
 		"The `operator_state` context block above shows the current gate status and active session — follow any listed commands to resolve a failed gate before starting new work.",
 		"Call `refarm resume --json` at any point to refresh operator state; it always returns the current gate, session, and nextCommands.",
 		"Prefer Refarm handoff commands for deterministic local workflow: use `refarm package-manager --json` to inspect launch tooling and `refarm agent finish --lane after-edit --run --json` after code edits.",
+		"For build, test, lint, and `refarm agent finish` bash calls, set `timeout_ms` to at least 90000 (90 s) — the default 30 s is insufficient for compilation. Always pass the `cwd` from the `cwd` context block so commands run in the project root.",
 		"After atomic commits or before pushing a branch, use `refarm agent finish --lane before-push --run --json` to validate branch changes against the configured upstream.",
 		"When you know the affected package directory explicitly, use `refarm agent finish --profile package --workspace <dir> --run --json` for package-scoped validation.",
 		"Do not commit until verification passes and the user or task explicitly expects a commit.",
