@@ -9,6 +9,7 @@ import { DateContextProvider } from "./date.js";
 import { FilesContextProvider } from "./files.js";
 import { GitStatusContextProvider } from "./git-status.js";
 import { OperatorStateProvider } from "./operator-state.js";
+import { PolicyFilesContextProvider } from "./policy-files.js";
 
 let tempDir = "";
 
@@ -159,6 +160,57 @@ describe("OperatorStateProvider", () => {
 		const provider = new OperatorStateProvider();
 		const entries = await provider.provide({ cwd: os.tmpdir() });
 		expect(Array.isArray(entries)).toBe(true);
+	});
+});
+
+describe("PolicyFilesContextProvider", () => {
+	it("returns empty outside git repo", async () => {
+		const provider = new PolicyFilesContextProvider();
+		const entries = await provider.provide({ cwd: os.tmpdir() });
+		expect(entries).toEqual([]);
+	});
+
+	it("returns empty when no known policy files exist at git root", () => {
+		const files = PolicyFilesContextProvider.scanPolicyFiles(os.tmpdir());
+		expect(files).toEqual([]);
+	});
+
+	it("detects AGENTS.md and builds a pointer entry", () => {
+		const agentsMd = path.join(tempDir, "AGENTS.md");
+		writeFileSync(agentsMd, "# Rules of Engagement\n\nDo not edit dist/\n", "utf8");
+
+		const files = PolicyFilesContextProvider.scanPolicyFiles(tempDir);
+		expect(files).toHaveLength(1);
+		expect(files[0]!.relativePath).toBe("AGENTS.md");
+		expect(files[0]!.absolutePath).toBe(agentsMd);
+		expect(files[0]!.heading).toBe("Rules of Engagement");
+		expect(files[0]!.lines).toBeGreaterThan(0);
+
+		const entry = PolicyFilesContextProvider.buildEntry(files);
+		expect(entry.label).toBe("policy_files");
+		expect(entry.priority).toBe(12);
+		expect(entry.content).toContain("Rules of Engagement");
+		expect(entry.content).toContain(agentsMd);
+		expect(entry.content).toContain("agent-fs.read");
+	});
+
+	it("detects multiple policy files and lists all", () => {
+		writeFileSync(path.join(tempDir, "AGENTS.md"), "# Agent Rules\n", "utf8");
+		writeFileSync(path.join(tempDir, "CLAUDE.md"), "# Claude Instructions\n", "utf8");
+
+		const files = PolicyFilesContextProvider.scanPolicyFiles(tempDir);
+		expect(files).toHaveLength(2);
+		const relPaths = files.map((f) => f.relativePath);
+		expect(relPaths).toContain("AGENTS.md");
+		expect(relPaths).toContain("CLAUDE.md");
+	});
+
+	it("handles policy file with no heading", () => {
+		writeFileSync(path.join(tempDir, "AGENTS.md"), "Do not edit dist/\n", "utf8");
+		const files = PolicyFilesContextProvider.scanPolicyFiles(tempDir);
+		expect(files[0]!.heading).toBeNull();
+		const entry = PolicyFilesContextProvider.buildEntry(files);
+		expect(entry.content).toContain("AGENTS.md");
 	});
 });
 

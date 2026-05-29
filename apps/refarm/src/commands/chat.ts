@@ -6,6 +6,7 @@ import {
 	DateContextProvider,
 	GitStatusContextProvider,
 	OperatorStateProvider,
+	PolicyFilesContextProvider,
 	SessionDigestContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
@@ -353,6 +354,7 @@ async function runTurn(
 	const providers = [
 		new SessionDigestContextProvider(),
 		new CwdContextProvider(),
+		new PolicyFilesContextProvider(),
 		new OperatorStateProvider(),
 		new DateContextProvider(),
 		new GitStatusContextProvider(),

@@ -31,6 +31,7 @@ export function buildSystemPrompt(entries: ContextEntry[]): string {
 		"</contexts>",
 		"Answer the user's question using this context.",
 		"When the user asks you to edit code, first inspect the workspace, keep changes focused, then verify the slice before reporting completion.",
+		"Before making code changes, read any files listed in the `policy_files` context block — they define how agents must work in this project (source rules, build cycle, commit hygiene).",
 		"The `operator_state` context block above shows the current gate status and active session — follow any listed commands to resolve a failed gate before starting new work.",
 		"Call `refarm resume --json` at any point to refresh operator state; it always returns the current gate, session, and nextCommands.",
 		"Prefer Refarm handoff commands for deterministic local workflow: use `refarm package-manager --json` to inspect launch tooling and `refarm agent finish --lane after-edit --run --json` after code edits.",

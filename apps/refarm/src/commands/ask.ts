@@ -7,6 +7,7 @@ import {
 	FilesContextProvider,
 	GitStatusContextProvider,
 	OperatorStateProvider,
+	PolicyFilesContextProvider,
 	SessionDigestContextProvider,
 	type ContextProvider,
 } from "@refarm.dev/context-provider-v1";
@@ -379,6 +380,7 @@ async function collectDefaultSystemPrompt(request: {
 	const providers: ContextProvider[] = [
 		new SessionDigestContextProvider(),
 		new CwdContextProvider(),
+		new PolicyFilesContextProvider(),
 		new OperatorStateProvider(),
 		new DateContextProvider(),
 		new GitStatusContextProvider(),
