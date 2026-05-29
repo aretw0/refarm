@@ -8,6 +8,7 @@ import { CwdContextProvider } from "./cwd.js";
 import { DateContextProvider } from "./date.js";
 import { FilesContextProvider } from "./files.js";
 import { GitStatusContextProvider } from "./git-status.js";
+import { OperatorStateProvider } from "./operator-state.js";
 
 let tempDir = "";
 
@@ -100,6 +101,64 @@ describe("GitStatusContextProvider", () => {
 
 		const affected = entries.find((entry) => entry.label === "affected_workspaces");
 		expect(affected).toBeUndefined();
+	});
+});
+
+describe("OperatorStateProvider", () => {
+	describe("parseResumeJson", () => {
+		it("returns null for empty object", () => {
+			expect(OperatorStateProvider.parseResumeJson({})).toBeNull();
+		});
+
+		it("surfaces failed finish with blocked command and pending steps", () => {
+			const entry = OperatorStateProvider.parseResumeJson({
+				finish: {
+					status: "failed",
+					failedCommand: "refarm tidy imports --check --json",
+					nextCommands: ["refarm tidy imports --check --json"],
+					remainingCommands: ["refarm health --next-action --json"],
+				},
+				session: { shortId: "abc123" },
+			});
+			expect(entry).not.toBeNull();
+			expect(entry!.label).toBe("operator_state");
+			expect(entry!.priority).toBe(15);
+			expect(entry!.content).toContain("FAILED");
+			expect(entry!.content).toContain("refarm tidy imports --check --json");
+			expect(entry!.content).toContain("refarm health --next-action --json");
+			expect(entry!.content).toContain("Resolve before starting new work:");
+			expect(entry!.content).toContain("Session: abc123");
+		});
+
+		it("surfaces ok finish as clean state", () => {
+			const entry = OperatorStateProvider.parseResumeJson({
+				finish: { status: "ok" },
+				session: { shortId: "def456", showCommand: "refarm tree show def456 --json" },
+			});
+			expect(entry!.content).toContain("OK — last gate passed");
+			expect(entry!.content).toContain("Session: def456");
+			expect(entry!.content).toContain("inspect: refarm tree show def456 --json");
+		});
+
+		it("shows no-gate-recorded when finish is absent", () => {
+			const entry = OperatorStateProvider.parseResumeJson({
+				session: { shortId: "ghi789" },
+			});
+			expect(entry!.content).toContain("no recent gate recorded");
+			expect(entry!.content).toContain("Session: ghi789");
+		});
+
+		it("returns null when only finish with unknown status and no session", () => {
+			expect(
+				OperatorStateProvider.parseResumeJson({ finish: { status: "unknown" } }),
+			).toBeNull();
+		});
+	});
+
+	it("returns empty array when refarm is unavailable", async () => {
+		const provider = new OperatorStateProvider();
+		const entries = await provider.provide({ cwd: os.tmpdir() });
+		expect(Array.isArray(entries)).toBe(true);
 	});
 });
 

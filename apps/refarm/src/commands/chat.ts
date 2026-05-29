@@ -5,6 +5,7 @@ import {
 	CwdContextProvider,
 	DateContextProvider,
 	GitStatusContextProvider,
+	OperatorStateProvider,
 	SessionDigestContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
@@ -18,12 +19,6 @@ import readline from "node:readline";
 import {
 	loadChatHistory,
 	rememberChatHistoryLine,
-	saveChatHistory,
-} from "./chat-history.js";
-export {
-	loadChatHistory,
-	rememberChatHistoryLine,
-	resolveChatHistoryPath,
 	saveChatHistory,
 } from "./chat-history.js";
 import {
@@ -61,6 +56,12 @@ import {
 } from "./session-lock.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+export {
+	loadChatHistory,
+	rememberChatHistoryLine,
+	resolveChatHistoryPath,
+	saveChatHistory
+} from "./chat-history.js";
 
 export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -352,6 +353,7 @@ async function runTurn(
 	const providers = [
 		new SessionDigestContextProvider(),
 		new CwdContextProvider(),
+		new OperatorStateProvider(),
 		new DateContextProvider(),
 		new GitStatusContextProvider(),
 	];
