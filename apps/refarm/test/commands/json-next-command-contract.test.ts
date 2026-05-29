@@ -250,6 +250,20 @@ function makeStatusWithActions() {
 	};
 }
 
+function createContractAskSuccessCommand() {
+	const sessionId = "urn:refarm:session:v1:contract123456";
+	return createAskCommand({
+		submitEffort: vi.fn().mockResolvedValue("effort-contract-123"),
+		followStream: vi.fn().mockImplementation(
+			async (_effortId: string, onChunk: (chunk: { content: string; is_final: boolean; metadata?: unknown }) => void) => {
+				onChunk({ content: "contract response", is_final: true, metadata: undefined });
+			},
+		),
+		readActiveSessionId: vi.fn().mockReturnValue(sessionId),
+		persistActiveSessionId: vi.fn(),
+	});
+}
+
 function createContractAskCommand() {
 	return createAskCommand({
 		submitEffort: vi.fn(),
@@ -896,6 +910,11 @@ describe("JSON next command contract", () => {
 				{ id: "agent-finish-after-edit", command: createAgentCommand(), args: ["finish", "--lane", "after-edit", "--json"] },
 				{ id: "agent-finish-handoffs", command: createAgentCommand(), args: ["finish", "--lane", "handoffs", "--json"] },
 				{ id: "agent-finish-with-package-tests", command: createAgentCommand(), args: ["finish", "--lane", "with-package-tests", "--json"] },
+				{
+					id: "ask-success",
+					command: createContractAskSuccessCommand(),
+					args: ["hello", "--json"],
+				},
 				{
 					id: "ask-conflict",
 					command: createAskCommand({ submitEffort: vi.fn(), followStream: vi.fn() }),
