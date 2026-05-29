@@ -193,14 +193,14 @@ const agentFinishTemplates = [
 
 const agentRuntimePlan = {
 	environment: {
-		packageManager: "refarm package-manager --json",
-		codingProfile: "refarm config profile coding --local --json",
+		packageManager: refarmCommand(["package-manager", "--json"]),
+		codingProfile: refarmCommand(["config", "profile", "coding", "--local", "--json"]),
 	},
 	runtime: {
-		status: `${RUNTIME_STATUS_COMMAND} --json`,
+		status: refarmCommand(["runtime", "status", "--json"]),
 		ensure: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-		start: `${RUNTIME_START_WAIT_COMMAND} --json`,
-		doctor: `${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} --json`,
+		start: refarmCommand(["runtime", "start", "--wait", "--json"]),
+		doctor: refarmCommand(["doctor", "--next-action", "--json"]),
 		doctorCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 	},
 	usage: {
@@ -270,10 +270,10 @@ const agentRuntimePlan = {
 	verification: {
 		quick: AGENT_NEXT_ACTION_COMMAND,
 		quickCommand: AGENT_NEXT_COMMAND,
-		health: "refarm health --next-action --json",
-		doctor: "refarm doctor --next-action --json",
-		doctorCommand: "refarm doctor --next-command",
-		tidyCheck: "refarm tidy imports --check --json",
+		health: refarmCommand(["health", "--next-action", "--json"]),
+		doctor: refarmCommand(["doctor", "--next-action", "--json"]),
+		doctorCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+		tidyCheck: refarmCommand(["tidy", "imports", "--check", "--json"]),
 		finishTemplatesJsonCommand: agentFinishCommand(["--templates", "--json"]),
 		finishLanesJsonCommand: agentFinishCommand(["--lanes", "--json"]),
 		finishLanesNextJsonCommand: agentFinishCommand([
