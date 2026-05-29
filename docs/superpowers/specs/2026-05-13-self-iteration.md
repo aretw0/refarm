@@ -121,14 +121,14 @@ task completes. For multi-minute coding tasks this is a bad experience.
 This keeps streaming opt-in while making the recommended self-iteration setup
 one deterministic command.
 
-### Gap 5 — No preflight check for farmhand availability
+### Gap 5 — No preflight check for farmhand availability — ADDRESSED
 
-`refarm chat` fails with a fetch error if farmhand is not running. The error
-message is opaque. ADR-065 (farmhand auto-start) covers this, but until it
-ships, users must manually start farmhand before `refarm chat`.
-
-**Path forward**: ADR-065 implementation (detect not running, offer Y/n, spawn
-detached). See `docs/superpowers/specs/` for the pending ADR-065 spec.
+ADR-065 is implemented. `refarm`, `refarm chat`, and `refarm ask` use the shared
+`session-launch.ts` readiness path: detect whether farmhand is running, offer
+auto-start under the configured policy (`ask` / `always` / `never`, controlled
+via `REFARM_RUNTIME_AUTOSTART` env or `.refarm/config.json`), spawn detached,
+and poll until ready. `refarm chat` also re-attempts the preflight after a
+failed effort submission via `recoverRuntime`.
 
 ### Gap 6 — Verification contract in system prompt — ADDRESSED
 
@@ -194,7 +194,7 @@ already implemented for rapid iteration once the binary exists.
 - ADR-065: farmhand auto-start so `refarm chat` works without a separate daemon
 - Monitor bundled install logs to ensure pi-agent consistently installs on farmhand boot
 
-**Phase 3 — Make it self-aware (coding system prompt) — started**
+**Phase 3 — Make it self-aware (coding system prompt) — COMPLETE**
 
 - `context-provider-v1` injects a coding workflow instruction into the shared
   system prompt used by `refarm ask` and `refarm chat`.
@@ -216,9 +216,18 @@ already implemented for rapid iteration once the binary exists.
   with workspace-relative package candidates and matching package validation
   commands. This lets pi-agent choose the package finish profile from context
   instead of guessing from raw `git status` output.
-- Remaining work: make the instruction richer when the workspace exposes
-  project-specific policies, for example AGENTS.md, Scarecrow policies, or
-  package-level policy metadata.
+- `OperatorStateProvider` (priority 15) calls `refarm resume --json` and injects
+  the current gate status, pending `nextCommands`, and active session ID into
+  every effort. Pi-agent knows at the start of each session whether there is
+  pending gate work to resolve before starting new edits.
+- `PolicyFilesContextProvider` (priority 12) walks the git root for known policy
+  files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`)
+  and emits a pointer-first entry with absolute paths and headings. Pi-agent
+  reads the full policy via `agent-fs.read` before making code changes.
+  On the refarm repo this surfaces AGENTS.md — the same rules that govern Claude
+  Code — closing the symmetry between external-agent and native-agent orientation.
+- `buildSystemPrompt` now instructs pi-agent to read policy files before editing
+  and to call `refarm resume --json` at any point to refresh operator state.
 
 **Phase 4 — Scarecrow boundary (Barn Steps 3+4)**
 
@@ -248,10 +257,16 @@ already implemented for rapid iteration once the binary exists.
    agents-lab's `context-watchdog` (50%/68%/72%) are worth evaluating — but
    only after we understand why those specific thresholds were chosen there.
 
-2. **agent-shell working directory**: Does `agent-shell.spawn` respect the effort's
-   working directory, or does it always use farmhand's CWD? If the latter, relative
-   paths in `pnpm test --filter` commands may not work as expected.
+2. **agent-shell working directory** — ANSWERED: The `bash` tool in
+   `tool_dispatch/shell_tools.rs` accepts an explicit `cwd` parameter and passes
+   it to `spawn_process`. Pi-agent should always pass the working directory from
+   the `cwd` context block when calling `bash`. The `list_dir` and `search_files`
+   tools pass `cwd: None` (farmhand's CWD) and accept paths relative to that —
+   pass absolute paths to avoid ambiguity. Farmhand is normally started from the
+   repo root so relative paths work in practice, but absolute paths are safer.
 
-3. **Commit identity**: When pi-agent commits, git needs a user name and email.
-   Does the farmhand environment have `GIT_AUTHOR_*` set, or does it inherit from
-   `~/.gitconfig`? An unattended agent should commit as `refarm-bot` or similar.
+3. **Commit identity** — ANSWERED: Pi-agent inherits the git identity from
+   `~/.gitconfig` via the spawned `git commit` process — no special environment
+   setup needed for interactive self-iteration. For unattended/CI use a separate
+   `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` env pair should be injected into the
+   spawn env when pi-agent is operating headlessly. Tracked as Phase 4 work.

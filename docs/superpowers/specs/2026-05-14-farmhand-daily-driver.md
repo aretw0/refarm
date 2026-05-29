@@ -36,8 +36,12 @@ specific and small.
   with timeout handling
 - **Plugin hot-reload** — `/reload [id...]` hits `POST /plugins/reload` in the
   HTTP sidecar, no daemon restart needed
-- **Context providers** — CWD, git status, date, session digest are automatically
-  injected into each effort payload
+- **Context providers** — six providers are automatically injected into every
+  effort payload, in priority order: `policy_files` (AGENTS.md pointer at
+  priority 12), `operator_state` (current gate status + session at priority 15),
+  `cwd` (10), `date` (20), `session_digest` (20), `git_status` + `affected_workspaces`
+  (30/35). Pi-agent enters each session already oriented: it knows the project
+  rules, the current gate state, what changed, and which packages are affected.
 - **`refarm doctor`** — deterministic health audit (filesystem, builds, alignment)
 - **Coding profile** — `refarm config profile coding --local --json` writes
   repo-local runtime tuning for history, tool-loop depth, and streaming
@@ -147,10 +151,11 @@ deterministic install/reload/runtime recovery commands.
 
 **Next sprint:**
 3. TUI-backed config surface for no-argument `refarm config`
-4. Package-level validation profiles for coding-agent verification — started via
-   `refarm agent finish --lane after-edit` / `--lane before-push`, backed by
-   `--profile affected` and `--profile package --workspace <dir>` for explicit
-   validation, and surfaced in context through `affected_workspaces`
+4. Package-level validation profiles — COMPLETE via `refarm agent finish --lane`
+   backed by `--profile affected` and `--profile package --workspace <dir>`,
+   surfaced in context through `affected_workspaces`; AGENTS.md pointer now
+   injected via `PolicyFilesContextProvider`; operator gate state via
+   `OperatorStateProvider`
 
 **After daily-driver milestone:**
 5. TUI mode — `refarm` bare launches a full-screen TUI (already partially
