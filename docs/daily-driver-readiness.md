@@ -20,7 +20,7 @@ and **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**75/100 for total operator migration**
+**77/100 for total operator migration**
 
 Strong enough to keep using Refarm to harden Refarm, but not yet strong enough
 to make it the only operator surface for all work without frequent expert
@@ -34,10 +34,18 @@ What is already solid:
 - `refarm agent finish` gives a repeatable end-of-slice gate with lane
   selection, `affected` profile detecting changed workspaces and script checks,
   and `--run --json` for automated execution.
-- `refarm resume` is now the canonical first diagnostic: priority-aware
+- `refarm resume` is the canonical first diagnostic: priority-aware
   `nextCommands` (emergency → runtime only; recovery → finish first; normal →
   session + task), `failedCommand` and remaining count visible in operator
   output, and a shared `@refarm.dev/cli` resume envelope.
+- `refarm ask --json` success path now emits `nextCommands` with `resume`,
+  session show, and `agent finish --lane after-edit` as the natural continuation
+  — the agent loop is now self-guiding from ask through validation.
+- All handoff command strings in the agent plan use `refarmCommand` or exported
+  constants — no more hardcoded inline strings in nextCommands or data fields.
+  The `actionCommand` field pattern is now guarded by the boundary test.
+- `sow --json` already-configured path now emits `check` and `model current` as
+  next steps instead of returning empty nextCommands.
 - Runtime recovery commands and `nextCommands` exist across the main workflows.
 - Model defaults, scoped routes, and credential gaps are visible; `nextCommands`
   surfaces model inspect only when credentials are missing, not on every resume.
