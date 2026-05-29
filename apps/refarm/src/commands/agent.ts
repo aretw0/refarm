@@ -222,12 +222,12 @@ const agentRuntimePlan = {
 		setMonitorModel: OPENAI_MONITOR_MODEL_JSON_COMMAND,
 	},
 	plugins: {
-		list: "refarm plugin list --json",
-		install: "refarm plugin install --json",
+		list: refarmCommand(["plugin", "list", "--json"]),
+		install: refarmCommand(["plugin", "install", "--json"]),
 	},
 	workers: {
-		list: "refarm task list --json",
-		resume: "refarm task resume --json",
+		list: refarmCommand(["task", "list", "--json"]),
+		resume: refarmCommand(["task", "resume", "--json"]),
 		templates: [
 			{
 				id: "worker-task-run",
@@ -1154,8 +1154,8 @@ Notes:
 						agentRuntimePlan.verification.recommended.handoffs,
 						agentRuntimePlan.verification.finishPlanJsonCommand,
 						agentRuntimePlan.verification.finishPlanNextJsonCommand,
-						"refarm agent finish --next-command",
-						"refarm agent finish --fix --next-command",
+						agentRuntimePlan.verification.finishPlanCommand,
+						agentRuntimePlan.verification.finishFixPlanCommand,
 						agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
 						agentRuntimePlan.verification.finishAffectedRunJsonCommand,
 						agentRuntimePlan.verification.finishAffectedUpstreamRunJsonCommand,
@@ -1180,8 +1180,8 @@ Notes:
 						agentRuntimePlan.verification.recommended.handoffs,
 						agentRuntimePlan.verification.finishPlanJsonCommand,
 						agentRuntimePlan.verification.finishPlanNextJsonCommand,
-						"refarm agent finish --next-command",
-						"refarm agent finish --fix --next-command",
+						agentRuntimePlan.verification.finishPlanCommand,
+						agentRuntimePlan.verification.finishFixPlanCommand,
 						agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
 						agentRuntimePlan.verification.finishAffectedRunJsonCommand,
 						agentRuntimePlan.verification.finishAffectedUpstreamRunJsonCommand,
