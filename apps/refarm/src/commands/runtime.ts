@@ -11,6 +11,7 @@ import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
+	RESUME_JSON_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
@@ -145,6 +146,9 @@ function runtimeNextCommands(payload: RuntimeStatusPayload): string[] {
 	}
 	if (payload.ready === false) {
 		return [RUNTIME_ENSURE_WAIT_NEXT_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND];
+	}
+	if (payload.ready === true) {
+		return [RESUME_JSON_COMMAND];
 	}
 	return [];
 }

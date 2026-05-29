@@ -350,8 +350,8 @@ describe("runtime command", () => {
 		expect(payload.ensured).toBe(true);
 		expect(payload.started).toBe(false);
 		expect(payload.ready).toBe(true);
-		expect(payload.nextAction).toBeNull();
-		expect(payload.nextCommand).toBeNull();
+		expect(payload.nextAction).toBe("refarm resume --json");
+		expect(payload.nextCommand).toBe("refarm resume --json");
 		expect(startRuntime).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
@@ -392,8 +392,8 @@ describe("runtime command", () => {
 		expect(payload.ensured).toBe(true);
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(true);
-		expect(payload.nextAction).toBeNull();
-		expect(payload.nextCommand).toBeNull();
+		expect(payload.nextAction).toBe("refarm resume --json");
+		expect(payload.nextCommand).toBe("refarm resume --json");
 		expect(startRuntime).toHaveBeenCalledOnce();
 		expect(waitUntilReady).toHaveBeenCalledOnce();
 		logSpy.mockRestore();
@@ -581,7 +581,7 @@ describe("runtime command", () => {
 		};
 		expect(payload.started).toBe(true);
 		expect(payload.ready).toBe(true);
-		expect(payload.nextCommand).toBeNull();
+		expect(payload.nextCommand).toBe("refarm resume --json");
 		logSpy.mockRestore();
 	});
 

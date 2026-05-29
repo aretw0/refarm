@@ -7,6 +7,10 @@ import {
 import { Command } from "commander";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
+	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
+	RESUME_JSON_COMMAND,
+} from "./credential-handoffs.js";
+import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
@@ -161,10 +165,15 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 			const result = await resolvedDeps.run(spec, { capture: options.json === true });
 			if (options.json) {
 				if (result.exitCode === 0) {
+					const successNextCommand = options.check
+						? AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND
+						: RESUME_JSON_COMMAND;
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "tidy",
 							operation: "imports",
+							nextCommand: successNextCommand,
+							nextCommands: [successNextCommand],
 							extra: {
 								...plan,
 								exitCode: result.exitCode,

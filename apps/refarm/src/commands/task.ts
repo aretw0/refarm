@@ -12,6 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -720,7 +721,7 @@ Notes:
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
 					if (opts.json) {
 						const nextCommands = isFinalEffortStatus(result.status)
-							? [buildTaskLogsCommand(effortId, transport)]
+							? [buildTaskLogsCommand(effortId, transport), RESUME_JSON_COMMAND]
 							: [
 									buildTaskStatusCommand(effortId, transport, { watch: true }),
 									buildTaskLogsCommand(effortId, transport),
