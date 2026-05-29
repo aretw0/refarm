@@ -207,8 +207,30 @@ describe("tidyCommand", () => {
 		expect(payload).toMatchObject({
 			ok: true,
 			exitCode: 0,
-			nextAction: null,
-			nextActions: [],
+			nextCommand: "refarm resume --json",
+			nextCommands: ["refarm resume --json"],
 		});
+	});
+
+	it("suggests after-edit finish when check finds imports already organized", async () => {
+		const deps = makeDeps({
+			cwd: () => ".",
+			run: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createTidyCommand(deps).parseAsync(["imports", "--check", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			nextCommand: string;
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.nextCommand).toBe(
+			"refarm agent finish --lane after-edit --run --json",
+		);
+		logSpy.mockRestore();
 	});
 });
