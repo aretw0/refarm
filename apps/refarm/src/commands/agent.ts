@@ -1389,12 +1389,17 @@ Notes:
 					}),
 				);
 				if (options.json) {
+					const envelope = buildCommandPlanRunEnvelope({
+						action: "finish",
+						command: "agent",
+						operation: "finish",
+					}, result);
 					printJson({
-						...buildCommandPlanRunEnvelope({
-							action: "finish",
-							command: "agent",
-							operation: "finish",
-						}, result),
+						...envelope,
+						...(result.ok ? {
+							nextCommand: RESUME_JSON_COMMAND,
+							nextCommands: [RESUME_JSON_COMMAND],
+						} : {}),
 						selection: selectionMetadata,
 					});
 				} else if (options.nextCommand) {

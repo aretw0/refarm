@@ -1933,7 +1933,8 @@ describe("agent command", () => {
 			status: "passed",
 			failedStepId: null,
 			failedCommand: null,
-			nextCommands: [],
+			nextCommand: "refarm resume --json",
+			nextCommands: ["refarm resume --json"],
 		});
 		expect(payload.steps).toHaveLength(3);
 		expect(payload.steps[0]).toMatchObject({
