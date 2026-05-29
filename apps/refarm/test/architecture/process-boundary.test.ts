@@ -27,6 +27,7 @@ const HARDCODED_PACKAGE_MANAGER_EXECUTION_PATTERNS = [
 ] as const;
 const HARDCODED_REFARM_CONTRACT_FIELD_PATTERNS = [
 	/\bcommand:\s*["']refarm\s/,
+	/\bactionCommand:\s*["']refarm\s/,
 	/\bnextAction:\s*["']refarm\s/,
 	/\bnextCommand:\s*["']refarm\s/,
 ] as const;
