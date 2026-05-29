@@ -110,6 +110,13 @@ fi
 
 log "Starting post-create setup..."
 
+# 0a) Repair .git/objects ownership — the container runtime (or Dockerfile RUN steps)
+# may clone/initialize the repo as root, leaving some object subdirs as drwxr-xr-x.
+# This causes "insufficient permission" errors on the first commit after creation.
+if [ -d "$ROOT/.git/objects" ]; then
+  sudo chown -R "$(id -u):$(id -g)" "$ROOT/.git/objects" 2>/dev/null || true
+fi
+
 # 0) Git symlink support — must run before any checkout/npm ci
 # core.symlinks=false (Windows NTFS default) materializes symlinks as regular files.
 # In a Linux devcontainer the filesystem supports symlinks natively, so enable it
