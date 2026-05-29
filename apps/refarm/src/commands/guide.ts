@@ -9,6 +9,7 @@ import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { writeFileSync } from "node:fs";
+import { refarmCommand } from "./command-handoff.js";
 import { printJson } from "./json-output.js";
 
 interface GuideOptions {
@@ -139,7 +140,9 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
         action: modelReady
           ? `Inspect route with 'refarm model current' (${modelRef}).`
           : `Configure model credentials for ${modelRef}.`,
-        actionCommand: modelReady ? "refarm model current --json" : "refarm model providers --json",
+        actionCommand: modelReady
+          ? refarmCommand(["model", "current", "--json"])
+          : refarmCommand(["model", "providers", "--json"]),
       },
       {
         id: "github-token",
@@ -155,7 +158,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
         ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
         status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
         action: "Configure Cloudflare credentials interactively.",
-        actionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+        actionCommand: refarmCommand(["provision", "cloudflare", "turbo-cache", "--dry-run", "--json"]),
       },
       {
         id: "brand-config",
