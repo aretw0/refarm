@@ -440,6 +440,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         }
     }
 
+    // ── Scarecrow audit subscriber ────────────────────────────────────────────
+    let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
+    tractor::scarecrow::spawn_audit_subscriber(tractor.telemetry.clone(), scarecrow_base);
+    tracing::info!("Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson", dirs_refarm_base().display());
+
     daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
         config.port,
