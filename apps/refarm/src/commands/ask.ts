@@ -1,4 +1,4 @@
-import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import { isPiAgentPluginId, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -712,14 +712,14 @@ async function ensurePiAgentReady(
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
-	if (state.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+	if (state.loaded.some(isPiAgentPluginId)) return true;
 
-	if (state.installed.includes(PI_AGENT_PLUGIN_ID) && reloadPlugins) {
+	if (state.installed.some(isPiAgentPluginId) && reloadPlugins) {
 		const reload = await reloadPlugins([PI_AGENT_PLUGIN_ID]);
-		if (reload?.reloaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+		if (reload?.reloaded.some(isPiAgentPluginId)) return true;
 		const refreshed = await readPluginState();
-		if (refreshed?.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
-		if (json && reload?.skipped.includes(PI_AGENT_PLUGIN_ID)) {
+		if (refreshed?.loaded.some(isPiAgentPluginId)) return true;
+		if (json && reload?.skipped.some(isPiAgentPluginId)) {
 			printJson(
 				buildJsonErrorEnvelope({
 					command: "ask",
@@ -742,7 +742,7 @@ async function ensurePiAgentReady(
 					extra: {
 						action: "ask",
 						installed: true,
-						known: state.known.includes(PI_AGENT_PLUGIN_ID),
+						known: state.known.some(isPiAgentPluginId),
 						reloaded: reload.reloaded,
 						skipped: reload.skipped,
 						deferred: reload.deferred,
@@ -769,22 +769,22 @@ async function ensurePiAgentReady(
 				operation: "plugin-readiness",
 				error: "pi-agent-not-loaded",
 				message: "pi-agent is not loaded in the Refarm runtime.",
-				nextAction: state.installed.includes(PI_AGENT_PLUGIN_ID)
+				nextAction: state.installed.some(isPiAgentPluginId)
 					? PI_AGENT_RELOAD_JSON_COMMAND
 					: PI_AGENT_INSTALL_COMMAND,
 				nextActions: [
-					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
+					...(state.installed.some(isPiAgentPluginId)
 						? [PI_AGENT_RELOAD_JSON_COMMAND]
 						: [PI_AGENT_INSTALL_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
 				],
-				nextCommand: state.installed.includes(PI_AGENT_PLUGIN_ID)
+				nextCommand: state.installed.some(isPiAgentPluginId)
 					? PI_AGENT_RELOAD_JSON_COMMAND
 					: PI_AGENT_INSTALL_JSON_COMMAND,
 				nextCommands: [
-					...(state.installed.includes(PI_AGENT_PLUGIN_ID)
+					...(state.installed.some(isPiAgentPluginId)
 						? [PI_AGENT_RELOAD_JSON_COMMAND]
 						: [PI_AGENT_INSTALL_JSON_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -793,15 +793,15 @@ async function ensurePiAgentReady(
 				],
 				extra: {
 					action: "ask",
-					installed: state.installed.includes(PI_AGENT_PLUGIN_ID),
-					known: state.known.includes(PI_AGENT_PLUGIN_ID),
+					installed: state.installed.some(isPiAgentPluginId),
+					known: state.known.some(isPiAgentPluginId),
 					recommendations: [
 						{
 							diagnostic: "pi-agent-not-loaded",
 							severity: "failure",
 							summary: "The pi-agent plugin is not loaded in the runtime.",
 							action: "Install or reload pi-agent, then ensure the runtime is ready.",
-							command: state.installed.includes(PI_AGENT_PLUGIN_ID)
+							command: state.installed.some(isPiAgentPluginId)
 								? PI_AGENT_RELOAD_JSON_COMMAND
 								: PI_AGENT_INSTALL_JSON_COMMAND,
 						},
@@ -812,10 +812,10 @@ async function ensurePiAgentReady(
 		return false;
 	}
 	console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
-	if (!state.installed.includes(PI_AGENT_PLUGIN_ID)) {
+	if (!state.installed.some(isPiAgentPluginId)) {
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
 	}
-	if (state.known.includes(PI_AGENT_PLUGIN_ID)) {
+	if (state.known.some(isPiAgentPluginId)) {
 		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
 	} else {
 		console.error(chalk.dim("   Restart runtime:          refarm"));

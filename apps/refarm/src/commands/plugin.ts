@@ -1,5 +1,5 @@
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
-import { PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import { isPiAgentPluginId, PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
@@ -455,8 +455,8 @@ function buildRuntimePluginStatusReport(
 
 	const known =
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
-	const piAgentInstalled = state.installed.includes(PI_AGENT_PLUGIN_ID);
-	const piAgentLoaded = state.loaded.includes(PI_AGENT_PLUGIN_ID);
+	const piAgentInstalled = state.installed.some(isPiAgentPluginId);
+	const piAgentLoaded = state.loaded.some(isPiAgentPluginId);
 	const nextCommands = piAgentLoaded
 		? []
 		: [

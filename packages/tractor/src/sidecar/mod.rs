@@ -129,7 +129,10 @@ fn stream_ref_for_prompt(prompt_ref: &str) -> String {
 }
 
 fn is_pi_agent_plugin_id(plugin_id: &str) -> bool {
-    plugin_id == "@refarm/pi-agent" || plugin_id == "@refarm.dev/pi-agent"
+    matches!(
+        plugin_id,
+        "@refarm/pi-agent" | "@refarm.dev/pi-agent" | "pi-agent" | "pi_agent"
+    )
 }
 
 fn write_stream_chunk(
@@ -325,15 +328,20 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         }
         let payload = payload_obj.to_string();
 
-        // Dispatch to pi-agent channel.
+        // Dispatch to pi-agent channel — search by any known alias since the
+        // registered id may differ from the canonical one (e.g. "pi_agent" from
+        // a bare .wasm filename vs. "@refarm/pi-agent" from a full manifest).
         let sent = {
             let channels = state.agent_channels.read().expect("channels poisoned");
-            channels.get("@refarm/pi-agent").map(|tx| {
-                tx.send(crate::AgentMessage {
-                    event: "user:prompt".to_string(),
-                    payload: Some(payload),
+            channels
+                .iter()
+                .find(|(id, _)| is_pi_agent_plugin_id(id))
+                .map(|(_, tx)| {
+                    tx.send(crate::AgentMessage {
+                        event: "user:prompt".to_string(),
+                        payload: Some(payload),
+                    })
                 })
-            })
         };
 
         match sent {
