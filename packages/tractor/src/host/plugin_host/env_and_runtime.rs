@@ -310,11 +310,19 @@ struct RuntimePluginManifest {
     version: String,
     entry: String,
     observability: RuntimePluginObservability,
+    #[serde(default)]
+    capabilities: RuntimePluginCapabilities,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 struct RuntimePluginObservability {
     hooks: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+struct RuntimePluginCapabilities {
+    #[serde(default)]
+    provides: Vec<String>,
 }
 
 const REQUIRED_RUNTIME_HOOKS: &[&str] = &[
@@ -516,22 +524,25 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
 
-        if let Some(manifest) = read_runtime_plugin_manifest(path)? {
+        let provides = if let Some(manifest) = read_runtime_plugin_manifest(path)? {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, &manifest)?;
+            manifest.capabilities.provides.clone()
         } else {
             tracing::warn!(
                 plugin_id = %plugin_id,
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-        }
+            vec![]
+        };
 
         let mut handle = PluginInstanceHandle::new_component(
             plugin_id.clone(),
             plugin,
             store,
             self.telemetry.clone(),
+            provides,
         );
         handle.call_setup().await?;
 
@@ -598,11 +609,16 @@ impl PluginHost {
         let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1 });
         let instance = self.module_linker.instantiate(&mut store, &module)?;
 
+        let provides = read_runtime_plugin_manifest(path)?
+            .map(|m| m.capabilities.provides)
+            .unwrap_or_default();
+
         let mut handle = PluginInstanceHandle::new_module(
             plugin_id.to_string(),
             instance,
             store,
             self.telemetry.clone(),
+            provides,
         );
         handle.call_setup().await?;
 
@@ -667,3 +683,44 @@ impl PluginHost {
 #[cfg(test)]
 #[path = "../plugin_host_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    fn minimal_manifest(extra_json: &str) -> RuntimePluginManifest {
+        let json = format!(
+            r#"{{"id":"@test/plugin","version":"0.1.0","entry":"plugin.wasm",
+                "observability":{{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]}}
+                {}}}"#,
+            if extra_json.is_empty() { String::new() } else { format!(",{extra_json}") }
+        );
+        serde_json::from_str(&json).expect("valid manifest JSON")
+    }
+
+    #[test]
+    fn manifest_without_capabilities_defaults_to_empty() {
+        let m = minimal_manifest("");
+        assert!(m.capabilities.provides.is_empty());
+    }
+
+    #[test]
+    fn manifest_with_observe_agent_tools_capability() {
+        let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools"]}"#);
+        assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    }
+
+    #[test]
+    fn manifest_with_multiple_capabilities() {
+        let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools","audit-log"]}"#);
+        assert_eq!(m.capabilities.provides.len(), 2);
+        assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    }
+
+    #[test]
+    fn capability_constant_is_stable() {
+        // Guard: if CAP_OBSERVE_AGENT_TOOLS ever changes, existing plugin.json files
+        // would silently stop being routed as observers.
+        assert_eq!(crate::observer::CAP_OBSERVE_AGENT_TOOLS, "observe-agent-tools");
+    }
+}

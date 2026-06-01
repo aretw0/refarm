@@ -25,7 +25,7 @@
 
 pub mod daemon;
 pub mod host;
-pub mod scarecrow;
+pub mod observer;
 pub mod sidecar;
 pub mod storage;
 pub mod sync;
@@ -94,6 +94,10 @@ pub struct TractorNative {
     /// mpsc senders to plugin runner threads, keyed by plugin_id.
     /// Populated by `register_for_events`; read by WsServer for prompt routing.
     pub agent_channels: AgentChannels,
+    /// Subset of `agent_channels` containing only plugins that declared
+    /// the `"observe-agent-tools"` capability in their manifest.
+    /// Read by the Scarecrow audit subscriber to route agent-tool events.
+    pub observer_channels: AgentChannels,
     /// Join handles for plugin runner threads, keyed by plugin_id.
     plugin_runner_handles: Arc<RwLock<HashMap<String, std::thread::JoinHandle<()>>>>,
     #[allow(dead_code)]
@@ -123,6 +127,7 @@ impl TractorNative {
             trust,
             telemetry,
             agent_channels: Arc::new(RwLock::new(HashMap::new())),
+            observer_channels: Arc::new(RwLock::new(HashMap::new())),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
@@ -141,6 +146,7 @@ impl TractorNative {
     /// satisfied without unsafe code.
     pub fn register_for_events(&self, handle: host::PluginInstanceHandle) {
         let plugin_id = handle.id.clone();
+        let provides = handle.provides.clone();
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
 
         let id_for_thread = plugin_id.clone();
@@ -176,7 +182,15 @@ impl TractorNative {
         self.agent_channels
             .write()
             .expect("agent_channels poisoned")
-            .insert(plugin_id.clone(), tx);
+            .insert(plugin_id.clone(), tx.clone());
+
+        if provides.contains(&crate::observer::CAP_OBSERVE_AGENT_TOOLS.to_string()) {
+            self.observer_channels
+                .write()
+                .expect("observer_channels poisoned")
+                .insert(plugin_id.clone(), tx);
+            tracing::info!(plugin_id = %plugin_id, "registered as agent-tool observer");
+        }
 
         self.plugin_runner_handles
             .write()

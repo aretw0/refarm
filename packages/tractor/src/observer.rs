@@ -1,13 +1,15 @@
-// Scarecrow observation and event routing — Barn/Scarecrow Steps 3+4.
+// Agent-tool observer — audit sink and capability-based event routing.
 //
 // Step 3 (core.rs): every agent-fs/agent-shell call emits a TelemetryBus event.
-// Step 4a (this file): subscriber writes those events to an audit NDJSON file.
-// Step 4b (this file): subscriber also routes events to any loaded Scarecrow plugin
-//   via the existing agent_channels mechanism — the plugin receives standard
-//   `integration.on-event(event, payload)` calls, no new WIT interface needed.
+// Step 4 (this file): the audit subscriber writes those events to NDJSON and
+//   routes them to any plugin that declared CAP_OBSERVE_AGENT_TOOLS in its
+//   manifest.capabilities.provides. That plugin receives standard
+//   `integration.on-event` calls — no new WIT interface needed.
 //
-// A Scarecrow plugin is any loaded plugin whose id starts with SCARECROW_PLUGIN_PREFIX.
-// The minimal reference implementation lives in packages/scarecrow.
+// Routing is purely capability-driven. The tractor does not know the name or
+// purpose of any observer plugin; it only checks the declared capability.
+// The reference implementation lives in packages/scarecrow — but any plugin
+// that declares "observe-agent-tools" is eligible.
 
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
@@ -16,32 +18,33 @@ use tokio::io::AsyncWriteExt as _;
 use crate::telemetry::{TelemetryBus, TelemetryEvent};
 use crate::{AgentChannels, AgentMessage};
 
+/// Capability string a plugin must declare in `capabilities.provides` to
+/// receive agent-tool events via `integration.on-event`.
+pub const CAP_OBSERVE_AGENT_TOOLS: &str = "observe-agent-tools";
+
 pub const AUDIT_FILE: &str = "scarecrow-audit.ndjson";
-pub const SCARECROW_PLUGIN_PREFIX: &str = "@refarm/scarecrow";
 const AGENT_TOOL_PREFIX: &str = "agent-tool:";
 
 /// Spawn the Scarecrow background task.
 ///
-/// - Subscribes to `agent-tool:*` TelemetryBus events.
-/// - Appends each event as a NDJSON line to `{base_dir}/scarecrow-audit.ndjson`.
-/// - If a plugin whose id starts with `@refarm/scarecrow` is registered in
-///   `agent_channels`, forwards each event via `AgentMessage` so the plugin's
-///   `integration.on-event` export is called — enabling policy-as-WASM without
-///   any new WIT interface definitions.
+/// Subscribes to `agent-tool:*` TelemetryBus events and for each one:
+///   1. Appends a NDJSON audit line to `{base_dir}/scarecrow-audit.ndjson`.
+///   2. Forwards the event to every plugin registered in `observer_channels` —
+///      i.e. every plugin that declared `"observe-agent-tools"` in its manifest.
 ///
 /// The task runs until the TelemetryBus sender is dropped (daemon shutdown).
 pub fn spawn_audit_subscriber(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
-    agent_channels: AgentChannels,
+    observer_channels: AgentChannels,
 ) {
-    tokio::spawn(audit_subscriber_task(telemetry, base_dir, agent_channels));
+    tokio::spawn(audit_subscriber_task(telemetry, base_dir, observer_channels));
 }
 
 async fn audit_subscriber_task(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
-    agent_channels: AgentChannels,
+    observer_channels: AgentChannels,
 ) {
     let audit_path = base_dir.join(AUDIT_FILE);
     let mut rx = telemetry.subscribe();
@@ -53,7 +56,7 @@ async fn audit_subscriber_task(
                 }
                 if let Some(line) = format_audit_line(&event) {
                     append_line(&audit_path, &line).await;
-                    route_to_scarecrow_plugin(&event, &line, &agent_channels);
+                    forward_to_observers(&event, &line, &observer_channels);
                 }
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -64,24 +67,21 @@ async fn audit_subscriber_task(
     }
 }
 
-/// Forward an agent-tool event to every loaded Scarecrow plugin via agent_channels.
+/// Forward an agent-tool event to every channel in `observer_channels`.
 ///
-/// Scarecrow plugins are identified by a plugin_id that starts with
-/// `SCARECROW_PLUGIN_PREFIX` (e.g. `@refarm/scarecrow`, `@refarm/scarecrow-strict`).
-/// The NDJSON line already computed for the audit file is reused as the payload.
-fn route_to_scarecrow_plugin(
+/// All plugins in this map have already been vetted by capability declaration —
+/// no further filtering is needed here.
+fn forward_to_observers(
     event: &TelemetryEvent,
     json_payload: &str,
-    agent_channels: &AgentChannels,
+    observer_channels: &AgentChannels,
 ) {
-    let Ok(guard) = agent_channels.read() else { return };
-    for (plugin_id, tx) in guard.iter() {
-        if plugin_id.starts_with(SCARECROW_PLUGIN_PREFIX) {
-            let _ = tx.send(AgentMessage {
-                event: event.event.clone(),
-                payload: Some(json_payload.to_owned()),
-            });
-        }
+    let Ok(guard) = observer_channels.read() else { return };
+    for tx in guard.values() {
+        let _ = tx.send(AgentMessage {
+            event: event.event.clone(),
+            payload: Some(json_payload.to_owned()),
+        });
     }
 }
 
@@ -174,15 +174,17 @@ mod tests {
     }
 
     #[test]
-    fn route_to_scarecrow_sends_to_matching_plugins() {
+    fn forward_sends_to_all_observer_channels() {
         use std::collections::HashMap;
         use std::sync::{Arc, RwLock};
         use tokio::sync::mpsc;
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
-        let channels: AgentChannels = Arc::new(RwLock::new({
+        let (tx1, mut rx1) = mpsc::unbounded_channel::<AgentMessage>();
+        let (tx2, mut rx2) = mpsc::unbounded_channel::<AgentMessage>();
+        let observer_channels: AgentChannels = Arc::new(RwLock::new({
             let mut m = HashMap::new();
-            m.insert("@refarm/scarecrow".to_string(), tx);
+            m.insert("@refarm/scarecrow".to_string(), tx1);
+            m.insert("@refarm/scarecrow-strict".to_string(), tx2);
             m
         }));
 
@@ -192,29 +194,24 @@ mod tests {
             serde_json::json!({ "path": "/workspaces/refarm/src/main.ts", "bytes": 512 }),
         );
         let line = format_audit_line(&ev).unwrap();
-        route_to_scarecrow_plugin(&ev, &line, &channels);
+        forward_to_observers(&ev, &line, &observer_channels);
 
-        let msg = rx.try_recv().expect("should have received a message");
-        assert_eq!(msg.event, "agent-tool:fs:write");
-        assert!(msg.payload.unwrap().contains("512"));
+        let msg1 = rx1.try_recv().expect("observer 1 should receive");
+        let msg2 = rx2.try_recv().expect("observer 2 should receive");
+        assert_eq!(msg1.event, "agent-tool:fs:write");
+        assert_eq!(msg2.event, "agent-tool:fs:write");
+        assert!(msg1.payload.unwrap().contains("512"));
     }
 
     #[test]
-    fn route_skips_non_scarecrow_plugins() {
+    fn forward_to_empty_observer_channels_is_noop() {
         use std::collections::HashMap;
         use std::sync::{Arc, RwLock};
-        use tokio::sync::mpsc;
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
-        let channels: AgentChannels = Arc::new(RwLock::new({
-            let mut m = HashMap::new();
-            m.insert("@refarm/pi-agent".to_string(), tx);
-            m
-        }));
-
+        let observer_channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
         let ev = make_event("agent-tool:fs:read", Some("pi-agent"), serde_json::json!({}));
         let line = format_audit_line(&ev).unwrap();
-        route_to_scarecrow_plugin(&ev, &line, &channels);
-        assert!(rx.try_recv().is_err(), "pi-agent should not receive scarecrow events");
+        // Should not panic with no observers registered
+        forward_to_observers(&ev, &line, &observer_channels);
     }
 }
