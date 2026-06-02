@@ -61,8 +61,6 @@ async function main() {
 	const env = {
 		...process.env,
 		...mock.env,
-		LLM_PROVIDER: mock.env.MODEL_PROVIDER,
-		LLM_BASE_URL: mock.env.MODEL_BASE_URL,
 		REFARM_STREAMS_DIR: streamsDir,
 		REFARM_OPERATOR_IDENTITY_FILE: identityFile,
 		REFARM_NO_BROWSER_OPEN: "1",
