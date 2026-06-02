@@ -1,7 +1,8 @@
-import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 import { normalizePluginId } from "@refarm.dev/config";
+import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 
 const FARMHAND_PLUGIN_ID = "farmhand";
+const AGENT_ERROR_PREFIXES = ["[pi-agent erro]", "[pi-agent stub]", "[budget]"];
 
 export interface TaskExecutorInput {
 	taskId: string;
@@ -9,6 +10,27 @@ export interface TaskExecutorInput {
 	pluginId: string;
 	fn: string;
 	args: unknown;
+}
+
+function resultContent(result: unknown): string | null {
+	if (typeof result === "string") return result;
+	if (Array.isArray(result)) {
+		const [content] = result;
+		return typeof content === "string" ? content : null;
+	}
+	if (result && typeof result === "object") {
+		const content = (result as { content?: unknown }).content;
+		return typeof content === "string" ? content : null;
+	}
+	return null;
+}
+
+function resultErrorMessage(result: unknown): string | null {
+	const content = resultContent(result);
+	if (!content) return null;
+	return AGENT_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix))
+		? content
+		: null;
 }
 
 export async function executeTask(
@@ -42,6 +64,16 @@ export async function executeTask(
 				? JSON.stringify(args ?? {})
 				: args;
 		const result = await instance.call(fn, normalizedArgs);
+		const taskError = resultErrorMessage(result);
+		if (taskError) {
+			await tractor.storeNode({
+				...baseResultNode,
+				"task:status": "error",
+				"task:error": taskError,
+				"task:result": JSON.stringify(result),
+			});
+			return;
+		}
 		await tractor.storeNode({
 			...baseResultNode,
 			"task:status": "ok",
