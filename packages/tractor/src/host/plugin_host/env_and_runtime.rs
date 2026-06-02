@@ -338,7 +338,7 @@ fn read_runtime_plugin_manifest(path: &Path) -> Result<Option<RuntimePluginManif
         return Ok(None);
     };
 
-    for filename in ["plugin-manifest.json", "manifest.json"] {
+    for filename in ["plugin.json", "plugin-manifest.json", "manifest.json"] {
         let manifest_path = parent.join(filename);
         if !manifest_path.is_file() {
             continue;
@@ -473,11 +473,16 @@ impl PluginHost {
     /// Fase 3 TODO: if `agent_tools` is loaded, compose agent-fs/shell from it
     /// instead of the host primitive — see HANDOFF.md Tarefa 2B.
     pub async fn load(&self, path: &Path, sync: &NativeSync) -> Result<PluginInstanceHandle> {
-        let plugin_id = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
+        let manifest = read_runtime_plugin_manifest(path)?;
+        let plugin_id = manifest
+            .as_ref()
+            .map(|m| manifest_runtime_plugin_id(&m.id).to_string())
+            .unwrap_or_else(|| {
+                path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            });
 
         tracing::info!(plugin_id = %plugin_id, path = %path.display(), "Loading plugin");
         anyhow::ensure!(path.exists(), "Plugin file not found: {}", path.display());
@@ -524,9 +529,9 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
 
-        let provides = if let Some(manifest) = read_runtime_plugin_manifest(path)? {
+        let provides = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
-            validate_manifest_runtime_alignment(&plugin_id, &metadata, &manifest)?;
+            validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
             manifest.capabilities.provides.clone()
         } else {
             tracing::warn!(
@@ -715,6 +720,31 @@ mod capability_tests {
         let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools","audit-log"]}"#);
         assert_eq!(m.capabilities.provides.len(), 2);
         assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    }
+
+    #[test]
+    fn runtime_manifest_reader_accepts_plugin_json() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let wasm_path = dir.path().join("plugin.wasm");
+        std::fs::write(&wasm_path, b"wasm").expect("write wasm placeholder");
+        std::fs::write(
+            dir.path().join("plugin.json"),
+            r#"{"id":"@test/plugin","version":"0.1.0","entry":"plugin.wasm",
+                "observability":{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]},
+                "capabilities":{"provides":["agent:respond"]}}"#,
+        )
+        .expect("write plugin manifest");
+
+        let manifest = read_runtime_plugin_manifest(&wasm_path)
+            .expect("read manifest")
+            .expect("manifest found");
+
+        assert!(manifest.capabilities.provides.contains(&"agent:respond".to_string()));
+    }
+
+    #[test]
+    fn manifest_runtime_plugin_id_uses_manifest_identity_suffix() {
+        assert_eq!(manifest_runtime_plugin_id("@refarm/pi-agent"), "pi-agent");
     }
 
     #[test]

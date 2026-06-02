@@ -55,6 +55,35 @@ describe("bundleInstallPlugin", () => {
 		expect(result.status).toBe("cached");
 	});
 
+	it("installs when required bundled capabilities are missing from cached manifest", async () => {
+		vi.mocked(mockFs.readFileSync)
+			.mockReturnValueOnce(JSON.stringify({ version: "0.1.0" }))
+			.mockReturnValueOnce("fake-wasm-bytes")
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", name: "Pi Agent", version: "0.1.0" }));
+		vi.mocked(mockFsP.readFile)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			.mockResolvedValueOnce("0.1.0" as any)
+			.mockResolvedValueOnce(
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				JSON.stringify({ capabilities: { provides: ["integration:v1"] } }) as any,
+			);
+		vi.mocked(mockFs.existsSync).mockReturnValue(true);
+
+		const { bundleInstallPlugin } = await import("./bundled-plugins.js");
+		const result = await bundleInstallPlugin(
+			{
+				id: "@refarm/pi-agent",
+				package: "@refarm.dev/pi-agent",
+				wasmFile: "dist/pi_agent.wasm",
+				requiredProvides: ["agent:respond"],
+			},
+			"/fake/plugins",
+		);
+
+		expect(result.status).toBe("installed");
+		expect(mockFs.copyFileSync).toHaveBeenCalled();
+	});
+
 	it("returns failed when WASM file does not exist", async () => {
 		vi.mocked(mockFs.readFileSync)
 			.mockReturnValueOnce(JSON.stringify({ version: "0.1.0" }))

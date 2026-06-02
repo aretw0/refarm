@@ -42,6 +42,8 @@ resolve_cargo_target() {
 _CARGO_TARGET="$(resolve_cargo_target)"
 TRACTOR="$_CARGO_TARGET/release/tractor"
 PI_AGENT="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
+INSTALLED_PI_AGENT="$HOME/.refarm/plugins/@refarm/pi-agent/plugin.wasm"
+REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$HOME/.refarm/streams}"
 
 if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
@@ -111,6 +113,14 @@ if [ ! -f "$PI_AGENT" ]; then
   echo "❌  pi_agent.wasm not found at $PI_AGENT"
   echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
   exit 1
+fi
+
+if [ -f "$REFARM_CLI" ]; then
+  node "$REFARM_CLI" plugin update --json >/dev/null 2>&1 || true
+fi
+
+if [ -f "$INSTALLED_PI_AGENT" ]; then
+  PI_AGENT="$INSTALLED_PI_AGENT"
 fi
 
 # ── load .refarm/.env ─────────────────────────────────────────────────────────

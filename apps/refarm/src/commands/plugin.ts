@@ -50,6 +50,7 @@ const BUNDLED_PLUGINS = [
 		npmPackage: PI_AGENT_NPM_PACKAGE,
 		wasmFile: "dist/pi_agent.wasm",
 		manifestFile: "dist/plugin.json",
+		requiredProvides: ["agent:respond"],
 	},
 ] as const;
 
@@ -201,6 +202,29 @@ async function readInstalledVersion(pluginId: string): Promise<string | null> {
 	}
 }
 
+async function installedBundleIsCurrent(
+	plugin: BundledPlugin,
+	version: string,
+): Promise<boolean> {
+	const installed = await readInstalledVersion(plugin.id);
+	if (installed !== version) return false;
+	const requiredProvides = "requiredProvides" in plugin ? plugin.requiredProvides : [];
+	if (requiredProvides.length === 0) return true;
+
+	try {
+		const manifestPath = path.join(pluginsBaseDir, plugin.id, "plugin.json");
+		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
+			capabilities?: { provides?: unknown };
+		};
+		const provides = Array.isArray(manifest.capabilities?.provides)
+			? manifest.capabilities.provides
+			: [];
+		return requiredProvides.every((capability) => provides.includes(capability));
+	} catch {
+		return false;
+	}
+}
+
 async function installPlugin(
 	plugin: BundledPlugin,
 	force: boolean,
@@ -221,8 +245,7 @@ async function installPlugin(
 	}
 
 	if (!force) {
-		const installed = await readInstalledVersion(plugin.id);
-		if (installed === pkgVersion) {
+		if (await installedBundleIsCurrent(plugin, pkgVersion)) {
 			const message = "already up-to-date";
 			if (!quiet) console.log(`  ✓ ${plugin.id} v${pkgVersion} ${message}`);
 			return {

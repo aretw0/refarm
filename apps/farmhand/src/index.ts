@@ -18,8 +18,8 @@ import {
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type {
-RuntimeHost,
-RuntimePluginLoaderTarget,
+	RuntimeHost,
+	RuntimePluginLoaderTarget,
 } from "@refarm.dev/runtime";
 import { SiloCore } from "@refarm.dev/silo";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
@@ -282,6 +282,7 @@ async function main() {
 			id: PI_AGENT_PLUGIN_ID,
 			package: PI_AGENT_NPM_PACKAGE,
 			wasmFile: "dist/pi_agent.wasm",
+			requiredProvides: ["agent:respond"],
 		},
 	];
 	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)

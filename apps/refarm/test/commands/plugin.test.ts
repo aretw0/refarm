@@ -152,7 +152,11 @@ describe("plugin install", () => {
 	it("skips install when already up-to-date (no --force)", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
 		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
-		mockReadFile.mockResolvedValue("0.4.1"); // sentinel matches
+		mockReadFile
+			.mockResolvedValueOnce("0.4.1") // sentinel matches
+			.mockResolvedValueOnce(
+				JSON.stringify({ capabilities: { provides: ["agent:respond"] } }),
+			);
 
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -162,6 +166,31 @@ describe("plugin install", () => {
 			expect.stringContaining("already up-to-date"),
 		);
 		expect(mockCopyFileSync).not.toHaveBeenCalled();
+		consoleSpy.mockRestore();
+	});
+
+	it("reinstalls when installed bundled manifest is missing required capabilities", async () => {
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockReadFileSync
+			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
+			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" }));
+		mockReadFile
+			.mockResolvedValueOnce("0.4.1")
+			.mockResolvedValueOnce(
+				JSON.stringify({ capabilities: { provides: ["integration:v1"] } }),
+			);
+		mockExistsSync.mockReturnValue(true);
+		mockDigest.mockReturnValue("deadbeef");
+
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("update");
+
+		expect(mockCopyFileSync).toHaveBeenCalled();
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("installed"),
+		);
 		consoleSpy.mockRestore();
 	});
 
@@ -263,7 +292,11 @@ describe("plugin install", () => {
 	it("prints update results as JSON", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
 		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
-		mockReadFile.mockResolvedValue("0.4.1");
+		mockReadFile
+			.mockResolvedValueOnce("0.4.1")
+			.mockResolvedValueOnce(
+				JSON.stringify({ capabilities: { provides: ["agent:respond"] } }),
+			);
 
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
