@@ -88,6 +88,70 @@ function observedEffortFields(result: EffortResult): {
 	};
 }
 
+function emptyEffortSummary(): EffortSummary {
+	return {
+		total: 0,
+		pending: 0,
+		inProgress: 0,
+		done: 0,
+		partial: 0,
+		failed: 0,
+		timedOut: 0,
+		cancelled: 0,
+	};
+}
+
+function incrementEffortSummary(
+	summary: EffortSummary,
+	status: EffortResult["status"],
+): void {
+	summary.total += 1;
+	switch (status) {
+		case "pending":
+			summary.pending += 1;
+			break;
+		case "in-progress":
+			summary.inProgress += 1;
+			break;
+		case "done":
+			summary.done += 1;
+			break;
+		case "partial":
+			summary.partial += 1;
+			break;
+		case "failed":
+			summary.failed += 1;
+			break;
+		case "timed-out":
+			summary.timedOut += 1;
+			break;
+		case "cancelled":
+			summary.cancelled += 1;
+			break;
+	}
+}
+
+function observedEffortList(efforts: EffortResult[]): Array<{
+	effortId: string;
+	status: EffortResult["status"];
+	observedStatus: EffortResult["status"];
+	observedErrors?: string[];
+}> {
+	return efforts.map((effort) => ({
+		effortId: effort.effortId,
+		status: effort.status,
+		...observedEffortFields(effort),
+	}));
+}
+
+function observedEffortSummary(efforts: EffortResult[]): EffortSummary {
+	const summary = emptyEffortSummary();
+	for (const effort of efforts) {
+		incrementEffortSummary(summary, observedEffortStatus(effort));
+	}
+	return summary;
+}
+
 function formatLogMeta(meta: Record<string, unknown> | undefined): string {
 	if (!meta) return "";
 	const modelScope = typeof meta.modelScope === "string" ? meta.modelScope : undefined;
@@ -1005,6 +1069,8 @@ Notes:
 				const effortCommands = buildTaskEffortCommands(efforts, transport, {
 					json: true,
 				});
+				const observedEfforts = observedEffortList(efforts);
+				const observedSummary = observedEffortSummary(efforts);
 				const nextCommands = efforts[0]
 					? [
 							buildTaskStatusCommand(efforts[0].effortId, transport, {
@@ -1020,7 +1086,9 @@ Notes:
 					{
 						transport,
 						summary,
+						observedSummary,
 						efforts,
+						observedEfforts,
 						effortCommands,
 						modelInspectCommand: MODEL_CURRENT_JSON_COMMAND,
 					},
@@ -1042,8 +1110,11 @@ Notes:
 			for (const effort of efforts) {
 				const attempts = deriveAttemptCount(effort);
 				const ageSeconds = formatAgeSeconds(effort.submittedAt);
+				const observedStatus = observedEffortStatus(effort);
+				const storedStatus =
+					observedStatus === effort.status ? "" : ` stored_status=${effort.status}`;
 				console.log(
-					`  ${effort.effortId}  status=${effort.status} tasks=${effort.results.length} attempts=${attempts} age=${ageSeconds}`,
+					`  ${effort.effortId}  status=${observedStatus}${storedStatus} tasks=${effort.results.length} attempts=${attempts} age=${ageSeconds}`,
 				);
 			}
 		});

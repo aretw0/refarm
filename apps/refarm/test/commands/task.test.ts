@@ -720,6 +720,75 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("list prints observed summary fields for legacy agent errors", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 0,
+				inProgress: 0,
+				done: 1,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-legacy",
+					status: "done",
+					results: [
+						{
+							taskId: "t1",
+							effortId: "effort-legacy",
+							status: "ok",
+							result: JSON.stringify({
+								content: "[pi-agent erro] quota exceeded",
+								model: "gpt-5.5",
+							}),
+							completedAt: new Date().toISOString(),
+						},
+					],
+					submittedAt: new Date().toISOString(),
+					completedAt: new Date().toISOString(),
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			summary: EffortSummary;
+			observedSummary: EffortSummary;
+			observedEfforts: Array<{
+				effortId: string;
+				status: string;
+				observedStatus: string;
+				observedErrors: string[];
+			}>;
+		};
+		expect(payload.summary.done).toBe(1);
+		expect(payload.summary.failed).toBe(0);
+		expect(payload.observedSummary.done).toBe(0);
+		expect(payload.observedSummary.failed).toBe(1);
+		expect(payload.observedEfforts).toEqual([
+			{
+				effortId: "effort-legacy",
+				status: "done",
+				observedStatus: "failed",
+				observedErrors: ["[pi-agent erro] quota exceeded"],
+			},
+		]);
+		spy.mockRestore();
+	});
+
 	it("logs prints entries", async () => {
 		const logs: EffortLogEntry[] = [
 			{
