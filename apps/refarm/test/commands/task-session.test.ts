@@ -13,6 +13,7 @@ import {
 	buildTaskStatusCommand,
 	FileTaskSessionRecorder,
 	formatTaskSessionModelRoute,
+	taskSessionEffortCommands,
 } from "../../src/commands/task-session.js";
 
 const tempDirs: string[] = [];
@@ -67,6 +68,34 @@ describe("task session commands", () => {
 				effortId: "effort with space",
 				statusCommand: "refarm task status 'effort with space' --transport file",
 				logsCommand: "refarm task logs 'effort with space' --transport file",
+			},
+		]);
+	});
+
+	it("preserves recorded task session effort command handoffs", () => {
+		expect(
+			taskSessionEffortCommands([
+				{
+					effortId: "effort-1",
+					statusCommand: "refarm task status effort-1 --transport file",
+					logsCommand: "refarm task logs effort-1 --transport file",
+				},
+				{
+					effortId: "effort-2",
+					statusCommand: "refarm task status effort-2 --transport http",
+					logsCommand: "refarm task logs effort-2 --transport http",
+				},
+			]),
+		).toEqual([
+			{
+				effortId: "effort-1",
+				statusCommand: "refarm task status effort-1 --transport file",
+				logsCommand: "refarm task logs effort-1 --transport file",
+			},
+			{
+				effortId: "effort-2",
+				statusCommand: "refarm task status effort-2 --transport http",
+				logsCommand: "refarm task logs effort-2 --transport http",
 			},
 		]);
 	});

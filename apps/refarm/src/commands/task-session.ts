@@ -111,6 +111,16 @@ export function buildTaskEffortCommands(
 	}));
 }
 
+export function taskSessionEffortCommands(
+	efforts: Array<Pick<TaskSessionEffortRecord, "effortId" | "statusCommand" | "logsCommand">>,
+): TaskSessionEffortCommands[] {
+	return efforts.map((effort) => ({
+		effortId: effort.effortId,
+		statusCommand: effort.statusCommand,
+		logsCommand: effort.logsCommand,
+	}));
+}
+
 function buildStatusCommand(effortId: string, transport: string): string {
 	return buildTaskStatusCommand(effortId, transport);
 }

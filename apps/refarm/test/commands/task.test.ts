@@ -1226,13 +1226,67 @@ describe("refarm task resume", () => {
 			.find((command) => command.name() === "resume")!
 			.parseAsync(["--json"], { from: "user" });
 
-		expect(spy).toHaveBeenCalledWith(
-			expect.stringContaining('"activeEffortId": "effort-abc"'),
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			checkpoint: TaskSessionCheckpoint;
+			effortCommands: Array<{
+				effortId: string;
+				statusCommand: string;
+				logsCommand: string;
+			}>;
+			modelInspectCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.checkpoint.activeEffortId).toBe("effort-abc");
+		expect(payload.effortCommands).toEqual([
+			{
+				effortId: "effort-abc",
+				statusCommand: "refarm task status effort-abc --transport http",
+				logsCommand: "refarm task logs effort-abc --transport http",
+			},
+		]);
+		expect(payload.modelInspectCommand).toBe("refarm model current --json");
+		expect(payload.nextCommands).toEqual([
+			"refarm task status effort-abc --transport http --watch",
+			"refarm task logs effort-abc --transport http",
+		]);
+		spy.mockRestore();
+	});
+
+	it("continues from the newest checkpoint effort when none is active", async () => {
+		const adapter = createMockAdapter();
+		const checkpoint: TaskSessionCheckpoint = {
+			version: 1,
+			updatedAt: new Date().toISOString(),
+			efforts: [
+				{
+					effortId: "effort-done",
+					transport: "file",
+					lastStatus: "done",
+					statusCommand: "refarm task status effort-done --transport file",
+					logsCommand: "refarm task logs effort-done --transport file",
+				},
+			],
+		};
+		const session = createMockSessionRecorder({
+			getCheckpoint: vi.fn().mockReturnValue(checkpoint),
+		});
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
 		);
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"command": "task"'));
-		expect(spy).toHaveBeenCalledWith(
-			expect.stringContaining('"operation": "resume"'),
-		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "resume")!
+			.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			nextCommands: string[];
+		};
+		expect(payload.nextCommands).toEqual([
+			"refarm task status effort-done --transport file",
+			"refarm task logs effort-done --transport file",
+		]);
 		spy.mockRestore();
 	});
 

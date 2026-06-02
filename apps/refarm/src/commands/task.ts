@@ -35,6 +35,7 @@ import {
 	buildTaskStatusCommand,
 	createTaskSessionRecorder,
 	formatTaskSessionModelRoute,
+	taskSessionEffortCommands,
 	type TaskSessionRecorder,
 } from "./task-session.js";
 import { isFinalEffortStatus } from "./task-status.js";
@@ -827,12 +828,22 @@ Notes:
 							(entry) => entry.effortId === checkpoint.activeEffortId,
 						)
 					: undefined;
+				const fallback = checkpoint.efforts[0];
+				const effortCommands = taskSessionEffortCommands(checkpoint.efforts);
+				const nextCommands = active
+					? [`${active.statusCommand} --watch`, active.logsCommand]
+					: fallback
+						? [fallback.statusCommand, fallback.logsCommand]
+						: ["refarm task list --json"];
 				printTaskJsonSuccess(
 					"resume",
-					{ status: "ok", checkpoint },
-					active
-						? [`${active.statusCommand} --watch`, active.logsCommand]
-						: ["refarm task list --json"],
+					{
+						status: "ok",
+						checkpoint,
+						effortCommands,
+						modelInspectCommand: MODEL_CURRENT_JSON_COMMAND,
+					},
+					nextCommands,
 				);
 				return;
 			}
