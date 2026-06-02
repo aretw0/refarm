@@ -632,9 +632,15 @@ Notes:
 				});
 				if (opts.json) {
 					const watchCommand = buildTaskStatusCommand(effortId, transport, {
+						json: true,
 						watch: true,
 					});
-					const logsCommand = buildTaskLogsCommand(effortId, transport);
+					const statusJsonCommand = buildTaskStatusCommand(effortId, transport, {
+						json: true,
+					});
+					const logsCommand = buildTaskLogsCommand(effortId, transport, {
+						json: true,
+					});
 					printTaskJsonSuccess(
 						"run",
 						{
@@ -645,7 +651,7 @@ Notes:
 							direction: effort.direction,
 							effort,
 						},
-						[watchCommand, statusCommand, logsCommand],
+						[watchCommand, statusJsonCommand, logsCommand],
 					);
 					return;
 				}
@@ -709,12 +715,16 @@ Notes:
 					if (!result) {
 						if (opts.json) {
 							const statusCommand = buildTaskStatusCommand(effortId, transport, {
+								json: true,
 								watch: true,
 							});
 							printTaskJsonSuccess(
 								"status",
 								{ effortId, transport, status: "not-found" },
-								[statusCommand, buildTaskLogsCommand(effortId, transport)],
+								[
+									statusCommand,
+									buildTaskLogsCommand(effortId, transport, { json: true }),
+								],
 							);
 						} else {
 							console.log(chalk.gray("No result yet."));
@@ -726,10 +736,16 @@ Notes:
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
 					if (opts.json) {
 						const nextCommands = isFinalEffortStatus(result.status)
-							? [buildTaskLogsCommand(effortId, transport), RESUME_JSON_COMMAND]
+							? [
+									buildTaskLogsCommand(effortId, transport, { json: true }),
+									RESUME_JSON_COMMAND,
+								]
 							: [
-									buildTaskStatusCommand(effortId, transport, { watch: true }),
-									buildTaskLogsCommand(effortId, transport),
+									buildTaskStatusCommand(effortId, transport, {
+										json: true,
+										watch: true,
+									}),
+									buildTaskLogsCommand(effortId, transport, { json: true }),
 								];
 						printTaskJsonSuccess(
 							"status",
@@ -829,11 +845,28 @@ Notes:
 						)
 					: undefined;
 				const fallback = checkpoint.efforts[0];
-				const effortCommands = taskSessionEffortCommands(checkpoint.efforts);
+				const effortCommands = taskSessionEffortCommands(checkpoint.efforts, {
+					json: true,
+				});
 				const nextCommands = active
-					? [`${active.statusCommand} --watch`, active.logsCommand]
+					? [
+							buildTaskStatusCommand(active.effortId, active.transport, {
+								json: true,
+								watch: true,
+							}),
+							buildTaskLogsCommand(active.effortId, active.transport, {
+								json: true,
+							}),
+						]
 					: fallback
-						? [fallback.statusCommand, fallback.logsCommand]
+						? [
+								buildTaskStatusCommand(fallback.effortId, fallback.transport, {
+									json: true,
+								}),
+								buildTaskLogsCommand(fallback.effortId, fallback.transport, {
+									json: true,
+								}),
+							]
 						: ["refarm task list --json"];
 				printTaskJsonSuccess(
 					"resume",
@@ -924,11 +957,17 @@ Notes:
 			});
 
 			if (opts.json) {
-				const effortCommands = buildTaskEffortCommands(efforts, transport);
+				const effortCommands = buildTaskEffortCommands(efforts, transport, {
+					json: true,
+				});
 				const nextCommands = efforts[0]
 					? [
-							buildTaskStatusCommand(efforts[0].effortId, transport),
-							buildTaskLogsCommand(efforts[0].effortId, transport),
+							buildTaskStatusCommand(efforts[0].effortId, transport, {
+								json: true,
+							}),
+							buildTaskLogsCommand(efforts[0].effortId, transport, {
+								json: true,
+							}),
 						]
 					: [];
 				printTaskJsonSuccess(
@@ -1010,7 +1049,7 @@ Notes:
 						printTaskJsonSuccess(
 							"logs",
 							{ effortId, transport, logs: [] },
-							[buildTaskStatusCommand(effortId, transport)],
+							[buildTaskStatusCommand(effortId, transport, { json: true })],
 						);
 						return;
 					}
@@ -1023,7 +1062,7 @@ Notes:
 					printTaskJsonSuccess(
 						"logs",
 						{ effortId, transport, logs: sliced },
-						[buildTaskStatusCommand(effortId, transport)],
+						[buildTaskStatusCommand(effortId, transport, { json: true })],
 					);
 					return;
 				}
@@ -1102,9 +1141,12 @@ Notes:
 			});
 			if (opts.json) {
 				const watchCommand = buildTaskStatusCommand(effortId, transport, {
+					json: true,
 					watch: true,
 				});
-				const logsCommand = buildTaskLogsCommand(effortId, transport);
+				const logsCommand = buildTaskLogsCommand(effortId, transport, {
+					json: true,
+				});
 				printJson(
 					buildJsonSuccessEnvelope({
 						command: "task",
@@ -1185,14 +1227,17 @@ Notes:
 				});
 			});
 			if (opts.json) {
+				const statusJsonCommand = buildTaskStatusCommand(effortId, transport, {
+					json: true,
+				});
 				printJson(
 					buildJsonSuccessEnvelope({
 						command: "task",
 						operation: "cancel",
-						nextAction: statusCommand,
-						nextActions: [statusCommand],
-						nextCommand: statusCommand,
-						nextCommands: [statusCommand],
+						nextAction: statusJsonCommand,
+						nextActions: [statusJsonCommand],
+						nextCommand: statusJsonCommand,
+						nextCommands: [statusJsonCommand],
 						extra: {
 							effortId,
 							transport,

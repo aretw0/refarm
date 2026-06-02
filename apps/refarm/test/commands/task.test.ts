@@ -217,12 +217,12 @@ describe("refarm task run", () => {
 				transport: "file",
 				plugin: "my-plugin",
 				fn: "process",
-				nextCommand: "refarm task status effort-abc --transport file --watch",
+				nextCommand: "refarm task status effort-abc --transport file --watch --json",
 			}),
 		);
 		expect(payload.nextActions).toEqual(payload.nextCommands);
-		expect(payload.nextCommands).toContain("refarm task status effort-abc --transport file");
-		expect(payload.nextCommands).toContain("refarm task logs effort-abc --transport file");
+		expect(payload.nextCommands).toContain("refarm task status effort-abc --transport file --json");
+		expect(payload.nextCommands).toContain("refarm task logs effort-abc --transport file --json");
 		expect(payload.effort.direction).toBe("Test effort");
 		expect(payload.effort.tasks[0]?.args).toEqual({ value: 1 });
 		expect(session.rememberRun).toHaveBeenCalledWith(
@@ -459,7 +459,7 @@ describe("refarm task status", () => {
 		};
 		expect(payload.transport).toBe("http");
 		expect(payload.nextCommand).toBe(
-			"refarm task logs effort-abc --transport http",
+			"refarm task logs effort-abc --transport http --json",
 		);
 		spy.mockRestore();
 	});
@@ -495,10 +495,10 @@ describe("refarm task status", () => {
 		expect(payload.transport).toBe("file");
 		expect(payload.status).toBe("not-found");
 		expect(payload.nextCommand).toBe(
-			"refarm task status effort-abc --transport file --watch",
+			"refarm task status effort-abc --transport file --watch --json",
 		);
 		expect(payload.nextCommands).toContain(
-			"refarm task logs effort-abc --transport file",
+			"refarm task logs effort-abc --transport file --json",
 		);
 		expect(payload.nextActions).toEqual(payload.nextCommands);
 		spy.mockRestore();
@@ -663,13 +663,13 @@ describe("refarm task list/logs/retry/cancel", () => {
 		expect(payload.effortCommands).toEqual([
 			{
 				effortId: "effort-abc",
-				statusCommand: "refarm task status effort-abc --transport http",
-				logsCommand: "refarm task logs effort-abc --transport http",
+				statusCommand: "refarm task status effort-abc --transport http --json",
+				logsCommand: "refarm task logs effort-abc --transport http --json",
 			},
 		]);
 		expect(payload.modelInspectCommand).toBe("refarm model current --json");
 		expect(payload.nextCommands).toContain(
-			"refarm task status effort-abc --transport http",
+			"refarm task status effort-abc --transport http --json",
 		);
 		spy.mockRestore();
 	});
@@ -773,7 +773,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 		expect(payload.transport).toBe("file");
 		expect(payload.logs).toEqual([]);
 		expect(payload.nextCommand).toBe(
-			"refarm task status effort-abc --transport file",
+			"refarm task status effort-abc --transport file --json",
 		);
 		spy.mockRestore();
 	});
@@ -906,7 +906,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 			transport: "http",
 			action: "retry",
 			accepted: true,
-			nextCommand: "refarm task status effort-abc --transport http --watch",
+			nextCommand: "refarm task status effort-abc --transport http --watch --json",
 		});
 		expect(payload.nextAction).toContain("--watch");
 		expect(session.rememberControl).toHaveBeenCalledWith({
@@ -1070,8 +1070,8 @@ describe("refarm task list/logs/retry/cancel", () => {
 			transport: "http",
 			action: "cancel",
 			accepted: true,
-			nextAction: "refarm task status effort-abc --transport http",
-			nextCommand: "refarm task status effort-abc --transport http",
+			nextAction: "refarm task status effort-abc --transport http --json",
+			nextCommand: "refarm task status effort-abc --transport http --json",
 		});
 		expect(session.rememberControl).toHaveBeenCalledWith({
 			effortId: "effort-abc",
@@ -1240,14 +1240,14 @@ describe("refarm task resume", () => {
 		expect(payload.effortCommands).toEqual([
 			{
 				effortId: "effort-abc",
-				statusCommand: "refarm task status effort-abc --transport http",
-				logsCommand: "refarm task logs effort-abc --transport http",
+				statusCommand: "refarm task status effort-abc --transport http --json",
+				logsCommand: "refarm task logs effort-abc --transport http --json",
 			},
 		]);
 		expect(payload.modelInspectCommand).toBe("refarm model current --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm task status effort-abc --transport http --watch",
-			"refarm task logs effort-abc --transport http",
+			"refarm task status effort-abc --transport http --watch --json",
+			"refarm task logs effort-abc --transport http --json",
 		]);
 		spy.mockRestore();
 	});
@@ -1284,8 +1284,8 @@ describe("refarm task resume", () => {
 			nextCommands: string[];
 		};
 		expect(payload.nextCommands).toEqual([
-			"refarm task status effort-done --transport file",
-			"refarm task logs effort-done --transport file",
+			"refarm task status effort-done --transport file --json",
+			"refarm task logs effort-done --transport file --json",
 		]);
 		spy.mockRestore();
 	});

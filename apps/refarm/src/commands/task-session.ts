@@ -78,7 +78,7 @@ function nowIso(): string {
 export function buildTaskStatusCommand(
 	effortId: string,
 	transport: string,
-	options: { watch?: boolean } = {},
+	options: { json?: boolean; watch?: boolean } = {},
 ): string {
 	return refarmCommand([
 		"task",
@@ -87,37 +87,57 @@ export function buildTaskStatusCommand(
 		"--transport",
 		quoteCommandArgIfNeeded(transport),
 		...(options.watch ? ["--watch"] : []),
+		...(options.json ? ["--json"] : []),
 	]);
 }
 
-export function buildTaskLogsCommand(effortId: string, transport: string): string {
+export function buildTaskLogsCommand(
+	effortId: string,
+	transport: string,
+	options: { json?: boolean } = {},
+): string {
 	return refarmCommand([
 		"task",
 		"logs",
 		quoteCommandArgIfNeeded(effortId),
 		"--transport",
 		quoteCommandArgIfNeeded(transport),
+		...(options.json ? ["--json"] : []),
 	]);
 }
 
 export function buildTaskEffortCommands(
 	efforts: Array<Pick<EffortResult, "effortId">>,
 	transport: string,
+	options: { json?: boolean } = {},
 ): TaskSessionEffortCommands[] {
 	return efforts.map((effort) => ({
 		effortId: effort.effortId,
-		statusCommand: buildTaskStatusCommand(effort.effortId, transport),
-		logsCommand: buildTaskLogsCommand(effort.effortId, transport),
+		statusCommand: buildTaskStatusCommand(effort.effortId, transport, {
+			json: options.json,
+		}),
+		logsCommand: buildTaskLogsCommand(effort.effortId, transport, {
+			json: options.json,
+		}),
 	}));
 }
 
 export function taskSessionEffortCommands(
-	efforts: Array<Pick<TaskSessionEffortRecord, "effortId" | "statusCommand" | "logsCommand">>,
+	efforts: Array<Pick<TaskSessionEffortRecord, "effortId" | "logsCommand" | "statusCommand" | "transport">>,
+	options: { json?: boolean } = {},
 ): TaskSessionEffortCommands[] {
 	return efforts.map((effort) => ({
 		effortId: effort.effortId,
-		statusCommand: effort.statusCommand,
-		logsCommand: effort.logsCommand,
+		statusCommand: options.json
+			? buildTaskStatusCommand(effort.effortId, effort.transport, {
+					json: true,
+				})
+			: effort.statusCommand,
+		logsCommand: options.json
+			? buildTaskLogsCommand(effort.effortId, effort.transport, {
+					json: true,
+				})
+			: effort.logsCommand,
 	}));
 }
 

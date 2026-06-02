@@ -38,8 +38,20 @@ describe("task session commands", () => {
 		expect(buildTaskStatusCommand("effort-1", "http", { watch: true })).toBe(
 			"refarm task status effort-1 --transport http --watch",
 		);
+		expect(buildTaskStatusCommand("effort-1", "http", { json: true })).toBe(
+			"refarm task status effort-1 --transport http --json",
+		);
+		expect(
+			buildTaskStatusCommand("effort-1", "http", {
+				json: true,
+				watch: true,
+			}),
+		).toBe("refarm task status effort-1 --transport http --watch --json");
 		expect(buildTaskLogsCommand("effort-1", "http")).toBe(
 			"refarm task logs effort-1 --transport http",
+		);
+		expect(buildTaskLogsCommand("effort-1", "http", { json: true })).toBe(
+			"refarm task logs effort-1 --transport http --json",
 		);
 		expect(buildTaskStatusCommand("effort with space", "file")).toBe(
 			"refarm task status 'effort with space' --transport file",
@@ -79,11 +91,13 @@ describe("task session commands", () => {
 					effortId: "effort-1",
 					statusCommand: "refarm task status effort-1 --transport file",
 					logsCommand: "refarm task logs effort-1 --transport file",
+					transport: "file",
 				},
 				{
 					effortId: "effort-2",
 					statusCommand: "refarm task status effort-2 --transport http",
 					logsCommand: "refarm task logs effort-2 --transport http",
+					transport: "http",
 				},
 			]),
 		).toEqual([
@@ -96,6 +110,28 @@ describe("task session commands", () => {
 				effortId: "effort-2",
 				statusCommand: "refarm task status effort-2 --transport http",
 				logsCommand: "refarm task logs effort-2 --transport http",
+			},
+		]);
+	});
+
+	it("derives JSON task session effort command handoffs", () => {
+		expect(
+			taskSessionEffortCommands(
+				[
+					{
+						effortId: "effort-1",
+						statusCommand: "refarm task status effort-1 --transport file",
+						logsCommand: "refarm task logs effort-1 --transport file",
+						transport: "file",
+					},
+				],
+				{ json: true },
+			),
+		).toEqual([
+			{
+				effortId: "effort-1",
+				statusCommand: "refarm task status effort-1 --transport file --json",
+				logsCommand: "refarm task logs effort-1 --transport file --json",
 			},
 		]);
 	});
