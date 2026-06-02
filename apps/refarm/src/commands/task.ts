@@ -104,6 +104,51 @@ function formatAgeSeconds(submittedAt?: string): string {
 	return `${Math.max(0, Math.floor((Date.now() - submittedMs) / 1000))}s`;
 }
 
+const AGENT_ERROR_PREFIXES = ["[pi-agent erro]", "[pi-agent stub]", "[budget]"];
+
+function parseTaskResultPayload(result: unknown): unknown {
+	if (typeof result !== "string") return result;
+	try {
+		return JSON.parse(result) as unknown;
+	} catch {
+		return result;
+	}
+}
+
+function taskResultContent(result: unknown): string | null {
+	const payload = parseTaskResultPayload(result);
+	if (typeof payload === "string") return payload;
+	if (Array.isArray(payload)) {
+		const [content] = payload;
+		return typeof content === "string" ? content : null;
+	}
+	if (payload && typeof payload === "object") {
+		const content = (payload as { content?: unknown }).content;
+		return typeof content === "string" ? content : null;
+	}
+	return null;
+}
+
+function taskResultObservedError(result: unknown): string | null {
+	const content = taskResultContent(result);
+	if (!content) return null;
+	return AGENT_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix))
+		? content
+		: null;
+}
+
+function taskResultObservedStatus(taskResult: EffortResult["results"][number]): string {
+	if (taskResult.status !== "ok") return taskResult.status;
+	return taskResultObservedError(taskResult.result) ? "error" : taskResult.status;
+}
+
+function effortObservedStatus(result: EffortResult): EffortResult["status"] {
+	if (result.status !== "done") return result.status;
+	return result.results.some((taskResult) => taskResultObservedStatus(taskResult) === "error")
+		? "failed"
+		: result.status;
+}
+
 function printTaskJsonSuccess<TExtra extends object>(
 	operation: string,
 	extra: TExtra,
@@ -752,8 +797,12 @@ Notes:
 
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
+					const observedStatus = effortObservedStatus(result);
+					const observedErrors = result.results
+						.map((taskResult) => taskResultObservedError(taskResult.result))
+						.filter((error): error is string => Boolean(error));
 					if (opts.json) {
-						const nextCommands = isFinalEffortStatus(result.status)
+						const nextCommands = isFinalEffortStatus(observedStatus)
 							? [
 									buildTaskLogsCommand(effortId, transport, { json: true }),
 									RESUME_JSON_COMMAND,
@@ -771,6 +820,10 @@ Notes:
 								effortId,
 								transport,
 								status: result.status,
+								observedStatus,
+								...(observedErrors.length > 0
+									? { observedErrors }
+									: {}),
 								attempts,
 								ageSeconds,
 								result,
@@ -779,24 +832,29 @@ Notes:
 						);
 					} else {
 						const color =
-							result.status === "done"
+							observedStatus === "done"
 								? chalk.green
-								: result.status === "failed" || result.status === "cancelled"
+								: observedStatus === "failed" || observedStatus === "cancelled"
 									? chalk.red
 									: chalk.yellow;
 						console.log(
-							chalk.bold(`Effort ${effortId}: ${color(result.status)}`),
+							chalk.bold(`Effort ${effortId}: ${color(observedStatus)}`),
 						);
+						if (observedStatus !== result.status) {
+							console.log(chalk.gray(`  stored_status=${result.status}`));
+						}
 						console.log(
 							chalk.gray(
 								`  attempts=${attempts} age=${ageSeconds} transport=${transport}`,
 							),
 						);
 						for (const taskResult of result.results) {
+							const taskObservedStatus = taskResultObservedStatus(taskResult);
+							const observedError = taskResultObservedError(taskResult.result);
 							const statusLabel =
-								taskResult.status === "ok"
+								taskObservedStatus === "ok"
 									? chalk.green("ok")
-									: taskResult.status === "cancelled"
+									: taskObservedStatus === "cancelled"
 										? chalk.yellow("cancelled")
 										: chalk.red("error");
 							const attemptsLabel =
@@ -804,11 +862,11 @@ Notes:
 									? ` (attempts=${taskResult.attempts})`
 									: "";
 							console.log(
-								`  Task ${taskResult.taskId}: ${statusLabel}${attemptsLabel}${taskResult.error ? ` — ${taskResult.error}` : ""}`,
+								`  Task ${taskResult.taskId}: ${statusLabel}${attemptsLabel}${taskResult.error || observedError ? ` — ${taskResult.error ?? observedError}` : ""}`,
 							);
 						}
 					}
-					return isFinalEffortStatus(result.status);
+					return isFinalEffortStatus(observedStatus);
 				};
 
 				if (!opts.watch) {

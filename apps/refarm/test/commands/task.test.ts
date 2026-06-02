@@ -464,6 +464,52 @@ describe("refarm task status", () => {
 		spy.mockRestore();
 	});
 
+	it("reports observed failure for legacy ok task results with agent error payloads", async () => {
+		const result: EffortResult = {
+			effortId: "effort-legacy",
+			status: "done",
+			results: [
+				{
+					taskId: "t1",
+					effortId: "effort-legacy",
+					status: "ok",
+					result: JSON.stringify({
+						content: "[pi-agent erro] quota exceeded",
+						model: "gpt-5.5",
+					}),
+					completedAt: new Date().toISOString(),
+				},
+			],
+			submittedAt: new Date().toISOString(),
+			completedAt: new Date().toISOString(),
+		};
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(result),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-legacy", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			status: string;
+			observedStatus: string;
+			observedErrors: string[];
+			result: EffortResult;
+		};
+		expect(payload.status).toBe("done");
+		expect(payload.observedStatus).toBe("failed");
+		expect(payload.observedErrors).toEqual(["[pi-agent erro] quota exceeded"]);
+		expect(payload.result.status).toBe("done");
+		spy.mockRestore();
+	});
+
 	it("prints status not-found JSON with follow-up commands", async () => {
 		const adapter = createMockAdapter({
 			query: vi.fn().mockResolvedValue(null),
