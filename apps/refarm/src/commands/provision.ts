@@ -87,6 +87,8 @@ function cloudflareTurboCachePlan(input: {
 }
 
 function buildProvisionCatalogPayload() {
+	const nextActions = provisionNextActions();
+	const nextCommands = provisionNextCommands();
 	return {
 		schemaVersion: PROVISION_SCHEMA_VERSION,
 		command: "provision",
@@ -103,12 +105,16 @@ function buildProvisionCatalogPayload() {
 				],
 			},
 		],
-		nextActions: provisionNextActions(),
-		nextCommands: provisionNextCommands(),
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 	};
 }
 
 function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
+	const nextActions = provisionNextActions();
+	const nextCommands = provisionNextCommands();
 	return {
 		schemaVersion: PROVISION_SCHEMA_VERSION,
 		command: "provision",
@@ -121,8 +127,10 @@ function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
 				description: "Worker + R2 materialization",
 			},
 		],
-		nextActions: provisionNextActions(),
-		nextCommands: provisionNextCommands(),
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 		...(options.dryRun
 			? {
 					plan: cloudflareTurboCachePlan({
@@ -135,6 +143,13 @@ function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
 }
 
 function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
+	const nextActions = [
+		SOW_CLOUDFLARE_JSON_COMMAND,
+		TURBO_CACHE_GITHUB_SECRETS_COMMAND,
+	];
+	const nextCommands = [
+		TURBO_CACHE_GITHUB_SECRETS_COMMAND,
+	];
 	return {
 		schemaVersion: PROVISION_SCHEMA_VERSION,
 		command: "provision",
@@ -149,13 +164,10 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 			printSecrets: input.printSecrets === true,
 		},
 		plan: cloudflareTurboCachePlan(input),
-		nextActions: [
-			SOW_CLOUDFLARE_JSON_COMMAND,
-			TURBO_CACHE_GITHUB_SECRETS_COMMAND,
-		],
-		nextCommands: [
-			TURBO_CACHE_GITHUB_SECRETS_COMMAND,
-		],
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 	};
 }
 

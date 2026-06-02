@@ -145,6 +145,27 @@ function generatedHandoffEntries(payloads: Array<{
 	);
 }
 
+function singularPluralHandoffMismatches(
+	payloads: Array<{
+		nextAction?: string | null;
+		nextActions?: string[];
+		nextCommand?: string | null;
+		nextCommands?: string[];
+		sampleId: string;
+	}>,
+): string[] {
+	return payloads.flatMap((payload) => {
+		const mismatches: string[] = [];
+		const firstCommand = payload.nextCommands?.[0] ?? null;
+		if ((payload.nextCommand ?? null) !== firstCommand) {
+			mismatches.push(
+				`${payload.sampleId}.nextCommand: ${String(payload.nextCommand)} != ${String(firstCommand)}`,
+			);
+		}
+		return mismatches;
+	});
+}
+
 function generatedTemplates(payloads: unknown[]): { command: string; parameters: string[] }[] {
 	return payloads.flatMap((payload) => collectGeneratedTemplates(payload));
 }
@@ -1297,6 +1318,7 @@ describe("JSON next command contract", () => {
 				generatedCommandFieldPlaceholderLeaks(payload)
 					.map((leak) => `${payload.sampleId}.${leak}`),
 			);
+			const singularPluralMismatches = singularPluralHandoffMismatches(payloads);
 
 			expect(placeholders).toEqual([]);
 			expect(actionPlaceholders).toEqual([]);
@@ -1307,6 +1329,7 @@ describe("JSON next command contract", () => {
 			expect(replOnly).toEqual([]);
 			expect(taskReadCommandsWithoutJson).toEqual([]);
 			expect(taskReadActionsWithoutJson).toEqual([]);
+			expect(singularPluralMismatches).toEqual([]);
 			expect(missingNextActions).toEqual([]);
 			expect(missingNextCommands).toEqual([]);
 		} finally {

@@ -163,7 +163,9 @@ describe("provision command", () => {
 			command: string;
 			operation: string;
 			providers: Array<{ id: string; services: Array<{ id: string }> }>;
+			nextAction: string;
 			nextActions: string[];
+			nextCommand: string;
 			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
@@ -177,6 +179,8 @@ describe("provision command", () => {
 		expect(payload.nextActions).toContain(
 			"refarm provision cloudflare turbo-cache --dry-run",
 		);
+		expect(payload.nextAction).toBe(payload.nextActions[0]);
+		expect(payload.nextCommand).toBe(payload.nextCommands[0]);
 		expect(payload.nextCommands).toContain(
 			"refarm provision cloudflare turbo-cache --github-secrets",
 		);
@@ -259,12 +263,18 @@ describe("provision command", () => {
 			provider: string;
 			operation: string;
 			plan: { serviceId: string };
+			nextAction: string;
+			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
 			provider: "cloudflare",
 			operation: "dry-run",
 			plan: { serviceId: "turbo-cache" },
 		});
+		expect(payload.nextAction).toBe(payload.nextActions[0]);
+		expect(payload.nextCommand).toBe(payload.nextCommands[0]);
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
