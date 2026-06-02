@@ -328,6 +328,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json");
 		expect(payload.nextActions).toContain("refarm agent finish --lanes --json --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --lane handoffs --run --json");
+		expect(payload.nextActions).toContain("refarm agent finish --lane agent-e2e-mock --run --json");
 		expect(payload.nextActions).toContain("refarm agent finish --json");
 		expect(payload.nextActions).toContain("refarm agent finish --json --next-command");
 		expect(payload.nextActions).toContain("refarm agent finish --next-command");
@@ -354,6 +355,7 @@ describe("agent command", () => {
 			"refarm agent finish --lanes --json",
 			"refarm agent finish --lanes --json --next-command",
 			"refarm agent finish --lane handoffs --run --json",
+			"refarm agent finish --lane agent-e2e-mock --run --json",
 			"refarm agent finish --json",
 			"refarm agent finish --json --next-command",
 			"refarm agent finish --next-command",
