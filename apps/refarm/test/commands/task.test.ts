@@ -1281,8 +1281,18 @@ describe("refarm task resume", () => {
 			.parseAsync(["--json"], { from: "user" });
 
 		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			checkpoint: {
+				efforts: Array<{
+					statusCommand: string;
+					logsCommand: string;
+				}>;
+			};
 			nextCommands: string[];
 		};
+		expect(payload.checkpoint.efforts[0]).toMatchObject({
+			statusCommand: "refarm task status effort-done --transport file --json",
+			logsCommand: "refarm task logs effort-done --transport file --json",
+		});
 		expect(payload.nextCommands).toEqual([
 			"refarm task status effort-done --transport file --json",
 			"refarm task logs effort-done --transport file --json",

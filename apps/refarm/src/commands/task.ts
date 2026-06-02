@@ -36,6 +36,7 @@ import {
 	createTaskSessionRecorder,
 	formatTaskSessionModelRoute,
 	taskSessionEffortCommands,
+	type TaskSessionCheckpoint,
 	type TaskSessionRecorder,
 } from "./task-session.js";
 import { isFinalEffortStatus } from "./task-status.js";
@@ -117,6 +118,23 @@ function printTaskJsonSuccess<TExtra extends object>(
 			nextCommands,
 		}),
 	);
+}
+
+function taskCheckpointJsonHandoff(
+	checkpoint: TaskSessionCheckpoint,
+): TaskSessionCheckpoint {
+	return {
+		...checkpoint,
+		efforts: checkpoint.efforts.map((effort) => ({
+			...effort,
+			statusCommand: buildTaskStatusCommand(effort.effortId, effort.transport, {
+				json: true,
+			}),
+			logsCommand: buildTaskLogsCommand(effort.effortId, effort.transport, {
+				json: true,
+			}),
+		})),
+	};
 }
 
 function reportTaskControlError(
@@ -872,7 +890,7 @@ Notes:
 					"resume",
 					{
 						status: "ok",
-						checkpoint,
+						checkpoint: taskCheckpointJsonHandoff(checkpoint),
 						effortCommands,
 						modelInspectCommand: MODEL_CURRENT_JSON_COMMAND,
 					},
