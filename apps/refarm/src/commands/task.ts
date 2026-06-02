@@ -152,6 +152,23 @@ function observedEffortSummary(efforts: EffortResult[]): EffortSummary {
 	return summary;
 }
 
+function formatEffortSummary(summary: EffortSummary): string {
+	return `total=${summary.total} pending=${summary.pending} in-progress=${summary.inProgress} done=${summary.done} partial=${summary.partial} failed=${summary.failed} timed-out=${summary.timedOut} cancelled=${summary.cancelled}`;
+}
+
+function effortSummariesEqual(a: EffortSummary, b: EffortSummary): boolean {
+	return (
+		a.total === b.total &&
+		a.pending === b.pending &&
+		a.inProgress === b.inProgress &&
+		a.done === b.done &&
+		a.partial === b.partial &&
+		a.failed === b.failed &&
+		a.timedOut === b.timedOut &&
+		a.cancelled === b.cancelled
+	);
+}
+
 function formatLogMeta(meta: Record<string, unknown> | undefined): string {
 	if (!meta) return "";
 	const modelScope = typeof meta.modelScope === "string" ? meta.modelScope : undefined;
@@ -1137,11 +1154,13 @@ Notes:
 				return;
 			}
 
-			console.log(
-				chalk.bold(
-					`Efforts: total=${summary.total} pending=${summary.pending} in-progress=${summary.inProgress} done=${summary.done} partial=${summary.partial} failed=${summary.failed} timed-out=${summary.timedOut} cancelled=${summary.cancelled}`,
-				),
-			);
+			const observedSummary = observedEffortSummary(efforts);
+			console.log(chalk.bold(`Efforts: ${formatEffortSummary(summary)}`));
+			if (!effortSummariesEqual(summary, observedSummary)) {
+				console.log(
+					chalk.yellow(`Observed: ${formatEffortSummary(observedSummary)}`),
+				);
+			}
 			if (efforts.length === 0) {
 				console.log(chalk.gray("No efforts found."));
 				return;

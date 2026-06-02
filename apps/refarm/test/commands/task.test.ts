@@ -664,6 +664,63 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("list prints observed summary when stored statuses hide agent errors", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 0,
+				inProgress: 0,
+				done: 1,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-legacy",
+					status: "done",
+					results: [
+						{
+							taskId: "t1",
+							effortId: "effort-legacy",
+							status: "ok",
+							result: JSON.stringify({
+								content: "[pi-agent erro] quota exceeded",
+								model: "gpt-5.5",
+							}),
+							completedAt: new Date().toISOString(),
+						},
+					],
+					submittedAt: new Date().toISOString(),
+					completedAt: new Date().toISOString(),
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync([], { from: "user" });
+
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Efforts: total=1"),
+		);
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Observed: total=1"),
+		);
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("failed=1"));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("status=failed stored_status=done"),
+		);
+		spy.mockRestore();
+	});
+
 	it("list prints transport in JSON output", async () => {
 		const adapter = createMockAdapter({
 			summary: vi.fn().mockResolvedValue({
