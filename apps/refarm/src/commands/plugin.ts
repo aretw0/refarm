@@ -456,7 +456,7 @@ function buildRuntimePluginStatusReport(
 	const known =
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
 	const piAgentInstalled = state.installed.some(isPiAgentPluginId);
-	const piAgentLoaded = state.loaded.some(isPiAgentPluginId);
+	const piAgentLoaded = state.activeAgent !== null;
 	const nextCommands = piAgentLoaded
 		? []
 		: [

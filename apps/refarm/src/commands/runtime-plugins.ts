@@ -6,6 +6,8 @@ export interface RuntimePluginState {
 	loaded: string[];
 	local: string[];
 	known: string[];
+	/** ID of the loaded plugin with "agent:respond" capability, if any. */
+	activeAgent: string | null;
 }
 
 export interface RuntimePluginReloadResult {
@@ -41,11 +43,13 @@ export async function readRuntimePluginState(): Promise<RuntimePluginState | nul
 		const response = await fetch(sidecarUrl("/plugins"));
 		if (!response.ok) return null;
 		const payload = (await response.json()) as Partial<RuntimePluginState>;
+		const raw = payload as Record<string, unknown>;
 		return {
 			installed: pluginIdArray(payload.installed),
 			loaded: pluginIdArray(payload.loaded),
 			local: pluginIdArray(payload.local),
 			known: pluginIdArray(payload.known),
+			activeAgent: typeof raw.activeAgent === "string" ? raw.activeAgent : null,
 		};
 	} catch {
 		return null;

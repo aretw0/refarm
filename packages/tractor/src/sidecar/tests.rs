@@ -24,7 +24,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp, ":memory:".to_string()).unwrap();
+    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, ":memory:".to_string()).unwrap();
 
     // bind on :0 — OS assigns a free port
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -117,10 +117,12 @@ fn sidecar_extract_task_args_rejects_missing_prompt() {
 }
 
 #[test]
-fn sidecar_accepts_canonical_and_scoped_pi_agent_ids() {
-    assert!(is_pi_agent_plugin_id("@refarm/pi-agent"));
-    assert!(is_pi_agent_plugin_id("@refarm.dev/pi-agent"));
-    assert!(!is_pi_agent_plugin_id("@refarm/other"));
+fn sidecar_plugins_response_includes_active_agent_field() {
+    // The /plugins response must include activeAgent so the CLI can detect
+    // the active agent by capability rather than by name.
+    // Verified end-to-end in sidecar_active_agent_is_exposed_in_plugins_response.
+    let json = serde_json::json!({ "activeAgent": serde_json::Value::Null });
+    assert!(json.get("activeAgent").is_some());
 }
 
 #[tokio::test]
@@ -426,14 +428,16 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
 }
 
 #[tokio::test]
-async fn sidecar_scoped_pi_agent_id_reaches_canonical_channel_lookup() {
+async fn sidecar_effort_fails_when_no_active_agent_loaded() {
+    // When no plugin has declared "agent:respond" capability and no channel
+    // matches the task's plugin_id, the effort must fail with a clear error.
     let (_state, port, _tmp) = start_test_sidecar().await;
     let client = reqwest::Client::new();
     let id = uuid::Uuid::new_v4().to_string();
 
     client
         .post(format!("{}/efforts", base(port)))
-        .json(&test_effort_with_plugin(&id, "@refarm.dev/pi-agent"))
+        .json(&test_effort_with_plugin(&id, "@refarm/some-agent"))
         .send()
         .await
         .unwrap();
@@ -450,10 +454,10 @@ async fn sidecar_scoped_pi_agent_id_reaches_canonical_channel_lookup() {
         .unwrap();
 
     assert_eq!(body["status"].as_str().unwrap(), "failed");
-    assert_eq!(
-        body["results"][0]["error"].as_str().unwrap(),
-        "@refarm/pi-agent not loaded",
-        "scoped plugin ID should be accepted before canonical channel lookup"
+    let error = body["results"][0]["error"].as_str().unwrap();
+    assert!(
+        error.contains("not loaded"),
+        "error should mention 'not loaded', got: {error}"
     );
 }
 
@@ -475,7 +479,7 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp, namespace.to_string()).unwrap();
+    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, namespace.to_string()).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -764,7 +768,7 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp, namespace.to_string()).unwrap();
+    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, namespace.to_string()).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();

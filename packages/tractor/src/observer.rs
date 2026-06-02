@@ -18,9 +18,7 @@ use tokio::io::AsyncWriteExt as _;
 use crate::telemetry::{TelemetryBus, TelemetryEvent};
 use crate::{AgentChannels, AgentMessage};
 
-/// Capability string a plugin must declare in `capabilities.provides` to
-/// receive agent-tool events via `integration.on-event`.
-pub const CAP_OBSERVE_AGENT_TOOLS: &str = "observe-agent-tools";
+pub use crate::capabilities::CAP_OBSERVE_AGENT_TOOLS;
 
 pub const AUDIT_FILE: &str = "scarecrow-audit.ndjson";
 const AGENT_TOOL_PREFIX: &str = "agent-tool:";

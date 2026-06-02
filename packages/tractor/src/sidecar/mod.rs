@@ -88,6 +88,9 @@ type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
 pub struct SidecarState {
     pub efforts: EffortStore,
     pub agent_channels: AgentChannels,
+    /// ID of the loaded plugin with `"agent:respond"` capability, if any.
+    /// Populated by TractorNative.register_for_events; used for effort routing.
+    pub active_agent_id: Arc<RwLock<Option<String>>>,
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
     pub namespace: String,
@@ -96,6 +99,7 @@ pub struct SidecarState {
 impl SidecarState {
     pub fn new(
         agent_channels: AgentChannels,
+        active_agent_id: Arc<RwLock<Option<String>>>,
         base_dir: &Path,
         namespace: String,
     ) -> std::io::Result<Self> {
@@ -106,6 +110,7 @@ impl SidecarState {
         Ok(Self {
             efforts: Arc::new(RwLock::new(HashMap::new())),
             agent_channels,
+            active_agent_id,
             streams_dir,
             results_dir,
             namespace,
@@ -128,12 +133,6 @@ fn stream_ref_for_prompt(prompt_ref: &str) -> String {
     format!("urn:tractor:stream:agent-response:{prompt_ref}")
 }
 
-fn is_pi_agent_plugin_id(plugin_id: &str) -> bool {
-    matches!(
-        plugin_id,
-        "@refarm/pi-agent" | "@refarm.dev/pi-agent" | "pi-agent" | "pi_agent"
-    )
-}
 
 fn write_stream_chunk(
     streams_dir: &Path,
@@ -165,12 +164,18 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         ids.sort();
         ids
     };
+    let active_agent = state
+        .active_agent_id
+        .read()
+        .expect("active_agent_id poisoned")
+        .clone();
 
     Json(serde_json::json!({
         "installed": loaded,
         "loaded": loaded,
         "local": [],
         "known": loaded,
+        "activeAgent": active_agent,
     }))
 }
 
@@ -284,14 +289,13 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
 
         let fn_name = task.fn_name.as_deref().unwrap_or("respond");
 
-        // Only pi-agent + `respond` is supported in Phase 1.
-        if !is_pi_agent_plugin_id(&task.plugin_id) || fn_name != "respond" {
+        // Only `respond` function is supported. The plugin must be the active agent.
+        if fn_name != "respond" {
             finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
                 status: "error".to_string(),
                 result: None,
                 error: Some(format!(
-                    "sidecar: unsupported task {}::{fn_name} (only @refarm/pi-agent::respond)",
-                    task.plugin_id
+                    "sidecar: unsupported function {fn_name} (only 'respond' is supported)"
                 )),
             }]);
             return;
@@ -328,20 +332,25 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         }
         let payload = payload_obj.to_string();
 
-        // Dispatch to pi-agent channel — search by any known alias since the
-        // registered id may differ from the canonical one (e.g. "pi_agent" from
-        // a bare .wasm filename vs. "@refarm/pi-agent" from a full manifest).
+        // Dispatch to the active agent channel.
+        // Prefer the plugin registered via the "agent:respond" capability.
+        // Fall back to the task's plugin_id for backward compatibility
+        // (e.g. when loaded without a manifest in dev mode).
+        let agent_id = state
+            .active_agent_id
+            .read()
+            .expect("active_agent_id poisoned")
+            .clone()
+            .unwrap_or_else(|| task.plugin_id.clone());
+
         let sent = {
             let channels = state.agent_channels.read().expect("channels poisoned");
-            channels
-                .iter()
-                .find(|(id, _)| is_pi_agent_plugin_id(id))
-                .map(|(_, tx)| {
-                    tx.send(crate::AgentMessage {
-                        event: "user:prompt".to_string(),
-                        payload: Some(payload),
-                    })
+            channels.get(&agent_id).map(|tx| {
+                tx.send(crate::AgentMessage {
+                    event: "user:prompt".to_string(),
+                    payload: Some(payload),
                 })
+            })
         };
 
         match sent {
@@ -351,14 +360,14 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     &state.streams_dir,
                     &stream_ref,
                     0,
-                    "[pi-agent not loaded - run refarm plugin status, then refarm plugin install or reload @refarm/pi-agent]",
+                    &format!("[agent not loaded ({agent_id}) - run refarm plugin status, then refarm plugin install or reload]"),
                     true,
                     None,
                 );
                 finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
                     status: "error".to_string(),
                     result: None,
-                    error: Some("@refarm/pi-agent not loaded".to_string()),
+                    error: Some(format!("{agent_id} not loaded")),
                 }]);
             }
             Some(Err(e)) => {

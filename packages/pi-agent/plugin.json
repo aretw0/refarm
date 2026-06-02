@@ -1,12 +1,17 @@
 {
-  "_note": "Template only — farmhand auto-installs pi-agent on boot via bundleInstallPlugin. For manual install: refarm agent install. Entry and integrity are injected at install time.",
+  "_note": "Template only \u2014 farmhand auto-installs pi-agent on boot via bundleInstallPlugin. For manual install: refarm agent install. Entry and integrity are injected at install time.",
   "id": "@refarm/pi-agent",
   "name": "Pi Agent",
   "version": "0.1.0",
   "capabilities": {
-    "provides": ["integration:v1"],
+    "provides": [
+      "agent:respond",
+      "integration:v1"
+    ],
     "requires": [],
-    "providesApi": ["AgentRespond"],
+    "providesApi": [
+      "AgentRespond"
+    ],
     "requiresApi": []
   },
   "permissions": [
@@ -16,17 +21,30 @@
     "network:outbound"
   ],
   "observability": {
-    "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+    "hooks": [
+      "onLoad",
+      "onInit",
+      "onRequest",
+      "onError",
+      "onTeardown"
+    ]
   },
-  "targets": ["server"],
+  "targets": [
+    "server"
+  ],
   "executionContext": {
     "preferred": "node",
-    "allowed": ["node"]
+    "allowed": [
+      "node"
+    ]
   },
   "certification": {
     "license": "AGPL-3.0-only",
     "a11yLevel": 0,
-    "languages": ["en", "pt"]
+    "languages": [
+      "en",
+      "pt"
+    ]
   },
   "trust": {
     "profile": "strict"
