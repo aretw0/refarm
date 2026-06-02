@@ -137,6 +137,28 @@ describe("operator resume", () => {
 		});
 	});
 
+	it("uses task resume when a checkpoint exists without an active effort", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				efforts: [
+					{
+						effortId: "effort-1",
+						transport: "file",
+						lastStatus: "done",
+						statusCommand: "refarm task status effort-1 --transport file",
+						logsCommand: "refarm task logs effort-1 --transport file",
+					},
+				],
+			},
+		});
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"refarm task resume --json",
+		]);
+	});
+
 	it("prioritizes finish recovery when runtime is ready", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({

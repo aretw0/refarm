@@ -33,6 +33,7 @@ export interface OperatorResumeTaskCheckpoint {
 export interface OperatorResumeCommands {
 	runtimeDoctor: string;
 	taskList: string;
+	taskResume: string;
 	modelCurrent: string;
 	sessionShow: (sessionId: string) => string;
 }
@@ -138,6 +139,7 @@ function refarmAppCommand(args: string[]): string {
 const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	runtimeDoctor: refarmAppCommand(["runtime", "doctor", "--next-command"]),
 	taskList: refarmAppCommand(["task", "list", "--json"]),
+	taskResume: refarmAppCommand(["task", "resume", "--json"]),
 	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
 	sessionShow: (sessionId) =>
 		refarmAppCommand([
@@ -273,12 +275,14 @@ export function operatorResumeNextCommands(
 		);
 	}
 
-	// Task: active effort takes priority over generic list.
+	// Task: active effort takes priority; checkpoints resume before generic list.
 	if (summary.tasks.activeEffort) {
 		nextCommands.push(
 			`${summary.tasks.activeEffort.statusCommand} --watch`,
 			summary.tasks.activeEffort.logsCommand,
 		);
+	} else if (summary.tasks.totalEfforts > 0) {
+		nextCommands.push(resolved.taskResume);
 	} else {
 		nextCommands.push(resolved.taskList);
 	}
