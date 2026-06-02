@@ -315,6 +315,39 @@ function reportTaskReadError(
 	process.exitCode = 1;
 }
 
+function reportTaskListError(
+	transport: TaskTransport,
+	err: unknown,
+	opts: { json?: boolean },
+): void {
+	const message = err instanceof Error ? err.message : String(err);
+	if (opts.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "task",
+				operation: "list",
+				error: "task-list-failed",
+				message,
+				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
+				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+				nextCommands: [
+					RUNTIME_DOCTOR_NEXT_COMMAND,
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				],
+				extra: {
+					transport,
+				},
+			}),
+		);
+		process.exitCode = 1;
+		return;
+	}
+	console.error(chalk.red(`Task list failed: ${message}`));
+	console.error(chalk.dim(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`));
+	process.exitCode = 1;
+}
+
 function buildTaskRunCommand(
 	plugin: string,
 	fn: string,
@@ -1054,10 +1087,17 @@ Notes:
 				opts.transport,
 				adapterResolver,
 			);
-			const [summary, efforts] = await Promise.all([
-				adapter.summary(),
-				adapter.list(),
-			]);
+			let summary: EffortSummary;
+			let efforts: EffortResult[];
+			try {
+				[summary, efforts] = await Promise.all([
+					adapter.summary(),
+					adapter.list(),
+				]);
+			} catch (err) {
+				reportTaskListError(transport, err, { json: opts.json });
+				return;
+			}
 			safeSessionRecord(() => {
 				sessionRecorder.rememberList({
 					transport,

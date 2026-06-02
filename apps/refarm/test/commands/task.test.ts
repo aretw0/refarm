@@ -789,6 +789,46 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("prints list adapter failures as JSON without checkpoint writes", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--transport", "http", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "list",
+			error: "task-list-failed",
+			message: "HTTP 503",
+			transport: "http",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberList).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("logs prints entries", async () => {
 		const logs: EffortLogEntry[] = [
 			{
