@@ -20,6 +20,7 @@ describe("runtime plugin client", () => {
 					loaded: ["pi-agent"],
 					local: [false, "@local/tool"],
 					known: ["@local/tool", "@refarm/pi-agent"],
+					activeAgent: "pi-agent",
 				}),
 			}),
 		);
@@ -29,6 +30,7 @@ describe("runtime plugin client", () => {
 			loaded: ["@refarm/pi-agent"],
 			local: ["@local/tool"],
 			known: ["@local/tool", "@refarm/pi-agent"],
+			activeAgent: "@refarm/pi-agent",
 		});
 	});
 

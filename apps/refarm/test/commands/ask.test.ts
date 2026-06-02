@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
-import { createAskCommand } from "../../src/commands/ask.js";
+import {
+	createAskCommand,
+	resolveRuntimeStreamsDir,
+	resolveRuntimeTaskResultsDir,
+} from "../../src/commands/ask.js";
 import type { LaunchDeps } from "../../src/commands/session-launch.js";
 
 function makeChunk(
@@ -49,8 +53,11 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 describe("refarm ask", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
+	const originalBaseUrl = process.env.MODEL_BASE_URL;
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
 	const originalHome = process.env.HOME;
+	const originalStreamsDir = process.env.REFARM_STREAMS_DIR;
+	const originalTaskResultsDir = process.env.REFARM_TASK_RESULTS_DIR;
 	let tempHome: string | null = null;
 
 	beforeEach(() => {
@@ -60,6 +67,8 @@ describe("refarm ask", () => {
 		process.env.HOME = tempHome;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
+		delete process.env.REFARM_STREAMS_DIR;
+		delete process.env.REFARM_TASK_RESULTS_DIR;
 	});
 
 	afterEach(() => {
@@ -73,10 +82,25 @@ describe("refarm ask", () => {
 		} else {
 			process.env.MODEL_DEFAULT_PROVIDER = originalDefaultProvider;
 		}
+		if (originalBaseUrl === undefined) {
+			delete process.env.MODEL_BASE_URL;
+		} else {
+			process.env.MODEL_BASE_URL = originalBaseUrl;
+		}
 		if (originalOpenAiKey === undefined) {
 			delete process.env.OPENAI_API_KEY;
 		} else {
 			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
+		if (originalStreamsDir === undefined) {
+			delete process.env.REFARM_STREAMS_DIR;
+		} else {
+			process.env.REFARM_STREAMS_DIR = originalStreamsDir;
+		}
+		if (originalTaskResultsDir === undefined) {
+			delete process.env.REFARM_TASK_RESULTS_DIR;
+		} else {
+			process.env.REFARM_TASK_RESULTS_DIR = originalTaskResultsDir;
 		}
 		if (originalHome === undefined) {
 			delete process.env.HOME;
@@ -105,6 +129,17 @@ describe("refarm ask", () => {
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model providers");
 		expect(help).toContain("refarm model openai/gpt-5.5");
+	});
+
+	it("resolves runtime stream and result directories from env overrides", () => {
+		expect(
+			resolveRuntimeStreamsDir({ REFARM_STREAMS_DIR: "/tmp/refarm-streams" }),
+		).toBe("/tmp/refarm-streams");
+		expect(
+			resolveRuntimeTaskResultsDir({
+				REFARM_TASK_RESULTS_DIR: "/tmp/refarm-results",
+			}),
+		).toBe("/tmp/refarm-results");
 	});
 
 	it("submits effort with pi-agent respond payload", async () => {
@@ -333,6 +368,10 @@ describe("refarm ask", () => {
 	});
 
 	it("points missing provider failures at model current", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.MODEL_BASE_URL;
+		delete process.env.OPENAI_API_KEY;
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 		const deps = makeDeps();
 		const launchDeps: LaunchDeps = {
@@ -357,6 +396,10 @@ describe("refarm ask", () => {
 	});
 
 	it("prints missing provider failures as JSON when requested", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.MODEL_BASE_URL;
+		delete process.env.OPENAI_API_KEY;
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 		const deps = makeDeps();
 		const launchDeps: LaunchDeps = {

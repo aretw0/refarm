@@ -49,7 +49,10 @@ export async function readRuntimePluginState(): Promise<RuntimePluginState | nul
 			loaded: pluginIdArray(payload.loaded),
 			local: pluginIdArray(payload.local),
 			known: pluginIdArray(payload.known),
-			activeAgent: typeof raw.activeAgent === "string" ? raw.activeAgent : null,
+			activeAgent:
+				typeof raw.activeAgent === "string"
+					? normalizePluginId(raw.activeAgent)
+					: null,
 		};
 	} catch {
 		return null;

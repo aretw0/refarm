@@ -82,6 +82,8 @@ import { sidecarUrl } from "./sidecar-url.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 const OLLAMA_SERVE_COMMAND = "ollama serve";
+const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
+const REFARM_TASK_RESULTS_DIR_ENV_VAR = "REFARM_TASK_RESULTS_DIR";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -407,6 +409,27 @@ async function readEffortResultFile(
 
 const DEFAULT_HISTORY_TURNS = 10;
 
+function stringEnv(value: string | undefined): string | null {
+	const trimmed = value?.trim();
+	return trimmed ? trimmed : null;
+}
+
+export function resolveRuntimeStreamsDir(env: NodeJS.ProcessEnv = process.env): string {
+	return (
+		stringEnv(env[REFARM_STREAMS_DIR_ENV_VAR]) ??
+		path.join(os.homedir(), ".refarm", "streams")
+	);
+}
+
+export function resolveRuntimeTaskResultsDir(
+	env: NodeJS.ProcessEnv = process.env,
+): string {
+	return (
+		stringEnv(env[REFARM_TASK_RESULTS_DIR_ENV_VAR]) ??
+		path.join(os.homedir(), ".refarm", "task-results")
+	);
+}
+
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
@@ -450,8 +473,8 @@ async function resolveSessionIdPrefixFromSidecar(
 }
 
 function defaultDeps(): AskDeps {
-	const streamsDir = path.join(os.homedir(), ".refarm", "streams");
-	const resultsDir = path.join(os.homedir(), ".refarm", "task-results");
+	const streamsDir = resolveRuntimeStreamsDir();
+	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
 		submitEffort: submitViaHttp,
 		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
