@@ -43,6 +43,20 @@ async function stopRuntime(env) {
 	});
 }
 
+async function runtimeReady(env) {
+	const status = await runRefarm(["runtime", "status", "--json"], env);
+	return status.ready === true || status.status === "ready";
+}
+
+async function restoreRuntime(env) {
+	const ensured = await runRefarm(["runtime", "ensure", "--wait", "--json"], env);
+	assert(ensured.ok === true, `runtime restore failed: ${JSON.stringify(ensured)}`);
+	assert(
+		ensured.ready === true || ensured.status === "ready",
+		`runtime restore did not report ready: ${JSON.stringify(ensured)}`,
+	);
+}
+
 async function listStreamFiles(streamsDir) {
 	if (!existsSync(streamsDir)) return [];
 	const entries = await readdir(streamsDir, { withFileTypes: true });
@@ -58,13 +72,17 @@ async function main() {
 	const mock = await createModelMock({ repeatLast: true });
 	mock.queue(says(EXPECTED_RESPONSE));
 
-	const env = {
+	const baseEnv = {
 		...process.env,
+		REFARM_NO_BROWSER_OPEN: "1",
+	};
+	const env = {
+		...baseEnv,
 		...mock.env,
 		REFARM_STREAMS_DIR: streamsDir,
 		REFARM_OPERATOR_IDENTITY_FILE: identityFile,
-		REFARM_NO_BROWSER_OPEN: "1",
 	};
+	const restoreMainRuntime = await runtimeReady(baseEnv);
 
 	try {
 		await mkdir(streamsDir, { recursive: true });
@@ -136,8 +154,12 @@ async function main() {
 		try {
 			await stopRuntime(env);
 		} finally {
-			await mock.stop();
-			await rm(tempDir, { recursive: true, force: true });
+			try {
+				await mock.stop();
+				if (restoreMainRuntime) await restoreRuntime(baseEnv);
+			} finally {
+				await rm(tempDir, { recursive: true, force: true });
+			}
 		}
 	}
 }
