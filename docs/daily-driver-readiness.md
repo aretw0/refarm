@@ -72,6 +72,10 @@ What is already solid:
 - `refarm:agent:e2e:mock` exercises runtime start, pi-agent, `ask --json`,
   stream-file creation, and OpenAI-compatible request capture against
   `@refarm.dev/model-mock` without Ollama or paid model tokens.
+- Runtime/model bridge deltas in `ask`, `pi-agent`, `model-mock`, and Tractor
+  WASI LLM routing are now routed to that no-token e2e smoke by
+  `refarm agent finish --profile affected` and the host smoke auto profile
+  `agent-e2e-mock`.
 - The short daily-driver operator loop is maintained in
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 
@@ -125,8 +129,10 @@ the primary daily driver:
 
 1. End-to-end loop validation: exercise `runtime up → ask → session → resume →
    finish` as an actual operator slice and fix what breaks. Start with
-   `refarm:agent:e2e:mock` for the no-token execution-plane gate, then run live
-   provider checks only when explicitly needed.
+   `refarm:agent:e2e:mock` or
+   `npm run refarm:host:smoke:auto -- --profile agent-e2e-mock --execute` for
+   the no-token execution-plane gate, then run live provider checks only when
+   explicitly needed.
 2. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
 3. Model and credential operations: make provider/model/login changes

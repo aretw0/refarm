@@ -9,6 +9,7 @@ import {
 	formatUnknownSmokeProfileMessage,
 	isFarmhandSidecarFile,
 	isOpenApiProtocolFile,
+	isRefarmAgentRuntimeE2eFile,
 	isRefarmCheckGateFile,
 	isRefarmDriverTaskFile,
 	isRefarmActionReadinessFile,
@@ -132,6 +133,27 @@ test("detects farmhand sidecar files", () => {
 	);
 });
 
+test("detects agent runtime e2e files", () => {
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile("apps/refarm/src/commands/ask.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile("packages/model-mock/src/index.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile(
+			"packages/tractor/src/host/wasi_bridge/core.rs",
+		),
+		true,
+	);
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile("apps/refarm/src/commands/tree.ts"),
+		false,
+	);
+});
+
 test("lists smoke profiles from the canonical profile map", () => {
 	assert.deepEqual(listSmokeProfiles(), [
 		"skip",
@@ -151,6 +173,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"openapi",
 		"sidecar",
 		"driver-tasks",
+		"agent-e2e-mock",
 		"check",
 		"quick",
 		"dev",
@@ -158,7 +181,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, agent-e2e-mock, check, quick, dev, ci",
 	);
 });
 
@@ -224,6 +247,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "openapi", script: "openapi:check" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
+			{ profile: "agent-e2e-mock", script: "refarm:agent:e2e:mock" },
 			{ profile: "check", script: "refarm:check:verify" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
@@ -239,6 +263,7 @@ test("maps profiles to package scripts", () => {
 	assert.equal(isSmokeProfile("tree"), true);
 	assert.equal(isSmokeProfile("actions-headless"), true);
 	assert.equal(isSmokeProfile("tree-farmhand"), true);
+	assert.equal(isSmokeProfile("agent-e2e-mock"), true);
 	assert.equal(isSmokeProfile("unknown"), false);
 	assert.equal(resolveProfileScript("skip"), null);
 	assert.equal(
@@ -277,6 +302,10 @@ test("maps profiles to package scripts", () => {
 	assert.equal(
 		resolveProfileScript("driver-tasks"),
 		"refarm:driver:tasks:verify",
+	);
+	assert.equal(
+		resolveProfileScript("agent-e2e-mock"),
+		"refarm:agent:e2e:mock",
 	);
 	assert.equal(resolveProfileScript("check"), "refarm:check:verify");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
@@ -403,6 +432,17 @@ test("routes farmhand sidecar deltas to focused sidecar lane", () => {
 			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
 		]).profile,
 		"sidecar",
+	);
+});
+
+test("routes agent runtime model deltas to no-token e2e lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/ask.ts",
+			"packages/tractor/src/host/wasi_bridge/core.rs",
+			"docs/daily-driver-readiness.md",
+		]).profile,
+		"agent-e2e-mock",
 	);
 });
 

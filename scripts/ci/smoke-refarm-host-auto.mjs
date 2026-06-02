@@ -23,6 +23,7 @@ const PROFILE_SCRIPT = {
 	openapi: "openapi:check",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
+	"agent-e2e-mock": "refarm:agent:e2e:mock",
 	check: "refarm:check:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
@@ -271,6 +272,18 @@ export function isFarmhandSidecarFile(file) {
 	);
 }
 
+export function isRefarmAgentRuntimeE2eFile(file) {
+	return (
+		file === "apps/refarm/src/commands/ask.ts" ||
+		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
+		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
+		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
+		file.startsWith("packages/pi-agent/") ||
+		file.startsWith("packages/model-mock/") ||
+		file.startsWith("packages/tractor/src/host/wasi_bridge/")
+	);
+}
+
 export function isRefarmTreeFile(file) {
 	return (
 		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
@@ -382,6 +395,19 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "skip",
 			reason: "Docs-only delta; host smoke execution is not required.",
+		};
+	}
+
+	if (
+		files.some((file) => isRefarmAgentRuntimeE2eFile(file)) &&
+		files.every(
+			(file) => isRefarmAgentRuntimeE2eFile(file) || isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "agent-e2e-mock",
+			reason:
+				"Agent runtime/model bridge delta; run no-token Refarm agent e2e smoke.",
 		};
 	}
 

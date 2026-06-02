@@ -177,8 +177,13 @@ npm run refarm:tree:verify
   diff-based auto lane.
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
+- `refarm:host:smoke:auto -- --profile agent-e2e-mock --execute` runs
+  `refarm:agent:e2e:mock`, the no-token runtime/pi-agent/ask smoke against
+  `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
+  WASI LLM routing deltas before spending live provider tokens.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | actions | tree | check | quick | dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | tree | agent-e2e-mock | check | quick |
+  dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
