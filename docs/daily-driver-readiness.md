@@ -20,11 +20,11 @@ and **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**79/100 for total operator migration**
+**82/100 for assisted daily use**
 
-Strong enough to keep using Refarm to harden Refarm, but not yet strong enough
-to make it the only operator surface for all work without frequent expert
-intervention.
+Strong enough to keep using Refarm to harden Refarm through the self-guiding
+operator loop, but not yet strong enough to make it the only operator surface
+for all work without frequent expert intervention.
 
 This score tracks a strict question: "Can the operator migrate fully and spend
 most work on non-Refarm tasks while Refarm still operates and recovers itself?"
@@ -76,6 +76,12 @@ What is already solid:
   WASI LLM routing are now routed to that no-token e2e smoke by
   `refarm agent finish --profile affected` and the host smoke auto profile
   `agent-e2e-mock`.
+- `refarm agent --json` exposes the no-token `agent-e2e-mock` lane directly in
+  `nextActions` and `nextCommands`, so agents do not need to discover it only
+  from nested lane metadata.
+- `refarm task list --json` includes per-effort status/log handoffs plus
+  `modelInspectCommand`, making worker history easier to continue without
+  mistaking old effort results for the current model route.
 - The short daily-driver operator loop is maintained in
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 
@@ -127,10 +133,9 @@ the primary daily driver:
 
 ## Next Hardening Order
 
-1. End-to-end loop validation: exercise `runtime up → ask → session → resume →
-   finish` as an actual operator slice and fix what breaks. Start with
-   `refarm:agent:e2e:mock` or
-   `npm run refarm:host:smoke:auto:agent-e2e-mock` for the no-token
+1. End-to-end loop validation: keep exercising `runtime up → ask → session →
+   resume → finish` as actual operator slices and fix what breaks. Start with
+   `refarm agent finish --lane agent-e2e-mock --run --json` for the no-token
    execution-plane gate, then run live provider checks only when explicitly
    needed.
 2. Runtime recovery: surface `nextCommand` through more failure paths in the
