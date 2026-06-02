@@ -1103,8 +1103,8 @@ Agent usage:
   $ refarm model fallback ...   Set a retry route for provider failures
 
 Worker efforts:
+  $ refarm task resume --json   Resume from the local task checkpoint
   $ refarm task list --json     Inspect queued and recent async efforts
-  $ refarm task resume          Resume from the local task checkpoint
   $ refarm task run <plugin> <fn> --args '{}' --json Dispatch a worker effort
   $ refarm task status <effort-id> --json Inspect a worker effort
   $ refarm task logs <effort-id> --json Inspect effort logs and model route
@@ -1182,8 +1182,8 @@ Notes:
 						agentRuntimePlan.environment.codingProfile,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						agentRuntimePlan.plugins.list,
-						agentRuntimePlan.workers.list,
 						agentRuntimePlan.workers.resume,
+						agentRuntimePlan.workers.list,
 						agentRuntimePlan.verification.finishTemplatesJsonCommand,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
@@ -1209,8 +1209,8 @@ Notes:
 						MODEL_CURRENT_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
 						agentRuntimePlan.environment.codingProfile,
-						agentRuntimePlan.workers.list,
 						agentRuntimePlan.workers.resume,
+						agentRuntimePlan.workers.list,
 						agentRuntimePlan.verification.finishTemplatesJsonCommand,
 						agentRuntimePlan.verification.finishLanesJsonCommand,
 						agentRuntimePlan.verification.finishLanesNextJsonCommand,
