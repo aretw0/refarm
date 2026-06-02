@@ -9,6 +9,21 @@ import {
 	splitLaunchCommand,
 } from "./launch-process.js";
 
+async function waitForLogContent(
+	logPath: string,
+	expected: string,
+	timeoutMs = 2_000,
+): Promise<string> {
+	const deadline = Date.now() + timeoutMs;
+	let content = "";
+	while (Date.now() < deadline) {
+		content = readFileSync(logPath, "utf-8");
+		if (content.includes(expected)) return content;
+		await new Promise((resolve) => setTimeout(resolve, 25));
+	}
+	return content;
+}
+
 describe("splitLaunchCommand", () => {
 	it("splits launcher command into command + args", () => {
 		expect(splitLaunchCommand("runner -C apps/dev run dev")).toEqual({
@@ -90,8 +105,9 @@ describe("splitLaunchCommand", () => {
 				},
 				{ logPath },
 			);
-			await new Promise((resolve) => setTimeout(resolve, 100));
-			expect(readFileSync(logPath, "utf-8")).toContain("detached ok");
+			await expect(waitForLogContent(logPath, "detached ok")).resolves.toContain(
+				"detached ok",
+			);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
