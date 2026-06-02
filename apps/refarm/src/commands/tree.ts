@@ -62,6 +62,23 @@ function printTreeValidationJson(input: {
 	process.exitCode = 1;
 }
 
+function rejectTreeCommandInput(input: {
+	json?: boolean;
+	operation: string;
+	error: string;
+	message: string;
+	nextCommand?: string;
+	extra?: Record<string, unknown>;
+}): boolean {
+	if (input.json) {
+		printTreeValidationJson(input);
+		return false;
+	}
+	console.error(chalk.red(`✗  ${input.message}`));
+	process.exitCode = 1;
+	return false;
+}
+
 function parseScope(
 	scope: string | undefined,
 	opts: { json?: boolean; operation: string },
@@ -369,20 +386,35 @@ async function previewTree(
 	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		if (opts.at) {
-			console.error(
-				chalk.red("✗  --at is only supported for session timelines."),
-			);
-			process.exitCode = 1;
+			rejectTreeCommandInput({
+				json: opts.json,
+				operation: "preview",
+				error: "invalid-tree-preview-options",
+				message: "--at is only supported for session timelines.",
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					scope,
+					option: "--at",
+					target: prefix,
+				},
+			});
 			return;
 		}
 		if (opts.switch) {
 			if (opts.name) {
-				console.error(
-					chalk.red(
-						"✗  --name is only supported for fork previews; omit it when previewing a tree switch.",
-					),
-				);
-				process.exitCode = 1;
+				rejectTreeCommandInput({
+					json: opts.json,
+					operation: "preview",
+					error: "invalid-tree-preview-options",
+					message:
+						"--name is only supported for fork previews; omit it when previewing a tree switch.",
+					nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+					extra: {
+						scope,
+						option: "--name",
+						target: prefix,
+					},
+				});
 				return;
 			}
 			const branchName = validateBranchName(prefix, {
@@ -403,21 +435,35 @@ async function previewTree(
 	}
 	if (opts.switch) {
 		if (opts.name) {
-			console.error(
-				chalk.red(
-					"✗  --name is only supported for fork previews; omit it when previewing a tree switch.",
-				),
-			);
-			process.exitCode = 1;
+			rejectTreeCommandInput({
+				json: opts.json,
+				operation: "preview",
+				error: "invalid-tree-preview-options",
+				message:
+					"--name is only supported for fork previews; omit it when previewing a tree switch.",
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					scope,
+					option: "--name",
+					target: prefix,
+				},
+			});
 			return;
 		}
 		if (opts.at) {
-			console.error(
-				chalk.red(
-					"✗  --at is only supported for session fork previews; omit it when previewing a tree switch.",
-				),
-			);
-			process.exitCode = 1;
+			rejectTreeCommandInput({
+				json: opts.json,
+				operation: "preview",
+				error: "invalid-tree-preview-options",
+				message:
+					"--at is only supported for session fork previews; omit it when previewing a tree switch.",
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					scope,
+					option: "--at",
+					target: prefix,
+				},
+			});
 			return;
 		}
 		await previewSessionSwitchTree(prefix, opts);
@@ -438,19 +484,33 @@ async function forkTree(
 	const scope = parseScope(opts.scope, { json: opts.json, operation: "fork" });
 	if (!scope) return;
 	if (scope !== REFARM_TREE_GIT_SCOPE) {
-		console.error(
-			chalk.red(
-				"✗  refarm tree fork currently supports --scope git only; use refarm sessions fork for session timelines.",
-			),
-		);
-		process.exitCode = 1;
+		rejectTreeCommandInput({
+			json: opts.json,
+			operation: "fork",
+			error: "unsupported-tree-fork-scope",
+			message:
+				"refarm tree fork currently supports --scope git only; use refarm sessions fork for session timelines.",
+			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			extra: {
+				scope,
+				allowedScopes: [REFARM_TREE_GIT_SCOPE],
+			},
+		});
 		return;
 	}
 	if (opts.at) {
-		console.error(
-			chalk.red("✗  --at is only supported for session timelines."),
-		);
-		process.exitCode = 1;
+		rejectTreeCommandInput({
+			json: opts.json,
+			operation: "fork",
+			error: "invalid-tree-fork-options",
+			message: "--at is only supported for session timelines.",
+			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			extra: {
+				scope,
+				option: "--at",
+				target: prefix,
+			},
+		});
 		return;
 	}
 	const name = requireBranchName(opts.name, {

@@ -463,6 +463,44 @@ describe("refarm tree preview", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("prints git switch preview option conflicts as JSON before git execution", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(
+				[
+					"safe/fork",
+					"--scope",
+					"git",
+					"--switch",
+					"--name",
+					"other",
+					"--json",
+				],
+				{ from: "user" },
+			);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "preview",
+			ok: false,
+			error: "invalid-tree-preview-options",
+			message: expect.stringContaining(
+				"--name is only supported for fork previews",
+			),
+			nextCommand: "refarm tree list --scope all --json",
+			scope: "git",
+			option: "--name",
+			target: "safe/fork",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it("previews session switches without validating git branch-name shape", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -566,6 +604,38 @@ describe("refarm tree preview", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(expectedMessage),
 		);
+		expect(process.exitCode).toBe(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints session switch preview option conflicts as JSON before sidecar calls", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--switch", "--at", "entry-1", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "preview",
+			ok: false,
+			error: "invalid-tree-preview-options",
+			message: expect.stringContaining(
+				"--at is only supported for session fork previews",
+			),
+			nextCommand: "refarm tree list --scope all --json",
+			scope: "session",
+			option: "--at",
+			target: "abc123",
+		});
 		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();

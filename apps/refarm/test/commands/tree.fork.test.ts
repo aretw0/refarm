@@ -227,6 +227,34 @@ describe("refarm tree fork", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("prints session tree fork rejection as JSON before branch-name validation", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abc123", "--name", "unsafe..name", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "fork",
+			ok: false,
+			error: "unsupported-tree-fork-scope",
+			message: expect.stringContaining(
+				"refarm tree fork currently supports --scope git only",
+			),
+			nextCommand: "refarm tree list --scope all --json",
+			scope: "session",
+			allowedScopes: ["git"],
+		});
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it("rejects session tree forks before branch-name validation", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
