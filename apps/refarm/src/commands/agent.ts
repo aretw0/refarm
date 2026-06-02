@@ -90,6 +90,14 @@ const agentFinishLaneCatalog = [
 		validationScope: "contract",
 	},
 	{
+		id: "agent-e2e-mock",
+		recommendedKey: "agentE2eMock",
+		command: agentFinishCommand(["--lane", "agent-e2e-mock", "--run", "--json"]),
+		description: "Run the no-token Refarm agent runtime e2e smoke.",
+		useWhen: "After runtime, model routing, pi-agent, or ask execution-plane changes.",
+		validationScope: "runtime",
+	},
+	{
 		id: "with-package-tests",
 		recommendedKey: "withPackageTests",
 		command: agentFinishCommand([
@@ -743,6 +751,9 @@ function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinishSelecti
 	if (lane === "handoffs") {
 		return { lane, profile: "quick" };
 	}
+	if (lane === "agent-e2e-mock") {
+		return { lane, profile: "quick" };
+	}
 	return { lane, profile: "affected" };
 }
 
@@ -820,6 +831,9 @@ function selectedFinishSteps(options: {
 		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
 	if (options.lane === "handoffs") {
 		return [...steps, handoffContractStep()];
+	}
+	if (options.lane === "agent-e2e-mock") {
+		return [...steps, ...affectedScriptFinishSteps(["agent-e2e-mock"])];
 	}
 	if (options.profile === "package") {
 		return [...steps, ...packageFinishSteps(options.workspace ?? ".", options.includeTests)];
@@ -909,6 +923,7 @@ function finishValidationScope(
 	selection: AgentFinishSelection,
 ): AgentFinishSelectionMetadata["validationScope"] {
 	if (selection.lane === "after-commit") return "lastCommit";
+	if (selection.lane === "agent-e2e-mock") return "runtime";
 	if (selection.profile === "affected") {
 		return selection.since ? "branchRange" : "dirtyTree";
 	}
@@ -1105,6 +1120,7 @@ Verification:
   $ refarm agent finish --lane after-edit --run --json Verify dirty-tree edits
   $ refarm agent finish --lane before-push --run --json Verify branch changes
   $ refarm agent finish --lane handoffs --run --json Verify JSON handoff contracts
+  $ refarm agent finish --lane agent-e2e-mock --run --json Verify no-token agent runtime e2e
   $ refarm agent finish --next-command Print the first verification command
   $ refarm agent finish --json --next-command Print first verification as JSON
   $ refarm agent finish --fix --run Organize imports, then verify
@@ -1248,6 +1264,7 @@ Notes:
 				"  $ refarm agent finish --lane after-edit --run --json",
 				"  $ refarm agent finish --lane before-push --run --json",
 				"  $ refarm agent finish --lane handoffs --run --json",
+				"  $ refarm agent finish --lane agent-e2e-mock --run --json",
 				"  $ refarm agent finish --next-command",
 				"  $ refarm agent finish --json --next-command",
 				"  $ refarm agent finish --fix --next-command",

@@ -118,6 +118,7 @@ refarm agent finish --lanes --json --next-command
 refarm agent finish --lane after-edit --run --json
 refarm agent finish --lane before-push --run --json
 refarm agent finish --lane handoffs --run --json
+refarm agent finish --lane agent-e2e-mock --run --json
 refarm agent finish --next-command
 refarm agent finish --json --next-command
 refarm agent finish --run --json
@@ -151,6 +152,7 @@ agents do not need to infer the default finish path from the command catalog:
 - `afterCommit`: most-recent-commit validation after atomic commits;
 - `beforePush`: final branch-local validation against upstream;
 - `handoffs`: public JSON handoff contract validation;
+- `agentE2eMock`: no-token runtime/pi-agent/ask e2e smoke;
 - `withPackageTests`: opt-in package tests when the slice requires them.
 
 The same names can be passed to `refarm agent finish --lane <name>` as stable
@@ -186,6 +188,14 @@ most recent commit (`HEAD~1..HEAD`) so docs-only and small commits stay cheap:
 
 ```bash
 refarm agent finish --lane after-commit --run --json
+```
+
+For runtime, model routing, pi-agent, or `ask` execution-plane changes, use the
+explicit no-token e2e lane when you need the proof outside of `affected`
+selection:
+
+```bash
+refarm agent finish --lane agent-e2e-mock --run --json
 ```
 
 For final branch-local validation before push, add `--since <ref>` or use the

@@ -160,6 +160,7 @@ describe("agent command", () => {
 				recommended: {
 					afterCommit: string;
 					afterEdit: string;
+					agentE2eMock: string;
 					beforePush: string;
 					handoffs: string;
 					withPackageTests: string;
@@ -259,6 +260,7 @@ describe("agent command", () => {
 					afterCommit: "refarm agent finish --lane after-commit --run --json",
 					beforePush: "refarm agent finish --lane before-push --run --json",
 					handoffs: "refarm agent finish --lane handoffs --run --json",
+					agentE2eMock: "refarm agent finish --lane agent-e2e-mock --run --json",
 					withPackageTests: "refarm agent finish --lane with-package-tests --run --json",
 				},
 				lanes: [
@@ -283,6 +285,12 @@ describe("agent command", () => {
 						command: "refarm agent finish --lane handoffs --run --json",
 						useWhen: "After changing public JSON output, nextCommands, or agent handoffs.",
 						validationScope: "contract",
+					}),
+					expect.objectContaining({
+						id: "agent-e2e-mock",
+						command: "refarm agent finish --lane agent-e2e-mock --run --json",
+						useWhen: "After runtime, model routing, pi-agent, or ask execution-plane changes.",
+						validationScope: "runtime",
 					}),
 					expect.objectContaining({
 						id: "with-package-tests",
@@ -572,13 +580,14 @@ describe("agent command", () => {
 			status: string;
 			lanes: { command: string; id: string; useWhen: string; validationScope: string }[];
 			nextCommands: string[];
-			recommended: { afterEdit: string };
+			recommended: { afterEdit: string; agentE2eMock: string };
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "lanes",
 			recommended: {
 				afterEdit: "refarm agent finish --lane after-edit --run --json",
+				agentE2eMock: "refarm agent finish --lane agent-e2e-mock --run --json",
 			},
 		});
 		expect(payload.lanes).toEqual([
@@ -603,6 +612,12 @@ describe("agent command", () => {
 				command: "refarm agent finish --lane handoffs --run --json",
 				useWhen: "After changing public JSON output, nextCommands, or agent handoffs.",
 				validationScope: "contract",
+			}),
+			expect.objectContaining({
+				id: "agent-e2e-mock",
+				command: "refarm agent finish --lane agent-e2e-mock --run --json",
+				useWhen: "After runtime, model routing, pi-agent, or ask execution-plane changes.",
+				validationScope: "runtime",
 			}),
 			expect.objectContaining({
 				id: "with-package-tests",
@@ -673,6 +688,10 @@ describe("agent command", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			"  Use when: After changing public JSON output, nextCommands, or agent handoffs.",
 		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"agent-e2e-mock: refarm agent finish --lane agent-e2e-mock --run --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith("  Run the no-token Refarm agent runtime e2e smoke.");
 		logSpy.mockRestore();
 	});
 
@@ -916,7 +935,7 @@ describe("agent command", () => {
 		};
 		expect(payload).toMatchObject({
 			ok: false,
-			message: "Unknown finish lane: unknown. Use: after-edit | after-commit | before-push | handoffs | with-package-tests",
+			message: "Unknown finish lane: unknown. Use: after-edit | after-commit | before-push | handoffs | agent-e2e-mock | with-package-tests",
 			nextCommand: "refarm agent finish --help",
 		});
 		expect(payload.nextActions).toEqual([
@@ -1034,6 +1053,41 @@ describe("agent command", () => {
 			"handoffs-test-handoffs",
 		]);
 		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run test:handoffs");
+		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		logSpy.mockRestore();
+	});
+
+	it("adds no-token agent e2e validation in the agent e2e finish lane", async () => {
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--lane",
+			"agent-e2e-mock",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			selection: { lane: string | null; profile: string; validationScope: string };
+			steps: { id: string; command: string; process?: { packageManager?: string | null } }[];
+			nextCommands: string[];
+		};
+
+		expect(payload.ok).toBe(true);
+		expect(payload.selection).toMatchObject({
+			lane: "agent-e2e-mock",
+			profile: "quick",
+			validationScope: "runtime",
+		});
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"script-refarm-agent-e2e-mock",
+		]);
+		expect(payload.nextCommands).toContain("pnpm -C /workspaces/refarm run refarm:agent:e2e:mock");
 		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
 		logSpy.mockRestore();
 	});

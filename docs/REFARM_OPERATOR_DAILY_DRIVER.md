@@ -141,6 +141,12 @@ When the change touches JSON handoffs or public commands:
 refarm agent finish --lane handoffs --run --json
 ```
 
+When the change touches runtime/model routing, `pi-agent`, or `ask` execution:
+
+```bash
+refarm agent finish --lane agent-e2e-mock --run --json
+```
+
 When import organization is the only mechanical cleanup left:
 
 ```bash
