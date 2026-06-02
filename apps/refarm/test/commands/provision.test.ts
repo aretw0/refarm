@@ -177,12 +177,12 @@ describe("provision command", () => {
 			services: [expect.objectContaining({ id: "turbo-cache" })],
 		});
 		expect(payload.nextActions).toContain(
-			"refarm provision cloudflare turbo-cache --dry-run",
+			"refarm provision cloudflare turbo-cache --dry-run --json",
 		);
 		expect(payload.nextAction).toBe(payload.nextActions[0]);
 		expect(payload.nextCommand).toBe(payload.nextCommands[0]);
 		expect(payload.nextCommands).toContain(
-			"refarm provision cloudflare turbo-cache --github-secrets",
+			"refarm provision cloudflare turbo-cache --github-secrets --json",
 		);
 
 		logSpy.mockRestore();
@@ -387,7 +387,7 @@ describe("provision command", () => {
 			name: "refarm-cache-test",
 		});
 		expect(payload.nextCommands).toContain(
-			"refarm provision cloudflare turbo-cache --github-secrets",
+			"refarm provision cloudflare turbo-cache --github-secrets --json",
 		);
 
 		logSpy.mockRestore();
@@ -496,10 +496,11 @@ describe("provision command", () => {
 			workerUrl: "https://refarm-cache.example.workers.dev",
 			authToken: "<redacted>",
 			githubSecretsWritten: false,
-			nextCommand: "refarm provision cloudflare turbo-cache --github-secrets",
+			nextCommand:
+				"refarm provision cloudflare turbo-cache --github-secrets --json",
 		});
 		expect(payload.nextCommands).toContain(
-			"refarm provision cloudflare turbo-cache --github-secrets",
+			"refarm provision cloudflare turbo-cache --github-secrets --json",
 		);
 		expect(mockSpawnSync).not.toHaveBeenCalled();
 
@@ -814,7 +815,7 @@ describe("provision command", () => {
 			ok: false,
 			error: "cloudflare-provision-failed",
 			message: "wrangler failed",
-			nextCommand: "refarm provision cloudflare turbo-cache --dry-run",
+			nextCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
 		});
 		expect(process.exitCode).toBe(1);
 

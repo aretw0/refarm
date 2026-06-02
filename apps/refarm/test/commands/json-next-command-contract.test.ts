@@ -86,6 +86,10 @@ function isTaskReadCommand(value: string): boolean {
 	return /^refarm task (?:status|logs)\b/.test(value);
 }
 
+function isProvisionTurboCacheCommand(value: string): boolean {
+	return /^refarm provision cloudflare turbo-cache\b/.test(value);
+}
+
 function isJsonCommand(value: string): boolean {
 	return /\s--json(?:\s|$)/.test(value);
 }
@@ -1308,6 +1312,12 @@ describe("JSON next command contract", () => {
 			const taskReadActionsWithoutJson = actionEntries
 				.filter(({ action }) => isTaskReadCommand(action) && !isJsonCommand(action))
 				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
+			const provisionCommandsWithoutJson = commandEntries
+				.filter(({ command }) => isProvisionTurboCacheCommand(command) && !isJsonCommand(command))
+				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const provisionActionsWithoutJson = actionEntries
+				.filter(({ action }) => isProvisionTurboCacheCommand(action) && !isJsonCommand(action))
+				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
 				.map((payload) => payload.sampleId);
@@ -1329,6 +1339,8 @@ describe("JSON next command contract", () => {
 			expect(replOnly).toEqual([]);
 			expect(taskReadCommandsWithoutJson).toEqual([]);
 			expect(taskReadActionsWithoutJson).toEqual([]);
+			expect(provisionCommandsWithoutJson).toEqual([]);
+			expect(provisionActionsWithoutJson).toEqual([]);
 			expect(singularPluralMismatches).toEqual([]);
 			expect(missingNextActions).toEqual([]);
 			expect(missingNextCommands).toEqual([]);
