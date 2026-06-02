@@ -5,7 +5,19 @@ fn is_forwardable_model_env_value(value: &str) -> bool {
 /// Build plugin env vars with project config override semantics:
 /// process MODEL_* vars first, then `.refarm/config.json` overwrites them.
 fn plugin_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
-    merge_plugin_env_vars(forwarded_model_env_vars(), refarm_config_env_vars_from(base))
+    let mut vars = forwarded_model_env_vars();
+    vars.extend(plugin_runtime_env_vars());
+    merge_plugin_env_vars(vars, refarm_config_env_vars_from(base))
+}
+
+fn plugin_runtime_env_vars() -> Vec<(String, String)> {
+    let mut vars = Vec::new();
+    push_trimmed_env_var(
+        &mut vars,
+        "REFARM_STREAMS_DIR",
+        std::env::var("REFARM_STREAMS_DIR").ok().as_deref(),
+    );
+    vars
 }
 
 fn merge_plugin_env_vars(
@@ -255,6 +267,24 @@ fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> 
     let path = base.join(".refarm/config.json");
     let bytes = read_refarm_config_bytes(&path)?;
     serde_json::from_slice::<serde_json::Value>(&bytes).ok()
+}
+
+fn preopen_plugin_runtime_dirs(wasi_builder: &mut WasiCtxBuilder) -> Result<()> {
+    let Ok(streams_dir) = std::env::var("REFARM_STREAMS_DIR") else {
+        return Ok(());
+    };
+    if streams_dir.trim().is_empty() {
+        return Ok(());
+    }
+
+    std::fs::create_dir_all(&streams_dir)?;
+    wasi_builder.preopened_dir(
+        &streams_dir,
+        streams_dir.as_str(),
+        DirPerms::all(),
+        FilePerms::all(),
+    )?;
+    Ok(())
 }
 
 fn now_ns() -> u64 {
@@ -518,6 +548,7 @@ impl PluginHost {
         for (k, v) in &env_vars {
             wasi_builder.env(k, v);
         }
+        preopen_plugin_runtime_dirs(&mut wasi_builder)?;
         let wasi = wasi_builder.build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
@@ -607,6 +638,7 @@ impl PluginHost {
             for (k, v) in &env_vars {
                 builder.env(k, v);
             }
+            preopen_plugin_runtime_dirs(&mut builder)?;
             builder.build_p1()
         };
 
