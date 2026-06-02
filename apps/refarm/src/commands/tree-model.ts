@@ -93,10 +93,10 @@ export interface RefarmTimelineShowEnvelope {
 	scope: RefarmTimelineScope;
 	operation: "show";
 	node: RefarmTimelineNode;
-	nextAction: null;
-	nextActions: [];
-	nextCommand: null;
-	nextCommands: [];
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export interface RefarmGitTimelineShowEnvelope
@@ -350,18 +350,23 @@ export function buildAllTimelineListEnvelope(
 }
 
 export function buildSessionTimelineShowEnvelope(
-	args: Pick<RefarmSessionTimelineShowEnvelope, "node" | "entries" | "total">,
+	args: Pick<RefarmSessionTimelineShowEnvelope, "node" | "entries" | "total"> & {
+		nextCommand?: string;
+	},
 ): RefarmSessionTimelineShowEnvelope {
+	const nextCommands = args.nextCommand ? [args.nextCommand] : [];
 	return {
 		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 		command: "tree",
 		scope: REFARM_TREE_SESSION_SCOPE,
 		operation: "show",
-		...args,
-		nextAction: null,
-		nextActions: [],
-		nextCommand: null,
-		nextCommands: [],
+		node: args.node,
+		entries: args.entries,
+		total: args.total,
+		nextAction: args.nextCommand ?? null,
+		nextActions: nextCommands,
+		nextCommand: args.nextCommand ?? null,
+		nextCommands,
 	};
 }
 

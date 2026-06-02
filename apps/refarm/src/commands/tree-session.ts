@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { refarmCommand } from "./command-handoff.js";
+import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
@@ -304,6 +305,7 @@ export async function showSessionTree(
 				node,
 				entries: history.entries,
 				total: history.total,
+				nextCommand: RESUME_JSON_COMMAND,
 			}),
 		);
 		return;
