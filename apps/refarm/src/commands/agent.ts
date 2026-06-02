@@ -587,6 +587,14 @@ function affectedScriptFinishSteps(checks: string[] = []): CommandPlanStep[] {
 				description: "Run the import organizer unit tests.",
 			});
 		}
+		if (check === "agent-e2e-mock") {
+			return packageScriptStep(
+				".",
+				"refarm:agent:e2e:mock",
+				"Run the no-token Refarm agent runtime e2e smoke.",
+				"script",
+			);
+		}
 		throw new Error(`Unknown affected script check: ${check}`);
 	});
 }
@@ -669,8 +677,23 @@ function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
 		) {
 			checks.add("organize-imports");
 		}
+		if (isAgentRuntimeE2ePath(file)) {
+			checks.add("agent-e2e-mock");
+		}
 	}
 	return [...checks].sort();
+}
+
+function isAgentRuntimeE2ePath(file: string): boolean {
+	return (
+		file === "apps/refarm/src/commands/ask.ts" ||
+		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
+		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
+		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
+		file.startsWith("packages/pi-agent/") ||
+		file.startsWith("packages/model-mock/") ||
+		file.startsWith("packages/tractor/src/host/wasi_bridge/")
+	);
 }
 
 function resolveSinceRef(repoRoot: string, since: string): string {
