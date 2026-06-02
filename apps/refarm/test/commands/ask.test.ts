@@ -938,6 +938,43 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("reports quota fallback errors as JSON recovery handoffs", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:quota"),
+			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
+			readEffortResult: vi.fn().mockResolvedValue({
+				status: "error",
+				error:
+					"[pi-agent erro] You exceeded your current quota, please check your plan and billing details.",
+			}),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "model-quota-exceeded",
+			nextAction: "refarm model current --json",
+			nextCommand: "refarm model current --json",
+			nextCommands: [
+				"refarm model current --json",
+				"refarm sow --json",
+				"refarm model providers --json",
+				"refarm model openai/gpt-5.5 --json",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("uses explicit --session value in effort payload", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);

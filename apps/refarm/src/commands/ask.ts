@@ -79,6 +79,7 @@ import {
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+import { observedTaskResultError } from "./task-observation.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 const OLLAMA_SERVE_COMMAND = "ollama serve";
@@ -333,6 +334,11 @@ function extractAskResultFromEffortResult(result: unknown): {
 		};
 	}
 
+	const observedError = observedTaskResultError(task.result);
+	if (observedError) {
+		return { status: "error", error: observedError };
+	}
+
 	let payload: unknown = task.result;
 	if (typeof payload === "string") {
 		try {
@@ -530,6 +536,11 @@ function printAskError(message: string): void {
 			console.error(chalk.dim("   List providers:     refarm model providers"));
 			console.error(chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`));
 		}
+	} else if (payload.error === "model-quota-exceeded") {
+		console.error(chalk.red("\n✗  Model quota or billing limit reached."));
+		console.error(chalk.dim("   Inspect route:       refarm model current"));
+		console.error(chalk.dim("   Reconfigure/login:   refarm sow"));
+		console.error(chalk.dim("   List providers:      refarm model providers"));
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}
@@ -555,6 +566,12 @@ function buildAskErrorPayload(message: string): {
 		message.includes("model-bridge request failed") ||
 		message.includes("Couldn't connect to server") ||
 		message.includes("curl: (7)");
+	const normalizedMessage = message.toLowerCase();
+	const isQuotaError =
+		normalizedMessage.includes("current quota") ||
+		normalizedMessage.includes("quota exceeded") ||
+		(normalizedMessage.includes("quota") &&
+			normalizedMessage.includes("billing"));
 
 	if (isPiAgentMissing) {
 		return buildJsonErrorEnvelope({
@@ -654,6 +671,29 @@ function buildAskErrorPayload(message: string): {
 			nextCommand: providerNextCommands[0],
 			nextCommands: providerNextCommands,
 			extra: { action: "ask", provider },
+		});
+	}
+	if (isQuotaError) {
+		return buildJsonErrorEnvelope({
+			command: "ask",
+			operation: "submit",
+			error: "model-quota-exceeded",
+			message,
+			nextAction: MODEL_CURRENT_JSON_COMMAND,
+			nextActions: [
+				MODEL_CURRENT_JSON_COMMAND,
+				SOW_JSON_COMMAND,
+				MODEL_PROVIDERS_JSON_COMMAND,
+				OPENAI_MODEL_JSON_COMMAND,
+			],
+			nextCommand: MODEL_CURRENT_JSON_COMMAND,
+			nextCommands: [
+				MODEL_CURRENT_JSON_COMMAND,
+				SOW_JSON_COMMAND,
+				MODEL_PROVIDERS_JSON_COMMAND,
+				OPENAI_MODEL_JSON_COMMAND,
+			],
+			extra: { action: "ask" },
 		});
 	}
 	return buildJsonErrorEnvelope({

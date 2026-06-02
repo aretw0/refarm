@@ -57,6 +57,7 @@ import {
 } from "./session-lock.js";
 import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+import { observedTaskResultError } from "./task-observation.js";
 export {
 	loadChatHistory,
 	rememberChatHistoryLine,
@@ -232,6 +233,8 @@ function extractResultPayload(result: unknown): {
 			error: typeof task.error === "string" ? task.error : "Effort finished with task error",
 		};
 	}
+	const observedError = observedTaskResultError(task.result);
+	if (observedError) return { status: "error", error: observedError };
 	let payload: unknown = task.result;
 	if (typeof payload === "string") {
 		const rawContent = payload;
