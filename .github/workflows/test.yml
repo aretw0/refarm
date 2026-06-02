@@ -140,7 +140,7 @@ jobs:
           fi
 
           tractor_gates=false
-          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs|scripts/ci/carry-forward-status.*\.mjs)'; then
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs)'; then
             tractor_gates=true
           fi
 
