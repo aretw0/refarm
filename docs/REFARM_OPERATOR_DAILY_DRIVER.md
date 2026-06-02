@@ -9,20 +9,30 @@ stable path for starting, resuming, changing, and closing work.
 ## Start The Day
 
 ```bash
-refarm resume
+refarm resume --json
 refarm status --json
 refarm runtime doctor --next-command
 ```
 
-Use `refarm resume` first. It combines runtime readiness, recent sessions,
+Use `refarm resume --json` first. It combines runtime readiness, recent sessions,
 recent prompts, current model route, task checkpoints, and the last finish gate.
 If it prints `nextCommands`, run the first command before guessing.
+
+In the normal self-guiding path, the first resume often points at the active
+timeline and then returns to the operator view:
+
+```bash
+refarm resume --json
+refarm tree show <session-prefix> --json
+refarm resume --json
+refarm task resume --json
+```
 
 When the runtime is not ready:
 
 ```bash
 refarm runtime ensure --wait
-refarm resume
+refarm resume --json
 ```
 
 ## Work Loop
@@ -49,11 +59,15 @@ refarm ask "do X" --json
 For task-style worker execution:
 
 ```bash
-refarm task resume
+refarm task resume --json
 refarm task list --json
 refarm task status <effort-id> --transport http --watch
 refarm task logs <effort-id> --transport http
 ```
+
+Prefer `task resume --json` over starting from `task list --json` when a task
+checkpoint exists. Resume carries the current continuation, model inspection
+command, and per-effort status/log handoffs; list is the broader inventory view.
 
 Prefer commands that emit JSON when another agent or script will consume the
 result. Public JSON commands expose `ok`, `nextCommand`, `nextCommands`, and
@@ -62,6 +76,8 @@ enough context to recover without hidden session knowledge.
 When running in agentic JSON mode, commands are self-guiding:
 - `ask --json` success → `nextCommands`: resume, session show, after-edit finish
 - `agent finish --run --json` pass → `nextCommands`: resume
+- `tree show <session> --json` done → `nextCommands`: resume
+- `task resume --json` active/checkpoint → `nextCommands`: status/logs, resume
 - `task status --json` done/failed → `nextCommands`: logs, resume
 - `runtime ensure --wait --json` ready → `nextCommands`: resume
 - `tidy imports --json` success → `nextCommands`: resume (or after-edit for `--check`)
@@ -167,6 +183,12 @@ refarm agent finish --fix --run --json
 
 When in doubt, keep the app thin but pragmatic: reusable contracts move down,
 product-specific orchestration stays in `apps/refarm`.
+
+The extraction rule is consumer-driven. `apps/refarm` can prove a workflow first,
+but a primitive should move into `packages/*` when another independent consumer
+needs it or when repeated Refarm flows depend on the same contract. External
+consumers such as `agents-lab` and `vault-seed` should consume interfaces or
+adapters, not import the Refarm engine directly into their core.
 
 The app boundary is now guarded by `apps/refarm/test/architecture`: app source
 does not import `node:child_process`, does not execute package managers directly,

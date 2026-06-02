@@ -79,9 +79,13 @@ What is already solid:
 - `refarm agent --json` exposes the no-token `agent-e2e-mock` lane directly in
   `nextActions` and `nextCommands`, so agents do not need to discover it only
   from nested lane metadata.
-- `refarm task list --json` includes per-effort status/log handoffs plus
-  `modelInspectCommand`, making worker history easier to continue without
-  mistaking old effort results for the current model route.
+- `refarm task resume --json` is now the preferred continuation when a task
+  checkpoint exists; it carries the current effort handoffs, model inspection
+  command, and status/log commands. `task list --json` remains the inventory
+  view when no checkpoint is available or the operator wants broader history.
+- `refarm tree show <session> --json` closes back to `refarm resume --json`, so
+  the normal resume → inspect timeline → resume → task checkpoint loop no longer
+  relies on hidden operator memory.
 - The short daily-driver operator loop is maintained in
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 
@@ -104,6 +108,10 @@ What blocks primary daily-driver migration:
 - The app has correctly acted as the proving ground, but mature contracts must
   continue moving down into shared packages once a second consumer or repeated
   product flow proves reuse.
+- External consumers (`agents-lab`, `vault-seed`, and future operator shells)
+  need adapter-level interfaces, not direct imports of Refarm app or engine
+  internals. The next maturity step is making that boundary boring enough that
+  Refarm can power them without centralizing every workflow in `apps/refarm`.
 
 ## Migration Gates
 
@@ -130,6 +138,9 @@ the primary daily driver:
    `packages/*`; `apps/refarm` keeps product orchestration and operator UX.
    🔄 In progress — boundary guards are active; primitives continue moving down
    as repeated use proves the boundary.
+7. Consumer gate: independent consumers can depend on stable interfaces or
+   adapters without importing the Refarm runtime directly. 🔄 In progress —
+   roadmap consumers are mapped; extraction remains gated by real repeated use.
 
 ## Next Hardening Order
 
