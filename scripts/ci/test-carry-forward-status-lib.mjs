@@ -135,7 +135,7 @@ test("buildSkippedGateDefinitions ignores quality step carry-forward for non-cod
 	assert.deepEqual(tracked, ["build", "e2e"]);
 });
 
-test("buildSkippedGateDefinitions tracks code-adjacent skipped quality gates for code changes", () => {
+test("buildSkippedGateDefinitions tracks task smoke but not irrelevant tractor gates for code changes", () => {
 	const tracked = buildSkippedGateDefinitions({
 		CODE_CHANGES: "true",
 		RUN_TASK_SMOKE: "false",
@@ -147,7 +147,8 @@ test("buildSkippedGateDefinitions tracks code-adjacent skipped quality gates for
 	}).map((gate) => gate.key);
 
 	assert.ok(tracked.includes("task_smoke_core"));
-	assert.ok(tracked.includes("tractor_coverage_gate"));
+	assert.equal(tracked.includes("tractor_benchmark_gate"), false);
+	assert.equal(tracked.includes("tractor_coverage_gate"), false);
 	assert.equal(tracked.includes("quality_security"), false);
 	assert.equal(tracked.includes("build"), false);
 });
