@@ -74,6 +74,20 @@ function parsePositiveIntOption(value: string, label: string): number {
 	return parsed;
 }
 
+function observedEffortFields(result: EffortResult): {
+	observedStatus: EffortResult["status"];
+	observedErrors?: string[];
+} {
+	const observedStatus = observedEffortStatus(result);
+	const observedErrors = result.results
+		.map((taskResult) => observedTaskResultError(taskResult.result))
+		.filter((error): error is string => Boolean(error));
+	return {
+		observedStatus,
+		...(observedErrors.length > 0 ? { observedErrors } : {}),
+	};
+}
+
 function formatLogMeta(meta: Record<string, unknown> | undefined): string {
 	if (!meta) return "";
 	const modelScope = typeof meta.modelScope === "string" ? meta.modelScope : undefined;
@@ -757,10 +771,8 @@ Notes:
 
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
-					const observedStatus = observedEffortStatus(result);
-					const observedErrors = result.results
-						.map((taskResult) => observedTaskResultError(taskResult.result))
-						.filter((error): error is string => Boolean(error));
+					const observed = observedEffortFields(result);
+					const { observedStatus } = observed;
 					if (opts.json) {
 						const nextCommands = isFinalEffortStatus(observedStatus)
 							? [
@@ -780,10 +792,7 @@ Notes:
 								effortId,
 								transport,
 								status: result.status,
-								observedStatus,
-								...(observedErrors.length > 0
-									? { observedErrors }
-									: {}),
+								...observed,
 								attempts,
 								ageSeconds,
 								result,
@@ -1080,11 +1089,18 @@ Notes:
 						logs: logs ?? [],
 					});
 				});
+				let observed: ReturnType<typeof observedEffortFields> | undefined;
+				try {
+					const result = await adapter.query(effortId);
+					if (result) observed = observedEffortFields(result);
+				} catch {
+					observed = undefined;
+				}
 				if (!logs || logs.length === 0) {
 					if (opts.json) {
 						printTaskJsonSuccess(
 							"logs",
-							{ effortId, transport, logs: [] },
+							{ effortId, transport, ...(observed ?? {}), logs: [] },
 							[buildTaskStatusCommand(effortId, transport, { json: true })],
 						);
 						return;
@@ -1097,7 +1113,7 @@ Notes:
 				if (opts.json) {
 					printTaskJsonSuccess(
 						"logs",
-						{ effortId, transport, logs: sliced },
+						{ effortId, transport, ...(observed ?? {}), logs: sliced },
 						[buildTaskStatusCommand(effortId, transport, { json: true })],
 					);
 					return;
