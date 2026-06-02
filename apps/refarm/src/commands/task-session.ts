@@ -1,8 +1,8 @@
 import type {
-Effort,
-EffortLogEntry,
-EffortResult,
-EffortStatus,
+	Effort,
+	EffortLogEntry,
+	EffortResult,
+	EffortStatus,
 } from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
@@ -33,6 +33,12 @@ export interface TaskSessionEffortRecord {
 	lastCommand?: "run" | "status" | "list" | "logs" | "retry" | "cancel";
 	lastLogAt?: string;
 	lastModelRoute?: TaskSessionModelRoute;
+	statusCommand: string;
+	logsCommand: string;
+}
+
+export interface TaskSessionEffortCommands {
+	effortId: string;
 	statusCommand: string;
 	logsCommand: string;
 }
@@ -92,6 +98,17 @@ export function buildTaskLogsCommand(effortId: string, transport: string): strin
 		"--transport",
 		quoteCommandArgIfNeeded(transport),
 	]);
+}
+
+export function buildTaskEffortCommands(
+	efforts: Array<Pick<EffortResult, "effortId">>,
+	transport: string,
+): TaskSessionEffortCommands[] {
+	return efforts.map((effort) => ({
+		effortId: effort.effortId,
+		statusCommand: buildTaskStatusCommand(effort.effortId, transport),
+		logsCommand: buildTaskLogsCommand(effort.effortId, transport),
+	}));
 }
 
 function buildStatusCommand(effortId: string, transport: string): string {

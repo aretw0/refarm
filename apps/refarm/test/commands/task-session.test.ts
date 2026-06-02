@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	buildTaskEffortCommands,
 	buildTaskLogsCommand,
 	buildTaskStatusCommand,
 	FileTaskSessionRecorder,
@@ -45,6 +46,29 @@ describe("task session commands", () => {
 		expect(buildTaskLogsCommand("effort with ' quote", "file")).toBe(
 			"refarm task logs 'effort with '\"'\"' quote' --transport file",
 		);
+	});
+
+	it("builds per-effort status and logs command handoffs", () => {
+		expect(
+			buildTaskEffortCommands(
+				[
+					{ effortId: "effort-1" },
+					{ effortId: "effort with space" },
+				],
+				"file",
+			),
+		).toEqual([
+			{
+				effortId: "effort-1",
+				statusCommand: "refarm task status effort-1 --transport file",
+				logsCommand: "refarm task logs effort-1 --transport file",
+			},
+			{
+				effortId: "effort with space",
+				statusCommand: "refarm task status 'effort with space' --transport file",
+				logsCommand: "refarm task logs 'effort with space' --transport file",
+			},
+		]);
 	});
 });
 

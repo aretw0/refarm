@@ -30,6 +30,7 @@ import {
 } from "./runtime-recovery.js";
 import { resolveSidecarUrl } from "./sidecar-url.js";
 import {
+	buildTaskEffortCommands,
 	buildTaskLogsCommand,
 	buildTaskStatusCommand,
 	createTaskSessionRecorder,
@@ -115,17 +116,6 @@ function printTaskJsonSuccess<TExtra extends object>(
 			nextCommands,
 		}),
 	);
-}
-
-function buildTaskListEffortCommands(
-	efforts: EffortResult[],
-	transport: TaskTransport,
-): Array<{ effortId: string; statusCommand: string; logsCommand: string }> {
-	return efforts.map((effort) => ({
-		effortId: effort.effortId,
-		statusCommand: buildTaskStatusCommand(effort.effortId, transport),
-		logsCommand: buildTaskLogsCommand(effort.effortId, transport),
-	}));
 }
 
 function reportTaskControlError(
@@ -923,7 +913,7 @@ Notes:
 			});
 
 			if (opts.json) {
-				const effortCommands = buildTaskListEffortCommands(efforts, transport);
+				const effortCommands = buildTaskEffortCommands(efforts, transport);
 				const nextCommands = efforts[0]
 					? [
 							buildTaskStatusCommand(efforts[0].effortId, transport),
