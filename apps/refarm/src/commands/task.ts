@@ -1,10 +1,10 @@
 import { isPiAgentPluginId } from "@refarm.dev/config";
 import type {
-Effort,
-EffortLogEntry,
-EffortResult,
-EffortSummary,
-EffortTransportAdapter,
+	Effort,
+	EffortLogEntry,
+	EffortResult,
+	EffortSummary,
+	EffortTransportAdapter,
 } from "@refarm.dev/effort-contract-v1";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
@@ -12,7 +12,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
-import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
+import {
+	MODEL_CURRENT_JSON_COMMAND,
+	RESUME_JSON_COMMAND,
+} from "./credential-handoffs.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -112,6 +115,17 @@ function printTaskJsonSuccess<TExtra extends object>(
 			nextCommands,
 		}),
 	);
+}
+
+function buildTaskListEffortCommands(
+	efforts: EffortResult[],
+	transport: TaskTransport,
+): Array<{ effortId: string; statusCommand: string; logsCommand: string }> {
+	return efforts.map((effort) => ({
+		effortId: effort.effortId,
+		statusCommand: buildTaskStatusCommand(effort.effortId, transport),
+		logsCommand: buildTaskLogsCommand(effort.effortId, transport),
+	}));
 }
 
 function reportTaskControlError(
@@ -909,13 +923,24 @@ Notes:
 			});
 
 			if (opts.json) {
+				const effortCommands = buildTaskListEffortCommands(efforts, transport);
 				const nextCommands = efforts[0]
 					? [
 							buildTaskStatusCommand(efforts[0].effortId, transport),
 							buildTaskLogsCommand(efforts[0].effortId, transport),
 						]
 					: [];
-				printTaskJsonSuccess("list", { transport, summary, efforts }, nextCommands);
+				printTaskJsonSuccess(
+					"list",
+					{
+						transport,
+						summary,
+						efforts,
+						effortCommands,
+						modelInspectCommand: MODEL_CURRENT_JSON_COMMAND,
+					},
+					nextCommands,
+				);
 				return;
 			}
 

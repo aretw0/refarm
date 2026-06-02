@@ -1,12 +1,12 @@
 import type {
-EffortLogEntry,
-EffortResult,
-EffortSummary,
+	EffortLogEntry,
+	EffortResult,
+	EffortSummary,
 } from "@refarm.dev/effort-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
-TaskSessionCheckpoint,
-TaskSessionRecorder,
+	TaskSessionCheckpoint,
+	TaskSessionRecorder,
 } from "../../src/commands/task-session.js";
 import {
 	createTaskCommand,
@@ -651,9 +651,23 @@ describe("refarm task list/logs/retry/cancel", () => {
 
 		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
 			transport: string;
+			effortCommands: Array<{
+				effortId: string;
+				statusCommand: string;
+				logsCommand: string;
+			}>;
+			modelInspectCommand: string;
 			nextCommands: string[];
 		};
 		expect(payload.transport).toBe("http");
+		expect(payload.effortCommands).toEqual([
+			{
+				effortId: "effort-abc",
+				statusCommand: "refarm task status effort-abc --transport http",
+				logsCommand: "refarm task logs effort-abc --transport http",
+			},
+		]);
+		expect(payload.modelInspectCommand).toBe("refarm model current --json");
 		expect(payload.nextCommands).toContain(
 			"refarm task status effort-abc --transport http",
 		);
