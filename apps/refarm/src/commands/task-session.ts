@@ -8,6 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { quoteCommandArgIfNeeded, refarmCommand } from "./command-handoff.js";
+import { observedEffortStatus } from "./task-observation.js";
 import { isFinalEffortStatus } from "./task-status.js";
 
 const SESSION_VERSION = 1 as const;
@@ -306,14 +307,17 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 	}): void {
 		this.updateState((state) => {
 			const effort = this.upsertEffort(state, input.effortId, input.transport);
-			effort.lastStatus = input.result?.status ?? "not-found";
+			const observedStatus = input.result
+				? observedEffortStatus(input.result)
+				: "not-found";
+			effort.lastStatus = observedStatus;
 			effort.lastStatusAt = nowIso();
 			effort.lastCommand = "status";
 			if (input.result?.submittedAt) {
 				effort.submittedAt = input.result.submittedAt;
 			}
 
-			if (input.result && !isFinalEffortStatus(input.result.status)) {
+			if (input.result && !isFinalEffortStatus(observedEffortStatus(input.result))) {
 				state.activeEffortId = input.effortId;
 			} else if (state.activeEffortId === input.effortId) {
 				state.activeEffortId = undefined;
@@ -329,14 +333,14 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 					result.effortId,
 					input.transport,
 				);
-				effort.lastStatus = result.status;
+				effort.lastStatus = observedEffortStatus(result);
 				effort.lastStatusAt = nowIso();
 				effort.lastCommand = "list";
 				effort.submittedAt = result.submittedAt ?? effort.submittedAt;
 			}
 
 			const firstActive = input.efforts.find(
-				(result) => !isFinalEffortStatus(result.status),
+				(result) => !isFinalEffortStatus(observedEffortStatus(result)),
 			);
 			state.activeEffortId = firstActive?.effortId;
 		});

@@ -207,6 +207,46 @@ describe("FileTaskSessionRecorder", () => {
 		expect(checkpoint?.efforts[0]!.lastStatus).toBe("done");
 	});
 
+	it("records legacy ok agent error payloads as failed in the checkpoint", () => {
+		const baseDir = createTempDir();
+		const recorder = new FileTaskSessionRecorder(baseDir);
+		const effort: Effort = {
+			id: "effort-legacy",
+			direction: "Test",
+			tasks: [{ id: "t1", pluginId: "p", fn: "f" }],
+			source: "refarm-cli",
+			submittedAt: new Date().toISOString(),
+		};
+		recorder.rememberRun({ effort, transport: "file" });
+
+		const result: EffortResult = {
+			effortId: "effort-legacy",
+			status: "done",
+			results: [
+				{
+					taskId: "t1",
+					effortId: "effort-legacy",
+					status: "ok",
+					result: JSON.stringify({
+						content: "[pi-agent erro] quota exceeded",
+					}),
+					completedAt: new Date().toISOString(),
+				},
+			],
+			submittedAt: effort.submittedAt,
+			completedAt: new Date().toISOString(),
+		};
+		recorder.rememberStatus({
+			effortId: "effort-legacy",
+			transport: "file",
+			result,
+		});
+
+		const checkpoint = recorder.getCheckpoint();
+		expect(checkpoint?.activeEffortId).toBeUndefined();
+		expect(checkpoint?.efforts[0]!.lastStatus).toBe("failed");
+	});
+
 	it("treats partial and timed-out efforts as terminal for resume", () => {
 		for (const status of ["partial", "timed-out"] as const) {
 			const baseDir = createTempDir();

@@ -30,6 +30,11 @@ import {
 } from "./runtime-recovery.js";
 import { resolveSidecarUrl } from "./sidecar-url.js";
 import {
+	observedEffortStatus,
+	observedTaskResultError,
+	observedTaskResultStatus,
+} from "./task-observation.js";
+import {
 	buildTaskEffortCommands,
 	buildTaskLogsCommand,
 	buildTaskStatusCommand,
@@ -102,51 +107,6 @@ function formatAgeSeconds(submittedAt?: string): string {
 	const submittedMs = Date.parse(submittedAt);
 	if (Number.isNaN(submittedMs)) return "-";
 	return `${Math.max(0, Math.floor((Date.now() - submittedMs) / 1000))}s`;
-}
-
-const AGENT_ERROR_PREFIXES = ["[pi-agent erro]", "[pi-agent stub]", "[budget]"];
-
-function parseTaskResultPayload(result: unknown): unknown {
-	if (typeof result !== "string") return result;
-	try {
-		return JSON.parse(result) as unknown;
-	} catch {
-		return result;
-	}
-}
-
-function taskResultContent(result: unknown): string | null {
-	const payload = parseTaskResultPayload(result);
-	if (typeof payload === "string") return payload;
-	if (Array.isArray(payload)) {
-		const [content] = payload;
-		return typeof content === "string" ? content : null;
-	}
-	if (payload && typeof payload === "object") {
-		const content = (payload as { content?: unknown }).content;
-		return typeof content === "string" ? content : null;
-	}
-	return null;
-}
-
-function taskResultObservedError(result: unknown): string | null {
-	const content = taskResultContent(result);
-	if (!content) return null;
-	return AGENT_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix))
-		? content
-		: null;
-}
-
-function taskResultObservedStatus(taskResult: EffortResult["results"][number]): string {
-	if (taskResult.status !== "ok") return taskResult.status;
-	return taskResultObservedError(taskResult.result) ? "error" : taskResult.status;
-}
-
-function effortObservedStatus(result: EffortResult): EffortResult["status"] {
-	if (result.status !== "done") return result.status;
-	return result.results.some((taskResult) => taskResultObservedStatus(taskResult) === "error")
-		? "failed"
-		: result.status;
 }
 
 function printTaskJsonSuccess<TExtra extends object>(
@@ -797,9 +757,9 @@ Notes:
 
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
-					const observedStatus = effortObservedStatus(result);
+					const observedStatus = observedEffortStatus(result);
 					const observedErrors = result.results
-						.map((taskResult) => taskResultObservedError(taskResult.result))
+						.map((taskResult) => observedTaskResultError(taskResult.result))
 						.filter((error): error is string => Boolean(error));
 					if (opts.json) {
 						const nextCommands = isFinalEffortStatus(observedStatus)
@@ -849,8 +809,8 @@ Notes:
 							),
 						);
 						for (const taskResult of result.results) {
-							const taskObservedStatus = taskResultObservedStatus(taskResult);
-							const observedError = taskResultObservedError(taskResult.result);
+							const taskObservedStatus = observedTaskResultStatus(taskResult);
+							const observedError = observedTaskResultError(taskResult.result);
 							const statusLabel =
 								taskObservedStatus === "ok"
 									? chalk.green("ok")
