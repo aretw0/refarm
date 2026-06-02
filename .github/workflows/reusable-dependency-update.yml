@@ -24,7 +24,7 @@ on:
         type: string
         default: |
           pnpm run deps:update
-          pnpm install
+          pnpm install --no-frozen-lockfile
       issue-title:
         description: Tracking issue title
         required: false
