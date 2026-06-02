@@ -205,17 +205,20 @@ async function readInstalledVersion(pluginId: string): Promise<string | null> {
 async function installedBundleIsCurrent(
 	plugin: BundledPlugin,
 	version: string,
+	integrity: string,
 ): Promise<boolean> {
 	const installed = await readInstalledVersion(plugin.id);
 	if (installed !== version) return false;
-	const requiredProvides = "requiredProvides" in plugin ? plugin.requiredProvides : [];
-	if (requiredProvides.length === 0) return true;
 
 	try {
 		const manifestPath = path.join(pluginsBaseDir, plugin.id, "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
+			integrity?: unknown;
 			capabilities?: { provides?: unknown };
 		};
+		if (manifest.integrity !== integrity) return false;
+		const requiredProvides = "requiredProvides" in plugin ? plugin.requiredProvides : [];
+		if (requiredProvides.length === 0) return true;
 		const provides = Array.isArray(manifest.capabilities?.provides)
 			? manifest.capabilities.provides
 			: [];
@@ -242,20 +245,6 @@ async function installPlugin(
 			version: null,
 			message,
 		};
-	}
-
-	if (!force) {
-		if (await installedBundleIsCurrent(plugin, pkgVersion)) {
-			const message = "already up-to-date";
-			if (!quiet) console.log(`  ✓ ${plugin.id} v${pkgVersion} ${message}`);
-			return {
-				id: plugin.id,
-				packageName: plugin.npmPackage,
-				status: "cached",
-				version: pkgVersion,
-				message,
-			};
-		}
 	}
 
 	const pkgDir = resolvePackageDir(plugin.npmPackage);
@@ -293,6 +282,18 @@ async function installPlugin(
 		const wasmBytes = readFileSync(wasmSrc);
 		const sha256 = createHash("sha256").update(wasmBytes).digest("hex");
 		const integrity = `sha256-${sha256}`;
+
+		if (!force && await installedBundleIsCurrent(plugin, pkgVersion, integrity)) {
+			const message = "already up-to-date";
+			if (!quiet) console.log(`  ✓ ${plugin.id} v${pkgVersion} ${message}`);
+			return {
+				id: plugin.id,
+				packageName: plugin.npmPackage,
+				status: "cached",
+				version: pkgVersion,
+				message,
+			};
+		}
 
 		const destDir = path.join(pluginsBaseDir, plugin.id);
 		await mkdir(destDir, { recursive: true });
@@ -479,7 +480,8 @@ function buildRuntimePluginStatusReport(
 	const known =
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
 	const piAgentInstalled = state.installed.some(isPiAgentPluginId);
-	const piAgentLoaded = state.activeAgent !== null;
+	const piAgentLoaded =
+		typeof state.activeAgent === "string" && state.activeAgent.length > 0;
 	const nextCommands = piAgentLoaded
 		? []
 		: [

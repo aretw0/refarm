@@ -293,4 +293,3 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_cont
     assert_eq!(out.state.usage_totals.tokens_cached, 7);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-

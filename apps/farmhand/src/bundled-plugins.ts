@@ -72,16 +72,19 @@ async function installedBundleIsCurrent(
 	pluginsDir: string,
 	entry: BundledEntry,
 	version: string,
+	integrity: string,
 ): Promise<boolean> {
 	const installedVersion = await readInstalledVersion(pluginsDir, entry.id);
 	if (installedVersion !== version) return false;
-	if (!entry.requiredProvides?.length) return true;
 
 	try {
 		const manifestPath = path.join(installDir(pluginsDir, entry.id), "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
+			integrity?: unknown;
 			capabilities?: { provides?: unknown };
 		};
+		if (manifest.integrity !== integrity) return false;
+		if (!entry.requiredProvides?.length) return true;
 		const provides = Array.isArray(manifest.capabilities?.provides)
 			? manifest.capabilities.provides
 			: [];
@@ -111,11 +114,6 @@ export async function bundleInstallPlugin(
 		return { status: "failed", id: entry.id };
 	}
 
-	if (await installedBundleIsCurrent(pluginsDir, entry, pkgVersion)) {
-		logger.info(`[farmhand] bundled: ${entry.id} v${pkgVersion} already installed`);
-		return { status: "cached", id: entry.id };
-	}
-
 	const pkgDir = packageDir(entry.package);
 	if (!pkgDir) {
 		logger.warn(`[farmhand] bundled: ${entry.id}: cannot locate package directory`);
@@ -132,6 +130,11 @@ export async function bundleInstallPlugin(
 		const wasmBytes = readFileSync(wasmSrc);
 		const sha256 = createHash("sha256").update(wasmBytes).digest("hex");
 		const integrity = `sha256-${sha256}`;
+
+		if (await installedBundleIsCurrent(pluginsDir, entry, pkgVersion, integrity)) {
+			logger.info(`[farmhand] bundled: ${entry.id} v${pkgVersion} already installed`);
+			return { status: "cached", id: entry.id };
+		}
 
 		const destDir = installDir(pluginsDir, entry.id);
 		await mkdir(destDir, { recursive: true });

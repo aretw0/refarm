@@ -151,12 +151,18 @@ describe("plugin install", () => {
 
 	it("skips install when already up-to-date (no --force)", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
-		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
+		mockReadFileSync
+			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
+			.mockReturnValueOnce(Buffer.from("wasm-bytes"));
 		mockReadFile
 			.mockResolvedValueOnce("0.4.1") // sentinel matches
 			.mockResolvedValueOnce(
-				JSON.stringify({ capabilities: { provides: ["agent:respond"] } }),
+				JSON.stringify({
+					integrity: "sha256-abc123",
+					capabilities: { provides: ["agent:respond"] },
+				}),
 			);
+		mockExistsSync.mockReturnValue(true);
 
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -178,7 +184,10 @@ describe("plugin install", () => {
 		mockReadFile
 			.mockResolvedValueOnce("0.4.1")
 			.mockResolvedValueOnce(
-				JSON.stringify({ capabilities: { provides: ["integration:v1"] } }),
+				JSON.stringify({
+					integrity: "sha256-deadbeef",
+					capabilities: { provides: ["integration:v1"] },
+				}),
 			);
 		mockExistsSync.mockReturnValue(true);
 		mockDigest.mockReturnValue("deadbeef");
@@ -291,12 +300,19 @@ describe("plugin install", () => {
 
 	it("prints update results as JSON", async () => {
 		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
-		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
+		mockReadFileSync
+			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
+			.mockReturnValueOnce(Buffer.from("wasm-bytes"));
 		mockReadFile
 			.mockResolvedValueOnce("0.4.1")
 			.mockResolvedValueOnce(
-				JSON.stringify({ capabilities: { provides: ["agent:respond"] } }),
+				JSON.stringify({
+					integrity: "sha256-deadbeef",
+					capabilities: { provides: ["agent:respond"] },
+				}),
 			);
+		mockDigest.mockReturnValue("deadbeef");
+		mockExistsSync.mockReturnValue(true);
 
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

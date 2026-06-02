@@ -96,6 +96,11 @@ export interface AskDeps {
 		metadata?: Record<string, unknown>;
 		error?: string;
 	} | null>;
+	readSessionFallback?(sessionId: string): Promise<{
+		status: "ok";
+		content: string;
+		metadata?: Record<string, unknown>;
+	} | null>;
 	resolveSessionIdPrefix?(prefix: string): Promise<string>;
 	readActiveSessionId?(): string | null;
 	clearActiveSessionId?(): boolean;
@@ -131,6 +136,40 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
+}
+
+async function readLatestAgentEntryFromSession(sessionId: string): Promise<{
+	status: "ok";
+	content: string;
+	metadata?: Record<string, unknown>;
+} | null> {
+	try {
+		const response = await fetch(
+			sidecarUrl(`/sessions/${encodeURIComponent(sessionId)}/history`),
+		);
+		if (!response.ok) return null;
+		const payload = (await response.json()) as {
+			entries?: Array<{
+				kind?: unknown;
+				content?: unknown;
+				timestamp_ns?: unknown;
+			}>;
+		};
+		const agentEntry = [...(payload.entries ?? [])]
+			.reverse()
+			.find(
+				(entry) =>
+					entry.kind === "agent" && typeof entry.content === "string",
+			);
+		if (!agentEntry || typeof agentEntry.content !== "string") return null;
+		return {
+			status: "ok",
+			content: agentEntry.content,
+			metadata: { source: "session-history" },
+		};
+	} catch {
+		return null;
+	}
 }
 
 function followStreamFile(
@@ -425,6 +464,7 @@ function defaultDeps(): AskDeps {
 				options,
 			),
 		readEffortResult: (effortId) => readEffortResultFile(resultsDir, effortId),
+		readSessionFallback: readLatestAgentEntryFromSession,
 		readActiveSessionId,
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
@@ -714,7 +754,8 @@ async function ensureAgentReady(
 	if (!state) return true;
 
 	// Primary check: sidecar exposes the active agent by capability.
-	if (state.activeAgent !== null) return true;
+	if (typeof state.activeAgent === "string" && state.activeAgent.length > 0)
+		return true;
 
 	// Recovery: if a known agent plugin is installed, attempt reload.
 	// Falls back to PI_AGENT_PLUGIN_ID as the default installable agent.
@@ -723,7 +764,11 @@ async function ensureAgentReady(
 		const reload = await reloadPlugins([reloadId]);
 		if (reload?.reloaded.length) return true;
 		const refreshed = await readPluginState();
-		if (refreshed?.activeAgent !== null) return true;
+		if (
+			typeof refreshed?.activeAgent === "string" &&
+			refreshed.activeAgent.length > 0
+		)
+			return true;
 		if (json && reload?.skipped.length) {
 			printJson(
 				buildJsonErrorEnvelope({
@@ -1059,6 +1104,31 @@ Runtime:
 							throw new Error(
 								fallback.error ?? "Effort failed without details",
 							);
+						}
+
+						const sessionFallback =
+							await resolved.readSessionFallback?.(sessionId);
+						if (sessionFallback?.status === "ok") {
+							content = sessionFallback.content;
+							metadata = sessionFallback.metadata;
+							if (!opts.json) {
+								process.stdout.write(`${sessionFallback.content}\n`);
+							}
+							if (sessionFallback.metadata && !opts.json) {
+								console.log(chalk.gray(`\n${"─".repeat(41)}`));
+								console.log(chalk.gray(usageLine(sessionFallback.metadata)));
+							}
+							persistActiveSession(sessionId);
+							if (opts.json) {
+								const result: AskJsonResult = {
+									effortId,
+									sessionId,
+									content,
+									...(metadata ? { metadata } : {}),
+								};
+								printAskSuccessJson(result);
+							}
+							return;
 						}
 
 						throw streamError;

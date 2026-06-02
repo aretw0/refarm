@@ -189,4 +189,3 @@ fn provider_runtime_openai_phase_after_usage_updates_totals_and_extracts_phase()
     assert_eq!(totals.tokens_in, 5);
     assert_eq!(phase.parsed_calls.len(), 1);
 }
-

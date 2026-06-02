@@ -317,4 +317,3 @@ fn provider_runtime_advance_openai_tool_phase_from_phase_with_appends() {
     assert_eq!(wire_msgs[1]["tool_call_id"], "call-2");
     assert_eq!(executed_calls.len(), 1);
 }
-
