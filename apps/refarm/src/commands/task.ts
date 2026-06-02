@@ -1096,6 +1096,8 @@ Notes:
   file transport reads local queue/result files under ~/.refarm.
   http transport queries the running Refarm runtime sidecar.
   JSON output includes status/log nextCommands for the newest effort when one exists.
+  JSON output also includes observedSummary/observedEfforts when stored results hide agent-level errors.
+  Human output prints an Observed summary when it differs from the stored summary.
   Use resume to continue from the local checkpoint after a previous run/status/logs command.
 `,
 		)

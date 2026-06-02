@@ -617,6 +617,8 @@ describe("refarm task list/logs/retry/cancel", () => {
 
 		expect(help).toContain("refarm task list --transport http --json");
 		expect(help).toContain("JSON output includes status/log nextCommands");
+		expect(help).toContain("observedSummary/observedEfforts");
+		expect(help).toContain("Human output prints an Observed summary");
 		expect(help).toContain("Use resume to continue from the local checkpoint");
 	});
 
