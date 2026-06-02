@@ -325,6 +325,30 @@ describe("refarm tree switch and guards", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("prints unsafe git tree switch targets as JSON before git execution", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["HEAD", "--scope", "git", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "switch",
+			ok: false,
+			error: "invalid-tree-branch-name",
+			message: expect.stringContaining('Invalid branch name "HEAD"'),
+			nextCommand: "refarm tree list --scope all --json",
+			nextCommands: ["refarm tree list --scope all --json"],
+			branchName: "HEAD",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it.each([
 		"0",
 		"201",

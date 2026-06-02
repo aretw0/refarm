@@ -36,6 +36,7 @@ import {
 type RefarmTimelineListScope =
 	| RefarmTimelineScope
 	| typeof REFARM_TREE_ALL_SCOPE;
+type TreeBranchValidationOperation = "preview" | "fork" | "switch";
 
 function printTreeValidationJson(input: {
 	operation: string;
@@ -133,25 +134,44 @@ function parseListScope(
 	return null;
 }
 
-function requireBranchName(name: string | undefined): string | null {
+function invalidBranchNameMessage(name: string): string {
+	return `Invalid branch name "${name}". Use safe git-style names with letters, numbers, '.', '_', '/', or '-' and no option-like, empty, hidden, or parent-traversal segments.`;
+}
+
+function requireBranchName(
+	name: string | undefined,
+	opts: { json?: boolean; operation: TreeBranchValidationOperation },
+): string | null {
 	if (!name) {
-		console.error(
-			chalk.red("✗  refarm tree fork requires --name <branch-name>."),
-		);
+		const message = "refarm tree fork requires --name <branch-name>.";
+		if (opts.json) {
+			printTreeValidationJson({
+				operation: opts.operation,
+				error: "missing-tree-branch-name",
+				message,
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			});
+			return null;
+		}
+		console.error(chalk.red(`✗  ${message}`));
 		process.exitCode = 1;
 		return null;
 	}
-	return validateBranchName(name);
+	return validateBranchName(name, opts);
 }
 
 function validateOptionalBranchName(
 	name: string | undefined,
+	opts: { json?: boolean; operation: TreeBranchValidationOperation },
 ): string | null | undefined {
 	if (!name) return undefined;
-	return validateBranchName(name);
+	return validateBranchName(name, opts);
 }
 
-function validateBranchName(name: string): string | null {
+function validateBranchName(
+	name: string,
+	opts: { json?: boolean; operation: TreeBranchValidationOperation },
+): string | null {
 	const hasSafeChars = /^[A-Za-z0-9._/-]+$/u.test(name);
 	const hasUnsafeShape =
 		name === "HEAD" ||
@@ -171,11 +191,21 @@ function validateBranchName(name: string): string | null {
 					part.endsWith(".lock"),
 			);
 	if (!hasSafeChars || hasUnsafeShape) {
-		console.error(
-			chalk.red(
-				`✗  Invalid branch name "${name}". Use safe git-style names with letters, numbers, '.', '_', '/', or '-' and no option-like, empty, hidden, or parent-traversal segments.`,
-			),
-		);
+		const message = invalidBranchNameMessage(name);
+		if (opts.json) {
+			printTreeValidationJson({
+				operation: opts.operation,
+				error: "invalid-tree-branch-name",
+				message,
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					branchName: name,
+					allowedChars: "letters, numbers, '.', '_', '/', '-'",
+				},
+			});
+			return null;
+		}
+		console.error(chalk.red(`✗  ${message}`));
 		process.exitCode = 1;
 		return null;
 	}
@@ -355,12 +385,18 @@ async function previewTree(
 				process.exitCode = 1;
 				return;
 			}
-			const branchName = validateBranchName(prefix);
+			const branchName = validateBranchName(prefix, {
+				json: opts.json,
+				operation: "preview",
+			});
 			if (!branchName) return;
 			previewGitSwitchTree(branchName, opts);
 			return;
 		}
-		const name = validateOptionalBranchName(opts.name);
+		const name = validateOptionalBranchName(opts.name, {
+			json: opts.json,
+			operation: "preview",
+		});
 		if (name === null) return;
 		previewGitTree(prefix, { ...opts, name });
 		return;
@@ -387,7 +423,10 @@ async function previewTree(
 		await previewSessionSwitchTree(prefix, opts);
 		return;
 	}
-	const name = validateOptionalBranchName(opts.name);
+	const name = validateOptionalBranchName(opts.name, {
+		json: opts.json,
+		operation: "preview",
+	});
 	if (name === null) return;
 	await previewSessionTree(prefix, { ...opts, name });
 }
@@ -414,7 +453,10 @@ async function forkTree(
 		process.exitCode = 1;
 		return;
 	}
-	const name = requireBranchName(opts.name);
+	const name = requireBranchName(opts.name, {
+		json: opts.json,
+		operation: "fork",
+	});
 	if (!name) return;
 	forkGitTree(prefix, { ...opts, name });
 }
@@ -426,7 +468,10 @@ async function switchTree(
 	const scope = parseScope(opts.scope, { json: opts.json, operation: "switch" });
 	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
-		const branchName = validateBranchName(target);
+		const branchName = validateBranchName(target, {
+			json: opts.json,
+			operation: "switch",
+		});
 		if (!branchName) return;
 		switchGitTree(branchName, opts);
 		return;

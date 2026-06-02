@@ -164,6 +164,31 @@ describe("refarm tree preview", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("prints invalid branch names as JSON when requested", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--name", "unsafe name", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "preview",
+			ok: false,
+			error: "invalid-tree-branch-name",
+			message: expect.stringContaining('Invalid branch name "unsafe name"'),
+			nextCommand: "refarm tree list --scope all --json",
+			nextCommands: ["refarm tree list --scope all --json"],
+			branchName: "unsafe name",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("fails closed for option-like branch names", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
