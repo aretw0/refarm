@@ -1218,8 +1218,8 @@ describe("refarm task list/logs/retry/cancel", () => {
 			ok: false,
 			error: "task-retry-rejected",
 			accepted: false,
-			nextAction: "refarm task status effort-abc --transport file",
-			nextCommand: "refarm task status effort-abc --transport file",
+			nextAction: "refarm task status effort-abc --transport file --json",
+			nextCommand: "refarm task status effort-abc --transport file --json",
 		});
 		expect(payload.nextCommands).toContain("refarm doctor --next-command");
 		expect(session.rememberControl).not.toHaveBeenCalled();
@@ -1260,10 +1260,10 @@ describe("refarm task list/logs/retry/cancel", () => {
 			transport: "http",
 			action: "retry",
 			accepted: false,
-			nextAction: "refarm task status effort-abc --transport http",
-			nextCommand: "refarm task status effort-abc --transport http",
+			nextAction: "refarm task status effort-abc --transport http --json",
+			nextCommand: "refarm task status effort-abc --transport http --json",
 			nextCommands: [
-				"refarm task status effort-abc --transport http",
+				"refarm task status effort-abc --transport http --json",
 				"refarm doctor --next-command",
 				"refarm runtime ensure --wait --next-command",
 			],
@@ -1382,8 +1382,8 @@ describe("refarm task list/logs/retry/cancel", () => {
 			ok: false,
 			error: "task-cancel-rejected",
 			accepted: false,
-			nextAction: "refarm task status effort-abc --transport file",
-			nextCommand: "refarm task status effort-abc --transport file",
+			nextAction: "refarm task status effort-abc --transport file --json",
+			nextCommand: "refarm task status effort-abc --transport file --json",
 		});
 		expect(payload.nextCommands).toContain("refarm doctor --next-command");
 		expect(session.rememberControl).not.toHaveBeenCalled();
@@ -1424,10 +1424,10 @@ describe("refarm task list/logs/retry/cancel", () => {
 			transport: "http",
 			action: "cancel",
 			accepted: false,
-			nextAction: "refarm task status effort-abc --transport http",
-			nextCommand: "refarm task status effort-abc --transport http",
+			nextAction: "refarm task status effort-abc --transport http --json",
+			nextCommand: "refarm task status effort-abc --transport http --json",
 			nextCommands: [
-				"refarm task status effort-abc --transport http",
+				"refarm task status effort-abc --transport http --json",
 				"refarm doctor --next-command",
 				"refarm runtime ensure --wait --next-command",
 			],

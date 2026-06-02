@@ -245,7 +245,9 @@ function reportTaskControlError(
 	opts: { json?: boolean },
 ): void {
 	const message = err instanceof Error ? err.message : String(err);
-	const statusCommand = buildTaskStatusCommand(effortId, transport);
+	const statusCommand = buildTaskStatusCommand(effortId, transport, {
+		json: opts.json,
+	});
 	if (opts.json) {
 		printJson(
 			buildJsonErrorEnvelope({
@@ -1280,7 +1282,9 @@ Notes:
 				opts.transport,
 				adapterResolver,
 			);
-			const statusCommand = buildTaskStatusCommand(effortId, transport);
+			const statusCommand = buildTaskStatusCommand(effortId, transport, {
+				json: opts.json,
+			});
 			let accepted: boolean;
 			try {
 				accepted = await adapter.retry(effortId);
@@ -1367,7 +1371,9 @@ Notes:
 				opts.transport,
 				adapterResolver,
 			);
-			const statusCommand = buildTaskStatusCommand(effortId, transport);
+			const statusCommand = buildTaskStatusCommand(effortId, transport, {
+				json: opts.json,
+			});
 			let accepted: boolean;
 			try {
 				accepted = await adapter.cancel(effortId);
