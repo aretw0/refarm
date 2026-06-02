@@ -128,6 +128,16 @@ function createSessionTimelineNode(
 	};
 }
 
+function buildSessionTimelineNodes(
+	sessions: SessionNode[],
+	limit?: number,
+): RefarmSessionTimelineNode[] {
+	const nodes = [...sessions]
+		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
+		.map(createSessionTimelineNode);
+	return typeof limit === "number" ? nodes.slice(0, limit) : nodes;
+}
+
 async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	const suffix = typeof limit === "number" ? `?limit=${limit}` : "";
 	const response = await fetch(sidecarUrl(`/sessions${suffix}`));
@@ -214,10 +224,7 @@ export async function getSessionTimelineNodes(
 	limit?: number,
 ): Promise<RefarmSessionTimelineNode[]> {
 	const sessions = await fetchSessions(limit);
-	const nodes = [...sessions]
-		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
-		.map(createSessionTimelineNode);
-	return typeof limit === "number" ? nodes.slice(0, limit) : nodes;
+	return buildSessionTimelineNodes(sessions, limit);
 }
 
 export async function listSessionTree(opts: {
@@ -236,11 +243,7 @@ export async function listSessionTree(opts: {
 		return;
 	}
 
-	const nodes = [...sessions]
-		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
-		.map(createSessionTimelineNode);
-	const visibleNodes =
-		typeof opts.limit === "number" ? nodes.slice(0, opts.limit) : nodes;
+	const visibleNodes = buildSessionTimelineNodes(sessions, opts.limit);
 
 	if (opts.json) {
 		outputTreeJson(buildSessionTimelineListEnvelope(visibleNodes));
