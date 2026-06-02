@@ -86,6 +86,7 @@
 		"refarm:host:smoke:auto:plan": "node scripts/ci/smoke-refarm-host-auto.mjs",
 		"refarm:host:smoke:auto:profiles": "node scripts/ci/smoke-refarm-host-auto.mjs --list-profiles",
 		"refarm:host:smoke:auto:profiles:json": "node scripts/ci/smoke-refarm-host-auto.mjs --list-profiles --json",
+		"refarm:host:smoke:auto:agent-e2e-mock": "node scripts/ci/smoke-refarm-host-auto.mjs --profile agent-e2e-mock --execute",
 		"refarm:host:smoke:auto:test": "node --test scripts/ci/test-smoke-refarm-host-auto.mjs",
 		"refarm:telemetry:gate": "node scripts/ci/refarm-telemetry-gate.mjs",
 		"refarm:telemetry:gate:ci": "node scripts/ci/refarm-telemetry-gate.mjs --profile balanced",

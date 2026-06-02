@@ -125,6 +125,7 @@ npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
+npm run refarm:host:smoke:auto:agent-e2e-mock
 npm run refarm:host:smoke:auto:test
 npm run refarm:actions:verify
 npm run refarm:tree:verify
@@ -177,7 +178,7 @@ npm run refarm:tree:verify
   diff-based auto lane.
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
-- `refarm:host:smoke:auto -- --profile agent-e2e-mock --execute` runs
+- `refarm:host:smoke:auto:agent-e2e-mock` runs
   `refarm:agent:e2e:mock`, the no-token runtime/pi-agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
   WASI LLM routing deltas before spending live provider tokens.
@@ -193,10 +194,11 @@ npm run refarm:tree:verify
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
   docs-only deltas still skip smoke. Manual `--profile` overrides also accept
   granular lane names such as `actions-headless`, `actions-renderers`,
-  `actions-test`, `actions-type`, `actions-dist`, `check`, `tree-test`, `tree-smoke`,
-  `tree-type`, `tree-farmhand`, and `tree-dist` for one-command narrow loop
-  previews/execution. Shared local helpers such as `execution-plan.ts` stay on
-  the `dev` lane because they feed more than one host contract.
+  `actions-test`, `actions-type`, `actions-dist`, `agent-e2e-mock`, `check`,
+  `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
+  one-command narrow loop previews/execution. Shared local helpers such as
+  `execution-plan.ts` stay on the `dev` lane because they feed more than one
+  host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 
@@ -214,6 +216,8 @@ npm run refarm:tree:verify
   `npm run refarm:host:smoke:auto:profiles:json`
 - **Explicit granular profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
+- **No-token agent e2e lane:**
+  `npm run refarm:host:smoke:auto:agent-e2e-mock`
 - **Machine-readable profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless --json`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`

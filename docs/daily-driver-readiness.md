@@ -130,9 +130,9 @@ the primary daily driver:
 1. End-to-end loop validation: exercise `runtime up → ask → session → resume →
    finish` as an actual operator slice and fix what breaks. Start with
    `refarm:agent:e2e:mock` or
-   `npm run refarm:host:smoke:auto -- --profile agent-e2e-mock --execute` for
-   the no-token execution-plane gate, then run live provider checks only when
-   explicitly needed.
+   `npm run refarm:host:smoke:auto:agent-e2e-mock` for the no-token
+   execution-plane gate, then run live provider checks only when explicitly
+   needed.
 2. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
 3. Model and credential operations: make provider/model/login changes
