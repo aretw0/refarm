@@ -1284,6 +1284,9 @@ describe("JSON next command contract", () => {
 			const taskReadCommandsWithoutJson = commandEntries
 				.filter(({ command }) => isTaskReadCommand(command) && !isJsonCommand(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const taskReadActionsWithoutJson = actionEntries
+				.filter(({ action }) => isTaskReadCommand(action) && !isJsonCommand(action))
+				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
 				.map((payload) => payload.sampleId);
@@ -1303,6 +1306,7 @@ describe("JSON next command contract", () => {
 			expect(commandFieldPlaceholderLeaks).toEqual([]);
 			expect(replOnly).toEqual([]);
 			expect(taskReadCommandsWithoutJson).toEqual([]);
+			expect(taskReadActionsWithoutJson).toEqual([]);
 			expect(missingNextActions).toEqual([]);
 			expect(missingNextCommands).toEqual([]);
 		} finally {
