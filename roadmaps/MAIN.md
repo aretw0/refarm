@@ -229,6 +229,19 @@ Cultivating AI directly into the Refarm execution engine ("Tractor").
 
 ---
 
+## Ecossistema de consumidores (convergência futura)
+
+Projetos externos que serão impactados quando Refarm estabilizar como engine:
+
+| Projeto | Relação com Refarm | Contrato de entrada |
+|---|---|---|
+| [agents-lab](https://github.com/aretw0/agents-lab) | Pi hoje como engine operacional; primitivas já desacopladas por `engine:boundary:audit`; Refarm é a próxima fronteira | primitive testável sem runtime Refarm; adapter Pi/Refarm intercambiável |
+| [vault-seed](https://github.com/aretw0/vault-seed) | consome primitivas de agents-lab via `dgk-cli`; substituirá Pi por Refarm quando o adapter existir | interface do template (`vault.config.yaml` + CI gates) não deve mudar ao trocar engine |
+
+**Critério de integração**: nenhum consumidor importa engine diretamente no core. A interface precede o adapter.
+
+---
+
 ## 🚀 Vision 2026: AI Agent Sovereignty
 
 Beyond v0.2.0, Refarm enters the "Sovereign Agent" era.
