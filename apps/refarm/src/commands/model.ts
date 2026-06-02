@@ -200,6 +200,72 @@ function modelRouteCredentialStatus(
 	};
 }
 
+function stringToken(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: undefined;
+}
+
+function oauthCredentialApiKey(tokens: ModelTokens): string | undefined {
+	const oauthProvider = stringToken(tokens.oauthProvider);
+	if (!oauthProvider) return undefined;
+	const credentials = tokens.oauthCredentials;
+	if (!credentials || typeof credentials !== "object") return undefined;
+	const record = credentials as Record<string, unknown>;
+	const credential = record[oauthProvider];
+	if (typeof credential === "string") return stringToken(credential);
+	if (!credential || typeof credential !== "object") return undefined;
+	const values = credential as Record<string, unknown>;
+	return (
+		stringToken(values.access) ??
+		stringToken(values.accessToken) ??
+		stringToken(values.apiKey)
+	);
+}
+
+function modelRuntimeCredentialEnv(
+	provider: string | undefined,
+	tokens: ModelTokens,
+): [string, string] | null {
+	const envKey = modelCredentialEnvKey(provider);
+	if (!envKey || process.env[envKey]) return null;
+	const apiKey = stringToken(tokens.modelApiKey) ?? oauthCredentialApiKey(tokens);
+	return apiKey ? [envKey, apiKey] : null;
+}
+
+function shellQuote(value: string): string {
+	return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function printModelEnvShell(tokens: ModelTokens): void {
+	const status = buildCurrentModelStatus(tokens);
+	const entries: [string, string][] = [];
+	if (status.current.provider) {
+		entries.push([MODEL_PROVIDER_ENV_VAR, status.current.provider]);
+	}
+	if (status.current.modelId) {
+		entries.push([MODEL_ID_ENV_VAR, status.current.modelId]);
+	}
+	if (status.baseUrl) {
+		entries.push([MODEL_BASE_URL_ENV_VAR, status.baseUrl]);
+	}
+	if (status.fallback) {
+		const fallback = parseModelRef(status.fallback, status.current.provider);
+		if (fallback?.provider) {
+			entries.push([MODEL_FALLBACK_PROVIDER_ENV_VAR, fallback.provider]);
+		}
+		if (fallback?.modelId) {
+			entries.push([MODEL_FALLBACK_MODEL_ID_ENV_VAR, fallback.modelId]);
+		}
+	}
+	const credential = modelRuntimeCredentialEnv(status.current.provider, tokens);
+	if (credential) entries.push(credential);
+
+	for (const [key, value] of entries) {
+		console.log(`export ${key}=${shellQuote(value)}`);
+	}
+}
+
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 	return Boolean(
 		tokens.modelRoutes &&
@@ -853,6 +919,33 @@ Notes:
 				return;
 			}
 			printKnownModelProviders();
+		});
+
+	command
+		.command("env")
+		.description("Print shell exports for the current model runtime")
+		.option("--shell", "Output POSIX shell export statements")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model env --shell
+  $ eval "$(refarm model env --shell)"
+
+Notes:
+  This command is intended for runtime launch scripts. It prints only model
+  routing variables and the current provider credential when available from
+  Silo. It does not call the model provider.
+`,
+		)
+		.action(async (opts: { shell?: boolean }) => {
+			const tokens = await deps.loadTokens();
+			if (!opts.shell) {
+				console.log("Use --shell to print model runtime exports.");
+				return;
+			}
+			printModelEnvShell(tokens);
 		});
 
 	command

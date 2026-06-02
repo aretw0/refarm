@@ -126,6 +126,62 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints shell runtime env from Silo API key", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelApiKey: "sk-silo-test",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["env", "--shell"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("export MODEL_PROVIDER='openai'");
+		expect(output).toContain("export MODEL_ID='gpt-5.5'");
+		expect(output).toContain("export OPENAI_API_KEY='sk-silo-test'");
+
+		logSpy.mockRestore();
+	});
+
+	it("prints shell runtime env from Silo OAuth credentials", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			oauthProvider: "openai-codex",
+			oauthCredentials: {
+				"openai-codex": { access: "oauth-access-test" },
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["env", "--shell"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("export OPENAI_API_KEY='oauth-access-test'");
+
+		logSpy.mockRestore();
+	});
+
+	it("does not print model runtime secrets without --shell", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai",
+			modelApiKey: "sk-silo-test",
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["env"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Use --shell");
+		expect(output).not.toContain("sk-silo-test");
+
+		logSpy.mockRestore();
+	});
+
 	it("prints operator recovery for missing scoped route credentials", async () => {
 		const deps = makeDeps({
 			modelProvider: "ollama",

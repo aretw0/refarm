@@ -142,6 +142,13 @@ if [ -z "${MODEL_PROVIDER:-}" ]; then
   export MODEL_PROVIDER
 fi
 
+if [ -f "$REFARM_CLI" ]; then
+  _model_env_exports="$(node "$REFARM_CLI" model env --shell 2>/dev/null || true)"
+  if [ -n "$_model_env_exports" ]; then
+    eval "$_model_env_exports"
+  fi
+fi
+
 # ── key check ─────────────────────────────────────────────────────────────────
 
 require_key() {
