@@ -150,6 +150,22 @@ const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 		]),
 };
 
+function hasCommandFlag(command: string, flag: string): boolean {
+	return new RegExp(`(?:^|\\s)${flag}(?:\\s|$)`).test(command);
+}
+
+function ensureCommandFlag(command: string, flag: string): string {
+	return hasCommandFlag(command, flag) ? command : `${command} ${flag}`;
+}
+
+function taskReadJsonCommand(command: string): string {
+	return ensureCommandFlag(command, "--json");
+}
+
+function taskWatchJsonCommand(command: string): string {
+	return taskReadJsonCommand(ensureCommandFlag(command, "--watch"));
+}
+
 export function formatOperatorResumeSessionId(id: string): string {
 	const parts = id.split(":");
 	return parts.at(-1)?.slice(-12) ?? id;
@@ -278,8 +294,8 @@ export function operatorResumeNextCommands(
 	// Task: active effort takes priority; checkpoints resume before generic list.
 	if (summary.tasks.activeEffort) {
 		nextCommands.push(
-			`${summary.tasks.activeEffort.statusCommand} --watch`,
-			summary.tasks.activeEffort.logsCommand,
+			taskWatchJsonCommand(summary.tasks.activeEffort.statusCommand),
+			taskReadJsonCommand(summary.tasks.activeEffort.logsCommand),
 		);
 	} else if (summary.tasks.totalEfforts > 0) {
 		nextCommands.push(resolved.taskResume);

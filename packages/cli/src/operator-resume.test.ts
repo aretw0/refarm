@@ -159,6 +159,31 @@ describe("operator resume", () => {
 		]);
 	});
 
+	it("keeps active effort resume handoffs in JSON mode", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				activeEffortId: "effort-1",
+				efforts: [
+					{
+						effortId: "effort-1",
+						transport: "file",
+						lastStatus: "in-progress",
+						statusCommand: "refarm task status effort-1 --transport file",
+						logsCommand: "refarm task logs effort-1 --transport file",
+					},
+				],
+			},
+		});
+
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"refarm task status effort-1 --transport file --watch --json",
+			"refarm task logs effort-1 --transport file --json",
+		]);
+	});
+
 	it("prioritizes finish recovery when runtime is ready", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({

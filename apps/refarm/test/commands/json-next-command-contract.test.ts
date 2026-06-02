@@ -82,6 +82,14 @@ function hasHardcodedPackageManagerCommand(value: string): boolean {
 	return /["'`]\s*(?:pnpm|npm|yarn|bun)\b/.test(value);
 }
 
+function isTaskReadCommand(value: string): boolean {
+	return /^refarm task (?:status|logs)\b/.test(value);
+}
+
+function isJsonCommand(value: string): boolean {
+	return /\s--json(?:\s|$)/.test(value);
+}
+
 function generatedExecutableCommands(payloads: {
 	nextCommand?: string | null;
 	nextCommands?: string[];
@@ -1273,6 +1281,9 @@ describe("JSON next command contract", () => {
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
+			const taskReadCommandsWithoutJson = commandEntries
+				.filter(({ command }) => isTaskReadCommand(command) && !isJsonCommand(command))
+				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
 				.map((payload) => payload.sampleId);
@@ -1291,6 +1302,7 @@ describe("JSON next command contract", () => {
 			expect(handoffPlaceholders).toEqual([]);
 			expect(commandFieldPlaceholderLeaks).toEqual([]);
 			expect(replOnly).toEqual([]);
+			expect(taskReadCommandsWithoutJson).toEqual([]);
 			expect(missingNextActions).toEqual([]);
 			expect(missingNextCommands).toEqual([]);
 		} finally {
