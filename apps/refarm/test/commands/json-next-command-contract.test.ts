@@ -229,6 +229,36 @@ function generatedCommandFieldPlaceholderLeaks(
 	);
 }
 
+function generatedCommandFieldsWithoutJson(
+	value: unknown,
+	options: { path?: string[] } = {},
+): string[] {
+	const path = options.path ?? [];
+	if (typeof value === "string") {
+		const key = path.at(-1) ?? "";
+		const isCommandField = /command/i.test(key);
+		const mustStayJson =
+			isTaskReadCommand(value) || isProvisionTurboCacheCommand(value);
+		if (isCommandField && mustStayJson && !isJsonCommand(value)) {
+			return [`${path.join(".")}: ${value}`];
+		}
+		return [];
+	}
+	if (!value || typeof value !== "object") return [];
+	if (Array.isArray(value)) {
+		return value.flatMap((entry, index) =>
+			generatedCommandFieldsWithoutJson(entry, {
+				path: [...path, String(index)],
+			}),
+		);
+	}
+	return Object.entries(value).flatMap(([key, entry]) =>
+		generatedCommandFieldsWithoutJson(entry, {
+			path: [...path, key],
+		}),
+	);
+}
+
 function makeReadyStatus(renderer: "tui" | "web") {
 	return {
 		schemaVersion: 1 as const,
@@ -1328,6 +1358,10 @@ describe("JSON next command contract", () => {
 				generatedCommandFieldPlaceholderLeaks(payload)
 					.map((leak) => `${payload.sampleId}.${leak}`),
 			);
+			const commandFieldsWithoutJson = payloads.flatMap((payload) =>
+				generatedCommandFieldsWithoutJson(payload)
+					.map((leak) => `${payload.sampleId}.${leak}`),
+			);
 			const singularPluralMismatches = singularPluralHandoffMismatches(payloads);
 
 			expect(placeholders).toEqual([]);
@@ -1336,6 +1370,7 @@ describe("JSON next command contract", () => {
 			expect(actionInteractiveSow).toEqual([]);
 			expect(handoffPlaceholders).toEqual([]);
 			expect(commandFieldPlaceholderLeaks).toEqual([]);
+			expect(commandFieldsWithoutJson).toEqual([]);
 			expect(replOnly).toEqual([]);
 			expect(taskReadCommandsWithoutJson).toEqual([]);
 			expect(taskReadActionsWithoutJson).toEqual([]);
