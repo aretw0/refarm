@@ -166,6 +166,38 @@ function taskWatchJsonCommand(command: string): string {
 	return taskReadJsonCommand(ensureCommandFlag(command, "--watch"));
 }
 
+function taskJsonRecord(
+	effort: OperatorResumeTaskRecord,
+): OperatorResumeTaskRecord {
+	return {
+		...effort,
+		statusCommand: taskReadJsonCommand(effort.statusCommand),
+		logsCommand: taskReadJsonCommand(effort.logsCommand),
+	};
+}
+
+function taskJsonSummary(
+	tasks: OperatorResumeTaskSummary,
+): OperatorResumeTaskSummary {
+	const recentEfforts = tasks.recentEfforts.map(taskJsonRecord);
+	return {
+		...tasks,
+		activeEffort: tasks.activeEffort
+			? taskJsonRecord(tasks.activeEffort)
+			: undefined,
+		recentEfforts,
+	};
+}
+
+function operatorResumeJsonSummary(
+	summary: OperatorResumeSummary,
+): OperatorResumeSummary {
+	return {
+		...summary,
+		tasks: taskJsonSummary(summary.tasks),
+	};
+}
+
 export function formatOperatorResumeSessionId(id: string): string {
 	const parts = id.split(":");
 	return parts.at(-1)?.slice(-12) ?? id;
@@ -316,7 +348,7 @@ export function buildOperatorResumeEnvelope(
 		operation: "operator",
 		nextActions: nextCommands,
 		nextCommands,
-		extra: summary,
+		extra: operatorResumeJsonSummary(summary),
 	});
 }
 

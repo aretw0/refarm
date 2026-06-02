@@ -184,6 +184,41 @@ describe("operator resume", () => {
 		]);
 	});
 
+	it("keeps task command fields JSON-readable in resume envelopes", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+
+		expect(buildOperatorResumeEnvelope({
+			status: readyStatus,
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				activeEffortId: "effort-1",
+				efforts: [
+					{
+						effortId: "effort-1",
+						transport: "file",
+						lastStatus: "in-progress",
+						statusCommand: "refarm task status effort-1 --transport file",
+						logsCommand: "refarm task logs effort-1 --transport file",
+					},
+				],
+			},
+		})).toMatchObject({
+			nextCommand: "refarm task status effort-1 --transport file --watch --json",
+			tasks: {
+				activeEffort: {
+					statusCommand: "refarm task status effort-1 --transport file --json",
+					logsCommand: "refarm task logs effort-1 --transport file --json",
+				},
+				recentEfforts: [
+					{
+						statusCommand: "refarm task status effort-1 --transport file --json",
+						logsCommand: "refarm task logs effort-1 --transport file --json",
+					},
+				],
+			},
+		});
+	});
+
 	it("prioritizes finish recovery when runtime is ready", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({

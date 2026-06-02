@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentFinishSessionRecorder } from "../../src/commands/agent-finish-session.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
 import type {
-TaskSessionCheckpoint,
-TaskSessionRecorder,
+	TaskSessionCheckpoint,
+	TaskSessionRecorder,
 } from "../../src/commands/task-session.js";
 
 const status: RefarmStatusJson = {
@@ -144,6 +144,56 @@ describe("resume command", () => {
 			expect.stringContaining('"nextCommand": "refarm model current --json"'),
 		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"model": {'));
+		spy.mockRestore();
+	});
+
+	it("prints task checkpoint command fields as JSON handoffs", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder({
+				version: 1,
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				activeEffortId: "effort-1",
+				efforts: [
+					{
+						effortId: "effort-1",
+						transport: "file",
+						lastStatus: "in-progress",
+						statusCommand: "refarm task status effort-1 --transport file",
+						logsCommand: "refarm task logs effort-1 --transport file",
+					},
+				],
+			}),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			tasks: {
+				activeEffort?: { statusCommand: string; logsCommand: string };
+				recentEfforts: Array<{ statusCommand: string; logsCommand: string }>;
+			};
+		};
+		expect(payload.tasks.activeEffort).toMatchObject({
+			statusCommand: "refarm task status effort-1 --transport file --json",
+			logsCommand: "refarm task logs effort-1 --transport file --json",
+		});
+		expect(payload.tasks.recentEfforts[0]).toMatchObject({
+			statusCommand: "refarm task status effort-1 --transport file --json",
+			logsCommand: "refarm task logs effort-1 --transport file --json",
+		});
 		spy.mockRestore();
 	});
 
