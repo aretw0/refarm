@@ -95,6 +95,17 @@ describe("package manager command resolution", () => {
 				{
 					id: "plugin-bundle-dry-run",
 					command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					process: {
+						command: "refarm",
+						args: [
+							"plugin",
+							"bundle",
+							"<plugin.wasm>",
+							"--dry-run",
+							"--json",
+						],
+						display: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					},
 					parameters: ["plugin.wasm"],
 					useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
 				},
@@ -140,6 +151,17 @@ describe("package manager command resolution", () => {
 				{
 					id: "plugin-bundle-dry-run",
 					command: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					process: {
+						command: "refarm",
+						args: [
+							"plugin",
+							"bundle",
+							"<plugin.wasm>",
+							"--dry-run",
+							"--json",
+						],
+						display: "refarm plugin bundle <plugin.wasm> --dry-run --json",
+					},
 					parameters: ["plugin.wasm"],
 					useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
 				},

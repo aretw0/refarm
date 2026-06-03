@@ -78,6 +78,9 @@ commands an operator agent can execute directly:
   `commandTemplateParameters` validates placeholder declarations and
   `instantiateProcessTemplate` turns a parameterized process template into a
   spawn-ready `command` + `args` spec without shell parsing.
+- Public template catalogs that include placeholders should expose `process`
+  whenever the producer knows the executable argv. Keep `command` for operator
+  display and backwards compatibility.
 - Execution-plan handoffs may attach `process` to generated templates via
   `processTemplate`; machine runners should prefer that over parsing
   `template.command`.

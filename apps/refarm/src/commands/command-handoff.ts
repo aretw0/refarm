@@ -4,6 +4,8 @@ import {
 	type ApplicationProcessSpec,
 } from "@refarm.dev/cli/command-handoff";
 
+export type { ApplicationProcessSpec };
+
 export {
 	applicationCommand,
 	applicationProcess,

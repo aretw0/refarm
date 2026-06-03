@@ -11,7 +11,11 @@ import {
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
-import { refarmCommand } from "./command-handoff.js";
+import {
+	refarmCommand,
+	refarmProcess,
+	type ApplicationProcessSpec,
+} from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 
 export type { PackageManagerName } from "@refarm.dev/config";
@@ -39,6 +43,7 @@ export interface PackageManagerStatus {
 	templates: Array<{
 		id: string;
 		command: string;
+		process?: ApplicationProcessSpec;
 		parameters: string[];
 		useWhen: string;
 	}>;
@@ -101,6 +106,13 @@ export function buildPackageManagerStatus(options: {
 			{
 				id: "plugin-bundle-dry-run",
 				command: refarmCommand([
+					"plugin",
+					"bundle",
+					"<plugin.wasm>",
+					"--dry-run",
+					"--json",
+				]),
+				process: refarmProcess([
 					"plugin",
 					"bundle",
 					"<plugin.wasm>",

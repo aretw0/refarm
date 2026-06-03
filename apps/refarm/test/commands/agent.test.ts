@@ -223,16 +223,39 @@ describe("agent command", () => {
 					expect.objectContaining({
 						id: "worker-task-run",
 						command: "refarm task run <plugin> <fn> --args '{}' --json",
+						process: {
+							command: "refarm",
+							args: [
+								"task",
+								"run",
+								"<plugin>",
+								"<fn>",
+								"--args",
+								"{}",
+								"--json",
+							],
+							display: "refarm task run <plugin> <fn> --args '{}' --json",
+						},
 						parameters: ["plugin", "fn"],
 					}),
 					expect.objectContaining({
 						id: "worker-task-status",
 						command: "refarm task status <effort-id> --json",
+						process: {
+							command: "refarm",
+							args: ["task", "status", "<effort-id>", "--json"],
+							display: "refarm task status <effort-id> --json",
+						},
 						parameters: ["effort-id"],
 					}),
 					expect.objectContaining({
 						id: "worker-task-logs",
 						command: "refarm task logs <effort-id> --json",
+						process: {
+							command: "refarm",
+							args: ["task", "logs", "<effort-id>", "--json"],
+							display: "refarm task logs <effort-id> --json",
+						},
 						parameters: ["effort-id"],
 					}),
 				]),

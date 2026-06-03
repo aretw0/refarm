@@ -1428,6 +1428,10 @@ describe("JSON next command contract", () => {
 					.some((parameter) => !template.parameters.includes(parameter)),
 			)
 			.map((template) => template.command);
+		const parameterizedTemplatesWithoutProcess = templates
+			.filter((template) => commandTemplateParameters(template.command).length > 0)
+			.filter((template) => !template.process)
+			.map((template) => template.command);
 
 		expect(templateCommands).toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
@@ -1458,6 +1462,7 @@ describe("JSON next command contract", () => {
 		);
 		expect(actions.filter((action) => /<[^>]+>/.test(action))).toEqual([]);
 		expect(templatesWithUndeclaredParameters).toEqual([]);
+		expect(parameterizedTemplatesWithoutProcess).toEqual([]);
 		expect(templates).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
