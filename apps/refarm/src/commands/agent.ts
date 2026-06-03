@@ -57,6 +57,10 @@ function agentFinishCommand(args: string[]): string {
 	return refarmCommand(["agent", "finish", ...args]);
 }
 
+function agentFinishProcess(args: string[]) {
+	return refarmProcess(["agent", "finish", ...args]);
+}
+
 const agentFinishLaneCatalog = [
 	{
 		id: "after-edit",
@@ -156,12 +160,27 @@ function agentFinishTemplates() {
 				"<dir>",
 				"--next-command",
 			]),
+			process: agentFinishProcess([
+				"--profile",
+				"package",
+				"--workspace",
+				"<dir>",
+				"--next-command",
+			]),
 			parameters: ["dir"],
 			useWhen: "Validate a known workspace/package directory without using Git status.",
 		},
 		{
 			id: "package-workspace-run",
 			command: agentFinishCommand([
+				"--profile",
+				"package",
+				"--workspace",
+				"<dir>",
+				"--run",
+				"--next-command",
+			]),
+			process: agentFinishProcess([
 				"--profile",
 				"package",
 				"--workspace",
@@ -183,6 +202,15 @@ function agentFinishTemplates() {
 				"--run",
 				"--next-command",
 			]),
+			process: agentFinishProcess([
+				"--fix",
+				"--profile",
+				"package",
+				"--workspace",
+				"<dir>",
+				"--run",
+				"--next-command",
+			]),
 			parameters: ["dir"],
 			useWhen: "Organize imports, then execute validation for a known workspace/package directory.",
 		},
@@ -196,12 +224,28 @@ function agentFinishTemplates() {
 				"--run",
 				"--json",
 			]),
+			process: agentFinishProcess([
+				"--profile",
+				"affected",
+				"--since",
+				"<ref>",
+				"--run",
+				"--json",
+			]),
 			parameters: ["ref"],
 			useWhen: "Validate affected workspaces against an explicit Git ref.",
 		},
 		{
 			id: "affected-since-ref-run-command",
 			command: agentFinishCommand([
+				"--profile",
+				"affected",
+				"--since",
+				"<ref>",
+				"--run",
+				"--next-command",
+			]),
+			process: agentFinishProcess([
 				"--profile",
 				"affected",
 				"--since",
