@@ -3,7 +3,7 @@ export function quoteCommandArg(value: string): string {
 }
 
 export function quoteCommandArgIfNeeded(value: string): string {
-	return /^[A-Za-z0-9._:@/-]+$/.test(value) ? value : quoteCommandArg(value);
+	return /^[A-Za-z0-9._:@/\\-]+$/.test(value) ? value : quoteCommandArg(value);
 }
 
 export function joinCommand(parts: string[]): string {
@@ -28,8 +28,14 @@ export function binaryCommand(binary: string, args: string[]): string {
 	return joinCommand([binary, ...args]);
 }
 
+function applicationCommandOverrideEnv(binary: string): string {
+	return `${binary.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_COMMAND`;
+}
+
 export function applicationCommand(binary: string, args: string[]): string {
-	return binaryCommand(binary, args);
+	const override = process.env[applicationCommandOverrideEnv(binary)]?.trim();
+	const command = override ? quoteCommandArgIfNeeded(override) : binary;
+	return binaryCommand(command, args);
 }
 
 export function workspaceCommand(cwd: string, command: string): string {

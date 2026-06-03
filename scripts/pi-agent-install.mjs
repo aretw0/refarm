@@ -107,6 +107,7 @@ function ensureRefarmCliShim() {
   const shimPath = path.join(binDir, "refarm");
   const shimBody = `#!/usr/bin/env bash
 set -euo pipefail
+export REFARM_COMMAND=${JSON.stringify(shimPath)}
 exec node --import ${JSON.stringify(loaderEntry)} ${JSON.stringify(distEntry)} "$@"
 `;
 

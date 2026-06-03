@@ -91,6 +91,7 @@ const loaderSpecifier = pathToFileURL(LOADER_ENTRY).href;
 const shimPath = path.join(binDir, "refarm");
 const shimBody = `#!/usr/bin/env bash
 set -euo pipefail
+export REFARM_COMMAND=${JSON.stringify(shimPath)}
 exec node --import ${JSON.stringify(loaderSpecifier)} ${JSON.stringify(DIST_ENTRY)} "$@"
 `;
 
@@ -101,7 +102,7 @@ console.log(`[install-refarm-cli] Installed refarm shim -> ${shimPath}`);
 
 if (process.platform === "win32") {
   const cmdPath = path.join(binDir, "refarm.cmd");
-  const cmdBody = `@echo off\r\nnode --import "${loaderSpecifier}" "${DIST_ENTRY}" %*\r\n`;
+  const cmdBody = `@echo off\r\nset "REFARM_COMMAND=%~f0"\r\nnode --import "${loaderSpecifier}" "${DIST_ENTRY}" %*\r\n`;
   writeFileSync(cmdPath, cmdBody);
   console.log(`[install-refarm-cli] Installed refarm cmd shim -> ${cmdPath}`);
 }

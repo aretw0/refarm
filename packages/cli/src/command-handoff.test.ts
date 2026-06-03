@@ -38,6 +38,22 @@ describe("command handoff helpers", () => {
 		);
 	});
 
+	it("uses per-application command overrides for executable handoffs", () => {
+		const previous = process.env.TOOL_COMMAND;
+		process.env.TOOL_COMMAND = "C:\\tmp\\tool.cmd";
+		try {
+			expect(applicationCommand("tool", ["resume", "--json"])).toBe(
+				"C:\\tmp\\tool.cmd resume --json",
+			);
+		} finally {
+			if (previous === undefined) {
+				delete process.env.TOOL_COMMAND;
+			} else {
+				process.env.TOOL_COMMAND = previous;
+			}
+		}
+	});
+
 	it("keeps applicationCommand as a product-agnostic binary wrapper", () => {
 		const args = ["ask", quoteCommandArg("hello"), "--json"];
 		expect(binaryCommand("tool", args)).toBe(applicationCommand("tool", args));
