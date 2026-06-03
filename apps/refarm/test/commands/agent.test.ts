@@ -119,6 +119,7 @@ describe("agent command", () => {
 			credentials: {
 				configureInteractive: string;
 				configureJson: string;
+				doctor: string;
 				inspectCurrent: string;
 				inspectProviders: string;
 				localNoKeyModel: string;
@@ -205,6 +206,7 @@ describe("agent command", () => {
 			credentials: {
 				configureInteractive: "refarm sow",
 				configureJson: "refarm sow --json",
+				doctor: "refarm model doctor --json",
 				inspectCurrent: "refarm model current --json",
 				inspectProviders: "refarm model providers --json",
 				localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
@@ -320,6 +322,7 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextActions).toContain("refarm package-manager --json");
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
+		expect(payload.nextActions).toContain("refarm model doctor --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
 		expect(payload.nextActions).toContain("refarm task list --json");
 		expect(payload.nextActions).toContain("refarm resume --json");
@@ -347,6 +350,7 @@ describe("agent command", () => {
 			"refarm sow --model ollama/llama3.2 --json",
 			"refarm sow --json",
 			"refarm model current --json",
+			"refarm model doctor --json",
 			"refarm model providers --json",
 			"refarm package-manager --json",
 			"refarm config profile coding --local --json",

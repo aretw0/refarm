@@ -28,6 +28,7 @@ import {
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_DOCTOR_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPENAI_DEFAULT_REF,
 	OPENAI_MODEL_JSON_COMMAND,
@@ -218,6 +219,7 @@ const agentRuntimePlan = {
 	credentials: {
 		configureInteractive: SOW_INTERACTIVE_COMMAND,
 		configureJson: SOW_JSON_COMMAND,
+		doctor: MODEL_DOCTOR_JSON_COMMAND,
 		inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
 		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
 		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
@@ -1179,6 +1181,7 @@ Notes:
 						agentRuntimePlan.runtime.ensure,
 						agentRuntimePlan.usage.resume,
 						MODEL_CURRENT_JSON_COMMAND,
+						MODEL_DOCTOR_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
 						agentRuntimePlan.environment.codingProfile,
 						MODEL_PROVIDERS_JSON_COMMAND,
@@ -1208,6 +1211,7 @@ Notes:
 						LOCAL_MODEL_JSON_COMMAND,
 						SOW_JSON_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,
+						MODEL_DOCTOR_JSON_COMMAND,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
 						agentRuntimePlan.environment.codingProfile,
