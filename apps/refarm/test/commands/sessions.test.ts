@@ -498,6 +498,47 @@ describe("refarm sessions", () => {
 		});
 	});
 
+	it("sessions show exposes canonical runtime-agent participants for legacy sessions", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session: {
+						"@id": "urn:refarm:session:v1:abc123def456",
+						"@type": "Session",
+						participants: ["urn:refarm:agent:pi-agent"],
+					},
+					entries: [],
+					total: 0,
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "show",
+			session: {
+				participants: ["urn:refarm:agent:pi-agent"],
+			},
+			canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+			participantAliases: [
+				{
+					participantId: "urn:refarm:agent:pi-agent",
+					canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+				},
+			],
+			ok: true,
+		});
+	});
+
 	it("sessions show does not suggest using the already active session", async () => {
 		vi.stubGlobal(
 			"fetch",

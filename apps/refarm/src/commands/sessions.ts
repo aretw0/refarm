@@ -1,3 +1,4 @@
+import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 
@@ -30,6 +31,7 @@ interface SessionNode {
 	created_at_ns?: number;
 	leaf_entry_id?: string | null;
 	parent_session_id?: string | null;
+	participants?: string[];
 }
 
 interface HistoryEntry {
@@ -43,6 +45,13 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
+	canonicalParticipants?: string[];
+	participantAliases?: SessionParticipantAlias[];
+}
+
+interface SessionParticipantAlias {
+	participantId: string;
+	canonicalParticipantId: string;
 }
 
 interface SessionListReport {
@@ -85,6 +94,8 @@ interface SessionsCommandServices {
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
+const AGENT_PARTICIPANT_PREFIX = "urn:refarm:agent:";
+const RUNTIME_AGENT_PARTICIPANT_ID = `${AGENT_PARTICIPANT_PREFIX}runtime-agent`;
 
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
@@ -92,6 +103,34 @@ function sessionShowJsonCommand(sessionId: string): string {
 
 function sessionUseJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "use", quoteCommandArg(sessionId), "--json"]);
+}
+
+function canonicalSessionParticipantId(participantId: string): string {
+	const agentId = participantId.startsWith(AGENT_PARTICIPANT_PREFIX)
+		? participantId.slice(AGENT_PARTICIPANT_PREFIX.length)
+		: participantId;
+	return isRuntimeAgentPluginId(agentId)
+		? RUNTIME_AGENT_PARTICIPANT_ID
+		: participantId;
+}
+
+function enrichSessionHistory(history: SessionHistory): SessionHistory {
+	const participants = history.session.participants ?? [];
+	if (participants.length === 0) return history;
+	const canonicalParticipants = participants.map(canonicalSessionParticipantId);
+	const participantAliases = participants
+		.map((participantId, index): SessionParticipantAlias | null => {
+			const canonicalParticipantId = canonicalParticipants[index]!;
+			return participantId === canonicalParticipantId
+				? null
+				: { participantId, canonicalParticipantId };
+		})
+		.filter((alias): alias is SessionParticipantAlias => alias !== null);
+	return {
+		...history,
+		canonicalParticipants,
+		...(participantAliases.length > 0 ? { participantAliases } : {}),
+	};
 }
 
 function printSessionJsonSuccess<TExtra extends object>(
@@ -753,7 +792,7 @@ async function showSession(
 			process.exitCode = 1;
 			return;
 		}
-		history = body;
+		history = enrichSessionHistory(body);
 	} catch (err) {
 		reportSidecarError(err, {
 			json: opts.json,
@@ -790,7 +829,7 @@ async function showSession(
 
 	for (const entry of history.entries) {
 		const isUser = entry.kind === "user";
-		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Pi ");
+		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Agent");
 		console.log(label);
 		const lines = entry.content.split("\n");
 		for (const line of lines) {
