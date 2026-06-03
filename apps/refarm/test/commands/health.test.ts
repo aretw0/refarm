@@ -8,6 +8,7 @@ const {
   mockRefarmProjectAuditor,
   mockExistsSync,
   mockReadFileSync,
+  mockWriteFileSync,
 } = vi.hoisted(() => ({
   mockAudit: vi.fn().mockResolvedValue({ git: [], builds: [], alignment: [] }),
   mockCheckResolutionStatus: vi.fn().mockResolvedValue([]),
@@ -16,6 +17,7 @@ const {
   mockRefarmProjectAuditor: vi.fn(),
   mockExistsSync: vi.fn().mockReturnValue(false),
   mockReadFileSync: vi.fn(),
+  mockWriteFileSync: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/health", () => ({
@@ -37,6 +39,7 @@ vi.mock("node:fs", async (importOriginal) => {
       ...actual,
       existsSync: mockExistsSync,
       readFileSync: mockReadFileSync,
+      writeFileSync: mockWriteFileSync,
     },
   };
 });
@@ -177,6 +180,7 @@ describe("healthCommand", () => {
     expect(help).toContain("refarm health --fail-on-issues");
     expect(help).toContain("refarm health --policy --json");
     expect(help).toContain("refarm health --suggest-policy --json");
+    expect(help).toContain("refarm health --apply-suggested-policy --json");
     expect(help).toContain("refarm health --next-action");
     expect(help).toContain("refarm health --next-action --json");
     expect(help).toContain("refarm health --next-command");
@@ -280,6 +284,63 @@ describe("healthCommand", () => {
     expect(output).toContain('"nextCommand": null');
     expect(output).toContain('"nextCommands"');
     expect(output).toContain('"resolution"');
+    logSpy.mockRestore();
+  });
+
+  it("applies the suggested health policy only when explicitly requested", async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      brand: { name: "external" },
+      health: {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: [],
+      },
+    }));
+    mockAudit.mockResolvedValue({
+      git: [{ file: "docs/_site/generated.md", type: "git_ignored" }],
+      builds: [{ package: "packages/web-skills", type: "missing_build_config" }],
+      alignment: [],
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--apply-suggested-policy", "--json"], { from: "user" });
+
+    expect(mockWriteFileSync).toHaveBeenCalledOnce();
+    const [configPath, content, encoding] = mockWriteFileSync.mock.calls[0]!;
+    expect(String(configPath)).toContain("refarm.config.json");
+    expect(encoding).toBe("utf-8");
+    expect(JSON.parse(String(content))).toEqual({
+      brand: { name: "external" },
+      health: {
+        preset: "workspace",
+        exemptPackageIds: ["packages/web-skills"],
+        ignoredGitVisibilityPatterns: ["docs/_site/**"],
+      },
+    });
+    expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+      command: "health",
+      operation: "policy-application",
+      ok: true,
+      configPath: expect.stringContaining("refarm.config.json"),
+      policy: {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: [],
+      },
+      previousHealth: {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: [],
+      },
+      appliedHealth: {
+        preset: "workspace",
+        exemptPackageIds: ["packages/web-skills"],
+        ignoredGitVisibilityPatterns: ["docs/_site/**"],
+      },
+      sourceIssueCount: 2,
+      nextAction: "refarm health --next-action --json",
+      nextActions: ["refarm health --next-action --json"],
+      nextCommand: "refarm health --next-action --json",
+      nextCommands: ["refarm health --next-action --json"],
+    });
     logSpy.mockRestore();
   });
 

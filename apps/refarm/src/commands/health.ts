@@ -81,6 +81,21 @@ export interface HealthPolicySuggestionReport {
   nextCommands: string[];
 }
 
+export interface HealthPolicyApplicationReport {
+  command: "health";
+  operation: "policy-application";
+  ok: true;
+  configPath: string;
+  policy: HealthPolicy;
+  previousHealth: unknown;
+  appliedHealth: HealthPolicy;
+  sourceIssueCount: number;
+  nextAction: string;
+  nextActions: string[];
+  nextCommand: string;
+  nextCommands: string[];
+}
+
 interface HealthOptions {
   json?: boolean;
   nextAction?: boolean;
@@ -88,6 +103,7 @@ interface HealthOptions {
   failOnIssues?: boolean;
   policy?: boolean;
   suggestPolicy?: boolean;
+  applySuggestedPolicy?: boolean;
 }
 
 interface HealthPolicy {
@@ -113,6 +129,7 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
   "packages/pi-agent/src/bindings.rs",
 ];
 const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
+const HEALTH_NEXT_ACTION_COMMAND = "refarm health --next-action --json";
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 
 function looksLikeRefarmMonorepo(rootDir: string): boolean {
@@ -385,6 +402,12 @@ function emitHealthPolicySuggestionSummary(report: HealthPolicySuggestionReport)
   console.log(JSON.stringify({ health: report.suggestedHealth }, null, 2));
 }
 
+function emitHealthPolicyApplicationSummary(report: HealthPolicyApplicationReport): void {
+  console.log(chalk.green("Health policy applied"));
+  console.log(chalk.dim(`   ${report.configPath}`));
+  console.log(JSON.stringify({ health: report.appliedHealth }, null, 2));
+}
+
 export async function runHealthAudit(): Promise<HealthReport> {
   const policy = resolveHealthPolicy();
   const health = new HealthCore();
@@ -418,6 +441,44 @@ export async function runHealthPolicySuggestion(): Promise<HealthPolicySuggestio
     nextCommand: null,
     nextCommands: [],
   };
+}
+
+export async function applySuggestedHealthPolicy(
+  rootDir = process.cwd(),
+): Promise<HealthPolicyApplicationReport> {
+  const configPath = path.join(rootDir, "refarm.config.json");
+  const suggestion = await runHealthPolicySuggestion();
+  const config = readRefarmConfigForWrite(configPath);
+  const previousHealth = config.health;
+  const nextCommand = HEALTH_NEXT_ACTION_COMMAND;
+  const nextCommands = [nextCommand];
+  const nextActions = [nextCommand];
+  config.health = suggestion.suggestedHealth;
+  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
+  return {
+    command: "health",
+    operation: "policy-application",
+    ok: true,
+    configPath,
+    policy: suggestion.policy,
+    previousHealth,
+    appliedHealth: suggestion.suggestedHealth,
+    sourceIssueCount: suggestion.sourceIssueCount,
+    nextAction: nextCommand,
+    nextActions,
+    nextCommand,
+    nextCommands,
+  };
+}
+
+function readRefarmConfigForWrite(configPath: string): RefarmConfig {
+  if (!fs.existsSync(configPath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmConfig;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read ${configPath}: ${message}`);
+  }
 }
 
 export function suggestHealthPolicy(policy: HealthPolicy, results: HealthResults): HealthPolicy {
@@ -473,6 +534,7 @@ export const healthCommand = new Command("health")
       "  $ refarm health --json",
       "  $ refarm health --policy --json",
       "  $ refarm health --suggest-policy --json",
+      "  $ refarm health --apply-suggested-policy --json",
       "  $ refarm health --next-action",
       "  $ refarm health --next-action --json",
       "  $ refarm health --next-command",
@@ -488,6 +550,7 @@ export const healthCommand = new Command("health")
   .option("--json", "Output machine-readable health report")
   .option("--policy", "Print the resolved health policy and exit")
   .option("--suggest-policy", "Suggest a reviewed health policy from current diagnostics")
+  .option("--apply-suggested-policy", "Apply the suggested health policy to refarm.config.json")
   .option("--next-action", "Print only the first blocking recovery action")
   .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
@@ -498,6 +561,16 @@ export const healthCommand = new Command("health")
         printJson(report);
       } else {
         emitHealthPolicySummary(report);
+      }
+      return;
+    }
+
+    if (options.applySuggestedPolicy) {
+      const report = await applySuggestedHealthPolicy();
+      if (options.json) {
+        printJson(report);
+      } else {
+        emitHealthPolicyApplicationSummary(report);
       }
       return;
     }

@@ -27,6 +27,12 @@ Ask for a reviewed, non-writing suggestion from the current diagnostics:
 refarm health --suggest-policy --json
 ```
 
+Apply that suggestion only after review:
+
+```bash
+refarm health --apply-suggested-policy --json
+```
+
 Projects can calibrate the generic auditor by declaring a `health` section in
 `refarm.config.json`:
 

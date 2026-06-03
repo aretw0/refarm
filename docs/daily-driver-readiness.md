@@ -168,9 +168,10 @@ the primary daily driver:
 2. External consumer calibration: use `refarm health --policy --json` to inspect
    the effective policy and `refarm health --suggest-policy --json` to generate
    a reviewed candidate `health` block before tuning `refarm.config.json` in
-   non-Refarm repos. Then rerun `refarm check --next-action --json` until the
-   remaining handoff is runtime or task-specific rather than workspace-policy
-   noise.
+   non-Refarm repos. If the candidate is correct, apply it explicitly with
+   `refarm health --apply-suggested-policy --json`; then rerun
+   `refarm check --next-action --json` until the remaining handoff is runtime
+   or task-specific rather than workspace-policy noise.
 3. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
 4. Model and credential operations: make provider/model/login changes
