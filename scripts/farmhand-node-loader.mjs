@@ -4,11 +4,13 @@
  * Resolver fallbacks for local source execution of apps/farmhand without
  * prebuilding every dependent package:
  *   0) "@refarm.dev/x[/subpath]" -> local workspace dist export
- *   1) "./x.js" -> "./x.ts" (source modules authored with .js specifiers)
- *   2) "./x"    -> "./x.js"/"./x.ts" (extensionless ESM imports in dist)
+ *   1) bare package imports -> local pnpm virtual store when workspace links
+ *      are not readable by the host OS
+ *   2) "./x.js" -> "./x.ts" (source modules authored with .js specifiers)
+ *   3) "./x"    -> "./x.js"/"./x.ts" (extensionless ESM imports in dist)
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -27,6 +29,61 @@ function hasKnownModuleExtension(specifier) {
 	return /\.(c|m)?js$|\.(c|m)?ts$|\.json$|\.node$/i.test(specifier);
 }
 
+function barePackageParts(specifier) {
+	if (
+		isRelativeOrAbsolute(specifier) ||
+		specifier.startsWith("node:") ||
+		specifier.includes(":")
+	) {
+		return null;
+	}
+	const parts = specifier.split("/");
+	if (specifier.startsWith("@")) {
+		if (parts.length < 2) return null;
+		return {
+			packageName: `${parts[0]}/${parts[1]}`,
+			subpath: parts.slice(2).join("/"),
+		};
+	}
+	return { packageName: parts[0], subpath: parts.slice(1).join("/") };
+}
+
+function packageExportTarget(manifest, exportKey) {
+	const exportTarget = manifest.exports?.[exportKey];
+	if (!exportTarget) return null;
+	if (typeof exportTarget === "string") return exportTarget;
+	const select = (target) => {
+		if (!target) return null;
+		if (typeof target === "string") return target;
+		if (typeof target !== "object") return null;
+		return (
+			select(target.import) ??
+			select(target.node) ??
+			select(target.default) ??
+			select(target.require)
+		);
+	};
+	return select(exportTarget);
+}
+
+function packageEntryTarget(packageDir, subpath) {
+	const manifestPath = path.join(packageDir, "package.json");
+	if (!existsSync(manifestPath)) return null;
+	const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+	const exportKey = subpath ? `./${subpath}` : ".";
+	const target =
+		packageExportTarget(manifest, exportKey) ??
+		(subpath
+			? `./${subpath}`
+			: manifest.module ?? manifest.main ?? "./index.js");
+	const resolved = path.resolve(packageDir, target);
+	if (existsSync(resolved)) return resolved;
+	if (!hasKnownModuleExtension(resolved) && existsSync(`${resolved}.js`)) {
+		return `${resolved}.js`;
+	}
+	return null;
+}
+
 function workspacePackageResolution(specifier) {
 	if (!specifier.startsWith("@refarm.dev/")) return null;
 
@@ -41,13 +98,8 @@ function workspacePackageResolution(specifier) {
 		if (!existsSync(manifestPath)) continue;
 
 		const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-		const exportTarget = manifest.exports?.[exportKey];
-		const importTarget =
-			typeof exportTarget === "string"
-				? exportTarget
-				: exportTarget?.import ?? exportTarget?.default;
 		const target =
-			importTarget ??
+			packageExportTarget(manifest, exportKey) ??
 			(exportKey === "." ? manifest.main ?? "./dist/index.js" : null);
 		if (!target) return null;
 
@@ -56,6 +108,30 @@ function workspacePackageResolution(specifier) {
 	}
 
 	return null;
+}
+
+function pnpmStorePackageResolution(specifier) {
+	const parts = barePackageParts(specifier);
+	if (!parts) return null;
+
+	const storeDir = path.join(ROOT, "node_modules", ".pnpm");
+	if (!existsSync(storeDir)) return null;
+	const storePrefix = parts.packageName.startsWith("@")
+		? `${parts.packageName.replace("/", "+")}@`
+		: `${parts.packageName}@`;
+	const entry = readdirSync(storeDir).find((name) =>
+		name.startsWith(storePrefix),
+	);
+	if (!entry) return null;
+
+	const packageDir = path.join(
+		storeDir,
+		entry,
+		"node_modules",
+		...parts.packageName.split("/"),
+	);
+	const resolved = packageEntryTarget(packageDir, parts.subpath);
+	return resolved ? pathToFileURL(resolved).href : null;
 }
 
 function modulePrelude(ifaceKey) {
@@ -137,6 +213,11 @@ export async function resolve(specifier, context, defaultResolve) {
 	try {
 		return await defaultResolve(specifier, context, defaultResolve);
 	} catch (error) {
+		const storeUrl = pnpmStorePackageResolution(specifier);
+		if (storeUrl) {
+			return { url: storeUrl, shortCircuit: true };
+		}
+
 		if (!isRelativeOrAbsolute(specifier)) throw error;
 
 		const candidates = [];
