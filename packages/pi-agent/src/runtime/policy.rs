@@ -2,7 +2,7 @@ use super::types::{blocked_result, ReactResult};
 
 #[cfg(target_arch = "wasm32")]
 const DEFAULT_SYSTEM_PROMPT: &str =
-    "You are pi-agent, a sovereign AI assistant for a Refarm node. \
+    "You are the Refarm runtime agent, a sovereign AI assistant for a Refarm node. \
              Help with local tasks, files, and shell commands. Be concise.";
 
 pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {

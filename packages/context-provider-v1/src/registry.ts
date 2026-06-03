@@ -24,7 +24,7 @@ export function buildSystemPrompt(entries: ContextEntry[]): string {
 		.map((entry) => `<context label="${entry.label}">\n${entry.content}\n</context>`)
 		.join("\n");
 	return [
-		"You are pi-agent, a sovereign AI assistant for a Refarm node.",
+		"You are the Refarm runtime agent, a sovereign AI assistant for a Refarm node.",
 		"The following project context has been collected automatically:",
 		"<contexts>",
 		contextBlocks,

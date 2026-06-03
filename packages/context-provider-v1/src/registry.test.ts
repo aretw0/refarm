@@ -76,7 +76,7 @@ describe("buildSystemPrompt", () => {
 			{ label: "last", content: "Z", priority: 90 },
 			{ label: "first", content: "A", priority: 10 },
 		]);
-		expect(prompt).toContain("You are pi-agent");
+		expect(prompt).toContain("You are the Refarm runtime agent");
 		expect(prompt).toContain("<contexts>");
 		expect(prompt).toContain('<context label="first">');
 		expect(prompt.indexOf("first")).toBeLessThan(prompt.indexOf("last"));
