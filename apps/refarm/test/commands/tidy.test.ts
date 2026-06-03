@@ -1,3 +1,4 @@
+import { findWorkspaceRoot } from "@refarm.dev/config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	createTidyCommand,
@@ -50,6 +51,8 @@ describe("resolveTidyImportsSpec", () => {
 });
 
 describe("tidyCommand", () => {
+	const workspaceRoot = findWorkspaceRoot(".");
+
 	afterEach(() => {
 		vi.restoreAllMocks();
 		process.exitCode = undefined;
@@ -90,13 +93,13 @@ describe("tidyCommand", () => {
 			processCommand: "pnpm",
 			processArgs: [
 				"-C",
-				".",
+				workspaceRoot,
 				"run",
 				"imports:organize",
 				"--check",
 				"apps/refarm/src/program.ts",
 			],
-			display: "pnpm -C . run imports:organize --check apps/refarm/src/program.ts",
+			display: `pnpm -C ${workspaceRoot} run imports:organize --check apps/refarm/src/program.ts`,
 			dryRun: true,
 			command: "tidy",
 			ok: true,
@@ -128,7 +131,7 @@ describe("tidyCommand", () => {
 		expect(deps.run).toHaveBeenCalledWith(
 			expect.objectContaining({
 				command: "pnpm",
-				args: ["-C", ".", "run", "imports:organize", "--check"],
+				args: ["-C", workspaceRoot, "run", "imports:organize", "--check"],
 			}),
 			{ capture: true },
 		);
@@ -212,7 +215,7 @@ describe("tidyCommand", () => {
 		});
 	});
 
-	it("suggests after-edit finish when check finds imports already organized", async () => {
+	it("treats successful import checks as terminal JSON", async () => {
 		const deps = makeDeps({
 			cwd: () => ".",
 			run: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
@@ -225,12 +228,16 @@ describe("tidyCommand", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			nextCommand: string;
+			nextAction: string | null;
+			nextActions: string[];
+			nextCommand: string | null;
+			nextCommands: string[];
 		};
 		expect(payload.ok).toBe(true);
-		expect(payload.nextCommand).toBe(
-			"refarm agent finish --lane after-edit --run --json",
-		);
+		expect(payload.nextAction).toBeNull();
+		expect(payload.nextActions).toEqual([]);
+		expect(payload.nextCommand).toBeNull();
+		expect(payload.nextCommands).toEqual([]);
 		logSpy.mockRestore();
 	});
 });

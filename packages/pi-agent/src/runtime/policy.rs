@@ -14,7 +14,7 @@ pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
 
     if estimated_tokens > max_tokens {
         return Some(blocked_result(format!(
-            "[pi-agent] prompt excede MODEL_MAX_CONTEXT_TOKENS ({estimated_tokens} > {max_tokens} tokens estimados)"
+            "[runtime-agent] prompt excede MODEL_MAX_CONTEXT_TOKENS ({estimated_tokens} > {max_tokens} tokens estimados)"
         )));
     }
 

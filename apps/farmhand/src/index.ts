@@ -11,8 +11,8 @@
  */
 
 import {
-	PI_AGENT_NPM_PACKAGE,
-	PI_AGENT_PLUGIN_ID,
+	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_ID,
 	loadConfigAsync,
 } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
@@ -267,7 +267,7 @@ async function main() {
 	await mkdir(pluginsDir, { recursive: true });
 
 	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
-	// Loaded first so project-local extensions can override bundled plugins like pi-agent.
+	// Loaded first so project-local extensions can override bundled runtime-agent plugins.
 	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
 	const localExtSummary = await localExtRegistry.load(runtime);
 	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
@@ -279,8 +279,8 @@ async function main() {
 	// Phase 1: Bundled plugins — auto-install from co-located npm packages
 	const defaultBundled: BundledEntry[] = [
 		{
-			id: PI_AGENT_PLUGIN_ID,
-			package: PI_AGENT_NPM_PACKAGE,
+			id: RUNTIME_AGENT_PLUGIN_ID,
+			package: RUNTIME_AGENT_NPM_PACKAGE,
 			wasmFile: "dist/pi_agent.wasm",
 			requiredProvides: ["agent:respond"],
 		},

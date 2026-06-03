@@ -4,12 +4,10 @@ import {
 	type LaunchProcessRunResult,
 	type LaunchProcessSpec,
 } from "@refarm.dev/cli/launch-process";
+import { findWorkspaceRoot } from "@refarm.dev/config";
 import { Command } from "commander";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
-import {
-	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
-	RESUME_JSON_COMMAND,
-} from "./credential-handoffs.js";
+import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -135,8 +133,9 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 		.option("--json", "Output machine-readable command plan or result")
 		.action(async (files: string[], options: TidyImportsOptions) => {
 			const selectedFiles = files ?? [];
+			const workspaceRoot = findWorkspaceRoot(resolvedDeps.cwd());
 			const spec = resolveTidyImportsSpec({
-				cwd: resolvedDeps.cwd(),
+				cwd: workspaceRoot,
 				check: options.check,
 				files: selectedFiles,
 			});
@@ -165,15 +164,12 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 			const result = await resolvedDeps.run(spec, { capture: options.json === true });
 			if (options.json) {
 				if (result.exitCode === 0) {
-					const successNextCommand = options.check
-						? AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND
-						: RESUME_JSON_COMMAND;
+					const successNextCommands = options.check ? [] : [RESUME_JSON_COMMAND];
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "tidy",
 							operation: "imports",
-							nextCommand: successNextCommand,
-							nextCommands: [successNextCommand],
+							nextCommands: successNextCommands,
 							extra: {
 								...plan,
 								exitCode: result.exitCode,

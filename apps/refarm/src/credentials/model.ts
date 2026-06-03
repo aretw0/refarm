@@ -1,10 +1,10 @@
-import chalk from "chalk";
 import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
-import type { CollectContext, CredentialProvider } from "./types.js";
-import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
+import chalk from "chalk";
 import type { OAuthCredentials, OAuthProviderInterface } from "./oauth/index.js";
+import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
+import type { CollectContext, CredentialProvider } from "./types.js";
 
 export interface ModelCredential {
 	/** Provider id stored as MODEL_PROVIDER env var value. */
@@ -190,7 +190,7 @@ export const modelCredentialProvider: CredentialProvider & {
 	},
 };
 
-/** Map from OAuth provider id → Silo modelProvider id used by pi-agent/farmhand. */
+/** Map from OAuth provider id → Silo modelProvider id used by runtime agents and Farmhand. */
 export const OAUTH_PROVIDER_TO_MODEL_PROVIDER: Record<string, string> = {
 	"anthropic": "anthropic",
 	"openai-codex": "openai",

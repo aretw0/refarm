@@ -63,7 +63,7 @@ fn task_memory_enabled_from_env() -> bool {
 fn task_actor_urn() -> String {
     match std::env::var("MODEL_AGENT_ID") {
         Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
-        _ => "urn:refarm:agent:pi-agent".to_string(),
+        _ => "urn:refarm:agent:runtime-agent".to_string(),
     }
 }
 

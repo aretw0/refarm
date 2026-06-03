@@ -289,7 +289,7 @@ describe("agent command", () => {
 					expect.objectContaining({
 						id: "agent-e2e-mock",
 						command: "refarm agent finish --lane agent-e2e-mock --run --json",
-						useWhen: "After runtime, model routing, pi-agent, or ask execution-plane changes.",
+						useWhen: "After runtime, model routing, runtime agent, or ask execution-plane changes.",
 						validationScope: "runtime",
 					}),
 					expect.objectContaining({
@@ -620,7 +620,7 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "agent-e2e-mock",
 				command: "refarm agent finish --lane agent-e2e-mock --run --json",
-				useWhen: "After runtime, model routing, pi-agent, or ask execution-plane changes.",
+				useWhen: "After runtime, model routing, runtime agent, or ask execution-plane changes.",
 				validationScope: "runtime",
 			}),
 			expect.objectContaining({

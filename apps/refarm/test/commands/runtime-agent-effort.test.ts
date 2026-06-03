@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createPiAgentRespondEffort } from "../../src/commands/pi-agent-effort.js";
+import { createRuntimeAgentRespondEffort } from "../../src/commands/runtime-agent-effort.js";
 
-describe("createPiAgentRespondEffort", () => {
-	it("builds the canonical pi-agent respond effort", () => {
-		const effort = createPiAgentRespondEffort({
+describe("createRuntimeAgentRespondEffort", () => {
+	it("builds the canonical runtime-agent respond effort", () => {
+		const effort = createRuntimeAgentRespondEffort({
 			prompt: "Summarize the open work",
 			system: "system context",
 			sessionId: "urn:refarm:session:v1:abc",

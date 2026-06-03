@@ -143,7 +143,7 @@ const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
 	sessionShow: (sessionId) =>
 		refarmAppCommand([
-			"tree",
+			"sessions",
 			"show",
 			formatOperatorResumeSessionId(sessionId),
 			"--json",
@@ -187,6 +187,19 @@ function taskJsonSummary(
 			: undefined,
 		recentEfforts,
 	};
+}
+
+function isTerminalTaskStatus(status: string | undefined): boolean {
+	return status === "done" ||
+		status === "partial" ||
+		status === "failed" ||
+		status === "timed-out" ||
+		status === "cancelled" ||
+		status === "not-found";
+}
+
+function hasResumableTaskEffort(tasks: OperatorResumeTaskSummary): boolean {
+	return tasks.recentEfforts.some((effort) => !isTerminalTaskStatus(effort.lastStatus));
 }
 
 function operatorResumeJsonSummary(
@@ -239,19 +252,29 @@ export function buildOperatorResumeSummary(
 		recentEfforts: efforts.slice(0, 10),
 		totalEfforts: efforts.length,
 	};
-	const sessionShowCommand = input.activeSessionId
-		? (input.commands?.sessionShow ?? DEFAULT_OPERATOR_RESUME_COMMANDS.sessionShow)(
-				input.activeSessionId,
+	const recentSessions = (input.recentSessions ?? []).slice(0, 5);
+	const activeShortId = input.activeSessionId
+		? formatOperatorResumeSessionId(input.activeSessionId)
+		: undefined;
+	const activeRecentSession = input.activeSessionId
+		? recentSessions.find(
+				(session) =>
+					session.sessionId === input.activeSessionId ||
+					session.shortId === activeShortId,
 			)
 		: undefined;
+	const sessionShowCommand = activeRecentSession?.showCommand ??
+		(input.activeSessionId && recentSessions.length === 0
+			? (input.commands?.sessionShow ?? DEFAULT_OPERATOR_RESUME_COMMANDS.sessionShow)(
+					input.activeSessionId,
+				)
+			: undefined);
 	const session: OperatorResumeSessionSummary = {
 		status: input.activeSessionId ? "active" : "none",
 		activeSessionId: input.activeSessionId ?? undefined,
-		shortId: input.activeSessionId
-			? formatOperatorResumeSessionId(input.activeSessionId)
-			: undefined,
+		shortId: activeShortId,
 		showCommand: sessionShowCommand,
-		recentSessions: (input.recentSessions ?? []).slice(0, 5),
+		recentSessions,
 	};
 	const finish: OperatorResumeFinishSummary = input.finish
 		? {
@@ -329,9 +352,9 @@ export function operatorResumeNextCommands(
 			taskWatchJsonCommand(summary.tasks.activeEffort.statusCommand),
 			taskReadJsonCommand(summary.tasks.activeEffort.logsCommand),
 		);
-	} else if (summary.tasks.totalEfforts > 0) {
+	} else if (hasResumableTaskEffort(summary.tasks)) {
 		nextCommands.push(resolved.taskResume);
-	} else {
+	} else if (summary.tasks.totalEfforts === 0) {
 		nextCommands.push(resolved.taskList);
 	}
 

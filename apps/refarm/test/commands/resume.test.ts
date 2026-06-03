@@ -110,7 +110,7 @@ describe("resume command", () => {
 			expect.stringContaining("refarm task status effort-1 --transport http --watch"),
 		);
 		expect(spy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm tree show ef1234567890 --json"),
+			expect.stringContaining("refarm sessions show ef1234567890 --json"),
 		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("ship it"));
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Recent sessions:"));

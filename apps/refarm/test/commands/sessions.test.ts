@@ -186,6 +186,41 @@ describe("refarm sessions", () => {
 		});
 	});
 
+	it("list JSON falls back to the newest session when active is stale", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [
+						{
+							"@id": "urn:refarm:session:v1:newer",
+							"@type": "Session",
+							name: "newer",
+							created_at_ns: 2,
+						},
+					],
+				}),
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.nextCommand).toBe(
+			"refarm sessions show 'urn:refarm:session:v1:newer' --json",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm sessions use 'urn:refarm:session:v1:newer' --json",
+		);
+	});
+
 	it("lists sessions as JSON from the list subcommand", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -460,6 +495,74 @@ describe("refarm sessions", () => {
 				"refarm sessions use 'urn:refarm:session:v1:abc123def456' --json",
 				"refarm sessions list --json",
 			],
+		});
+	});
+
+	it("sessions show does not suggest using the already active session", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session: {
+						"@id": "urn:refarm:session:v1:abc123def456",
+						"@type": "Session",
+						name: "planning",
+					},
+					entries: [],
+					total: 0,
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand({
+			readActiveSessionId: () => "urn:refarm:session:v1:abc123def456",
+		})
+			.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			nextAction: string | null;
+			nextActions: string[];
+			nextCommand: string | null;
+			nextCommands: string[];
+		};
+		expect(payload.nextAction).toBeNull();
+		expect(payload.nextActions).toEqual([]);
+		expect(payload.nextCommand).toBeNull();
+		expect(payload.nextCommands).toEqual([]);
+	});
+
+	it("sessions show keeps --json when parsed through the parent command", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session: {
+						"@id": "urn:refarm:session:v1:abc123def456",
+						"@type": "Session",
+					},
+					entries: [],
+					total: 0,
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand().parseAsync(["show", "abc123", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "show",
+			ok: true,
+			total: 0,
 		});
 	});
 

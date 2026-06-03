@@ -38,7 +38,7 @@ import {
 	setModelRoute,
 	type ModelCommandDeps,
 } from "./model.js";
-import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
+import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
@@ -366,7 +366,7 @@ async function runTurn(
 	const entries = await registry.collect({ cwd: process.cwd(), query });
 	const system = buildSystemPrompt(entries);
 
-	const effort = createPiAgentRespondEffort({
+	const effort = createRuntimeAgentRespondEffort({
 		prompt: query,
 		system,
 		sessionId,

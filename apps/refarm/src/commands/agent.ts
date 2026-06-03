@@ -94,7 +94,7 @@ const agentFinishLaneCatalog = [
 		recommendedKey: "agentE2eMock",
 		command: agentFinishCommand(["--lane", "agent-e2e-mock", "--run", "--json"]),
 		description: "Run the no-token Refarm agent runtime e2e smoke.",
-		useWhen: "After runtime, model routing, pi-agent, or ask execution-plane changes.",
+		useWhen: "After runtime, model routing, runtime agent, or ask execution-plane changes.",
 		validationScope: "runtime",
 	},
 	{
@@ -696,6 +696,7 @@ function isAgentRuntimeE2ePath(file: string): boolean {
 	return (
 		file === "apps/refarm/src/commands/ask.ts" ||
 		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
+		file === "apps/refarm/src/commands/runtime-agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
 		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
 		file.startsWith("packages/pi-agent/") ||
@@ -1132,7 +1133,7 @@ Verification:
 
 Plugin lifecycle:
   $ refarm plugin list          Show bundled plugin install state
-  $ refarm plugin install       Install bundled plugins such as @refarm/pi-agent
+  $ refarm plugin install       Install bundled plugins such as the runtime agent
 
 Automation:
   $ refarm agent --json         Print runtime/model/plugin handoff commands

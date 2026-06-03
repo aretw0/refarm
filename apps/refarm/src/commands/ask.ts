@@ -1,4 +1,7 @@
-import { isPiAgentPluginId, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import {
+	isRuntimeAgentPluginId,
+	RUNTIME_AGENT_PLUGIN_ID,
+} from "@refarm.dev/config";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -37,12 +40,12 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "./json-output.js";
-import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import {
-	PLUGIN_INSTALL_COMMAND as PI_AGENT_INSTALL_COMMAND,
-	PLUGIN_INSTALL_JSON_COMMAND as PI_AGENT_INSTALL_JSON_COMMAND,
-	PI_AGENT_RELOAD_JSON_COMMAND,
+	PLUGIN_INSTALL_COMMAND,
+	PLUGIN_INSTALL_JSON_COMMAND,
+	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
+import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePlugins,
@@ -515,10 +518,10 @@ function usageLine(metadata: Record<string, unknown>): string {
 
 function printAskError(message: string): void {
 	const payload = buildAskErrorPayload(message);
-	if (payload.error === "pi-agent-not-loaded") {
-		console.error(chalk.red("\n✗  pi-agent is not loaded in the Refarm runtime."));
+	if (payload.error === "agent-not-loaded") {
+		console.error(chalk.red("\n✗  Runtime agent is not loaded in the Refarm runtime."));
 		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
-		console.error(chalk.dim("   Reload runtime plugins:   /reload @refarm/pi-agent"));
+		console.error(chalk.dim("   Reload runtime plugins:   /reload runtime-agent"));
 		console.error(chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`));
 		console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	} else if (payload.error === "runtime-unavailable") {
@@ -557,10 +560,10 @@ function buildAskErrorPayload(message: string): {
 	nextCommand?: string | null;
 	nextCommands?: string[];
 } {
-	const isPiAgentMissing =
-		message.includes(`${PI_AGENT_PLUGIN_ID} not loaded`) ||
+	const isRuntimeAgentMissing =
+		message.includes(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`) ||
 		message.includes("pi-agent not loaded") ||
-		message.includes(`Plugin "${PI_AGENT_PLUGIN_ID}" is not loaded`);
+		message.includes(`Plugin "${RUNTIME_AGENT_PLUGIN_ID}" is not loaded`);
 
 	const isProviderError =
 		message.includes("model-bridge request failed") ||
@@ -573,24 +576,24 @@ function buildAskErrorPayload(message: string): {
 		(normalizedMessage.includes("quota") &&
 			normalizedMessage.includes("billing"));
 
-	if (isPiAgentMissing) {
+	if (isRuntimeAgentMissing) {
 		return buildJsonErrorEnvelope({
 			command: "ask",
 			operation: "submit",
-			error: "pi-agent-not-loaded",
-			message: "pi-agent is not loaded in the Refarm runtime.",
-			nextAction: PI_AGENT_INSTALL_COMMAND,
+			error: "agent-not-loaded",
+			message: "Runtime agent is not loaded in the Refarm runtime.",
+			nextAction: PLUGIN_INSTALL_COMMAND,
 			nextActions: [
-				PI_AGENT_INSTALL_COMMAND,
-				PI_AGENT_RELOAD_JSON_COMMAND,
+				PLUGIN_INSTALL_COMMAND,
+				RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_START_COMMAND,
 				RUNTIME_DOCTOR_COMMAND,
 			],
-			nextCommand: PI_AGENT_INSTALL_JSON_COMMAND,
+			nextCommand: PLUGIN_INSTALL_JSON_COMMAND,
 			nextCommands: [
-				PI_AGENT_INSTALL_JSON_COMMAND,
-				PI_AGENT_RELOAD_JSON_COMMAND,
+				PLUGIN_INSTALL_JSON_COMMAND,
+				RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 				RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 				RUNTIME_START_WAIT_COMMAND,
 				RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -599,11 +602,11 @@ function buildAskErrorPayload(message: string): {
 				action: "ask",
 				recommendations: [
 					{
-						diagnostic: "pi-agent-not-loaded",
+						diagnostic: "agent-not-loaded",
 						severity: "failure",
-						summary: "The pi-agent plugin is not loaded in the runtime.",
-						action: "Install or reload pi-agent, then ensure the runtime is ready.",
-						command: PI_AGENT_RELOAD_JSON_COMMAND,
+						summary: "The runtime agent plugin is not loaded in the runtime.",
+						action: "Install or reload the bundled runtime agent plugin, then ensure the runtime is ready.",
+						command: RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 					},
 				],
 			},
@@ -821,9 +824,10 @@ async function ensureAgentReady(
 		return true;
 
 	// Recovery: if a known agent plugin is installed, attempt reload.
-	// Falls back to PI_AGENT_PLUGIN_ID as the default installable agent.
-	const reloadId = state.installed.find(isPiAgentPluginId) ?? PI_AGENT_PLUGIN_ID;
-	if (state.installed.some(isPiAgentPluginId) && reloadPlugins) {
+	// Falls back to the bundled runtime agent plugin as the default installable agent.
+	const reloadId =
+		state.installed.find(isRuntimeAgentPluginId) ?? RUNTIME_AGENT_PLUGIN_ID;
+	if (state.installed.some(isRuntimeAgentPluginId) && reloadPlugins) {
 		const reload = await reloadPlugins([reloadId]);
 		if (reload?.reloaded.length) return true;
 		const refreshed = await readPluginState();
@@ -839,16 +843,16 @@ async function ensureAgentReady(
 					operation: "plugin-readiness",
 					error: "agent-reload-failed",
 					message: "Agent reload was requested but the runtime skipped it.",
-					nextAction: PI_AGENT_RELOAD_JSON_COMMAND,
+					nextAction: RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 					nextActions: [
-						PI_AGENT_RELOAD_JSON_COMMAND,
+						RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 						RUNTIME_START_COMMAND,
 						RUNTIME_DOCTOR_COMMAND,
 					],
-					nextCommand: PI_AGENT_RELOAD_JSON_COMMAND,
+					nextCommand: RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 					nextCommands: [
-						PI_AGENT_RELOAD_JSON_COMMAND,
+						RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 						RUNTIME_DOCTOR_NEXT_COMMAND,
 					],
@@ -864,7 +868,7 @@ async function ensureAgentReady(
 								severity: "failure",
 								summary: "The runtime did not reload the agent.",
 								action: "Inspect plugin status and retry agent reload.",
-								command: PI_AGENT_RELOAD_JSON_COMMAND,
+								command: RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 							},
 						],
 					},
@@ -874,7 +878,7 @@ async function ensureAgentReady(
 		}
 	}
 
-	const agentInstalled = state.installed.some(isPiAgentPluginId);
+	const agentInstalled = state.installed.some(isRuntimeAgentPluginId);
 	if (json) {
 		printJson(
 			buildJsonErrorEnvelope({
@@ -882,16 +886,16 @@ async function ensureAgentReady(
 				operation: "plugin-readiness",
 				error: "agent-not-loaded",
 				message: "No agent is loaded in the Refarm runtime.",
-				nextAction: agentInstalled ? PI_AGENT_RELOAD_JSON_COMMAND : PI_AGENT_INSTALL_COMMAND,
+				nextAction: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_COMMAND,
 				nextActions: [
-					...(agentInstalled ? [PI_AGENT_RELOAD_JSON_COMMAND] : [PI_AGENT_INSTALL_COMMAND]),
+					...(agentInstalled ? [RUNTIME_AGENT_RELOAD_JSON_COMMAND] : [PLUGIN_INSTALL_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
 				],
-				nextCommand: agentInstalled ? PI_AGENT_RELOAD_JSON_COMMAND : PI_AGENT_INSTALL_JSON_COMMAND,
+				nextCommand: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_JSON_COMMAND,
 				nextCommands: [
-					...(agentInstalled ? [PI_AGENT_RELOAD_JSON_COMMAND] : [PI_AGENT_INSTALL_JSON_COMMAND]),
+					...(agentInstalled ? [RUNTIME_AGENT_RELOAD_JSON_COMMAND] : [PLUGIN_INSTALL_JSON_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_WAIT_COMMAND,
 					RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -905,7 +909,7 @@ async function ensureAgentReady(
 							severity: "failure",
 							summary: "No agent plugin is loaded in the runtime.",
 							action: "Install or reload an agent plugin, then ensure the runtime is ready.",
-							command: agentInstalled ? PI_AGENT_RELOAD_JSON_COMMAND : PI_AGENT_INSTALL_JSON_COMMAND,
+							command: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_JSON_COMMAND,
 						},
 					],
 				},
@@ -931,8 +935,8 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 		resolved.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
 	return new Command("ask")
-		.description("Ask pi-agent with automatic project context")
-		.argument("<query>", "Question or instruction for pi-agent")
+		.description("Ask the runtime agent with automatic project context")
+		.argument("<query>", "Question or instruction for the runtime agent")
 		.option("--files <files>", "Comma-separated file paths to include")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Use a specific session ID or unique prefix")
@@ -1094,7 +1098,7 @@ Runtime:
 					files,
 				});
 
-				const effort = createPiAgentRespondEffort({
+				const effort = createRuntimeAgentRespondEffort({
 					prompt: query,
 					system,
 					sessionId,
@@ -1103,7 +1107,7 @@ Runtime:
 				});
 
 				if (!opts.json) {
-					console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
+					console.log(chalk.bold.cyan(`runtime agent ▸ ${query}\n`));
 				}
 
 				try {

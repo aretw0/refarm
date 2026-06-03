@@ -93,7 +93,7 @@ describe("operator resume", () => {
 			session: {
 				status: "active",
 				shortId: "ef1234567890",
-				showCommand: "refarm tree show ef1234567890 --json",
+				showCommand: "refarm sessions show ef1234567890 --json",
 				recentSessions: [
 					{
 						sessionId: "urn:refarm:session:v1:abcdef1234567890",
@@ -137,7 +137,7 @@ describe("operator resume", () => {
 		});
 	});
 
-	it("uses task resume when a checkpoint exists without an active effort", () => {
+	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
 			status: readyStatus,
@@ -147,7 +147,7 @@ describe("operator resume", () => {
 					{
 						effortId: "effort-1",
 						transport: "file",
-						lastStatus: "done",
+						lastStatus: "pending",
 						statusCommand: "refarm task status effort-1 --transport file",
 						logsCommand: "refarm task logs effort-1 --transport file",
 					},
@@ -156,6 +156,47 @@ describe("operator resume", () => {
 		});
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm task resume --json",
+		]);
+	});
+
+	it("does not suggest task resume when checkpoint efforts are terminal", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			taskCheckpoint: {
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				efforts: [
+					{
+						effortId: "effort-1",
+						transport: "file",
+						lastStatus: "failed",
+						statusCommand: "refarm task status effort-1 --transport file",
+						logsCommand: "refarm task logs effort-1 --transport file",
+					},
+				],
+			},
+		});
+		expect(operatorResumeNextCommands(summary)).toEqual([]);
+	});
+
+	it("falls back to the latest recent session when the active session is stale", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			activeSessionId: "urn:refarm:session:v1:stale1234567890",
+			recentSessions: [
+				{
+					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					shortId: "ef1234567890",
+					showCommand: "refarm sessions show ef1234567890 --json",
+				},
+			],
+		});
+
+		expect(summary.session.showCommand).toBeUndefined();
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"refarm sessions show ef1234567890 --json",
+			"refarm task list --json",
 		]);
 	});
 
@@ -244,7 +285,7 @@ describe("operator resume", () => {
 		});
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime ensure --wait --next-command",
-			"refarm tree show ef1234567890 --json",
+			"refarm sessions show ef1234567890 --json",
 			"refarm task list --json",
 		]);
 	});
@@ -280,7 +321,7 @@ describe("operator resume", () => {
 		]);
 	});
 
-	it("formats active session ids for tree commands", () => {
+	it("formats active session ids for session handoff commands", () => {
 		expect(formatOperatorResumeSessionId("urn:refarm:session:v1:abcdef1234567890")).toBe(
 			"ef1234567890",
 		);

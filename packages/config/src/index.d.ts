@@ -43,8 +43,13 @@ export {
 } from "./model-routing.js";
 export const PI_AGENT_PLUGIN_ID: "@refarm/pi-agent";
 export const PI_AGENT_NPM_PACKAGE: "@refarm.dev/pi-agent";
+export const RUNTIME_AGENT_PLUGIN_ID: typeof PI_AGENT_PLUGIN_ID;
+export const RUNTIME_AGENT_NPM_PACKAGE: typeof PI_AGENT_NPM_PACKAGE;
+export const RUNTIME_AGENT_ERROR_PREFIXES: readonly string[];
 export function normalizePluginId(pluginId: string): string;
 export function isPiAgentPluginId(pluginId: string): boolean;
+export function isRuntimeAgentPluginId(pluginId: string): boolean;
+export function isRuntimeAgentErrorContent(content: string): boolean;
 export type {
     PackageCommandString,
     PackageBinaryCommand,

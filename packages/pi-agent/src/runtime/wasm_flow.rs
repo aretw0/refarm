@@ -34,7 +34,7 @@ fn try_fallback_completion(
     if crate::budget_exceeded_for_provider(&fallback_name) {
         return Some(error_result(
             format!(
-                "[pi-agent erro] primary: {primary_err}; fallback: [budget] MODEL_BUDGET_{}_USD exceeded - fallback provider blocked",
+                "[runtime-agent error] primary: {primary_err}; fallback: [budget] MODEL_BUDGET_{}_USD exceeded - fallback provider blocked",
                 fallback_name.to_uppercase(),
             ),
             "blocked".to_owned(),
@@ -51,7 +51,7 @@ fn try_fallback_completion(
     Some(match fb.complete(system, messages) {
         Ok(r) => completion_result(fb_model, r),
         Err(e) => error_result(
-            format!("[pi-agent erro] primary: {primary_err}; fallback: {e}"),
+            format!("[runtime-agent error] primary: {primary_err}; fallback: {e}"),
             fb_model,
         ),
     })
@@ -83,7 +83,7 @@ pub(crate) fn run_wasm_react_with_prompt_ref(
             {
                 fallback_result
             } else {
-                error_result(format!("[pi-agent erro] {primary_err}"), model)
+                error_result(format!("[runtime-agent error] {primary_err}"), model)
             }
         }
     }

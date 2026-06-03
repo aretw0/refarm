@@ -1,4 +1,4 @@
-import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
 import {
 	defaultChatDeps,
@@ -6,8 +6,8 @@ import {
 	type ChatDeps,
 } from "./chat.js";
 import {
-	PLUGIN_INSTALL_JSON_COMMAND as PI_AGENT_INSTALL_JSON_COMMAND,
-	PI_AGENT_RELOAD_JSON_COMMAND,
+	PLUGIN_INSTALL_JSON_COMMAND,
+	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
@@ -72,24 +72,24 @@ async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<strin
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
 }
 
-async function ensureSessionPiAgentReady(deps: ChatDeps): Promise<boolean> {
+async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> {
 	if (!deps.readPluginState) return true;
 	const state = await deps.readPluginState();
 	if (!state) return true;
-	if (state.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+	if (state.loaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
 
-	if (state.installed.includes(PI_AGENT_PLUGIN_ID) && deps.reloadPlugins) {
-		const reload = await deps.reloadPlugins([PI_AGENT_PLUGIN_ID]);
-		if (reload.reloaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+	if (state.installed.includes(RUNTIME_AGENT_PLUGIN_ID) && deps.reloadPlugins) {
+		const reload = await deps.reloadPlugins([RUNTIME_AGENT_PLUGIN_ID]);
+		if (reload.reloaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
 		const refreshed = await deps.readPluginState();
-		if (refreshed?.loaded.includes(PI_AGENT_PLUGIN_ID)) return true;
+		if (refreshed?.loaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
 	}
 
-	process.stderr.write("✗  pi-agent is not loaded in the Refarm runtime.\n");
-	if (!state.installed.includes(PI_AGENT_PLUGIN_ID)) {
-		process.stderr.write(`   Install bundled plugins:  ${PI_AGENT_INSTALL_JSON_COMMAND}\n`);
+	process.stderr.write("✗  Runtime agent is not loaded in the Refarm runtime.\n");
+	if (!state.installed.includes(RUNTIME_AGENT_PLUGIN_ID)) {
+		process.stderr.write(`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`);
 	} else {
-		process.stderr.write(`   Reload runtime plugins:   ${PI_AGENT_RELOAD_JSON_COMMAND}\n`);
+		process.stderr.write(`   Reload runtime plugins:   ${RUNTIME_AGENT_RELOAD_JSON_COMMAND}\n`);
 	}
 	process.stderr.write(`   Ensure runtime:           ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\n`);
 	process.stderr.write(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}\n`);
@@ -141,7 +141,7 @@ export async function runSessionLaunchFlow(
 	}
 
 	const deps = injectedDeps ?? defaultChatDeps();
-	if (!(await ensureSessionPiAgentReady(deps))) {
+	if (!(await ensureSessionRuntimeAgentReady(deps))) {
 		process.exitCode = 1;
 		return;
 	}

@@ -170,7 +170,7 @@ function parseModelResetArgs(args: string[], fallbackText: string): ChatCommand 
 	return scope ? { kind: "model", action: "reset", scope } : { kind: "message", text: fallbackText };
 }
 
-export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload pi-agent
+export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload runtime-agent
   /model            Show the active model route
   /model providers  List known provider defaults
   /model ${OPENAI_DEFAULT_REF}   Set the default model route

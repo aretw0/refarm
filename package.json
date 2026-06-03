@@ -50,7 +50,7 @@
 		"task:build-order:check": "node -e \"import('./scripts/ci/subprocess-utils.mjs').then(m => m.assertTaskSmokeBuildOrderIntegrity()).catch(e => { console.error(e.message); process.exit(1); })\"",
 		"deps:vitest-config-check": "node scripts/ci/check-vitest-config-deps.mjs",
 		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
-		"refarm:agent:e2e:mock": "node scripts/ci/run-workspace-script.mjs packages/model-mock build && node scripts/ci/run-workspace-script.mjs apps/refarm build && node scripts/ci/smoke-refarm-agent-model-mock.mjs",
+		"refarm:agent:e2e:mock": "node scripts/ci/run-workspace-script.mjs packages/model-mock build && node scripts/ci/run-workspace-script.mjs packages/pi-agent build:wasm && node scripts/ci/run-workspace-script.mjs apps/refarm build && node scripts/ci/smoke-refarm-agent-model-mock.mjs",
 		"refarm:host:smoke": "node scripts/ci/run-workspace-script.mjs apps/refarm test:host-smoke",
 		"refarm:handoffs:test": "node scripts/ci/run-workspace-script.mjs apps/refarm test:handoffs",
 		"refarm:check:gate": "node scripts/ci/refarm-check-gate.mjs check",

@@ -107,7 +107,7 @@ pub(crate) fn history_from_tree(
 fn default_session_participant() -> String {
     match std::env::var("MODEL_AGENT_ID") {
         Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
-        _ => "urn:refarm:agent:pi-agent".to_string(),
+        _ => "urn:refarm:agent:runtime-agent".to_string(),
     }
 }
 

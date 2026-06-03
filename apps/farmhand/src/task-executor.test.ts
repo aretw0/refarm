@@ -73,9 +73,9 @@ describe("executeTask", () => {
 		);
 	});
 
-	it("writes error result when pi-agent returns an error content payload", async () => {
+	it("writes error result when the runtime agent returns an error content payload", async () => {
 		const instance = makeInstance({
-			content: "[pi-agent erro] quota exceeded",
+			content: "[runtime-agent error] quota exceeded",
 			model: "gpt-5.5",
 		});
 		const tractor = makeTractor(instance);
@@ -91,16 +91,16 @@ describe("executeTask", () => {
 		expect(tractor.storeNode).toHaveBeenCalledWith(
 			expect.objectContaining({
 				"task:status": "error",
-				"task:error": "[pi-agent erro] quota exceeded",
+				"task:error": "[runtime-agent error] quota exceeded",
 				"task:result": JSON.stringify({
-					content: "[pi-agent erro] quota exceeded",
+					content: "[runtime-agent error] quota exceeded",
 					model: "gpt-5.5",
 				}),
 			}),
 		);
 	});
 
-	it("writes error result when pi-agent returns an error tuple payload", async () => {
+	it("writes error result when the runtime agent returns an error tuple payload", async () => {
 		const instance = makeInstance([
 			"[budget] MODEL_BUDGET_OPENAI_USD exceeded",
 			[],
@@ -157,7 +157,7 @@ describe("executeTask", () => {
 		);
 	});
 
-	it("resolves pi-agent task aliases to the canonical plugin id", async () => {
+	it("resolves runtime-agent task aliases to the canonical plugin id", async () => {
 		const instance = makeInstance({ content: "ok" });
 		const tractor = makeTractor(instance);
 

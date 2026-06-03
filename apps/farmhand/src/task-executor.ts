@@ -1,8 +1,10 @@
-import { normalizePluginId } from "@refarm.dev/config";
+import {
+	isRuntimeAgentErrorContent,
+	normalizePluginId,
+} from "@refarm.dev/config";
 import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 
 const FARMHAND_PLUGIN_ID = "farmhand";
-const AGENT_ERROR_PREFIXES = ["[pi-agent erro]", "[pi-agent stub]", "[budget]"];
 
 export interface TaskExecutorInput {
 	taskId: string;
@@ -28,9 +30,7 @@ function resultContent(result: unknown): string | null {
 function resultErrorMessage(result: unknown): string | null {
 	const content = resultContent(result);
 	if (!content) return null;
-	return AGENT_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix))
-		? content
-		: null;
+	return isRuntimeAgentErrorContent(content) ? content : null;
 }
 
 export async function executeTask(

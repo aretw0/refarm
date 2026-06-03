@@ -36,7 +36,12 @@ export {
 export {
     PI_AGENT_NPM_PACKAGE,
     PI_AGENT_PLUGIN_ID,
+    RUNTIME_AGENT_ERROR_PREFIXES,
+    RUNTIME_AGENT_NPM_PACKAGE,
+    RUNTIME_AGENT_PLUGIN_ID,
+    isRuntimeAgentErrorContent,
     isPiAgentPluginId,
+    isRuntimeAgentPluginId,
     normalizePluginId,
 } from "./plugin-identity.js";
 export {

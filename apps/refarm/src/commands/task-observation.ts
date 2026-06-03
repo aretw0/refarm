@@ -1,6 +1,5 @@
+import { isRuntimeAgentErrorContent } from "@refarm.dev/config";
 import type { EffortResult } from "@refarm.dev/effort-contract-v1";
-
-const AGENT_ERROR_PREFIXES = ["[pi-agent erro]", "[pi-agent stub]", "[budget]"];
 
 function parseTaskResultPayload(result: unknown): unknown {
 	if (typeof result !== "string") return result;
@@ -28,9 +27,7 @@ function taskResultContent(result: unknown): string | null {
 export function observedTaskResultError(result: unknown): string | null {
 	const content = taskResultContent(result);
 	if (!content) return null;
-	return AGENT_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix))
-		? content
-		: null;
+	return isRuntimeAgentErrorContent(content) ? content : null;
 }
 
 export function observedTaskResultStatus(

@@ -39,11 +39,20 @@ function resolveBinDir() {
   }
 
   const npmGlobal = path.join(os.homedir(), ".npm-global/bin");
-  if (pathIncludes(npmGlobal) || existsSync(npmGlobal)) {
+  const localBin = path.join(os.homedir(), ".local/bin");
+  if (pathIncludes(npmGlobal)) {
     return npmGlobal;
   }
 
-  return path.join(os.homedir(), ".local/bin");
+  if (pathIncludes(localBin)) {
+    return localBin;
+  }
+
+  if (existsSync(npmGlobal)) {
+    return npmGlobal;
+  }
+
+  return localBin;
 }
 
 const forceBuild = process.argv.includes("--build");

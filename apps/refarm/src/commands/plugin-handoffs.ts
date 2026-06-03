@@ -1,4 +1,3 @@
-import { PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { refarmCommand } from "./command-handoff.js";
 
 export const PLUGIN_INSTALL_COMMAND = refarmCommand(["plugin", "install"]);
@@ -12,9 +11,10 @@ export const PLUGIN_STATUS_JSON_COMMAND = refarmCommand([
 	"status",
 	"--json",
 ]);
-export const PI_AGENT_RELOAD_JSON_COMMAND = refarmCommand([
+export const RUNTIME_AGENT_RELOAD_JSON_COMMAND = refarmCommand([
 	"plugin",
 	"reload",
-	PI_AGENT_PLUGIN_ID,
+	"runtime-agent",
 	"--json",
 ]);
+export const PI_AGENT_RELOAD_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;

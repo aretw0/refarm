@@ -97,7 +97,7 @@ describe("refarm task run", () => {
 		taskCommand.outputHelp();
 
 		expect(help).toContain("Manage Refarm runtime task efforts");
-		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
+		expect(help).toContain("refarm task run runtime-agent respond");
 		expect(help).toContain('{"prompt":"hello"}');
 		expect(help).toContain("http transport submits directly");
 		expect(help).toContain("refarm runtime status");
@@ -120,13 +120,16 @@ describe("refarm task run", () => {
 
 		runCommand?.outputHelp();
 
-		expect(help).toContain("refarm task run @refarm.dev/pi-agent respond");
+		expect(help).toContain("refarm task run runtime-agent respond");
 		expect(help).toContain('{"query":"hello"}');
 		expect(help).toContain("http transport submits directly");
 		expect(help).toContain("refarm runtime ensure --wait --next-command");
 	});
 
-	it("normalizes legacy query args for pi-agent respond tasks", () => {
+	it("normalizes legacy query args for runtime-agent respond tasks", () => {
+		expect(
+			normalizeTaskArgs("runtime-agent", "respond", { query: "hello" }),
+		).toEqual({ query: "hello", prompt: "hello" });
 		expect(
 			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", { query: "hello" }),
 		).toEqual({ query: "hello", prompt: "hello" });
@@ -231,7 +234,7 @@ describe("refarm task run", () => {
 		spy.mockRestore();
 	});
 
-	it("dispatches pi-agent respond query args as prompt for compatibility", async () => {
+	it("dispatches runtime-agent respond query args as prompt with canonical plugin id", async () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
@@ -242,7 +245,7 @@ describe("refarm task run", () => {
 		await taskCommand.commands
 			.find((command) => command.name() === "run")!
 			.parseAsync(
-				["@refarm.dev/pi-agent", "respond", "--args", '{"query":"hello"}'],
+				["runtime-agent", "respond", "--args", '{"query":"hello"}'],
 				{ from: "user" },
 			);
 
@@ -250,6 +253,7 @@ describe("refarm task run", () => {
 			expect.objectContaining({
 				tasks: [
 					expect.objectContaining({
+						pluginId: "@refarm/pi-agent",
 						args: { query: "hello", prompt: "hello" },
 					}),
 				],
@@ -474,7 +478,7 @@ describe("refarm task status", () => {
 					effortId: "effort-legacy",
 					status: "ok",
 					result: JSON.stringify({
-						content: "[pi-agent erro] quota exceeded",
+						content: "[runtime-agent error] quota exceeded",
 						model: "gpt-5.5",
 					}),
 					completedAt: new Date().toISOString(),
@@ -505,7 +509,9 @@ describe("refarm task status", () => {
 		};
 		expect(payload.status).toBe("done");
 		expect(payload.observedStatus).toBe("failed");
-		expect(payload.observedErrors).toEqual(["[pi-agent erro] quota exceeded"]);
+		expect(payload.observedErrors).toEqual([
+			"[runtime-agent error] quota exceeded",
+		]);
 		expect(payload.result.status).toBe("done");
 		spy.mockRestore();
 	});
@@ -688,7 +694,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 							effortId: "effort-legacy",
 							status: "ok",
 							result: JSON.stringify({
-								content: "[pi-agent erro] quota exceeded",
+								content: "[runtime-agent error] quota exceeded",
 								model: "gpt-5.5",
 							}),
 							completedAt: new Date().toISOString(),
@@ -801,7 +807,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 							effortId: "effort-legacy",
 							status: "ok",
 							result: JSON.stringify({
-								content: "[pi-agent erro] quota exceeded",
+								content: "[runtime-agent error] quota exceeded",
 								model: "gpt-5.5",
 							}),
 							completedAt: new Date().toISOString(),
@@ -832,6 +838,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 				observedStatus: string;
 				observedErrors: string[];
 			}>;
+			nextCommands: string[];
 		};
 		expect(payload.summary.done).toBe(1);
 		expect(payload.summary.failed).toBe(0);
@@ -842,9 +849,10 @@ describe("refarm task list/logs/retry/cancel", () => {
 				effortId: "effort-legacy",
 				status: "done",
 				observedStatus: "failed",
-				observedErrors: ["[pi-agent erro] quota exceeded"],
+				observedErrors: ["[runtime-agent error] quota exceeded"],
 			},
 		]);
+		expect(payload.nextCommands).toEqual([]);
 		spy.mockRestore();
 	});
 
@@ -1002,7 +1010,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 					effortId: "effort-legacy",
 					status: "ok",
 					result: JSON.stringify({
-						content: "[pi-agent erro] quota exceeded",
+						content: "[runtime-agent error] quota exceeded",
 						model: "gpt-5.5",
 					}),
 					completedAt: new Date().toISOString(),
@@ -1042,7 +1050,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 			logs: EffortLogEntry[];
 		};
 		expect(payload.observedStatus).toBe("failed");
-		expect(payload.observedErrors).toEqual(["[pi-agent erro] quota exceeded"]);
+		expect(payload.observedErrors).toEqual([
+			"[runtime-agent error] quota exceeded",
+		]);
 		expect(payload.logs).toHaveLength(1);
 		spy.mockRestore();
 	});
@@ -1521,7 +1531,7 @@ describe("refarm task resume", () => {
 		spy.mockRestore();
 	});
 
-	it("continues from the newest checkpoint effort when none is active", async () => {
+	it("does not resume terminal checkpoint efforts when none is active", async () => {
 		const adapter = createMockAdapter();
 		const checkpoint: TaskSessionCheckpoint = {
 			version: 1,
@@ -1562,9 +1572,51 @@ describe("refarm task resume", () => {
 			statusCommand: "refarm task status effort-done --transport file --json",
 			logsCommand: "refarm task logs effort-done --transport file --json",
 		});
+		expect(payload.nextCommands).toEqual([]);
+		spy.mockRestore();
+	});
+
+	it("continues from a non-terminal checkpoint effort when none is active", async () => {
+		const adapter = createMockAdapter();
+		const checkpoint: TaskSessionCheckpoint = {
+			version: 1,
+			updatedAt: new Date().toISOString(),
+			efforts: [
+				{
+					effortId: "effort-done",
+					transport: "file",
+					lastStatus: "done",
+					statusCommand: "refarm task status effort-done --transport file",
+					logsCommand: "refarm task logs effort-done --transport file",
+				},
+				{
+					effortId: "effort-pending",
+					transport: "file",
+					lastStatus: "pending",
+					statusCommand: "refarm task status effort-pending --transport file",
+					logsCommand: "refarm task logs effort-pending --transport file",
+				},
+			],
+		};
+		const session = createMockSessionRecorder({
+			getCheckpoint: vi.fn().mockReturnValue(checkpoint),
+		});
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "resume")!
+			.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			nextCommands: string[];
+		};
 		expect(payload.nextCommands).toEqual([
-			"refarm task status effort-done --transport file --json",
-			"refarm task logs effort-done --transport file --json",
+			"refarm task status effort-pending --transport file --watch --json",
+			"refarm task logs effort-pending --transport file --json",
 		]);
 		spy.mockRestore();
 	});

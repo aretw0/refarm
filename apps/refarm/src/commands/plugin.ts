@@ -1,5 +1,9 @@
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
-import { isPiAgentPluginId, PI_AGENT_NPM_PACKAGE, PI_AGENT_PLUGIN_ID } from "@refarm.dev/config";
+import {
+	isRuntimeAgentPluginId,
+	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_ID,
+} from "@refarm.dev/config";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
@@ -24,10 +28,10 @@ import {
 	PACKAGE_MANAGERS,
 } from "./package-manager.js";
 import {
-	PI_AGENT_RELOAD_JSON_COMMAND,
 	PLUGIN_INSTALL_COMMAND,
 	PLUGIN_INSTALL_JSON_COMMAND,
 	PLUGIN_STATUS_JSON_COMMAND,
+	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import {
 	readRuntimePluginState,
@@ -46,8 +50,8 @@ import {
 // To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
 const BUNDLED_PLUGINS = [
 	{
-		id: PI_AGENT_PLUGIN_ID,
-		npmPackage: PI_AGENT_NPM_PACKAGE,
+		id: RUNTIME_AGENT_PLUGIN_ID,
+		npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
 		wasmFile: "dist/pi_agent.wasm",
 		manifestFile: "dist/plugin.json",
 		requiredProvides: ["agent:respond"],
@@ -56,7 +60,7 @@ const BUNDLED_PLUGINS = [
 
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
-const PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND = PI_AGENT_RELOAD_JSON_COMMAND;
+const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
 
 function pluginBundleCommand(
 	input: string,
@@ -157,7 +161,7 @@ interface PluginInstallReport {
 	nextCommands?: string[];
 }
 
-function localPiAgentBuildCommand(): string {
+function localRuntimeAgentBuildCommand(): string {
 	return createPackageScriptCommand({
 		cwd: "packages/pi-agent",
 		script: "build",
@@ -262,7 +266,7 @@ async function installPlugin(
 
 	const wasmSrc = path.join(pkgDir, plugin.wasmFile);
 	if (!existsSync(wasmSrc)) {
-		const buildCommand = localPiAgentBuildCommand();
+		const buildCommand = localRuntimeAgentBuildCommand();
 		const message = `WASM not found at ${wasmSrc}`;
 		if (!quiet) {
 			console.error(`  ✗ ${plugin.id}: ${message}`);
@@ -479,26 +483,26 @@ function buildRuntimePluginStatusReport(
 
 	const known =
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
-	const piAgentInstalled = state.installed.some(isPiAgentPluginId);
-	const piAgentLoaded =
+	const runtimeAgentInstalled = state.installed.some(isRuntimeAgentPluginId);
+	const runtimeAgentLoaded =
 		typeof state.activeAgent === "string" && state.activeAgent.length > 0;
-	const nextCommands = piAgentLoaded
+	const nextCommands = runtimeAgentLoaded
 		? []
 		: [
-				...(piAgentInstalled
-					? [PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND]
+				...(runtimeAgentInstalled
+					? [PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND]
 					: [PLUGIN_INSTALL_JSON_COMMAND]),
 				PLUGIN_STATUS_JSON_COMMAND,
 			];
-	const nextAction = piAgentLoaded
+	const nextAction = runtimeAgentLoaded
 		? null
-		: piAgentInstalled
-			? PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND
+		: runtimeAgentInstalled
+			? PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND
 			: PLUGIN_INSTALL_COMMAND;
 	return {
 		command: "plugin",
 		operation: "status",
-		ok: piAgentLoaded,
+		ok: runtimeAgentLoaded,
 		available: true,
 		plugins: known.map((id) => ({
 			id,
@@ -558,11 +562,11 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 		);
 	}
 
-	if (!report.plugins.some((plugin) => plugin.id === PI_AGENT_PLUGIN_ID && plugin.loaded)) {
+	if (!report.plugins.some((plugin) => plugin.id === RUNTIME_AGENT_PLUGIN_ID && plugin.loaded)) {
 		console.log("");
-		console.log("pi-agent is not loaded.");
+		console.log("Runtime agent plugin is not loaded.");
 		console.log(`  Install:  ${PLUGIN_INSTALL_COMMAND}`);
-		console.log(`  Reload:   ${PLUGIN_RELOAD_PI_AGENT_JSON_COMMAND}`);
+		console.log(`  Reload:   ${PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND}`);
 		console.log("  Ask:      refarm ask hello");
 		console.log(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`);
 	}
@@ -683,7 +687,7 @@ export const pluginCommand = new Command("plugin").description(
 		"Examples:",
 		"  $ refarm plugin status",
 		"  $ refarm plugin status --json",
-		"  $ refarm plugin reload @refarm/pi-agent --json",
+		"  $ refarm plugin reload runtime-agent --json",
 		"  $ refarm plugin install",
 		"  $ refarm plugin list",
 		"  $ refarm plugin list --json",
@@ -695,8 +699,8 @@ export const pluginCommand = new Command("plugin").description(
 	`  Status reads the active Refarm runtime; ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if unavailable.`,
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
-	"  refarm ask preflights pi-agent and asks the runtime to reload it when installed but not loaded.",
-	"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
+	"  refarm ask preflights the runtime agent plugin and asks the runtime to reload it when installed but not loaded.",
+	"  In refarm chat, /reload runtime-agent is the interactive equivalent.",
 	].join("\n"),
 );
 
@@ -713,9 +717,9 @@ pluginCommand
 			"  $ refarm plugin install --force",
 			"",
 			"Notes:",
-			"  If the bundled WASM is missing, build pi-agent first with the command printed by the error.",
-			"  After install, start or restart the runtime, then run refarm plugin reload @refarm/pi-agent --json.",
-			"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
+			"  If the bundled runtime agent WASM is missing, build @refarm.dev/pi-agent first with the command printed by the error.",
+			"  After install, start or restart the runtime, then run refarm plugin reload runtime-agent --json.",
+			"  In refarm chat, /reload runtime-agent is the interactive equivalent.",
 			"  Run refarm plugin status to confirm runtime load state.",
 		].join("\n"),
 	)
@@ -757,7 +761,7 @@ pluginCommand
 			"Examples:",
 			"  $ refarm plugin status",
 			"  $ refarm plugin status --json",
-			"  $ refarm plugin reload @refarm/pi-agent --json",
+			"  $ refarm plugin reload runtime-agent --json",
 			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
 			"",
@@ -767,7 +771,7 @@ pluginCommand
 			`  Ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
 			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
-			"  In refarm chat, /reload @refarm/pi-agent is the interactive equivalent.",
+			"  In refarm chat, /reload runtime-agent is the interactive equivalent.",
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable runtime plugin state")
@@ -782,8 +786,8 @@ pluginCommand
 			"",
 			"Examples:",
 			"  $ refarm plugin reload",
-			"  $ refarm plugin reload pi-agent",
-			"  $ refarm plugin reload @refarm/pi-agent --json",
+			"  $ refarm plugin reload runtime-agent",
+			"  $ refarm plugin reload runtime-agent --json",
 			"",
 			"Notes:",
 			"  This is the non-interactive equivalent of /reload in refarm chat.",

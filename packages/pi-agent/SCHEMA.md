@@ -16,7 +16,7 @@ new Session with `parent_session_id` pointing to the ancestor session.
 {
   "@type":             "Session",
   "@id":               "urn:refarm:session:v1:{new_id()}",
-  "participants":      ["urn:refarm:agent:pi-agent"],
+  "participants":      ["urn:refarm:agent:runtime-agent"],
   "context_id":        "urn:... | null",
   "name":              "string | null",
   "leaf_entry_id":     "urn:refarm:session-entry:v1:{id} | null",

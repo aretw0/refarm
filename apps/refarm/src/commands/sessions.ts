@@ -122,6 +122,15 @@ function resolveSessionsCommandServices(
 	};
 }
 
+function sessionJsonOption(
+	opts: { json?: boolean } | undefined,
+	command?: Command,
+): boolean {
+	return opts?.json === true ||
+		command?.opts<{ json?: boolean }>().json === true ||
+		command?.parent?.opts<{ json?: boolean }>().json === true;
+}
+
 function writeActiveSessionOrReport(
 	services: SessionsCommandServices,
 	targetSessionId: string,
@@ -245,8 +254,8 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 			new Command("list")
 				.description("List recent sessions (default)")
 				.option("--json", "Output machine-readable session list")
-				.action(async (opts: { json?: boolean }) => {
-					await listSessions(services, { json: opts.json });
+				.action(async (opts: { json?: boolean }, command: Command) => {
+					await listSessions(services, { json: sessionJsonOption(opts, command) });
 				}),
 		)
 		.addCommand(
@@ -254,8 +263,8 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 				.description("Switch to a session by ID prefix")
 				.argument("<id>", "Session ID or unique prefix")
 				.option("--json", "Output machine-readable active session update")
-				.action(async (prefix: string, opts: { json?: boolean }) => {
-					await useSession(services, prefix, { json: opts.json });
+				.action(async (prefix: string, opts: { json?: boolean }, command: Command) => {
+					await useSession(services, prefix, { json: sessionJsonOption(opts, command) });
 				}),
 		)
 		.addCommand(
@@ -263,8 +272,11 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 				.description("Create a new session and switch to it")
 				.option("--name <name>", "Optional session name")
 				.option("--json", "Output machine-readable created session metadata")
-				.action(async (opts: { name?: string; json?: boolean }) => {
-					await createSession(services, opts);
+				.action(async (opts: { name?: string; json?: boolean }, command: Command) => {
+					await createSession(services, {
+						...opts,
+						json: sessionJsonOption(opts, command),
+					});
 				}),
 		)
 		.addCommand(
@@ -272,8 +284,8 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 				.description("Show conversation history for a session")
 				.argument("<id>", "Session ID or unique prefix")
 				.option("--json", "Output machine-readable session history")
-				.action(async (prefix: string, opts: { json?: boolean }) => {
-					await showSession(services, prefix, { json: opts.json });
+				.action(async (prefix: string, opts: { json?: boolean }, command: Command) => {
+					await showSession(services, prefix, { json: sessionJsonOption(opts, command) });
 				}),
 		)
 		.addCommand(
@@ -289,8 +301,11 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 				.option("--name <name>", "Name for the new forked session")
 				.option("--json", "Output machine-readable fork result")
 				.action(
-					async (prefix: string, opts: { at?: string; name?: string; json?: boolean }) => {
-						await forkSession(services, prefix, opts);
+					async (prefix: string, opts: { at?: string; name?: string; json?: boolean }, command: Command) => {
+						await forkSession(services, prefix, {
+							...opts,
+							json: sessionJsonOption(opts, command),
+						});
 					},
 				),
 		)
@@ -298,9 +313,9 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 			new Command("clear")
 				.description("Clear the active session (next ask starts fresh)")
 				.option("--json", "Output machine-readable clear result")
-				.action((opts: { json?: boolean }) => {
+				.action((opts: { json?: boolean }, command: Command) => {
 					const cleared = services.clearActiveSessionId();
-					if (opts.json) {
+					if (sessionJsonOption(opts, command)) {
 						const report: ActiveSessionReport = {
 							action: "cleared",
 							activeSessionId: null,
@@ -316,9 +331,9 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 					}
 				}),
 		)
-		.action(async (opts: { json?: boolean }) => {
+		.action(async (opts: { json?: boolean }, command: Command) => {
 			// default action: list
-			await listSessions(services, { json: opts.json });
+			await listSessions(services, { json: sessionJsonOption(opts, command) });
 		});
 }
 
@@ -356,17 +371,16 @@ async function listSessions(
 		),
 	};
 	if (opts.json) {
-		const nextCommands = report.activeSessionId
+		const activeSession = report.activeSessionId
+			? report.sessions.find((session) => session["@id"] === report.activeSessionId)
+			: undefined;
+		const nextSessionId = activeSession?.["@id"] ?? report.sessions[0]?.["@id"];
+		const nextCommands = nextSessionId
 			? [
-					sessionShowJsonCommand(report.activeSessionId),
-					sessionUseJsonCommand(report.activeSessionId),
+					sessionShowJsonCommand(nextSessionId),
+					sessionUseJsonCommand(nextSessionId),
 				]
-			: report.sessions[0]
-				? [
-						sessionShowJsonCommand(report.sessions[0]["@id"]),
-						SESSIONS_LIST_JSON_COMMAND,
-					]
-				: [SESSIONS_NEW_JSON_COMMAND];
+			: [SESSIONS_NEW_JSON_COMMAND];
 		printSessionJsonSuccess("list", report, nextCommands);
 		return;
 	}
@@ -750,10 +764,12 @@ async function showSession(
 	}
 
 	if (opts.json) {
-		printSessionJsonSuccess("show", history, [
-			sessionUseJsonCommand(history.session["@id"]),
-			SESSIONS_LIST_JSON_COMMAND,
-		]);
+		const activeSessionId = services.readActiveSessionId();
+		const nextCommands =
+			activeSessionId === history.session["@id"]
+				? []
+				: [sessionUseJsonCommand(history.session["@id"]), SESSIONS_LIST_JSON_COMMAND];
+		printSessionJsonSuccess("show", history, nextCommands);
 		return;
 	}
 

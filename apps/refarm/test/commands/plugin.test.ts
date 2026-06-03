@@ -92,12 +92,12 @@ describe("plugin install", () => {
 		pluginCommand.outputHelp();
 
 		expect(help).toContain("refarm plugin status");
-		expect(help).toContain("refarm plugin reload @refarm/pi-agent --json");
-		expect(help).toContain("/reload @refarm/pi-agent");
+		expect(help).toContain("refarm plugin reload runtime-agent --json");
+		expect(help).toContain("/reload runtime-agent");
 		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor");
-		expect(help).toContain("refarm ask preflights pi-agent");
+		expect(help).toContain("refarm ask preflights the runtime agent plugin");
 	});
 
 	it("documents runtime reload after bundled plugin install", () => {
@@ -114,8 +114,8 @@ describe("plugin install", () => {
 		install?.outputHelp();
 
 		expect(help).toContain("start or restart the runtime");
-		expect(help).toContain("refarm plugin reload @refarm/pi-agent --json");
-		expect(help).toContain("/reload @refarm/pi-agent");
+		expect(help).toContain("refarm plugin reload runtime-agent --json");
+		expect(help).toContain("/reload runtime-agent");
 		expect(help).toContain("refarm plugin status");
 	});
 
@@ -449,11 +449,11 @@ describe("plugin status", () => {
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
 		expect(output).toContain("@refarm/pi-agent");
 		expect(output).toContain("yes");
-		expect(output).not.toContain("pi-agent is not loaded");
+		expect(output).not.toContain("Runtime agent plugin is not loaded");
 		consoleSpy.mockRestore();
 	});
 
-	it("guides when pi-agent is installed but not loaded", async () => {
+	it("guides when the runtime agent plugin is installed but not loaded", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn().mockResolvedValue({
@@ -471,9 +471,9 @@ describe("plugin status", () => {
 		await run("status");
 
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-		expect(output).toContain("pi-agent is not loaded");
+		expect(output).toContain("Runtime agent plugin is not loaded");
 		expect(output).toContain("refarm plugin install");
-		expect(output).toContain("refarm plugin reload @refarm/pi-agent --json");
+		expect(output).toContain("refarm plugin reload runtime-agent --json");
 		expect(output).toContain("refarm ask hello");
 		consoleSpy.mockRestore();
 	});
@@ -529,14 +529,14 @@ describe("plugin status", () => {
 				local: true,
 			},
 		]);
-		expect(payload.nextAction).toBe("refarm plugin reload @refarm/pi-agent --json");
+		expect(payload.nextAction).toBe("refarm plugin reload runtime-agent --json");
 		expect(payload.nextActions).toEqual([
-			"refarm plugin reload @refarm/pi-agent --json",
+			"refarm plugin reload runtime-agent --json",
 			"refarm plugin status --json",
 		]);
-		expect(payload.nextCommand).toBe("refarm plugin reload @refarm/pi-agent --json");
+		expect(payload.nextCommand).toBe("refarm plugin reload runtime-agent --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm plugin reload @refarm/pi-agent --json",
+			"refarm plugin reload runtime-agent --json",
 			"refarm plugin status --json",
 		]);
 		expect(process.exitCode).toBe(1);

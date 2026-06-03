@@ -124,7 +124,7 @@ describe("session command", () => {
 		stderrSpy.mockRestore();
 	});
 
-	it("reloads pi-agent before entering the REPL when installed but not loaded", async () => {
+	it("reloads the runtime agent before entering the REPL when installed but not loaded", async () => {
 		const readPluginState = vi
 			.fn()
 			.mockResolvedValueOnce({
@@ -152,7 +152,7 @@ describe("session command", () => {
 		expect(process.exitCode).toBeUndefined();
 	});
 
-	it("does not enter the REPL when pi-agent is missing", async () => {
+	it("does not enter the REPL when the runtime agent plugin is missing", async () => {
 		const readPluginState = vi.fn().mockResolvedValue({
 			installed: [],
 			loaded: [],
@@ -167,7 +167,7 @@ describe("session command", () => {
 		expect(mockRunSessionRepl).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 		expect(stderrSpy).toHaveBeenCalledWith(
-			expect.stringContaining("pi-agent is not loaded"),
+			expect.stringContaining("Runtime agent is not loaded"),
 		);
 		expect(stderrSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm plugin install --json"),

@@ -142,7 +142,7 @@ describe("refarm ask", () => {
 		).toBe("/tmp/refarm-results");
 	});
 
-	it("submits effort with pi-agent respond payload", async () => {
+	it("submits effort with runtime agent respond payload", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -534,10 +534,10 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "agent-not-loaded",
-			nextAction: "refarm plugin reload @refarm/pi-agent --json",
-			nextCommand: "refarm plugin reload @refarm/pi-agent --json",
+			nextAction: "refarm plugin reload runtime-agent --json",
+			nextCommand: "refarm plugin reload runtime-agent --json",
 		});
-		expect(payload.nextActions).toContain("refarm plugin reload @refarm/pi-agent --json");
+		expect(payload.nextActions).toContain("refarm plugin reload runtime-agent --json");
 		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
 		expect(payload.nextActions).toContain("refarm runtime start");
 		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
@@ -546,7 +546,7 @@ describe("refarm ask", () => {
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({
 				diagnostic: "agent-not-loaded",
-				command: "refarm plugin reload @refarm/pi-agent --json",
+				command: "refarm plugin reload runtime-agent --json",
 			}),
 		]);
 		expect(deps.submitEffort).not.toHaveBeenCalled();
@@ -556,7 +556,7 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
-	it("prints plugin install recovery as JSON when pi-agent is missing", async () => {
+	it("prints plugin install recovery as JSON when the runtime agent is missing", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
@@ -703,7 +703,7 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
-	it("reloads installed pi-agent before submitting when it is not loaded", async () => {
+	it("reloads the installed runtime agent before submitting when it is not loaded", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
@@ -786,17 +786,17 @@ describe("refarm ask", () => {
 			reloaded: [],
 			deferred: [],
 			skipped: ["@refarm/pi-agent"],
-			nextAction: "refarm plugin reload @refarm/pi-agent --json",
-			nextCommand: "refarm plugin reload @refarm/pi-agent --json",
+			nextAction: "refarm plugin reload runtime-agent --json",
+			nextCommand: "refarm plugin reload runtime-agent --json",
 			nextCommands: [
-				"refarm plugin reload @refarm/pi-agent --json",
+				"refarm plugin reload runtime-agent --json",
 				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 			recommendations: [
 				expect.objectContaining({
 					diagnostic: "agent-reload-failed",
-					command: "refarm plugin reload @refarm/pi-agent --json",
+					command: "refarm plugin reload runtime-agent --json",
 				}),
 			],
 		});
@@ -947,7 +947,7 @@ describe("refarm ask", () => {
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "error",
 				error:
-					"[pi-agent erro] You exceeded your current quota, please check your plan and billing details.",
+					"[runtime-agent error] You exceeded your current quota, please check your plan and billing details.",
 			}),
 		});
 		const command = createAskCommand(deps);

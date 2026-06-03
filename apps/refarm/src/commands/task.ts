@@ -1,4 +1,4 @@
-import { isPiAgentPluginId } from "@refarm.dev/config";
+import { isRuntimeAgentPluginId, normalizePluginId } from "@refarm.dev/config";
 import type {
 	Effort,
 	EffortLogEntry,
@@ -42,6 +42,7 @@ import {
 	formatTaskSessionModelRoute,
 	taskSessionEffortCommands,
 	type TaskSessionCheckpoint,
+	type TaskSessionEffortRecord,
 	type TaskSessionRecorder,
 } from "./task-session.js";
 import { isFinalEffortStatus } from "./task-status.js";
@@ -235,6 +236,11 @@ function taskCheckpointJsonHandoff(
 			}),
 		})),
 	};
+}
+
+function isResumableTaskSessionEffort(effort: TaskSessionEffortRecord): boolean {
+	if (!effort.lastStatus || effort.lastStatus === "not-found") return false;
+	return !isFinalEffortStatus(effort.lastStatus);
 }
 
 function reportTaskControlError(
@@ -617,8 +623,8 @@ function safeSessionRecord(fn: () => void): void {
 	}
 }
 
-function isPiAgentRespondTask(plugin: string, fn: string): boolean {
-	return isPiAgentPluginId(plugin) && fn === "respond";
+function isRuntimeAgentRespondTask(plugin: string, fn: string): boolean {
+	return isRuntimeAgentPluginId(plugin) && fn === "respond";
 }
 
 function resolveTaskAdapter(
@@ -636,7 +642,7 @@ export function normalizeTaskArgs(
 	fn: string,
 	args: unknown,
 ): unknown {
-	if (!isPiAgentRespondTask(plugin, fn)) return args;
+	if (!isRuntimeAgentRespondTask(plugin, fn)) return args;
 	if (!args || typeof args !== "object" || Array.isArray(args)) return args;
 
 	const record = args as Record<string, unknown>;
@@ -668,8 +674,8 @@ export function createTaskCommand(
 		`
 
 Examples:
-  $ refarm task run @refarm.dev/pi-agent respond --args '{"prompt":"hello"}'
-  $ refarm task run @refarm.dev/pi-agent respond --transport http
+  $ refarm task run runtime-agent respond --args '{"prompt":"hello"}'
+  $ refarm task run runtime-agent respond --transport http
   $ refarm task status <effort-id>
   $ refarm task logs <effort-id>
   $ refarm task resume
@@ -704,9 +710,9 @@ Notes:
 			`
 
 Examples:
-  $ refarm task run @refarm.dev/pi-agent respond --args '{"prompt":"hello"}'
-  $ refarm task run @refarm.dev/pi-agent respond --args '{"query":"hello"}'
-  $ refarm task run @refarm.dev/pi-agent respond --transport http
+  $ refarm task run runtime-agent respond --args '{"prompt":"hello"}'
+  $ refarm task run runtime-agent respond --args '{"query":"hello"}'
+  $ refarm task run runtime-agent respond --transport http
   $ refarm task run my-plugin process --direction "Review local change"
 
 Notes:
@@ -754,7 +760,8 @@ Notes:
 					process.exitCode = 1;
 					return;
 				}
-				parsedArgs = normalizeTaskArgs(plugin, fn, parsedArgs);
+				const pluginId = normalizePluginId(plugin);
+				parsedArgs = normalizeTaskArgs(pluginId, fn, parsedArgs);
 				const { transport, adapter } = resolveTaskAdapter(
 					opts.transport,
 					adapterResolver,
@@ -766,7 +773,7 @@ Notes:
 					tasks: [
 						{
 							id: crypto.randomUUID(),
-							pluginId: plugin,
+							pluginId,
 							fn,
 							args: parsedArgs,
 						},
@@ -1005,30 +1012,23 @@ Notes:
 							(entry) => entry.effortId === checkpoint.activeEffortId,
 						)
 					: undefined;
-				const fallback = checkpoint.efforts[0];
+				const resumable = active && isResumableTaskSessionEffort(active)
+					? active
+					: checkpoint.efforts.find(isResumableTaskSessionEffort);
 				const effortCommands = taskSessionEffortCommands(checkpoint.efforts, {
 					json: true,
 				});
-				const nextCommands = active
+				const nextCommands = resumable
 					? [
-							buildTaskStatusCommand(active.effortId, active.transport, {
+							buildTaskStatusCommand(resumable.effortId, resumable.transport, {
 								json: true,
 								watch: true,
 							}),
-							buildTaskLogsCommand(active.effortId, active.transport, {
+							buildTaskLogsCommand(resumable.effortId, resumable.transport, {
 								json: true,
 							}),
 						]
-					: fallback
-						? [
-								buildTaskStatusCommand(fallback.effortId, fallback.transport, {
-									json: true,
-								}),
-								buildTaskLogsCommand(fallback.effortId, fallback.transport, {
-									json: true,
-								}),
-							]
-						: ["refarm task list --json"];
+					: [];
 				printTaskJsonSuccess(
 					"resume",
 					{
@@ -1132,12 +1132,15 @@ Notes:
 				});
 				const observedEfforts = observedEffortList(efforts);
 				const observedSummary = observedEffortSummary(efforts);
-				const nextCommands = efforts[0]
+				const resumable = efforts.find(
+					(effort) => !isFinalEffortStatus(observedEffortStatus(effort)),
+				);
+				const nextCommands = resumable
 					? [
-							buildTaskStatusCommand(efforts[0].effortId, transport, {
+							buildTaskStatusCommand(resumable.effortId, transport, {
 								json: true,
 							}),
-							buildTaskLogsCommand(efforts[0].effortId, transport, {
+							buildTaskLogsCommand(resumable.effortId, transport, {
 								json: true,
 							}),
 						]

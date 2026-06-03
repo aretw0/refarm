@@ -19,16 +19,23 @@ describe("parseChatLine", () => {
 	});
 
 	it("parses /reload with a single plugin id", () => {
-		expect(parseChatLine("/reload pi-agent")).toEqual({
+		expect(parseChatLine("/reload runtime-agent")).toEqual({
 			kind: "reload",
 			pluginIds: ["@refarm/pi-agent"],
 		});
 	});
 
 	it("parses /reload with multiple plugin ids", () => {
-		expect(parseChatLine("/reload pi-agent other-plugin")).toEqual({
+		expect(parseChatLine("/reload runtime-agent other-plugin")).toEqual({
 			kind: "reload",
 			pluginIds: ["@refarm/pi-agent", "other-plugin"],
+		});
+	});
+
+	it("normalizes legacy pi-agent aliases for /reload", () => {
+		expect(parseChatLine("/reload pi-agent")).toEqual({
+			kind: "reload",
+			pluginIds: ["@refarm/pi-agent"],
 		});
 	});
 
@@ -221,7 +228,7 @@ describe("parseChatLine", () => {
 
 	it("documents runtime-oriented slash commands", () => {
 		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
-		expect(CHAT_HELP_TEXT).toContain("/reload pi-agent");
+		expect(CHAT_HELP_TEXT).toContain("/reload runtime-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model providers");
 		expect(CHAT_HELP_TEXT).toContain("/provider openai/gpt-5.5");
 		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
