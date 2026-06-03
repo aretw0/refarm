@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand, refarmProcess } from "./command-handoff.js";
 import {
 	createExecutionPlanHandoff,
 	type ExecutionPlanBase,
@@ -393,14 +393,15 @@ export function buildSessionForkPreviewEnvelope(args: {
 }): RefarmSessionTimelinePreviewEnvelope {
 	const { node, branchPointEntryId, name } = args;
 	const branchName = name ?? "<branch-name>";
-	const command = refarmCommand([
+	const commandArgs = [
 		"sessions",
 		"fork",
 		node.metadata.shortId,
 		...(branchPointEntryId ? ["--at", branchPointEntryId] : []),
 		"--name",
 		branchName,
-	]);
+	];
+	const command = refarmCommand(commandArgs);
 	const plan: RefarmSessionTimelineForkPreviewPlan = {
 		action: "fork",
 		destructive: false,
@@ -431,7 +432,11 @@ export function buildSessionForkPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...createExecutionPlanHandoff({ ...plan, commandTemplate: command }),
+		...createExecutionPlanHandoff({
+			...plan,
+			commandTemplate: command,
+			processTemplate: refarmProcess(commandArgs),
+		}),
 	};
 }
 
@@ -514,7 +519,7 @@ export function buildGitBranchPreviewEnvelope(args: {
 }): RefarmGitTimelinePreviewEnvelope {
 	const { node, name, branchAlreadyExists } = args;
 	const branchName = name ?? "<branch-name>";
-	const command = refarmCommand([
+	const commandArgs = [
 		"tree",
 		"fork",
 		"--scope",
@@ -522,7 +527,8 @@ export function buildGitBranchPreviewEnvelope(args: {
 		node.metadata.shortId,
 		"--name",
 		branchName,
-	]);
+	];
+	const command = refarmCommand(commandArgs);
 	const readyToExecute = Boolean(name) && branchAlreadyExists === false;
 	const blockedReason = !name
 		? "Provide a branch name with --name before executing tree fork."
@@ -554,7 +560,11 @@ export function buildGitBranchPreviewEnvelope(args: {
 		reason: "dry-run",
 		target: node,
 		plan,
-		...createExecutionPlanHandoff({ ...plan, commandTemplate: command }),
+		...createExecutionPlanHandoff({
+			...plan,
+			commandTemplate: command,
+			processTemplate: refarmProcess(commandArgs),
+		}),
 	};
 }
 

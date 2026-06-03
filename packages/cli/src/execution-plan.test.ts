@@ -98,6 +98,19 @@ describe("execution plan handoffs", () => {
 				recommendedCommand: null,
 				commandTemplate:
 					"refarm tree fork --scope git abc123 --name <branch-name>",
+				processTemplate: {
+					command: "refarm",
+					args: [
+						"tree",
+						"fork",
+						"--scope",
+						"git",
+						"abc123",
+						"--name",
+						"<branch-name>",
+					],
+					display: "refarm tree fork --scope git abc123 --name <branch-name>",
+				},
 			}),
 		).toEqual({
 			nextAction:
@@ -112,6 +125,19 @@ describe("execution plan handoffs", () => {
 					id: "execution-plan-command",
 					command: "refarm tree fork --scope git abc123 --name <branch-name>",
 					parameters: ["branch-name"],
+					process: {
+						command: "refarm",
+						args: [
+							"tree",
+							"fork",
+							"--scope",
+							"git",
+							"abc123",
+							"--name",
+							"<branch-name>",
+						],
+						display: "refarm tree fork --scope git abc123 --name <branch-name>",
+					},
 					useWhen:
 						"Provide a branch name with --name before executing tree fork.",
 				},

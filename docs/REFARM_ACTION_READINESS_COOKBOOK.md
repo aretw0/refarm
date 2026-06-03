@@ -78,6 +78,9 @@ commands an operator agent can execute directly:
   `commandTemplateParameters` validates placeholder declarations and
   `instantiateProcessTemplate` turns a parameterized process template into a
   spawn-ready `command` + `args` spec without shell parsing.
+- Execution-plan handoffs may attach `process` to generated templates via
+  `processTemplate`; machine runners should prefer that over parsing
+  `template.command`.
 - Prefer `refarm ...` commands for continuation when the CLI can express the
   action. Use lower-level commands such as `git ls-remote ...` or
   `gh secret list` only when they are the deterministic verification surface.

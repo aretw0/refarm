@@ -308,6 +308,30 @@ describe("refarm tree preview", () => {
 			],
 			nextCommand: null,
 			nextCommands: [],
+			templates: [
+				{
+					id: "execution-plan-command",
+					command:
+						"refarm tree fork --scope git abcdef123456 --name <branch-name>",
+					parameters: ["branch-name"],
+					process: {
+						command: "refarm",
+						args: [
+							"tree",
+							"fork",
+							"--scope",
+							"git",
+							"abcdef123456",
+							"--name",
+							"<branch-name>",
+						],
+						display:
+							"refarm tree fork --scope git abcdef123456 --name <branch-name>",
+					},
+					useWhen:
+						"Provide a branch name with --name before executing tree fork.",
+				},
+			],
 			plan: {
 				action: "fork",
 				destructive: false,
