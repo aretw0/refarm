@@ -68,12 +68,13 @@ export function buildRefarmCheckReport(checks: {
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
 	];
+	const blockingRecommendations = recommendations.filter(isBlockingRecommendation);
 	const failureCount =
 		(checks.health.ok ? 0 : checks.health.issueCount) +
 		checks.doctor.failureCount;
 
-	const nextActions = diagnosticNextActions(recommendations);
-	const nextCommands = diagnosticNextCommands(recommendations);
+	const nextActions = diagnosticNextActions(blockingRecommendations);
+	const nextCommands = diagnosticNextCommands(blockingRecommendations);
 	return {
 		command: "check",
 		operation: "readiness",
@@ -98,6 +99,10 @@ function modelDoctorCheckRecommendations(
 		...recommendation,
 		severity: "warning",
 	}));
+}
+
+function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
+	return recommendation.severity !== "warning" && recommendation.severity !== "info";
 }
 
 function printRefarmCheckSummary(report: RefarmCheckReport): void {
@@ -148,7 +153,7 @@ function compactActionableRecommendations(
 	const seen = new Set<string>();
 	const compact: DiagnosticRecommendation[] = [];
 	for (const recommendation of recommendations) {
-		if (recommendation.severity === "info") continue;
+		if (!isBlockingRecommendation(recommendation)) continue;
 		const key = `${recommendation.action}\n${recommendation.command ?? ""}`;
 		if (seen.has(key)) continue;
 		seen.add(key);

@@ -272,7 +272,7 @@ describe("checkCommand", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
-	it("surfaces local model provider doctor failures as warnings", async () => {
+	it("surfaces local model provider doctor failures as non-blocking warnings", async () => {
 		const deps = makeDeps({
 			model: {
 				current: {
@@ -300,23 +300,58 @@ describe("checkCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+		await createCheckCommand(deps).parseAsync(["--json"], {
 			from: "user",
 		});
 
 		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			nextCommand: string;
+			warningCount: number;
+			nextCommand: string | null;
 			recommendations: Array<{ diagnostic: string; severity: string }>;
 		};
 		expect(output.ok).toBe(true);
-		expect(output.nextCommand).toBe("refarm model doctor --json");
+		expect(output.warningCount).toBe(1);
+		expect(output.nextCommand).toBeNull();
 		expect(output.recommendations).toEqual([
 			expect.objectContaining({
 				diagnostic: "model-provider-unreachable",
 				severity: "warning",
 			}),
 		]);
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+	});
+
+	it("keeps next-action JSON empty when only model provider warnings are present", async () => {
+		const deps = makeDeps({
+			model: {
+				recommendations: [
+					{
+						diagnostic: "model-provider-unreachable",
+						severity: "failure",
+						summary: "The current local model provider endpoint is not reachable from the runtime process.",
+						action: "Start Ollama where Refarm can reach it, or set a base URL that matches the runtime network.",
+						command: "refarm model doctor --json",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+			recommendations: [],
+		});
 		expect(process.exitCode).toBeUndefined();
 
 		logSpy.mockRestore();

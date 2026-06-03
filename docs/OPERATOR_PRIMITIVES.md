@@ -138,10 +138,10 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   should point to `refarm runtime start --dry-run --json` before retrying
   `ensure`.
 - `check --next-action --json` is the composite readiness gate.
-- `check --next-action --json` should include the local model provider doctor as
-  a warning signal: coding work may continue, but an agentic prompt should not
-  proceed blindly when `model doctor --json` reports an unreachable local
-  provider.
+- `check --json` should include the local model provider doctor as a warning
+  signal. `check --next-action --json` remains blocking-only: `ok: true` means
+  `nextCommands: []`. Before an agentic prompt, run `model doctor --json` when
+  the selected route is a local provider.
 - Plugin recovery should prefer the operator alias:
 
 ```bash
