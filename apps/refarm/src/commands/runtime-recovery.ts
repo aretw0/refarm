@@ -2,6 +2,12 @@ import { refarmCommand } from "./command-handoff.js";
 
 export const RUNTIME_STATUS_COMMAND = refarmCommand(["runtime", "status"]);
 export const RUNTIME_START_COMMAND = refarmCommand(["runtime", "start"]);
+export const RUNTIME_START_DRY_RUN_JSON_COMMAND = refarmCommand([
+	"runtime",
+	"start",
+	"--dry-run",
+	"--json",
+]);
 export const RUNTIME_START_WAIT_COMMAND = refarmCommand([
 	"runtime",
 	"start",

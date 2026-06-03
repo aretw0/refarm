@@ -495,6 +495,72 @@ describe("runtime command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("points to launch dry-run diagnostics when ensure times out with an empty startup log", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const repoRoot = join(tmpdir(), `refarm-runtime-empty-log-${Date.now()}`);
+		mkdirSync(join(repoRoot, "scripts"), { recursive: true });
+		mkdirSync(join(repoRoot, ".refarm"), { recursive: true });
+		writeFileSync(join(repoRoot, "scripts", "farmhand-start.sh"), "");
+		writeFileSync(join(repoRoot, ".refarm", "ts-runtime-start.log"), "");
+		const command = createRuntimeCommand({
+			repoRoot: () => repoRoot,
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			probeReady: vi.fn().mockResolvedValue(false),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+			startRuntime: vi.fn(),
+			waitUntilReady: vi.fn().mockResolvedValue(false),
+		});
+
+		await command.parseAsync(["ensure", "--wait", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
+			ok?: boolean;
+			ready?: boolean;
+			nextAction?: string | null;
+			nextCommand?: string | null;
+			nextCommands?: string[];
+			recommendations?: {
+				diagnostic?: string;
+				command?: string;
+				severity?: string;
+			}[];
+			diagnostics?: { logPath?: string; logTail?: string[] };
+		};
+		expect(payload.command).toBe("runtime");
+		expect(payload.operation).toBe("ensure");
+		expect(payload.ok).toBe(false);
+		expect(payload.ready).toBe(false);
+		expect(payload.nextAction).toBe(
+			"Inspect the resolved runtime launch command before retrying readiness recovery.",
+		);
+		expect(payload.nextCommand).toBe("refarm runtime start --dry-run --json");
+		expect(payload.nextCommands).toEqual([
+			"refarm runtime start --dry-run --json",
+			"refarm runtime status",
+			"refarm doctor --next-command",
+		]);
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "runtime-start-no-readiness",
+				severity: "failure",
+				command: "refarm runtime start --dry-run --json",
+			}),
+		]);
+		expect(payload.diagnostics).toEqual({
+			logPath: join(repoRoot, ".refarm", "ts-runtime-start.log"),
+		});
+		expect(process.exitCode).toBe(1);
+		rmSync(repoRoot, { recursive: true, force: true });
+		logSpy.mockRestore();
+	});
+
 	it("prints startup recovery command when ensure --next-command fails", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const repoRoot = join(tmpdir(), `refarm-runtime-ensure-next-${Date.now()}`);

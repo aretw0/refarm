@@ -30,6 +30,7 @@ import {
 	RUNTIME_ENSURE_WAIT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_COMMAND,
+	RUNTIME_START_DRY_RUN_JSON_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -207,7 +208,8 @@ function firstRecommendationAction(extra?: object): string | null {
 function runtimeStartDiagnostics(
 	command?: RuntimeLaunchCommand,
 ): RuntimeStartDiagnostics | undefined {
-	if (!command?.logPath || !existsSync(command.logPath)) return undefined;
+	if (!command?.logPath) return undefined;
+	if (!existsSync(command.logPath)) return { logPath: command.logPath };
 	const content = readFileSync(command.logPath, "utf-8");
 	const logTail = content
 		.split(/\r?\n/)
@@ -251,6 +253,24 @@ function runtimeStartDiagnosticRecovery(
 				localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
 				openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
 			},
+		};
+	}
+	if (diagnostics?.logPath) {
+		return {
+			nextCommands: [
+				RUNTIME_START_DRY_RUN_JSON_COMMAND,
+				RUNTIME_STATUS_COMMAND,
+				RUNTIME_DOCTOR_NEXT_COMMAND,
+			],
+			recommendations: [
+				{
+					diagnostic: "runtime-start-no-readiness",
+					severity: "failure",
+					summary: "The runtime was started but did not become ready, and the startup log has no actionable output.",
+					action: "Inspect the resolved runtime launch command before retrying readiness recovery.",
+					command: RUNTIME_START_DRY_RUN_JSON_COMMAND,
+				},
+			],
 		};
 	}
 	return {};
