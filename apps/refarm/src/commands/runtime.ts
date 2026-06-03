@@ -1,5 +1,6 @@
 import {
 	RUNTIME_ENGINE_MODES,
+	type RuntimeSidecarProbeSummary,
 	type RuntimeStatusSummary,
 } from "@refarm.dev/runtime";
 import chalk from "chalk";
@@ -24,7 +25,11 @@ import {
 	startRuntimeProcess,
 	type RuntimeLaunchCommand,
 } from "./runtime-launcher.js";
-import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
+import {
+	probeRuntimeReadiness,
+	waitForRuntimeReady,
+	type RuntimeReadinessProbe,
+} from "./runtime-readiness.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
@@ -57,6 +62,7 @@ interface RuntimeCommandDeps {
 		configuredEngine: TractorEngineMode,
 	): LaunchRuntimeSelection;
 	startRuntime?(command: RuntimeLaunchCommand): void;
+	probeReadiness?(): Promise<RuntimeReadinessProbe>;
 	probeReady?(): Promise<boolean>;
 	waitUntilReady?(): Promise<boolean>;
 }
@@ -106,8 +112,20 @@ function defaultDeps(): RuntimeCommandDeps {
 		readAutostart: readAutostartMode,
 		readSidecarUrl: resolveRuntimeSidecarUrl,
 		resolveRuntime: resolveLaunchRuntime,
-		probeReady: () => probeRuntimeReady(300),
+		probeReadiness: () => probeRuntimeReadiness(300),
 		waitUntilReady: waitForRuntimeReady,
+	};
+}
+
+function runtimeSidecarProbeSummary(
+	probe: RuntimeReadinessProbe,
+): RuntimeSidecarProbeSummary {
+	return {
+		url: probe.url,
+		ready: probe.ready,
+		...(probe.status !== undefined ? { status: probe.status } : {}),
+		...(probe.error ? { error: probe.error } : {}),
+		...(probe.timedOut ? { timedOut: true } : {}),
 	};
 }
 
@@ -116,7 +134,11 @@ async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeSt
 	const autostart = deps.readAutostart();
 	const sidecar = deps.readSidecarUrl?.() ?? resolveRuntimeSidecarUrl();
 	const repoRoot = deps.repoRoot();
-	const ready = deps.probeReady ? await deps.probeReady() : undefined;
+	const readinessProbe = deps.probeReadiness ? await deps.probeReadiness() : undefined;
+	const ready = readinessProbe?.ready ?? (deps.probeReady ? await deps.probeReady() : undefined);
+	const sidecarProbe = readinessProbe
+		? runtimeSidecarProbeSummary(readinessProbe)
+		: undefined;
 	try {
 		const selection = deps.resolveRuntime(repoRoot, configuredEngine);
 		return {
@@ -126,6 +148,7 @@ async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeSt
 			reason: selection.reason,
 			sidecarUrl: sidecar.value,
 			sidecarUrlSource: sidecar.source,
+			...(sidecarProbe ? { sidecarProbe } : {}),
 			ready,
 			startCommand: resolveRuntimeLaunchCommand(
 				repoRoot,
@@ -141,6 +164,7 @@ async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeSt
 			reason: "configured-rust-missing-binary",
 			sidecarUrl: sidecar.value,
 			sidecarUrlSource: sidecar.source,
+			...(sidecarProbe ? { sidecarProbe } : {}),
 			ready,
 			issue: message,
 		};

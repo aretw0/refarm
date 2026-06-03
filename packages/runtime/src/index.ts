@@ -31,9 +31,18 @@ export interface RuntimeStatusSummary {
   reason: RuntimeSelectionReason;
   sidecarUrl?: string;
   sidecarUrlSource?: string;
+  sidecarProbe?: RuntimeSidecarProbeSummary;
   ready?: boolean;
   startCommand?: string;
   issue?: string;
+}
+
+export interface RuntimeSidecarProbeSummary {
+  url: string;
+  ready: boolean;
+  status?: number;
+  error?: string;
+  timedOut?: boolean;
 }
 
 export function createNullRuntimeSummary(): RuntimeSummary {

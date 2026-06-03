@@ -126,6 +126,46 @@ describe("runtime command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("outputs runtime sidecar probe diagnostics as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "ts",
+			readAutostart: () => "ask",
+			readSidecarUrl: () => ({
+				value: "http://127.0.0.1:52001",
+				source: "/workspace/.refarm/config.json",
+			}),
+			probeReadiness: vi.fn().mockResolvedValue({
+				url: "http://127.0.0.1:52001/efforts/summary",
+				ready: false,
+				error: "connect ECONNREFUSED 127.0.0.1:52001",
+			}),
+			resolveRuntime: () => ({
+				configuredEngine: "ts",
+				activeEngine: "ts",
+				reason: "configured-ts",
+			}),
+		});
+
+		await command.parseAsync(["status", "--json"], { from: "user" });
+
+		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			command: "runtime",
+			operation: "status",
+			ok: false,
+			sidecarUrl: "http://127.0.0.1:52001",
+			sidecarUrlSource: "/workspace/.refarm/config.json",
+			sidecarProbe: {
+				url: "http://127.0.0.1:52001/efforts/summary",
+				ready: false,
+				error: "connect ECONNREFUSED 127.0.0.1:52001",
+			},
+			ready: false,
+		});
+		logSpy.mockRestore();
+	});
+
 	it("outputs JSON payload", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const selection: LaunchRuntimeSelection = {
