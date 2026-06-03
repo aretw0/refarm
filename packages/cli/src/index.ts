@@ -14,6 +14,7 @@ export {
 	applicationProcess,
 	binaryCommand,
 	commandTemplateParameters,
+	instantiateCommandTemplate,
 	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,
@@ -26,7 +27,9 @@ export {
 } from "./command-handoff.js";
 export type {
 	ApplicationProcessSpec,
+	CommandTemplateSpec,
 	CommandTemplateParameters,
+	InstantiatedCommandTemplate,
 } from "./command-handoff.js";
 export {
 	buildJsonErrorEnvelope,

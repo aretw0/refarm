@@ -81,6 +81,9 @@ commands an operator agent can execute directly:
 - Public template catalogs that include placeholders should expose `process`
   whenever the producer knows the executable argv. Keep `command` for operator
   display and backwards compatibility.
+- Machine runners can call `instantiateCommandTemplate` with a template and
+  parameter map to get substituted `command`, optional `process`, and optional
+  `cwd` without parsing shell text.
 - Execution-plan handoffs may attach `process` to generated templates via
   `processTemplate`; machine runners should prefer that over parsing
   `template.command`.

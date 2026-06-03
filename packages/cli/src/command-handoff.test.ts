@@ -7,6 +7,7 @@ import {
 	applicationProcess,
 	binaryCommand,
 	commandTemplateParameters,
+	instantiateCommandTemplate,
 	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,
@@ -159,6 +160,49 @@ describe("command handoff helpers", () => {
 			args: ["agent", "finish", "--workspace", "packages/cli", "--since", "HEAD~1"],
 			display: "refarm agent finish --workspace packages/cli --since HEAD~1",
 		});
+	});
+
+	it("instantiates public command templates with process specs and cwd", () => {
+		expect(
+			instantiateCommandTemplate(
+				{
+					id: "external-consumer-check-json",
+					command: "refarm check --next-action --json",
+					process: {
+						command: "refarm",
+						args: ["check", "--next-action", "--json"],
+						display: "refarm check --next-action --json",
+					},
+					parameters: ["dir"],
+					cwdParameter: "dir",
+					useWhen: "Run the readiness gate from a consumer workspace.",
+				},
+				{ dir: "../agents-lab" },
+			),
+		).toEqual({
+			id: "external-consumer-check-json",
+			command: "refarm check --next-action --json",
+			process: {
+				command: "refarm",
+				args: ["check", "--next-action", "--json"],
+				display: "refarm check --next-action --json",
+			},
+			cwd: "../agents-lab",
+		});
+	});
+
+	it("rejects command templates with undeclared placeholders", () => {
+		expect(() =>
+			instantiateCommandTemplate(
+				{
+					id: "bad-template",
+					command: "refarm task status <effort-id> --json",
+					parameters: [],
+					useWhen: "Inspect a worker effort.",
+				},
+				{},
+			),
+		).toThrow("Undeclared command template parameter: effort-id");
 	});
 
 	it("keeps cli source handoff commands behind helpers", () => {

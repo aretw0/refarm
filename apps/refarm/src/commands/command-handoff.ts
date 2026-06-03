@@ -11,6 +11,7 @@ export {
 	applicationProcess,
 	binaryCommand,
 	commandTemplateParameters,
+	instantiateCommandTemplate,
 	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,

@@ -32,6 +32,22 @@ export interface ApplicationProcessSpec {
 
 export type CommandTemplateParameters = Record<string, string>;
 
+export interface CommandTemplateSpec {
+	id: string;
+	command: string;
+	process?: ApplicationProcessSpec;
+	parameters: string[];
+	cwdParameter?: string;
+	useWhen: string;
+}
+
+export interface InstantiatedCommandTemplate {
+	id: string;
+	command: string;
+	process?: ApplicationProcessSpec;
+	cwd?: string;
+}
+
 export function commandTemplateParameters(value: string | string[]): string[] {
 	const values = Array.isArray(value) ? value : [value];
 	return normalizeHandoffValues(
@@ -69,6 +85,40 @@ export function instantiateProcessTemplate(
 		command: substituteCommandTemplateValue(processSpec.command, parameters),
 		args: substituteCommandTemplateValues(processSpec.args, parameters),
 		display: substituteCommandTemplateValue(processSpec.display, parameters),
+	};
+}
+
+export function instantiateCommandTemplate(
+	template: CommandTemplateSpec,
+	parameters: CommandTemplateParameters,
+): InstantiatedCommandTemplate {
+	const declaredParameters = new Set(template.parameters);
+	const usedParameters = commandTemplateParameters([
+		template.command,
+		template.process?.command ?? "",
+		...(template.process?.args ?? []),
+		template.process?.display ?? "",
+		template.cwdParameter ? `<${template.cwdParameter}>` : "",
+	]);
+	for (const parameter of usedParameters) {
+		if (!declaredParameters.has(parameter)) {
+			throw new Error(`Undeclared command template parameter: ${parameter}`);
+		}
+	}
+	for (const parameter of template.parameters) {
+		if (parameters[parameter] === undefined) {
+			throw new Error(`Missing command template parameter: ${parameter}`);
+		}
+	}
+	return {
+		id: template.id,
+		command: substituteCommandTemplateValue(template.command, parameters),
+		...(template.process
+			? { process: instantiateProcessTemplate(template.process, parameters) }
+			: {}),
+		...(template.cwdParameter
+			? { cwd: parameters[template.cwdParameter]! }
+			: {}),
 	};
 }
 
