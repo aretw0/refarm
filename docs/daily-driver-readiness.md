@@ -82,6 +82,13 @@ What is already solid:
 - `refarm agent --json` exposes the no-token `agent-e2e-mock` lane directly in
   `nextActions` and `nextCommands`, so agents do not need to discover it only
   from nested lane metadata.
+- `refarm resume --json` and `refarm agent --json` both expose
+  `refarm model doctor --json`, so local-provider diagnosis is discoverable
+  from the two main operator handoffs without making `resume` perform a live
+  provider probe.
+- Runtime-agent prompt identity now uses the product concept
+  "Refarm runtime agent"; the physical `@refarm/pi-agent` package remains a
+  compatibility identity rather than the operator-facing semantic center.
 - `refarm task resume --json` is now the preferred continuation when a task
   checkpoint exists; it carries the current effort handoffs, model inspection
   command, and status/log commands. `task list --json` remains the inventory
@@ -159,6 +166,27 @@ the primary daily driver:
    roadmap consumers are mapped; extraction remains gated by real repeated use.
 
 ## Next Hardening Order
+
+Use this order to decide whether work belongs lower in shared primitives,
+higher in operator UX, or outside Refarm entirely:
+
+1. **Execution breakage first**: if runtime, task, model, or finish execution
+   fails, harden the lowest layer that owns the failure. Do not patch only the
+   visible CLI wording unless the underlying primitive is already sound.
+2. **Handoff ambiguity second**: if the system works but the next step is
+   unclear, fix the JSON contract or documentation at the first public handoff
+   the agent sees (`resume`, `agent --json`, `check`, `task resume`, or
+   `model doctor`).
+3. **Boundary pressure third**: if two commands or a second consumer need the
+   same behavior, move it down into `packages/*`; otherwise keep
+   product-specific orchestration in `apps/refarm` until reuse is real.
+4. **Migration pressure next**: when the loop is green, prefer using Refarm on
+   non-Refarm work over adding more self-hardening. New internal work should be
+   justified by a real failure, a repeated primitive, or a public contract gap.
+5. **Product polish last**: improve TUI/Web/operator comfort after the CLI loop
+   is already able to recover itself through JSON handoffs.
+
+Current priority sequence:
 
 1. End-to-end loop validation: keep exercising `runtime up → ask → session →
    resume → finish` as actual operator slices and fix what breaks. Start with
