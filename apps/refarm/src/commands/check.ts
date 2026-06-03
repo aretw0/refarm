@@ -12,6 +12,11 @@ import {
 } from "./doctor.js";
 import { type HealthReport, runHealthAudit } from "./health.js";
 import { printJson } from "./json-output.js";
+import {
+	buildModelDoctorStatus,
+	defaultModelDeps,
+	type ModelDoctorStatus,
+} from "./model.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmCheckReport {
@@ -23,6 +28,7 @@ export interface RefarmCheckReport {
 	checks: {
 		health: HealthReport;
 		doctor: RefarmDoctorReport;
+		model?: ModelDoctorStatus;
 	};
 	recommendations: DiagnosticRecommendation[];
 	nextAction: string | null;
@@ -49,15 +55,18 @@ export interface RefarmCheckOptions {
 export interface RefarmCheckDeps {
 	runHealth(): Promise<HealthReport>;
 	runDoctor(options: { failOnWarnings?: boolean }): Promise<RefarmDoctorReport>;
+	runModelDoctor?(): Promise<ModelDoctorStatus>;
 }
 
 export function buildRefarmCheckReport(checks: {
 	health: HealthReport;
 	doctor: RefarmDoctorReport;
+	model?: ModelDoctorStatus;
 }): RefarmCheckReport {
 	const recommendations: DiagnosticRecommendation[] = [
 		...checks.health.recommendations,
 		...checks.doctor.recommendations,
+		...modelDoctorCheckRecommendations(checks.model),
 	];
 	const failureCount =
 		(checks.health.ok ? 0 : checks.health.issueCount) +
@@ -70,7 +79,9 @@ export function buildRefarmCheckReport(checks: {
 		operation: "readiness",
 		ok: checks.health.ok && checks.doctor.ok,
 		failureCount,
-		warningCount: checks.doctor.warningCount,
+		warningCount:
+			checks.doctor.warningCount +
+			modelDoctorCheckRecommendations(checks.model).length,
 		checks,
 		recommendations,
 		nextAction: nextActions[0] ?? null,
@@ -78,6 +89,15 @@ export function buildRefarmCheckReport(checks: {
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
 	};
+}
+
+function modelDoctorCheckRecommendations(
+	model: ModelDoctorStatus | undefined,
+): DiagnosticRecommendation[] {
+	return (model?.recommendations ?? []).map((recommendation) => ({
+		...recommendation,
+		severity: "warning",
+	}));
 }
 
 function printRefarmCheckSummary(report: RefarmCheckReport): void {
@@ -88,6 +108,12 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	console.log(
 		`Doctor: ${report.checks.doctor.ok ? "pass" : "fail"} (${report.checks.doctor.failureCount} failure${report.checks.doctor.failureCount === 1 ? "" : "s"}, ${report.checks.doctor.warningCount} warning${report.checks.doctor.warningCount === 1 ? "" : "s"})`,
 	);
+	if (report.checks.model) {
+		const modelWarnings = modelDoctorCheckRecommendations(report.checks.model).length;
+		console.log(
+			`Model: ${modelWarnings === 0 ? "pass" : "warn"} (${modelWarnings} warning${modelWarnings === 1 ? "" : "s"})`,
+		);
+	}
 
 	const actionable = report.recommendations.filter(
 		(recommendation) => recommendation.severity !== "info",
@@ -144,10 +170,17 @@ async function runDefaultDoctor(options: {
 	}
 }
 
+async function runDefaultModelDoctor(): Promise<ModelDoctorStatus> {
+	const deps = defaultModelDeps();
+	const tokens = await deps.loadTokens();
+	return buildModelDoctorStatus(tokens);
+}
+
 export function createCheckCommand(
 	deps: RefarmCheckDeps = {
 		runHealth: runHealthAudit,
 		runDoctor: runDefaultDoctor,
+		runModelDoctor: runDefaultModelDoctor,
 	},
 ): Command {
 	return new Command("check")
@@ -178,7 +211,8 @@ Notes:
 			const doctor = await deps.runDoctor({
 				failOnWarnings: options.failOnWarnings,
 			});
-			const report = buildRefarmCheckReport({ health, doctor });
+			const model = await deps.runModelDoctor?.();
+			const report = buildRefarmCheckReport({ health, doctor, model });
 
 			if (options.nextCommand && options.json) {
 				printRefarmCheckNextActionJson(report);

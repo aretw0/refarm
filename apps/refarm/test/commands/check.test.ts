@@ -6,6 +6,7 @@ import {
 } from "../../src/commands/check.js";
 import type { RefarmDoctorReport } from "../../src/commands/doctor.js";
 import type { HealthReport } from "../../src/commands/health.js";
+import type { ModelDoctorStatus } from "../../src/commands/model.js";
 
 function makeHealthReport(overrides: Partial<HealthReport> = {}): HealthReport {
 	return {
@@ -91,13 +92,40 @@ function makeDoctorReport(
 	};
 }
 
+function makeModelDoctorStatus(
+	overrides: Partial<ModelDoctorStatus> = {},
+): ModelDoctorStatus {
+	return {
+		current: {
+			provider: "openai",
+			modelId: "gpt-5.5",
+			ref: "openai/gpt-5.5",
+		},
+		providerProbe: {
+			provider: "openai",
+			baseUrl: undefined,
+			url: undefined,
+			ready: null,
+			skipped: true,
+		},
+		handoffs: {
+			inspectCurrent: "refarm model current --json",
+			startOllama: "ollama serve",
+			setDockerOllamaBaseUrl: "refarm model base-url http://host.docker.internal:11434 --json",
+		},
+		...overrides,
+	};
+}
+
 function makeDeps(overrides: {
 	health?: Partial<HealthReport>;
 	doctor?: Partial<RefarmDoctorReport>;
+	model?: Partial<ModelDoctorStatus>;
 } = {}): RefarmCheckDeps {
 	return {
 		runHealth: vi.fn().mockResolvedValue(makeHealthReport(overrides.health)),
 		runDoctor: vi.fn().mockResolvedValue(makeDoctorReport(overrides.doctor)),
+		runModelDoctor: vi.fn().mockResolvedValue(makeModelDoctorStatus(overrides.model)),
 	};
 }
 
@@ -131,6 +159,7 @@ describe("buildRefarmCheckReport", () => {
 					},
 				],
 			}),
+			model: makeModelDoctorStatus(),
 		});
 
 		expect(report.command).toBe("check");
@@ -188,6 +217,7 @@ describe("checkCommand", () => {
 
 		expect(deps.runHealth).toHaveBeenCalledOnce();
 		expect(deps.runDoctor).toHaveBeenCalledWith({ failOnWarnings: undefined });
+		expect(deps.runModelDoctor).toHaveBeenCalledOnce();
 		expect(process.exitCode).toBeUndefined();
 		const output = String(logSpy.mock.calls[0]?.[0]);
 		expect(output).toContain('"command": "check"');
@@ -195,6 +225,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');
+		expect(output).toContain('"model"');
 		expect(output).toContain('"nextAction": null');
 		expect(output).toContain('"nextActions"');
 		expect(output).toContain('"nextCommand": null');
@@ -235,9 +266,60 @@ describe("checkCommand", () => {
 		expect(output).toContain("Check: FAIL");
 		expect(output).toContain("Health: fail (1 issue)");
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");
+		expect(output).toContain("Model: pass (0 warnings)");
 		expect(output).toContain("missing-build-config");
 		expect(output).not.toContain("renderer:non-interactive");
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("surfaces local model provider doctor failures as warnings", async () => {
+		const deps = makeDeps({
+			model: {
+				current: {
+					provider: "ollama",
+					modelId: "llama3.2",
+					ref: "ollama/llama3.2",
+				},
+				providerProbe: {
+					provider: "ollama",
+					baseUrl: "http://localhost:11434",
+					url: "http://localhost:11434/api/tags",
+					ready: false,
+					error: "fetch failed: ECONNREFUSED",
+				},
+				recommendations: [
+					{
+						diagnostic: "model-provider-unreachable",
+						severity: "failure",
+						summary: "The current local model provider endpoint is not reachable from the runtime process.",
+						action: "Start Ollama where Refarm can reach it, or set a base URL that matches the runtime network.",
+						command: "refarm model doctor --json",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			nextCommand: string;
+			recommendations: Array<{ diagnostic: string; severity: string }>;
+		};
+		expect(output.ok).toBe(true);
+		expect(output.nextCommand).toBe("refarm model doctor --json");
+		expect(output.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-provider-unreachable",
+				severity: "warning",
+			}),
+		]);
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
 	});
 
 	it("prints only the first blocking recovery action with --next-action", async () => {
