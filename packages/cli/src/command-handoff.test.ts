@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
 	applicationCommand,
+	applicationProcess,
 	binaryCommand,
 	joinCommand,
 	normalizeHandoffValues,
@@ -66,6 +67,24 @@ describe("command handoff helpers", () => {
 		process.env.TOOL_COMMAND = override;
 		try {
 			expect(applicationCommand("tool", ["resume", "--json"])).toBe(expected);
+		} finally {
+			if (previous === undefined) {
+				delete process.env.TOOL_COMMAND;
+			} else {
+				process.env.TOOL_COMMAND = previous;
+			}
+		}
+	});
+
+	it("builds application process specs with raw command and shell-ready display", () => {
+		const previous = process.env.TOOL_COMMAND;
+		process.env.TOOL_COMMAND = "/home/runner/Refarm CLI/tool";
+		try {
+			expect(applicationProcess("tool", ["resume", "--json"])).toEqual({
+				command: "/home/runner/Refarm CLI/tool",
+				args: ["resume", "--json"],
+				display: "'/home/runner/Refarm CLI/tool' resume --json",
+			});
 		} finally {
 			if (previous === undefined) {
 				delete process.env.TOOL_COMMAND;

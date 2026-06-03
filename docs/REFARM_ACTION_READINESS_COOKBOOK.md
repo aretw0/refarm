@@ -71,7 +71,9 @@ commands an operator agent can execute directly:
 - Templates that must run from another workspace should use `cwdParameter`
   instead of encoding `cd <dir> && ...` into `command`. The `command` remains
   the operator-facing/backcompat handoff; the cwd parameter tells a machine
-  runner where to execute it after substitution.
+  runner where to execute it after substitution. When a template also includes
+  `process`, runners should execute `process.command` with `process.args` from
+  the substituted cwd.
 - Prefer `refarm ...` commands for continuation when the CLI can express the
   action. Use lower-level commands such as `git ls-remote ...` or
   `gh secret list` only when they are the deterministic verification surface.

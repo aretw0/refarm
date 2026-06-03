@@ -13,7 +13,7 @@ import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg, refarmCommand, refarmProcess } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
@@ -133,6 +133,7 @@ const agentFinishTemplates = [
 	{
 		id: "external-consumer-resume-json",
 		command: RESUME_JSON_COMMAND,
+		process: refarmProcess(["resume", "--json"]),
 		parameters: ["dir"],
 		cwdParameter: "dir",
 		useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
@@ -140,6 +141,7 @@ const agentFinishTemplates = [
 	{
 		id: "external-consumer-check-json",
 		command: refarmCommand(["check", "--next-action", "--json"]),
+		process: refarmProcess(["check", "--next-action", "--json"]),
 		parameters: ["dir"],
 		cwdParameter: "dir",
 		useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",

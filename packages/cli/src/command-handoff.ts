@@ -24,6 +24,12 @@ export function shellCommand(command: string, args: string[] = []): string {
 	return joinCommand([command, ...args.map(quoteCommandArg)]);
 }
 
+export interface ApplicationProcessSpec {
+	command: string;
+	args: string[];
+	display: string;
+}
+
 export function binaryCommand(binary: string, args: string[]): string {
 	return joinCommand([binary, ...args]);
 }
@@ -36,6 +42,19 @@ export function applicationCommand(binary: string, args: string[]): string {
 	const override = process.env[applicationCommandOverrideEnv(binary)]?.trim();
 	const command = override ? quoteCommandArgIfNeeded(override) : binary;
 	return binaryCommand(command, args);
+}
+
+export function applicationProcess(
+	binary: string,
+	args: string[],
+): ApplicationProcessSpec {
+	const override = process.env[applicationCommandOverrideEnv(binary)]?.trim();
+	const command = override || binary;
+	return {
+		command,
+		args,
+		display: applicationCommand(binary, args),
+	};
 }
 
 export function workspaceCommand(cwd: string, command: string): string {

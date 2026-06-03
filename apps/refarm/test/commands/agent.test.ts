@@ -658,6 +658,7 @@ describe("agent command", () => {
 				cwdParameter?: string;
 				id: string;
 				parameters: string[];
+				process?: { command: string; args: string[]; display: string };
 				useWhen: string;
 			}[];
 		};
@@ -673,6 +674,11 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "external-consumer-resume-json",
 				command: "refarm resume --json",
+				process: {
+					command: "refarm",
+					args: ["resume", "--json"],
+					display: "refarm resume --json",
+				},
 				parameters: ["dir"],
 				cwdParameter: "dir",
 				useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
@@ -680,6 +686,11 @@ describe("agent command", () => {
 			expect.objectContaining({
 				id: "external-consumer-check-json",
 				command: "refarm check --next-action --json",
+				process: {
+					command: "refarm",
+					args: ["check", "--next-action", "--json"],
+					display: "refarm check --next-action --json",
+				},
 				parameters: ["dir"],
 				cwdParameter: "dir",
 				useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",

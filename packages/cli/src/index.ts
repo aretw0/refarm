@@ -11,6 +11,7 @@ export {
 } from "./status.js";
 export {
 	applicationCommand,
+	applicationProcess,
 	binaryCommand,
 	joinCommand,
 	normalizeHandoffValues,
@@ -18,6 +19,9 @@ export {
 	quoteCommandArgIfNeeded,
 	shellCommand,
 	workspaceCommand,
+} from "./command-handoff.js";
+export type {
+	ApplicationProcessSpec,
 } from "./command-handoff.js";
 export {
 	buildJsonErrorEnvelope,
