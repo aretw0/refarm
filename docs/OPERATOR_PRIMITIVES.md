@@ -130,6 +130,28 @@ refarm plugin reload runtime-agent --json
   `skipped`; the contract is that the public alias normalizes to
   `@refarm/pi-agent` and status remains inspectable.
 
+### Health Policy
+
+Purpose: separate generic workspace health from Refarm-specific assumptions
+before using the CLI in another repository.
+
+Rules:
+
+- `refarm health --policy --json` is the inspection primitive for the resolved
+  health policy. It should not run the auditors.
+- In the Refarm monorepo, the policy may carry Refarm-specific roots,
+  exemptions, and generated-source exclusions.
+- Outside Refarm, the default policy is generic `workspace`; consumer-specific
+  generated docs, skill packages, or non-TS package layouts belong in that
+  repo's `refarm.config.json`.
+- `refarm health --next-action --json` and
+  `refarm check --next-action --json` should point to
+  `refarm health --policy --json` when the next useful move is policy
+  calibration rather than runtime repair.
+- `refarm check --json` remains the full diagnostic report; the
+  `--next-action --json` form should stay compact enough for an agent to follow
+  without parsing hundreds of equivalent file-level findings.
+
 ### Model Routing
 
 Purpose: let the agent know which model path it is about to use.

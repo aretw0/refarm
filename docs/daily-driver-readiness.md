@@ -113,10 +113,12 @@ What blocks primary daily-driver migration:
   command in `PATH`, direct `node apps/refarm/dist/index.js` did not resolve
   workspace dependencies, and host `node_modules` reparse points were
   container-oriented. The host shim now reaches the CLI and `resume --json`
-  works in `agents-lab`, but `check --next-action --json` is still noisy on
-  external repos with generated/ignored docs and package-policy gaps. External
-  daily-driver use needs either repo-local health policy calibration or a
-  dedicated external-workspace profile.
+  works in `agents-lab`. The compact readiness handoff is now usable there:
+  `check --next-action --json` deduplicates repeated policy diagnostics and
+  points first to `refarm health --policy --json`. The remaining blocker is
+  repo-local calibration for generated docs, skill packages, and runtime
+  readiness; external daily-driver use needs a checked-in `health` policy in
+  each consumer repo or a dedicated external-workspace profile.
 - Runtime provider switching, login, and scoped model changes still need a
   smoother non-interactive loop.
 - The app has correctly acted as the proving ground, but mature contracts must
@@ -163,11 +165,15 @@ the primary daily driver:
    `refarm agent finish --lane agent-e2e-mock --run --json` for the no-token
    execution-plane gate, then run live provider checks only when explicitly
    needed.
-2. Runtime recovery: surface `nextCommand` through more failure paths in the
+2. External consumer calibration: use `refarm health --policy --json` before
+   tuning `refarm.config.json` in non-Refarm repos, then rerun
+   `refarm check --next-action --json` until the remaining handoff is runtime or
+   task-specific rather than workspace-policy noise.
+3. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
-3. Model and credential operations: make provider/model/login changes
+4. Model and credential operations: make provider/model/login changes
    non-interactive where possible and resumable where not.
-4. Primitive extraction: move repeated contracts down only after repeated app
+5. Primitive extraction: move repeated contracts down only after repeated app
    use proves the boundary.
 
 ## Migration Decision Rule
