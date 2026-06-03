@@ -53,11 +53,27 @@ export interface HealthReport {
   nextCommands: string[];
 }
 
+export interface HealthPolicyReport {
+  command: "health";
+  operation: "policy";
+  ok: true;
+  rootDir: string;
+  configPath: string;
+  configFound: boolean;
+  source: "config" | "refarm-default" | "workspace-default";
+  policy: HealthPolicy;
+  nextAction: null;
+  nextActions: [];
+  nextCommand: null;
+  nextCommands: [];
+}
+
 interface HealthOptions {
   json?: boolean;
   nextAction?: boolean;
   nextCommand?: boolean;
   failOnIssues?: boolean;
+  policy?: boolean;
 }
 
 interface HealthPolicy {
@@ -161,22 +177,45 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 }
 
 export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
+  return resolveHealthPolicyReport(rootDir).policy;
+}
+
+export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicyReport {
   const configPath = path.join(rootDir, "refarm.config.json");
   const fallback = defaultHealthPolicy(rootDir);
+  const fallbackSource = fallback.preset === "refarm" ? "refarm-default" : "workspace-default";
 
   if (!fs.existsSync(configPath)) {
-    return fallback;
+    return buildHealthPolicyReport({
+      rootDir,
+      configPath,
+      configFound: false,
+      source: fallbackSource,
+      policy: fallback,
+    });
   }
 
   let config: RefarmConfig;
   try {
     config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmConfig;
   } catch {
-    return fallback;
+    return buildHealthPolicyReport({
+      rootDir,
+      configPath,
+      configFound: true,
+      source: fallbackSource,
+      policy: fallback,
+    });
   }
 
   if (!config.health) {
-    return fallback;
+    return buildHealthPolicyReport({
+      rootDir,
+      configPath,
+      configFound: true,
+      source: fallbackSource,
+      policy: fallback,
+    });
   }
 
   const health = config.health;
@@ -201,12 +240,41 @@ export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
     policy.title = health.title;
   }
 
-  return policy;
+  return buildHealthPolicyReport({
+    rootDir,
+    configPath,
+    configFound: true,
+    source: "config",
+    policy,
+  });
 }
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function buildHealthPolicyReport(options: {
+  rootDir: string;
+  configPath: string;
+  configFound: boolean;
+  source: HealthPolicyReport["source"];
+  policy: HealthPolicy;
+}): HealthPolicyReport {
+  return {
+    command: "health",
+    operation: "policy",
+    ok: true,
+    rootDir: options.rootDir,
+    configPath: options.configPath,
+    configFound: options.configFound,
+    source: options.source,
+    policy: options.policy,
+    nextAction: null,
+    nextActions: [],
+    nextCommand: null,
+    nextCommands: [],
+  };
 }
 
 function emitHealthJson(report: HealthReport): void {
@@ -275,6 +343,22 @@ function emitHealthSummary(report: HealthReport): void {
   }
 }
 
+function emitHealthPolicySummary(report: HealthPolicyReport): void {
+  console.log(chalk.bold("Health Policy"));
+  console.log(`   Source: ${report.source}`);
+  console.log(`   Config: ${report.configFound ? report.configPath : "not found"}`);
+  console.log(`   Preset: ${report.policy.preset}`);
+  if (report.policy.workspaceRoots?.length) {
+    console.log(`   Workspace roots: ${report.policy.workspaceRoots.join(", ")}`);
+  }
+  if (report.policy.exemptPackageIds?.length) {
+    console.log(`   Exempt packages: ${report.policy.exemptPackageIds.join(", ")}`);
+  }
+  if (report.policy.ignoredGitVisibilityPatterns.length) {
+    console.log(`   Ignored git visibility patterns: ${report.policy.ignoredGitVisibilityPatterns.join(", ")}`);
+  }
+}
+
 export async function runHealthAudit(): Promise<HealthReport> {
   const policy = resolveHealthPolicy();
   const health = new HealthCore();
@@ -301,6 +385,7 @@ export const healthCommand = new Command("health")
       "Examples:",
       "  $ refarm health",
       "  $ refarm health --json",
+      "  $ refarm health --policy --json",
       "  $ refarm health --next-action",
       "  $ refarm health --next-action --json",
       "  $ refarm health --next-command",
@@ -314,10 +399,21 @@ export const healthCommand = new Command("health")
     ].join("\n"),
   )
   .option("--json", "Output machine-readable health report")
+  .option("--policy", "Print the resolved health policy and exit")
   .option("--next-action", "Print only the first blocking recovery action")
   .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
+    if (options.policy) {
+      const report = resolveHealthPolicyReport();
+      if (options.json) {
+        printJson(report);
+      } else {
+        emitHealthPolicySummary(report);
+      }
+      return;
+    }
+
     const report = await runHealthAudit();
 
     if (options.nextCommand && options.json) {

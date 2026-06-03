@@ -13,8 +13,15 @@ are workspace-agnostic.
 
 ## CLI Policy
 
-`refarm health` uses the Refarm preset when no local policy exists. Projects can
-opt into the generic auditor by declaring a `health` section in
+`refarm health` uses the Refarm preset only when the current workspace is the
+Refarm monorepo. Other workspaces default to the generic workspace auditor.
+Inspect the resolved policy before tuning an external repo:
+
+```bash
+refarm health --policy --json
+```
+
+Projects can calibrate the generic auditor by declaring a `health` section in
 `refarm.config.json`:
 
 ```json

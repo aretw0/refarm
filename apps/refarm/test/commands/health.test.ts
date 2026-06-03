@@ -46,6 +46,7 @@ import {
 	buildHealthReport,
 	healthCommand,
 	resolveHealthPolicy,
+	resolveHealthPolicyReport,
 } from "../../src/commands/health.js";
 
 describe("buildHealthReport", () => {
@@ -135,6 +136,7 @@ describe("healthCommand", () => {
     healthCommand.outputHelp();
 
     expect(help).toContain("refarm health --fail-on-issues");
+    expect(help).toContain("refarm health --policy --json");
     expect(help).toContain("refarm health --next-action");
     expect(help).toContain("refarm health --next-action --json");
     expect(help).toContain("refarm health --next-command");
@@ -238,6 +240,33 @@ describe("healthCommand", () => {
     expect(output).toContain('"nextCommand": null');
     expect(output).toContain('"nextCommands"');
     expect(output).toContain('"resolution"');
+    logSpy.mockRestore();
+  });
+
+  it("emits the resolved health policy without running auditors", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--policy", "--json"], { from: "user" });
+
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockCheckResolutionStatus).not.toHaveBeenCalled();
+    expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+      command: "health",
+      operation: "policy",
+      ok: true,
+      rootDir: process.cwd(),
+      configPath: expect.stringContaining("refarm.config.json"),
+      configFound: false,
+      source: "workspace-default",
+      policy: {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: [],
+      },
+      nextAction: null,
+      nextActions: [],
+      nextCommand: null,
+      nextCommands: [],
+    });
     logSpy.mockRestore();
   });
 
@@ -350,6 +379,26 @@ describe("resolveHealthPolicy", () => {
     });
   });
 
+  it("reports workspace fallback policy metadata outside Refarm when no config exists", () => {
+    expect(resolveHealthPolicyReport("/tmp/project")).toEqual({
+      command: "health",
+      operation: "policy",
+      ok: true,
+      rootDir: "/tmp/project",
+      configPath: "/tmp/project/refarm.config.json",
+      configFound: false,
+      source: "workspace-default",
+      policy: {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: [],
+      },
+      nextAction: null,
+      nextActions: [],
+      nextCommand: null,
+      nextCommands: [],
+    });
+  });
+
   it("falls back to the Refarm policy inside the Refarm monorepo when no config exists", () => {
     mockExistsSync.mockImplementation((value) => {
       const normalizedPath = String(value).replaceAll("\\", "/");
@@ -363,6 +412,37 @@ describe("resolveHealthPolicy", () => {
         "**/*.d.ts",
         "packages/pi-agent/src/bindings.rs",
       ],
+    });
+  });
+
+  it("reports configured health policy metadata", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        preset: "workspace",
+        workspaceRoots: ["modules"],
+        exemptPackageIds: ["modules/meta"],
+      },
+    }));
+
+    expect(resolveHealthPolicyReport("/tmp/project")).toEqual({
+      command: "health",
+      operation: "policy",
+      ok: true,
+      rootDir: "/tmp/project",
+      configPath: "/tmp/project/refarm.config.json",
+      configFound: true,
+      source: "config",
+      policy: {
+        preset: "workspace",
+        workspaceRoots: ["modules"],
+        exemptPackageIds: ["modules/meta"],
+        ignoredGitVisibilityPatterns: [],
+      },
+      nextAction: null,
+      nextActions: [],
+      nextCommand: null,
+      nextCommands: [],
     });
   });
 
