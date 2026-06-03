@@ -47,6 +47,7 @@ import {
 	healthCommand,
 	resolveHealthPolicy,
 	resolveHealthPolicyReport,
+	suggestHealthPolicy,
 } from "../../src/commands/health.js";
 
 describe("buildHealthReport", () => {
@@ -70,7 +71,7 @@ describe("buildHealthReport", () => {
       "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
     ]);
     expect(report.nextCommands).toEqual([
-      "refarm health --policy --json",
+      "refarm health --suggest-policy --json",
       "node packages/toolbox/src/cli.mjs reso dist",
     ]);
   });
@@ -91,7 +92,7 @@ describe("buildHealthRecommendations", () => {
         target: "src/generated.ts",
         summary: "src/generated.ts is ignored by Git.",
         action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
-        command: "refarm health --policy --json",
+        command: "refarm health --suggest-policy --json",
       },
       {
         issueType: "missing_build_config",
@@ -99,7 +100,7 @@ describe("buildHealthRecommendations", () => {
         target: "packages/missing-build",
         summary: "packages/missing-build is missing a build config.",
         action: "Add the package build configuration or mark the package exempt in the project health policy.",
-        command: "refarm health --policy --json",
+        command: "refarm health --suggest-policy --json",
       },
       {
         issueType: "local_alignment",
@@ -110,6 +111,41 @@ describe("buildHealthRecommendations", () => {
         command: "node packages/toolbox/src/cli.mjs reso dist",
       },
     ]);
+  });
+});
+
+describe("suggestHealthPolicy", () => {
+  it("keeps existing policy and compacts generated docs into directory patterns", () => {
+    expect(suggestHealthPolicy(
+      {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: ["**/*.generated.ts"],
+        workspaceRoots: ["packages"],
+        title: "External Workspace",
+      },
+      {
+        git: [
+          { file: "docs/_site/a.md", type: "git_ignored" },
+          { file: "docs/_site/guides/b.md", type: "git_ignored" },
+          { file: "packages/web-skills/scripts/package-lock.json", type: "git_ignored" },
+        ],
+        builds: [
+          { package: "packages/web-skills", type: "missing_build_config" },
+          { package: "packages/pi-skills", type: "missing_build_config" },
+        ],
+        alignment: [],
+      },
+    )).toEqual({
+      preset: "workspace",
+      workspaceRoots: ["packages"],
+      exemptPackageIds: ["packages/pi-skills", "packages/web-skills"],
+      ignoredGitVisibilityPatterns: [
+        "**/*.generated.ts",
+        "docs/_site/**",
+        "packages/web-skills/scripts/package-lock.json",
+      ],
+      title: "External Workspace",
+    });
   });
 });
 
@@ -140,6 +176,7 @@ describe("healthCommand", () => {
 
     expect(help).toContain("refarm health --fail-on-issues");
     expect(help).toContain("refarm health --policy --json");
+    expect(help).toContain("refarm health --suggest-policy --json");
     expect(help).toContain("refarm health --next-action");
     expect(help).toContain("refarm health --next-action --json");
     expect(help).toContain("refarm health --next-command");
@@ -273,6 +310,46 @@ describe("healthCommand", () => {
     logSpy.mockRestore();
   });
 
+  it("emits a suggested health policy from current diagnostics", async () => {
+    mockAudit.mockResolvedValue({
+      git: [
+        { file: "docs/_site/generated.md", type: "git_ignored" },
+        { file: "packages/web-skills/skills/web-browser/scripts/package-lock.json", type: "git_ignored" },
+      ],
+      builds: [{ package: "packages/web-skills", type: "missing_build_config" }],
+      alignment: [],
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await healthCommand.parseAsync(["--suggest-policy", "--json"], { from: "user" });
+
+    expect(mockAudit).toHaveBeenCalledOnce();
+    expect(mockCheckResolutionStatus).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+      command: "health",
+      operation: "policy-suggestion",
+      ok: true,
+      policy: {
+        preset: "workspace",
+        ignoredGitVisibilityPatterns: [],
+      },
+      suggestedHealth: {
+        preset: "workspace",
+        exemptPackageIds: ["packages/web-skills"],
+        ignoredGitVisibilityPatterns: [
+          "docs/_site/**",
+          "packages/web-skills/skills/web-browser/scripts/package-lock.json",
+        ],
+      },
+      sourceIssueCount: 3,
+      nextAction: null,
+      nextActions: [],
+      nextCommand: null,
+      nextCommands: [],
+    });
+    logSpy.mockRestore();
+  });
+
   it("emits only the first health recovery action with --next-action", async () => {
     mockAudit.mockResolvedValue({
       git: [{ file: "src/missing.ts", type: "ignored" }],
@@ -307,8 +384,8 @@ describe("healthCommand", () => {
         "Track the source file, or add an explicit health policy exclusion if it is generated.",
         "Add the package build configuration or mark the package exempt in the project health policy.",
       ],
-      nextCommand: "refarm health --policy --json",
-      nextCommands: ["refarm health --policy --json"],
+      nextCommand: "refarm health --suggest-policy --json",
+      nextCommands: ["refarm health --suggest-policy --json"],
     });
     logSpy.mockRestore();
   });

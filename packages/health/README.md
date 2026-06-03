@@ -21,6 +21,12 @@ Inspect the resolved policy before tuning an external repo:
 refarm health --policy --json
 ```
 
+Ask for a reviewed, non-writing suggestion from the current diagnostics:
+
+```bash
+refarm health --suggest-policy --json
+```
+
 Projects can calibrate the generic auditor by declaring a `health` section in
 `refarm.config.json`:
 

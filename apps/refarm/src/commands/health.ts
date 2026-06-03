@@ -68,12 +68,26 @@ export interface HealthPolicyReport {
   nextCommands: [];
 }
 
+export interface HealthPolicySuggestionReport {
+  command: "health";
+  operation: "policy-suggestion";
+  ok: true;
+  policy: HealthPolicy;
+  suggestedHealth: HealthPolicy;
+  sourceIssueCount: number;
+  nextAction: string | null;
+  nextActions: string[];
+  nextCommand: string | null;
+  nextCommands: string[];
+}
+
 interface HealthOptions {
   json?: boolean;
   nextAction?: boolean;
   nextCommand?: boolean;
   failOnIssues?: boolean;
   policy?: boolean;
+  suggestPolicy?: boolean;
 }
 
 interface HealthPolicy {
@@ -98,7 +112,7 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
   "**/*.d.ts",
   "packages/pi-agent/src/bindings.rs",
 ];
-const HEALTH_POLICY_COMMAND = "refarm health --policy --json";
+const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 
 function looksLikeRefarmMonorepo(rootDir: string): boolean {
@@ -158,7 +172,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       target: issue.file,
       summary: `${issue.file ?? "A source file"} is ignored by Git.`,
       action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
-      command: HEALTH_POLICY_COMMAND,
+      command: HEALTH_SUGGEST_POLICY_COMMAND,
     })),
     ...results.builds.map((issue) => ({
       issueType: issue.type,
@@ -166,7 +180,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       target: issue.package,
       summary: `${issue.package ?? "A workspace package"} is missing a build config.`,
       action: "Add the package build configuration or mark the package exempt in the project health policy.",
-      command: HEALTH_POLICY_COMMAND,
+      command: HEALTH_SUGGEST_POLICY_COMMAND,
     })),
     ...results.alignment.map((issue) => ({
       issueType: issue.type,
@@ -365,6 +379,12 @@ function emitHealthPolicySummary(report: HealthPolicyReport): void {
   }
 }
 
+function emitHealthPolicySuggestionSummary(report: HealthPolicySuggestionReport): void {
+  console.log(chalk.bold("Health Policy Suggestion"));
+  console.log(`   Source issues: ${report.sourceIssueCount}`);
+  console.log(JSON.stringify({ health: report.suggestedHealth }, null, 2));
+}
+
 export async function runHealthAudit(): Promise<HealthReport> {
   const policy = resolveHealthPolicy();
   const health = new HealthCore();
@@ -382,6 +402,66 @@ export async function runHealthAudit(): Promise<HealthReport> {
   return buildHealthReport(results, resolution);
 }
 
+export async function runHealthPolicySuggestion(): Promise<HealthPolicySuggestionReport> {
+  const policy = resolveHealthPolicy();
+  const report = await runHealthAudit();
+  const suggestedHealth = suggestHealthPolicy(policy, report.results);
+  return {
+    command: "health",
+    operation: "policy-suggestion",
+    ok: true,
+    policy,
+    suggestedHealth,
+    sourceIssueCount: report.issueCount,
+    nextAction: null,
+    nextActions: [],
+    nextCommand: null,
+    nextCommands: [],
+  };
+}
+
+export function suggestHealthPolicy(policy: HealthPolicy, results: HealthResults): HealthPolicy {
+  const ignoredGitVisibilityPatterns = uniqueStrings([
+    ...policy.ignoredGitVisibilityPatterns,
+    ...suggestIgnoredGitVisibilityPatterns(results.git),
+  ]);
+  const exemptPackageIds = uniqueStrings([
+    ...(policy.exemptPackageIds ?? []),
+    ...results.builds
+      .map((issue) => issue.package)
+      .filter((value): value is string => Boolean(value)),
+  ]);
+  return {
+    preset: policy.preset,
+    ...(policy.workspaceRoots ? { workspaceRoots: policy.workspaceRoots } : {}),
+    ...(exemptPackageIds.length > 0 ? { exemptPackageIds } : {}),
+    ignoredGitVisibilityPatterns,
+    ...(policy.title ? { title: policy.title } : {}),
+  };
+}
+
+function suggestIgnoredGitVisibilityPatterns(issues: HealthIssue[]): string[] {
+  const exactPatterns: string[] = [];
+  const directoryPatterns = new Set<string>();
+
+  for (const issue of issues) {
+    if (!issue.file) continue;
+    const normalized = issue.file.split(path.sep).join("/");
+    const siteIndex = normalized.indexOf("/_site/");
+    if (siteIndex > 0) {
+      directoryPatterns.add(`${normalized.slice(0, siteIndex)}/_site/**`);
+      continue;
+    }
+    exactPatterns.push(normalized);
+  }
+
+  return uniqueStrings([...directoryPatterns, ...exactPatterns]);
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)].filter((value) => value.length > 0).sort();
+}
+
 export const healthCommand = new Command("health")
   .description("Run deterministic diagnostics on the project")
   .addHelpText(
@@ -392,6 +472,7 @@ export const healthCommand = new Command("health")
       "  $ refarm health",
       "  $ refarm health --json",
       "  $ refarm health --policy --json",
+      "  $ refarm health --suggest-policy --json",
       "  $ refarm health --next-action",
       "  $ refarm health --next-action --json",
       "  $ refarm health --next-command",
@@ -406,6 +487,7 @@ export const healthCommand = new Command("health")
   )
   .option("--json", "Output machine-readable health report")
   .option("--policy", "Print the resolved health policy and exit")
+  .option("--suggest-policy", "Suggest a reviewed health policy from current diagnostics")
   .option("--next-action", "Print only the first blocking recovery action")
   .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
@@ -416,6 +498,16 @@ export const healthCommand = new Command("health")
         printJson(report);
       } else {
         emitHealthPolicySummary(report);
+      }
+      return;
+    }
+
+    if (options.suggestPolicy) {
+      const report = await runHealthPolicySuggestion();
+      if (options.json) {
+        printJson(report);
+      } else {
+        emitHealthPolicySuggestionSummary(report);
       }
       return;
     }

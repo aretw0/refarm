@@ -139,6 +139,8 @@ Rules:
 
 - `refarm health --policy --json` is the inspection primitive for the resolved
   health policy. It should not run the auditors.
+- `refarm health --suggest-policy --json` is the dry-run calibration primitive.
+  It may run auditors, but it must not write `refarm.config.json`.
 - In the Refarm monorepo, the policy may carry Refarm-specific roots,
   exemptions, and generated-source exclusions.
 - Outside Refarm, the default policy is generic `workspace`; consumer-specific
@@ -146,7 +148,7 @@ Rules:
   repo's `refarm.config.json`.
 - `refarm health --next-action --json` and
   `refarm check --next-action --json` should point to
-  `refarm health --policy --json` when the next useful move is policy
+  `refarm health --suggest-policy --json` when the next useful move is policy
   calibration rather than runtime repair.
 - `refarm check --json` remains the full diagnostic report; the
   `--next-action --json` form should stay compact enough for an agent to follow

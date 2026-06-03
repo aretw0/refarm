@@ -115,7 +115,7 @@ What blocks primary daily-driver migration:
   container-oriented. The host shim now reaches the CLI and `resume --json`
   works in `agents-lab`. The compact readiness handoff is now usable there:
   `check --next-action --json` deduplicates repeated policy diagnostics and
-  points first to `refarm health --policy --json`. The remaining blocker is
+  points first to `refarm health --suggest-policy --json`. The remaining blocker is
   repo-local calibration for generated docs, skill packages, and runtime
   readiness; external daily-driver use needs a checked-in `health` policy in
   each consumer repo or a dedicated external-workspace profile.
@@ -165,10 +165,12 @@ the primary daily driver:
    `refarm agent finish --lane agent-e2e-mock --run --json` for the no-token
    execution-plane gate, then run live provider checks only when explicitly
    needed.
-2. External consumer calibration: use `refarm health --policy --json` before
-   tuning `refarm.config.json` in non-Refarm repos, then rerun
-   `refarm check --next-action --json` until the remaining handoff is runtime or
-   task-specific rather than workspace-policy noise.
+2. External consumer calibration: use `refarm health --policy --json` to inspect
+   the effective policy and `refarm health --suggest-policy --json` to generate
+   a reviewed candidate `health` block before tuning `refarm.config.json` in
+   non-Refarm repos. Then rerun `refarm check --next-action --json` until the
+   remaining handoff is runtime or task-specific rather than workspace-policy
+   noise.
 3. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
 4. Model and credential operations: make provider/model/login changes

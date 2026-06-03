@@ -332,7 +332,7 @@ describe("checkCommand", () => {
 						diagnostic: "git_ignored",
 						summary: "docs/_site/a.md is ignored by Git.",
 						action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
-						command: "refarm health --policy --json",
+						command: "refarm health --suggest-policy --json",
 						target: "docs/_site/a.md",
 					},
 					{
@@ -340,7 +340,7 @@ describe("checkCommand", () => {
 						diagnostic: "git_ignored",
 						summary: "docs/_site/b.md is ignored by Git.",
 						action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
-						command: "refarm health --policy --json",
+						command: "refarm health --suggest-policy --json",
 						target: "docs/_site/b.md",
 					},
 				],
@@ -359,11 +359,11 @@ describe("checkCommand", () => {
 				diagnostic: "git_ignored",
 				summary: "docs/_site/a.md is ignored by Git.",
 				action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
-				command: "refarm health --policy --json",
+				command: "refarm health --suggest-policy --json",
 				target: "docs/_site/a.md",
 			},
 		]);
-		expect(output.nextCommand).toBe("refarm health --policy --json");
+		expect(output.nextCommand).toBe("refarm health --suggest-policy --json");
 		expect(process.exitCode).toBe(1);
 	});
 
