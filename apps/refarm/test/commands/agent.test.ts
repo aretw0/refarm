@@ -1559,7 +1559,23 @@ describe("agent command", () => {
 		], { cwd: root, stdio: "ignore" });
 		const originalCwd = process.cwd();
 		process.chdir(root);
-		const agentCommand = createAgentCommand();
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const finishRecorder = {
+			rememberRun: vi.fn(),
+			getCheckpoint: vi.fn(),
+			getLatest: vi.fn(),
+		};
+		const agentCommand = createAgentCommand({ runRefarm, finishRecorder });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		try {
@@ -1567,6 +1583,7 @@ describe("agent command", () => {
 				"finish",
 				"--lane",
 				"after-commit",
+				"--run",
 				"--json",
 			], { from: "user" });
 		} finally {
@@ -1597,6 +1614,13 @@ describe("agent command", () => {
 			sinceRef: "HEAD~1",
 			validationScope: "lastCommit",
 		});
+		expect(finishRecorder.rememberRun).toHaveBeenCalledWith(
+			expect.objectContaining({
+				command: "refarm agent finish --lane after-commit --run --json",
+				lane: "after-commit",
+				validationScope: "lastCommit",
+			}),
+		);
 		logSpy.mockRestore();
 	});
 

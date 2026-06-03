@@ -942,7 +942,7 @@ function finishRunResumeCommand(selection: AgentFinishSelectionMetadata): string
 	if (selection.profile === "package" && selection.workspace) {
 		args.push("--workspace", selection.workspace);
 	}
-	if (selection.profile === "affected" && selection.sinceRef) {
+	if (!selection.lane && selection.profile === "affected" && selection.sinceRef) {
 		args.push("--since", selection.sinceRef);
 	}
 	if (selection.includeTests) args.push("--include-tests");
