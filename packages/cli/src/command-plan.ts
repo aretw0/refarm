@@ -15,19 +15,21 @@ import {
 	type JsonSuccessEnvelope,
 } from "./json-output.js";
 
+export interface CommandProcessSpec {
+	command: string;
+	args: string[];
+	cwd?: string;
+	display: string;
+	packageManager?: string | null;
+}
+
 export interface CommandPlanStep {
 	id: string;
 	command: string;
 	args: string[];
 	description: string;
 	effect?: "observe" | "verify" | "write";
-	process?: {
-		command: string;
-		args: string[];
-		cwd?: string;
-		display: string;
-		packageManager?: string | null;
-	};
+	process?: CommandProcessSpec;
 }
 
 export type CommandPlanEffect = NonNullable<CommandPlanStep["effect"]>;
@@ -58,10 +60,13 @@ export interface CommandPlanRunResult {
 	steps: CommandPlanStepRunResult[];
 	remainingSteps: CommandPlanStep[];
 	remainingCommands: string[];
+	remainingProcesses: CommandProcessSpec[];
 	failedStepId: string | null;
 	failedCommand: string | null;
+	failedProcess: CommandProcessSpec | null;
 	nextActions: string[];
 	nextCommands: string[];
+	nextProcesses: CommandProcessSpec[];
 	recommendations: unknown[];
 }
 
@@ -88,6 +93,7 @@ export interface CommandPlanEnvelopeExtra {
 	effects: CommandPlanEffect[];
 	writes: boolean;
 	steps: readonly CommandPlanStep[];
+	nextProcesses: CommandProcessSpec[];
 }
 
 export type CommandPlanEnvelope =
@@ -102,8 +108,10 @@ export interface CommandPlanRunEnvelope {
 	stepResults: CommandPlanStepSummary[];
 	remainingSteps: CommandPlanStep[];
 	remainingCommands: string[];
+	remainingProcesses: CommandProcessSpec[];
 	failedStepId: string | null;
 	failedCommand: string | null;
+	failedProcess: CommandProcessSpec | null;
 	command: string;
 	operation: string;
 	ok: boolean;
@@ -111,6 +119,7 @@ export interface CommandPlanRunEnvelope {
 	nextActions: string[];
 	nextCommand: string | null;
 	nextCommands: string[];
+	nextProcesses: CommandProcessSpec[];
 	recommendations: unknown[];
 }
 
@@ -118,6 +127,14 @@ export function commandPlanStepCommands(
 	steps: readonly CommandPlanStep[],
 ): string[] {
 	return steps.map((step) => step.command);
+}
+
+export function commandPlanStepProcesses(
+	steps: readonly CommandPlanStep[],
+): CommandProcessSpec[] {
+	return steps
+		.map((step) => step.process)
+		.filter((process): process is CommandProcessSpec => Boolean(process));
 }
 
 export function commandPlanEffects(
@@ -155,6 +172,7 @@ export function buildCommandPlanEnvelope(
 			effects,
 			writes: effects.includes("write"),
 			steps,
+			nextProcesses: commandPlanStepProcesses(steps),
 		},
 	});
 }
@@ -172,8 +190,10 @@ export function buildCommandPlanRunEnvelope(
 		stepResults: result.steps.map(commandPlanStepSummary),
 		remainingSteps: result.remainingSteps,
 		remainingCommands: result.remainingCommands,
+		remainingProcesses: result.remainingProcesses,
 		failedStepId: result.failedStepId,
 		failedCommand: result.failedCommand,
+		failedProcess: result.failedProcess,
 		command: context.command,
 		operation: context.operation,
 		ok: result.ok,
@@ -181,6 +201,7 @@ export function buildCommandPlanRunEnvelope(
 		nextActions: result.nextActions,
 		nextCommand: result.nextCommands[0] ?? null,
 		nextCommands: result.nextCommands,
+		nextProcesses: result.nextProcesses,
 		recommendations: result.recommendations,
 	};
 }
@@ -283,12 +304,13 @@ export function runCommandPlan(
 		steps.push(normalized);
 		if (!ok) {
 			const remainingSteps = stepsToRun.slice(index + 1);
+			const payloadNextCommands = commandPayloadNextCommands(result.payload);
 			const nextActions = normalizeHandoffValues(
 				commandPayloadNextActions(result.payload) ??
-					commandPayloadNextCommands(result.payload) ?? [step.command],
+					payloadNextCommands ?? [step.command],
 			);
 			const nextCommands = normalizeHandoffValues(
-				commandPayloadNextCommands(result.payload) ?? [step.command],
+				payloadNextCommands ?? [step.command],
 			);
 			return {
 				ok: false,
@@ -296,10 +318,13 @@ export function runCommandPlan(
 				steps,
 				remainingSteps,
 				remainingCommands: commandPlanStepCommands(remainingSteps),
+				remainingProcesses: commandPlanStepProcesses(remainingSteps),
 				failedStepId: step.id,
 				failedCommand: step.command,
+				failedProcess: step.process ?? null,
 				nextActions,
 				nextCommands,
+				nextProcesses: payloadNextCommands ? [] : commandPlanStepProcesses([step]),
 				recommendations: commandPayloadRecommendations(result.payload) ?? [],
 			};
 		}
@@ -310,10 +335,13 @@ export function runCommandPlan(
 		steps,
 		remainingSteps: [],
 		remainingCommands: [],
+		remainingProcesses: [],
 		failedStepId: null,
 		failedCommand: null,
+		failedProcess: null,
 		nextActions: [],
 		nextCommands: [],
+		nextProcesses: [],
 		recommendations: [],
 	};
 }

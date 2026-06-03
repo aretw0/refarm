@@ -4,10 +4,11 @@ import {
 	buildCommandPlanRunEnvelope,
 	commandPlanEffects,
 	commandPlanStepCommands,
+	commandPlanStepProcesses,
 	commandPlanStepSummary,
 	commandPlanWrites,
-	runCommandPlanCliStep,
 	runCommandPlan,
+	runCommandPlanCliStep,
 	runCommandPlanProcessStep,
 	type CommandPlanStep,
 } from "./command-plan.js";
@@ -26,6 +27,37 @@ const steps: CommandPlanStep[] = [
 		args: ["second", "--json"],
 		description: "Second step.",
 		effect: "observe",
+	},
+];
+
+const processSteps: CommandPlanStep[] = [
+	{
+		id: "type-check",
+		command: "refarm agent finish --workspace packages/cli --json",
+		args: ["-C", "packages/cli", "run", "type-check"],
+		description: "Type-check CLI package.",
+		effect: "verify",
+		process: {
+			command: "pnpm",
+			args: ["-C", "packages/cli", "run", "type-check"],
+			cwd: "/workspaces/refarm",
+			display: "pnpm -C packages/cli run type-check",
+			packageManager: "pnpm",
+		},
+	},
+	{
+		id: "build",
+		command: "refarm agent finish --workspace packages/cli --run --json",
+		args: ["-C", "packages/cli", "run", "build"],
+		description: "Build CLI package.",
+		effect: "verify",
+		process: {
+			command: "pnpm",
+			args: ["-C", "packages/cli", "run", "build"],
+			cwd: "/workspaces/refarm",
+			display: "pnpm -C packages/cli run build",
+			packageManager: "pnpm",
+		},
 	},
 ];
 
@@ -55,6 +87,52 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("builds structured process handoffs beside command strings", () => {
+		expect(commandPlanStepProcesses(processSteps)).toEqual([
+			{
+				command: "pnpm",
+				args: ["-C", "packages/cli", "run", "type-check"],
+				cwd: "/workspaces/refarm",
+				display: "pnpm -C packages/cli run type-check",
+				packageManager: "pnpm",
+			},
+			{
+				command: "pnpm",
+				args: ["-C", "packages/cli", "run", "build"],
+				cwd: "/workspaces/refarm",
+				display: "pnpm -C packages/cli run build",
+				packageManager: "pnpm",
+			},
+		]);
+		expect(buildCommandPlanEnvelope({
+			action: "finish",
+			command: "agent",
+			operation: "finish",
+		}, processSteps)).toMatchObject({
+			nextCommand: "refarm agent finish --workspace packages/cli --json",
+			nextCommands: [
+				"refarm agent finish --workspace packages/cli --json",
+				"refarm agent finish --workspace packages/cli --run --json",
+			],
+			nextProcesses: [
+				{
+					command: "pnpm",
+					args: ["-C", "packages/cli", "run", "type-check"],
+					cwd: "/workspaces/refarm",
+					display: "pnpm -C packages/cli run type-check",
+					packageManager: "pnpm",
+				},
+				{
+					command: "pnpm",
+					args: ["-C", "packages/cli", "run", "build"],
+					cwd: "/workspaces/refarm",
+					display: "pnpm -C packages/cli run build",
+					packageManager: "pnpm",
+				},
+			],
+		});
+	});
+
 	it("runs every step when all commands succeed", () => {
 		const runStep = vi.fn((step: CommandPlanStep) => ({
 			...step,
@@ -70,10 +148,13 @@ describe("command plan runner", () => {
 			status: "passed",
 			failedStepId: null,
 			failedCommand: null,
+			failedProcess: null,
 			remainingSteps: [],
 			remainingCommands: [],
+			remainingProcesses: [],
 			nextActions: [],
 			nextCommands: [],
+			nextProcesses: [],
 			steps: [{ id: "first", ok: true }, { id: "second", ok: true }],
 		});
 		expect(runStep).toHaveBeenCalledTimes(2);
@@ -122,9 +203,55 @@ describe("command plan runner", () => {
 			failedCommand: "refarm second --json",
 			remainingSteps: [],
 			remainingCommands: [],
+			remainingProcesses: [],
 			nextActions: ["Repair runtime."],
 			nextCommands: ["refarm runtime start --wait"],
+			nextProcesses: [],
 			steps: [{ id: "first", ok: true }, { id: "second", ok: false }],
+		});
+	});
+
+	it("keeps process handoffs for failed plan steps when payload has no override", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: false,
+			exitCode: 2,
+			stdout: "",
+			stderr: "failed",
+		}));
+
+		expect(runCommandPlan(processSteps, runStep)).toMatchObject({
+			ok: false,
+			status: "failed",
+			failedStepId: "type-check",
+			failedCommand: "refarm agent finish --workspace packages/cli --json",
+			failedProcess: {
+				command: "pnpm",
+				args: ["-C", "packages/cli", "run", "type-check"],
+				cwd: "/workspaces/refarm",
+				display: "pnpm -C packages/cli run type-check",
+				packageManager: "pnpm",
+			},
+			remainingCommands: ["refarm agent finish --workspace packages/cli --run --json"],
+			remainingProcesses: [
+				{
+					command: "pnpm",
+					args: ["-C", "packages/cli", "run", "build"],
+					cwd: "/workspaces/refarm",
+					display: "pnpm -C packages/cli run build",
+					packageManager: "pnpm",
+				},
+			],
+			nextCommands: ["refarm agent finish --workspace packages/cli --json"],
+			nextProcesses: [
+				{
+					command: "pnpm",
+					args: ["-C", "packages/cli", "run", "type-check"],
+					cwd: "/workspaces/refarm",
+					display: "pnpm -C packages/cli run type-check",
+					packageManager: "pnpm",
+				},
+			],
 		});
 	});
 

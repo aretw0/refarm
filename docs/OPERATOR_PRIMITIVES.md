@@ -35,6 +35,10 @@ Every public JSON command used by an agent should expose:
   success.
 - `nextCommands`: ordered executable continuations. Empty means no recovery or
   continuation is required.
+- `nextProcesses`: structured executable continuations when the command already
+  knows the process boundary (`command`, `args`, optional `cwd`, and `display`).
+  Prefer this field for agent runners; keep `nextCommands` as the stable
+  shell-ready display/backcompat contract.
 - `nextAction` and `nextActions`: user-facing action aliases that mirror the
   command contract when appropriate.
 - `recommendations`: diagnostics with concrete commands when recovery requires

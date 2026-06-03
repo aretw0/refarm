@@ -4,6 +4,7 @@ import {
 	buildCommandPlanRunEnvelope,
 	commandPlanEffects,
 	commandPlanStepCommands,
+	commandPlanStepProcesses,
 	commandPlanStepSummary,
 	commandPlanWrites,
 	runCommandPlan,
@@ -24,6 +25,23 @@ const steps: CommandPlanStep[] = [
 		args: ["second", "--json"],
 		description: "Second step.",
 		effect: "observe",
+	},
+];
+
+const processSteps: CommandPlanStep[] = [
+	{
+		id: "type-check",
+		command: "refarm agent finish --workspace packages/cli --json",
+		args: ["-C", "packages/cli", "run", "type-check"],
+		description: "Type-check CLI package.",
+		effect: "verify",
+		process: {
+			command: "pnpm",
+			args: ["-C", "packages/cli", "run", "type-check"],
+			cwd: "/workspaces/refarm",
+			display: "pnpm -C packages/cli run type-check",
+			packageManager: "pnpm",
+		},
 	},
 ];
 
@@ -57,6 +75,35 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("builds structured process handoffs beside command strings", () => {
+		expect(commandPlanStepProcesses(processSteps)).toEqual([
+			{
+				command: "pnpm",
+				args: ["-C", "packages/cli", "run", "type-check"],
+				cwd: "/workspaces/refarm",
+				display: "pnpm -C packages/cli run type-check",
+				packageManager: "pnpm",
+			},
+		]);
+		expect(buildCommandPlanEnvelope({
+			action: "finish",
+			command: "agent",
+			operation: "finish",
+		}, processSteps)).toMatchObject({
+			nextCommand: "refarm agent finish --workspace packages/cli --json",
+			nextCommands: ["refarm agent finish --workspace packages/cli --json"],
+			nextProcesses: [
+				{
+					command: "pnpm",
+					args: ["-C", "packages/cli", "run", "type-check"],
+					cwd: "/workspaces/refarm",
+					display: "pnpm -C packages/cli run type-check",
+					packageManager: "pnpm",
+				},
+			],
+		});
+	});
+
 	it("runs every step when all commands succeed", () => {
 		const runStep = vi.fn((step: CommandPlanStep) => ({
 			...step,
@@ -72,10 +119,13 @@ describe("command plan runner", () => {
 			status: "passed",
 			failedStepId: null,
 			failedCommand: null,
+			failedProcess: null,
 			remainingSteps: [],
 			remainingCommands: [],
+			remainingProcesses: [],
 			nextActions: [],
 			nextCommands: [],
+			nextProcesses: [],
 			steps: [{ id: "first", ok: true }, { id: "second", ok: true }],
 		});
 		expect(runStep).toHaveBeenCalledTimes(2);
@@ -114,9 +164,12 @@ describe("command plan runner", () => {
 			failedStepId: "first",
 			failedCommand: "refarm first --json",
 			remainingCommands: [],
+			remainingProcesses: [],
+			failedProcess: null,
 			nextAction: "refarm runtime start --wait",
 			nextCommand: "refarm runtime start --wait",
 			nextCommands: ["refarm runtime start --wait"],
+			nextProcesses: [],
 			recommendations: [{ diagnostic: "runtime:not-ready" }],
 			stepResults: [
 				{
@@ -258,8 +311,10 @@ describe("command plan runner", () => {
 			failedCommand: "refarm second --json",
 			remainingSteps: [],
 			remainingCommands: [],
+			remainingProcesses: [],
 			nextActions: ["Repair runtime."],
 			nextCommands: ["refarm runtime start --wait"],
+			nextProcesses: [],
 			steps: [{ id: "first", ok: true }, { id: "second", ok: false }],
 		});
 		expect(runStep).toHaveBeenCalledTimes(2);
@@ -280,8 +335,10 @@ describe("command plan runner", () => {
 			failedStepId: "first",
 			failedCommand: "refarm first --json",
 			remainingCommands: ["refarm second --json"],
+			remainingProcesses: [],
 			nextActions: ["refarm first --json"],
 			nextCommands: ["refarm first --json"],
+			nextProcesses: [],
 			steps: [{ id: "first", ok: false }],
 		});
 		expect(runStep).toHaveBeenCalledTimes(1);
@@ -317,8 +374,10 @@ describe("command plan runner", () => {
 			failedStepId: "first",
 			failedCommand: "refarm first --json",
 			remainingCommands: ["refarm second --json"],
+			remainingProcesses: [],
 			nextActions: ["Start runtime."],
 			nextCommands: ["refarm runtime start --wait"],
+			nextProcesses: [],
 			recommendations: [
 				{
 					diagnostic: "runtime:not-ready",

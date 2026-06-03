@@ -30,10 +30,13 @@ describe("agent finish session", () => {
 			steps: [],
 			remainingSteps: [],
 			remainingCommands: ["refarm check --next-action --json"],
+			remainingProcesses: [],
 			failedStepId: "health",
 			failedCommand: "refarm health --next-action --json",
+			failedProcess: null,
 			nextActions: ["Start the runtime"],
 			nextCommands: ["refarm runtime start --wait"],
+			nextProcesses: [],
 			recommendations: [],
 		};
 

@@ -55,6 +55,10 @@ commands an operator agent can execute directly:
 - `nextCommand` / `nextCommands` contain shell-ready commands only. Do not put
   placeholders such as `<url>` or REPL commands such as `/reload` in these
   fields.
+- `nextProcesses` contains structured process specs when the producer can
+  describe the boundary without shell parsing. Each spec should include
+  `command`, `args`, `display`, and optional `cwd` / `packageManager`. Agent
+  runners should prefer this field when present and fall back to `nextCommands`.
 - `templates` contain parameterized command templates for flows that are
   blocked until the operator supplies values. Each entry should include
   `command`, declared `parameters`, and `useWhen` guidance. Treat templates as
