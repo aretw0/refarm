@@ -108,6 +108,12 @@ What blocks primary daily-driver migration:
 - The actual operator loop (`runtime up → ask → session → resume → finish`) has
   not been exercised end-to-end as a daily driver. The control plane is solid;
   the execution plane reliability is unknown until used.
+- The first external-repo attempt targeted `agents-lab` and exposed a host
+  bootstrap gap before any model work ran: the Windows host has no `refarm`
+  command in `PATH`, direct `node apps/refarm/dist/index.js` does not resolve
+  workspace dependencies, and the host `node_modules` reparse points are
+  container-oriented. External daily-driver use needs either a host-safe install
+  path or a container/devcontainer strategy that can see sibling repos.
 - Runtime provider switching, login, and scoped model changes still need a
   smoother non-interactive loop.
 - The app has correctly acted as the proving ground, but mature contracts must

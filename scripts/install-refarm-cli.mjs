@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createPackageScriptCommand } from "../packages/config/src/package-manager.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,6 +40,13 @@ function resolveBinDir() {
 
   const npmGlobal = path.join(os.homedir(), ".npm-global/bin");
   const localBin = path.join(os.homedir(), ".local/bin");
+  const winNpmBin = process.env.APPDATA
+    ? path.join(process.env.APPDATA, "npm")
+    : path.join(os.homedir(), "AppData", "Roaming", "npm");
+  if (process.platform === "win32" && pathIncludes(winNpmBin)) {
+    return winNpmBin;
+  }
+
   if (pathIncludes(npmGlobal)) {
     return npmGlobal;
   }
@@ -50,6 +57,10 @@ function resolveBinDir() {
 
   if (existsSync(npmGlobal)) {
     return npmGlobal;
+  }
+
+  if (process.platform === "win32" && existsSync(winNpmBin)) {
+    return winNpmBin;
   }
 
   return localBin;
@@ -76,16 +87,24 @@ chmodSync(DIST_ENTRY, 0o755);
 const binDir = resolveBinDir();
 mkdirSync(binDir, { recursive: true });
 
+const loaderSpecifier = pathToFileURL(LOADER_ENTRY).href;
 const shimPath = path.join(binDir, "refarm");
 const shimBody = `#!/usr/bin/env bash
 set -euo pipefail
-exec node --import ${JSON.stringify(LOADER_ENTRY)} ${JSON.stringify(DIST_ENTRY)} "$@"
+exec node --import ${JSON.stringify(loaderSpecifier)} ${JSON.stringify(DIST_ENTRY)} "$@"
 `;
 
 writeFileSync(shimPath, shimBody);
 chmodSync(shimPath, 0o755);
 
 console.log(`[install-refarm-cli] Installed refarm shim -> ${shimPath}`);
+
+if (process.platform === "win32") {
+  const cmdPath = path.join(binDir, "refarm.cmd");
+  const cmdBody = `@echo off\r\nnode --import "${loaderSpecifier}" "${DIST_ENTRY}" %*\r\n`;
+  writeFileSync(cmdPath, cmdBody);
+  console.log(`[install-refarm-cli] Installed refarm cmd shim -> ${cmdPath}`);
+}
 
 if (!pathIncludes(binDir)) {
   console.warn(`[install-refarm-cli] WARN: ${binDir} is not in PATH.`);

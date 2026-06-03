@@ -3,9 +3,17 @@
  *
  * Resolver fallbacks for local source execution of apps/farmhand without
  * prebuilding every dependent package:
+ *   0) "@refarm.dev/x[/subpath]" -> local workspace dist export
  *   1) "./x.js" -> "./x.ts" (source modules authored with .js specifiers)
  *   2) "./x"    -> "./x.js"/"./x.ts" (extensionless ESM imports in dist)
  */
+
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const WORKSPACE_DIRS = ["packages", "apps"];
 
 function isRelativeOrAbsolute(specifier) {
 	return (
@@ -17,6 +25,37 @@ function isRelativeOrAbsolute(specifier) {
 
 function hasKnownModuleExtension(specifier) {
 	return /\.(c|m)?js$|\.(c|m)?ts$|\.json$|\.node$/i.test(specifier);
+}
+
+function workspacePackageResolution(specifier) {
+	if (!specifier.startsWith("@refarm.dev/")) return null;
+
+	const [, packageName, ...subpathParts] = specifier.split("/");
+	if (!packageName) return null;
+	const exportKey =
+		subpathParts.length > 0 ? `./${subpathParts.join("/")}` : ".";
+
+	for (const workspaceDir of WORKSPACE_DIRS) {
+		const packageDir = path.join(ROOT, workspaceDir, packageName);
+		const manifestPath = path.join(packageDir, "package.json");
+		if (!existsSync(manifestPath)) continue;
+
+		const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+		const exportTarget = manifest.exports?.[exportKey];
+		const importTarget =
+			typeof exportTarget === "string"
+				? exportTarget
+				: exportTarget?.import ?? exportTarget?.default;
+		const target =
+			importTarget ??
+			(exportKey === "." ? manifest.main ?? "./dist/index.js" : null);
+		if (!target) return null;
+
+		const resolved = path.resolve(packageDir, target);
+		return existsSync(resolved) ? pathToFileURL(resolved).href : null;
+	}
+
+	return null;
 }
 
 function modulePrelude(ifaceKey) {
@@ -88,6 +127,11 @@ export async function resolve(specifier, context, defaultResolve) {
 			url: `data:text/javascript;charset=utf-8,${encoded}`,
 			shortCircuit: true,
 		};
+	}
+
+	const workspaceUrl = workspacePackageResolution(specifier);
+	if (workspaceUrl) {
+		return { url: workspaceUrl, shortCircuit: true };
 	}
 
 	try {
