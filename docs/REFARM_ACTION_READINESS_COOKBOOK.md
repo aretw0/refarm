@@ -74,6 +74,10 @@ commands an operator agent can execute directly:
   runner where to execute it after substitution. When a template also includes
   `process`, runners should substitute parameters in `process.args` and execute
   `process.command` directly from the substituted cwd.
+- Shared template mechanics live in `@refarm.dev/cli/command-handoff`:
+  `commandTemplateParameters` validates placeholder declarations and
+  `instantiateProcessTemplate` turns a parameterized process template into a
+  spawn-ready `command` + `args` spec without shell parsing.
 - Prefer `refarm ...` commands for continuation when the CLI can express the
   action. Use lower-level commands such as `git ls-remote ...` or
   `gh secret list` only when they are the deterministic verification surface.

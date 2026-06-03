@@ -6,6 +6,7 @@ import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 import { createCheckCommand } from "../../src/commands/check.js";
+import { commandTemplateParameters } from "../../src/commands/command-handoff.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
@@ -170,11 +171,19 @@ function singularPluralHandoffMismatches(
 	});
 }
 
-function generatedTemplates(payloads: unknown[]): { command: string; parameters: string[] }[] {
+function generatedTemplates(payloads: unknown[]): {
+	command: string;
+	parameters: string[];
+	process?: { command?: string; args?: string[]; display?: string };
+}[] {
 	return payloads.flatMap((payload) => collectGeneratedTemplates(payload));
 }
 
-function collectGeneratedTemplates(value: unknown): { command: string; parameters: string[] }[] {
+function collectGeneratedTemplates(value: unknown): {
+	command: string;
+	parameters: string[];
+	process?: { command?: string; args?: string[]; display?: string };
+}[] {
 	if (!value || typeof value !== "object") return [];
 	if (Array.isArray(value)) return value.flatMap(collectGeneratedTemplates);
 	return Object.entries(value).flatMap(([key, entry]) => {
@@ -190,14 +199,13 @@ function collectGeneratedTemplates(value: unknown): { command: string; parameter
 				.map((template) => ({
 					command: template.command,
 					parameters: template.parameters ?? [],
+					process: (template as {
+						process?: { command?: string; args?: string[]; display?: string };
+					}).process,
 				})),
 			...nested,
 		];
 	});
-}
-
-function commandTemplateParameters(command: string): string[] {
-	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
 }
 
 function generatedCommandFieldPlaceholderLeaks(
@@ -1410,9 +1418,13 @@ describe("JSON next command contract", () => {
 		const templates = generatedTemplates(payloads);
 		const templateCommands = templates.map((template) => template.command);
 		const templatesWithUndeclaredParameters = templates
-			.filter((template) => /<[^>]+>/.test(template.command))
 			.filter((template) =>
-				commandTemplateParameters(template.command)
+				commandTemplateParameters([
+					template.command,
+					template.process?.command ?? "",
+					...(template.process?.args ?? []),
+					template.process?.display ?? "",
+				])
 					.some((parameter) => !template.parameters.includes(parameter)),
 			)
 			.map((template) => template.command);

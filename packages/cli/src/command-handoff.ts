@@ -30,6 +30,48 @@ export interface ApplicationProcessSpec {
 	display: string;
 }
 
+export type CommandTemplateParameters = Record<string, string>;
+
+export function commandTemplateParameters(value: string | string[]): string[] {
+	const values = Array.isArray(value) ? value : [value];
+	return normalizeHandoffValues(
+		values.flatMap((entry) =>
+			[...entry.matchAll(/<([^<>]+)>/g)].map((match) => match[1]!),
+		),
+	);
+}
+
+export function substituteCommandTemplateValue(
+	value: string,
+	parameters: CommandTemplateParameters,
+): string {
+	return value.replace(/<([^<>]+)>/g, (_placeholder, parameter: string) => {
+		const replacement = parameters[parameter];
+		if (replacement === undefined) {
+			throw new Error(`Missing command template parameter: ${parameter}`);
+		}
+		return replacement;
+	});
+}
+
+export function substituteCommandTemplateValues(
+	values: string[],
+	parameters: CommandTemplateParameters,
+): string[] {
+	return values.map((value) => substituteCommandTemplateValue(value, parameters));
+}
+
+export function instantiateProcessTemplate(
+	processSpec: ApplicationProcessSpec,
+	parameters: CommandTemplateParameters,
+): ApplicationProcessSpec {
+	return {
+		command: substituteCommandTemplateValue(processSpec.command, parameters),
+		args: substituteCommandTemplateValues(processSpec.args, parameters),
+		display: substituteCommandTemplateValue(processSpec.display, parameters),
+	};
+}
+
 export function binaryCommand(binary: string, args: string[]): string {
 	return joinCommand([binary, ...args]);
 }

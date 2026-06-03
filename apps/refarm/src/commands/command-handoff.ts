@@ -8,11 +8,15 @@ export {
 	applicationCommand,
 	applicationProcess,
 	binaryCommand,
+	commandTemplateParameters,
+	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
 	shellCommand,
+	substituteCommandTemplateValue,
+	substituteCommandTemplateValues,
 	workspaceCommand,
 } from "@refarm.dev/cli/command-handoff";
 

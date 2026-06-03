@@ -1,3 +1,5 @@
+import { commandTemplateParameters } from "./command-handoff.js";
+
 export interface ExecutionPlanBase<
 	Action extends string,
 	Effects extends Record<string, unknown>,
@@ -52,10 +54,6 @@ export type RefarmExecutionPlanReadinessInput = ExecutionPlanReadinessInput;
 export type RefarmExecutionPlanReadinessLine = ExecutionPlanReadinessLine;
 export type RefarmExecutionPlanHandoff = ExecutionPlanHandoff;
 export type RefarmExecutionPlanHandoffInput = ExecutionPlanHandoffInput;
-
-function commandTemplateParameters(command: string): string[] {
-	return [...command.matchAll(/<([^>]+)>/g)].map((match) => match[1]!);
-}
 
 export function formatExecutionPlanReadinessLine(
 	plan: ExecutionPlanReadinessInput,

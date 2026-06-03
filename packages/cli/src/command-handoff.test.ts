@@ -6,11 +6,14 @@ import {
 	applicationCommand,
 	applicationProcess,
 	binaryCommand,
+	commandTemplateParameters,
+	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
 	shellCommand,
+	substituteCommandTemplateValue,
 	workspaceCommand,
 } from "./command-handoff.js";
 
@@ -119,6 +122,43 @@ describe("command handoff helpers", () => {
 		expect(normalizeHandoffValues([" refarm check ", "", "refarm check"])).toEqual([
 			"refarm check",
 		]);
+	});
+
+	it("extracts unique command template parameters from commands and argv", () => {
+		expect(commandTemplateParameters([
+			"refarm agent finish --workspace <dir>",
+			"<dir>",
+			"<ref>",
+		])).toEqual(["dir", "ref"]);
+	});
+
+	it("substitutes command template values and rejects missing parameters", () => {
+		expect(
+			substituteCommandTemplateValue(
+				"refarm agent finish --workspace <dir> --since <ref>",
+				{ dir: "packages/cli", ref: "HEAD~1" },
+			),
+		).toBe("refarm agent finish --workspace packages/cli --since HEAD~1");
+		expect(() =>
+			substituteCommandTemplateValue("refarm agent finish --workspace <dir>", {}),
+		).toThrow("Missing command template parameter: dir");
+	});
+
+	it("instantiates process templates without shell parsing", () => {
+		expect(
+			instantiateProcessTemplate(
+				{
+					command: "refarm",
+					args: ["agent", "finish", "--workspace", "<dir>", "--since", "<ref>"],
+					display: "refarm agent finish --workspace <dir> --since <ref>",
+				},
+				{ dir: "packages/cli", ref: "HEAD~1" },
+			),
+		).toEqual({
+			command: "refarm",
+			args: ["agent", "finish", "--workspace", "packages/cli", "--since", "HEAD~1"],
+			display: "refarm agent finish --workspace packages/cli --since HEAD~1",
+		});
 	});
 
 	it("keeps cli source handoff commands behind helpers", () => {

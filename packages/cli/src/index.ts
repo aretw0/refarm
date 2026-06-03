@@ -13,15 +13,20 @@ export {
 	applicationCommand,
 	applicationProcess,
 	binaryCommand,
+	commandTemplateParameters,
+	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
 	shellCommand,
+	substituteCommandTemplateValue,
+	substituteCommandTemplateValues,
 	workspaceCommand,
 } from "./command-handoff.js";
 export type {
 	ApplicationProcessSpec,
+	CommandTemplateParameters,
 } from "./command-handoff.js";
 export {
 	buildJsonErrorEnvelope,
