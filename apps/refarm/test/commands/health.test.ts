@@ -70,6 +70,7 @@ describe("buildHealthReport", () => {
       "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
     ]);
     expect(report.nextCommands).toEqual([
+      "refarm health --policy --json",
       "node packages/toolbox/src/cli.mjs reso dist",
     ]);
   });
@@ -90,6 +91,7 @@ describe("buildHealthRecommendations", () => {
         target: "src/generated.ts",
         summary: "src/generated.ts is ignored by Git.",
         action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+        command: "refarm health --policy --json",
       },
       {
         issueType: "missing_build_config",
@@ -97,6 +99,7 @@ describe("buildHealthRecommendations", () => {
         target: "packages/missing-build",
         summary: "packages/missing-build is missing a build config.",
         action: "Add the package build configuration or mark the package exempt in the project health policy.",
+        command: "refarm health --policy --json",
       },
       {
         issueType: "local_alignment",
@@ -304,8 +307,8 @@ describe("healthCommand", () => {
         "Track the source file, or add an explicit health policy exclusion if it is generated.",
         "Add the package build configuration or mark the package exempt in the project health policy.",
       ],
-      nextCommand: null,
-      nextCommands: [],
+      nextCommand: "refarm health --policy --json",
+      nextCommands: ["refarm health --policy --json"],
     });
     logSpy.mockRestore();
   });

@@ -111,11 +111,24 @@ function printRefarmCheckNextActionJson(report: RefarmCheckReport): void {
 		ok: report.ok,
 		nextActions: report.nextActions,
 		nextCommands: report.nextCommands,
-		recommendations: report.recommendations.filter(
-			(recommendation) => recommendation.severity !== "info",
-		),
+		recommendations: compactActionableRecommendations(report.recommendations),
 	});
 	printJson(output);
+}
+
+function compactActionableRecommendations(
+	recommendations: DiagnosticRecommendation[],
+): DiagnosticRecommendation[] {
+	const seen = new Set<string>();
+	const compact: DiagnosticRecommendation[] = [];
+	for (const recommendation of recommendations) {
+		if (recommendation.severity === "info") continue;
+		const key = `${recommendation.action}\n${recommendation.command ?? ""}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		compact.push(recommendation);
+	}
+	return compact;
 }
 
 async function runDefaultDoctor(options: {

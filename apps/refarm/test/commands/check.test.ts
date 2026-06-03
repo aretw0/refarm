@@ -321,6 +321,52 @@ describe("checkCommand", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
+	it("compacts repeated recommendations in next-action JSON", async () => {
+		const deps = makeDeps({
+			health: {
+				ok: false,
+				issueCount: 2,
+				recommendations: [
+					{
+						issueType: "git_ignored",
+						diagnostic: "git_ignored",
+						summary: "docs/_site/a.md is ignored by Git.",
+						action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+						command: "refarm health --policy --json",
+						target: "docs/_site/a.md",
+					},
+					{
+						issueType: "git_ignored",
+						diagnostic: "git_ignored",
+						summary: "docs/_site/b.md is ignored by Git.",
+						action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+						command: "refarm health --policy --json",
+						target: "docs/_site/b.md",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output.recommendations).toEqual([
+			{
+				issueType: "git_ignored",
+				diagnostic: "git_ignored",
+				summary: "docs/_site/a.md is ignored by Git.",
+				action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+				command: "refarm health --policy --json",
+				target: "docs/_site/a.md",
+			},
+		]);
+		expect(output.nextCommand).toBe("refarm health --policy --json");
+		expect(process.exitCode).toBe(1);
+	});
+
 	it("prints only the first executable recovery command with --next-command", async () => {
 		const deps = makeDeps({
 			doctor: {

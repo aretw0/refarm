@@ -98,6 +98,7 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
   "**/*.d.ts",
   "packages/pi-agent/src/bindings.rs",
 ];
+const HEALTH_POLICY_COMMAND = "refarm health --policy --json";
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 
 function looksLikeRefarmMonorepo(rootDir: string): boolean {
@@ -157,6 +158,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       target: issue.file,
       summary: `${issue.file ?? "A source file"} is ignored by Git.`,
       action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+      command: HEALTH_POLICY_COMMAND,
     })),
     ...results.builds.map((issue) => ({
       issueType: issue.type,
@@ -164,6 +166,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       target: issue.package,
       summary: `${issue.package ?? "A workspace package"} is missing a build config.`,
       action: "Add the package build configuration or mark the package exempt in the project health policy.",
+      command: HEALTH_POLICY_COMMAND,
     })),
     ...results.alignment.map((issue) => ({
       issueType: issue.type,
@@ -339,6 +342,9 @@ function emitHealthSummary(report: HealthReport): void {
       const target = recommendation.target ? ` (${recommendation.target})` : "";
       console.log(chalk.gray(`   - ${recommendation.summary}${target}`));
       console.log(chalk.gray(`     ${recommendation.action}`));
+      if (recommendation.command) {
+        console.log(chalk.gray(`     ${recommendation.command}`));
+      }
     });
   }
 }
