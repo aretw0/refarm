@@ -12,6 +12,11 @@ fn session_node_has_required_fields() {
         node["participants"].is_array(),
         "session node includes participants array"
     );
+    assert_eq!(
+        node["participants"][0],
+        "urn:refarm:agent:runtime-agent",
+        "default session participant uses the operator-facing runtime agent identity"
+    );
     assert!(
         node["leaf_entry_id"].is_null(),
         "new session has no leaf yet"
@@ -21,6 +26,22 @@ fn session_node_has_required_fields() {
         "root session has no parent"
     );
     assert_eq!(node["created_at_ns"], ts);
+}
+
+#[test]
+fn session_participant_allows_explicit_agent_override() {
+    assert_eq!(
+        session_participant_from_agent_id(Some("custom-agent")),
+        "urn:refarm:agent:custom-agent"
+    );
+    assert_eq!(
+        session_participant_from_agent_id(Some("")),
+        "urn:refarm:agent:runtime-agent"
+    );
+    assert_eq!(
+        session_participant_from_agent_id(None),
+        "urn:refarm:agent:runtime-agent"
+    );
 }
 
 #[test]
