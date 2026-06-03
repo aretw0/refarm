@@ -143,7 +143,13 @@ describe("healthCommand", () => {
     expect(help).toContain("refarm.config.json");
   });
 
-  it("uses the Refarm preset when no project health policy exists", async () => {
+  it("uses the Refarm preset in the Refarm monorepo when no project health policy exists", async () => {
+    mockExistsSync.mockImplementation((value) => {
+      const normalizedPath = String(value).replaceAll("\\", "/");
+      return normalizedPath.endsWith("apps/refarm/package.json");
+    });
+    mockReadFileSync.mockReturnValue(JSON.stringify({ name: "@refarm.dev/refarm" }));
+
     await healthCommand.parseAsync([], { from: "user" });
     expect(mockFileSystemAuditor).toHaveBeenCalledWith({
       ignoredGitVisibilityPatterns: [
@@ -159,6 +165,18 @@ describe("healthCommand", () => {
       ],
     });
     expect(mockProjectAuditor).not.toHaveBeenCalled();
+  });
+
+  it("uses generic workspace policy outside the Refarm monorepo when no config exists", async () => {
+    await healthCommand.parseAsync([], { from: "user" });
+    expect(mockFileSystemAuditor).toHaveBeenCalledWith({
+      ignoredGitVisibilityPatterns: [],
+    });
+    expect(mockProjectAuditor).toHaveBeenCalledWith({
+      preset: "workspace",
+      ignoredGitVisibilityPatterns: [],
+    });
+    expect(mockRefarmProjectAuditor).not.toHaveBeenCalled();
   });
 
   it("uses generic workspace policy from refarm.config.json when configured", async () => {
@@ -325,8 +343,21 @@ describe("resolveHealthPolicy", () => {
     mockReadFileSync.mockReturnValue("{}");
   });
 
-  it("falls back to the Refarm policy when no config exists", () => {
+  it("falls back to workspace policy outside Refarm when no config exists", () => {
     expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "workspace",
+      ignoredGitVisibilityPatterns: [],
+    });
+  });
+
+  it("falls back to the Refarm policy inside the Refarm monorepo when no config exists", () => {
+    mockExistsSync.mockImplementation((value) => {
+      const normalizedPath = String(value).replaceAll("\\", "/");
+      return normalizedPath.endsWith("apps/refarm/package.json");
+    });
+    mockReadFileSync.mockReturnValue(JSON.stringify({ name: "@refarm.dev/refarm" }));
+
+    expect(resolveHealthPolicy("/tmp/refarm")).toEqual({
       preset: "refarm",
       ignoredGitVisibilityPatterns: [
         "**/*.d.ts",

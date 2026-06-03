@@ -84,6 +84,32 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
 ];
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 
+function looksLikeRefarmMonorepo(rootDir: string): boolean {
+  const manifestPath = path.join(rootDir, "apps", "refarm", "package.json");
+  if (!fs.existsSync(manifestPath)) return false;
+
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as { name?: unknown };
+    return manifest.name === "@refarm.dev/refarm";
+  } catch {
+    return false;
+  }
+}
+
+function defaultHealthPolicy(rootDir: string): HealthPolicy {
+  if (looksLikeRefarmMonorepo(rootDir)) {
+    return {
+      preset: "refarm",
+      ignoredGitVisibilityPatterns: REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS,
+    };
+  }
+
+  return {
+    preset: "workspace",
+    ignoredGitVisibilityPatterns: [],
+  };
+}
+
 export function buildHealthReport(
   results: HealthResults,
   resolution: ResolutionStatus[],
@@ -136,10 +162,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
 
 export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
   const configPath = path.join(rootDir, "refarm.config.json");
-  const fallback: HealthPolicy = {
-    preset: "refarm",
-    ignoredGitVisibilityPatterns: REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS,
-  };
+  const fallback = defaultHealthPolicy(rootDir);
 
   if (!fs.existsSync(configPath)) {
     return fallback;
