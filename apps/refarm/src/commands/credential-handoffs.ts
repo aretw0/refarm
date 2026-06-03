@@ -26,6 +26,11 @@ export const MODEL_CURRENT_JSON_COMMAND = refarmCommand([
 	"current",
 	"--json",
 ]);
+export const MODEL_DOCTOR_JSON_COMMAND = refarmCommand([
+	"model",
+	"doctor",
+	"--json",
+]);
 export const MODEL_PROVIDERS_JSON_COMMAND = refarmCommand([
 	"model",
 	"providers",

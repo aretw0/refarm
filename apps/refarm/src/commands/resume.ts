@@ -11,7 +11,10 @@ import {
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
 import { loadChatHistory } from "./chat-history.js";
-import { MODEL_CURRENT_JSON_COMMAND } from "./credential-handoffs.js";
+import {
+	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_DOCTOR_JSON_COMMAND,
+} from "./credential-handoffs.js";
 import { printJson } from "./json-output.js";
 import {
 	buildCurrentModelStatus,
@@ -168,6 +171,7 @@ async function loadModelResumeSummary(
 			},
 			source: status.source.kind,
 			inspectCommand: MODEL_CURRENT_JSON_COMMAND,
+			doctorCommand: MODEL_DOCTOR_JSON_COMMAND,
 		};
 	} catch {
 		return undefined;

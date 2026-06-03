@@ -32,6 +32,7 @@ import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_DOCTOR_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPENAI_MODEL_JSON_COMMAND,
 	OPERATOR_LINKS_CONFIG_COMMAND,
@@ -46,7 +47,6 @@ const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
-const MODEL_DOCTOR_JSON_COMMAND = "refarm model doctor --json";
 const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
 const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;

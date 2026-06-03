@@ -96,6 +96,7 @@ export interface OperatorResumeModelSummary {
 	};
 	source?: string;
 	inspectCommand?: string;
+	doctorCommand?: string;
 }
 
 export interface OperatorResumeSessionSummary {
@@ -406,6 +407,9 @@ export function formatOperatorResumeSummary(
 		}
 		if (summary.model.inspectCommand) {
 			lines.push(`  inspect: ${summary.model.inspectCommand}`);
+		}
+		if (summary.model.doctorCommand) {
+			lines.push(`  doctor:  ${summary.model.doctorCommand}`);
 		}
 	} else {
 		lines.push("Model: not inspected");

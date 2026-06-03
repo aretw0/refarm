@@ -38,6 +38,7 @@ describe("operator resume", () => {
 				credential: { state: "env", status: "OPENAI_API_KEY env" },
 				source: "identity",
 				inspectCommand: "refarm model current --json",
+				doctorCommand: "refarm model doctor --json",
 			},
 			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 			recentSessions: [
@@ -89,6 +90,7 @@ describe("operator resume", () => {
 			model: {
 				current: { ref: "openai/gpt-5.5" },
 				inspectCommand: "refarm model current --json",
+				doctorCommand: "refarm model doctor --json",
 			},
 			session: {
 				status: "active",
@@ -350,6 +352,7 @@ describe("operator resume", () => {
 					credential: { status: "OPENAI_API_KEY env" },
 					source: "identity",
 					inspectCommand: "refarm model current --json",
+					doctorCommand: "refarm model doctor --json",
 				},
 				activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 				recentSessions: [
@@ -380,6 +383,7 @@ describe("operator resume", () => {
 		expect(formatted).toContain("next: refarm runtime start --wait");
 		expect(formatted).toContain("remaining: 1 command");
 		expect(formatted).toContain("Model: openai/gpt-5.5");
+		expect(formatted).toContain("doctor:  refarm model doctor --json");
 		expect(formatted).toContain("Recent sessions:");
 	});
 });

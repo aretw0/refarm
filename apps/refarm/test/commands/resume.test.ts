@@ -144,6 +144,9 @@ describe("resume command", () => {
 			expect.stringContaining('"nextCommand": "refarm model current --json"'),
 		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"model": {'));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining('"doctorCommand": "refarm model doctor --json"'),
+		);
 		spy.mockRestore();
 	});
 
