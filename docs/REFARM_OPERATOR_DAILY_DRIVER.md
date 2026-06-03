@@ -45,6 +45,7 @@ the endpoint explicit in that workspace instead of relying on shell state:
 ```bash
 refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
 refarm config get runtime.sidecarUrl --json
+refarm runtime status --json
 refarm check --next-action --json
 ```
 

@@ -5,7 +5,10 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, readFileSync } from "node:fs";
-import { TRACTOR_ENGINE_ENV_VAR } from "../utils/runtime-config.js";
+import {
+	resolveRuntimeSidecarUrl,
+	TRACTOR_ENGINE_ENV_VAR,
+} from "../utils/runtime-config.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -48,6 +51,7 @@ interface RuntimeCommandDeps {
 	repoRoot(): string;
 	readEngine(): TractorEngineMode;
 	readAutostart(): AutostartMode;
+	readSidecarUrl?(): { value: string; source: string };
 	resolveRuntime(
 		repoRoot: string,
 		configuredEngine: TractorEngineMode,
@@ -100,6 +104,7 @@ function defaultDeps(): RuntimeCommandDeps {
 		repoRoot: findRepoRoot,
 		readEngine: readTractorEngineMode,
 		readAutostart: readAutostartMode,
+		readSidecarUrl: resolveRuntimeSidecarUrl,
 		resolveRuntime: resolveLaunchRuntime,
 		probeReady: () => probeRuntimeReady(300),
 		waitUntilReady: waitForRuntimeReady,
@@ -109,6 +114,7 @@ function defaultDeps(): RuntimeCommandDeps {
 async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeStatusPayload> {
 	const configuredEngine = deps.readEngine();
 	const autostart = deps.readAutostart();
+	const sidecar = deps.readSidecarUrl?.() ?? resolveRuntimeSidecarUrl();
 	const repoRoot = deps.repoRoot();
 	const ready = deps.probeReady ? await deps.probeReady() : undefined;
 	try {
@@ -118,6 +124,8 @@ async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeSt
 			activeEngine: selection.activeEngine,
 			autostart,
 			reason: selection.reason,
+			sidecarUrl: sidecar.value,
+			sidecarUrlSource: sidecar.source,
 			ready,
 			startCommand: resolveRuntimeLaunchCommand(
 				repoRoot,
@@ -131,6 +139,8 @@ async function runtimeStatusPayload(deps: RuntimeCommandDeps): Promise<RuntimeSt
 			activeEngine: "unknown",
 			autostart,
 			reason: "configured-rust-missing-binary",
+			sidecarUrl: sidecar.value,
+			sidecarUrlSource: sidecar.source,
 			ready,
 			issue: message,
 		};
@@ -284,6 +294,9 @@ function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 		payload.ready === undefined ? "unknown" : payload.ready ? "yes" : "no";
 	console.log(`  ready:      ${readyLabel}`);
 	console.log(`  autostart:  ${payload.autostart}`);
+	if (payload.sidecarUrl) {
+		console.log(`  sidecar:    ${payload.sidecarUrl}`);
+	}
 	console.log(`  reason:     ${payload.reason}`);
 	if (payload.startCommand) {
 		console.log(`  start:      ${payload.startCommand}`);

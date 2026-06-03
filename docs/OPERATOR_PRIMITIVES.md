@@ -121,6 +121,9 @@ Rules:
 refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
 ```
 
+- `runtime status --json` must expose the resolved `sidecarUrl` and
+  `sidecarUrlSource` so agents can tell whether they are probing the default,
+  environment override, home config, or project-local config.
 - `runtime ensure --wait --json` converges to `resume` when ready.
 - If `runtime ensure --wait --json` starts a runtime but readiness does not
   converge and the startup log has no actionable output, the recovery handoff

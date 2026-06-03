@@ -29,6 +29,8 @@ export interface RuntimeStatusSummary {
   activeEngine: RuntimeActiveEngine;
   autostart: RuntimeAutostartMode;
   reason: RuntimeSelectionReason;
+  sidecarUrl?: string;
+  sidecarUrlSource?: string;
   ready?: boolean;
   startCommand?: string;
   issue?: string;

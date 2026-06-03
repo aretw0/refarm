@@ -32,6 +32,7 @@ describe("runtime command", () => {
 		expect(output).toContain("active:     rust");
 		expect(output).toContain("ready:      yes");
 		expect(output).toContain("autostart:  always");
+		expect(output).toContain("sidecar:    http://127.0.0.1:42001");
 		expect(output).toContain("start:      tractor");
 		expect(output).toContain("refarm config set tractor.engine auto");
 		expect(output).toContain("refarm config set runtime.autostart always");
@@ -111,6 +112,8 @@ describe("runtime command", () => {
 			configuredEngine: "ts",
 			activeEngine: "ts",
 			ready: false,
+			sidecarUrl: "http://127.0.0.1:42001",
+			sidecarUrlSource: "default",
 			startCommand: "farmhand --background",
 			nextAction: "refarm runtime ensure --wait --next-command",
 			nextActions: ["refarm runtime ensure --wait --next-command"],
@@ -147,6 +150,8 @@ describe("runtime command", () => {
 			activeEngine: "ts",
 			autostart: "never",
 			reason: "configured-ts",
+			sidecarUrl: "http://127.0.0.1:42001",
+			sidecarUrlSource: "default",
 			ready: false,
 			startCommand: "farmhand --background",
 			ok: false,
@@ -183,6 +188,8 @@ describe("runtime command", () => {
 			activeEngine: "unknown",
 			autostart: "ask",
 			reason: "configured-rust-missing-binary",
+			sidecarUrl: "http://127.0.0.1:42001",
+			sidecarUrlSource: "default",
 			issue: expect.stringContaining("Rust tractor binary is not built"),
 			nextAction: "refarm config set tractor.engine auto",
 			nextActions: ["refarm config set tractor.engine auto"],
