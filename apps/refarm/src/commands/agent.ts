@@ -131,6 +131,20 @@ const agentFinishRecommended = Object.fromEntries(
 
 const agentFinishTemplates = [
 	{
+		id: "external-consumer-resume-json",
+		command: RESUME_JSON_COMMAND,
+		parameters: ["dir"],
+		cwdParameter: "dir",
+		useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
+	},
+	{
+		id: "external-consumer-check-json",
+		command: refarmCommand(["check", "--next-action", "--json"]),
+		parameters: ["dir"],
+		cwdParameter: "dir",
+		useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
+	},
+	{
 		id: "package-workspace-plan",
 		command: agentFinishCommand([
 			"--profile",
@@ -1361,6 +1375,9 @@ Notes:
 				for (const template of agentRuntimePlan.verification.templates) {
 					console.log(`${template.id}: ${template.command}`);
 					console.log(`  Parameters: ${template.parameters.join(", ")}`);
+					if ("cwdParameter" in template) {
+						console.log(`  CWD parameter: ${template.cwdParameter}`);
+					}
 					console.log(`  Use when: ${template.useWhen}`);
 				}
 				return;

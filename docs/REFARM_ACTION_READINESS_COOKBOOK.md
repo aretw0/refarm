@@ -68,6 +68,10 @@ commands an operator agent can execute directly:
   `command`, declared `parameters`, and `useWhen` guidance. Treat templates as
   input forms, not executable commands; every `<parameter>` in `command` must be
   listed in `parameters`.
+- Templates that must run from another workspace should use `cwdParameter`
+  instead of encoding `cd <dir> && ...` into `command`. The `command` remains
+  the operator-facing/backcompat handoff; the cwd parameter tells a machine
+  runner where to execute it after substitution.
 - Prefer `refarm ...` commands for continuation when the CLI can express the
   action. Use lower-level commands such as `git ls-remote ...` or
   `gh secret list` only when they are the deterministic verification surface.

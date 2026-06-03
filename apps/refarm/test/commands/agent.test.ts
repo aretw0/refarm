@@ -653,7 +653,13 @@ describe("agent command", () => {
 			nextAction: string;
 			nextCommand: string | null;
 			nextCommands: string[];
-			templates: { command: string; id: string; parameters: string[]; useWhen: string }[];
+			templates: {
+				command: string;
+				cwdParameter?: string;
+				id: string;
+				parameters: string[];
+				useWhen: string;
+			}[];
 		};
 		expect(payload).toMatchObject({
 			ok: true,
@@ -664,6 +670,20 @@ describe("agent command", () => {
 			nextCommands: [],
 		});
 		expect(payload.templates).toEqual(expect.arrayContaining([
+			expect.objectContaining({
+				id: "external-consumer-resume-json",
+				command: "refarm resume --json",
+				parameters: ["dir"],
+				cwdParameter: "dir",
+				useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
+			}),
+			expect.objectContaining({
+				id: "external-consumer-check-json",
+				command: "refarm check --next-action --json",
+				parameters: ["dir"],
+				cwdParameter: "dir",
+				useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
+			}),
 			expect.objectContaining({
 				id: "package-workspace-plan",
 				command: "refarm agent finish --profile package --workspace <dir> --next-command",
@@ -711,6 +731,14 @@ describe("agent command", () => {
 			from: "user",
 		});
 
+		expect(logSpy).toHaveBeenCalledWith(
+			"external-consumer-resume-json: refarm resume --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith("  Parameters: dir");
+		expect(logSpy).toHaveBeenCalledWith("  CWD parameter: dir");
+		expect(logSpy).toHaveBeenCalledWith(
+			"  Use when: Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
+		);
 		expect(logSpy).toHaveBeenCalledWith(
 			"package-workspace-plan: refarm agent finish --profile package --workspace <dir> --next-command",
 		);
