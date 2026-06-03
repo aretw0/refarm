@@ -711,6 +711,44 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("resolves external consumer template processes from the installed launcher", async () => {
+		const previous = process.env.REFARM_COMMAND;
+		process.env.REFARM_COMMAND = "C:\\tmp\\refarm-cli-bin-test\\refarm.cmd";
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			await agentCommand.parseAsync(["finish", "--templates", "--json"], {
+				from: "user",
+			});
+
+			const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+				templates: {
+					command: string;
+					id: string;
+					process?: { command: string; args: string[]; display: string };
+				}[];
+			};
+			expect(payload.templates).toEqual(expect.arrayContaining([
+				expect.objectContaining({
+					id: "external-consumer-resume-json",
+					command: "C:\\tmp\\refarm-cli-bin-test\\refarm.cmd resume --json",
+					process: {
+						command: "C:\\tmp\\refarm-cli-bin-test\\refarm.cmd",
+						args: ["resume", "--json"],
+						display: "C:\\tmp\\refarm-cli-bin-test\\refarm.cmd resume --json",
+					},
+				}),
+			]));
+		} finally {
+			if (previous === undefined) {
+				delete process.env.REFARM_COMMAND;
+			} else {
+				process.env.REFARM_COMMAND = previous;
+			}
+			logSpy.mockRestore();
+		}
+	});
+
 	it("prints operator finish lanes with usage guidance", async () => {
 		const agentCommand = createAgentCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

@@ -129,89 +129,91 @@ const agentFinishRecommended = Object.fromEntries(
 	agentFinishLaneCatalog.map((lane) => [lane.recommendedKey, lane.command]),
 ) as Record<AgentFinishLaneRecommendedKey, string>;
 
-const agentFinishTemplates = [
-	{
-		id: "external-consumer-resume-json",
-		command: RESUME_JSON_COMMAND,
-		process: refarmProcess(["resume", "--json"]),
-		parameters: ["dir"],
-		cwdParameter: "dir",
-		useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
-	},
-	{
-		id: "external-consumer-check-json",
-		command: refarmCommand(["check", "--next-action", "--json"]),
-		process: refarmProcess(["check", "--next-action", "--json"]),
-		parameters: ["dir"],
-		cwdParameter: "dir",
-		useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
-	},
-	{
-		id: "package-workspace-plan",
-		command: agentFinishCommand([
-			"--profile",
-			"package",
-			"--workspace",
-			"<dir>",
-			"--next-command",
-		]),
-		parameters: ["dir"],
-		useWhen: "Validate a known workspace/package directory without using Git status.",
-	},
-	{
-		id: "package-workspace-run",
-		command: agentFinishCommand([
-			"--profile",
-			"package",
-			"--workspace",
-			"<dir>",
-			"--run",
-			"--next-command",
-		]),
-		parameters: ["dir"],
-		useWhen: "Execute validation for a known workspace/package directory.",
-	},
-	{
-		id: "package-workspace-fix-run",
-		command: agentFinishCommand([
-			"--fix",
-			"--profile",
-			"package",
-			"--workspace",
-			"<dir>",
-			"--run",
-			"--next-command",
-		]),
-		parameters: ["dir"],
-		useWhen: "Organize imports, then execute validation for a known workspace/package directory.",
-	},
-	{
-		id: "affected-since-ref-run-json",
-		command: agentFinishCommand([
-			"--profile",
-			"affected",
-			"--since",
-			"<ref>",
-			"--run",
-			"--json",
-		]),
-		parameters: ["ref"],
-		useWhen: "Validate affected workspaces against an explicit Git ref.",
-	},
-	{
-		id: "affected-since-ref-run-command",
-		command: agentFinishCommand([
-			"--profile",
-			"affected",
-			"--since",
-			"<ref>",
-			"--run",
-			"--next-command",
-		]),
-		parameters: ["ref"],
-		useWhen: "Print the next recovery command while validating against an explicit Git ref.",
-	},
-] as const;
+function agentFinishTemplates() {
+	return [
+		{
+			id: "external-consumer-resume-json",
+			command: refarmCommand(["resume", "--json"]),
+			process: refarmProcess(["resume", "--json"]),
+			parameters: ["dir"],
+			cwdParameter: "dir",
+			useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
+		},
+		{
+			id: "external-consumer-check-json",
+			command: refarmCommand(["check", "--next-action", "--json"]),
+			process: refarmProcess(["check", "--next-action", "--json"]),
+			parameters: ["dir"],
+			cwdParameter: "dir",
+			useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
+		},
+		{
+			id: "package-workspace-plan",
+			command: agentFinishCommand([
+				"--profile",
+				"package",
+				"--workspace",
+				"<dir>",
+				"--next-command",
+			]),
+			parameters: ["dir"],
+			useWhen: "Validate a known workspace/package directory without using Git status.",
+		},
+		{
+			id: "package-workspace-run",
+			command: agentFinishCommand([
+				"--profile",
+				"package",
+				"--workspace",
+				"<dir>",
+				"--run",
+				"--next-command",
+			]),
+			parameters: ["dir"],
+			useWhen: "Execute validation for a known workspace/package directory.",
+		},
+		{
+			id: "package-workspace-fix-run",
+			command: agentFinishCommand([
+				"--fix",
+				"--profile",
+				"package",
+				"--workspace",
+				"<dir>",
+				"--run",
+				"--next-command",
+			]),
+			parameters: ["dir"],
+			useWhen: "Organize imports, then execute validation for a known workspace/package directory.",
+		},
+		{
+			id: "affected-since-ref-run-json",
+			command: agentFinishCommand([
+				"--profile",
+				"affected",
+				"--since",
+				"<ref>",
+				"--run",
+				"--json",
+			]),
+			parameters: ["ref"],
+			useWhen: "Validate affected workspaces against an explicit Git ref.",
+		},
+		{
+			id: "affected-since-ref-run-command",
+			command: agentFinishCommand([
+				"--profile",
+				"affected",
+				"--since",
+				"<ref>",
+				"--run",
+				"--next-command",
+			]),
+			parameters: ["ref"],
+			useWhen: "Print the next recovery command while validating against an explicit Git ref.",
+		},
+	] as const;
+}
 
 const agentRuntimePlan = {
 	environment: {
@@ -359,7 +361,9 @@ const agentRuntimePlan = {
 		]),
 		recommended: agentFinishRecommended,
 		lanes: agentFinishLanes,
-		templates: agentFinishTemplates,
+		get templates() {
+			return agentFinishTemplates();
+		},
 	},
 };
 
