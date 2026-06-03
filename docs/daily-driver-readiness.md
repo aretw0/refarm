@@ -89,6 +89,11 @@ What is already solid:
 - Runtime-agent prompt identity now uses the product concept
   "Refarm runtime agent"; the physical `@refarm/pi-agent` package remains a
   compatibility identity rather than the operator-facing semantic center.
+- Session participants now expose the same boundary: legacy
+  `urn:refarm:agent:pi-agent` data is preserved for history, while
+  `canonicalParticipants` and `participantAliases` surface
+  `urn:refarm:agent:runtime-agent` in both `sessions show --json` and
+  `resume --json`.
 - `refarm task resume --json` is now the preferred continuation when a task
   checkpoint exists; it carries the current effort handoffs, model inspection
   command, and status/log commands. `task list --json` remains the inventory
@@ -206,6 +211,27 @@ Current priority sequence:
    non-interactive where possible and resumable where not.
 5. Primitive extraction: move repeated contracts down only after repeated app
    use proves the boundary.
+
+## Anti-Centralization Checkpoint
+
+Run this checkpoint before starting another Refarm-internal hardening slice.
+The goal is to keep `apps/refarm` as the cockpit, not the gravity well.
+
+Proceed with internal Refarm work only when the slice answers at least one
+question with evidence:
+
+| Question | If yes | Owning layer |
+| --- | --- | --- |
+| Did an execution path fail? | Fix the runtime, task, model, or finish layer that owns the failure. | `farmhand`, runtime, Tractor, runtime agent, or model bridge |
+| Did a handoff mislead the operator? | Fix the first public JSON surface the agent sees. | `@refarm.dev/cli` or `apps/refarm` |
+| Did two commands need the same behavior? | Extract the shared primitive. | `packages/*` |
+| Did a second repo need the behavior? | Add an adapter or policy boundary instead of importing app internals. | shared package or consumer adapter |
+| Is this only comfort/polish? | Defer until the CLI loop has real daily-driver mileage. | app UX later |
+
+If none of those is true, the next slice should be a migration-pressure slice:
+use Refarm on non-Refarm work, record the observed failure, and harden only the
+lowest layer that failed. A green `resume`, `check`, `after-edit`, and
+`handoffs` sequence is a signal to leave self-work and gather external evidence.
 
 ## Migration Decision Rule
 
