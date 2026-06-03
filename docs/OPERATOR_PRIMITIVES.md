@@ -1,0 +1,212 @@
+# Refarm Operator Primitives
+
+Status: maintained contract map for the agentic daily-driver path.
+
+This document defines the primitives that must stay boring before Refarm becomes
+the operator's primary daily driver. It is intentionally narrower than the
+architecture docs: it captures what an agent can rely on when it is driving
+Refarm through JSON handoffs.
+
+## Layer Rule
+
+`apps/refarm` is the cockpit. It can compose commands, render operator output,
+and choose product defaults. It should not become the permanent home for every
+contract an agent needs.
+
+Durable behavior should move down when a second command, package, surface, or
+external consumer needs it:
+
+| Layer | Owns | Does not own |
+| --- | --- | --- |
+| `apps/refarm` | Product CLI UX, command composition, help text, operator recovery wording. | Reusable process execution, shared JSON envelopes, task/runtime state machines. |
+| `packages/cli` | Handoff strings, command plans, process specs, resume envelopes, status/action schemas, launch helpers. | Runtime execution or plugin lifecycle internals. |
+| `packages/config` | Stable IDs, aliases, defaults, provider and package-manager policy. | Operator presentation. |
+| `apps/farmhand` | Task execution, plugin lifecycle coordination, runtime-facing execution behavior. | CLI-only wording or Commander-specific parsing. |
+| `packages/tractor` | Runtime, plugin host, streams, sandbox boundary, runtime diagnostics. | Product command orchestration. |
+| `packages/pi-agent` | Runtime-agent behavior and WASM contract. | Product-wide "PiAgent" semantics. |
+
+## Public Handoff Contract
+
+Every public JSON command used by an agent should expose:
+
+- `ok`: whether the command reached the intended state.
+- `command` and `operation`: stable identifiers for the invoked surface.
+- `nextCommand`: the first executable continuation, or `null` for terminal
+  success.
+- `nextCommands`: ordered executable continuations. Empty means no recovery or
+  continuation is required.
+- `nextAction` and `nextActions`: user-facing action aliases that mirror the
+  command contract when appropriate.
+- `recommendations`: diagnostics with concrete commands when recovery requires
+  explanation.
+
+Executable handoffs must not contain placeholders, REPL-only commands, package
+manager-specific variants that depend on hidden state, or commands that require
+interactive secret entry without saying so.
+
+## Core Primitives
+
+### Resume
+
+Purpose: answer "where was I?" before dispatching new work.
+
+Required signals:
+
+- Runtime readiness and selected engine.
+- Current model route and credential state.
+- Active and recent sessions with `sessions show` handoffs.
+- Recent task checkpoint and effort status/log handoffs.
+- Last finish gate, failed command, and remaining validation commands.
+
+Start every agent slice with:
+
+```bash
+refarm resume --json
+refarm check --next-action --json
+```
+
+If `resume` returns `nextCommands`, follow the first command before inferring
+state from memory.
+
+### Session
+
+Purpose: preserve the operator timeline and make agent output inspectable.
+
+Rules:
+
+- `sessions show <id> --json` is terminal when the session is already active.
+- `sessions list --json` should not suggest stale active-session recovery.
+- New runtime-agent sessions should identify the participant as
+  `urn:refarm:agent:runtime-agent`.
+- Historical `urn:refarm:agent:pi-agent` participants and `[pi-agent ...]`
+  entries are compatibility data, not the product-facing concept.
+
+### Task And Effort
+
+Purpose: dispatch resumable work without hiding state in the CLI process.
+
+Rules:
+
+- `task resume --json` is the preferred continuation when a checkpoint exists.
+- Terminal or failed old efforts must not produce misleading resume handoffs.
+- `task status --json` should distinguish active, done, failed, and unknown
+  states with log and resume handoffs.
+- `task logs --json` should be inspectable after terminal states.
+- Operator-facing runtime-agent dispatch uses:
+
+```bash
+refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
+```
+
+The physical plugin id may still be `@refarm/pi-agent` in stored task metadata.
+The no-token `refarm:agent:e2e:mock` gate exercises this alias through HTTP
+task dispatch against the model mock and follows the returned status/log
+handoffs. It also checks `task resume --json` before and after the effort
+reaches `done`, so active continuations stay visible and terminal efforts do
+not keep misleading resume commands. Finally, it calls the top-level
+`resume --json` to ensure terminal task history remains inspectable without
+reintroducing `task resume` as the next step.
+
+### Runtime And Plugins
+
+Purpose: keep the execution plane recoverable without manual guessing.
+
+Rules:
+
+- `runtime ensure --wait --json` converges to `resume` when ready.
+- `check --next-action --json` is the composite readiness gate.
+- Plugin recovery should prefer the operator alias:
+
+```bash
+refarm plugin reload runtime-agent --json
+```
+
+- Plugin status may expose `@refarm/pi-agent` as installed/loaded identity
+  because that is the manifest id.
+- Reload outcomes must distinguish `reloaded`, `skipped`, and `deferred`.
+- The no-token `refarm:agent:e2e:mock` gate exercises
+  `plugin reload runtime-agent --json` against the isolated runtime and follows
+  the returned `plugin status --json` handoff. A loaded plugin may report
+  `skipped`; the contract is that the public alias normalizes to
+  `@refarm/pi-agent` and status remains inspectable.
+
+### Model Routing
+
+Purpose: let the agent know which model path it is about to use.
+
+Rules:
+
+- `model current --json` is the inspection primitive.
+- `sow --model <provider/model>` changes the route.
+- Credential collection may be interactive, but JSON recovery must name the
+  command that resumes inspection after configuration.
+- No-token validation should use the mock model path before live provider checks.
+
+### Finish
+
+Purpose: close a slice with enough verification signal for the changed surface.
+
+Rules:
+
+- After source edits:
+
+```bash
+refarm agent finish --lane after-edit --run --json
+```
+
+- After public JSON or CLI contract changes:
+
+```bash
+refarm agent finish --lane handoffs --run --json
+```
+
+- After runtime-agent, model routing, or ask execution changes:
+
+```bash
+refarm agent finish --lane agent-e2e-mock --run --json
+```
+
+- A passing finish returns `nextCommand: "refarm resume --json"`.
+
+## Hardening Order
+
+Before the operator migrates fully to Refarm as the primary daily driver, prefer
+work in this order:
+
+1. Keep the self-guiding loop green: `resume -> inspect handoff -> check ->
+   edit -> finish -> resume`.
+2. Keep no-token execution with model-mock ahead of live-provider token checks.
+3. Move repeated handoff/process/status contracts from `apps/refarm` into
+   shared packages only after repeated use proves the boundary.
+4. Exercise one non-Refarm task through the same primitives to prove Refarm is a
+   daily-driver tool, not only a self-maintenance loop.
+5. Keep `runtime-agent` as the operator concept and `@refarm/pi-agent` as the
+   compatibility identity until a package rename is worth the migration cost.
+
+## Cut Discipline
+
+The no-token operator smoke is now the confidence gate for the self-driving CLI
+loop. It covers runtime startup, plugin reload/status, `ask`, session handoff,
+HTTP task dispatch, task status/log handoffs, `task resume`, top-level `resume`,
+model-mock requests, and stream-file creation.
+
+Do not keep expanding this smoke just because another self-reference is
+possible. Add new assertions only when one of these is true:
+
+- a real operator slice fails and the failure would have been caught by the
+  smoke;
+- a second consumer needs the same primitive and exposes a boundary gap;
+- a public JSON handoff contract changes;
+- runtime/model/task behavior changes under the existing daily-driver path.
+
+Otherwise, the next maturity signal should come from using the same primitives
+on a non-Refarm task. That is the proof that Refarm is becoming a daily-driver
+tool instead of a system that only maintains itself.
+
+## Non-Goals For The Bootstrap Phase
+
+- Renaming the physical `packages/pi-agent` package or WASM artifact.
+- Rewriting historical session/task data.
+- Moving every helper out of `apps/refarm` before there is a second consumer.
+- Treating live model calls as the first validation signal when mock coverage is
+  available.

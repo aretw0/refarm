@@ -6,6 +6,10 @@ This guide is the short loop to follow when Refarm is the daily CLI driver. It
 does not replace the deeper playbooks; it gives the operator and coding agents a
 stable path for starting, resuming, changing, and closing work.
 
+For the layer boundaries behind this loop, see
+[`OPERATOR_PRIMITIVES.md`](OPERATOR_PRIMITIVES.md). The CLI is the cockpit;
+shared contracts should move down only when repeated use proves the boundary.
+
 ## Start The Day
 
 ```bash
@@ -80,8 +84,19 @@ When running in agentic JSON mode, commands are self-guiding:
 - `task resume --json` active/checkpoint → `nextCommands`: status/logs, resume
 - `task status --json` done/failed → `nextCommands`: logs, resume
 - `runtime ensure --wait --json` ready → `nextCommands`: resume
-- `tidy imports --json` success → `nextCommands`: resume (or after-edit for `--check`)
+- `tidy imports --json` success → `nextCommands`: resume; `--check` success is terminal
 - `sow --json` configured → `nextCommands`: check, model current
+
+Runtime-agent operator aliases:
+
+```bash
+refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
+refarm plugin reload runtime-agent --json
+```
+
+`runtime-agent` is the operator-facing alias. JSON payloads and plugin status may
+still expose the physical bundled plugin id, `@refarm/pi-agent`, for compatibility
+with installed plugin manifests and existing task history.
 
 ## Model And Credentials
 
@@ -157,7 +172,7 @@ When the change touches JSON handoffs or public commands:
 refarm agent finish --lane handoffs --run --json
 ```
 
-When the change touches runtime/model routing, `pi-agent`, or `ask` execution:
+When the change touches runtime/model routing, the runtime agent, or `ask` execution:
 
 ```bash
 refarm agent finish --lane agent-e2e-mock --run --json

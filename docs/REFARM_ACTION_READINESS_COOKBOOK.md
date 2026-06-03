@@ -71,6 +71,9 @@ commands an operator agent can execute directly:
   Successful apply flows should usually point at an observation command such as
   `refarm health --next-action --json`, a status/list command, or a provider
   verification command.
+- Successful check-only flows may be terminal. Prefer empty `nextCommands` when
+  the command already proved the requested condition and no recovery or follow-up
+  observation is needed.
 
 When adding or changing JSON output in `apps/refarm`, prefer the shared helpers
 in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
@@ -152,7 +155,7 @@ agents do not need to infer the default finish path from the command catalog:
 - `afterCommit`: most-recent-commit validation after atomic commits;
 - `beforePush`: final branch-local validation against upstream;
 - `handoffs`: public JSON handoff contract validation;
-- `agentE2eMock`: no-token runtime/pi-agent/ask e2e smoke;
+- `agentE2eMock`: no-token runtime-agent/ask e2e smoke;
 - `withPackageTests`: opt-in package tests when the slice requires them.
 
 The same names can be passed to `refarm agent finish --lane <name>` as stable
@@ -190,7 +193,7 @@ most recent commit (`HEAD~1..HEAD`) so docs-only and small commits stay cheap:
 refarm agent finish --lane after-commit --run --json
 ```
 
-For runtime, model routing, pi-agent, or `ask` execution-plane changes, use the
+For runtime, model routing, runtime-agent, or `ask` execution-plane changes, use the
 explicit no-token e2e lane when you need the proof outside of `affected`
 selection:
 

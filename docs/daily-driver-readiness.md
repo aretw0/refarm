@@ -69,10 +69,13 @@ What is already solid:
   hardcoded package-manager execution, and legacy `RefarmAction*` aliases.
 - Public JSON contract tests cover all major commands including `ask` error
   paths, confirming `nextActions`, `nextCommands`, and template metadata.
-- `refarm:agent:e2e:mock` exercises runtime start, pi-agent, `ask --json`,
-  stream-file creation, and OpenAI-compatible request capture against
-  `@refarm.dev/model-mock` without Ollama or paid model tokens.
-- Runtime/model bridge deltas in `ask`, `pi-agent`, `model-mock`, and Tractor
+- `refarm:agent:e2e:mock` exercises runtime start, the runtime agent,
+  `plugin reload runtime-agent --json`,
+  `ask --json`, `task run runtime-agent respond --transport http --json`,
+  `task resume --json`, top-level `resume --json`, stream-file creation,
+  executable task status/log handoffs, and OpenAI-compatible request capture
+  against `@refarm.dev/model-mock` without Ollama or paid model tokens.
+- Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and Tractor
   WASI LLM routing are now routed to that no-token e2e smoke by
   `refarm agent finish --profile affected` and the host smoke auto profile
   `agent-e2e-mock`.
@@ -88,6 +91,8 @@ What is already solid:
   relies on hidden operator memory.
 - The short daily-driver operator loop is maintained in
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
+- The primitive contract map is maintained in
+  `docs/OPERATOR_PRIMITIVES.md`.
 
 What still blocks the 95/100 product target:
 
@@ -155,6 +160,25 @@ the primary daily driver:
    non-interactive where possible and resumable where not.
 4. Primitive extraction: move repeated contracts down only after repeated app
    use proves the boundary.
+
+## Migration Decision Rule
+
+The current control plane is strong enough for assisted daily-driver use, but
+not enough to justify endless self-hardening before it sees real work. After a
+green `after-edit` gate and a green `handoffs` gate, the next useful signal
+should come from operating a non-Refarm task through the same loop.
+
+Treat new Refarm-internal work as justified only when one of these is true:
+
+- an actual operator slice fails and the missing primitive is clear;
+- a second consumer needs a boundary that currently lives inside `apps/refarm`;
+- a public JSON handoff becomes ambiguous, non-executable, or misleading;
+- runtime/model/task behavior changes under the existing daily-driver path.
+
+Otherwise, prefer migration pressure over more app work: use Refarm to operate
+another repo or workflow, record the failure mode, then harden the lowest layer
+that owns the repeated primitive. This keeps `apps/refarm` as the cockpit rather
+than the center of every future workflow.
 
 ## Boundary Rule
 

@@ -179,9 +179,12 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
 - `refarm:host:smoke:auto:agent-e2e-mock` runs
-  `refarm:agent:e2e:mock`, the no-token runtime/pi-agent/ask smoke against
+  `refarm:agent:e2e:mock`, the no-token runtime-agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
-  WASI LLM routing deltas before spending live provider tokens.
+  WASI LLM routing deltas before spending live provider tokens. The script
+  rebuilds `packages/pi-agent` WASM before installing the temporary bundled
+  plugin, so the smoke validates the current runtime-agent source rather than a
+  stale package artifact.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
   recommended lane (`skip | actions | tree | agent-e2e-mock | check | quick |
   dev | ci`) without executing it. By default
