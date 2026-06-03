@@ -38,6 +38,7 @@ export interface TidyImportsPlan {
 	check: boolean;
 	files: string[];
 	packageManager: string | null;
+	process: LaunchProcessSpec;
 	processCommand: string;
 	processArgs: string[];
 	display: string;
@@ -75,6 +76,7 @@ function buildTidyImportsPlan(
 		check: options.check === true,
 		files,
 		packageManager: spec.packageManager ?? null,
+		process: spec,
 		processCommand: spec.command,
 		processArgs: spec.args,
 		display: spec.display,

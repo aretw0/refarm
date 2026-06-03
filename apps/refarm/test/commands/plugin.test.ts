@@ -839,6 +839,12 @@ describe("plugin bundle", () => {
 			bundleCommand: string;
 			packageManager: string;
 			packageManagerCommand: string;
+			process: {
+				command: string;
+				args: string[];
+				display: string;
+				packageManager: string;
+			};
 			processCommand: string;
 			processArgs: string[];
 			display: string;
@@ -854,6 +860,22 @@ describe("plugin bundle", () => {
 				"pnpm 'exec' 'jco' 'transpile' 'my plugin.wasm' '-o' './out dir' '--name' 'my plugin'",
 			packageManager: "pnpm",
 			packageManagerCommand: "pnpm",
+			process: {
+				packageManager: "pnpm",
+				command: "pnpm",
+				args: [
+					"exec",
+					"jco",
+					"transpile",
+					"my plugin.wasm",
+					"-o",
+					"./out dir",
+					"--name",
+					"my plugin",
+				],
+				display:
+					"pnpm exec jco transpile 'my plugin.wasm' -o './out dir' --name 'my plugin'",
+			},
 			processCommand: "pnpm",
 			processArgs: [
 				"exec",
@@ -926,11 +948,23 @@ describe("plugin bundle", () => {
 			ok: boolean;
 			stdout: string;
 			stderr: string;
+			process: {
+				command: string;
+				args: string[];
+				display: string;
+				packageManager: string;
+			};
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			stdout: "generated component\n",
 			stderr: "jco warning\n",
+			process: {
+				command: "pnpm",
+				args: expect.arrayContaining(["jco", "transpile", "my-plugin.wasm"]),
+				display: "pnpm exec jco transpile my-plugin.wasm -o ./dist --name my-plugin",
+				packageManager: "pnpm",
+			},
 		});
 		logSpy.mockRestore();
 	});
@@ -979,6 +1013,12 @@ describe("plugin bundle", () => {
 			message: string;
 			packageManager: string;
 			packageManagerCommand: string;
+			process: {
+				command: string;
+				args: string[];
+				display: string;
+				packageManager: string;
+			};
 			processCommand: string;
 			processArgs: string[];
 			display: string;
@@ -991,6 +1031,21 @@ describe("plugin bundle", () => {
 			message: "jco not found",
 			packageManager: "pnpm",
 			packageManagerCommand: "pnpm",
+			process: {
+				packageManager: "pnpm",
+				command: "pnpm",
+				args: [
+					"exec",
+					"jco",
+					"transpile",
+					"bad-plugin.wasm",
+					"-o",
+					"./dist",
+					"--name",
+					"bad-plugin",
+				],
+				display: "pnpm exec jco transpile bad-plugin.wasm -o ./dist --name bad-plugin",
+			},
 			processCommand: "pnpm",
 			processArgs: [
 				"exec",

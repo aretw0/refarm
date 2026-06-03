@@ -90,6 +90,19 @@ describe("tidyCommand", () => {
 			check: true,
 			files: ["apps/refarm/src/program.ts"],
 			packageManager: "pnpm",
+			process: {
+				packageManager: "pnpm",
+				command: "pnpm",
+				args: [
+					"-C",
+					workspaceRoot,
+					"run",
+					"imports:organize",
+					"--check",
+					"apps/refarm/src/program.ts",
+				],
+				display: `pnpm -C ${workspaceRoot} run imports:organize --check apps/refarm/src/program.ts`,
+			},
 			processCommand: "pnpm",
 			processArgs: [
 				"-C",
@@ -144,12 +157,24 @@ describe("tidyCommand", () => {
 			nextAction: string;
 			nextCommand: string;
 			nextCommands: string[];
+			process: {
+				command: string;
+				args: string[];
+				display: string;
+				packageManager: string;
+			};
 		};
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "tidy-imports-failed",
 			nextAction: "refarm tidy imports",
 			nextCommand: "refarm tidy imports",
+			process: {
+				command: "pnpm",
+				args: ["-C", workspaceRoot, "run", "imports:organize", "--check"],
+				display: `pnpm -C ${workspaceRoot} run imports:organize --check`,
+				packageManager: "pnpm",
+			},
 		});
 		expect(payload.nextCommands).toContain("refarm tidy imports --check");
 		expect(payload.exitCode).toBe(1);
@@ -206,12 +231,24 @@ describe("tidyCommand", () => {
 			exitCode: number;
 			nextAction: string | null;
 			nextActions: string[];
+			process: {
+				command: string;
+				args: string[];
+				display: string;
+				packageManager: string;
+			};
 		};
 		expect(payload).toMatchObject({
 			ok: true,
 			exitCode: 0,
 			nextCommand: "refarm resume --json",
 			nextCommands: ["refarm resume --json"],
+			process: {
+				command: "pnpm",
+				args: ["-C", workspaceRoot, "run", "imports:organize"],
+				display: `pnpm -C ${workspaceRoot} run imports:organize`,
+				packageManager: "pnpm",
+			},
 		});
 	});
 

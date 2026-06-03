@@ -59,6 +59,10 @@ commands an operator agent can execute directly:
   describe the boundary without shell parsing. Each spec should include
   `command`, `args`, `display`, and optional `cwd` / `packageManager`. Agent
   runners should prefer this field when present and fall back to `nextCommands`.
+- Command payloads that describe a lower-level process should expose a canonical
+  `process` object with the same shape. Legacy fields such as `processCommand`
+  and `processArgs` may remain during migration, but new consumers should read
+  `process`.
 - `templates` contain parameterized command templates for flows that are
   blocked until the operator supplies values. Each entry should include
   `command`, declared `parameters`, and `useWhen` guidance. Treat templates as
