@@ -45,6 +45,15 @@ PI_AGENT="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
 INSTALLED_PI_AGENT="$HOME/.refarm/plugins/@refarm/pi-agent/plugin.wasm"
 REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$HOME/.refarm/streams}"
+REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
+
+if [ -z "$REFARM_HTTP_HOST" ]; then
+  if [ -f "/.dockerenv" ]; then
+    REFARM_HTTP_HOST="0.0.0.0"
+  else
+    REFARM_HTTP_HOST="127.0.0.1"
+  fi
+fi
 
 if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
   echo "❌  package manager helper not found: $PACKAGE_MANAGER_HELPER"
@@ -178,10 +187,24 @@ esac
 
 # ── start daemon ──────────────────────────────────────────────────────────────
 
+HAS_HTTP_HOST=0
+for arg in "$@"; do
+  case "$arg" in
+    --http-host|--http-host=*) HAS_HTTP_HOST=1 ;;
+  esac
+done
+
+TRACTOR_ARGS=(--plugin "$PI_AGENT")
+if [ "$HAS_HTTP_HOST" = "0" ]; then
+  TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
+fi
+TRACTOR_ARGS+=("$@")
+
 echo "   Starting tractor daemon"
 echo "   provider : $MODEL_PROVIDER"
 echo "   plugin   : $PI_AGENT"
 echo "   streams  : $REFARM_STREAMS_DIR"
+echo "   http bind: $REFARM_HTTP_HOST:42001"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
 mkdir -p "$(dirname "$PID_FILE")" "$REFARM_STREAMS_DIR"
@@ -200,7 +223,7 @@ if [ "$BACKGROUND" = "1" ]; then
   fi
 
   echo "   Log      : $LOG_FILE"
-  nohup "$TRACTOR" --plugin "$PI_AGENT" "$@" > "$LOG_FILE" 2>&1 &
+  nohup "$TRACTOR" "${TRACTOR_ARGS[@]}" > "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
   echo "   Started  : pid $(cat "$PID_FILE")"
   echo ""
@@ -209,5 +232,5 @@ if [ "$BACKGROUND" = "1" ]; then
   echo "   Follow log   : tail -f $LOG_FILE"
 else
   echo ""
-  exec "$TRACTOR" --plugin "$PI_AGENT" "$@"
+  exec "$TRACTOR" "${TRACTOR_ARGS[@]}"
 fi

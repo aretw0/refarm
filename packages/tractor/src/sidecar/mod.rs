@@ -1,6 +1,6 @@
 //! HTTP sidecar — implements the ADR-060 effort protocol on top of TractorNative.
 //!
-//! Binds on `127.0.0.1:<port>` (default 42001) and exposes:
+//! Binds on the configured host and port (`127.0.0.1:42001` by default) and exposes:
 //!   POST   /efforts                    — submit effort, returns { effortId }
 //!   GET    /efforts                    — list effort results
 //!   GET    /efforts/summary            — aggregate summary
@@ -949,7 +949,7 @@ async fn get_task(
 
 // ── public API ────────────────────────────────────────────────────────────────
 
-pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
+pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
     let router = Router::new()
         .route("/efforts", post(post_efforts).get(get_efforts))
         .route("/efforts/summary", get(get_efforts_summary))
@@ -966,8 +966,9 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/plugins/reload", post(post_plugins_reload))
         .with_state(state);
 
-    let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
-    tracing::info!(port, "HTTP sidecar listening");
+    let bind_addr = format!("{host}:{port}");
+    let listener = TcpListener::bind(&bind_addr).await?;
+    tracing::info!(host = %host, port, "HTTP sidecar listening");
     axum::serve(listener, router).await?;
     Ok(())
 }

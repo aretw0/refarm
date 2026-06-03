@@ -128,6 +128,10 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   readiness, HTTP status, timeout flag, or transport error. A failed runtime
   probe should not require the operator to run `curl` manually to learn the
   failure shape.
+- When Tractor runs inside Docker/devcontainer, the HTTP sidecar must bind to
+  the container interface (`0.0.0.0`) so the Docker-published `42001` reaches it
+  from host workspaces. Local non-container startup remains loopback-only by
+  default (`127.0.0.1`).
 - `runtime ensure --wait --json` converges to `resume` when ready.
 - If `runtime ensure --wait --json` starts a runtime but readiness does not
   converge and the startup log has no actionable output, the recovery handoff
