@@ -1,6 +1,7 @@
 import type { OperatorResumeSessionRecord } from "@refarm.dev/cli/operator-resume";
 import { refarmCommand } from "./command-handoff.js";
 import { formatSessionId } from "./session-ids.js";
+import { sessionParticipantFields } from "./session-participants.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface RuntimeSessionNode {
@@ -8,6 +9,7 @@ interface RuntimeSessionNode {
 	name?: string;
 	created_at_ns?: number;
 	leaf_entry_id?: string | null;
+	participants?: string[];
 }
 
 const RECENT_SESSION_TIMEOUT_MS = 300;
@@ -48,6 +50,7 @@ function normalizeRuntimeSessions(
 				name: session.name ?? null,
 				createdAtNs: session.created_at_ns ?? null,
 				hasHistory: Boolean(session.leaf_entry_id),
+				...sessionParticipantFields(session.participants),
 				showCommand: refarmCommand(["sessions", "show", shortId, "--json"]),
 				useCommand: refarmCommand(["sessions", "use", shortId, "--json"]),
 			};

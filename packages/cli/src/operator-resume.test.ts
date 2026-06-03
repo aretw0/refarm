@@ -47,6 +47,13 @@ describe("operator resume", () => {
 					shortId: "ef1234567890",
 					name: "planning",
 					hasHistory: true,
+					canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+					participantAliases: [
+						{
+							participantId: "urn:refarm:agent:pi-agent",
+							canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+						},
+					],
 					showCommand: "refarm sessions show ef1234567890 --json",
 					useCommand: "refarm sessions use ef1234567890 --json",
 				},
@@ -102,6 +109,13 @@ describe("operator resume", () => {
 						shortId: "ef1234567890",
 						name: "planning",
 						hasHistory: true,
+						canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+						participantAliases: [
+							{
+								participantId: "urn:refarm:agent:pi-agent",
+								canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+							},
+						],
 						showCommand: "refarm sessions show ef1234567890 --json",
 						useCommand: "refarm sessions use ef1234567890 --json",
 					},
@@ -123,6 +137,9 @@ describe("operator resume", () => {
 			"refarm runtime doctor --next-command",
 			"refarm runtime start --wait",
 		]);
+		expect(formatOperatorResumeSummary(summary)).toContain(
+			"urn:refarm:agent:pi-agent -> urn:refarm:agent:runtime-agent",
+		);
 	});
 
 	it("builds a JSON handoff envelope with task list fallback", () => {

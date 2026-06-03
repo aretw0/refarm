@@ -1,4 +1,3 @@
-import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 
@@ -21,6 +20,10 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import {
+	type SessionParticipantAlias,
+	sessionParticipantFields,
+} from "./session-participants.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
@@ -47,11 +50,6 @@ interface SessionHistory {
 	total: number;
 	canonicalParticipants?: string[];
 	participantAliases?: SessionParticipantAlias[];
-}
-
-interface SessionParticipantAlias {
-	participantId: string;
-	canonicalParticipantId: string;
 }
 
 interface SessionListReport {
@@ -94,9 +92,6 @@ interface SessionsCommandServices {
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
-const AGENT_PARTICIPANT_PREFIX = "urn:refarm:agent:";
-const RUNTIME_AGENT_PARTICIPANT_ID = `${AGENT_PARTICIPANT_PREFIX}runtime-agent`;
-
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
 }
@@ -105,31 +100,10 @@ function sessionUseJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "use", quoteCommandArg(sessionId), "--json"]);
 }
 
-function canonicalSessionParticipantId(participantId: string): string {
-	const agentId = participantId.startsWith(AGENT_PARTICIPANT_PREFIX)
-		? participantId.slice(AGENT_PARTICIPANT_PREFIX.length)
-		: participantId;
-	return isRuntimeAgentPluginId(agentId)
-		? RUNTIME_AGENT_PARTICIPANT_ID
-		: participantId;
-}
-
 function enrichSessionHistory(history: SessionHistory): SessionHistory {
-	const participants = history.session.participants ?? [];
-	if (participants.length === 0) return history;
-	const canonicalParticipants = participants.map(canonicalSessionParticipantId);
-	const participantAliases = participants
-		.map((participantId, index): SessionParticipantAlias | null => {
-			const canonicalParticipantId = canonicalParticipants[index]!;
-			return participantId === canonicalParticipantId
-				? null
-				: { participantId, canonicalParticipantId };
-		})
-		.filter((alias): alias is SessionParticipantAlias => alias !== null);
 	return {
 		...history,
-		canonicalParticipants,
-		...(participantAliases.length > 0 ? { participantAliases } : {}),
+		...sessionParticipantFields(history.session.participants),
 	};
 }
 

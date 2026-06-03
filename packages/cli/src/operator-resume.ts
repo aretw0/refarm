@@ -44,8 +44,15 @@ export interface OperatorResumeSessionRecord {
 	name?: string | null;
 	createdAtNs?: number | null;
 	hasHistory?: boolean;
+	canonicalParticipants?: readonly string[];
+	participantAliases?: readonly OperatorResumeSessionParticipantAlias[];
 	showCommand?: string;
 	useCommand?: string;
+}
+
+export interface OperatorResumeSessionParticipantAlias {
+	participantId: string;
+	canonicalParticipantId: string;
 }
 
 export interface OperatorResumeFinishRecord {
@@ -434,6 +441,16 @@ export function formatOperatorResumeSummary(
 			lines.push(
 				`  ${active}${session.shortId ?? formatOperatorResumeSessionId(session.sessionId)}${name}${history}`,
 			);
+			if (session.participantAliases && session.participantAliases.length > 0) {
+				lines.push(
+					`    participants: ${session.participantAliases
+						.map(
+							(alias) =>
+								`${alias.participantId} -> ${alias.canonicalParticipantId}`,
+						)
+						.join(", ")}`,
+				);
+			}
 			if (session.showCommand) lines.push(`    show: ${session.showCommand}`);
 			if (session.useCommand) lines.push(`    use:  ${session.useCommand}`);
 		}

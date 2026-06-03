@@ -24,6 +24,7 @@ describe("session history helpers", () => {
 							name: "newer",
 							created_at_ns: 20,
 							leaf_entry_id: "entry-1",
+							participants: ["urn:refarm:agent:pi-agent"],
 						},
 					],
 				}),
@@ -37,6 +38,13 @@ describe("session history helpers", () => {
 				name: "newer",
 				createdAtNs: 20,
 				hasHistory: true,
+				canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+				participantAliases: [
+					{
+						participantId: "urn:refarm:agent:pi-agent",
+						canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+					},
+				],
 				showCommand: "refarm sessions show bbbbbbbbbbbb --json",
 				useCommand: "refarm sessions use bbbbbbbbbbbb --json",
 			},
