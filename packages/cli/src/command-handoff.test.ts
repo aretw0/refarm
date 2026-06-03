@@ -54,6 +54,27 @@ describe("command handoff helpers", () => {
 		}
 	});
 
+	it.each([
+		["/home/runner/.local/bin/refarm", "/home/runner/.local/bin/refarm resume --json"],
+		["C:\\tmp\\refarm.cmd", "C:\\tmp\\refarm.cmd resume --json"],
+		[
+			"/home/runner/Refarm CLI/refarm",
+			"'/home/runner/Refarm CLI/refarm' resume --json",
+		],
+	])("formats launcher override %s", (override, expected) => {
+		const previous = process.env.TOOL_COMMAND;
+		process.env.TOOL_COMMAND = override;
+		try {
+			expect(applicationCommand("tool", ["resume", "--json"])).toBe(expected);
+		} finally {
+			if (previous === undefined) {
+				delete process.env.TOOL_COMMAND;
+			} else {
+				process.env.TOOL_COMMAND = previous;
+			}
+		}
+	});
+
 	it("keeps applicationCommand as a product-agnostic binary wrapper", () => {
 		const args = ["ask", quoteCommandArg("hello"), "--json"];
 		expect(binaryCommand("tool", args)).toBe(applicationCommand("tool", args));
