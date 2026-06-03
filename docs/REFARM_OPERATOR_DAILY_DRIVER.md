@@ -39,6 +39,18 @@ refarm runtime ensure --wait
 refarm resume --json
 ```
 
+When operating a non-Refarm workspace against an existing Refarm sidecar, make
+the endpoint explicit in that workspace instead of relying on shell state:
+
+```bash
+refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
+refarm config get runtime.sidecarUrl --json
+refarm check --next-action --json
+```
+
+Use `REFARM_SIDECAR_URL` only for one-shot overrides; persisted
+`runtime.sidecarUrl` is the daily-driver primitive.
+
 ## Work Loop
 
 For interactive agent work:

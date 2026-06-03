@@ -113,7 +113,19 @@ Purpose: keep the execution plane recoverable without manual guessing.
 
 Rules:
 
+- `runtime.sidecarUrl` is the persisted endpoint primitive for the selected
+  runtime sidecar. `REFARM_SIDECAR_URL` may override it for one command, but
+  external workspaces should prefer:
+
+```bash
+refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
+```
+
 - `runtime ensure --wait --json` converges to `resume` when ready.
+- If `runtime ensure --wait --json` starts a runtime but readiness does not
+  converge and the startup log has no actionable output, the recovery handoff
+  should point to `refarm runtime start --dry-run --json` before retrying
+  `ensure`.
 - `check --next-action --json` is the composite readiness gate.
 - Plugin recovery should prefer the operator alias:
 

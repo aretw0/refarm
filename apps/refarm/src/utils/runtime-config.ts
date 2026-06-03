@@ -13,6 +13,8 @@ export type TractorEngineMode = RuntimeEngineMode;
 export const RUNTIME_AUTOSTART_ENV_VAR = "REFARM_RUNTIME_AUTOSTART";
 export const LEGACY_FARMHAND_AUTOSTART_ENV_VAR = "REFARM_FARMHAND_AUTOSTART";
 export const TRACTOR_ENGINE_ENV_VAR = "REFARM_TRACTOR_ENGINE";
+export const RUNTIME_SIDECAR_URL_ENV_VAR = "REFARM_SIDECAR_URL";
+export const DEFAULT_RUNTIME_SIDECAR_URL = "http://127.0.0.1:42001";
 
 export interface RuntimeConfigDeps {
 	cwd?: string;
@@ -22,6 +24,9 @@ export interface RuntimeConfigDeps {
 
 interface RefarmRuntimeConfig {
 	autostart?: string;
+	runtime?: {
+		sidecarUrl?: string;
+	};
 	tractor?: {
 		engine?: string;
 	};
@@ -52,6 +57,23 @@ export function parseAutostartMode(value: string | undefined): AutostartMode | n
 
 export function parseTractorEngineMode(value: unknown): TractorEngineMode | null {
 	return parseRuntimeEngineMode(value);
+}
+
+export function normalizeRuntimeSidecarUrl(value: string): string {
+	return value.trim().replace(/\/+$/, "");
+}
+
+export function parseRuntimeSidecarUrl(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const normalized = normalizeRuntimeSidecarUrl(value);
+	if (normalized.length === 0) return null;
+	try {
+		const parsed = new URL(normalized);
+		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+		return normalized;
+	} catch {
+		return null;
+	}
 }
 
 export function resolveAutostartMode(
@@ -87,4 +109,20 @@ export function resolveTractorEngineMode(
 		if (mode) resolved = { value: mode, source: filePath };
 	}
 	return resolved ?? { value: "auto", source: "default" };
+}
+
+export function resolveRuntimeSidecarUrl(
+	deps: RuntimeConfigDeps = {},
+	options: { local?: boolean } = {},
+): { value: string; source: string } {
+	const env = deps.env ?? process.env;
+	const envUrl = parseRuntimeSidecarUrl(env[RUNTIME_SIDECAR_URL_ENV_VAR]);
+	if (envUrl) return { value: envUrl, source: `env:${RUNTIME_SIDECAR_URL_ENV_VAR}` };
+
+	let resolved: { value: string; source: string } | null = null;
+	for (const filePath of configPaths(deps, options.local)) {
+		const sidecarUrl = parseRuntimeSidecarUrl(readConfig(filePath).runtime?.sidecarUrl);
+		if (sidecarUrl) resolved = { value: sidecarUrl, source: filePath };
+	}
+	return { value: resolved?.value ?? DEFAULT_RUNTIME_SIDECAR_URL, source: resolved?.source ?? "default" };
 }

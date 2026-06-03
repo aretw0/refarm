@@ -41,6 +41,7 @@ describe("config command", () => {
 	let originalAutostart: string | undefined;
 	let originalRuntimeAutostart: string | undefined;
 	let originalOpenExternalLinks: string | undefined;
+	let originalSidecarUrl: string | undefined;
 	let originalTractorEngine: string | undefined;
 
 	beforeEach(() => {
@@ -49,10 +50,12 @@ describe("config command", () => {
 		originalAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
 		originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
 		originalOpenExternalLinks = process.env[OPEN_EXTERNAL_LINKS_ENV_VAR];
+		originalSidecarUrl = process.env.REFARM_SIDECAR_URL;
 		originalTractorEngine = process.env.REFARM_TRACTOR_ENGINE;
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
 		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		delete process.env[OPEN_EXTERNAL_LINKS_ENV_VAR];
+		delete process.env.REFARM_SIDECAR_URL;
 		delete process.env.REFARM_TRACTOR_ENGINE;
 		vi.clearAllMocks();
 		process.exitCode = undefined;
@@ -73,6 +76,11 @@ describe("config command", () => {
 			delete process.env[OPEN_EXTERNAL_LINKS_ENV_VAR];
 		} else {
 			process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = originalOpenExternalLinks;
+		}
+		if (originalSidecarUrl === undefined) {
+			delete process.env.REFARM_SIDECAR_URL;
+		} else {
+			process.env.REFARM_SIDECAR_URL = originalSidecarUrl;
 		}
 		if (originalTractorEngine === undefined) {
 			delete process.env.REFARM_TRACTOR_ENGINE;
@@ -383,6 +391,11 @@ describe("config command", () => {
 					source: path.join(home, ".refarm", "config.json"),
 				}),
 				expect.objectContaining({
+					key: "runtime.sidecarUrl",
+					value: "http://127.0.0.1:42001",
+					source: "default",
+				}),
+				expect.objectContaining({
 					key: "operator.openExternalLinks",
 					value: "auto",
 					source: "default",
@@ -443,6 +456,7 @@ describe("config command", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm config");
 		expect(output).toContain("runtime.autostart=ask");
+		expect(output).toContain("runtime.sidecarUrl=http://127.0.0.1:42001");
 		expect(output).toContain("operator.openExternalLinks=auto");
 		expect(output).toContain("tractor.engine=auto");
 		expect(output).toContain("Future: running this command without arguments can become interactive");
@@ -550,6 +564,66 @@ describe("config command", () => {
 		);
 	});
 
+	it("sets runtime sidecar URL preference", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(
+			["set", "runtime.sidecarUrl", "http://127.0.0.1:52001/"],
+			{ from: "user" },
+		);
+
+		const saved = JSON.parse(
+			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
+		) as { runtime?: { sidecarUrl?: string } };
+		expect(saved.runtime?.sidecarUrl).toBe("http://127.0.0.1:52001");
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("runtime.sidecarUrl=http://127.0.0.1:52001"),
+		);
+	});
+
+	it("lets local runtime sidecar URL override home preference", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ runtime: { sidecarUrl: "http://127.0.0.1:42001" } }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ runtime: { sidecarUrl: "http://127.0.0.1:52001" } }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.sidecarUrl"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("runtime.sidecarUrl=http://127.0.0.1:52001");
+		expect(output).toContain(path.join(cwd, ".refarm", "config.json"));
+	});
+
+	it("lets env override runtime sidecar URL preference", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ runtime: { sidecarUrl: "http://127.0.0.1:52001" } }),
+			"utf-8",
+		);
+		process.env.REFARM_SIDECAR_URL = "http://127.0.0.1:62001/";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.sidecarUrl"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("runtime.sidecarUrl=http://127.0.0.1:62001");
+		expect(output).toContain("source=env:REFARM_SIDECAR_URL");
+	});
+
 	it("lets local external-link mode override home preference", async () => {
 		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
 		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
@@ -618,6 +692,7 @@ describe("config command", () => {
 
 	it("warns about invalid summary env overrides", async () => {
 		process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = "browser";
+		process.env.REFARM_SIDECAR_URL = "file:///tmp/refarm.sock";
 		process.env.REFARM_TRACTOR_ENGINE = "python";
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -629,6 +704,7 @@ describe("config command", () => {
 		expect(output).toContain("operator.openExternalLinks=auto");
 		expect(output).toContain("tractor.engine=auto");
 		expect(errors).toContain("Ignored invalid REFARM_OPEN_EXTERNAL_LINKS=browser");
+		expect(errors).toContain("Ignored invalid REFARM_SIDECAR_URL=file:///tmp/refarm.sock");
 		expect(errors).toContain("Ignored invalid REFARM_TRACTOR_ENGINE=python");
 	});
 
@@ -714,6 +790,19 @@ describe("config command", () => {
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Invalid tractor.engine"),
+		);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("rejects invalid runtime sidecar URLs", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command().parseAsync(["set", "runtime.sidecarUrl", "file:///tmp/socket"], {
+			from: "user",
+		});
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Invalid runtime.sidecarUrl"),
 		);
 		expect(process.exitCode).toBe(1);
 	});

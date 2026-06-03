@@ -16,10 +16,13 @@ import {
 } from "../utils/open-external-links.js";
 import {
 	LEGACY_FARMHAND_AUTOSTART_ENV_VAR,
+	parseRuntimeSidecarUrl,
 	parseTractorEngineMode,
 	resolveAutostartMode as resolveRuntimeAutostartMode,
+	resolveRuntimeSidecarUrl,
 	resolveTractorEngineMode as resolveRuntimeTractorEngineMode,
 	RUNTIME_AUTOSTART_ENV_VAR,
+	RUNTIME_SIDECAR_URL_ENV_VAR,
 	TRACTOR_ENGINE_ENV_VAR,
 	type AutostartMode,
 	type TractorEngineMode,
@@ -38,6 +41,7 @@ const CONFIG_JSON_COMMAND = refarmCommand(["config", "--json"]);
 type ConfigKey =
 	| "farmhand.autostart"
 	| "runtime.autostart"
+	| "runtime.sidecarUrl"
 	| "operator.openExternalLinks"
 	| "tractor.engine";
 interface RefarmCliConfig {
@@ -47,6 +51,9 @@ interface RefarmCliConfig {
 	MODEL_TOOL_CALL_MAX_ITER?: string;
 	operator?: {
 		openExternalLinks?: string | boolean;
+	};
+	runtime?: {
+		sidecarUrl?: string;
 	};
 	tractor?: {
 		engine?: string;
@@ -102,6 +109,7 @@ interface JsonOptionCarrier {
 
 const CONFIG_KEYS: readonly ConfigKey[] = [
 	"runtime.autostart",
+	"runtime.sidecarUrl",
 	"operator.openExternalLinks",
 	"tractor.engine",
 	"farmhand.autostart",
@@ -203,6 +211,16 @@ function resolveOpenExternalLinksMode(
 	return resolved ?? { value: "auto", source: "default" };
 }
 
+function resolveSidecarUrl(
+	deps: ConfigDeps,
+	opts: { local?: boolean },
+): { value: string; source: string } {
+	return resolveRuntimeSidecarUrl(
+		{ cwd: deps.cwd(), home: deps.home(), env: process.env },
+		opts,
+	);
+}
+
 function parseConfigKey(value: string): ConfigKey | null {
 	if ((CONFIG_KEYS as readonly string[]).includes(value)) return value as ConfigKey;
 	console.error(chalk.red(`✗  Unknown config key: ${value}`));
@@ -238,6 +256,15 @@ function parseConfigTractorEngineMode(value: string): TractorEngineMode | null {
 	if (mode) return mode;
 	console.error(chalk.red(`✗  Invalid tractor.engine: ${value}`));
 	console.error(chalk.dim(`   Use: ${TRACTOR_ENGINE_MODES.join(", ")}`));
+	process.exitCode = 1;
+	return null;
+}
+
+function parseConfigSidecarUrl(value: string): string | null {
+	const sidecarUrl = parseRuntimeSidecarUrl(value);
+	if (sidecarUrl) return sidecarUrl;
+	console.error(chalk.red(`✗  Invalid runtime.sidecarUrl: ${value}`));
+	console.error(chalk.dim("   Use an http:// or https:// URL, for example http://127.0.0.1:42001"));
 	process.exitCode = 1;
 	return null;
 }
@@ -286,6 +313,15 @@ function warnIgnoredTractorEngineEnvOverride(): void {
 	);
 }
 
+function warnIgnoredSidecarUrlEnvOverride(): void {
+	warnIgnoredEnvOverride(
+		RUNTIME_SIDECAR_URL_ENV_VAR,
+		process.env[RUNTIME_SIDECAR_URL_ENV_VAR],
+		["http://127.0.0.1:42001"],
+		parseRuntimeSidecarUrl,
+	);
+}
+
 function resolveConfigValue(
 	key: ConfigKey,
 	opts: { local?: boolean },
@@ -302,6 +338,10 @@ function resolveConfigValue(
 	}
 	if (key === "operator.openExternalLinks") {
 		const effective = resolveOpenExternalLinksMode(deps, opts);
+		return { key, value: effective.value, source: effective.source };
+	}
+	if (key === "runtime.sidecarUrl") {
+		const effective = resolveSidecarUrl(deps, opts);
 		return { key, value: effective.value, source: effective.source };
 	}
 	const effective = resolveTractorEngineMode(deps, opts);
@@ -333,12 +373,14 @@ function warnIgnoredConfigEnvOverrides(): void {
 	warnIgnoredAutostartEnvOverrides();
 	warnIgnoredOpenExternalLinksEnvOverride();
 	warnIgnoredTractorEngineEnvOverride();
+	warnIgnoredSidecarUrlEnvOverride();
 }
 
 function buildConfigSummary(deps: ConfigDeps): ConfigSummary {
 	return {
 		values: [
 			resolveConfigValue("runtime.autostart", {}, deps),
+			resolveConfigValue("runtime.sidecarUrl", {}, deps),
 			resolveConfigValue("operator.openExternalLinks", {}, deps),
 			resolveConfigValue("tractor.engine", {}, deps),
 		],
@@ -522,6 +564,23 @@ function persistConfigValue(
 			scope: configScope(opts),
 		};
 	}
+	if (key === "runtime.sidecarUrl") {
+		const sidecarUrl = parseConfigSidecarUrl(value);
+		if (!sidecarUrl) return null;
+		const filePath = configPath(deps, opts);
+		const config = readConfig(filePath);
+		config.runtime = {
+			...(config.runtime ?? {}),
+			sidecarUrl,
+		};
+		writeConfig(filePath, config);
+		return {
+			key,
+			value: sidecarUrl,
+			path: filePath,
+			scope: configScope(opts),
+		};
+	}
 	if (key === "tractor.engine") {
 		const mode = parseConfigTractorEngineMode(value);
 		if (!mode) return null;
@@ -564,6 +623,11 @@ function unsetConfigValue(
 		if (removed && config.operator) {
 			delete config.operator.openExternalLinks;
 		}
+	} else if (key === "runtime.sidecarUrl") {
+		removed = Object.prototype.hasOwnProperty.call(config.runtime ?? {}, "sidecarUrl");
+		if (removed && config.runtime) {
+			delete config.runtime.sidecarUrl;
+		}
 	} else if (key === "tractor.engine") {
 		removed = Object.prototype.hasOwnProperty.call(config.tractor ?? {}, "engine");
 		if (removed && config.tractor) {
@@ -597,9 +661,11 @@ Examples:
   $ refarm config --json
   $ refarm config get runtime.autostart
   $ refarm config get runtime.autostart --json
+  $ refarm config get runtime.sidecarUrl --json
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND} --json
   $ refarm config unset runtime.autostart
+  $ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local
   $ refarm config set operator.openExternalLinks never
   $ refarm config profile coding --local --json
   $ ${RUNTIME_ENGINE_AUTO_COMMAND}
@@ -608,6 +674,7 @@ Examples:
 
 Keys:
   runtime.autostart  ${AUTOSTART_MODES_HELP}
+  runtime.sidecarUrl  HTTP endpoint for the selected runtime sidecar
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
@@ -619,6 +686,7 @@ Legacy aliases:
 
 Notes:
   ${RUNTIME_AUTOSTART_ENV_VAR} can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
+  ${RUNTIME_SIDECAR_URL_ENV_VAR} can point one command at a different runtime sidecar.
   ${OPEN_EXTERNAL_LINKS_ENV_VAR} can be ${OPEN_EXTERNAL_LINKS_MODES_HELP} for one-shot link policy.
   ${TRACTOR_ENGINE_ENV_VAR} can be ${TRACTOR_ENGINE_ENV_HELP} for one-shot runtime selection.
   Without a subcommand, config prints the effective values and their sources.
@@ -687,12 +755,14 @@ Notes:
 Examples:
   $ refarm config get runtime.autostart
   $ refarm config get runtime.autostart --json
+  $ refarm config get runtime.sidecarUrl --json
   $ refarm config get operator.openExternalLinks
   $ refarm config get tractor.engine
   $ refarm config get runtime.autostart --local
 
 Keys:
   runtime.autostart  ${AUTOSTART_MODES_HELP}
+  runtime.sidecarUrl  HTTP endpoint for the selected runtime sidecar
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
@@ -734,10 +804,12 @@ Notes:
 Examples:
   $ refarm config unset runtime.autostart
   $ refarm config unset runtime.autostart --json
+  $ refarm config unset runtime.sidecarUrl --local
   $ refarm config unset operator.openExternalLinks --local
 
 Keys:
   runtime.autostart  ${AUTOSTART_MODES_HELP}
+  runtime.sidecarUrl  HTTP endpoint for the selected runtime sidecar
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
@@ -781,11 +853,13 @@ Examples:
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
   $ ${RUNTIME_AUTOSTART_ALWAYS_COMMAND} --json
   $ ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local
+  $ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local
   $ refarm config set operator.openExternalLinks never
   $ refarm config set tractor.engine rust
 
 Keys:
   runtime.autostart  ${AUTOSTART_MODES_HELP}
+  runtime.sidecarUrl  HTTP endpoint for the selected runtime sidecar
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
