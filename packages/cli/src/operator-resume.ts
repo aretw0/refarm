@@ -111,6 +111,8 @@ export interface OperatorResumeSessionSummary {
 	activeSessionId?: string;
 	shortId?: string;
 	showCommand?: string;
+	canonicalParticipants?: readonly string[];
+	participantAliases?: readonly OperatorResumeSessionParticipantAlias[];
 	recentSessions: readonly OperatorResumeSessionRecord[];
 }
 
@@ -282,6 +284,8 @@ export function buildOperatorResumeSummary(
 		activeSessionId: input.activeSessionId ?? undefined,
 		shortId: activeShortId,
 		showCommand: sessionShowCommand,
+		canonicalParticipants: activeRecentSession?.canonicalParticipants,
+		participantAliases: activeRecentSession?.participantAliases,
 		recentSessions,
 	};
 	const finish: OperatorResumeFinishSummary = input.finish
@@ -427,6 +431,19 @@ export function formatOperatorResumeSummary(
 		);
 		if (summary.session.showCommand) {
 			lines.push(`  show: ${summary.session.showCommand}`);
+		}
+		if (
+			summary.session.participantAliases &&
+			summary.session.participantAliases.length > 0
+		) {
+			lines.push(
+				`  participants: ${summary.session.participantAliases
+					.map(
+						(alias) =>
+							`${alias.participantId} -> ${alias.canonicalParticipantId}`,
+					)
+					.join(", ")}`,
+			);
 		}
 	} else {
 		lines.push("Session: none");

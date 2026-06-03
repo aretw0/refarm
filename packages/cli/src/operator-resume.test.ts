@@ -103,6 +103,13 @@ describe("operator resume", () => {
 				status: "active",
 				shortId: "ef1234567890",
 				showCommand: "refarm sessions show ef1234567890 --json",
+				canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+				participantAliases: [
+					{
+						participantId: "urn:refarm:agent:pi-agent",
+						canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+					},
+				],
 				recentSessions: [
 					{
 						sessionId: "urn:refarm:session:v1:abcdef1234567890",
