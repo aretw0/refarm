@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildCurrentModelStatus,
+	buildModelDoctorStatus,
 	createModelCommand,
 	type ModelCommandDeps,
 } from "../../src/commands/model.js";
@@ -303,6 +304,96 @@ describe("modelCommand", () => {
 		});
 
 		logSpy.mockRestore();
+	});
+
+	it("probes the configured Ollama endpoint in model doctor JSON", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+		const deps = makeDeps({
+			modelProvider: "ollama",
+			modelId: "llama3.2",
+			modelBaseUrl: "http://127.0.0.1:11434/",
+		});
+		deps.fetch = fetchMock as unknown as typeof fetch;
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["doctor", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			command: string;
+			operation: string;
+			providerProbe: { ready: boolean; status: number; url: string };
+			nextCommands: string[];
+		};
+		expect(payload.command).toBe("model");
+		expect(payload.operation).toBe("doctor");
+		expect(payload.providerProbe).toMatchObject({
+			ready: true,
+			status: 200,
+			url: "http://127.0.0.1:11434/api/tags",
+		});
+		expect(payload.nextCommands).toEqual([]);
+		expect(fetchMock).toHaveBeenCalledWith(
+			"http://127.0.0.1:11434/api/tags",
+			expect.objectContaining({ method: "GET" }),
+		);
+
+		logSpy.mockRestore();
+	});
+
+	it("reports Ollama reachability failures as model doctor handoffs", async () => {
+		const fetchMock = vi.fn().mockRejectedValue(
+			new Error("fetch failed", { cause: { code: "ECONNREFUSED" } }),
+		);
+		const deps = makeDeps({ modelProvider: "ollama", modelId: "llama3.2" });
+		deps.fetch = fetchMock as unknown as typeof fetch;
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["doctor", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			providerProbe: { ready: boolean; error: string };
+			nextCommand: string;
+			nextCommands: string[];
+			recommendations: { diagnostic: string; command: string }[];
+			handoffs: {
+				startOllama: string;
+				setDockerOllamaBaseUrl: string;
+			};
+		};
+		expect(payload.providerProbe.ready).toBe(false);
+		expect(payload.providerProbe.error).toContain("ECONNREFUSED");
+		expect(payload.nextCommand).toBe("ollama serve");
+		expect(payload.nextCommands).toContain("ollama serve");
+		expect(payload.nextCommands).toContain("refarm model current --json");
+		expect(payload.handoffs).toMatchObject({
+			startOllama: "ollama serve",
+			setDockerOllamaBaseUrl: "refarm model base-url http://host.docker.internal:11434 --json",
+		});
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-provider-unreachable",
+				command: "refarm model doctor --json",
+			}),
+		]);
+
+		logSpy.mockRestore();
+	});
+
+	it("skips live provider probes for remote model providers", async () => {
+		const fetchMock = vi.fn();
+		const status = await buildModelDoctorStatus(
+			{ modelProvider: "openai", modelId: "gpt-5.5" },
+			{ fetch: fetchMock as unknown as typeof fetch },
+		);
+
+		expect(status.providerProbe).toMatchObject({
+			provider: "openai",
+			ready: null,
+			skipped: true,
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it("reports missing scoped route credentials even when the default route needs no key", () => {

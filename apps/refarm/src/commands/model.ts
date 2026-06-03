@@ -5,6 +5,7 @@ import {
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
+import { existsSync } from "node:fs";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
@@ -45,6 +46,10 @@ const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
 const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
 const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+const MODEL_DOCTOR_JSON_COMMAND = "refarm model doctor --json";
+const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
+const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
+const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;
 
 interface JsonOptionCarrier {
 	json?: boolean;
@@ -101,6 +106,7 @@ export interface ModelTokens {
 export interface ModelCommandDeps {
 	loadTokens(): Promise<ModelTokens>;
 	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
+	fetch?: typeof fetch;
 }
 
 export interface CurrentModelStatus {
@@ -142,6 +148,32 @@ export interface CurrentModelStatus {
 		setModel: string;
 		setWorkerModel: string;
 		setMonitorModel: string;
+	};
+}
+
+export interface ModelDoctorStatus {
+	current: CurrentModelStatus["current"];
+	providerProbe: {
+		provider: string | undefined;
+		baseUrl: string | undefined;
+		url: string | undefined;
+		ready: boolean | null;
+		status?: number;
+		error?: string;
+		timedOut?: boolean;
+		skipped?: boolean;
+	};
+	recommendations?: {
+		diagnostic: string;
+		severity: "failure" | "warning" | "info";
+		summary: string;
+		action: string;
+		command?: string;
+	}[];
+	handoffs: {
+		inspectCurrent: string;
+		startOllama: string;
+		setDockerOllamaBaseUrl: string;
 	};
 }
 
@@ -303,6 +335,166 @@ function printModelMutationResult(result: ModelMutationResult): void {
 	);
 }
 
+function trimTrailingSlash(value: string): string {
+	return value.replace(/\/+$/, "");
+}
+
+function isLikelyDockerRuntime(): boolean {
+	return existsSync("/.dockerenv");
+}
+
+function modelDoctorHandoffs(): ModelDoctorStatus["handoffs"] {
+	return {
+		inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
+		startOllama: "ollama serve",
+		setDockerOllamaBaseUrl: refarmCommand([
+			"model",
+			"base-url",
+			OLLAMA_DOCKER_BASE_URL,
+			"--json",
+		]),
+	};
+}
+
+function modelDoctorRecoveryCommands(status: ModelDoctorStatus): string[] {
+	if (status.providerProbe.ready !== false) return [];
+	const commands = [status.handoffs.startOllama, status.handoffs.inspectCurrent];
+	if (isLikelyDockerRuntime()) {
+		commands.splice(1, 0, status.handoffs.setDockerOllamaBaseUrl);
+	}
+	return commands;
+}
+
+function modelDoctorRecommendations(
+	status: ModelDoctorStatus,
+): ModelDoctorStatus["recommendations"] | undefined {
+	if (status.providerProbe.ready !== false) return undefined;
+	return [
+		{
+			diagnostic: "model-provider-unreachable",
+			severity: "failure",
+			summary: "The current local model provider endpoint is not reachable from the runtime process.",
+			action: "Start Ollama where Refarm can reach it, or set a base URL that matches the runtime network.",
+			command: MODEL_DOCTOR_JSON_COMMAND,
+		},
+	];
+}
+
+async function probeOllamaProvider(
+	baseUrl: string,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<ModelDoctorStatus["providerProbe"]> {
+	const fetchImpl = deps.fetch ?? globalThis.fetch;
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), MODEL_PROVIDER_PROBE_TIMEOUT_MS);
+	const url = `${trimTrailingSlash(baseUrl)}/api/tags`;
+	try {
+		const response = await fetchImpl(url, {
+			method: "GET",
+			signal: controller.signal,
+		});
+		return {
+			provider: "ollama",
+			baseUrl,
+			url,
+			ready: response.ok,
+			status: response.status,
+		};
+	} catch (error) {
+		const name = error instanceof Error ? error.name : undefined;
+		const cause = error instanceof Error ? error.cause : undefined;
+		const causeRecord = cause && typeof cause === "object"
+			? cause as Record<string, unknown>
+			: undefined;
+		const causeCode = typeof causeRecord?.code === "string" ? causeRecord.code : undefined;
+		const message = error instanceof Error ? error.message : String(error);
+		return {
+			provider: "ollama",
+			baseUrl,
+			url,
+			ready: false,
+			error: causeCode ? `${message}: ${causeCode}` : message,
+			timedOut: name === "AbortError",
+		};
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+export async function buildModelDoctorStatus(
+	tokens: ModelTokens,
+	deps: Pick<ModelCommandDeps, "fetch"> = {},
+): Promise<ModelDoctorStatus> {
+	const current = buildCurrentModelStatus(tokens);
+	const handoffs = modelDoctorHandoffs();
+	const provider = current.current.provider?.trim().toLowerCase();
+	if (provider !== "ollama") {
+		return {
+			current: current.current,
+			providerProbe: {
+				provider: current.current.provider,
+				baseUrl: current.baseUrl,
+				url: undefined,
+				ready: null,
+				skipped: true,
+			},
+			handoffs,
+		};
+	}
+
+	const baseUrl = current.baseUrl ?? OLLAMA_DEFAULT_BASE_URL;
+	const probe = await probeOllamaProvider(baseUrl, deps);
+	const status: ModelDoctorStatus = {
+		current: current.current,
+		providerProbe: probe,
+		handoffs,
+	};
+	return {
+		...status,
+		recommendations: modelDoctorRecommendations(status),
+	};
+}
+
+async function printModelDoctorJson(
+	tokens: ModelTokens,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<void> {
+	const status = await buildModelDoctorStatus(tokens, deps);
+	printJson(
+		buildJsonSuccessEnvelope({
+			command: "model",
+			operation: "doctor",
+			extra: status,
+			nextActions: modelDoctorRecoveryCommands(status),
+			nextCommands: modelDoctorRecoveryCommands(status),
+		}),
+	);
+}
+
+async function printModelDoctor(
+	tokens: ModelTokens,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<void> {
+	const status = await buildModelDoctorStatus(tokens, deps);
+	console.log(chalk.bold("Model doctor"));
+	console.log(`  current: ${chalk.cyan(status.current.ref)}`);
+	if (status.providerProbe.skipped) {
+		console.log("  provider probe: skipped");
+		console.log(chalk.dim("  use --json for machine-readable handoffs"));
+		return;
+	}
+	console.log(`  probe:   ${status.providerProbe.url}`);
+	if (status.providerProbe.ready) {
+		console.log(chalk.green(`  status:  ready (${status.providerProbe.status})`));
+		return;
+	}
+	console.log(chalk.red("  status:  unreachable"));
+	if (status.providerProbe.error) console.log(`  error:   ${status.providerProbe.error}`);
+	for (const command of modelDoctorRecoveryCommands(status)) {
+		console.log(chalk.dim(`  fix:     ${command}`));
+	}
+}
+
 export function printCurrentModel(tokens: ModelTokens): void {
 	const status = buildCurrentModelStatus(tokens);
 	const provider = status.current.provider;
@@ -316,6 +508,7 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	if (status.credential.status) console.log(`  key:      ${status.credential.status}`);
 	if (status.baseUrl) console.log(`  base url: ${status.baseUrl}`);
 	if (status.fallback) console.log(`  fallback: ${status.fallback}`);
+	if (provider === "ollama") console.log(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
 	if (status.routes.worker) console.log(`  worker:   ${status.routes.worker}`);
 	if (status.routes.monitor) console.log(`  monitor:  ${status.routes.monitor}`);
 	for (const recommendation of status.recommendations ?? []) {
@@ -835,6 +1028,7 @@ export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()):
 Examples:
   $ refarm model current
   $ refarm model current --json
+  $ refarm model doctor --json
   $ refarm model ${OPENAI_DEFAULT_REF} --json
   $ refarm model providers
   $ refarm model providers --json
@@ -892,6 +1086,32 @@ Notes:
 				return;
 			}
 			printCurrentModel(tokens);
+		});
+
+	command
+		.command("doctor")
+		.description("Probe the active local model provider endpoint")
+		.option("--json", "Output machine-readable provider readiness")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm model doctor
+  $ refarm model doctor --json
+
+Notes:
+  The doctor only performs a live endpoint probe for local providers such as
+  Ollama. Remote provider credentials remain covered by refarm model current.
+`,
+		)
+		.action(async (opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
+			const tokens = await deps.loadTokens();
+			if (hasJsonOption(opts, command)) {
+				await printModelDoctorJson(tokens, deps);
+				return;
+			}
+			await printModelDoctor(tokens, deps);
 		});
 
 	command

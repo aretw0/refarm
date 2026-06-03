@@ -190,6 +190,10 @@ Purpose: let the agent know which model path it is about to use.
 Rules:
 
 - `model current --json` is the inspection primitive.
+- `model doctor --json` is the live local-provider probe. Keep
+  `model current` deterministic; use `model doctor` to check endpoints such as
+  Ollama and emit recovery commands like `ollama serve` or a Docker-aware
+  `model base-url` handoff when the runtime cannot reach the provider.
 - `sow --model <provider/model>` changes the route.
 - Credential collection may be interactive, but JSON recovery must name the
   command that resumes inspection after configuration.
