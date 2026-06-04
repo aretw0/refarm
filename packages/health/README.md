@@ -4,6 +4,10 @@ Health provides diagnostic utilities for workspace projects and runtime instance
 Refarm consumes it through a Refarm-specific policy preset, but the base auditors
 are workspace-agnostic.
 
+Keep this package as the ecosystem primitive. Repository-local wrappers may add
+their own allowances for generated state, fixtures, lockfiles, or vendored
+artifacts, but those exceptions should not be baked into the generic auditors.
+
 ## Features
 
 - **Project Diagnostics**: Automated checks for workspace structure, build config, and package entrypoints.
@@ -57,5 +61,14 @@ Projects can calibrate the generic auditor by declaring a `health` section in
 
 Set `"preset": "refarm"` only for projects that intentionally want the Refarm
 monorepo exemptions.
+
+External projects should prefer the generic workspace policy and declare their
+own generated-file or complexity allowances in their own `refarm.config.json`.
+
+Programmatic callers should pass an explicit workspace root when auditing a
+repo other than the current process directory. The CLI uses the current
+workspace by default, but the lower-level health core accepts `rootDir` so
+agents do not need to mutate process-global `cwd` while inspecting external
+projects.
 
 See [ROADMAP.md](./ROADMAP.md) for the path to the `refarm health` command.

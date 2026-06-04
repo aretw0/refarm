@@ -77,8 +77,12 @@ export class HealthCore {
     constructor(graphContext?: unknown);
     register(auditor: { id: string; audit(context?: unknown): Promise<unknown> }): void;
     loadPolicy(policyNodeId: string): Promise<unknown>;
-    audit(requestedAuditors?: string[] | null, policyId?: string | null): Promise<unknown>;
-    checkResolutionStatus(): Promise<ResolutionStatus[]>;
+    audit(
+        requestedAuditors?: string[] | null,
+        policyId?: string | null,
+        options?: { rootDir?: string },
+    ): Promise<unknown>;
+    checkResolutionStatus(rootDir?: string): Promise<ResolutionStatus[]>;
 }
 
 export class FileSystemAuditor {

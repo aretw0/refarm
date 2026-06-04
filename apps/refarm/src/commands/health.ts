@@ -484,8 +484,8 @@ function emitHealthPolicyApplicationSummary(report: HealthPolicyApplicationRepor
   console.log(JSON.stringify({ health: report.appliedHealth }, null, 2));
 }
 
-export async function runHealthAudit(): Promise<HealthReport> {
-  const policy = resolveHealthPolicy();
+export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
+  const policy = resolveHealthPolicy(rootDir);
   const health = new HealthCore();
   health.register(new FileSystemAuditor({
     ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
@@ -504,14 +504,14 @@ export async function runHealthAudit(): Promise<HealthReport> {
     }));
   }
 
-  const results = await health.audit() as HealthResults;
-  const resolution = await health.checkResolutionStatus() as ResolutionStatus[];
+  const results = await health.audit(null, null, { rootDir }) as HealthResults;
+  const resolution = await health.checkResolutionStatus(rootDir) as ResolutionStatus[];
   return buildHealthReport(results, resolution);
 }
 
-export async function runHealthPolicySuggestion(): Promise<HealthPolicySuggestionReport> {
-  const policy = resolveHealthPolicy();
-  const report = await runHealthAudit();
+export async function runHealthPolicySuggestion(rootDir = process.cwd()): Promise<HealthPolicySuggestionReport> {
+  const policy = resolveHealthPolicy(rootDir);
+  const report = await runHealthAudit(rootDir);
   const suggestedHealth = suggestHealthPolicy(policy, report.results);
   return {
     command: "health",
@@ -531,7 +531,7 @@ export async function applySuggestedHealthPolicy(
   rootDir = process.cwd(),
 ): Promise<HealthPolicyApplicationReport> {
   const configPath = path.join(rootDir, "refarm.config.json");
-  const suggestion = await runHealthPolicySuggestion();
+  const suggestion = await runHealthPolicySuggestion(rootDir);
   const config = readRefarmConfigForWrite(configPath);
   const previousHealth = config.health;
   const nextCommand = HEALTH_NEXT_ACTION_COMMAND;

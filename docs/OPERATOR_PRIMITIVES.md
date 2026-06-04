@@ -186,17 +186,23 @@ files that are too large to reason about cheaply.
 
 Rules:
 
-- `pnpm run repo:complexity` is the baseline audit for tracked files over the
-  configured line budget.
-- `pnpm run repo:complexity:changed:strict` is the safe local gate for new
-  slices: it blocks changed files that cross the line budget without requiring
-  the existing backlog to be fixed first.
-- `pnpm run repo:complexity:strict` is diagnostic until the current backlog is
-  split or explicitly classified. Do not add it to broad gates before the
-  baseline is triaged.
-- Large generated fixtures, lockfiles, and project state may be reported as
-  allowed findings; source and hand-written tests should normally be blocking
-  unless there is a documented extraction plan.
+- Ecosystem primitive: `@refarm.dev/health` owns reusable complexity scanning,
+  and workspaces opt in through `health.complexity` in `refarm.config.json`.
+  When enabled, `refarm health --json` reports blocking large files alongside
+  git/build diagnostics, so `refarm check --json` can carry the same pain into
+  an agentic daily-driver loop.
+- Refarm monorepo wrapper: `pnpm run repo:complexity` is the local baseline
+  audit for tracked files over the configured line budget.
+- Refarm monorepo wrapper: `pnpm run repo:complexity:changed:strict` is the
+  safe local gate for new slices. It blocks changed files that cross the line
+  budget without requiring the existing backlog to be fixed first.
+- Refarm monorepo wrapper: `pnpm run repo:complexity:strict` is diagnostic until
+  the current backlog is split or explicitly classified. Do not add it to broad
+  gates before the baseline is triaged.
+- Refarm-specific allowances such as generated fixtures, lockfiles, `.project`
+  state, and vendored artifacts belong in the repo wrapper. Source and
+  hand-written tests should normally be blocking unless there is a documented
+  extraction plan.
 - The report includes `category` and `summaryByCategory` so agents can separate
   source, test, docs, scripts, fixtures, and project-state pressure before
   choosing whether to split from below (shared helper/package) or above
@@ -205,18 +211,13 @@ Rules:
   `topBlockingFindings`, `topFindings`, and `reportLimit` for compact agent
   handoffs. Use `--limit <n>` when the operator needs a short triage view
   instead of the full backlog.
-- Outside Refarm, the default policy is generic `workspace`; consumer-specific
-  generated docs, skill packages, or non-TS package layouts belong in that
-  repo's `refarm.config.json`.
-- Workspaces can opt in to ecosystem-level complexity pressure through
-  `health.complexity` in `refarm.config.json`. When enabled,
-  `refarm health --json` reports blocking large files alongside git/build
-  diagnostics, so `refarm check --json` can carry the same pain into an
-  agentic daily-driver loop.
 - The repo-local `repo:complexity` scripts are CI/operator wrappers over the
   same `@refarm.dev/health` complexity auditor, not a second detector. Keep
   repo-specific allowances in the wrapper and reusable scanning behavior in the
   package.
+- Outside Refarm, the default policy is generic `workspace`; consumer-specific
+  generated docs, skill packages, non-TS package layouts, and complexity
+  allowances belong in that repo's `refarm.config.json`.
 - `refarm health --next-action --json` and
   `refarm check --next-action --json` should point to
   `refarm health --suggest-policy --json` when the next useful move is policy
@@ -268,6 +269,10 @@ refarm agent finish --lane agent-e2e-mock --run --json
 ```
 
 - A passing finish returns `nextCommand: "refarm resume --json"`.
+- When a source change modifies a workspace package API consumed through
+  `dist/`, build that dependency before running direct consumer tests. Turbo
+  and `refarm agent finish` encode this order; ad hoc commands such as
+  `pnpm -C apps/refarm exec vitest ...` do not.
 
 ## Hardening Order
 

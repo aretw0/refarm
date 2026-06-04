@@ -43,12 +43,12 @@ export class HealthCore {
     /**
      * Runs all registered auditors or a specific subset in a stratified sequence.
      */
-    async audit(requestedAuditors = null, policyId = null) {
+    async audit(requestedAuditors = null, policyId = null, options = {}) {
         const results = {};
         const policy = policyId ? await this.loadPolicy(policyId) : null;
 
         const context = {
-            rootDir: process.cwd(),
+            rootDir: options.rootDir || process.cwd(),
             timestamp: new Date().toISOString(),
             policy: policy || {} // Inject policy into the context
         };
@@ -82,10 +82,10 @@ export class HealthCore {
     /**
      * Helper for backward compatibility.
      */
-    async checkResolutionStatus() {
+    async checkResolutionStatus(rootDir = process.cwd()) {
         const projectAuditor = this.#auditors.get("project");
         if (!projectAuditor) return [];
-        return await projectAuditor.checkResolutionStatus(process.cwd());
+        return await projectAuditor.checkResolutionStatus(rootDir);
     }
 }
 
