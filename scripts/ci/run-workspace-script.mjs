@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
 import {
-	createPackageScriptCommand,
-	detectPackageManager,
-} from "../../packages/config/src/package-manager.js";
-import { runSubprocess } from "./subprocess-utils.mjs";
+	ensureWorkspaceTypeDependencyBuilds,
+	runSubprocess,
+	workspaceTypeDependencyBuildDirs,
+} from "./subprocess-utils.mjs";
 
 const ROOT = process.cwd();
 
@@ -47,41 +47,31 @@ const display = forwardedArgs.length > 0
 	? `${command.display} ${forwardedArgs.join(" ")}`
 	: command.display;
 
-async function dependencyBuildCommand() {
-	const packageManager = detectPackageManager({ cwd: ROOT, env: process.env });
-	if (packageManager !== "pnpm") {
-		throw new Error(
-			`--with-dependency-builds requires pnpm workspace filtering; detected ${packageManager}`,
-		);
-	}
-	const manifest = JSON.parse(
-		await readFile(path.join(ROOT, workspaceDir, "package.json"), "utf8"),
-	);
-	if (!manifest?.name) {
-		throw new Error(`${workspaceDir}/package.json is missing a package name`);
-	}
-	return {
-		command: "pnpm",
-		args: ["--filter", `${manifest.name}...`, "run", "build"],
-		display: `pnpm --filter ${manifest.name}... run build`,
-	};
+async function dependencyBuildPlan() {
+	const workspaceDirs = await workspaceTypeDependencyBuildDirs(workspaceDir);
+	return workspaceDirs.map((dependencyDir) => {
+		const packageCommand = createPackageScriptCommand({
+			cwd: path.resolve(ROOT, dependencyDir),
+			repoRoot: ROOT,
+			script: "build",
+			env: process.env,
+		});
+		return packageCommand.display;
+	});
 }
 
 if (plan) {
 	if (withDependencyBuilds) {
-		console.log((await dependencyBuildCommand()).display);
+		for (const displayBuild of await dependencyBuildPlan()) {
+			console.log(displayBuild);
+		}
 	}
 	console.log(display);
 	process.exit(0);
 }
 
 if (withDependencyBuilds) {
-	const build = await dependencyBuildCommand();
-	console.log(`[workspace-script] ${build.display}`);
-	await runSubprocess(build.command, build.args, {
-		cwd: ROOT,
-		env: process.env,
-	});
+	await ensureWorkspaceTypeDependencyBuilds(workspaceDir, process.env);
 }
 
 console.log(`[workspace-script] ${display}`);

@@ -21,23 +21,16 @@ test("run-workspace-script plans a plain workspace command", () => {
 });
 
 test("run-workspace-script plans dependency builds before the workspace command", () => {
-	assert.deepEqual(
-		runPlan(["--with-dependency-builds", "apps/refarm", "test:handoffs"]),
-		[
-			"pnpm --filter @refarm.dev/refarm... run build",
-			"pnpm -C apps/refarm run test:handoffs",
-		],
-	);
-});
+	const lines = runPlan([
+		"--with-dependency-builds",
+		"apps/refarm",
+		"test:handoffs",
+	]);
 
-test("run-workspace-script rejects dependency builds outside pnpm", () => {
-	try {
-		runPlan(
-			["--with-dependency-builds", "apps/refarm", "test:handoffs"],
-			{ REFARM_PACKAGE_MANAGER: "npm" },
-		);
-		assert.fail("expected --with-dependency-builds to reject non-pnpm managers");
-	} catch (error) {
-		assert.match(String(error.stderr), /requires pnpm workspace filtering/);
-	}
+	assert(lines.includes("pnpm -C packages/health run build"));
+	assert(lines.includes("pnpm -C packages/cli run build"));
+	assert.equal(lines.at(-1), "pnpm -C apps/refarm run test:handoffs");
+	assert(!lines.some((line) => line.includes("packages/pi-agent")));
+	assert(!lines.some((line) => line.includes("packages/heartwood")));
+	assert(!lines.some((line) => line.includes("packages/storage-memory")));
 });

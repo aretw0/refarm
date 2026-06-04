@@ -89,6 +89,85 @@ async function loadWorkspacePackageMap() {
 	return map;
 }
 
+function workspaceDependencyNames(pkg) {
+	return Object.keys({
+		...(pkg.dependencies ?? {}),
+		...(pkg.peerDependencies ?? {}),
+		...(pkg.optionalDependencies ?? {}),
+	});
+}
+
+async function collectWorkspaceTypeBuildDependencies(
+	workspaceDir,
+	workspaceByName,
+	collected = new Set(),
+	seen = new Set(),
+) {
+	if (seen.has(workspaceDir)) return collected;
+	seen.add(workspaceDir);
+
+	const pkg = JSON.parse(
+		await readFile(path.join(workspaceDir, "package.json"), "utf8"),
+	);
+
+	for (const dependencyName of workspaceDependencyNames(pkg)) {
+		const dependencyWorkspace = workspaceByName.get(dependencyName);
+		if (!dependencyWorkspace) continue;
+		await collectWorkspaceTypeBuildDependencies(
+			dependencyWorkspace.dir,
+			workspaceByName,
+			collected,
+			seen,
+		);
+		if (dependencyWorkspace.isTypeScriptBuild) {
+			collected.add(dependencyWorkspace.dir);
+		}
+	}
+
+	return collected;
+}
+
+export async function workspaceTypeDependencyBuildDirs(workspaceDir) {
+	await workspacePackagePath(workspaceDir);
+	await assertTaskSmokeBuildOrderIntegrity("[workspace-script]");
+	const workspaceByName = await loadWorkspacePackageMap();
+	const collected = await collectWorkspaceTypeBuildDependencies(
+		workspaceDir,
+		workspaceByName,
+	);
+	const orderIndex = new Map(
+		TASK_SMOKE_TS_BUILD_ORDER.map((entry, index) => [entry, index]),
+	);
+	for (const workspaceDependencyDir of collected) {
+		if (!orderIndex.has(workspaceDependencyDir)) {
+			throw new Error(
+				`[workspace-script] build order missing "${workspaceDependencyDir}" required by "${workspaceDir}"`,
+			);
+		}
+	}
+	return [...collected].sort(
+		(left, right) => orderIndex.get(left) - orderIndex.get(right),
+	);
+}
+
+export async function ensureWorkspaceTypeDependencyBuilds(
+	workspaceDir,
+	env,
+	loggerPrefix = "[workspace-script]",
+) {
+	const workspaceDirs = await workspaceTypeDependencyBuildDirs(workspaceDir);
+	if (workspaceDirs.length === 0) {
+		console.log(`${loggerPrefix} no TypeScript workspace dependencies to build.`);
+		return;
+	}
+	console.log(
+		`${loggerPrefix} building ${workspaceDirs.length} TypeScript workspace dependenc${workspaceDirs.length === 1 ? "y" : "ies"}...`,
+	);
+	for (const dependencyDir of workspaceDirs) {
+		await runPackageScript(dependencyDir, "build", { env });
+	}
+}
+
 export async function assertTaskSmokeBuildOrderIntegrity(
 	loggerPrefix = "[task-smoke]",
 ) {
