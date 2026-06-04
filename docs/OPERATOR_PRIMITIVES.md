@@ -273,6 +273,10 @@ refarm agent finish --lane agent-e2e-mock --run --json
   `dist/`, build that dependency before running direct consumer tests. Turbo
   and `refarm agent finish` encode this order; ad hoc commands such as
   `pnpm -C apps/refarm exec vitest ...` do not.
+- Root scripts that call `scripts/ci/run-workspace-script.mjs` for
+  `apps/refarm` tests or type-checks should use `--with-dependency-builds`.
+  That wrapper runs `pnpm --filter <workspace>... run build` first, so package
+  APIs consumed through `dist/` are synchronized before the consumer command.
 
 ## Hardening Order
 
