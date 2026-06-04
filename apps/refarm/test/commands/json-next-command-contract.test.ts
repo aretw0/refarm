@@ -153,6 +153,53 @@ function generatedHandoffEntries(payloads: Array<{
 	);
 }
 
+type GeneratedProcess = {
+	args?: unknown;
+	command?: unknown;
+	display?: unknown;
+};
+
+function generatedProcessEntries(payloads: Array<{
+	nextProcesses?: unknown;
+	sampleId: string;
+}>): Array<{ process: GeneratedProcess; sampleId: string; index: number }> {
+	return payloads.flatMap((payload) =>
+		Array.isArray(payload.nextProcesses)
+			? payload.nextProcesses.map((process, index) => ({
+					process: process as GeneratedProcess,
+					sampleId: payload.sampleId,
+					index,
+				}))
+			: [],
+	);
+}
+
+function generatedProcessShapeViolations(payloads: Array<{
+	nextProcesses?: unknown;
+	sampleId: string;
+}>): string[] {
+	return payloads.flatMap((payload) => {
+		if (payload.nextProcesses === undefined) return [];
+		if (!Array.isArray(payload.nextProcesses)) {
+			return [`${payload.sampleId}.nextProcesses: not an array`];
+		}
+		return generatedProcessEntries([payload]).flatMap(({ process, sampleId, index }) => {
+			const prefix = `${sampleId}.nextProcesses[${index}]`;
+			const violations: string[] = [];
+			if (typeof process.command !== "string" || process.command.trim() === "") {
+				violations.push(`${prefix}.command`);
+			}
+			if (!Array.isArray(process.args) || !process.args.every((arg) => typeof arg === "string")) {
+				violations.push(`${prefix}.args`);
+			}
+			if (typeof process.display !== "string" || process.display.trim() === "") {
+				violations.push(`${prefix}.display`);
+			}
+			return violations;
+		});
+	});
+}
+
 function singularPluralHandoffMismatches(
 	payloads: Array<{
 		nextAction?: string | null;
@@ -889,6 +936,7 @@ interface ParsedCommandJson {
 	nextActions?: string[];
 	nextCommand?: string | null;
 	nextCommands?: string[];
+	nextProcesses?: unknown;
 	templates?: {
 		command?: string;
 		parameters?: string[];
@@ -1351,6 +1399,7 @@ describe("JSON next command contract", () => {
 			const commandEntries = generatedCommandEntries(payloads);
 			const actionEntries = generatedActionEntries(payloads);
 			const handoffEntries = generatedHandoffEntries(payloads);
+			const processEntries = generatedProcessEntries(payloads);
 			const placeholders = commandEntries
 				.filter(({ command }) => /<[^>]+>/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
@@ -1366,6 +1415,20 @@ describe("JSON next command contract", () => {
 			const handoffPlaceholders = handoffEntries
 				.filter(({ handoff }) => /<[^>]+>/.test(handoff))
 				.map(({ handoff, key, sampleId }) => `${sampleId}.${key}: ${handoff}`);
+			const processPlaceholders = processEntries
+				.flatMap(({ process, sampleId, index }) => [
+					...(typeof process.command === "string" && /<[^>]+>/.test(process.command)
+						? [`${sampleId}.nextProcesses[${index}].command: ${process.command}`]
+						: []),
+					...(Array.isArray(process.args)
+						? process.args
+								.filter((arg): arg is string => typeof arg === "string" && /<[^>]+>/.test(arg))
+								.map((arg) => `${sampleId}.nextProcesses[${index}].args: ${arg}`)
+						: []),
+					...(typeof process.display === "string" && /<[^>]+>/.test(process.display)
+						? [`${sampleId}.nextProcesses[${index}].display: ${process.display}`]
+						: []),
+				]);
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
@@ -1396,12 +1459,15 @@ describe("JSON next command contract", () => {
 					.map((leak) => `${payload.sampleId}.${leak}`),
 			);
 			const singularPluralMismatches = singularPluralHandoffMismatches(payloads);
+			const processShapeViolations = generatedProcessShapeViolations(payloads);
 
 			expect(placeholders).toEqual([]);
 			expect(actionPlaceholders).toEqual([]);
 			expect(interactiveSow).toEqual([]);
 			expect(actionInteractiveSow).toEqual([]);
 			expect(handoffPlaceholders).toEqual([]);
+			expect(processPlaceholders).toEqual([]);
+			expect(processShapeViolations).toEqual([]);
 			expect(commandFieldPlaceholderLeaks).toEqual([]);
 			expect(commandFieldsWithoutJson).toEqual([]);
 			expect(replOnly).toEqual([]);
