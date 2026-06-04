@@ -146,6 +146,19 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   signal. `check --next-action --json` remains blocking-only: `ok: true` means
   `nextCommands: []`. Before an agentic prompt, run `model doctor --json` when
   the selected route is a local provider.
+- `check --json` also carries execution substrate checks:
+  - `nodeSubstrate` verifies the package-manager execution tree for the current
+    platform (`node_modules`, `.bin` shims, and devcontainer volume ownership).
+    It blocks when a Linux container and Windows host are sharing one
+    `node_modules` tree.
+  - `rustSubstrate` is required only when the workspace declares Rust
+    (`Cargo.toml`, `rust-toolchain.toml`, or `.cargo/config.toml`). It verifies
+    `rustc`, `cargo`, `rustup target wasm32-wasip1`, `cargo component`, and on
+    Windows/MSVC the C++ build tools/linker path. In a JS-only external project
+    it should remain quiet instead of making Rust a global Refarm dependency.
+  - `nextCommand` must not suggest `cargo install cargo-component --locked`
+    while the Windows MSVC linker itself is unresolved; the operator must first
+    install/open the Visual Studio C++ build environment.
 - Plugin recovery should prefer the operator alias:
 
 ```bash

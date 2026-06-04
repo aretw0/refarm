@@ -4,6 +4,7 @@ import {
 	createCheckCommand,
 	type NodeSubstrateCheck,
 	type RefarmCheckDeps,
+	type RustSubstrateCheck,
 } from "../../src/commands/check.js";
 import type { RefarmDoctorReport } from "../../src/commands/doctor.js";
 import type { HealthReport } from "../../src/commands/health.js";
@@ -134,14 +135,34 @@ function makeNodeSubstrateCheck(
 	};
 }
 
+function makeRustSubstrateCheck(
+	overrides: Partial<RustSubstrateCheck> = {},
+): RustSubstrateCheck {
+	return {
+		command: "rust-substrate",
+		operation: "check",
+		ok: true,
+		required: true,
+		platform: "linux",
+		rustcHost: "x86_64-unknown-linux-gnu",
+		missing: [],
+		linker: null,
+		compiler: null,
+		recommendations: [],
+		...overrides,
+	};
+}
+
 function makeDeps(overrides: {
 	health?: Partial<HealthReport>;
 	doctor?: Partial<RefarmDoctorReport>;
 	model?: Partial<ModelDoctorStatus>;
 	nodeSubstrate?: Partial<NodeSubstrateCheck>;
+	rustSubstrate?: Partial<RustSubstrateCheck>;
 } = {}): RefarmCheckDeps {
 	return {
 		runNodeSubstrate: vi.fn().mockResolvedValue(makeNodeSubstrateCheck(overrides.nodeSubstrate)),
+		runRustSubstrate: vi.fn().mockResolvedValue(makeRustSubstrateCheck(overrides.rustSubstrate)),
 		runHealth: vi.fn().mockResolvedValue(makeHealthReport(overrides.health)),
 		runDoctor: vi.fn().mockResolvedValue(makeDoctorReport(overrides.doctor)),
 		runModelDoctor: vi.fn().mockResolvedValue(makeModelDoctorStatus(overrides.model)),
@@ -152,6 +173,7 @@ describe("buildRefarmCheckReport", () => {
 	it("combines health and doctor readiness into one report", () => {
 		const report = buildRefarmCheckReport({
 			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck(),
 			health: makeHealthReport({
 				ok: false,
 				issueCount: 2,
@@ -196,6 +218,7 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.nextCommand).toBe("refarm runtime start --wait");
 		expect(report.nextCommands).toEqual(["refarm runtime start --wait"]);
 		expect(report.checks.nodeSubstrate?.ok).toBe(true);
+		expect(report.checks.rustSubstrate?.ok).toBe(true);
 		expect(report.checks.health.issueCount).toBe(2);
 		expect(report.checks.doctor.failureCount).toBe(1);
 	});
@@ -224,6 +247,7 @@ describe("buildRefarmCheckReport", () => {
 					},
 				],
 			}),
+			rustSubstrate: makeRustSubstrateCheck(),
 			health: makeHealthReport(),
 			doctor: makeDoctorReport(),
 			model: makeModelDoctorStatus(),
@@ -256,6 +280,7 @@ describe("buildRefarmCheckReport", () => {
 					},
 				],
 			}),
+			rustSubstrate: makeRustSubstrateCheck(),
 			health: makeHealthReport(),
 			doctor: makeDoctorReport(),
 			model: makeModelDoctorStatus(),
@@ -265,6 +290,47 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.nextAction).toContain("rebuild/reopen the devcontainer");
 		expect(report.recommendations[0]?.diagnostic).toBe(
 			"node-substrate:shared-devcontainer-node-modules",
+		);
+	});
+
+	it("blocks readiness when a Rust workspace is missing the MSVC execution substrate", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck({
+				ok: false,
+				platform: "win32",
+				rustcHost: "x86_64-pc-windows-msvc",
+				missing: ["cargo_component", "msvc_cl", "msvc_link"],
+				linker: "C:\\Program Files\\Git\\usr\\bin\\link.exe",
+				compiler: null,
+				recommendations: [
+					{
+						diagnostic: "rust-substrate:missing-msvc-build-tools",
+						severity: "failure",
+						summary: "The Windows MSVC Rust toolchain requires Visual Studio C++ build tools.",
+						action: "Install Visual Studio Build Tools with the C++ build tools workload.",
+						target: "cl.exe",
+					},
+					{
+						diagnostic: "rust-substrate:missing-cargo-component",
+						severity: "failure",
+						summary: "cargo-component is required to build Refarm component-model WASM packages.",
+						action: "cargo install cargo-component --locked",
+						target: "cargo component",
+					},
+				],
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.failureCount).toBe(1);
+		expect(report.nextAction).toBe("Install Visual Studio Build Tools with the C++ build tools workload.");
+		expect(report.nextCommand).toBeNull();
+		expect(report.recommendations.map((recommendation) => recommendation.diagnostic)).toContain(
+			"rust-substrate:missing-msvc-build-tools",
 		);
 	});
 });
@@ -305,6 +371,7 @@ describe("checkCommand", () => {
 		await createCheckCommand(deps).parseAsync(["--json"], { from: "user" });
 
 		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
 		expect(deps.runHealth).toHaveBeenCalledOnce();
 		expect(deps.runDoctor).toHaveBeenCalledWith({ failOnWarnings: undefined });
 		expect(deps.runModelDoctor).toHaveBeenCalledOnce();
@@ -314,6 +381,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"operation": "readiness"');
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"nodeSubstrate"');
+		expect(output).toContain('"rustSubstrate"');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');
 		expect(output).toContain('"model"');
@@ -356,12 +424,31 @@ describe("checkCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: FAIL");
 		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues)");
+		expect(output).toContain("Rust substrate: pass (0 missing)");
 		expect(output).toContain("Health: fail (1 issue)");
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");
 		expect(output).toContain("Model: pass (0 warnings)");
 		expect(output).toContain("missing-build-config");
 		expect(output).not.toContain("renderer:non-interactive");
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("does not print Rust substrate noise when the workspace does not require Rust", async () => {
+		const deps = makeDeps({
+			rustSubstrate: {
+				ok: true,
+				required: false,
+				rustcHost: null,
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync([], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Check: PASS");
+		expect(output).not.toContain("Rust substrate:");
+		expect(process.exitCode).toBeUndefined();
 	});
 
 	it("surfaces local model provider doctor failures as non-blocking warnings", async () => {
