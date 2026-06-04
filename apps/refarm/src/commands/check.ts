@@ -36,6 +36,11 @@ export interface NodeSubstrateCheck {
 		expected: string;
 		found: string;
 	}>;
+	mountIssues: Array<{
+		id: string;
+		path: string;
+		target: string;
+	}>;
 	recommendations: DiagnosticRecommendation[];
 }
 
@@ -134,7 +139,7 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	console.log(chalk.bold(`Check: ${report.ok ? "PASS" : "FAIL"}`));
 	if (report.checks.nodeSubstrate) {
 		console.log(
-			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims)`,
+			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues)`,
 		);
 	}
 	console.log(
@@ -265,9 +270,11 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 			: relativePath;
 		if (!(await exists(path.join(root, relative)))) missing.push(relative);
 	}
+	const mountIssues = await findNodeSubstrateMountIssues(root);
 	const recommendations = buildNodeSubstrateRecommendations({
 		missing,
 		foreignPlatformShims,
+		mountIssues,
 	});
 	return {
 		command: "node-substrate",
@@ -276,6 +283,7 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		platform,
 		missing,
 		foreignPlatformShims,
+		mountIssues,
 		recommendations,
 	};
 }
@@ -283,16 +291,23 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 function buildNodeSubstrateRecommendations(input: {
 	missing: string[];
 	foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"];
+	mountIssues: NodeSubstrateCheck["mountIssues"];
 }): DiagnosticRecommendation[] {
-	if (input.foreignPlatformShims.length > 0) {
+	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
 			{
-				diagnostic: "node-substrate:foreign-platform-shims",
+				diagnostic: input.mountIssues.length > 0
+					? "node-substrate:shared-devcontainer-node-modules"
+					: "node-substrate:foreign-platform-shims",
 				severity: "failure",
-				summary: "node_modules contains package-manager shims for a different platform.",
+				summary: input.mountIssues.length > 0
+					? "The devcontainer contract expects node_modules to be a dedicated Docker volume, but this runtime is using the shared workspace mount."
+					: "node_modules contains package-manager shims for a different platform.",
 				action: NODE_SUBSTRATE_ENVIRONMENT_COMMAND,
-				target: input.foreignPlatformShims
-					.map((shim) => `${shim.found} -> ${shim.expected}`)
+				target: [
+					...input.foreignPlatformShims.map((shim) => `${shim.found} -> ${shim.expected}`),
+					...input.mountIssues.map((issue) => `${issue.path} -> ${issue.target}`),
+				]
 					.join(", "),
 			},
 		];
@@ -310,6 +325,73 @@ function buildNodeSubstrateRecommendations(input: {
 		];
 	}
 	return [];
+}
+
+async function findNodeSubstrateMountIssues(
+	root: string,
+): Promise<NodeSubstrateCheck["mountIssues"]> {
+	const target = await readDevcontainerNodeModulesTarget(root);
+	if (!target) return [];
+	const mountPoints = await readLinuxMountPoints();
+	if (mountPoints.length === 0) return [];
+	if (mountPoints.includes(target)) return [];
+	return [
+		{
+			id: "devcontainer_node_modules_mount",
+			path: "node_modules",
+			target,
+		},
+	];
+}
+
+async function readDevcontainerNodeModulesTarget(root: string): Promise<string | null> {
+	try {
+		const raw = await fs.readFile(
+			path.join(root, ".devcontainer", "devcontainer.json"),
+			"utf8",
+		);
+		const config = JSON.parse(raw) as { mounts?: unknown };
+		if (!Array.isArray(config.mounts)) return null;
+		for (const mount of config.mounts) {
+			if (typeof mount !== "string") continue;
+			const fields = Object.fromEntries(
+				mount.split(",").map((field) => {
+					const index = field.indexOf("=");
+					if (index === -1) return [field.trim(), ""];
+					return [
+						field.slice(0, index).trim(),
+						field.slice(index + 1).trim(),
+					];
+				}),
+			);
+			if (fields.source !== "refarm-node-modules") continue;
+			if (typeof fields.target !== "string" || fields.target.length === 0) continue;
+			const target = path.resolve(fields.target);
+			if (target === path.resolve(root, "node_modules")) return target;
+		}
+	} catch {
+		return null;
+	}
+	return null;
+}
+
+async function readLinuxMountPoints(): Promise<string[]> {
+	if (process.platform !== "linux") return [];
+	const content = await fs.readFile("/proc/self/mountinfo", "utf8");
+	return content
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.map((line) => line.split(" - ")[0]?.split(" ")[4])
+		.filter((mountPoint): mountPoint is string => Boolean(mountPoint))
+		.map(decodeMountInfoPath)
+		.map((mountPoint) => path.resolve(mountPoint));
+}
+
+function decodeMountInfoPath(value: string): string {
+	return value.replace(/\\([0-7]{3})/g, (_, octal: string) =>
+		String.fromCharCode(Number.parseInt(octal, 8)),
+	);
 }
 
 export function createCheckCommand(

@@ -108,7 +108,11 @@ else
   PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
 fi
 
+cd "$ROOT"
+
 log "Starting post-create setup..."
+log "Marking workspace as a safe Git directory for the devcontainer user..."
+git config --global --add safe.directory "$ROOT" || true
 
 # 0) Git symlink support — must run before any checkout/npm ci
 # core.symlinks=false (Windows NTFS default) materializes symlinks as regular files.
@@ -138,6 +142,7 @@ find "$ROOT" -path "*/node_modules" -prune -o -name "dist" -type d -print | whil
   fi
 done
 for dir in \
+  "$ROOT/node_modules" \
   /home/vscode/.local \
   /home/vscode/.local/state \
   /home/vscode/.local/share \

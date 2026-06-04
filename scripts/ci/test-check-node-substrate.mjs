@@ -12,6 +12,7 @@ function makeWorkspace({
 	packageManager = "pnpm@11.1.2",
 	withBins = false,
 	withForeignBins = false,
+	withDevcontainerNodeModulesVolume = false,
 } = {}) {
 	const tempDir = mkdtempSync(path.join(tmpdir(), "refarm-node-substrate-"));
 	writeFileSync(
@@ -37,13 +38,27 @@ function makeWorkspace({
 		}
 	}
 
+	if (withDevcontainerNodeModulesVolume) {
+		mkdirSync(path.join(tempDir, ".devcontainer"), { recursive: true });
+		writeFileSync(
+			path.join(tempDir, ".devcontainer", "devcontainer.json"),
+			`${JSON.stringify({
+				mounts: [
+					`source=refarm-node-modules,target=${path.join(tempDir, "node_modules")},type=volume`,
+				],
+			}, null, 2)}\n`,
+			"utf8",
+		);
+	}
+
 	return tempDir;
 }
 
-function runCheck(cwd, args = ["--json"]) {
+function runCheck(cwd, args = ["--json"], env = {}) {
 	return spawnSync(process.execPath, [scriptPath, ...args], {
 		cwd,
 		encoding: "utf8",
+		env: { ...process.env, ...env },
 		stdio: ["ignore", "pipe", "pipe"],
 	});
 }
@@ -107,6 +122,29 @@ test("node substrate check passes when required package manager shims exist", ()
 		assert.deepEqual(payload.missing, []);
 		assert.deepEqual(payload.recommendations, []);
 		assert.equal(payload.nextCommand, null);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check fails when devcontainer node_modules volume is not mounted", () => {
+	if (process.platform !== "linux") return;
+	const tempDir = makeWorkspace({
+		withBins: true,
+		withDevcontainerNodeModulesVolume: true,
+	});
+	try {
+		const result = runCheck(tempDir, ["--json"], {
+			REFARM_NODE_SUBSTRATE_MOUNTINFO: `36 29 0:32 / ${tempDir} rw,relatime - 9p C: rw\n`,
+		});
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.missing.length, 0);
+		assert.equal(payload.mountIssues.length, 1);
+		assert.equal(payload.mountIssues[0].id, "devcontainer_node_modules_mount");
+		assert.match(payload.nextCommand, /rebuild\/reopen the devcontainer/);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}

@@ -128,6 +128,7 @@ function makeNodeSubstrateCheck(
 		platform: "linux",
 		missing: [],
 		foreignPlatformShims: [],
+		mountIssues: [],
 		recommendations: [],
 		...overrides,
 	};
@@ -212,6 +213,7 @@ describe("buildRefarmCheckReport", () => {
 						found: "node_modules/.bin/vitest",
 					},
 				],
+				mountIssues: [],
 				recommendations: [
 					{
 						diagnostic: "node-substrate:foreign-platform-shims",
@@ -231,6 +233,39 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.failureCount).toBe(1);
 		expect(report.nextAction).toContain("rebuild/reopen the devcontainer");
 		expect(report.nextCommand).toBeNull();
+	});
+
+	it("blocks readiness when the devcontainer node_modules volume is not mounted", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck({
+				ok: false,
+				mountIssues: [
+					{
+						id: "devcontainer_node_modules_mount",
+						path: "node_modules",
+						target: "/workspaces/refarm/node_modules",
+					},
+				],
+				recommendations: [
+					{
+						diagnostic: "node-substrate:shared-devcontainer-node-modules",
+						severity: "failure",
+						summary: "The devcontainer contract expects node_modules to be a dedicated Docker volume, but this runtime is using the shared workspace mount.",
+						action: "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+						target: "node_modules -> /workspaces/refarm/node_modules",
+					},
+				],
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.nextAction).toContain("rebuild/reopen the devcontainer");
+		expect(report.recommendations[0]?.diagnostic).toBe(
+			"node-substrate:shared-devcontainer-node-modules",
+		);
 	});
 });
 
@@ -320,7 +355,7 @@ describe("checkCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: FAIL");
-		expect(output).toContain("Node substrate: pass");
+		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues)");
 		expect(output).toContain("Health: fail (1 issue)");
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");
 		expect(output).toContain("Model: pass (0 warnings)");
@@ -508,6 +543,7 @@ describe("checkCommand", () => {
 						found: "node_modules/.bin/vitest",
 					},
 				],
+				mountIssues: [],
 				recommendations: [
 					{
 						diagnostic: "node-substrate:foreign-platform-shims",
