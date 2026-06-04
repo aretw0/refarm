@@ -108,6 +108,10 @@ function foreignBinNames(name) {
 	return process.platform === "win32" ? [name] : [`${name}.cmd`];
 }
 
+function compactList(items, limit = 20) {
+	return items.slice(0, limit);
+}
+
 function workspacePackageDirs() {
 	const dirs = [];
 	for (const workspaceDir of ["apps", "packages"]) {
@@ -237,9 +241,14 @@ const installCommand = packageManager?.startsWith("pnpm")
 	? "pnpm install --frozen-lockfile --config.confirm-modules-purge=false"
 	: "npm install";
 const environmentCommand = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
-const primaryNextCommand = foreignPlatformShims.length > 0 || mountIssues.length > 0
+const workspaceMaterializationCommand = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
+const primaryNextAction = foreignPlatformShims.length > 0 || mountIssues.length > 0
 	? environmentCommand
+	: process.platform === "win32" && missingWorkspaceDependencyLinks.length > 20
+		? workspaceMaterializationCommand
 	: installCommand;
+const executableNextCommand =
+	primaryNextAction === installCommand ? installCommand : null;
 const recommendations = missing.length > 0 || mountIssues.length > 0
 	? foreignPlatformShims.length > 0 || mountIssues.length > 0
 		? [
@@ -253,10 +262,11 @@ const recommendations = missing.length > 0 || mountIssues.length > 0
 	: [];
 if (
 	(missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0) &&
-	!recommendations.includes(installCommand)
+	!recommendations.includes(primaryNextAction)
 ) {
-	recommendations.push(installCommand);
+	recommendations.push(primaryNextAction);
 }
+const executableNextCommands = executableNextCommand ? [executableNextCommand] : [];
 const result = {
 	ok: missing.length === 0 &&
 		missingWorkspaceDependencyLinks.length === 0 &&
@@ -267,18 +277,20 @@ const result = {
 	checks,
 	missing,
 	workspaceLinkCount: workspaceLinkChecks.length,
-	missingWorkspaceDependencyLinks,
+	missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
+	missingWorkspaceDependencyLinks: compactList(missingWorkspaceDependencyLinks),
 	runtimeChecks,
-	missingRuntimeDependencies,
+	missingRuntimeDependencyCount: missingRuntimeDependencies.length,
+	missingRuntimeDependencies: compactList(missingRuntimeDependencies),
 	foreignPlatformShims,
 	mountIssues,
 	recommendations,
 	command: "node-substrate",
 	operation: "check",
-	nextAction: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
+	nextAction: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextAction : null,
 	nextActions: recommendations,
-	nextCommand: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
-	nextCommands: recommendations,
+	nextCommand: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommand : null,
+	nextCommands: executableNextCommands,
 };
 
 if (json) {
@@ -302,7 +314,7 @@ if (json) {
 	for (const issue of mountIssues) {
 		console.error(`  mount mismatch: expected ${issue.target} to be a dedicated mount`);
 	}
-	console.error(`  next: ${primaryNextCommand}`);
+	console.error(`  next: ${primaryNextAction}`);
 	if (foreignPlatformShims.length === 0 && mountIssues.length === 0) {
 		console.error(`  if this is a devcontainer on Windows, ${recommendations.at(1)}`);
 	}

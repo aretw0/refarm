@@ -281,6 +281,8 @@ pnpm run node-substrate:check
   tree. Windows-native validation should use an environment-owned checkout
   (for example a temporary clone) instead of reusing the same worktree whose
   package-level `node_modules` links were materialized by the devcontainer.
+  Non-executable recovery guidance belongs in `nextAction`; `nextCommand`
+  should remain `null` unless it is an executable command string.
 - After source edits:
 
 ```bash

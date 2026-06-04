@@ -26,6 +26,7 @@ import { resolveStatusPayload } from "./status.js";
 
 const NODE_SUBSTRATE_ENVIRONMENT_COMMAND = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
 const NODE_SUBSTRATE_INSTALL_COMMAND = "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
+const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
 const RUST_SUBSTRATE_BUILD_TOOLS_COMMAND = "Install Visual Studio Build Tools with the C++ build tools workload.";
 const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND = "Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.";
 const RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND = "cargo install cargo-component --locked";
@@ -48,6 +49,7 @@ export interface NodeSubstrateCheck {
 		target: string;
 	}>;
 	workspaceLinkCount: number;
+	missingWorkspaceDependencyLinkCount: number;
 	missingWorkspaceDependencyLinks: Array<{
 		id: string;
 		ok: boolean;
@@ -55,6 +57,7 @@ export interface NodeSubstrateCheck {
 		dependency: string;
 		path: string;
 	}>;
+	missingRuntimeDependencyCount: number;
 	runtimeChecks: Array<{
 		id: string;
 		ok: boolean;
@@ -345,11 +348,17 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		foreignPlatformShims,
 		mountIssues,
 		workspaceLinkCount: workspaceLinkChecks.length,
-		missingWorkspaceDependencyLinks,
+		missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
+		missingWorkspaceDependencyLinks: compactNodeSubstrateDependencyIssues(missingWorkspaceDependencyLinks),
 		runtimeChecks,
-		missingRuntimeDependencies,
+		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
+		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(missingRuntimeDependencies),
 		recommendations,
 	};
+}
+
+function compactNodeSubstrateDependencyIssues<T>(issues: T[]): T[] {
+	return issues.slice(0, 20);
 }
 
 function buildNodeSubstrateRecommendations(input: {
@@ -391,14 +400,21 @@ function buildNodeSubstrateRecommendations(input: {
 		];
 	}
 	if (input.missingWorkspaceDependencyLinks.length > 0) {
+		const massiveWindowsWorkspaceLinkFailure =
+			os.platform() === "win32" && input.missingWorkspaceDependencyLinks.length > 20;
 		return [
 			{
 				diagnostic: "node-substrate:missing-workspace-dependency-links",
 				severity: "failure",
-				summary: "One or more workspace package links are not materialized for this environment.",
-				action: NODE_SUBSTRATE_INSTALL_COMMAND,
-				command: "pnpm install --frozen-lockfile",
+				summary: massiveWindowsWorkspaceLinkFailure
+					? "Many workspace package links are not materialized for this Windows environment; this usually means the checkout's package links belong to another platform."
+					: "One or more workspace package links are not materialized for this environment.",
+				action: massiveWindowsWorkspaceLinkFailure
+					? NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND
+					: NODE_SUBSTRATE_INSTALL_COMMAND,
+				command: massiveWindowsWorkspaceLinkFailure ? undefined : "pnpm install --frozen-lockfile",
 				target: input.missingWorkspaceDependencyLinks
+					.slice(0, 20)
 					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
 					.join(", "),
 			},
