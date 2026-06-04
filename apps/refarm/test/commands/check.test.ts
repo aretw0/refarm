@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildRefarmCheckReport,
 	createCheckCommand,
+	type NodeSubstrateCheck,
 	type RefarmCheckDeps,
 } from "../../src/commands/check.js";
 import type { RefarmDoctorReport } from "../../src/commands/doctor.js";
@@ -117,12 +118,29 @@ function makeModelDoctorStatus(
 	};
 }
 
+function makeNodeSubstrateCheck(
+	overrides: Partial<NodeSubstrateCheck> = {},
+): NodeSubstrateCheck {
+	return {
+		command: "node-substrate",
+		operation: "check",
+		ok: true,
+		platform: "linux",
+		missing: [],
+		foreignPlatformShims: [],
+		recommendations: [],
+		...overrides,
+	};
+}
+
 function makeDeps(overrides: {
 	health?: Partial<HealthReport>;
 	doctor?: Partial<RefarmDoctorReport>;
 	model?: Partial<ModelDoctorStatus>;
+	nodeSubstrate?: Partial<NodeSubstrateCheck>;
 } = {}): RefarmCheckDeps {
 	return {
+		runNodeSubstrate: vi.fn().mockResolvedValue(makeNodeSubstrateCheck(overrides.nodeSubstrate)),
 		runHealth: vi.fn().mockResolvedValue(makeHealthReport(overrides.health)),
 		runDoctor: vi.fn().mockResolvedValue(makeDoctorReport(overrides.doctor)),
 		runModelDoctor: vi.fn().mockResolvedValue(makeModelDoctorStatus(overrides.model)),
@@ -132,6 +150,7 @@ function makeDeps(overrides: {
 describe("buildRefarmCheckReport", () => {
 	it("combines health and doctor readiness into one report", () => {
 		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
 			health: makeHealthReport({
 				ok: false,
 				issueCount: 2,
@@ -175,8 +194,43 @@ describe("buildRefarmCheckReport", () => {
 		]);
 		expect(report.nextCommand).toBe("refarm runtime start --wait");
 		expect(report.nextCommands).toEqual(["refarm runtime start --wait"]);
+		expect(report.checks.nodeSubstrate?.ok).toBe(true);
 		expect(report.checks.health.issueCount).toBe(2);
 		expect(report.checks.doctor.failureCount).toBe(1);
+	});
+
+	it("blocks readiness when the node execution substrate is platform-mismatched", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck({
+				ok: false,
+				platform: "win32",
+				missing: ["node_modules/.bin/vitest.cmd"],
+				foreignPlatformShims: [
+					{
+						binary: "vitest",
+						expected: "node_modules/.bin/vitest.cmd",
+						found: "node_modules/.bin/vitest",
+					},
+				],
+				recommendations: [
+					{
+						diagnostic: "node-substrate:foreign-platform-shims",
+						severity: "failure",
+						summary: "node_modules contains package-manager shims for a different platform.",
+						action: "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+						target: "node_modules/.bin/vitest -> node_modules/.bin/vitest.cmd",
+					},
+				],
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.failureCount).toBe(1);
+		expect(report.nextAction).toContain("rebuild/reopen the devcontainer");
+		expect(report.nextCommand).toBeNull();
 	});
 });
 
@@ -215,6 +269,7 @@ describe("checkCommand", () => {
 
 		await createCheckCommand(deps).parseAsync(["--json"], { from: "user" });
 
+		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
 		expect(deps.runHealth).toHaveBeenCalledOnce();
 		expect(deps.runDoctor).toHaveBeenCalledWith({ failOnWarnings: undefined });
 		expect(deps.runModelDoctor).toHaveBeenCalledOnce();
@@ -223,6 +278,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"command": "check"');
 		expect(output).toContain('"operation": "readiness"');
 		expect(output).toContain('"ok": true');
+		expect(output).toContain('"nodeSubstrate"');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');
 		expect(output).toContain('"model"');
@@ -264,6 +320,7 @@ describe("checkCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: FAIL");
+		expect(output).toContain("Node substrate: pass");
 		expect(output).toContain("Health: fail (1 issue)");
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");
 		expect(output).toContain("Model: pass (0 warnings)");
@@ -432,6 +489,57 @@ describe("checkCommand", () => {
 					summary: "A package is missing a build config.",
 					action: "Add the build config.",
 					target: "packages/example",
+				},
+			],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints node substrate recovery as the first next action without unsafe reinstall command", async () => {
+		const deps = makeDeps({
+			nodeSubstrate: {
+				ok: false,
+				platform: "win32",
+				missing: ["node_modules/.bin/vitest.cmd"],
+				foreignPlatformShims: [
+					{
+						binary: "vitest",
+						expected: "node_modules/.bin/vitest.cmd",
+						found: "node_modules/.bin/vitest",
+					},
+				],
+				recommendations: [
+					{
+						diagnostic: "node-substrate:foreign-platform-shims",
+						severity: "failure",
+						summary: "node_modules contains package-manager shims for a different platform.",
+						action: "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+						target: "node_modules/.bin/vitest -> node_modules/.bin/vitest.cmd",
+					},
+				],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+			nextActions: [
+				"Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+			],
+			nextCommand: null,
+			nextCommands: [],
+			recommendations: [
+				{
+					diagnostic: "node-substrate:foreign-platform-shims",
+					severity: "failure",
+					summary: "node_modules contains package-manager shims for a different platform.",
+					action: "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+					target: "node_modules/.bin/vitest -> node_modules/.bin/vitest.cmd",
 				},
 			],
 		});

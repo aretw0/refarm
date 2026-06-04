@@ -1,5 +1,8 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -19,6 +22,23 @@ import {
 } from "./model.js";
 import { resolveStatusPayload } from "./status.js";
 
+const NODE_SUBSTRATE_ENVIRONMENT_COMMAND = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
+const NODE_SUBSTRATE_INSTALL_COMMAND = "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
+
+export interface NodeSubstrateCheck {
+	command: "node-substrate";
+	operation: "check";
+	ok: boolean;
+	platform: NodeJS.Platform;
+	missing: string[];
+	foreignPlatformShims: Array<{
+		binary: string;
+		expected: string;
+		found: string;
+	}>;
+	recommendations: DiagnosticRecommendation[];
+}
+
 export interface RefarmCheckReport {
 	command: "check";
 	operation: "readiness";
@@ -29,6 +49,7 @@ export interface RefarmCheckReport {
 		health: HealthReport;
 		doctor: RefarmDoctorReport;
 		model?: ModelDoctorStatus;
+		nodeSubstrate?: NodeSubstrateCheck;
 	};
 	recommendations: DiagnosticRecommendation[];
 	nextAction: string | null;
@@ -56,20 +77,24 @@ export interface RefarmCheckDeps {
 	runHealth(): Promise<HealthReport>;
 	runDoctor(options: { failOnWarnings?: boolean }): Promise<RefarmDoctorReport>;
 	runModelDoctor?(): Promise<ModelDoctorStatus>;
+	runNodeSubstrate?(): Promise<NodeSubstrateCheck>;
 }
 
 export function buildRefarmCheckReport(checks: {
 	health: HealthReport;
 	doctor: RefarmDoctorReport;
 	model?: ModelDoctorStatus;
+	nodeSubstrate?: NodeSubstrateCheck;
 }): RefarmCheckReport {
 	const recommendations: DiagnosticRecommendation[] = [
+		...(checks.nodeSubstrate?.recommendations ?? []),
 		...checks.health.recommendations,
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
 	];
 	const blockingRecommendations = recommendations.filter(isBlockingRecommendation);
 	const failureCount =
+		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.health.ok ? 0 : checks.health.issueCount) +
 		checks.doctor.failureCount;
 
@@ -78,7 +103,7 @@ export function buildRefarmCheckReport(checks: {
 	return {
 		command: "check",
 		operation: "readiness",
-		ok: checks.health.ok && checks.doctor.ok,
+		ok: (checks.nodeSubstrate?.ok ?? true) && checks.health.ok && checks.doctor.ok,
 		failureCount,
 		warningCount:
 			checks.doctor.warningCount +
@@ -107,6 +132,11 @@ function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boo
 
 function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	console.log(chalk.bold(`Check: ${report.ok ? "PASS" : "FAIL"}`));
+	if (report.checks.nodeSubstrate) {
+		console.log(
+			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims)`,
+		);
+	}
 	console.log(
 		`Health: ${report.checks.health.ok ? "pass" : "fail"} (${report.checks.health.issueCount} issue${report.checks.health.issueCount === 1 ? "" : "s"})`,
 	);
@@ -181,11 +211,113 @@ async function runDefaultModelDoctor(): Promise<ModelDoctorStatus> {
 	return buildModelDoctorStatus(tokens);
 }
 
+async function exists(filePath: string): Promise<boolean> {
+	try {
+		await fs.access(filePath);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function expectedBinaryName(binary: string, platform: NodeJS.Platform): string {
+	return platform === "win32" ? `${binary}.cmd` : binary;
+}
+
+function foreignBinaryName(binary: string, platform: NodeJS.Platform): string {
+	return platform === "win32" ? binary : `${binary}.cmd`;
+}
+
+async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
+	const root = process.cwd();
+	const platform = os.platform();
+	const missing: string[] = [];
+	const foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"] = [];
+	for (const relativePath of [
+		"node_modules",
+		"path:node_modules/.bin",
+		...["vitest", "tsc", "eslint"].map(
+			(binary) => `bin:${binary}`,
+		),
+	]) {
+		if (relativePath.startsWith("bin:")) {
+			const binary = relativePath.slice("bin:".length);
+			const expected = path.join(
+				"node_modules",
+				".bin",
+				expectedBinaryName(binary, platform),
+			);
+			if (!(await exists(path.join(root, expected)))) {
+				missing.push(expected);
+				const found = path.join(
+					"node_modules",
+					".bin",
+					foreignBinaryName(binary, platform),
+				);
+				if (await exists(path.join(root, found))) {
+					foreignPlatformShims.push({ binary, expected, found });
+				}
+			}
+			continue;
+		}
+		const relative = relativePath.startsWith("path:")
+			? relativePath.slice("path:".length)
+			: relativePath;
+		if (!(await exists(path.join(root, relative)))) missing.push(relative);
+	}
+	const recommendations = buildNodeSubstrateRecommendations({
+		missing,
+		foreignPlatformShims,
+	});
+	return {
+		command: "node-substrate",
+		operation: "check",
+		ok: recommendations.length === 0,
+		platform,
+		missing,
+		foreignPlatformShims,
+		recommendations,
+	};
+}
+
+function buildNodeSubstrateRecommendations(input: {
+	missing: string[];
+	foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"];
+}): DiagnosticRecommendation[] {
+	if (input.foreignPlatformShims.length > 0) {
+		return [
+			{
+				diagnostic: "node-substrate:foreign-platform-shims",
+				severity: "failure",
+				summary: "node_modules contains package-manager shims for a different platform.",
+				action: NODE_SUBSTRATE_ENVIRONMENT_COMMAND,
+				target: input.foreignPlatformShims
+					.map((shim) => `${shim.found} -> ${shim.expected}`)
+					.join(", "),
+			},
+		];
+	}
+	if (input.missing.length > 0) {
+		return [
+			{
+				diagnostic: "node-substrate:missing-package-manager-bins",
+				severity: "failure",
+				summary: "node_modules is missing package-manager execution shims required by Refarm checks.",
+				action: NODE_SUBSTRATE_INSTALL_COMMAND,
+				command: "pnpm install --frozen-lockfile",
+				target: input.missing.join(", "),
+			},
+		];
+	}
+	return [];
+}
+
 export function createCheckCommand(
 	deps: RefarmCheckDeps = {
 		runHealth: runHealthAudit,
 		runDoctor: runDefaultDoctor,
 		runModelDoctor: runDefaultModelDoctor,
+		runNodeSubstrate: runDefaultNodeSubstrate,
 	},
 ): Command {
 	return new Command("check")
@@ -212,12 +344,18 @@ Notes:
 `,
 		)
 		.action(async (options: RefarmCheckOptions) => {
+			const nodeSubstrate = await deps.runNodeSubstrate?.();
 			const health = await deps.runHealth();
 			const doctor = await deps.runDoctor({
 				failOnWarnings: options.failOnWarnings,
 			});
 			const model = await deps.runModelDoctor?.();
-			const report = buildRefarmCheckReport({ health, doctor, model });
+			const report = buildRefarmCheckReport({
+				nodeSubstrate,
+				health,
+				doctor,
+				model,
+			});
 
 			if (options.nextCommand && options.json) {
 				printRefarmCheckNextActionJson(report);
