@@ -283,6 +283,11 @@ pnpm run node-substrate:check
   package-level `node_modules` links were materialized by the devcontainer.
   Non-executable recovery guidance belongs in `nextAction`; `nextCommand`
   should remain `null` unless it is an executable command string.
+- The `refarm` CLI entrypoint must remain a dependency-light bootstrap. If
+  package-level runtime dependencies cannot load, it should emit a JSON
+  `bootstrap/preflight` failure when JSON output is requested and point the
+  operator to `node scripts/ci/check-node-substrate.mjs --json`, instead of
+  crashing with a Node module-resolution stack trace.
 - After source edits:
 
 ```bash
