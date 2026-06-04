@@ -157,9 +157,39 @@ async function runtimeDependencyChecks() {
 	return results;
 }
 
+async function workspaceDependencyLinkChecks() {
+	const results = [];
+	for (const packageDir of workspacePackageDirs()) {
+		const manifestPath = path.join(packageDir, "package.json");
+		const manifest = await readJson(manifestPath);
+		if (!manifest) continue;
+		const relativePackageDir = path.relative(ROOT, packageDir).replaceAll(path.sep, "/");
+		const packageName = manifest.name ?? relativePackageDir;
+		const dependencyGroups = [
+			manifest.dependencies ?? {},
+			manifest.devDependencies ?? {},
+		];
+		for (const dependencies of dependencyGroups) {
+			for (const [dependency, version] of Object.entries(dependencies).sort()) {
+				if (typeof version !== "string" || !version.startsWith("workspace:")) continue;
+				const dependencyPackageJson = path.join(packageDir, "node_modules", dependency, "package.json");
+				results.push({
+					id: `workspace_dep_${packageName}_${dependency}`,
+					ok: await exists(dependencyPackageJson),
+					package: packageName,
+					dependency,
+					path: relativePackageDir,
+				});
+			}
+		}
+	}
+	return results;
+}
+
 const requiredBins = ["vitest", "tsc", "eslint"];
 const checks = [];
 const foreignPlatformShims = [];
+const workspaceLinkChecks = await workspaceDependencyLinkChecks();
 const runtimeChecks = await runtimeDependencyChecks();
 const devcontainerMountCheck = await devcontainerNodeModulesMountCheck();
 
@@ -199,6 +229,7 @@ for (const binary of requiredBins) {
 }
 
 const missing = checks.filter((check) => !check.ok);
+const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
 const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 const mountIssues = devcontainerMountCheck?.ok === false ? [devcontainerMountCheck] : [];
 const packageManager = await readPackageManager();
@@ -220,15 +251,23 @@ const recommendations = missing.length > 0 || mountIssues.length > 0
 			"Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
 		]
 	: [];
-if (missingRuntimeDependencies.length > 0 && !recommendations.includes(installCommand)) {
+if (
+	(missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0) &&
+	!recommendations.includes(installCommand)
+) {
 	recommendations.push(installCommand);
 }
 const result = {
-	ok: missing.length === 0 && missingRuntimeDependencies.length === 0 && mountIssues.length === 0,
+	ok: missing.length === 0 &&
+		missingWorkspaceDependencyLinks.length === 0 &&
+		missingRuntimeDependencies.length === 0 &&
+		mountIssues.length === 0,
 	platform: process.platform,
 	packageManager,
 	checks,
 	missing,
+	workspaceLinkCount: workspaceLinkChecks.length,
+	missingWorkspaceDependencyLinks,
 	runtimeChecks,
 	missingRuntimeDependencies,
 	foreignPlatformShims,
@@ -236,9 +275,9 @@ const result = {
 	recommendations,
 	command: "node-substrate",
 	operation: "check",
-	nextAction: missing.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
+	nextAction: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
 	nextActions: recommendations,
-	nextCommand: missing.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
+	nextCommand: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
 	nextCommands: recommendations,
 };
 
@@ -253,6 +292,9 @@ if (json) {
 	}
 	for (const shim of foreignPlatformShims) {
 		console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
+	}
+	for (const dependency of missingWorkspaceDependencyLinks) {
+		console.error(`  unresolved workspace dependency link: ${dependency.package} -> ${dependency.dependency}`);
 	}
 	for (const dependency of missingRuntimeDependencies) {
 		console.error(`  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`);

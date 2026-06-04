@@ -47,6 +47,14 @@ export interface NodeSubstrateCheck {
 		path: string;
 		target: string;
 	}>;
+	workspaceLinkCount: number;
+	missingWorkspaceDependencyLinks: Array<{
+		id: string;
+		ok: boolean;
+		package: string;
+		dependency: string;
+		path: string;
+	}>;
 	runtimeChecks: Array<{
 		id: string;
 		ok: boolean;
@@ -180,7 +188,7 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	console.log(chalk.bold(`Check: ${report.ok ? "PASS" : "FAIL"}`));
 	if (report.checks.nodeSubstrate) {
 		console.log(
-			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues, ${report.checks.nodeSubstrate.missingRuntimeDependencies.length} runtime deps)`,
+			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues, ${report.checks.nodeSubstrate.missingWorkspaceDependencyLinks.length} workspace links, ${report.checks.nodeSubstrate.missingRuntimeDependencies.length} runtime deps)`,
 		);
 	}
 	if (report.checks.rustSubstrate?.required) {
@@ -317,12 +325,15 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		if (!(await exists(path.join(root, relative)))) missing.push(relative);
 	}
 	const mountIssues = await findNodeSubstrateMountIssues(root);
+	const workspaceLinkChecks = await findNodeSubstrateWorkspaceLinkChecks(root);
+	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
 	const runtimeChecks = await findNodeSubstrateRuntimeChecks(root);
 	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 	const recommendations = buildNodeSubstrateRecommendations({
 		missing,
 		foreignPlatformShims,
 		mountIssues,
+		missingWorkspaceDependencyLinks,
 		missingRuntimeDependencies,
 	});
 	return {
@@ -333,6 +344,8 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		missing,
 		foreignPlatformShims,
 		mountIssues,
+		workspaceLinkCount: workspaceLinkChecks.length,
+		missingWorkspaceDependencyLinks,
 		runtimeChecks,
 		missingRuntimeDependencies,
 		recommendations,
@@ -343,6 +356,7 @@ function buildNodeSubstrateRecommendations(input: {
 	missing: string[];
 	foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"];
 	mountIssues: NodeSubstrateCheck["mountIssues"];
+	missingWorkspaceDependencyLinks: NodeSubstrateCheck["missingWorkspaceDependencyLinks"];
 	missingRuntimeDependencies: NodeSubstrateCheck["missingRuntimeDependencies"];
 }): DiagnosticRecommendation[] {
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
@@ -376,6 +390,20 @@ function buildNodeSubstrateRecommendations(input: {
 			},
 		];
 	}
+	if (input.missingWorkspaceDependencyLinks.length > 0) {
+		return [
+			{
+				diagnostic: "node-substrate:missing-workspace-dependency-links",
+				severity: "failure",
+				summary: "One or more workspace package links are not materialized for this environment.",
+				action: NODE_SUBSTRATE_INSTALL_COMMAND,
+				command: "pnpm install --frozen-lockfile",
+				target: input.missingWorkspaceDependencyLinks
+					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
+					.join(", "),
+			},
+		];
+	}
 	if (input.missingRuntimeDependencies.length > 0) {
 		return [
 			{
@@ -393,10 +421,80 @@ function buildNodeSubstrateRecommendations(input: {
 	return [];
 }
 
+async function findNodeSubstrateWorkspaceLinkChecks(
+	root: string,
+): Promise<NodeSubstrateCheck["missingWorkspaceDependencyLinks"]> {
+	const checks: NodeSubstrateCheck["missingWorkspaceDependencyLinks"] = [];
+	for await (const workspacePackage of readWorkspacePackageManifests(root)) {
+		for (const dependencies of [
+			workspacePackage.manifest.dependencies ?? {},
+			workspacePackage.manifest.devDependencies ?? {},
+		]) {
+			for (const [dependency, version] of Object.entries(dependencies).sort()) {
+				if (!version.startsWith("workspace:")) continue;
+				const dependencyPackageJson = path.join(
+					workspacePackage.packageDir,
+					"node_modules",
+					dependency,
+					"package.json",
+				);
+				checks.push({
+					id: `workspace_dep_${workspacePackage.packageName}_${dependency}`,
+					ok: await exists(dependencyPackageJson),
+					package: workspacePackage.packageName,
+					dependency,
+					path: workspacePackage.relativePackageDir,
+				});
+			}
+		}
+	}
+	return checks;
+}
+
 async function findNodeSubstrateRuntimeChecks(
 	root: string,
 ): Promise<NodeSubstrateCheck["runtimeChecks"]> {
 	const checks: NodeSubstrateCheck["runtimeChecks"] = [];
+	for await (const workspacePackage of readWorkspacePackageManifests(root)) {
+		if (!workspacePackage.manifest.bin || !workspacePackage.manifest.dependencies) continue;
+		const requireFromPackage = createRequire(workspacePackage.manifestPath);
+		for (const [dependency, version] of Object.entries(workspacePackage.manifest.dependencies).sort()) {
+			if (version.startsWith("workspace:")) continue;
+			try {
+				requireFromPackage.resolve(dependency);
+				checks.push({
+					id: `runtime_dep_${workspacePackage.packageName}_${dependency}`,
+					ok: true,
+					package: workspacePackage.packageName,
+					dependency,
+					path: workspacePackage.relativePackageDir,
+				});
+			} catch {
+				checks.push({
+					id: `runtime_dep_${workspacePackage.packageName}_${dependency}`,
+					ok: false,
+					package: workspacePackage.packageName,
+					dependency,
+					path: workspacePackage.relativePackageDir,
+				});
+			}
+		}
+	}
+	return checks;
+}
+
+async function* readWorkspacePackageManifests(root: string): AsyncGenerator<{
+	packageDir: string;
+	manifestPath: string;
+	relativePackageDir: string;
+	packageName: string;
+	manifest: {
+		name?: string;
+		bin?: unknown;
+		dependencies?: Record<string, string>;
+		devDependencies?: Record<string, string>;
+	};
+}> {
 	for (const workspaceGroup of ["apps", "packages"]) {
 		const groupPath = path.join(root, workspaceGroup);
 		let entries: Array<{ name: string; isDirectory(): boolean }>;
@@ -419,34 +517,16 @@ async function findNodeSubstrateRuntimeChecks(
 			} catch {
 				continue;
 			}
-			if (!manifest.bin || !manifest.dependencies) continue;
-			const packageName = manifest.name ?? path.relative(root, packageDir);
 			const relativePackageDir = path.relative(root, packageDir);
-			const requireFromPackage = createRequire(manifestPath);
-			for (const [dependency, version] of Object.entries(manifest.dependencies).sort()) {
-				if (version.startsWith("workspace:")) continue;
-				try {
-					requireFromPackage.resolve(dependency);
-					checks.push({
-						id: `runtime_dep_${packageName}_${dependency}`,
-						ok: true,
-						package: packageName,
-						dependency,
-						path: relativePackageDir,
-					});
-				} catch {
-					checks.push({
-						id: `runtime_dep_${packageName}_${dependency}`,
-						ok: false,
-						package: packageName,
-						dependency,
-						path: relativePackageDir,
-					});
-				}
-			}
+			yield {
+				packageDir,
+				manifestPath,
+				relativePackageDir,
+				packageName: manifest.name ?? relativePackageDir,
+				manifest,
+			};
 		}
 	}
-	return checks;
 }
 
 async function findNodeSubstrateMountIssues(

@@ -14,6 +14,8 @@ function makeWorkspace({
 	withForeignBins = false,
 	withDevcontainerNodeModulesVolume = false,
 	withCliRuntimePackage = false,
+	withWorkspaceLinkPackage = false,
+	withMaterializedWorkspaceLink = false,
 } = {}) {
 	const tempDir = mkdtempSync(path.join(tmpdir(), "refarm-node-substrate-"));
 	writeFileSync(
@@ -70,6 +72,31 @@ function makeWorkspace({
 			}, null, 2)}\n`,
 			"utf8",
 		);
+	}
+
+	if (withWorkspaceLinkPackage) {
+		const packageDir = path.join(tempDir, "packages", "consumer");
+		mkdirSync(packageDir, { recursive: true });
+		writeFileSync(
+			path.join(packageDir, "package.json"),
+			`${JSON.stringify({
+				name: "@sample/consumer",
+				type: "module",
+				dependencies: {
+					"@sample/internal": "workspace:*",
+				},
+			}, null, 2)}\n`,
+			"utf8",
+		);
+		if (withMaterializedWorkspaceLink) {
+			const dependencyDir = path.join(packageDir, "node_modules", "@sample", "internal");
+			mkdirSync(dependencyDir, { recursive: true });
+			writeFileSync(
+				path.join(dependencyDir, "package.json"),
+				`${JSON.stringify({ name: "@sample/internal" }, null, 2)}\n`,
+				"utf8",
+			);
+		}
 	}
 
 	return tempDir;
@@ -164,6 +191,45 @@ test("node substrate check reports unresolved external runtime dependencies for 
 			[["@sample/cli", "chalk"]],
 		);
 		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check reports missing workspace dependency links", () => {
+	const tempDir = makeWorkspace({ withBins: true, withWorkspaceLinkPackage: true });
+	try {
+		const result = runCheck(tempDir);
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.deepEqual(
+			payload.missingWorkspaceDependencyLinks.map((dependency) => [
+				dependency.package,
+				dependency.dependency,
+			]),
+			[["@sample/consumer", "@sample/internal"]],
+		);
+		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check accepts materialized workspace dependency links", () => {
+	const tempDir = makeWorkspace({
+		withBins: true,
+		withWorkspaceLinkPackage: true,
+		withMaterializedWorkspaceLink: true,
+	});
+	try {
+		const result = runCheck(tempDir);
+		assert.equal(result.status, 0, result.stderr);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, true);
+		assert.deepEqual(payload.missingWorkspaceDependencyLinks, []);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
