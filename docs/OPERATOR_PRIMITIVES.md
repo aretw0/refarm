@@ -197,6 +197,10 @@ Rules:
 - Large generated fixtures, lockfiles, and project state may be reported as
   allowed findings; source and hand-written tests should normally be blocking
   unless there is a documented extraction plan.
+- The report includes `category` and `summaryByCategory` so agents can separate
+  source, test, docs, scripts, fixtures, and project-state pressure before
+  choosing whether to split from below (shared helper/package) or above
+  (command/test decomposition).
 - Outside Refarm, the default policy is generic `workspace`; consumer-specific
   generated docs, skill packages, or non-TS package layouts belong in that
   repo's `refarm.config.json`.

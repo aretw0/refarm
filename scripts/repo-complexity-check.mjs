@@ -39,7 +39,36 @@ function isAllowedLargeFile(file) {
 	if (ALLOWED_BASENAMES.has(basename)) return "allowed:lock-or-history";
 	if (normalized.startsWith(".project/")) return "allowed:project-state";
 	if (normalized.includes("/fixtures/")) return "allowed:fixture";
+	if (
+		normalized.startsWith("public/sqlite3-") ||
+		normalized.includes("/public/sqlite3-")
+	) {
+		return "allowed:vendored-artifact";
+	}
 	return null;
+}
+
+function classifyFile(file) {
+	const normalized = normalizePath(file);
+	if (normalized.startsWith(".project/")) return "project-state";
+	if (normalized.includes("/fixtures/")) return "fixture";
+	if (normalized.includes("/test/") || normalized.includes(".test.")) return "test";
+	if (
+		normalized.startsWith("docs/") ||
+		normalized.startsWith("specs/") ||
+		normalized.endsWith(".md")
+	) {
+		return "docs";
+	}
+	if (normalized.startsWith("scripts/")) return "script";
+	if (
+		normalized.startsWith("apps/") ||
+		normalized.startsWith("packages/") ||
+		normalized.startsWith("validations/")
+	) {
+		return "source";
+	}
+	return "other";
 }
 
 function countLines(text) {
@@ -60,6 +89,7 @@ export function scanFiles(files, maxLines = DEFAULT_MAX_COMPLEXITY_LINES, option
 		if (lines <= maxLines) return [];
 		const allowed = isAllowedLargeFile(relativeFile);
 		return [{
+			category: classifyFile(relativeFile),
 			file: relativeFile,
 			lines,
 			size: stat.size,
@@ -87,6 +117,28 @@ function changedFiles(cwd, base) {
 	return gitLines(cwd, ["diff", "--name-only", "--diff-filter=ACMR", base, "--"]);
 }
 
+function summarizeFindingsByCategory(findings) {
+	return Object.fromEntries(
+		Object.entries(
+			findings.reduce((summary, finding) => {
+				const current = summary[finding.category] ?? {
+					allowed: 0,
+					blocking: 0,
+					files: 0,
+					maxLines: 0,
+					totalLines: 0,
+				};
+				current.files += 1;
+				current.totalLines += finding.lines;
+				current.maxLines = Math.max(current.maxLines, finding.lines);
+				if (finding.note.startsWith("allowed:")) current.allowed += 1;
+				else current.blocking += 1;
+				return { ...summary, [finding.category]: current };
+			}, {}),
+		).sort(([left], [right]) => left.localeCompare(right)),
+	);
+}
+
 export function buildRepoComplexityReport(cwd = process.cwd(), options = {}) {
 	const maxLines = options.maxLines ?? DEFAULT_MAX_COMPLEXITY_LINES;
 	const files = options.files ?? (options.changed
@@ -104,6 +156,7 @@ export function buildRepoComplexityReport(cwd = process.cwd(), options = {}) {
 		totalFindings: findings.length,
 		blockingFindings,
 		allowedFindings,
+		summaryByCategory: summarizeFindingsByCategory(findings),
 		findings,
 	};
 }
@@ -168,7 +221,7 @@ function printReport(report) {
 		console.log(`complexity-check: ${report.blockingFindings.length} blocking file(s) over ${report.maxLines} lines`);
 	}
 	for (const finding of report.findings.slice(0, 40)) {
-		console.log(`  - ${finding.file} | lines=${finding.lines} | size=${formatBytes(finding.size)} | ${finding.note}`);
+		console.log(`  - ${finding.file} | category=${finding.category} | lines=${finding.lines} | size=${formatBytes(finding.size)} | ${finding.note}`);
 	}
 	if (report.findings.length > 40) {
 		console.log(`  ... (+${report.findings.length - 40} more)`);
