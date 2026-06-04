@@ -1,4 +1,5 @@
 import {
+	ComplexityAuditor,
 	FileSystemAuditor,
 	HealthCore,
 	ProjectAuditor,
@@ -22,6 +23,11 @@ export interface HealthIssue {
   package?: string;
   type: string;
   entry?: string;
+  category?: string;
+  lines?: number;
+  size?: number;
+  allowed?: boolean;
+  note?: string;
 }
 
 export interface HealthRecommendation extends DiagnosticRecommendation {
@@ -32,6 +38,8 @@ export interface HealthResults {
   git: HealthIssue[];
   builds: HealthIssue[];
   alignment: HealthIssue[];
+  complexity?: HealthIssue[];
+  complexitySummary?: unknown;
 }
 
 export interface ResolutionStatus {
@@ -111,7 +119,16 @@ interface HealthPolicy {
   workspaceRoots?: string[];
   exemptPackageIds?: string[];
   ignoredGitVisibilityPatterns: string[];
+  complexity?: HealthComplexityPolicy;
   title?: string;
+}
+
+interface HealthComplexityPolicy {
+  enabled: boolean;
+  maxLines: number;
+  paths?: string[];
+  allowedPatterns: string[];
+  reportLimit: number;
 }
 
 interface RefarmConfig {
@@ -120,6 +137,7 @@ interface RefarmConfig {
     workspaceRoots?: unknown;
     exemptPackageIds?: unknown;
     ignoredGitVisibilityPatterns?: unknown;
+    complexity?: unknown;
     title?: unknown;
   };
 }
@@ -162,7 +180,10 @@ export function buildHealthReport(
   results: HealthResults,
   resolution: ResolutionStatus[],
 ): HealthReport {
-  const issueCount = results.git.length + results.builds.length + results.alignment.length;
+  const issueCount = results.git.length
+    + results.builds.length
+    + results.alignment.length
+    + (results.complexity?.length ?? 0);
   const recommendations = buildHealthRecommendations(results);
   const nextActions = diagnosticNextActions(recommendations);
   const nextCommands = diagnosticNextCommands(recommendations);
@@ -206,6 +227,14 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       summary: `${issue.package ?? "A workspace package"} resolves to ${issue.entry ?? "source"} instead of its build output.`,
       action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
       command: RESOLUTION_ALIGNMENT_COMMAND,
+    })),
+    ...(results.complexity ?? []).map((issue) => ({
+      issueType: issue.type,
+      diagnostic: issue.type,
+      target: issue.file,
+      summary: `${issue.file ?? "A workspace file"} has ${issue.lines ?? "too many"} lines.`,
+      action: "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
+      command: HEALTH_SUGGEST_POLICY_COMMAND,
     })),
   ];
 }
@@ -274,6 +303,9 @@ export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicy
     policy.title = health.title;
   }
 
+  const complexity = normalizeComplexityPolicy(health.complexity);
+  if (complexity) policy.complexity = complexity;
+
   return buildHealthPolicyReport({
     rootDir,
     configPath,
@@ -286,6 +318,30 @@ export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicy
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function asPositiveInteger(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.floor(value);
+}
+
+function normalizeComplexityPolicy(value: unknown): HealthComplexityPolicy | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const input = value as {
+    enabled?: unknown;
+    maxLines?: unknown;
+    paths?: unknown;
+    allowedPatterns?: unknown;
+    reportLimit?: unknown;
+  };
+  if (input.enabled !== true) return undefined;
+  return {
+    enabled: true,
+    maxLines: asPositiveInteger(input.maxLines, 1000),
+    paths: asStringArray(input.paths),
+    allowedPatterns: asStringArray(input.allowedPatterns),
+    reportLimit: asPositiveInteger(input.reportLimit, 10),
+  };
 }
 
 function buildHealthPolicyReport(options: {
@@ -364,6 +420,17 @@ function emitHealthSummary(report: HealthReport): void {
     });
   }
 
+  console.log(chalk.bold("\n4. Complexity Pressure"));
+  if (!report.results.complexity) {
+    console.log(chalk.gray("   Not enabled in health policy."));
+  } else if (report.results.complexity.length === 0) {
+    console.log(chalk.green("   ✅ No blocking large files found."));
+  } else {
+    report.results.complexity.forEach((issue: HealthIssue) => {
+      console.log(chalk.yellow(`   ⚠️  ${issue.file} has ${issue.lines} lines.`));
+    });
+  }
+
   if (report.ok) {
     console.log(chalk.bold.green("\n✨ All checks passed."));
   } else {
@@ -394,6 +461,15 @@ function emitHealthPolicySummary(report: HealthPolicyReport): void {
   if (report.policy.ignoredGitVisibilityPatterns.length) {
     console.log(`   Ignored git visibility patterns: ${report.policy.ignoredGitVisibilityPatterns.join(", ")}`);
   }
+  if (report.policy.complexity?.enabled) {
+    console.log(`   Complexity max lines: ${report.policy.complexity.maxLines}`);
+    if (report.policy.complexity.paths?.length) {
+      console.log(`   Complexity paths: ${report.policy.complexity.paths.join(", ")}`);
+    }
+    if (report.policy.complexity.allowedPatterns.length) {
+      console.log(`   Complexity allowed patterns: ${report.policy.complexity.allowedPatterns.join(", ")}`);
+    }
+  }
 }
 
 function emitHealthPolicySuggestionSummary(report: HealthPolicySuggestionReport): void {
@@ -419,6 +495,14 @@ export async function runHealthAudit(): Promise<HealthReport> {
       ? new RefarmProjectAuditor(policy)
       : new ProjectAuditor(policy),
   );
+  if (policy.complexity?.enabled) {
+    health.register(new ComplexityAuditor({
+      maxLines: policy.complexity.maxLines,
+      paths: policy.complexity.paths?.length ? policy.complexity.paths : policy.workspaceRoots,
+      allowedPatterns: policy.complexity.allowedPatterns,
+      reportLimit: policy.complexity.reportLimit,
+    }));
+  }
 
   const results = await health.audit() as HealthResults;
   const resolution = await health.checkResolutionStatus() as ResolutionStatus[];
@@ -497,6 +581,7 @@ export function suggestHealthPolicy(policy: HealthPolicy, results: HealthResults
     ...(policy.workspaceRoots ? { workspaceRoots: policy.workspaceRoots } : {}),
     ...(exemptPackageIds.length > 0 ? { exemptPackageIds } : {}),
     ignoredGitVisibilityPatterns,
+    ...(policy.complexity ? { complexity: policy.complexity } : {}),
     ...(policy.title ? { title: policy.title } : {}),
   };
 }

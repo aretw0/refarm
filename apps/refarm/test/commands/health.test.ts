@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockAudit,
   mockCheckResolutionStatus,
+  mockComplexityAuditor,
   mockFileSystemAuditor,
   mockProjectAuditor,
   mockRefarmProjectAuditor,
@@ -12,6 +13,7 @@ const {
 } = vi.hoisted(() => ({
   mockAudit: vi.fn().mockResolvedValue({ git: [], builds: [], alignment: [] }),
   mockCheckResolutionStatus: vi.fn().mockResolvedValue([]),
+  mockComplexityAuditor: vi.fn(),
   mockFileSystemAuditor: vi.fn(),
   mockProjectAuditor: vi.fn(),
   mockRefarmProjectAuditor: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock("@refarm.dev/health", () => ({
   HealthCore: vi.fn().mockImplementation(function () {
     return { register: vi.fn(), audit: mockAudit, checkResolutionStatus: mockCheckResolutionStatus };
   }),
+  ComplexityAuditor: mockComplexityAuditor,
   FileSystemAuditor: mockFileSystemAuditor,
   ProjectAuditor: mockProjectAuditor,
   RefarmProjectAuditor: mockRefarmProjectAuditor,
@@ -60,18 +63,20 @@ describe("buildHealthReport", () => {
         git: [{ file: "src/ignored.ts", type: "ignored" }],
         builds: [{ package: "apps/missing-build", type: "missing_build_config" }],
         alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+        complexity: [{ file: "src/large.ts", type: "complexity_large_file", lines: 1200 }],
       },
       [{ package: "packages/local", mode: "LOCAL (src)" }],
     );
 
     expect(report.ok).toBe(false);
-    expect(report.issueCount).toBe(3);
+    expect(report.issueCount).toBe(4);
     expect(report.resolution).toEqual([{ package: "packages/local", mode: "LOCAL (src)" }]);
-    expect(report.recommendations).toHaveLength(3);
+    expect(report.recommendations).toHaveLength(4);
     expect(report.nextActions).toEqual([
       "Track the source file, or add an explicit health policy exclusion if it is generated.",
       "Add the package build configuration or mark the package exempt in the project health policy.",
       "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+      "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
     ]);
     expect(report.nextCommands).toEqual([
       "refarm health --suggest-policy --json",
@@ -87,6 +92,7 @@ describe("buildHealthRecommendations", () => {
         git: [{ file: "src/generated.ts", type: "git_ignored" }],
         builds: [{ package: "packages/missing-build", type: "missing_build_config" }],
         alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+        complexity: [{ file: "src/large.ts", type: "complexity_large_file", lines: 1200 }],
       }),
     ).toEqual([
       {
@@ -112,6 +118,14 @@ describe("buildHealthRecommendations", () => {
         summary: "packages/local resolves to src/ instead of its build output.",
         action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
         command: "node packages/toolbox/src/cli.mjs reso dist",
+      },
+      {
+        issueType: "complexity_large_file",
+        diagnostic: "complexity_large_file",
+        target: "src/large.ts",
+        summary: "src/large.ts has 1200 lines.",
+        action: "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
+        command: "refarm health --suggest-policy --json",
       },
     ]);
   });
@@ -223,6 +237,7 @@ describe("healthCommand", () => {
       ignoredGitVisibilityPatterns: [],
     });
     expect(mockRefarmProjectAuditor).not.toHaveBeenCalled();
+    expect(mockComplexityAuditor).not.toHaveBeenCalled();
   });
 
   it("uses generic workspace policy from refarm.config.json when configured", async () => {
@@ -250,6 +265,32 @@ describe("healthCommand", () => {
     });
     expect(mockProjectAuditor).toHaveBeenCalledWith(expectedPolicy);
     expect(mockRefarmProjectAuditor).not.toHaveBeenCalled();
+    expect(mockComplexityAuditor).not.toHaveBeenCalled();
+  });
+
+  it("registers complexity auditor only when health policy enables it", async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        workspaceRoots: ["modules"],
+        complexity: {
+          enabled: true,
+          maxLines: 800,
+          paths: ["modules"],
+          allowedPatterns: ["modules/generated/**"],
+          reportLimit: 5,
+        },
+      },
+    }));
+
+    await healthCommand.parseAsync([], { from: "user" });
+
+    expect(mockComplexityAuditor).toHaveBeenCalledWith({
+      maxLines: 800,
+      paths: ["modules"],
+      allowedPatterns: ["modules/generated/**"],
+      reportLimit: 5,
+    });
   });
 
   it("does not throw when all checks pass", async () => {
@@ -605,6 +646,51 @@ describe("resolveHealthPolicy", () => {
       exemptPackageIds: ["packages/meta"],
       ignoredGitVisibilityPatterns: ["**/*.generated.ts"],
       title: "Configured Health",
+    });
+  });
+
+  it("normalizes opt-in complexity policy", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        preset: "workspace",
+        complexity: {
+          enabled: true,
+          maxLines: 750,
+          paths: ["src", "", 1],
+          allowedPatterns: ["src/generated/**", false],
+          reportLimit: 4,
+        },
+      },
+    }));
+
+    expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "workspace",
+      ignoredGitVisibilityPatterns: [],
+      complexity: {
+        enabled: true,
+        maxLines: 750,
+        paths: ["src"],
+        allowedPatterns: ["src/generated/**"],
+        reportLimit: 4,
+      },
+    });
+  });
+
+  it("ignores complexity policy unless explicitly enabled", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        preset: "workspace",
+        complexity: {
+          maxLines: 750,
+        },
+      },
+    }));
+
+    expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "workspace",
+      ignoredGitVisibilityPatterns: [],
     });
   });
 

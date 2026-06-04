@@ -64,11 +64,16 @@ export class HealthCore {
         }
 
         if (results.project) {
-            return {
+            const projectResult = {
                 ...results.project,
                 _orchestrator: results,
                 _policy: policy
             };
+            if (results.complexity) {
+                projectResult.complexity = results.complexity.blockingFindings || [];
+                projectResult.complexitySummary = results.complexity;
+            }
+            return projectResult;
         }
 
         return results;
@@ -86,5 +91,6 @@ export class HealthCore {
 
 import { FileSystemAuditor } from "./auditors/generic.js";
 import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
+import { ComplexityAuditor } from "./auditors/complexity.js";
 
-export { FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };
+export { ComplexityAuditor, FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };

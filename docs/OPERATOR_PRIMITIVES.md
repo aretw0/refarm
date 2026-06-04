@@ -208,6 +208,11 @@ Rules:
 - Outside Refarm, the default policy is generic `workspace`; consumer-specific
   generated docs, skill packages, or non-TS package layouts belong in that
   repo's `refarm.config.json`.
+- Workspaces can opt in to ecosystem-level complexity pressure through
+  `health.complexity` in `refarm.config.json`. When enabled,
+  `refarm health --json` reports blocking large files alongside git/build
+  diagnostics, so `refarm check --json` can carry the same pain into an
+  agentic daily-driver loop.
 - `refarm health --next-action --json` and
   `refarm check --next-action --json` should point to
   `refarm health --suggest-policy --json` when the next useful move is policy

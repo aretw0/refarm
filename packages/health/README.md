@@ -9,6 +9,7 @@ are workspace-agnostic.
 - **Project Diagnostics**: Automated checks for workspace structure, build config, and package entrypoints.
 - **Build Verification**: Ensuring required source/build contracts are present and valid.
 - **Configurable Project Policy**: `ProjectAuditor` is generic by default; `RefarmProjectAuditor` is only a convenience preset with Refarm roots and exemptions.
+- **Opt-in Complexity Pressure**: `ComplexityAuditor` reports large hand-written files when a workspace enables `health.complexity`.
 - **Actionable Output**: `refarm health --json` includes stable `recommendations` for agents and CI wrappers.
 
 ## CLI Policy
@@ -42,6 +43,13 @@ Projects can calibrate the generic auditor by declaring a `health` section in
     "workspaceRoots": ["packages", "apps"],
     "exemptPackageIds": ["packages/meta"],
     "ignoredGitVisibilityPatterns": ["**/*.generated.ts"],
+    "complexity": {
+      "enabled": true,
+      "maxLines": 1000,
+      "paths": ["packages", "apps"],
+      "allowedPatterns": ["packages/generated/**"],
+      "reportLimit": 10
+    },
     "title": "Workspace Health"
   }
 }
