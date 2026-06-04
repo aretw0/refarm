@@ -27,6 +27,11 @@ const {
 });
 
 vi.mock("node:fs", () => ({
+	default: {
+		readFileSync: mockReadFileSync,
+		existsSync: mockExistsSync,
+		copyFileSync: mockCopyFileSync,
+	},
 	readFileSync: mockReadFileSync,
 	existsSync: mockExistsSync,
 	copyFileSync: mockCopyFileSync,
@@ -131,6 +136,44 @@ describe("plugin install", () => {
 			expect.stringContaining("not found in node_modules"),
 		);
 		consoleSpy.mockRestore();
+	});
+
+	it("installs bundled runtime agent from local workspace when root node_modules does not link it", async () => {
+		mockRequireResolve.mockImplementation(() => {
+			throw new Error("MODULE_NOT_FOUND");
+		});
+		mockExistsSync.mockImplementation((input) => {
+			const value = String(input).replace(/\\/g, "/");
+			return value.endsWith("packages/pi-agent/package.json") ||
+				value.endsWith("packages/pi-agent/dist/pi_agent.wasm");
+		});
+		mockReadFileSync
+			.mockReturnValueOnce(JSON.stringify({ name: "@refarm.dev/pi-agent", version: "0.4.1" }))
+			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
+			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" }));
+		mockReadFile.mockRejectedValue(new Error("ENOENT"));
+		mockDigest.mockReturnValue("deadbeef");
+
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await run("install");
+
+		expect(mockCopyFileSync).toHaveBeenCalledWith(
+			expect.stringContaining("packages"),
+			expect.stringContaining("plugin.wasm"),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("installed"),
+		);
+		consoleSpy.mockRestore();
+		mockRequireResolve.mockReset();
+		mockExistsSync.mockReset();
+		mockReadFileSync.mockReset();
+		mockReadFile.mockReset();
+		mockReadFile.mockResolvedValue("");
+		mockDigest.mockReset();
+		mockDigest.mockReturnValue("abc123");
 	});
 
 	it("reports failure when WASM file is missing", async () => {

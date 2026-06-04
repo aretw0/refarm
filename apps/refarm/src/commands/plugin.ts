@@ -52,6 +52,7 @@ const BUNDLED_PLUGINS = [
 	{
 		id: RUNTIME_AGENT_PLUGIN_ID,
 		npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
+		workspaceDir: "packages/pi-agent",
 		wasmFile: "dist/pi_agent.wasm",
 		manifestFile: "dist/plugin.json",
 		requiredProvides: ["agent:respond"],
@@ -168,7 +169,7 @@ function localRuntimeAgentBuildCommand(): string {
 	}).display;
 }
 
-function resolvePackageDir(packageName: string): string | null {
+function resolvePackageDirFromNodeModules(packageName: string): string | null {
 	try {
 		const require = createRequire(import.meta.url);
 		const pkgJsonPath = require.resolve(`${packageName}/package.json`);
@@ -178,11 +179,34 @@ function resolvePackageDir(packageName: string): string | null {
 	}
 }
 
-function readPackageVersion(packageName: string): string | null {
+function resolveWorkspacePackageDir(plugin: BundledPlugin): string | null {
+	if (!("workspaceDir" in plugin)) return null;
+	let current = process.cwd();
+	while (true) {
+		const pkgDir = path.join(current, plugin.workspaceDir);
+		const pkgJsonPath = path.join(pkgDir, "package.json");
+		if (existsSync(pkgJsonPath)) {
+			try {
+				const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8")) as { name?: string };
+				if (pkgJson.name === plugin.npmPackage) return pkgDir;
+			} catch {
+				return null;
+			}
+		}
+		const parent = path.dirname(current);
+		if (parent === current) return null;
+		current = parent;
+	}
+}
+
+function resolvePackageDir(plugin: BundledPlugin): string | null {
+	return resolvePackageDirFromNodeModules(plugin.npmPackage) ?? resolveWorkspacePackageDir(plugin);
+}
+
+function readPackageVersion(pkgDir: string): string | null {
 	try {
-		const require = createRequire(import.meta.url);
 		const pkgJson = JSON.parse(
-			readFileSync(require.resolve(`${packageName}/package.json`), "utf-8"),
+			readFileSync(path.join(pkgDir, "package.json"), "utf-8"),
 		) as { version?: string };
 		return pkgJson.version ?? null;
 	} catch {
@@ -238,8 +262,8 @@ async function installPlugin(
 	options: { quiet?: boolean } = {},
 ): Promise<PluginInstallResult> {
 	const quiet = options.quiet === true;
-	const pkgVersion = readPackageVersion(plugin.npmPackage);
-	if (!pkgVersion) {
+	const pkgDir = resolvePackageDir(plugin);
+	if (!pkgDir) {
 		const message = `package ${plugin.npmPackage} not found in node_modules`;
 		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
 		return {
@@ -251,15 +275,15 @@ async function installPlugin(
 		};
 	}
 
-	const pkgDir = resolvePackageDir(plugin.npmPackage);
-	if (!pkgDir) {
-		const message = "cannot locate package directory";
+	const pkgVersion = readPackageVersion(pkgDir);
+	if (!pkgVersion) {
+		const message = "cannot read package version";
 		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
 		return {
 			id: plugin.id,
 			packageName: plugin.npmPackage,
 			status: "failed",
-			version: pkgVersion,
+			version: null,
 			message,
 		};
 	}
