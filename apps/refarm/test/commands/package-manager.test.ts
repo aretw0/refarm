@@ -187,6 +187,32 @@ describe("package manager command resolution", () => {
 		}
 	});
 
+	it("formats repo-relative script command paths with portable separators", () => {
+		const dir = mkdtempSync(join(tmpdir(), "refarm-pm-path-test-"));
+		const appDir = join(dir, "apps", "refarm");
+		mkdirSync(appDir, { recursive: true });
+		writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@11.1.2" }));
+		writeFileSync(join(appDir, "package.json"), JSON.stringify({ name: "@refarm.dev/refarm" }));
+
+		try {
+			expect(
+				createPackageScriptCommand({
+					cwd: appDir,
+					repoRoot: dir,
+					script: "test:handoffs",
+					env: {},
+				}),
+			).toEqual({
+				packageManager: "pnpm",
+				command: "pnpm",
+				args: ["-C", "apps/refarm", "run", "test:handoffs"],
+				display: "pnpm -C apps/refarm run test:handoffs",
+			});
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it("formats run commands for supported package managers", () => {
 		expect(
 			createPackageScriptCommand({
