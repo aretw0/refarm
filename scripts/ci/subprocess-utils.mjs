@@ -43,6 +43,10 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 
 const TASK_SMOKE_WORKSPACE_ROOTS = ["packages", "apps"];
 
+function workspaceDirPath(...parts) {
+	return parts.join("/");
+}
+
 async function workspacePackagePath(workspaceDir) {
 	const packagePath = path.join(workspaceDir, "package.json");
 	await access(packagePath);
@@ -62,7 +66,7 @@ async function loadWorkspacePackageMap() {
 
 		for (const entry of entries) {
 			if (!entry.isDirectory()) continue;
-			const workspaceDir = path.join(rootDir, entry.name);
+			const workspaceDir = workspaceDirPath(rootDir, entry.name);
 			const packagePath = path.join(workspaceDir, "package.json");
 			try {
 				const pkg = JSON.parse(await readFile(packagePath, "utf8"));

@@ -71,6 +71,7 @@ describe("package manager config", () => {
             ).toMatchObject({
                 command: "pnpm",
                 args: ["-C", "apps/dev", "run", "build"],
+                display: "pnpm -C apps/dev run build",
             });
         } finally {
             rmSync(root, { recursive: true, force: true });

@@ -66,7 +66,7 @@ export function detectPackageManager({ cwd = process.cwd(), env = process.env } 
 function relativeCwd(cwd, repoRoot) {
     if (!path.isAbsolute(cwd)) return cwd;
     const relative = repoRoot ? path.relative(repoRoot, cwd) : path.relative(process.cwd(), cwd);
-    return relative && !relative.startsWith("..") ? relative : cwd;
+    return relative && !relative.startsWith("..") ? relative.replace(/\\/g, "/") : cwd;
 }
 
 function quoteDisplayArgIfNeeded(value) {
