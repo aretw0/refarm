@@ -8,7 +8,11 @@ import test from "node:test";
 const scriptPath = path.resolve("scripts/ci/check-node-substrate.mjs");
 const binExt = process.platform === "win32" ? ".cmd" : "";
 
-function makeWorkspace({ packageManager = "pnpm@11.1.2", withBins = false } = {}) {
+function makeWorkspace({
+	packageManager = "pnpm@11.1.2",
+	withBins = false,
+	withForeignBins = false,
+} = {}) {
 	const tempDir = mkdtempSync(path.join(tmpdir(), "refarm-node-substrate-"));
 	writeFileSync(
 		path.join(tempDir, "package.json"),
@@ -21,6 +25,15 @@ function makeWorkspace({ packageManager = "pnpm@11.1.2", withBins = false } = {}
 		mkdirSync(binDir, { recursive: true });
 		for (const binary of ["vitest", "tsc", "eslint"]) {
 			writeFileSync(path.join(binDir, `${binary}${binExt}`), "", "utf8");
+		}
+	}
+
+	if (withForeignBins) {
+		const foreignExt = process.platform === "win32" ? "" : ".cmd";
+		const binDir = path.join(tempDir, "node_modules", ".bin");
+		mkdirSync(binDir, { recursive: true });
+		for (const binary of ["vitest", "tsc", "eslint"]) {
+			writeFileSync(path.join(binDir, `${binary}${foreignExt}`), "", "utf8");
 		}
 	}
 
@@ -55,6 +68,27 @@ test("node substrate check reports missing workspace execution shims", () => {
 				"bin_tsc",
 				"bin_eslint",
 			],
+		);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check reports shims generated for a different platform", () => {
+	const tempDir = makeWorkspace({ withForeignBins: true });
+	try {
+		const result = runCheck(tempDir);
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.deepEqual(
+			payload.foreignPlatformShims.map((shim) => shim.binary),
+			["vitest", "tsc", "eslint"],
+		);
+		assert.match(
+			payload.recommendations.at(1),
+			/Run validation inside the environment that owns this node_modules tree/,
 		);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });

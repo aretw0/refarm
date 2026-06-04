@@ -29,6 +29,14 @@ test("keeps devcontainer shell scripts LF-only", () => {
 	}
 });
 
+test("devcontainer isolates node_modules from the host platform", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	assert.ok(
+		config.mounts.includes("source=refarm-node-modules,target=/workspaces/refarm/node_modules,type=volume"),
+		"node_modules must be container-owned so Windows and Linux do not share package-manager shims",
+	);
+});
+
 test("post-start does not rely on USER being set", () => {
 	const content = readFileSync(".devcontainer/post-start.sh", "utf8");
 	assert.doesNotMatch(content, /\$USER/);

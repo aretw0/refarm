@@ -37,8 +37,13 @@ function binName(name) {
 	return process.platform === "win32" ? `${name}.cmd` : name;
 }
 
+function foreignBinNames(name) {
+	return process.platform === "win32" ? [name] : [`${name}.cmd`];
+}
+
 const requiredBins = ["vitest", "tsc", "eslint"];
 const checks = [];
+const foreignPlatformShims = [];
 
 checks.push({
 	id: "node_modules",
@@ -53,11 +58,26 @@ checks.push({
 });
 
 for (const binary of requiredBins) {
+	const expectedPath = path.join(ROOT, "node_modules", ".bin", binName(binary));
+	const ok = await exists(expectedPath);
 	checks.push({
 		id: `bin_${binary}`,
-		ok: await exists(path.join(ROOT, "node_modules", ".bin", binName(binary))),
+		ok,
 		path: `node_modules/.bin/${binName(binary)}`,
 	});
+
+	if (!ok) {
+		for (const foreignName of foreignBinNames(binary)) {
+			const foreignPath = path.join(ROOT, "node_modules", ".bin", foreignName);
+			if (await exists(foreignPath)) {
+				foreignPlatformShims.push({
+					binary,
+					expected: `node_modules/.bin/${binName(binary)}`,
+					found: `node_modules/.bin/${foreignName}`,
+				});
+			}
+		}
+	}
 }
 
 const missing = checks.filter((check) => !check.ok);
@@ -68,7 +88,9 @@ const installCommand = packageManager?.startsWith("pnpm")
 const recommendations = missing.length > 0
 	? [
 		installCommand,
-		"Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
+		foreignPlatformShims.length > 0
+			? "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform."
+			: "Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
 	]
 	: [];
 const result = {
@@ -77,6 +99,7 @@ const result = {
 	packageManager,
 	checks,
 	missing,
+	foreignPlatformShims,
 	recommendations,
 	command: "node-substrate",
 	operation: "check",
@@ -95,8 +118,11 @@ if (json) {
 	for (const check of missing) {
 		console.error(`  missing: ${check.path}`);
 	}
+	for (const shim of foreignPlatformShims) {
+		console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
+	}
 	console.error(`  retry: ${installCommand}`);
-	console.error("  if this is a devcontainer on Windows, rebuild/reopen it with an isolated node_modules volume.");
+	console.error(`  ${recommendations.at(1)}`);
 }
 
 process.exit(result.ok ? 0 : 1);
