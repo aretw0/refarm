@@ -171,6 +171,7 @@ test("node substrate check passes when required package manager shims exist", ()
 		assert.deepEqual(payload.missing, []);
 		assert.deepEqual(payload.recommendations, []);
 		assert.equal(payload.nextCommand, null);
+		assert.deepEqual(payload.nextCommands, []);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}

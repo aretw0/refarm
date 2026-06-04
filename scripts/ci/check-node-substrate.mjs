@@ -290,7 +290,7 @@ const result = {
 	nextAction: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextAction : null,
 	nextActions: recommendations,
 	nextCommand: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommand : null,
-	nextCommands: executableNextCommands,
+	nextCommands: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommands : [],
 };
 
 if (json) {
