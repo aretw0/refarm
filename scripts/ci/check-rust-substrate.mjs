@@ -80,16 +80,49 @@ const needsMsvc =
 	rustcHost?.endsWith("-msvc") &&
 	(!compiler || linker?.includes("\\Git\\usr\\bin\\link.exe"));
 const recommendations = [];
-if (!hasWasiTarget) recommendations.push("rustup target add wasm32-wasip1");
+if (!hasWasiTarget) {
+	recommendations.push({
+		diagnostic: "rust-substrate:missing-wasi-target",
+		severity: "failure",
+		summary: "The Rust target wasm32-wasip1 is required for Refarm WASM plugin builds.",
+		action: "rustup target add wasm32-wasip1",
+		command: "rustup target add wasm32-wasip1",
+		target: "wasm32-wasip1",
+	});
+}
 if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && !compiler) {
-	recommendations.push("Install Visual Studio Build Tools with the C++ build tools workload.");
+	recommendations.push({
+		diagnostic: "rust-substrate:missing-msvc-build-tools",
+		severity: "failure",
+		summary: "The Windows MSVC Rust toolchain requires Visual Studio C++ build tools.",
+		action: "Install Visual Studio Build Tools with the C++ build tools workload.",
+		target: "cl.exe",
+	});
 }
 if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && linker?.includes("\\Git\\usr\\bin\\link.exe")) {
-	recommendations.push("Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.");
+	recommendations.push({
+		diagnostic: "rust-substrate:wrong-msvc-linker",
+		severity: "failure",
+		summary: "The Rust MSVC linker resolves to Git's Unix-style link.exe instead of the MSVC linker.",
+		action: "Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.",
+		target: linker,
+	});
 }
-if (!hasCargoComponent && !needsMsvc) recommendations.push("cargo install cargo-component --locked");
+if (!hasCargoComponent) {
+	recommendations.push({
+		diagnostic: "rust-substrate:missing-cargo-component",
+		severity: "failure",
+		summary: "cargo-component is required to build Refarm component-model WASM packages.",
+		action: "cargo install cargo-component --locked",
+		command: needsMsvc ? undefined : "cargo install cargo-component --locked",
+		target: "cargo component",
+	});
+}
 
-const primaryNextCommand = recommendations[0] ?? null;
+const nextActions = recommendations.map((recommendation) => recommendation.action);
+const nextCommands = recommendations
+	.map((recommendation) => recommendation.command)
+	.filter((command) => typeof command === "string" && command.length > 0);
 const result = {
 	ok: missing.length === 0,
 	platform: process.platform,
@@ -99,10 +132,10 @@ const result = {
 	recommendations,
 	command: "rust-substrate",
 	operation: "check",
-	nextAction: primaryNextCommand,
-	nextActions: recommendations,
-	nextCommand: primaryNextCommand,
-	nextCommands: recommendations,
+	nextAction: nextActions[0] ?? null,
+	nextActions,
+	nextCommand: nextCommands[0] ?? null,
+	nextCommands,
 };
 
 if (json) {
@@ -116,7 +149,7 @@ if (json) {
 		console.error(`  missing: ${check.id}${suffix}`);
 	}
 	for (const recommendation of recommendations) {
-		console.error(`  next: ${recommendation}`);
+		console.error(`  next: ${recommendation.action}`);
 	}
 }
 

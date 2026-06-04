@@ -283,6 +283,19 @@ pnpm run node-substrate:check
   package-level `node_modules` links were materialized by the devcontainer.
   Non-executable recovery guidance belongs in `nextAction`; `nextCommand`
   should remain `null` unless it is an executable command string.
+- Before treating Rust/WASM build failures as code failures, verify the Rust
+  execution substrate:
+
+```bash
+pnpm run rust-substrate:check
+```
+
+  On Windows/MSVC, missing Visual Studio C++ build tools or Git's
+  `usr/bin/link.exe` shadowing the MSVC linker is an environment problem, not a
+  package build-order problem. The standalone substrate checker emits
+  structured recommendations and must keep human setup steps out of
+  `nextCommand`; `cargo install cargo-component --locked` is executable only
+  after the MSVC compiler/linker environment is available.
 - The `refarm` CLI entrypoint must remain a dependency-light bootstrap. If
   package-level runtime dependencies cannot load, it should emit a JSON
   `bootstrap/preflight` failure when JSON output is requested and point the
