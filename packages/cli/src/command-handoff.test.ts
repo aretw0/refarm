@@ -8,6 +8,7 @@ import {
 	binaryCommand,
 	commandTemplateParameters,
 	instantiateCommandTemplate,
+	instantiateCommandTemplateById,
 	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,
@@ -203,6 +204,45 @@ describe("command handoff helpers", () => {
 				{},
 			),
 		).toThrow("Undeclared command template parameter: effort-id");
+	});
+
+	it("instantiates command templates by id from a catalog", () => {
+		const templates = [
+			{
+				id: "worker-task-status",
+				command: "refarm task status <effort-id> --json",
+				process: {
+					command: "refarm",
+					args: ["task", "status", "<effort-id>", "--json"],
+					display: "refarm task status <effort-id> --json",
+				},
+				parameters: ["effort-id"],
+				useWhen: "Inspect a worker effort.",
+			},
+			{
+				id: "worker-task-logs",
+				command: "refarm task logs <effort-id> --json",
+				parameters: ["effort-id"],
+				useWhen: "Inspect worker logs.",
+			},
+		];
+
+		expect(
+			instantiateCommandTemplateById(templates, "worker-task-status", {
+				"effort-id": "effort-123",
+			}),
+		).toEqual({
+			id: "worker-task-status",
+			command: "refarm task status effort-123 --json",
+			process: {
+				command: "refarm",
+				args: ["task", "status", "effort-123", "--json"],
+				display: "refarm task status effort-123 --json",
+			},
+		});
+		expect(() =>
+			instantiateCommandTemplateById(templates, "missing", {}),
+		).toThrow("Unknown command template: missing");
 	});
 
 	it("keeps cli source handoff commands behind helpers", () => {

@@ -12,6 +12,7 @@ export {
 	binaryCommand,
 	commandTemplateParameters,
 	instantiateCommandTemplate,
+	instantiateCommandTemplateById,
 	instantiateProcessTemplate,
 	joinCommand,
 	normalizeHandoffValues,

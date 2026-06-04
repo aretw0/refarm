@@ -122,6 +122,18 @@ export function instantiateCommandTemplate(
 	};
 }
 
+export function instantiateCommandTemplateById(
+	templates: CommandTemplateSpec[],
+	id: string,
+	parameters: CommandTemplateParameters,
+): InstantiatedCommandTemplate {
+	const template = templates.find((entry) => entry.id === id);
+	if (!template) {
+		throw new Error(`Unknown command template: ${id}`);
+	}
+	return instantiateCommandTemplate(template, parameters);
+}
+
 export function binaryCommand(binary: string, args: string[]): string {
 	return joinCommand([binary, ...args]);
 }
