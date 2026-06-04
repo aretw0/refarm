@@ -85,13 +85,18 @@ const packageManager = await readPackageManager();
 const installCommand = packageManager?.startsWith("pnpm")
 	? "pnpm install --frozen-lockfile --config.confirm-modules-purge=false"
 	: "npm install";
+const environmentCommand = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
+const primaryNextCommand = foreignPlatformShims.length > 0 ? environmentCommand : installCommand;
 const recommendations = missing.length > 0
-	? [
-		installCommand,
-		foreignPlatformShims.length > 0
-			? "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform."
-			: "Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
-	]
+	? foreignPlatformShims.length > 0
+		? [
+			environmentCommand,
+			"Do not run package-manager install from this platform against the current shared node_modules tree.",
+		]
+		: [
+			installCommand,
+			"Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
+		]
 	: [];
 const result = {
 	ok: missing.length === 0,
@@ -103,9 +108,9 @@ const result = {
 	recommendations,
 	command: "node-substrate",
 	operation: "check",
-	nextAction: missing.length > 0 ? installCommand : null,
+	nextAction: missing.length > 0 ? primaryNextCommand : null,
 	nextActions: recommendations,
-	nextCommand: missing.length > 0 ? installCommand : null,
+	nextCommand: missing.length > 0 ? primaryNextCommand : null,
 	nextCommands: recommendations,
 };
 
@@ -121,8 +126,10 @@ if (json) {
 	for (const shim of foreignPlatformShims) {
 		console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
 	}
-	console.error(`  retry: ${installCommand}`);
-	console.error(`  ${recommendations.at(1)}`);
+	console.error(`  next: ${primaryNextCommand}`);
+	if (foreignPlatformShims.length === 0) {
+		console.error(`  if this is a devcontainer on Windows, ${recommendations.at(1)}`);
+	}
 }
 
 process.exit(result.ok ? 0 : 1);

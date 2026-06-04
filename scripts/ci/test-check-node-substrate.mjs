@@ -86,10 +86,11 @@ test("node substrate check reports shims generated for a different platform", ()
 			payload.foreignPlatformShims.map((shim) => shim.binary),
 			["vitest", "tsc", "eslint"],
 		);
-		assert.match(
-			payload.recommendations.at(1),
-			/Run validation inside the environment that owns this node_modules tree/,
-		);
+		assert.match(payload.nextCommand, /Run validation inside the environment that owns this node_modules tree/);
+		assert.deepEqual(payload.recommendations, [
+			"Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.",
+			"Do not run package-manager install from this platform against the current shared node_modules tree.",
+		]);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
