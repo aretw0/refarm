@@ -221,6 +221,22 @@ function operatorResumeJsonSummary(
 	};
 }
 
+function operatorResumeParticipantDisplay(
+	record:
+		| OperatorResumeSessionSummary
+		| Pick<
+				OperatorResumeSessionRecord,
+				"canonicalParticipants" | "participantAliases"
+		  >,
+): string | undefined {
+	const participants =
+		record.canonicalParticipants && record.canonicalParticipants.length > 0
+			? record.canonicalParticipants
+			: record.participantAliases?.map((alias) => alias.canonicalParticipantId);
+	const uniqueParticipants = [...new Set(participants ?? [])];
+	return uniqueParticipants.length > 0 ? uniqueParticipants.join(", ") : undefined;
+}
+
 export function formatOperatorResumeSessionId(id: string): string {
 	const parts = id.split(":");
 	return parts.at(-1)?.slice(-12) ?? id;
@@ -432,19 +448,8 @@ export function formatOperatorResumeSummary(
 		if (summary.session.showCommand) {
 			lines.push(`  show: ${summary.session.showCommand}`);
 		}
-		if (
-			summary.session.participantAliases &&
-			summary.session.participantAliases.length > 0
-		) {
-			lines.push(
-				`  participants: ${summary.session.participantAliases
-					.map(
-						(alias) =>
-							`${alias.participantId} -> ${alias.canonicalParticipantId}`,
-					)
-					.join(", ")}`,
-			);
-		}
+		const participants = operatorResumeParticipantDisplay(summary.session);
+		if (participants) lines.push(`  participants: ${participants}`);
 	} else {
 		lines.push("Session: none");
 	}
@@ -458,16 +463,8 @@ export function formatOperatorResumeSummary(
 			lines.push(
 				`  ${active}${session.shortId ?? formatOperatorResumeSessionId(session.sessionId)}${name}${history}`,
 			);
-			if (session.participantAliases && session.participantAliases.length > 0) {
-				lines.push(
-					`    participants: ${session.participantAliases
-						.map(
-							(alias) =>
-								`${alias.participantId} -> ${alias.canonicalParticipantId}`,
-						)
-						.join(", ")}`,
-				);
-			}
+			const participants = operatorResumeParticipantDisplay(session);
+			if (participants) lines.push(`    participants: ${participants}`);
 			if (session.showCommand) lines.push(`    show: ${session.showCommand}`);
 			if (session.useCommand) lines.push(`    use:  ${session.useCommand}`);
 		}

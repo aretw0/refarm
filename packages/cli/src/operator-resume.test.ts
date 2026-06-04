@@ -144,9 +144,11 @@ describe("operator resume", () => {
 			"refarm runtime doctor --next-command",
 			"refarm runtime start --wait",
 		]);
-		expect(formatOperatorResumeSummary(summary)).toContain(
-			"urn:refarm:agent:pi-agent -> urn:refarm:agent:runtime-agent",
+		const formatted = formatOperatorResumeSummary(summary);
+		expect(formatted).toContain(
+			"participants: urn:refarm:agent:runtime-agent",
 		);
+		expect(formatted).not.toContain("urn:refarm:agent:pi-agent ->");
 	});
 
 	it("builds a JSON handoff envelope with task list fallback", () => {
