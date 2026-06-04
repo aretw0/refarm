@@ -114,6 +114,7 @@
 		"devcontainer:contract:test": "node --test scripts/ci/test-devcontainer-contract.mjs",
 		"runtime:start-helpers:test": "node --test scripts/ci/test-runtime-start-helpers.mjs",
 		"workspace-script:test": "node --test scripts/ci/test-run-workspace-script.mjs",
+		"node-substrate:check": "node scripts/ci/check-node-substrate.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",
 		"runtime-descriptor:revocation-report:test": "node --test scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",

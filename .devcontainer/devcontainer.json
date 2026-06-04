@@ -59,6 +59,7 @@
   },
   "mounts": [
     "source=refarm-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
+    "source=refarm-node-modules,target=/workspaces/refarm/node_modules,type=volume",
     "source=refarm-npm-global,target=/home/vscode/.npm-global,type=volume",
     "source=refarm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
     "source=refarm-cargo-git,target=/usr/local/cargo/git,type=volume",

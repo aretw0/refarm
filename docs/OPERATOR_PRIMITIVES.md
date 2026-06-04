@@ -250,6 +250,17 @@ Purpose: close a slice with enough verification signal for the changed surface.
 
 Rules:
 
+- Before treating a package-script failure as a code failure, verify the local
+  Node execution substrate:
+
+```bash
+pnpm run node-substrate:check
+```
+
+  Missing `node_modules/.bin` or package-manager bin links means the environment
+  cannot run TypeScript/Vitest/ESLint gates reliably. In devcontainers on
+  Windows hosts, `node_modules` should be container-owned, not shared with the
+  host workspace tree.
 - After source edits:
 
 ```bash
