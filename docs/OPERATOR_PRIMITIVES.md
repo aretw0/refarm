@@ -213,6 +213,10 @@ Rules:
   `refarm health --json` reports blocking large files alongside git/build
   diagnostics, so `refarm check --json` can carry the same pain into an
   agentic daily-driver loop.
+- The repo-local `repo:complexity` scripts are CI/operator wrappers over the
+  same `@refarm.dev/health` complexity auditor, not a second detector. Keep
+  repo-specific allowances in the wrapper and reusable scanning behavior in the
+  package.
 - `refarm health --next-action --json` and
   `refarm check --next-action --json` should point to
   `refarm health --suggest-policy --json` when the next useful move is policy

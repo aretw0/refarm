@@ -74,4 +74,33 @@ describe("ComplexityAuditor", () => {
             note: "allowed:docs/generated/**",
         });
     });
+
+    it("can scan an explicit file list and preserve allowed rule reasons", async () => {
+        writeFile(".project/tasks.json", "one\ntwo\nthree\nfour\n");
+        writeFile("src/large.ts", "one\ntwo\nthree\nfour\n");
+        writeFile("src/ignored.txt", "one\ntwo\nthree\nfour\n");
+
+        const report = await new ComplexityAuditor({
+            allowedRules: [
+                { pattern: ".project/**", note: "allowed:project-state" },
+            ],
+            files: [".project/tasks.json", "src/large.ts", "src/ignored.txt"],
+            maxLines: 3,
+        }).audit({ rootDir });
+
+        expect(report.blockingFindings).toHaveLength(1);
+        expect(report.blockingFindings[0]).toMatchObject({
+            allowed: false,
+            category: "other",
+            file: "src/large.ts",
+            note: "over-limit",
+        });
+        expect(report.allowedFindings).toHaveLength(1);
+        expect(report.allowedFindings[0]).toMatchObject({
+            allowed: true,
+            category: "project-state",
+            file: ".project/tasks.json",
+            note: "allowed:project-state",
+        });
+    });
 });

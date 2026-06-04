@@ -1,27 +1,14 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { ComplexityAuditor } from "../packages/health/src/auditors/complexity.js";
+
 export const DEFAULT_MAX_COMPLEXITY_LINES = 1000;
 export const DEFAULT_COMPLEXITY_REPORT_LIMIT = 10;
-
-const DEFAULT_EXTENSIONS = new Set([
-	".cjs",
-	".js",
-	".jsx",
-	".json",
-	".md",
-	".mjs",
-	".rs",
-	".ts",
-	".tsx",
-	".yaml",
-	".yml",
-]);
 
 const ALLOWED_BASENAMES = new Set([
 	"CHANGELOG.md",
@@ -34,69 +21,41 @@ function normalizePath(value) {
 	return value.replace(/\\/g, "/");
 }
 
-function isAllowedLargeFile(file) {
-	const normalized = normalizePath(file);
-	const basename = path.basename(normalized);
-	if (ALLOWED_BASENAMES.has(basename)) return "allowed:lock-or-history";
-	if (normalized.startsWith(".project/")) return "allowed:project-state";
-	if (normalized.includes("/fixtures/")) return "allowed:fixture";
-	if (
-		normalized.startsWith("public/sqlite3-") ||
-		normalized.includes("/public/sqlite3-")
-	) {
-		return "allowed:vendored-artifact";
+function allowedRulesForFiles(files) {
+	const rules = [
+		{ pattern: ".project/**", note: "allowed:project-state" },
+	];
+	for (const file of files) {
+		const normalized = normalizePath(file);
+		if (ALLOWED_BASENAMES.has(path.basename(normalized))) {
+			rules.push({ pattern: normalized, note: "allowed:lock-or-history" });
+		}
+		if (normalized.includes("/fixtures/")) {
+			rules.push({ pattern: normalized, note: "allowed:fixture" });
+		}
+		if (
+			normalized.startsWith("public/sqlite3-") ||
+			normalized.includes("/public/sqlite3-")
+		) {
+			rules.push({ pattern: normalized, note: "allowed:vendored-artifact" });
+		}
 	}
-	return null;
-}
-
-function classifyFile(file) {
-	const normalized = normalizePath(file);
-	if (normalized.startsWith(".project/")) return "project-state";
-	if (normalized.includes("/fixtures/")) return "fixture";
-	if (normalized.includes("/test/") || normalized.includes(".test.")) return "test";
-	if (
-		normalized.startsWith("docs/") ||
-		normalized.startsWith("specs/") ||
-		normalized.endsWith(".md")
-	) {
-		return "docs";
-	}
-	if (normalized.startsWith("scripts/")) return "script";
-	if (
-		normalized.startsWith("apps/") ||
-		normalized.startsWith("packages/") ||
-		normalized.startsWith("validations/")
-	) {
-		return "source";
-	}
-	return "other";
-}
-
-function countLines(text) {
-	if (text.length === 0) return 0;
-	return text.endsWith("\n") ? text.split("\n").length - 1 : text.split("\n").length;
+	return rules;
 }
 
 export function scanFiles(files, maxLines = DEFAULT_MAX_COMPLEXITY_LINES, options = {}) {
 	const cwd = options.cwd ?? process.cwd();
-	return files.flatMap((file) => {
-		const absolute = path.isAbsolute(file) ? file : path.join(cwd, file);
-		const relativeFile = normalizePath(path.relative(cwd, absolute) || file);
-		const ext = path.extname(relativeFile);
-		if (!DEFAULT_EXTENSIONS.has(ext)) return [];
-		const stat = statSync(absolute, { throwIfNoEntry: false });
-		if (!stat?.isFile()) return [];
-		const lines = countLines(readFileSync(absolute, "utf8"));
-		if (lines <= maxLines) return [];
-		const allowed = isAllowedLargeFile(relativeFile);
-		return [{
-			category: classifyFile(relativeFile),
-			file: relativeFile,
-			lines,
-			size: stat.size,
-			note: allowed ?? "over-limit",
-		}];
-	});
+	return new ComplexityAuditor({
+		allowedRules: allowedRulesForFiles(files),
+		files,
+		maxLines,
+	}).scan(cwd).map(({ category, file, lines, note, size }) => ({
+		category,
+		file,
+		lines,
+		size,
+		note,
+	}));
 }
 
 function gitLines(cwd, args) {

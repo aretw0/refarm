@@ -46,7 +46,12 @@ export interface ProjectAuditorOptions {
 export interface ComplexityAuditorOptions {
     maxLines?: number;
     paths?: string[];
+    files?: string[];
     allowedPatterns?: string[];
+    allowedRules?: Array<{
+        pattern: string;
+        note: string;
+    }>;
     reportLimit?: number;
 }
 

@@ -34,7 +34,9 @@ const DEFAULT_SKIP_DIRS = new Set([
 export class ComplexityAuditor {
     #maxLines;
     #paths;
+    #files;
     #allowedPatterns;
+    #allowedRules;
     #reportLimit;
 
     constructor(options = {}) {
@@ -44,8 +46,14 @@ export class ComplexityAuditor {
         this.#paths = Array.isArray(options.paths) && options.paths.length > 0
             ? options.paths
             : ["."];
+        this.#files = Array.isArray(options.files)
+            ? options.files.filter((file) => typeof file === "string" && file.length > 0)
+            : [];
         this.#allowedPatterns = Array.isArray(options.allowedPatterns)
             ? options.allowedPatterns.filter((pattern) => typeof pattern === "string" && pattern.length > 0)
+            : [];
+        this.#allowedRules = Array.isArray(options.allowedRules)
+            ? options.allowedRules.filter(isAllowedRule)
             : [];
         this.#reportLimit = Number.isFinite(options.reportLimit) && options.reportLimit > 0
             ? Math.floor(options.reportLimit)
@@ -75,10 +83,17 @@ export class ComplexityAuditor {
 
     scan(rootDir) {
         const files = [];
-        for (const configuredPath of this.#paths) {
-            const absolutePath = path.resolve(rootDir, configuredPath);
-            if (!fs.existsSync(absolutePath)) continue;
-            this.#collectFiles(absolutePath, files);
+        if (this.#files.length > 0) {
+            for (const file of this.#files) {
+                const absoluteFile = path.isAbsolute(file) ? file : path.resolve(rootDir, file);
+                if (fs.existsSync(absoluteFile)) files.push(absoluteFile);
+            }
+        } else {
+            for (const configuredPath of this.#paths) {
+                const absolutePath = path.resolve(rootDir, configuredPath);
+                if (!fs.existsSync(absolutePath)) continue;
+                this.#collectFiles(absolutePath, files);
+            }
         }
 
         return files
@@ -123,6 +138,9 @@ export class ComplexityAuditor {
     }
 
     #allowedReason(file) {
+        for (const rule of this.#allowedRules) {
+            if (matchesPattern(file, rule.pattern)) return rule.note;
+        }
         for (const pattern of this.#allowedPatterns) {
             if (matchesPattern(file, pattern)) return `allowed:${pattern}`;
         }
@@ -136,6 +154,7 @@ function countLines(text) {
 }
 
 function classifyFile(file) {
+    if (file.startsWith(".project/")) return "project-state";
     if (file.includes("/fixtures/")) return "fixture";
     if (file.includes("/test/") || file.includes(".test.")) return "test";
     if (file.startsWith("docs/") || file.startsWith("specs/") || file.endsWith(".md")) return "docs";
@@ -144,6 +163,14 @@ function classifyFile(file) {
         return "source";
     }
     return "other";
+}
+
+function isAllowedRule(value) {
+    if (!value || typeof value !== "object") return false;
+    return typeof value.pattern === "string"
+        && value.pattern.length > 0
+        && typeof value.note === "string"
+        && value.note.startsWith("allowed:");
 }
 
 function summarizeByCategory(findings) {
