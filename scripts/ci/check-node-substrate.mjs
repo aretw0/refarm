@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { access, readFile } from "node:fs/promises";
+import { readdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 const ROOT = process.cwd();
@@ -28,6 +30,14 @@ async function readPackageManager() {
 	try {
 		const pkg = JSON.parse(await readFile(path.join(ROOT, "package.json"), "utf8"));
 		return pkg.packageManager ?? null;
+	} catch {
+		return null;
+	}
+}
+
+async function readJson(filePath) {
+	try {
+		return JSON.parse(await readFile(filePath, "utf8"));
 	} catch {
 		return null;
 	}
@@ -98,9 +108,59 @@ function foreignBinNames(name) {
 	return process.platform === "win32" ? [name] : [`${name}.cmd`];
 }
 
+function workspacePackageDirs() {
+	const dirs = [];
+	for (const workspaceDir of ["apps", "packages"]) {
+		const absolute = path.join(ROOT, workspaceDir);
+		try {
+			for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+				if (!entry.isDirectory()) continue;
+				dirs.push(path.join(absolute, entry.name));
+			}
+		} catch {
+			// Optional workspace groups are allowed to be absent.
+		}
+	}
+	return dirs;
+}
+
+async function runtimeDependencyChecks() {
+	const results = [];
+	for (const packageDir of workspacePackageDirs()) {
+		const manifestPath = path.join(packageDir, "package.json");
+		const manifest = await readJson(manifestPath);
+		if (!manifest || !manifest.bin || !manifest.dependencies) continue;
+		const relativePackageDir = path.relative(ROOT, packageDir).replaceAll(path.sep, "/");
+		const requireFromPackage = createRequire(manifestPath);
+		for (const [dependency, version] of Object.entries(manifest.dependencies).sort()) {
+			if (typeof version === "string" && version.startsWith("workspace:")) continue;
+			try {
+				requireFromPackage.resolve(dependency);
+				results.push({
+					id: `runtime_dep_${manifest.name ?? relativePackageDir}_${dependency}`,
+					ok: true,
+					package: manifest.name ?? relativePackageDir,
+					dependency,
+					path: relativePackageDir,
+				});
+			} catch {
+				results.push({
+					id: `runtime_dep_${manifest.name ?? relativePackageDir}_${dependency}`,
+					ok: false,
+					package: manifest.name ?? relativePackageDir,
+					dependency,
+					path: relativePackageDir,
+				});
+			}
+		}
+	}
+	return results;
+}
+
 const requiredBins = ["vitest", "tsc", "eslint"];
 const checks = [];
 const foreignPlatformShims = [];
+const runtimeChecks = await runtimeDependencyChecks();
 const devcontainerMountCheck = await devcontainerNodeModulesMountCheck();
 
 checks.push({
@@ -139,6 +199,7 @@ for (const binary of requiredBins) {
 }
 
 const missing = checks.filter((check) => !check.ok);
+const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 const mountIssues = devcontainerMountCheck?.ok === false ? [devcontainerMountCheck] : [];
 const packageManager = await readPackageManager();
 const installCommand = packageManager?.startsWith("pnpm")
@@ -159,20 +220,25 @@ const recommendations = missing.length > 0 || mountIssues.length > 0
 			"Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
 		]
 	: [];
+if (missingRuntimeDependencies.length > 0 && !recommendations.includes(installCommand)) {
+	recommendations.push(installCommand);
+}
 const result = {
-	ok: missing.length === 0 && mountIssues.length === 0,
+	ok: missing.length === 0 && missingRuntimeDependencies.length === 0 && mountIssues.length === 0,
 	platform: process.platform,
 	packageManager,
 	checks,
 	missing,
+	runtimeChecks,
+	missingRuntimeDependencies,
 	foreignPlatformShims,
 	mountIssues,
 	recommendations,
 	command: "node-substrate",
 	operation: "check",
-	nextAction: missing.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
+	nextAction: missing.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
 	nextActions: recommendations,
-	nextCommand: missing.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
+	nextCommand: missing.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextCommand : null,
 	nextCommands: recommendations,
 };
 
@@ -187,6 +253,9 @@ if (json) {
 	}
 	for (const shim of foreignPlatformShims) {
 		console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
+	}
+	for (const dependency of missingRuntimeDependencies) {
+		console.error(`  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`);
 	}
 	for (const issue of mountIssues) {
 		console.error(`  mount mismatch: expected ${issue.target} to be a dedicated mount`);

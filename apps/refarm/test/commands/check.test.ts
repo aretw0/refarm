@@ -130,6 +130,8 @@ function makeNodeSubstrateCheck(
 		missing: [],
 		foreignPlatformShims: [],
 		mountIssues: [],
+		runtimeChecks: [],
+		missingRuntimeDependencies: [],
 		recommendations: [],
 		...overrides,
 	};
@@ -293,6 +295,44 @@ describe("buildRefarmCheckReport", () => {
 		);
 	});
 
+	it("blocks readiness when a workspace CLI cannot resolve external runtime dependencies", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck({
+				ok: false,
+				missingRuntimeDependencies: [
+					{
+						id: "runtime_dep_@refarm.dev/refarm_chalk",
+						ok: false,
+						package: "@refarm.dev/refarm",
+						dependency: "chalk",
+						path: "apps/refarm",
+					},
+				],
+				recommendations: [
+					{
+						diagnostic: "node-substrate:missing-runtime-dependencies",
+						severity: "failure",
+						summary: "One or more workspace CLI packages cannot resolve declared external runtime dependencies from this environment.",
+						action: "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.",
+						command: "pnpm install --frozen-lockfile",
+						target: "@refarm.dev/refarm -> chalk",
+					},
+				],
+			}),
+			rustSubstrate: makeRustSubstrateCheck(),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.failureCount).toBe(1);
+		expect(report.nextCommand).toBe("pnpm install --frozen-lockfile");
+		expect(report.recommendations[0]?.diagnostic).toBe(
+			"node-substrate:missing-runtime-dependencies",
+		);
+	});
+
 	it("blocks readiness when a Rust workspace is missing the MSVC execution substrate", () => {
 		const report = buildRefarmCheckReport({
 			nodeSubstrate: makeNodeSubstrateCheck(),
@@ -423,7 +463,7 @@ describe("checkCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: FAIL");
-		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues)");
+		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues, 0 runtime deps)");
 		expect(output).toContain("Rust substrate: pass (0 missing)");
 		expect(output).toContain("Health: fail (1 issue)");
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");

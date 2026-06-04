@@ -13,6 +13,7 @@ function makeWorkspace({
 	withBins = false,
 	withForeignBins = false,
 	withDevcontainerNodeModulesVolume = false,
+	withCliRuntimePackage = false,
 } = {}) {
 	const tempDir = mkdtempSync(path.join(tmpdir(), "refarm-node-substrate-"));
 	writeFileSync(
@@ -46,6 +47,26 @@ function makeWorkspace({
 				mounts: [
 					`source=refarm-node-modules,target=${path.join(tempDir, "node_modules")},type=volume`,
 				],
+			}, null, 2)}\n`,
+			"utf8",
+		);
+	}
+
+	if (withCliRuntimePackage) {
+		const packageDir = path.join(tempDir, "apps", "sample-cli");
+		mkdirSync(packageDir, { recursive: true });
+		writeFileSync(
+			path.join(packageDir, "package.json"),
+			`${JSON.stringify({
+				name: "@sample/cli",
+				type: "module",
+				bin: {
+					sample: "./dist/index.js",
+				},
+				dependencies: {
+					chalk: "^5.6.2",
+					"@sample/internal": "workspace:*",
+				},
 			}, null, 2)}\n`,
 			"utf8",
 		);
@@ -122,6 +143,27 @@ test("node substrate check passes when required package manager shims exist", ()
 		assert.deepEqual(payload.missing, []);
 		assert.deepEqual(payload.recommendations, []);
 		assert.equal(payload.nextCommand, null);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check reports unresolved external runtime dependencies for CLI packages", () => {
+	const tempDir = makeWorkspace({ withBins: true, withCliRuntimePackage: true });
+	try {
+		const result = runCheck(tempDir);
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.deepEqual(
+			payload.missingRuntimeDependencies.map((dependency) => [
+				dependency.package,
+				dependency.dependency,
+			]),
+			[["@sample/cli", "chalk"]],
+		);
+		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}

@@ -148,9 +148,11 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   the selected route is a local provider.
 - `check --json` also carries execution substrate checks:
   - `nodeSubstrate` verifies the package-manager execution tree for the current
-    platform (`node_modules`, `.bin` shims, and devcontainer volume ownership).
-    It blocks when a Linux container and Windows host are sharing one
-    `node_modules` tree.
+    platform (`node_modules`, `.bin` shims, devcontainer volume ownership, and
+    external runtime dependencies declared by workspace CLI packages). It blocks
+    when a Linux container and Windows host are sharing one `node_modules` tree,
+    or when a CLI package can build but cannot resolve dependencies such as
+    `chalk`/`commander` at runtime in the current environment.
   - `rustSubstrate` is required only when the workspace declares Rust
     (`Cargo.toml`, `rust-toolchain.toml`, or `.cargo/config.toml`). It verifies
     `rustc`, `cargo`, `rustup target wasm32-wasip1`, `cargo component`, and on
@@ -271,9 +273,10 @@ pnpm run node-substrate:check
 ```
 
   Missing `node_modules/.bin` or package-manager bin links means the environment
-  cannot run TypeScript/Vitest/ESLint gates reliably. In devcontainers on
-  Windows hosts, `node_modules` should be container-owned, not shared with the
-  host workspace tree.
+  cannot run TypeScript/Vitest/ESLint gates reliably. Missing workspace CLI
+  runtime dependencies means a built command may fail before it can print JSON
+  handoffs. In devcontainers on Windows hosts, `node_modules` should be
+  container-owned, not shared with the host workspace tree.
 - After source edits:
 
 ```bash

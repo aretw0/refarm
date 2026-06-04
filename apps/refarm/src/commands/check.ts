@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -45,6 +46,20 @@ export interface NodeSubstrateCheck {
 		id: string;
 		path: string;
 		target: string;
+	}>;
+	runtimeChecks: Array<{
+		id: string;
+		ok: boolean;
+		package: string;
+		dependency: string;
+		path: string;
+	}>;
+	missingRuntimeDependencies: Array<{
+		id: string;
+		ok: boolean;
+		package: string;
+		dependency: string;
+		path: string;
 	}>;
 	recommendations: DiagnosticRecommendation[];
 }
@@ -165,7 +180,7 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	console.log(chalk.bold(`Check: ${report.ok ? "PASS" : "FAIL"}`));
 	if (report.checks.nodeSubstrate) {
 		console.log(
-			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues)`,
+			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues, ${report.checks.nodeSubstrate.missingRuntimeDependencies.length} runtime deps)`,
 		);
 	}
 	if (report.checks.rustSubstrate?.required) {
@@ -302,10 +317,13 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		if (!(await exists(path.join(root, relative)))) missing.push(relative);
 	}
 	const mountIssues = await findNodeSubstrateMountIssues(root);
+	const runtimeChecks = await findNodeSubstrateRuntimeChecks(root);
+	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 	const recommendations = buildNodeSubstrateRecommendations({
 		missing,
 		foreignPlatformShims,
 		mountIssues,
+		missingRuntimeDependencies,
 	});
 	return {
 		command: "node-substrate",
@@ -315,6 +333,8 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		missing,
 		foreignPlatformShims,
 		mountIssues,
+		runtimeChecks,
+		missingRuntimeDependencies,
 		recommendations,
 	};
 }
@@ -323,6 +343,7 @@ function buildNodeSubstrateRecommendations(input: {
 	missing: string[];
 	foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"];
 	mountIssues: NodeSubstrateCheck["mountIssues"];
+	missingRuntimeDependencies: NodeSubstrateCheck["missingRuntimeDependencies"];
 }): DiagnosticRecommendation[] {
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
@@ -355,7 +376,77 @@ function buildNodeSubstrateRecommendations(input: {
 			},
 		];
 	}
+	if (input.missingRuntimeDependencies.length > 0) {
+		return [
+			{
+				diagnostic: "node-substrate:missing-runtime-dependencies",
+				severity: "failure",
+				summary: "One or more workspace CLI packages cannot resolve declared external runtime dependencies from this environment.",
+				action: NODE_SUBSTRATE_INSTALL_COMMAND,
+				command: "pnpm install --frozen-lockfile",
+				target: input.missingRuntimeDependencies
+					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
+					.join(", "),
+			},
+		];
+	}
 	return [];
+}
+
+async function findNodeSubstrateRuntimeChecks(
+	root: string,
+): Promise<NodeSubstrateCheck["runtimeChecks"]> {
+	const checks: NodeSubstrateCheck["runtimeChecks"] = [];
+	for (const workspaceGroup of ["apps", "packages"]) {
+		const groupPath = path.join(root, workspaceGroup);
+		let entries: Array<{ name: string; isDirectory(): boolean }>;
+		try {
+			entries = await fs.readdir(groupPath, { withFileTypes: true });
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (!entry.isDirectory()) continue;
+			const packageDir = path.join(groupPath, entry.name);
+			const manifestPath = path.join(packageDir, "package.json");
+			let manifest: {
+				name?: string;
+				bin?: unknown;
+				dependencies?: Record<string, string>;
+			};
+			try {
+				manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+			} catch {
+				continue;
+			}
+			if (!manifest.bin || !manifest.dependencies) continue;
+			const packageName = manifest.name ?? path.relative(root, packageDir);
+			const relativePackageDir = path.relative(root, packageDir);
+			const requireFromPackage = createRequire(manifestPath);
+			for (const [dependency, version] of Object.entries(manifest.dependencies).sort()) {
+				if (version.startsWith("workspace:")) continue;
+				try {
+					requireFromPackage.resolve(dependency);
+					checks.push({
+						id: `runtime_dep_${packageName}_${dependency}`,
+						ok: true,
+						package: packageName,
+						dependency,
+						path: relativePackageDir,
+					});
+				} catch {
+					checks.push({
+						id: `runtime_dep_${packageName}_${dependency}`,
+						ok: false,
+						package: packageName,
+						dependency,
+						path: relativePackageDir,
+					});
+				}
+			}
+		}
+	}
+	return checks;
 }
 
 async function findNodeSubstrateMountIssues(
