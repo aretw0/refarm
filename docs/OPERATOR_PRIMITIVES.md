@@ -275,8 +275,15 @@ refarm agent finish --lane agent-e2e-mock --run --json
   `pnpm -C apps/refarm exec vitest ...` do not.
 - Root scripts that call `scripts/ci/run-workspace-script.mjs` for
   `apps/refarm` tests or type-checks should use `--with-dependency-builds`.
-  That wrapper runs `pnpm --filter <workspace>... run build` first, so package
-  APIs consumed through `dist/` are synchronized before the consumer command.
+  That wrapper builds the target workspace's transitive TypeScript workspace
+  dependencies in the shared build order before the consumer command. It should
+  not use broad package-manager filtering that also pulls Rust/WASM or unrelated
+  app builds into a focused app smoke.
+- `--with-dependency-builds --plan` is the readable contract for this ordering:
+  it should show package-local build commands such as
+  `pnpm -C packages/health run build`, then the final consumer command. If a
+  TypeScript dependency is missing from the shared order, the wrapper should
+  fail closed instead of guessing an order.
 
 ## Hardening Order
 
