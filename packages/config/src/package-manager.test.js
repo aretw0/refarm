@@ -11,9 +11,14 @@ import {
     packageFrozenInstallCommand,
     packageInstallCommand,
     packageManagerOverrideDiagnostic,
+    packageManagerExecutable,
+    packageManagerSpawnCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,
 } from "./package-manager.js";
+
+const pmCommand = (name) => packageManagerSpawnCommand(name).command;
+const pmArgs = (name, args) => packageManagerSpawnCommand(name, args).args;
 
 describe("package manager config", () => {
     it("honors REFARM_PACKAGE_MANAGER as an operator override", () => {
@@ -32,6 +37,19 @@ describe("package manager config", () => {
         });
         expect(packageManagerOverrideDiagnostic({ [PACKAGE_MANAGER_OVERRIDE_ENV_VAR]: "pnpm" })).toBeNull();
         expect(packageManagerOverrideDiagnostic({})).toBeNull();
+    });
+
+    it("uses Windows command shims only for spawnable package manager commands", () => {
+        expect(packageManagerExecutable("pnpm", "win32")).toBe("pnpm.cmd");
+        expect(packageManagerExecutable("pnpm", "linux")).toBe("pnpm");
+        expect(packageManagerSpawnCommand("pnpm", ["--version"], "win32")).toEqual({
+            command: "cmd.exe",
+            args: ["/d", "/s", "/c", "pnpm.cmd", "--version"],
+        });
+        expect(packageManagerSpawnCommand("pnpm", ["--version"], "linux")).toEqual({
+            command: "pnpm",
+            args: ["--version"],
+        });
     });
 
     it("detects packageManager while walking up from a workspace", () => {
@@ -69,8 +87,8 @@ describe("package manager config", () => {
                     env: {},
                 }),
             ).toMatchObject({
-                command: "pnpm",
-                args: ["-C", "apps/dev", "run", "build"],
+                command: pmCommand("pnpm"),
+                args: pmArgs("pnpm", ["-C", "apps/dev", "run", "build"]),
                 display: "pnpm -C apps/dev run build",
             });
         } finally {
@@ -87,8 +105,8 @@ describe("package manager config", () => {
             }),
         ).toEqual({
             packageManager: "bun",
-            command: "bun",
-            args: ["--cwd", "apps/dev", "run", "preview"],
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["--cwd", "apps/dev", "run", "preview"]),
             display: "bun --cwd apps/dev run preview",
         });
     });
@@ -102,8 +120,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "pnpm" },
             }),
         ).toMatchObject({
-            command: "pnpm",
-            args: ["-C", ".", "run", "imports:organize", "--check", "apps/refarm/src/index.ts"],
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["-C", ".", "run", "imports:organize", "--check", "apps/refarm/src/index.ts"]),
             display: "pnpm -C . run imports:organize --check apps/refarm/src/index.ts",
         });
         expect(
@@ -114,8 +132,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "npm" },
             }),
         ).toMatchObject({
-            command: "npm",
-            args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["--prefix", ".", "run", "imports:organize", "--", "--check"]),
             display: "npm --prefix . run imports:organize -- --check",
         });
         expect(
@@ -126,8 +144,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "yarn" },
             }),
         ).toMatchObject({
-            command: "yarn",
-            args: ["--cwd", ".", "run", "imports:organize", "--check"],
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["--cwd", ".", "run", "imports:organize", "--check"]),
             display: "yarn --cwd . run imports:organize --check",
         });
         expect(
@@ -138,8 +156,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "bun" },
             }),
         ).toMatchObject({
-            command: "bun",
-            args: ["--cwd", ".", "run", "imports:organize", "--check"],
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["--cwd", ".", "run", "imports:organize", "--check"]),
             display: "bun --cwd . run imports:organize --check",
         });
     });
@@ -153,8 +171,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "pnpm" },
             }),
         ).toMatchObject({
-            command: "pnpm",
-            args: ["-C", "apps/my app", "run", "check:types", "--filter", "src/my file.ts"],
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["-C", "apps/my app", "run", "check:types", "--filter", "src/my file.ts"]),
             display: "pnpm -C 'apps/my app' run check:types --filter 'src/my file.ts'",
         });
     });
@@ -169,8 +187,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "pnpm" },
             }),
         ).toMatchObject({
-            command: "pnpm",
-            args: ["exec", "turbo", "gen", "package"],
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["exec", "turbo", "gen", "package"]),
             display: "pnpm exec turbo gen package",
         });
         expect(
@@ -178,8 +196,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "npm" },
             }),
         ).toMatchObject({
-            command: "npm",
-            args: ["exec", "--", "turbo", "gen", "package"],
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["exec", "--", "turbo", "gen", "package"]),
             display: "npm exec -- turbo gen package",
         });
         expect(
@@ -187,8 +205,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "yarn" },
             }),
         ).toMatchObject({
-            command: "yarn",
-            args: ["turbo", "gen", "package"],
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["turbo", "gen", "package"]),
             display: "yarn turbo gen package",
         });
         expect(
@@ -196,8 +214,8 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "bun" },
             }),
         ).toMatchObject({
-            command: "bun",
-            args: ["x", "turbo", "gen", "package"],
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["x", "turbo", "gen", "package"]),
             display: "bun x turbo gen package",
         });
     });
@@ -208,31 +226,31 @@ describe("package manager config", () => {
                 env: { REFARM_PACKAGE_MANAGER: "npm" },
             }),
         ).toMatchObject({
-            command: "npm",
-            args: ["exec", "--", "my tool", "--input", "plugin path.wasm"],
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["exec", "--", "my tool", "--input", "plugin path.wasm"]),
             display: "npm exec -- 'my tool' --input 'plugin path.wasm'",
         });
     });
 
     it("formats frozen install commands for each supported manager", () => {
         expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
-            command: "pnpm",
-            args: ["install", "--frozen-lockfile"],
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["install", "--frozen-lockfile"]),
             display: "pnpm install --frozen-lockfile",
         });
         expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
-            command: "npm",
-            args: ["ci"],
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["ci"]),
             display: "npm ci",
         });
         expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
-            command: "yarn",
-            args: ["install", "--immutable"],
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["install", "--immutable"]),
             display: "yarn install --immutable",
         });
         expect(packageFrozenInstallCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
-            command: "bun",
-            args: ["install", "--frozen-lockfile"],
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["install", "--frozen-lockfile"]),
             display: "bun install --frozen-lockfile",
         });
     });

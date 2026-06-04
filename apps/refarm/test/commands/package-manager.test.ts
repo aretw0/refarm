@@ -10,6 +10,10 @@ import {
 	detectPackageManager,
 } from "../../src/commands/package-manager.js";
 
+const pmProcessCommand = (name: string) => process.platform === "win32" ? "cmd.exe" : name;
+const pmArgs = (name: string, args: string[]) =>
+	process.platform === "win32" ? ["/d", "/s", "/c", `${name}.cmd`, ...args] : args;
+
 describe("package manager command resolution", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -24,8 +28,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "npm",
-			command: "npm",
-			args: ["--prefix", "apps/dev", "run", "dev"],
+			command: pmProcessCommand("npm"),
+			args: pmArgs("npm", ["--prefix", "apps/dev", "run", "dev"]),
 			display: "npm --prefix apps/dev run dev",
 		});
 	});
@@ -41,8 +45,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "pnpm",
-			command: "pnpm",
-			args: ["-C", "apps/dev", "run", "dev"],
+			command: pmProcessCommand("pnpm"),
+			args: pmArgs("pnpm", ["-C", "apps/dev", "run", "dev"]),
 			display: "pnpm -C apps/dev run dev",
 		});
 
@@ -80,14 +84,14 @@ describe("package manager command resolution", () => {
 			commands: {
 				tidyImportsCheck: {
 					packageManager: "bun",
-					command: "bun",
-					args: ["--cwd", ".", "run", "imports:organize", "--check"],
+					command: pmProcessCommand("bun"),
+					args: pmArgs("bun", ["--cwd", ".", "run", "imports:organize", "--check"]),
 					display: "bun --cwd . run imports:organize --check",
 				},
 				tidyImportsApply: {
 					packageManager: "bun",
-					command: "bun",
-					args: ["--cwd", ".", "run", "imports:organize"],
+					command: pmProcessCommand("bun"),
+					args: pmArgs("bun", ["--cwd", ".", "run", "imports:organize"]),
 					display: "bun --cwd . run imports:organize",
 				},
 			},
@@ -136,14 +140,14 @@ describe("package manager command resolution", () => {
 			commands: {
 				tidyImportsCheck: {
 					packageManager: "npm",
-					command: "npm",
-					args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
+					command: pmProcessCommand("npm"),
+					args: pmArgs("npm", ["--prefix", ".", "run", "imports:organize", "--", "--check"]),
 					display: "npm --prefix . run imports:organize -- --check",
 				},
 				tidyImportsApply: {
 					packageManager: "npm",
-					command: "npm",
-					args: ["--prefix", ".", "run", "imports:organize"],
+					command: pmProcessCommand("npm"),
+					args: pmArgs("npm", ["--prefix", ".", "run", "imports:organize"]),
 					display: "npm --prefix . run imports:organize",
 				},
 			},
@@ -204,8 +208,8 @@ describe("package manager command resolution", () => {
 				}),
 			).toEqual({
 				packageManager: "pnpm",
-				command: "pnpm",
-				args: ["-C", "apps/refarm", "run", "test:handoffs"],
+				command: pmProcessCommand("pnpm"),
+				args: pmArgs("pnpm", ["-C", "apps/refarm", "run", "test:handoffs"]),
 				display: "pnpm -C apps/refarm run test:handoffs",
 			});
 		} finally {
@@ -222,8 +226,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "bun",
-			command: "bun",
-			args: ["--cwd", "apps/dev", "run", "preview"],
+			command: pmProcessCommand("bun"),
+			args: pmArgs("bun", ["--cwd", "apps/dev", "run", "preview"]),
 			display: "bun --cwd apps/dev run preview",
 		});
 	});
@@ -238,8 +242,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "npm",
-			command: "npm",
-			args: ["--prefix", ".", "run", "imports:organize", "--", "--check"],
+			command: pmProcessCommand("npm"),
+			args: pmArgs("npm", ["--prefix", ".", "run", "imports:organize", "--", "--check"]),
 			display: "npm --prefix . run imports:organize -- --check",
 		});
 	});
@@ -251,8 +255,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "npm",
-			command: "npm",
-			args: ["exec", "--", "jco", "transpile", "plugin.wasm"],
+			command: pmProcessCommand("npm"),
+			args: pmArgs("npm", ["exec", "--", "jco", "transpile", "plugin.wasm"]),
 			display: "npm exec -- jco transpile plugin.wasm",
 		});
 
@@ -262,8 +266,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "yarn",
-			command: "yarn",
-			args: ["jco", "transpile", "plugin.wasm"],
+			command: pmProcessCommand("yarn"),
+			args: pmArgs("yarn", ["jco", "transpile", "plugin.wasm"]),
 			display: "yarn jco transpile plugin.wasm",
 		});
 
@@ -273,8 +277,8 @@ describe("package manager command resolution", () => {
 			}),
 		).toEqual({
 			packageManager: "bun",
-			command: "bun",
-			args: ["x", "jco", "transpile", "plugin.wasm"],
+			command: pmProcessCommand("bun"),
+			args: pmArgs("bun", ["x", "jco", "transpile", "plugin.wasm"]),
 			display: "bun x jco transpile plugin.wasm",
 		});
 	});

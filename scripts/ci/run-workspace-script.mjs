@@ -8,6 +8,10 @@ import {
 } from "./subprocess-utils.mjs";
 
 const ROOT = process.cwd();
+const RUN_ENV = {
+	...process.env,
+	CI: process.env.CI ?? "true",
+};
 
 function usage() {
 	console.error(
@@ -39,6 +43,7 @@ const command = createPackageScriptCommand({
 	cwd: path.resolve(ROOT, workspaceDir),
 	repoRoot: ROOT,
 	script,
+	env: RUN_ENV,
 });
 const args = forwardedArgs.length > 0
 	? [...command.args, ...forwardedArgs]
@@ -54,7 +59,7 @@ async function dependencyBuildPlan() {
 			cwd: path.resolve(ROOT, dependencyDir),
 			repoRoot: ROOT,
 			script: "build",
-			env: process.env,
+			env: RUN_ENV,
 		});
 		return packageCommand.display;
 	});
@@ -71,11 +76,11 @@ if (plan) {
 }
 
 if (withDependencyBuilds) {
-	await ensureWorkspaceTypeDependencyBuilds(workspaceDir, process.env);
+	await ensureWorkspaceTypeDependencyBuilds(workspaceDir, RUN_ENV);
 }
 
 console.log(`[workspace-script] ${display}`);
 await runSubprocess(command.command, args, {
 	cwd: ROOT,
-	env: process.env,
+	env: RUN_ENV,
 });

@@ -63,6 +63,28 @@ export function detectPackageManager({ cwd = process.cwd(), env = process.env } 
     return detectPackageManagerFromPackageJson(cwd) ?? "npm";
 }
 
+export function packageManagerExecutable(packageManager, platform = process.platform) {
+    return platform === "win32" ? `${packageManager}.cmd` : packageManager;
+}
+
+export function packageManagerSpawnCommand(
+    packageManager,
+    args = [],
+    platform = process.platform,
+) {
+    const executable = packageManagerExecutable(packageManager, platform);
+    if (platform === "win32") {
+        return {
+            command: "cmd.exe",
+            args: ["/d", "/s", "/c", executable, ...args],
+        };
+    }
+    return {
+        command: executable,
+        args,
+    };
+}
+
 function relativeCwd(cwd, repoRoot) {
     if (!path.isAbsolute(cwd)) return cwd;
     const relative = repoRoot ? path.relative(repoRoot, cwd) : path.relative(process.cwd(), cwd);
@@ -93,34 +115,42 @@ export function createPackageScriptCommand({
     const displayScript = quoteDisplayArgIfNeeded(script);
 
     switch (packageManager) {
-        case "pnpm":
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["-C", commandCwd, "run", script, ...args]);
             return {
                 packageManager,
-                command: "pnpm",
-                args: ["-C", commandCwd, "run", script, ...args],
+                command: pnpm.command,
+                args: pnpm.args,
                 display: `pnpm -C ${displayCwd} run ${displayScript}${formatArgsDisplay(args)}`,
             };
-        case "npm":
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["--prefix", commandCwd, "run", script, ...(args.length > 0 ? ["--", ...args] : [])]);
             return {
                 packageManager,
-                command: "npm",
-                args: ["--prefix", commandCwd, "run", script, ...(args.length > 0 ? ["--", ...args] : [])],
+                command: npm.command,
+                args: npm.args,
                 display: `npm --prefix ${displayCwd} run ${displayScript}${formatNpmArgsDisplay(args)}`,
             };
-        case "yarn":
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["--cwd", commandCwd, "run", script, ...args]);
             return {
                 packageManager,
-                command: "yarn",
-                args: ["--cwd", commandCwd, "run", script, ...args],
+                command: yarn.command,
+                args: yarn.args,
                 display: `yarn --cwd ${displayCwd} run ${displayScript}${formatArgsDisplay(args)}`,
             };
-        case "bun":
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["--cwd", commandCwd, "run", script, ...args]);
             return {
                 packageManager,
-                command: "bun",
-                args: ["--cwd", commandCwd, "run", script, ...args],
+                command: bun.command,
+                args: bun.args,
                 display: `bun --cwd ${displayCwd} run ${displayScript}${formatArgsDisplay(args)}`,
             };
+        }
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
     }
@@ -158,34 +188,42 @@ export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process
     const packageManager = detectPackageManager({ cwd, env });
 
     switch (packageManager) {
-        case "pnpm":
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["install", "--frozen-lockfile"]);
             return {
                 packageManager,
-                command: "pnpm",
-                args: ["install", "--frozen-lockfile"],
+                command: pnpm.command,
+                args: pnpm.args,
                 display: "pnpm install --frozen-lockfile",
             };
-        case "npm":
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["ci"]);
             return {
                 packageManager,
-                command: "npm",
-                args: ["ci"],
+                command: npm.command,
+                args: npm.args,
                 display: "npm ci",
             };
-        case "yarn":
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["install", "--immutable"]);
             return {
                 packageManager,
-                command: "yarn",
-                args: ["install", "--immutable"],
+                command: yarn.command,
+                args: yarn.args,
                 display: "yarn install --immutable",
             };
-        case "bun":
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["install", "--frozen-lockfile"]);
             return {
                 packageManager,
-                command: "bun",
-                args: ["install", "--frozen-lockfile"],
+                command: bun.command,
+                args: bun.args,
                 display: "bun install --frozen-lockfile",
             };
+        }
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
     }
@@ -229,34 +267,42 @@ export function packageBinaryCommand(
     const displayArgs = formatDisplayArgs(allArgs);
 
     switch (packageManager) {
-        case "pnpm":
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["exec", ...allArgs]);
             return {
                 packageManager,
-                command: "pnpm",
-                args: ["exec", ...allArgs],
+                command: pnpm.command,
+                args: pnpm.args,
                 display: `pnpm exec ${displayArgs}`,
             };
-        case "npm":
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["exec", "--", ...allArgs]);
             return {
                 packageManager,
-                command: "npm",
-                args: ["exec", "--", ...allArgs],
+                command: npm.command,
+                args: npm.args,
                 display: `npm exec -- ${displayArgs}`,
             };
-        case "yarn":
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, allArgs);
             return {
                 packageManager,
-                command: "yarn",
-                args: allArgs,
+                command: yarn.command,
+                args: yarn.args,
                 display: `yarn ${displayArgs}`,
             };
-        case "bun":
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["x", ...allArgs]);
             return {
                 packageManager,
-                command: "bun",
-                args: ["x", ...allArgs],
+                command: bun.command,
+                args: bun.args,
                 display: `bun x ${displayArgs}`,
             };
+        }
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
     }

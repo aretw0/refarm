@@ -56,6 +56,20 @@ export function packageManagerOverrideDiagnostic(
 
 export function detectPackageManager(options?: PackageManagerOptions): PackageManagerName;
 
+export function packageManagerExecutable(
+    packageManager: PackageManagerName,
+    platform?: NodeJS.Platform,
+): string;
+
+export function packageManagerSpawnCommand(
+    packageManager: PackageManagerName,
+    args?: string[],
+    platform?: NodeJS.Platform,
+): {
+    command: string;
+    args: string[];
+};
+
 export function createPackageScriptCommand(
     options: PackageScriptCommandOptions,
 ): PackageScriptCommand;
