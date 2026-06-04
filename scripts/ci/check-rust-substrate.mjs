@@ -75,6 +75,10 @@ if (process.platform === "win32" && rustcHost?.endsWith("-msvc")) {
 }
 
 const missing = checks.filter((check) => !check.ok);
+const needsMsvc =
+	process.platform === "win32" &&
+	rustcHost?.endsWith("-msvc") &&
+	(!compiler || linker?.includes("\\Git\\usr\\bin\\link.exe"));
 const recommendations = [];
 if (!hasWasiTarget) recommendations.push("rustup target add wasm32-wasip1");
 if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && !compiler) {
@@ -83,7 +87,7 @@ if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && !compiler) {
 if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && linker?.includes("\\Git\\usr\\bin\\link.exe")) {
 	recommendations.push("Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.");
 }
-if (!hasCargoComponent) recommendations.push("cargo install cargo-component --locked");
+if (!hasCargoComponent && !needsMsvc) recommendations.push("cargo install cargo-component --locked");
 
 const primaryNextCommand = recommendations[0] ?? null;
 const result = {
