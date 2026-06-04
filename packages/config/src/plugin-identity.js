@@ -37,3 +37,13 @@ export function isRuntimeAgentErrorContent(content) {
 		content.startsWith(prefix),
 	);
 }
+
+export function canonicalRuntimeAgentContent(content) {
+	if (content.startsWith("[pi-agent erro]")) {
+		return `[runtime-agent error]${content.slice("[pi-agent erro]".length)}`;
+	}
+	if (content.startsWith("[pi-agent stub]")) {
+		return `[runtime-agent stub]${content.slice("[pi-agent stub]".length)}`;
+	}
+	return content;
+}

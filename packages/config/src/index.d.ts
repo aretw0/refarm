@@ -50,6 +50,7 @@ export function normalizePluginId(pluginId: string): string;
 export function isPiAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentErrorContent(content: string): boolean;
+export function canonicalRuntimeAgentContent(content: string): string;
 export type {
     PackageCommandString,
     PackageBinaryCommand,

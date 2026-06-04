@@ -4,6 +4,7 @@ import {
 	PI_AGENT_PLUGIN_ID,
 	RUNTIME_AGENT_NPM_PACKAGE,
 	RUNTIME_AGENT_PLUGIN_ID,
+	canonicalRuntimeAgentContent,
 	isRuntimeAgentErrorContent,
 	isPiAgentPluginId,
 	isRuntimeAgentPluginId,
@@ -49,5 +50,20 @@ describe("plugin identity", () => {
 		expect(isRuntimeAgentErrorContent("[budget] limit reached")).toBe(true);
 		expect(isRuntimeAgentErrorContent("[pi-agent erro] quota")).toBe(true);
 		expect(isRuntimeAgentErrorContent("normal response")).toBe(false);
+	});
+
+	it("canonicalizes legacy runtime agent content prefixes for display", () => {
+		expect(canonicalRuntimeAgentContent("[pi-agent erro] quota")).toBe(
+			"[runtime-agent error] quota",
+		);
+		expect(canonicalRuntimeAgentContent("[pi-agent stub] no model")).toBe(
+			"[runtime-agent stub] no model",
+		);
+		expect(canonicalRuntimeAgentContent("[runtime-agent error] quota")).toBe(
+			"[runtime-agent error] quota",
+		);
+		expect(canonicalRuntimeAgentContent("normal response")).toBe(
+			"normal response",
+		);
 	});
 });

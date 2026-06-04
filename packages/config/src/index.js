@@ -39,6 +39,7 @@ export {
     RUNTIME_AGENT_ERROR_PREFIXES,
     RUNTIME_AGENT_NPM_PACKAGE,
     RUNTIME_AGENT_PLUGIN_ID,
+    canonicalRuntimeAgentContent,
     isRuntimeAgentErrorContent,
     isPiAgentPluginId,
     isRuntimeAgentPluginId,

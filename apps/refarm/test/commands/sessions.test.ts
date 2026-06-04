@@ -498,6 +498,42 @@ describe("refarm sessions", () => {
 		});
 	});
 
+	it("sessions show canonicalizes legacy runtime agent prefixes in human output", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					session: {
+						"@id": "urn:refarm:session:v1:abc123def456",
+						"@type": "Session",
+						name: "planning",
+					},
+					entries: [
+						{
+							id: "entry-1",
+							kind: "agent",
+							content: "[pi-agent erro] quota exceeded",
+							timestamp_ns: 1,
+						},
+					],
+					total: 1,
+				}),
+			}),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0] ?? "")).join("\n");
+		expect(output).toContain("[runtime-agent error] quota exceeded");
+		expect(output).not.toContain("[pi-agent erro]");
+	});
+
 	it("sessions show exposes canonical runtime-agent participants for legacy sessions", async () => {
 		vi.stubGlobal(
 			"fetch",

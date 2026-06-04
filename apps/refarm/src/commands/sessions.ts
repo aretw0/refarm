@@ -1,3 +1,4 @@
+import { canonicalRuntimeAgentContent } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 
@@ -805,7 +806,10 @@ async function showSession(
 		const isUser = entry.kind === "user";
 		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Agent");
 		console.log(label);
-		const lines = entry.content.split("\n");
+		const content = isUser
+			? entry.content
+			: canonicalRuntimeAgentContent(entry.content);
+		const lines = content.split("\n");
 		for (const line of lines) {
 			console.log(isUser ? chalk.blue(`  ${line}`) : `  ${line}`);
 		}
