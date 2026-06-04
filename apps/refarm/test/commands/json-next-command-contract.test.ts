@@ -6,7 +6,10 @@ import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 import { createCheckCommand } from "../../src/commands/check.js";
-import { commandTemplateParameters } from "../../src/commands/command-handoff.js";
+import {
+	commandTemplateParameters,
+	instantiateCommandTemplate,
+} from "../../src/commands/command-handoff.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
@@ -171,19 +174,20 @@ function singularPluralHandoffMismatches(
 	});
 }
 
-function generatedTemplates(payloads: unknown[]): {
+type GeneratedTemplate = {
 	command: string;
+	cwdParameter?: string;
+	id?: string;
 	parameters: string[];
 	process?: { command?: string; args?: string[]; display?: string };
-}[] {
+	useWhen?: string;
+};
+
+function generatedTemplates(payloads: unknown[]): GeneratedTemplate[] {
 	return payloads.flatMap((payload) => collectGeneratedTemplates(payload));
 }
 
-function collectGeneratedTemplates(value: unknown): {
-	command: string;
-	parameters: string[];
-	process?: { command?: string; args?: string[]; display?: string };
-}[] {
+function collectGeneratedTemplates(value: unknown): GeneratedTemplate[] {
 	if (!value || typeof value !== "object") return [];
 	if (Array.isArray(value)) return value.flatMap(collectGeneratedTemplates);
 	return Object.entries(value).flatMap(([key, entry]) => {
@@ -198,14 +202,33 @@ function collectGeneratedTemplates(value: unknown): {
 				)
 				.map((template) => ({
 					command: template.command,
+					cwdParameter: (template as { cwdParameter?: string }).cwdParameter,
+					id: (template as { id?: string }).id,
 					parameters: template.parameters ?? [],
 					process: (template as {
 						process?: { command?: string; args?: string[]; display?: string };
 					}).process,
+					useWhen: (template as { useWhen?: string }).useWhen,
 				})),
 			...nested,
 		];
 	});
+}
+
+function sampleCommandTemplateParameters(parameters: string[]): Record<string, string> {
+	return Object.fromEntries(
+		parameters.map((parameter) => [
+			parameter,
+			({
+				dir: "../agents-lab",
+				"effort-id": "effort-123",
+				fn: "respond",
+				plugin: "runtime-agent",
+				"plugin.wasm": "dist/plugin.wasm",
+				ref: "HEAD~1",
+			} as Record<string, string>)[parameter] ?? `sample-${parameter}`,
+		]),
+	);
 }
 
 function generatedCommandFieldPlaceholderLeaks(
@@ -1432,6 +1455,41 @@ describe("JSON next command contract", () => {
 			.filter((template) => commandTemplateParameters(template.command).length > 0)
 			.filter((template) => !template.process)
 			.map((template) => template.command);
+		const instantiatedTemplatesWithPlaceholders = templates
+			.filter((template) => template.parameters.length > 0)
+			.map((template) =>
+				instantiateCommandTemplate(
+					{
+						id: template.id ?? "template",
+						command: template.command,
+						...(template.process
+							? {
+									process: {
+										command: template.process.command ?? "",
+										args: template.process.args ?? [],
+										display: template.process.display ?? "",
+									},
+								}
+							: {}),
+						parameters: template.parameters,
+						...(template.cwdParameter
+							? { cwdParameter: template.cwdParameter }
+							: {}),
+						useWhen: template.useWhen ?? "Test template instantiation.",
+					},
+					sampleCommandTemplateParameters(template.parameters),
+				),
+			)
+			.filter((template) =>
+				commandTemplateParameters([
+					template.command,
+					template.process?.command ?? "",
+					...(template.process?.args ?? []),
+					template.process?.display ?? "",
+					template.cwd ?? "",
+				]).length > 0,
+			)
+			.map((template) => template.command);
 
 		expect(templateCommands).toContain(
 			"refarm agent finish --profile package --workspace <dir> --next-command",
@@ -1463,6 +1521,7 @@ describe("JSON next command contract", () => {
 		expect(actions.filter((action) => /<[^>]+>/.test(action))).toEqual([]);
 		expect(templatesWithUndeclaredParameters).toEqual([]);
 		expect(parameterizedTemplatesWithoutProcess).toEqual([]);
+		expect(instantiatedTemplatesWithPlaceholders).toEqual([]);
 		expect(templates).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
