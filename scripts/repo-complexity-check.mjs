@@ -7,6 +7,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 export const DEFAULT_MAX_COMPLEXITY_LINES = 1000;
+export const DEFAULT_COMPLEXITY_REPORT_LIMIT = 10;
 
 const DEFAULT_EXTENSIONS = new Set([
 	".cjs",
@@ -141,6 +142,7 @@ function summarizeFindingsByCategory(findings) {
 
 export function buildRepoComplexityReport(cwd = process.cwd(), options = {}) {
 	const maxLines = options.maxLines ?? DEFAULT_MAX_COMPLEXITY_LINES;
+	const limit = options.limit ?? DEFAULT_COMPLEXITY_REPORT_LIMIT;
 	const files = options.files ?? (options.changed
 		? changedFiles(cwd, options.base ?? "HEAD")
 		: trackedFiles(cwd));
@@ -156,6 +158,9 @@ export function buildRepoComplexityReport(cwd = process.cwd(), options = {}) {
 		totalFindings: findings.length,
 		blockingFindings,
 		allowedFindings,
+		reportLimit: limit,
+		topBlockingFindings: blockingFindings.slice(0, limit),
+		topFindings: findings.slice(0, limit),
 		summaryByCategory: summarizeFindingsByCategory(findings),
 		findings,
 	};
@@ -167,6 +172,7 @@ function parseArgs(argv) {
 		changed: false,
 		help: false,
 		json: false,
+		limit: DEFAULT_COMPLEXITY_REPORT_LIMIT,
 		maxLines: DEFAULT_MAX_COMPLEXITY_LINES,
 		strict: false,
 	};
@@ -182,6 +188,12 @@ function parseArgs(argv) {
 			options.help = true;
 		} else if (arg === "--json") {
 			options.json = true;
+		} else if (arg === "--limit") {
+			const value = Number(argv[++index]);
+			if (!Number.isFinite(value) || value <= 0) {
+				throw new Error("--limit requires a positive number");
+			}
+			options.limit = Math.floor(value);
 		} else if (arg === "--max-lines") {
 			const value = Number(argv[++index]);
 			if (!Number.isFinite(value) || value <= 0) {
@@ -211,6 +223,7 @@ function printHelp() {
 		"  node scripts/repo-complexity-check.mjs",
 		"  node scripts/repo-complexity-check.mjs --max-lines 800 --strict",
 		"  node scripts/repo-complexity-check.mjs --changed --base HEAD --json",
+		"  node scripts/repo-complexity-check.mjs --limit 5",
 	].join("\n"));
 }
 
@@ -220,11 +233,17 @@ function printReport(report) {
 	} else {
 		console.log(`complexity-check: ${report.blockingFindings.length} blocking file(s) over ${report.maxLines} lines`);
 	}
-	for (const finding of report.findings.slice(0, 40)) {
+	const displayedFindings = report.blockingFindings.length > 0
+		? report.topBlockingFindings
+		: report.topFindings;
+	for (const finding of displayedFindings) {
 		console.log(`  - ${finding.file} | category=${finding.category} | lines=${finding.lines} | size=${formatBytes(finding.size)} | ${finding.note}`);
 	}
-	if (report.findings.length > 40) {
-		console.log(`  ... (+${report.findings.length - 40} more)`);
+	const hiddenCount = report.blockingFindings.length > 0
+		? report.blockingFindings.length - displayedFindings.length
+		: report.findings.length - displayedFindings.length;
+	if (hiddenCount > 0) {
+		console.log(`  ... (+${hiddenCount} more)`);
 	}
 }
 

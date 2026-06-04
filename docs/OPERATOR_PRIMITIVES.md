@@ -201,6 +201,10 @@ Rules:
   source, test, docs, scripts, fixtures, and project-state pressure before
   choosing whether to split from below (shared helper/package) or above
   (command/test decomposition).
+- JSON output keeps the complete `findings` arrays for audit, but also exposes
+  `topBlockingFindings`, `topFindings`, and `reportLimit` for compact agent
+  handoffs. Use `--limit <n>` when the operator needs a short triage view
+  instead of the full backlog.
 - Outside Refarm, the default policy is generic `workspace`; consumer-specific
   generated docs, skill packages, or non-TS package layouts belong in that
   repo's `refarm.config.json`.

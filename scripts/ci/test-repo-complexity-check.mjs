@@ -82,6 +82,9 @@ describe("repo-complexity-check", () => {
 			assert.equal(report.ok, false);
 			assert.equal(report.blockingFindings.length, 1);
 			assert.equal(report.blockingFindings[0].file, "large.ts");
+			assert.equal(report.reportLimit, 10);
+			assert.deepEqual(report.topBlockingFindings, report.blockingFindings);
+			assert.deepEqual(report.topFindings, report.findings);
 			assert.deepEqual(report.summaryByCategory, {
 				other: {
 					allowed: 0,
@@ -91,6 +94,32 @@ describe("repo-complexity-check", () => {
 					totalLines: 4,
 				},
 			});
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it("keeps full findings while exposing bounded top findings", () => {
+		const root = mkdtempSync(path.join(tmpdir(), "refarm-complexity-"));
+		try {
+			for (const file of ["a.ts", "b.ts", "c.ts"]) {
+				writeFileSync(path.join(root, file), "one\ntwo\nthree\nfour\n", "utf8");
+			}
+
+			const report = buildRepoComplexityReport(root, {
+				files: ["a.ts", "b.ts", "c.ts"],
+				limit: 2,
+				maxLines: 3,
+			});
+
+			assert.equal(report.findings.length, 3);
+			assert.equal(report.blockingFindings.length, 3);
+			assert.equal(report.reportLimit, 2);
+			assert.deepEqual(report.topFindings.map((finding) => finding.file), ["a.ts", "b.ts"]);
+			assert.deepEqual(report.topBlockingFindings.map((finding) => finding.file), [
+				"a.ts",
+				"b.ts",
+			]);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
