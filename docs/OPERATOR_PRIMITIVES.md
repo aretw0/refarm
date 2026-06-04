@@ -178,6 +178,25 @@ Rules:
   `refarm health --next-action --json`.
 - In the Refarm monorepo, the policy may carry Refarm-specific roots,
   exemptions, and generated-source exclusions.
+
+### Complexity Pressure
+
+Purpose: make large-file pressure visible before agents normalize working inside
+files that are too large to reason about cheaply.
+
+Rules:
+
+- `pnpm run repo:complexity` is the baseline audit for tracked files over the
+  configured line budget.
+- `pnpm run repo:complexity:changed:strict` is the safe local gate for new
+  slices: it blocks changed files that cross the line budget without requiring
+  the existing backlog to be fixed first.
+- `pnpm run repo:complexity:strict` is diagnostic until the current backlog is
+  split or explicitly classified. Do not add it to broad gates before the
+  baseline is triaged.
+- Large generated fixtures, lockfiles, and project state may be reported as
+  allowed findings; source and hand-written tests should normally be blocking
+  unless there is a documented extraction plan.
 - Outside Refarm, the default policy is generic `workspace`; consumer-specific
   generated docs, skill packages, or non-TS package layouts belong in that
   repo's `refarm.config.json`.
