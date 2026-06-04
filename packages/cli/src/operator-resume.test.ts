@@ -5,6 +5,7 @@ import {
 	formatOperatorResumeSessionId,
 	formatOperatorResumeSummary,
 	operatorResumeNextCommands,
+	operatorResumeNextProcesses,
 } from "./operator-resume.js";
 import type { RefarmStatusJson } from "./status.js";
 
@@ -158,6 +159,13 @@ describe("operator resume", () => {
 			ok: true,
 			nextCommand: "refarm task list --json",
 			nextCommands: ["refarm task list --json"],
+			nextProcesses: [
+				{
+					command: "refarm",
+					args: ["task", "list", "--json"],
+					display: "refarm task list --json",
+				},
+			],
 			status: "ok",
 			session: { status: "none" },
 			recentPrompts: [],
@@ -250,6 +258,26 @@ describe("operator resume", () => {
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm task status effort-1 --transport file --watch --json",
 			"refarm task logs effort-1 --transport file --json",
+		]);
+		expect(operatorResumeNextProcesses(summary)).toEqual([
+			{
+				command: "refarm",
+				args: [
+					"task",
+					"status",
+					"effort-1",
+					"--transport",
+					"file",
+					"--watch",
+					"--json",
+				],
+				display: "refarm task status effort-1 --transport file --watch --json",
+			},
+			{
+				command: "refarm",
+				args: ["task", "logs", "effort-1", "--transport", "file", "--json"],
+				display: "refarm task logs effort-1 --transport file --json",
+			},
 		]);
 	});
 

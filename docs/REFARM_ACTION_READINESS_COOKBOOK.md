@@ -59,6 +59,9 @@ commands an operator agent can execute directly:
   describe the boundary without shell parsing. Each spec should include
   `command`, `args`, `display`, and optional `cwd` / `packageManager`. Agent
   runners should prefer this field when present and fall back to `nextCommands`.
+- `refarm resume --json` includes `nextProcesses` for continuation commands it
+  can describe structurally, such as session observation, task listing, and
+  active task status/logs. Keep `nextCommands` as the operator-facing fallback.
 - Command payloads that describe a lower-level process should expose a canonical
   `process` object with the same shape. Legacy fields such as `processCommand`
   and `processArgs` may remain during migration, but new consumers should read

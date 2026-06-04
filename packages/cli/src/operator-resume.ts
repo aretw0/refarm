@@ -1,4 +1,8 @@
-import { applicationCommand } from "./command-handoff.js";
+import {
+	applicationCommand,
+	applicationProcess,
+	type ApplicationProcessSpec,
+} from "./command-handoff.js";
 import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
@@ -140,10 +144,16 @@ export interface OperatorResumeSummary {
 }
 
 export type OperatorResumeEnvelope =
-	JsonSuccessEnvelope<OperatorResumeSummary>;
+	JsonSuccessEnvelope<
+		OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
+	>;
 
 function refarmAppCommand(args: string[]): string {
 	return applicationCommand("refarm", args);
+}
+
+function refarmAppProcess(args: string[]): ApplicationProcessSpec {
+	return applicationProcess("refarm", args);
 }
 
 const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
@@ -153,6 +163,20 @@ const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
 	sessionShow: (sessionId) =>
 		refarmAppCommand([
+			"sessions",
+			"show",
+			formatOperatorResumeSessionId(sessionId),
+			"--json",
+		]),
+};
+
+const DEFAULT_OPERATOR_RESUME_PROCESSES = {
+	runtimeDoctor: refarmAppProcess(["runtime", "doctor", "--next-command"]),
+	taskList: refarmAppProcess(["task", "list", "--json"]),
+	taskResume: refarmAppProcess(["task", "resume", "--json"]),
+	modelCurrent: refarmAppProcess(["model", "current", "--json"]),
+	sessionShow: (sessionId: string) =>
+		refarmAppProcess([
 			"sessions",
 			"show",
 			formatOperatorResumeSessionId(sessionId),
@@ -389,17 +413,119 @@ export function operatorResumeNextCommands(
 	return [...new Set(nextCommands)];
 }
 
+function commandProcessKey(processSpec: ApplicationProcessSpec): string {
+	return `${processSpec.command}\0${processSpec.args.join("\0")}`;
+}
+
+function dedupeCommandProcesses(
+	processes: ApplicationProcessSpec[],
+): ApplicationProcessSpec[] {
+	const seen = new Set<string>();
+	return processes.filter((processSpec) => {
+		const key = commandProcessKey(processSpec);
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+
+export function operatorResumeNextProcesses(
+	summary: OperatorResumeSummary,
+	commands: Partial<OperatorResumeCommands> = {},
+): ApplicationProcessSpec[] {
+	const nextCommands = operatorResumeNextCommands(summary, commands);
+	const processByCommand = new Map<string, ApplicationProcessSpec>();
+	const addDefaultProcess = (
+		command: string,
+		processSpec: ApplicationProcessSpec,
+	): void => {
+		processByCommand.set(command, processSpec);
+	};
+
+	addDefaultProcess(
+		DEFAULT_OPERATOR_RESUME_COMMANDS.runtimeDoctor,
+		DEFAULT_OPERATOR_RESUME_PROCESSES.runtimeDoctor,
+	);
+	addDefaultProcess(
+		DEFAULT_OPERATOR_RESUME_COMMANDS.taskList,
+		DEFAULT_OPERATOR_RESUME_PROCESSES.taskList,
+	);
+	addDefaultProcess(
+		DEFAULT_OPERATOR_RESUME_COMMANDS.taskResume,
+		DEFAULT_OPERATOR_RESUME_PROCESSES.taskResume,
+	);
+	addDefaultProcess(
+		DEFAULT_OPERATOR_RESUME_COMMANDS.modelCurrent,
+		DEFAULT_OPERATOR_RESUME_PROCESSES.modelCurrent,
+	);
+	for (const session of summary.session.recentSessions) {
+		if (session.showCommand) {
+			addDefaultProcess(
+				session.showCommand,
+				DEFAULT_OPERATOR_RESUME_PROCESSES.sessionShow(session.sessionId),
+			);
+		}
+	}
+	if (summary.session.activeSessionId && summary.session.showCommand) {
+		addDefaultProcess(
+			summary.session.showCommand,
+			DEFAULT_OPERATOR_RESUME_PROCESSES.sessionShow(
+				summary.session.activeSessionId,
+			),
+		);
+	}
+	if (summary.tasks.activeEffort) {
+		const effort = summary.tasks.activeEffort;
+		addDefaultProcess(taskWatchJsonCommand(effort.statusCommand), {
+			...refarmAppProcess([
+				"task",
+				"status",
+				effort.effortId,
+				"--transport",
+				effort.transport,
+				"--watch",
+				"--json",
+			]),
+		});
+		addDefaultProcess(taskReadJsonCommand(effort.logsCommand), {
+			...refarmAppProcess([
+				"task",
+				"logs",
+				effort.effortId,
+				"--transport",
+				effort.transport,
+				"--json",
+			]),
+		});
+	}
+
+	return dedupeCommandProcesses(
+		nextCommands
+			.map((command) => processByCommand.get(command))
+			.filter(
+				(processSpec): processSpec is ApplicationProcessSpec =>
+					processSpec !== undefined,
+			),
+	);
+}
+
 export function buildOperatorResumeEnvelope(
 	input: OperatorResumeInput,
 ): OperatorResumeEnvelope {
 	const summary = buildOperatorResumeSummary(input);
 	const nextCommands = operatorResumeNextCommands(summary, input.commands);
-	return buildJsonSuccessEnvelope<OperatorResumeSummary>({
+	const nextProcesses = operatorResumeNextProcesses(summary, input.commands);
+	return buildJsonSuccessEnvelope<
+		OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
+	>({
 		command: "resume",
 		operation: "operator",
 		nextActions: nextCommands,
 		nextCommands,
-		extra: operatorResumeJsonSummary(summary),
+		extra: {
+			...operatorResumeJsonSummary(summary),
+			nextProcesses,
+		},
 	});
 }
 
