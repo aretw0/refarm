@@ -1,4 +1,8 @@
 import chalk from "chalk";
+import {
+	isModuleResolutionError,
+	renderBootstrapFailure,
+} from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
 import { program } from "./program.js";
 
@@ -17,6 +21,11 @@ function renderTokenAuthError(err: TokenAuthError): void {
 program.parseAsync(process.argv).catch((err: unknown) => {
 	if (err instanceof TokenAuthError) {
 		renderTokenAuthError(err);
+		process.exitCode = 1;
+		return;
+	}
+	if (isModuleResolutionError(err)) {
+		renderBootstrapFailure(err);
 		process.exitCode = 1;
 		return;
 	}
