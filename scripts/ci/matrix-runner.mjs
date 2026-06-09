@@ -1,6 +1,14 @@
 import { execSync } from "node:child_process";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+	cpSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	detectPackageManager,
@@ -11,6 +19,7 @@ import {
 import { readWorkspacePackages } from "./workspace-packages.mjs";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
+const PACKAGES_DIR = join(ROOT_DIR, "packages");
 const workspacePackages = readWorkspacePackages(ROOT_DIR);
 
 function packageManager() {
@@ -159,6 +168,83 @@ function rewriteWorkspaceDepsToLatest(packageJsonPath) {
 	writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
 }
 
+function rewriteRepoScriptReferences(packageJsonPath) {
+	const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+	if (!pkg.scripts) return;
+	const rootForScript = ROOT_DIR.replace(/\\/g, "/");
+	for (const [scriptName, scriptValue] of Object.entries(pkg.scripts)) {
+		if (typeof scriptValue !== "string") continue;
+		pkg.scripts[scriptName] = scriptValue
+			.replaceAll("../../scripts/", `${rootForScript}/scripts/`)
+			.replaceAll("..\\..\\scripts\\", `${rootForScript}/scripts/`);
+	}
+	writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
+}
+
+const ignoredReferenceDirs = new Set([
+	".git",
+	".turbo",
+	"dist",
+	"node_modules",
+	"target",
+]);
+const referenceTextExtensions = new Set([
+	"",
+	".cjs",
+	".js",
+	".json",
+	".mjs",
+	".rs",
+	".toml",
+	".ts",
+	".tsx",
+	".wit",
+]);
+
+function packageReferencesSibling(packageDir, siblingName) {
+	const unixReference = `../${siblingName}`;
+	const windowsReference = `..\\${siblingName}`;
+	const entries = readdirSync(packageDir);
+	for (const entry of entries) {
+		if (ignoredReferenceDirs.has(entry)) continue;
+		const entryPath = join(packageDir, entry);
+		const stats = statSync(entryPath);
+		if (stats.isDirectory()) {
+			if (packageReferencesSibling(entryPath, siblingName)) return true;
+			continue;
+		}
+		if (!stats.isFile() || !referenceTextExtensions.has(extname(entry))) {
+			continue;
+		}
+		const content = readFileSync(entryPath, "utf8");
+		if (
+			content.includes(unixReference) ||
+			content.includes(windowsReference)
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function packageSourceSiblings() {
+	return readdirSync(PACKAGES_DIR)
+		.map((entry) => join(PACKAGES_DIR, entry))
+		.filter((entryPath) => statSync(entryPath).isDirectory());
+}
+
+function copyReferencedPackageSiblings(packageDir, testDir) {
+	for (const siblingDir of packageSourceSiblings()) {
+		if (siblingDir === packageDir) continue;
+		const siblingName = basename(siblingDir);
+		if (!packageReferencesSibling(packageDir, siblingName)) continue;
+		const destination = join(dirname(testDir), siblingName);
+		rmSync(destination, { recursive: true, force: true });
+		cpSync(siblingDir, destination, { recursive: true });
+		console.log(`Included workspace sibling ${siblingName} for path-based sources.`);
+	}
+}
+
 function pickValidationScript(pkg) {
 	const scripts = pkg.scripts ?? {};
 	for (const scriptName of [
@@ -258,10 +344,13 @@ function runForward(pkgName) {
 	try {
 		rmSync(testDir, { recursive: true, force: true });
 		cpSync(pkgDir, testDir, { recursive: true });
+		copyReferencedPackageSiblings(pkgDir, testDir);
 		for (const artifact of ["node_modules", "dist", ".turbo"]) {
 			rmSync(join(testDir, artifact), { recursive: true, force: true });
 		}
-		rewriteWorkspaceDepsToLatest(join(testDir, "package.json"));
+		const isolatedPackageJson = join(testDir, "package.json");
+		rewriteWorkspaceDepsToLatest(isolatedPackageJson);
+		rewriteRepoScriptReferences(isolatedPackageJson);
 		execSync(installCommand(), {
 			cwd: testDir,
 			stdio: "inherit",

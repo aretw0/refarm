@@ -263,6 +263,8 @@ jobs:
     timeout-minutes: 30
     needs: changes
     if: needs.changes.outputs.skip_duplicate_push != 'true'
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
       - name: Checkout
@@ -564,12 +566,13 @@ jobs:
             }
 
       - name: Upload coverage
-        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && env.CODECOV_TOKEN != ''
         uses: ./.github/actions/codecov-upload
         with:
           files: ./packages/tractor/coverage/lcov.info
           flags: unittests
           name: codecov-refarm
+          token: ${{ env.CODECOV_TOKEN }}
 
       - name: Upload revocation diagnostics report
         if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
