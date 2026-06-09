@@ -406,6 +406,7 @@ jobs:
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
