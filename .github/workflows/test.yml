@@ -376,11 +376,11 @@ jobs:
 
       - name: Verify (Full Turbo)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
-        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Verify (Full Turbo fallback)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
-        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Verify (Full Turbo) skipped
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
@@ -651,7 +651,7 @@ jobs:
 
       - name: Build (affected)
         if: needs.changes.outputs.turbo_filter != ''
-        run: pnpm turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Build (full fallback)
         if: needs.changes.outputs.turbo_filter == ''
@@ -739,11 +739,11 @@ jobs:
 
       - name: Run E2E Tests (affected)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'affected'
-        run: pnpm turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Run E2E Tests (full fallback)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'full'
-        run: pnpm turbo run test:e2e --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Upload Playwright report
         if: always() && steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_check.outputs.enabled == 'true'
@@ -781,7 +781,7 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
 
       - name: Deep regression (full stack)
-        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo --output-logs=new-only --ui=stream
 
   audit-moderate:
     runs-on: ubuntu-latest
