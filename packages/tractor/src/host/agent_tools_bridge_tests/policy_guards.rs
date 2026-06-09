@@ -40,6 +40,39 @@
         assert!(err.contains("env payload exceeds max total bytes"));
     }
 
+    #[test]
+    fn spawn_env_rejects_overlong_value() {
+        let env = vec![("SAFE_KEY".to_string(), "x".repeat(4097))];
+        let err = enforce_spawn_env(&env).unwrap_err();
+        assert!(err.contains("env value exceeds max length"));
+    }
+
+    #[test]
+    fn spawn_cwd_rejects_empty_path() {
+        let err = enforce_spawn_cwd_with("", None).unwrap_err();
+        assert!(err.contains("cwd must be non-empty"));
+    }
+
+    #[test]
+    fn spawn_cwd_rejects_surrounding_whitespace() {
+        let err = enforce_spawn_cwd_with(" /tmp ", None).unwrap_err();
+        assert!(err.contains("cwd contains surrounding whitespace"));
+    }
+
+    #[test]
+    fn spawn_cwd_rejects_overlong_path() {
+        let path = format!("/{}", "a".repeat(4097));
+        let err = enforce_spawn_cwd_with(&path, None).unwrap_err();
+        assert!(err.contains("cwd exceeds max length"));
+    }
+
+    #[test]
+    fn spawn_argv_rejects_control_char_argument() {
+        let argv = vec!["echo".to_string(), "bad\narg".to_string()];
+        let err = enforce_spawn_argv_within_limits(&argv).unwrap_err();
+        assert!(err.contains("argv contains control characters"));
+    }
+
     #[tokio::test]
     async fn spawn_rejects_cwd_with_control_chars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
@@ -191,6 +224,23 @@
         if let Some(prev) = prev {
             std::env::set_var("MODEL_SHELL_ALLOWLIST", prev);
         }
+    }
+
+    #[test]
+    fn shell_allowlist_from_env_parses_configured_value() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("MODEL_SHELL_ALLOWLIST").ok();
+        std::env::set_var("MODEL_SHELL_ALLOWLIST", "echo");
+
+        let allowlist = shell_allowlist_from_env().unwrap();
+
+        if let Some(prev) = prev {
+            std::env::set_var("MODEL_SHELL_ALLOWLIST", prev);
+        } else {
+            std::env::remove_var("MODEL_SHELL_ALLOWLIST");
+        }
+
+        assert!(allowlist.contains("echo"));
     }
 
     #[test]
@@ -398,6 +448,45 @@
     }
 
     #[test]
+    fn configured_fs_root_accepts_directory_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = configured_fs_root_from_raw(dir.path().to_string_lossy().as_ref())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(root, std::fs::canonicalize(dir.path()).unwrap());
+    }
+
+    #[test]
+    fn configured_fs_root_accepts_empty_marker() {
+        let root = configured_fs_root_from_raw("").unwrap().unwrap();
+        assert!(root.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn configured_fs_root_reads_valid_environment_root() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("MODEL_FS_ROOT").ok();
+        let root = std::env::current_dir()
+            .unwrap()
+            .ancestors()
+            .last()
+            .unwrap()
+            .to_path_buf();
+
+        std::env::set_var("MODEL_FS_ROOT", root.to_string_lossy().as_ref());
+        let configured = configured_fs_root().unwrap().unwrap();
+
+        if let Some(prev) = prev {
+            std::env::set_var("MODEL_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("MODEL_FS_ROOT");
+        }
+
+        assert_eq!(configured, std::fs::canonicalize(root).unwrap());
+    }
+
+    #[test]
     fn configured_fs_root_rejects_control_chars() {
         let err = configured_fs_root_err_for("/tmp/root\n");
         assert!(err.contains("contains control characters"));
@@ -429,6 +518,13 @@
 
         let result = enforce_fs_root_with(file.to_string_lossy().as_ref(), Some(&root));
         assert!(result.is_ok(), "inside path should be allowed: {result:?}");
+    }
+
+    #[test]
+    fn fs_root_allows_relative_path_inside_current_dir_root() {
+        let root = std::env::current_dir().unwrap();
+        let result = enforce_fs_root_with("Cargo.toml", Some(&root));
+        assert!(result.is_ok(), "relative path inside cwd should be allowed: {result:?}");
     }
 
     #[test]
