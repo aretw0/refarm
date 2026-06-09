@@ -69,7 +69,7 @@ The file is optional — missing file is silently ignored.
 | Variable | Default | Description |
 |---|---|---|
 | `MODEL_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
-| `MODEL_DEFAULT_PROVIDER` | — | Personal default when `MODEL_PROVIDER` unset |
+| `MODEL_DEFAULT_PROVIDER` | — | Personal sovereign default when `MODEL_PROVIDER` unset |
 | `MODEL_ID` | provider default | Model ID override |
 | `MODEL_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
 | `ANTHROPIC_API_KEY` | — | Required when `MODEL_PROVIDER=anthropic` |
@@ -83,7 +83,6 @@ The file is optional — missing file is silently ignored.
 | `GEMINI_API_KEY` | — | Required when `MODEL_PROVIDER=gemini` |
 | `MODEL_MAX_CONTEXT_TOKENS` | unlimited | Block prompts estimated above this token count |
 | `MODEL_FALLBACK_PROVIDER` | — | Retry with this provider on primary error or budget block |
-| `MODEL_FALLBACK_MODEL_ID` | fallback provider default | Optional model override for the fallback provider |
 | `MODEL_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `MODEL_BUDGET_ANTHROPIC_USD=5.0` |
 | `MODEL_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
 | `MODEL_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
