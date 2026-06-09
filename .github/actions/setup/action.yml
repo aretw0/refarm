@@ -199,6 +199,7 @@ runs:
         }
 
         $envOutput = cmd /s /c "`"$vsDevCmd`" -arch=x64 -host_arch=x64 >nul && set"
+        $captured = @{}
         $names = @(
           "PATH",
           "INCLUDE",
@@ -215,8 +216,24 @@ runs:
           $name = $line.Substring(0, $index)
           if ($names -notcontains $name) { continue }
           $value = $line.Substring($index + 1)
+          $captured[$name] = $value
           Add-Content -Path $env:GITHUB_ENV -Value "$name=$value"
         }
+
+        $toolsDir = $captured["VCToolsInstallDir"]
+        if (!$toolsDir) {
+          Write-Error "VCToolsInstallDir was not produced by VsDevCmd.bat."
+          exit 1
+        }
+
+        $msvcLinker = Join-Path $toolsDir "bin\Hostx64\x64\link.exe"
+        if (!(Test-Path $msvcLinker)) {
+          Write-Error "MSVC linker not found at $msvcLinker"
+          exit 1
+        }
+
+        Add-Content -Path $env:GITHUB_ENV -Value "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=$msvcLinker"
+        Write-Host "Using explicit MSVC linker: $msvcLinker"
 
     - name: Setup Rust toolchain
       if: ${{ inputs.rust-target != '' }}

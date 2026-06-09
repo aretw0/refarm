@@ -27,7 +27,7 @@ export interface RustSubstrateCheck {
 }
 
 const RUST_SUBSTRATE_BUILD_TOOLS_COMMAND = "Install Visual Studio Build Tools with the C++ build tools workload.";
-const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND = "Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.";
+const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND = "Open a Developer PowerShell for VS, set CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER, or put the MSVC linker before Git usr/bin in PATH.";
 const RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND = "cargo install cargo-component --locked";
 const RUST_SUBSTRATE_WASI_TARGET_COMMAND = "rustup target add wasm32-wasip1";
 const RUST_SUBSTRATE_RETRY_CHECK_COMMAND = applicationCommand("refarm", [
@@ -131,15 +131,28 @@ export async function runRustSubstrateCheck(
 
 	const compiler = platform === "win32" ? commandSource("cl.exe") : null;
 	const linker = platform === "win32" ? commandSource("link.exe") : null;
+	const explicitMsvcLinker =
+		platform === "win32" ? process.env.CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER ?? null : null;
+	const explicitMsvcLinkerOk =
+		typeof explicitMsvcLinker === "string" &&
+		/\\link\.exe$/i.test(explicitMsvcLinker) &&
+		(await exists(explicitMsvcLinker));
+	const effectiveLinker = explicitMsvcLinkerOk ? explicitMsvcLinker : linker;
 	if (platform === "win32" && rustcHost?.endsWith("-msvc")) {
 		if (!compiler) missing.push("msvc_cl");
-		if (!linker || /\\Git\\usr\\bin\\link\.exe$/i.test(linker)) missing.push("msvc_link");
+		if (
+			!explicitMsvcLinkerOk &&
+			(!linker || /\\Git\\usr\\bin\\link\.exe$/i.test(linker))
+		) {
+			missing.push("msvc_link");
+		}
 	}
 
 	const recommendations = buildRustSubstrateRecommendations({
 		missing,
 		rustcHost,
 		linker,
+		explicitMsvcLinkerOk,
 	});
 	return {
 		command: "rust-substrate",
@@ -149,7 +162,7 @@ export async function runRustSubstrateCheck(
 		platform,
 		rustcHost,
 		missing,
-		linker,
+		linker: effectiveLinker,
 		compiler,
 		recommendations,
 	};
@@ -159,6 +172,7 @@ function buildRustSubstrateRecommendations(input: {
 	missing: string[];
 	rustcHost: string | null;
 	linker: string | null;
+	explicitMsvcLinkerOk?: boolean;
 }): RustSubstrateRecommendation[] {
 	const recommendations: RustSubstrateRecommendation[] = [];
 	const missingMsvcPrerequisite =
@@ -186,6 +200,7 @@ function buildRustSubstrateRecommendations(input: {
 	if (
 		input.rustcHost?.endsWith("-msvc") &&
 		input.missing.includes("msvc_link") &&
+		!input.explicitMsvcLinkerOk &&
 		input.linker?.includes("\\Git\\usr\\bin\\link.exe")
 	) {
 		recommendations.push({

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-rust-substrate.mjs [--json]");
@@ -61,6 +62,14 @@ const checks = [
 
 const linker = process.platform === "win32" ? commandSource("link.exe") : null;
 const compiler = process.platform === "win32" ? commandSource("cl.exe") : null;
+const explicitMsvcLinker =
+	process.platform === "win32"
+		? (process.env.CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER ?? null)
+		: null;
+const explicitMsvcLinkerOk =
+	Boolean(explicitMsvcLinker) &&
+	/\\link\.exe$/i.test(explicitMsvcLinker) &&
+	existsSync(explicitMsvcLinker);
 if (process.platform === "win32" && rustcHost?.endsWith("-msvc")) {
 	checks.push({
 		id: "msvc_cl",
@@ -69,8 +78,8 @@ if (process.platform === "win32" && rustcHost?.endsWith("-msvc")) {
 	});
 	checks.push({
 		id: "msvc_link",
-		ok: Boolean(linker) && !/\\Git\\usr\\bin\\link\.exe$/i.test(linker),
-		path: linker,
+		ok: explicitMsvcLinkerOk || (Boolean(linker) && !/\\Git\\usr\\bin\\link\.exe$/i.test(linker)),
+		path: explicitMsvcLinkerOk ? explicitMsvcLinker : linker,
 	});
 }
 
@@ -78,7 +87,7 @@ const missing = checks.filter((check) => !check.ok);
 const needsMsvc =
 	process.platform === "win32" &&
 	rustcHost?.endsWith("-msvc") &&
-	(!compiler || linker?.includes("\\Git\\usr\\bin\\link.exe"));
+	(!compiler || (!explicitMsvcLinkerOk && linker?.includes("\\Git\\usr\\bin\\link.exe")));
 const recommendations = [];
 if (!hasWasiTarget) {
 	recommendations.push({
@@ -99,12 +108,17 @@ if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && !compiler) {
 		target: "cl.exe",
 	});
 }
-if (process.platform === "win32" && rustcHost?.endsWith("-msvc") && linker?.includes("\\Git\\usr\\bin\\link.exe")) {
+if (
+	process.platform === "win32" &&
+	rustcHost?.endsWith("-msvc") &&
+	!explicitMsvcLinkerOk &&
+	linker?.includes("\\Git\\usr\\bin\\link.exe")
+) {
 	recommendations.push({
 		diagnostic: "rust-substrate:wrong-msvc-linker",
 		severity: "failure",
 		summary: "The Rust MSVC linker resolves to Git's Unix-style link.exe instead of the MSVC linker.",
-		action: "Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.",
+		action: "Open a Developer PowerShell for VS, set CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER, or put the MSVC linker before Git usr/bin in PATH.",
 		target: linker,
 	});
 }

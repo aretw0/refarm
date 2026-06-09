@@ -31,6 +31,7 @@ jobs:
       ci_changes: ${{ steps.detect.outputs.ci_changes }}
       code_changes: ${{ steps.detect.outputs.code_changes }}
       tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
+      tractor_heavy_gates: ${{ steps.detect.outputs.tractor_heavy_gates }}
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
       run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
@@ -74,6 +75,7 @@ jobs:
               echo "ci_changes=false" >> "$GITHUB_OUTPUT"
               echo "code_changes=false" >> "$GITHUB_OUTPUT"
               echo "tractor_gates=false" >> "$GITHUB_OUTPUT"
+              echo "tractor_heavy_gates=false" >> "$GITHUB_OUTPUT"
               echo "run_build=false" >> "$GITHUB_OUTPUT"
               echo "run_e2e=false" >> "$GITHUB_OUTPUT"
               echo "run_task_smoke=false" >> "$GITHUB_OUTPUT"
@@ -111,6 +113,7 @@ jobs:
             echo "ci_changes=true" >> "$GITHUB_OUTPUT"
             echo "code_changes=true" >> "$GITHUB_OUTPUT"
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
+            echo "tractor_heavy_gates=true" >> "$GITHUB_OUTPUT"
             echo "run_build=false" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
             echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
@@ -142,6 +145,11 @@ jobs:
           tractor_gates=false
           if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs)'; then
             tractor_gates=true
+          fi
+
+          tractor_heavy_gates=false
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs)'; then
+            tractor_heavy_gates=true
           fi
 
           # Standalone build artifact job is retired for normal PR validation.
@@ -178,13 +186,14 @@ jobs:
           echo "ci_changes=$ci_changes" >> "$GITHUB_OUTPUT"
           echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
           echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
+          echo "tractor_heavy_gates=$tractor_heavy_gates" >> "$GITHUB_OUTPUT"
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
           echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
           echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep filter=$turbo_filter"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates tractor_heavy_gates=$tractor_heavy_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep filter=$turbo_filter"
 
       - name: Compute validation signatures
         id: signatures
@@ -285,7 +294,7 @@ jobs:
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
-          rust-coverage: ${{ needs.changes.outputs.tractor_gates }}
+          rust-coverage: ${{ needs.changes.outputs.tractor_heavy_gates }}
 
       # Turbo Cache is now handled in ./.github/actions/setup
       # - name: Cache Turbo
@@ -394,7 +403,7 @@ jobs:
       # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
@@ -430,7 +439,7 @@ jobs:
           fi
 
       - name: Comment PR on Benchmark Increase
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -481,7 +490,7 @@ jobs:
 
       - name: Coverage Quality Gate (Tractor)
         id: coverage
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
         run: |
           cd packages/tractor
           pnpm run coverage:check
@@ -499,7 +508,7 @@ jobs:
           fi
 
       - name: Comment PR on Coverage Increase
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -555,7 +564,7 @@ jobs:
             }
 
       - name: Upload coverage
-        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
         uses: ./.github/actions/codecov-upload
         with:
           files: ./packages/tractor/coverage/lcov.info
@@ -837,6 +846,7 @@ jobs:
           CODE_CHANGES: ${{ needs.changes.outputs.code_changes }}
           RUN_TASK_SMOKE: ${{ needs.changes.outputs.run_task_smoke }}
           TRACTOR_GATES: ${{ needs.changes.outputs.tractor_gates }}
+          TRACTOR_HEAVY_GATES: ${{ needs.changes.outputs.tractor_heavy_gates }}
           RUN_AUDIT: ${{ needs.changes.outputs.run_audit }}
           RUN_BUILD: ${{ needs.changes.outputs.run_build }}
           RUN_E2E: ${{ needs.changes.outputs.run_e2e }}
@@ -846,7 +856,7 @@ jobs:
 
       - name: Check all checks
         run: |
-          echo "changes: skip_duplicate_push=${{ needs.changes.outputs.skip_duplicate_push }} ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
+          echo "changes: skip_duplicate_push=${{ needs.changes.outputs.skip_duplicate_push }} ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} tractor_heavy_gates=${{ needs.changes.outputs.tractor_heavy_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
 
           if [ "${{ needs.changes.outputs.skip_duplicate_push }}" = "true" ]; then
             echo "::notice::Heavy push validation skipped because the open PR run is canonical for this develop head."
