@@ -176,6 +176,48 @@ runs:
           $PW_CMD install chromium firefox webkit
         fi
 
+    - name: Configure MSVC build environment
+      if: ${{ runner.os == 'Windows' && inputs.rust-target != '' }}
+      shell: pwsh
+      run: |
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        if (!(Test-Path $vswhere)) {
+          Write-Error "vswhere.exe not found; Visual Studio Build Tools are required for the Windows Rust MSVC toolchain."
+          exit 1
+        }
+
+        $installationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if (!$installationPath) {
+          Write-Error "Visual Studio C++ build tools were not found."
+          exit 1
+        }
+
+        $vsDevCmd = Join-Path $installationPath "Common7\Tools\VsDevCmd.bat"
+        if (!(Test-Path $vsDevCmd)) {
+          Write-Error "VsDevCmd.bat not found at $vsDevCmd"
+          exit 1
+        }
+
+        $envOutput = cmd /s /c "`"$vsDevCmd`" -arch=x64 -host_arch=x64 >nul && set"
+        $names = @(
+          "PATH",
+          "INCLUDE",
+          "LIB",
+          "LIBPATH",
+          "VCINSTALLDIR",
+          "VCToolsInstallDir",
+          "WindowsSdkDir",
+          "WindowsSDKVersion"
+        )
+        foreach ($line in $envOutput) {
+          $index = $line.IndexOf("=")
+          if ($index -lt 1) { continue }
+          $name = $line.Substring(0, $index)
+          if ($names -notcontains $name) { continue }
+          $value = $line.Substring($index + 1)
+          Add-Content -Path $env:GITHUB_ENV -Value "$name=$value"
+        }
+
     - name: Setup Rust toolchain
       if: ${{ inputs.rust-target != '' }}
       uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -187,7 +229,9 @@ runs:
       id: cache-cargo-component
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ~/.cargo/bin/cargo-component
+        path: |
+          ~/.cargo/bin/cargo-component
+          ~/.cargo/bin/cargo-component.exe
         key: ${{ runner.os }}-cargo-component-0.21.1
 
     - name: Install cargo-component
@@ -205,7 +249,9 @@ runs:
       id: cache-cargo-llvm-cov
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ~/.cargo/bin/cargo-llvm-cov
+        path: |
+          ~/.cargo/bin/cargo-llvm-cov
+          ~/.cargo/bin/cargo-llvm-cov.exe
         key: ${{ runner.os }}-cargo-llvm-cov-0.8.7
 
     - name: Install cargo-llvm-cov

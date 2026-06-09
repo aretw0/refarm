@@ -589,6 +589,36 @@ jobs:
           mkdir -p .artifacts/validation-cache/test-quality
           printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/test-quality/last-successful-sha.txt
 
+  platform-compat:
+    name: Platform compatibility (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    needs: changes
+    if: needs.changes.outputs.skip_duplicate_push != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.ci_changes == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          rust-target: "wasm32-wasip1"
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+      - name: Check platform compatibility
+        run: node scripts/ci/check-platform-compat.mjs
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -792,7 +822,7 @@ jobs:
 
   summary:
     if: always()
-    needs: [changes, quality, build, e2e, audit-moderate, deep-regression]
+    needs: [changes, quality, platform-compat, build, e2e, audit-moderate, deep-regression]
     runs-on: ubuntu-latest
 
     steps:
@@ -831,6 +861,13 @@ jobs:
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
             exit 1
+          fi
+
+          if [ "${{ needs.changes.outputs.code_changes }}" = "true" ] || [ "${{ needs.changes.outputs.ci_changes }}" = "true" ]; then
+            if [ "${{ needs.platform-compat.result }}" != "success" ]; then
+              echo "::error::Platform compatibility failed"
+              exit 1
+            fi
           fi
 
           if [ "${{ needs.changes.outputs.run_audit }}" = "true" ] && [ "${{ needs.audit-moderate.result }}" != "success" ]; then

@@ -119,6 +119,24 @@ Before opening or refreshing a PR:
 4. Prefer one coherent PR over repeated force-refreshes that retrigger the same workflows.
 5. If CI fails, inspect exact failed logs before pushing another attempt.
 
+## Platform compatibility profile
+
+`Test & Quality` uses Linux as the deep gate for broad Turbo validation,
+Tractor benchmark, Tractor coverage, and E2E. Windows and macOS should not
+multiply those expensive gates by default.
+
+The `platform-compat` job is the lightweight cross-platform proof. It runs on
+`windows-latest` and `macos-latest`, reuses the shared setup/cache action, and
+checks:
+
+- Node substrate ownership and workspace dependency materialization;
+- Rust/WASM substrate availability, including `cargo-component`;
+- dependency-ordered builds for `packages/cli` and `apps/refarm`;
+- focused CLI handoff tests that exercise operator/process contracts.
+
+Escalate Windows/macOS to heavier gates only when a change touches
+platform-specific behavior or when the lightweight compatibility proof fails.
+
 ## Warning thresholds
 
 Default account mode:

@@ -116,6 +116,7 @@
 		"workspace-script:test": "node --test scripts/ci/test-run-workspace-script.mjs",
 		"node-substrate:check": "node scripts/ci/check-node-substrate.mjs",
 		"rust-substrate:check": "node scripts/ci/check-rust-substrate.mjs",
+		"platform-compat:check": "node scripts/ci/check-platform-compat.mjs",
 		"node-substrate:check:test": "node --test scripts/ci/test-check-node-substrate.mjs",
 		"rust-substrate:check:test": "node --test scripts/ci/test-check-rust-substrate-output.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
