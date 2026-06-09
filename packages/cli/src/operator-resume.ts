@@ -157,7 +157,7 @@ function refarmAppProcess(args: string[]): ApplicationProcessSpec {
 }
 
 const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
-	runtimeDoctor: refarmAppCommand(["runtime", "doctor", "--next-command"]),
+	runtimeDoctor: refarmAppCommand(["doctor", "--next-command"]),
 	taskList: refarmAppCommand(["task", "list", "--json"]),
 	taskResume: refarmAppCommand(["task", "resume", "--json"]),
 	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
@@ -171,7 +171,7 @@ const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 };
 
 const DEFAULT_OPERATOR_RESUME_PROCESSES = {
-	runtimeDoctor: refarmAppProcess(["runtime", "doctor", "--next-command"]),
+	runtimeDoctor: refarmAppProcess(["doctor", "--next-command"]),
 	taskList: refarmAppProcess(["task", "list", "--json"]),
 	taskResume: refarmAppProcess(["task", "resume", "--json"]),
 	modelCurrent: refarmAppProcess(["model", "current", "--json"]),

@@ -1,6 +1,9 @@
+import {
+	runRustSubstrateCheck,
+	type RustSubstrateCheck,
+} from "@refarm.dev/cli/rust-substrate";
 import chalk from "chalk";
 import { Command } from "commander";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -24,13 +27,11 @@ import {
 } from "./model.js";
 import { resolveStatusPayload } from "./status.js";
 
+export type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
+
 const NODE_SUBSTRATE_ENVIRONMENT_COMMAND = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
 const NODE_SUBSTRATE_INSTALL_COMMAND = "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
 const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
-const RUST_SUBSTRATE_BUILD_TOOLS_COMMAND = "Install Visual Studio Build Tools with the C++ build tools workload.";
-const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND = "Open a Developer PowerShell for VS or put the MSVC linker before Git usr/bin in PATH.";
-const RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND = "cargo install cargo-component --locked";
-const RUST_SUBSTRATE_WASI_TARGET_COMMAND = "rustup target add wasm32-wasip1";
 
 export interface NodeSubstrateCheck {
 	command: "node-substrate";
@@ -72,19 +73,6 @@ export interface NodeSubstrateCheck {
 		dependency: string;
 		path: string;
 	}>;
-	recommendations: DiagnosticRecommendation[];
-}
-
-export interface RustSubstrateCheck {
-	command: "rust-substrate";
-	operation: "check";
-	ok: boolean;
-	required: boolean;
-	platform: NodeJS.Platform;
-	rustcHost: string | null;
-	missing: string[];
-	linker: string | null;
-	compiler: string | null;
 	recommendations: DiagnosticRecommendation[];
 }
 
@@ -612,184 +600,13 @@ function decodeMountInfoPath(value: string): string {
 	);
 }
 
-async function rustSubstrateRequired(root: string): Promise<boolean> {
-	return (await exists(path.join(root, "Cargo.toml"))) ||
-		(await exists(path.join(root, "rust-toolchain.toml"))) ||
-		(await exists(path.join(root, ".cargo", "config.toml")));
-}
-
-function runProbe(command: string, args: string[] = []): {
-	ok: boolean;
-	stdout: string;
-	stderr: string;
-} {
-	try {
-		return {
-			ok: true,
-			stdout: execFileSync(command, args, {
-				encoding: "utf8",
-				windowsHide: true,
-			}).trim(),
-			stderr: "",
-		};
-	} catch (error) {
-		const probeError = error as {
-			message?: string;
-			stdout?: Buffer | string;
-			stderr?: Buffer | string;
-		};
-		return {
-			ok: false,
-			stdout: probeError.stdout?.toString().trim() ?? "",
-			stderr: probeError.stderr?.toString().trim() ?? probeError.message ?? "",
-		};
-	}
-}
-
-function stripAnsi(value: string): string {
-	return value.replace(/\u001b\[[0-9;]*m/g, "");
-}
-
-function commandSource(command: string): string | null {
-	if (process.platform !== "win32") return null;
-	const result = runProbe("powershell.exe", [
-		"-NoProfile",
-		"-Command",
-		`(Get-Command ${command} -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)`,
-	]);
-	return result.ok && result.stdout ? result.stdout : null;
-}
-
-async function runDefaultRustSubstrate(): Promise<RustSubstrateCheck> {
-	const root = process.cwd();
-	const required = await rustSubstrateRequired(root);
-	const platform = os.platform();
-	if (!required) {
-		return {
-			command: "rust-substrate",
-			operation: "check",
-			ok: true,
-			required: false,
-			platform,
-			rustcHost: null,
-			missing: [],
-			linker: null,
-			compiler: null,
-			recommendations: [],
-		};
-	}
-
-	const rustc = runProbe("rustc", ["-vV"]);
-	const cargoList = runProbe("cargo", ["--list"]);
-	const rustupTargets = runProbe("rustup", ["target", "list", "--installed"]);
-	const rustcHost = rustc.stdout.match(/^host:\s*(.+)$/m)?.[1] ?? null;
-	const installedTargets = rustupTargets.stdout.split(/\r?\n/).filter(Boolean);
-	const cargoCommands = stripAnsi(cargoList.stdout).split(/\r?\n/).map((line) => line.trim());
-	const missing: string[] = [];
-
-	if (!rustc.ok) missing.push("rustc");
-	if (!cargoList.ok) missing.push("cargo");
-	if (!rustupTargets.ok) missing.push("rustup_targets");
-	if (!installedTargets.includes("wasm32-wasip1")) missing.push("target_wasm32_wasip1");
-	if (!cargoCommands.some((line) => line === "component" || line.startsWith("component "))) {
-		missing.push("cargo_component");
-	}
-
-	const compiler = platform === "win32" ? commandSource("cl.exe") : null;
-	const linker = platform === "win32" ? commandSource("link.exe") : null;
-	if (platform === "win32" && rustcHost?.endsWith("-msvc")) {
-		if (!compiler) missing.push("msvc_cl");
-		if (!linker || /\\Git\\usr\\bin\\link\.exe$/i.test(linker)) missing.push("msvc_link");
-	}
-
-	const recommendations = buildRustSubstrateRecommendations({
-		missing,
-		rustcHost,
-		linker,
-	});
-	return {
-		command: "rust-substrate",
-		operation: "check",
-		ok: missing.length === 0,
-		required,
-		platform,
-		rustcHost,
-		missing,
-		linker,
-		compiler,
-		recommendations,
-	};
-}
-
-function buildRustSubstrateRecommendations(input: {
-	missing: string[];
-	rustcHost: string | null;
-	linker: string | null;
-}): DiagnosticRecommendation[] {
-	const recommendations: DiagnosticRecommendation[] = [];
-	const missingMsvcPrerequisite =
-		input.rustcHost?.endsWith("-msvc") &&
-		(input.missing.includes("msvc_cl") || input.missing.includes("msvc_link"));
-	if (input.missing.includes("target_wasm32_wasip1")) {
-		recommendations.push({
-			diagnostic: "rust-substrate:missing-wasi-target",
-			severity: "failure",
-			summary: "The Rust target wasm32-wasip1 is required for Refarm WASM plugin builds.",
-			action: RUST_SUBSTRATE_WASI_TARGET_COMMAND,
-			command: RUST_SUBSTRATE_WASI_TARGET_COMMAND,
-			target: "wasm32-wasip1",
-		});
-	}
-	if (input.rustcHost?.endsWith("-msvc") && input.missing.includes("msvc_cl")) {
-		recommendations.push({
-			diagnostic: "rust-substrate:missing-msvc-build-tools",
-			severity: "failure",
-			summary: "The Windows MSVC Rust toolchain requires Visual Studio C++ build tools.",
-			action: RUST_SUBSTRATE_BUILD_TOOLS_COMMAND,
-			target: "cl.exe",
-		});
-	}
-	if (
-		input.rustcHost?.endsWith("-msvc") &&
-		input.missing.includes("msvc_link") &&
-		input.linker?.includes("\\Git\\usr\\bin\\link.exe")
-	) {
-		recommendations.push({
-			diagnostic: "rust-substrate:wrong-msvc-linker",
-			severity: "failure",
-			summary: "The Rust MSVC linker resolves to Git's Unix-style link.exe instead of the MSVC linker.",
-			action: RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND,
-			target: input.linker,
-		});
-	}
-	if (input.missing.includes("cargo_component")) {
-		recommendations.push({
-			diagnostic: "rust-substrate:missing-cargo-component",
-			severity: "failure",
-			summary: "cargo-component is required to build Refarm component-model WASM packages.",
-			action: RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND,
-			command: missingMsvcPrerequisite ? undefined : RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND,
-			target: "cargo component",
-		});
-	}
-	if (input.missing.includes("rustc") || input.missing.includes("cargo") || input.missing.includes("rustup_targets")) {
-		recommendations.push({
-			diagnostic: "rust-substrate:missing-rust-toolchain",
-			severity: "failure",
-			summary: "The Rust toolchain is required by this workspace.",
-			action: "Install Rust with rustup, then retry `refarm check --next-action --json`.",
-		});
-	}
-	return recommendations;
-}
-
 export function createCheckCommand(
 	deps: RefarmCheckDeps = {
 		runHealth: runHealthAudit,
 	runDoctor: runDefaultDoctor,
 	runModelDoctor: runDefaultModelDoctor,
 	runNodeSubstrate: runDefaultNodeSubstrate,
-	runRustSubstrate: runDefaultRustSubstrate,
+	runRustSubstrate: runRustSubstrateCheck,
 	},
 ): Command {
 	return new Command("check")

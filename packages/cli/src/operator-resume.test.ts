@@ -142,7 +142,7 @@ describe("operator resume", () => {
 		});
 		// Emergency mode: runtime not ready → only runtime recovery, no noise.
 		expect(operatorResumeNextCommands(summary)).toEqual([
-			"refarm runtime doctor --next-command",
+			"refarm doctor --next-command",
 			"refarm runtime start --wait",
 		]);
 		const formatted = formatOperatorResumeSummary(summary);

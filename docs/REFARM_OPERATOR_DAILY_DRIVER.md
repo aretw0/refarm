@@ -15,7 +15,7 @@ shared contracts should move down only when repeated use proves the boundary.
 ```bash
 refarm resume --json
 refarm status --json
-refarm runtime doctor --next-command
+refarm doctor --next-command
 ```
 
 Use `refarm resume --json` first. It combines runtime readiness, recent sessions,
