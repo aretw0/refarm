@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 
 const commands = [
+	["node", ["scripts/ci/check-windows-symlink-contracts.mjs"]],
 	["node", ["scripts/ci/check-node-substrate.mjs", "--json"]],
 	["node", ["scripts/ci/check-rust-substrate.mjs", "--json"]],
 	["node", ["scripts/ci/run-workspace-script.mjs", "--with-dependency-builds", "packages/cli", "build"]],
