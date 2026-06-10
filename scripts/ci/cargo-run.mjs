@@ -58,5 +58,6 @@ if (result.status !== 0) process.exit(result.status ?? 1);
 
 for (const copy of copies) {
 	fs.mkdirSync(path.dirname(copy.to), { recursive: true });
+	fs.rmSync(copy.to, { force: true });
 	fs.copyFileSync(copy.from, copy.to);
 }

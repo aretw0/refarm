@@ -5,9 +5,10 @@
 	"type": "module",
 	"description": "pi-agent — WASM plugin compiled from Rust via cargo-component",
 	"scripts": {
-		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/pi_agent.wasm dist/pi_agent.wasm component build --target wasm32-wasip1 --release && node -e \"const t=JSON.parse(require('fs').readFileSync('plugin.json','utf-8'));delete t._note;require('fs').writeFileSync('dist/plugin.json',JSON.stringify(t,null,2)+'\\n');\"",
+		"check:wit": "node ../../scripts/ci/check-pi-agent-wit-sync.mjs",
+		"build:wasm": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/pi_agent.wasm dist/pi_agent.wasm component build --target wasm32-wasip1 --release && node -e \"const t=JSON.parse(require('fs').readFileSync('plugin.json','utf-8'));delete t._note;require('fs').writeFileSync('dist/plugin.json',JSON.stringify(t,null,2)+'\\n');\"",
 		"build:jco": "jco transpile dist/pi_agent.wasm --name _refarm_pi_agent --out-dir dist/jco --no-nodejs-compat --import-bindings hybrid",
-		"build": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/pi_agent.wasm dist/pi_agent.wasm component build --target wasm32-wasip1 --release && node -e \"const t=JSON.parse(require('fs').readFileSync('plugin.json','utf-8'));delete t._note;require('fs').writeFileSync('dist/plugin.json',JSON.stringify(t,null,2)+'\\n');\" && jco transpile dist/pi_agent.wasm --name _refarm_pi_agent --out-dir dist/jco --no-nodejs-compat --import-bindings hybrid",
+		"build": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/pi_agent.wasm dist/pi_agent.wasm component build --target wasm32-wasip1 --release && node -e \"const t=JSON.parse(require('fs').readFileSync('plugin.json','utf-8'));delete t._note;require('fs').writeFileSync('dist/plugin.json',JSON.stringify(t,null,2)+'\\n');\" && jco transpile dist/pi_agent.wasm --name _refarm_pi_agent --out-dir dist/jco --no-nodejs-compat --import-bindings hybrid",
 		"test": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
 		"test:unit": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
 		"test:integration": "echo 'No integration tests for this crate'"

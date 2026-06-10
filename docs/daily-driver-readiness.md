@@ -75,6 +75,10 @@ What is already solid:
   `task resume --json`, top-level `resume --json`, stream-file creation,
   executable task status/log handoffs, and OpenAI-compatible request capture
   against `@refarm.dev/model-mock` without Ollama or paid model tokens.
+- The no-token e2e path now builds `@refarm.dev/pi-agent` on a Windows-mounted
+  checkout without relying on Git symlinks for WIT imports; `check:wit` guards
+  the copied host WIT against drift from the canonical `refarm-plugin-wit`
+  contract.
 - Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and Tractor
   WASI LLM routing are now routed to that no-token e2e smoke by
   `refarm agent finish --profile affected` and the host smoke auto profile
