@@ -214,7 +214,7 @@ effort-contract-v1            → stable interface (the seed)
 
 Priority order:
 1. `--transport` flag (explicit override)
-2. `task.transport` in `refarm.config.json`
+2. `task.transport` in `.refarm/config.json`
 3. Default: `"file"`
 
 ---

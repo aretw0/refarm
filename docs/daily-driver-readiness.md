@@ -214,7 +214,7 @@ Current priority sequence:
    needed.
 2. External consumer calibration: use `refarm health --policy --json` to inspect
    the effective policy and `refarm health --suggest-policy --json` to generate
-   a reviewed candidate `health` block before tuning `refarm.config.json` in
+   a reviewed candidate `health` block before tuning `.refarm/config.json` in
    non-Refarm repos. If the candidate is correct, apply it explicitly with
    `refarm health --apply-suggested-policy --json`; then rerun
    `refarm check --next-action --json` until the remaining handoff is runtime

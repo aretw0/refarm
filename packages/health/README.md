@@ -39,7 +39,7 @@ refarm health --apply-suggested-policy --json
 ```
 
 Projects can calibrate the generic auditor by declaring a `health` section in
-`refarm.config.json`:
+`.refarm/config.json`:
 
 ```json
 {
@@ -63,7 +63,11 @@ Set `"preset": "refarm"` only for projects that intentionally want the Refarm
 monorepo exemptions.
 
 External projects should prefer the generic workspace policy and declare their
-own generated-file or complexity allowances in their own `refarm.config.json`.
+own generated-file or complexity allowances in their own `.refarm/config.json`.
+
+The root-level `refarm.config.json` name is a legacy compatibility path for
+existing projects. New workspaces should use `.refarm/config.json` so Refarm
+state and policy stay grouped under one project-local directory.
 
 Programmatic callers should pass an explicit workspace root when auditing a
 repo other than the current process directory. The CLI uses the current

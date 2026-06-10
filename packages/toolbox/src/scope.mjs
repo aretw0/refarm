@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import {
+    defaultRefarmConfigPath,
+    findRefarmConfigPath,
+} from "@refarm.dev/config";
 import { packageInstallCommand } from "./package-manager.mjs";
 
 const DEP_KEYS = [
@@ -113,6 +117,7 @@ function loadJson(filePath) {
 }
 
 function saveJson(filePath, data) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
 }
 
@@ -437,9 +442,9 @@ async function main() {
     validateArgs(args);
 
     const rootDir = process.cwd();
-    const configPath = path.join(rootDir, "refarm.config.json");
-    if (!fs.existsSync(configPath)) {
-        throw new Error("refarm.config.json not found. Run from repository root.");
+    const configPath = findRefarmConfigPath(rootDir);
+    if (!configPath) {
+        throw new Error(`${defaultRefarmConfigPath(rootDir)} not found. Run from repository root or initialize project-local Refarm config first.`);
     }
 
     const config = loadJson(configPath);

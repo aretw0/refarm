@@ -101,7 +101,7 @@ export class WindmillEngine {
 
         if (target === "all") {
             if (distribution.length === 0) {
-                return { status: "error", message: "No distribution targets defined in refarm.config.json" };
+                return { status: "error", message: "No distribution targets defined in .refarm/config.json" };
             }
 
             for (const t of distribution) {

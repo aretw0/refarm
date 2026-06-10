@@ -187,9 +187,9 @@ Rules:
 - `refarm health --policy --json` is the inspection primitive for the resolved
   health policy. It should not run the auditors.
 - `refarm health --suggest-policy --json` is the dry-run calibration primitive.
-  It may run auditors, but it must not write `refarm.config.json`.
+  It may run auditors, but it must not write `.refarm/config.json`.
 - `refarm health --apply-suggested-policy --json` is the explicit write
-  primitive. It should preserve unrelated `refarm.config.json` fields, replace
+  primitive. It should preserve unrelated `.refarm/config.json` fields, replace
   only the `health` block, and then point back to
   `refarm health --next-action --json`.
 - In the Refarm monorepo, the policy may carry Refarm-specific roots,
@@ -203,7 +203,7 @@ files that are too large to reason about cheaply.
 Rules:
 
 - Ecosystem primitive: `@refarm.dev/health` owns reusable complexity scanning,
-  and workspaces opt in through `health.complexity` in `refarm.config.json`.
+  and workspaces opt in through `health.complexity` in `.refarm/config.json`.
   When enabled, `refarm health --json` reports blocking large files alongside
   git/build diagnostics, so `refarm check --json` can carry the same pain into
   an agentic daily-driver loop.
@@ -233,7 +233,7 @@ Rules:
   package.
 - Outside Refarm, the default policy is generic `workspace`; consumer-specific
   generated docs, skill packages, non-TS package layouts, and complexity
-  allowances belong in that repo's `refarm.config.json`.
+  allowances belong in that repo's `.refarm/config.json`.
 - `refarm health --next-action --json` and
   `refarm check --next-action --json` should point to
   `refarm health --suggest-policy --json` when the next useful move is policy

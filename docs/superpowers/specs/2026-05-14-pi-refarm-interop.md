@@ -149,7 +149,7 @@ to refarm because:
 | Runs subprocesses | `agent-shell` WIT imports in WASM plugin |
 | Hooks into tool calls | Scarecrow WIT observation (planned) |
 | Manages state in Pi session | Tractor CRDT node storage |
-| Reads extension config | `refarm.config.json` (via `@refarm.dev/config`) |
+| Reads extension config | `.refarm/config.json` (via `@refarm.dev/config`; root `refarm.config.json` is legacy-readable) |
 
 **Complexity**: Low for data processing, computation, and API integration.
 Medium for extensions that deeply hook into Pi's tool lifecycle (need Scarecrow).

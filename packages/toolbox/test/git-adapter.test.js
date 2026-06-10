@@ -2,11 +2,10 @@ import { execSync } from 'node:child_process';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { gitHost, gitUrlAdapter } from '../src/git-adapter.mjs';
 
-vi.mock('node:fs', () => {
-  const readFileSync = vi.fn(() => JSON.stringify({ infrastructure: { gitHost: 'github' } }));
+vi.mock('@refarm.dev/config', () => {
+  const loadConfig = vi.fn(() => ({ infrastructure: { gitHost: 'github' } }));
   return {
-    default: { readFileSync },
-    readFileSync
+    loadConfig,
   };
 });
 
