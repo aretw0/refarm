@@ -10,7 +10,7 @@
  *   3) "./x"    -> "./x.js"/"./x.ts" (extensionless ESM imports in dist)
  */
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -66,6 +66,41 @@ function packageExportTarget(manifest, exportKey) {
 	return select(exportTarget);
 }
 
+function existingModulePath(candidate) {
+	if (!existsSync(candidate)) {
+		if (!hasKnownModuleExtension(candidate) && existsSync(`${candidate}.js`)) {
+			return `${candidate}.js`;
+		}
+		if (!hasKnownModuleExtension(candidate) && existsSync(`${candidate}.ts`)) {
+			return `${candidate}.ts`;
+		}
+		return null;
+	}
+
+	const stat = statSync(candidate);
+	if (stat.isFile()) return candidate;
+	if (!stat.isDirectory()) return null;
+
+	const manifestPath = path.join(candidate, "package.json");
+	if (existsSync(manifestPath)) {
+		const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+		const target =
+			packageExportTarget(manifest, ".") ??
+			manifest.module ??
+			manifest.main ??
+			"./index.js";
+		const resolved = existingModulePath(path.resolve(candidate, target));
+		if (resolved) return resolved;
+	}
+
+	for (const entry of ["index.js", "index.ts"]) {
+		const resolved = path.join(candidate, entry);
+		if (existsSync(resolved) && statSync(resolved).isFile()) return resolved;
+	}
+
+	return null;
+}
+
 function packageEntryTarget(packageDir, subpath) {
 	const manifestPath = path.join(packageDir, "package.json");
 	if (!existsSync(manifestPath)) return null;
@@ -76,12 +111,7 @@ function packageEntryTarget(packageDir, subpath) {
 		(subpath
 			? `./${subpath}`
 			: manifest.module ?? manifest.main ?? "./index.js");
-	const resolved = path.resolve(packageDir, target);
-	if (existsSync(resolved)) return resolved;
-	if (!hasKnownModuleExtension(resolved) && existsSync(`${resolved}.js`)) {
-		return `${resolved}.js`;
-	}
-	return null;
+	return existingModulePath(path.resolve(packageDir, target));
 }
 
 function workspacePackageResolution(specifier) {
@@ -103,8 +133,8 @@ function workspacePackageResolution(specifier) {
 			(exportKey === "." ? manifest.main ?? "./dist/index.js" : null);
 		if (!target) return null;
 
-		const resolved = path.resolve(packageDir, target);
-		return existsSync(resolved) ? pathToFileURL(resolved).href : null;
+		const resolved = existingModulePath(path.resolve(packageDir, target));
+		return resolved ? pathToFileURL(resolved).href : null;
 	}
 
 	return null;
