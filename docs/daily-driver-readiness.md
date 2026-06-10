@@ -154,6 +154,12 @@ What blocks primary daily-driver migration:
   need adapter-level interfaces, not direct imports of Refarm app or engine
   internals. The next maturity step is making that boundary boring enough that
   Refarm can power them without centralizing every workflow in `apps/refarm`.
+- Prize-writing and work-vault material are now a read-only calibration lane,
+  not a mutation target. The Serpro 2026 drafts pressure three Refarm-adjacent
+  domains: sandboxed plugin governance, citizen data/consent auditability, and
+  sovereign note/vault workflows. Those repositories should provide evidence
+  for primitives and documentation here, while actual writes stay in Refarm or
+  in explicitly writable consumer repos such as `vault-seed`.
 
 ## Migration Gates
 
@@ -219,11 +225,18 @@ Current priority sequence:
    `refarm health --apply-suggested-policy --json`; then rerun
    `refarm check --next-action --json` until the remaining handoff is runtime
    or task-specific rather than workspace-policy noise.
-3. Runtime recovery: surface `nextCommand` through more failure paths in the
+3. Read-only external evidence: for mirrors or work vaults that must not be
+   changed, use the external-consumer templates exposed by
+   `refarm agent finish --templates --json`:
+   `external-consumer-resume-json`, `external-consumer-check-json`,
+   `external-consumer-health-policy-json`, and
+   `external-consumer-health-suggest-policy-json`. Treat their output as
+   calibration input only; do not run `health --apply-suggested-policy` there.
+4. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
-4. Model and credential operations: make provider/model/login changes
+5. Model and credential operations: make provider/model/login changes
    non-interactive where possible and resumable where not.
-5. Primitive extraction: move repeated contracts down only after repeated app
+6. Primitive extraction: move repeated contracts down only after repeated app
    use proves the boundary.
 
 ## Anti-Centralization Checkpoint

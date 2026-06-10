@@ -195,6 +195,21 @@ Rules:
 - In the Refarm monorepo, the policy may carry Refarm-specific roots,
   exemptions, and generated-source exclusions.
 
+Read-only consumer lane:
+
+- Work mirrors and evidence vaults may be inspected for calibration, but must
+  not be changed by Refarm. Use `refarm agent finish --templates --json` to get
+  the cwd-aware external-consumer templates instead of inventing ad hoc shell
+  commands.
+- `external-consumer-health-policy-json` resolves the effective policy from a
+  consumer directory without running auditors or writing config.
+- `external-consumer-health-suggest-policy-json` runs the dry-run suggestion
+  flow from a consumer directory and must remain non-mutating. Its output can be
+  copied into a writable project only after human review.
+- Never treat read-only suggestion output as approval to run
+  `refarm health --apply-suggested-policy --json` in that repository. Writes
+  belong in Refarm or in explicitly writable consumer projects.
+
 ### Complexity Pressure
 
 Purpose: make large-file pressure visible before agents normalize working inside

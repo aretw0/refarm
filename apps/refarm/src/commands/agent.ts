@@ -152,6 +152,22 @@ function agentFinishTemplates() {
 			useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
 		},
 		{
+			id: "external-consumer-health-policy-json",
+			command: refarmCommand(["health", "--policy", "--json"]),
+			process: refarmProcess(["health", "--policy", "--json"]),
+			parameters: ["dir"],
+			cwdParameter: "dir",
+			useWhen: "Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
+		},
+		{
+			id: "external-consumer-health-suggest-policy-json",
+			command: refarmCommand(["health", "--suggest-policy", "--json"]),
+			process: refarmProcess(["health", "--suggest-policy", "--json"]),
+			parameters: ["dir"],
+			cwdParameter: "dir",
+			useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
+		},
+		{
 			id: "package-workspace-plan",
 			command: agentFinishCommand([
 				"--profile",
