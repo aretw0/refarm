@@ -39,6 +39,7 @@ export interface OperatorResumeCommands {
 	taskList: string;
 	taskResume: string;
 	modelCurrent: string;
+	sessionClear: string;
 	sessionList: string;
 	sessionShow: (sessionId: string) => string;
 }
@@ -162,6 +163,7 @@ const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	taskList: refarmAppCommand(["task", "list", "--json"]),
 	taskResume: refarmAppCommand(["task", "resume", "--json"]),
 	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
+	sessionClear: refarmAppCommand(["sessions", "clear", "--json"]),
 	sessionList: refarmAppCommand(["sessions", "list", "--json"]),
 	sessionShow: (sessionId) =>
 		refarmAppCommand([
@@ -177,6 +179,7 @@ const DEFAULT_OPERATOR_RESUME_PROCESSES = {
 	taskList: refarmAppProcess(["task", "list", "--json"]),
 	taskResume: refarmAppProcess(["task", "resume", "--json"]),
 	modelCurrent: refarmAppProcess(["model", "current", "--json"]),
+	sessionClear: refarmAppProcess(["sessions", "clear", "--json"]),
 	sessionList: refarmAppProcess(["sessions", "list", "--json"]),
 	sessionShow: (sessionId: string) =>
 		refarmAppProcess([
@@ -392,6 +395,7 @@ export function operatorResumeNextCommands(
 		?? summary.session.recentSessions[0]?.showCommand;
 	if (sessionCommand) nextCommands.push(sessionCommand);
 	else if (summary.session.status === "stale") {
+		nextCommands.push(resolved.sessionClear);
 		nextCommands.push(resolved.sessionList);
 	}
 
@@ -461,6 +465,10 @@ export function operatorResumeNextProcesses(
 	addDefaultProcess(
 		DEFAULT_OPERATOR_RESUME_COMMANDS.modelCurrent,
 		DEFAULT_OPERATOR_RESUME_PROCESSES.modelCurrent,
+	);
+	addDefaultProcess(
+		DEFAULT_OPERATOR_RESUME_COMMANDS.sessionClear,
+		DEFAULT_OPERATOR_RESUME_PROCESSES.sessionClear,
 	);
 	addDefaultProcess(
 		DEFAULT_OPERATOR_RESUME_COMMANDS.sessionList,
@@ -585,7 +593,7 @@ export function formatOperatorResumeSummary(
 		if (summary.session.showCommand) {
 			lines.push(`  show: ${summary.session.showCommand}`);
 		} else if (summary.session.status === "stale") {
-			lines.push("  show: unavailable; inspect sessions list");
+			lines.push("  show: unavailable; clear or inspect sessions list");
 		}
 		const participants = operatorResumeParticipantDisplay(summary.session);
 		if (participants) lines.push(`  participants: ${participants}`);

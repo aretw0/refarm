@@ -55,6 +55,7 @@ interface SessionHistory {
 
 interface SessionListReport {
 	activeSessionId: string | null;
+	activeSessionStatus: "none" | "active" | "stale";
 	sessions: SessionNode[];
 }
 
@@ -93,6 +94,8 @@ interface SessionsCommandServices {
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
+const SESSIONS_CLEAR_COMMAND = refarmCommand(["sessions", "clear"]);
+const SESSIONS_CLEAR_JSON_COMMAND = refarmCommand(["sessions", "clear", "--json"]);
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
 }
@@ -380,6 +383,11 @@ async function listSessions(
 
 	const report: SessionListReport = {
 		activeSessionId: activeId,
+		activeSessionStatus: activeId
+			? sessions.some((session) => session["@id"] === activeId)
+				? "active"
+				: "stale"
+			: "none",
 		sessions: [...sessions].sort(
 			(a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0),
 		),
@@ -394,12 +402,27 @@ async function listSessions(
 					sessionShowJsonCommand(nextSessionId),
 					sessionUseJsonCommand(nextSessionId),
 				]
-			: [SESSIONS_NEW_JSON_COMMAND];
+			: report.activeSessionStatus === "stale"
+				? [SESSIONS_CLEAR_JSON_COMMAND, SESSIONS_NEW_JSON_COMMAND]
+				: [SESSIONS_NEW_JSON_COMMAND];
 		printSessionJsonSuccess("list", report, nextCommands);
 		return;
 	}
 
 	if (sessions.length === 0) {
+		if (activeId) {
+			console.log(
+				chalk.dim(
+					`No sessions found. Active pointer is stale: ${activeId}`,
+				),
+			);
+			console.log(
+				chalk.dim(
+					`Clear it with: ${SESSIONS_CLEAR_COMMAND}`,
+				),
+			);
+			return;
+		}
 		console.log(
 			chalk.dim("No sessions yet. Start one with: refarm ask <query>"),
 		);

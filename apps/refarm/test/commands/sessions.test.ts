@@ -160,6 +160,7 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "list",
 			activeSessionId: "urn:refarm:session:v1:newer",
+			activeSessionStatus: "active",
 			sessions: [
 				{
 					"@id": "urn:refarm:session:v1:newer",
@@ -210,9 +211,11 @@ describe("refarm sessions", () => {
 		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			activeSessionStatus: string;
 			nextCommand: string;
 			nextCommands: string[];
 		};
+		expect(payload.activeSessionStatus).toBe("stale");
 		expect(payload.nextCommand).toBe(
 			"refarm sessions show 'urn:refarm:session:v1:newer' --json",
 		);
@@ -251,11 +254,42 @@ describe("refarm sessions", () => {
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			activeSessionStatus: "active",
 			sessions: [
 				{
 					"@id": "urn:refarm:session:v1:abc123def456",
 					name: "planning",
 				},
+			],
+		});
+	});
+
+	it("list JSON surfaces a stale active pointer when no sessions exist", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [],
+				}),
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "list",
+			activeSessionId: "urn:refarm:session:v1:stale",
+			activeSessionStatus: "stale",
+			sessions: [],
+			nextCommand: "refarm sessions clear --json",
+			nextCommands: [
+				"refarm sessions clear --json",
+				"refarm sessions new --json",
 			],
 		});
 	});

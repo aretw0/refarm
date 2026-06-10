@@ -246,12 +246,18 @@ describe("operator resume", () => {
 		});
 
 		expect(envelope).toMatchObject({
-			nextCommand: "refarm sessions list --json",
+			nextCommand: "refarm sessions clear --json",
 			nextCommands: [
+				"refarm sessions clear --json",
 				"refarm sessions list --json",
 				"refarm task list --json",
 			],
 			nextProcesses: [
+				{
+					command: "refarm",
+					args: ["sessions", "clear", "--json"],
+					display: "refarm sessions clear --json",
+				},
 				{
 					command: "refarm",
 					args: ["sessions", "list", "--json"],
@@ -378,6 +384,7 @@ describe("operator resume", () => {
 		});
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime ensure --wait --next-command",
+			"refarm sessions clear --json",
 			"refarm sessions list --json",
 			"refarm task list --json",
 		]);
