@@ -128,13 +128,17 @@ What blocks primary daily-driver migration:
   bootstrap gap before any model work ran: the Windows host had no `refarm`
   command in `PATH`, direct `node apps/refarm/dist/index.js` did not resolve
   workspace dependencies, and host `node_modules` reparse points were
-  container-oriented. The host shim now reaches the CLI and `resume --json`
-  works in `agents-lab`. The compact readiness handoff is now usable there:
-  `check --next-action --json` deduplicates repeated policy diagnostics and
-  points first to `refarm health --suggest-policy --json`. The remaining blocker is
-  repo-local calibration for generated docs, skill packages, and runtime
-  readiness; external daily-driver use needs a checked-in `health` policy in
-  each consumer repo or a dedicated external-workspace profile.
+  container-oriented. The substrate check now reports this as
+  `workspaceMaterialization` instead of offering an unsafe default repair: the
+  preferred path is a separate checkout per host substrate, while rebuilding the
+  current checkout requires `REFARM_NODE_SUBSTRATE_ALLOW_REBUILD=1`. The host
+  shim now reaches the CLI and `resume --json` works in `agents-lab`. The compact
+  readiness handoff is now usable there: `check --next-action --json`
+  deduplicates repeated policy diagnostics and points first to
+  `refarm health --suggest-policy --json`. The remaining blocker is repo-local
+  calibration for generated docs, skill packages, and runtime readiness;
+  external daily-driver use needs a checked-in `health` policy in each consumer
+  repo or a dedicated external-workspace profile.
 - Runtime provider switching, login, and scoped model changes still need a
   smoother non-interactive loop.
 - The app has correctly acted as the proving ground, but mature contracts must

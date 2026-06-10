@@ -16,6 +16,8 @@ if (unknownArgs.length > 0) {
 	usage();
 	process.exit(1);
 }
+const platform = process.env.REFARM_NODE_SUBSTRATE_PLATFORM ?? process.platform;
+const allowLocalRebuild = process.env.REFARM_NODE_SUBSTRATE_ALLOW_REBUILD === "1";
 
 async function exists(filePath) {
 	try {
@@ -75,7 +77,7 @@ function decodeMountInfoPath(value) {
 }
 
 async function readMountPoints() {
-	if (process.platform !== "linux") return [];
+	if (platform !== "linux") return [];
 	const override = process.env.REFARM_NODE_SUBSTRATE_MOUNTINFO;
 	const content = override ?? await readFile("/proc/self/mountinfo", "utf8");
 	return content
@@ -101,11 +103,11 @@ async function devcontainerNodeModulesMountCheck() {
 }
 
 function binName(name) {
-	return process.platform === "win32" ? `${name}.cmd` : name;
+	return platform === "win32" ? `${name}.cmd` : name;
 }
 
 function foreignBinNames(name) {
-	return process.platform === "win32" ? [name] : [`${name}.cmd`];
+	return platform === "win32" ? [name] : [`${name}.cmd`];
 }
 
 function compactList(items, limit = 20) {
@@ -241,10 +243,13 @@ const installCommand = packageManager?.startsWith("pnpm")
 	? "pnpm install --frozen-lockfile --config.confirm-modules-purge=false"
 	: "npm install";
 const environmentCommand = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
-const workspaceMaterializationCommand = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
+const workspaceMaterializationCommand = allowLocalRebuild
+	? installCommand
+	: "Current checkout appears to be materialized for another environment. Use a separate checkout for this platform, or set REFARM_NODE_SUBSTRATE_ALLOW_REBUILD=1 before rebuilding node_modules here.";
+const sharedWorkspaceMaterialization = platform === "win32" && missingWorkspaceDependencyLinks.length > 20;
 const primaryNextAction = foreignPlatformShims.length > 0 || mountIssues.length > 0
 	? environmentCommand
-	: process.platform === "win32" && missingWorkspaceDependencyLinks.length > 20
+	: sharedWorkspaceMaterialization
 		? workspaceMaterializationCommand
 	: installCommand;
 const executableNextCommand =
@@ -272,8 +277,20 @@ const result = {
 		missingWorkspaceDependencyLinks.length === 0 &&
 		missingRuntimeDependencies.length === 0 &&
 		mountIssues.length === 0,
-	platform: process.platform,
+	platform,
+	actualPlatform: process.platform,
 	packageManager,
+	workspaceMaterialization: sharedWorkspaceMaterialization
+		? {
+			id: "shared_workspace_node_modules_materialization",
+			ok: false,
+			platform,
+			missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
+			localRebuildOptIn: allowLocalRebuild,
+			localRebuildCommand: installCommand,
+			recommendation: workspaceMaterializationCommand,
+		}
+		: null,
 	checks,
 	missing,
 	workspaceLinkCount: workspaceLinkChecks.length,

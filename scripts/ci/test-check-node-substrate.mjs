@@ -6,18 +6,20 @@ import path from "node:path";
 import test from "node:test";
 
 const scriptPath = path.resolve("scripts/ci/check-node-substrate.mjs");
-const binExt = process.platform === "win32" ? ".cmd" : "";
 
 function makeWorkspace({
 	packageManager = "pnpm@11.1.2",
+	platform = process.platform,
 	withBins = false,
 	withForeignBins = false,
 	withDevcontainerNodeModulesVolume = false,
 	withCliRuntimePackage = false,
 	withWorkspaceLinkPackage = false,
+	workspaceLinkPackageCount = withWorkspaceLinkPackage ? 1 : 0,
 	withMaterializedWorkspaceLink = false,
 } = {}) {
 	const tempDir = mkdtempSync(path.join(tmpdir(), "refarm-node-substrate-"));
+	const binExt = platform === "win32" ? ".cmd" : "";
 	writeFileSync(
 		path.join(tempDir, "package.json"),
 		`${JSON.stringify({ packageManager }, null, 2)}\n`,
@@ -33,7 +35,7 @@ function makeWorkspace({
 	}
 
 	if (withForeignBins) {
-		const foreignExt = process.platform === "win32" ? "" : ".cmd";
+		const foreignExt = platform === "win32" ? "" : ".cmd";
 		const binDir = path.join(tempDir, "node_modules", ".bin");
 		mkdirSync(binDir, { recursive: true });
 		for (const binary of ["vitest", "tsc", "eslint"]) {
@@ -74,13 +76,13 @@ function makeWorkspace({
 		);
 	}
 
-	if (withWorkspaceLinkPackage) {
-		const packageDir = path.join(tempDir, "packages", "consumer");
+	for (let index = 0; index < workspaceLinkPackageCount; index += 1) {
+		const packageDir = path.join(tempDir, "packages", index === 0 ? "consumer" : `consumer-${index}`);
 		mkdirSync(packageDir, { recursive: true });
 		writeFileSync(
 			path.join(packageDir, "package.json"),
 			`${JSON.stringify({
-				name: "@sample/consumer",
+				name: index === 0 ? "@sample/consumer" : `@sample/consumer-${index}`,
 				type: "module",
 				dependencies: {
 					"@sample/internal": "workspace:*",
@@ -214,6 +216,54 @@ test("node substrate check reports missing workspace dependency links", () => {
 			[["@sample/consumer", "@sample/internal"]],
 		);
 		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check does not rebuild a shared Windows checkout without opt-in", () => {
+	const tempDir = makeWorkspace({
+		platform: "win32",
+		withBins: true,
+		workspaceLinkPackageCount: 21,
+	});
+	try {
+		const result = runCheck(tempDir, ["--json"], {
+			REFARM_NODE_SUBSTRATE_PLATFORM: "win32",
+		});
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.platform, "win32");
+		assert.equal(payload.workspaceMaterialization.id, "shared_workspace_node_modules_materialization");
+		assert.equal(payload.workspaceMaterialization.localRebuildOptIn, false);
+		assert.equal(payload.workspaceMaterialization.localRebuildCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
+		assert.match(payload.nextAction, /separate checkout for this platform/);
+		assert.equal(payload.nextCommand, null);
+		assert.deepEqual(payload.nextCommands, []);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check can explicitly opt in to rebuilding a shared Windows checkout", () => {
+	const tempDir = makeWorkspace({
+		platform: "win32",
+		withBins: true,
+		workspaceLinkPackageCount: 21,
+	});
+	try {
+		const result = runCheck(tempDir, ["--json"], {
+			REFARM_NODE_SUBSTRATE_ALLOW_REBUILD: "1",
+			REFARM_NODE_SUBSTRATE_PLATFORM: "win32",
+		});
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.workspaceMaterialization.localRebuildOptIn, true);
+		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
+		assert.deepEqual(payload.nextCommands, ["pnpm install --frozen-lockfile --config.confirm-modules-purge=false"]);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
