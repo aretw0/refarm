@@ -5,6 +5,7 @@ import {
 	parseRefarmStatusJson,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
+import { findRefarmConfigPath } from "@refarm.dev/config";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import { Command } from "commander";
 import fs from "node:fs";
@@ -41,11 +42,10 @@ export interface ResolveStatusPayloadResult {
 }
 
 function readNamespaceFromConfig(): string | undefined {
+	const configPath = findRefarmConfigPath(process.cwd());
+	if (!configPath) return undefined;
 	try {
-		const raw = fs.readFileSync(
-			path.join(process.cwd(), "refarm.config.json"),
-			"utf-8",
-		);
+		const raw = fs.readFileSync(configPath, "utf-8");
 		return (JSON.parse(raw) as { brand?: { slug?: string } }).brand?.slug;
 	} catch {
 		return undefined;

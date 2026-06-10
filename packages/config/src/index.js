@@ -72,14 +72,31 @@ export {
  * Implements a pluggable source system with Strategic Bootstrap and prioritized merging.
  */
 
+export const REFARM_CONFIG_CANONICAL_RELATIVE_PATH = path.join(".refarm", "config.json");
+export const REFARM_CONFIG_LEGACY_FILE_NAME = "refarm.config.json";
+
+export function refarmConfigPathCandidates(root) {
+    return [
+        path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH),
+        path.join(root, REFARM_CONFIG_LEGACY_FILE_NAME),
+    ];
+}
+
+export function defaultRefarmConfigPath(root) {
+    return path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH);
+}
+
+export function findRefarmConfigPath(root) {
+    return refarmConfigPathCandidates(root).find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
 /**
  * Helper to find the root directory of the monorepo.
  */
 export function findRefarmRoot(startDir = process.cwd()) {
     let currentDir = startDir;
     while (true) {
-        const configPath = path.join(currentDir, "refarm.config.json");
-        if (fs.existsSync(configPath)) return currentDir;
+        if (findRefarmConfigPath(currentDir)) return currentDir;
         const parentDir = path.dirname(currentDir);
         if (parentDir === currentDir) break;
         currentDir = parentDir;
@@ -154,8 +171,8 @@ function resolveInterpolation(config, current = config) {
 const JsonSource = {
     name: "json",
     loadSync(root) {
-        const configPath = path.join(root, "refarm.config.json");
-        if (!fs.existsSync(configPath)) return {};
+        const configPath = findRefarmConfigPath(root);
+        if (!configPath) return {};
         try {
             return JSON.parse(fs.readFileSync(configPath, "utf-8"));
         } catch (e) {
@@ -317,4 +334,11 @@ export async function loadConfigAsync(root = findRefarmRoot()) {
     return resolveInterpolation(config);
 }
 
-export default { findRefarmRoot, loadConfig, loadConfigAsync };
+export default {
+    findRefarmRoot,
+    refarmConfigPathCandidates,
+    defaultRefarmConfigPath,
+    findRefarmConfigPath,
+    loadConfig,
+    loadConfigAsync,
+};

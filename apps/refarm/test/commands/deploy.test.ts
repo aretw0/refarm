@@ -50,7 +50,7 @@ describe("deployCommand", () => {
 
     expect(help).toContain("refarm deploy --dry-run");
     expect(help).toContain("refarm deploy --dry-run --json");
-    expect(help).toContain("refarm.config.json");
+    expect(help).toContain(".refarm/config.json");
     expect(help).toContain("Use --dry-run first");
   });
 

@@ -200,7 +200,7 @@ describe("healthCommand", () => {
     expect(help).toContain("refarm health --next-command");
     expect(help).toContain("It does not require the Refarm runtime sidecar");
     expect(help).toContain("refarm doctor --next-action");
-    expect(help).toContain("refarm.config.json");
+    expect(help).toContain(".refarm/config.json");
   });
 
   it("uses the Refarm preset in the Refarm monorepo when no project health policy exists", async () => {
@@ -240,7 +240,7 @@ describe("healthCommand", () => {
     expect(mockComplexityAuditor).not.toHaveBeenCalled();
   });
 
-  it("uses generic workspace policy from refarm.config.json when configured", async () => {
+  it("uses generic workspace policy from .refarm/config.json when configured", async () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({
       health: {
@@ -348,7 +348,7 @@ describe("healthCommand", () => {
 
     expect(mockWriteFileSync).toHaveBeenCalledOnce();
     const [configPath, content, encoding] = mockWriteFileSync.mock.calls[0]!;
-    expect(String(configPath)).toContain("refarm.config.json");
+    expect(String(configPath).replaceAll("\\", "/")).toContain(".refarm/config.json");
     expect(encoding).toBe("utf-8");
     expect(JSON.parse(String(content))).toEqual({
       brand: { name: "external" },
@@ -362,7 +362,7 @@ describe("healthCommand", () => {
       command: "health",
       operation: "policy-application",
       ok: true,
-      configPath: expect.stringContaining("refarm.config.json"),
+      configPath: expect.stringContaining(".refarm"),
       policy: {
         preset: "workspace",
         ignoredGitVisibilityPatterns: [],
@@ -397,7 +397,7 @@ describe("healthCommand", () => {
       operation: "policy",
       ok: true,
       rootDir: process.cwd(),
-      configPath: expect.stringContaining("refarm.config.json"),
+      configPath: expect.stringContaining(".refarm"),
       configFound: false,
       source: "workspace-default",
       policy: {
@@ -567,7 +567,7 @@ describe("resolveHealthPolicy", () => {
       operation: "policy",
       ok: true,
       rootDir: "/tmp/project",
-      configPath: "/tmp/project/refarm.config.json",
+      configPath: "/tmp/project/.refarm/config.json",
       configFound: false,
       source: "workspace-default",
       policy: {
@@ -612,7 +612,7 @@ describe("resolveHealthPolicy", () => {
       operation: "policy",
       ok: true,
       rootDir: "/tmp/project",
-      configPath: "/tmp/project/refarm.config.json",
+      configPath: "/tmp/project/.refarm/config.json",
       configFound: true,
       source: "config",
       policy: {

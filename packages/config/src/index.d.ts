@@ -86,11 +86,19 @@ export {
 } from "./workspace.js";
 
 export function findRefarmRoot(startDir?: string): string;
+export const REFARM_CONFIG_CANONICAL_RELATIVE_PATH: string;
+export const REFARM_CONFIG_LEGACY_FILE_NAME: string;
+export function refarmConfigPathCandidates(root: string): string[];
+export function defaultRefarmConfigPath(root: string): string;
+export function findRefarmConfigPath(root: string): string | null;
 export function loadConfig(root?: string): any;
 export function loadConfigAsync(root?: string): Promise<any>;
 
 declare const _default: {
     findRefarmRoot: typeof findRefarmRoot;
+    refarmConfigPathCandidates: typeof refarmConfigPathCandidates;
+    defaultRefarmConfigPath: typeof defaultRefarmConfigPath;
+    findRefarmConfigPath: typeof findRefarmConfigPath;
     loadConfig: typeof loadConfig;
     loadConfigAsync: typeof loadConfigAsync;
 };

@@ -1,9 +1,9 @@
+import { findRefarmConfigPath } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
-import path from "node:path";
 import { refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
@@ -80,7 +80,7 @@ export const deployCommand = new Command("deploy")
       "  $ refarm deploy --target cloudflare",
       "",
       "Notes:",
-      "  Run from a workspace containing refarm.config.json.",
+      "  Run from a workspace containing .refarm/config.json.",
       "  Use --dry-run first; live deploy resolves credentials from Silo and passes them to Windmill.",
       "  Use refarm provision cloudflare turbo-cache before deploying Cloudflare-backed cache infrastructure.",
     ].join("\n"),
@@ -95,9 +95,9 @@ export const deployCommand = new Command("deploy")
 
     try {
       const target = parseDeployTarget(options.target);
-      const configPath = path.join(process.cwd(), "refarm.config.json");
-      if (!fs.existsSync(configPath)) {
-          throw new Error("refarm.config.json not found in current directory.");
+      const configPath = findRefarmConfigPath(process.cwd());
+      if (!configPath) {
+          throw new Error(".refarm/config.json not found in current directory.");
       }
 
       const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));

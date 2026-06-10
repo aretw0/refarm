@@ -146,7 +146,7 @@ Examples:
   $ refarm init my-workspace --force
 
 Notes:
-  This creates refarm.config.json and .refarm/identity.json.
+  This creates .refarm/config.json and .refarm/identity.json.
   The workspace identity is metadata; operator credentials are saved later
   under ~/.refarm/identity.json by refarm sow.
   --force reinitializes an existing workspace and can overwrite generated metadata.
@@ -217,7 +217,7 @@ Examples:
 Notes:
   This mirrors the current repository to another Git remote.
   Use --dry-run first; live migration may push the full repository.
-  The source remote is read from refarm.config.json or .git/config.
+  The source remote is read from .refarm/config.json or .git/config.
 `,
 		load: async () => (await import("./commands/migrate.js")).migrateCommand,
 		toArgs: (_unused, opts) => [

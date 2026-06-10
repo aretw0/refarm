@@ -1,15 +1,16 @@
+import { findRefarmConfigPath } from "@refarm.dev/config";
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
-import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { joinCommand, quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
-    buildJsonErrorEnvelope,
-    buildJsonSuccessEnvelope,
-    printJson,
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
 } from "./json-output.js";
 
 interface MigrateConfig {
@@ -79,7 +80,7 @@ export const migrateCommand = new Command("migrate")
       "Notes:",
       "  This mirrors the current repository to another Git remote.",
       "  Use --dry-run first; live migration may push the full repository.",
-      "  The source remote is read from refarm.config.json or .git/config.",
+      "  The source remote is read from .refarm/config.json or .git/config.",
     ].join("\n"),
   )
   .option("--target <url>", "Target Git URL for mirroring")
@@ -143,13 +144,13 @@ export const migrateCommand = new Command("migrate")
     process.env.CLOUDFLARE_API_TOKEN = tokens.get("REFARM_CLOUDFLARE_API_TOKEN") || process.env.CLOUDFLARE_API_TOKEN;
 
     // Load config from current directory
-    const configPath = path.join(process.cwd(), "refarm.config.json");
+    const configPath = findRefarmConfigPath(process.cwd());
     let config: MigrateConfig = {};
-    if (fs.existsSync(configPath)) {
+    if (configPath) {
         config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as MigrateConfig;
     } else {
         if (!json) {
-            console.warn(chalk.gray("No refarm.config.json found in current directory. Using default context."));
+            console.warn(chalk.gray("No .refarm/config.json found in current directory. Using default context."));
         }
         config = {
             brand: { slug: path.basename(process.cwd()), urls: { repository: "" } },
@@ -181,9 +182,9 @@ export const migrateCommand = new Command("migrate")
                     operation: "mirror",
                     error: "source-repository-not-found",
                     message: "Could not detect source repository URL.",
-                    nextAction: "set brand.urls.repository in refarm.config.json",
+                    nextAction: "set brand.urls.repository in .refarm/config.json",
                     nextActions: [
-                        "set brand.urls.repository in refarm.config.json",
+                        "set brand.urls.repository in .refarm/config.json",
                         "run a dry-run migration with a concrete target Git URL",
                     ],
                     extra: {

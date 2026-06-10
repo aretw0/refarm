@@ -1,3 +1,4 @@
+import { defaultRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import { SowerCore } from "@refarm.dev/sower";
@@ -75,7 +76,7 @@ export function createInitCommand(deps: InitCommandDeps = {}): Command {
       "  $ refarm init my-workspace --template workspace --json",
       "",
       "Notes:",
-      "  This creates refarm.config.json and .refarm/identity.json.",
+      "  This creates .refarm/config.json and .refarm/identity.json.",
       "  The workspace identity is metadata; operator credentials are saved later",
       "  under ~/.refarm/identity.json by refarm sow.",
       "  --force reinitializes an existing workspace and can overwrite generated metadata.",
@@ -91,7 +92,7 @@ export function createInitCommand(deps: InitCommandDeps = {}): Command {
   .option("--template <id>", "Template to scaffold without prompting")
   .action(async (name, opts: InitOptions) => {
     const projectDir = name === "." ? cwd() : path.join(cwd(), name);
-    const configPath = path.join(projectDir, "refarm.config.json");
+    const configPath = defaultRefarmConfigPath(projectDir);
     const identityPath = path.join(projectDir, ".refarm", "identity.json");
 
     if (!opts.force && (fileExists(configPath) || fileExists(identityPath))) {
@@ -173,9 +174,9 @@ export function createInitCommand(deps: InitCommandDeps = {}): Command {
         ...result.config,
         brand: { name, slug: name.toLowerCase().replace(/\s+/g, "-") }
       };
-      writeFile(path.join(projectDir, "refarm.config.json"), JSON.stringify(config, null, 2));
+      writeFile(configPath, JSON.stringify(config, null, 2));
       if (!opts.json) {
-        console.log(chalk.gray(`  - refarm.config.json`));
+        console.log(chalk.gray(`  - .refarm/config.json`));
       }
     }
 

@@ -165,7 +165,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
         name: "Brand Config",
         ok: Boolean(config.brand),
         status: config.brand ? "ready" : "missing",
-        action: "Check your refarm.config.json.",
+        action: "Check your .refarm/config.json.",
       },
     ];
     const nextActions = checks

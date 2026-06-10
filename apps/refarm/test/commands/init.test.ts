@@ -113,10 +113,10 @@ describe("initCommand — mocked initialization flow", () => {
     expect(content.bootstrappedAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
-  it("writes refarm.config.json with correct brand name and slug", async () => {
+  it("writes .refarm/config.json with correct brand name and slug", async () => {
     await runInit();
     const call = mockWriteFileSync.mock.calls.find(([p]) =>
-      (p as string).includes("refarm.config.json")
+      (p as string).replaceAll("\\", "/").endsWith(".refarm/config.json")
     );
     expect(call).toBeDefined();
     const content = JSON.parse(call![1] as string);

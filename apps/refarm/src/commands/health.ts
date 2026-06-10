@@ -1,4 +1,8 @@
 import {
+	defaultRefarmConfigPath,
+	findRefarmConfigPath,
+} from "@refarm.dev/config";
+import {
 	ComplexityAuditor,
 	FileSystemAuditor,
 	HealthCore,
@@ -244,7 +248,7 @@ export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
 }
 
 export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicyReport {
-  const configPath = path.join(rootDir, "refarm.config.json");
+  const configPath = findRefarmConfigPath(rootDir) ?? defaultRefarmConfigPath(rootDir);
   const fallback = defaultHealthPolicy(rootDir);
   const fallbackSource = fallback.preset === "refarm" ? "refarm-default" : "workspace-default";
 
@@ -530,7 +534,7 @@ export async function runHealthPolicySuggestion(rootDir = process.cwd()): Promis
 export async function applySuggestedHealthPolicy(
   rootDir = process.cwd(),
 ): Promise<HealthPolicyApplicationReport> {
-  const configPath = path.join(rootDir, "refarm.config.json");
+  const configPath = findRefarmConfigPath(rootDir) ?? defaultRefarmConfigPath(rootDir);
   const suggestion = await runHealthPolicySuggestion(rootDir);
   const config = readRefarmConfigForWrite(configPath);
   const previousHealth = config.health;
@@ -538,6 +542,7 @@ export async function applySuggestedHealthPolicy(
   const nextCommands = [nextCommand];
   const nextActions = [nextCommand];
   config.health = suggestion.suggestedHealth;
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
   return {
     command: "health",
@@ -629,13 +634,13 @@ export const healthCommand = new Command("health")
       "  Health audits filesystem source visibility, build configuration, and package entrypoint alignment.",
       "  It does not require the Refarm runtime sidecar.",
       `  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for host/runtime recovery steps.`,
-      "  Project-specific policy can live under health in refarm.config.json.",
+      "  Project-specific policy can live under health in .refarm/config.json.",
     ].join("\n"),
   )
   .option("--json", "Output machine-readable health report")
   .option("--policy", "Print the resolved health policy and exit")
   .option("--suggest-policy", "Suggest a reviewed health policy from current diagnostics")
-  .option("--apply-suggested-policy", "Apply the suggested health policy to refarm.config.json")
+  .option("--apply-suggested-policy", "Apply the suggested health policy to .refarm/config.json")
   .option("--next-action", "Print only the first blocking recovery action")
   .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
