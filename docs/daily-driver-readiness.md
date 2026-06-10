@@ -85,6 +85,12 @@ What is already solid:
   passes in that shape; Rust/WASM validation on Windows additionally requires
   Visual Studio C++ Build Tools, the MSVC linker ahead of Git's `link.exe`, and
   `cargo-component`.
+- 2026-06-10 local Windows calibration in a detached `C:\tmp` worktree confirmed
+  the separation: `node-substrate`, Windows symlink contracts, `packages/cli`
+  build, and focused CLI handoff tests pass with Windows-owned `node_modules`.
+  The full native platform proof remains intentionally blocked until the Windows
+  Rust/WASM substrate matches CI setup. No devcontainer rebuild is indicated by
+  that failure.
 - Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and Tractor
   WASI LLM routing are now routed to that no-token e2e smoke by
   `refarm agent finish --profile affected` and the host smoke auto profile
