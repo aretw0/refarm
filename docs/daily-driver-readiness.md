@@ -232,6 +232,8 @@ Current priority sequence:
    `external-consumer-health-policy-json`, and
    `external-consumer-health-suggest-policy-json`. Treat their output as
    calibration input only; do not run `health --apply-suggested-policy` there.
+   Keep the detailed loop in
+   [`docs/EXTERNAL_CONSUMER_CALIBRATION.md`](EXTERNAL_CONSUMER_CALIBRATION.md).
 4. Runtime recovery: surface `nextCommand` through more failure paths in the
    actual runtime start/ensure flow.
 5. Model and credential operations: make provider/model/login changes
