@@ -44,12 +44,12 @@ describe("command handoff helpers", () => {
 		);
 	});
 
-	it("uses per-application command overrides for executable handoffs", () => {
+	it("keeps public command strings stable when launcher overrides are present", () => {
 		const previous = process.env.TOOL_COMMAND;
 		process.env.TOOL_COMMAND = "C:\\tmp\\tool.cmd";
 		try {
 			expect(applicationCommand("tool", ["resume", "--json"])).toBe(
-				"C:\\tmp\\tool.cmd resume --json",
+				"tool resume --json",
 			);
 		} finally {
 			if (previous === undefined) {
@@ -61,13 +61,13 @@ describe("command handoff helpers", () => {
 	});
 
 	it.each([
-		["/home/runner/.local/bin/refarm", "/home/runner/.local/bin/refarm resume --json"],
-		["C:\\tmp\\refarm.cmd", "C:\\tmp\\refarm.cmd resume --json"],
+		["/home/runner/.local/bin/refarm", "tool resume --json"],
+		["C:\\tmp\\refarm.cmd", "tool resume --json"],
 		[
 			"/home/runner/Refarm CLI/refarm",
-			"'/home/runner/Refarm CLI/refarm' resume --json",
+			"tool resume --json",
 		],
-	])("formats launcher override %s", (override, expected) => {
+	])("ignores launcher override %s for public command strings", (override, expected) => {
 		const previous = process.env.TOOL_COMMAND;
 		process.env.TOOL_COMMAND = override;
 		try {

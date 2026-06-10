@@ -143,9 +143,7 @@ function applicationCommandOverrideEnv(binary: string): string {
 }
 
 export function applicationCommand(binary: string, args: string[]): string {
-	const override = process.env[applicationCommandOverrideEnv(binary)]?.trim();
-	const command = override ? quoteCommandArgIfNeeded(override) : binary;
-	return binaryCommand(command, args);
+	return binaryCommand(binary, args);
 }
 
 export function applicationProcess(
@@ -157,7 +155,7 @@ export function applicationProcess(
 	return {
 		command,
 		args,
-		display: applicationCommand(binary, args),
+		display: binaryCommand(quoteCommandArgIfNeeded(command), args),
 	};
 }
 

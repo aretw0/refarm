@@ -39,6 +39,7 @@ export interface OperatorResumeCommands {
 	taskList: string;
 	taskResume: string;
 	modelCurrent: string;
+	sessionList: string;
 	sessionShow: (sessionId: string) => string;
 }
 
@@ -111,7 +112,7 @@ export interface OperatorResumeModelSummary {
 }
 
 export interface OperatorResumeSessionSummary {
-	status: "none" | "active";
+	status: "none" | "active" | "stale";
 	activeSessionId?: string;
 	shortId?: string;
 	showCommand?: string;
@@ -161,6 +162,7 @@ const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
 	taskList: refarmAppCommand(["task", "list", "--json"]),
 	taskResume: refarmAppCommand(["task", "resume", "--json"]),
 	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
+	sessionList: refarmAppCommand(["sessions", "list", "--json"]),
 	sessionShow: (sessionId) =>
 		refarmAppCommand([
 			"sessions",
@@ -175,6 +177,7 @@ const DEFAULT_OPERATOR_RESUME_PROCESSES = {
 	taskList: refarmAppProcess(["task", "list", "--json"]),
 	taskResume: refarmAppProcess(["task", "resume", "--json"]),
 	modelCurrent: refarmAppProcess(["model", "current", "--json"]),
+	sessionList: refarmAppProcess(["sessions", "list", "--json"]),
 	sessionShow: (sessionId: string) =>
 		refarmAppProcess([
 			"sessions",
@@ -313,14 +316,12 @@ export function buildOperatorResumeSummary(
 					session.shortId === activeShortId,
 			)
 		: undefined;
-	const sessionShowCommand = activeRecentSession?.showCommand ??
-		(input.activeSessionId && recentSessions.length === 0
-			? (input.commands?.sessionShow ?? DEFAULT_OPERATOR_RESUME_COMMANDS.sessionShow)(
-					input.activeSessionId,
-				)
-			: undefined);
+	const sessionStatus = input.activeSessionId
+		? activeRecentSession ? "active" : "stale"
+		: "none";
+	const sessionShowCommand = activeRecentSession?.showCommand;
 	const session: OperatorResumeSessionSummary = {
-		status: input.activeSessionId ? "active" : "none",
+		status: sessionStatus,
 		activeSessionId: input.activeSessionId ?? undefined,
 		shortId: activeShortId,
 		showCommand: sessionShowCommand,
@@ -349,7 +350,7 @@ export function buildOperatorResumeSummary(
 	return {
 			status: runtime ||
 				Boolean(input.model) ||
-				session.status === "active" ||
+				session.status !== "none" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
 			(input.recentPrompts?.length ?? 0) > 0 ||
@@ -390,6 +391,9 @@ export function operatorResumeNextCommands(
 	const sessionCommand = summary.session.showCommand
 		?? summary.session.recentSessions[0]?.showCommand;
 	if (sessionCommand) nextCommands.push(sessionCommand);
+	else if (summary.session.status === "stale") {
+		nextCommands.push(resolved.sessionList);
+	}
 
 	// Model: only surface when credentials are missing, not on every resume.
 	if (summary.model?.credential?.state === "missing") {
@@ -457,6 +461,10 @@ export function operatorResumeNextProcesses(
 	addDefaultProcess(
 		DEFAULT_OPERATOR_RESUME_COMMANDS.modelCurrent,
 		DEFAULT_OPERATOR_RESUME_PROCESSES.modelCurrent,
+	);
+	addDefaultProcess(
+		DEFAULT_OPERATOR_RESUME_COMMANDS.sessionList,
+		DEFAULT_OPERATOR_RESUME_PROCESSES.sessionList,
 	);
 	for (const session of summary.session.recentSessions) {
 		if (session.showCommand) {
@@ -567,12 +575,17 @@ export function formatOperatorResumeSummary(
 	} else {
 		lines.push("Model: not inspected");
 	}
-	if (summary.session.status === "active" && summary.session.activeSessionId) {
+	if (
+		(summary.session.status === "active" || summary.session.status === "stale") &&
+		summary.session.activeSessionId
+	) {
 		lines.push(
-			`Session: active=${summary.session.shortId ?? summary.session.activeSessionId}`,
+			`Session: ${summary.session.status}=${summary.session.shortId ?? summary.session.activeSessionId}`,
 		);
 		if (summary.session.showCommand) {
 			lines.push(`  show: ${summary.session.showCommand}`);
+		} else if (summary.session.status === "stale") {
+			lines.push("  show: unavailable; inspect sessions list");
 		}
 		const participants = operatorResumeParticipantDisplay(summary.session);
 		if (participants) lines.push(`  participants: ${participants}`);

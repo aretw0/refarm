@@ -229,11 +229,48 @@ describe("operator resume", () => {
 			],
 		});
 
+		expect(summary.session.status).toBe("stale");
 		expect(summary.session.showCommand).toBeUndefined();
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm sessions show ef1234567890 --json",
 			"refarm task list --json",
 		]);
+	});
+
+	it("does not invent a session show handoff when the active session is orphaned", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			activeSessionId: "urn:refarm:session:v1:orphan1234567890",
+			recentSessions: [],
+		});
+
+		expect(envelope).toMatchObject({
+			nextCommand: "refarm sessions list --json",
+			nextCommands: [
+				"refarm sessions list --json",
+				"refarm task list --json",
+			],
+			nextProcesses: [
+				{
+					command: "refarm",
+					args: ["sessions", "list", "--json"],
+					display: "refarm sessions list --json",
+				},
+				{
+					command: "refarm",
+					args: ["task", "list", "--json"],
+					display: "refarm task list --json",
+				},
+			],
+			session: {
+				status: "stale",
+				activeSessionId: "urn:refarm:session:v1:orphan1234567890",
+				shortId: "an1234567890",
+				showCommand: undefined,
+				recentSessions: [],
+			},
+		});
 	});
 
 	it("keeps active effort resume handoffs in JSON mode", () => {
@@ -341,7 +378,7 @@ describe("operator resume", () => {
 		});
 		expect(operatorResumeNextCommands(summary)).toEqual([
 			"refarm runtime ensure --wait --next-command",
-			"refarm sessions show ef1234567890 --json",
+			"refarm sessions list --json",
 			"refarm task list --json",
 		]);
 	});

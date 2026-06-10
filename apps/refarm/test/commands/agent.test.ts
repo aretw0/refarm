@@ -781,7 +781,7 @@ describe("agent command", () => {
 			expect(payload.templates).toEqual(expect.arrayContaining([
 				expect.objectContaining({
 					id: "external-consumer-resume-json",
-					command: "C:\\tmp\\refarm-cli-bin-test\\refarm.cmd resume --json",
+					command: "refarm resume --json",
 					process: {
 						command: "C:\\tmp\\refarm-cli-bin-test\\refarm.cmd",
 						args: ["resume", "--json"],
