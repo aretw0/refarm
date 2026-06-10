@@ -406,10 +406,11 @@ jobs:
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
+          BENCH_BASELINE_COPY="$(mktemp)"
+          BASELINE_READY=false
 
           # Generate baseline from main (best-effort — skipped if main is on an
           # older package-manager config that pnpm can't handle).
@@ -420,6 +421,8 @@ jobs:
             pnpm install --frozen-lockfile
             cd packages/tractor
             pnpm run bench:save
+            cp benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+            BASELINE_READY=true
             cd ../..
           else
             echo "::warning::Benchmark baseline skipped — main branch uses older package-manager config (no pnpm-workspace.yaml)"
@@ -429,6 +432,9 @@ jobs:
           git checkout -f $CURRENT_BRANCH
           pnpm install --frozen-lockfile
           cd packages/tractor
+          if [ "$BASELINE_READY" = "true" ]; then
+            cp "$BENCH_BASELINE_COPY" benchmarks/baseline.json
+          fi
           pnpm run bench:check
 
           # Export payload to GHA env vars if the script exited cleanly
