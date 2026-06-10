@@ -257,6 +257,8 @@ jobs:
         run: node scripts/validate-packages.mjs
       - name: Validate GitHub Action pins
         run: node scripts/ci/check-github-action-pins.mjs
+      - name: Validate GitHub Action contracts
+        run: node scripts/ci/check-github-actions-contracts.mjs
 
   quality:
     runs-on: ubuntu-latest

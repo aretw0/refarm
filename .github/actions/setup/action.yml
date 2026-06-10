@@ -130,6 +130,9 @@ runs:
 
     - name: Install dependencies
       shell: bash
+      env:
+        PUPPETEER_SKIP_DOWNLOAD: "true"
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
       run: |
         set -euo pipefail
         if [ ! -f pnpm-lock.yaml ]; then
@@ -137,7 +140,7 @@ runs:
           exit 1
         fi
 
-        echo "Installing dependencies with pnpm install --frozen-lockfile (deterministic mode)..."
+        echo "Installing dependencies with pnpm install --frozen-lockfile (deterministic mode, browser downloads disabled)..."
         pnpm install --frozen-lockfile
 
     - name: Configure CI cargo target directory
