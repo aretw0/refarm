@@ -51,6 +51,20 @@ test("post-start warns when gh auth is stored under root instead of the persiste
 	assert.match(content, /farm vscode \/workspaces\/refarm gh auth login/);
 });
 
+test("devcontainer exposes refarm through the intentional farm user shell", () => {
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+
+	assert.match(postCreate, /cli:install/);
+	assert.match(postStart, /ensure_refarm_cli\(\)/);
+	assert.match(farm, /export HOME=\/home\/\$\{TARGET_USER\}/);
+	assert.match(farm, /export PNPM_HOME=\/home\/\$\{TARGET_USER\}\/\.local\/share\/pnpm/);
+	assert.match(farm, /\/home\/\$\{TARGET_USER\}\/\.local\/bin/);
+	assert.match(farm, /\/home\/\$\{TARGET_USER\}\/\.npm-global\/bin/);
+	assert.match(farm, /exec su -s \/bin\/bash "\$TARGET_USER" -- -lc/);
+});
+
 test("devcontainer provides the baseline sandbox tools expected by agents", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
 	const dockerfile = readFileSync(".devcontainer/Dockerfile", "utf8");

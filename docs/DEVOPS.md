@@ -183,6 +183,18 @@ behavior without reinstalling the shim. `pnpm run cli:install` builds the CLI
 only when `dist/index.js` is missing; use `pnpm run cli:install -- --build` to
 force a rebuild before reinstalling it.
 
+For non-interactive Docker Desktop or `docker exec` sessions, use the
+devcontainer's `farm` wrapper so commands run as the dev user with the same
+`HOME`, `PNPM_HOME`, and `PATH` as VS Code terminals:
+
+```bash
+docker exec <container> farm vscode /workspaces/refarm refarm resume --json
+```
+
+Direct `docker exec <container> refarm ...` is intentionally not the contract:
+that runs in the container runtime's default shell/user context and may not see
+the dev user's persisted shim directory.
+
 ### Devcontainer Image Baseline (Tracked)
 
 Refarm now uses a repo-local build file: `.devcontainer/Dockerfile`.
