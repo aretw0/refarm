@@ -116,6 +116,35 @@ describe("repo-complexity-check", () => {
 		}
 	});
 
+	it("blocks changed source files that were already over budget", () => {
+		const root = mkdtempSync(path.join(tmpdir(), "refarm-complexity-"));
+		try {
+			const file = "apps/refarm/src/commands/agent.ts";
+			mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+			writeFileSync(path.join(root, file), "one\ntwo\nthree\nfour\n", "utf8");
+
+			const report = buildRepoComplexityReport(root, {
+				changed: true,
+				files: [file],
+				maxLines: 3,
+			});
+
+			assert.equal(report.scope, "changed");
+			assert.equal(report.ok, false);
+			assert.deepEqual(report.blockingFindings, [
+				{
+					category: "source",
+					file,
+					lines: 4,
+					size: 19,
+					note: "over-limit",
+				},
+			]);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("keeps full findings while exposing bounded top findings", () => {
 		const root = mkdtempSync(path.join(tmpdir(), "refarm-complexity-"));
 		try {
