@@ -20,6 +20,7 @@ import {
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import { printJson } from "./json-output.js";
+import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
 export interface HealthIssue {
@@ -645,6 +646,15 @@ export const healthCommand = new Command("health")
   .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
+    assertAtMostOneFlagEnabled(
+      [
+        { flag: "--policy", enabled: options.policy },
+        { flag: "--suggest-policy", enabled: options.suggestPolicy },
+        { flag: "--apply-suggested-policy", enabled: options.applySuggestedPolicy },
+      ],
+      "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.",
+    );
+
     if (options.policy) {
       const report = resolveHealthPolicyReport();
       if (options.json) {
