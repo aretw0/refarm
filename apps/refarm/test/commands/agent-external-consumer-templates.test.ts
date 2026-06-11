@@ -4,6 +4,7 @@ import { createAgentCommand } from "../../src/commands/agent.js";
 type FinishTemplate = {
 	command: string;
 	cwdParameter?: string;
+	effects?: string[];
 	id: string;
 	parameters: string[];
 	process?: {
@@ -12,6 +13,7 @@ type FinishTemplate = {
 		display: string;
 	};
 	useWhen: string;
+	writes?: boolean;
 };
 
 async function finishTemplates(): Promise<FinishTemplate[]> {
@@ -49,8 +51,10 @@ describe("agent external consumer templates", () => {
 			expect(template.cwdParameter).toBe("dir");
 			expect(template.command).toMatch(/^refarm (?:resume|check|health)\b/);
 			expect(template.command).toMatch(/\s--json$/);
-			expect(template.process?.command).toBe("refarm");
-			expect(template.process?.display).toBe(template.command);
+			expect(template.effects).toEqual(["observe"]);
+			expect(template.writes).toBe(false);
+			expect(template.process?.command).toMatch(/(?:^|[/\\])refarm(?:\.cmd)?$/);
+			expect(template.process?.display).toContain(template.process?.args.join(" "));
 			expect(template.process?.args.at(-1)).toBe("--json");
 			expect([template.command, template.process?.args.join(" ") ?? ""].join("\n")).not.toMatch(
 				/\b(?:--apply-suggested-policy|--fix|--run|apply|deploy|install|migrate|provision|publish|write|writing)\b/i,
