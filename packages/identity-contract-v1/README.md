@@ -90,6 +90,7 @@ interface IdentityProvider {
   sign(identityId: string, data: string): Promise<SignatureResult>;
   verify(signature: string, data: string): Promise<VerificationResult>;
   get(identityId: string): Promise<Identity | null>;
+  deriveFromSession?(input: SessionDerivationInput): Promise<SessionDerivedIdentityHandle>;
 }
 ```
 
@@ -121,6 +122,33 @@ interface VerificationResult {
   identity: Identity;
 }
 ```
+
+### Optional Session Derivation
+
+`identity:v1` reserves an optional session-derivation extension for providers
+that authenticate through OPAQUE, WebAuthn, or another protocol-specific
+handshake. The contract deliberately treats session bytes as provider-owned and
+returns an opaque handle:
+
+```typescript
+interface SessionDerivationInput {
+  protocol: string;
+  session: Uint8Array;
+  displayName?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface SessionDerivedIdentityHandle {
+  handle: string;
+  identity: Identity;
+  algorithm: string;
+  expiresAt?: string;
+}
+```
+
+Consumers must not parse `handle` or assume it is a key. Providers may use this
+for OPAQUE-derived session keys, WebAuthn assertions, or future mechanisms
+without changing the required `identity:v1` conformance surface.
 
 ### `runIdentityV1Conformance(provider)`
 
@@ -154,7 +182,9 @@ interface IdentityTelemetryEvent {
 
 ## Versioning
 
-This is `identity:v1`. Breaking changes will increment the capability version (e.g., `identity:v2`).
+This is `identity:v1`. Breaking changes will increment the capability version
+(for example `identity:v2`), but additive optional provider methods and exported
+types remain minor releases of `identity-contract-v1`.
 
 ## License
 
