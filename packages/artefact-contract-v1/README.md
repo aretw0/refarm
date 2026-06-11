@@ -13,6 +13,9 @@ Shared lifecycle base types for managed artefacts in the Refarm platform.
 - `TaskArtefactReference` — one generated output such as a dataset, report,
   audit trail, receipt, log, or nested manifest
 - `ArtefactProvenance` — producer/run/source metadata for a generated output
+- `validateTaskArtefactManifest(value)` — runtime validator that returns
+  path-aware issues for JS consumers and CI checks
+- `isTaskArtefactManifest(value)` — type guard for validated manifests
 
 ## Transition graph
 
@@ -66,3 +69,16 @@ const manifest: TaskArtefactManifest = {
 Consumers such as `vault-seed` can map these references to Lab datasets,
 publication reports, or audit notebooks while keeping vault-specific fields in
 their own manifests.
+
+Runtime consumers should validate untrusted or generated manifests before using
+their paths:
+
+```ts
+import { validateTaskArtefactManifest } from "@refarm.dev/artefact-contract-v1";
+
+const result = validateTaskArtefactManifest(manifest);
+
+if (!result.ok) {
+  throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
+}
+```

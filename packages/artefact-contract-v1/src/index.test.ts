@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { TaskArtefactManifest } from "./types.js";
-import { ARTEFACT_CAPABILITY, ARTEFACT_TERMINAL_STATES, canTransition } from "./types.js";
+import {
+	ARTEFACT_CAPABILITY,
+	ARTEFACT_TERMINAL_STATES,
+	canTransition,
+	isTaskArtefactManifest,
+	validateTaskArtefactManifest,
+} from "./types.js";
 
 describe("canTransition", () => {
   it("draft → ready is valid", () => expect(canTransition("draft", "ready")).toBe(true));
@@ -31,8 +37,8 @@ describe("ARTEFACT_CAPABILITY", () => {
 });
 
 describe("TaskArtefactManifest", () => {
-  it("represents task outputs with provenance and review state", () => {
-    const manifest: TaskArtefactManifest = {
+  function sampleManifest(): TaskArtefactManifest {
+    return {
       schema: "refarm.task-artefacts.v1",
       taskId: "task-wallet-poc",
       effortId: "effort-wallet-poc-001",
@@ -59,9 +65,53 @@ describe("TaskArtefactManifest", () => {
         },
       ],
     };
+  }
+
+  it("represents task outputs with provenance and review state", () => {
+    const manifest = sampleManifest();
 
     expect(manifest.schema).toBe("refarm.task-artefacts.v1");
     expect(manifest.artefacts[0]?.provenance.runId).toBe("wallet-poc-001");
     expect(manifest.artefacts[0]?.role).toBe("audit-trail");
+  });
+
+  it("validates a complete task artefact manifest at runtime", () => {
+    const manifest = sampleManifest();
+
+    expect(validateTaskArtefactManifest(manifest)).toEqual({ ok: true, issues: [] });
+    expect(isTaskArtefactManifest(manifest)).toBe(true);
+  });
+
+  it("reports path-aware issues for malformed manifests", () => {
+    const result = validateTaskArtefactManifest({
+      schema: "wrong",
+      createdAt: "",
+      artefacts: [
+        {
+          id: "",
+          uri: "audit-trail.md",
+          mediaType: "text/markdown",
+          role: "unknown",
+          hash: { algorithm: "sha1", value: "abc" },
+          reviewState: "maybe",
+          provenance: { runId: "", producer: "wallet:poc", producedAt: "" },
+          labels: ["ok", ""],
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.path)).toEqual([
+      "$.schema",
+      "$.createdAt",
+      "$.artefacts.0.id",
+      "$.artefacts.0.role",
+      "$.artefacts.0.hash.algorithm",
+      "$.artefacts.0.hash.value",
+      "$.artefacts.0.reviewState",
+      "$.artefacts.0.provenance.runId",
+      "$.artefacts.0.provenance.producedAt",
+      "$.artefacts.0.labels.1",
+    ]);
   });
 });
