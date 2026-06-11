@@ -90,6 +90,8 @@ jobs:
       - uses: ./.github/actions/setup
         if: steps.matrix-cache.outputs.cache-hit != 'true'
         with:
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
           is-pr: "true"
           pr-number: ${{ github.event.pull_request.number }}
           trusted-pr-cache: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
@@ -120,6 +122,8 @@ jobs:
 
       - uses: ./.github/actions/setup
         with:
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
           is-pr: "true"
           pr-number: ${{ github.event.pull_request.number }}
           trusted-pr-cache: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
