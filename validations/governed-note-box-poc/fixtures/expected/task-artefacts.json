@@ -1,0 +1,143 @@
+{
+  "schema": "refarm.task-artefacts.v1",
+  "taskId": "task-governed-note-box-poc",
+  "effortId": "effort-governed-note-box-poc-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "artefacts": [
+    {
+      "id": "intake-snapshot",
+      "uri": "intake-snapshot.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "b4e4ca1a7f96c4a54aa7ac66436f65a7136b424355f95654a5ffb92ab6df6ed2"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "ingestion"
+      ]
+    },
+    {
+      "id": "metadata-index",
+      "uri": "metadata-index.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "52283ef9405e9d28dc3c15ecadd75a93d34ffe642a35aa67b3be8cfbe4c98d54"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "metadata",
+        "lab"
+      ]
+    },
+    {
+      "id": "lab-snapshot",
+      "uri": "lab-snapshot.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "bac32c223484661cffe8c8898db9cfc5af19f3114451b361889e17ef5c159f53"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "lab"
+      ]
+    },
+    {
+      "id": "publication-snapshot",
+      "uri": "publication-snapshot.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "bcacfafda9fd36731f7e97899174f46e39ecad1dc24b9e4a5a58a14ecbf46444"
+      },
+      "reviewState": "unreviewed",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "publication"
+      ]
+    },
+    {
+      "id": "publication-preflight",
+      "uri": "publication-preflight.json",
+      "mediaType": "application/json",
+      "role": "audit-trail",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "50df6f2b0c6a72ecb657fb6e932b372d4f0cacbb17f78f921f8e04e34b714ad0"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "publication",
+        "preflight"
+      ]
+    },
+    {
+      "id": "human-review",
+      "uri": "human-review.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7166bedc1d364d75ac1880dfb8f27513bec5a9b6ff65a9ba1d18dde053c7cd1f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "publication",
+        "human-review"
+      ]
+    }
+  ]
+}

@@ -23,7 +23,7 @@ The draft plan separates three demonstrable ideas:
 | --- | --- | --- |
 | Extension host with sandboxed capabilities | Plugin/WASM host, manifest integrity, lifecycle events, strict and tolerant policy modes. | Covered by `validations/extension-sandbox-poc/` as a synthetic lifecycle/policy proof; real WASM/runtime substrate remains covered by existing package tests and heavier validations. |
 | Citizen data wallet and granular authorization | Local identity, synthetic attributes, scoped request, signed authorization, selective presentation, revocation, audit trail. | Implemented as `validations/citizen-data-wallet-poc/` with deterministic artifacts and `refarm.task-artefacts.v1` manifest. |
-| Governed note box / digital garden | Ingestion, metadata preservation, MOCs, publication/lab snapshots, validation, human review before publish. | Proven mostly by `vault-seed` as external consumer. Refarm should harden artifact/provenance, external workspace health, and process handoff primitives. |
+| Governed note box / digital garden | Ingestion, metadata preservation, lab and publication snapshots, validation, human review before publish. | Covered by `validations/governed-note-box-poc/` as a synthetic metadata/preflight proof. `vault-seed` remains the stronger product-facing consumer. |
 
 The important design point is that the proofs are not submission deliverables.
 They are generic validation pressure for Refarm's daily-driver substrate.
@@ -137,8 +137,30 @@ Next useful Refarm steps:
 
 ## Theme 3: Governed Note Box
 
-The strongest pressure comes from `vault-seed`, not from adding note UX to
-Refarm.
+The strongest product pressure comes from `vault-seed`, not from adding note UX
+to Refarm. Refarm now keeps a small synthetic proof for the generic parts that
+should be reusable across consumers:
+
+- `validations/governed-note-box-poc/governed-note-box-poc.mjs`
+- `validations/governed-note-box-poc/governed-note-box-poc.test.mjs`
+- `validations/governed-note-box-poc/fixtures/expected/task-artefacts.json`
+
+What it proves:
+
+- synthetic local note intake;
+- metadata preservation with body hashes, tags, links, status, and dates;
+- lab snapshot metrics and graph data;
+- publication snapshot that excludes drafts;
+- preflight requiring human review before publish;
+- deterministic JSON/Markdown outputs;
+- task artefact manifest with consumer labels for downstream labs.
+
+What it deliberately does not prove:
+
+- real Obsidian, Astro, Marimo, or vault-specific UX;
+- complete publication workflow;
+- editorial rules, note schemas, or PARA conventions;
+- integration with `vault-seed` or any work mirror.
 
 Refarm should own:
 
@@ -158,8 +180,9 @@ Refarm should own:
 
 Next useful Refarm step:
 
-1. Let a downstream lab consume a `refarm.task-artefacts.v1` manifest instead of
-   hard-coding output file names.
+1. Let a downstream lab consume a `refarm.task-artefacts.v1` manifest through
+   `@refarm.dev/artefact-contract-v1` selectors instead of hard-coding output
+   file names.
 2. Keep the consumer-specific mapping in `vault-seed`, not in Refarm.
 
 ## Operating Rule

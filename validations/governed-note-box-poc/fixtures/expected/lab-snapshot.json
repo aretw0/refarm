@@ -1,0 +1,34 @@
+{
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "metrics": {
+    "notes": 3,
+    "readyNotes": 2,
+    "draftNotes": 1,
+    "links": 4,
+    "tags": 6
+  },
+  "graph": [
+    {
+      "id": "note-001",
+      "title": "Sandboxed Extensions",
+      "links": [
+        "note-002"
+      ]
+    },
+    {
+      "id": "note-002",
+      "title": "Consent Receipts",
+      "links": [
+        "note-001",
+        "note-003"
+      ]
+    },
+    {
+      "id": "note-003",
+      "title": "Publication Review",
+      "links": [
+        "note-002"
+      ]
+    }
+  ]
+}
