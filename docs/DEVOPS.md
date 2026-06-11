@@ -792,7 +792,8 @@ Result summary:
 Attack order/backlog (if regression appears):
 1. Foundation: `config`, `toolbox`, `vtconfig`, `cli`
 2. Runtime: `tractor-rs`, `tractor-ts`, `plugin-manifest`
-3. Contracts/storage/sync: `*-contract-v1`, `storage-*`, `sync-*`
+3. Contracts/storage/sync: `effort/artefact/automation/*-contract-v1`,
+   `storage-*`, `sync-*`
 
 ### Build baseline matrix by domain (2026-04-24)
 
@@ -800,14 +801,16 @@ Attack order/backlog (if regression appears):
 |---|---|---|---|
 | Foundation | `pnpm run gate:smoke:foundation` | ✅ Green | `cli` type-check + tests de `config/toolbox/vtconfig` |
 | Runtime | `pnpm run gate:smoke:runtime` | ✅ Green | `tractor-rs` smoke/build checks + `tractor-ts` build/type-check/runtime-module smoke |
-| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + conformance/unit para pacotes prioritários |
+| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + unit/conformance for effort, artefact, automation, storage, sync, identity, task, and session contracts |
 | Colony Full | `pnpm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio + `project:validate` |
 
 Dependências operacionais entre domínios:
 
 - Foundation é base para tooling comum e deve ficar verde antes de ampliar paralelismo.
 - Runtime depende de preflight completo (toolchain Rust/WASM + smoke WS).
-- Contracts/Storage/Sync depende de baseline de contratos v1 e suites de conformance.
+- Contracts/Storage/Sync depende de baseline de contratos v1, suites de
+  conformance, e validação de manifests de artefatos quando outputs esperados
+  mudam.
 
 Bloqueadores monitorados:
 

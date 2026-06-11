@@ -64,9 +64,9 @@ Next useful Refarm step:
 
 1. Connect this report shape to a real plugin lifecycle smoke once the cheapest
    reproducible path is stable across Linux, macOS, and Windows.
-2. Validate the generated `task-artefacts.json` through
-   `@refarm.dev/artefact-contract-v1` once validation scripts consume built
-   package exports without brittle source imports.
+2. Keep `@refarm.dev/artefact-contract-v1` in the contract smoke gate and run
+   `pnpm run task-artefacts:check` whenever expected reports or manifests
+   change.
 
 Success signal:
 
@@ -106,9 +106,8 @@ What it deliberately does not prove:
 
 Next useful Refarm steps:
 
-1. Validate the generated `task-artefacts.json` through
-   `@refarm.dev/artefact-contract-v1` once the validation consumes built package
-   exports without introducing brittle source imports.
+1. Keep `pnpm run task-artefacts:check` green whenever expected reports or
+   manifests change.
 2. Optionally persist the authorization receipt through a storage adapter.
 3. Add a small consent-text review checklist that remains synthetic and
    non-product.

@@ -7,6 +7,9 @@ const ROOT = process.cwd();
 const plan = process.argv.includes("--plan");
 
 const STEPS = [
+	["packages/effort-contract-v1", "test:unit"],
+	["packages/artefact-contract-v1", "test:unit"],
+	["packages/automation-contract-v1", "test:unit"],
 	["packages/storage-contract-v1", "test:unit"],
 	["packages/sync-contract-v1", "test:unit"],
 	["packages/identity-contract-v1", "test:unit"],
