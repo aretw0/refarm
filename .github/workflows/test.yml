@@ -296,6 +296,7 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
           rust-coverage: ${{ needs.changes.outputs.tractor_heavy_gates }}
@@ -634,6 +635,7 @@ jobs:
           rust-target: "wasm32-wasip1"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -658,6 +660,7 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -712,6 +715,7 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -789,6 +793,7 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -811,6 +816,7 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 

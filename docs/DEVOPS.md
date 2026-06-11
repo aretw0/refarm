@@ -470,7 +470,7 @@ Implementation baseline:
 
 - `pnpm install --frozen-lockfile` still runs once per job that needs setup due to job isolation on hosted runners.
 - `audit-moderate` still performs a non-blocking audit/report flow and is not currently content-signature cached.
-- Further reduction of Turbo task execution across runners would require remote task-output cache (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
+- Turbo remote cache reduces repeated task execution when `TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` are configured. Push runs use the shared `refarm` namespace. Same-repository PRs may use a PR-scoped namespace; fork PRs remain local-cache only.
 
 ### GitHub Pages base-path contract (Astro)
 
@@ -492,9 +492,11 @@ Domain rollout checklist:
 
 - `docs/DOMAIN_REFARM_DEV_CUTOVER.md`
 
-### Future: Turbo Remote Cache
+### Turbo Remote Cache
 
-**Status:** Not yet configured (awaiting credentials/team setup)
+**Status:** Supported through the Cloudflare-backed remote cache service. The
+shared setup action probes the Worker before enabling Turbo remote cache, then
+falls back to local `.turbo` cache if the service is unavailable.
 
 **What It Provides:**
 
@@ -508,26 +510,28 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 **Prerequisites:**
 
-- Turbo account with remote cache enabled (Vercel platform or self-hosted remote cache server).
-- `TURBO_TOKEN` secret added to repository settings (GitHub Actions secrets).
-- `TURBO_TEAM` configured (organization/team slug).
+- Cloudflare-backed `@refarm.dev/infra-turbo-cache` service provisioned.
+- `TURBO_CACHE_API_URL` secret added to repository settings.
+- `TURBO_CACHE_TOKEN` secret added to repository settings.
 
-**Configuration Steps (When Available):**
+**Configuration Steps:**
 
 1. **Add secrets to GitHub repository:**
    - Navigate to repository Settings → Secrets and variables → Actions
-   - Add `TURBO_TOKEN` (from Vercel dashboard or remote cache provider)
-   - Add `TURBO_TEAM` (team identifier, e.g., `refarm-team`)
+   - Add `TURBO_CACHE_API_URL` (Worker URL)
+   - Add `TURBO_CACHE_TOKEN` (Worker bearer token)
 
-2. **Update workflow environment variables:**
+2. **Use the shared setup action:**
 
    ```yaml
-   env:
-     TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-     TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+   - uses: ./.github/actions/setup
+     with:
+       turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+       turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+       trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+       is-pr: ${{ github.event_name == 'pull_request' }}
+       pr-number: ${{ github.event.pull_request.number }}
    ```
-
-   Add to `.github/workflows/test.yml` at job or workflow level.
 
 3. **Verify turbo.json cache configuration:**
    - Ensure `turbo.json` has proper `outputs` declared for each task.
@@ -536,13 +540,19 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 4. **Test remote cache:**
    - Run workflow twice with identical code.
    - Second run should show `>>> FULL TURBO` with cache hits from remote.
-   - Check Turbo dashboard for cache hit statistics.
+   - Check setup logs for `Remote Turbo cache configured`.
+
+**Trust boundaries:**
+
+- Push runs use the default `refarm` remote namespace.
+- Same-repository PRs use `refarm-pr-<number>`.
+- Fork PRs do not use remote cache even when secrets exist.
 
 **Cost Consideration:**
 
-- Vercel remote cache has free tier (limited cache storage/bandwidth).
-- Exceeding limits requires paid plan or self-hosted cache server.
-- Monitor usage via Vercel dashboard or remote cache provider metrics.
+- Cloudflare R2 stores Turbo artifacts under the namespace selected by `TURBO_TEAM`.
+- The Worker rejects artifacts larger than `MAX_ARTIFACT_BYTES` (default: 50 MB).
+- Scheduled cleanup deletes stale artifacts according to `ARTIFACT_TTL_SECONDS` (default: 30 days).
 
 **Documentation:**
 
