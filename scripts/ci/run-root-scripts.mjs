@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
+import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
 import { runSubprocess } from "./subprocess-utils.mjs";
 
 const ROOT = process.cwd();
@@ -13,10 +13,14 @@ function usage() {
 }
 
 function commandForScript(script) {
-	const command = packageScriptCommand(script, { cwd: ROOT });
+	const command = createPackageScriptCommand({
+		cwd: ROOT,
+		repoRoot: ROOT,
+		script,
+	});
 	return {
-		command: command.packageManager,
-		args: ["run", script],
+		command: command.command,
+		args: command.args,
 		display: command.display,
 	};
 }

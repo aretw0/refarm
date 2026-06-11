@@ -88,6 +88,7 @@ export function packageManagerSpawnCommand(
 function relativeCwd(cwd, repoRoot) {
     if (!path.isAbsolute(cwd)) return cwd;
     const relative = repoRoot ? path.relative(repoRoot, cwd) : path.relative(process.cwd(), cwd);
+    if (relative === "") return ".";
     return relative && !relative.startsWith("..") ? relative.replace(/\\/g, "/") : cwd;
 }
 

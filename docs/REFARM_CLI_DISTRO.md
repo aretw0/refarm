@@ -26,6 +26,29 @@ Packages own reusable blocks:
 - DS visual primitives;
 - future TUI renderer primitives.
 
+## Install Experience Bar
+
+The product install bar is the same shape operators expect from tools such as
+Claude Code: one PowerShell command on Windows, one `curl`/shell command on
+Unix-like systems, then `refarm check --next-action --json` explains the next
+recoverable step.
+
+That does not mean hiding the environment boundary. A released CLI install
+should be intentionally simple, while a development checkout must still keep
+`node_modules` owned by the current substrate:
+
+- Windows host validation uses Windows-owned shims such as `pnpm.cmd`;
+- Linux/devcontainer validation uses the container-owned `node_modules` volume;
+- shared runners must use spawn-safe package-manager commands from
+  `@refarm.dev/config`, not raw `spawn("pnpm", ...)`;
+- if `node-substrate:check` reports workspace materialization drift, repair the
+  owning checkout or use a separate platform checkout instead of mutating a
+  foreign `node_modules` tree.
+
+The operator-facing install should feel boring. The contributor-facing
+development substrate should be explicit enough that failures point to the right
+environment instead of turning into opaque setup folklore.
+
 ## First executable shape
 
 The first useful `refarm` command should be small and boring:
