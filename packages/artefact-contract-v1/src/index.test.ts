@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { ARTEFACT_CAPABILITY, canTransition, ARTEFACT_TERMINAL_STATES } from "./types.js";
+import { describe, expect, it } from "vitest";
+import type { TaskArtefactManifest } from "./types.js";
+import { ARTEFACT_CAPABILITY, ARTEFACT_TERMINAL_STATES, canTransition } from "./types.js";
 
 describe("canTransition", () => {
   it("draft → ready is valid", () => expect(canTransition("draft", "ready")).toBe(true));
@@ -27,4 +28,40 @@ describe("ARTEFACT_TERMINAL_STATES", () => {
 
 describe("ARTEFACT_CAPABILITY", () => {
   it("is artefact:v1", () => expect(ARTEFACT_CAPABILITY).toBe("artefact:v1"));
+});
+
+describe("TaskArtefactManifest", () => {
+  it("represents task outputs with provenance and review state", () => {
+    const manifest: TaskArtefactManifest = {
+      schema: "refarm.task-artefacts.v1",
+      taskId: "task-wallet-poc",
+      effortId: "effort-wallet-poc-001",
+      createdAt: "2026-06-11T00:00:00.000Z",
+      artefacts: [
+        {
+          id: "wallet-audit-trail",
+          uri: "fixtures/expected/audit-trail.md",
+          mediaType: "text/markdown",
+          role: "audit-trail",
+          reviewState: "accepted",
+          hash: {
+            algorithm: "sha256",
+            value: "0".repeat(64),
+          },
+          provenance: {
+            runId: "wallet-poc-001",
+            producer: "wallet:poc",
+            command: "pnpm run wallet:poc",
+            source: "validations/citizen-data-wallet-poc",
+            sourceVersion: "synthetic-v1",
+            producedAt: "2026-06-11T00:00:00.000Z",
+          },
+        },
+      ],
+    };
+
+    expect(manifest.schema).toBe("refarm.task-artefacts.v1");
+    expect(manifest.artefacts[0]?.provenance.runId).toBe("wallet-poc-001");
+    expect(manifest.artefacts[0]?.role).toBe("audit-trail");
+  });
 });

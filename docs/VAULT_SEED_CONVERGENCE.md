@@ -181,6 +181,12 @@ Near-term Refarm work should therefore favor small contracts around process
 execution, artifact provenance, and external workspace health. The `vault-seed`
 CLI can stay independent until those contracts are stable enough to consume.
 
+The first shared home for task/lab output metadata is
+`@refarm.dev/artefact-contract-v1`: it keeps the existing managed artefact
+lifecycle and adds task artefact manifests for generated datasets, reports,
+receipts, audit trails, logs, and nested manifests. Consumer-specific schemas
+stay outside that package.
+
 ## Serpro Draft Pressure
 
 The local prize drafts should continue to pressure Refarm indirectly:
