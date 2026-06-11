@@ -26,6 +26,7 @@ const PROFILE_SCRIPT = {
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
 	"agent-e2e-mock": "refarm:agent:e2e:mock",
+	install: "cli:install:verify",
 	check: "refarm:check:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
@@ -241,6 +242,20 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
+export function isCliInstallSurfaceFile(file) {
+	return (
+		file === ".devcontainer/devcontainer.json" ||
+		file === ".devcontainer/farm" ||
+		file === ".devcontainer/post-create.sh" ||
+		file === ".devcontainer/post-start.sh" ||
+		file === "scripts/install-refarm-cli.mjs" ||
+		file === "scripts/ci/check-node-substrate.mjs" ||
+		file === "scripts/ci/test-check-node-substrate.mjs" ||
+		file === "scripts/ci/test-devcontainer-contract.mjs" ||
+		file === "scripts/ci/test-install-refarm-cli.mjs"
+	);
+}
+
 export function isOpenApiProtocolFile(file) {
 	return (
 		file === "scripts/ci/check-openapi-specs.mjs" ||
@@ -441,6 +456,22 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "skip",
 			reason: "Docs-only delta; host smoke execution is not required.",
+		};
+	}
+
+	if (
+		files.some((file) => isCliInstallSurfaceFile(file)) &&
+		files.every(
+			(file) =>
+				isCliInstallSurfaceFile(file) ||
+				isDocsOnlyFile(file) ||
+				file === "package.json",
+		)
+	) {
+		return {
+			profile: "install",
+			reason:
+				"CLI install/substrate delta; run installer dry-run tests, devcontainer contract tests, and node substrate output tests.",
 		};
 	}
 

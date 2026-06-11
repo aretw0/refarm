@@ -189,6 +189,13 @@ Preview the install target without writing shims:
 pnpm run cli:install -- --dry-run
 ```
 
+Validate the installer, devcontainer contract, and node-substrate diagnostic
+surface without mutating a foreign checkout:
+
+```bash
+pnpm run cli:install:verify
+```
+
 Use `REFARM_CLI_BIN_DIR=<dir>` to install into an explicit directory. On
 Windows, the default user-level target is `%APPDATA%\npm`, matching the normal
 npm global shim location. After any install, continue with:

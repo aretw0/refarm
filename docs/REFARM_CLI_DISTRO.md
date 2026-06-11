@@ -150,6 +150,7 @@ npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
 npm run refarm:host:smoke:auto:agent-e2e-mock
 npm run refarm:host:smoke:auto:test
+npm run cli:install:verify
 npm run refarm:actions:verify
 npm run refarm:tree:verify
 ```
@@ -212,9 +213,14 @@ npm run refarm:tree:verify
   rebuilds `packages/pi-agent` WASM before installing the temporary bundled
   plugin, so the smoke validates the current runtime-agent source rather than a
   stale package artifact.
+- `cli:install:verify` runs installer dry-run regression tests, devcontainer
+  contract tests, and node-substrate diagnostic output tests. The auto router
+  selects the `install` profile for CLI install/devcontainer/substrate deltas
+  so bootstrap work does not fall into the broad CI lane just because it touched
+  root `package.json` as a companion file.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
   recommended lane (`skip | actions | tree | validation-pocs |
-  task-artefacts | agent-e2e-mock | check | quick | dev | ci`) without
+  task-artefacts | agent-e2e-mock | install | check | quick | dev | ci`) without
   executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
@@ -226,7 +232,7 @@ npm run refarm:tree:verify
   docs-only deltas still skip smoke. Manual `--profile` overrides also accept
   granular lane names such as `actions-headless`, `actions-renderers`,
   `actions-test`, `actions-type`, `actions-dist`, `agent-e2e-mock`, `check`,
-  `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
+  `install`, `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
   one-command narrow loop previews/execution. Validation profiles such as
   `validation-pocs` and `task-artefacts` are also available for generic
   downstream-proof work. Shared local helpers such as `execution-plan.ts` stay

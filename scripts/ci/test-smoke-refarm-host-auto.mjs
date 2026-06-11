@@ -7,6 +7,7 @@ import {
 	decideProfile,
 	formatSmokeProfileList,
 	formatUnknownSmokeProfileMessage,
+	isCliInstallSurfaceFile,
 	isFarmhandSidecarFile,
 	isOpenApiProtocolFile,
 	isRefarmAgentRuntimeE2eFile,
@@ -228,6 +229,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"sidecar",
 		"driver-tasks",
 		"agent-e2e-mock",
+		"install",
 		"check",
 		"quick",
 		"dev",
@@ -235,7 +237,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artefacts, sidecar, driver-tasks, agent-e2e-mock, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artefacts, sidecar, driver-tasks, agent-e2e-mock, install, check, quick, dev, ci",
 	);
 });
 
@@ -304,6 +306,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
 			{ profile: "agent-e2e-mock", script: "refarm:agent:e2e:mock" },
+			{ profile: "install", script: "cli:install:verify" },
 			{ profile: "check", script: "refarm:check:verify" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
@@ -365,6 +368,7 @@ test("maps profiles to package scripts", () => {
 		resolveProfileScript("agent-e2e-mock"),
 		"refarm:agent:e2e:mock",
 	);
+	assert.equal(resolveProfileScript("install"), "cli:install:verify");
 	assert.equal(resolveProfileScript("check"), "refarm:check:verify");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
@@ -409,6 +413,19 @@ test("detects composite check gate files", () => {
 	);
 });
 
+test("detects CLI install substrate files", () => {
+	assert.equal(isCliInstallSurfaceFile("scripts/install-refarm-cli.mjs"), true);
+	assert.equal(
+		isCliInstallSurfaceFile("scripts/ci/check-node-substrate.mjs"),
+		true,
+	);
+	assert.equal(isCliInstallSurfaceFile(".devcontainer/post-create.sh"), true);
+	assert.equal(
+		isCliInstallSurfaceFile("apps/refarm/src/commands/status.ts"),
+		false,
+	);
+});
+
 test("routes action-readiness-only deltas to focused actions lane", () => {
 	assert.equal(
 		decideProfile([
@@ -444,6 +461,26 @@ test("routes composite check gate deltas to focused check lane", () => {
 		]).profile,
 		"check",
 	);
+});
+
+test("routes CLI install substrate deltas to focused install lane", () => {
+	assert.equal(
+		decideProfile([
+			"scripts/install-refarm-cli.mjs",
+			"scripts/ci/test-install-refarm-cli.mjs",
+			"docs/DEVOPS.md",
+		]).profile,
+		"install",
+	);
+	assert.equal(
+		decideProfile([
+			".devcontainer/post-create.sh",
+			"scripts/ci/test-devcontainer-contract.mjs",
+			"package.json",
+		]).profile,
+		"install",
+	);
+	assert.equal(decideProfile(["package.json"]).profile, "ci");
 });
 
 test("routes tree-only deltas to focused tree lane", () => {

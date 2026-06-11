@@ -10,6 +10,7 @@
 		"cli:build": "turbo build --filter=@refarm.dev/refarm",
 		"cli:install": "node scripts/install-refarm-cli.mjs",
 		"cli:install:test": "node --test scripts/ci/test-install-refarm-cli.mjs",
+		"cli:install:verify": "node scripts/ci/run-root-scripts.mjs cli:install:test devcontainer:contract:test node-substrate:check:test",
 		"lint": "turbo lint --output-logs=new-only --ui=stream",
 		"imports:organize": "node scripts/organize-imports.mjs",
 		"imports:organize:check": "node scripts/organize-imports.mjs --check",
