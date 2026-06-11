@@ -47,6 +47,10 @@ function resolveBinDir() {
     return winNpmBin;
   }
 
+  if (process.platform === "win32") {
+    return winNpmBin;
+  }
+
   if (pathIncludes(npmGlobal)) {
     return npmGlobal;
   }
@@ -57,10 +61,6 @@ function resolveBinDir() {
 
   if (existsSync(npmGlobal)) {
     return npmGlobal;
-  }
-
-  if (process.platform === "win32" && existsSync(winNpmBin)) {
-    return winNpmBin;
   }
 
   return localBin;
@@ -74,6 +74,7 @@ if (nodeMajor < REQUIRED_NODE_MAJOR) {
 	);
 }
 
+const dryRun = process.argv.includes("--dry-run");
 const forceBuild = process.argv.includes("--build");
 
 if (forceBuild || !existsSync(DIST_ENTRY)) {
@@ -82,18 +83,26 @@ if (forceBuild || !existsSync(DIST_ENTRY)) {
     repoRoot: ROOT,
     script: "build",
   });
+  if (dryRun) {
+    console.log(`[install-refarm-cli][dry-run] would build @refarm.dev/refarm with ${build.display}`);
+  } else {
   console.log(`[install-refarm-cli] Building @refarm.dev/refarm with ${build.display}...`);
   run(build.command, build.args);
+  }
 }
 
-if (!existsSync(DIST_ENTRY)) {
+if (!dryRun && !existsSync(DIST_ENTRY)) {
   fail(`Missing dist entry after build: ${DIST_ENTRY}`);
 }
 
-chmodSync(DIST_ENTRY, 0o755);
+if (!dryRun) {
+  chmodSync(DIST_ENTRY, 0o755);
+}
 
 const binDir = resolveBinDir();
-mkdirSync(binDir, { recursive: true });
+if (!dryRun) {
+  mkdirSync(binDir, { recursive: true });
+}
 
 const loaderSpecifier = pathToFileURL(LOADER_ENTRY).href;
 const shimPath = path.join(binDir, "refarm");
@@ -103,16 +112,23 @@ export REFARM_COMMAND=${JSON.stringify(shimPath)}
 exec node --import ${JSON.stringify(loaderSpecifier)} ${JSON.stringify(DIST_ENTRY)} "$@"
 `;
 
-writeFileSync(shimPath, shimBody);
-chmodSync(shimPath, 0o755);
-
-console.log(`[install-refarm-cli] Installed refarm shim -> ${shimPath}`);
+if (dryRun) {
+  console.log(`[install-refarm-cli][dry-run] would install refarm shim -> ${shimPath}`);
+} else {
+  writeFileSync(shimPath, shimBody);
+  chmodSync(shimPath, 0o755);
+  console.log(`[install-refarm-cli] Installed refarm shim -> ${shimPath}`);
+}
 
 if (process.platform === "win32") {
   const cmdPath = path.join(binDir, "refarm.cmd");
   const cmdBody = `@echo off\r\nset "REFARM_COMMAND=%~f0"\r\nnode --import "${loaderSpecifier}" "${DIST_ENTRY}" %*\r\n`;
-  writeFileSync(cmdPath, cmdBody);
-  console.log(`[install-refarm-cli] Installed refarm cmd shim -> ${cmdPath}`);
+  if (dryRun) {
+    console.log(`[install-refarm-cli][dry-run] would install refarm cmd shim -> ${cmdPath}`);
+  } else {
+    writeFileSync(cmdPath, cmdBody);
+    console.log(`[install-refarm-cli] Installed refarm cmd shim -> ${cmdPath}`);
+  }
 }
 
 if (!pathIncludes(binDir)) {

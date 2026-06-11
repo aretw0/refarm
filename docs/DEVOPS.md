@@ -183,6 +183,24 @@ behavior without reinstalling the shim. `pnpm run cli:install` builds the CLI
 only when `dist/index.js` is missing; use `pnpm run cli:install -- --build` to
 force a rebuild before reinstalling it.
 
+Preview the install target without writing shims:
+
+```bash
+pnpm run cli:install -- --dry-run
+```
+
+Use `REFARM_CLI_BIN_DIR=<dir>` to install into an explicit directory. On
+Windows, the default user-level target is `%APPDATA%\npm`, matching the normal
+npm global shim location. After any install, continue with:
+
+```bash
+refarm check --next-action --json
+```
+
+If the check reports node substrate materialization drift, do not repair a
+foreign `node_modules` tree silently. Use the environment-owned checkout or set
+the explicit rebuild opt-in described by the diagnostic.
+
 For non-interactive Docker Desktop or `docker exec` sessions, use the
 devcontainer's `farm` wrapper so commands run as the dev user with the same
 `HOME`, `PNPM_HOME`, and `PATH` as VS Code terminals:
