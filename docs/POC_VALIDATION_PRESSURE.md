@@ -51,6 +51,11 @@ The operating shape is:
 This lets the work collide with real writing pressure while keeping Refarm's
 contracts reusable for second and third consumers.
 
+The 2026-06-11 calibration deliberately used only repository shape and file
+inventory as evidence. That is the right default for work mirrors: filenames,
+topic grouping, and existing command surfaces can reveal pressure; draft prose,
+private local paths, and submission wording stay outside Refarm.
+
 ## Theme 1: Extension Sandbox
 
 Useful Refarm primitives already exist:

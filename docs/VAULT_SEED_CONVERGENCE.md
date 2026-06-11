@@ -37,6 +37,29 @@ This is healthy duplication at the product edge. The risk would be duplicating
 runtime contracts, process handoffs, provenance envelopes, package integrity, or
 workspace health rules in ways that drift from Refarm.
 
+## 2026-06-11 Read-Only Calibration
+
+The latest read-only pass over the adjacent writing vault and `vault-seed`
+reinforces the boundary rather than changing it:
+
+- the writing vault exposes three themed work streams plus proposal, commitment
+  letter, and draft scaffolding; those filenames are enough pressure signal, so
+  Refarm should not ingest or quote the draft bodies;
+- the first two streams pressure Refarm's extension governance and citizen-data
+  validation POCs without requiring product naming or submission-specific
+  language;
+- the third stream is better represented by `vault-seed`'s own vault cockpit and
+  by Refarm's generic artifact/provenance contracts, not by note UX in
+  `apps/refarm`;
+- `vault-seed` already has a mature local command surface around `dgk check`,
+  `dgk lab`, notebook ETL/export, outbox preparation, site build, graph smoke,
+  and lab manifests.
+
+That means the next convergence work should be adapter-shaped: make Refarm's
+process, health, artifact, and provenance contracts easy for `dgk` or a second
+consumer to call later, while leaving publishing, notebook, and vault language
+inside the consumer.
+
 ## Astro And Marimo Lessons
 
 `vault-seed` is proving two lessons Refarm should absorb without taking over the
