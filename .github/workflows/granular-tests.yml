@@ -92,6 +92,7 @@ jobs:
         with:
           is-pr: "true"
           pr-number: ${{ github.event.pull_request.number }}
+          trusted-pr-cache: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
 
       - name: Build Matrix DAG
         id: build-matrix
@@ -121,6 +122,7 @@ jobs:
         with:
           is-pr: "true"
           pr-number: ${{ github.event.pull_request.number }}
+          trusted-pr-cache: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
 
       - name: Build WASM plugin for tests
         run: |
