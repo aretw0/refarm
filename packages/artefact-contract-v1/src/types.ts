@@ -94,6 +94,16 @@ export interface TaskArtefactManifest {
 	artefacts: readonly TaskArtefactReference[];
 }
 
+export interface TaskArtefactSelection {
+	ids?: readonly string[];
+	roles?: readonly TaskArtefactReference["role"][];
+	reviewStates?: readonly ArtefactReviewState[];
+	mediaTypes?: readonly string[];
+	labels?: readonly string[];
+	source?: string;
+	producer?: string;
+}
+
 export interface ArtefactManifestValidationIssue {
 	path: string;
 	message: string;
@@ -230,4 +240,40 @@ export function validateTaskArtefactManifest(
 
 export function isTaskArtefactManifest(value: unknown): value is TaskArtefactManifest {
 	return validateTaskArtefactManifest(value).ok;
+}
+
+function matchesOptionalList<T extends string>(
+	value: T | undefined,
+	allowed: readonly T[] | undefined,
+): boolean {
+	return allowed === undefined || (value !== undefined && allowed.includes(value));
+}
+
+function hasRequiredLabels(
+	artefact: TaskArtefactReference,
+	labels: readonly string[] | undefined,
+): boolean {
+	return labels === undefined || labels.every((label) => artefact.labels?.includes(label));
+}
+
+export function selectTaskArtefacts(
+	manifest: TaskArtefactManifest,
+	selection: TaskArtefactSelection = {},
+): readonly TaskArtefactReference[] {
+	return manifest.artefacts.filter((artefact) =>
+		matchesOptionalList(artefact.id, selection.ids) &&
+		matchesOptionalList(artefact.role, selection.roles) &&
+		matchesOptionalList(artefact.reviewState, selection.reviewStates) &&
+		matchesOptionalList(artefact.mediaType, selection.mediaTypes) &&
+		hasRequiredLabels(artefact, selection.labels) &&
+		(selection.source === undefined || artefact.provenance.source === selection.source) &&
+		(selection.producer === undefined || artefact.provenance.producer === selection.producer)
+	);
+}
+
+export function findTaskArtefactById(
+	manifest: TaskArtefactManifest,
+	id: string,
+): TaskArtefactReference | undefined {
+	return selectTaskArtefacts(manifest, { ids: [id] })[0];
 }

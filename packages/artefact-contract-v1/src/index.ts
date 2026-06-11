@@ -5,7 +5,9 @@ export {
 	TASK_ARTEFACT_MANIFEST_SCHEMA,
 	TASK_ARTEFACT_ROLES,
 	canTransition,
+	findTaskArtefactById,
 	isTaskArtefactManifest,
+	selectTaskArtefacts,
 	validateTaskArtefactManifest,
 } from "./types.js";
 export type {
@@ -18,4 +20,5 @@ export type {
 	ManagedArtefact,
 	TaskArtefactManifest,
 	TaskArtefactReference,
+	TaskArtefactSelection,
 } from "./types.js";

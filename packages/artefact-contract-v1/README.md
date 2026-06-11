@@ -16,6 +16,9 @@ Shared lifecycle base types for managed artefacts in the Refarm platform.
 - `validateTaskArtefactManifest(value)` — runtime validator that returns
   path-aware issues for JS consumers and CI checks
 - `isTaskArtefactManifest(value)` — type guard for validated manifests
+- `selectTaskArtefacts(manifest, selection)` — pure helper for consumers that
+  need artefacts by role, review state, media type, label, source, or producer
+- `findTaskArtefactById(manifest, id)` — pure helper for stable-id lookup
 
 ## Transition graph
 
@@ -81,4 +84,17 @@ const result = validateTaskArtefactManifest(manifest);
 if (!result.ok) {
   throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
 }
+```
+
+After validation, consumers should query the manifest instead of hard-coding
+producer file names:
+
+```ts
+import { selectTaskArtefacts } from "@refarm.dev/artefact-contract-v1";
+
+const acceptedReports = selectTaskArtefacts(manifest, {
+  roles: ["report", "audit-trail"],
+  reviewStates: ["accepted"],
+  labels: ["publication"],
+});
 ```

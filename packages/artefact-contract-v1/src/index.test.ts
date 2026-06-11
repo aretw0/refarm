@@ -4,7 +4,9 @@ import {
 	ARTEFACT_CAPABILITY,
 	ARTEFACT_TERMINAL_STATES,
 	canTransition,
+	findTaskArtefactById,
 	isTaskArtefactManifest,
+	selectTaskArtefacts,
 	validateTaskArtefactManifest,
 } from "./types.js";
 
@@ -62,6 +64,27 @@ describe("TaskArtefactManifest", () => {
             sourceVersion: "synthetic-v1",
             producedAt: "2026-06-11T00:00:00.000Z",
           },
+          labels: ["vault", "reviewed"],
+        },
+        {
+          id: "wallet-dataset",
+          uri: "fixtures/expected/presentation.json",
+          mediaType: "application/json",
+          role: "dataset",
+          reviewState: "unreviewed",
+          hash: {
+            algorithm: "sha256",
+            value: "1".repeat(64),
+          },
+          provenance: {
+            runId: "wallet-poc-001",
+            producer: "wallet:poc",
+            command: "pnpm run wallet:poc",
+            source: "validations/citizen-data-wallet-poc",
+            sourceVersion: "synthetic-v1",
+            producedAt: "2026-06-11T00:00:00.000Z",
+          },
+          labels: ["lab"],
         },
       ],
     };
@@ -80,6 +103,34 @@ describe("TaskArtefactManifest", () => {
 
     expect(validateTaskArtefactManifest(manifest)).toEqual({ ok: true, issues: [] });
     expect(isTaskArtefactManifest(manifest)).toBe(true);
+  });
+
+  it("selects task artefacts by consumer-facing metadata", () => {
+    const manifest = sampleManifest();
+
+    expect(selectTaskArtefacts(manifest, { roles: ["audit-trail"] }).map((item) => item.id)).toEqual([
+      "wallet-audit-trail",
+    ]);
+    expect(selectTaskArtefacts(manifest, { reviewStates: ["unreviewed"] }).map((item) => item.id)).toEqual([
+      "wallet-dataset",
+    ]);
+    expect(selectTaskArtefacts(manifest, { labels: ["vault", "reviewed"] }).map((item) => item.id)).toEqual([
+      "wallet-audit-trail",
+    ]);
+    expect(selectTaskArtefacts(manifest, {
+      mediaTypes: ["application/json"],
+      producer: "wallet:poc",
+      source: "validations/citizen-data-wallet-poc",
+    }).map((item) => item.id)).toEqual(["wallet-dataset"]);
+  });
+
+  it("finds task artefacts by stable id", () => {
+    const manifest = sampleManifest();
+
+    expect(findTaskArtefactById(manifest, "wallet-dataset")?.uri).toBe(
+      "fixtures/expected/presentation.json",
+    );
+    expect(findTaskArtefactById(manifest, "missing")).toBeUndefined();
   });
 
   it("reports path-aware issues for malformed manifests", () => {
