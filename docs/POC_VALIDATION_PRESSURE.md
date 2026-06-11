@@ -197,7 +197,9 @@ and use the read-only vault only as evidence.
 `pnpm run validation-pocs:test` is the canonical local lane for the three
 synthetic draft-pressure POCs. It runs the wallet, extension sandbox, and
 governed note box tests, then validates every `refarm.task-artefacts.v1`
-manifest under `validations/`.
+manifest under `validations/`. It also runs a consumer smoke that selects
+artefacts from the POC manifests through `@refarm.dev/artefact-contract-v1`
+instead of hard-coding report filenames.
 
 The host smoke auto router maps POC source/test deltas to the `validation-pocs`
 profile. Expected fixture/report deltas stay on the narrower `task-artefacts`

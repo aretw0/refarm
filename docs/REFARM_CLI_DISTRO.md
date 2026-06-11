@@ -179,9 +179,9 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
 - `validation-pocs:test` runs the three synthetic validation POCs plus
-  `task-artefacts:check`. The auto router selects it for POC source/test
-  changes and keeps expected-report-only changes on the narrower
-  `task-artefacts` profile.
+  `task-artefacts:check` and a consumer-selector smoke over the generated
+  manifests. The auto router selects it for POC source/test changes and keeps
+  expected-report-only changes on the narrower `task-artefacts` profile.
 - `refarm:host:smoke:auto:agent-e2e-mock` runs
   `refarm:agent:e2e:mock`, the no-token runtime-agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
