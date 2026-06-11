@@ -66,6 +66,14 @@ function resolveBinDir() {
   return localBin;
 }
 
+const REQUIRED_NODE_MAJOR = 22;
+const nodeMajor = parseInt(process.versions.node.split(".")[0], 10);
+if (nodeMajor < REQUIRED_NODE_MAJOR) {
+	fail(
+		`Node.js ${REQUIRED_NODE_MAJOR}+ required (found: ${process.version}). Install via fnm: https://github.com/Schniz/fnm`,
+	);
+}
+
 const forceBuild = process.argv.includes("--build");
 
 if (forceBuild || !existsSync(DIST_ENTRY)) {
