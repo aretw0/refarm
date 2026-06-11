@@ -47,6 +47,8 @@
 		"repo:complexity:test": "node --test scripts/ci/test-repo-complexity-check.mjs",
 		"wallet:poc": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
 		"wallet:poc:test": "node --test validations/citizen-data-wallet-poc/wallet-poc.test.mjs",
+		"extension-sandbox:poc": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+		"extension-sandbox:poc:test": "node --test validations/extension-sandbox-poc/extension-sandbox-poc.test.mjs",
 		"openapi:check": "node scripts/ci/check-openapi-specs.mjs",
 		"refarm:sidecar:verify": "node scripts/ci/run-workspace-script.mjs apps/farmhand test -- src/transports/http.test.ts src/transports/sessions.test.ts src/transports/plugins.test.ts src/transports/tasks.test.ts --pool=threads && node scripts/ci/run-workspace-script.mjs apps/farmhand type-check && node scripts/ci/run-root-scripts.mjs openapi:check",
 		"refarm:driver:tasks:verify": "node scripts/ci/run-workspace-script.mjs apps/farmhand test -- src/transports/tasks.test.ts src/transports/http.test.ts --pool=threads && node scripts/ci/run-workspace-script.mjs apps/farmhand type-check && node scripts/ci/run-workspace-script.mjs --with-dependency-builds apps/refarm test -- test/commands/tasks.test.ts --pool=threads && node scripts/ci/run-workspace-script.mjs --with-dependency-builds apps/refarm type-check && node scripts/ci/run-root-scripts.mjs openapi:check",

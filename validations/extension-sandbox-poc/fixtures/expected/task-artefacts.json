@@ -1,0 +1,46 @@
+{
+  "schema": "refarm.task-artefacts.v1",
+  "taskId": "task-extension-sandbox-poc",
+  "effortId": "effort-extension-sandbox-poc-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "artefacts": [
+    {
+      "id": "sandbox-report-json",
+      "uri": "sandbox-report.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "ef89a2e0740618212546242805771f91dd800fbd93b2b1bb7115b7d641cb379b"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "sandbox-report-md",
+      "uri": "sandbox-report.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "bbe71cf2f46d25b9efbbcdf9d9c3a6034674297bd6b30200ad4f2d3359c27c03"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    }
+  ]
+}

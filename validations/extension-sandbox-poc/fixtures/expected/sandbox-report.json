@@ -1,0 +1,169 @@
+{
+  "id": "extension-sandbox-poc",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "question": "Can a local host validate extension manifests, enforce explicit capability grants, record lifecycle events, and handle failures according to policy?",
+  "scope": {
+    "data": "synthetic",
+    "externalServices": false,
+    "wasmRuntime": "simulated-lifecycle"
+  },
+  "policies": [
+    {
+      "policyMode": "warn+continue",
+      "grantedCapabilities": [
+        "storage:v1"
+      ],
+      "hostStatus": "continued",
+      "plugins": [
+        {
+          "pluginId": "@example/benign-extension",
+          "status": "completed",
+          "policyMode": "warn+continue",
+          "manifestValid": true,
+          "manifestErrors": [],
+          "missingCapabilities": [],
+          "events": [
+            {
+              "index": 1,
+              "pluginId": "@example/benign-extension",
+              "step": "setup",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "index": 2,
+              "pluginId": "@example/benign-extension",
+              "step": "ingest",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "index": 3,
+              "pluginId": "@example/benign-extension",
+              "step": "teardown",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "pluginId": "@example/denied-extension",
+          "status": "blocked-warn-continue",
+          "policyMode": "warn+continue",
+          "manifestValid": true,
+          "manifestErrors": [],
+          "missingCapabilities": [
+            "network:v1"
+          ],
+          "events": []
+        },
+        {
+          "pluginId": "@example/failing-extension",
+          "status": "failed-isolated",
+          "policyMode": "warn+continue",
+          "manifestValid": true,
+          "manifestErrors": [],
+          "missingCapabilities": [],
+          "events": [
+            {
+              "index": 1,
+              "pluginId": "@example/failing-extension",
+              "step": "setup",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "index": 2,
+              "pluginId": "@example/failing-extension",
+              "step": "ingest",
+              "status": "error",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "policyMode": "fail-fast",
+      "grantedCapabilities": [
+        "storage:v1"
+      ],
+      "hostStatus": "aborted",
+      "plugins": [
+        {
+          "pluginId": "@example/benign-extension",
+          "status": "completed",
+          "policyMode": "fail-fast",
+          "manifestValid": true,
+          "manifestErrors": [],
+          "missingCapabilities": [],
+          "events": [
+            {
+              "index": 1,
+              "pluginId": "@example/benign-extension",
+              "step": "setup",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "index": 2,
+              "pluginId": "@example/benign-extension",
+              "step": "ingest",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "index": 3,
+              "pluginId": "@example/benign-extension",
+              "step": "teardown",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "pluginId": "@example/denied-extension",
+          "status": "blocked-fail-fast",
+          "policyMode": "fail-fast",
+          "manifestValid": true,
+          "manifestErrors": [],
+          "missingCapabilities": [
+            "network:v1"
+          ],
+          "events": []
+        },
+        {
+          "pluginId": "@example/failing-extension",
+          "status": "failed-aborted",
+          "policyMode": "fail-fast",
+          "manifestValid": true,
+          "manifestErrors": [],
+          "missingCapabilities": [],
+          "events": [
+            {
+              "index": 1,
+              "pluginId": "@example/failing-extension",
+              "step": "setup",
+              "status": "ok",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "index": 2,
+              "pluginId": "@example/failing-extension",
+              "step": "ingest",
+              "status": "error",
+              "recordedAt": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "benignCompleted": true,
+    "deniedBlocked": true,
+    "warnContinueSurvivesFailure": true,
+    "failFastAbortsFailure": true,
+    "lifecycleEventsRecorded": 10
+  }
+}

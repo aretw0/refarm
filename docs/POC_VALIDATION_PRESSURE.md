@@ -21,7 +21,7 @@ The draft plan separates three demonstrable ideas:
 
 | Draft pressure | Refarm-facing proof | Current state |
 | --- | --- | --- |
-| Extension host with sandboxed capabilities | Plugin/WASM host, manifest integrity, lifecycle events, strict and tolerant policy modes. | Strong existing substrate across Tractor, plugin manifest, runtime descriptor integrity, and related tests. Needs a short sanitized validation path. |
+| Extension host with sandboxed capabilities | Plugin/WASM host, manifest integrity, lifecycle events, strict and tolerant policy modes. | Covered by `validations/extension-sandbox-poc/` as a synthetic lifecycle/policy proof; real WASM/runtime substrate remains covered by existing package tests and heavier validations. |
 | Citizen data wallet and granular authorization | Local identity, synthetic attributes, scoped request, signed authorization, selective presentation, revocation, audit trail. | Implemented as `validations/citizen-data-wallet-poc/` with deterministic artifacts and `refarm.task-artefacts.v1` manifest. |
 | Governed note box / digital garden | Ingestion, metadata preservation, MOCs, publication/lab snapshots, validation, human review before publish. | Proven mostly by `vault-seed` as external consumer. Refarm should harden artifact/provenance, external workspace health, and process handoff primitives. |
 
@@ -37,13 +37,36 @@ Useful Refarm primitives already exist:
 - Browser runtime descriptor integrity, provenance, and revocation paths.
 - Capability contracts such as `storage:v1`, `sync:v1`, and `identity:v1`.
 
+Current validation:
+
+- `validations/extension-sandbox-poc/extension-sandbox-poc.mjs`
+- `validations/extension-sandbox-poc/extension-sandbox-poc.test.mjs`
+- `validations/extension-sandbox-poc/fixtures/expected/task-artefacts.json`
+
+What it proves:
+
+- a benign extension manifest validates and completes `setup -> ingest ->
+  teardown`;
+- a denied extension is blocked when it requires a capability outside the grant;
+- `warn+continue` isolates a failing extension and lets the host continue;
+- `fail-fast` aborts the host flow on extension failure;
+- lifecycle and policy observations are exported as deterministic JSON/Markdown;
+- generated outputs are described by a `refarm.task-artefacts.v1` manifest.
+
+What it deliberately does not prove:
+
+- real WebAssembly execution;
+- browser runtime descriptor installation;
+- production plugin governance;
+- performance of a real host or plugin.
+
 Next useful Refarm step:
 
-1. Add a small validation that runs a benign plugin lifecycle path.
-2. Emit a sanitized task artefact manifest with lifecycle report, policy mode,
-   and failure/isolation observations.
-3. Keep the validation independent of any submission wording or local project
-   name.
+1. Connect this report shape to a real plugin lifecycle smoke once the cheapest
+   reproducible path is stable across Linux, macOS, and Windows.
+2. Validate the generated `task-artefacts.json` through
+   `@refarm.dev/artefact-contract-v1` once validation scripts consume built
+   package exports without brittle source imports.
 
 Success signal:
 

@@ -1,0 +1,98 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, it } from "node:test";
+import {
+	buildTaskArtefactManifest,
+	runExtensionSandboxPoc,
+} from "./extension-sandbox-poc.mjs";
+
+const FIXTURES_DIR = path.join(import.meta.dirname, "fixtures", "expected");
+
+function readFixture(fileName) {
+	return JSON.parse(readFileSync(path.join(FIXTURES_DIR, fileName), "utf8"));
+}
+
+describe("extension sandbox poc", () => {
+	it("validates manifests and completes the benign lifecycle path", () => {
+		const report = runExtensionSandboxPoc();
+		const completed = report.policies
+			.flatMap((policy) => policy.plugins)
+			.filter((plugin) => plugin.pluginId === "@example/benign-extension");
+
+		assert.equal(completed.length, 2);
+		assert.ok(completed.every((plugin) => plugin.manifestValid));
+		assert.ok(completed.every((plugin) => plugin.status === "completed"));
+		assert.ok(completed.every((plugin) => plugin.events.length === 3));
+	});
+
+	it("blocks extensions that require capabilities outside the grant", () => {
+		const report = runExtensionSandboxPoc();
+		const denied = report.policies
+			.flatMap((policy) => policy.plugins)
+			.filter((plugin) => plugin.pluginId === "@example/denied-extension");
+
+		assert.equal(denied.length, 2);
+		assert.ok(
+			denied.every((plugin) => plugin.missingCapabilities.includes("network:v1")),
+		);
+		assert.deepEqual(
+			denied.map((plugin) => plugin.status).sort(),
+			["blocked-fail-fast", "blocked-warn-continue"],
+		);
+	});
+
+	it("distinguishes warn+continue from fail-fast failure handling", () => {
+		const report = runExtensionSandboxPoc();
+		const warn = report.policies.find((policy) => policy.policyMode === "warn+continue");
+		const strict = report.policies.find((policy) => policy.policyMode === "fail-fast");
+
+		assert.equal(warn?.hostStatus, "continued");
+		assert.equal(strict?.hostStatus, "aborted");
+		assert.equal(report.checks.warnContinueSurvivesFailure, true);
+		assert.equal(report.checks.failFastAbortsFailure, true);
+	});
+
+	it("keeps generated fixtures deterministic", () => {
+		const report = runExtensionSandboxPoc();
+
+		assert.deepEqual(readFixture("sandbox-report.json"), report);
+		const markdown = readFileSync(path.join(FIXTURES_DIR, "sandbox-report.md"), "utf8");
+		assert.match(markdown, /No real plugins, services, institutional data, or secrets/);
+		assert.match(markdown, /Warn\+continue survives isolated failure: true/);
+	});
+
+	it("publishes a task artefact manifest for downstream consumers", () => {
+		const manifest = readFixture("task-artefacts.json");
+
+		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
+		assert.equal(manifest.taskId, "task-extension-sandbox-poc");
+		assert.equal(manifest.effortId, "effort-extension-sandbox-poc-001");
+		assert.deepEqual(
+			manifest.artefacts.map((artefact) => artefact.uri),
+			["sandbox-report.json", "sandbox-report.md"],
+		);
+		assert.ok(
+			manifest.artefacts.every(
+				(artefact) =>
+					artefact.hash.algorithm === "sha256" &&
+					/^[a-f0-9]{64}$/.test(artefact.hash.value) &&
+					artefact.provenance.runId === "extension-sandbox-poc-001",
+			),
+		);
+	});
+
+	it("builds the task artefact manifest deterministically", () => {
+		const expected = readFixture("task-artefacts.json");
+		const actual = buildTaskArtefactManifest(
+			Object.fromEntries(
+				expected.artefacts.map((artefact) => [
+					artefact.uri,
+					readFileSync(path.join(FIXTURES_DIR, artefact.uri), "utf8"),
+				]),
+			),
+		);
+
+		assert.deepEqual(actual, expected);
+	});
+});
