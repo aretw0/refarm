@@ -187,7 +187,13 @@ Preview the install target without writing shims:
 
 ```bash
 pnpm run cli:install -- --dry-run
+pnpm run cli:install -- --dry-run --json
 ```
+
+`--json` emits the same `nextCommand` handoff shape used by the operator loop,
+so automation can install or preview the shim and then continue with
+`refarm check --next-action --json`. The installer also supports `--help` and
+fails closed on unknown arguments instead of ignoring them.
 
 Validate the installer, devcontainer contract, and node-substrate diagnostic
 surface without mutating a foreign checkout:
