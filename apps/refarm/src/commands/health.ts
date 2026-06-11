@@ -19,7 +19,7 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
-import { printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
@@ -151,9 +151,11 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
   "**/*.d.ts",
   "packages/pi-agent/src/bindings.rs",
 ];
+const HEALTH_HELP_COMMAND = "refarm health --help";
 const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
 const HEALTH_NEXT_ACTION_COMMAND = "refarm health --next-action --json";
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
+const HEALTH_POLICY_MODE_CONFLICT_MESSAGE = "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.";
 
 function looksLikeRefarmMonorepo(rootDir: string): boolean {
   const manifestPath = path.join(rootDir, "apps", "refarm", "package.json");
@@ -489,6 +491,41 @@ function emitHealthPolicyApplicationSummary(report: HealthPolicyApplicationRepor
   console.log(JSON.stringify({ health: report.appliedHealth }, null, 2));
 }
 
+function healthPolicyModeConflictMessage(options: HealthOptions): string | null {
+  try {
+    assertAtMostOneFlagEnabled(
+      [
+        { flag: "--policy", enabled: options.policy },
+        { flag: "--suggest-policy", enabled: options.suggestPolicy },
+        { flag: "--apply-suggested-policy", enabled: options.applySuggestedPolicy },
+      ],
+      HEALTH_POLICY_MODE_CONFLICT_MESSAGE,
+    );
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+function reportHealthOptionError(message: string, options: HealthOptions): void {
+  const nextAction = "Run `refarm health --help` and choose one health policy mode.";
+  if (options.json) {
+    printJson(buildJsonErrorEnvelope({
+      command: "health",
+      operation: "policy-mode",
+      error: "invalid-health-policy-mode",
+      message,
+      nextAction,
+      nextActions: [nextAction],
+      nextCommand: HEALTH_HELP_COMMAND,
+      nextCommands: [HEALTH_HELP_COMMAND],
+    }));
+  } else {
+    console.error(message);
+  }
+  process.exitCode = 1;
+}
+
 export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
   const policy = resolveHealthPolicy(rootDir);
   const health = new HealthCore();
@@ -646,14 +683,11 @@ export const healthCommand = new Command("health")
   .option("--next-command", "Print only the first executable recovery command")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
-    assertAtMostOneFlagEnabled(
-      [
-        { flag: "--policy", enabled: options.policy },
-        { flag: "--suggest-policy", enabled: options.suggestPolicy },
-        { flag: "--apply-suggested-policy", enabled: options.applySuggestedPolicy },
-      ],
-      "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.",
-    );
+    const policyModeConflict = healthPolicyModeConflictMessage(options);
+    if (policyModeConflict) {
+      reportHealthOptionError(policyModeConflict, options);
+      return;
+    }
 
     if (options.policy) {
       const report = resolveHealthPolicyReport();
