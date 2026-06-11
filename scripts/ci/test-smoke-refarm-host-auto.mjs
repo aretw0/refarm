@@ -15,6 +15,7 @@ import {
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
+	isTaskArtefactManifestFile,
 	listSmokeProfiles,
 	normalizeChangedFiles,
 	resolveProfileCommand,
@@ -87,6 +88,31 @@ test("detects OpenAPI protocol files", () => {
 		isOpenApiProtocolFile(
 			"specs/ADRs/ADR-060-tractor-http-sidecar-protocol.md",
 		),
+		false,
+	);
+});
+
+test("detects task artefact manifest files", () => {
+	assert.equal(
+		isTaskArtefactManifestFile(
+			"validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json",
+		),
+		true,
+	);
+	assert.equal(
+		isTaskArtefactManifestFile(
+			"validations/extension-sandbox-poc/fixtures/expected/sandbox-report.md",
+		),
+		true,
+	);
+	assert.equal(
+		isTaskArtefactManifestFile(
+			"scripts/ci/check-task-artefact-manifests.mjs",
+		),
+		true,
+	);
+	assert.equal(
+		isTaskArtefactManifestFile("validations/extension-sandbox-poc/README.md"),
 		false,
 	);
 });
@@ -171,6 +197,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree-dist",
 		"tree",
 		"openapi",
+		"task-artefacts",
 		"sidecar",
 		"driver-tasks",
 		"agent-e2e-mock",
@@ -181,7 +208,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, agent-e2e-mock, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, task-artefacts, sidecar, driver-tasks, agent-e2e-mock, check, quick, dev, ci",
 	);
 });
 
@@ -245,6 +272,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
 			{ profile: "tree", script: "refarm:tree:verify" },
 			{ profile: "openapi", script: "openapi:check" },
+			{ profile: "task-artefacts", script: "task-artefacts:check" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
 			{ profile: "agent-e2e-mock", script: "refarm:agent:e2e:mock" },
@@ -298,6 +326,7 @@ test("maps profiles to package scripts", () => {
 	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
 	assert.equal(resolveProfileScript("openapi"), "openapi:check");
+	assert.equal(resolveProfileScript("task-artefacts"), "task-artefacts:check");
 	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
 	assert.equal(
 		resolveProfileScript("driver-tasks"),
@@ -408,6 +437,24 @@ test("routes OpenAPI protocol deltas to focused OpenAPI lane", () => {
 			"specs/protocols/README.md",
 		]).profile,
 		"openapi",
+	);
+});
+
+test("routes task artefact deltas to focused artefact lane", () => {
+	assert.equal(
+		decideProfile([
+			"validations/citizen-data-wallet-poc/fixtures/expected/wallet-report.md",
+			"validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json",
+			"docs/POC_VALIDATION_PRESSURE.md",
+		]).profile,
+		"task-artefacts",
+	);
+	assert.equal(
+		decideProfile([
+			"scripts/ci/check-task-artefact-manifests.mjs",
+			"scripts/ci/test-check-task-artefact-manifests-lib.mjs",
+		]).profile,
+		"task-artefacts",
 	);
 });
 

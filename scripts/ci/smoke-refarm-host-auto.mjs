@@ -21,6 +21,7 @@ const PROFILE_SCRIPT = {
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
 	openapi: "openapi:check",
+	"task-artefacts": "task-artefacts:check",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
 	"agent-e2e-mock": "refarm:agent:e2e:mock",
@@ -247,6 +248,16 @@ export function isOpenApiProtocolFile(file) {
 	);
 }
 
+export function isTaskArtefactManifestFile(file) {
+	return (
+		file === "scripts/ci/check-task-artefact-manifests.mjs" ||
+		file === "scripts/ci/test-check-task-artefact-manifests-lib.mjs" ||
+		(file.startsWith("validations/") &&
+			(file.endsWith("/task-artefacts.json") ||
+				file.includes("/fixtures/expected/")))
+	);
+}
+
 export function isRefarmDriverTaskFile(file) {
 	return (
 		file === "apps/farmhand/src/transports/tasks.ts" ||
@@ -356,6 +367,19 @@ export function decideProfile(inputFiles) {
 			profile: "openapi",
 			reason:
 				"Protocol contract delta; run focused OpenAPI validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isTaskArtefactManifestFile(file)) &&
+		files.every(
+			(file) => isTaskArtefactManifestFile(file) || isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "task-artefacts",
+			reason:
+				"Task artefact manifest delta; run focused manifest integrity validation.",
 		};
 	}
 
