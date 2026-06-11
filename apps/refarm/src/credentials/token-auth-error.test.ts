@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { TokenAuthError, githubRotationUrl } from "./token-auth-error.js";
 
 describe("TokenAuthError", () => {
@@ -35,6 +35,8 @@ describe("TokenAuthError", () => {
 });
 
 describe("TokenAuthError.forGithub", () => {
+	const statelessInstallationToken = `ghs_${"a".repeat(180)}.${"b".repeat(180)}.${"c".repeat(180)}`;
+
 	it("routes fine-grained PAT prefix to personal-access-tokens URL", () => {
 		const err = TokenAuthError.forGithub("expired", "github_pat_abc123");
 		expect(err.rotationUrl).toBe("https://github.com/settings/personal-access-tokens");
@@ -47,6 +49,11 @@ describe("TokenAuthError.forGithub", () => {
 
 	it("routes unknown prefix to classic tokens URL", () => {
 		const err = TokenAuthError.forGithub("invalid", "gho_oauth_token");
+		expect(err.rotationUrl).toBe("https://github.com/settings/tokens");
+	});
+
+	it("keeps GitHub App installation tokens opaque", () => {
+		const err = TokenAuthError.forGithub("expired", statelessInstallationToken);
 		expect(err.rotationUrl).toBe("https://github.com/settings/tokens");
 	});
 
@@ -66,5 +73,10 @@ describe("githubRotationUrl", () => {
 	it("returns classic URL for any other prefix", () => {
 		expect(githubRotationUrl("ghp_xyz")).toBe("https://github.com/settings/tokens");
 		expect(githubRotationUrl(undefined)).toBe("https://github.com/settings/tokens");
+	});
+
+	it("does not reject long JWT-shaped installation tokens", () => {
+		const token = `ghs_${"a".repeat(180)}.${"b".repeat(180)}.${"c".repeat(180)}`;
+		expect(githubRotationUrl(token)).toBe("https://github.com/settings/tokens");
 	});
 });

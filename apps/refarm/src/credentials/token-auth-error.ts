@@ -45,7 +45,7 @@ export class TokenAuthError extends Error {
 	}
 }
 
-/** Route to fine-grained PAT settings for github_pat_ prefix, classic otherwise. */
+/** Route known PAT prefixes to their settings page. Other GitHub tokens stay opaque. */
 export function githubRotationUrl(token?: string): string {
 	return token?.startsWith("github_pat_")
 		? "https://github.com/settings/personal-access-tokens"
