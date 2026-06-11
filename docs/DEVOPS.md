@@ -457,7 +457,7 @@ Implementation baseline:
 - Avoids rerunning `quality`, `e2e`, and package matrix work when their content signatures are unchanged.
 - Keeps `.project` validation running even when the broader `quality` gate is reused.
 - Avoids hard failure mode when turbo filter base SHA is unavailable in shallow SCM state (auto full fallback).
-- Improves test observability with per-workspace breakdown + slowest test files/cases in CI summary and `ci-metrics` artifacts.
+- Improves test observability with per-workspace breakdown, slowest test files/cases, and CI run timing snapshots in `ci-metrics` artifacts.
 
 ### Observed Cache-Proof Runs
 

@@ -941,46 +941,7 @@ jobs:
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
             > /tmp/ci-jobs.json
 
-          node - <<'NODE'
-          const fs = require('fs');
-
-          const payload = JSON.parse(fs.readFileSync('/tmp/ci-jobs.json', 'utf8'));
-          const jobs = (payload.jobs || []).map((job) => {
-            const started = job.started_at ? new Date(job.started_at).getTime() : null;
-            const ended = job.completed_at ? new Date(job.completed_at).getTime() : null;
-            const durationSec = started && ended ? Math.max(0, Math.round((ended - started) / 1000)) : 0;
-            return {
-              name: job.name,
-              status: job.status,
-              conclusion: job.conclusion || '-',
-              durationSec,
-            };
-          });
-
-          const totalSec = jobs.reduce((acc, j) => acc + j.durationSec, 0);
-
-          const report = {
-            runId: process.env.GITHUB_RUN_ID,
-            workflow: process.env.GITHUB_WORKFLOW,
-            jobs,
-            totalDurationSec: totalSec,
-          };
-
-          fs.writeFileSync('ci-run-metrics.json', JSON.stringify(report, null, 2));
-
-          const lines = [];
-          lines.push('## CI timing snapshot');
-          lines.push('');
-          lines.push('| Job | Status | Conclusion | Duration (s) |');
-          lines.push('|---|---|---|---:|');
-          for (const j of jobs) {
-            lines.push(`| ${j.name} | ${j.status} | ${j.conclusion} | ${j.durationSec} |`);
-          }
-          lines.push('');
-          lines.push(`**Total job-seconds:** ${totalSec}`);
-
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
-          NODE
+          node scripts/ci/export-ci-run-metrics.mjs --input /tmp/ci-jobs.json --output ci-run-metrics.json
 
       - name: Upload CI metrics artifact
         if: always()
