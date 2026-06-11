@@ -228,6 +228,10 @@ Rules:
 - Refarm monorepo wrapper: `pnpm run repo:complexity:changed:strict` is the
   safe local gate for new slices. It blocks changed files that cross the line
   budget without requiring the existing backlog to be fixed first.
+- `pnpm run gate:full:colony` includes `repo:complexity:test` and
+  `repo:complexity:changed:strict`, so the full gate exercises the wrapper and
+  blocks newly changed oversized files without ratcheting the whole backlog at
+  once.
 - Refarm monorepo wrapper: `pnpm run repo:complexity:strict` is diagnostic until
   the current backlog is split or explicitly classified. Do not add it to broad
   gates before the baseline is triaged.

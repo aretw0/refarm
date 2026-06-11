@@ -10,6 +10,23 @@ import {
 } from "../repo-complexity-check.mjs";
 
 describe("repo-complexity-check", () => {
+	it("treats an empty file list as no findings", () => {
+		const root = mkdtempSync(path.join(tmpdir(), "refarm-complexity-"));
+		try {
+			const report = buildRepoComplexityReport(root, {
+				files: [],
+				maxLines: 3,
+			});
+
+			assert.equal(report.ok, true);
+			assert.equal(report.totalFindings, 0);
+			assert.deepEqual(report.findings, []);
+			assert.deepEqual(report.summaryByCategory, {});
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("reports source files above the configured line budget", () => {
 		const root = mkdtempSync(path.join(tmpdir(), "refarm-complexity-"));
 		try {

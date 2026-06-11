@@ -44,6 +44,7 @@ function allowedRulesForFiles(files) {
 }
 
 export function scanFiles(files, maxLines = DEFAULT_MAX_COMPLEXITY_LINES, options = {}) {
+	if (files.length === 0) return [];
 	const cwd = options.cwd ?? process.cwd();
 	return new ComplexityAuditor({
 		allowedRules: allowedRulesForFiles(files),
