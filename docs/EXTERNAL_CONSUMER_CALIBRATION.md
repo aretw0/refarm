@@ -46,6 +46,10 @@ home:
 | Plugin/capability/revocation gap | plugin manifest, Barn, Tractor, or runtime descriptor docs |
 | Vault/knowledge workflow gap | shared import/metadata primitives or `vault-seed` policy |
 
+For the current `vault-seed` boundary and why its `dgk` CLI should remain a
+consumer/product cockpit instead of being absorbed by `apps/refarm`, see
+[`VAULT_SEED_CONVERGENCE.md`](VAULT_SEED_CONVERGENCE.md).
+
 Only write to a consumer repository after the operator has named it as writable
 for the current slice. Otherwise, record the durable fix in Refarm or leave a
 reviewed candidate for the operator to apply elsewhere.

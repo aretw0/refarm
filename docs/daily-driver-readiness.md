@@ -166,6 +166,11 @@ What blocks primary daily-driver migration:
   sovereign note/vault workflows. Those repositories should provide evidence
   for primitives and documentation here, while actual writes stay in Refarm or
   in explicitly writable consumer repos such as `vault-seed`.
+- `vault-seed` is now documented as a complementary consumer, not a workflow to
+  absorb into `apps/refarm`. Its `dgk` CLI remains the vault-local cockpit, while
+  Refarm should harden shared runtime, handoff, health, provenance, task/model,
+  and plugin primitives that `dgk` can optionally delegate to later. See
+  [`docs/VAULT_SEED_CONVERGENCE.md`](VAULT_SEED_CONVERGENCE.md).
 
 ## Migration Gates
 
