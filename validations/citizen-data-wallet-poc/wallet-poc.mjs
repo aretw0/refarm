@@ -1,0 +1,255 @@
+import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Synthetic deterministic test key. It is committed so fixtures stay reproducible.
+const FIXED_PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIJXni5KOlcCL7b4L4SXE+RyUDTbo2YEu3wBI4wW3hF/O
+-----END PRIVATE KEY-----`;
+
+export const HOLDER_ID = "cidadao-exemplo-001";
+export const ISSUER_ID = "emissor-publico-sintetico";
+export const VERIFIER_ID = "servico-sintetico-beneficio";
+export const AUTHORIZATION_ID = "authz-sintetica-001";
+export const ISSUED_AT = "2026-01-01T00:00:00.000Z";
+export const EXPIRES_AT = "2026-02-01T00:00:00.000Z";
+export const REVOKED_AT = "2026-01-15T12:00:00.000Z";
+
+const SYNTHETIC_ATTRIBUTES = {
+	nome_social: "Pessoa Exemplo",
+	faixa_etaria: "maior_de_18",
+	municipio: "Municipio Exemplo",
+	vinculo: "beneficiario_sintetico",
+};
+
+const REQUESTED_ATTRIBUTES = ["faixa_etaria", "vinculo"];
+
+function canonicalJson(value) {
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+	}
+	if (value && typeof value === "object") {
+		return `{${Object.keys(value)
+			.sort()
+			.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value);
+}
+
+function publicKeyJwk() {
+	return createPublicKey(FIXED_PRIVATE_KEY_PEM).export({ format: "jwk" });
+}
+
+function signPayload(payload) {
+	const privateKey = createPrivateKey(FIXED_PRIVATE_KEY_PEM);
+	return sign(null, Buffer.from(canonicalJson(payload)), privateKey).toString("base64url");
+}
+
+export function verifyPayloadSignature(payload, signature) {
+	return verify(
+		null,
+		Buffer.from(canonicalJson(payload)),
+		createPublicKey(FIXED_PRIVATE_KEY_PEM),
+		Buffer.from(signature, "base64url"),
+	);
+}
+
+export function createIdentity() {
+	return {
+		id: HOLDER_ID,
+		type: "synthetic-local-identity",
+		displayName: "Pessoa Exemplo",
+		publicKey: publicKeyJwk(),
+		createdAt: ISSUED_AT,
+	};
+}
+
+export function createAuthorityAttributes() {
+	return {
+		issuer: ISSUER_ID,
+		subject: HOLDER_ID,
+		issuedAt: ISSUED_AT,
+		attributes: SYNTHETIC_ATTRIBUTES,
+	};
+}
+
+export function createServiceRequest() {
+	return {
+		id: "request-beneficio-sintetico-001",
+		requester: VERIFIER_ID,
+		subject: HOLDER_ID,
+		purpose: "verificar elegibilidade sintetica para atendimento demonstrativo",
+		justification:
+			"Somente faixa etaria e vinculo sintetico sao necessarios para esta simulacao.",
+		requestedAttributes: REQUESTED_ATTRIBUTES,
+		expiresAt: EXPIRES_AT,
+	};
+}
+
+export function createAuthorizationReceipt(serviceRequest = createServiceRequest()) {
+	const payload = {
+		id: AUTHORIZATION_ID,
+		holder: HOLDER_ID,
+		requester: serviceRequest.requester,
+		purpose: serviceRequest.purpose,
+		scope: serviceRequest.requestedAttributes,
+		issuedAt: ISSUED_AT,
+		expiresAt: serviceRequest.expiresAt,
+		status: "active",
+	};
+
+	return {
+		...payload,
+		proof: {
+			type: "Ed25519Signature2020-inspired",
+			algorithm: "Ed25519",
+			signature: signPayload(payload),
+		},
+	};
+}
+
+export function createSelectivePresentation(
+	attributes = createAuthorityAttributes(),
+	authorization = createAuthorizationReceipt(),
+) {
+	const presentedAttributes = Object.fromEntries(
+		authorization.scope.map((name) => [name, attributes.attributes[name]]),
+	);
+
+	return {
+		id: "presentation-beneficio-sintetico-001",
+		holder: HOLDER_ID,
+		requester: authorization.requester,
+		authorizationId: authorization.id,
+		presentedAt: ISSUED_AT,
+		attributes: presentedAttributes,
+	};
+}
+
+export function createRevocationEvent(authorization = createAuthorizationReceipt()) {
+	return {
+		id: "revocation-authz-sintetica-001",
+		authorizationId: authorization.id,
+		holder: HOLDER_ID,
+		revokedAt: REVOKED_AT,
+		statusBefore: authorization.status,
+		statusAfter: "revoked",
+		reason: "revogacao sintetica solicitada pelo titular ficticio",
+	};
+}
+
+export function authorizationPayload(receipt) {
+	const { proof: _proof, ...payload } = receipt;
+	return payload;
+}
+
+export function buildAuditTrail(artifacts) {
+	return `# Citizen Data Wallet PoC Audit Trail
+
+Scope: synthetic local validation only. No real personal, institutional, or secret data is used.
+
+| Step | Input | Output | Verification |
+| --- | --- | --- | --- |
+| Identity | Synthetic holder id | identity.json | Local public key is present |
+| Attributes | Synthetic issuer and four attributes | authority-attributes.json | Attributes are scoped to the fictitious holder |
+| Request | Synthetic service need | service-request.json | Purpose, expiration, and requested attributes are explicit |
+| Authorization | Request + holder key | authorization-receipt.json | Signature verifies against the canonical payload |
+| Presentation | Authorization scope + attributes | selective-presentation.json | Only ${Object.keys(artifacts.presentation.attributes).length} of ${Object.keys(artifacts.attributes.attributes).length} attributes are disclosed |
+| Tamper check | Modified authorization payload | no artifact | Signature verification fails |
+| Revocation | Active authorization | revocation-event.json | Status changes from active to revoked |
+
+## Metrics
+
+- Attributes available: ${Object.keys(artifacts.attributes.attributes).length}
+- Attributes requested: ${artifacts.request.requestedAttributes.length}
+- Attributes presented: ${Object.keys(artifacts.presentation.attributes).length}
+- Authorization status before revocation: ${artifacts.revocation.statusBefore}
+- Authorization status after revocation: ${artifacts.revocation.statusAfter}
+- Tamper verification result: false
+`;
+}
+
+export function runWalletPoc() {
+	const identity = createIdentity();
+	const attributes = createAuthorityAttributes();
+	const request = createServiceRequest();
+	const authorization = createAuthorizationReceipt(request);
+	const presentation = createSelectivePresentation(attributes, authorization);
+	const revocation = createRevocationEvent(authorization);
+	const tamperedPayload = {
+		...authorizationPayload(authorization),
+		scope: [...authorization.scope, "municipio"],
+	};
+
+	return {
+		identity,
+		attributes,
+		request,
+		authorization,
+		presentation,
+		revocation,
+		checks: {
+			signatureValid: verifyPayloadSignature(
+				authorizationPayload(authorization),
+				authorization.proof.signature,
+			),
+			tamperedSignatureValid: verifyPayloadSignature(
+				tamperedPayload,
+				authorization.proof.signature,
+			),
+			revokedUsable: revocation.statusAfter !== "revoked",
+		},
+	};
+}
+
+export function writeArtifacts(outDir) {
+	const result = runWalletPoc();
+	const artifacts = {
+		"identity.json": result.identity,
+		"authority-attributes.json": result.attributes,
+		"service-request.json": result.request,
+		"authorization-receipt.json": result.authorization,
+		"selective-presentation.json": result.presentation,
+		"revocation-event.json": result.revocation,
+	};
+
+	mkdirSync(outDir, { recursive: true });
+	for (const [fileName, value] of Object.entries(artifacts)) {
+		writeFileSync(path.join(outDir, fileName), `${JSON.stringify(value, null, 2)}\n`);
+	}
+	writeFileSync(
+		path.join(outDir, "audit-trail.md"),
+		buildAuditTrail({
+			attributes: result.attributes,
+			request: result.request,
+			presentation: result.presentation,
+			revocation: result.revocation,
+		}),
+	);
+	return result;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+	const outDir =
+		process.argv[2] ??
+		path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "expected");
+	const result = writeArtifacts(outDir);
+	console.log(
+		JSON.stringify(
+			{
+				ok: true,
+				outDir,
+				attributesAvailable: Object.keys(result.attributes.attributes).length,
+				attributesRequested: result.request.requestedAttributes.length,
+				attributesPresented: Object.keys(result.presentation.attributes).length,
+				signatureValid: result.checks.signatureValid,
+				tamperedSignatureValid: result.checks.tamperedSignatureValid,
+				revokedUsable: result.checks.revokedUsable,
+			},
+			null,
+			2,
+		),
+	);
+}
