@@ -160,12 +160,12 @@ What blocks primary daily-driver migration:
   need adapter-level interfaces, not direct imports of Refarm app or engine
   internals. The next maturity step is making that boundary boring enough that
   Refarm can power them without centralizing every workflow in `apps/refarm`.
-- Prize-writing and work-vault material are now a read-only calibration lane,
-  not a mutation target. The Serpro 2026 drafts pressure three Refarm-adjacent
-  domains: sandboxed plugin governance, citizen data/consent auditability, and
-  sovereign note/vault workflows. Those repositories should provide evidence
-  for primitives and documentation here, while actual writes stay in Refarm or
-  in explicitly writable consumer repos such as `vault-seed`.
+- External writing drafts and evidence-vault material are now a read-only
+  calibration lane, not a mutation target. Those drafts pressure three
+  Refarm-adjacent domains: sandboxed plugin governance, citizen data/consent
+  auditability, and sovereign note/vault workflows. Those repositories should
+  provide evidence for primitives and documentation here, while actual writes
+  stay in Refarm or in explicitly writable consumer repos such as `vault-seed`.
 - `vault-seed` is now documented as a complementary consumer, not a workflow to
   absorb into `apps/refarm`. Its `dgk` CLI remains the vault-local cockpit, while
   Refarm should harden shared runtime, handoff, health, provenance, task/model,

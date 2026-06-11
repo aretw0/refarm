@@ -89,9 +89,9 @@ Keep these boundaries explicit:
   health/complexity primitives.
 - `agents-lab` remains a proving ground for agent skills/tools until repeated
   use makes a contract worth promoting.
-- Read-only work vaults and prize drafts provide evidence only. They must not
-  receive generated Refarm config or mutation unless the operator explicitly
-  changes their status.
+- Read-only evidence vaults and external writing drafts provide evidence only.
+  They must not receive generated Refarm config or mutation unless the operator
+  explicitly changes their status.
 
 ## Convergence Primitives
 
@@ -187,9 +187,9 @@ lifecycle and adds task artefact manifests for generated datasets, reports,
 receipts, audit trails, logs, and nested manifests. Consumer-specific schemas
 stay outside that package.
 
-## Serpro Draft Pressure
+## External Draft Pressure
 
-The local prize drafts should continue to pressure Refarm indirectly:
+Local external drafts should continue to pressure Refarm indirectly:
 
 - Theme 1 maps to sandboxed plugin governance, capability policy, manifest
   integrity, and revocation.
@@ -198,6 +198,6 @@ The local prize drafts should continue to pressure Refarm indirectly:
 - Theme 3 maps to `vault-seed`: note/vault workflows, provenance, publication
   outbox, local lab analysis, and human-reviewed agent assistance.
 
-Because the work vault is read-only, evidence from those drafts should become
-Refarm docs, shared primitives, or explicitly scoped `vault-seed` changes, never
-silent writes into the mirror.
+Because evidence vaults are read-only by default, evidence from those drafts
+should become Refarm docs, shared primitives, or explicitly scoped
+`vault-seed` changes, never silent writes into a mirror.
