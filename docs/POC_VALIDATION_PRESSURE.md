@@ -21,8 +21,8 @@ The draft plan separates three demonstrable ideas:
 
 | Draft pressure | Refarm-facing proof | Current state |
 | --- | --- | --- |
-| Extension host with sandboxed capabilities | Plugin/WASM host, manifest integrity, lifecycle events, strict and tolerant policy modes. | Covered by `validations/extension-sandbox-poc/` as a synthetic lifecycle/policy proof; real WASM/runtime substrate remains covered by existing package tests and heavier validations. |
-| Citizen data wallet and granular authorization | Local identity, synthetic attributes, scoped request, signed authorization, selective presentation, revocation, audit trail. | Implemented as `validations/citizen-data-wallet-poc/` with deterministic artifacts and `refarm.task-artefacts.v1` manifest. |
+| Extension host with sandboxed capabilities | Plugin/WASM host, manifest integrity, lifecycle events, strict and tolerant policy modes, human-reviewable policy decision. | Covered by `validations/extension-sandbox-poc/` as a synthetic lifecycle/policy proof; real WASM/runtime substrate remains covered by existing package tests and heavier validations. |
+| Citizen data wallet and granular authorization | Local identity, synthetic attributes, scoped request, signed authorization, selective presentation, revocation, consent decision, audit trail. | Implemented as `validations/citizen-data-wallet-poc/` with deterministic artifacts and `refarm.task-artefacts.v1` manifest. |
 | Governed note box / digital garden | Ingestion, metadata preservation, lab and publication snapshots, validation, human review before publish. | Covered by `validations/governed-note-box-poc/` as a synthetic metadata/preflight proof. `vault-seed` remains the stronger product-facing consumer. |
 
 The important design point is that the proofs are not submission deliverables.
@@ -78,6 +78,8 @@ What it proves:
 - a denied extension is blocked when it requires a capability outside the grant;
 - `warn+continue` isolates a failing extension and lets the host continue;
 - `fail-fast` aborts the host flow on extension failure;
+- `policy-decision.json` records denied capabilities, isolated failures,
+  default policy mode, and human-review status;
 - lifecycle and policy observations are exported as deterministic JSON/Markdown;
 - generated outputs are described by a `refarm.task-artefacts.v1` manifest.
 
@@ -90,8 +92,9 @@ What it deliberately does not prove:
 
 Next useful Refarm step:
 
-1. Connect this report shape to a real plugin lifecycle smoke once the cheapest
-   reproducible path is stable across Linux, macOS, and Windows.
+1. Connect this report and policy-decision shape to a real plugin lifecycle
+   smoke once the cheapest reproducible path is stable across Linux, macOS, and
+   Windows.
 2. Keep `@refarm.dev/artefact-contract-v1` in the contract smoke gate and run
    `pnpm run validation-pocs:test` whenever POC logic changes. Use
    `pnpm run task-artefacts:check` for expected-report-only deltas.
@@ -120,6 +123,8 @@ What it proves:
 - selective presentation;
 - tamper detection;
 - revocation event;
+- `consent-decision.json` records purpose, scope, expiration, selective
+  disclosure, revocation usability, and human-review status;
 - deterministic JSON/Markdown outputs;
 - task artefact manifest with media type, SHA-256 hashes, review state, and
   provenance.
@@ -137,8 +142,9 @@ Next useful Refarm steps:
 1. Keep `pnpm run validation-pocs:test` green whenever POC logic changes, and
    use `pnpm run task-artefacts:check` for expected-report-only deltas.
 2. Optionally persist the authorization receipt through a storage adapter.
-3. Add a small consent-text review checklist that remains synthetic and
-   non-product.
+3. Promote the consent-decision shape only after a second consumer needs it;
+   until then, keep it as validation evidence rather than a public identity
+   contract.
 
 ## Theme 3: Governed Note Box
 

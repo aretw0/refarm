@@ -49,6 +49,8 @@ test("external calibration docs avoid submission-specific wording", () => {
 		/Pr[eê]mio/i,
 		/\bprize\b/i,
 		/job-vault/i,
+		/C:\\\\Users\\\\/i,
+		/GitHub\\\\/i,
 		/\b3[ºª]\b/i,
 	];
 
@@ -58,4 +60,14 @@ test("external calibration docs avoid submission-specific wording", () => {
 			assert.doesNotMatch(contents, pattern, `${file} contains ${pattern}`);
 		}
 	}
+});
+
+test("external calibration docs declare inventory-only evidence handling", () => {
+	const pressure = read("docs/POC_VALIDATION_PRESSURE.md");
+	const convergence = read("docs/VAULT_SEED_CONVERGENCE.md");
+
+	assert.match(pressure, /repository shape and file\s+inventory as evidence/i);
+	assert.match(pressure, /draft prose,\s+private local paths,\s+and submission wording stay outside Refarm/i);
+	assert.match(convergence, /filenames are enough pressure signal/i);
+	assert.match(convergence, /should not ingest or quote the draft bodies/i);
 });

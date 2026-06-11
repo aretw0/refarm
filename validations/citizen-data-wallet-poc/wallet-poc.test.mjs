@@ -7,6 +7,7 @@ import {
 	createAuthorizationReceipt,
 	createAuthorityAttributes,
 	createRevocationEvent,
+	createConsentDecision,
 	createSelectivePresentation,
 	createServiceRequest,
 	buildTaskArtefactManifest,
@@ -72,6 +73,23 @@ describe("citizen data wallet poc", () => {
 		assert.equal(runWalletPoc().checks.revokedUsable, false);
 	});
 
+	it("publishes a human-reviewable consent decision", () => {
+		const result = runWalletPoc();
+		const decision = createConsentDecision({
+			request: result.request,
+			authorization: result.authorization,
+			presentation: result.presentation,
+			revocation: result.revocation,
+		});
+
+		assert.deepEqual(result.consentDecision, decision);
+		assert.equal(decision.operatorReview.required, true);
+		assert.equal(decision.presentation.attributesRequested, 2);
+		assert.equal(decision.presentation.attributesPresented, 2);
+		assert.deepEqual(decision.presentation.unrequestedDisclosures, []);
+		assert.equal(decision.revocation.usableAfterRevocation, false);
+	});
+
 	it("keeps generated fixtures small, synthetic, and deterministic", () => {
 		const result = runWalletPoc();
 
@@ -81,6 +99,7 @@ describe("citizen data wallet poc", () => {
 		assert.deepEqual(readFixture("authorization-receipt.json"), result.authorization);
 		assert.deepEqual(readFixture("selective-presentation.json"), result.presentation);
 		assert.deepEqual(readFixture("revocation-event.json"), result.revocation);
+		assert.deepEqual(readFixture("consent-decision.json"), result.consentDecision);
 
 		const auditTrail = readFileSync(path.join(FIXTURES_DIR, "audit-trail.md"), "utf8");
 		assert.match(auditTrail, /No real personal, institutional, or secret data is used/);
@@ -94,7 +113,7 @@ describe("citizen data wallet poc", () => {
 		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artefacts.length, 7);
+		assert.equal(manifest.artefacts.length, 8);
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
 			[
@@ -104,6 +123,7 @@ describe("citizen data wallet poc", () => {
 				"authorization-receipt.json",
 				"selective-presentation.json",
 				"revocation-event.json",
+				"consent-decision.json",
 				"audit-trail.md",
 			],
 		);

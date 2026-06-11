@@ -183,6 +183,43 @@ Scope: synthetic local validation only. No real personal, institutional, or secr
 `;
 }
 
+export function createConsentDecision({
+	request = createServiceRequest(),
+	authorization = createAuthorizationReceipt(request),
+	presentation = createSelectivePresentation(createAuthorityAttributes(), authorization),
+	revocation = createRevocationEvent(authorization),
+} = {}) {
+	const requested = new Set(request.requestedAttributes);
+	const presented = Object.keys(presentation.attributes);
+	const unrequestedDisclosures = presented.filter((attribute) => !requested.has(attribute));
+
+	return {
+		id: "consent-decision-authz-sintetica-001",
+		authorizationId: authorization.id,
+		decidedAt: ISSUED_AT,
+		holder: authorization.holder,
+		requester: authorization.requester,
+		purpose: authorization.purpose,
+		scope: authorization.scope,
+		expiresAt: authorization.expiresAt,
+		presentation: {
+			attributesRequested: request.requestedAttributes.length,
+			attributesPresented: presented.length,
+			unrequestedDisclosures,
+		},
+		revocation: {
+			revokedAt: revocation.revokedAt,
+			statusAfter: revocation.statusAfter,
+			usableAfterRevocation: revocation.statusAfter !== "revoked",
+		},
+		operatorReview: {
+			required: true,
+			reason:
+				"Synthetic consent decision includes purpose, scope, expiration, selective disclosure, and revocation evidence for human review.",
+		},
+	};
+}
+
 export function runWalletPoc() {
 	const identity = createIdentity();
 	const attributes = createAuthorityAttributes();
@@ -190,6 +227,12 @@ export function runWalletPoc() {
 	const authorization = createAuthorizationReceipt(request);
 	const presentation = createSelectivePresentation(attributes, authorization);
 	const revocation = createRevocationEvent(authorization);
+	const consentDecision = createConsentDecision({
+		request,
+		authorization,
+		presentation,
+		revocation,
+	});
 	const tamperedPayload = {
 		...authorizationPayload(authorization),
 		scope: [...authorization.scope, "municipio"],
@@ -202,6 +245,7 @@ export function runWalletPoc() {
 		authorization,
 		presentation,
 		revocation,
+		consentDecision,
 		checks: {
 			signatureValid: verifyPayloadSignature(
 				authorizationPayload(authorization),
@@ -224,6 +268,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"authorization-receipt.json": "receipt",
 		"selective-presentation.json": "receipt",
 		"revocation-event.json": "receipt",
+		"consent-decision.json": "receipt",
 		"audit-trail.md": "audit-trail",
 	};
 
@@ -263,6 +308,7 @@ export function writeArtifacts(outDir) {
 		"authorization-receipt.json": result.authorization,
 		"selective-presentation.json": result.presentation,
 		"revocation-event.json": result.revocation,
+		"consent-decision.json": result.consentDecision,
 	};
 	const auditTrail = buildAuditTrail({
 		attributes: result.attributes,

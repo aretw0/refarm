@@ -18,3 +18,9 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 - Warn+continue survives isolated failure: true
 - Fail-fast aborts on failure: true
 - Lifecycle events recorded: 10
+
+## Policy Decision
+
+- Default mode: fail-fast
+- Recommended host status: aborted
+- Operator review required: true

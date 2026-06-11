@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildPolicyDecision,
 	buildTaskArtefactManifest,
 	runExtensionSandboxPoc,
 } from "./extension-sandbox-poc.mjs";
@@ -53,10 +54,25 @@ describe("extension sandbox poc", () => {
 		assert.equal(report.checks.failFastAbortsFailure, true);
 	});
 
+	it("publishes a human-reviewable policy decision", () => {
+		const report = runExtensionSandboxPoc();
+		const decision = buildPolicyDecision(report.policies);
+
+		assert.deepEqual(report.policyDecision, decision);
+		assert.equal(decision.defaultMode, "fail-fast");
+		assert.equal(decision.operatorReview.required, true);
+		assert.deepEqual(
+			decision.deniedPlugins.map((plugin) => plugin.missingCapabilities).flat(),
+			["network:v1", "network:v1"],
+		);
+		assert.deepEqual(decision.isolatedFailures, ["@example/failing-extension"]);
+	});
+
 	it("keeps generated fixtures deterministic", () => {
 		const report = runExtensionSandboxPoc();
 
 		assert.deepEqual(readFixture("sandbox-report.json"), report);
+		assert.deepEqual(readFixture("policy-decision.json"), report.policyDecision);
 		const markdown = readFileSync(path.join(FIXTURES_DIR, "sandbox-report.md"), "utf8");
 		assert.match(markdown, /No real plugins, services, institutional data, or secrets/);
 		assert.match(markdown, /Warn\+continue survives isolated failure: true/);
@@ -70,7 +86,7 @@ describe("extension sandbox poc", () => {
 		assert.equal(manifest.effortId, "effort-extension-sandbox-poc-001");
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
-			["sandbox-report.json", "sandbox-report.md"],
+			["sandbox-report.json", "policy-decision.json", "sandbox-report.md"],
 		);
 		assert.ok(
 			manifest.artefacts.every(

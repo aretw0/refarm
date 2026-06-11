@@ -1,0 +1,35 @@
+{
+  "id": "policy-decision-extension-sandbox-001",
+  "decidedAt": "2026-01-01T00:00:00.000Z",
+  "subject": "synthetic extension host policy",
+  "requiredCapabilities": [
+    "storage:v1"
+  ],
+  "defaultMode": "fail-fast",
+  "recommendedHostStatus": "aborted",
+  "deniedPlugins": [
+    {
+      "pluginId": "@example/denied-extension",
+      "policyMode": "warn+continue",
+      "missingCapabilities": [
+        "network:v1"
+      ],
+      "outcome": "blocked-warn-continue"
+    },
+    {
+      "pluginId": "@example/denied-extension",
+      "policyMode": "fail-fast",
+      "missingCapabilities": [
+        "network:v1"
+      ],
+      "outcome": "blocked-fail-fast"
+    }
+  ],
+  "isolatedFailures": [
+    "@example/failing-extension"
+  ],
+  "operatorReview": {
+    "required": true,
+    "reason": "Synthetic host policy changed plugin execution outcomes; a human operator must review denied capabilities before granting them."
+  }
+}

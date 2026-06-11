@@ -49,6 +49,7 @@ assert.deepEqual(
 		"authorization-receipt",
 		"selective-presentation",
 		"revocation-event",
+		"consent-decision",
 	],
 );
 assert.equal(
@@ -64,6 +65,10 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["sandbox-report-md"],
+);
+assert.equal(
+	findTaskArtefactById(extension, "policy-decision-json")?.mediaType,
+	"application/json",
 );
 
 const notes = readManifest(MANIFESTS.notes);

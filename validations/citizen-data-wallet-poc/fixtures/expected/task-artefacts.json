@@ -119,6 +119,25 @@
       }
     },
     {
+      "id": "consent-decision",
+      "uri": "consent-decision.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "150abc23c1932f2cefa7f7532dbbad319baf2ae47f1126cdc17504752b7a5545"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
       "id": "audit-trail",
       "uri": "audit-trail.md",
       "mediaType": "text/markdown",

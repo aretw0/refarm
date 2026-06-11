@@ -11,7 +11,26 @@
       "role": "dataset",
       "hash": {
         "algorithm": "sha256",
-        "value": "ef89a2e0740618212546242805771f91dd800fbd93b2b1bb7115b7d641cb379b"
+        "value": "9a4b4d782ad1bef1fabdde576b6a27b1eb515e09668aaee58ef70409a3d776a2"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "policy-decision-json",
+      "uri": "policy-decision.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "398761265af7f699b871f9d6750265f5db56f24f462f62870988dccee678905d"
       },
       "reviewState": "accepted",
       "provenance": {
@@ -30,7 +49,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "bbe71cf2f46d25b9efbbcdf9d9c3a6034674297bd6b30200ad4f2d3359c27c03"
+        "value": "a9a6df865f94e1d371346de1d558b979b0dc5a8a672c5baf38957e45dcfa94d2"
       },
       "reviewState": "accepted",
       "provenance": {

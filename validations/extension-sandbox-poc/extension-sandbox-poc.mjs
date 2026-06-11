@@ -152,6 +152,7 @@ export function runExtensionSandboxPoc() {
 	const policies = [evaluatePolicy("warn+continue"), evaluatePolicy("fail-fast")];
 	const allPlugins = policies.flatMap((policy) => policy.plugins);
 	const allEvents = allPlugins.flatMap((plugin) => plugin.events);
+	const policyDecision = buildPolicyDecision(policies);
 
 	return {
 		id: "extension-sandbox-poc",
@@ -163,6 +164,7 @@ export function runExtensionSandboxPoc() {
 			externalServices: false,
 			wasmRuntime: "simulated-lifecycle",
 		},
+		policyDecision,
 		policies,
 		checks: {
 			benignCompleted: allPlugins.some(
@@ -186,6 +188,39 @@ export function runExtensionSandboxPoc() {
 					policy.plugins.some((plugin) => plugin.status === "failed-aborted"),
 			),
 			lifecycleEventsRecorded: allEvents.length,
+		},
+	};
+}
+
+export function buildPolicyDecision(policies) {
+	const strictPolicy = policies.find((policy) => policy.policyMode === "fail-fast");
+	const deniedPlugins = policies
+		.flatMap((policy) => policy.plugins)
+		.filter((plugin) => plugin.missingCapabilities.length > 0)
+		.map((plugin) => ({
+			pluginId: plugin.pluginId,
+			policyMode: plugin.policyMode,
+			missingCapabilities: plugin.missingCapabilities,
+			outcome: plugin.status,
+		}));
+	const isolatedFailures = policies
+		.flatMap((policy) => policy.plugins)
+		.filter((plugin) => plugin.status === "failed-isolated")
+		.map((plugin) => plugin.pluginId);
+
+	return {
+		id: "policy-decision-extension-sandbox-001",
+		decidedAt: ISSUED_AT,
+		subject: "synthetic extension host policy",
+		requiredCapabilities: GRANTED_CAPABILITIES,
+		defaultMode: "fail-fast",
+		recommendedHostStatus: strictPolicy?.hostStatus ?? "unknown",
+		deniedPlugins,
+		isolatedFailures,
+		operatorReview: {
+			required: true,
+			reason:
+				"Synthetic host policy changed plugin execution outcomes; a human operator must review denied capabilities before granting them.",
 		},
 	};
 }
@@ -214,6 +249,12 @@ ${rows}
 - Warn+continue survives isolated failure: ${report.checks.warnContinueSurvivesFailure}
 - Fail-fast aborts on failure: ${report.checks.failFastAbortsFailure}
 - Lifecycle events recorded: ${report.checks.lifecycleEventsRecorded}
+
+## Policy Decision
+
+- Default mode: ${report.policyDecision.defaultMode}
+- Recommended host status: ${report.policyDecision.recommendedHostStatus}
+- Operator review required: ${report.policyDecision.operatorReview.required}
 `;
 }
 
@@ -249,6 +290,7 @@ export function writeArtifacts(outDir) {
 	const report = runExtensionSandboxPoc();
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
+		"policy-decision.json": jsonText(report.policyDecision),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);

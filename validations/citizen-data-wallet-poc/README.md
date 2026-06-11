@@ -29,6 +29,8 @@ No real personal, institutional, or secret data is used.
 - Tampering with the authorization payload fails signature verification.
 - A revocation event changes the authorization state from `active` to
   `revoked`.
+- A consent decision artifact records purpose, scope, expiration, selective
+  disclosure, revocation usability, and human-review status.
 - JSON artifacts and a Markdown audit trail are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance for downstream labs.
@@ -68,6 +70,8 @@ pnpm run wallet:poc
 - Valid signature verification passes.
 - Tampered payload verification fails.
 - Revoked authorization is not usable.
+- Consent decisions are explicit enough for downstream review without reading
+  every wallet artifact.
 - `fixtures/expected/audit-trail.md` is generated without real data.
 
 ## Artifacts
@@ -80,6 +84,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `authorization-receipt.json`
 - `selective-presentation.json`
 - `revocation-event.json`
+- `consent-decision.json`
 - `audit-trail.md`
 - `task-artefacts.json`
 

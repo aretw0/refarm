@@ -20,6 +20,8 @@ read secrets.
 - A denied extension is blocked when it requires a capability outside the grant.
 - `warn+continue` isolates a failing extension and lets the host continue.
 - `fail-fast` aborts the host flow on extension failure.
+- A policy decision artifact records denied capabilities, isolated failures,
+  and whether human review is required before changing grants.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance.
@@ -51,6 +53,8 @@ pnpm run extension-sandbox:poc
 - Benign extension lifecycle produces three ordered events.
 - Missing capabilities are detected before lifecycle execution.
 - Tolerant and strict policy modes produce different host outcomes.
+- Policy decisions are explicit enough for downstream review without reading
+  the full lifecycle report.
 - The report does not contain real project, operator, service, or secret data.
 - `fixtures/expected/task-artefacts.json` describes the generated reports.
 
@@ -59,6 +63,7 @@ pnpm run extension-sandbox:poc
 Expected artifacts live in `fixtures/expected/`:
 
 - `sandbox-report.json`
+- `policy-decision.json`
 - `sandbox-report.md`
 - `task-artefacts.json`
 
