@@ -126,8 +126,8 @@ Tractor benchmark, Tractor coverage, and E2E. Windows and macOS should not
 multiply those expensive gates by default.
 
 The `platform-compat` job is the lightweight cross-platform proof. It runs on
-`windows-latest` and `macos-latest`, reuses the shared setup/cache action, and
-checks:
+`windows-2025-vs2026` and `macos-latest`, reuses the shared setup/cache action,
+and checks:
 
 - Node substrate ownership and workspace dependency materialization;
 - Rust/WASM substrate availability, including `cargo-component`;

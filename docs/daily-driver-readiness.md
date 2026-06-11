@@ -80,7 +80,7 @@ What is already solid:
   the copied host WIT against drift from the canonical `refarm-plugin-wit`
   contract.
 - Platform compatibility now has two proven lanes: CI validates
-  `windows-latest` and `macos-latest`, while local Windows host validation
+  `windows-2025-vs2026` and `macos-latest`, while local Windows host validation
   should use a separate checkout with its own `node_modules`. The Node substrate
   passes in that shape; Rust/WASM validation on Windows additionally requires
   Visual Studio C++ Build Tools, the MSVC linker ahead of Git's `link.exe`, and
