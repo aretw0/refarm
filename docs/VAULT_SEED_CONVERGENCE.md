@@ -20,6 +20,43 @@ The important product signal is that `vault-seed` is the interface for people
 who want a sovereign knowledge vault. It should not become a Refarm runtime
 distribution, and Refarm should not reimplement its vault UX.
 
+## Observed Consumer Shape
+
+The current `vault-seed` repository is already a small distribution, not only a
+template. It has separable packages for:
+
+| Package/surface | Current signal | Refarm lesson |
+| --- | --- | --- |
+| `@aretw0/dgk-cli` | Vault-local commands for validate, lint, setup, check, lab, publish. | Product CLIs need a small cockpit, not a forced Refarm command vocabulary. |
+| `@aretw0/dgk-runner` | Commands receive an injectable `(cmd, args) => Promise<void>` runner. | Refarm can compose later through a runner adapter instead of replacing `dgk`. |
+| `@aretw0/dgk-astro-plugins` | Remark plugins for wiki links, images, callouts, and slug behavior. | Rendering conventions are consumer UX; reusable policy is limited to contracts and checks. |
+| `dgk-lab-runtime` | Python helpers for local-vs-packaged notebook boundaries. | Local ETL and published analysis need an explicit runtime boundary. |
+| `dgk-skills` | Vault-oriented skills such as read, search, create, context, daily. | Skill compatibility should be additive and adapter-based, not a one-shot rename. |
+
+This is healthy duplication at the product edge. The risk would be duplicating
+runtime contracts, process handoffs, provenance envelopes, package integrity, or
+workspace health rules in ways that drift from Refarm.
+
+## Astro And Marimo Lessons
+
+`vault-seed` is proving two lessons Refarm should absorb without taking over the
+product:
+
+1. **Astro is a publication boundary.** The site owns reading experience,
+   navigation, graph interactions, accessibility, and published notebook
+   embedding. Refarm should not own that UI, but it should provide validation
+   primitives that a consumer site can call before publish.
+2. **Marimo notebooks are analysis consumers.** Published HTML/WASM notebooks
+   should read prepared snapshots. Local ETL, browser automation, OCR, secrets,
+   authenticated APIs, and long-running extraction belong before export in
+   local/CI runners.
+3. **The contract is the artifact.** JSON, CSV, Parquet, manifests, hashes,
+   quality reports, and audit trails are the durable boundary between Refarm
+   tasks and consumer labs.
+
+For Refarm, that points toward generic task artifact and provenance contracts,
+not toward embedding Marimo or Astro into the core app.
+
 ## Audience Overlap
 
 The overlap is real but the audience entry point differs:
@@ -74,12 +111,19 @@ consumer CLI directly to Refarm internals:
      process specs instead of ad hoc shell strings.
    - Refarm should keep the reusable representation in `@refarm.dev/cli`; `dgk`
      may later adapt to that shape.
+   - The existing `dgk-runner` injection point is the likely composition seam:
+     keep `dgk` commands product-local, but allow a future runner adapter to
+     execute through Refarm `ApplicationProcessSpec`/`CommandProcessSpec` and
+     JSON handoffs when Refarm is installed.
 
 3. **Vault/source provenance**
    - `vault-seed` already wants `source`, `run_id`, `agent`, `dataset_version`,
      hashes, and quality reports for ingestion.
    - Refarm should not own vault-specific schemas, but it can own generic
      provenance and effort/task envelopes that vault pipelines can reference.
+   - Lab outputs should be represented as task artifacts with stable paths,
+     media type, producer command, input hashes, and review state. Vault-specific
+     fields stay in `vault-seed`.
 
 4. **Skill/package compatibility**
    - `vault-seed` currently scaffolds Pi-style skill and extension packages.
@@ -120,6 +164,22 @@ The pragmatic migration path is additive:
 
 This keeps `vault-seed` sovereign for its users and lets Refarm become the
 daily-driver substrate without centralizing every workflow in `apps/refarm`.
+
+## Promotion Candidates
+
+Promote only the repeated, non-vault-specific parts into Refarm:
+
+| Candidate | Promote to Refarm when | Keep in `vault-seed` |
+| --- | --- | --- |
+| Process runner adapter | A second consumer wants structured process execution and JSON continuation. | `dgk lab`, `dgk publish`, Obsidian-specific commands. |
+| Task artifact manifest | Refarm tasks need to hand off generated datasets/reports to labs or docs. | Dataset names, vault paths, public Lab conventions. |
+| Provenance envelope | Multiple consumers need source/run/hash/review metadata. | Feed schemas, PARA metadata, editorial workflow labels. |
+| Workspace health policies | Large-file, generated-output, notebook/export checks become reusable. | Vault-specific folder allowances and publication UX checks. |
+| Skill compatibility adapter | `dgk-skills` or `agents-lab` skills need to run under Refarm manifests. | Skill copy, onboarding language, and vault commands. |
+
+Near-term Refarm work should therefore favor small contracts around process
+execution, artifact provenance, and external workspace health. The `vault-seed`
+CLI can stay independent until those contracts are stable enough to consume.
 
 ## Serpro Draft Pressure
 
