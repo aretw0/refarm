@@ -178,6 +178,10 @@ npm run refarm:tree:verify
   diff-based auto lane.
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
+- `validation-pocs:test` runs the three synthetic validation POCs plus
+  `task-artefacts:check`. The auto router selects it for POC source/test
+  changes and keeps expected-report-only changes on the narrower
+  `task-artefacts` profile.
 - `refarm:host:smoke:auto:agent-e2e-mock` runs
   `refarm:agent:e2e:mock`, the no-token runtime-agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
@@ -186,8 +190,9 @@ npm run refarm:tree:verify
   plugin, so the smoke validates the current runtime-agent source rather than a
   stale package artifact.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | actions | tree | agent-e2e-mock | check | quick |
-  dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | tree | validation-pocs |
+  task-artefacts | agent-e2e-mock | check | quick | dev | ci`) without
+  executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
@@ -199,9 +204,10 @@ npm run refarm:tree:verify
   granular lane names such as `actions-headless`, `actions-renderers`,
   `actions-test`, `actions-type`, `actions-dist`, `agent-e2e-mock`, `check`,
   `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
-  one-command narrow loop previews/execution. Shared local helpers such as
-  `execution-plan.ts` stay on the `dev` lane because they feed more than one
-  host contract.
+  one-command narrow loop previews/execution. Validation profiles such as
+  `validation-pocs` and `task-artefacts` are also available for generic
+  downstream-proof work. Shared local helpers such as `execution-plan.ts` stay
+  on the `dev` lane because they feed more than one host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 

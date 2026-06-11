@@ -88,8 +88,8 @@ Next useful Refarm step:
 1. Connect this report shape to a real plugin lifecycle smoke once the cheapest
    reproducible path is stable across Linux, macOS, and Windows.
 2. Keep `@refarm.dev/artefact-contract-v1` in the contract smoke gate and run
-   `pnpm run task-artefacts:check` whenever expected reports or manifests
-   change.
+   `pnpm run validation-pocs:test` whenever POC logic changes. Use
+   `pnpm run task-artefacts:check` for expected-report-only deltas.
 
 Success signal:
 
@@ -129,8 +129,8 @@ What it deliberately does not prove:
 
 Next useful Refarm steps:
 
-1. Keep `pnpm run task-artefacts:check` green whenever expected reports or
-   manifests change.
+1. Keep `pnpm run validation-pocs:test` green whenever POC logic changes, and
+   use `pnpm run task-artefacts:check` for expected-report-only deltas.
 2. Optionally persist the authorization receipt through a storage adapter.
 3. Add a small consent-text review checklist that remains synthetic and
    non-product.
@@ -191,3 +191,14 @@ When a draft asks for proof, implement the proof in Refarm only if it improves a
 general primitive or validation. If the work is product-specific to a vault,
 keep it in `vault-seed`. If the work is submission-specific, keep it out of both
 and use the read-only vault only as evidence.
+
+## Validation Lane
+
+`pnpm run validation-pocs:test` is the canonical local lane for the three
+synthetic draft-pressure POCs. It runs the wallet, extension sandbox, and
+governed note box tests, then validates every `refarm.task-artefacts.v1`
+manifest under `validations/`.
+
+The host smoke auto router maps POC source/test deltas to the `validation-pocs`
+profile. Expected fixture/report deltas stay on the narrower `task-artefacts`
+profile so report-only changes do not rerun all POC logic.
