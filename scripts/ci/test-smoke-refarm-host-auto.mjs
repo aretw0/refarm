@@ -16,6 +16,7 @@ import {
 	isRefarmTreeFile,
 	isSmokeProfile,
 	isTaskArtefactManifestFile,
+	isValidationPocFile,
 	listSmokeProfiles,
 	normalizeChangedFiles,
 	resolveProfileCommand,
@@ -117,6 +118,27 @@ test("detects task artefact manifest files", () => {
 	);
 });
 
+test("detects validation POC files", () => {
+	assert.equal(
+		isValidationPocFile("validations/governed-note-box-poc/governed-note-box-poc.mjs"),
+		true,
+	);
+	assert.equal(
+		isValidationPocFile("validations/citizen-data-wallet-poc/wallet-poc.test.mjs"),
+		true,
+	);
+	assert.equal(
+		isValidationPocFile(
+			"validations/governed-note-box-poc/fixtures/expected/task-artefacts.json",
+		),
+		false,
+	);
+	assert.equal(
+		isValidationPocFile("validations/sqlite-benchmark/package.json"),
+		false,
+	);
+});
+
 test("detects driver task files", () => {
 	assert.equal(
 		isRefarmDriverTaskFile("apps/farmhand/src/transports/tasks.ts"),
@@ -197,6 +219,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree-dist",
 		"tree",
 		"openapi",
+		"validation-pocs",
 		"task-artefacts",
 		"sidecar",
 		"driver-tasks",
@@ -208,7 +231,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, task-artefacts, sidecar, driver-tasks, agent-e2e-mock, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artefacts, sidecar, driver-tasks, agent-e2e-mock, check, quick, dev, ci",
 	);
 });
 
@@ -272,6 +295,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
 			{ profile: "tree", script: "refarm:tree:verify" },
 			{ profile: "openapi", script: "openapi:check" },
+			{ profile: "validation-pocs", script: "validation-pocs:test" },
 			{ profile: "task-artefacts", script: "task-artefacts:check" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
@@ -326,6 +350,7 @@ test("maps profiles to package scripts", () => {
 	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
 	assert.equal(resolveProfileScript("openapi"), "openapi:check");
+	assert.equal(resolveProfileScript("validation-pocs"), "validation-pocs:test");
 	assert.equal(resolveProfileScript("task-artefacts"), "task-artefacts:check");
 	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
 	assert.equal(
@@ -437,6 +462,17 @@ test("routes OpenAPI protocol deltas to focused OpenAPI lane", () => {
 			"specs/protocols/README.md",
 		]).profile,
 		"openapi",
+	);
+});
+
+test("routes validation POC deltas to focused POC lane", () => {
+	assert.equal(
+		decideProfile([
+			"validations/governed-note-box-poc/governed-note-box-poc.mjs",
+			"validations/governed-note-box-poc/governed-note-box-poc.test.mjs",
+			"docs/POC_VALIDATION_PRESSURE.md",
+		]).profile,
+		"validation-pocs",
 	);
 });
 

@@ -21,6 +21,7 @@ const PROFILE_SCRIPT = {
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
 	openapi: "openapi:check",
+	"validation-pocs": "validation-pocs:test",
 	"task-artefacts": "task-artefacts:check",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
@@ -258,6 +259,15 @@ export function isTaskArtefactManifestFile(file) {
 	);
 }
 
+export function isValidationPocFile(file) {
+	return (
+		!file.includes("/fixtures/expected/") &&
+		(file.startsWith("validations/citizen-data-wallet-poc/") ||
+			file.startsWith("validations/extension-sandbox-poc/") ||
+			file.startsWith("validations/governed-note-box-poc/"))
+	);
+}
+
 export function isRefarmDriverTaskFile(file) {
 	return (
 		file === "apps/farmhand/src/transports/tasks.ts" ||
@@ -367,6 +377,17 @@ export function decideProfile(inputFiles) {
 			profile: "openapi",
 			reason:
 				"Protocol contract delta; run focused OpenAPI validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isValidationPocFile(file)) &&
+		files.every((file) => isValidationPocFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "validation-pocs",
+			reason:
+				"Validation POC delta; run deterministic POC tests and task artefact manifest validation.",
 		};
 	}
 

@@ -51,6 +51,7 @@
 		"extension-sandbox:poc:test": "node --test validations/extension-sandbox-poc/extension-sandbox-poc.test.mjs",
 		"governed-note-box:poc": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
 		"governed-note-box:poc:test": "node --test validations/governed-note-box-poc/governed-note-box-poc.test.mjs",
+		"validation-pocs:test": "node scripts/ci/run-root-scripts.mjs wallet:poc:test extension-sandbox:poc:test governed-note-box:poc:test task-artefacts:check",
 		"task-artefacts:check": "node scripts/ci/check-task-artefact-manifests.mjs",
 		"task-artefacts:check:test": "node --test scripts/ci/test-check-task-artefact-manifests-lib.mjs",
 		"openapi:check": "node scripts/ci/check-openapi-specs.mjs",
