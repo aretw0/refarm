@@ -128,6 +128,10 @@ test("detects validation POC files", () => {
 		true,
 	);
 	assert.equal(
+		isValidationPocFile("scripts/ci/check-validation-poc-consumers.mjs"),
+		true,
+	);
+	assert.equal(
 		isValidationPocFile(
 			"validations/governed-note-box-poc/fixtures/expected/task-artefacts.json",
 		),
@@ -470,6 +474,7 @@ test("routes validation POC deltas to focused POC lane", () => {
 		decideProfile([
 			"validations/governed-note-box-poc/governed-note-box-poc.mjs",
 			"validations/governed-note-box-poc/governed-note-box-poc.test.mjs",
+			"scripts/ci/check-validation-poc-consumers.mjs",
 			"docs/POC_VALIDATION_PRESSURE.md",
 		]).profile,
 		"validation-pocs",

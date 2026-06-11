@@ -261,10 +261,11 @@ export function isTaskArtefactManifestFile(file) {
 
 export function isValidationPocFile(file) {
 	return (
-		!file.includes("/fixtures/expected/") &&
-		(file.startsWith("validations/citizen-data-wallet-poc/") ||
-			file.startsWith("validations/extension-sandbox-poc/") ||
-			file.startsWith("validations/governed-note-box-poc/"))
+		file === "scripts/ci/check-validation-poc-consumers.mjs" ||
+		(!file.includes("/fixtures/expected/") &&
+			(file.startsWith("validations/citizen-data-wallet-poc/") ||
+				file.startsWith("validations/extension-sandbox-poc/") ||
+				file.startsWith("validations/governed-note-box-poc/")))
 	);
 }
 
@@ -387,7 +388,7 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "validation-pocs",
 			reason:
-				"Validation POC delta; run deterministic POC tests and task artefact manifest validation.",
+				"Validation POC delta; run deterministic POC tests, consumer smoke, and task artefact manifest validation.",
 		};
 	}
 
