@@ -247,6 +247,27 @@ test("node substrate check does not rebuild a shared Windows checkout without op
 	}
 });
 
+test("node substrate human output does not print undefined secondary guidance", () => {
+	const tempDir = makeWorkspace({
+		platform: "win32",
+		withBins: true,
+		workspaceLinkPackageCount: 21,
+	});
+	try {
+		const result = runCheck(tempDir, [], {
+			REFARM_NODE_SUBSTRATE_PLATFORM: "win32",
+		});
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /node-substrate: missing package-manager execution substrate/);
+		assert.doesNotMatch(result.stderr, /undefined/);
+		assert.doesNotMatch(result.stderr, /if this is a devcontainer on Windows/);
+		assert.match(result.stderr, /\.\.\. 1 more workspace dependency link\(s\)/);
+		assert.match(result.stderr, /next: Current checkout appears to be materialized/);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
 test("node substrate check can explicitly opt in to rebuilding a shared Windows checkout", () => {
 	const tempDir = makeWorkspace({
 		platform: "win32",

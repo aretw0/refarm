@@ -114,6 +114,16 @@ function compactList(items, limit = 20) {
 	return items.slice(0, limit);
 }
 
+function printCompactIssues(items, formatItem, moreLabel, limit = 20) {
+	for (const item of items.slice(0, limit)) {
+		console.error(formatItem(item));
+	}
+	const remaining = items.length - limit;
+	if (remaining > 0) {
+		console.error(`  ... ${remaining} more ${moreLabel}`);
+	}
+}
+
 function workspacePackageDirs() {
 	const dirs = [];
 	for (const workspaceDir of ["apps", "packages"]) {
@@ -322,18 +332,25 @@ if (json) {
 	for (const shim of foreignPlatformShims) {
 		console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
 	}
-	for (const dependency of missingWorkspaceDependencyLinks) {
-		console.error(`  unresolved workspace dependency link: ${dependency.package} -> ${dependency.dependency}`);
-	}
-	for (const dependency of missingRuntimeDependencies) {
-		console.error(`  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`);
-	}
+	printCompactIssues(
+		missingWorkspaceDependencyLinks,
+		(dependency) => `  unresolved workspace dependency link: ${dependency.package} -> ${dependency.dependency}`,
+		"workspace dependency link(s)",
+	);
+	printCompactIssues(
+		missingRuntimeDependencies,
+		(dependency) => `  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`,
+		"runtime dependency issue(s)",
+	);
 	for (const issue of mountIssues) {
 		console.error(`  mount mismatch: expected ${issue.target} to be a dedicated mount`);
 	}
 	console.error(`  next: ${primaryNextAction}`);
-	if (foreignPlatformShims.length === 0 && mountIssues.length === 0) {
-		console.error(`  if this is a devcontainer on Windows, ${recommendations.at(1)}`);
+	const secondaryRecommendation = recommendations.find(
+		(recommendation) => recommendation !== primaryNextAction,
+	);
+	if (foreignPlatformShims.length === 0 && mountIssues.length === 0 && secondaryRecommendation) {
+		console.error(`  also: ${secondaryRecommendation}`);
 	}
 }
 

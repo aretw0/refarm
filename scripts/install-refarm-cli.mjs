@@ -118,3 +118,5 @@ if (process.platform === "win32") {
 if (!pathIncludes(binDir)) {
   console.warn(`[install-refarm-cli] WARN: ${binDir} is not in PATH.`);
 }
+
+console.log("[install-refarm-cli] Next: refarm check --next-action --json");
