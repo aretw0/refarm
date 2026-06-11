@@ -228,6 +228,10 @@ Rules:
 - Refarm monorepo wrapper: `pnpm run repo:complexity:changed:strict` is the
   safe local gate for new slices. It blocks changed files that cross the line
   budget without requiring the existing backlog to be fixed first.
+- The changed-file gate also blocks already-oversized source files once they
+  are touched. For example, `apps/refarm/src/commands/agent.ts` must be reduced
+  through coherent extraction before receiving new template, lane, or handoff
+  semantics; do not bypass the gate with a local exception.
 - `pnpm run gate:full:colony` includes `repo:complexity:test` and
   `repo:complexity:changed:strict`, so the full gate exercises the wrapper and
   blocks newly changed oversized files without ratcheting the whole backlog at
