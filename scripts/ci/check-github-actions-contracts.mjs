@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const setupActionPath = join(root, ".github", "actions", "setup", "action.yml");
+const testWorkflowPath = join(root, ".github", "workflows", "test.yml");
 const setupAction = readFileSync(setupActionPath, "utf8");
+const testWorkflow = readFileSync(testWorkflowPath, "utf8");
 
 const failures = [];
 
@@ -21,6 +23,10 @@ function sectionAfter(name) {
 
 function assertIncludes(section, needle, message) {
 	if (!section.includes(needle)) failures.push(message);
+}
+
+function assertNotIncludes(section, needle, message) {
+	if (section.includes(needle)) failures.push(message);
 }
 
 const installDependencies = sectionAfter("Install dependencies");
@@ -60,8 +66,30 @@ if (!setupPlaywright) {
 	);
 }
 
+const platformCompatStart = testWorkflow.indexOf("  platform-compat:");
+const buildStart = testWorkflow.indexOf("\n  build:", platformCompatStart);
+const platformCompat =
+	platformCompatStart === -1
+		? ""
+		: testWorkflow.slice(platformCompatStart, buildStart === -1 ? testWorkflow.length : buildStart);
+
+if (!platformCompat) {
+	failures.push("test workflow is missing the platform-compat job");
+} else {
+	assertIncludes(
+		platformCompat,
+		"os: [macos-latest, windows-2025-vs2026]",
+		"platform-compat must pin the Windows runner to windows-2025-vs2026",
+	);
+	assertNotIncludes(
+		platformCompat,
+		"windows-latest",
+		"platform-compat must not use windows-latest because it can migrate implicitly",
+	);
+}
+
 if (failures.length === 0) {
-	console.log("✓ GitHub Actions setup contracts are valid");
+	console.log("✓ GitHub Actions contracts are valid");
 	process.exit(0);
 }
 
