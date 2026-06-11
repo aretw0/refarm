@@ -9,6 +9,7 @@ import {
 	createRevocationEvent,
 	createSelectivePresentation,
 	createServiceRequest,
+	buildTaskArtefactManifest,
 	runWalletPoc,
 	verifyPayloadSignature,
 } from "./wallet-poc.mjs";
@@ -85,5 +86,49 @@ describe("citizen data wallet poc", () => {
 		assert.match(auditTrail, /No real personal, institutional, or secret data is used/);
 		assert.match(auditTrail, /Attributes available: 4/);
 		assert.match(auditTrail, /Tamper verification result: false/);
+	});
+
+	it("publishes a task artefact manifest for downstream labs", () => {
+		const manifest = readFixture("task-artefacts.json");
+
+		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
+		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
+		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
+		assert.equal(manifest.artefacts.length, 7);
+		assert.deepEqual(
+			manifest.artefacts.map((artefact) => artefact.uri),
+			[
+				"identity.json",
+				"authority-attributes.json",
+				"service-request.json",
+				"authorization-receipt.json",
+				"selective-presentation.json",
+				"revocation-event.json",
+				"audit-trail.md",
+			],
+		);
+		assert.ok(
+			manifest.artefacts.every(
+				(artefact) =>
+					artefact.hash.algorithm === "sha256" &&
+					/^[a-f0-9]{64}$/.test(artefact.hash.value) &&
+					artefact.reviewState === "accepted" &&
+					artefact.provenance.runId === "citizen-data-wallet-poc-001",
+			),
+		);
+	});
+
+	it("builds the task artefact manifest deterministically", () => {
+		const expected = readFixture("task-artefacts.json");
+		const actual = buildTaskArtefactManifest(
+			Object.fromEntries(
+				expected.artefacts.map((artefact) => [
+					artefact.uri,
+					readFileSync(path.join(FIXTURES_DIR, artefact.uri), "utf8"),
+				]),
+			),
+		);
+
+		assert.deepEqual(actual, expected);
 	});
 });

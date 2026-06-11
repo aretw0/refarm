@@ -1,4 +1,4 @@
-import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,10 @@ export const AUTHORIZATION_ID = "authz-sintetica-001";
 export const ISSUED_AT = "2026-01-01T00:00:00.000Z";
 export const EXPIRES_AT = "2026-02-01T00:00:00.000Z";
 export const REVOKED_AT = "2026-01-15T12:00:00.000Z";
+export const TASK_ARTEFACTS_SCHEMA = "refarm.task-artefacts.v1";
+export const TASK_ID = "task-citizen-data-wallet-poc";
+export const EFFORT_ID = "effort-citizen-data-wallet-poc-001";
+export const RUN_ID = "citizen-data-wallet-poc-001";
 
 const SYNTHETIC_ATTRIBUTES = {
 	nome_social: "Pessoa Exemplo",
@@ -40,6 +44,14 @@ function canonicalJson(value) {
 
 function publicKeyJwk() {
 	return createPublicKey(FIXED_PRIVATE_KEY_PEM).export({ format: "jwk" });
+}
+
+function sha256Text(value) {
+	return createHash("sha256").update(value).digest("hex");
+}
+
+function jsonText(value) {
+	return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function signPayload(payload) {
@@ -204,6 +216,44 @@ export function runWalletPoc() {
 	};
 }
 
+export function buildTaskArtefactManifest(writtenArtifacts) {
+	const roles = {
+		"identity.json": "receipt",
+		"authority-attributes.json": "dataset",
+		"service-request.json": "receipt",
+		"authorization-receipt.json": "receipt",
+		"selective-presentation.json": "receipt",
+		"revocation-event.json": "receipt",
+		"audit-trail.md": "audit-trail",
+	};
+
+	return {
+		schema: TASK_ARTEFACTS_SCHEMA,
+		taskId: TASK_ID,
+		effortId: EFFORT_ID,
+		createdAt: ISSUED_AT,
+		artefacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
+			id: fileName.replace(/\.[^.]+$/, ""),
+			uri: fileName,
+			mediaType: fileName.endsWith(".md") ? "text/markdown" : "application/json",
+			role: roles[fileName] ?? "other",
+			hash: {
+				algorithm: "sha256",
+				value: sha256Text(contents),
+			},
+			reviewState: "accepted",
+			provenance: {
+				runId: RUN_ID,
+				producer: "wallet:poc",
+				command: "pnpm run wallet:poc",
+				source: "validations/citizen-data-wallet-poc",
+				sourceVersion: "synthetic-v1",
+				producedAt: ISSUED_AT,
+			},
+		})),
+	};
+}
+
 export function writeArtifacts(outDir) {
 	const result = runWalletPoc();
 	const artifacts = {
@@ -214,20 +264,25 @@ export function writeArtifacts(outDir) {
 		"selective-presentation.json": result.presentation,
 		"revocation-event.json": result.revocation,
 	};
+	const auditTrail = buildAuditTrail({
+		attributes: result.attributes,
+		request: result.request,
+		presentation: result.presentation,
+		revocation: result.revocation,
+	});
+	const writtenArtifacts = {
+		...Object.fromEntries(
+			Object.entries(artifacts).map(([fileName, value]) => [fileName, jsonText(value)]),
+		),
+		"audit-trail.md": auditTrail,
+	};
+	const manifest = buildTaskArtefactManifest(writtenArtifacts);
 
 	mkdirSync(outDir, { recursive: true });
-	for (const [fileName, value] of Object.entries(artifacts)) {
-		writeFileSync(path.join(outDir, fileName), `${JSON.stringify(value, null, 2)}\n`);
+	for (const [fileName, contents] of Object.entries(writtenArtifacts)) {
+		writeFileSync(path.join(outDir, fileName), contents);
 	}
-	writeFileSync(
-		path.join(outDir, "audit-trail.md"),
-		buildAuditTrail({
-			attributes: result.attributes,
-			request: result.request,
-			presentation: result.presentation,
-			revocation: result.revocation,
-		}),
-	);
+	writeFileSync(path.join(outDir, "task-artefacts.json"), jsonText(manifest));
 	return result;
 }
 

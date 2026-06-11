@@ -1,0 +1,141 @@
+{
+  "schema": "refarm.task-artefacts.v1",
+  "taskId": "task-citizen-data-wallet-poc",
+  "effortId": "effort-citizen-data-wallet-poc-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "artefacts": [
+    {
+      "id": "identity",
+      "uri": "identity.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "f426749161dc0c78363f471213579a0125db0afa90684aa8a065849ea9394474"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "authority-attributes",
+      "uri": "authority-attributes.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "de2dda54e9d332b252442ba9ef3e1431d7e61c23db5b26dd57a41d70b8dd7974"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "service-request",
+      "uri": "service-request.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "3ee8fc9b2b4a36f7f2fe1842ea76ec42b62c35b03b71e3496065dc17ddcf2981"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "authorization-receipt",
+      "uri": "authorization-receipt.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "b79fb836347f9379524b9bdc2c56541d49f3f301707a33d1f4dbe8396d73f29b"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "selective-presentation",
+      "uri": "selective-presentation.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "4e89d04c6f8428b1d2fd09ba935bf7e378d8a5bf6e37fa2abf2474d0ce3f60b5"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "revocation-event",
+      "uri": "revocation-event.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "34a1c35fef866e00083310c36d34e69a6d465c1fafc068a86c5cbf1dc60ee70c"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "audit-trail",
+      "uri": "audit-trail.md",
+      "mediaType": "text/markdown",
+      "role": "audit-trail",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "96fca2a87fff7d520c26498be31cd1e91d1fef114353e29c000e5183323e3ef6"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    }
+  ]
+}
