@@ -78,6 +78,26 @@ Refarm = shared runtime, handoff, validation, model/task, and plugin substrate
 `dgk` can eventually call Refarm primitives when present, while remaining useful
 without Refarm installed.
 
+## Second And Third Consumers
+
+The same primitives must be shaped for more than `vault-seed`. Local writing
+vaults, governed publication workflows, plugin hosts, and future project CLIs
+will all need pieces of the substrate without adopting the whole Refarm app.
+
+That makes the promotion bar higher:
+
+- promote contracts that describe work, evidence, provenance, capabilities, and
+  process continuation;
+- keep product vocabulary, folder conventions, editor workflows, and publishing
+  UX at the consumer edge;
+- prefer `.refarm/` sidecar state or explicit checked-in policy over surprising
+  root-level configuration files;
+- require read-only mode to be a first-class posture for mirrors, archives, and
+  work vaults.
+
+This is how Refarm can become the operator's daily-driver agent while still
+being safe to introduce into projects that are not Refarm-shaped.
+
 ## Boundaries
 
 Keep these boundaries explicit:

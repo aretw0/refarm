@@ -28,6 +28,29 @@ The draft plan separates three demonstrable ideas:
 The important design point is that the proofs are not submission deliverables.
 They are generic validation pressure for Refarm's daily-driver substrate.
 
+## Sanitized Collision Protocol
+
+External drafts can pressure Refarm without becoming Refarm source. The current
+read-only work-vault shape is useful because it forces three different audiences
+to ask for the same substrate from different angles:
+
+| External pressure | Refarm may absorb | Refarm must avoid |
+| --- | --- | --- |
+| Public-sector plugin governance text | Synthetic plugin lifecycle, capability, integrity, revocation, and evidence packets. | Submission wording, employer-specific framing, or direct product citation. |
+| Citizen data and consent text | Synthetic authorization receipts, selective disclosure, audit trails, and consent-review checks. | Claims of standards conformance that the validation does not prove. |
+| Governed vault/digital-garden text | Artifact manifests, provenance, read-only scan, publication preflight, and human review gates. | Owning the vault UX, writing into mirrors, or replacing `vault-seed`'s cockpit. |
+
+The operating shape is:
+
+1. Inspect read-only evidence for repeated needs.
+2. Translate the need into a generic Refarm primitive or synthetic validation.
+3. Keep domain text and publication deliverables outside this repository.
+4. Let `vault-seed` consume the generic primitive later through its own CLI or
+   workflow when that repository is explicitly in scope.
+
+This lets the work collide with real writing pressure while keeping Refarm's
+contracts reusable for second and third consumers.
+
 ## Theme 1: Extension Sandbox
 
 Useful Refarm primitives already exist:
