@@ -157,6 +157,70 @@ Scope: synthetic local validation only. No real vault, work draft, personal data
 `;
 }
 
+export function buildScenarioMarkdown(report) {
+	return `# Governed Note Box PoC Scenario
+
+Scope: synthetic local validation only. No real vault, work draft, personal data, institutional data, or secrets are used.
+
+## Problem
+
+A local knowledge base needs to preserve provenance and publish only reviewed material without turning the vault workflow into hidden automation. The scenario asks whether notes can move from intake to lab and publication snapshots with metadata, review gates, and explicit publication limits.
+
+## Actors
+
+- Author: creates synthetic notes.
+- Curator: reviews metadata and publication readiness.
+- Lab consumer: uses graph and metrics snapshots.
+- Publication consumer: receives only reviewed note metadata.
+
+## Decision Points
+
+1. Every note must keep title, tags, links, status, date, and body hash.
+2. Draft notes must be excluded from publication output.
+3. The lab snapshot must expose graph and metric evidence.
+4. Publication must remain blocked on human review.
+
+## Outcome
+
+The synthetic run ingested ${report.labSnapshot.metrics.notes} notes, kept ${report.labSnapshot.metrics.draftNotes} draft out of publication, and produced ${report.publicationSnapshot.notes.length} publication candidates. Human review remains required before publishing.
+`;
+}
+
+export function buildAnnexMarkdown(report, scorecard) {
+	const scoreRows = Object.entries(scorecard.scores)
+		.map(([criterion, score]) => {
+			const weight = scorecard.weights[criterion];
+			return `| ${criterion} | ${score} | ${weight} | ${evidenceForNoteCriterion(criterion)} |`;
+		})
+		.join("\n");
+
+	return `# Governed Note Box PoC Annex
+
+## Evidence Map
+
+| Claim | Generated evidence |
+| --- | --- |
+| Metadata is preserved | \`metadata-index.json\` |
+| Drafts stay out of publication | \`publication-snapshot.json\`, \`publication-preflight.json\` |
+| Lab consumers have graph and metrics | \`lab-snapshot.json\` |
+| Human review remains explicit | \`publication-preflight.json\`, \`human-review.md\` |
+| Pilot decision is measurable | \`scorecard.json\` |
+
+## Scorecard Criteria
+
+| Criterion | Score | Weight | Evidence |
+| --- | ---: | ---: | --- |
+${scoreRows}
+
+## Reader Path
+
+1. Read \`scenario.md\` for the workflow question.
+2. Inspect \`publication-preflight.json\` for readiness and warnings.
+3. Inspect \`scorecard.json\` for thresholds and limits.
+4. Use \`task-artefacts.json\` to verify hashes and provenance.
+`;
+}
+
 export function buildPilotScorecard(report) {
 	const scores = {
 		metadataPreservation: report.checks.allNotesHaveMetadata ? 5 : 0,
@@ -194,6 +258,17 @@ export function buildPilotScorecard(report) {
 	};
 }
 
+function evidenceForNoteCriterion(criterion) {
+	const evidence = {
+		metadataPreservation: "Metadata index contains hash, tags, links, status, and dates.",
+		publicationHygiene: "Publication snapshot excludes draft notes.",
+		labSnapshot: "Lab snapshot exposes graph and metric data.",
+		humanReview: "Publication preflight requires human review.",
+		localOnlyOperation: "Preflight records no external service dependency.",
+	};
+	return evidence[criterion] ?? "Synthetic note workflow evidence.";
+}
+
 export function buildTaskArtefactManifest(writtenArtifacts) {
 	const roles = {
 		"intake-snapshot.json": "dataset",
@@ -202,6 +277,8 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"publication-snapshot.json": "dataset",
 		"publication-preflight.json": "audit-trail",
 		"scorecard.json": "report",
+		"scenario.md": "report",
+		"annex.md": "report",
 		"human-review.md": "report",
 	};
 	const labels = {
@@ -211,6 +288,8 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"publication-snapshot.json": ["publication"],
 		"publication-preflight.json": ["publication", "preflight"],
 		"scorecard.json": ["scorecard", "pilot"],
+		"scenario.md": ["scenario", "reader-path"],
+		"annex.md": ["annex", "evidence-map"],
 		"human-review.md": ["publication", "human-review"],
 	};
 
@@ -252,6 +331,8 @@ export function writeArtifacts(outDir) {
 		"publication-snapshot.json": jsonText(report.publicationSnapshot),
 		"publication-preflight.json": jsonText(report.publicationPreflight),
 		"scorecard.json": jsonText(scorecard),
+		"scenario.md": buildScenarioMarkdown(report),
+		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"human-review.md": buildReviewMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);

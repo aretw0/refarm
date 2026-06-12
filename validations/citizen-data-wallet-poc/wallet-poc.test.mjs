@@ -115,6 +115,12 @@ describe("citizen data wallet poc", () => {
 		assert.deepEqual(readFixture("selective-presentation.json"), result.presentation);
 		assert.deepEqual(readFixture("revocation-event.json"), result.revocation);
 		assert.deepEqual(readFixture("consent-decision.json"), result.consentDecision);
+		const scenario = readFileSync(path.join(FIXTURES_DIR, "scenario.md"), "utf8");
+		assert.match(scenario, /Citizen Data Wallet PoC Scenario/);
+		assert.match(scenario, /Decision Points/);
+		const annex = readFileSync(path.join(FIXTURES_DIR, "annex.md"), "utf8");
+		assert.match(annex, /Evidence Map/);
+		assert.match(annex, /scorecard\.json/);
 
 		const auditTrail = readFileSync(path.join(FIXTURES_DIR, "audit-trail.md"), "utf8");
 		assert.match(auditTrail, /No real personal, institutional, or secret data is used/);
@@ -128,7 +134,7 @@ describe("citizen data wallet poc", () => {
 		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artefacts.length, 9);
+		assert.equal(manifest.artefacts.length, 11);
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
 			[
@@ -140,6 +146,8 @@ describe("citizen data wallet poc", () => {
 				"revocation-event.json",
 				"consent-decision.json",
 				"scorecard.json",
+				"scenario.md",
+				"annex.md",
 				"audit-trail.md",
 			],
 		);

@@ -80,6 +80,12 @@ describe("governed note box poc", () => {
 		assert.deepEqual(readFixture("lab-snapshot.json"), report.labSnapshot);
 		assert.deepEqual(readFixture("publication-snapshot.json"), report.publicationSnapshot);
 		assert.deepEqual(readFixture("publication-preflight.json"), report.publicationPreflight);
+		const scenario = readFileSync(path.join(FIXTURES_DIR, "scenario.md"), "utf8");
+		assert.match(scenario, /Governed Note Box PoC Scenario/);
+		assert.match(scenario, /Decision Points/);
+		const annex = readFileSync(path.join(FIXTURES_DIR, "annex.md"), "utf8");
+		assert.match(annex, /Evidence Map/);
+		assert.match(annex, /scorecard\.json/);
 
 		const review = readFileSync(path.join(FIXTURES_DIR, "human-review.md"), "utf8");
 		assert.match(review, /No real vault, work draft, personal data, institutional data, or secrets/);
@@ -101,6 +107,8 @@ describe("governed note box poc", () => {
 				"publication-snapshot.json",
 				"publication-preflight.json",
 				"scorecard.json",
+				"scenario.md",
+				"annex.md",
 				"human-review.md",
 			],
 		);

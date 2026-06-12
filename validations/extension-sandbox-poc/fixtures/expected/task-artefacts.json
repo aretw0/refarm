@@ -66,6 +66,52 @@
       ]
     },
     {
+      "id": "scenario-md",
+      "uri": "scenario.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "51a8021bf55389169972bdc2333734ff2bf498c2c8e44e7439a4fc66f7b38d3f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scenario",
+        "reader-path"
+      ]
+    },
+    {
+      "id": "annex-md",
+      "uri": "annex.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7c63017c04fa4868e6863190a4fc0d2cf6c68177b078619107cf6d3374807483"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "annex",
+        "evidence-map"
+      ]
+    },
+    {
       "id": "sandbox-report-md",
       "uri": "sandbox-report.md",
       "mediaType": "text/markdown",

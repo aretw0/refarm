@@ -183,6 +183,70 @@ Scope: synthetic local validation only. No real personal, institutional, or secr
 `;
 }
 
+export function buildScenarioMarkdown(result) {
+	return `# Citizen Data Wallet PoC Scenario
+
+Scope: synthetic local validation only. No real personal, institutional, or secret data is used.
+
+## Problem
+
+A digital service needs proof of eligibility without repeatedly collecting unnecessary attributes. The scenario asks whether a local wallet flow can express purpose, scope, expiration, selective disclosure, revocation, and tamper detection as reviewable evidence.
+
+## Actors
+
+- Holder: synthetic citizen identity.
+- Issuer: synthetic public attribute source.
+- Verifier: synthetic service requesting limited attributes.
+- Operator: reviews consent, revocation, and pilot readiness.
+
+## Decision Points
+
+1. The service request must state purpose, requested attributes, and expiration.
+2. The authorization receipt must verify against its signed payload.
+3. The presentation must disclose only requested attributes.
+4. Revocation must make the authorization unusable.
+
+## Outcome
+
+The synthetic wallet had ${Object.keys(result.attributes.attributes).length} available attributes, requested ${result.request.requestedAttributes.length}, and presented ${Object.keys(result.presentation.attributes).length}. Tamper verification failed as expected, and the consent decision still requires human review.
+`;
+}
+
+export function buildAnnexMarkdown(result, scorecard) {
+	const scoreRows = Object.entries(scorecard.scores)
+		.map(([criterion, score]) => {
+			const weight = scorecard.weights[criterion];
+			return `| ${criterion} | ${score} | ${weight} | ${evidenceForWalletCriterion(criterion)} |`;
+		})
+		.join("\n");
+
+	return `# Citizen Data Wallet PoC Annex
+
+## Evidence Map
+
+| Claim | Generated evidence |
+| --- | --- |
+| Purpose and scope are explicit | \`service-request.json\`, \`authorization-receipt.json\` |
+| Disclosure is minimized | \`selective-presentation.json\` |
+| Integrity is testable | \`authorization-receipt.json\`, audit trail tamper check |
+| Revocation is reviewable | \`revocation-event.json\`, \`consent-decision.json\` |
+| Pilot decision is measurable | \`scorecard.json\` |
+
+## Scorecard Criteria
+
+| Criterion | Score | Weight | Evidence |
+| --- | ---: | ---: | --- |
+${scoreRows}
+
+## Reader Path
+
+1. Read \`scenario.md\` for the service journey.
+2. Inspect \`consent-decision.json\` for the review point.
+3. Inspect \`scorecard.json\` for thresholds and limits.
+4. Use \`task-artefacts.json\` to verify hashes and provenance.
+`;
+}
+
 export function createConsentDecision({
 	request = createServiceRequest(),
 	authorization = createAuthorizationReceipt(request),
@@ -260,6 +324,17 @@ export function buildPilotScorecard(result) {
 	};
 }
 
+function evidenceForWalletCriterion(criterion) {
+	const evidence = {
+		purposeAndScope: "Service request and receipt carry purpose, scope, and expiration.",
+		selectiveDisclosure: "Presentation exposes only requested attributes.",
+		signatureIntegrity: "Signature verifies and tampered payload fails verification.",
+		revocationUsability: "Revocation changes authorization status to unusable.",
+		humanReview: "Consent decision requires operator review.",
+	};
+	return evidence[criterion] ?? "Synthetic wallet evidence.";
+}
+
 export function runWalletPoc() {
 	const identity = createIdentity();
 	const attributes = createAuthorityAttributes();
@@ -310,10 +385,14 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"revocation-event.json": "receipt",
 		"consent-decision.json": "receipt",
 		"scorecard.json": "report",
+		"scenario.md": "report",
+		"annex.md": "report",
 		"audit-trail.md": "audit-trail",
 	};
 	const labels = {
 		"scorecard.json": ["scorecard", "pilot"],
+		"scenario.md": ["scenario", "reader-path"],
+		"annex.md": ["annex", "evidence-map"],
 	};
 
 	return {
@@ -367,6 +446,8 @@ export function writeArtifacts(outDir) {
 		...Object.fromEntries(
 			Object.entries(artifacts).map(([fileName, value]) => [fileName, jsonText(value)]),
 		),
+		"scenario.md": buildScenarioMarkdown(result),
+		"annex.md": buildAnnexMarkdown(result, scorecard),
 		"audit-trail.md": auditTrail,
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);

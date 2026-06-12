@@ -88,6 +88,12 @@ describe("extension sandbox poc", () => {
 
 		assert.deepEqual(readFixture("sandbox-report.json"), report);
 		assert.deepEqual(readFixture("policy-decision.json"), report.policyDecision);
+		const scenario = readFileSync(path.join(FIXTURES_DIR, "scenario.md"), "utf8");
+		assert.match(scenario, /Extension Sandbox PoC Scenario/);
+		assert.match(scenario, /Decision Points/);
+		const annex = readFileSync(path.join(FIXTURES_DIR, "annex.md"), "utf8");
+		assert.match(annex, /Evidence Map/);
+		assert.match(annex, /scorecard\.json/);
 		const markdown = readFileSync(path.join(FIXTURES_DIR, "sandbox-report.md"), "utf8");
 		assert.match(markdown, /No real plugins, services, institutional data, or secrets/);
 		assert.match(markdown, /Warn\+continue survives isolated failure: true/);
@@ -105,6 +111,8 @@ describe("extension sandbox poc", () => {
 				"sandbox-report.json",
 				"policy-decision.json",
 				"scorecard.json",
+				"scenario.md",
+				"annex.md",
 				"sandbox-report.md",
 			],
 		);

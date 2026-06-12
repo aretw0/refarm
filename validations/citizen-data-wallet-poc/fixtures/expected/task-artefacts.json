@@ -161,6 +161,52 @@
       ]
     },
     {
+      "id": "scenario",
+      "uri": "scenario.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "2d8fab2cb21b574fc11d00f1dd33b7234107b737a42cdd2b4f077d6bb47c1770"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scenario",
+        "reader-path"
+      ]
+    },
+    {
+      "id": "annex",
+      "uri": "annex.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "fa3449b2cf3d297a28d0bd24380a94965a04ad8c616ecaf905007c60f87515eb"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "annex",
+        "evidence-map"
+      ]
+    },
+    {
       "id": "audit-trail",
       "uri": "audit-trail.md",
       "mediaType": "text/markdown",

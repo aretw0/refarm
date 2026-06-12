@@ -9,10 +9,11 @@ The validation POCs are technically useful, but they are not yet as rich as a
 submission-ready prize demonstration.
 
 They already provide deterministic evidence, synthetic data, review artifacts,
-task artefact manifests, and pilot scorecards. That is the right foundation.
-What is still thin is the presentation layer expected by a winning-style work:
-scenario narrative, visual annexes, criteria for adoption, and a reader path
-that connects generated artifacts to the proposal claims without naming Refarm.
+task artefact manifests, pilot scorecards, scenario narratives, and evidence
+annexes. That is the right foundation. What is still thinner than a
+winning-style work is the final presentation layer: polished diagrams,
+submission-specific framing, standards mapping, and reader-facing synthesis
+outside the validation repository.
 
 ## Calibration Source
 
@@ -35,9 +36,9 @@ result to operational value.
 
 | POC | Current Strength | Current Gap | Prize Readiness |
 | --- | --- | --- | --- |
-| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, and pilot scorecard. | It does not yet show a real WASM/plugin lifecycle, visual lifecycle diagram, or promotion matrix. | Medium. Strong technical skeleton, not yet a convincing demonstration package. |
-| Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, and pilot scorecard. | It lacks UX/accessibility review, LGPD principle mapping, and standards mapping that is careful not to claim full compliance. | Medium. The evidence is coherent, but the public-service journey is still too implicit. |
-| Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, and pilot scorecard. | It is intentionally synthetic and not yet connected to vault-seed-style lab/export/publication pressure, quality gates, or visual annexes. | Medium. Good contract pressure for Refarm, still not yet rich enough for a Theme 3 narrative. |
+| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, and evidence annex. | It does not yet show a real WASM/plugin lifecycle, visual lifecycle diagram, or promotion matrix. | Medium-high. Strong demonstration packet, still synthetic. |
+| Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, pilot scorecard, scenario, and evidence annex. | It lacks UX/accessibility review, LGPD principle mapping, and standards mapping that is careful not to claim full compliance. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
+| Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, pilot scorecard, scenario, and evidence annex. | It is intentionally synthetic and not yet connected to vault-seed-style lab/export/publication pressure or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
 
 ## What Is Already a Reusable Primitive
 
@@ -50,6 +51,8 @@ result to operational value.
 - `scorecard.json` reports with pilot metrics, weights, thresholds, gates, and
   explicit limits, exposed through task artefact manifests as `report` artefacts
   labeled `scorecard` and `pilot`.
+- `scenario.md` and `annex.md` reports for each POC, exposed through labels
+  `scenario`, `reader-path`, `annex`, and `evidence-map`.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -73,6 +76,7 @@ The writing vault and vault-seed should own the actual submission packaging.
 Each POC should grow one lightweight "demonstration packet":
 
 1. `scenario.md`
+   - Implemented for all three POCs.
    - Public-sector problem statement.
    - Actors and decision points.
    - What the POC proves and what it explicitly does not prove.
@@ -83,6 +87,7 @@ Each POC should grow one lightweight "demonstration packet":
      and explicit limits.
 
 3. `annex.md`
+   - Implemented for all three POCs.
    - One reader-friendly diagram or table.
    - Mapping from generated artifacts to proposal claims.
    - No Refarm product naming when intended for external proposal reuse.
@@ -94,17 +99,10 @@ Each POC should grow one lightweight "demonstration packet":
 
 ## Recommended Next Slices
 
-1. Add one compact `scenario.md` fixture per POC.
-2. Add one human-readable annex/review table that maps each scorecard criterion
-   to generated evidence.
-3. Add a consumer smoke that verifies every POC exposes:
-   - report;
-   - decision artifact;
-   - scorecard;
-   - task artefact manifest;
-   - human-readable annex or review file.
-4. Add `limits.md` only if the existing report/review file becomes too dense.
-5. Let vault-seed consume those manifests later, instead of moving vault UX into
+1. Add visual diagrams or compact flow tables for the three annexes.
+2. Add standards and risk mapping only as careful, non-conformance claims.
+3. Add `limits.md` only if the existing scenario/annex files become too dense.
+4. Let vault-seed consume those manifests later, instead of moving vault UX into
    Refarm.
 
 This keeps Refarm on the right side of the boundary: it becomes the source of

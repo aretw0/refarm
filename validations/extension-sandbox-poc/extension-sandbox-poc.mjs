@@ -295,6 +295,71 @@ ${rows}
 `;
 }
 
+export function buildScenarioMarkdown(report) {
+	return `# Extension Sandbox PoC Scenario
+
+Scope: synthetic local validation only. No real plugins, services, institutional data, or secrets are used.
+
+## Problem
+
+A local host needs to accept extensions without letting optional code silently expand its authority. The scenario asks whether the host can verify manifests, enforce declared capability grants, record lifecycle evidence, and choose a safe outcome when an extension is denied or fails.
+
+## Actors
+
+- Operator: reviews capability grants and promotion decisions.
+- Host: validates manifests and executes the synthetic lifecycle.
+- Extension: requests capabilities and reports lifecycle events.
+
+## Decision Points
+
+1. A benign extension requests only granted capabilities and should complete.
+2. A denied extension requests \`network:v1\` and should be blocked.
+3. A failing extension should be isolated in warn+continue mode.
+4. The same failing extension should abort the flow in fail-fast mode.
+
+## Outcome
+
+The synthetic run evaluated ${report.policies.length} policy modes and ${report.policies.reduce(
+		(total, policy) => total + policy.plugins.length,
+		0,
+)} plugin-policy combinations. The recommended strict host status is \`${report.policyDecision.recommendedHostStatus}\` and human review remains required before expanding capability grants.
+`;
+}
+
+export function buildAnnexMarkdown(report, scorecard) {
+	const scoreRows = Object.entries(scorecard.scores)
+		.map(([criterion, score]) => {
+			const weight = scorecard.weights[criterion];
+			return `| ${criterion} | ${score} | ${weight} | ${evidenceForSandboxCriterion(criterion)} |`;
+		})
+		.join("\n");
+
+	return `# Extension Sandbox PoC Annex
+
+## Evidence Map
+
+| Claim | Generated evidence |
+| --- | --- |
+| Manifest and capability boundaries are checked | \`sandbox-report.json\`, \`policy-decision.json\` |
+| Denied capabilities remain reviewable | \`policy-decision.json\` denied plugin list |
+| Failure mode changes are explicit | \`sandbox-report.md\` policy table |
+| Pilot decision is measurable | \`scorecard.json\` |
+
+## Scorecard Criteria
+
+| Criterion | Score | Weight | Evidence |
+| --- | ---: | ---: | --- |
+${scoreRows}
+
+## Reader Path
+
+1. Read \`scenario.md\` for the operational question.
+2. Inspect \`policy-decision.json\` for the review decision.
+3. Inspect \`scorecard.json\` for the gate and limits.
+4. Use \`task-artefacts.json\` to verify hashes and provenance.
+`;
+}
+
 function weightedScore(scores, weights) {
 	const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
 	const total = Object.entries(scores).reduce(
@@ -304,15 +369,30 @@ function weightedScore(scores, weights) {
 	return Math.round((total / totalWeight) * 100) / 100;
 }
 
+function evidenceForSandboxCriterion(criterion) {
+	const evidence = {
+		manifestPolicy: "Denied extension records missing capabilities.",
+		lifecycleEvidence: "Lifecycle events are recorded for completed and failed paths.",
+		failureIsolation: "Warn+continue keeps the host running after isolated failure.",
+		strictAbort: "Fail-fast aborts on the failing extension path.",
+		humanReview: "Policy decision requires operator review.",
+	};
+	return evidence[criterion] ?? "Synthetic report evidence.";
+}
+
 export function buildTaskArtefactManifest(writtenArtifacts) {
 	const roles = {
 		"sandbox-report.json": "dataset",
 		"policy-decision.json": "receipt",
 		"scorecard.json": "report",
+		"scenario.md": "report",
+		"annex.md": "report",
 		"sandbox-report.md": "report",
 	};
 	const labels = {
 		"scorecard.json": ["scorecard", "pilot"],
+		"scenario.md": ["scenario", "reader-path"],
+		"annex.md": ["annex", "evidence-map"],
 	};
 
 	return {
@@ -350,6 +430,8 @@ export function writeArtifacts(outDir) {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
 		"scorecard.json": jsonText(scorecard),
+		"scenario.md": buildScenarioMarkdown(report),
+		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);
