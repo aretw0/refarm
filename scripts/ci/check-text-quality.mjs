@@ -2,7 +2,7 @@
 import { relative } from "node:path";
 import {
 	DEFAULT_TEXT_QUALITY_CONFIG,
-	loadTextQualityConfig,
+	loadDiscoveredTextQualityConfig,
 	scoreFile,
 	severityCounts,
 } from "./text-quality-lib.mjs";
@@ -12,7 +12,7 @@ function usage() {
 		"Usage: node scripts/ci/check-text-quality.mjs [options] <file...>",
 		"",
 		"Options:",
-		"  --config <path>    JSON rules file",
+		"  --config <path>    JSON rules file (defaults to .refarm/text-quality.json when present)",
 		"  --profile <name>   Rules profile (default: default)",
 		"  --audience <name>  Audience override",
 		"  --json             Print machine-readable report",
@@ -120,7 +120,9 @@ async function main() {
 		return 2;
 	}
 
-	const config = await loadTextQualityConfig(args.config);
+	const { config, configPath } = await loadDiscoveredTextQualityConfig({
+		configPath: args.config,
+	});
 	const files = [];
 	for (const file of args.files) {
 		const scored = await scoreFile(file, config ?? DEFAULT_TEXT_QUALITY_CONFIG, {
@@ -145,6 +147,9 @@ async function main() {
 		command: "check-text-quality",
 		profile: args.profile,
 		audience: args.audience ?? null,
+		configPath: configPath
+			? relative(process.cwd(), configPath).replace(/\\/gu, "/")
+			: null,
 		summary: {
 			total: files.length,
 			fail: totals.fail,

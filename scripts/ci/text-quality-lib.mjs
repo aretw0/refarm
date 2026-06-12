@@ -1,5 +1,7 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
+
+export const DEFAULT_TEXT_QUALITY_CONFIG_PATHS = [".refarm/text-quality.json"];
 
 export const DEFAULT_TEXT_QUALITY_CONFIG = {
 	version: 1,
@@ -312,6 +314,31 @@ export async function loadTextQualityConfig(configPath) {
 	if (!configPath) return DEFAULT_TEXT_QUALITY_CONFIG;
 	const raw = await readFile(configPath, "utf8");
 	return JSON.parse(raw);
+}
+
+export async function resolveTextQualityConfigPath(cwd = process.cwd()) {
+	for (const candidate of DEFAULT_TEXT_QUALITY_CONFIG_PATHS) {
+		const resolved = path.resolve(cwd, candidate);
+		try {
+			await access(resolved);
+			return resolved;
+		} catch (error) {
+			if (error?.code !== "ENOENT") throw error;
+		}
+	}
+	return null;
+}
+
+export async function loadDiscoveredTextQualityConfig({
+	configPath,
+	cwd = process.cwd(),
+} = {}) {
+	const resolvedConfigPath = configPath ?? (await resolveTextQualityConfigPath(cwd));
+	const config = await loadTextQualityConfig(resolvedConfigPath);
+	return {
+		config,
+		configPath: resolvedConfigPath,
+	};
 }
 
 export async function scoreFile(file, config, { profile = "default", audience } = {}) {

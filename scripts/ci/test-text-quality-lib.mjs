@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,6 +9,7 @@ import {
 	effectiveTextQualityConfig,
 	proseParagraphs,
 	readFrontmatterField,
+	resolveTextQualityConfigPath,
 	scoreText,
 	severityCounts,
 	stripFrontmatter,
@@ -149,6 +150,103 @@ test("text quality cli emits json report", () => {
 		assert.equal(payload.command, "check-text-quality");
 		assert.equal(payload.summary.warn, 1);
 		assert.equal(payload.files[0].findings[0].rule, "draft-markers");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli discovers project-local .refarm config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(
+			path.join(refarmDir, "text-quality.json"),
+			JSON.stringify({
+				...DEFAULT_TEXT_QUALITY_CONFIG,
+				riskPatterns: [
+					{
+						id: "consumer-marker",
+						severity: "fail",
+						description: "Consumer marker detected.",
+						regex: "\\bCONSUMER_MARKER\\b",
+					},
+				],
+			}),
+			"utf8",
+		);
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "CONSUMER_MARKER\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 1, result.stderr);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.configPath, ".refarm/text-quality.json");
+		assert.equal(payload.summary.fail, 1);
+		assert.equal(payload.files[0].findings[0].rule, "consumer-marker");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli explicit config overrides discovered config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(
+			path.join(refarmDir, "text-quality.json"),
+			JSON.stringify({
+				...DEFAULT_TEXT_QUALITY_CONFIG,
+				riskPatterns: [
+					{
+						id: "discovered-marker",
+						severity: "fail",
+						description: "Discovered marker detected.",
+						regex: "\\bMARKER\\b",
+					},
+				],
+			}),
+			"utf8",
+		);
+		const explicitConfig = path.join(dir, "explicit.json");
+		writeFileSync(
+			explicitConfig,
+			JSON.stringify({
+				...DEFAULT_TEXT_QUALITY_CONFIG,
+				riskPatterns: [],
+			}),
+			"utf8",
+		);
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "MARKER\n", "utf8");
+		const result = spawnSync(
+			process.execPath,
+			[cliPath, "--json", "--config", explicitConfig, file],
+			{
+				cwd: dir,
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			},
+		);
+
+		assert.equal(result.status, 0, result.stderr);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.summary.fail, 0);
+		assert.equal(payload.configPath, "explicit.json");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality config resolver returns null when no config exists", async () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		assert.equal(await resolveTextQualityConfigPath(dir), null);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}

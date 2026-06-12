@@ -279,6 +279,10 @@ Rules:
   generic prose checks.
 - Consumer-specific rubrics, dashboards, notebooks, and submission language
   stay in consumer repositories such as `vault-seed` or writing vaults.
+- Consumers may opt in with `.refarm/text-quality.json`. The CLI discovers that
+  file automatically, while `--config <path>` remains the explicit override for
+  experiments, CI jobs, or consumer-specific wrappers. This keeps Refarm policy
+  out of surprising root-level files.
 - `pnpm run text-quality:test` validates the scorer and CLI behavior.
 - `pnpm run docs:text-quality` checks selected Refarm calibration docs.
 - `pnpm run text-quality:verify` composes both checks.
