@@ -147,6 +147,7 @@ test("text quality cli emits json report", () => {
 
 		assert.equal(result.status, 0, result.stderr);
 		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, true);
 		assert.equal(payload.command, "check-text-quality");
 		assert.equal(payload.summary.warn, 1);
 		assert.equal(payload.files[0].findings[0].rule, "draft-markers");
@@ -247,6 +248,31 @@ test("text quality config resolver returns null when no config exists", async ()
 	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
 	try {
 		assert.equal(await resolveTextQualityConfigPath(dir), null);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli emits json error for invalid discovered config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(path.join(refarmDir, "text-quality.json"), "{", "utf8");
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "Plain note.\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 1);
+		assert.equal(result.stderr, "");
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_JSON");
+		assert.equal(payload.error.configPath, ".refarm/text-quality.json");
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}

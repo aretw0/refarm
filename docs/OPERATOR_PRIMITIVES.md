@@ -283,6 +283,9 @@ Rules:
   file automatically, while `--config <path>` remains the explicit override for
   experiments, CI jobs, or consumer-specific wrappers. This keeps Refarm policy
   out of surprising root-level files.
+- `--json` reports include `ok: true` on success. Configuration failures report
+  `ok: false` with a stable `error.code`, message, and relative `configPath` so
+  agents can recover without scraping stack traces.
 - `pnpm run text-quality:test` validates the scorer and CLI behavior.
 - `pnpm run docs:text-quality` checks selected Refarm calibration docs.
 - `pnpm run text-quality:verify` composes both checks.

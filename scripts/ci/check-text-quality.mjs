@@ -98,6 +98,28 @@ function printHuman(report) {
 	}
 }
 
+function relativePath(value) {
+	return value ? relative(process.cwd(), value).replace(/\\/gu, "/") : null;
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function printJsonError(error) {
+	const payload = {
+		schemaVersion: 1,
+		command: "check-text-quality",
+		ok: false,
+		error: {
+			code: error?.code ?? "ERR_TEXT_QUALITY",
+			message: errorMessage(error),
+			configPath: relativePath(error?.configPath),
+		},
+	};
+	console.log(JSON.stringify(payload, null, 2));
+}
+
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
 	if (args.help) {
@@ -120,19 +142,32 @@ async function main() {
 		return 2;
 	}
 
-	const { config, configPath } = await loadDiscoveredTextQualityConfig({
-		configPath: args.config,
-	});
+	let config;
+	let configPath;
 	const files = [];
-	for (const file of args.files) {
-		const scored = await scoreFile(file, config ?? DEFAULT_TEXT_QUALITY_CONFIG, {
-			audience: args.audience,
-			profile: args.profile,
+	try {
+		const loaded = await loadDiscoveredTextQualityConfig({
+			configPath: args.config,
 		});
-		files.push({
-			...scored,
-			path: relative(process.cwd(), scored.path).replace(/\\/gu, "/"),
-		});
+		config = loaded.config;
+		configPath = loaded.configPath;
+		for (const file of args.files) {
+			const scored = await scoreFile(file, config ?? DEFAULT_TEXT_QUALITY_CONFIG, {
+				audience: args.audience,
+				profile: args.profile,
+			});
+			files.push({
+				...scored,
+				path: relativePath(scored.path),
+			});
+		}
+	} catch (error) {
+		if (args.json) {
+			printJsonError(error);
+		} else {
+			console.error(errorMessage(error));
+		}
+		return 1;
 	}
 
 	const totals = { fail: 0, warn: 0, info: 0 };
@@ -145,11 +180,10 @@ async function main() {
 	const report = {
 		schemaVersion: 1,
 		command: "check-text-quality",
+		ok: true,
 		profile: args.profile,
 		audience: args.audience ?? null,
-		configPath: configPath
-			? relative(process.cwd(), configPath).replace(/\\/gu, "/")
-			: null,
+		configPath: relativePath(configPath),
 		summary: {
 			total: files.length,
 			fail: totals.fail,

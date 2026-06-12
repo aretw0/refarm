@@ -313,7 +313,16 @@ export function statusForFindings(findings) {
 export async function loadTextQualityConfig(configPath) {
 	if (!configPath) return DEFAULT_TEXT_QUALITY_CONFIG;
 	const raw = await readFile(configPath, "utf8");
-	return JSON.parse(raw);
+	try {
+		return JSON.parse(raw);
+	} catch (cause) {
+		const error = new Error(`Invalid text quality config JSON: ${configPath}`, {
+			cause,
+		});
+		error.code = "ERR_TEXT_QUALITY_CONFIG_JSON";
+		error.configPath = configPath;
+		throw error;
+	}
 }
 
 export async function resolveTextQualityConfigPath(cwd = process.cwd()) {
