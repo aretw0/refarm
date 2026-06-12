@@ -61,6 +61,9 @@ result to operational value.
   `consumer`, `vault`, and `claim-promotion`.
 - `limits.md` reports for each POC, exposed through labels `limits`,
   `adoption`, and `claim-boundary`.
+- `validations/poc-evidence-index.json`, a suite-level reader map that points
+  each theme to scenario, annex, scorecard, risk, limits, and claim-promotion
+  evidence.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -125,11 +128,18 @@ Each POC should grow one lightweight "demonstration packet":
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.
 
+8. `poc-evidence-index.json`
+   - Implemented at `validations/poc-evidence-index.json`.
+   - Provides the suite-level reading order and claim-promotion pointers.
+   - Keeps consumer navigation generic instead of embedding vault or proposal
+     semantics in Refarm.
+
 ## Recommended Next Slices
 
 1. Run the dedicated real WASM/browser lifecycle E2E in target environments
    before using stronger real-execution wording.
-2. Let a downstream writing or vault project select `limits.md` from each
+2. Let a downstream writing or vault project read
+   `validations/poc-evidence-index.json`, then select `limits.md` from each
    manifest before converting evidence into proposal text.
 3. Let vault-seed consume those manifests later, instead of moving vault UX into
    Refarm.

@@ -213,7 +213,10 @@ synthetic draft-pressure POCs. It runs the wallet, extension sandbox, and
 governed note box tests, then validates every `refarm.task-artefacts.v1`
 manifest under `validations/`. It also runs a consumer smoke that selects
 artefacts from the POC manifests through `@refarm.dev/artefact-contract-v1`
-instead of hard-coding report filenames.
+instead of hard-coding report filenames. The same lane checks
+`validations/poc-evidence-index.json`, a generated reader map for downstream
+writing, lab, or vault consumers that need scenario, annex, scorecard, limits,
+and claim-promotion pointers without adopting Refarm-specific app semantics.
 
 The host smoke auto router maps POC source/test deltas to the
 `validation-pocs` profile. Expected fixture/report deltas stay on the narrower

@@ -45,7 +45,10 @@ pnpm run validation-pocs:test
 
 This command runs all three synthetic POCs, validates every
 `refarm.task-artefacts.v1` manifest, and verifies consumer selection through
-`@refarm.dev/artefact-contract-v1`.
+`@refarm.dev/artefact-contract-v1`. It also checks
+`validations/poc-evidence-index.json`, the reader-facing map from each theme to
+its scenario, annex, scorecard, risk matrix, limits, and claim-promotion
+evidence.
 
 ## Theme 1 Evidence: Extension Sandbox
 
@@ -141,14 +144,16 @@ Publication scope non-claims:
 
 ## Practical Writing Order
 
-1. Start each theme from its `scenario.md`.
-2. Use `annex.md` to decide which artefacts deserve mention or annex treatment.
-3. Use `scorecard.json` only for pilot criteria, not as a universal quality
+1. Start from `validations/poc-evidence-index.json` to locate the theme and
+   reader path.
+2. Read each theme from its `scenario.md`.
+3. Use `annex.md` to decide which artefacts deserve mention or annex treatment.
+4. Use `scorecard.json` only for pilot criteria, not as a universal quality
    score.
-4. Use `risk-and-standards-matrix.json` when writing about risks, standards
+5. Use `risk-and-standards-matrix.json` when writing about risks, standards
    direction, and remaining work.
-5. Use `limits.md` before final wording to keep claims inside proven evidence.
-6. Use `task-artefacts.json` when writing about reproducibility, provenance, or
+6. Use `limits.md` before final wording to keep claims inside proven evidence.
+7. Use `task-artefacts.json` when writing about reproducibility, provenance, or
    auditability.
-7. Keep private, institutional, and submission-specific wording in the external
+8. Keep private, institutional, and submission-specific wording in the external
    writing vault.

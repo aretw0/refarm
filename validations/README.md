@@ -73,5 +73,13 @@ validations/
 ```bash
 pnpm run test:e2e       # Playwright E2E (wasm-plugin/host)
 pnpm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
+pnpm run validation-pocs:test # POCs sintéticas + manifests + índice
 pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ```
+
+## Índice de Evidências POC
+
+`poc-evidence-index.json` é gerado por `pnpm run validation-pocs:index` a
+partir dos manifests `refarm.task-artefacts.v1`. Ele serve como mapa de leitura
+para consumidores externos: cenário, anexo, scorecard, limites e evidências de
+promoção de claims por tema.
