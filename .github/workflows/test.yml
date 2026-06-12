@@ -37,6 +37,7 @@ jobs:
       run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
       run_deep: ${{ steps.detect.outputs.run_deep }}
+      text_quality_changes: ${{ steps.detect.outputs.text_quality_changes }}
       skip_duplicate_push: ${{ steps.detect.outputs.skip_duplicate_push }}
       quality_cache_key: ${{ steps.signatures.outputs.quality_key }}
       e2e_cache_key: ${{ steps.signatures.outputs.e2e_key }}
@@ -81,6 +82,7 @@ jobs:
               echo "run_task_smoke=false" >> "$GITHUB_OUTPUT"
               echo "run_audit=false" >> "$GITHUB_OUTPUT"
               echo "run_deep=false" >> "$GITHUB_OUTPUT"
+              echo "text_quality_changes=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
@@ -119,6 +121,7 @@ jobs:
             echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
             echo "run_audit=true" >> "$GITHUB_OUTPUT"
             echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
+            echo "text_quality_changes=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -177,6 +180,11 @@ jobs:
             run_audit=true
           fi
 
+          text_quality_changes=false
+          if has_match '^(scripts/ci/(check-text-quality|test-text-quality-lib|text-quality-lib)\.mjs|docs/(POC_VALIDATION_PRESSURE|POC_PRIZE_READINESS|VAULT_SEED_CONVERGENCE)\.md)$'; then
+            text_quality_changes=true
+          fi
+
           turbo_filter="...[$BASE_SHA]"
 
           echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
@@ -192,8 +200,9 @@ jobs:
           echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
           echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
+          echo "text_quality_changes=$text_quality_changes" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates tractor_heavy_gates=$tractor_heavy_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep filter=$turbo_filter"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates tractor_heavy_gates=$tractor_heavy_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep text_quality=$text_quality_changes filter=$turbo_filter"
 
       - name: Compute validation signatures
         id: signatures
@@ -288,6 +297,12 @@ jobs:
 
       - name: Validate .project cross-block consistency
         run: node scripts/ci/project-block-consistency.mjs
+
+      - name: Text quality verify
+        if: needs.changes.outputs.text_quality_changes == 'true'
+        run: |
+          node --test scripts/ci/test-text-quality-lib.mjs
+          node scripts/ci/check-text-quality.mjs docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/VAULT_SEED_CONVERGENCE.md
 
       - name: Setup
         id: setup

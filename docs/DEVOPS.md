@@ -473,6 +473,10 @@ Implementation baseline:
   `CARGO_HTTP_MULTIPLEXING=false` to avoid intermittent crates.io HTTP/2
   framing failures during `cargo component build`. This is a transport
   hardening setting, not a compilation bypass.
+- **Text quality gate:** selected calibration docs and the dependency-free
+  text-quality scorer run a direct Node-only check in `Test & Quality` when
+  those files change. This keeps docs/prose pressure visible without forcing
+  full package installation for unrelated docs-only edits.
 
 ### Invalidation Rules
 
