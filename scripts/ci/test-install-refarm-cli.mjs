@@ -70,6 +70,15 @@ test("install-refarm-cli dry-run can emit a machine-readable handoff", () => {
 		assert.equal(payload.shims.posix, path.join(binDir, "refarm"));
 		assert.equal(payload.nextCommand, expectedNextCommand(binDir));
 		assert.deepEqual(payload.nextCommands, [expectedNextCommand(binDir)]);
+		assert.deepEqual(payload.nextProcesses, [
+			{
+				command: process.platform === "win32"
+					? path.join(binDir, "refarm.cmd")
+					: path.join(binDir, "refarm"),
+				args: ["check", "--next-action", "--json"],
+				display: expectedNextCommand(binDir),
+			},
+		]);
 		assert.equal(existsSync(path.join(binDir, "refarm")), false);
 	} finally {
 		rmSync(binDir, { recursive: true, force: true });
@@ -92,6 +101,15 @@ test("install-refarm-cli quotes explicit shim handoff paths with spaces", () => 
 		assert.equal(payload.binDirInPath, false);
 		assert.equal(payload.nextCommand, expectedNextCommand(binDir));
 		assert.match(payload.nextCommand, /^["']|^[A-Z]:\\/);
+		assert.deepEqual(payload.nextProcesses, [
+			{
+				command: process.platform === "win32"
+					? path.join(binDir, "refarm.cmd")
+					: path.join(binDir, "refarm"),
+				args: ["check", "--next-action", "--json"],
+				display: expectedNextCommand(binDir),
+			},
+		]);
 	} finally {
 		rmSync(parentDir, { recursive: true, force: true });
 	}
@@ -112,6 +130,13 @@ test("install-refarm-cli handoff uses refarm when the bin directory is already i
 		assert.equal(payload.binDirInPath, true);
 		assert.equal(payload.nextCommand, "refarm check --next-action --json");
 		assert.deepEqual(payload.nextCommands, ["refarm check --next-action --json"]);
+		assert.deepEqual(payload.nextProcesses, [
+			{
+				command: "refarm",
+				args: ["check", "--next-action", "--json"],
+				display: "refarm check --next-action --json",
+			},
+		]);
 	} finally {
 		rmSync(binDir, { recursive: true, force: true });
 	}

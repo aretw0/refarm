@@ -260,6 +260,16 @@ const nextCommandName = binDirInPath
 	? "refarm"
 	: quoteCommandPath(process.platform === "win32" ? cmdPath : shimPath);
 const nextCommand = `${nextCommandName} check --next-action --json`;
+const nextProcessCommand = binDirInPath
+	? "refarm"
+	: process.platform === "win32"
+		? cmdPath
+		: shimPath;
+const nextProcess = {
+	command: nextProcessCommand,
+	args: ["check", "--next-action", "--json"],
+	display: nextCommand,
+};
 
 if (options.json) {
 	printJson({
@@ -291,6 +301,7 @@ if (options.json) {
 		warnings,
 		nextCommand,
 		nextCommands: [nextCommand],
+		nextProcesses: [nextProcess],
 	});
 } else {
 	if (!binDirInPath) {
