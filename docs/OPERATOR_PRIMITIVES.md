@@ -285,7 +285,8 @@ Rules:
   out of surprising root-level files.
 - `--json` reports include `ok: true` on success. Configuration failures report
   `ok: false` with a stable `error.code`, message, and relative `configPath` so
-  agents can recover without scraping stack traces.
+  agents can recover without scraping stack traces. Semantic config failures use
+  `ERR_TEXT_QUALITY_CONFIG_SCHEMA` and include `error.issues`.
 - `pnpm run text-quality:test` validates the scorer and CLI behavior.
 - `pnpm run docs:text-quality` checks selected Refarm calibration docs.
 - `pnpm run text-quality:verify` composes both checks.

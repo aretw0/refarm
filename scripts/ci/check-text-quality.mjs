@@ -115,6 +115,7 @@ function printJsonError(error) {
 			code: error?.code ?? "ERR_TEXT_QUALITY",
 			message: errorMessage(error),
 			configPath: relativePath(error?.configPath),
+			issues: Array.isArray(error?.issues) ? error.issues : [],
 		},
 	};
 	console.log(JSON.stringify(payload, null, 2));

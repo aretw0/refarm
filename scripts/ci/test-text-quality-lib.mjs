@@ -13,6 +13,7 @@ import {
 	scoreText,
 	severityCounts,
 	stripFrontmatter,
+	validateTextQualityConfig,
 	wordCount,
 } from "./text-quality-lib.mjs";
 
@@ -253,6 +254,22 @@ test("text quality config resolver returns null when no config exists", async ()
 	}
 });
 
+test("text quality config validator rejects invalid schema", () => {
+	assert.throws(
+		() =>
+			validateTextQualityConfig({
+				longSentenceWords: -1,
+				riskPatterns: [{ id: "", severity: "fatal", regex: "[" }],
+			}),
+		(error) => {
+			assert.equal(error.code, "ERR_TEXT_QUALITY_CONFIG_SCHEMA");
+			assert.match(error.message, /longSentenceWords/u);
+			assert.match(error.message, /riskPatterns\[0\]\.severity/u);
+			return true;
+		},
+	);
+});
+
 test("text quality cli emits json error for invalid discovered config", () => {
 	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
 	try {
@@ -273,6 +290,36 @@ test("text quality cli emits json error for invalid discovered config", () => {
 		assert.equal(payload.ok, false);
 		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_JSON");
 		assert.equal(payload.error.configPath, ".refarm/text-quality.json");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli emits json schema error for invalid discovered config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(
+			path.join(refarmDir, "text-quality.json"),
+			JSON.stringify({ riskPatterns: "nope" }),
+			"utf8",
+		);
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "Plain note.\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 1);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_SCHEMA");
+		assert.equal(payload.error.configPath, ".refarm/text-quality.json");
+		assert.deepEqual(payload.error.issues, ["riskPatterns must be an array"]);
+		assert.match(payload.error.message, /riskPatterns must be an array/u);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
