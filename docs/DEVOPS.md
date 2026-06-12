@@ -469,6 +469,10 @@ Implementation baseline:
 - **E2E affected-first execution:** `Run E2E Tests (affected)` uses `--filter=${{ needs.changes.outputs.turbo_filter }}` when base commit is locally resolvable; otherwise falls back to full E2E safely.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
 - **Vitest reporting (CI):** default Vitest GitHub summary blocks are suppressed and replaced with an aggregated detailed report (`.artifacts/vitest/summary.md` + uploaded artifact `vitest-detailed-report`).
+- **Cargo registry transport:** WASM build jobs set
+  `CARGO_HTTP_MULTIPLEXING=false` to avoid intermittent crates.io HTTP/2
+  framing failures during `cargo component build`. This is a transport
+  hardening setting, not a compilation bypass.
 
 ### Invalidation Rules
 

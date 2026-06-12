@@ -108,6 +108,8 @@ jobs:
     name: ${{ matrix.name }}
     needs: [matrix-setup]
     runs-on: ubuntu-latest
+    env:
+      CARGO_HTTP_MULTIPLEXING: "false"
     # If matrix is empty, this job is skipped automatically
     if: ${{ fromJson(needs.matrix-setup.outputs.matrix).include[0] != null }}
     strategy:
