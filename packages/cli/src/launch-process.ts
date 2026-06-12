@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { shellCommand } from "./command-handoff.js";
 import { splitCommandLine } from "./command-line.js";
 
 export interface LaunchProcessSpec {
@@ -15,6 +16,18 @@ export interface LaunchProcessRunOptions {
 	capture?: boolean;
 	env?: NodeJS.ProcessEnv;
 }
+
+export interface LaunchProcessRunnerOptions extends LaunchProcessRunOptions {
+	cwd?: string;
+	display?: string;
+	packageManager?: string | null;
+}
+
+export type LaunchProcessRunner = (
+	command: string,
+	args: string[],
+	options?: LaunchProcessRunnerOptions,
+) => Promise<void>;
 
 export interface LaunchProcessRunResult {
 	exitCode: number;
@@ -40,6 +53,22 @@ export function createLaunchProcessSpec(
 		...parsed,
 		...(options.cwd ? { cwd: options.cwd } : {}),
 		display: commandDisplay,
+	};
+}
+
+export function createLaunchProcessSpecFromRunner(
+	command: string,
+	args: string[],
+	options: LaunchProcessRunnerOptions = {},
+): LaunchProcessSpec {
+	return {
+		command,
+		args,
+		...(options.cwd ? { cwd: options.cwd } : {}),
+		...(options.packageManager !== undefined
+			? { packageManager: options.packageManager }
+			: {}),
+		display: options.display ?? shellCommand(command, args),
 	};
 }
 
@@ -98,6 +127,21 @@ export function runLaunchProcess(
 export async function launchProcess(spec: LaunchProcessSpec): Promise<number> {
 	const result = await runLaunchProcess(spec);
 	return result.exitCode;
+}
+
+export function createLaunchProcessRunner(
+	runProcess: (
+		spec: LaunchProcessSpec,
+		options?: LaunchProcessRunOptions,
+	) => Promise<LaunchProcessRunResult> = runLaunchProcess,
+): LaunchProcessRunner {
+	return async (command, args, options = {}) => {
+		const spec = createLaunchProcessSpecFromRunner(command, args, options);
+		const result = await runProcess(spec, options);
+		if (result.exitCode !== 0) {
+			throw new Error(`'${spec.display}' exited with code ${result.exitCode}`);
+		}
+	};
 }
 
 export function launchDetachedProcess(

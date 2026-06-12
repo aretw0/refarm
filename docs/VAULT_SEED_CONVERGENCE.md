@@ -67,6 +67,12 @@ The first integration should be optional. A vault without Refarm should still
 work, while a vault with Refarm installed can ask Refarm to execute, record, and
 handoff richer process metadata.
 
+Refarm now exposes the first generic building block for that path:
+`@refarm.dev/cli/launch-process` provides `createLaunchProcessSpecFromRunner`
+and `createLaunchProcessRunner`. These helpers accept the same runner-shaped
+inputs that `dgk` already uses, keep execution shell-free, and preserve optional
+`cwd`, `display`, and package-manager metadata for later handoffs.
+
 ## 2026-06-11 Read-Only Calibration
 
 The latest read-only pass over the adjacent writing vault and `vault-seed`
@@ -186,8 +192,12 @@ consumer CLI directly to Refarm internals:
      may later adapt to that shape.
    - The existing `dgk-runner` injection point is the likely composition seam:
      keep `dgk` commands product-local, but allow a future runner adapter to
-     execute through Refarm `ApplicationProcessSpec`/`CommandProcessSpec` and
-     JSON handoffs when Refarm is installed.
+     execute through Refarm process specs and JSON handoffs when Refarm is
+     installed.
+   - The first reusable adapter is
+     `createLaunchProcessRunner`/`createLaunchProcessSpecFromRunner` in
+     `@refarm.dev/cli/launch-process`; deeper task recording can wrap the same
+     process boundary later.
 
 3. **Vault/source provenance**
    - `vault-seed` already wants `source`, `run_id`, `agent`, `dataset_version`,

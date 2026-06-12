@@ -176,7 +176,9 @@ export type {
 	OperatorResumeTaskSummary,
 } from "./operator-resume.js";
 export {
+	createLaunchProcessRunner,
 	createLaunchProcessSpec,
+	createLaunchProcessSpecFromRunner,
 	launchDetachedProcess,
 	launchProcess,
 	runLaunchProcess,
@@ -185,6 +187,8 @@ export {
 export type {
 	DetachedLaunchProcess,
 	DetachedLaunchProcessOptions,
+	LaunchProcessRunner,
+	LaunchProcessRunnerOptions,
 	LaunchProcessSpec,
 	LaunchProcessRunOptions,
 	LaunchProcessRunResult,
