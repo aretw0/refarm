@@ -26,6 +26,7 @@
 - **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
 - **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
 - **[PoC Validation Pressure](POC_VALIDATION_PRESSURE.md)** — How local draft pressure maps to reusable Refarm validations without coupling to private writing workflows.
+- **[PoC Prize Readiness](POC_PRIZE_READINESS.md)** — Gap analysis between deterministic validation POCs and submission-ready demonstration packets.
 - **[Colony Playbook](COLONY_PLAYBOOK.md)** — Parallel agent batch execution guide.
 - **[Known Limitations](KNOWN_LIMITATIONS.md)** — Technical hurdles, resource quotas, expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** — Guardrails and publishing hygiene.

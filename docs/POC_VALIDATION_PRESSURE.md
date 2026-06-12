@@ -1,5 +1,8 @@
 # PoC Validation Pressure
 
+For the gap between these deterministic validation POCs and prize-facing
+demonstration packets, see [PoC Prize Readiness](POC_PRIZE_READINESS.md).
+
 Status: calibration note for using local external drafts as pressure without
 coupling Refarm to that writing workflow.
 
