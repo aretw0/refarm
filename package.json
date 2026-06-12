@@ -238,22 +238,6 @@
 		"vitest": "^4.1.4"
 	},
 	"pnpm": {
-		"overrides": {
-			"flatted": "3.4.2",
-			"basic-ftp": "6.0.1",
-			"ip-address": "10.2.0",
-			"astro": "6.2.2",
-			"devalue": "5.8.1",
-			"dompurify": "3.4.2",
-			"postcss": "8.5.10",
-			"uuid": "14.0.0",
-			"fast-uri": "3.1.2",
-			"//security-yaml": "GHSA-48c2-rrv3-qjmp (yaml <2.8.3 stack overflow) — yaml-language-server@1.20.0 pins yaml@2.7.1 as an EXACT version (no ^ or ~). pnpm overrides cannot intercept exact pins — this is by design. The path-specific override below has no effect on this path. Acknowledged as accepted risk: dev tooling only (@astrojs/check language server, not production runtime). Suppressed via --ignore in security:audit and CI moderate gate. REMOVE BOTH when @astrojs/language-server ships volar-service-yaml>=0.0.71 (uses yaml-language-server@1.23.0 which pins yaml@2.8.3 — a semver range).",
-			"yaml": "2.9.0",
-			"yaml-language-server>yaml": "2.9.0",
-			"//jco": "Pin to single version — dual JCO (root v1.17.3 + tractor-ts v1.19.0) caused trampoline0 redeclaration during pi-agent JCO transpilation (static import in plugin-loader.ts was the trigger, now removed).",
-			"@bytecodealliance/jco": "1.19.0"
-		},
 		"onlyBuiltDependencies": [
 			"better-sqlite3",
 			"esbuild",

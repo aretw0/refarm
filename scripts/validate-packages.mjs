@@ -362,6 +362,15 @@ function validateApp(pkgDir, pkg) {
   return violations;
 }
 
+function validateRootPackageManagerConfig() {
+  const violations = [];
+  const rootPkg = readJson(join(ROOT, "package.json"));
+  if (rootPkg?.pnpm?.overrides && Object.keys(rootPkg.pnpm.overrides).length > 0) {
+    violations.push("package.json must not declare pnpm.overrides; use pnpm-workspace.yaml overrides so pnpm-lock.yaml reflects the effective workspace policy");
+  }
+  return violations;
+}
+
 const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => join(PACKAGES_DIR, d.name));
@@ -376,6 +385,16 @@ let violations = 0;
 let exemptions = 0;
 
 console.log(`Validating ${packageDirs.length} packages, ${appDirs.length} apps...\n`);
+
+const rootPackageManagerViolations = validateRootPackageManagerConfig();
+if (rootPackageManagerViolations.length === 0) {
+  console.log("  ✓ root package manager config");
+} else {
+  for (const v of rootPackageManagerViolations) {
+    console.log(`  ✗ root package manager config — ${v}`);
+    violations++;
+  }
+}
 
 for (const pkgDir of packageDirs) {
   const name = pkgDir.split("/").at(-1);

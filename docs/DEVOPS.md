@@ -604,8 +604,8 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 ### Current Status
 
-**Last Audit:** April 19, 2026
-**Total Issues Found:** 0 vulnerabilities
+**Last Audit:** June 12, 2026
+**Unresolved Issues Found:** 0 vulnerabilities
 **Breakdown:**
 
 - ✅ HIGH: 0
@@ -614,43 +614,42 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 ### Remediation Applied
 
-The audit noise that was breaking CI was removed with low-risk transitive dependency overrides in the root `package.json`:
+Security remediation uses effective workspace-level pnpm overrides in `pnpm-workspace.yaml`.
+Do not put transitive resolution policy under `package.json > pnpm.overrides`; in this workspace
+that creates a misleading second source of truth that may not be reflected in `pnpm-lock.yaml`.
 
-```json
-{
-  "overrides": {
-    "basic-ftp": "5.3.0",
-    "yaml-language-server": {
-      "yaml": "2.8.3"
-    }
-  }
-}
+```yaml
+overrides:
+  esbuild: 0.28.1
+  ws: 8.20.1
 ```
 
 #### Why this was safe
 
-1. `basic-ftp` is only pulled transitively by `get-uri` in dev tooling, and `5.3.0` is the upstream patched release for the advisory affecting `<=5.2.2`.
-2. `yaml-language-server` remained on the same package version already required by Astro tooling, but its nested `yaml` dependency was forced to `2.8.3`, which removes the vulnerable `2.7.1` copy without changing the workspace's public API surface.
-3. No app/package source code was changed — only dependency resolution.
+1. `esbuild@0.28.1` is the upstream patched release for `GHSA-gv7w-rqvm-qjhr`.
+2. `ws@8.20.1` is the upstream patched release for `GHSA-58qx-3vcg-4xpx`; the override fixes the vulnerable `wrangler > miniflare` transitive copy while package manifests continue using the central catalog.
+3. The overrides affect dependency resolution without changing app/package source code or public APIs.
+4. `pnpm install --frozen-lockfile`, `pnpm audit`, `pnpm audit --audit-level=high`, and an Astro/Vite build passed after the lockfile update.
 
 ### Verification Commands
 
 ```bash
 pnpm audit
 pnpm audit --audit-level=high
+pnpm run security:fix:dry
 ```
 
 Expected result:
 
 ```text
-No known vulnerabilities found
+No unignored vulnerabilities; pnpm may still count advisories explicitly listed in auditConfig as ignored.
 ```
 
 ### Ongoing Policy
 
 - Keep the CI gate in `.github/workflows/test.yml` blocking `high` and `critical` issues.
 - Keep the scheduled visibility workflow in `.github/workflows/security-audit.yml` generating artifacts for regression tracking.
-- If a future advisory reappears through a transitive dependency, prefer a targeted `overrides` fix before attempting broad major-version upgrades.
+- If a future advisory reappears through a transitive dependency, prefer a targeted `pnpm-workspace.yaml` `overrides` fix before attempting broad major-version upgrades.
 
 ---
 
