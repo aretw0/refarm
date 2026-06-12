@@ -28,7 +28,7 @@ jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check -- --ci
+      validation-command: pnpm exec puppeteer browsers install chrome && REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check -- --ci
       validation-name: Diagrams
       validation-cache-files: |
         docs/**/*.mermaid

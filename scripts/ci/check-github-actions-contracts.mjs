@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const setupActionPath = join(root, ".github", "actions", "setup", "action.yml");
 const testWorkflowPath = join(root, ".github", "workflows", "test.yml");
+const validateDiagramsWorkflowPath = join(root, ".github", "workflows", "validate-diagrams.yml");
 const setupAction = readFileSync(setupActionPath, "utf8");
 const testWorkflow = readFileSync(testWorkflowPath, "utf8");
+const validateDiagramsWorkflow = readFileSync(validateDiagramsWorkflowPath, "utf8");
 
 const failures = [];
 
@@ -86,6 +88,10 @@ if (!platformCompat) {
 		"windows-latest",
 		"platform-compat must not use windows-latest because it can migrate implicitly",
 	);
+}
+
+if (!validateDiagramsWorkflow.includes("pnpm exec puppeteer browsers install chrome")) {
+	failures.push("validate-diagrams must explicitly install the Puppeteer Chrome browser before running mmdc");
 }
 
 if (failures.length === 0) {
