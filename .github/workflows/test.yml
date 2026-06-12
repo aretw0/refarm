@@ -181,7 +181,7 @@ jobs:
           fi
 
           text_quality_changes=false
-          if has_match '^(scripts/ci/(check-text-quality|test-text-quality-lib|text-quality-config-schema|text-quality-lib)\.mjs|docs/(POC_VALIDATION_PRESSURE|POC_PRIZE_READINESS|TEXT_QUALITY_CONFIG|VAULT_SEED_CONVERGENCE)\.md)$'; then
+          if has_match '^(scripts/ci/(check-text-quality|test-text-quality-lib|text-quality-config-schema|text-quality-lib)\.mjs|docs/(POC_VALIDATION_PRESSURE|POC_PRIZE_READINESS|POC_WRITING_HANDOFF|TEXT_QUALITY_CONFIG|VAULT_SEED_CONVERGENCE)\.md)$'; then
             text_quality_changes=true
           fi
 
@@ -302,7 +302,7 @@ jobs:
         if: needs.changes.outputs.text_quality_changes == 'true'
         run: |
           node --test scripts/ci/test-text-quality-lib.mjs
-          node scripts/ci/check-text-quality.mjs docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/TEXT_QUALITY_CONFIG.md docs/VAULT_SEED_CONVERGENCE.md
+          node scripts/ci/check-text-quality.mjs docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/POC_WRITING_HANDOFF.md docs/TEXT_QUALITY_CONFIG.md docs/VAULT_SEED_CONVERGENCE.md
 
       - name: Setup
         id: setup

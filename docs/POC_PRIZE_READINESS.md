@@ -99,12 +99,14 @@ Each POC should grow one lightweight "demonstration packet":
 
 ## Recommended Next Slices
 
-1. Add visual diagrams or compact flow tables for the three annexes.
-2. Add standards and risk mapping only as careful, non-conformance claims.
-3. Add `limits.md` only if the existing scenario/annex files become too dense.
-4. Let vault-seed consume those manifests later, instead of moving vault UX into
+1. Add standards and risk mapping only as careful, non-conformance claims.
+2. Add `limits.md` only if the existing scenario/annex files become too dense.
+3. Let vault-seed consume those manifests later, instead of moving vault UX into
    Refarm.
 
 This keeps Refarm on the right side of the boundary: it becomes the source of
 portable evidence primitives, while the prize vault remains the writing and
 submission surface.
+
+For a writer-facing map of which generated artefacts support which sanitized
+claims, see [POC Writing Handoff](POC_WRITING_HANDOFF.md).

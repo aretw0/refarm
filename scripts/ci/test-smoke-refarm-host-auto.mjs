@@ -448,6 +448,10 @@ test("detects text quality surface files", () => {
 		true,
 	);
 	assert.equal(
+		isTextQualitySurfaceFile("docs/POC_WRITING_HANDOFF.md"),
+		true,
+	);
+	assert.equal(
 		isTextQualitySurfaceFile("docs/TEXT_QUALITY_CONFIG.md"),
 		true,
 	);
@@ -571,6 +575,7 @@ test("routes text quality deltas to focused docs quality lane", () => {
 			"scripts/ci/text-quality-config-schema.mjs",
 			"scripts/ci/test-text-quality-lib.mjs",
 			"docs/TEXT_QUALITY_CONFIG.md",
+			"docs/POC_WRITING_HANDOFF.md",
 			"docs/VAULT_SEED_CONVERGENCE.md",
 		]).profile,
 		"text-quality",
