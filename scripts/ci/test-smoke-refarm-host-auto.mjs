@@ -440,6 +440,10 @@ test("detects text quality surface files", () => {
 		true,
 	);
 	assert.equal(
+		isTextQualitySurfaceFile("scripts/ci/text-quality-config-schema.mjs"),
+		true,
+	);
+	assert.equal(
 		isTextQualitySurfaceFile("docs/POC_PRIZE_READINESS.md"),
 		true,
 	);
@@ -560,6 +564,7 @@ test("routes text quality deltas to focused docs quality lane", () => {
 	assert.equal(
 		decideProfile([
 			"scripts/ci/text-quality-lib.mjs",
+			"scripts/ci/text-quality-config-schema.mjs",
 			"scripts/ci/test-text-quality-lib.mjs",
 			"docs/VAULT_SEED_CONVERGENCE.md",
 		]).profile,

@@ -181,7 +181,7 @@ jobs:
           fi
 
           text_quality_changes=false
-          if has_match '^(scripts/ci/(check-text-quality|test-text-quality-lib|text-quality-lib)\.mjs|docs/(POC_VALIDATION_PRESSURE|POC_PRIZE_READINESS|VAULT_SEED_CONVERGENCE)\.md)$'; then
+          if has_match '^(scripts/ci/(check-text-quality|test-text-quality-lib|text-quality-config-schema|text-quality-lib)\.mjs|docs/(POC_VALIDATION_PRESSURE|POC_PRIZE_READINESS|VAULT_SEED_CONVERGENCE)\.md)$'; then
             text_quality_changes=true
           fi
 

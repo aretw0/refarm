@@ -278,6 +278,7 @@ export function isTaskArtefactManifestFile(file) {
 export function isTextQualitySurfaceFile(file) {
 	return (
 		file === "scripts/ci/check-text-quality.mjs" ||
+		file === "scripts/ci/text-quality-config-schema.mjs" ||
 		file === "scripts/ci/test-text-quality-lib.mjs" ||
 		file === "scripts/ci/text-quality-lib.mjs" ||
 		file === "docs/POC_VALIDATION_PRESSURE.md" ||
