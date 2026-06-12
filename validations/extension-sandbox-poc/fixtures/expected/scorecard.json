@@ -1,0 +1,30 @@
+{
+  "id": "scorecard-extension-sandbox-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "scale": 5,
+  "gate": "continue",
+  "finalScore": 4.85,
+  "scores": {
+    "manifestPolicy": 5,
+    "lifecycleEvidence": 5,
+    "failureIsolation": 5,
+    "strictAbort": 5,
+    "humanReview": 4
+  },
+  "weights": {
+    "manifestPolicy": 0.25,
+    "lifecycleEvidence": 0.2,
+    "failureIsolation": 0.2,
+    "strictAbort": 0.2,
+    "humanReview": 0.15
+  },
+  "thresholds": {
+    "continue": 4.5,
+    "needsHumanReview": 3.5,
+    "doNotScaleBelow": 3.5
+  },
+  "limits": [
+    "Simulated lifecycle only; this scorecard does not prove real WASM execution.",
+    "Capability expansion must remain human-reviewed before adoption."
+  ]
+}

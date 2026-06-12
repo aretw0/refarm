@@ -4,13 +4,14 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import {
 	authorizationPayload,
+	buildPilotScorecard,
+	buildTaskArtefactManifest,
 	createAuthorizationReceipt,
 	createAuthorityAttributes,
-	createRevocationEvent,
 	createConsentDecision,
+	createRevocationEvent,
 	createSelectivePresentation,
 	createServiceRequest,
-	buildTaskArtefactManifest,
 	runWalletPoc,
 	verifyPayloadSignature,
 } from "./wallet-poc.mjs";
@@ -90,6 +91,20 @@ describe("citizen data wallet poc", () => {
 		assert.equal(decision.revocation.usableAfterRevocation, false);
 	});
 
+	it("publishes a pilot scorecard with adoption thresholds", () => {
+		const result = runWalletPoc();
+		const scorecard = buildPilotScorecard(result);
+
+		assert.deepEqual(readFixture("scorecard.json"), scorecard);
+		assert.equal(scorecard.scale, 5);
+		assert.equal(scorecard.gate, "continue");
+		assert.equal(scorecard.finalScore, 4.9);
+		assert.equal(scorecard.scores.selectiveDisclosure, 5);
+		assert.equal(scorecard.scores.humanReview, 4);
+		assert.equal(scorecard.thresholds.continue, 4.5);
+		assert.match(scorecard.limits[0], /Synthetic signature/);
+	});
+
 	it("keeps generated fixtures small, synthetic, and deterministic", () => {
 		const result = runWalletPoc();
 
@@ -113,7 +128,7 @@ describe("citizen data wallet poc", () => {
 		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artefacts.length, 8);
+		assert.equal(manifest.artefacts.length, 9);
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
 			[
@@ -124,6 +139,7 @@ describe("citizen data wallet poc", () => {
 				"selective-presentation.json",
 				"revocation-event.json",
 				"consent-decision.json",
+				"scorecard.json",
 				"audit-trail.md",
 			],
 		);

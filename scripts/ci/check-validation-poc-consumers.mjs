@@ -56,6 +56,13 @@ assert.equal(
 	findTaskArtefactById(wallet, "audit-trail")?.mediaType,
 	"text/markdown",
 );
+assert.deepEqual(
+	ids(selectTaskArtefacts(wallet, {
+		labels: ["scorecard"],
+		roles: ["report"],
+	})),
+	["scorecard"],
+);
 
 const extension = readManifest(MANIFESTS.extension);
 assert.deepEqual(
@@ -69,6 +76,13 @@ assert.deepEqual(
 assert.equal(
 	findTaskArtefactById(extension, "policy-decision-json")?.mediaType,
 	"application/json",
+);
+assert.deepEqual(
+	ids(selectTaskArtefacts(extension, {
+		labels: ["scorecard"],
+		roles: ["report"],
+	})),
+	["scorecard-json"],
 );
 
 const notes = readManifest(MANIFESTS.notes);
@@ -96,6 +110,13 @@ assert.equal(
 		roles: ["audit-trail"],
 	})[0]?.id,
 	"publication-preflight",
+);
+assert.deepEqual(
+	ids(selectTaskArtefacts(notes, {
+		labels: ["scorecard"],
+		roles: ["report"],
+	})),
+	["scorecard"],
 );
 assert.equal(findTaskArtefactById(notes, "human-review")?.mediaType, "text/markdown");
 

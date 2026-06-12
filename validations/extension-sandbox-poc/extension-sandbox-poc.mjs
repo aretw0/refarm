@@ -225,6 +225,43 @@ export function buildPolicyDecision(policies) {
 	};
 }
 
+export function buildPilotScorecard(report) {
+	const scores = {
+		manifestPolicy: report.checks.deniedBlocked ? 5 : 0,
+		lifecycleEvidence: report.checks.lifecycleEventsRecorded >= 6 ? 5 : 2,
+		failureIsolation: report.checks.warnContinueSurvivesFailure ? 5 : 0,
+		strictAbort: report.checks.failFastAbortsFailure ? 5 : 0,
+		humanReview: report.policyDecision.operatorReview.required ? 4 : 0,
+	};
+	const weights = {
+		manifestPolicy: 0.25,
+		lifecycleEvidence: 0.2,
+		failureIsolation: 0.2,
+		strictAbort: 0.2,
+		humanReview: 0.15,
+	};
+	const finalScore = weightedScore(scores, weights);
+
+	return {
+		id: "scorecard-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		scale: 5,
+		gate: finalScore >= 4.5 ? "continue" : "needs-human-review",
+		finalScore,
+		scores,
+		weights,
+		thresholds: {
+			continue: 4.5,
+			needsHumanReview: 3.5,
+			doNotScaleBelow: 3.5,
+		},
+		limits: [
+			"Simulated lifecycle only; this scorecard does not prove real WASM execution.",
+			"Capability expansion must remain human-reviewed before adoption.",
+		],
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -258,7 +295,26 @@ ${rows}
 `;
 }
 
+function weightedScore(scores, weights) {
+	const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+	const total = Object.entries(scores).reduce(
+		(sum, [key, score]) => sum + score * (weights[key] ?? 0),
+		0,
+	);
+	return Math.round((total / totalWeight) * 100) / 100;
+}
+
 export function buildTaskArtefactManifest(writtenArtifacts) {
+	const roles = {
+		"sandbox-report.json": "dataset",
+		"policy-decision.json": "receipt",
+		"scorecard.json": "report",
+		"sandbox-report.md": "report",
+	};
+	const labels = {
+		"scorecard.json": ["scorecard", "pilot"],
+	};
+
 	return {
 		schema: "refarm.task-artefacts.v1",
 		taskId: TASK_ID,
@@ -268,7 +324,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 			id: fileName.replace(/\./g, "-"),
 			uri: fileName,
 			mediaType: fileName.endsWith(".md") ? "text/markdown" : "application/json",
-			role: fileName.endsWith(".md") ? "report" : "dataset",
+			role: roles[fileName] ?? "other",
 			hash: {
 				algorithm: "sha256",
 				value: sha256Text(contents),
@@ -282,15 +338,18 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 				sourceVersion: "synthetic-v1",
 				producedAt: ISSUED_AT,
 			},
+			...(labels[fileName] ? { labels: labels[fileName] } : {}),
 		})),
 	};
 }
 
 export function writeArtifacts(outDir) {
 	const report = runExtensionSandboxPoc();
+	const scorecard = buildPilotScorecard(report);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
+		"scorecard.json": jsonText(scorecard),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);

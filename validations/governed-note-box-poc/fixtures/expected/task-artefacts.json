@@ -117,6 +117,29 @@
       ]
     },
     {
+      "id": "scorecard",
+      "uri": "scorecard.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "6ec77ad07a30f41c7789a4840c954bdb5c478548fa9e3108c954dd5599a8586d"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scorecard",
+        "pilot"
+      ]
+    },
+    {
       "id": "human-review",
       "uri": "human-review.md",
       "mediaType": "text/markdown",

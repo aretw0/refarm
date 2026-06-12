@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildPilotScorecard,
 	buildTaskArtefactManifest,
 	runGovernedNoteBoxPoc,
 } from "./governed-note-box-poc.mjs";
@@ -57,6 +58,20 @@ describe("governed note box poc", () => {
 		]);
 	});
 
+	it("publishes a pilot scorecard with adoption thresholds", () => {
+		const report = runGovernedNoteBoxPoc();
+		const scorecard = buildPilotScorecard(report);
+
+		assert.deepEqual(readFixture("scorecard.json"), scorecard);
+		assert.equal(scorecard.scale, 5);
+		assert.equal(scorecard.gate, "continue");
+		assert.equal(scorecard.finalScore, 4.85);
+		assert.equal(scorecard.scores.metadataPreservation, 5);
+		assert.equal(scorecard.scores.humanReview, 4);
+		assert.equal(scorecard.thresholds.continue, 4.5);
+		assert.match(scorecard.limits[0], /Synthetic notes/);
+	});
+
 	it("keeps generated fixtures small, synthetic, and deterministic", () => {
 		const report = runGovernedNoteBoxPoc();
 
@@ -85,6 +100,7 @@ describe("governed note box poc", () => {
 				"lab-snapshot.json",
 				"publication-snapshot.json",
 				"publication-preflight.json",
+				"scorecard.json",
 				"human-review.md",
 			],
 		);

@@ -157,6 +157,43 @@ Scope: synthetic local validation only. No real vault, work draft, personal data
 `;
 }
 
+export function buildPilotScorecard(report) {
+	const scores = {
+		metadataPreservation: report.checks.allNotesHaveMetadata ? 5 : 0,
+		publicationHygiene: report.checks.draftsExcludedFromPublication ? 5 : 0,
+		labSnapshot: report.labSnapshot.metrics.tags > 0 && report.labSnapshot.metrics.links > 0 ? 5 : 2,
+		humanReview: report.checks.humanReviewRequired ? 4 : 0,
+		localOnlyOperation: report.checks.noExternalServices ? 5 : 0,
+	};
+	const weights = {
+		metadataPreservation: 0.25,
+		publicationHygiene: 0.25,
+		labSnapshot: 0.2,
+		humanReview: 0.15,
+		localOnlyOperation: 0.15,
+	};
+	const finalScore = weightedScore(scores, weights);
+
+	return {
+		id: "scorecard-governed-note-box-001",
+		createdAt: ISSUED_AT,
+		scale: 5,
+		gate: finalScore >= 4.5 ? "continue" : "needs-human-review",
+		finalScore,
+		scores,
+		weights,
+		thresholds: {
+			continue: 4.5,
+			needsHumanReview: 3.5,
+			doNotScaleBelow: 3.5,
+		},
+		limits: [
+			"Synthetic notes only; this does not replace a vault product workflow.",
+			"Publication readiness still requires vault-local editorial and UX review.",
+		],
+	};
+}
+
 export function buildTaskArtefactManifest(writtenArtifacts) {
 	const roles = {
 		"intake-snapshot.json": "dataset",
@@ -164,6 +201,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"lab-snapshot.json": "dataset",
 		"publication-snapshot.json": "dataset",
 		"publication-preflight.json": "audit-trail",
+		"scorecard.json": "report",
 		"human-review.md": "report",
 	};
 	const labels = {
@@ -172,6 +210,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"lab-snapshot.json": ["lab"],
 		"publication-snapshot.json": ["publication"],
 		"publication-preflight.json": ["publication", "preflight"],
+		"scorecard.json": ["scorecard", "pilot"],
 		"human-review.md": ["publication", "human-review"],
 	};
 
@@ -205,12 +244,14 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 
 export function writeArtifacts(outDir) {
 	const report = runGovernedNoteBoxPoc();
+	const scorecard = buildPilotScorecard(report);
 	const writtenArtifacts = {
 		"intake-snapshot.json": jsonText(report.intakeSnapshot),
 		"metadata-index.json": jsonText(report.metadataIndex),
 		"lab-snapshot.json": jsonText(report.labSnapshot),
 		"publication-snapshot.json": jsonText(report.publicationSnapshot),
 		"publication-preflight.json": jsonText(report.publicationPreflight),
+		"scorecard.json": jsonText(scorecard),
 		"human-review.md": buildReviewMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);
@@ -221,6 +262,15 @@ export function writeArtifacts(outDir) {
 	}
 	writeFileSync(path.join(outDir, "task-artefacts.json"), jsonText(manifest));
 	return report;
+}
+
+function weightedScore(scores, weights) {
+	const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+	const total = Object.entries(scores).reduce(
+		(sum, [key, score]) => sum + score * (weights[key] ?? 0),
+		0,
+	);
+	return Math.round((total / totalWeight) * 100) / 100;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -220,6 +220,46 @@ export function createConsentDecision({
 	};
 }
 
+export function buildPilotScorecard(result) {
+	const scores = {
+		purposeAndScope: result.request.purpose && result.request.requestedAttributes.length > 0 ? 5 : 0,
+		selectiveDisclosure:
+			Object.keys(result.presentation.attributes).length === result.request.requestedAttributes.length
+				? 5
+				: 2,
+		signatureIntegrity: result.checks.signatureValid && !result.checks.tamperedSignatureValid ? 5 : 0,
+		revocationUsability: !result.checks.revokedUsable ? 5 : 0,
+		humanReview: result.consentDecision.operatorReview.required ? 4 : 0,
+	};
+	const weights = {
+		purposeAndScope: 0.2,
+		selectiveDisclosure: 0.25,
+		signatureIntegrity: 0.25,
+		revocationUsability: 0.2,
+		humanReview: 0.1,
+	};
+	const finalScore = weightedScore(scores, weights);
+
+	return {
+		id: "scorecard-citizen-data-wallet-001",
+		createdAt: ISSUED_AT,
+		scale: 5,
+		gate: finalScore >= 4.5 ? "continue" : "needs-human-review",
+		finalScore,
+		scores,
+		weights,
+		thresholds: {
+			continue: 4.5,
+			needsHumanReview: 3.5,
+			doNotScaleBelow: 3.5,
+		},
+		limits: [
+			"Synthetic signature and attribute flow only; no standards conformance is claimed.",
+			"Production adoption requires accessibility, legal, and service-integration review.",
+		],
+	};
+}
+
 export function runWalletPoc() {
 	const identity = createIdentity();
 	const attributes = createAuthorityAttributes();
@@ -269,7 +309,11 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"selective-presentation.json": "receipt",
 		"revocation-event.json": "receipt",
 		"consent-decision.json": "receipt",
+		"scorecard.json": "report",
 		"audit-trail.md": "audit-trail",
+	};
+	const labels = {
+		"scorecard.json": ["scorecard", "pilot"],
 	};
 
 	return {
@@ -295,12 +339,14 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 				sourceVersion: "synthetic-v1",
 				producedAt: ISSUED_AT,
 			},
+			...(labels[fileName] ? { labels: labels[fileName] } : {}),
 		})),
 	};
 }
 
 export function writeArtifacts(outDir) {
 	const result = runWalletPoc();
+	const scorecard = buildPilotScorecard(result);
 	const artifacts = {
 		"identity.json": result.identity,
 		"authority-attributes.json": result.attributes,
@@ -309,6 +355,7 @@ export function writeArtifacts(outDir) {
 		"selective-presentation.json": result.presentation,
 		"revocation-event.json": result.revocation,
 		"consent-decision.json": result.consentDecision,
+		"scorecard.json": scorecard,
 	};
 	const auditTrail = buildAuditTrail({
 		attributes: result.attributes,
@@ -330,6 +377,15 @@ export function writeArtifacts(outDir) {
 	}
 	writeFileSync(path.join(outDir, "task-artefacts.json"), jsonText(manifest));
 	return result;
+}
+
+function weightedScore(scores, weights) {
+	const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+	const total = Object.entries(scores).reduce(
+		(sum, [key, score]) => sum + score * (weights[key] ?? 0),
+		0,
+	);
+	return Math.round((total / totalWeight) * 100) / 100;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

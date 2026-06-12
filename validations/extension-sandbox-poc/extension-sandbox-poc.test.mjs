@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildPilotScorecard,
 	buildPolicyDecision,
 	buildTaskArtefactManifest,
 	runExtensionSandboxPoc,
@@ -68,6 +69,20 @@ describe("extension sandbox poc", () => {
 		assert.deepEqual(decision.isolatedFailures, ["@example/failing-extension"]);
 	});
 
+	it("publishes a pilot scorecard with adoption thresholds", () => {
+		const report = runExtensionSandboxPoc();
+		const scorecard = buildPilotScorecard(report);
+
+		assert.deepEqual(readFixture("scorecard.json"), scorecard);
+		assert.equal(scorecard.scale, 5);
+		assert.equal(scorecard.gate, "continue");
+		assert.equal(scorecard.finalScore, 4.85);
+		assert.equal(scorecard.scores.manifestPolicy, 5);
+		assert.equal(scorecard.scores.humanReview, 4);
+		assert.equal(scorecard.thresholds.continue, 4.5);
+		assert.match(scorecard.limits[0], /Simulated lifecycle/);
+	});
+
 	it("keeps generated fixtures deterministic", () => {
 		const report = runExtensionSandboxPoc();
 
@@ -86,7 +101,12 @@ describe("extension sandbox poc", () => {
 		assert.equal(manifest.effortId, "effort-extension-sandbox-poc-001");
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
-			["sandbox-report.json", "policy-decision.json", "sandbox-report.md"],
+			[
+				"sandbox-report.json",
+				"policy-decision.json",
+				"scorecard.json",
+				"sandbox-report.md",
+			],
 		);
 		assert.ok(
 			manifest.artefacts.every(

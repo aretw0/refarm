@@ -138,6 +138,29 @@
       }
     },
     {
+      "id": "scorecard",
+      "uri": "scorecard.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "b7599b442e900c703452fe3ad6f7cb339db2ba54ca3205afa1d740b1521f6e94"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scorecard",
+        "pilot"
+      ]
+    },
+    {
       "id": "audit-trail",
       "uri": "audit-trail.md",
       "mediaType": "text/markdown",
