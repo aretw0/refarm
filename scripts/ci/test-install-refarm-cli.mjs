@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -123,4 +123,12 @@ test("install-refarm-cli rejects unknown arguments as json", () => {
 	assert.match(payload.message, /Unknown argument\(s\): --wat/);
 	assert.equal(payload.nextCommand, null);
 	assert.deepEqual(payload.nextCommands, []);
+});
+
+test("install-refarm-cli remains a bootstrap script without cli package imports", () => {
+	const source = readFileSync(scriptPath, "utf8");
+
+	assert.doesNotMatch(source, /@refarm\.dev\/cli/);
+	assert.doesNotMatch(source, /packages\/cli\/dist/);
+	assert.doesNotMatch(source, /packages\\cli\\dist/);
 });
