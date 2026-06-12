@@ -36,7 +36,7 @@ result to operational value.
 
 | POC | Current Strength | Current Gap | Prize Readiness |
 | --- | --- | --- | --- |
-| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It does not yet show a real WASM/plugin lifecycle or visual lifecycle diagram. | Medium-high. Strong demonstration packet, still synthetic. |
+| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and runtime evidence pointer. | The synthetic sandbox report still does not execute real WASM; real execution remains a dedicated E2E validation path. | Medium-high. Strong demonstration packet, still synthetic but linked to real runtime evidence. |
 | Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It lacks UX/accessibility review, legal review, and standards test-suite evidence for any formal compliance claim. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
 | Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, pilot scorecard, scenario, and evidence annex. | It is intentionally synthetic and not yet connected to vault-seed-style lab/export/publication pressure or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
 
@@ -55,6 +55,8 @@ result to operational value.
   `scenario`, `reader-path`, `annex`, and `evidence-map`.
 - `risk-and-standards-matrix.json` reports for each POC, exposed through labels
   `risk`, `standards`, and `claim-promotion`.
+- `runtime-evidence.json` for the extension sandbox, exposed through labels
+  `runtime`, `wasm`, and `claim-promotion`.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -99,15 +101,22 @@ Each POC should grow one lightweight "demonstration packet":
    - Controls, risks, alignment stance, gaps, and `conformanceClaim: false`.
    - Evidence for careful standards discussion without claiming certification.
 
-5. `limits.md`
+5. `runtime-evidence.json`
+   - Implemented for the extension sandbox.
+   - Links the synthetic policy POC to real WASM build and browser lifecycle
+     validation commands.
+   - Keeps the proposal claim precise: linked validation path, not production
+     governance.
+
+6. `limits.md`
    - Non-goals, adoption risks, and when the model should not be used.
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.
 
 ## Recommended Next Slices
 
-1. Link the extension sandbox to an exercised real WASM/plugin lifecycle when
-   the cheapest cross-platform command is stable.
+1. Run the dedicated real WASM/browser lifecycle E2E in target environments
+   before using stronger real-execution wording.
 2. Add `limits.md` only if the existing scenario, annex, and matrix files become
    too dense.
 3. Let vault-seed consume those manifests later, instead of moving vault UX into

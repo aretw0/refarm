@@ -90,6 +90,30 @@
       ]
     },
     {
+      "id": "runtime-evidence-json",
+      "uri": "runtime-evidence.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "be474ef6274e9d9049b3715db4a1433bcb18fa57a1d4e45107944b1989d1454f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "runtime",
+        "wasm",
+        "claim-promotion"
+      ]
+    },
+    {
       "id": "scenario-md",
       "uri": "scenario.md",
       "mediaType": "text/markdown",

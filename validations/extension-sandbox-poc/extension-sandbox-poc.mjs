@@ -318,6 +318,52 @@ export function buildRiskAndStandardsMatrix(report) {
 	};
 }
 
+export function buildRuntimeEvidence(report) {
+	return {
+		id: "runtime-evidence-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim: "real WebAssembly plugin lifecycle has an adjacent validation path",
+		claimStatus: "adjacent-validation",
+		syntheticPocScope: report.scope.wasmRuntime,
+		evidenceCommands: [
+			{
+				id: "hello-world-wasm-build",
+				command: "pnpm --filter @refarm.dev/hello-world-plugin run build",
+				proves: "Rust source can build a WASI Preview 1 WebAssembly component artifact.",
+				cost: "medium",
+			},
+			{
+				id: "browser-plugin-lifecycle-e2e",
+				command:
+					"pnpm -C validations/wasm-plugin/host run test:e2e:chromium",
+				proves:
+					"Browser host can load the transpiled component and exercise setup, ingest, metadata, and teardown.",
+				cost: "high",
+			},
+			{
+				id: "tractor-jco-integration",
+				command: "pnpm --filter @refarm.dev/tractor run test -- test/jco-integration.test.ts",
+				proves:
+					"JCO is available and the compiled hello-world plugin binary is recognized when present.",
+				cost: "medium",
+			},
+		],
+		linkedEvidence: [
+			"validations/wasm-plugin/VALIDATION_RESULTS.md",
+			"validations/wasm-plugin/host/tests/e2e/plugin-lifecycle.spec.ts",
+			"packages/tractor-ts/test/jco-integration.test.ts",
+		],
+		promotionBoundary: {
+			canSay:
+				"The extension sandbox policy POC is linked to a real WASM validation path.",
+			cannotSay:
+				"The synthetic sandbox report itself executed real WASM plugins in production governance.",
+		},
+		nextPromotion:
+			"Run the dedicated E2E command in the target environment and attach its output before claiming real execution in proposal text.",
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -457,6 +503,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"policy-decision.json": "receipt",
 		"scorecard.json": "report",
 		"risk-and-standards-matrix.json": "report",
+		"runtime-evidence.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"sandbox-report.md": "report",
@@ -464,6 +511,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 	const labels = {
 		"scorecard.json": ["scorecard", "pilot"],
 		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
+		"runtime-evidence.json": ["runtime", "wasm", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 	};
@@ -500,11 +548,13 @@ export function writeArtifacts(outDir) {
 	const report = runExtensionSandboxPoc();
 	const scorecard = buildPilotScorecard(report);
 	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
+	const runtimeEvidence = buildRuntimeEvidence(report);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
 		"scorecard.json": jsonText(scorecard),
 		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
+		"runtime-evidence.json": jsonText(runtimeEvidence),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),

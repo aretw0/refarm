@@ -126,6 +126,13 @@ assert.deepEqual(
 	})),
 	["risk-and-standards-matrix-json"],
 );
+assert.deepEqual(
+	ids(selectTaskArtefacts(extension, {
+		labels: ["runtime", "wasm"],
+		roles: ["report"],
+	})),
+	["runtime-evidence-json"],
+);
 
 const notes = readManifest(MANIFESTS.notes);
 assert.deepEqual(

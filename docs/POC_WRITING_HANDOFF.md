@@ -65,11 +65,12 @@ Extension files:
 | `policy-decision.json` | Support governance and review claims. | Denied capabilities and isolated failures are reviewable. |
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful standards and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
+| `runtime-evidence.json` | Support careful real-WASM discussion. | The synthetic sandbox is linked to a dedicated real WASM validation path. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
 
 Extension non-claims:
 
-- real WebAssembly execution;
+- real WebAssembly execution inside the synthetic sandbox report;
 - production plugin governance;
 - full security certification;
 - performance of a real plugin host.

@@ -24,13 +24,15 @@ read secrets.
   and whether human review is required before changing grants.
 - A risk and standards matrix records alignment, controls, gaps, and no
   conformance claim.
+- A runtime evidence artifact links this synthetic policy POC to the dedicated
+  real WASM build and browser lifecycle validation path.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance.
 
 ## What It Does Not Demonstrate
 
-- Real WebAssembly execution.
+- Real WebAssembly execution inside this synthetic policy report.
 - Browser runtime descriptor installation.
 - Production plugin governance.
 - Performance of a real host or plugin.
@@ -68,6 +70,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `policy-decision.json`
 - `scorecard.json`
 - `risk-and-standards-matrix.json`
+- `runtime-evidence.json`
 - `sandbox-report.md`
 - `scenario.md`
 - `annex.md`

@@ -1,6 +1,6 @@
+import { withWasmBrowserConfig } from '@refarm.dev/vtconfig';
 import { fileURLToPath, URL } from 'node:url';
 import { createLogger, defineConfig } from 'vite';
-import { withWasmBrowserConfig } from '@refarm.dev/vtconfig';
 
 const shouldSuppressNodeExternalizedWarning =
   process.env.VITE_SUPPRESS_NODE_EXTERNALIZED_WARNING === '1';
@@ -36,6 +36,7 @@ export default withWasmBrowserConfig(
       open: true,
     },
     build: {
+      outDir: 'dist-vscode',
       target: 'esnext',
     },
   }),

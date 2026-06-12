@@ -6,6 +6,7 @@ import {
 	buildPilotScorecard,
 	buildPolicyDecision,
 	buildRiskAndStandardsMatrix,
+	buildRuntimeEvidence,
 	buildTaskArtefactManifest,
 	runExtensionSandboxPoc,
 } from "./extension-sandbox-poc.mjs";
@@ -98,6 +99,21 @@ describe("extension sandbox poc", () => {
 		);
 	});
 
+	it("publishes runtime evidence that links to the real WASM validation path", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildRuntimeEvidence(report);
+
+		assert.deepEqual(readFixture("runtime-evidence.json"), evidence);
+		assert.equal(evidence.claimStatus, "adjacent-validation");
+		assert.equal(evidence.syntheticPocScope, "simulated-lifecycle");
+		assert.ok(
+			evidence.evidenceCommands.some((command) =>
+				command.command.includes("test:e2e:chromium"),
+			),
+		);
+		assert.match(evidence.promotionBoundary.cannotSay, /synthetic sandbox report/);
+	});
+
 	it("keeps generated fixtures deterministic", () => {
 		const report = runExtensionSandboxPoc();
 
@@ -129,6 +145,7 @@ describe("extension sandbox poc", () => {
 				"policy-decision.json",
 				"scorecard.json",
 				"risk-and-standards-matrix.json",
+				"runtime-evidence.json",
 				"scenario.md",
 				"annex.md",
 				"sandbox-report.md",

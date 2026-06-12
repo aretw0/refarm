@@ -13,4 +13,16 @@ const source = path.resolve(process.cwd(), from);
 const destination = path.resolve(process.cwd(), to);
 
 fs.mkdirSync(path.dirname(destination), { recursive: true });
-fs.copyFileSync(source, destination);
+try {
+	fs.copyFileSync(source, destination);
+} catch (error) {
+	if (
+		(error.code === "EACCES" || error.code === "EPERM") &&
+		fs.existsSync(destination)
+	) {
+		fs.unlinkSync(destination);
+		fs.copyFileSync(source, destination);
+	} else {
+		throw error;
+	}
+}
