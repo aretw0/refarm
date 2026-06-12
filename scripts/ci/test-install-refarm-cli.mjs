@@ -7,6 +7,18 @@ import test from "node:test";
 
 const scriptPath = path.resolve("scripts/install-refarm-cli.mjs");
 
+function quoteCommandPath(commandPath) {
+	if (!/[\s"]/u.test(commandPath)) return commandPath;
+	return `"${commandPath.replaceAll('"', '\\"')}"`;
+}
+
+function expectedNextCommand(binDir) {
+	const shim = process.platform === "win32"
+		? path.join(binDir, "refarm.cmd")
+		: path.join(binDir, "refarm");
+	return `${quoteCommandPath(shim)} check --next-action --json`;
+}
+
 function runInstall(args = [], env = {}) {
 	return spawnSync(process.execPath, [scriptPath, ...args], {
 		cwd: path.resolve("."),
@@ -25,7 +37,7 @@ test("install-refarm-cli dry-run reports planned shims without writing", () => {
 
 		assert.equal(result.status, 0, result.stderr);
 		assert.match(result.stdout, /\[install-refarm-cli\]\[dry-run\] would install refarm shim -> /);
-		assert.match(result.stdout, /Next: refarm check --next-action --json/);
+		assert.ok(result.stdout.includes(`Next: ${expectedNextCommand(binDir)}`), result.stdout);
 		assert.equal(existsSync(path.join(binDir, "refarm")), false);
 		assert.equal(existsSync(path.join(binDir, "refarm.cmd")), false);
 	} finally {
@@ -53,8 +65,8 @@ test("install-refarm-cli dry-run can emit a machine-readable handoff", () => {
 		assert.equal(payload.build.required, true);
 		assert.equal(payload.build.process.display, "pnpm -C apps/refarm run build");
 		assert.equal(payload.shims.posix, path.join(binDir, "refarm"));
-		assert.equal(payload.nextCommand, "refarm check --next-action --json");
-		assert.deepEqual(payload.nextCommands, ["refarm check --next-action --json"]);
+		assert.equal(payload.nextCommand, expectedNextCommand(binDir));
+		assert.deepEqual(payload.nextCommands, [expectedNextCommand(binDir)]);
 		assert.equal(existsSync(path.join(binDir, "refarm")), false);
 	} finally {
 		rmSync(binDir, { recursive: true, force: true });

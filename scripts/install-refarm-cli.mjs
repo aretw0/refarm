@@ -9,7 +9,6 @@ import { createPackageScriptCommand } from "../packages/config/src/package-manag
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_ENTRY = path.join(ROOT, "apps/refarm/dist/index.js");
 const LOADER_ENTRY = path.join(ROOT, "scripts/farmhand-node-register-loader.mjs");
-const NEXT_COMMAND = "refarm check --next-action --json";
 
 function usageText() {
 	return [
@@ -103,6 +102,11 @@ function pathIncludes(directory) {
 		.split(path.delimiter)
 		.filter(Boolean)
 		.some((entry) => path.resolve(entry) === path.resolve(directory));
+}
+
+function quoteCommandPath(commandPath) {
+	if (!/[\s"]/u.test(commandPath)) return commandPath;
+	return `"${commandPath.replaceAll('"', '\\"')}"`;
 }
 
 function resolveBinDir() {
@@ -249,6 +253,10 @@ const warnings = [];
 if (!binDirInPath) {
 	warnings.push(`${binDir} is not in PATH.`);
 }
+const nextCommandName = binDirInPath
+	? "refarm"
+	: quoteCommandPath(process.platform === "win32" ? cmdPath : shimPath);
+const nextCommand = `${nextCommandName} check --next-action --json`;
 
 if (options.json) {
 	printJson({
@@ -278,13 +286,13 @@ if (options.json) {
 			windows: process.platform === "win32" ? cmdPath : null,
 		},
 		warnings,
-		nextCommand: NEXT_COMMAND,
-		nextCommands: [NEXT_COMMAND],
+		nextCommand,
+		nextCommands: [nextCommand],
 	});
 } else {
 	if (!binDirInPath) {
 		console.warn(`[install-refarm-cli] WARN: ${binDir} is not in PATH.`);
 	}
 
-	console.log(`[install-refarm-cli] Next: ${NEXT_COMMAND}`);
+	console.log(`[install-refarm-cli] Next: ${nextCommand}`);
 }
