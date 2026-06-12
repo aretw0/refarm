@@ -282,7 +282,8 @@ Rules:
 - Consumers may opt in with `.refarm/text-quality.json`. The CLI discovers that
   file automatically, while `--config <path>` remains the explicit override for
   experiments, CI jobs, or consumer-specific wrappers. This keeps Refarm policy
-  out of surprising root-level files.
+  out of surprising root-level files. The maintained field contract is
+  [`docs/TEXT_QUALITY_CONFIG.md`](TEXT_QUALITY_CONFIG.md).
 - `--json` reports include `ok: true` on success. Configuration failures report
   `ok: false` with a stable `error.code`, message, and relative `configPath` so
   agents can recover without scraping stack traces. Semantic config failures use

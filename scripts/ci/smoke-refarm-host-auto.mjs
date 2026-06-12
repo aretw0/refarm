@@ -283,6 +283,7 @@ export function isTextQualitySurfaceFile(file) {
 		file === "scripts/ci/text-quality-lib.mjs" ||
 		file === "docs/POC_VALIDATION_PRESSURE.md" ||
 		file === "docs/POC_PRIZE_READINESS.md" ||
+		file === "docs/TEXT_QUALITY_CONFIG.md" ||
 		file === "docs/VAULT_SEED_CONVERGENCE.md"
 	);
 }

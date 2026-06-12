@@ -447,6 +447,10 @@ test("detects text quality surface files", () => {
 		isTextQualitySurfaceFile("docs/POC_PRIZE_READINESS.md"),
 		true,
 	);
+	assert.equal(
+		isTextQualitySurfaceFile("docs/TEXT_QUALITY_CONFIG.md"),
+		true,
+	);
 	assert.equal(isTextQualitySurfaceFile("docs/random-note.md"), false);
 });
 
@@ -566,6 +570,7 @@ test("routes text quality deltas to focused docs quality lane", () => {
 			"scripts/ci/text-quality-lib.mjs",
 			"scripts/ci/text-quality-config-schema.mjs",
 			"scripts/ci/test-text-quality-lib.mjs",
+			"docs/TEXT_QUALITY_CONFIG.md",
 			"docs/VAULT_SEED_CONVERGENCE.md",
 		]).profile,
 		"text-quality",
