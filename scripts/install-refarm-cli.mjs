@@ -105,8 +105,11 @@ function pathIncludes(directory) {
 }
 
 function quoteCommandPath(commandPath) {
-	if (!/[\s"]/u.test(commandPath)) return commandPath;
-	return `"${commandPath.replaceAll('"', '\\"')}"`;
+	if (/^[A-Za-z0-9._:@/\\-]+$/u.test(commandPath)) return commandPath;
+	if (process.platform === "win32") {
+		return `"${commandPath.replaceAll('"', '\\"')}"`;
+	}
+	return `'${commandPath.replaceAll("'", "'\"'\"'")}'`;
 }
 
 function resolveBinDir() {

@@ -8,8 +8,11 @@ import test from "node:test";
 const scriptPath = path.resolve("scripts/install-refarm-cli.mjs");
 
 function quoteCommandPath(commandPath) {
-	if (!/[\s"]/u.test(commandPath)) return commandPath;
-	return `"${commandPath.replaceAll('"', '\\"')}"`;
+	if (/^[A-Za-z0-9._:@/\\-]+$/u.test(commandPath)) return commandPath;
+	if (process.platform === "win32") {
+		return `"${commandPath.replaceAll('"', '\\"')}"`;
+	}
+	return `'${commandPath.replaceAll("'", "'\"'\"'")}'`;
 }
 
 function expectedNextCommand(binDir) {
@@ -70,6 +73,27 @@ test("install-refarm-cli dry-run can emit a machine-readable handoff", () => {
 		assert.equal(existsSync(path.join(binDir, "refarm")), false);
 	} finally {
 		rmSync(binDir, { recursive: true, force: true });
+	}
+});
+
+test("install-refarm-cli quotes explicit shim handoff paths with spaces", () => {
+	const parentDir = mkdtempSync(path.join(tmpdir(), "refarm cli install test-"));
+	const binDir = path.join(parentDir, "bin dir");
+	try {
+		const result = runInstall(["--dry-run", "--json"], {
+			REFARM_CLI_BIN_DIR: binDir,
+		});
+
+		assert.equal(result.status, 0, result.stderr);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, true);
+		assert.equal(payload.binDir, binDir);
+		assert.equal(payload.binDirInPath, false);
+		assert.equal(payload.nextCommand, expectedNextCommand(binDir));
+		assert.match(payload.nextCommand, /^["']|^[A-Z]:\\/);
+	} finally {
+		rmSync(parentDir, { recursive: true, force: true });
 	}
 });
 
