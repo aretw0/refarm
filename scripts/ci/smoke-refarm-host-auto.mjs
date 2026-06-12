@@ -250,6 +250,7 @@ export function isCliInstallSurfaceFile(file) {
 		file === ".devcontainer/post-create.sh" ||
 		file === ".devcontainer/post-start.sh" ||
 		file === "scripts/install-refarm-cli.mjs" ||
+		file === "scripts/pi-agent-install.mjs" ||
 		file === "scripts/ci/check-node-substrate.mjs" ||
 		file === "scripts/ci/test-check-node-substrate.mjs" ||
 		file === "scripts/ci/test-devcontainer-contract.mjs" ||

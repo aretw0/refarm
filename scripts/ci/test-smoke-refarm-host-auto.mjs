@@ -419,6 +419,7 @@ test("detects composite check gate files", () => {
 
 test("detects CLI install substrate files", () => {
 	assert.equal(isCliInstallSurfaceFile("scripts/install-refarm-cli.mjs"), true);
+	assert.equal(isCliInstallSurfaceFile("scripts/pi-agent-install.mjs"), true);
 	assert.equal(
 		isCliInstallSurfaceFile("scripts/ci/check-node-substrate.mjs"),
 		true,
@@ -501,6 +502,13 @@ test("routes CLI install substrate deltas to focused install lane", () => {
 			"scripts/install-refarm-cli.mjs",
 			"scripts/ci/test-install-refarm-cli.mjs",
 			"docs/DEVOPS.md",
+		]).profile,
+		"install",
+	);
+	assert.equal(
+		decideProfile([
+			"scripts/pi-agent-install.mjs",
+			"scripts/install-refarm-cli.mjs",
 		]).profile,
 		"install",
 	);
