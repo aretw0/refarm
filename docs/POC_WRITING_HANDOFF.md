@@ -12,6 +12,31 @@ repository. This is not submission text and should not be copied as-is.
 - Keep standards claims careful: these POCs show design pressure and validation
   shape, not formal conformance.
 
+## Claim Promotion Rule
+
+The non-claims below are not permanent exclusions. They are the current honesty
+boundary for proposal writing. Promote one only when a repeatable command,
+fixture, manifest, or external conformance check proves it.
+
+| Claim class | Promote when | Current writing stance |
+| --- | --- | --- |
+| Real execution | A CI command exercises the real runtime path, not only synthetic fixtures. | Can cite as adjacent evidence only when the validation is linked directly. |
+| Product governance | A policy contract, lifecycle command, and regression test cover install, deny, quarantine, and review. | Describe as governance model pressure, not production governance. |
+| Standards alignment | A standards matrix maps clauses to artefacts and records gaps. | Say "inspired by" or "compatible direction", not "conformant". |
+| Legal or institutional compliance | A qualified compliance review exists outside the POC. | Say the POC makes reviewable evidence explicit. |
+| Production UX or accessibility | A UI surface exists and is checked with accessibility and cross-platform tests. | Say the data flow is validated, not the final experience. |
+| Vault integration | A consumer project reads the manifest without copying Refarm internals. | Say the artefacts are ready for downstream consumption. |
+
+Near-term promotion should favor claims that strengthen all consumers:
+
+1. Link the extension sandbox to the existing real WASM validation before
+   claiming real plugin execution for Theme 1.
+2. Add standards and risk matrices as explicit artefacts, while keeping them
+   non-conformance unless checked by a dedicated suite.
+3. Keep vault, notebook, and publication UX in consumer projects; promote only
+   shared manifest, provenance, scoring, and preflight primitives back into
+   Refarm.
+
 ## Validation Command
 
 ```bash
