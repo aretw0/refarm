@@ -164,6 +164,30 @@
       ]
     },
     {
+      "id": "consumer-evidence",
+      "uri": "consumer-evidence.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "08a7fbfb5503fe4a5a75d2f6f7830414eb0b9cd966e5886ff1a4452f9235997b"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "consumer",
+        "vault",
+        "claim-promotion"
+      ]
+    },
+    {
       "id": "scenario",
       "uri": "scenario.md",
       "mediaType": "text/markdown",

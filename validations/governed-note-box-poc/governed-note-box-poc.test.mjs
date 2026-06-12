@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildConsumerEvidence,
 	buildPilotScorecard,
 	buildRiskAndStandardsMatrix,
 	buildTaskArtefactManifest,
@@ -87,6 +88,31 @@ describe("governed note box poc", () => {
 		);
 	});
 
+	it("publishes consumer evidence without claiming real vault integration", () => {
+		const report = runGovernedNoteBoxPoc();
+		const consumerEvidence = buildConsumerEvidence(report);
+
+		assert.deepEqual(readFixture("consumer-evidence.json"), consumerEvidence);
+		assert.equal(consumerEvidence.claimStatus, "manifest-consumer-ready");
+		assert.equal(consumerEvidence.scope.realVaultIntegration, false);
+		assert.equal(consumerEvidence.consumerSelectors.length, 4);
+		assert.deepEqual(
+			consumerEvidence.consumerSelectors.map((selector) => selector.id),
+			[
+				"lab-datasets",
+				"publication-datasets",
+				"publication-preflight",
+				"consumer-readiness-report",
+			],
+		);
+		assert.ok(
+			consumerEvidence.evidenceCommands.includes("pnpm run validation-pocs:consumer:test"),
+		);
+		assert.ok(
+			consumerEvidence.cannotSay.some((claim) => claim.includes("real vault integration")),
+		);
+	});
+
 	it("keeps generated fixtures small, synthetic, and deterministic", () => {
 		const report = runGovernedNoteBoxPoc();
 
@@ -125,6 +151,7 @@ describe("governed note box poc", () => {
 				"publication-preflight.json",
 				"scorecard.json",
 				"risk-and-standards-matrix.json",
+				"consumer-evidence.json",
 				"scenario.md",
 				"annex.md",
 				"human-review.md",

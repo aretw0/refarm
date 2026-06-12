@@ -188,6 +188,13 @@ assert.deepEqual(
 	})),
 	["risk-and-standards-matrix"],
 );
+assert.deepEqual(
+	ids(selectTaskArtefacts(notes, {
+		labels: ["consumer", "vault"],
+		roles: ["report"],
+	})),
+	["consumer-evidence"],
+);
 assert.equal(findTaskArtefactById(notes, "human-review")?.mediaType, "text/markdown");
 
 console.log("Validated validation POC consumer selections across 3 manifest(s).");

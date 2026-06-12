@@ -38,7 +38,7 @@ result to operational value.
 | --- | --- | --- | --- |
 | Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and runtime evidence pointer. | The synthetic sandbox report still does not execute real WASM; real execution remains a dedicated E2E validation path. | Medium-high. Strong demonstration packet, still synthetic but linked to real runtime evidence. |
 | Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It lacks UX/accessibility review, legal review, and standards test-suite evidence for any formal compliance claim. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
-| Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, pilot scorecard, scenario, and evidence annex. | It is intentionally synthetic and not yet connected to vault-seed-style lab/export/publication pressure or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
+| Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and consumer evidence. | It is intentionally synthetic and not yet consumed by a real vault-seed-style lab/export/publication project or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
 
 ## What Is Already a Reusable Primitive
 
@@ -57,6 +57,8 @@ result to operational value.
   `risk`, `standards`, and `claim-promotion`.
 - `runtime-evidence.json` for the extension sandbox, exposed through labels
   `runtime`, `wasm`, and `claim-promotion`.
+- `consumer-evidence.json` for the governed note box, exposed through labels
+  `consumer`, `vault`, and `claim-promotion`.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -108,7 +110,14 @@ Each POC should grow one lightweight "demonstration packet":
    - Keeps the proposal claim precise: linked validation path, not production
      governance.
 
-6. `limits.md`
+6. `consumer-evidence.json`
+   - Implemented for the governed note box.
+   - Documents downstream selector queries for lab datasets, publication
+     datasets, publication preflight, and consumer readiness.
+   - Keeps the proposal claim precise: manifest-consumer-ready, not real vault
+     integration.
+
+7. `limits.md`
    - Non-goals, adoption risks, and when the model should not be used.
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.

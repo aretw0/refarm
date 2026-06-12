@@ -335,6 +335,89 @@ export function buildRiskAndStandardsMatrix(report) {
 	};
 }
 
+export function buildConsumerEvidence(report) {
+	return {
+		id: "consumer-evidence-governed-note-box-001",
+		createdAt: ISSUED_AT,
+		claim: "governed note artefacts are ready for downstream vault and lab consumers",
+		claimStatus: "manifest-consumer-ready",
+		scope: {
+			data: report.scope.data,
+			vaultUx: report.scope.vaultUx,
+			externalServices: report.scope.externalServices,
+			realVaultIntegration: false,
+		},
+		consumerSelectors: [
+			{
+				id: "lab-datasets",
+				intent: "load graph and metadata for analysis notebooks or lab dashboards",
+				query: {
+					labels: ["lab"],
+					mediaTypes: ["application/json"],
+					reviewStates: ["accepted"],
+					roles: ["dataset"],
+					source: "validations/governed-note-box-poc",
+				},
+				expectedArtefacts: ["metadata-index", "lab-snapshot"],
+			},
+			{
+				id: "publication-datasets",
+				intent: "load publication candidates while preserving unreviewed status",
+				query: {
+					labels: ["publication"],
+					reviewStates: ["unreviewed"],
+					roles: ["dataset"],
+				},
+				expectedArtefacts: ["publication-snapshot"],
+			},
+			{
+				id: "publication-preflight",
+				intent: "load preflight evidence before any publish handoff",
+				query: {
+					labels: ["publication", "preflight"],
+					roles: ["audit-trail"],
+				},
+				expectedArtefacts: ["publication-preflight"],
+			},
+			{
+				id: "consumer-readiness-report",
+				intent: "load the explicit downstream readiness boundary",
+				query: {
+					labels: ["consumer", "vault"],
+					roles: ["report"],
+				},
+				expectedArtefacts: ["consumer-evidence"],
+			},
+		],
+		evidenceCommands: [
+			"pnpm run governed-note-box:poc:test",
+			"pnpm run validation-pocs:consumer:test",
+		],
+		linkedEvidence: [
+			"task-artefacts.json",
+			"metadata-index.json",
+			"lab-snapshot.json",
+			"publication-preflight.json",
+			"human-review.md",
+			"scripts/ci/check-validation-poc-consumers.mjs",
+		],
+		canSay: [
+			"downstream consumers can select governed note artefacts through the shared manifest contract",
+			"lab and publication evidence have separate labels, roles, media types, and review states",
+			"publication remains blocked on human review in the synthetic preflight evidence",
+		],
+		cannotSay: [
+			"real vault integration is implemented",
+			"Obsidian, Astro, Marimo, or work-mirror publication UX is implemented",
+			"editorial policy completeness is proven",
+		],
+		nextPromotion: [
+			"Have a consumer project read task-artefacts.json and produce vault-local output.",
+			"Keep vault-specific schemas, commands, and publication packaging outside this POC.",
+		],
+	};
+}
+
 function evidenceForNoteCriterion(criterion) {
 	const evidence = {
 		metadataPreservation: "Metadata index contains hash, tags, links, status, and dates.",
@@ -355,6 +438,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"publication-preflight.json": "audit-trail",
 		"scorecard.json": "report",
 		"risk-and-standards-matrix.json": "report",
+		"consumer-evidence.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"human-review.md": "report",
@@ -367,6 +451,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"publication-preflight.json": ["publication", "preflight"],
 		"scorecard.json": ["scorecard", "pilot"],
 		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
+		"consumer-evidence.json": ["consumer", "vault", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"human-review.md": ["publication", "human-review"],
@@ -404,6 +489,7 @@ export function writeArtifacts(outDir) {
 	const report = runGovernedNoteBoxPoc();
 	const scorecard = buildPilotScorecard(report);
 	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
+	const consumerEvidence = buildConsumerEvidence(report);
 	const writtenArtifacts = {
 		"intake-snapshot.json": jsonText(report.intakeSnapshot),
 		"metadata-index.json": jsonText(report.metadataIndex),
@@ -412,6 +498,7 @@ export function writeArtifacts(outDir) {
 		"publication-preflight.json": jsonText(report.publicationPreflight),
 		"scorecard.json": jsonText(scorecard),
 		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
+		"consumer-evidence.json": jsonText(consumerEvidence),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"human-review.md": buildReviewMarkdown(report),

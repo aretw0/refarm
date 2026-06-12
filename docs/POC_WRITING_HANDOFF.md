@@ -126,6 +126,7 @@ Knowledge workflow files:
 | `publication-preflight.json` | Support governance claims. | Human review is required before publishing. |
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful workflow governance and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
+| `consumer-evidence.json` | Support downstream/vault-seed-style consumer readiness. | Manifest selectors, labels, roles, and limits are explicit without claiming real vault integration. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, labels, and review state. |
 
 Publication scope non-claims:

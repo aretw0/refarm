@@ -1,0 +1,113 @@
+{
+  "id": "consumer-evidence-governed-note-box-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "claim": "governed note artefacts are ready for downstream vault and lab consumers",
+  "claimStatus": "manifest-consumer-ready",
+  "scope": {
+    "data": "synthetic",
+    "vaultUx": "out-of-scope",
+    "externalServices": false,
+    "realVaultIntegration": false
+  },
+  "consumerSelectors": [
+    {
+      "id": "lab-datasets",
+      "intent": "load graph and metadata for analysis notebooks or lab dashboards",
+      "query": {
+        "labels": [
+          "lab"
+        ],
+        "mediaTypes": [
+          "application/json"
+        ],
+        "reviewStates": [
+          "accepted"
+        ],
+        "roles": [
+          "dataset"
+        ],
+        "source": "validations/governed-note-box-poc"
+      },
+      "expectedArtefacts": [
+        "metadata-index",
+        "lab-snapshot"
+      ]
+    },
+    {
+      "id": "publication-datasets",
+      "intent": "load publication candidates while preserving unreviewed status",
+      "query": {
+        "labels": [
+          "publication"
+        ],
+        "reviewStates": [
+          "unreviewed"
+        ],
+        "roles": [
+          "dataset"
+        ]
+      },
+      "expectedArtefacts": [
+        "publication-snapshot"
+      ]
+    },
+    {
+      "id": "publication-preflight",
+      "intent": "load preflight evidence before any publish handoff",
+      "query": {
+        "labels": [
+          "publication",
+          "preflight"
+        ],
+        "roles": [
+          "audit-trail"
+        ]
+      },
+      "expectedArtefacts": [
+        "publication-preflight"
+      ]
+    },
+    {
+      "id": "consumer-readiness-report",
+      "intent": "load the explicit downstream readiness boundary",
+      "query": {
+        "labels": [
+          "consumer",
+          "vault"
+        ],
+        "roles": [
+          "report"
+        ]
+      },
+      "expectedArtefacts": [
+        "consumer-evidence"
+      ]
+    }
+  ],
+  "evidenceCommands": [
+    "pnpm run governed-note-box:poc:test",
+    "pnpm run validation-pocs:consumer:test"
+  ],
+  "linkedEvidence": [
+    "task-artefacts.json",
+    "metadata-index.json",
+    "lab-snapshot.json",
+    "publication-preflight.json",
+    "human-review.md",
+    "scripts/ci/check-validation-poc-consumers.mjs"
+  ],
+  "canSay": [
+    "downstream consumers can select governed note artefacts through the shared manifest contract",
+    "lab and publication evidence have separate labels, roles, media types, and review states",
+    "publication remains blocked on human review in the synthetic preflight evidence"
+  ],
+  "cannotSay": [
+    "real vault integration is implemented",
+    "Obsidian, Astro, Marimo, or work-mirror publication UX is implemented",
+    "editorial policy completeness is proven"
+  ],
+  "nextPromotion": [
+    "Have a consumer project read task-artefacts.json and produce vault-local output.",
+    "Keep vault-specific schemas, commands, and publication packaging outside this POC."
+  ]
+}
