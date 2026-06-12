@@ -133,6 +133,26 @@ describe("TaskArtefactManifest", () => {
     expect(findTaskArtefactById(manifest, "missing")).toBeUndefined();
   });
 
+  it("rejects duplicate task artefact ids", () => {
+    const manifest = sampleManifest();
+    const result = validateTaskArtefactManifest({
+      ...manifest,
+      artefacts: [
+        ...manifest.artefacts,
+        {
+          ...manifest.artefacts[1],
+          uri: "fixtures/expected/duplicate.json",
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual({
+      path: "$.artefacts.2.id",
+      message: "Expected a unique artefact id.",
+    });
+  });
+
   it("reports path-aware issues for malformed manifests", () => {
     const result = validateTaskArtefactManifest({
       schema: "wrong",

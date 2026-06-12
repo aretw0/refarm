@@ -231,9 +231,19 @@ export function validateTaskArtefactManifest(
 	if (!Array.isArray(value.artefacts)) {
 		issues.push({ path: "$.artefacts", message: "Expected an array." });
 	} else {
-		value.artefacts.forEach((artefact, index) =>
-			validateReference(artefact, `$.artefacts.${index}`, issues),
-		);
+		const ids = new Set<string>();
+		value.artefacts.forEach((artefact, index) => {
+			validateReference(artefact, `$.artefacts.${index}`, issues);
+			if (!isRecord(artefact) || !isNonEmptyString(artefact.id)) return;
+			if (ids.has(artefact.id)) {
+				issues.push({
+					path: `$.artefacts.${index}.id`,
+					message: "Expected a unique artefact id.",
+				});
+				return;
+			}
+			ids.add(artefact.id);
+		});
 	}
 	return { ok: issues.length === 0, issues };
 }

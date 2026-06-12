@@ -37,6 +37,10 @@ draft ──validate()──► ready ──activate()──► active
 Task artefact manifests are intentionally generic. They describe durable outputs
 from a task or lab run without owning the consumer's domain schema.
 
+Artefact `id` values must be unique inside one manifest. Consumers may use them
+for stable lookup through `findTaskArtefactById`, while labels, roles, and review
+state are better for category selection.
+
 ```ts
 import type { TaskArtefactManifest } from "@refarm.dev/artefact-contract-v1";
 
