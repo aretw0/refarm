@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -18,6 +24,7 @@ import {
 } from "./text-quality-lib.mjs";
 
 const cliPath = path.resolve("scripts/ci/check-text-quality.mjs");
+const textQualityConfigDocPath = path.resolve("docs/TEXT_QUALITY_CONFIG.md");
 
 test("text quality scorer handles plain text", () => {
 	const result = scoreText("Um paragrafo simples. Outro periodo.", {
@@ -376,6 +383,18 @@ test("text quality cli rejects missing option values", () => {
 
 	assert.equal(result.status, 2);
 	assert.match(result.stderr, /Missing value for: --config/u);
+});
+
+test("text quality config docs keep json examples parseable", () => {
+	const doc = readFileSync(textQualityConfigDocPath, "utf8");
+	const blocks = Array.from(doc.matchAll(/```json\n([\s\S]*?)\n```/gu)).map(
+		(match) => match[1],
+	);
+
+	assert.ok(blocks.length > 0, "expected at least one json example");
+	for (const block of blocks) {
+		assert.doesNotThrow(() => JSON.parse(block));
+	}
 });
 
 test("word count handles accented words", () => {
