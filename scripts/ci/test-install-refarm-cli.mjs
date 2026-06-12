@@ -73,6 +73,26 @@ test("install-refarm-cli dry-run can emit a machine-readable handoff", () => {
 	}
 });
 
+test("install-refarm-cli handoff uses refarm when the bin directory is already in PATH", () => {
+	const binDir = mkdtempSync(path.join(tmpdir(), "refarm-cli-install-test-"));
+	try {
+		const result = runInstall(["--dry-run", "--json"], {
+			PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`,
+			REFARM_CLI_BIN_DIR: binDir,
+		});
+
+		assert.equal(result.status, 0, result.stderr);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, true);
+		assert.equal(payload.binDirInPath, true);
+		assert.equal(payload.nextCommand, "refarm check --next-action --json");
+		assert.deepEqual(payload.nextCommands, ["refarm check --next-action --json"]);
+	} finally {
+		rmSync(binDir, { recursive: true, force: true });
+	}
+});
+
 test("install-refarm-cli prints help without installing", () => {
 	const result = runInstall(["--help"]);
 

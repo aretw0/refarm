@@ -191,9 +191,12 @@ pnpm run cli:install -- --dry-run --json
 ```
 
 `--json` emits the same `nextCommand` handoff shape used by the operator loop,
-so automation can install or preview the shim and then continue with
-`refarm check --next-action --json`. The installer also supports `--help` and
-fails closed on unknown arguments instead of ignoring them.
+so automation can install or preview the shim and then continue with the exact
+readiness command returned by the installer. When the bin directory is already
+in `PATH`, that command is `refarm check --next-action --json`; otherwise it
+uses the explicit shim path so the first check still works before the operator
+updates their shell. The installer also supports `--help` and fails closed on
+unknown arguments instead of ignoring them.
 
 Validate the installer, devcontainer contract, and node-substrate diagnostic
 surface without mutating a foreign checkout:
@@ -204,10 +207,10 @@ pnpm run cli:install:verify
 
 Use `REFARM_CLI_BIN_DIR=<dir>` to install into an explicit directory. On
 Windows, the default user-level target is `%APPDATA%\npm`, matching the normal
-npm global shim location. After any install, continue with:
+npm global shim location. After any install, continue with the installer output:
 
 ```bash
-refarm check --next-action --json
+pnpm run cli:install -- --json
 ```
 
 If the check reports node substrate materialization drift, do not repair a
