@@ -31,8 +31,8 @@ Near-term promotion should favor claims that strengthen all consumers:
 
 1. Link the extension sandbox to the existing real WASM validation before
    claiming real plugin execution for Theme 1.
-2. Add standards and risk matrices as explicit artefacts, while keeping them
-   non-conformance unless checked by a dedicated suite.
+2. Expand standards matrices into dedicated conformance suites only when a
+   formal claim is actually needed.
 3. Keep vault, notebook, and publication UX in consumer projects; promote only
    shared manifest, provenance, scoring, and preflight primitives back into
    Refarm.
@@ -64,6 +64,7 @@ Extension files:
 | `sandbox-report.json` | Support technical detail. | Synthetic plugin-policy combinations are evaluated deterministically. |
 | `policy-decision.json` | Support governance and review claims. | Denied capabilities and isolated failures are reviewable. |
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
+| `risk-and-standards-matrix.json` | Support careful standards and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
 
 Extension non-claims:
@@ -93,6 +94,7 @@ Wallet files:
 | `revocation-event.json` | Support revocation claims. | The authorization moves from active to revoked. |
 | `consent-decision.json` | Support human-review claims. | Purpose, scope, disclosure, revocation, and review status are summarized. |
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
+| `risk-and-standards-matrix.json` | Support careful standards, privacy, and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
 
 Wallet non-claims:
@@ -122,6 +124,7 @@ Knowledge workflow files:
 | `publication-snapshot.json` | Support publication hygiene claims. | Only ready notes are selected. |
 | `publication-preflight.json` | Support governance claims. | Human review is required before publishing. |
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
+| `risk-and-standards-matrix.json` | Support careful workflow governance and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, labels, and review state. |
 
 Publication scope non-claims:
@@ -137,7 +140,9 @@ Publication scope non-claims:
 2. Use `annex.md` to decide which artefacts deserve mention or annex treatment.
 3. Use `scorecard.json` only for pilot criteria, not as a universal quality
    score.
-4. Use `task-artefacts.json` when writing about reproducibility, provenance, or
+4. Use `risk-and-standards-matrix.json` when writing about risks, standards
+   direction, and remaining work.
+5. Use `task-artefacts.json` when writing about reproducibility, provenance, or
    auditability.
-5. Keep private, institutional, and submission-specific wording in the external
+6. Keep private, institutional, and submission-specific wording in the external
    writing vault.

@@ -66,6 +66,30 @@
       ]
     },
     {
+      "id": "risk-and-standards-matrix-json",
+      "uri": "risk-and-standards-matrix.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "98bfcb529ea25320d187907f1c2343644ecb45e0014a69082b6ca6fd63ce7dcc"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "risk",
+        "standards",
+        "claim-promotion"
+      ]
+    },
+    {
       "id": "scenario-md",
       "uri": "scenario.md",
       "mediaType": "text/markdown",

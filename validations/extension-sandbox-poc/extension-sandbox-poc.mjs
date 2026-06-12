@@ -262,6 +262,62 @@ export function buildPilotScorecard(report) {
 	};
 }
 
+export function buildRiskAndStandardsMatrix(report) {
+	return {
+		id: "risk-and-standards-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		conformanceClaim: false,
+		frameworks: [
+			{
+				id: "wasi-component-model-direction",
+				name: "WASI Component Model direction",
+				stance: "architecture-alignment",
+				note:
+					"This POC models manifest, capability, lifecycle, and failure controls without claiming real WASM execution.",
+			},
+			{
+				id: "least-privilege-extension-hosting",
+				name: "Least-privilege extension hosting",
+				stance: "control-pressure",
+				note:
+					"Requested capabilities are compared against explicit grants before lifecycle events are accepted.",
+			},
+		],
+		controls: [
+			{
+				id: "manifest-validation",
+				risk: "extension declares invalid or ambiguous authority",
+				evidence: ["sandbox-report.json", "task-artefacts.json"],
+				status: report.checks.benignCompleted ? "demonstrated" : "needs-work",
+			},
+			{
+				id: "capability-denial",
+				risk: "extension expands host authority without review",
+				evidence: ["policy-decision.json"],
+				status: report.checks.deniedBlocked ? "demonstrated" : "needs-work",
+			},
+			{
+				id: "failure-isolation",
+				risk: "extension failure takes down the host in permissive mode",
+				evidence: ["sandbox-report.md"],
+				status: report.checks.warnContinueSurvivesFailure ? "demonstrated" : "needs-work",
+			},
+		],
+		gaps: [
+			{
+				id: "real-wasm-runtime",
+				neededForClaim: "real plugin execution",
+				nextEvidence: "Link this POC to an exercised WASM runtime command.",
+			},
+			{
+				id: "production-policy-lifecycle",
+				neededForClaim: "production plugin governance",
+				nextEvidence: "Exercise install, deny, quarantine, review, and recovery commands.",
+			},
+		],
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -400,12 +456,14 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"sandbox-report.json": "dataset",
 		"policy-decision.json": "receipt",
 		"scorecard.json": "report",
+		"risk-and-standards-matrix.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"sandbox-report.md": "report",
 	};
 	const labels = {
 		"scorecard.json": ["scorecard", "pilot"],
+		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 	};
@@ -441,10 +499,12 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 export function writeArtifacts(outDir) {
 	const report = runExtensionSandboxPoc();
 	const scorecard = buildPilotScorecard(report);
+	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
 		"scorecard.json": jsonText(scorecard),
+		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),

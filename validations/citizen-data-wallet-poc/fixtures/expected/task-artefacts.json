@@ -161,6 +161,30 @@
       ]
     },
     {
+      "id": "risk-and-standards-matrix",
+      "uri": "risk-and-standards-matrix.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "4db90e6642da977bec0ac0020e51426f9266674019877d09b237d465f67bf6b8"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "risk",
+        "standards",
+        "claim-promotion"
+      ]
+    },
+    {
       "id": "scenario",
       "uri": "scenario.md",
       "mediaType": "text/markdown",

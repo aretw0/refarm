@@ -21,6 +21,8 @@ read secrets.
 - A lab snapshot exposes graph and metrics without owning notebook UX.
 - A publication snapshot excludes draft notes.
 - A preflight report requires human review before publication.
+- A risk and standards matrix records workflow controls, publication risks,
+  gaps, and no conformance claim.
 - JSON artifacts and a Markdown review report are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, provenance, and consumer labels.
@@ -63,6 +65,10 @@ Expected artifacts live in `fixtures/expected/`:
 - `lab-snapshot.json`
 - `publication-snapshot.json`
 - `publication-preflight.json`
+- `scorecard.json`
+- `risk-and-standards-matrix.json`
+- `scenario.md`
+- `annex.md`
 - `human-review.md`
 - `task-artefacts.json`
 

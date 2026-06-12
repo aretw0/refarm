@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import {
 	buildPilotScorecard,
+	buildRiskAndStandardsMatrix,
 	buildTaskArtefactManifest,
 	runGovernedNoteBoxPoc,
 } from "./governed-note-box-poc.mjs";
@@ -72,6 +73,20 @@ describe("governed note box poc", () => {
 		assert.match(scorecard.limits[0], /Synthetic notes/);
 	});
 
+	it("publishes a risk and standards matrix without claiming conformance", () => {
+		const report = runGovernedNoteBoxPoc();
+		const matrix = buildRiskAndStandardsMatrix(report);
+
+		assert.deepEqual(readFixture("risk-and-standards-matrix.json"), matrix);
+		assert.equal(matrix.conformanceClaim, false);
+		assert.equal(matrix.controls.length, 3);
+		assert.ok(matrix.controls.every((control) => control.status === "demonstrated"));
+		assert.deepEqual(
+			matrix.gaps.map((gap) => gap.neededForClaim),
+			["real vault integration", "complete publication workflow", "editorial policy completeness"],
+		);
+	});
+
 	it("keeps generated fixtures small, synthetic, and deterministic", () => {
 		const report = runGovernedNoteBoxPoc();
 
@@ -109,6 +124,7 @@ describe("governed note box poc", () => {
 				"publication-snapshot.json",
 				"publication-preflight.json",
 				"scorecard.json",
+				"risk-and-standards-matrix.json",
 				"scenario.md",
 				"annex.md",
 				"human-review.md",

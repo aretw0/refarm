@@ -140,6 +140,30 @@
       ]
     },
     {
+      "id": "risk-and-standards-matrix",
+      "uri": "risk-and-standards-matrix.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7e9bcd7d81e2a6980f33dcb03e4a60d5e26c50d72c019990a32856dff7f7ab37"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "risk",
+        "standards",
+        "claim-promotion"
+      ]
+    },
+    {
       "id": "scenario",
       "uri": "scenario.md",
       "mediaType": "text/markdown",

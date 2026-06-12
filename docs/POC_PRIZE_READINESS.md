@@ -9,11 +9,11 @@ The validation POCs are technically useful, but they are not yet as rich as a
 submission-ready prize demonstration.
 
 They already provide deterministic evidence, synthetic data, review artifacts,
-task artefact manifests, pilot scorecards, scenario narratives, and evidence
-annexes. That is the right foundation. What is still thinner than a
-winning-style work is the final presentation layer: polished diagrams,
-submission-specific framing, standards mapping, and reader-facing synthesis
-outside the validation repository.
+task artefact manifests, pilot scorecards, scenario narratives, evidence
+annexes, and careful risk/standards matrices. That is the right foundation.
+What is still thinner than a winning-style work is the final presentation layer:
+polished diagrams, submission-specific framing, real integration evidence, and
+reader-facing synthesis outside the validation repository.
 
 ## Calibration Source
 
@@ -36,8 +36,8 @@ result to operational value.
 
 | POC | Current Strength | Current Gap | Prize Readiness |
 | --- | --- | --- | --- |
-| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, and evidence annex. | It does not yet show a real WASM/plugin lifecycle, visual lifecycle diagram, or promotion matrix. | Medium-high. Strong demonstration packet, still synthetic. |
-| Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, pilot scorecard, scenario, and evidence annex. | It lacks UX/accessibility review, LGPD principle mapping, and standards mapping that is careful not to claim full compliance. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
+| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It does not yet show a real WASM/plugin lifecycle or visual lifecycle diagram. | Medium-high. Strong demonstration packet, still synthetic. |
+| Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It lacks UX/accessibility review, legal review, and standards test-suite evidence for any formal compliance claim. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
 | Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, pilot scorecard, scenario, and evidence annex. | It is intentionally synthetic and not yet connected to vault-seed-style lab/export/publication pressure or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
 
 ## What Is Already a Reusable Primitive
@@ -53,6 +53,8 @@ result to operational value.
   labeled `scorecard` and `pilot`.
 - `scenario.md` and `annex.md` reports for each POC, exposed through labels
   `scenario`, `reader-path`, `annex`, and `evidence-map`.
+- `risk-and-standards-matrix.json` reports for each POC, exposed through labels
+  `risk`, `standards`, and `claim-promotion`.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -92,15 +94,22 @@ Each POC should grow one lightweight "demonstration packet":
    - Mapping from generated artifacts to proposal claims.
    - No Refarm product naming when intended for external proposal reuse.
 
-4. `limits.md`
+4. `risk-and-standards-matrix.json`
+   - Implemented for all three POCs.
+   - Controls, risks, alignment stance, gaps, and `conformanceClaim: false`.
+   - Evidence for careful standards discussion without claiming certification.
+
+5. `limits.md`
    - Non-goals, adoption risks, and when the model should not be used.
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.
 
 ## Recommended Next Slices
 
-1. Add standards and risk mapping only as careful, non-conformance claims.
-2. Add `limits.md` only if the existing scenario/annex files become too dense.
+1. Link the extension sandbox to an exercised real WASM/plugin lifecycle when
+   the cheapest cross-platform command is stable.
+2. Add `limits.md` only if the existing scenario, annex, and matrix files become
+   too dense.
 3. Let vault-seed consume those manifests later, instead of moving vault UX into
    Refarm.
 

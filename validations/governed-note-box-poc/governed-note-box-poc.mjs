@@ -274,6 +274,67 @@ export function buildPilotScorecard(report) {
 	};
 }
 
+export function buildRiskAndStandardsMatrix(report) {
+	return {
+		id: "risk-and-standards-governed-note-box-001",
+		createdAt: ISSUED_AT,
+		conformanceClaim: false,
+		frameworks: [
+			{
+				id: "local-first-knowledge-workflow",
+				name: "Local-first knowledge workflow",
+				stance: "architecture-alignment",
+				note:
+					"This POC preserves metadata and publication gates without replacing vault, notebook, or publishing UX.",
+			},
+			{
+				id: "publication-preflight-governance",
+				name: "Publication preflight governance",
+				stance: "control-pressure",
+				note:
+					"Draft exclusion, metadata checks, and human review are explicit before publishing.",
+			},
+		],
+		controls: [
+			{
+				id: "metadata-preservation",
+				risk: "notes lose source context during ingestion",
+				evidence: ["intake-snapshot.json", "metadata-index.json"],
+				status: report.checks.allNotesHaveMetadata ? "demonstrated" : "needs-work",
+			},
+			{
+				id: "publication-hygiene",
+				risk: "draft notes leak into publication output",
+				evidence: ["publication-snapshot.json", "publication-preflight.json"],
+				status: report.checks.draftsExcludedFromPublication ? "demonstrated" : "needs-work",
+			},
+			{
+				id: "human-review",
+				risk: "automation publishes without editorial review",
+				evidence: ["publication-preflight.json", "human-review.md"],
+				status: report.checks.humanReviewRequired ? "demonstrated" : "needs-work",
+			},
+		],
+		gaps: [
+			{
+				id: "real-vault-consumer",
+				neededForClaim: "real vault integration",
+				nextEvidence: "Have a consumer project read the manifest and produce vault-local output.",
+			},
+			{
+				id: "publication-outbox",
+				neededForClaim: "complete publication workflow",
+				nextEvidence: "Exercise outbox generation, preview, approval, and publish handoff.",
+			},
+			{
+				id: "editorial-policy",
+				neededForClaim: "editorial policy completeness",
+				nextEvidence: "Attach project-specific editorial rules and acceptance criteria.",
+			},
+		],
+	};
+}
+
 function evidenceForNoteCriterion(criterion) {
 	const evidence = {
 		metadataPreservation: "Metadata index contains hash, tags, links, status, and dates.",
@@ -293,6 +354,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"publication-snapshot.json": "dataset",
 		"publication-preflight.json": "audit-trail",
 		"scorecard.json": "report",
+		"risk-and-standards-matrix.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"human-review.md": "report",
@@ -304,6 +366,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"publication-snapshot.json": ["publication"],
 		"publication-preflight.json": ["publication", "preflight"],
 		"scorecard.json": ["scorecard", "pilot"],
+		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"human-review.md": ["publication", "human-review"],
@@ -340,6 +403,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 export function writeArtifacts(outDir) {
 	const report = runGovernedNoteBoxPoc();
 	const scorecard = buildPilotScorecard(report);
+	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
 	const writtenArtifacts = {
 		"intake-snapshot.json": jsonText(report.intakeSnapshot),
 		"metadata-index.json": jsonText(report.metadataIndex),
@@ -347,6 +411,7 @@ export function writeArtifacts(outDir) {
 		"publication-snapshot.json": jsonText(report.publicationSnapshot),
 		"publication-preflight.json": jsonText(report.publicationPreflight),
 		"scorecard.json": jsonText(scorecard),
+		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"human-review.md": buildReviewMarkdown(report),

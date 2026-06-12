@@ -77,6 +77,13 @@ assert.deepEqual(
 	})),
 	["annex"],
 );
+assert.deepEqual(
+	ids(selectTaskArtefacts(wallet, {
+		labels: ["risk", "standards"],
+		roles: ["report"],
+	})),
+	["risk-and-standards-matrix"],
+);
 
 const extension = readManifest(MANIFESTS.extension);
 assert.deepEqual(
@@ -111,6 +118,13 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["annex-md"],
+);
+assert.deepEqual(
+	ids(selectTaskArtefacts(extension, {
+		labels: ["risk", "standards"],
+		roles: ["report"],
+	})),
+	["risk-and-standards-matrix-json"],
 );
 
 const notes = readManifest(MANIFESTS.notes);
@@ -159,6 +173,13 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["annex"],
+);
+assert.deepEqual(
+	ids(selectTaskArtefacts(notes, {
+		labels: ["risk", "standards"],
+		roles: ["report"],
+	})),
+	["risk-and-standards-matrix"],
 );
 assert.equal(findTaskArtefactById(notes, "human-review")?.mediaType, "text/markdown");
 

@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
 	authorizationPayload,
 	buildPilotScorecard,
+	buildRiskAndStandardsMatrix,
 	buildTaskArtefactManifest,
 	createAuthorizationReceipt,
 	createAuthorityAttributes,
@@ -105,6 +106,24 @@ describe("citizen data wallet poc", () => {
 		assert.match(scorecard.limits[0], /Synthetic signature/);
 	});
 
+	it("publishes a risk and standards matrix without claiming conformance", () => {
+		const result = runWalletPoc();
+		const matrix = buildRiskAndStandardsMatrix(result);
+
+		assert.deepEqual(readFixture("risk-and-standards-matrix.json"), matrix);
+		assert.equal(matrix.conformanceClaim, false);
+		assert.equal(matrix.controls.length, 3);
+		assert.ok(matrix.controls.every((control) => control.status === "demonstrated"));
+		assert.deepEqual(
+			matrix.gaps.map((gap) => gap.neededForClaim),
+			[
+				"VC or OpenID conformance",
+				"production service readiness",
+				"legal or institutional compliance",
+			],
+		);
+	});
+
 	it("keeps generated fixtures small, synthetic, and deterministic", () => {
 		const result = runWalletPoc();
 
@@ -136,7 +155,7 @@ describe("citizen data wallet poc", () => {
 		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artefacts.length, 11);
+		assert.equal(manifest.artefacts.length, 12);
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
 			[
@@ -148,6 +167,7 @@ describe("citizen data wallet poc", () => {
 				"revocation-event.json",
 				"consent-decision.json",
 				"scorecard.json",
+				"risk-and-standards-matrix.json",
 				"scenario.md",
 				"annex.md",
 				"audit-trail.md",

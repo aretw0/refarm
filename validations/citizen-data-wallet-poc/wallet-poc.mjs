@@ -340,6 +340,70 @@ export function buildPilotScorecard(result) {
 	};
 }
 
+export function buildRiskAndStandardsMatrix(result) {
+	return {
+		id: "risk-and-standards-citizen-data-wallet-001",
+		createdAt: ISSUED_AT,
+		conformanceClaim: false,
+		frameworks: [
+			{
+				id: "w3c-vc-openid-direction",
+				name: "W3C VC and OpenID credential flow direction",
+				stance: "architecture-alignment",
+				note:
+					"This POC uses inspired local receipts and signatures; it does not claim VC, OpenID4VP, or OpenID4VCI conformance.",
+			},
+			{
+				id: "privacy-minimization",
+				name: "Privacy and data minimization",
+				stance: "control-pressure",
+				note:
+					"Purpose, requested attributes, selective disclosure, and revocation are explicit review artefacts.",
+			},
+		],
+		controls: [
+			{
+				id: "purpose-and-scope",
+				risk: "service collects attributes without a clear purpose",
+				evidence: ["service-request.json", "authorization-receipt.json"],
+				status: result.request.purpose ? "demonstrated" : "needs-work",
+			},
+			{
+				id: "selective-disclosure",
+				risk: "wallet discloses attributes outside the authorization scope",
+				evidence: ["selective-presentation.json", "consent-decision.json"],
+				status:
+					result.consentDecision.presentation.unrequestedDisclosures.length === 0
+						? "demonstrated"
+						: "needs-work",
+			},
+			{
+				id: "revocation",
+				risk: "revoked authorization remains usable",
+				evidence: ["revocation-event.json", "consent-decision.json"],
+				status: !result.checks.revokedUsable ? "demonstrated" : "needs-work",
+			},
+		],
+		gaps: [
+			{
+				id: "standards-test-suite",
+				neededForClaim: "VC or OpenID conformance",
+				nextEvidence: "Run a dedicated standards test suite against real protocol messages.",
+			},
+			{
+				id: "accessibility-service-integration",
+				neededForClaim: "production service readiness",
+				nextEvidence: "Exercise a real UI journey with accessibility and service-integration tests.",
+			},
+			{
+				id: "legal-review",
+				neededForClaim: "legal or institutional compliance",
+				nextEvidence: "Attach a qualified legal or institutional review outside this POC.",
+			},
+		],
+	};
+}
+
 function evidenceForWalletCriterion(criterion) {
 	const evidence = {
 		purposeAndScope: "Service request and receipt carry purpose, scope, and expiration.",
@@ -401,12 +465,14 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"revocation-event.json": "receipt",
 		"consent-decision.json": "receipt",
 		"scorecard.json": "report",
+		"risk-and-standards-matrix.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"audit-trail.md": "audit-trail",
 	};
 	const labels = {
 		"scorecard.json": ["scorecard", "pilot"],
+		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 	};
@@ -442,6 +508,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 export function writeArtifacts(outDir) {
 	const result = runWalletPoc();
 	const scorecard = buildPilotScorecard(result);
+	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(result);
 	const artifacts = {
 		"identity.json": result.identity,
 		"authority-attributes.json": result.attributes,
@@ -451,6 +518,7 @@ export function writeArtifacts(outDir) {
 		"revocation-event.json": result.revocation,
 		"consent-decision.json": result.consentDecision,
 		"scorecard.json": scorecard,
+		"risk-and-standards-matrix.json": riskAndStandardsMatrix,
 	};
 	const auditTrail = buildAuditTrail({
 		attributes: result.attributes,

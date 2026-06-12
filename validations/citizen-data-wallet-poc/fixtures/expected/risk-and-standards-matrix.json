@@ -1,0 +1,65 @@
+{
+  "id": "risk-and-standards-citizen-data-wallet-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "conformanceClaim": false,
+  "frameworks": [
+    {
+      "id": "w3c-vc-openid-direction",
+      "name": "W3C VC and OpenID credential flow direction",
+      "stance": "architecture-alignment",
+      "note": "This POC uses inspired local receipts and signatures; it does not claim VC, OpenID4VP, or OpenID4VCI conformance."
+    },
+    {
+      "id": "privacy-minimization",
+      "name": "Privacy and data minimization",
+      "stance": "control-pressure",
+      "note": "Purpose, requested attributes, selective disclosure, and revocation are explicit review artefacts."
+    }
+  ],
+  "controls": [
+    {
+      "id": "purpose-and-scope",
+      "risk": "service collects attributes without a clear purpose",
+      "evidence": [
+        "service-request.json",
+        "authorization-receipt.json"
+      ],
+      "status": "demonstrated"
+    },
+    {
+      "id": "selective-disclosure",
+      "risk": "wallet discloses attributes outside the authorization scope",
+      "evidence": [
+        "selective-presentation.json",
+        "consent-decision.json"
+      ],
+      "status": "demonstrated"
+    },
+    {
+      "id": "revocation",
+      "risk": "revoked authorization remains usable",
+      "evidence": [
+        "revocation-event.json",
+        "consent-decision.json"
+      ],
+      "status": "demonstrated"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "standards-test-suite",
+      "neededForClaim": "VC or OpenID conformance",
+      "nextEvidence": "Run a dedicated standards test suite against real protocol messages."
+    },
+    {
+      "id": "accessibility-service-integration",
+      "neededForClaim": "production service readiness",
+      "nextEvidence": "Exercise a real UI journey with accessibility and service-integration tests."
+    },
+    {
+      "id": "legal-review",
+      "neededForClaim": "legal or institutional compliance",
+      "nextEvidence": "Attach a qualified legal or institutional review outside this POC."
+    }
+  ]
+}

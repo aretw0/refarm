@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
 	buildPilotScorecard,
 	buildPolicyDecision,
+	buildRiskAndStandardsMatrix,
 	buildTaskArtefactManifest,
 	runExtensionSandboxPoc,
 } from "./extension-sandbox-poc.mjs";
@@ -83,6 +84,20 @@ describe("extension sandbox poc", () => {
 		assert.match(scorecard.limits[0], /Simulated lifecycle/);
 	});
 
+	it("publishes a risk and standards matrix without claiming conformance", () => {
+		const report = runExtensionSandboxPoc();
+		const matrix = buildRiskAndStandardsMatrix(report);
+
+		assert.deepEqual(readFixture("risk-and-standards-matrix.json"), matrix);
+		assert.equal(matrix.conformanceClaim, false);
+		assert.equal(matrix.controls.length, 3);
+		assert.ok(matrix.controls.every((control) => control.status === "demonstrated"));
+		assert.deepEqual(
+			matrix.gaps.map((gap) => gap.neededForClaim),
+			["real plugin execution", "production plugin governance"],
+		);
+	});
+
 	it("keeps generated fixtures deterministic", () => {
 		const report = runExtensionSandboxPoc();
 
@@ -113,6 +128,7 @@ describe("extension sandbox poc", () => {
 				"sandbox-report.json",
 				"policy-decision.json",
 				"scorecard.json",
+				"risk-and-standards-matrix.json",
 				"scenario.md",
 				"annex.md",
 				"sandbox-report.md",

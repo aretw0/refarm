@@ -22,6 +22,8 @@ read secrets.
 - `fail-fast` aborts the host flow on extension failure.
 - A policy decision artifact records denied capabilities, isolated failures,
   and whether human review is required before changing grants.
+- A risk and standards matrix records alignment, controls, gaps, and no
+  conformance claim.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance.
@@ -64,7 +66,11 @@ Expected artifacts live in `fixtures/expected/`:
 
 - `sandbox-report.json`
 - `policy-decision.json`
+- `scorecard.json`
+- `risk-and-standards-matrix.json`
 - `sandbox-report.md`
+- `scenario.md`
+- `annex.md`
 - `task-artefacts.json`
 
 ## Next Steps
