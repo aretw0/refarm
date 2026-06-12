@@ -28,6 +28,8 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   workerd: true
+overrides:
+  esbuild: 0.28.1
 auditConfig:
   ignoreGhsas:
     - GHSA-48c2-rrv3-qjmp
