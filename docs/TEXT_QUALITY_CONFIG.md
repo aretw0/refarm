@@ -45,6 +45,7 @@ policy in the `.refarm` sidecar area instead of requiring a root-level
 | `longSentenceWords` | non-negative number | Emits `info` findings for prose sentences above the threshold. Use `0` to disable. |
 | `riskPatterns` | array | Regex-based findings with `id`, `severity`, optional `description`, and `regex`. |
 | `repetitionHeuristics.paragraphStarter` | object | Configures repeated paragraph-start detection. |
+| `rubric` | object | Optional deterministic scorecard with weighted criteria. |
 | `profiles` | object | Named overlays selected with `--profile <name>`. |
 | `audiences` | object | Named overlays selected by `--audience <name>` or frontmatter `audience`. |
 
@@ -64,6 +65,52 @@ policy in the `.refarm` sidecar area instead of requiring a root-level
 ```
 
 Numeric `paragraphStarter` fields must be positive integers.
+
+## Rubric Scorecards
+
+Rubrics let consumer projects define weighted, deterministic criteria without
+moving domain-specific judgment into Refarm. Each criterion may require patterns
+to be present and forbid patterns that should not remain.
+
+```json
+{
+	"rubric": {
+		"enabled": true,
+		"scale": 5,
+		"criteria": [
+			{
+				"id": "evidence",
+				"label": "Evidence",
+				"weight": 0.6,
+				"severity": "warn",
+				"requiredPatterns": [
+					{
+						"id": "explicit-source",
+						"description": "At least one explicit source marker should be present.",
+						"regex": "\\b(source|reference|evidence)\\b"
+					}
+				]
+			},
+			{
+				"id": "draft-hygiene",
+				"label": "Draft hygiene",
+				"weight": 0.4,
+				"forbiddenPatterns": [
+					{
+						"id": "draft-note",
+						"description": "Draft notes should not remain.",
+						"regex": "\\bDRAFT_NOTE\\b"
+					}
+				]
+			}
+		]
+	}
+}
+```
+
+When enabled, JSON reports include `metrics.rubric` with `scores`, `weights`,
+`finalScore`, and per-criterion issues. Failed rubric checks also appear as
+findings with `rule` values prefixed by `rubric:`.
 
 ## Profiles And Audiences
 

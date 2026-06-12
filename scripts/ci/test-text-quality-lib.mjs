@@ -16,6 +16,7 @@ import {
 	proseParagraphs,
 	readFrontmatterField,
 	resolveTextQualityConfigPath,
+	scoreRubric,
 	scoreText,
 	severityCounts,
 	stripFrontmatter,
@@ -143,6 +144,82 @@ test("text quality scorer counts severities", () => {
 	);
 });
 
+test("text quality scorer emits weighted rubric scorecard", () => {
+	const result = scoreText("A proposta descreve objetivo, impacto e evidencias.", {
+		...DEFAULT_TEXT_QUALITY_CONFIG,
+		longSentenceWords: 0,
+		riskPatterns: [],
+		repetitionHeuristics: { paragraphStarter: { enabled: false } },
+		rubric: {
+			enabled: true,
+			scale: 5,
+			criteria: [
+				{
+					id: "clareza",
+					label: "Clareza",
+					weight: 0.6,
+					requiredPatterns: [
+						{ id: "objetivo", regex: "\\bobjetivo\\b" },
+						{ id: "impacto", regex: "\\bimpacto\\b" },
+					],
+				},
+				{
+					id: "higiene",
+					label: "Higiene",
+					weight: 0.4,
+					forbiddenPatterns: [
+						{
+							id: "draft-note",
+							description: "Draft note must not remain.",
+							regex: "\\bDRAFT_NOTE\\b",
+						},
+					],
+				},
+			],
+		},
+	});
+
+	assert.equal(result.metrics.rubric.finalScore, 5);
+	assert.deepEqual(result.metrics.rubric.scores, { clareza: 5, higiene: 5 });
+	assert.deepEqual(result.findings, []);
+});
+
+test("text quality scorer reports failed rubric checks", () => {
+	const rubric = scoreRubric("Texto sem evidencia. DRAFT_NOTE", {
+		enabled: true,
+		scale: 5,
+		criteria: [
+			{
+				id: "evidencia",
+				weight: 1,
+				severity: "warn",
+				requiredPatterns: [
+					{
+						id: "fonte",
+						description: "Evidence source should be explicit.",
+						regex: "\\bfonte\\b",
+					},
+				],
+				forbiddenPatterns: [
+					{
+						id: "draft-note",
+						description: "Draft marker should not remain.",
+						regex: "\\bDRAFT_NOTE\\b",
+					},
+				],
+			},
+		],
+	});
+
+	assert.equal(rubric.finalScore, 0);
+	assert.deepEqual(rubric.weights, { evidencia: 1 });
+	assert.deepEqual(rubric.scores, { evidencia: 0 });
+	assert.deepEqual(
+		rubric.criteria[0].issues.map((issue) => issue.id),
+		["fonte", "draft-note"],
+	);
+});
+
 test("text quality cli emits json report", () => {
 	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
 	try {
@@ -266,12 +343,19 @@ test("text quality config validator rejects invalid schema", () => {
 		() =>
 			validateTextQualityConfig({
 				longSentenceWords: -1,
+				rubric: {
+					enabled: "yes",
+					scale: 0,
+					criteria: [{ id: "", requiredPatterns: [{ id: "x", regex: "[" }] }],
+				},
 				riskPatterns: [{ id: "", severity: "fatal", regex: "[" }],
 			}),
 		(error) => {
 			assert.equal(error.code, "ERR_TEXT_QUALITY_CONFIG_SCHEMA");
 			assert.match(error.message, /longSentenceWords/u);
 			assert.match(error.message, /riskPatterns\[0\]\.severity/u);
+			assert.match(error.message, /rubric\.enabled/u);
+			assert.match(error.message, /rubric\.criteria\[0\]\.requiredPatterns/u);
 			return true;
 		},
 	);

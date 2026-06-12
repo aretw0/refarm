@@ -61,6 +61,11 @@ export const DEFAULT_TEXT_QUALITY_CONFIG = {
 			longSentenceWords: 55,
 		},
 	},
+	rubric: {
+		enabled: false,
+		scale: 5,
+		criteria: [],
+	},
 };
 
 const WORD_RE = /[\p{L}\p{N}_]+(?:[-'][\p{L}\p{N}_]+)?/gu;
@@ -271,6 +276,22 @@ export function scoreText(text, config = DEFAULT_TEXT_QUALITY_CONFIG, source = "
 		}
 	}
 
+	const rubric = scoreRubric(body, config.rubric);
+	if (rubric) {
+		metrics.rubric = rubric;
+		for (const criterion of rubric.criteria) {
+			for (const issue of criterion.issues) {
+				findings.push({
+					severity: issue.severity,
+					rule: `rubric:${criterion.id}:${issue.id}`,
+					message: issue.description,
+					line: null,
+					snippet: criterion.label ?? criterion.id,
+				});
+			}
+		}
+	}
+
 	const longSentenceWords = Number(config.longSentenceWords ?? 0);
 	if (longSentenceWords > 0) {
 		const longSentences = prose
@@ -296,6 +317,88 @@ export function scoreText(text, config = DEFAULT_TEXT_QUALITY_CONFIG, source = "
 	}
 
 	return { findings, metrics };
+}
+
+export function scoreRubric(text, rubricConfig) {
+	if (!rubricConfig || rubricConfig.enabled === false) return null;
+	const scale = Number(rubricConfig.scale ?? 5);
+	const criteria = [];
+	for (const criterion of rubricConfig.criteria ?? []) {
+		const required = evaluateRubricPatterns(
+			text,
+			criterion.requiredPatterns ?? [],
+			"required",
+		);
+		const forbidden = evaluateRubricPatterns(
+			text,
+			criterion.forbiddenPatterns ?? [],
+			"forbidden",
+		);
+		const checks = [...required, ...forbidden];
+		const passed = checks.filter((check) => check.passed).length;
+		const total = checks.length;
+		const score = total === 0 ? scale : roundScore((passed / total) * scale);
+		const issues = checks
+			.filter((check) => !check.passed)
+			.map((check) => ({
+				id: check.id,
+				type: check.type,
+				severity: criterion.severity ?? "info",
+				description:
+					check.description ??
+					(check.type === "required"
+						? `Required rubric pattern missing: ${check.id}.`
+						: `Forbidden rubric pattern present: ${check.id}.`),
+			}));
+		criteria.push({
+			id: criterion.id,
+			label: criterion.label ?? criterion.id,
+			weight: Number(criterion.weight ?? 1),
+			score,
+			maxScore: scale,
+			passed,
+			total,
+			issues,
+		});
+	}
+	const weightSum = criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
+	const finalScore =
+		weightSum > 0
+			? roundScore(
+					criteria.reduce(
+						(sum, criterion) => sum + criterion.score * criterion.weight,
+						0,
+					) / weightSum,
+				)
+			: null;
+	return {
+		scale,
+		finalScore,
+		weights: Object.fromEntries(
+			criteria.map((criterion) => [criterion.id, criterion.weight]),
+		),
+		scores: Object.fromEntries(
+			criteria.map((criterion) => [criterion.id, criterion.score]),
+		),
+		criteria,
+	};
+}
+
+function evaluateRubricPatterns(text, patterns, type) {
+	return patterns.map((pattern) => {
+		const regex = new RegExp(pattern.regex, "iu");
+		const matches = regex.test(text);
+		return {
+			id: pattern.id,
+			description: pattern.description,
+			type,
+			passed: type === "required" ? matches : !matches,
+		};
+	});
+}
+
+function roundScore(value) {
+	return Math.round(value * 100) / 100;
 }
 
 export function severityCounts(findings) {

@@ -284,6 +284,9 @@ Rules:
   experiments, CI jobs, or consumer-specific wrappers. This keeps Refarm policy
   out of surprising root-level files. The maintained field contract is
   [`docs/TEXT_QUALITY_CONFIG.md`](TEXT_QUALITY_CONFIG.md).
+- Optional rubric scorecards produce `scores`, `weights`, and `finalScore` from
+  deterministic required/forbidden patterns. Refarm owns the generic scorecard
+  shape; consumer repositories own the domain criteria and thresholds.
 - `--json` reports include `ok: true` on success. Configuration failures report
   `ok: false` with a stable `error.code`, message, and relative `configPath` so
   agents can recover without scraping stack traces. Semantic config failures use
