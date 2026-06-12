@@ -90,7 +90,7 @@ if (!platformCompat) {
 	);
 }
 
-if (!validateDiagramsWorkflow.includes("pnpm dlx @puppeteer/browsers install chrome")) {
+if (!validateDiagramsWorkflow.includes("node scripts/ci/install-puppeteer-browser.mjs")) {
 	failures.push("validate-diagrams must explicitly install the Puppeteer Chrome browser before running mmdc");
 }
 

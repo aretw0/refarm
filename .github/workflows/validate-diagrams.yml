@@ -28,13 +28,14 @@ jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: pnpm dlx @puppeteer/browsers install chrome && REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check -- --ci
+      validation-command: node scripts/ci/install-puppeteer-browser.mjs && REFARM_DIAGRAM_SYNC_STRICT=0 pnpm run diagrams:check -- --ci
       validation-name: Diagrams
       validation-cache-files: |
         docs/**/*.mermaid
         specs/diagrams/**/*.mermaid
         specs/diagrams/mermaid.config.json
         scripts/check-diagrams.mjs
+        scripts/ci/install-puppeteer-browser.mjs
         scripts/puppeteer-no-sandbox.json
         pnpm-lock.yaml
         .github/workflows/validate-diagrams.yml
