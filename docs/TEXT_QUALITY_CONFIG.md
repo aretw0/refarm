@@ -98,6 +98,9 @@ audience: introductory
 
 `--json` success reports include `ok: true`. Config failures use `ok: false`.
 
+Missing or unreadable config files return `ERR_TEXT_QUALITY_CONFIG_READ` and
+include `error.fsCode` when Node exposes a filesystem code such as `ENOENT`.
+
 Invalid JSON returns:
 
 ```json

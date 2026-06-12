@@ -315,7 +315,18 @@ export function statusForFindings(findings) {
 
 export async function loadTextQualityConfig(configPath) {
 	if (!configPath) return DEFAULT_TEXT_QUALITY_CONFIG;
-	const raw = await readFile(configPath, "utf8");
+	let raw;
+	try {
+		raw = await readFile(configPath, "utf8");
+	} catch (cause) {
+		const error = new Error(`Unable to read text quality config: ${configPath}`, {
+			cause,
+		});
+		error.code = "ERR_TEXT_QUALITY_CONFIG_READ";
+		error.configPath = configPath;
+		error.fsCode = cause?.code ?? null;
+		throw error;
+	}
 	try {
 		const config = JSON.parse(raw);
 		validateTextQualityConfig(config, configPath);

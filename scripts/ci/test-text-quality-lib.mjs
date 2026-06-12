@@ -325,6 +325,33 @@ test("text quality cli emits json schema error for invalid discovered config", (
 	}
 });
 
+test("text quality cli emits json read error for missing explicit config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const file = path.join(dir, "note.md");
+		const missingConfig = path.join(dir, "missing.json");
+		writeFileSync(file, "Plain note.\n", "utf8");
+		const result = spawnSync(
+			process.execPath,
+			[cliPath, "--json", "--config", missingConfig, file],
+			{
+				cwd: dir,
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			},
+		);
+
+		assert.equal(result.status, 1);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_READ");
+		assert.equal(payload.error.configPath, "missing.json");
+		assert.equal(payload.error.fsCode, "ENOENT");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
 test("text quality cli strict mode fails on warnings", () => {
 	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
 	try {
