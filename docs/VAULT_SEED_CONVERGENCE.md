@@ -37,6 +37,36 @@ This is healthy duplication at the product edge. The risk would be duplicating
 runtime contracts, process handoffs, provenance envelopes, package integrity, or
 workspace health rules in ways that drift from Refarm.
 
+## 2026-06-12 Active Consumer Read
+
+A read-only pass over the active `vault-seed` checkout shows a consumer moving
+faster than its published surface. The checkout is materially dirty and its
+`develop` branch is both ahead of and behind `origin/main`, so these signals are
+architecture pressure, not a release contract.
+
+The useful convergence details are concrete:
+
+| Surface | Observed signal | Refarm action |
+| --- | --- | --- |
+| `dgk-runner` | Exposes a tiny `(cmd, args, opts) => Promise<void>` spawn contract, and `dgk` commands accept an injected runner. | Keep Refarm process specs JSON-first and adapter-friendly, so `dgk` can later delegate without changing command code. |
+| `dgk etl` | Runs a fixed local pipeline: note index, feed sources, publication outbox, lab datasets. | Treat ETL stages as task processes with artifact/provenance outputs, not as vault-specific Refarm commands. |
+| `dgk outbox` / `dgk inbox` | Channel commands are product-local today and route Telegram through scripts. | Promote channel-independent contracts only: contacts, rate limits, receipts, dry-run reports, and review gates. |
+| `silo.js` | Stores publishing-channel credentials under `~/.dgk/silo.json` and explicitly says model/AI keys come from `refarm sow`. | Harden `@refarm.dev/silo` as the model/runtime credential owner; later expose a scoped publishing credential adapter instead of merging all secrets. |
+| `@aretw0/dgk-channels` | Temporary bridge for contact topology and platform-agnostic rate limiting. | Candidate for `@refarm.dev/contacts` and `@refarm.dev/rate-limiter` only after the contract is consumer-neutral. |
+| Astro config | Owns published reading UX, wiki links/images, callouts, sidebar intent routing, Lab links, Mermaid rendering, and attachment/vault JSON generation. | Refarm should provide publish preflight and artifact manifests; Astro rendering remains a consumer concern. |
+| Marimo manifest | Lists publishable notebooks with `title`, `source`, `output`, `description`, and `publish`. | Align with `@refarm.dev/artifact-contract-v1` task artifacts so labs can consume prepared snapshots without Refarm owning notebooks. |
+| Text scoring | `avaliar_textos.py` delegates to a deterministic `text_scorer` and emits JSON reports. | Continue maturing Refarm's dependency-free text-quality contract and leave vault profiles/rubrics in consumers. |
+
+This confirms the layering target:
+
+```text
+dgk command -> dgk-runner adapter -> Refarm process/task handoff -> artifacts
+```
+
+The first integration should be optional. A vault without Refarm should still
+work, while a vault with Refarm installed can ask Refarm to execute, record, and
+handoff richer process metadata.
+
 ## 2026-06-11 Read-Only Calibration
 
 The latest read-only pass over the adjacent writing vault and `vault-seed`
