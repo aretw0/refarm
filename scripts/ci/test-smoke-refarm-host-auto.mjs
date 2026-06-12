@@ -17,6 +17,7 @@ import {
 	isRefarmTreeFile,
 	isSmokeProfile,
 	isTaskArtefactManifestFile,
+	isTextQualitySurfaceFile,
 	isValidationPocFile,
 	listSmokeProfiles,
 	normalizeChangedFiles,
@@ -226,6 +227,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"openapi",
 		"validation-pocs",
 		"task-artefacts",
+		"text-quality",
 		"sidecar",
 		"driver-tasks",
 		"agent-e2e-mock",
@@ -237,7 +239,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artefacts, sidecar, driver-tasks, agent-e2e-mock, install, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artefacts, text-quality, sidecar, driver-tasks, agent-e2e-mock, install, check, quick, dev, ci",
 	);
 });
 
@@ -303,6 +305,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "openapi", script: "openapi:check" },
 			{ profile: "validation-pocs", script: "validation-pocs:test" },
 			{ profile: "task-artefacts", script: "task-artefacts:check" },
+			{ profile: "text-quality", script: "text-quality:verify" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
 			{ profile: "agent-e2e-mock", script: "refarm:agent:e2e:mock" },
@@ -359,6 +362,7 @@ test("maps profiles to package scripts", () => {
 	assert.equal(resolveProfileScript("openapi"), "openapi:check");
 	assert.equal(resolveProfileScript("validation-pocs"), "validation-pocs:test");
 	assert.equal(resolveProfileScript("task-artefacts"), "task-artefacts:check");
+	assert.equal(resolveProfileScript("text-quality"), "text-quality:verify");
 	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
 	assert.equal(
 		resolveProfileScript("driver-tasks"),
@@ -424,6 +428,22 @@ test("detects CLI install substrate files", () => {
 		isCliInstallSurfaceFile("apps/refarm/src/commands/status.ts"),
 		false,
 	);
+});
+
+test("detects text quality surface files", () => {
+	assert.equal(
+		isTextQualitySurfaceFile("scripts/ci/text-quality-lib.mjs"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("scripts/ci/check-text-quality.mjs"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("docs/POC_PRIZE_READINESS.md"),
+		true,
+	);
+	assert.equal(isTextQualitySurfaceFile("docs/random-note.md"), false);
 });
 
 test("routes action-readiness-only deltas to focused actions lane", () => {
@@ -533,6 +553,21 @@ test("routes task artefact deltas to focused artefact lane", () => {
 			"scripts/ci/test-check-task-artefact-manifests-lib.mjs",
 		]).profile,
 		"task-artefacts",
+	);
+});
+
+test("routes text quality deltas to focused docs quality lane", () => {
+	assert.equal(
+		decideProfile([
+			"scripts/ci/text-quality-lib.mjs",
+			"scripts/ci/test-text-quality-lib.mjs",
+			"docs/VAULT_SEED_CONVERGENCE.md",
+		]).profile,
+		"text-quality",
+	);
+	assert.equal(
+		decideProfile(["docs/POC_PRIZE_READINESS.md"]).profile,
+		"text-quality",
 	);
 });
 

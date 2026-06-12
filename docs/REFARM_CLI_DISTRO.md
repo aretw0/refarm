@@ -150,6 +150,8 @@ npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
 npm run refarm:host:smoke:auto:agent-e2e-mock
 npm run refarm:host:smoke:auto:test
+npm run text-quality:verify
+npm run docs:text-quality
 npm run cli:install:verify
 npm run refarm:actions:verify
 npm run refarm:tree:verify
@@ -206,6 +208,10 @@ npm run refarm:tree:verify
   `task-artefacts:check` and a consumer-selector smoke over the generated
   manifests. The auto router selects it for POC source/test changes and keeps
   expected-report-only changes on the narrower `task-artefacts` profile.
+- `text-quality:verify` runs the dependency-free prose scorer tests plus
+  `docs:text-quality` over selected calibration docs. The auto router selects
+  the `text-quality` profile for the scorer implementation, its tests, or those
+  calibrated docs instead of running a host smoke lane.
 - `refarm:host:smoke:auto:agent-e2e-mock` runs
   `refarm:agent:e2e:mock`, the no-token runtime-agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
@@ -220,8 +226,8 @@ npm run refarm:tree:verify
   root `package.json` as a companion file.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
   recommended lane (`skip | actions | tree | validation-pocs |
-  task-artefacts | agent-e2e-mock | install | check | quick | dev | ci`) without
-  executing it. By default
+  task-artefacts | text-quality | agent-e2e-mock | install | check | quick |
+  dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
@@ -235,8 +241,10 @@ npm run refarm:tree:verify
   `install`, `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
   one-command narrow loop previews/execution. Validation profiles such as
   `validation-pocs` and `task-artefacts` are also available for generic
-  downstream-proof work. Shared local helpers such as `execution-plan.ts` stay
-  on the `dev` lane because they feed more than one host contract.
+  downstream-proof work, while `text-quality` covers the reusable prose scorer
+  and selected calibration docs. Shared local helpers such as
+  `execution-plan.ts` stay on the `dev` lane because they feed more than one
+  host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 

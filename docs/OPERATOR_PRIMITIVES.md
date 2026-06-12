@@ -268,6 +268,26 @@ Rules:
 - Do not expose `--apply-suggested-policy` as an automatic continuation from
   dry-run suggestion output; applying policy is a deliberate write.
 
+### Text Quality Pressure
+
+Purpose: make prose drift visible before agents normalize unclear docs,
+submission scaffolding, or leftover assistant artifacts.
+
+Rules:
+
+- Refarm owns the dependency-free scoring contract and JSON report shape for
+  generic prose checks.
+- Consumer-specific rubrics, dashboards, notebooks, and submission language
+  stay in consumer repositories such as `vault-seed` or writing vaults.
+- `pnpm run text-quality:test` validates the scorer and CLI behavior.
+- `pnpm run docs:text-quality` checks selected Refarm calibration docs.
+- `pnpm run text-quality:verify` composes both checks.
+- `pnpm run gate:full:colony` includes `text-quality:verify`, so the full local
+  gate exercises the primitive without making every docs-only change a host
+  smoke.
+- The host-smoke auto router exposes the `text-quality` profile for scorer
+  source/test changes and selected calibration-doc deltas.
+
 ### Model Routing
 
 Purpose: let the agent know which model path it is about to use.

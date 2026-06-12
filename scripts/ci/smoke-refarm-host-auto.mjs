@@ -23,6 +23,7 @@ const PROFILE_SCRIPT = {
 	openapi: "openapi:check",
 	"validation-pocs": "validation-pocs:test",
 	"task-artefacts": "task-artefacts:check",
+	"text-quality": "text-quality:verify",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
 	"agent-e2e-mock": "refarm:agent:e2e:mock",
@@ -274,6 +275,17 @@ export function isTaskArtefactManifestFile(file) {
 	);
 }
 
+export function isTextQualitySurfaceFile(file) {
+	return (
+		file === "scripts/ci/check-text-quality.mjs" ||
+		file === "scripts/ci/test-text-quality-lib.mjs" ||
+		file === "scripts/ci/text-quality-lib.mjs" ||
+		file === "docs/POC_VALIDATION_PRESSURE.md" ||
+		file === "docs/POC_PRIZE_READINESS.md" ||
+		file === "docs/VAULT_SEED_CONVERGENCE.md"
+	);
+}
+
 export function isValidationPocFile(file) {
 	return (
 		file === "scripts/ci/check-validation-poc-consumers.mjs" ||
@@ -417,6 +429,17 @@ export function decideProfile(inputFiles) {
 			profile: "task-artefacts",
 			reason:
 				"Task artefact manifest delta; run focused manifest integrity validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isTextQualitySurfaceFile(file)) &&
+		files.every((file) => isTextQualitySurfaceFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "text-quality",
+			reason:
+				"Text quality scorer or calibrated prose delta; run focused docs text-quality lane.",
 		};
 	}
 
