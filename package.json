@@ -47,6 +47,8 @@
 		"repo:complexity:changed:strict": "node scripts/repo-complexity-check.mjs --changed --max-lines 1000 --strict",
 		"repo:complexity:strict": "node scripts/repo-complexity-check.mjs --max-lines 1000 --strict",
 		"repo:complexity:test": "node --test scripts/ci/test-repo-complexity-check.mjs",
+		"text-quality:test": "node --test scripts/ci/test-text-quality-lib.mjs",
+		"docs:text-quality": "node scripts/ci/check-text-quality.mjs docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/VAULT_SEED_CONVERGENCE.md",
 		"wallet:poc": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
 		"wallet:poc:test": "node --test validations/citizen-data-wallet-poc/wallet-poc.test.mjs",
 		"extension-sandbox:poc": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",

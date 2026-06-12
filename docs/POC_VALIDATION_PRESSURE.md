@@ -74,7 +74,7 @@ Current validation:
 - `validations/extension-sandbox-poc/extension-sandbox-poc.test.mjs`
 - `validations/extension-sandbox-poc/fixtures/expected/task-artefacts.json`
 
-What it proves:
+Demonstrated coverage:
 
 - a benign extension manifest validates and completes `setup -> ingest ->
   teardown`;
@@ -86,7 +86,7 @@ What it proves:
 - lifecycle and policy observations are exported as deterministic JSON/Markdown;
 - generated outputs are described by a `refarm.task-artefacts.v1` manifest.
 
-What it deliberately does not prove:
+Explicit non-goals:
 
 - real WebAssembly execution;
 - browser runtime descriptor installation;
@@ -104,9 +104,9 @@ Next useful Refarm step:
 
 Success signal:
 
-- The validation can answer whether a host loaded a plugin, respected declared
-  capability boundaries, recorded lifecycle events, and handled a denied or
-  failing plugin according to policy.
+- The validation can answer whether a host loaded a plugin and respected
+  declared capability boundaries. It also checks lifecycle records and policy
+  handling for denied or failing plugins.
 
 ## Theme 2: Citizen Data Wallet
 
@@ -116,7 +116,7 @@ Current validation:
 - `validations/citizen-data-wallet-poc/wallet-poc.test.mjs`
 - `validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json`
 
-What it proves:
+Wallet coverage:
 
 - synthetic local identity;
 - synthetic issuer attributes;
@@ -132,7 +132,7 @@ What it proves:
 - task artefact manifest with media type, SHA-256 hashes, review state, and
   provenance.
 
-What it deliberately does not prove:
+Wallet non-goals:
 
 - EUDI wallet interoperability;
 - W3C VC or OpenID4VP/OpenID4VCI conformance;
@@ -159,7 +159,7 @@ should be reusable across consumers:
 - `validations/governed-note-box-poc/governed-note-box-poc.test.mjs`
 - `validations/governed-note-box-poc/fixtures/expected/task-artefacts.json`
 
-What it proves:
+Note workflow coverage:
 
 - synthetic local note intake;
 - metadata preservation with body hashes, tags, links, status, and dates;
@@ -169,7 +169,7 @@ What it proves:
 - deterministic JSON/Markdown outputs;
 - task artefact manifest with consumer labels for downstream labs.
 
-What it deliberately does not prove:
+Note workflow non-goals:
 
 - real Obsidian, Astro, Marimo, or vault-specific UX;
 - complete publication workflow;
@@ -215,6 +215,7 @@ manifest under `validations/`. It also runs a consumer smoke that selects
 artefacts from the POC manifests through `@refarm.dev/artefact-contract-v1`
 instead of hard-coding report filenames.
 
-The host smoke auto router maps POC source/test deltas to the `validation-pocs`
-profile. Expected fixture/report deltas stay on the narrower `task-artefacts`
-profile so report-only changes do not rerun all POC logic.
+The host smoke auto router maps POC source/test deltas to the
+`validation-pocs` profile. Expected fixture/report deltas stay on the narrower
+`task-artefacts` profile. Report-only changes therefore avoid rerunning all POC
+logic.

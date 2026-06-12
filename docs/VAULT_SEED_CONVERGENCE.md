@@ -180,6 +180,18 @@ consumer CLI directly to Refarm internals:
    - Consumer-specific allowances stay in that consumer's `.refarm/config.json`
      or equivalent checked-in policy.
 
+6. **Text quality scoring**
+   - Writing vaults and `vault-seed` already prove the value of deterministic
+     text scoring for long sentences, draft markers, repeated openings, and
+     review reports.
+   - Refarm should own the dependency-free scoring contract and JSON report
+     shape for generic docs/prose.
+   - Prize-specific rubrics, vault dashboards, notebooks, and submission
+     language stay in the consumer projects.
+   - The first generic lane is `pnpm run text-quality:test`; `pnpm run
+     docs:text-quality` applies the scorer to selected Refarm calibration docs
+     without making warnings block broader CI yet.
+
 ## What Not To Do
 
 - Do not make Refarm a required dependency for generated vaults.
