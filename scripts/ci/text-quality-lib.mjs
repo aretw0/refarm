@@ -59,6 +59,7 @@ export const DEFAULT_TEXT_QUALITY_CONFIG = {
 };
 
 const WORD_RE = /[\p{L}\p{N}_]+(?:[-'][\p{L}\p{N}_]+)?/gu;
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/u;
 
 export function deepMerge(base, overlay) {
 	const out = structuredClone(base);
@@ -99,24 +100,20 @@ export function normalizeText(value) {
 
 export function stripFrontmatter(text) {
 	const raw = String(text ?? "").replace(/^\uFEFF/u, "");
-	if (!raw.startsWith("---\n")) {
+	const match = raw.match(FRONTMATTER_RE);
+	if (!match) {
 		return { body: raw, lineOffset: 0 };
 	}
-	const end = raw.indexOf("\n---\n", 4);
-	if (end === -1) {
-		return { body: raw, lineOffset: 0 };
-	}
-	const cut = end + "\n---\n".length;
-	const lineOffset = raw.slice(0, cut).split("\n").length - 1;
+	const cut = match[0].length;
+	const lineOffset = raw.slice(0, cut).split(/\r?\n/u).length - 1;
 	return { body: raw.slice(cut), lineOffset };
 }
 
 export function readFrontmatterField(text, field) {
 	const raw = String(text ?? "").replace(/^\uFEFF/u, "");
-	if (!raw.startsWith("---\n")) return null;
-	const end = raw.indexOf("\n---\n", 4);
-	if (end === -1) return null;
-	const frontmatter = raw.slice(4, end);
+	const frontmatterMatch = raw.match(FRONTMATTER_RE);
+	if (!frontmatterMatch) return null;
+	const frontmatter = frontmatterMatch[1];
 	const pattern = new RegExp(`^${escapeRegExp(field)}\\s*:\\s*(.+?)\\s*$`, "mu");
 	const match = frontmatter.match(pattern);
 	return match?.[1]?.trim().replace(/^["']|["']$/gu, "") ?? null;
@@ -132,11 +129,11 @@ function lineEntries(text, offset = 0) {
 		.map((line, index) => ({ line: index + 1 + offset, text: line }));
 }
 
-export function extractParagraphs(text, offset = 0) {
+function extractParagraphsFromEntries(entries) {
 	const paragraphs = [];
 	let current = [];
 	let startLine = null;
-	for (const entry of lineEntries(text, offset)) {
+	for (const entry of entries) {
 		if (!entry.text.trim()) {
 			if (current.length > 0 && startLine !== null) {
 				paragraphs.push({
@@ -160,8 +157,12 @@ export function extractParagraphs(text, offset = 0) {
 	return paragraphs;
 }
 
-export function proseParagraphs(text, offset = 0) {
-	return extractParagraphs(text, offset).filter((paragraph) => {
+export function extractParagraphs(text, offset = 0) {
+	return extractParagraphsFromEntries(lineEntries(text, offset));
+}
+
+function proseParagraphsFromEntries(entries) {
+	return extractParagraphsFromEntries(entries).filter((paragraph) => {
 		const trimmed = paragraph.text.trimStart();
 		return (
 			trimmed &&
@@ -172,6 +173,10 @@ export function proseParagraphs(text, offset = 0) {
 			!trimmed.startsWith("```")
 		);
 	});
+}
+
+export function proseParagraphs(text, offset = 0) {
+	return proseParagraphsFromEntries(lineEntries(text, offset));
 }
 
 export function splitSentences(text) {
@@ -196,7 +201,8 @@ function paragraphStarter(paragraph, { ngramWords, minWordLength }) {
 export function scoreText(text, config = DEFAULT_TEXT_QUALITY_CONFIG, source = "") {
 	const findings = [];
 	const { body, lineOffset } = stripFrontmatter(text);
-	const prose = proseParagraphs(body, lineOffset);
+	const entries = lineEntries(body, lineOffset);
+	const prose = proseParagraphsFromEntries(entries);
 	const metrics = {
 		source,
 		words: wordCount(body),
@@ -205,7 +211,7 @@ export function scoreText(text, config = DEFAULT_TEXT_QUALITY_CONFIG, source = "
 
 	for (const pattern of config.riskPatterns ?? []) {
 		const regex = new RegExp(pattern.regex, "giu");
-		for (const entry of lineEntries(body, lineOffset)) {
+		for (const entry of entries) {
 			if (!regex.test(entry.text)) continue;
 			findings.push({
 				severity: pattern.severity ?? "warn",

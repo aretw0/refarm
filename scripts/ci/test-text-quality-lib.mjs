@@ -8,6 +8,7 @@ import {
 	DEFAULT_TEXT_QUALITY_CONFIG,
 	effectiveTextQualityConfig,
 	proseParagraphs,
+	readFrontmatterField,
 	scoreText,
 	severityCounts,
 	stripFrontmatter,
@@ -33,6 +34,15 @@ test("text quality scorer strips frontmatter", () => {
 
 	assert.equal(body, "Body here.");
 	assert.equal(lineOffset, 3);
+});
+
+test("text quality scorer handles crlf frontmatter", () => {
+	const text = "---\r\naudience: introductory\r\n---\r\nBody here.";
+	const { body, lineOffset } = stripFrontmatter(text);
+
+	assert.equal(body, "Body here.");
+	assert.equal(lineOffset, 3);
+	assert.equal(readFrontmatterField(text, "audience"), "introductory");
 });
 
 test("text quality scorer filters markdown structure from prose paragraphs", () => {
