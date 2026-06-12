@@ -84,6 +84,8 @@ describe("governed note box poc", () => {
 		assert.match(scenario, /Governed Note Box PoC Scenario/);
 		assert.match(scenario, /Decision Points/);
 		const annex = readFileSync(path.join(FIXTURES_DIR, "annex.md"), "utf8");
+		assert.match(annex, /Flow Table/);
+		assert.match(annex, /Notes ingested/);
 		assert.match(annex, /Evidence Map/);
 		assert.match(annex, /scorecard\.json/);
 

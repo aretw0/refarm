@@ -92,6 +92,8 @@ describe("extension sandbox poc", () => {
 		assert.match(scenario, /Extension Sandbox PoC Scenario/);
 		assert.match(scenario, /Decision Points/);
 		const annex = readFileSync(path.join(FIXTURES_DIR, "annex.md"), "utf8");
+		assert.match(annex, /Flow Table/);
+		assert.match(annex, /Manifest submitted/);
 		assert.match(annex, /Evidence Map/);
 		assert.match(annex, /scorecard\.json/);
 		const markdown = readFileSync(path.join(FIXTURES_DIR, "sandbox-report.md"), "utf8");

@@ -219,8 +219,24 @@ export function buildAnnexMarkdown(result, scorecard) {
 			return `| ${criterion} | ${score} | ${weight} | ${evidenceForWalletCriterion(criterion)} |`;
 		})
 		.join("\n");
+	const flowRows = [
+		["1", "Service requests proof", "Require purpose, scope, and expiration", "service-request.json"],
+		["2", "Holder authorizes", "Sign canonical authorization payload", "authorization-receipt.json"],
+		["3", "Wallet presents attributes", "Disclose only authorized fields", "selective-presentation.json"],
+		["4", "Authorization is challenged", "Reject tampered payload", "audit-trail.md"],
+		["5", "Holder revokes", "Record status transition", "revocation-event.json"],
+		["6", "Pilot reviewed", "Read consent decision and scorecard", "continue or needs-human-review gate"],
+	]
+		.map((row) => `| ${row.join(" | ")} |`)
+		.join("\n");
 
 	return `# Citizen Data Wallet PoC Annex
+
+## Flow Table
+
+| Step | Event | Control | Output |
+| ---: | --- | --- | --- |
+${flowRows}
 
 ## Evidence Map
 

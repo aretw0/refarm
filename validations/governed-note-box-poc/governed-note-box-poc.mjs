@@ -193,8 +193,24 @@ export function buildAnnexMarkdown(report, scorecard) {
 			return `| ${criterion} | ${score} | ${weight} | ${evidenceForNoteCriterion(criterion)} |`;
 		})
 		.join("\n");
+	const flowRows = [
+		["1", "Notes ingested", "Preserve source body and metadata", "intake-snapshot.json"],
+		["2", "Metadata indexed", "Hash body, tags, links, status, and dates", "metadata-index.json"],
+		["3", "Lab snapshot built", "Expose graph and metrics", "lab-snapshot.json"],
+		["4", "Publication filtered", "Exclude draft notes", "publication-snapshot.json"],
+		["5", "Preflight checked", "Require human review before publish", "publication-preflight.json"],
+		["6", "Pilot reviewed", "Read scorecard and annex", "continue or needs-human-review gate"],
+	]
+		.map((row) => `| ${row.join(" | ")} |`)
+		.join("\n");
 
 	return `# Governed Note Box PoC Annex
+
+## Flow Table
+
+| Step | Event | Control | Output |
+| ---: | --- | --- | --- |
+${flowRows}
 
 ## Evidence Map
 

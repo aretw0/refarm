@@ -119,6 +119,8 @@ describe("citizen data wallet poc", () => {
 		assert.match(scenario, /Citizen Data Wallet PoC Scenario/);
 		assert.match(scenario, /Decision Points/);
 		const annex = readFileSync(path.join(FIXTURES_DIR, "annex.md"), "utf8");
+		assert.match(annex, /Flow Table/);
+		assert.match(annex, /Service requests proof/);
 		assert.match(annex, /Evidence Map/);
 		assert.match(annex, /scorecard\.json/);
 

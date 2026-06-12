@@ -1,5 +1,15 @@
 # Extension Sandbox PoC Annex
 
+## Flow Table
+
+| Step | Event | Control | Output |
+| ---: | --- | --- | --- |
+| 1 | Manifest submitted | Validate schema and integrity metadata | invalid-manifest or accepted for policy evaluation |
+| 2 | Capabilities requested | Compare requested capabilities with grant | blocked or allowed |
+| 3 | Lifecycle invoked | Record setup, ingest, and teardown events | completed or failed path |
+| 4 | Failure handled | Apply warn+continue or fail-fast policy | continued or aborted host status |
+| 5 | Pilot reviewed | Read policy decision and scorecard | continue or needs-human-review gate |
+
 ## Evidence Map
 
 | Claim | Generated evidence |
