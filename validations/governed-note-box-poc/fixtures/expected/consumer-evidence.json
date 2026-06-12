@@ -1,7 +1,7 @@
 {
   "id": "consumer-evidence-governed-note-box-001",
   "createdAt": "2026-01-01T00:00:00.000Z",
-  "claim": "governed note artefacts are ready for downstream vault and lab consumers",
+  "claim": "governed note artifacts are ready for downstream vault and lab consumers",
   "claimStatus": "manifest-consumer-ready",
   "scope": {
     "data": "synthetic",
@@ -28,7 +28,7 @@
         ],
         "source": "validations/governed-note-box-poc"
       },
-      "expectedArtefacts": [
+      "expectedArtifacts": [
         "metadata-index",
         "lab-snapshot"
       ]
@@ -47,7 +47,7 @@
           "dataset"
         ]
       },
-      "expectedArtefacts": [
+      "expectedArtifacts": [
         "publication-snapshot"
       ]
     },
@@ -63,7 +63,7 @@
           "audit-trail"
         ]
       },
-      "expectedArtefacts": [
+      "expectedArtifacts": [
         "publication-preflight"
       ]
     },
@@ -79,7 +79,7 @@
           "report"
         ]
       },
-      "expectedArtefacts": [
+      "expectedArtifacts": [
         "consumer-evidence"
       ]
     }
@@ -89,7 +89,7 @@
     "pnpm run validation-pocs:consumer:test"
   ],
   "linkedEvidence": [
-    "task-artefacts.json",
+    "task-artifacts.json",
     "metadata-index.json",
     "lab-snapshot.json",
     "publication-preflight.json",
@@ -97,7 +97,7 @@
     "scripts/ci/check-validation-poc-consumers.mjs"
   ],
   "canSay": [
-    "downstream consumers can select governed note artefacts through the shared manifest contract",
+    "downstream consumers can select governed note artifacts through the shared manifest contract",
     "lab and publication evidence have separate labels, roles, media types, and review states",
     "publication remains blocked on human review in the synthetic preflight evidence"
   ],
@@ -107,7 +107,7 @@
     "editorial policy completeness is proven"
   ],
   "nextPromotion": [
-    "Have a consumer project read task-artefacts.json and produce vault-local output.",
+    "Have a consumer project read task-artifacts.json and produce vault-local output.",
     "Keep vault-specific schemas, commands, and publication packaging outside this POC."
   ]
 }

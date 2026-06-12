@@ -27,7 +27,7 @@ read secrets.
   and vault-local tools can use without claiming real vault integration.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown review report are generated deterministically.
-- A `refarm.task-artefacts.v1` manifest lists generated outputs with media
+- A `refarm.task-artifacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, provenance, and consumer labels.
 
 ## What It Does Not Demonstrate
@@ -57,7 +57,7 @@ pnpm run governed-note-box:poc
 - Draft notes are excluded from the publication snapshot.
 - Lab metrics are generated without external services.
 - Publication preflight requires human review.
-- `fixtures/expected/task-artefacts.json` describes all generated outputs.
+- `fixtures/expected/task-artifacts.json` describes all generated outputs.
 
 ## Artifacts
 
@@ -75,12 +75,12 @@ Expected artifacts live in `fixtures/expected/`:
 - `annex.md`
 - `limits.md`
 - `human-review.md`
-- `task-artefacts.json`
+- `task-artifacts.json`
 
 ## Next Steps
 
-- Let a downstream Lab consume `task-artefacts.json` via
-  `@refarm.dev/artefact-contract-v1` selectors.
+- Let a downstream Lab consume `task-artifacts.json` via
+  `@refarm.dev/artifact-contract-v1` selectors.
 - Keep note schemas, publication outbox, and vault-local commands in the
   consumer project.
 - Promote only repeated metadata, provenance, and preflight needs back into

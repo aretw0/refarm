@@ -16,7 +16,7 @@ import {
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
-	isTaskArtefactManifestFile,
+	isTaskArtifactManifestFile,
 	isTextQualitySurfaceFile,
 	isValidationPocFile,
 	listSmokeProfiles,
@@ -95,27 +95,27 @@ test("detects OpenAPI protocol files", () => {
 	);
 });
 
-test("detects task artefact manifest files", () => {
+test("detects task artifact manifest files", () => {
 	assert.equal(
-		isTaskArtefactManifestFile(
-			"validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json",
+		isTaskArtifactManifestFile(
+			"validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
 		),
 		true,
 	);
 	assert.equal(
-		isTaskArtefactManifestFile(
+		isTaskArtifactManifestFile(
 			"validations/extension-sandbox-poc/fixtures/expected/sandbox-report.md",
 		),
 		true,
 	);
 	assert.equal(
-		isTaskArtefactManifestFile(
-			"scripts/ci/check-task-artefact-manifests.mjs",
+		isTaskArtifactManifestFile(
+			"scripts/ci/check-task-artifact-manifests.mjs",
 		),
 		true,
 	);
 	assert.equal(
-		isTaskArtefactManifestFile("validations/extension-sandbox-poc/README.md"),
+		isTaskArtifactManifestFile("validations/extension-sandbox-poc/README.md"),
 		false,
 	);
 });
@@ -135,7 +135,7 @@ test("detects validation POC files", () => {
 	);
 	assert.equal(
 		isValidationPocFile(
-			"validations/governed-note-box-poc/fixtures/expected/task-artefacts.json",
+			"validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
 		),
 		false,
 	);
@@ -226,7 +226,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree",
 		"openapi",
 		"validation-pocs",
-		"task-artefacts",
+		"task-artifacts",
 		"text-quality",
 		"sidecar",
 		"driver-tasks",
@@ -239,7 +239,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artefacts, text-quality, sidecar, driver-tasks, agent-e2e-mock, install, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artifacts, text-quality, sidecar, driver-tasks, agent-e2e-mock, install, check, quick, dev, ci",
 	);
 });
 
@@ -304,7 +304,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree", script: "refarm:tree:verify" },
 			{ profile: "openapi", script: "openapi:check" },
 			{ profile: "validation-pocs", script: "validation-pocs:test" },
-			{ profile: "task-artefacts", script: "task-artefacts:check" },
+			{ profile: "task-artifacts", script: "task-artifacts:check" },
 			{ profile: "text-quality", script: "text-quality:verify" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
@@ -361,7 +361,7 @@ test("maps profiles to package scripts", () => {
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
 	assert.equal(resolveProfileScript("openapi"), "openapi:check");
 	assert.equal(resolveProfileScript("validation-pocs"), "validation-pocs:test");
-	assert.equal(resolveProfileScript("task-artefacts"), "task-artefacts:check");
+	assert.equal(resolveProfileScript("task-artifacts"), "task-artifacts:check");
 	assert.equal(resolveProfileScript("text-quality"), "text-quality:verify");
 	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
 	assert.equal(
@@ -550,21 +550,21 @@ test("routes validation POC deltas to focused POC lane", () => {
 	);
 });
 
-test("routes task artefact deltas to focused artefact lane", () => {
+test("routes task artifact deltas to focused artifact lane", () => {
 	assert.equal(
 		decideProfile([
 			"validations/citizen-data-wallet-poc/fixtures/expected/wallet-report.md",
-			"validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json",
+			"validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
 			"docs/POC_VALIDATION_PRESSURE.md",
 		]).profile,
-		"task-artefacts",
+		"task-artifacts",
 	);
 	assert.equal(
 		decideProfile([
-			"scripts/ci/check-task-artefact-manifests.mjs",
-			"scripts/ci/test-check-task-artefact-manifests-lib.mjs",
+			"scripts/ci/check-task-artifact-manifests.mjs",
+			"scripts/ci/test-check-task-artifact-manifests-lib.mjs",
 		]).profile,
-		"task-artefacts",
+		"task-artifacts",
 	);
 });
 

@@ -205,9 +205,9 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
 - `validation-pocs:test` runs the three synthetic validation POCs plus
-  `task-artefacts:check` and a consumer-selector smoke over the generated
+  `task-artifacts:check` and a consumer-selector smoke over the generated
   manifests. The auto router selects it for POC source/test changes and keeps
-  expected-report-only changes on the narrower `task-artefacts` profile.
+  expected-report-only changes on the narrower `task-artifacts` profile.
 - `text-quality:verify` runs the dependency-free prose scorer tests plus
   `docs:text-quality` over selected calibration docs. The auto router selects
   the `text-quality` profile for the scorer implementation, its tests, or those
@@ -226,7 +226,7 @@ npm run refarm:tree:verify
   root `package.json` as a companion file.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
   recommended lane (`skip | actions | tree | validation-pocs |
-  task-artefacts | text-quality | agent-e2e-mock | install | check | quick |
+  task-artifacts | text-quality | agent-e2e-mock | install | check | quick |
   dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
@@ -240,7 +240,7 @@ npm run refarm:tree:verify
   `actions-test`, `actions-type`, `actions-dist`, `agent-e2e-mock`, `check`,
   `install`, `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
   one-command narrow loop previews/execution. Validation profiles such as
-  `validation-pocs` and `task-artefacts` are also available for generic
+  `validation-pocs` and `task-artifacts` are also available for generic
   downstream-proof work, while `text-quality` covers the reusable prose scorer
   and selected calibration docs. Shared local helpers such as
   `execution-plan.ts` stay on the `dev` lane because they feed more than one

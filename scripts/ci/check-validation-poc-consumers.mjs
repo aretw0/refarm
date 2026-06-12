@@ -4,39 +4,39 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-	findTaskArtefactById,
-	isTaskArtefactManifest,
-	selectTaskArtefacts,
-} from "../../packages/artefact-contract-v1/dist/index.js";
+	findTaskArtifactById,
+	isTaskArtifactManifest,
+	selectTaskArtifacts,
+} from "../../packages/artifact-contract-v1/dist/index.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const MANIFESTS = {
 	wallet:
-		"validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json",
+		"validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
 	extension:
-		"validations/extension-sandbox-poc/fixtures/expected/task-artefacts.json",
+		"validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
 	notes:
-		"validations/governed-note-box-poc/fixtures/expected/task-artefacts.json",
+		"validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
 };
 
 function readManifest(relativePath) {
 	const manifest = JSON.parse(readFileSync(path.join(ROOT, relativePath), "utf8"));
 	assert.equal(
-		isTaskArtefactManifest(manifest),
+		isTaskArtifactManifest(manifest),
 		true,
-		`${relativePath} must be a task artefact manifest`,
+		`${relativePath} must be a task artifact manifest`,
 	);
 	return manifest;
 }
 
-function ids(artefacts) {
-	return artefacts.map((artefact) => artefact.id);
+function ids(artifacts) {
+	return artifacts.map((artifact) => artifact.id);
 }
 
 const wallet = readManifest(MANIFESTS.wallet);
 assert.deepEqual(
-	ids(selectTaskArtefacts(wallet, {
+	ids(selectTaskArtifacts(wallet, {
 		mediaTypes: ["application/json"],
 		producer: "wallet:poc",
 		reviewStates: ["accepted"],
@@ -53,39 +53,39 @@ assert.deepEqual(
 	],
 );
 assert.equal(
-	findTaskArtefactById(wallet, "audit-trail")?.mediaType,
+	findTaskArtifactById(wallet, "audit-trail")?.mediaType,
 	"text/markdown",
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(wallet, {
+	ids(selectTaskArtifacts(wallet, {
 		labels: ["scorecard"],
 		roles: ["report"],
 	})),
 	["scorecard"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(wallet, {
+	ids(selectTaskArtifacts(wallet, {
 		labels: ["scenario"],
 		roles: ["report"],
 	})),
 	["scenario"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(wallet, {
+	ids(selectTaskArtifacts(wallet, {
 		labels: ["annex"],
 		roles: ["report"],
 	})),
 	["annex"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(wallet, {
+	ids(selectTaskArtifacts(wallet, {
 		labels: ["risk", "standards"],
 		roles: ["report"],
 	})),
 	["risk-and-standards-matrix"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(wallet, {
+	ids(selectTaskArtifacts(wallet, {
 		labels: ["limits", "adoption"],
 		roles: ["report"],
 	})),
@@ -94,7 +94,7 @@ assert.deepEqual(
 
 const extension = readManifest(MANIFESTS.extension);
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		mediaTypes: ["text/markdown"],
 		producer: "extension-sandbox:poc",
 		roles: ["report"],
@@ -102,46 +102,46 @@ assert.deepEqual(
 	["scenario-md", "annex-md", "limits-md", "sandbox-report-md"],
 );
 assert.equal(
-	findTaskArtefactById(extension, "policy-decision-json")?.mediaType,
+	findTaskArtifactById(extension, "policy-decision-json")?.mediaType,
 	"application/json",
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		labels: ["scorecard"],
 		roles: ["report"],
 	})),
 	["scorecard-json"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		labels: ["scenario"],
 		roles: ["report"],
 	})),
 	["scenario-md"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		labels: ["annex"],
 		roles: ["report"],
 	})),
 	["annex-md"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		labels: ["risk", "standards"],
 		roles: ["report"],
 	})),
 	["risk-and-standards-matrix-json"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		labels: ["runtime", "wasm"],
 		roles: ["report"],
 	})),
 	["runtime-evidence-json"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(extension, {
+	ids(selectTaskArtifacts(extension, {
 		labels: ["limits", "adoption"],
 		roles: ["report"],
 	})),
@@ -150,7 +150,7 @@ assert.deepEqual(
 
 const notes = readManifest(MANIFESTS.notes);
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["lab"],
 		mediaTypes: ["application/json"],
 		reviewStates: ["accepted"],
@@ -160,7 +160,7 @@ assert.deepEqual(
 	["metadata-index", "lab-snapshot"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["publication"],
 		reviewStates: ["unreviewed"],
 		roles: ["dataset"],
@@ -168,54 +168,54 @@ assert.deepEqual(
 	["publication-snapshot"],
 );
 assert.equal(
-	selectTaskArtefacts(notes, {
+	selectTaskArtifacts(notes, {
 		labels: ["publication", "preflight"],
 		roles: ["audit-trail"],
 	})[0]?.id,
 	"publication-preflight",
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["scorecard"],
 		roles: ["report"],
 	})),
 	["scorecard"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["scenario"],
 		roles: ["report"],
 	})),
 	["scenario"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["annex"],
 		roles: ["report"],
 	})),
 	["annex"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["risk", "standards"],
 		roles: ["report"],
 	})),
 	["risk-and-standards-matrix"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["consumer", "vault"],
 		roles: ["report"],
 	})),
 	["consumer-evidence"],
 );
 assert.deepEqual(
-	ids(selectTaskArtefacts(notes, {
+	ids(selectTaskArtifacts(notes, {
 		labels: ["limits", "adoption"],
 		roles: ["report"],
 	})),
 	["limits"],
 );
-assert.equal(findTaskArtefactById(notes, "human-review")?.mediaType, "text/markdown");
+assert.equal(findTaskArtifactById(notes, "human-review")?.mediaType, "text/markdown");
 
 console.log("Validated validation POC consumer selections across 3 manifest(s).");

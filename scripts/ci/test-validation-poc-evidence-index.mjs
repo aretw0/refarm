@@ -45,7 +45,7 @@ describe("validation poc evidence index", () => {
 		assert.ok(
 			index.pocs
 				.find((poc) => poc.id === "governed-note-box")
-				?.evidence.claimPromotion.some((artefact) => artefact.id === "consumer-evidence"),
+				?.evidence.claimPromotion.some((artifact) => artifact.id === "consumer-evidence"),
 		);
 	});
 });

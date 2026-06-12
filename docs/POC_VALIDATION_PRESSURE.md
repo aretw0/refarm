@@ -25,7 +25,7 @@ The draft plan separates three demonstrable ideas:
 | Draft pressure | Refarm-facing proof | Current state |
 | --- | --- | --- |
 | Extension host with sandboxed capabilities | Plugin/WASM host, manifest integrity, lifecycle events, strict and tolerant policy modes, human-reviewable policy decision. | Covered by `validations/extension-sandbox-poc/` as a synthetic lifecycle/policy proof; real WASM/runtime substrate remains covered by existing package tests and heavier validations. |
-| Citizen data wallet and granular authorization | Local identity, synthetic attributes, scoped request, signed authorization, selective presentation, revocation, consent decision, audit trail. | Implemented as `validations/citizen-data-wallet-poc/` with deterministic artifacts and `refarm.task-artefacts.v1` manifest. |
+| Citizen data wallet and granular authorization | Local identity, synthetic attributes, scoped request, signed authorization, selective presentation, revocation, consent decision, audit trail. | Implemented as `validations/citizen-data-wallet-poc/` with deterministic artifacts and `refarm.task-artifacts.v1` manifest. |
 | Governed note box / digital garden | Ingestion, metadata preservation, lab and publication snapshots, validation, human review before publish. | Covered by `validations/governed-note-box-poc/` as a synthetic metadata/preflight proof. `vault-seed` remains the stronger product-facing consumer. |
 
 The important design point is that the proofs are not submission deliverables.
@@ -72,7 +72,7 @@ Current validation:
 
 - `validations/extension-sandbox-poc/extension-sandbox-poc.mjs`
 - `validations/extension-sandbox-poc/extension-sandbox-poc.test.mjs`
-- `validations/extension-sandbox-poc/fixtures/expected/task-artefacts.json`
+- `validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json`
 
 Demonstrated coverage:
 
@@ -84,7 +84,7 @@ Demonstrated coverage:
 - `policy-decision.json` records denied capabilities, isolated failures,
   default policy mode, and human-review status;
 - lifecycle and policy observations are exported as deterministic JSON/Markdown;
-- generated outputs are described by a `refarm.task-artefacts.v1` manifest.
+- generated outputs are described by a `refarm.task-artifacts.v1` manifest.
 
 Explicit non-goals:
 
@@ -98,9 +98,9 @@ Next useful Refarm step:
 1. Connect this report and policy-decision shape to a real plugin lifecycle
    smoke once the cheapest reproducible path is stable across Linux, macOS, and
    Windows.
-2. Keep `@refarm.dev/artefact-contract-v1` in the contract smoke gate and run
+2. Keep `@refarm.dev/artifact-contract-v1` in the contract smoke gate and run
    `pnpm run validation-pocs:test` whenever POC logic changes. Use
-   `pnpm run task-artefacts:check` for expected-report-only deltas.
+   `pnpm run task-artifacts:check` for expected-report-only deltas.
 
 Success signal:
 
@@ -114,7 +114,7 @@ Current validation:
 
 - `validations/citizen-data-wallet-poc/wallet-poc.mjs`
 - `validations/citizen-data-wallet-poc/wallet-poc.test.mjs`
-- `validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json`
+- `validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json`
 
 Wallet coverage:
 
@@ -129,7 +129,7 @@ Wallet coverage:
 - `consent-decision.json` records purpose, scope, expiration, selective
   disclosure, revocation usability, and human-review status;
 - deterministic JSON/Markdown outputs;
-- task artefact manifest with media type, SHA-256 hashes, review state, and
+- task artifact manifest with media type, SHA-256 hashes, review state, and
   provenance.
 
 Wallet non-goals:
@@ -143,7 +143,7 @@ Wallet non-goals:
 Next useful Refarm steps:
 
 1. Keep `pnpm run validation-pocs:test` green whenever POC logic changes, and
-   use `pnpm run task-artefacts:check` for expected-report-only deltas.
+   use `pnpm run task-artifacts:check` for expected-report-only deltas.
 2. Optionally persist the authorization receipt through a storage adapter.
 3. Promote the consent-decision shape only after a second consumer needs it;
    until then, keep it as validation evidence rather than a public identity
@@ -157,7 +157,7 @@ should be reusable across consumers:
 
 - `validations/governed-note-box-poc/governed-note-box-poc.mjs`
 - `validations/governed-note-box-poc/governed-note-box-poc.test.mjs`
-- `validations/governed-note-box-poc/fixtures/expected/task-artefacts.json`
+- `validations/governed-note-box-poc/fixtures/expected/task-artifacts.json`
 
 Note workflow coverage:
 
@@ -167,7 +167,7 @@ Note workflow coverage:
 - publication snapshot that excludes drafts;
 - preflight requiring human review before publish;
 - deterministic JSON/Markdown outputs;
-- task artefact manifest with consumer labels for downstream labs.
+- task artifact manifest with consumer labels for downstream labs.
 
 Note workflow non-goals:
 
@@ -178,7 +178,7 @@ Note workflow non-goals:
 
 Refarm should own:
 
-- task artefact and provenance contracts;
+- task artifact and provenance contracts;
 - external workspace health and policy suggestion;
 - structured process handoffs;
 - optional skill/package compatibility adapters;
@@ -194,8 +194,8 @@ Refarm should own:
 
 Next useful Refarm step:
 
-1. Let a downstream lab consume a `refarm.task-artefacts.v1` manifest through
-   `@refarm.dev/artefact-contract-v1` selectors instead of hard-coding output
+1. Let a downstream lab consume a `refarm.task-artifacts.v1` manifest through
+   `@refarm.dev/artifact-contract-v1` selectors instead of hard-coding output
    file names.
 2. Keep the consumer-specific mapping in `vault-seed`, not in Refarm.
 
@@ -210,9 +210,9 @@ and use the read-only vault only as evidence.
 
 `pnpm run validation-pocs:test` is the canonical local lane for the three
 synthetic draft-pressure POCs. It runs the wallet, extension sandbox, and
-governed note box tests, then validates every `refarm.task-artefacts.v1`
+governed note box tests, then validates every `refarm.task-artifacts.v1`
 manifest under `validations/`. It also runs a consumer smoke that selects
-artefacts from the POC manifests through `@refarm.dev/artefact-contract-v1`
+artifacts from the POC manifests through `@refarm.dev/artifact-contract-v1`
 instead of hard-coding report filenames. The same lane checks
 `validations/poc-evidence-index.json`, a generated reader map for downstream
 writing, lab, or vault consumers that need scenario, annex, scorecard, limits,
@@ -220,5 +220,5 @@ and claim-promotion pointers without adopting Refarm-specific app semantics.
 
 The host smoke auto router maps POC source/test deltas to the
 `validation-pocs` profile. Expected fixture/report deltas stay on the narrower
-`task-artefacts` profile. Report-only changes therefore avoid rerunning all POC
+`task-artifacts` profile. Report-only changes therefore avoid rerunning all POC
 logic.

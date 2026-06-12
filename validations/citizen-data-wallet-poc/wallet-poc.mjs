@@ -15,7 +15,7 @@ export const AUTHORIZATION_ID = "authz-sintetica-001";
 export const ISSUED_AT = "2026-01-01T00:00:00.000Z";
 export const EXPIRES_AT = "2026-02-01T00:00:00.000Z";
 export const REVOKED_AT = "2026-01-15T12:00:00.000Z";
-export const TASK_ARTEFACTS_SCHEMA = "refarm.task-artefacts.v1";
+export const TASK_ARTIFACTS_SCHEMA = "refarm.task-artifacts.v1";
 export const TASK_ID = "task-citizen-data-wallet-poc";
 export const EFFORT_ID = "effort-citizen-data-wallet-poc-001";
 export const RUN_ID = "citizen-data-wallet-poc-001";
@@ -259,7 +259,7 @@ ${scoreRows}
 1. Read \`scenario.md\` for the service journey.
 2. Inspect \`consent-decision.json\` for the review point.
 3. Inspect \`scorecard.json\` for thresholds and limits.
-4. Use \`task-artefacts.json\` to verify hashes and provenance.
+4. Use \`task-artifacts.json\` to verify hashes and provenance.
 `;
 }
 
@@ -383,7 +383,7 @@ export function buildRiskAndStandardsMatrix(result) {
 				name: "Privacy and data minimization",
 				stance: "control-pressure",
 				note:
-					"Purpose, requested attributes, selective disclosure, and revocation are explicit review artefacts.",
+					"Purpose, requested attributes, selective disclosure, and revocation are explicit review artifacts.",
 			},
 		],
 		controls: [
@@ -480,7 +480,7 @@ export function runWalletPoc() {
 	};
 }
 
-export function buildTaskArtefactManifest(writtenArtifacts) {
+export function buildTaskArtifactManifest(writtenArtifacts) {
 	const roles = {
 		"identity.json": "receipt",
 		"authority-attributes.json": "dataset",
@@ -505,11 +505,11 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 	};
 
 	return {
-		schema: TASK_ARTEFACTS_SCHEMA,
+		schema: TASK_ARTIFACTS_SCHEMA,
 		taskId: TASK_ID,
 		effortId: EFFORT_ID,
 		createdAt: ISSUED_AT,
-		artefacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
+		artifacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
 			id: fileName.replace(/\.[^.]+$/, ""),
 			uri: fileName,
 			mediaType: fileName.endsWith(".md") ? "text/markdown" : "application/json",
@@ -562,13 +562,13 @@ export function writeArtifacts(outDir) {
 		"limits.md": buildLimitsMarkdown(),
 		"audit-trail.md": auditTrail,
 	};
-	const manifest = buildTaskArtefactManifest(writtenArtifacts);
+	const manifest = buildTaskArtifactManifest(writtenArtifacts);
 
 	mkdirSync(outDir, { recursive: true });
 	for (const [fileName, contents] of Object.entries(writtenArtifacts)) {
 		writeFileSync(path.join(outDir, fileName), contents);
 	}
-	writeFileSync(path.join(outDir, "task-artefacts.json"), jsonText(manifest));
+	writeFileSync(path.join(outDir, "task-artifacts.json"), jsonText(manifest));
 	return result;
 }
 

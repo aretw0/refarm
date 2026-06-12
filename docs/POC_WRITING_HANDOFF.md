@@ -8,7 +8,7 @@ repository. This is not submission text and should not be copied as-is.
 - Do not write from Refarm into external proposal vaults.
 - Do not cite Refarm product names when the target writing cannot name this
   repository.
-- Treat generated artefacts as evidence for writing, not as final annexes.
+- Treat generated artifacts as evidence for writing, not as final annexes.
 - Keep standards claims careful: these POCs show design pressure and validation
   shape, not formal conformance.
 
@@ -22,10 +22,10 @@ fixture, manifest, or external conformance check proves it.
 | --- | --- | --- |
 | Real execution | A CI command exercises the real runtime path, not only synthetic fixtures. | Can cite as adjacent evidence only when the validation is linked directly. |
 | Product governance | A policy contract, lifecycle command, and regression test cover install, deny, quarantine, and review. | Describe as governance model pressure, not production governance. |
-| Standards alignment | A standards matrix maps clauses to artefacts and records gaps. | Say "inspired by" or "compatible direction", not "conformant". |
+| Standards alignment | A standards matrix maps clauses to artifacts and records gaps. | Say "inspired by" or "compatible direction", not "conformant". |
 | Legal or institutional compliance | A qualified compliance review exists outside the POC. | Say the POC makes reviewable evidence explicit. |
 | Production UX or accessibility | A UI surface exists and is checked with accessibility and cross-platform tests. | Say the data flow is validated, not the final experience. |
-| Vault integration | A consumer project reads the manifest without copying Refarm internals. | Say the artefacts are ready for downstream consumption. |
+| Vault integration | A consumer project reads the manifest without copying Refarm internals. | Say the artifacts are ready for downstream consumption. |
 
 Near-term promotion should favor claims that strengthen all consumers:
 
@@ -44,15 +44,15 @@ pnpm run validation-pocs:test
 ```
 
 This command runs all three synthetic POCs, validates every
-`refarm.task-artefacts.v1` manifest, and verifies consumer selection through
-`@refarm.dev/artefact-contract-v1`. It also checks
+`refarm.task-artifacts.v1` manifest, and verifies consumer selection through
+`@refarm.dev/artifact-contract-v1`. It also checks
 `validations/poc-evidence-index.json`, the reader-facing map from each theme to
 its scenario, annex, scorecard, risk matrix, limits, and claim-promotion
 evidence.
 
 ## Theme 1 Evidence: Extension Sandbox
 
-Extension artefact root:
+Extension artifact root:
 
 ```text
 validations/extension-sandbox-poc/fixtures/expected/
@@ -70,7 +70,7 @@ Extension files:
 | `risk-and-standards-matrix.json` | Support careful standards and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `runtime-evidence.json` | Support careful real-WASM discussion. | The synthetic sandbox is linked to a dedicated real WASM validation path. |
 | `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
-| `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
+| `task-artifacts.json` | Support provenance claims. | artifacts have hashes, media types, producer command, and review state. |
 
 Extension non-claims:
 
@@ -81,7 +81,7 @@ Extension non-claims:
 
 ## Theme 2 Evidence: Citizen Data Wallet
 
-Wallet artefact root:
+Wallet artifact root:
 
 ```text
 validations/citizen-data-wallet-poc/fixtures/expected/
@@ -101,7 +101,7 @@ Wallet files:
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful standards, privacy, and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
-| `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
+| `task-artifacts.json` | Support provenance claims. | artifacts have hashes, media types, producer command, and review state. |
 
 Wallet non-claims:
 
@@ -112,7 +112,7 @@ Wallet non-claims:
 
 ## Theme 3 Evidence: Governed Note Box
 
-Note-box artefact root:
+Note-box artifact root:
 
 ```text
 validations/governed-note-box-poc/fixtures/expected/
@@ -133,7 +133,7 @@ Knowledge workflow files:
 | `risk-and-standards-matrix.json` | Support careful workflow governance and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `consumer-evidence.json` | Support downstream/vault-seed-style consumer readiness. | Manifest selectors, labels, roles, and limits are explicit without claiming real vault integration. |
 | `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
-| `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, labels, and review state. |
+| `task-artifacts.json` | Support provenance claims. | artifacts have hashes, media types, producer command, labels, and review state. |
 
 Publication scope non-claims:
 
@@ -147,13 +147,13 @@ Publication scope non-claims:
 1. Start from `validations/poc-evidence-index.json` to locate the theme and
    reader path.
 2. Read each theme from its `scenario.md`.
-3. Use `annex.md` to decide which artefacts deserve mention or annex treatment.
+3. Use `annex.md` to decide which artifacts deserve mention or annex treatment.
 4. Use `scorecard.json` only for pilot criteria, not as a universal quality
    score.
 5. Use `risk-and-standards-matrix.json` when writing about risks, standards
    direction, and remaining work.
 6. Use `limits.md` before final wording to keep claims inside proven evidence.
-7. Use `task-artefacts.json` when writing about reproducibility, provenance, or
+7. Use `task-artifacts.json` when writing about reproducibility, provenance, or
    auditability.
 8. Keep private, institutional, and submission-specific wording in the external
    writing vault.

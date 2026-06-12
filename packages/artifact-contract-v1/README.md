@@ -1,24 +1,24 @@
-# @refarm.dev/artefact-contract-v1
+# @refarm.dev/artifact-contract-v1
 
-Shared lifecycle base types for managed artefacts in the Refarm platform.
+Shared lifecycle base types for managed artifacts in the Refarm platform.
 
 ## Types
 
-- `ArtefactStatus` — `"draft" | "ready" | "active" | "archived"`
-- `ManagedArtefact` — base interface extended by domain contracts (e.g. `automation-contract-v1`)
-- `ARTEFACT_TERMINAL_STATES` — `ReadonlySet<ArtefactStatus>` containing `"archived"`
+- `ArtifactStatus` — `"draft" | "ready" | "active" | "archived"`
+- `ManagedArtifact` — base interface extended by domain contracts (e.g. `automation-contract-v1`)
+- `ARTIFACT_TERMINAL_STATES` — `ReadonlySet<ArtifactStatus>` containing `"archived"`
 - `canTransition(from, to)` — pure guard function for valid status transitions
-- `TaskArtefactManifest` — manifest for task, lab, or validation outputs that
+- `TaskArtifactManifest` — manifest for task, lab, or validation outputs that
   need stable paths, media types, provenance, hashes, and review state
-- `TaskArtefactReference` — one generated output such as a dataset, report,
+- `TaskArtifactReference` — one generated output such as a dataset, report,
   audit trail, receipt, log, or nested manifest
-- `ArtefactProvenance` — producer/run/source metadata for a generated output
-- `validateTaskArtefactManifest(value)` — runtime validator that returns
+- `ArtifactProvenance` — producer/run/source metadata for a generated output
+- `validateTaskArtifactManifest(value)` — runtime validator that returns
   path-aware issues for JS consumers and CI checks
-- `isTaskArtefactManifest(value)` — type guard for validated manifests
-- `selectTaskArtefacts(manifest, selection)` — pure helper for consumers that
-  need artefacts by role, review state, media type, label, source, or producer
-- `findTaskArtefactById(manifest, id)` — pure helper for stable-id lookup
+- `isTaskArtifactManifest(value)` — type guard for validated manifests
+- `selectTaskArtifacts(manifest, selection)` — pure helper for consumers that
+  need artifacts by role, review state, media type, label, source, or producer
+- `findTaskArtifactById(manifest, id)` — pure helper for stable-id lookup
 
 ## Transition graph
 
@@ -34,22 +34,22 @@ draft ──validate()──► ready ──activate()──► active
 
 ## Task output manifests
 
-Task artefact manifests are intentionally generic. They describe durable outputs
+Task artifact manifests are intentionally generic. They describe durable outputs
 from a task or lab run without owning the consumer's domain schema.
 
-Artefact `id` values must be unique inside one manifest. Consumers may use them
-for stable lookup through `findTaskArtefactById`, while labels, roles, and review
+artifact `id` values must be unique inside one manifest. Consumers may use them
+for stable lookup through `findTaskArtifactById`, while labels, roles, and review
 state are better for category selection.
 
 ```ts
-import type { TaskArtefactManifest } from "@refarm.dev/artefact-contract-v1";
+import type { TaskArtifactManifest } from "@refarm.dev/artifact-contract-v1";
 
-const manifest: TaskArtefactManifest = {
-  schema: "refarm.task-artefacts.v1",
+const manifest: TaskArtifactManifest = {
+  schema: "refarm.task-artifacts.v1",
   taskId: "task-wallet-poc",
   effortId: "effort-wallet-poc-001",
   createdAt: "2026-06-11T00:00:00.000Z",
-  artefacts: [
+  artifacts: [
     {
       id: "wallet-audit-trail",
       uri: "fixtures/expected/audit-trail.md",
@@ -81,9 +81,9 @@ Runtime consumers should validate untrusted or generated manifests before using
 their paths:
 
 ```ts
-import { validateTaskArtefactManifest } from "@refarm.dev/artefact-contract-v1";
+import { validateTaskArtifactManifest } from "@refarm.dev/artifact-contract-v1";
 
-const result = validateTaskArtefactManifest(manifest);
+const result = validateTaskArtifactManifest(manifest);
 
 if (!result.ok) {
   throw new Error(result.issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
@@ -94,9 +94,9 @@ After validation, consumers should query the manifest instead of hard-coding
 producer file names:
 
 ```ts
-import { selectTaskArtefacts } from "@refarm.dev/artefact-contract-v1";
+import { selectTaskArtifacts } from "@refarm.dev/artifact-contract-v1";
 
-const acceptedReports = selectTaskArtefacts(manifest, {
+const acceptedReports = selectTaskArtifacts(manifest, {
   roles: ["report", "audit-trail"],
   reviewStates: ["accepted"],
   labels: ["publication"],

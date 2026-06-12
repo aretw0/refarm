@@ -1,9 +1,9 @@
 {
-  "schema": "refarm.task-artefacts.v1",
+  "schema": "refarm.task-artifacts.v1",
   "taskId": "task-governed-note-box-poc",
   "effortId": "effort-governed-note-box-poc-001",
   "createdAt": "2026-01-01T00:00:00.000Z",
-  "artefacts": [
+  "artifacts": [
     {
       "id": "intake-snapshot",
       "uri": "intake-snapshot.json",
@@ -170,7 +170,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "08a7fbfb5503fe4a5a75d2f6f7830414eb0b9cd966e5886ff1a4452f9235997b"
+        "value": "7fde9cf20a9fd37cb93db64fb48db514f32f38f1a207133a466b645d001dff04"
       },
       "reviewState": "accepted",
       "provenance": {
@@ -217,7 +217,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "23fdc9a6c44f747651a1a96a0961a2b39d7bc59bda446ce58d697fc1b18333b5"
+        "value": "f190e20fda5cfb0f8892c84ed840fcd8bbc9ca4c43590acbe616d30717149b8e"
       },
       "reviewState": "accepted",
       "provenance": {

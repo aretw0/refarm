@@ -6,26 +6,26 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { createHash } from "node:crypto";
 import {
-	checkTaskArtefactManifests,
-	validateTaskArtefactManifestFile,
-} from "./check-task-artefact-manifests.mjs";
+	checkTaskArtifactManifests,
+	validateTaskArtifactManifestFile,
+} from "./check-task-artifact-manifests.mjs";
 
 function sha256Text(value) {
 	return createHash("sha256").update(value).digest("hex");
 }
 
-async function makeFixture(manifestOverrides = {}, artefactOverrides = {}) {
-	const root = await mkdtemp(path.join(os.tmpdir(), "refarm-artefacts-"));
+async function makeFixture(manifestOverrides = {}, artifactOverrides = {}) {
+	const root = await mkdtemp(path.join(os.tmpdir(), "refarm-artifacts-"));
 	const fixtureDir = path.join(root, "validations", "sample", "fixtures", "expected");
 	mkdirSync(fixtureDir, { recursive: true });
 	const contents = "hello\n";
 	writeFileSync(path.join(fixtureDir, "report.md"), contents);
 	const manifest = {
-		schema: "refarm.task-artefacts.v1",
+		schema: "refarm.task-artifacts.v1",
 		taskId: "task-sample",
 		effortId: "effort-sample",
 		createdAt: "2026-01-01T00:00:00.000Z",
-		artefacts: [
+		artifacts: [
 			{
 				id: "report-md",
 				uri: "report.md",
@@ -41,20 +41,20 @@ async function makeFixture(manifestOverrides = {}, artefactOverrides = {}) {
 					producer: "sample",
 					producedAt: "2026-01-01T00:00:00.000Z",
 				},
-				...artefactOverrides,
+				...artifactOverrides,
 			},
 		],
 		...manifestOverrides,
 	};
-	const manifestPath = path.join(fixtureDir, "task-artefacts.json");
+	const manifestPath = path.join(fixtureDir, "task-artifacts.json");
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 	return { root, manifestPath };
 }
 
-describe("check-task-artefact-manifests", () => {
-	it("validates all task artefact manifests under validations", async () => {
+describe("check-task-artifact-manifests", () => {
+	it("validates all task artifact manifests under validations", async () => {
 		const { root } = await makeFixture();
-		const result = checkTaskArtefactManifests(root);
+		const result = checkTaskArtifactManifests(root);
 
 		assert.equal(result.ok, true);
 		assert.equal(result.manifestCount, 1);
@@ -66,22 +66,22 @@ describe("check-task-artefact-manifests", () => {
 			hash: { algorithm: "sha256", value: "0".repeat(64) },
 		});
 
-		const issues = validateTaskArtefactManifestFile(manifestPath);
+		const issues = validateTaskArtifactManifestFile(manifestPath);
 
 		assert.equal(issues.length, 1);
-		assert.equal(issues[0].path, "$.artefacts.0.hash.value");
+		assert.equal(issues[0].path, "$.artifacts.0.hash.value");
 		assert.match(issues[0].message, /Hash mismatch/);
 	});
 
-	it("rejects absolute or parent-traversal artefact paths", async () => {
+	it("rejects absolute or parent-traversal artifact paths", async () => {
 		const { manifestPath } = await makeFixture(undefined, {
 			uri: "../report.md",
 		});
 
-		const issues = validateTaskArtefactManifestFile(manifestPath);
+		const issues = validateTaskArtifactManifestFile(manifestPath);
 
 		assert.equal(
-			issues.some((issue) => issue.path === "$.artefacts.0.uri"),
+			issues.some((issue) => issue.path === "$.artifacts.0.uri"),
 			true,
 		);
 	});

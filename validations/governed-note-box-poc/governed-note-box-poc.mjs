@@ -233,7 +233,7 @@ ${scoreRows}
 1. Read \`scenario.md\` for the workflow question.
 2. Inspect \`publication-preflight.json\` for readiness and warnings.
 3. Inspect \`scorecard.json\` for thresholds and limits.
-4. Use \`task-artefacts.json\` to verify hashes and provenance.
+4. Use \`task-artifacts.json\` to verify hashes and provenance.
 `;
 }
 
@@ -364,7 +364,7 @@ export function buildConsumerEvidence(report) {
 	return {
 		id: "consumer-evidence-governed-note-box-001",
 		createdAt: ISSUED_AT,
-		claim: "governed note artefacts are ready for downstream vault and lab consumers",
+		claim: "governed note artifacts are ready for downstream vault and lab consumers",
 		claimStatus: "manifest-consumer-ready",
 		scope: {
 			data: report.scope.data,
@@ -383,7 +383,7 @@ export function buildConsumerEvidence(report) {
 					roles: ["dataset"],
 					source: "validations/governed-note-box-poc",
 				},
-				expectedArtefacts: ["metadata-index", "lab-snapshot"],
+				expectedArtifacts: ["metadata-index", "lab-snapshot"],
 			},
 			{
 				id: "publication-datasets",
@@ -393,7 +393,7 @@ export function buildConsumerEvidence(report) {
 					reviewStates: ["unreviewed"],
 					roles: ["dataset"],
 				},
-				expectedArtefacts: ["publication-snapshot"],
+				expectedArtifacts: ["publication-snapshot"],
 			},
 			{
 				id: "publication-preflight",
@@ -402,7 +402,7 @@ export function buildConsumerEvidence(report) {
 					labels: ["publication", "preflight"],
 					roles: ["audit-trail"],
 				},
-				expectedArtefacts: ["publication-preflight"],
+				expectedArtifacts: ["publication-preflight"],
 			},
 			{
 				id: "consumer-readiness-report",
@@ -411,7 +411,7 @@ export function buildConsumerEvidence(report) {
 					labels: ["consumer", "vault"],
 					roles: ["report"],
 				},
-				expectedArtefacts: ["consumer-evidence"],
+				expectedArtifacts: ["consumer-evidence"],
 			},
 		],
 		evidenceCommands: [
@@ -419,7 +419,7 @@ export function buildConsumerEvidence(report) {
 			"pnpm run validation-pocs:consumer:test",
 		],
 		linkedEvidence: [
-			"task-artefacts.json",
+			"task-artifacts.json",
 			"metadata-index.json",
 			"lab-snapshot.json",
 			"publication-preflight.json",
@@ -427,7 +427,7 @@ export function buildConsumerEvidence(report) {
 			"scripts/ci/check-validation-poc-consumers.mjs",
 		],
 		canSay: [
-			"downstream consumers can select governed note artefacts through the shared manifest contract",
+			"downstream consumers can select governed note artifacts through the shared manifest contract",
 			"lab and publication evidence have separate labels, roles, media types, and review states",
 			"publication remains blocked on human review in the synthetic preflight evidence",
 		],
@@ -437,7 +437,7 @@ export function buildConsumerEvidence(report) {
 			"editorial policy completeness is proven",
 		],
 		nextPromotion: [
-			"Have a consumer project read task-artefacts.json and produce vault-local output.",
+			"Have a consumer project read task-artifacts.json and produce vault-local output.",
 			"Keep vault-specific schemas, commands, and publication packaging outside this POC.",
 		],
 	};
@@ -454,7 +454,7 @@ function evidenceForNoteCriterion(criterion) {
 	return evidence[criterion] ?? "Synthetic note workflow evidence.";
 }
 
-export function buildTaskArtefactManifest(writtenArtifacts) {
+export function buildTaskArtifactManifest(writtenArtifacts) {
 	const roles = {
 		"intake-snapshot.json": "dataset",
 		"metadata-index.json": "dataset",
@@ -485,11 +485,11 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 	};
 
 	return {
-		schema: "refarm.task-artefacts.v1",
+		schema: "refarm.task-artifacts.v1",
 		taskId: TASK_ID,
 		effortId: EFFORT_ID,
 		createdAt: ISSUED_AT,
-		artefacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
+		artifacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
 			id: fileName.replace(/\.[^.]+$/, ""),
 			uri: fileName,
 			mediaType: fileName.endsWith(".md") ? "text/markdown" : "application/json",
@@ -531,13 +531,13 @@ export function writeArtifacts(outDir) {
 		"limits.md": buildLimitsMarkdown(),
 		"human-review.md": buildReviewMarkdown(report),
 	};
-	const manifest = buildTaskArtefactManifest(writtenArtifacts);
+	const manifest = buildTaskArtifactManifest(writtenArtifacts);
 
 	mkdirSync(outDir, { recursive: true });
 	for (const [fileName, contents] of Object.entries(writtenArtifacts)) {
 		writeFileSync(path.join(outDir, fileName), contents);
 	}
-	writeFileSync(path.join(outDir, "task-artefacts.json"), jsonText(manifest));
+	writeFileSync(path.join(outDir, "task-artifacts.json"), jsonText(manifest));
 	return report;
 }
 

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { TaskArtefactManifest } from "./types.js";
+import type { TaskArtifactManifest } from "./types.js";
 import {
-	ARTEFACT_CAPABILITY,
-	ARTEFACT_TERMINAL_STATES,
+	ARTIFACT_CAPABILITY,
+	ARTIFACT_TERMINAL_STATES,
 	canTransition,
-	findTaskArtefactById,
-	isTaskArtefactManifest,
-	selectTaskArtefacts,
-	validateTaskArtefactManifest,
+	findTaskArtifactById,
+	isTaskArtifactManifest,
+	selectTaskArtifacts,
+	validateTaskArtifactManifest,
 } from "./types.js";
 
 describe("canTransition", () => {
@@ -27,25 +27,25 @@ describe("canTransition", () => {
   });
 });
 
-describe("ARTEFACT_TERMINAL_STATES", () => {
+describe("ARTIFACT_TERMINAL_STATES", () => {
   it("contains only archived", () => {
-    expect(ARTEFACT_TERMINAL_STATES.has("archived")).toBe(true);
-    expect(ARTEFACT_TERMINAL_STATES.size).toBe(1);
+    expect(ARTIFACT_TERMINAL_STATES.has("archived")).toBe(true);
+    expect(ARTIFACT_TERMINAL_STATES.size).toBe(1);
   });
 });
 
-describe("ARTEFACT_CAPABILITY", () => {
-  it("is artefact:v1", () => expect(ARTEFACT_CAPABILITY).toBe("artefact:v1"));
+describe("ARTIFACT_CAPABILITY", () => {
+  it("is artifact:v1", () => expect(ARTIFACT_CAPABILITY).toBe("artifact:v1"));
 });
 
-describe("TaskArtefactManifest", () => {
-  function sampleManifest(): TaskArtefactManifest {
+describe("TaskArtifactManifest", () => {
+  function sampleManifest(): TaskArtifactManifest {
     return {
-      schema: "refarm.task-artefacts.v1",
+      schema: "refarm.task-artifacts.v1",
       taskId: "task-wallet-poc",
       effortId: "effort-wallet-poc-001",
       createdAt: "2026-06-11T00:00:00.000Z",
-      artefacts: [
+      artifacts: [
         {
           id: "wallet-audit-trail",
           uri: "fixtures/expected/audit-trail.md",
@@ -93,54 +93,54 @@ describe("TaskArtefactManifest", () => {
   it("represents task outputs with provenance and review state", () => {
     const manifest = sampleManifest();
 
-    expect(manifest.schema).toBe("refarm.task-artefacts.v1");
-    expect(manifest.artefacts[0]?.provenance.runId).toBe("wallet-poc-001");
-    expect(manifest.artefacts[0]?.role).toBe("audit-trail");
+    expect(manifest.schema).toBe("refarm.task-artifacts.v1");
+    expect(manifest.artifacts[0]?.provenance.runId).toBe("wallet-poc-001");
+    expect(manifest.artifacts[0]?.role).toBe("audit-trail");
   });
 
-  it("validates a complete task artefact manifest at runtime", () => {
+  it("validates a complete task artifact manifest at runtime", () => {
     const manifest = sampleManifest();
 
-    expect(validateTaskArtefactManifest(manifest)).toEqual({ ok: true, issues: [] });
-    expect(isTaskArtefactManifest(manifest)).toBe(true);
+    expect(validateTaskArtifactManifest(manifest)).toEqual({ ok: true, issues: [] });
+    expect(isTaskArtifactManifest(manifest)).toBe(true);
   });
 
-  it("selects task artefacts by consumer-facing metadata", () => {
+  it("selects task artifacts by consumer-facing metadata", () => {
     const manifest = sampleManifest();
 
-    expect(selectTaskArtefacts(manifest, { roles: ["audit-trail"] }).map((item) => item.id)).toEqual([
+    expect(selectTaskArtifacts(manifest, { roles: ["audit-trail"] }).map((item) => item.id)).toEqual([
       "wallet-audit-trail",
     ]);
-    expect(selectTaskArtefacts(manifest, { reviewStates: ["unreviewed"] }).map((item) => item.id)).toEqual([
+    expect(selectTaskArtifacts(manifest, { reviewStates: ["unreviewed"] }).map((item) => item.id)).toEqual([
       "wallet-dataset",
     ]);
-    expect(selectTaskArtefacts(manifest, { labels: ["vault", "reviewed"] }).map((item) => item.id)).toEqual([
+    expect(selectTaskArtifacts(manifest, { labels: ["vault", "reviewed"] }).map((item) => item.id)).toEqual([
       "wallet-audit-trail",
     ]);
-    expect(selectTaskArtefacts(manifest, {
+    expect(selectTaskArtifacts(manifest, {
       mediaTypes: ["application/json"],
       producer: "wallet:poc",
       source: "validations/citizen-data-wallet-poc",
     }).map((item) => item.id)).toEqual(["wallet-dataset"]);
   });
 
-  it("finds task artefacts by stable id", () => {
+  it("finds task artifacts by stable id", () => {
     const manifest = sampleManifest();
 
-    expect(findTaskArtefactById(manifest, "wallet-dataset")?.uri).toBe(
+    expect(findTaskArtifactById(manifest, "wallet-dataset")?.uri).toBe(
       "fixtures/expected/presentation.json",
     );
-    expect(findTaskArtefactById(manifest, "missing")).toBeUndefined();
+    expect(findTaskArtifactById(manifest, "missing")).toBeUndefined();
   });
 
-  it("rejects duplicate task artefact ids", () => {
+  it("rejects duplicate task artifact ids", () => {
     const manifest = sampleManifest();
-    const result = validateTaskArtefactManifest({
+    const result = validateTaskArtifactManifest({
       ...manifest,
-      artefacts: [
-        ...manifest.artefacts,
+      artifacts: [
+        ...manifest.artifacts,
         {
-          ...manifest.artefacts[1],
+          ...manifest.artifacts[1],
           uri: "fixtures/expected/duplicate.json",
         },
       ],
@@ -148,16 +148,16 @@ describe("TaskArtefactManifest", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues).toContainEqual({
-      path: "$.artefacts.2.id",
-      message: "Expected a unique artefact id.",
+      path: "$.artifacts.2.id",
+      message: "Expected a unique artifact id.",
     });
   });
 
   it("reports path-aware issues for malformed manifests", () => {
-    const result = validateTaskArtefactManifest({
+    const result = validateTaskArtifactManifest({
       schema: "wrong",
       createdAt: "",
-      artefacts: [
+      artifacts: [
         {
           id: "",
           uri: "audit-trail.md",
@@ -175,14 +175,14 @@ describe("TaskArtefactManifest", () => {
     expect(result.issues.map((issue) => issue.path)).toEqual([
       "$.schema",
       "$.createdAt",
-      "$.artefacts.0.id",
-      "$.artefacts.0.role",
-      "$.artefacts.0.hash.algorithm",
-      "$.artefacts.0.hash.value",
-      "$.artefacts.0.reviewState",
-      "$.artefacts.0.provenance.runId",
-      "$.artefacts.0.provenance.producedAt",
-      "$.artefacts.0.labels.1",
+      "$.artifacts.0.id",
+      "$.artifacts.0.role",
+      "$.artifacts.0.hash.algorithm",
+      "$.artifacts.0.hash.value",
+      "$.artifacts.0.reviewState",
+      "$.artifacts.0.provenance.runId",
+      "$.artifacts.0.provenance.producedAt",
+      "$.artifacts.0.labels.1",
     ]);
   });
 });

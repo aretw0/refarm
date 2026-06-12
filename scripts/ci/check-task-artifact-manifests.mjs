@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const TASK_ARTEFACT_MANIFEST_SCHEMA = "refarm.task-artefacts.v1";
+export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1";
 
 const ROLE_SET = new Set([
 	"dataset",
@@ -53,7 +53,7 @@ function walkForManifests(rootDir) {
 			if (entry.isDirectory()) {
 				if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
 				stack.push(fullPath);
-			} else if (entry.isFile() && entry.name === "task-artefacts.json") {
+			} else if (entry.isFile() && entry.name === "task-artifacts.json") {
 				found.push(fullPath);
 			}
 		}
@@ -61,7 +61,7 @@ function walkForManifests(rootDir) {
 	return found.sort((a, b) => a.localeCompare(b));
 }
 
-export function validateTaskArtefactManifestFile(manifestPath) {
+export function validateTaskArtifactManifestFile(manifestPath) {
 	const issues = [];
 	let manifest;
 	try {
@@ -80,41 +80,41 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 		pushIssue(issues, manifestPath, "$", "Expected manifest object.");
 		return issues;
 	}
-	if (manifest.schema !== TASK_ARTEFACT_MANIFEST_SCHEMA) {
+	if (manifest.schema !== TASK_ARTIFACT_MANIFEST_SCHEMA) {
 		pushIssue(
 			issues,
 			manifestPath,
 			"$.schema",
-			`Expected ${TASK_ARTEFACT_MANIFEST_SCHEMA}.`,
+			`Expected ${TASK_ARTIFACT_MANIFEST_SCHEMA}.`,
 		);
 	}
 	if (!isNonEmptyString(manifest.createdAt)) {
 		pushIssue(issues, manifestPath, "$.createdAt", "Expected non-empty string.");
 	}
-	if (!Array.isArray(manifest.artefacts)) {
-		pushIssue(issues, manifestPath, "$.artefacts", "Expected array.");
+	if (!Array.isArray(manifest.artifacts)) {
+		pushIssue(issues, manifestPath, "$.artifacts", "Expected array.");
 		return issues;
 	}
 
 	const manifestDir = path.dirname(manifestPath);
 	const ids = new Set();
-	for (const [index, artefact] of manifest.artefacts.entries()) {
-		const basePath = `$.artefacts.${index}`;
+	for (const [index, artifact] of manifest.artifacts.entries()) {
+		const basePath = `$.artifacts.${index}`;
 		let safeUri = false;
-		if (!isRecord(artefact)) {
-			pushIssue(issues, manifestPath, basePath, "Expected artefact object.");
+		if (!isRecord(artifact)) {
+			pushIssue(issues, manifestPath, basePath, "Expected artifact object.");
 			continue;
 		}
-		if (!isNonEmptyString(artefact.id)) {
+		if (!isNonEmptyString(artifact.id)) {
 			pushIssue(issues, manifestPath, `${basePath}.id`, "Expected non-empty string.");
-		} else if (ids.has(artefact.id)) {
-			pushIssue(issues, manifestPath, `${basePath}.id`, "Expected unique artefact id.");
+		} else if (ids.has(artifact.id)) {
+			pushIssue(issues, manifestPath, `${basePath}.id`, "Expected unique artifact id.");
 		} else {
-			ids.add(artefact.id);
+			ids.add(artifact.id);
 		}
-		if (!isNonEmptyString(artefact.uri)) {
+		if (!isNonEmptyString(artifact.uri)) {
 			pushIssue(issues, manifestPath, `${basePath}.uri`, "Expected non-empty string.");
-		} else if (!isSafeRelativeUri(artefact.uri)) {
+		} else if (!isSafeRelativeUri(artifact.uri)) {
 			pushIssue(
 				issues,
 				manifestPath,
@@ -124,7 +124,7 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 		} else {
 			safeUri = true;
 		}
-		if (!isNonEmptyString(artefact.mediaType)) {
+		if (!isNonEmptyString(artifact.mediaType)) {
 			pushIssue(
 				issues,
 				manifestPath,
@@ -132,13 +132,13 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 				"Expected non-empty string.",
 			);
 		}
-		if (!isNonEmptyString(artefact.role) || !ROLE_SET.has(artefact.role)) {
+		if (!isNonEmptyString(artifact.role) || !ROLE_SET.has(artifact.role)) {
 			pushIssue(issues, manifestPath, `${basePath}.role`, "Expected supported role.");
 		}
 		if (
-			artefact.reviewState !== undefined &&
-			(!isNonEmptyString(artefact.reviewState) ||
-				!REVIEW_STATE_SET.has(artefact.reviewState))
+			artifact.reviewState !== undefined &&
+			(!isNonEmptyString(artifact.reviewState) ||
+				!REVIEW_STATE_SET.has(artifact.reviewState))
 		) {
 			pushIssue(
 				issues,
@@ -147,10 +147,10 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 				"Expected supported review state.",
 			);
 		}
-		if (!isRecord(artefact.hash)) {
+		if (!isRecord(artifact.hash)) {
 			pushIssue(issues, manifestPath, `${basePath}.hash`, "Expected hash object.");
 		} else {
-			if (artefact.hash.algorithm !== "sha256") {
+			if (artifact.hash.algorithm !== "sha256") {
 				pushIssue(
 					issues,
 					manifestPath,
@@ -159,8 +159,8 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 				);
 			}
 			if (
-				!isNonEmptyString(artefact.hash.value) ||
-				!/^[a-f0-9]{64}$/.test(artefact.hash.value)
+				!isNonEmptyString(artifact.hash.value) ||
+				!/^[a-f0-9]{64}$/.test(artifact.hash.value)
 			) {
 				pushIssue(
 					issues,
@@ -170,7 +170,7 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 				);
 			}
 		}
-		if (!isRecord(artefact.provenance)) {
+		if (!isRecord(artifact.provenance)) {
 			pushIssue(
 				issues,
 				manifestPath,
@@ -179,7 +179,7 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 			);
 		} else {
 			for (const field of ["runId", "producer", "producedAt"]) {
-				if (!isNonEmptyString(artefact.provenance[field])) {
+				if (!isNonEmptyString(artifact.provenance[field])) {
 					pushIssue(
 						issues,
 						manifestPath,
@@ -191,19 +191,19 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 		}
 
 		if (!safeUri) continue;
-		const artefactPath = path.join(manifestDir, artefact.uri);
-		if (!existsSync(artefactPath) || !statSync(artefactPath).isFile()) {
+		const artifactPath = path.join(manifestDir, artifact.uri);
+		if (!existsSync(artifactPath) || !statSync(artifactPath).isFile()) {
 			pushIssue(issues, manifestPath, `${basePath}.uri`, "Referenced file does not exist.");
 			continue;
 		}
-		if (isRecord(artefact.hash) && artefact.hash.algorithm === "sha256") {
-			const actualHash = sha256File(artefactPath);
-			if (actualHash !== artefact.hash.value) {
+		if (isRecord(artifact.hash) && artifact.hash.algorithm === "sha256") {
+			const actualHash = sha256File(artifactPath);
+			if (actualHash !== artifact.hash.value) {
 				pushIssue(
 					issues,
 					manifestPath,
 					`${basePath}.hash.value`,
-					`Hash mismatch for ${artefact.uri}; expected ${actualHash}.`,
+					`Hash mismatch for ${artifact.uri}; expected ${actualHash}.`,
 				);
 			}
 		}
@@ -212,10 +212,10 @@ export function validateTaskArtefactManifestFile(manifestPath) {
 	return issues;
 }
 
-export function checkTaskArtefactManifests(rootDir = process.cwd()) {
+export function checkTaskArtifactManifests(rootDir = process.cwd()) {
 	const manifestPaths = walkForManifests(path.join(rootDir, "validations"));
 	const issues = manifestPaths.flatMap((manifestPath) =>
-		validateTaskArtefactManifestFile(manifestPath),
+		validateTaskArtifactManifestFile(manifestPath),
 	);
 	return {
 		ok: issues.length === 0,
@@ -232,12 +232,12 @@ function formatIssue(issue, rootDir) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const rootDir = process.cwd();
-	const result = checkTaskArtefactManifests(rootDir);
+	const result = checkTaskArtifactManifests(rootDir);
 	if (!result.ok) {
 		console.error(
 			result.issues.map((issue) => formatIssue(issue, rootDir)).join("\n"),
 		);
 		process.exit(1);
 	}
-	console.log(`Validated ${result.manifestCount} task artefact manifest(s).`);
+	console.log(`Validated ${result.manifestCount} task artifact manifest(s).`);
 }

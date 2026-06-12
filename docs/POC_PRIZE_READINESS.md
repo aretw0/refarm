@@ -9,7 +9,7 @@ The validation POCs are technically useful, but they are not yet as rich as a
 submission-ready prize demonstration.
 
 They already provide deterministic evidence, synthetic data, review artifacts,
-task artefact manifests, pilot scorecards, scenario narratives, evidence
+task artifact manifests, pilot scorecards, scenario narratives, evidence
 annexes, and careful risk/standards matrices. That is the right foundation.
 What is still thinner than a winning-style work is the final presentation layer:
 polished diagrams, submission-specific framing, real integration evidence, and
@@ -36,20 +36,20 @@ result to operational value.
 
 | POC | Current Strength | Current Gap | Prize Readiness |
 | --- | --- | --- | --- |
-| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artefacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and runtime evidence pointer. | The synthetic sandbox report still does not execute real WASM; real execution remains a dedicated E2E validation path. | Medium-high. Strong demonstration packet, still synthetic but linked to real runtime evidence. |
-| Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artefacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It lacks UX/accessibility review, legal review, and standards test-suite evidence for any formal compliance claim. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
-| Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artefacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and consumer evidence. | It is intentionally synthetic and not yet consumed by a real vault-seed-style lab/export/publication project or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
+| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artifacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and runtime evidence pointer. | The synthetic sandbox report still does not execute real WASM; real execution remains a dedicated E2E validation path. | Medium-high. Strong demonstration packet, still synthetic but linked to real runtime evidence. |
+| Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artifacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It lacks UX/accessibility review, legal review, and standards test-suite evidence for any formal compliance claim. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
+| Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artifacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and consumer evidence. | It is intentionally synthetic and not yet consumed by a real vault-seed-style lab/export/publication project or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
 
 ## What Is Already a Reusable Primitive
 
-- `refarm.task-artefacts.v1` style manifests for generated reports, datasets,
+- `refarm.task-artifacts.v1` style manifests for generated reports, datasets,
   receipts, logs, and review artifacts.
 - Deterministic synthetic fixtures that avoid personal, institutional, and
   secret data.
 - Decision artifacts such as consent and policy decisions that summarize the
   review point without forcing readers to inspect every raw output.
 - `scorecard.json` reports with pilot metrics, weights, thresholds, gates, and
-  explicit limits, exposed through task artefact manifests as `report` artefacts
+  explicit limits, exposed through task artifact manifests as `report` artifacts
   labeled `scorecard` and `pilot`.
 - `scenario.md` and `annex.md` reports for each POC, exposed through labels
   `scenario`, `reader-path`, `annex`, and `evidence-map`.
@@ -148,5 +148,5 @@ This keeps Refarm on the right side of the boundary: it becomes the source of
 portable evidence primitives, while the prize vault remains the writing and
 submission surface.
 
-For a writer-facing map of which generated artefacts support which sanitized
+For a writer-facing map of which generated artifacts support which sanitized
 claims, see [POC Writing Handoff](POC_WRITING_HANDOFF.md).

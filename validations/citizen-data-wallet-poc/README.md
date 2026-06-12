@@ -35,7 +35,7 @@ No real personal, institutional, or secret data is used.
   direction, gaps, and no conformance claim.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown audit trail are generated deterministically.
-- A `refarm.task-artefacts.v1` manifest lists generated outputs with media
+- A `refarm.task-artifacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance for downstream labs.
 
 ## What It Does Not Demonstrate
@@ -94,7 +94,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `annex.md`
 - `limits.md`
 - `audit-trail.md`
-- `task-artefacts.json`
+- `task-artifacts.json`
 
 ## Next Steps
 
@@ -102,5 +102,5 @@ Expected artifacts live in `fixtures/expected/`:
 - Map fields to W3C VC and OpenID4VP concepts without claiming conformance.
 - Add a simple consent text review checklist.
 - Add an accessibility checklist for a future receipt UI.
-- Let a downstream Lab consume `task-artefacts.json` instead of hard-coding
+- Let a downstream Lab consume `task-artifacts.json` instead of hard-coding
   generated file names.

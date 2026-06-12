@@ -287,7 +287,7 @@ export function buildRiskAndStandardsMatrix(report) {
 			{
 				id: "manifest-validation",
 				risk: "extension declares invalid or ambiguous authority",
-				evidence: ["sandbox-report.json", "task-artefacts.json"],
+				evidence: ["sandbox-report.json", "task-artifacts.json"],
 				status: report.checks.benignCompleted ? "demonstrated" : "needs-work",
 			},
 			{
@@ -473,7 +473,7 @@ ${scoreRows}
 1. Read \`scenario.md\` for the operational question.
 2. Inspect \`policy-decision.json\` for the review decision.
 3. Inspect \`scorecard.json\` for the gate and limits.
-4. Use \`task-artefacts.json\` to verify hashes and provenance.
+4. Use \`task-artifacts.json\` to verify hashes and provenance.
 `;
 }
 
@@ -522,7 +522,7 @@ function evidenceForSandboxCriterion(criterion) {
 	return evidence[criterion] ?? "Synthetic report evidence.";
 }
 
-export function buildTaskArtefactManifest(writtenArtifacts) {
+export function buildTaskArtifactManifest(writtenArtifacts) {
 	const roles = {
 		"sandbox-report.json": "dataset",
 		"policy-decision.json": "receipt",
@@ -544,11 +544,11 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 	};
 
 	return {
-		schema: "refarm.task-artefacts.v1",
+		schema: "refarm.task-artifacts.v1",
 		taskId: TASK_ID,
 		effortId: EFFORT_ID,
 		createdAt: ISSUED_AT,
-		artefacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
+		artifacts: Object.entries(writtenArtifacts).map(([fileName, contents]) => ({
 			id: fileName.replace(/\./g, "-"),
 			uri: fileName,
 			mediaType: fileName.endsWith(".md") ? "text/markdown" : "application/json",
@@ -587,13 +587,13 @@ export function writeArtifacts(outDir) {
 		"limits.md": buildLimitsMarkdown(),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),
 	};
-	const manifest = buildTaskArtefactManifest(writtenArtifacts);
+	const manifest = buildTaskArtifactManifest(writtenArtifacts);
 
 	mkdirSync(outDir, { recursive: true });
 	for (const [fileName, contents] of Object.entries(writtenArtifacts)) {
 		writeFileSync(path.join(outDir, fileName), contents);
 	}
-	writeFileSync(path.join(outDir, "task-artefacts.json"), jsonText(manifest));
+	writeFileSync(path.join(outDir, "task-artifacts.json"), jsonText(manifest));
 	return report;
 }
 

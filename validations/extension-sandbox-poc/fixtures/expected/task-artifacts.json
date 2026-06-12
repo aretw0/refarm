@@ -1,9 +1,9 @@
 {
-  "schema": "refarm.task-artefacts.v1",
+  "schema": "refarm.task-artifacts.v1",
   "taskId": "task-extension-sandbox-poc",
   "effortId": "effort-extension-sandbox-poc-001",
   "createdAt": "2026-01-01T00:00:00.000Z",
-  "artefacts": [
+  "artifacts": [
     {
       "id": "sandbox-report-json",
       "uri": "sandbox-report.json",
@@ -72,7 +72,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "98bfcb529ea25320d187907f1c2343644ecb45e0014a69082b6ca6fd63ce7dcc"
+        "value": "ae2f2fc5cc3091221426f56b0b41078ce4786cfa925f75652963e7db60e35018"
       },
       "reviewState": "accepted",
       "provenance": {
@@ -143,7 +143,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "b6c0e57fcdc38b73b4410936a4ffc425e32f5a4e02be8316f6bf943176b48fac"
+        "value": "0e04b18082e96dd50f549da29193f44ea38cce0b3f3ad8ff27793ecbe9fde801"
       },
       "reviewState": "accepted",
       "provenance": {

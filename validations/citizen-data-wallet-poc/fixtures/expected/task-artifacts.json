@@ -1,9 +1,9 @@
 {
-  "schema": "refarm.task-artefacts.v1",
+  "schema": "refarm.task-artifacts.v1",
   "taskId": "task-citizen-data-wallet-poc",
   "effortId": "effort-citizen-data-wallet-poc-001",
   "createdAt": "2026-01-01T00:00:00.000Z",
-  "artefacts": [
+  "artifacts": [
     {
       "id": "identity",
       "uri": "identity.json",
@@ -167,7 +167,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "4db90e6642da977bec0ac0020e51426f9266674019877d09b237d465f67bf6b8"
+        "value": "104b24b653f0f4b04acce84af5607e895e53746ca1a9f24166ab42f5259e4519"
       },
       "reviewState": "accepted",
       "provenance": {
@@ -214,7 +214,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "ac7e2d2a248e2ca385f1c6b291d03852fa3ddc6b66082dd6837f43c321c670f7"
+        "value": "ff725a6d954173216282c0dacc6d7121c803b3164a363fc93ca3c939ee3dd68a"
       },
       "reviewState": "accepted",
       "provenance": {

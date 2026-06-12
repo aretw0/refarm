@@ -1,24 +1,24 @@
-export const ARTEFACT_CAPABILITY = "artefact:v1" as const;
-export const TASK_ARTEFACT_MANIFEST_SCHEMA = "refarm.task-artefacts.v1" as const;
+export const ARTIFACT_CAPABILITY = "artifact:v1" as const;
+export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1" as const;
 
-export type ArtefactStatus = "draft" | "ready" | "active" | "archived";
+export type ArtifactStatus = "draft" | "ready" | "active" | "archived";
 
-export const ARTEFACT_TERMINAL_STATES: ReadonlySet<ArtefactStatus> = new Set([
+export const ARTIFACT_TERMINAL_STATES: ReadonlySet<ArtifactStatus> = new Set([
 	"archived",
 ]);
 
-const VALID_TRANSITIONS = new Map<ArtefactStatus, ReadonlySet<ArtefactStatus>>([
+const VALID_TRANSITIONS = new Map<ArtifactStatus, ReadonlySet<ArtifactStatus>>([
 	["draft",    new Set(["ready", "archived"])],
 	["ready",    new Set(["draft", "active", "archived"])],
 	["active",   new Set(["ready", "archived"])],
 	["archived", new Set()],
 ]);
 
-export function canTransition(from: ArtefactStatus, to: ArtefactStatus): boolean {
+export function canTransition(from: ArtifactStatus, to: ArtifactStatus): boolean {
 	return VALID_TRANSITIONS.get(from)?.has(to) ?? false;
 }
 
-export const TASK_ARTEFACT_ROLES = [
+export const TASK_ARTIFACT_ROLES = [
 	"dataset",
 	"report",
 	"audit-trail",
@@ -28,19 +28,19 @@ export const TASK_ARTEFACT_ROLES = [
 	"other",
 ] as const;
 
-export const ARTEFACT_REVIEW_STATES = [
+export const ARTIFACT_REVIEW_STATES = [
 	"unreviewed",
 	"accepted",
 	"rejected",
 	"superseded",
 ] as const;
 
-const ROLE_SET = new Set<string>(TASK_ARTEFACT_ROLES);
-const REVIEW_STATE_SET = new Set<string>(ARTEFACT_REVIEW_STATES);
+const ROLE_SET = new Set<string>(TASK_ARTIFACT_ROLES);
+const REVIEW_STATE_SET = new Set<string>(ARTIFACT_REVIEW_STATES);
 
-export interface ManagedArtefact {
+export interface ManagedArtifact {
 	id: string;
-	status: ArtefactStatus;
+	status: ArtifactStatus;
 	tags?: string[];
 	/** Adapter decides whether to increment on each update. */
 	revision?: number;
@@ -49,18 +49,18 @@ export interface ManagedArtefact {
 	archivedAt?: string; // ISO 8601, set when transitioning to archived
 }
 
-export type ArtefactReviewState =
-	(typeof ARTEFACT_REVIEW_STATES)[number];
+export type ArtifactReviewState =
+	(typeof ARTIFACT_REVIEW_STATES)[number];
 
-export interface ArtefactHash {
+export interface ArtifactHash {
 	algorithm: "sha256";
 	value: string;
 }
 
-export interface ArtefactProvenance {
+export interface ArtifactProvenance {
 	/** Stable task, effort, job, notebook, or pipeline run identifier. */
 	runId: string;
-	/** Human or machine actor that produced the artefact. */
+	/** Human or machine actor that produced the artifact. */
 	producer: string;
 	/** Shell-ready display command, process display, or logical operation name. */
 	command?: string;
@@ -71,47 +71,47 @@ export interface ArtefactProvenance {
 	/** ISO 8601 timestamp for the production event. */
 	producedAt: string;
 	/** Hashes of input snapshots, prompts, manifests, or source files. */
-	inputHashes?: readonly ArtefactHash[];
+	inputHashes?: readonly ArtifactHash[];
 }
 
-export interface TaskArtefactReference {
+export interface TaskArtifactReference {
 	id: string;
 	/** Relative path, absolute local path, URL, or URI understood by the consumer. */
 	uri: string;
 	mediaType: string;
-	role: (typeof TASK_ARTEFACT_ROLES)[number];
-	hash?: ArtefactHash;
-	reviewState?: ArtefactReviewState;
-	provenance: ArtefactProvenance;
+	role: (typeof TASK_ARTIFACT_ROLES)[number];
+	hash?: ArtifactHash;
+	reviewState?: ArtifactReviewState;
+	provenance: ArtifactProvenance;
 	labels?: readonly string[];
 }
 
-export interface TaskArtefactManifest {
-	schema: typeof TASK_ARTEFACT_MANIFEST_SCHEMA;
+export interface TaskArtifactManifest {
+	schema: typeof TASK_ARTIFACT_MANIFEST_SCHEMA;
 	taskId?: string;
 	effortId?: string;
 	createdAt: string;
-	artefacts: readonly TaskArtefactReference[];
+	artifacts: readonly TaskArtifactReference[];
 }
 
-export interface TaskArtefactSelection {
+export interface TaskArtifactSelection {
 	ids?: readonly string[];
-	roles?: readonly TaskArtefactReference["role"][];
-	reviewStates?: readonly ArtefactReviewState[];
+	roles?: readonly TaskArtifactReference["role"][];
+	reviewStates?: readonly ArtifactReviewState[];
 	mediaTypes?: readonly string[];
 	labels?: readonly string[];
 	source?: string;
 	producer?: string;
 }
 
-export interface ArtefactManifestValidationIssue {
+export interface ArtifactManifestValidationIssue {
 	path: string;
 	message: string;
 }
 
-export interface ArtefactManifestValidationResult {
+export interface ArtifactManifestValidationResult {
 	ok: boolean;
-	issues: readonly ArtefactManifestValidationIssue[];
+	issues: readonly ArtifactManifestValidationIssue[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -125,7 +125,7 @@ function isNonEmptyString(value: unknown): value is string {
 function requireString(
 	value: unknown,
 	path: string,
-	issues: ArtefactManifestValidationIssue[],
+	issues: ArtifactManifestValidationIssue[],
 ): void {
 	if (!isNonEmptyString(value)) {
 		issues.push({ path, message: "Expected a non-empty string." });
@@ -135,10 +135,10 @@ function requireString(
 function validateHash(
 	value: unknown,
 	path: string,
-	issues: ArtefactManifestValidationIssue[],
+	issues: ArtifactManifestValidationIssue[],
 ): void {
 	if (!isRecord(value)) {
-		issues.push({ path, message: "Expected an artefact hash object." });
+		issues.push({ path, message: "Expected an artifact hash object." });
 		return;
 	}
 	if (value.algorithm !== "sha256") {
@@ -152,10 +152,10 @@ function validateHash(
 function validateProvenance(
 	value: unknown,
 	path: string,
-	issues: ArtefactManifestValidationIssue[],
+	issues: ArtifactManifestValidationIssue[],
 ): void {
 	if (!isRecord(value)) {
-		issues.push({ path, message: "Expected an artefact provenance object." });
+		issues.push({ path, message: "Expected an artifact provenance object." });
 		return;
 	}
 	requireString(value.runId, `${path}.runId`, issues);
@@ -175,17 +175,17 @@ function validateProvenance(
 function validateReference(
 	value: unknown,
 	path: string,
-	issues: ArtefactManifestValidationIssue[],
+	issues: ArtifactManifestValidationIssue[],
 ): void {
 	if (!isRecord(value)) {
-		issues.push({ path, message: "Expected an artefact reference object." });
+		issues.push({ path, message: "Expected an artifact reference object." });
 		return;
 	}
 	requireString(value.id, `${path}.id`, issues);
 	requireString(value.uri, `${path}.uri`, issues);
 	requireString(value.mediaType, `${path}.mediaType`, issues);
 	if (!isNonEmptyString(value.role) || !ROLE_SET.has(value.role)) {
-		issues.push({ path: `${path}.role`, message: "Expected a supported artefact role." });
+		issues.push({ path: `${path}.role`, message: "Expected a supported artifact role." });
 	}
 	if (value.hash !== undefined) {
 		validateHash(value.hash, `${path}.hash`, issues);
@@ -211,45 +211,45 @@ function validateReference(
 	}
 }
 
-export function validateTaskArtefactManifest(
+export function validateTaskArtifactManifest(
 	value: unknown,
-): ArtefactManifestValidationResult {
-	const issues: ArtefactManifestValidationIssue[] = [];
+): ArtifactManifestValidationResult {
+	const issues: ArtifactManifestValidationIssue[] = [];
 	if (!isRecord(value)) {
 		return {
 			ok: false,
-			issues: [{ path: "$", message: "Expected a task artefact manifest object." }],
+			issues: [{ path: "$", message: "Expected a task artifact manifest object." }],
 		};
 	}
-	if (value.schema !== TASK_ARTEFACT_MANIFEST_SCHEMA) {
+	if (value.schema !== TASK_ARTIFACT_MANIFEST_SCHEMA) {
 		issues.push({
 			path: "$.schema",
-			message: `Expected ${TASK_ARTEFACT_MANIFEST_SCHEMA}.`,
+			message: `Expected ${TASK_ARTIFACT_MANIFEST_SCHEMA}.`,
 		});
 	}
 	requireString(value.createdAt, "$.createdAt", issues);
-	if (!Array.isArray(value.artefacts)) {
-		issues.push({ path: "$.artefacts", message: "Expected an array." });
+	if (!Array.isArray(value.artifacts)) {
+		issues.push({ path: "$.artifacts", message: "Expected an array." });
 	} else {
 		const ids = new Set<string>();
-		value.artefacts.forEach((artefact, index) => {
-			validateReference(artefact, `$.artefacts.${index}`, issues);
-			if (!isRecord(artefact) || !isNonEmptyString(artefact.id)) return;
-			if (ids.has(artefact.id)) {
+		value.artifacts.forEach((artifact, index) => {
+			validateReference(artifact, `$.artifacts.${index}`, issues);
+			if (!isRecord(artifact) || !isNonEmptyString(artifact.id)) return;
+			if (ids.has(artifact.id)) {
 				issues.push({
-					path: `$.artefacts.${index}.id`,
-					message: "Expected a unique artefact id.",
+					path: `$.artifacts.${index}.id`,
+					message: "Expected a unique artifact id.",
 				});
 				return;
 			}
-			ids.add(artefact.id);
+			ids.add(artifact.id);
 		});
 	}
 	return { ok: issues.length === 0, issues };
 }
 
-export function isTaskArtefactManifest(value: unknown): value is TaskArtefactManifest {
-	return validateTaskArtefactManifest(value).ok;
+export function isTaskArtifactManifest(value: unknown): value is TaskArtifactManifest {
+	return validateTaskArtifactManifest(value).ok;
 }
 
 function matchesOptionalList<T extends string>(
@@ -260,30 +260,30 @@ function matchesOptionalList<T extends string>(
 }
 
 function hasRequiredLabels(
-	artefact: TaskArtefactReference,
+	artifact: TaskArtifactReference,
 	labels: readonly string[] | undefined,
 ): boolean {
-	return labels === undefined || labels.every((label) => artefact.labels?.includes(label));
+	return labels === undefined || labels.every((label) => artifact.labels?.includes(label));
 }
 
-export function selectTaskArtefacts(
-	manifest: TaskArtefactManifest,
-	selection: TaskArtefactSelection = {},
-): readonly TaskArtefactReference[] {
-	return manifest.artefacts.filter((artefact) =>
-		matchesOptionalList(artefact.id, selection.ids) &&
-		matchesOptionalList(artefact.role, selection.roles) &&
-		matchesOptionalList(artefact.reviewState, selection.reviewStates) &&
-		matchesOptionalList(artefact.mediaType, selection.mediaTypes) &&
-		hasRequiredLabels(artefact, selection.labels) &&
-		(selection.source === undefined || artefact.provenance.source === selection.source) &&
-		(selection.producer === undefined || artefact.provenance.producer === selection.producer)
+export function selectTaskArtifacts(
+	manifest: TaskArtifactManifest,
+	selection: TaskArtifactSelection = {},
+): readonly TaskArtifactReference[] {
+	return manifest.artifacts.filter((artifact) =>
+		matchesOptionalList(artifact.id, selection.ids) &&
+		matchesOptionalList(artifact.role, selection.roles) &&
+		matchesOptionalList(artifact.reviewState, selection.reviewStates) &&
+		matchesOptionalList(artifact.mediaType, selection.mediaTypes) &&
+		hasRequiredLabels(artifact, selection.labels) &&
+		(selection.source === undefined || artifact.provenance.source === selection.source) &&
+		(selection.producer === undefined || artifact.provenance.producer === selection.producer)
 	);
 }
 
-export function findTaskArtefactById(
-	manifest: TaskArtefactManifest,
+export function findTaskArtifactById(
+	manifest: TaskArtifactManifest,
 	id: string,
-): TaskArtefactReference | undefined {
-	return selectTaskArtefacts(manifest, { ids: [id] })[0];
+): TaskArtifactReference | undefined {
+	return selectTaskArtifacts(manifest, { ids: [id] })[0];
 }

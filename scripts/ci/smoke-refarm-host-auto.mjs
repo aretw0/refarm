@@ -22,7 +22,7 @@ const PROFILE_SCRIPT = {
 	tree: "refarm:tree:verify",
 	openapi: "openapi:check",
 	"validation-pocs": "validation-pocs:test",
-	"task-artefacts": "task-artefacts:check",
+	"task-artifacts": "task-artifacts:check",
 	"text-quality": "text-quality:verify",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
@@ -265,12 +265,12 @@ export function isOpenApiProtocolFile(file) {
 	);
 }
 
-export function isTaskArtefactManifestFile(file) {
+export function isTaskArtifactManifestFile(file) {
 	return (
-		file === "scripts/ci/check-task-artefact-manifests.mjs" ||
-		file === "scripts/ci/test-check-task-artefact-manifests-lib.mjs" ||
+		file === "scripts/ci/check-task-artifact-manifests.mjs" ||
+		file === "scripts/ci/test-check-task-artifact-manifests-lib.mjs" ||
 		(file.startsWith("validations/") &&
-			(file.endsWith("/task-artefacts.json") ||
+			(file.endsWith("/task-artifacts.json") ||
 				file.includes("/fixtures/expected/")))
 	);
 }
@@ -418,20 +418,20 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "validation-pocs",
 			reason:
-				"Validation POC delta; run deterministic POC tests, consumer smoke, and task artefact manifest validation.",
+				"Validation POC delta; run deterministic POC tests, consumer smoke, and task artifact manifest validation.",
 		};
 	}
 
 	if (
-		files.some((file) => isTaskArtefactManifestFile(file)) &&
+		files.some((file) => isTaskArtifactManifestFile(file)) &&
 		files.every(
-			(file) => isTaskArtefactManifestFile(file) || isDocsOnlyFile(file),
+			(file) => isTaskArtifactManifestFile(file) || isDocsOnlyFile(file),
 		)
 	) {
 		return {
-			profile: "task-artefacts",
+			profile: "task-artifacts",
 			reason:
-				"Task artefact manifest delta; run focused manifest integrity validation.",
+				"Task artifact manifest delta; run focused manifest integrity validation.",
 		};
 	}
 

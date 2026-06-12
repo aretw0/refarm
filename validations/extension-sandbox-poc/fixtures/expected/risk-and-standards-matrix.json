@@ -22,7 +22,7 @@
       "risk": "extension declares invalid or ambiguous authority",
       "evidence": [
         "sandbox-report.json",
-        "task-artefacts.json"
+        "task-artifacts.json"
       ],
       "status": "demonstrated"
     },

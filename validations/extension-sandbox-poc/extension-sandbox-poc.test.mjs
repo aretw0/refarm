@@ -8,7 +8,7 @@ import {
 	buildPolicyDecision,
 	buildRiskAndStandardsMatrix,
 	buildRuntimeEvidence,
-	buildTaskArtefactManifest,
+	buildTaskArtifactManifest,
 	runExtensionSandboxPoc,
 } from "./extension-sandbox-poc.mjs";
 
@@ -137,14 +137,14 @@ describe("extension sandbox poc", () => {
 		assert.match(markdown, /Warn\+continue survives isolated failure: true/);
 	});
 
-	it("publishes a task artefact manifest for downstream consumers", () => {
-		const manifest = readFixture("task-artefacts.json");
+	it("publishes a task artifact manifest for downstream consumers", () => {
+		const manifest = readFixture("task-artifacts.json");
 
-		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
+		assert.equal(manifest.schema, "refarm.task-artifacts.v1");
 		assert.equal(manifest.taskId, "task-extension-sandbox-poc");
 		assert.equal(manifest.effortId, "effort-extension-sandbox-poc-001");
 		assert.deepEqual(
-			manifest.artefacts.map((artefact) => artefact.uri),
+			manifest.artifacts.map((artifact) => artifact.uri),
 			[
 				"sandbox-report.json",
 				"policy-decision.json",
@@ -158,22 +158,22 @@ describe("extension sandbox poc", () => {
 			],
 		);
 		assert.ok(
-			manifest.artefacts.every(
-				(artefact) =>
-					artefact.hash.algorithm === "sha256" &&
-					/^[a-f0-9]{64}$/.test(artefact.hash.value) &&
-					artefact.provenance.runId === "extension-sandbox-poc-001",
+			manifest.artifacts.every(
+				(artifact) =>
+					artifact.hash.algorithm === "sha256" &&
+					/^[a-f0-9]{64}$/.test(artifact.hash.value) &&
+					artifact.provenance.runId === "extension-sandbox-poc-001",
 			),
 		);
 	});
 
-	it("builds the task artefact manifest deterministically", () => {
-		const expected = readFixture("task-artefacts.json");
-		const actual = buildTaskArtefactManifest(
+	it("builds the task artifact manifest deterministically", () => {
+		const expected = readFixture("task-artifacts.json");
+		const actual = buildTaskArtifactManifest(
 			Object.fromEntries(
-				expected.artefacts.map((artefact) => [
-					artefact.uri,
-					readFileSync(path.join(FIXTURES_DIR, artefact.uri), "utf8"),
+				expected.artifacts.map((artifact) => [
+					artifact.uri,
+					readFileSync(path.join(FIXTURES_DIR, artifact.uri), "utf8"),
 				]),
 			),
 		);

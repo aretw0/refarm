@@ -841,7 +841,7 @@ Result summary:
 Attack order/backlog (if regression appears):
 1. Foundation: `config`, `toolbox`, `vtconfig`, `cli`
 2. Runtime: `tractor-rs`, `tractor-ts`, `plugin-manifest`
-3. Contracts/storage/sync: `effort/artefact/automation/*-contract-v1`,
+3. Contracts/storage/sync: `effort/artifact/automation/*-contract-v1`,
    `storage-*`, `sync-*`
 
 ### Build baseline matrix by domain (2026-04-24)
@@ -850,7 +850,7 @@ Attack order/backlog (if regression appears):
 |---|---|---|---|
 | Foundation | `pnpm run gate:smoke:foundation` | ✅ Green | `cli` type-check + tests de `config/toolbox/vtconfig` |
 | Runtime | `pnpm run gate:smoke:runtime` | ✅ Green | `tractor-rs` smoke/build checks + `tractor-ts` build/type-check/runtime-module smoke |
-| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + unit/conformance for effort, artefact, automation, storage, sync, identity, task, and session contracts |
+| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + unit/conformance for effort, artifact, automation, storage, sync, identity, task, and session contracts |
 | Colony Full | `pnpm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio, POCs sintéticas, manifests de artefatos + `project:validate` |
 
 Dependências operacionais entre domínios:

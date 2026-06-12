@@ -1,8 +1,8 @@
 {
-	"name": "@refarm.dev/artefact-contract-v1",
+	"name": "@refarm.dev/artifact-contract-v1",
 	"version": "0.1.0",
 	"private": false,
-	"description": "Shared artefact lifecycle types (draft/ready/active/archived) for managed artefacts",
+	"description": "Shared artifact lifecycle types (draft/ready/active/archived) for managed artifacts",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

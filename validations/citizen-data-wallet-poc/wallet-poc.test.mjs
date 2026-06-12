@@ -7,7 +7,7 @@ import {
 	buildPilotScorecard,
 	buildLimitsMarkdown,
 	buildRiskAndStandardsMatrix,
-	buildTaskArtefactManifest,
+	buildTaskArtifactManifest,
 	createAuthorizationReceipt,
 	createAuthorityAttributes,
 	createConsentDecision,
@@ -154,15 +154,15 @@ describe("citizen data wallet poc", () => {
 		assert.match(auditTrail, /Tamper verification result: false/);
 	});
 
-	it("publishes a task artefact manifest for downstream labs", () => {
-		const manifest = readFixture("task-artefacts.json");
+	it("publishes a task artifact manifest for downstream labs", () => {
+		const manifest = readFixture("task-artifacts.json");
 
-		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
+		assert.equal(manifest.schema, "refarm.task-artifacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artefacts.length, 13);
+		assert.equal(manifest.artifacts.length, 13);
 		assert.deepEqual(
-			manifest.artefacts.map((artefact) => artefact.uri),
+			manifest.artifacts.map((artifact) => artifact.uri),
 			[
 				"identity.json",
 				"authority-attributes.json",
@@ -180,23 +180,23 @@ describe("citizen data wallet poc", () => {
 			],
 		);
 		assert.ok(
-			manifest.artefacts.every(
-				(artefact) =>
-					artefact.hash.algorithm === "sha256" &&
-					/^[a-f0-9]{64}$/.test(artefact.hash.value) &&
-					artefact.reviewState === "accepted" &&
-					artefact.provenance.runId === "citizen-data-wallet-poc-001",
+			manifest.artifacts.every(
+				(artifact) =>
+					artifact.hash.algorithm === "sha256" &&
+					/^[a-f0-9]{64}$/.test(artifact.hash.value) &&
+					artifact.reviewState === "accepted" &&
+					artifact.provenance.runId === "citizen-data-wallet-poc-001",
 			),
 		);
 	});
 
-	it("builds the task artefact manifest deterministically", () => {
-		const expected = readFixture("task-artefacts.json");
-		const actual = buildTaskArtefactManifest(
+	it("builds the task artifact manifest deterministically", () => {
+		const expected = readFixture("task-artifacts.json");
+		const actual = buildTaskArtifactManifest(
 			Object.fromEntries(
-				expected.artefacts.map((artefact) => [
-					artefact.uri,
-					readFileSync(path.join(FIXTURES_DIR, artefact.uri), "utf8"),
+				expected.artifacts.map((artifact) => [
+					artifact.uri,
+					readFileSync(path.join(FIXTURES_DIR, artifact.uri), "utf8"),
 				]),
 			),
 		);

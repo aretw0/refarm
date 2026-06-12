@@ -18,7 +18,7 @@
     {
       "id": "extension-sandbox",
       "theme": "extension governance",
-      "manifestUri": "validations/extension-sandbox-poc/fixtures/expected/task-artefacts.json",
+      "manifestUri": "validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
       "taskId": "task-extension-sandbox-poc",
       "effortId": "effort-extension-sandbox-poc-001",
       "evidence": {
@@ -147,7 +147,7 @@
     {
       "id": "citizen-data-wallet",
       "theme": "citizen data wallet",
-      "manifestUri": "validations/citizen-data-wallet-poc/fixtures/expected/task-artefacts.json",
+      "manifestUri": "validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
       "taskId": "task-citizen-data-wallet-poc",
       "effortId": "effort-citizen-data-wallet-poc-001",
       "evidence": {
@@ -263,7 +263,7 @@
     {
       "id": "governed-note-box",
       "theme": "governed note box",
-      "manifestUri": "validations/governed-note-box-poc/fixtures/expected/task-artefacts.json",
+      "manifestUri": "validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
       "taskId": "task-governed-note-box-poc",
       "effortId": "effort-governed-note-box-poc-001",
       "evidence": {

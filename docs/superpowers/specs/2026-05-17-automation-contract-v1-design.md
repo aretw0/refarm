@@ -2,18 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Define the Automation artefact domain — a managed artefact with `draft → ready → active → archived` lifecycle that, when triggered, produces an `Effort` for submission to an effort adapter.
+**Goal:** Define the Automation artifact domain — a managed artifact with `draft → ready → active → archived` lifecycle that, when triggered, produces an `Effort` for submission to an effort adapter.
 
-**Architecture:** Two new packages: `artefact-contract-v1` (shared lifecycle base types, zero deps) and `automation-contract-v1` (extends `ManagedArtefact`, adds `body`/`triggers`/adapter interface). The automation adapter exposes CRUD + explicit status transition methods + `trigger()` returning a ready-to-submit `Effort`. The caller (farmhand, runtime, CLI) submits the returned Effort to the effort adapter — the two contracts are independent and connected only by the caller.
+**Architecture:** Two new packages: `artifact-contract-v1` (shared lifecycle base types, zero deps) and `automation-contract-v1` (extends `ManagedArtifact`, adds `body`/`triggers`/adapter interface). The automation adapter exposes CRUD + explicit status transition methods + `trigger()` returning a ready-to-submit `Effort`. The caller (farmhand, runtime, CLI) submits the returned Effort to the effort adapter — the two contracts are independent and connected only by the caller.
 
-**Tech Stack:** TypeScript, Vitest, `@refarm.dev/effort-contract-v1` (for `Effort` type), `@refarm.dev/artefact-contract-v1` (for `ManagedArtefact`), pnpm scaffold (`pnpm turbo gen package`).
+**Tech Stack:** TypeScript, Vitest, `@refarm.dev/effort-contract-v1` (for `Effort` type), `@refarm.dev/artifact-contract-v1` (for `ManagedArtifact`), pnpm scaffold (`pnpm turbo gen package`).
 
 ---
 
 ## Domain distinction
 
 ```
-Automation (artefact)          →    Effort (execution)
+Automation (artifact)          →    Effort (execution)
 draft → ready → active              pending → in-progress → done | partial
        ↓                                      | failed | timed-out | cancelled
     archived
@@ -23,35 +23,35 @@ An `active` Automation generates `Effort` payloads when triggered. An Effort has
 
 ---
 
-## Package 1: `artefact-contract-v1`
+## Package 1: `artifact-contract-v1`
 
-**Location:** `packages/artefact-contract-v1`
+**Location:** `packages/artifact-contract-v1`
 
 ### Types
 
 ```typescript
-export const ARTEFACT_CAPABILITY = "artefact:v1" as const;
+export const ARTIFACT_CAPABILITY = "artifact:v1" as const;
 
-export type ArtefactStatus = "draft" | "ready" | "active" | "archived";
+export type ArtifactStatus = "draft" | "ready" | "active" | "archived";
 
-export const ARTEFACT_TERMINAL_STATES: ReadonlySet<ArtefactStatus> = new Set([
+export const ARTIFACT_TERMINAL_STATES: ReadonlySet<ArtifactStatus> = new Set([
   "archived",
 ]);
 
-const VALID_TRANSITIONS: ReadonlyMap<ArtefactStatus, ReadonlySet<ArtefactStatus>> = new Map([
+const VALID_TRANSITIONS: ReadonlyMap<ArtifactStatus, ReadonlySet<ArtifactStatus>> = new Map([
   ["draft",    new Set(["ready", "archived"])],
   ["ready",    new Set(["draft", "active", "archived"])],
   ["active",   new Set(["ready", "archived"])],
   ["archived", new Set()],
 ]);
 
-export function canTransition(from: ArtefactStatus, to: ArtefactStatus): boolean {
+export function canTransition(from: ArtifactStatus, to: ArtifactStatus): boolean {
   return VALID_TRANSITIONS.get(from)?.has(to) ?? false;
 }
 
-export interface ManagedArtefact {
+export interface ManagedArtifact {
   id: string;
-  status: ArtefactStatus;
+  status: ArtifactStatus;
   tags?: string[];
   revision?: number;    // adapter decides whether to increment on update
   createdAt: string;    // ISO 8601
@@ -68,16 +68,16 @@ No adapter interface, no conformance suite — purely shared vocabulary.
 
 **Location:** `packages/automation-contract-v1`
 
-**Dependencies:** `@refarm.dev/artefact-contract-v1`, `@refarm.dev/effort-contract-v1`
+**Dependencies:** `@refarm.dev/artifact-contract-v1`, `@refarm.dev/effort-contract-v1`
 
 ### Core type
 
 ```typescript
-import type { ManagedArtefact } from "@refarm.dev/artefact-contract-v1";
+import type { ManagedArtifact } from "@refarm.dev/artifact-contract-v1";
 
 export const AUTOMATION_CAPABILITY = "automation:v1" as const;
 
-export interface Automation extends ManagedArtefact {
+export interface Automation extends ManagedArtifact {
   name: string;
   description?: string;
   body: AutomationBody;
@@ -152,7 +152,7 @@ A single Automation may declare multiple triggers (e.g. manual + cron). The adap
 
 ```typescript
 export interface AutomationFilter {
-  status?: ArtefactStatus | ArtefactStatus[];
+  status?: ArtifactStatus | ArtifactStatus[];
   tags?: string[];
 }
 
@@ -257,9 +257,9 @@ For `template` bodies, the adapter performs `{{varName}}` substitution in `direc
 ## File layout
 
 ```
-packages/artefact-contract-v1/
+packages/artifact-contract-v1/
   src/
-    types.ts          — ArtefactStatus, ManagedArtefact, canTransition, ARTEFACT_TERMINAL_STATES
+    types.ts          — ArtifactStatus, ManagedArtifact, canTransition, ARTIFACT_TERMINAL_STATES
     index.ts          — re-exports
   package.json
   tsconfig.json

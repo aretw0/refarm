@@ -36,4 +36,4 @@
 1. Read `scenario.md` for the workflow question.
 2. Inspect `publication-preflight.json` for readiness and warnings.
 3. Inspect `scorecard.json` for thresholds and limits.
-4. Use `task-artefacts.json` to verify hashes and provenance.
+4. Use `task-artifacts.json` to verify hashes and provenance.

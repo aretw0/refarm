@@ -13,7 +13,7 @@
       "id": "privacy-minimization",
       "name": "Privacy and data minimization",
       "stance": "control-pressure",
-      "note": "Purpose, requested attributes, selective disclosure, and revocation are explicit review artefacts."
+      "note": "Purpose, requested attributes, selective disclosure, and revocation are explicit review artifacts."
     }
   ],
   "controls": [
