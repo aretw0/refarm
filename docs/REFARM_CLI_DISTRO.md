@@ -301,6 +301,14 @@ If product code starts duplicating reusable mechanics across apps, cultivate the
 mechanic into `packages/`. If the code is command UX, copy, defaults, or release
 policy, keep it in the CLI distro.
 
+Bootstrap installers are the exception to the normal extraction pressure. A
+local or one-command installer must be able to run before the Refarm package
+graph is built, linked, or even present on `PATH`. Keep those scripts
+self-contained for filesystem writes, shim creation, and first-run recovery
+handoffs. Move only pure contracts down into packages when a second runtime
+consumer needs them and the installer can still fail with a clear bootstrap
+diagnostic instead of a package-resolution stack trace.
+
 ## First slices before scaffolding
 
 1. Keep Web and headless renderer descriptors healthy in existing apps.

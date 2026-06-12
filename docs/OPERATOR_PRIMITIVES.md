@@ -76,7 +76,7 @@ state from memory.
 
 Purpose: preserve the operator timeline and make agent output inspectable.
 
-Rules:
+Session Rules:
 
 - `sessions show <id> --json` is terminal when the session is already active.
 - `sessions list --json` should not suggest stale active-session recovery.
@@ -89,7 +89,7 @@ Rules:
 
 Purpose: dispatch resumable work without hiding state in the CLI process.
 
-Rules:
+Task Rules:
 
 - `task resume --json` is the preferred continuation when a checkpoint exists.
 - Terminal or failed old efforts must not produce misleading resume handoffs.
@@ -115,7 +115,7 @@ reintroducing `task resume` as the next step.
 
 Purpose: keep the execution plane recoverable without manual guessing.
 
-Rules:
+Runtime Rules:
 
 - `runtime.sidecarUrl` is the persisted endpoint primitive for the selected
   runtime sidecar. `REFARM_SIDECAR_URL` may override it for one command, but
@@ -182,7 +182,7 @@ refarm plugin reload runtime-agent --json
 Purpose: separate generic workspace health from Refarm-specific assumptions
 before using the CLI in another repository.
 
-Rules:
+Health Rules:
 
 - `refarm health --policy --json` is the inspection primitive for the resolved
   health policy. It should not run the auditors.
@@ -216,7 +216,7 @@ Read-only consumer lane:
 Purpose: make large-file pressure visible before agents normalize working inside
 files that are too large to reason about cheaply.
 
-Rules:
+Complexity Rules:
 
 - Ecosystem primitive: `@refarm.dev/health` owns reusable complexity scanning,
   and workspaces opt in through `health.complexity` in `.refarm/config.json`.
@@ -273,7 +273,7 @@ Rules:
 Purpose: make prose drift visible before agents normalize unclear docs,
 submission scaffolding, or leftover assistant artifacts.
 
-Rules:
+Text Quality Rules:
 
 - Refarm owns the dependency-free scoring contract and JSON report shape for
   generic prose checks.
@@ -304,7 +304,7 @@ Rules:
 
 Purpose: let the agent know which model path it is about to use.
 
-Rules:
+Model Routing Rules:
 
 - `model current --json` is the inspection primitive.
 - `model doctor --json` is the live local-provider probe. Keep
@@ -320,7 +320,7 @@ Rules:
 
 Purpose: close a slice with enough verification signal for the changed surface.
 
-Rules:
+Finish Rules:
 
 - Before treating a package-script failure as a code failure, verify the local
   Node execution substrate:
@@ -357,6 +357,11 @@ pnpm run rust-substrate:check
   `bootstrap/preflight` failure when JSON output is requested and point the
   operator to `node scripts/ci/check-node-substrate.mjs --json`, instead of
   crashing with a Node module-resolution stack trace.
+- Installer scripts are also bootstrap surfaces. They may keep small pure
+  helpers inline when importing `@refarm.dev/*` would make installation depend
+  on a built workspace package. Extract the helper once a second non-bootstrap
+  consumer needs it, or once the published install path can guarantee the
+  package is already available before the installer runs.
 - After source edits:
 
 ```bash
