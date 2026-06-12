@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
 	authorizationPayload,
 	buildPilotScorecard,
+	buildLimitsMarkdown,
 	buildRiskAndStandardsMatrix,
 	buildTaskArtefactManifest,
 	createAuthorizationReceipt,
@@ -142,6 +143,10 @@ describe("citizen data wallet poc", () => {
 		assert.match(annex, /Service requests proof/);
 		assert.match(annex, /Evidence Map/);
 		assert.match(annex, /scorecard\.json/);
+		const limits = readFileSync(path.join(FIXTURES_DIR, "limits.md"), "utf8");
+		assert.equal(limits, buildLimitsMarkdown());
+		assert.match(limits, /Do Not Claim/);
+		assert.match(limits, /W3C VC, OpenID4VP, or OpenID4VCI conformance/);
 
 		const auditTrail = readFileSync(path.join(FIXTURES_DIR, "audit-trail.md"), "utf8");
 		assert.match(auditTrail, /No real personal, institutional, or secret data is used/);
@@ -155,7 +160,7 @@ describe("citizen data wallet poc", () => {
 		assert.equal(manifest.schema, "refarm.task-artefacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artefacts.length, 12);
+		assert.equal(manifest.artefacts.length, 13);
 		assert.deepEqual(
 			manifest.artefacts.map((artefact) => artefact.uri),
 			[
@@ -170,6 +175,7 @@ describe("citizen data wallet poc", () => {
 				"risk-and-standards-matrix.json",
 				"scenario.md",
 				"annex.md",
+				"limits.md",
 				"audit-trail.md",
 			],
 		);

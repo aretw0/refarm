@@ -160,6 +160,30 @@
       ]
     },
     {
+      "id": "limits-md",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "0a6c7d2be7e6bc6ad2e89c2cf48b5e825f0558566799b7bf360acd79f51897b4"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "pnpm run extension-sandbox:poc",
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    },
+    {
       "id": "sandbox-report-md",
       "uri": "sandbox-report.md",
       "mediaType": "text/markdown",

@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import {
 	buildConsumerEvidence,
+	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildRiskAndStandardsMatrix,
 	buildTaskArtefactManifest,
@@ -129,6 +130,10 @@ describe("governed note box poc", () => {
 		assert.match(annex, /Notes ingested/);
 		assert.match(annex, /Evidence Map/);
 		assert.match(annex, /scorecard\.json/);
+		const limits = readFileSync(path.join(FIXTURES_DIR, "limits.md"), "utf8");
+		assert.equal(limits, buildLimitsMarkdown());
+		assert.match(limits, /Do Not Claim/);
+		assert.match(limits, /Real vault integration/);
 
 		const review = readFileSync(path.join(FIXTURES_DIR, "human-review.md"), "utf8");
 		assert.match(review, /No real vault, work draft, personal data, institutional data, or secrets/);
@@ -154,6 +159,7 @@ describe("governed note box poc", () => {
 				"consumer-evidence.json",
 				"scenario.md",
 				"annex.md",
+				"limits.md",
 				"human-review.md",
 			],
 		);

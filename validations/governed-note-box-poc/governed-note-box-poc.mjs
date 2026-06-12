@@ -237,6 +237,31 @@ ${scoreRows}
 `;
 }
 
+export function buildLimitsMarkdown() {
+	return `# Governed Note Box PoC Limits
+
+Scope: synthetic local validation only. No real vault, work draft, personal data, institutional data, or secrets are used.
+
+## Do Not Claim
+
+- Real vault integration.
+- Complete Obsidian, Astro, Marimo, or work-mirror publication workflow.
+- Replacement of vault-local UX.
+- Editorial policy completeness.
+
+## Adoption Risks
+
+- A real vault may contain schemas, links, embeds, and naming conventions not represented here.
+- Publication packaging may require project-specific review and approval steps.
+- Lab consumers may need notebook or dashboard adapters outside this POC.
+- Editorial rules may change what counts as ready for publication.
+
+## Promotion Path
+
+Promote claims only after a consumer project reads the manifest, produces vault-local output, and exercises project-specific editorial, export, and publication gates.
+`;
+}
+
 export function buildPilotScorecard(report) {
 	const scores = {
 		metadataPreservation: report.checks.allNotesHaveMetadata ? 5 : 0,
@@ -441,6 +466,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"consumer-evidence.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
+		"limits.md": "report",
 		"human-review.md": "report",
 	};
 	const labels = {
@@ -454,6 +480,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"consumer-evidence.json": ["consumer", "vault", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
+		"limits.md": ["limits", "adoption", "claim-boundary"],
 		"human-review.md": ["publication", "human-review"],
 	};
 
@@ -501,6 +528,7 @@ export function writeArtifacts(outDir) {
 		"consumer-evidence.json": jsonText(consumerEvidence),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
+		"limits.md": buildLimitsMarkdown(),
 		"human-review.md": buildReviewMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);

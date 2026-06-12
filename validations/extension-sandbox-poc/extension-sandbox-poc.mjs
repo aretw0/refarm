@@ -477,6 +477,31 @@ ${scoreRows}
 `;
 }
 
+export function buildLimitsMarkdown() {
+	return `# Extension Sandbox PoC Limits
+
+Scope: synthetic local validation only. No real plugins, services, institutional data, or secrets are used.
+
+## Do Not Claim
+
+- Real WebAssembly execution inside the synthetic sandbox report.
+- Production plugin governance.
+- Security certification or complete isolation guarantees.
+- Performance readiness for a real plugin host.
+
+## Adoption Risks
+
+- Capability grants may become too broad without operator review.
+- Real WASM runtime failures may differ from the simulated lifecycle.
+- Quarantine, recovery, and plugin update flows are not covered here.
+- Host performance and resource isolation still need dedicated tests.
+
+## Promotion Path
+
+Promote claims only after the real WASM/browser lifecycle validation, install/deny/quarantine/review commands, and host performance checks produce their own evidence.
+`;
+}
+
 function weightedScore(scores, weights) {
 	const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
 	const total = Object.entries(scores).reduce(
@@ -506,6 +531,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"runtime-evidence.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
+		"limits.md": "report",
 		"sandbox-report.md": "report",
 	};
 	const labels = {
@@ -514,6 +540,7 @@ export function buildTaskArtefactManifest(writtenArtifacts) {
 		"runtime-evidence.json": ["runtime", "wasm", "claim-promotion"],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
+		"limits.md": ["limits", "adoption", "claim-boundary"],
 	};
 
 	return {
@@ -557,6 +584,7 @@ export function writeArtifacts(outDir) {
 		"runtime-evidence.json": jsonText(runtimeEvidence),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
+		"limits.md": buildLimitsMarkdown(),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),
 	};
 	const manifest = buildTaskArtefactManifest(writtenArtifacts);

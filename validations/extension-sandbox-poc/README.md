@@ -26,6 +26,7 @@ read secrets.
   conformance claim.
 - A runtime evidence artifact links this synthetic policy POC to the dedicated
   real WASM build and browser lifecycle validation path.
+- A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance.
@@ -74,6 +75,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `sandbox-report.md`
 - `scenario.md`
 - `annex.md`
+- `limits.md`
 - `task-artefacts.json`
 
 ## Next Steps

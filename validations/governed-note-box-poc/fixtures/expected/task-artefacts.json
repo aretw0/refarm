@@ -234,6 +234,30 @@
       ]
     },
     {
+      "id": "limits",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "d7e27a8c2b77b161921882ef81e8cbfb986a30936e7a2a327c91bb3bd36fcfa4"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "pnpm run governed-note-box:poc",
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    },
+    {
       "id": "human-review",
       "uri": "human-review.md",
       "mediaType": "text/markdown",

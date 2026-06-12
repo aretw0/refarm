@@ -66,6 +66,7 @@ Extension files:
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful standards and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `runtime-evidence.json` | Support careful real-WASM discussion. | The synthetic sandbox is linked to a dedicated real WASM validation path. |
+| `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
 
 Extension non-claims:
@@ -96,6 +97,7 @@ Wallet files:
 | `consent-decision.json` | Support human-review claims. | Purpose, scope, disclosure, revocation, and review status are summarized. |
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful standards, privacy, and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
+| `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, and review state. |
 
 Wallet non-claims:
@@ -127,6 +129,7 @@ Knowledge workflow files:
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful workflow governance and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `consumer-evidence.json` | Support downstream/vault-seed-style consumer readiness. | Manifest selectors, labels, roles, and limits are explicit without claiming real vault integration. |
+| `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
 | `task-artefacts.json` | Support provenance claims. | Artefacts have hashes, media types, producer command, labels, and review state. |
 
 Publication scope non-claims:
@@ -144,7 +147,8 @@ Publication scope non-claims:
    score.
 4. Use `risk-and-standards-matrix.json` when writing about risks, standards
    direction, and remaining work.
-5. Use `task-artefacts.json` when writing about reproducibility, provenance, or
+5. Use `limits.md` before final wording to keep claims inside proven evidence.
+6. Use `task-artefacts.json` when writing about reproducibility, provenance, or
    auditability.
-6. Keep private, institutional, and submission-specific wording in the external
+7. Keep private, institutional, and submission-specific wording in the external
    writing vault.

@@ -59,6 +59,8 @@ result to operational value.
   `runtime`, `wasm`, and `claim-promotion`.
 - `consumer-evidence.json` for the governed note box, exposed through labels
   `consumer`, `vault`, and `claim-promotion`.
+- `limits.md` reports for each POC, exposed through labels `limits`,
+  `adoption`, and `claim-boundary`.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -118,6 +120,7 @@ Each POC should grow one lightweight "demonstration packet":
      integration.
 
 7. `limits.md`
+   - Implemented for all three POCs.
    - Non-goals, adoption risks, and when the model should not be used.
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.
@@ -126,8 +129,8 @@ Each POC should grow one lightweight "demonstration packet":
 
 1. Run the dedicated real WASM/browser lifecycle E2E in target environments
    before using stronger real-execution wording.
-2. Add `limits.md` only if the existing scenario, annex, and matrix files become
-   too dense.
+2. Let a downstream writing or vault project select `limits.md` from each
+   manifest before converting evidence into proposal text.
 3. Let vault-seed consume those manifests later, instead of moving vault UX into
    Refarm.
 

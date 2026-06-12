@@ -33,6 +33,7 @@ No real personal, institutional, or secret data is used.
   disclosure, revocation usability, and human-review status.
 - A risk and standards matrix records privacy controls, protocol-alignment
   direction, gaps, and no conformance claim.
+- A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown audit trail are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, and provenance for downstream labs.
@@ -91,6 +92,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `risk-and-standards-matrix.json`
 - `scenario.md`
 - `annex.md`
+- `limits.md`
 - `audit-trail.md`
 - `task-artefacts.json`
 

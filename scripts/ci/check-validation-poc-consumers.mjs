@@ -84,6 +84,13 @@ assert.deepEqual(
 	})),
 	["risk-and-standards-matrix"],
 );
+assert.deepEqual(
+	ids(selectTaskArtefacts(wallet, {
+		labels: ["limits", "adoption"],
+		roles: ["report"],
+	})),
+	["limits"],
+);
 
 const extension = readManifest(MANIFESTS.extension);
 assert.deepEqual(
@@ -92,7 +99,7 @@ assert.deepEqual(
 		producer: "extension-sandbox:poc",
 		roles: ["report"],
 	})),
-	["scenario-md", "annex-md", "sandbox-report-md"],
+	["scenario-md", "annex-md", "limits-md", "sandbox-report-md"],
 );
 assert.equal(
 	findTaskArtefactById(extension, "policy-decision-json")?.mediaType,
@@ -132,6 +139,13 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["runtime-evidence-json"],
+);
+assert.deepEqual(
+	ids(selectTaskArtefacts(extension, {
+		labels: ["limits", "adoption"],
+		roles: ["report"],
+	})),
+	["limits-md"],
 );
 
 const notes = readManifest(MANIFESTS.notes);
@@ -194,6 +208,13 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["consumer-evidence"],
+);
+assert.deepEqual(
+	ids(selectTaskArtefacts(notes, {
+		labels: ["limits", "adoption"],
+		roles: ["report"],
+	})),
+	["limits"],
 );
 assert.equal(findTaskArtefactById(notes, "human-review")?.mediaType, "text/markdown");
 

@@ -25,6 +25,7 @@ read secrets.
   gaps, and no conformance claim.
 - A consumer evidence report records which manifest selectors downstream labs
   and vault-local tools can use without claiming real vault integration.
+- A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown review report are generated deterministically.
 - A `refarm.task-artefacts.v1` manifest lists generated outputs with media
   types, SHA-256 hashes, review state, provenance, and consumer labels.
@@ -72,6 +73,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `consumer-evidence.json`
 - `scenario.md`
 - `annex.md`
+- `limits.md`
 - `human-review.md`
 - `task-artefacts.json`
 

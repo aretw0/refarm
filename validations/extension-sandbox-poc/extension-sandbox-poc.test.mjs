@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
 	buildRiskAndStandardsMatrix,
@@ -127,6 +128,10 @@ describe("extension sandbox poc", () => {
 		assert.match(annex, /Manifest submitted/);
 		assert.match(annex, /Evidence Map/);
 		assert.match(annex, /scorecard\.json/);
+		const limits = readFileSync(path.join(FIXTURES_DIR, "limits.md"), "utf8");
+		assert.equal(limits, buildLimitsMarkdown());
+		assert.match(limits, /Do Not Claim/);
+		assert.match(limits, /Real WebAssembly execution/);
 		const markdown = readFileSync(path.join(FIXTURES_DIR, "sandbox-report.md"), "utf8");
 		assert.match(markdown, /No real plugins, services, institutional data, or secrets/);
 		assert.match(markdown, /Warn\+continue survives isolated failure: true/);
@@ -148,6 +153,7 @@ describe("extension sandbox poc", () => {
 				"runtime-evidence.json",
 				"scenario.md",
 				"annex.md",
+				"limits.md",
 				"sandbox-report.md",
 			],
 		);

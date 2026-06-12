@@ -231,6 +231,30 @@
       ]
     },
     {
+      "id": "limits",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "28072b89af85c0e6a7092ecc52782b20117030c10c0d60b99f0b5078b309276e"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "pnpm run wallet:poc",
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    },
+    {
       "id": "audit-trail",
       "uri": "audit-trail.md",
       "mediaType": "text/markdown",
