@@ -6,6 +6,7 @@ import {
 	buildConsumerEvidence,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
+	PRODUCER_PROCESS,
 	buildRiskAndStandardsMatrix,
 	buildTaskArtifactManifest,
 	runGovernedNoteBoxPoc,
@@ -172,7 +173,10 @@ describe("governed note box poc", () => {
 				(artifact) =>
 					artifact.hash.algorithm === "sha256" &&
 					/^[a-f0-9]{64}$/.test(artifact.hash.value) &&
-					artifact.provenance.runId === "governed-note-box-poc-001",
+					artifact.provenance.runId === "governed-note-box-poc-001" &&
+					artifact.provenance.command === PRODUCER_PROCESS.display &&
+					artifact.provenance.process.command === "node" &&
+					artifact.provenance.process.args.length === 1,
 			),
 		);
 	});

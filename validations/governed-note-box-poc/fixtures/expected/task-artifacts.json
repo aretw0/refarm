@@ -17,7 +17,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -39,7 +46,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -62,7 +76,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -84,7 +105,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -106,7 +134,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -129,7 +164,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -152,7 +194,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -176,7 +225,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -200,7 +256,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -223,7 +286,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -246,7 +316,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -270,7 +347,14 @@
       "provenance": {
         "runId": "governed-note-box-poc-001",
         "producer": "governed-note-box:poc",
-        "command": "pnpm run governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
         "source": "validations/governed-note-box-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"

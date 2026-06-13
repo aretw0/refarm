@@ -7,6 +7,11 @@ export const ISSUED_AT = "2026-01-01T00:00:00.000Z";
 export const TASK_ID = "task-governed-note-box-poc";
 export const EFFORT_ID = "effort-governed-note-box-poc-001";
 export const RUN_ID = "governed-note-box-poc-001";
+export const PRODUCER_PROCESS = {
+	command: "node",
+	args: ["validations/governed-note-box-poc/governed-note-box-poc.mjs"],
+	display: "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+};
 
 const NOTES = [
 	{
@@ -502,7 +507,8 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 			provenance: {
 				runId: RUN_ID,
 				producer: "governed-note-box:poc",
-				command: "pnpm run governed-note-box:poc",
+				command: PRODUCER_PROCESS.display,
+				process: PRODUCER_PROCESS,
 				source: "validations/governed-note-box-poc",
 				sourceVersion: "synthetic-v1",
 				producedAt: ISSUED_AT,

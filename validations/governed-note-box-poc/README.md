@@ -28,7 +28,8 @@ read secrets.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown review report are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
-  types, SHA-256 hashes, review state, provenance, and consumer labels.
+  types, SHA-256 hashes, review state, provenance, tokenized producer process,
+  and consumer labels.
 
 ## What It Does Not Demonstrate
 
@@ -57,7 +58,8 @@ pnpm run governed-note-box:poc
 - Draft notes are excluded from the publication snapshot.
 - Lab metrics are generated without external services.
 - Publication preflight requires human review.
-- `fixtures/expected/task-artifacts.json` describes all generated outputs.
+- `fixtures/expected/task-artifacts.json` describes all generated outputs and
+  records the producer as a shell-free `node` process.
 
 ## Artifacts
 
