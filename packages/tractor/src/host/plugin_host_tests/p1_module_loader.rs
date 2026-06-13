@@ -1,7 +1,7 @@
 /// P1 module loader tests — ADR-061
 ///
 /// Uses inline WAT (WebAssembly Text) to synthesise minimal P1 modules without
-/// requiring an external compiled artefact.  Each module satisfies the P1 plugin
+/// requiring an external compiled artifact.  Each module satisfies the P1 plugin
 /// contract: exports `memory`, `alloc(i32) -> i32`, and `on_event(i32, i32)`.
 ///
 /// Run: cargo test --lib host::plugin_host::tests::p1_

@@ -1,6 +1,6 @@
 # tractor-native — Domain Model
 
-> DDD artefact for Phase 7. Maps bounded contexts, aggregates, value objects,
+> DDD artifact for Phase 7. Maps bounded contexts, aggregates, value objects,
 > and ubiquitous language across TypeScript ↔ Rust ↔ business domain.
 
 ---
