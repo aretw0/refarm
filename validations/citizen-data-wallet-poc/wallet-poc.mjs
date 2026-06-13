@@ -19,6 +19,11 @@ export const TASK_ARTIFACTS_SCHEMA = "refarm.task-artifacts.v1";
 export const TASK_ID = "task-citizen-data-wallet-poc";
 export const EFFORT_ID = "effort-citizen-data-wallet-poc-001";
 export const RUN_ID = "citizen-data-wallet-poc-001";
+export const PRODUCER_PROCESS = {
+	command: "node",
+	args: ["validations/citizen-data-wallet-poc/wallet-poc.mjs"],
+	display: "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+};
 
 const SYNTHETIC_ATTRIBUTES = {
 	nome_social: "Pessoa Exemplo",
@@ -522,7 +527,8 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 			provenance: {
 				runId: RUN_ID,
 				producer: "wallet:poc",
-				command: "pnpm run wallet:poc",
+				command: PRODUCER_PROCESS.display,
+				process: PRODUCER_PROCESS,
 				source: "validations/citizen-data-wallet-poc",
 				sourceVersion: "synthetic-v1",
 				producedAt: ISSUED_AT,

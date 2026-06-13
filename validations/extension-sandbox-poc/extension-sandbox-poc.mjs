@@ -11,6 +11,11 @@ export const ISSUED_AT = "2026-01-01T00:00:00.000Z";
 export const TASK_ID = "task-extension-sandbox-poc";
 export const EFFORT_ID = "effort-extension-sandbox-poc-001";
 export const RUN_ID = "extension-sandbox-poc-001";
+export const PRODUCER_PROCESS = {
+	command: "node",
+	args: ["validations/extension-sandbox-poc/extension-sandbox-poc.mjs"],
+	display: "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+};
 
 const GRANTED_CAPABILITIES = ["storage:v1"];
 const LIFECYCLE_STEPS = ["setup", "ingest", "teardown"];
@@ -561,7 +566,8 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 			provenance: {
 				runId: RUN_ID,
 				producer: "extension-sandbox:poc",
-				command: "pnpm run extension-sandbox:poc",
+				command: PRODUCER_PROCESS.display,
+				process: PRODUCER_PROCESS,
 				source: "validations/extension-sandbox-poc",
 				sourceVersion: "synthetic-v1",
 				producedAt: ISSUED_AT,

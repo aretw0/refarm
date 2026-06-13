@@ -9,6 +9,7 @@ import {
 	buildRiskAndStandardsMatrix,
 	buildRuntimeEvidence,
 	buildTaskArtifactManifest,
+	PRODUCER_PROCESS,
 	runExtensionSandboxPoc,
 } from "./extension-sandbox-poc.mjs";
 
@@ -162,7 +163,10 @@ describe("extension sandbox poc", () => {
 				(artifact) =>
 					artifact.hash.algorithm === "sha256" &&
 					/^[a-f0-9]{64}$/.test(artifact.hash.value) &&
-					artifact.provenance.runId === "extension-sandbox-poc-001",
+					artifact.provenance.runId === "extension-sandbox-poc-001" &&
+					artifact.provenance.command === PRODUCER_PROCESS.display &&
+					artifact.provenance.process.command === "node" &&
+					artifact.provenance.process.args.length === 1,
 			),
 		);
 	});

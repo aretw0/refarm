@@ -11,6 +11,7 @@ import {
 	createAuthorizationReceipt,
 	createAuthorityAttributes,
 	createConsentDecision,
+	PRODUCER_PROCESS,
 	createRevocationEvent,
 	createSelectivePresentation,
 	createServiceRequest,
@@ -185,7 +186,10 @@ describe("citizen data wallet poc", () => {
 					artifact.hash.algorithm === "sha256" &&
 					/^[a-f0-9]{64}$/.test(artifact.hash.value) &&
 					artifact.reviewState === "accepted" &&
-					artifact.provenance.runId === "citizen-data-wallet-poc-001",
+					artifact.provenance.runId === "citizen-data-wallet-poc-001" &&
+					artifact.provenance.command === PRODUCER_PROCESS.display &&
+					artifact.provenance.process.command === "node" &&
+					artifact.provenance.process.args.length === 1,
 			),
 		);
 	});

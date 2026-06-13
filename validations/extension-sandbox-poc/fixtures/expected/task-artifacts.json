@@ -17,7 +17,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -36,7 +43,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -55,7 +69,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -78,7 +99,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -102,7 +130,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -126,7 +161,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -149,7 +191,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -172,7 +221,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -196,7 +252,14 @@
       "provenance": {
         "runId": "extension-sandbox-poc-001",
         "producer": "extension-sandbox:poc",
-        "command": "pnpm run extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
         "source": "validations/extension-sandbox-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"

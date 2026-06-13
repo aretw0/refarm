@@ -17,7 +17,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -36,7 +43,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -55,7 +69,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -74,7 +95,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -93,7 +121,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -112,7 +147,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -131,7 +173,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -150,7 +199,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -173,7 +229,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -197,7 +260,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -220,7 +290,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -243,7 +320,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"
@@ -267,7 +351,14 @@
       "provenance": {
         "runId": "citizen-data-wallet-poc-001",
         "producer": "wallet:poc",
-        "command": "pnpm run wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
         "source": "validations/citizen-data-wallet-poc",
         "sourceVersion": "synthetic-v1",
         "producedAt": "2026-01-01T00:00:00.000Z"

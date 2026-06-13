@@ -36,7 +36,8 @@ No real personal, institutional, or secret data is used.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON artifacts and a Markdown audit trail are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
-  types, SHA-256 hashes, review state, and provenance for downstream labs.
+  types, SHA-256 hashes, review state, tokenized producer process, and
+  provenance for downstream labs.
 
 ## What It Does Not Demonstrate
 
@@ -76,6 +77,8 @@ pnpm run wallet:poc
 - Consent decisions are explicit enough for downstream review without reading
   every wallet artifact.
 - `fixtures/expected/audit-trail.md` is generated without real data.
+- `fixtures/expected/task-artifacts.json` records the producer as a shell-free
+  `node` process.
 
 ## Artifacts
 

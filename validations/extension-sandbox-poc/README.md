@@ -29,7 +29,8 @@ read secrets.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
-  types, SHA-256 hashes, review state, and provenance.
+  types, SHA-256 hashes, review state, tokenized producer process, and
+  provenance.
 
 ## What It Does Not Demonstrate
 
@@ -61,7 +62,8 @@ pnpm run extension-sandbox:poc
 - Policy decisions are explicit enough for downstream review without reading
   the full lifecycle report.
 - The report does not contain real project, operator, service, or secret data.
-- `fixtures/expected/task-artifacts.json` describes the generated reports.
+- `fixtures/expected/task-artifacts.json` describes the generated reports and
+  records the producer as a shell-free `node` process.
 
 ## Artifacts
 
