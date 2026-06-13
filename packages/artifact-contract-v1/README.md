@@ -88,7 +88,10 @@ their own manifests.
 When the producer uses a tokenized runner, store the exact executable boundary
 in `provenance.process`. Keep `provenance.command` as a stable display string
 for humans and older consumers. The `process.args` array is already tokenized;
-consumers must not shell-split it.
+consumers must not shell-split it. When both `provenance.command` and
+`provenance.process` are present, the runtime validator requires
+`provenance.command` to match `provenance.process.display` so manifests do not
+carry contradictory execution evidence.
 
 The executable and script paths in `provenance.process` are consumer-owned
 evidence. They are not distributed by this package. `@refarm.dev/artifact-contract-v1`
