@@ -2,10 +2,10 @@ import {
 	modelCredentialEnvKey,
 	modelCredentialStatus as resolveModelCredentialStatus,
 } from "@refarm.dev/config";
+import { isContainer as detectContainerRuntime } from "@refarm.dev/root";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import { existsSync } from "node:fs";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	defaultModelForProvider,
@@ -107,6 +107,7 @@ export interface ModelCommandDeps {
 	loadTokens(): Promise<ModelTokens>;
 	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
 	fetch?: typeof fetch;
+	isContainer?: () => boolean;
 }
 
 export interface CurrentModelStatus {
@@ -162,6 +163,11 @@ export interface ModelDoctorStatus {
 		error?: string;
 		timedOut?: boolean;
 		skipped?: boolean;
+	};
+	probeEnvironment: {
+		container: boolean;
+		localhostTargetsRuntime: boolean;
+		dockerHostBaseUrl: string;
 	};
 	recommendations?: {
 		diagnostic: string;
@@ -339,8 +345,10 @@ function trimTrailingSlash(value: string): string {
 	return value.replace(/\/+$/, "");
 }
 
-function isLikelyDockerRuntime(): boolean {
-	return existsSync("/.dockerenv");
+function localhostTargetsRuntime(baseUrl: string | undefined): boolean {
+	if (!baseUrl) return true;
+	const normalized = baseUrl.trim().toLowerCase();
+	return normalized.includes("localhost") || normalized.includes("127.0.0.1");
 }
 
 function modelDoctorHandoffs(): ModelDoctorStatus["handoffs"] {
@@ -358,10 +366,21 @@ function modelDoctorHandoffs(): ModelDoctorStatus["handoffs"] {
 
 function modelDoctorRecoveryCommands(status: ModelDoctorStatus): string[] {
 	if (status.providerProbe.ready !== false) return [];
-	const commands = [status.handoffs.startOllama, status.handoffs.inspectCurrent];
-	if (isLikelyDockerRuntime()) {
-		commands.splice(1, 0, status.handoffs.setDockerOllamaBaseUrl);
+	const commands: string[] = [];
+	if (
+		status.probeEnvironment.container &&
+		status.probeEnvironment.localhostTargetsRuntime
+	) {
+		commands.push(status.handoffs.setDockerOllamaBaseUrl);
 	}
+	commands.push(status.handoffs.startOllama);
+	if (
+		status.probeEnvironment.container &&
+		!commands.includes(status.handoffs.setDockerOllamaBaseUrl)
+	) {
+		commands.push(status.handoffs.setDockerOllamaBaseUrl);
+	}
+	commands.push(status.handoffs.inspectCurrent);
 	return commands;
 }
 
@@ -423,10 +442,16 @@ async function probeOllamaProvider(
 
 export async function buildModelDoctorStatus(
 	tokens: ModelTokens,
-	deps: Pick<ModelCommandDeps, "fetch"> = {},
+	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
 ): Promise<ModelDoctorStatus> {
 	const current = buildCurrentModelStatus(tokens);
 	const handoffs = modelDoctorHandoffs();
+	const container = deps.isContainer?.() ?? detectContainerRuntime();
+	const probeEnvironment = {
+		container,
+		localhostTargetsRuntime: localhostTargetsRuntime(current.baseUrl),
+		dockerHostBaseUrl: OLLAMA_DOCKER_BASE_URL,
+	};
 	const provider = current.current.provider?.trim().toLowerCase();
 	if (provider !== "ollama") {
 		return {
@@ -438,6 +463,7 @@ export async function buildModelDoctorStatus(
 				ready: null,
 				skipped: true,
 			},
+			probeEnvironment,
 			handoffs,
 		};
 	}
@@ -447,6 +473,7 @@ export async function buildModelDoctorStatus(
 	const status: ModelDoctorStatus = {
 		current: current.current,
 		providerProbe: probe,
+		probeEnvironment,
 		handoffs,
 	};
 	return {

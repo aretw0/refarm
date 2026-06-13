@@ -12,6 +12,7 @@ function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 	return {
 		loadTokens: vi.fn().mockResolvedValue(tokens),
 		saveTokens: vi.fn().mockResolvedValue({}),
+		isContainer: vi.fn().mockReturnValue(false),
 	};
 }
 
@@ -354,6 +355,7 @@ describe("modelCommand", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			providerProbe: { ready: boolean; error: string };
+			probeEnvironment: { container: boolean; localhostTargetsRuntime: boolean };
 			nextCommand: string;
 			nextCommands: string[];
 			recommendations: { diagnostic: string; command: string }[];
@@ -364,6 +366,10 @@ describe("modelCommand", () => {
 		};
 		expect(payload.providerProbe.ready).toBe(false);
 		expect(payload.providerProbe.error).toContain("ECONNREFUSED");
+		expect(payload.probeEnvironment).toMatchObject({
+			container: false,
+			localhostTargetsRuntime: true,
+		});
 		expect(payload.nextCommand).toBe("ollama serve");
 		expect(payload.nextCommands).toContain("ollama serve");
 		expect(payload.nextCommands).toContain("refarm model current --json");
@@ -381,11 +387,49 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prioritizes Docker host base-url recovery for container-local Ollama probes", async () => {
+		const fetchMock = vi.fn().mockRejectedValue(
+			new Error("fetch failed", { cause: { code: "ECONNREFUSED" } }),
+		);
+		const deps = makeDeps({ modelProvider: "ollama", modelId: "llama3.2" });
+		deps.fetch = fetchMock as unknown as typeof fetch;
+		deps.isContainer = vi.fn().mockReturnValue(true);
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["doctor", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			probeEnvironment: {
+				container: boolean;
+				localhostTargetsRuntime: boolean;
+				dockerHostBaseUrl: string;
+			};
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.probeEnvironment).toEqual({
+			container: true,
+			localhostTargetsRuntime: true,
+			dockerHostBaseUrl: "http://host.docker.internal:11434",
+		});
+		expect(payload.nextCommand).toBe(
+			"refarm model base-url http://host.docker.internal:11434 --json",
+		);
+		expect(payload.nextCommands).toEqual([
+			"refarm model base-url http://host.docker.internal:11434 --json",
+			"ollama serve",
+			"refarm model current --json",
+		]);
+
+		logSpy.mockRestore();
+	});
+
 	it("skips live provider probes for remote model providers", async () => {
 		const fetchMock = vi.fn();
 		const status = await buildModelDoctorStatus(
 			{ modelProvider: "openai", modelId: "gpt-5.5" },
-			{ fetch: fetchMock as unknown as typeof fetch },
+			{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
 		);
 
 		expect(status.providerProbe).toMatchObject({
