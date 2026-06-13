@@ -10,6 +10,7 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const INDEX_PATH = path.join(ROOT, "validations", "poc-evidence-index.json");
+const WRITING_HANDOFF_PATH = path.join(ROOT, "docs", "POC_WRITING_HANDOFF.md");
 
 function readExpectedIndex() {
 	return JSON.parse(readFileSync(INDEX_PATH, "utf8"));
@@ -62,4 +63,22 @@ describe("validation poc evidence index", () => {
 				),
 		);
 	});
+
+	it("keeps the writing handoff aligned with generated writing claims", () => {
+		const index = readExpectedIndex();
+		const handoff = readFileSync(WRITING_HANDOFF_PATH, "utf8");
+
+		assert.match(handoff, /## Theme Claim Map/);
+		assert.match(handoff, /validations\/poc-evidence-index\.json/);
+		for (const poc of index.pocs) {
+			for (const claim of poc.writingClaims) {
+				assert.match(handoff, new RegExp(escapeRegExp(claim.carefulClaim)));
+				assert.match(handoff, new RegExp(escapeRegExp(claim.doNotSayYet)));
+			}
+		}
+	});
 });
+
+function escapeRegExp(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
