@@ -123,8 +123,9 @@ If it only creates a second build system to maintain, it is premature.
 
 ## Near-Term Refarm Work
 
-The next useful work is not to write a full flake. It is to add an environment
-substrate inventory and map each dependency to the current owner:
+The next useful work is not to write a full flake. It is to keep the
+[Environment Substrate Inventory](ENVIRONMENT_SUBSTRATE_INVENTORY.md) current
+and map each dependency to the current owner:
 
 - devcontainer image;
 - post-create/post-start scripts;

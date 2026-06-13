@@ -25,6 +25,7 @@
 - **[Operator Daily Driver](REFARM_OPERATOR_DAILY_DRIVER.md)** — Short maintained loop for using Refarm as the daily CLI driver.
 - **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
 - **[NixOS Curated Runtime Strategy](NIXOS_CURATED_RUNTIME_STRATEGY.md)** — Strategic lane for evaluating Nix/NixOS as a reproducible Refarm substrate without becoming a distro prematurely.
+- **[Environment Substrate Inventory](ENVIRONMENT_SUBSTRATE_INVENTORY.md)** — Current ownership map for devcontainer, CI, host install, Rust/WASM, browser runtime, and future Nix lanes.
 - **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
 - **[PoC Validation Pressure](POC_VALIDATION_PRESSURE.md)** — How local draft pressure maps to reusable Refarm validations without coupling to private writing workflows.
 - **[PoC Prize Readiness](POC_PRIZE_READINESS.md)** — Gap analysis between deterministic validation POCs and submission-ready demonstration packets.
