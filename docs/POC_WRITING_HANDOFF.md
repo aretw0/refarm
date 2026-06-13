@@ -37,6 +37,50 @@ Near-term promotion should favor claims that strengthen all consumers:
    shared manifest, provenance, scoring, and preflight primitives back into
    Refarm.
 
+## Benchmark Readiness Assessment
+
+A read-only comparison against the local writing benchmark shows that the POCs
+are already strong enough to support proposal writing as technical evidence, but
+they should not be treated as complete award-style works by themselves.
+
+The current POCs are strong in these dimensions:
+
+| Dimension | Current state |
+| --- | --- |
+| Executable evidence | Each theme has deterministic fixtures, tests, manifests, hashes, and a consumer evidence index. |
+| Reader path | Each theme starts with `scenario.md`, continues through `annex.md`, and ends with limits and claim-promotion evidence. |
+| Claim restraint | `limits.md`, risk matrices, and the index boundary prevent overstating conformance, production readiness, or real integrations. |
+| Reproducibility | `pnpm run validation-pocs:test` regenerates or validates the synthetic evidence and manifest selectors. |
+| Downstream handoff | `refarm.task-artifacts.v1` manifests let a writing vault, Lab, or consumer project navigate evidence without importing Refarm internals. |
+
+The gap against a mature award-style work is not lack of POC artifacts. The gap
+is turning those artifacts into a fuller implementation argument:
+
+| Gap | Writing implication | Refarm-side action |
+| --- | --- | --- |
+| Architecture reference | The proposal needs a clean architecture section beyond generated evidence. | Keep architecture language generic; use POC annexes as evidence, not final diagrams. |
+| Implementation plan | The proposal needs phases, roles, adoption path, and production guardrails. | Use scorecards and limits as pilot gates; avoid claiming production readiness. |
+| Impact model | The proposal needs expected institutional benefit, possibly with ranges. | Provide evidence shape and measurable indicators; keep financial or institutional projections in the writing vault. |
+| External validation | Standards and compliance claims need outside review or formal suite evidence. | Keep current language as alignment/gap analysis until a dedicated conformance suite exists. |
+| Real integration | Theme 3 especially needs consumer validation before claiming vault integration. | Continue promoting generic manifest/provenance contracts; leave vault UX to consumer projects. |
+
+Practical answer: the POCs are rich enough to ground strong proposals, especially
+as appendable evidence and pilot-validation material. They are not yet a
+drop-in replacement for the benchmark winner's full narrative because that
+benchmark combines POC results with architecture, implementation path, expected
+impact, costs, and institutional alignment.
+
+The safest writing posture is:
+
+- use the POCs as proof that the technical mechanism is concrete and
+  reproducible;
+- use the benchmark style for structure: architecture, implementation, POC
+  result, limitations, impact, and next phase;
+- keep institutional estimates, submission language, and confidential context
+  in the external writing vault;
+- only promote a claim when it maps to a manifest artifact, command, or
+  independently reviewed source.
+
 ## Validation Command
 
 ```bash
