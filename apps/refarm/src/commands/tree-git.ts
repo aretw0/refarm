@@ -1,6 +1,15 @@
-import * as childProcess from "node:child_process";
+import {
+	readGitCommand,
+	runGitCommand,
+} from "@refarm.dev/cli/git-command";
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+} from "./runtime-recovery.js";
+import { TREE_GIT_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
 	buildGitBranchPreviewEnvelope,
 	buildGitForkEnvelope,
@@ -33,23 +42,16 @@ function createGitTimelineNode(line: string): RefarmGitTimelineNode | null {
 }
 
 function runGit(args: string[]): string {
-	const result = childProcess.spawnSync("git", args, {
-		encoding: "utf8",
-	});
-	if (result.status !== 0) {
-		const detail =
-			result.stderr || result.stdout || `git ${args.join(" ")} failed`;
-		throw new Error(detail.trim());
-	}
-	return result.stdout.trim();
+	return readGitCommand(args);
 }
 
 function gitBranchExists(name: string): boolean {
-	const result = childProcess.spawnSync(
-		"git",
-		["show-ref", "--verify", "--quiet", `refs/heads/${name}`],
-		{ encoding: "utf8" },
-	);
+	const result = runGitCommand([
+		"show-ref",
+		"--verify",
+		"--quiet",
+		`refs/heads/${name}`,
+	]);
 	if (result.status === 0) return true;
 	if (result.status === 1) return false;
 	const detail =
@@ -100,10 +102,47 @@ function showGitTimelineNode(ref: string): RefarmGitTimelineNode {
 	return node;
 }
 
-function exitForGitError(err: unknown): never {
+function reportGitError(
+	err: unknown,
+	opts: { json?: boolean; operation: "list" | "show" | "preview" | "fork" | "switch"; target?: string },
+): void {
 	const msg = err instanceof Error ? err.message : String(err);
+	if (opts.json) {
+		const nextCommand =
+			opts.operation === "list"
+				? RUNTIME_DOCTOR_NEXT_COMMAND
+				: TREE_GIT_LIST_JSON_COMMAND;
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "tree",
+				operation: opts.operation,
+				error: `git-tree-${opts.operation}-failed`,
+				message: msg,
+				nextAction:
+					opts.operation === "list"
+						? RUNTIME_DOCTOR_NEXT_ACTION_COMMAND
+						: TREE_GIT_LIST_JSON_COMMAND,
+				nextActions: [
+					opts.operation === "list"
+						? RUNTIME_DOCTOR_NEXT_ACTION_COMMAND
+						: TREE_GIT_LIST_JSON_COMMAND,
+				],
+				nextCommand,
+				nextCommands:
+					opts.operation === "list"
+						? [RUNTIME_DOCTOR_NEXT_COMMAND]
+						: [TREE_GIT_LIST_JSON_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
+				extra: {
+					scope: REFARM_TREE_GIT_SCOPE,
+					...(opts.target ? { target: opts.target } : {}),
+				},
+			}),
+		);
+		process.exitCode = 1;
+		return;
+	}
 	console.error(chalk.red(`✗  ${msg}`));
-	process.exit(1);
+	process.exitCode = 1;
 }
 
 export function listGitTree(opts: { json?: boolean; limit?: number }): void {
@@ -111,7 +150,8 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	try {
 		nodes = getGitTimelineNodes(opts.limit ?? 20);
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err, { ...opts, operation: "list" });
+		return;
 	}
 
 	if (opts.json) {
@@ -151,7 +191,8 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 	try {
 		node = showGitTimelineNode(prefix);
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err, { ...opts, operation: "show", target: prefix });
+		return;
 	}
 
 	if (opts.json) {
@@ -183,7 +224,8 @@ export function previewGitTree(
 		node = showGitTimelineNode(prefix);
 		branchAlreadyExists = opts.name ? gitBranchExists(opts.name) : undefined;
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err, { ...opts, operation: "preview", target: prefix });
+		return;
 	}
 	const envelope = buildGitBranchPreviewEnvelope({
 		node,
@@ -207,7 +249,11 @@ export function previewGitTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+	console.log(
+		chalk.dim(
+			`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+		),
+	);
 }
 
 export function previewGitSwitchTree(
@@ -225,7 +271,8 @@ export function previewGitSwitchTree(
 		worktreeClean = gitWorktreeIsClean();
 		node = showGitTimelineNode(name);
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err, { ...opts, operation: "preview", target: name });
+		return;
 	}
 	const envelope = buildGitSwitchPreviewEnvelope({
 		node,
@@ -288,7 +335,8 @@ export function forkGitTree(
 			);
 		}
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err, { ...opts, operation: "fork", target: prefix });
+		return;
 	}
 	const envelope = buildGitForkEnvelope({
 		node,
@@ -332,7 +380,8 @@ export function switchGitTree(name: string, opts: { json?: boolean }): void {
 			);
 		}
 	} catch (err) {
-		exitForGitError(err);
+		reportGitError(err, { ...opts, operation: "switch", target: name });
+		return;
 	}
 	const envelope = buildGitSwitchEnvelope({
 		node,

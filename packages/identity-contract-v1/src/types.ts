@@ -24,11 +24,33 @@ export interface VerificationResult {
   identity: Identity;
 }
 
+export interface SessionDerivedIdentityHandle {
+  /**
+   * Opaque provider-owned handle to a live or persisted identity materialization.
+   * Consumers must not parse it or assume it is a key.
+   */
+  handle: string;
+  identity: Identity;
+  algorithm: string;
+  expiresAt?: string;
+}
+
+export interface SessionDerivationInput {
+  /**
+   * Protocol label such as "opaque", "webauthn", or a provider-specific value.
+   * The v1 contract treats the payload as protocol-owned bytes.
+   */
+  protocol: string;
+  session: Uint8Array;
+  displayName?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface IdentityTelemetryEvent {
   traceId: string;
   pluginId: string;
   capability: typeof IDENTITY_CAPABILITY;
-  operation: "create" | "sign" | "verify" | "get";
+  operation: "create" | "sign" | "verify" | "get" | "deriveFromSession";
   durationMs: number;
   ok: boolean;
   errorCode?: IdentityErrorCode;
@@ -42,6 +64,15 @@ export interface IdentityProvider {
   sign(identityId: string, data: string): Promise<SignatureResult>;
   verify(signature: string, data: string): Promise<VerificationResult>;
   get(identityId: string): Promise<Identity | null>;
+  /**
+   * Optional v1 extension point for OPAQUE, WebAuthn, or other protocols that
+   * derive identity material from an authenticated session. Providers own the
+   * session format and return an opaque handle, so supporting this does not
+   * require a capability version bump.
+   */
+  deriveFromSession?(
+    input: SessionDerivationInput,
+  ): Promise<SessionDerivedIdentityHandle>;
 }
 
 export interface IdentityAdapter {

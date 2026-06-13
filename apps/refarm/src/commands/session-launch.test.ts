@@ -1,28 +1,60 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { createScriptedOperatorChannel } from "@refarm.dev/prompt-contract-v1";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	isSessionReady,
+	autoStartRuntime,
+	checkSessionReadiness,
 	isFirstRun,
-	refarmSearchDirs,
-	autoStartFarmhand,
+	isRuntimeRunning,
+	isSessionReady,
+	printSessionGuide,
 	readAutostartMode,
+	readTractorEngineMode,
+	refarmSearchDirs,
+	resolveLaunchRuntime,
 	type LaunchDeps,
 } from "./session-launch.js";
 
 let stdoutWriteSpy: ReturnType<typeof vi.spyOn>;
 let stderrWriteSpy: ReturnType<typeof vi.spyOn>;
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+const providerEnvKeys = [
+	"MODEL_PROVIDER",
+	"MODEL_DEFAULT_PROVIDER",
+	"OPENAI_API_KEY",
+	"ANTHROPIC_API_KEY",
+	"GROQ_API_KEY",
+	"MISTRAL_API_KEY",
+	"GEMINI_API_KEY",
+	"XAI_API_KEY",
+	"DEEPSEEK_API_KEY",
+	"TOGETHER_API_KEY",
+	"OPENROUTER_API_KEY",
+] as const;
+const originalProviderEnv = Object.fromEntries(
+	providerEnvKeys.map((key) => [key, process.env[key]]),
+) as Record<typeof providerEnvKeys[number], string | undefined>;
 
 beforeEach(() => {
+	for (const key of providerEnvKeys) {
+		delete process.env[key];
+	}
 	stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 	stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 	consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
+	for (const key of providerEnvKeys) {
+		const value = originalProviderEnv[key];
+		if (value === undefined) {
+			delete process.env[key];
+		} else {
+			process.env[key] = value;
+		}
+	}
 	stdoutWriteSpy.mockRestore();
 	stderrWriteSpy.mockRestore();
 	consoleErrorSpy.mockRestore();
@@ -35,7 +67,20 @@ describe("isSessionReady", () => {
 		).toBe(true);
 	});
 
-	it("returns false when farmhand is not running", () => {
+	it("uses runtimeRunning as the canonical readiness field", () => {
+		expect(
+			isSessionReady({ providerConfigured: true, runtimeRunning: true }),
+		).toBe(true);
+		expect(
+			isRuntimeRunning({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: true,
+			}),
+		).toBe(false);
+	});
+
+	it("returns false when the runtime is not running", () => {
 		expect(
 			isSessionReady({ providerConfigured: true, farmhandRunning: false }),
 		).toBe(false);
@@ -65,6 +110,7 @@ describe("isFirstRun", () => {
 
 	afterEach(() => {
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
+		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		process.env.HOME = originalHome;
 		cwdSpy.mockRestore();
 	});
@@ -86,6 +132,23 @@ describe("isFirstRun", () => {
 			rmSync(tmpBase, { recursive: true, force: true });
 		}
 	});
+
+	it("returns false when a Silo identity exists", () => {
+		const tmpBase = join(tmpdir(), `refarm-test-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+
+		try {
+			expect(isFirstRun()).toBe(false);
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
 });
 
 describe("refarmSearchDirs", () => {
@@ -96,97 +159,411 @@ describe("refarmSearchDirs", () => {
 	});
 });
 
+describe("checkSessionReadiness", () => {
+	const originalHome = process.env.HOME;
+	const originalModelProvider = process.env.MODEL_PROVIDER;
+	let cwdSpy: ReturnType<typeof vi.spyOn>;
+	const originalModelDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
+	const originalOpenAiKey = process.env.OPENAI_API_KEY;
+
+	beforeEach(() => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		delete process.env.MODEL_PROVIDER;
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.OPENAI_API_KEY;
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+	});
+
+	afterEach(() => {
+		process.env.HOME = originalHome;
+		if (originalModelProvider === undefined) {
+			delete process.env.MODEL_PROVIDER;
+		} else {
+			process.env.MODEL_PROVIDER = originalModelProvider;
+		}
+		if (originalModelDefaultProvider === undefined) {
+			delete process.env.MODEL_DEFAULT_PROVIDER;
+		} else {
+			process.env.MODEL_DEFAULT_PROVIDER = originalModelDefaultProvider;
+		}
+		if (originalOpenAiKey === undefined) {
+			delete process.env.OPENAI_API_KEY;
+		} else {
+			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
+		cwdSpy.mockRestore();
+		vi.unstubAllGlobals();
+	});
+
+	it("recognizes MODEL_DEFAULT_PROVIDER with its credential env as configured", async () => {
+		process.env.MODEL_DEFAULT_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		await expect(checkSessionReadiness()).resolves.toMatchObject({
+			providerConfigured: true,
+			runtimeRunning: false,
+			farmhandRunning: false,
+		});
+	});
+
+	it("does not treat a credential-only provider env as configured without credentials", async () => {
+		process.env.MODEL_DEFAULT_PROVIDER = "openai";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		await expect(checkSessionReadiness()).resolves.toMatchObject({
+			providerConfigured: false,
+			runtimeRunning: false,
+			farmhandRunning: false,
+		});
+	});
+
+	it("recognizes the default provider credential env without an explicit provider", async () => {
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		await expect(checkSessionReadiness()).resolves.toMatchObject({
+			providerConfigured: true,
+			runtimeRunning: false,
+			farmhandRunning: false,
+		});
+	});
+
+	it("recognizes a default provider credential from .refarm/.env", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(join(refarmDir, ".env"), "OPENAI_API_KEY=sk-test\n");
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("does not treat an unrelated credential-only .env as configured", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(join(refarmDir, ".env"), "GEMINI_API_KEY=gemini-test\n");
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: false,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes a Silo identity with an API key as a configured provider", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "openai", modelApiKey: "sk-test" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("does not treat a Silo identity provider as configured without credentials", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: false,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes modelProvider with modelApiKey in config.json as a configured provider", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "config.json"),
+			JSON.stringify({ modelProvider: "openai", modelApiKey: "sk-test" }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("does not use nested credentials for a different config provider", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "config.json"),
+			JSON.stringify({
+				default_provider: "gemini",
+				tokens: { modelProvider: "openai", modelApiKey: "sk-openai" },
+			}),
+		);
+		process.env.HOME = join(tmpdir(), `refarm-readiness-home-${Date.now()}`);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: false,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes local providers without credential env requirements", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "ollama" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+});
+
 function makeLaunchDeps(overrides: Partial<LaunchDeps> = {}): LaunchDeps {
 	return {
 		operator: createScriptedOperatorChannel([true]),
-		spawnFarmhand: vi.fn(),
-		probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		spawnRuntime: vi.fn(),
+		probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
 		...overrides,
 	};
 }
 
-describe("autoStartFarmhand — mode: ask (default)", () => {
-	it("returns true when user confirms and farmhand becomes ready", async () => {
+describe("autoStartRuntime — mode: ask (default)", () => {
+	it("returns true when user confirms and runtime becomes ready", async () => {
 		const deps = makeLaunchDeps();
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(true);
-		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/fake/root");
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/fake/root");
 	});
 
 	it("returns false and does not spawn when user declines", async () => {
 		const deps = makeLaunchDeps({ operator: createScriptedOperatorChannel([false]) });
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
-		expect(deps.spawnFarmhand).not.toHaveBeenCalled();
+		expect(deps.spawnRuntime).not.toHaveBeenCalled();
+		const output = (consoleErrorSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("\n");
+		expect(output).toContain("Next action:  refarm doctor --next-action");
 	});
 
-	it("returns false when farmhand times out after spawning", async () => {
+	it("returns false when runtime times out after spawning", async () => {
 		const deps = makeLaunchDeps({
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(false),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(false),
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
-		expect(deps.spawnFarmhand).toHaveBeenCalledOnce();
+		expect(deps.spawnRuntime).toHaveBeenCalledOnce();
+		const output = (consoleErrorSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("\n");
+		expect(output).toContain(
+			"Run `refarm doctor --next-action` for the next recovery action.",
+		);
 	});
 
-	it("passes the repo root to spawnFarmhand", async () => {
+	it("passes the repo root to spawnRuntime", async () => {
 		const deps = makeLaunchDeps();
-		await autoStartFarmhand("/my/repo", deps);
-		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/my/repo");
+		await autoStartRuntime("/my/repo", deps);
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/my/repo");
+	});
+
+	it("prints the selected runtime engine and start command", async () => {
+		const deps = makeLaunchDeps({
+			resolveRuntime: vi.fn().mockReturnValue({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		await autoStartRuntime("/fake/root", deps);
+
+		const output = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(output).toContain("Starting Rust Tractor");
+		expect(output).toContain("command:");
+		expect(output).toContain("tractor");
+	});
+
+	it("explains the TypeScript fallback when Rust Tractor is not built", async () => {
+		const deps = makeLaunchDeps({
+			resolveRuntime: vi.fn().mockReturnValue({
+				configuredEngine: "auto",
+				activeEngine: "ts",
+				reason: "auto-ts-fallback",
+			}),
+		});
+
+		await autoStartRuntime("/fake/root", deps);
+
+		const output = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(output).toContain("Starting TypeScript Farmhand");
+		expect(output).toContain("rust tractor: not built; using TypeScript fallback");
+		expect(output).toContain("build rust:");
+		expect(output).toContain("packages/tractor");
 	});
 });
 
-describe("autoStartFarmhand — mode: always", () => {
+describe("autoStartRuntime — mode: always", () => {
 	it("spawns without asking when autostartMode is always", async () => {
 		const askSpy = vi.fn();
 		const deps = makeLaunchDeps({
 			autostartMode: "always",
 			operator: { ask: askSpy },
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(true);
 		expect(askSpy).not.toHaveBeenCalled();
-		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/fake/root");
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/fake/root");
 	});
 
-	it("returns false when farmhand times out even in always mode", async () => {
+	it("returns false when runtime times out even in always mode", async () => {
 		const askSpy = vi.fn();
 		const deps = makeLaunchDeps({
 			autostartMode: "always",
 			operator: { ask: askSpy },
-			probeFarmhandUntilReady: vi.fn().mockResolvedValue(false),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(false),
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(askSpy).not.toHaveBeenCalled();
-		expect(deps.spawnFarmhand).toHaveBeenCalledOnce();
+		expect(deps.spawnRuntime).toHaveBeenCalledOnce();
 	});
 });
 
-describe("autoStartFarmhand — mode: never", () => {
+describe("autoStartRuntime — mode: never", () => {
 	it("returns false immediately without asking or spawning", async () => {
 		const askSpy = vi.fn();
 		const deps = makeLaunchDeps({
 			autostartMode: "never",
 			operator: { ask: askSpy },
 		});
-		const result = await autoStartFarmhand("/fake/root", deps);
+		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(askSpy).not.toHaveBeenCalled();
-		expect(deps.spawnFarmhand).not.toHaveBeenCalled();
+		expect(deps.spawnRuntime).not.toHaveBeenCalled();
+		const output = (consoleErrorSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("\n");
+		expect(output).toContain("Next action:      refarm doctor --next-action");
+	});
+});
+
+describe("printSessionGuide", () => {
+	it("points provider setup failures at model current", () => {
+		const tmpBase = join(tmpdir(), `refarm-guide-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({}));
+		const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tmpBase);
+
+		try {
+			printSessionGuide({ providerConfigured: false, farmhandRunning: true });
+
+			const output = (consoleErrorSpy.mock.calls as unknown[][])
+				.map((call) => String(call[0]))
+				.join("\n");
+			expect(output).toContain("refarm sow");
+			expect(output).toContain("refarm model current");
+			expect(output).toContain("refarm model providers");
+		} finally {
+			cwdSpy.mockRestore();
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
 	});
 });
 
 describe("readAutostartMode", () => {
 	const originalHome = process.env.HOME;
+	const originalFarmhandAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
+	const originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
 	let cwdSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
+		delete process.env.REFARM_FARMHAND_AUTOSTART;
+		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
 		process.env.HOME = originalHome;
+		if (originalFarmhandAutostart === undefined) {
+			delete process.env.REFARM_FARMHAND_AUTOSTART;
+		} else {
+			process.env.REFARM_FARMHAND_AUTOSTART = originalFarmhandAutostart;
+		}
+		if (originalRuntimeAutostart === undefined) {
+			delete process.env.REFARM_RUNTIME_AUTOSTART;
+		} else {
+			process.env.REFARM_RUNTIME_AUTOSTART = originalRuntimeAutostart;
+		}
 		cwdSpy.mockRestore();
 	});
 
@@ -195,11 +572,26 @@ describe("readAutostartMode", () => {
 		expect(readAutostartMode()).toBe("ask");
 	});
 
-	it("returns the env override when REFARM_FARMHAND_AUTOSTART is set", () => {
+	it("returns the env override when REFARM_RUNTIME_AUTOSTART is set", () => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		process.env.REFARM_RUNTIME_AUTOSTART = "never";
+
+		expect(readAutostartMode()).toBe("never");
+	});
+
+	it("keeps REFARM_FARMHAND_AUTOSTART as a compatibility fallback", () => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		process.env.REFARM_FARMHAND_AUTOSTART = "never";
 
 		expect(readAutostartMode()).toBe("never");
+	});
+
+	it("prefers REFARM_RUNTIME_AUTOSTART over the legacy farmhand env override", () => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		process.env.REFARM_RUNTIME_AUTOSTART = "always";
+		process.env.REFARM_FARMHAND_AUTOSTART = "never";
+
+		expect(readAutostartMode()).toBe("always");
 	});
 
 	it("lets the env override force ask even when config says always", () => {
@@ -208,7 +600,7 @@ describe("readAutostartMode", () => {
 		mkdirSync(refarmDir, { recursive: true });
 		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "always" }));
 		cwdSpy.mockReturnValue(tmpBase);
-		process.env.REFARM_FARMHAND_AUTOSTART = "ask";
+		process.env.REFARM_RUNTIME_AUTOSTART = "ask";
 
 		try {
 			expect(readAutostartMode()).toBe("ask");
@@ -260,6 +652,30 @@ describe("readAutostartMode", () => {
 		}
 	});
 
+	it("lets project-local autostart override home preference", () => {
+		const homeBase = join(tmpdir(), `refarm-autostart-home-${Date.now()}`);
+		const cwdBase = join(tmpdir(), `refarm-autostart-cwd-${Date.now()}`);
+		mkdirSync(join(homeBase, ".refarm"), { recursive: true });
+		mkdirSync(join(cwdBase, ".refarm"), { recursive: true });
+		writeFileSync(
+			join(homeBase, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "always" }),
+		);
+		writeFileSync(
+			join(cwdBase, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "never" }),
+		);
+		process.env.HOME = homeBase;
+		cwdSpy.mockReturnValue(cwdBase);
+
+		try {
+			expect(readAutostartMode()).toBe("never");
+		} finally {
+			rmSync(homeBase, { recursive: true, force: true });
+			rmSync(cwdBase, { recursive: true, force: true });
+		}
+	});
+
 	it("returns 'ask' when config.autostart has an unrecognized value", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
@@ -271,6 +687,139 @@ describe("readAutostartMode", () => {
 			expect(readAutostartMode()).toBe("ask");
 		} finally {
 			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("readTractorEngineMode", () => {
+	const originalHome = process.env.HOME;
+	const originalTractorEngine = process.env.REFARM_TRACTOR_ENGINE;
+	let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		delete process.env.REFARM_TRACTOR_ENGINE;
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+	});
+
+	afterEach(() => {
+		process.env.HOME = originalHome;
+		if (originalTractorEngine === undefined) {
+			delete process.env.REFARM_TRACTOR_ENGINE;
+		} else {
+			process.env.REFARM_TRACTOR_ENGINE = originalTractorEngine;
+		}
+		cwdSpy.mockRestore();
+	});
+
+	it("returns auto when no tractor engine preference exists", () => {
+		expect(readTractorEngineMode()).toBe("auto");
+	});
+
+	it("lets project-local tractor engine override home preference", () => {
+		const homeBase = join(tmpdir(), `refarm-tractor-home-${Date.now()}`);
+		const cwdBase = join(tmpdir(), `refarm-tractor-cwd-${Date.now()}`);
+		mkdirSync(join(homeBase, ".refarm"), { recursive: true });
+		mkdirSync(join(cwdBase, ".refarm"), { recursive: true });
+		writeFileSync(
+			join(homeBase, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "ts" } }),
+		);
+		writeFileSync(
+			join(cwdBase, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+		);
+		process.env.HOME = homeBase;
+		cwdSpy.mockReturnValue(cwdBase);
+
+		try {
+			expect(readTractorEngineMode()).toBe("rust");
+		} finally {
+			rmSync(homeBase, { recursive: true, force: true });
+			rmSync(cwdBase, { recursive: true, force: true });
+		}
+	});
+
+	it("lets env tractor engine override persisted preferences", () => {
+		const cwdBase = join(tmpdir(), `refarm-tractor-cwd-${Date.now()}`);
+		mkdirSync(join(cwdBase, ".refarm"), { recursive: true });
+		writeFileSync(
+			join(cwdBase, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+		);
+		process.env.REFARM_TRACTOR_ENGINE = "ts";
+		cwdSpy.mockReturnValue(cwdBase);
+
+		try {
+			expect(readTractorEngineMode()).toBe("ts");
+		} finally {
+			rmSync(cwdBase, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("resolveLaunchRuntime", () => {
+	const originalCargoTargetDir = process.env.CARGO_TARGET_DIR;
+
+	beforeEach(() => {
+		delete process.env.CARGO_TARGET_DIR;
+	});
+
+	afterEach(() => {
+		if (originalCargoTargetDir === undefined) {
+			delete process.env.CARGO_TARGET_DIR;
+		} else {
+			process.env.CARGO_TARGET_DIR = originalCargoTargetDir;
+		}
+	});
+
+	it("uses TS when explicitly configured", () => {
+		expect(resolveLaunchRuntime("/fake/root", "ts")).toMatchObject({
+			activeEngine: "ts",
+			reason: "configured-ts",
+		});
+	});
+
+	it("uses TS in auto mode when the Rust tractor binary is absent", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-no-rust-${Date.now()}`);
+		mkdirSync(repoRoot, { recursive: true });
+
+		try {
+			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
+				activeEngine: "ts",
+				reason: "auto-ts-fallback",
+			});
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("uses Rust in auto mode when the Rust tractor binary exists", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-${Date.now()}`);
+		const binDir = join(repoRoot, "packages", "tractor", "target", "release");
+		mkdirSync(binDir, { recursive: true });
+		writeFileSync(join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"), "");
+
+		try {
+			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			});
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("fails early when Rust is explicitly configured but the binary is absent", () => {
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-missing-${Date.now()}`);
+		mkdirSync(repoRoot, { recursive: true });
+
+		try {
+			expect(() => resolveLaunchRuntime(repoRoot, "rust")).toThrow(
+				/tractor\.engine=rust but the Rust tractor binary is not built/,
+			);
+		} finally {
+			rmSync(repoRoot, { recursive: true, force: true });
 		}
 	});
 });

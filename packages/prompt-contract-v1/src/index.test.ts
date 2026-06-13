@@ -51,6 +51,11 @@ describe("createAutoOperatorChannel", () => {
 		const ch = createAutoOperatorChannel();
 		expect(await ch.ask({ type: "text", question: "name?" })).toBe("");
 	});
+
+	it("returns empty string for secret prompts", async () => {
+		const ch = createAutoOperatorChannel();
+		expect(await ch.ask({ type: "secret", question: "key?" })).toBe("");
+	});
 });
 
 describe("createScriptedOperatorChannel", () => {
@@ -59,7 +64,7 @@ describe("createScriptedOperatorChannel", () => {
 		const opts = [{ value: "openai", label: "OpenAI" }, { value: "anthropic", label: "Anthropic" }];
 		expect(await ch.ask({ type: "confirm", question: "ok?" })).toBe(true);
 		expect(await ch.ask({ type: "select", question: "provider?", options: opts })).toBe("openai");
-		expect(await ch.ask({ type: "text", question: "key?" })).toBe("sk-test");
+		expect(await ch.ask({ type: "secret", question: "key?" })).toBe("sk-test");
 	});
 
 	it("throws RangeError when answers are exhausted", async () => {
@@ -82,9 +87,9 @@ describe("runOperatorChannelConformance", () => {
 	});
 
 	it("passes for createScriptedOperatorChannel with matching answers", async () => {
-		// Conformance asks: confirm(default:true), select(default:"a"), text(default:"hello")
+		// Conformance asks: confirm(default:true), select(default:"a"), text(default:"hello"), secret
 		// Auto channel handles all of these — use it to verify the scripted channel works too
-		const ch = createScriptedOperatorChannel([true, "a", "hello"]);
+		const ch = createScriptedOperatorChannel([true, "a", "hello", "secret"]);
 		const result = await runOperatorChannelConformance(ch);
 		expect(result.pass).toBe(true);
 	});

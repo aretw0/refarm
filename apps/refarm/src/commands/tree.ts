@@ -1,5 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { reportSidecarError } from "./sidecar-error.js";
 import {
 	forkGitTree,
 	getGitTimelineNodes,
@@ -9,6 +11,10 @@ import {
 	showGitTree,
 	switchGitTree,
 } from "./tree-git.js";
+import {
+	TREE_LIST_ALL_JSON_COMMAND,
+	TREE_LIST_JSON_COMMAND,
+} from "./tree-handoffs.js";
 import {
 	buildAllTimelineListEnvelope,
 	outputTreeJson,
@@ -30,21 +36,85 @@ import {
 type RefarmTimelineListScope =
 	| RefarmTimelineScope
 	| typeof REFARM_TREE_ALL_SCOPE;
+type TreeBranchValidationOperation = "preview" | "fork" | "switch";
 
-function parseScope(scope: string | undefined): RefarmTimelineScope {
+function printTreeValidationJson(input: {
+	operation: string;
+	error: string;
+	message: string;
+	nextCommand?: string;
+	extra?: Record<string, unknown>;
+}): void {
+	const nextCommand = input.nextCommand ?? TREE_LIST_JSON_COMMAND;
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "tree",
+			operation: input.operation,
+			error: input.error,
+			message: input.message,
+			nextAction: nextCommand,
+			nextActions: [nextCommand],
+			nextCommand,
+			nextCommands: [nextCommand],
+			extra: input.extra,
+		}),
+	);
+	process.exitCode = 1;
+}
+
+function rejectTreeCommandInput(input: {
+	json?: boolean;
+	operation: string;
+	error: string;
+	message: string;
+	nextCommand?: string;
+	extra?: Record<string, unknown>;
+}): boolean {
+	if (input.json) {
+		printTreeValidationJson(input);
+		return false;
+	}
+	console.error(chalk.red(`✗  ${input.message}`));
+	process.exitCode = 1;
+	return false;
+}
+
+function parseScope(
+	scope: string | undefined,
+	opts: { json?: boolean; operation: string },
+): RefarmTimelineScope | null {
 	const value = scope ?? REFARM_TREE_SESSION_SCOPE;
 	if (value === REFARM_TREE_SESSION_SCOPE || value === REFARM_TREE_GIT_SCOPE) {
 		return value;
 	}
+	const message =
+		`refarm tree currently supports --scope session|git for this operation; received "${value}".`;
+	if (opts.json) {
+		printTreeValidationJson({
+			operation: opts.operation,
+			error: "unsupported-tree-scope",
+			message,
+			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			extra: {
+				scope: value,
+				allowedScopes: [REFARM_TREE_SESSION_SCOPE, REFARM_TREE_GIT_SCOPE],
+			},
+		});
+		return null;
+	}
 	console.error(
 		chalk.red(
-			`✗  refarm tree currently supports --scope session|git for this operation; received "${value}".`,
+			`✗  ${message}`,
 		),
 	);
-	process.exit(1);
+	process.exitCode = 1;
+	return null;
 }
 
-function parseListScope(scope: string | undefined): RefarmTimelineListScope {
+function parseListScope(
+	scope: string | undefined,
+	opts: { json?: boolean },
+): RefarmTimelineListScope | null {
 	const value = scope ?? REFARM_TREE_SESSION_SCOPE;
 	if (
 		value === REFARM_TREE_SESSION_SCOPE ||
@@ -53,32 +123,72 @@ function parseListScope(scope: string | undefined): RefarmTimelineListScope {
 	) {
 		return value;
 	}
+	const message =
+		`refarm tree list currently supports --scope session|git|all; received "${value}".`;
+	if (opts.json) {
+		printTreeValidationJson({
+			operation: "list",
+			error: "unsupported-tree-list-scope",
+			message,
+			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			extra: {
+				scope: value,
+				allowedScopes: [
+					REFARM_TREE_SESSION_SCOPE,
+					REFARM_TREE_GIT_SCOPE,
+					REFARM_TREE_ALL_SCOPE,
+				],
+			},
+		});
+		return null;
+	}
 	console.error(
 		chalk.red(
-			`✗  refarm tree list currently supports --scope session|git|all; received "${value}".`,
+			`✗  ${message}`,
 		),
 	);
-	process.exit(1);
+	process.exitCode = 1;
+	return null;
 }
 
-function requireBranchName(name: string | undefined): string {
+function invalidBranchNameMessage(name: string): string {
+	return `Invalid branch name "${name}". Use safe git-style names with letters, numbers, '.', '_', '/', or '-' and no option-like, empty, hidden, or parent-traversal segments.`;
+}
+
+function requireBranchName(
+	name: string | undefined,
+	opts: { json?: boolean; operation: TreeBranchValidationOperation },
+): string | null {
 	if (!name) {
-		console.error(
-			chalk.red("✗  refarm tree fork requires --name <branch-name>."),
-		);
-		process.exit(1);
+		const message = "refarm tree fork requires --name <branch-name>.";
+		if (opts.json) {
+			printTreeValidationJson({
+				operation: opts.operation,
+				error: "missing-tree-branch-name",
+				message,
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			});
+			return null;
+		}
+		console.error(chalk.red(`✗  ${message}`));
+		process.exitCode = 1;
+		return null;
 	}
-	return validateBranchName(name);
+	return validateBranchName(name, opts);
 }
 
 function validateOptionalBranchName(
 	name: string | undefined,
-): string | undefined {
+	opts: { json?: boolean; operation: TreeBranchValidationOperation },
+): string | null | undefined {
 	if (!name) return undefined;
-	return validateBranchName(name);
+	return validateBranchName(name, opts);
 }
 
-function validateBranchName(name: string): string {
+function validateBranchName(
+	name: string,
+	opts: { json?: boolean; operation: TreeBranchValidationOperation },
+): string | null {
 	const hasSafeChars = /^[A-Za-z0-9._/-]+$/u.test(name);
 	const hasUnsafeShape =
 		name === "HEAD" ||
@@ -98,43 +208,74 @@ function validateBranchName(name: string): string {
 					part.endsWith(".lock"),
 			);
 	if (!hasSafeChars || hasUnsafeShape) {
-		console.error(
-			chalk.red(
-				`✗  Invalid branch name "${name}". Use safe git-style names with letters, numbers, '.', '_', '/', or '-' and no option-like, empty, hidden, or parent-traversal segments.`,
-			),
-		);
-		process.exit(1);
+		const message = invalidBranchNameMessage(name);
+		if (opts.json) {
+			printTreeValidationJson({
+				operation: opts.operation,
+				error: "invalid-tree-branch-name",
+				message,
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					branchName: name,
+					allowedChars: "letters, numbers, '.', '_', '/', '-'",
+				},
+			});
+			return null;
+		}
+		console.error(chalk.red(`✗  ${message}`));
+		process.exitCode = 1;
+		return null;
 	}
 	return name;
 }
 
-function parseLimit(limit: string | undefined): number {
+function parseLimit(limit: string | undefined, opts: { json?: boolean }): number | null {
 	const raw = limit ?? "20";
+	const message = `Invalid --limit "${limit}". Use an integer from 1 to 200.`;
 	if (!/^\d+$/u.test(raw)) {
+		if (opts.json) {
+			printTreeValidationJson({
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message,
+				nextCommand: TREE_LIST_JSON_COMMAND,
+				extra: { limit },
+			});
+			return null;
+		}
 		console.error(
-			chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`),
+			chalk.red(`✗  ${message}`),
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	const value = Number.parseInt(raw, 10);
 	if (!Number.isInteger(value) || value < 1 || value > 200) {
+		if (opts.json) {
+			printTreeValidationJson({
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message,
+				nextCommand: TREE_LIST_JSON_COMMAND,
+				extra: { limit },
+			});
+			return null;
+		}
 		console.error(
-			chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`),
+			chalk.red(`✗  ${message}`),
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	return value;
 }
 
-function exitForAllListError(err: unknown): never {
-	const msg = err instanceof Error ? err.message : String(err);
-	if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-		console.error(chalk.red("✗  farmhand sidecar is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
-	} else {
-		console.error(chalk.red(`✗  ${msg}`));
-	}
-	process.exit(1);
+function reportAllListError(err: unknown, opts: { json?: boolean }): void {
+	reportSidecarError(err, {
+		json: opts.json,
+		command: "tree",
+		operation: "list",
+	});
 }
 
 function compareAllTimelineNodes(
@@ -153,7 +294,8 @@ async function listAllTree(opts: {
 	json?: boolean;
 	limit?: string;
 }): Promise<void> {
-	const limit = parseLimit(opts.limit);
+	const limit = parseLimit(opts.limit, opts);
+	if (limit === null) return;
 	let nodes: RefarmAllTimelineListEnvelope["nodes"];
 	try {
 		const [sessionNodes, gitNodes] = await Promise.all([
@@ -164,7 +306,8 @@ async function listAllTree(opts: {
 			.sort(compareAllTimelineNodes)
 			.slice(0, limit);
 	} catch (err) {
-		exitForAllListError(err);
+		reportAllListError(err, opts);
+		return;
 	}
 
 	if (opts.json) {
@@ -199,23 +342,29 @@ async function listTree(opts: {
 	json?: boolean;
 	limit?: string;
 }): Promise<void> {
-	const scope = parseListScope(opts.scope);
+	const scope = parseListScope(opts.scope, opts);
+	if (!scope) return;
 	if (scope === REFARM_TREE_ALL_SCOPE) {
 		await listAllTree(opts);
 		return;
 	}
 	if (scope === REFARM_TREE_GIT_SCOPE) {
-		listGitTree({ json: opts.json, limit: parseLimit(opts.limit) });
+		const limit = parseLimit(opts.limit, opts);
+		if (limit === null) return;
+		listGitTree({ json: opts.json, limit });
 		return;
 	}
-	await listSessionTree({ json: opts.json, limit: parseLimit(opts.limit) });
+	const limit = parseLimit(opts.limit, opts);
+	if (limit === null) return;
+	await listSessionTree({ json: opts.json, limit });
 }
 
 async function showTree(
 	prefix: string,
 	opts: { json?: boolean; scope?: string },
 ): Promise<void> {
-	const scope = parseScope(opts.scope);
+	const scope = parseScope(opts.scope, { json: opts.json, operation: "show" });
+	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		showGitTree(prefix, opts);
 		return;
@@ -233,51 +382,98 @@ async function previewTree(
 		switch?: boolean;
 	},
 ): Promise<void> {
-	const scope = parseScope(opts.scope);
+	const scope = parseScope(opts.scope, { json: opts.json, operation: "preview" });
+	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		if (opts.at) {
-			console.error(
-				chalk.red("✗  --at is only supported for session timelines."),
-			);
-			process.exit(1);
+			rejectTreeCommandInput({
+				json: opts.json,
+				operation: "preview",
+				error: "invalid-tree-preview-options",
+				message: "--at is only supported for session timelines.",
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					scope,
+					option: "--at",
+					target: prefix,
+				},
+			});
+			return;
 		}
 		if (opts.switch) {
 			if (opts.name) {
-				console.error(
-					chalk.red(
-						"✗  --name is only supported for fork previews; omit it when previewing a tree switch.",
-					),
-				);
-				process.exit(1);
+				rejectTreeCommandInput({
+					json: opts.json,
+					operation: "preview",
+					error: "invalid-tree-preview-options",
+					message:
+						"--name is only supported for fork previews; omit it when previewing a tree switch.",
+					nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+					extra: {
+						scope,
+						option: "--name",
+						target: prefix,
+					},
+				});
+				return;
 			}
-			previewGitSwitchTree(validateBranchName(prefix), opts);
+			const branchName = validateBranchName(prefix, {
+				json: opts.json,
+				operation: "preview",
+			});
+			if (!branchName) return;
+			previewGitSwitchTree(branchName, opts);
 			return;
 		}
-		const name = validateOptionalBranchName(opts.name);
+		const name = validateOptionalBranchName(opts.name, {
+			json: opts.json,
+			operation: "preview",
+		});
+		if (name === null) return;
 		previewGitTree(prefix, { ...opts, name });
 		return;
 	}
 	if (opts.switch) {
 		if (opts.name) {
-			console.error(
-				chalk.red(
-					"✗  --name is only supported for fork previews; omit it when previewing a tree switch.",
-				),
-			);
-			process.exit(1);
+			rejectTreeCommandInput({
+				json: opts.json,
+				operation: "preview",
+				error: "invalid-tree-preview-options",
+				message:
+					"--name is only supported for fork previews; omit it when previewing a tree switch.",
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					scope,
+					option: "--name",
+					target: prefix,
+				},
+			});
+			return;
 		}
 		if (opts.at) {
-			console.error(
-				chalk.red(
-					"✗  --at is only supported for session fork previews; omit it when previewing a tree switch.",
-				),
-			);
-			process.exit(1);
+			rejectTreeCommandInput({
+				json: opts.json,
+				operation: "preview",
+				error: "invalid-tree-preview-options",
+				message:
+					"--at is only supported for session fork previews; omit it when previewing a tree switch.",
+				nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+				extra: {
+					scope,
+					option: "--at",
+					target: prefix,
+				},
+			});
+			return;
 		}
 		await previewSessionSwitchTree(prefix, opts);
 		return;
 	}
-	const name = validateOptionalBranchName(opts.name);
+	const name = validateOptionalBranchName(opts.name, {
+		json: opts.json,
+		operation: "preview",
+	});
+	if (name === null) return;
 	await previewSessionTree(prefix, { ...opts, name });
 }
 
@@ -285,22 +481,43 @@ async function forkTree(
 	prefix: string,
 	opts: { json?: boolean; scope?: string; at?: string; name?: string },
 ): Promise<void> {
-	const scope = parseScope(opts.scope);
+	const scope = parseScope(opts.scope, { json: opts.json, operation: "fork" });
+	if (!scope) return;
 	if (scope !== REFARM_TREE_GIT_SCOPE) {
-		console.error(
-			chalk.red(
-				"✗  refarm tree fork currently supports --scope git only; use refarm sessions fork for session timelines.",
-			),
-		);
-		process.exit(1);
+		rejectTreeCommandInput({
+			json: opts.json,
+			operation: "fork",
+			error: "unsupported-tree-fork-scope",
+			message:
+				"refarm tree fork currently supports --scope git only; use refarm sessions fork for session timelines.",
+			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			extra: {
+				scope,
+				allowedScopes: [REFARM_TREE_GIT_SCOPE],
+			},
+		});
+		return;
 	}
 	if (opts.at) {
-		console.error(
-			chalk.red("✗  --at is only supported for session timelines."),
-		);
-		process.exit(1);
+		rejectTreeCommandInput({
+			json: opts.json,
+			operation: "fork",
+			error: "invalid-tree-fork-options",
+			message: "--at is only supported for session timelines.",
+			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
+			extra: {
+				scope,
+				option: "--at",
+				target: prefix,
+			},
+		});
+		return;
 	}
-	const name = requireBranchName(opts.name);
+	const name = requireBranchName(opts.name, {
+		json: opts.json,
+		operation: "fork",
+	});
+	if (!name) return;
 	forkGitTree(prefix, { ...opts, name });
 }
 
@@ -308,9 +525,14 @@ async function switchTree(
 	target: string,
 	opts: { json?: boolean; scope?: string },
 ): Promise<void> {
-	const scope = parseScope(opts.scope);
+	const scope = parseScope(opts.scope, { json: opts.json, operation: "switch" });
+	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
-		const branchName = validateBranchName(target);
+		const branchName = validateBranchName(target, {
+			json: opts.json,
+			operation: "switch",
+		});
+		if (!branchName) return;
 		switchGitTree(branchName, opts);
 		return;
 	}
@@ -320,6 +542,24 @@ async function switchTree(
 export function createTreeCommand(): Command {
 	return new Command("tree")
 		.description("Inspect and preview substrate-agnostic Refarm timelines")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm tree list --scope all",
+				"  $ refarm tree show <session-id-prefix>",
+				"  $ refarm tree show --scope git <commit>",
+				"  $ refarm tree preview <session-id-prefix> --switch",
+				"  $ refarm tree preview --scope git <commit> --name safe/fork",
+				"  $ refarm tree switch --scope git <branch>",
+				"",
+				"Notes:",
+				"  Session scope works through the Refarm runtime; git scope works from the local repository.",
+				"  Preview before switching or forking when you need a dry-run plan.",
+				"  Git switches fail closed when the worktree is dirty.",
+			].join("\n"),
+		)
 		.addCommand(
 			new Command("list")
 				.description("List timeline nodes")

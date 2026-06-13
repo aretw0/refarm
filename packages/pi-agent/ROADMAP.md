@@ -36,7 +36,7 @@ Context engineering follows the pi-test-harness model:
 ### Multi-provider LLM (2C.1)
 
 - [x] Anthropic (`/v1/messages`) and OpenAI-compat (`/v1/chat/completions`) wire formats
-- [x] Provider selection: `MODEL_PROVIDER` → `MODEL_DEFAULT_PROVIDER` → `ollama` (sovereign default)
+- [x] Provider selection: `MODEL_PROVIDER` → `MODEL_DEFAULT_PROVIDER` → `openai` (shared Refarm default)
 - [x] Any unknown provider name routes to OpenAI-compat path — zero code for Groq, Mistral, etc.
 
 ### Usage tracking (2D)
@@ -52,7 +52,7 @@ Context engineering follows the pi-test-harness model:
 
 ### Provider sovereignty (feat)
 
-- [x] Invert default: Anthropic is explicit-only, Ollama is the last-resort sovereign default
+- [x] Invert default: Anthropic is explicit-only, OpenAI is the shared default, and Ollama remains an explicit no-key local route
 - [x] `MODEL_DEFAULT_PROVIDER` — user configures their own floor without touching `MODEL_PROVIDER`
 
 ### Budget check (2E)

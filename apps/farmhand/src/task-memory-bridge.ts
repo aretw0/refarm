@@ -1,4 +1,5 @@
 import type { Task as EffortTask } from "@refarm.dev/effort-contract-v1";
+import { normalizePluginId } from "@refarm.dev/config";
 import type {
 	Task,
 	TaskContractAdapter,
@@ -26,7 +27,7 @@ function taskStatusFromOutcome(outcome: TaskMemoryOutcome): TaskStatus {
 }
 
 function taskTitle(task: EffortTask): string {
-	return `${task.pluginId}.${task.fn}`;
+	return `${normalizePluginId(task.pluginId)}.${task.fn}`;
 }
 
 export class TaskMemoryBridge {
@@ -62,7 +63,7 @@ export class TaskMemoryBridge {
 			payload: {
 				effortId,
 				taskId: task.id,
-				pluginId: task.pluginId,
+				pluginId: normalizePluginId(task.pluginId),
 				fn: task.fn,
 			},
 		});

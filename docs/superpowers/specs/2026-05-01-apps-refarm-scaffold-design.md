@@ -105,7 +105,7 @@ For each of the 7 existing commands in `packages/cli/src/commands/`:
 
 | Command | Test focus |
 |---|---|
-| `init` | Creates `refarm.config.json` with correct shape |
+| `init` | Creates `.refarm/config.json` with correct shape |
 | `sow` | Stores secrets in Silo; no secrets leak to stdout |
 | `guide` | Generates `SETUP_GUIDE.md` with expected sections |
 | `health` | Returns healthy/unhealthy based on mock checks |

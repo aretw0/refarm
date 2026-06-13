@@ -10,12 +10,12 @@ import {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
 import {
-	getRefarmStatusAvailableActions,
-	type RefarmActionAffordanceSelectionMetadata,
+	getStatusAvailableSurfaceActions,
+	type SurfaceActionAffordanceSelectionMetadata,
 } from "./action-affordances.js";
 import {
 	formatExecutionPlanReadinessLine,
-	type RefarmExecutionPlanReadinessLine,
+	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
 
 export type HeadlessSurfaceActionMountSource =
@@ -61,13 +61,19 @@ export interface HeadlessSurfaceActionInvocationResult {
 
 export interface HeadlessSurfaceActionDryRunEnvelope {
 	schemaVersion: 1;
+	command: "headless";
+	operation: "action-dry-run";
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
 	renderer: "headless";
-	readiness: RefarmExecutionPlanReadinessLine;
-	selection?: RefarmActionAffordanceSelectionMetadata;
+	readiness: ExecutionPlanReadinessLine;
+	selection?: SurfaceActionAffordanceSelectionMetadata;
 	actionRequest?: HomesteadSurfaceRenderActionRequest;
 	availableActions: readonly HomesteadSurfaceRenderAction[];
+	nextAction: null;
+	nextActions: [];
+	nextCommand: null;
+	nextCommands: [];
 }
 
 export function createHeadlessStatusSurfaceRenderRequest(
@@ -100,13 +106,13 @@ export function createHeadlessStatusSurfaceHostContext(
 			rendererKind: status.renderer.kind,
 			...options.hostData,
 		},
-		actions: [...getRefarmStatusAvailableActions(status)],
+		actions: [...getStatusAvailableSurfaceActions(status)],
 	};
 }
 
 export function createHeadlessStatusSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
-	selection: RefarmActionAffordanceSelectionMetadata,
+	selection: SurfaceActionAffordanceSelectionMetadata,
 	request: HomesteadSurfaceRenderActionRequest,
 	availableActions: readonly HomesteadSurfaceRenderAction[],
 ): HeadlessSurfaceActionDryRunEnvelope {
@@ -135,14 +141,16 @@ export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
 function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
 	status: RefarmStatusJson,
 	options: {
-		readiness: RefarmExecutionPlanReadinessLine;
+		readiness: ExecutionPlanReadinessLine;
 		availableActions: readonly HomesteadSurfaceRenderAction[];
-		selection?: RefarmActionAffordanceSelectionMetadata;
+		selection?: SurfaceActionAffordanceSelectionMetadata;
 		actionRequest?: HomesteadSurfaceRenderActionRequest;
 	},
 ): HeadlessSurfaceActionDryRunEnvelope {
 	return {
 		schemaVersion: 1,
+		command: "headless",
+		operation: "action-dry-run",
 		statusSchemaVersion: status.schemaVersion,
 		reason: "dry-run",
 		renderer: "headless",
@@ -150,6 +158,10 @@ function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
 		...(options.selection ? { selection: options.selection } : {}),
 		...(options.actionRequest ? { actionRequest: options.actionRequest } : {}),
 		availableActions: options.availableActions,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 

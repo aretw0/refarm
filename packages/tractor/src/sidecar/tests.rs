@@ -24,7 +24,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp, ":memory:".to_string()).unwrap();
+    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, ":memory:".to_string()).unwrap();
 
     // bind on :0 — OS assigns a free port
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -37,6 +37,8 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
         .route("/efforts/:id/logs", axum::routing::get(get_effort_logs))
         .route("/efforts/:id/retry", axum::routing::post(post_effort_retry))
         .route("/efforts/:id/cancel", axum::routing::post(post_effort_cancel))
+        .route("/plugins", axum::routing::get(get_plugins))
+        .route("/plugins/reload", axum::routing::post(post_plugins_reload))
         .with_state(state.clone());
 
     tokio::spawn(async move {
@@ -61,11 +63,67 @@ fn test_effort(id: &str) -> serde_json::Value {
     })
 }
 
+fn test_effort_with_plugin(id: &str, plugin_id: &str) -> serde_json::Value {
+    let mut effort = test_effort(id);
+    effort["tasks"][0]["pluginId"] = serde_json::json!(plugin_id);
+    effort
+}
+
+fn test_task(args: serde_json::Value) -> EffortTask {
+    EffortTask {
+        id: uuid::Uuid::new_v4().to_string(),
+        plugin_id: "@refarm/pi-agent".to_string(),
+        fn_name: Some("respond".to_string()),
+        args,
+    }
+}
+
 fn base(port: u16) -> String {
     format!("http://127.0.0.1:{port}")
 }
 
 // ── protocol tests ────────────────────────────────────────────────────────────
+
+#[test]
+fn sidecar_extract_task_args_accepts_prompt() {
+    let args = extract_task_args(&test_task(serde_json::json!({
+        "prompt": "ping",
+        "system": "sys",
+        "session_id": "session-a",
+        "history_turns": 4
+    })))
+    .expect("prompt args must parse");
+
+    assert_eq!(args.prompt, "ping");
+    assert_eq!(args.system.as_deref(), Some("sys"));
+    assert_eq!(args.session_id.as_deref(), Some("session-a"));
+    assert_eq!(args.history_turns, Some(4));
+}
+
+#[test]
+fn sidecar_extract_task_args_accepts_legacy_query() {
+    let args = extract_task_args(&test_task(serde_json::json!({ "query": "ping" })))
+        .expect("legacy query args must parse");
+
+    assert_eq!(args.prompt, "ping");
+}
+
+#[test]
+fn sidecar_extract_task_args_rejects_missing_prompt() {
+    let error = extract_task_args(&test_task(serde_json::json!({})))
+        .expect_err("missing prompt must fail");
+
+    assert!(error.contains("requires args.prompt"));
+}
+
+#[test]
+fn sidecar_plugins_response_includes_active_agent_field() {
+    // The /plugins response must include activeAgent so the CLI can detect
+    // the active agent by capability rather than by name.
+    // Verified end-to-end in sidecar_active_agent_is_exposed_in_plugins_response.
+    let json = serde_json::json!({ "activeAgent": serde_json::Value::Null });
+    assert!(json.get("activeAgent").is_some());
+}
 
 #[tokio::test]
 async fn sidecar_post_efforts_returns_effort_id() {
@@ -115,6 +173,69 @@ async fn sidecar_get_efforts_lists_submitted() {
         .filter_map(|e| e["effortId"].as_str())
         .collect();
     assert!(ids.contains(&id.as_str()));
+}
+
+#[tokio::test]
+async fn sidecar_get_plugins_reports_loaded_agent_channels() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/pi-agent".to_string(), tx);
+    let client = reqwest::Client::new();
+
+    let res = client
+        .get(format!("{}/plugins", base(port)))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(
+        body["loaded"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/pi-agent")]
+    );
+    assert_eq!(
+        body["known"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/pi-agent")]
+    );
+}
+
+#[tokio::test]
+async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/pi-agent".to_string(), tx);
+    let client = reqwest::Client::new();
+
+    let res = client
+        .post(format!("{}/plugins/reload", base(port)))
+        .json(&serde_json::json!({
+            "pluginIds": ["@refarm/pi-agent", "@refarm/missing"]
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(
+        body["reloaded"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/pi-agent")]
+    );
+    assert_eq!(
+        body["skipped"].as_array().unwrap(),
+        &vec![serde_json::json!("@refarm/missing")]
+    );
+    assert_eq!(body["deferred"].as_array().unwrap().len(), 0);
+    assert!(body["reloadId"].as_str().is_some());
 }
 
 #[tokio::test]
@@ -269,6 +390,7 @@ async fn sidecar_no_plugin_writes_error_stream_chunk() {
             }
             let content = std::fs::read_to_string(&path).unwrap_or_default();
             content.contains("\"is_final\":true")
+                && content.contains("refarm plugin status")
         });
 
     assert!(found, "sidecar must write an is_final stream chunk when plugin is not loaded");
@@ -305,6 +427,40 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
     );
 }
 
+#[tokio::test]
+async fn sidecar_effort_fails_when_no_active_agent_loaded() {
+    // When no plugin has declared "agent:respond" capability and no channel
+    // matches the task's plugin_id, the effort must fail with a clear error.
+    let (_state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort_with_plugin(&id, "@refarm/some-agent"))
+        .send()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let body: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(body["status"].as_str().unwrap(), "failed");
+    let error = body["results"][0]["error"].as_str().unwrap();
+    assert!(
+        error.contains("not loaded"),
+        "error should mention 'not loaded', got: {error}"
+    );
+}
+
 // ── session history tests ─────────────────────────────────────────────────────
 //
 // These tests use a real SQLite file (not :memory:) so that nodes written in
@@ -323,7 +479,7 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp, namespace.to_string()).unwrap();
+    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, namespace.to_string()).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -612,7 +768,7 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp, namespace.to_string()).unwrap();
+    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, namespace.to_string()).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();

@@ -103,6 +103,10 @@ struct DaemonArgs {
     #[arg(long, default_value_t = 42001)]
     http_port: u16,
 
+    /// HTTP sidecar bind host.
+    #[arg(long, default_value = "127.0.0.1")]
+    http_host: String,
+
     /// Base directory for streams and task-results (default: ~/.refarm)
     #[arg(long)]
     refarm_dir: Option<std::path::PathBuf>,
@@ -424,21 +428,31 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
             .refarm_dir
             .clone()
             .unwrap_or_else(dirs_refarm_base);
-        match tractor::sidecar::SidecarState::new(tractor.agent_channels.clone(), &base_dir, args.namespace.clone()) {
+        match tractor::sidecar::SidecarState::new(tractor.agent_channels.clone(), tractor.active_agent_id.clone(), &base_dir, args.namespace.clone()) {
             Ok(state) => {
+                let http_host = args.http_host.clone();
                 let http_port = args.http_port;
                 tokio::spawn(async move {
-                    if let Err(e) = tractor::sidecar::start(state, http_port).await {
+                    if let Err(e) = tractor::sidecar::start(state, http_host, http_port).await {
                         tracing::error!("HTTP sidecar error: {e}");
                     }
                 });
-                tracing::info!(port = args.http_port, "HTTP sidecar started (ADR-060)");
+                tracing::info!(
+                    host = %args.http_host,
+                    port = args.http_port,
+                    "HTTP sidecar started (ADR-060)"
+                );
             }
             Err(e) => {
                 tracing::warn!("HTTP sidecar disabled (failed to init dirs): {e}");
             }
         }
     }
+
+    // ── Scarecrow audit subscriber ────────────────────────────────────────────
+    let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
+    tractor::observer::spawn_audit_subscriber(tractor.telemetry.clone(), scarecrow_base, tractor.observer_channels.clone());
+    tracing::info!("Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson", dirs_refarm_base().display());
 
     daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),

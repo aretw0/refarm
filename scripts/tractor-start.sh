@@ -8,12 +8,14 @@
 #   MODEL_PROVIDER=openai ./scripts/tractor-start.sh      # override provider
 #
 # Keys are loaded from .refarm/.env (gitignored).
-# Run `npm run agent:keys` to configure them.
-# Run `npm run agent:stop` to stop a backgrounded daemon.
+# Run `refarm sow` to configure them.
+# Run `<package-manager> run agent:stop` to stop a backgrounded daemon.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
+MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
 ENV_FILE="$ROOT/.refarm/.env"
 PID_FILE="$ROOT/.refarm/tractor.pid"
 LOG_FILE="$ROOT/.refarm/tractor.log"
@@ -40,7 +42,41 @@ resolve_cargo_target() {
 _CARGO_TARGET="$(resolve_cargo_target)"
 TRACTOR="$_CARGO_TARGET/release/tractor"
 PI_AGENT="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
+INSTALLED_PI_AGENT="$HOME/.refarm/plugins/@refarm/pi-agent/plugin.wasm"
+REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$HOME/.refarm/streams}"
+REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
+
+if [ -z "$REFARM_HTTP_HOST" ]; then
+  if [ -f "/.dockerenv" ]; then
+    REFARM_HTTP_HOST="0.0.0.0"
+  else
+    REFARM_HTTP_HOST="127.0.0.1"
+  fi
+fi
+
+if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
+  echo "❌  package manager helper not found: $PACKAGE_MANAGER_HELPER"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$PACKAGE_MANAGER_HELPER"
+
+if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
+  echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$MODEL_PROVIDER_HELPER"
+
+PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
+
+script_command() {
+  local script="$1"
+  script_command_for_package_manager "$PACKAGE_MANAGER" "$script"
+}
 
 # ── parse --background flag (strip before forwarding to tractor) ──────────────
 
@@ -68,8 +104,8 @@ _port_pid() {
 _existing="$(_port_pid 42000)"
 if [ -n "$_existing" ]; then
   echo "❌  Port 42000 is already bound by PID $_existing."
-  echo "   If farmhand is running: npm run farmhand:stop"
-  echo "   If another tractor is running: npm run agent:stop"
+  echo "   If farmhand is running: $(script_command farmhand:stop)"
+  echo "   If another tractor is running: $(script_command agent:stop)"
   echo "   See: docs/PROCESS_PLAYBOOK.md"
   exit 1
 fi
@@ -78,14 +114,22 @@ fi
 
 if [ ! -f "$TRACTOR" ]; then
   echo "❌  tractor binary not found at $TRACTOR"
-  echo "   Build it first: cd packages/tractor && cargo build --release"
+  echo "   Build it first: cargo build --manifest-path packages/tractor/Cargo.toml --release"
   exit 1
 fi
 
 if [ ! -f "$PI_AGENT" ]; then
   echo "❌  pi_agent.wasm not found at $PI_AGENT"
-  echo "   Build it first: cd packages/pi-agent && cargo component build --release"
+  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
   exit 1
+fi
+
+if [ -f "$REFARM_CLI" ]; then
+  node "$REFARM_CLI" plugin update --json >/dev/null 2>&1 || true
+fi
+
+if [ -f "$INSTALLED_PI_AGENT" ]; then
+  PI_AGENT="$INSTALLED_PI_AGENT"
 fi
 
 # ── load .refarm/.env ─────────────────────────────────────────────────────────
@@ -102,17 +146,16 @@ fi
 
 # ── provider selection ────────────────────────────────────────────────────────
 
-# Priority: MODEL_PROVIDER env > .refarm/config.json provider field > ollama (sovereign default)
 if [ -z "${MODEL_PROVIDER:-}" ]; then
-  CONFIG="$ROOT/.refarm/config.json"
-  if [ -f "$CONFIG" ] && command -v node >/dev/null 2>&1; then
-    PROVIDER_FROM_CONFIG=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG','utf8'));process.stdout.write(c.provider||'')}catch{}" 2>/dev/null || true)
-    if [ -n "$PROVIDER_FROM_CONFIG" ]; then
-      export MODEL_PROVIDER="$PROVIDER_FROM_CONFIG"
-    fi
-  fi
-  MODEL_PROVIDER="${MODEL_PROVIDER:-ollama}"
+  MODEL_PROVIDER="$(resolve_refarm_model_provider "$ROOT")"
   export MODEL_PROVIDER
+fi
+
+if [ -f "$REFARM_CLI" ]; then
+  _model_env_exports="$(node "$REFARM_CLI" model env --shell 2>/dev/null || true)"
+  if [ -n "$_model_env_exports" ]; then
+    eval "$_model_env_exports"
+  fi
 fi
 
 # ── key check ─────────────────────────────────────────────────────────────────
@@ -144,10 +187,24 @@ esac
 
 # ── start daemon ──────────────────────────────────────────────────────────────
 
+HAS_HTTP_HOST=0
+for arg in "$@"; do
+  case "$arg" in
+    --http-host|--http-host=*) HAS_HTTP_HOST=1 ;;
+  esac
+done
+
+TRACTOR_ARGS=(--plugin "$PI_AGENT")
+if [ "$HAS_HTTP_HOST" = "0" ]; then
+  TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
+fi
+TRACTOR_ARGS+=("$@")
+
 echo "   Starting tractor daemon"
 echo "   provider : $MODEL_PROVIDER"
 echo "   plugin   : $PI_AGENT"
 echo "   streams  : $REFARM_STREAMS_DIR"
+echo "   http bind: $REFARM_HTTP_HOST:42001"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
 mkdir -p "$(dirname "$PID_FILE")" "$REFARM_STREAMS_DIR"
@@ -166,14 +223,14 @@ if [ "$BACKGROUND" = "1" ]; then
   fi
 
   echo "   Log      : $LOG_FILE"
-  nohup "$TRACTOR" --plugin "$PI_AGENT" "$@" > "$LOG_FILE" 2>&1 &
+  nohup "$TRACTOR" "${TRACTOR_ARGS[@]}" > "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
   echo "   Started  : pid $(cat "$PID_FILE")"
   echo ""
-  echo "   Check status : npm run agent:status"
-  echo "   Stop daemon  : npm run agent:stop"
+  echo "   Check status : $(script_command agent:status)"
+  echo "   Stop daemon  : $(script_command agent:stop)"
   echo "   Follow log   : tail -f $LOG_FILE"
 else
   echo ""
-  exec "$TRACTOR" --plugin "$PI_AGENT" "$@"
+  exec "$TRACTOR" "${TRACTOR_ARGS[@]}"
 fi

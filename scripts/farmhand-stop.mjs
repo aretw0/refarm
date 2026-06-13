@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * farmhand-stop — stop a backgrounded farmhand daemon.
- * Usage: pnpm run farmhand:stop
+ * Usage: <package-manager> run farmhand:stop
  */
 
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';

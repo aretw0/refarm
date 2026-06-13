@@ -1,17 +1,11 @@
 import { execSync } from "node:child_process";
-import fs from "node:fs";
-
-import path from "node:path";
-import process from "node:process";
+import { loadConfig } from "@refarm.dev/config";
 
 let resolvedGitHost = "github";
 try {
-    const configPath = path.resolve(process.cwd(), "refarm.config.json");
-    if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        if (config?.infrastructure?.gitHost) {
-            resolvedGitHost = config.infrastructure.gitHost;
-        }
+    const config = loadConfig();
+    if (config?.infrastructure?.gitHost) {
+        resolvedGitHost = config.infrastructure.gitHost;
     }
 } catch (err) {
     // Silent fallback for test environments where the root config is unavailable

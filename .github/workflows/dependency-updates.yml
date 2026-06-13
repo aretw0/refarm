@@ -19,7 +19,7 @@ jobs:
       no-updates-pattern: Nenhuma dependência desatualizada
       update-command: |
         pnpm run deps:update
-        pnpm install
+        pnpm install --no-frozen-lockfile
       issue-title: Automated Dependency Updates Report
       issue-search-query: in:title Automated Dependency Updates Report
       issue-labels: dependencies

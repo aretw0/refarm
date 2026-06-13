@@ -9,13 +9,12 @@
  *   3. packages/pi-agent/target/ (workspace fallback, no Docker volume)
  *
  * Usage:
- *   npm run agent:install
+ *   <package-manager> run agent:install
  *   node scripts/pi-agent-install.mjs
  */
 
 import { createHash } from "node:crypto";
 import {
-  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -62,7 +61,7 @@ if (!wasmSrc) {
   console.error("[pi-agent-install] WASM binary not found. Searched:");
   for (const c of candidates) console.error(`  ${c}`);
   console.error("\nBuild first:");
-  console.error("  cd packages/pi-agent && cargo component build --release");
+  console.error("  cargo component build --manifest-path packages/pi-agent/Cargo.toml --release");
   process.exit(1);
 }
 
@@ -77,39 +76,16 @@ copyFileSync(wasmSrc, wasmDest);
 console.log(`[pi-agent-install] Copied WASM → ${wasmDest}`);
 
 function ensureRefarmCliShim() {
-  const distEntry = path.join(ROOT, "apps/refarm/dist/index.js");
-  const loaderEntry = path.join(ROOT, "scripts/farmhand-node-register-loader.mjs");
-
-  console.log("[pi-agent-install] Building refarm CLI distro...");
-  const build = spawnSync("pnpm", ["-C", "apps/refarm", "run", "build"], {
+  const installScript = path.join(ROOT, "scripts/install-refarm-cli.mjs");
+  console.log("[pi-agent-install] Installing refarm CLI shim through install-refarm-cli...");
+  const install = spawnSync(process.execPath, [installScript, "--build"], {
     cwd: ROOT,
     stdio: "inherit",
   });
 
-  if (build.status !== 0 || !existsSync(distEntry)) {
-    console.error("[pi-agent-install] Failed to build apps/refarm dist entry.");
-    process.exit(build.status ?? 1);
-  }
-
-  const binDir = path.join(os.homedir(), ".local", "bin");
-  mkdirSync(binDir, { recursive: true });
-
-  const shimPath = path.join(binDir, "refarm");
-  const shimBody = `#!/usr/bin/env bash
-set -euo pipefail
-exec node --import ${JSON.stringify(loaderEntry)} ${JSON.stringify(distEntry)} "$@"
-`;
-
-  writeFileSync(shimPath, shimBody);
-  chmodSync(shimPath, 0o755);
-
-  console.log(`[pi-agent-install] Installed refarm shim → ${shimPath}`);
-
-  const pathEntries = (process.env.PATH ?? "").split(path.delimiter);
-  if (!pathEntries.includes(binDir)) {
-    console.warn(
-      `[pi-agent-install] WARN: ${binDir} is not in PATH. Add it to run 'refarm' directly.`,
-    );
+  if (install.status !== 0) {
+    console.error("[pi-agent-install] Failed to install refarm CLI shim.");
+    process.exit(install.status ?? 1);
   }
 }
 

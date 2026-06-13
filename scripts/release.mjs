@@ -14,7 +14,13 @@
 
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { loadConfig } from "@refarm.dev/config";
+import { exec } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import {
+  loadConfig,
+  packagePublishDryRunCommand,
+  packageScriptCommand,
+} from "@refarm.dev/config";
 
 const execAsync = promisify(exec);
 const config = loadConfig();
@@ -29,6 +35,43 @@ const PACKAGES = [
 ];
 
 const ORG = devScope;
+
+function scriptCommand(script, cwd = process.cwd()) {
+  return packageScriptCommand(script, { cwd }).command;
+}
+
+function bumpVersion(currentVersion, versionBump) {
+  if (!["patch", "minor", "major"].includes(versionBump)) {
+    return versionBump.replace(/^v/, "");
+  }
+
+  const match = currentVersion.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) {
+    throw new Error(`Cannot apply ${versionBump} bump to non-semver version: ${currentVersion}`);
+  }
+
+  const [, majorRaw, minorRaw, patchRaw] = match;
+  let major = Number(majorRaw);
+  let minor = Number(minorRaw);
+  let patch = Number(patchRaw);
+
+  if (versionBump === "major") {
+    major += 1;
+    minor = 0;
+    patch = 0;
+  } else if (versionBump === "minor") {
+    minor += 1;
+    patch = 0;
+  } else {
+    patch += 1;
+  }
+
+  return `${major}.${minor}.${patch}`;
+}
+
+function publishDryRunCommand(cwd) {
+  return packagePublishDryRunCommand({ cwd }).command;
+}
 
 async function main() {
   const [, , packageName, versionBump] = process.argv;
@@ -67,20 +110,12 @@ async function main() {
   }
 
   // Bump version
-  let newVersion;
-  if (["patch", "minor", "major"].includes(versionBump)) {
-    console.log(`   Bumping: ${versionBump}`);
-    const { stdout } = await execAsync(`pnpm version ${versionBump} --no-git-tag-version`, {
-      cwd: packageDir,
-    });
-    newVersion = stdout.trim().replace(/^v/, "");
-  } else {
-    // Specific version
-    newVersion = versionBump.replace(/^v/, "");
-    packageJson.version = newVersion;
-    await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
-    console.log(`   Setting version: ${newVersion}`);
-  }
+  const newVersion = bumpVersion(currentVersion, versionBump);
+  packageJson.version = newVersion;
+  await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
+  console.log(["patch", "minor", "major"].includes(versionBump)
+    ? `   Bumping: ${versionBump} -> ${newVersion}`
+    : `   Setting version: ${newVersion}`);
 
   const tagName = `${fullPackageName}@${newVersion}`;
 
@@ -92,16 +127,16 @@ async function main() {
 
   try {
     console.log("   - Type checking...");
-    await execAsync("pnpm run type-check", { cwd: packageDir });
+    await execAsync(scriptCommand("type-check", packageDir), { cwd: packageDir });
 
     console.log("   - Building...");
-    await execAsync("pnpm run build", { cwd: packageDir });
+    await execAsync(scriptCommand("build", packageDir), { cwd: packageDir });
 
     console.log("   - Testing conformance...");
-    await execAsync("pnpm run test:capabilities", { cwd: process.cwd() });
+    await execAsync(scriptCommand("test:capabilities"), { cwd: process.cwd() });
 
     console.log("   - Dry-run publish...");
-    await execAsync("pnpm publish --dry-run", { cwd: packageDir });
+    await execAsync(publishDryRunCommand(packageDir), { cwd: packageDir });
   } catch (error) {
     console.error("\n❌ Validation failed:");
     console.error(error.stdout || error.stderr || error.message);

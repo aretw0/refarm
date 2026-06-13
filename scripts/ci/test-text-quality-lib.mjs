@@ -1,0 +1,486 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+import {
+	DEFAULT_TEXT_QUALITY_CONFIG,
+	effectiveTextQualityConfig,
+	proseParagraphs,
+	readFrontmatterField,
+	resolveTextQualityConfigPath,
+	scoreRubric,
+	scoreText,
+	severityCounts,
+	stripFrontmatter,
+	validateTextQualityConfig,
+	wordCount,
+} from "./text-quality-lib.mjs";
+
+const cliPath = path.resolve("scripts/ci/check-text-quality.mjs");
+const textQualityConfigDocPath = path.resolve("docs/TEXT_QUALITY_CONFIG.md");
+
+test("text quality scorer handles plain text", () => {
+	const result = scoreText("Um paragrafo simples. Outro periodo.", {
+		...DEFAULT_TEXT_QUALITY_CONFIG,
+		longSentenceWords: 0,
+		riskPatterns: [],
+		repetitionHeuristics: { paragraphStarter: { enabled: false } },
+	});
+
+	assert.deepEqual(result.findings, []);
+	assert.equal(result.metrics.words, 5);
+});
+
+test("text quality scorer strips frontmatter", () => {
+	const { body, lineOffset } = stripFrontmatter("---\ntitle: Test\n---\nBody here.");
+
+	assert.equal(body, "Body here.");
+	assert.equal(lineOffset, 3);
+});
+
+test("text quality scorer handles crlf frontmatter", () => {
+	const text = "---\r\naudience: introductory\r\n---\r\nBody here.";
+	const { body, lineOffset } = stripFrontmatter(text);
+
+	assert.equal(body, "Body here.");
+	assert.equal(lineOffset, 3);
+	assert.equal(readFrontmatterField(text, "audience"), "introductory");
+});
+
+test("text quality scorer filters markdown structure from prose paragraphs", () => {
+	const prose = proseParagraphs("# Title\n\n- item\n\nReal paragraph.");
+
+	assert.deepEqual(prose.map((item) => item.text), ["Real paragraph."]);
+});
+
+test("text quality scorer detects long sentences", () => {
+	const result = scoreText(
+		"Esta frase possui muitas palavras para ultrapassar o limite pequeno configurado neste teste.",
+		{
+			...DEFAULT_TEXT_QUALITY_CONFIG,
+			longSentenceWords: 5,
+			riskPatterns: [],
+			repetitionHeuristics: { paragraphStarter: { enabled: false } },
+		},
+	);
+
+	assert.equal(result.findings[0].rule, "long-sentence");
+	assert.equal(result.findings[0].severity, "info");
+});
+
+test("text quality scorer ignores markdown lists for long sentence checks", () => {
+	const result = scoreText(
+		[
+			"Current validation:",
+			"",
+			"- first list item with enough words to cross the tiny threshold",
+			"- second list item with enough words to cross the tiny threshold",
+		].join("\n"),
+		{
+			...DEFAULT_TEXT_QUALITY_CONFIG,
+			longSentenceWords: 5,
+			riskPatterns: [],
+			repetitionHeuristics: { paragraphStarter: { enabled: false } },
+		},
+	);
+
+	assert.deepEqual(result.findings, []);
+});
+
+test("text quality scorer detects repeated paragraph starters", () => {
+	const text = [
+		"Este texto abre o primeiro paragrafo.",
+		"",
+		"Este texto abre o segundo paragrafo.",
+		"",
+		"Este texto abre o terceiro paragrafo.",
+	].join("\n");
+	const result = scoreText(text, {
+		...DEFAULT_TEXT_QUALITY_CONFIG,
+		longSentenceWords: 0,
+		riskPatterns: [],
+		repetitionHeuristics: {
+			paragraphStarter: {
+				enabled: true,
+				ngramWords: 2,
+				windowParagraphs: 4,
+				minOccurrencesInWindow: 3,
+				minWordLength: 2,
+				ignoreStarters: [],
+			},
+		},
+	});
+
+	assert.equal(result.findings[0].rule, "paragraph-starter-repeat");
+	assert.equal(result.findings[0].severity, "warn");
+});
+
+test("text quality scorer merges profile and audience", () => {
+	const cfg = effectiveTextQualityConfig(DEFAULT_TEXT_QUALITY_CONFIG, {
+		audience: "introductory",
+		profile: "strict",
+	});
+
+	assert.equal(cfg.longSentenceWords, 32);
+	assert.equal(cfg.repetitionHeuristics.paragraphStarter.windowParagraphs, 10);
+});
+
+test("text quality scorer counts severities", () => {
+	assert.deepEqual(
+		severityCounts([
+			{ severity: "warn" },
+			{ severity: "warn" },
+			{ severity: "info" },
+		]),
+		{ fail: 0, warn: 2, info: 1 },
+	);
+});
+
+test("text quality scorer emits weighted rubric scorecard", () => {
+	const result = scoreText("A proposta descreve objetivo, impacto e evidencias.", {
+		...DEFAULT_TEXT_QUALITY_CONFIG,
+		longSentenceWords: 0,
+		riskPatterns: [],
+		repetitionHeuristics: { paragraphStarter: { enabled: false } },
+		rubric: {
+			enabled: true,
+			scale: 5,
+			criteria: [
+				{
+					id: "clareza",
+					label: "Clareza",
+					weight: 0.6,
+					requiredPatterns: [
+						{ id: "objetivo", regex: "\\bobjetivo\\b" },
+						{ id: "impacto", regex: "\\bimpacto\\b" },
+					],
+				},
+				{
+					id: "higiene",
+					label: "Higiene",
+					weight: 0.4,
+					forbiddenPatterns: [
+						{
+							id: "draft-note",
+							description: "Draft note must not remain.",
+							regex: "\\bDRAFT_NOTE\\b",
+						},
+					],
+				},
+			],
+		},
+	});
+
+	assert.equal(result.metrics.rubric.finalScore, 5);
+	assert.deepEqual(result.metrics.rubric.scores, { clareza: 5, higiene: 5 });
+	assert.deepEqual(result.findings, []);
+});
+
+test("text quality scorer reports failed rubric checks", () => {
+	const rubric = scoreRubric("Texto sem evidencia. DRAFT_NOTE", {
+		enabled: true,
+		scale: 5,
+		criteria: [
+			{
+				id: "evidencia",
+				weight: 1,
+				severity: "warn",
+				requiredPatterns: [
+					{
+						id: "fonte",
+						description: "Evidence source should be explicit.",
+						regex: "\\bfonte\\b",
+					},
+				],
+				forbiddenPatterns: [
+					{
+						id: "draft-note",
+						description: "Draft marker should not remain.",
+						regex: "\\bDRAFT_NOTE\\b",
+					},
+				],
+			},
+		],
+	});
+
+	assert.equal(rubric.finalScore, 0);
+	assert.deepEqual(rubric.weights, { evidencia: 1 });
+	assert.deepEqual(rubric.scores, { evidencia: 0 });
+	assert.deepEqual(
+		rubric.criteria[0].issues.map((issue) => issue.id),
+		["fonte", "draft-note"],
+	);
+});
+
+test("text quality cli emits json report", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "TODO: revisar.\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 0, result.stderr);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, true);
+		assert.equal(payload.command, "check-text-quality");
+		assert.equal(payload.summary.warn, 1);
+		assert.equal(payload.files[0].findings[0].rule, "draft-markers");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli discovers project-local .refarm config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(
+			path.join(refarmDir, "text-quality.json"),
+			JSON.stringify({
+				...DEFAULT_TEXT_QUALITY_CONFIG,
+				riskPatterns: [
+					{
+						id: "consumer-marker",
+						severity: "fail",
+						description: "Consumer marker detected.",
+						regex: "\\bCONSUMER_MARKER\\b",
+					},
+				],
+			}),
+			"utf8",
+		);
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "CONSUMER_MARKER\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 1, result.stderr);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.configPath, ".refarm/text-quality.json");
+		assert.equal(payload.summary.fail, 1);
+		assert.equal(payload.files[0].findings[0].rule, "consumer-marker");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli explicit config overrides discovered config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(
+			path.join(refarmDir, "text-quality.json"),
+			JSON.stringify({
+				...DEFAULT_TEXT_QUALITY_CONFIG,
+				riskPatterns: [
+					{
+						id: "discovered-marker",
+						severity: "fail",
+						description: "Discovered marker detected.",
+						regex: "\\bMARKER\\b",
+					},
+				],
+			}),
+			"utf8",
+		);
+		const explicitConfig = path.join(dir, "explicit.json");
+		writeFileSync(
+			explicitConfig,
+			JSON.stringify({
+				...DEFAULT_TEXT_QUALITY_CONFIG,
+				riskPatterns: [],
+			}),
+			"utf8",
+		);
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "MARKER\n", "utf8");
+		const result = spawnSync(
+			process.execPath,
+			[cliPath, "--json", "--config", explicitConfig, file],
+			{
+				cwd: dir,
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			},
+		);
+
+		assert.equal(result.status, 0, result.stderr);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.summary.fail, 0);
+		assert.equal(payload.configPath, "explicit.json");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality config resolver returns null when no config exists", async () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		assert.equal(await resolveTextQualityConfigPath(dir), null);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality config validator rejects invalid schema", () => {
+	assert.throws(
+		() =>
+			validateTextQualityConfig({
+				longSentenceWords: -1,
+				rubric: {
+					enabled: "yes",
+					scale: 0,
+					criteria: [{ id: "", requiredPatterns: [{ id: "x", regex: "[" }] }],
+				},
+				riskPatterns: [{ id: "", severity: "fatal", regex: "[" }],
+			}),
+		(error) => {
+			assert.equal(error.code, "ERR_TEXT_QUALITY_CONFIG_SCHEMA");
+			assert.match(error.message, /longSentenceWords/u);
+			assert.match(error.message, /riskPatterns\[0\]\.severity/u);
+			assert.match(error.message, /rubric\.enabled/u);
+			assert.match(error.message, /rubric\.criteria\[0\]\.requiredPatterns/u);
+			return true;
+		},
+	);
+});
+
+test("text quality cli emits json error for invalid discovered config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(path.join(refarmDir, "text-quality.json"), "{", "utf8");
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "Plain note.\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 1);
+		assert.equal(result.stderr, "");
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_JSON");
+		assert.equal(payload.error.configPath, ".refarm/text-quality.json");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli emits json schema error for invalid discovered config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const refarmDir = path.join(dir, ".refarm");
+		mkdirSync(refarmDir);
+		writeFileSync(
+			path.join(refarmDir, "text-quality.json"),
+			JSON.stringify({ riskPatterns: "nope" }),
+			"utf8",
+		);
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "Plain note.\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--json", file], {
+			cwd: dir,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.equal(result.status, 1);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_SCHEMA");
+		assert.equal(payload.error.configPath, ".refarm/text-quality.json");
+		assert.deepEqual(payload.error.issues, ["riskPatterns must be an array"]);
+		assert.match(payload.error.message, /riskPatterns must be an array/u);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli emits json read error for missing explicit config", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const file = path.join(dir, "note.md");
+		const missingConfig = path.join(dir, "missing.json");
+		writeFileSync(file, "Plain note.\n", "utf8");
+		const result = spawnSync(
+			process.execPath,
+			[cliPath, "--json", "--config", missingConfig, file],
+			{
+				cwd: dir,
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			},
+		);
+
+		assert.equal(result.status, 1);
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.error.code, "ERR_TEXT_QUALITY_CONFIG_READ");
+		assert.equal(payload.error.configPath, "missing.json");
+		assert.equal(payload.error.fsCode, "ENOENT");
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli strict mode fails on warnings", () => {
+	const dir = mkdtempSync(path.join(tmpdir(), "refarm-text-quality-"));
+	try {
+		const file = path.join(dir, "note.md");
+		writeFileSync(file, "TODO: revisar.\n", "utf8");
+		const result = spawnSync(process.execPath, [cliPath, "--strict", file], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		assert.notEqual(result.status, 0);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("text quality cli rejects missing option values", () => {
+	const result = spawnSync(process.execPath, [cliPath, "--config"], {
+		encoding: "utf8",
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+
+	assert.equal(result.status, 2);
+	assert.match(result.stderr, /Missing value for: --config/u);
+});
+
+test("text quality config docs keep json examples parseable", () => {
+	const doc = readFileSync(textQualityConfigDocPath, "utf8");
+	const blocks = Array.from(doc.matchAll(/```json\n([\s\S]*?)\n```/gu)).map(
+		(match) => match[1],
+	);
+
+	assert.ok(blocks.length > 0, "expected at least one json example");
+	for (const block of blocks) {
+		assert.doesNotThrow(() => JSON.parse(block));
+	}
+});
+
+test("word count handles accented words", () => {
+	assert.equal(wordCount("avaliação de textos"), 3);
+});

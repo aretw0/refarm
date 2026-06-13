@@ -14,8 +14,12 @@ inputs:
     description: "Rust targets install (e.g. wasm32-wasip1). Multiple targets can be separated by commas."
     required: false
     default: "wasm32-wasip1,x86_64-unknown-linux-gnu"
+  rust-coverage:
+    description: "Whether to install cargo-llvm-cov for Rust coverage gates."
+    required: false
+    default: "false"
   turbo-cache-api:
-    description: "Turbo remote cache API URL (TURBO_API). When set, remote cache is used instead of local GHA cache."
+    description: "Turbo remote cache API URL (TURBO_API). When healthy, remote cache is layered over local GHA cache."
     required: false
     default: ""
   turbo-cache-token:
@@ -26,6 +30,10 @@ inputs:
     description: "Turbo team slug for cache key namespacing (TURBO_TEAM)."
     required: false
     default: "refarm"
+  trusted-pr-cache:
+    description: "Whether a same-repository PR may use remote Turbo cache in an isolated PR namespace."
+    required: false
+    default: "false"
   is-pr:
     description: "Whether this run is triggered by a pull_request event. Scopes Turbo cache to prevent cache poisoning."
     required: false
@@ -50,7 +58,7 @@ runs:
         exit 1
 
     - name: Setup pnpm
-      uses: pnpm/action-setup@v5
+      uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
       with:
         run_install: false
 
@@ -72,14 +80,14 @@ runs:
     # These are disjoint: main/develop cannot restore a PR's poisoned Turbo cache.
     # See: docs/security/ci-cache-hardening.md
     - name: Cache Turbo — PR
-      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api == '' && inputs.is-pr == 'true' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.is-pr == 'true' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
         key: ${{ runner.os }}-turbo-pr-${{ inputs.pr-number }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}
 
     - name: Cache Turbo — push
-      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api == '' && inputs.is-pr != 'true' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.is-pr != 'true' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
@@ -88,17 +96,56 @@ runs:
           ${{ runner.os }}-turbo-push-
 
     - name: Configure Turbo remote cache
-      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api != '' && inputs.is-pr != 'true' }}
+      if: ${{ inputs.cache-mode != 'off' && inputs.turbo-cache-api != '' && inputs.turbo-cache-token != '' && (inputs.is-pr != 'true' || inputs.trusted-pr-cache == 'true') }}
       shell: bash
       run: |
         set -euo pipefail
-        echo "TURBO_API=${{ inputs.turbo-cache-api }}" >> "$GITHUB_ENV"
+        api="${{ inputs.turbo-cache-api }}"
+        api="${api%/}"
+        team="${{ inputs.turbo-cache-team }}"
+
+        if [ "${{ inputs.is-pr }}" = "true" ]; then
+          if [ "${{ inputs.trusted-pr-cache }}" != "true" ]; then
+            echo "::notice::Turbo remote cache disabled for untrusted PR context."
+            exit 0
+          fi
+          team="${team}-pr-${{ inputs.pr-number }}"
+        fi
+
+        events_status="$(
+          curl --proto '=https' --tlsv1.2 --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 \
+            -X POST \
+            -H "Authorization: Bearer ${{ inputs.turbo-cache-token }}" \
+            -H "Content-Type: application/json" \
+            --data '{}' \
+            "$api/v8/artifacts/events" || true
+        )"
+        if [ "$events_status" != "200" ]; then
+          echo "::warning::Turbo remote cache events probe returned HTTP ${events_status:-000}; continuing with local .turbo cache."
+          exit 0
+        fi
+
+        artifact_status="$(
+          curl --proto '=https' --tlsv1.2 --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 \
+            -I \
+            -H "Authorization: Bearer ${{ inputs.turbo-cache-token }}" \
+            "$api/v8/artifacts/0000000000000000000000000000000000000000?teamId=$team" || true
+        )"
+        if [ "$artifact_status" != "404" ]; then
+          echo "::warning::Turbo remote cache artifact probe returned HTTP ${artifact_status:-000}; continuing with local .turbo cache."
+          exit 0
+        fi
+
+        echo "TURBO_API=$api" >> "$GITHUB_ENV"
         echo "TURBO_TOKEN=${{ inputs.turbo-cache-token }}" >> "$GITHUB_ENV"
-        echo "TURBO_TEAM=${{ inputs.turbo-cache-team }}" >> "$GITHUB_ENV"
-        echo "Remote Turbo cache configured (api=${{ inputs.turbo-cache-api }} team=${{ inputs.turbo-cache-team }})"
+        echo "TURBO_TEAM=$team" >> "$GITHUB_ENV"
+        echo "Remote Turbo cache configured (api=$api team=$team)"
 
     - name: Install dependencies
       shell: bash
+      env:
+        PUPPETEER_SKIP_DOWNLOAD: "true"
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
       run: |
         set -euo pipefail
         if [ ! -f pnpm-lock.yaml ]; then
@@ -106,7 +153,7 @@ runs:
           exit 1
         fi
 
-        echo "Installing dependencies with pnpm install --frozen-lockfile (deterministic mode)..."
+        echo "Installing dependencies with pnpm install --frozen-lockfile (deterministic mode, browser downloads disabled)..."
         pnpm install --frozen-lockfile
 
     - name: Configure CI cargo target directory
@@ -145,9 +192,68 @@ runs:
           $PW_CMD install chromium firefox webkit
         fi
 
+    - name: Configure MSVC build environment
+      if: ${{ runner.os == 'Windows' && inputs.rust-target != '' }}
+      shell: pwsh
+      run: |
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        if (!(Test-Path $vswhere)) {
+          Write-Error "vswhere.exe not found; Visual Studio Build Tools are required for the Windows Rust MSVC toolchain."
+          exit 1
+        }
+
+        $installationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if (!$installationPath) {
+          Write-Error "Visual Studio C++ build tools were not found."
+          exit 1
+        }
+
+        $vsDevCmd = Join-Path $installationPath "Common7\Tools\VsDevCmd.bat"
+        if (!(Test-Path $vsDevCmd)) {
+          Write-Error "VsDevCmd.bat not found at $vsDevCmd"
+          exit 1
+        }
+
+        $envOutput = cmd /s /c "`"$vsDevCmd`" -arch=x64 -host_arch=x64 >nul && set"
+        $captured = @{}
+        $names = @(
+          "PATH",
+          "INCLUDE",
+          "LIB",
+          "LIBPATH",
+          "VCINSTALLDIR",
+          "VCToolsInstallDir",
+          "WindowsSdkDir",
+          "WindowsSDKVersion"
+        )
+        foreach ($line in $envOutput) {
+          $index = $line.IndexOf("=")
+          if ($index -lt 1) { continue }
+          $name = $line.Substring(0, $index)
+          if ($names -notcontains $name) { continue }
+          $value = $line.Substring($index + 1)
+          $captured[$name] = $value
+          Add-Content -Path $env:GITHUB_ENV -Value "$name=$value"
+        }
+
+        $toolsDir = $captured["VCToolsInstallDir"]
+        if (!$toolsDir) {
+          Write-Error "VCToolsInstallDir was not produced by VsDevCmd.bat."
+          exit 1
+        }
+
+        $msvcLinker = Join-Path $toolsDir "bin\Hostx64\x64\link.exe"
+        if (!(Test-Path $msvcLinker)) {
+          Write-Error "MSVC linker not found at $msvcLinker"
+          exit 1
+        }
+
+        Add-Content -Path $env:GITHUB_ENV -Value "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=$msvcLinker"
+        Write-Host "Using explicit MSVC linker: $msvcLinker"
+
     - name: Setup Rust toolchain
       if: ${{ inputs.rust-target != '' }}
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       with:
         targets: ${{ inputs.rust-target }}
 
@@ -156,7 +262,9 @@ runs:
       id: cache-cargo-component
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ~/.cargo/bin/cargo-component
+        path: |
+          ~/.cargo/bin/cargo-component
+          ~/.cargo/bin/cargo-component.exe
         key: ${{ runner.os }}-cargo-component-0.21.1
 
     - name: Install cargo-component
@@ -167,6 +275,26 @@ runs:
           echo "cargo-component already installed"
         else
           cargo install --locked cargo-component --version 0.21.1
+        fi
+
+    - name: Cache cargo-llvm-cov
+      if: ${{ inputs.cache-mode != 'off' && inputs.rust-coverage == 'true' }}
+      id: cache-cargo-llvm-cov
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ~/.cargo/bin/cargo-llvm-cov
+          ~/.cargo/bin/cargo-llvm-cov.exe
+        key: ${{ runner.os }}-cargo-llvm-cov-0.8.7
+
+    - name: Install cargo-llvm-cov
+      if: ${{ inputs.rust-coverage == 'true' && (inputs.cache-mode == 'off' || steps.cache-cargo-llvm-cov.outputs.cache-hit != 'true') }}
+      shell: bash
+      run: |
+        if cargo llvm-cov --version >/dev/null 2>&1; then
+          echo "cargo-llvm-cov already installed"
+        else
+          cargo install --locked cargo-llvm-cov --version 0.8.7
         fi
 
     - name: Rust cache

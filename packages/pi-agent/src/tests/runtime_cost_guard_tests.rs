@@ -33,6 +33,23 @@ fn estimate_usd_sonnet_with_cache_discount() {
 }
 
 #[test]
+fn estimate_usd_openai_gpt_5_5() {
+    // 1000 in @ $5/1M + 500 out @ $30/1M = $0.005 + $0.015 = $0.020
+    let cost = estimate_usd("gpt-5.5", 1000, 500, 0);
+    let expected = (1000.0 / 1_000_000.0) * 5.0 + (500.0 / 1_000_000.0) * 30.0;
+    assert!((cost - expected).abs() < 1e-10);
+}
+
+#[test]
+fn estimate_usd_openai_worker_codex_uses_gpt_5_family_rate() {
+    let cost = estimate_usd("gpt-5.3-codex-spark", 1000, 500, 100);
+    let expected = (900.0 / 1_000_000.0) * 1.25
+        + (100.0 / 1_000_000.0) * 1.25 * 0.1
+        + (500.0 / 1_000_000.0) * 10.0;
+    assert!((cost - expected).abs() < 1e-10);
+}
+
+#[test]
 fn estimate_usd_ollama_is_zero() {
     assert_eq!(estimate_usd("llama3.2", 10000, 5000, 0), 0.0);
     assert_eq!(estimate_usd("mistral", 1000, 1000, 0), 0.0);

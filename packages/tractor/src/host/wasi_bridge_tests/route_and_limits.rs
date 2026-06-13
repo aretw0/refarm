@@ -4,7 +4,14 @@
         std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
 
     fn reset_llm_env() {
-        for k in ["LLM_PROVIDER", "LLM_DEFAULT_PROVIDER", "LLM_BASE_URL"] {
+        for k in [
+            "LLM_PROVIDER",
+            "LLM_DEFAULT_PROVIDER",
+            "LLM_BASE_URL",
+            "MODEL_PROVIDER",
+            "MODEL_DEFAULT_PROVIDER",
+            "MODEL_BASE_URL",
+        ] {
             std::env::remove_var(k);
         }
     }
@@ -154,6 +161,38 @@
 
         let route = expected_llm_route_from_env();
         assert_eq!(route.base_url, "https://my-proxy.example.com");
+        assert_eq!(route.path, "/openai/v1/chat/completions");
+
+        reset_llm_env();
+    }
+
+    #[test]
+    fn expected_route_falls_back_to_model_provider_when_llm_provider_is_absent() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("MODEL_PROVIDER", "openai");
+        std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "openai");
+        assert_eq!(route.base_url, "http://127.0.0.1:43210");
+        assert_eq!(route.path, "/v1/chat/completions");
+
+        reset_llm_env();
+    }
+
+    #[test]
+    fn expected_route_prefers_llm_provider_over_model_provider() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "groq");
+        std::env::set_var("LLM_BASE_URL", "https://llm-proxy.example.com");
+        std::env::set_var("MODEL_PROVIDER", "openai");
+        std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "groq");
+        assert_eq!(route.base_url, "https://llm-proxy.example.com");
         assert_eq!(route.path, "/openai/v1/chat/completions");
 
         reset_llm_env();
@@ -787,4 +826,3 @@
         assert!(preview.starts_with(&"a".repeat(32)));
         assert!(preview.contains("[truncated: llm-bridge error body exceeded 8192 bytes]"));
     }
-

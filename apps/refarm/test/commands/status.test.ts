@@ -1,10 +1,12 @@
 import type { RefarmStatusOptions } from "@refarm.dev/cli/status";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import fs from "node:fs";
 import {
 	HOMESTEAD_HOST_RENDERER_KINDS,
 	requiredHomesteadHostRendererCapabilities,
 } from "@refarm.dev/homestead/sdk/host-renderer";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	mockAssertRefarmStatusJson,
@@ -12,12 +14,14 @@ const {
 	mockFormatRefarmStatusJson,
 	mockFormatRefarmStatusMarkdown,
 	mockParseRefarmStatusJson,
+	mockProbeRuntimeReady,
 } = vi.hoisted(() => ({
 	mockAssertRefarmStatusJson: vi.fn(),
 	mockBuildRefarmStatusJson: vi.fn(),
 	mockFormatRefarmStatusJson: vi.fn(),
 	mockFormatRefarmStatusMarkdown: vi.fn(),
 	mockParseRefarmStatusJson: vi.fn(),
+	mockProbeRuntimeReady: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/cli/status", () => ({
@@ -28,15 +32,32 @@ vi.mock("@refarm.dev/cli/status", () => ({
 	parseRefarmStatusJson: mockParseRefarmStatusJson,
 }));
 
-import { statusCommand } from "../../src/commands/status.js";
+vi.mock("../../src/commands/runtime-readiness.js", () => ({
+	probeRuntimeReady: mockProbeRuntimeReady,
+}));
+
 import {
 	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
 	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
+import { statusCommand } from "../../src/commands/status.js";
 
 describe("statusCommand", () => {
+	let cwd: string;
+	let home: string;
+	let cargoTargetDir: string;
+	let originalCargoTargetDir: string | undefined;
+
 	beforeEach(() => {
+		cwd = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cwd-"));
+		home = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-home-"));
+		cargoTargetDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-status-cargo-"));
+		originalCargoTargetDir = process.env.CARGO_TARGET_DIR;
+		process.env.CARGO_TARGET_DIR = cargoTargetDir;
+		vi.spyOn(process, "cwd").mockReturnValue(cwd);
+		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.clearAllMocks();
+		mockProbeRuntimeReady.mockResolvedValue(true);
 		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
@@ -88,6 +109,33 @@ describe("statusCommand", () => {
 		});
 	});
 
+	afterEach(() => {
+		if (originalCargoTargetDir === undefined) {
+			delete process.env.CARGO_TARGET_DIR;
+		} else {
+			process.env.CARGO_TARGET_DIR = originalCargoTargetDir;
+		}
+		vi.restoreAllMocks();
+	});
+
+	it("documents status rendering and diagnostic next steps in help", () => {
+		let help = "";
+		statusCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		statusCommand.outputHelp();
+
+		expect(help).toContain("refarm status --json");
+		expect(help).toContain("refarm status --input status.json --markdown");
+		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("Use refarm doctor --next-action");
+		expect(help).toContain("Use refarm doctor --next-command");
+		expect(help).toContain("Use refarm doctor for the full readiness report");
+	});
+
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
 		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
@@ -96,8 +144,49 @@ describe("statusCommand", () => {
 					ready: true,
 					namespace: "refarm-main",
 					databaseName: "refarm-main",
+					engine: {
+						configuredEngine: "auto",
+						activeEngine: "ts",
+					},
 				},
 				trust: { profile: "strict", warnings: 0, critical: 0 },
+			}),
+		);
+	});
+
+	it("reports project tractor engine preference in live status", async () => {
+		fs.mkdirSync(path.join(cwd, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(cwd, ".refarm", "config.json"),
+			JSON.stringify({ tractor: { engine: "rust" } }),
+			"utf-8",
+		);
+
+		await statusCommand.parseAsync(["--json"], { from: "user" });
+
+		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect.objectContaining({
+				runtime: expect.objectContaining({
+					engine: {
+						configuredEngine: "rust",
+						activeEngine: "unknown",
+					},
+				}),
+			}),
+		);
+	});
+
+	it("reports runtime as not ready when the sidecar probe fails", async () => {
+		mockProbeRuntimeReady.mockResolvedValue(false);
+
+		await statusCommand.parseAsync(["--json"], { from: "user" });
+
+		expect(mockProbeRuntimeReady).toHaveBeenCalledWith(300);
+		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect.objectContaining({
+				runtime: expect.objectContaining({
+					ready: false,
+				}),
 			}),
 		);
 	});

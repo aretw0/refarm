@@ -68,8 +68,10 @@ impl AgentShellGuest for AgentTools {
 }
 
 // Hard cap: prevents a rogue agent from holding the host thread indefinitely.
-// 30 s is generous for any legitimate tool call; raise via plugin capability later.
-const MAX_TIMEOUT_MS: u32 = 30_000;
+// 120 s covers build/test/validation commands (type-check, lint, refarm agent finish).
+// Per-capability limits (letting trusted plugins request up to 300 s) are Phase 4 /
+// Scarecrow work — until then this flat cap applies to all agent-tools consumers.
+const MAX_TIMEOUT_MS: u32 = 120_000;
 
 fn enforce_spawn_policy(req: &SpawnRequest) -> Result<(), String> {
     if req.argv.is_empty() {

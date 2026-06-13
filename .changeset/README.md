@@ -76,6 +76,17 @@ See [config.json](./config.json) for current settings:
 3. **One changeset per logical change** — Multiple related packages can share one changeset
 4. **Version together** — Run `changeset:version` before releases, not per-commit
 
+### Pre-Publish Baseline
+
+Packages that have never been published should not accumulate fake release
+history. If a package is still waiting for its first npm release, fold changes
+that define the initial public contract into that package's initial-release
+changeset instead of stacking additional patch/minor changesets.
+
+Use a new changeset for an unpublished package only when it describes the first
+public version that should exist on the registry. Once a package has been
+published, follow normal SemVer changeset rules.
+
 ---
 
 ## Resources

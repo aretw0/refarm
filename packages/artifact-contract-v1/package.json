@@ -1,0 +1,32 @@
+{
+	"name": "@refarm.dev/artifact-contract-v1",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Shared artifact lifecycle types (draft/ready/active/archived) for managed artifacts",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"files": ["dist", "README.md"],
+	"publishConfig": { "access": "public" },
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}

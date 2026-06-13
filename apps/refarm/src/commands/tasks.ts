@@ -1,27 +1,58 @@
-import chalk from "chalk";
-import { Command } from "commander";
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
+import chalk from "chalk";
+import { Command, InvalidArgumentError } from "commander";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
-interface TaskListJson {
-	schemaVersion: 1;
-	command: "tasks";
-	operation: "list";
-	filters: {
-		status?: string;
-		session_id?: string;
-		limit?: number;
-	};
-	tasks: Task[];
+function parsePositiveIntOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive integer.`);
+	}
+	return parsed;
 }
 
-interface TaskShowJson {
-	schemaVersion: 1;
-	command: "tasks";
-	operation: "show";
-	prefix: string;
-	task: Task;
-	events: TaskEvent[];
+function printTaskErrorJson(input: {
+	error: string;
+	message?: string;
+	prefix?: string;
+	matches?: string[];
+	nextAction: string;
+	nextActions?: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
+}): void {
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "tasks",
+			operation: "show",
+			error: input.error,
+			message: input.message,
+			nextAction: input.nextAction,
+			nextActions: input.nextActions,
+			nextCommand: input.nextCommand,
+			nextCommands: input.nextCommands,
+			extra: {
+				schemaVersion: 1,
+				...(input.prefix ? { prefix: input.prefix } : {}),
+				...(input.matches ? { matches: input.matches } : {}),
+			},
+		}),
+	);
+	process.exitCode = 1;
 }
 
 function formatTaskId(id: string): string {
@@ -72,6 +103,14 @@ function statusLabel(status: string | undefined): string {
 	}
 }
 
+function tasksListJsonCommand(): string {
+	return refarmCommand(["tasks", "--json"]);
+}
+
+function tasksShowJsonCommand(prefix: string): string {
+	return refarmCommand(["tasks", "show", quoteCommandArg(prefix), "--json"]);
+}
+
 async function fetchTasks(
 	params: { status?: string; session_id?: string; limit?: number } = {},
 ): Promise<Task[]> {
@@ -100,29 +139,33 @@ async function listTasks(opts: {
 			limit: opts.limit,
 		});
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tasks",
+			operation: "list",
+		});
+		return;
 	}
 
 	if (opts.json) {
-		const body: TaskListJson = {
-			schemaVersion: 1,
+		const nextCommands = tasks[0]
+			? [tasksShowJsonCommand(tasks[0]["@id"]), tasksListJsonCommand()]
+			: [];
+		const body = buildJsonSuccessEnvelope({
 			command: "tasks",
 			operation: "list",
-			filters: {
-				status: opts.status,
-				session_id: opts.session,
-				limit: opts.limit,
+			extra: {
+				schemaVersion: 1,
+				filters: {
+					status: opts.status,
+					session_id: opts.session,
+					limit: opts.limit,
+				},
+				tasks,
 			},
-			tasks,
-		};
-		console.log(JSON.stringify(body, null, 2));
+			nextCommands,
+		});
+		printJson(body);
 		return;
 	}
 
@@ -164,43 +207,86 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 			matches?: string[];
 		};
 		if (response.status === 404) {
+			if (opts.json) {
+				printTaskErrorJson({
+					error: "task-not-found",
+					prefix,
+					nextAction: tasksListJsonCommand(),
+					nextCommand: tasksListJsonCommand(),
+				});
+				return;
+			}
 			console.error(chalk.red(`✗  No task matching "${prefix}"`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (response.status === 409) {
+			if (opts.json) {
+				printTaskErrorJson({
+					error: "ambiguous-task-prefix",
+					message: parsed.error,
+					prefix,
+					matches: parsed.matches ?? [],
+					nextAction: tasksListJsonCommand(),
+					nextCommand: tasksListJsonCommand(),
+				});
+				return;
+			}
 			console.error(
 				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
 			);
 			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (!response.ok) {
+			if (opts.json) {
+				printTaskErrorJson({
+					error: "task-show-failed",
+					message: parsed.error ?? `HTTP ${response.status}`,
+					prefix,
+					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+					nextActions: [
+						RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						RUNTIME_STATUS_COMMAND,
+					],
+					nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+					nextCommands: [
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+					],
+				});
+				return;
+			}
 			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		body = parsed;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tasks",
+			operation: "show",
+		});
+		return;
 	}
 
 	const { task, events } = body;
 
 	if (opts.json) {
-		const output: TaskShowJson = {
-			schemaVersion: 1,
+		const output = buildJsonSuccessEnvelope({
 			command: "tasks",
 			operation: "show",
-			prefix,
-			task,
-			events,
-		};
-		console.log(JSON.stringify(output, null, 2));
+			extra: {
+				schemaVersion: 1,
+				prefix,
+				task,
+				events,
+			},
+			nextCommands: [tasksListJsonCommand()],
+		});
+		printJson(output);
 		return;
 	}
 
@@ -241,8 +327,33 @@ export function createTasksCommand(): Command {
 		.description("List and inspect agent task memory")
 		.option("-s, --status <status>", "Filter by status (done/active/failed/blocked)")
 		.option("--session <id>", "Filter by session ID")
-		.option("-n, --limit <n>", "Max tasks to show", "20")
+		.option(
+			"-n, --limit <n>",
+			"Max tasks to show",
+			(value) => parsePositiveIntOption(value, "--limit"),
+			20,
+		)
 		.option("--json", "Output machine-readable JSON")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm tasks",
+				"  $ refarm tasks --status active",
+				"  $ refarm tasks --session <session-id>",
+				"  $ refarm tasks show <task-id-prefix>",
+				"  $ refarm tasks show <task-id-prefix> --json",
+				"  $ refarm tasks --json",
+				"",
+				"Notes:",
+				"  Tasks are created by runtime-backed flows such as refarm ask and refarm task run.",
+				`  If the task sidecar is unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
+				`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
+				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
+				"  Use refarm task for dispatch/retry/cancel operations.",
+			].join("\n"),
+		)
 		.addCommand(
 			new Command("show")
 				.description("Show details and events for a task")
@@ -252,14 +363,20 @@ export function createTasksCommand(): Command {
 					await showTask(prefix, { json: opts.json });
 				}),
 		)
-		.action(async (opts: { status?: string; session?: string; limit?: string; json?: boolean }) => {
-			await listTasks({
-				status: opts.status,
-				session: opts.session,
-				limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
-				json: opts.json,
+		.action(
+			async (opts: {
+				status?: string;
+				session?: string;
+				limit?: number;
+				json?: boolean;
+			}) => {
+				await listTasks({
+					status: opts.status,
+					session: opts.session,
+					limit: opts.limit,
+					json: opts.json,
+				});
 			});
-		});
 }
 
 export const tasksCommand = createTasksCommand();

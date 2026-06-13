@@ -623,6 +623,26 @@
     }
 
     #[test]
+    fn plugin_runtime_env_vars_forwards_streams_dir() {
+        let previous = std::env::var("REFARM_STREAMS_DIR").ok();
+        std::env::set_var("REFARM_STREAMS_DIR", "/tmp/refarm-streams-test");
+
+        let vars = plugin_runtime_env_vars();
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(
+            map.get("REFARM_STREAMS_DIR"),
+            Some(&"/tmp/refarm-streams-test".to_string())
+        );
+
+        if let Some(value) = previous {
+            std::env::set_var("REFARM_STREAMS_DIR", value);
+        } else {
+            std::env::remove_var("REFARM_STREAMS_DIR");
+        }
+    }
+
+    #[test]
     fn merge_plugin_env_vars_caps_total_entries() {
         let model: Vec<(String, String)> = (0..220)
             .map(|i| (format!("MODEL_SAFE_{i:03}"), "ok".to_string()))

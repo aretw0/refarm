@@ -3,18 +3,24 @@
  * agent-repl — interactive multi-turn session with pi-agent
  *
  * Usage:
- *   pnpm run agent:repl
- *   pnpm run agent:repl -- --ws-port 42001 --namespace dev
+ *   Run the agent:repl package script with the configured package manager.
  *
  * Prerequisites:
- *   pnpm run agent:daemon   (or agent:start in a separate terminal)
- *   ppnpm run agent:keys     (configure at least one LLM provider)
+ *   Run agent:daemon (or agent:start) in a separate terminal.
+ *   Configure at least one LLM provider.
  */
 
 import { createInterface } from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import os from 'node:os';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  defaultModelForProvider,
+  modelCredentialStatus,
+} from '../packages/config/src/model-routing.js';
+import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const TRACTOR = process.env.CARGO_TARGET_DIR
@@ -28,6 +34,7 @@ const c = {
   green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m',
   cyan: '\x1b[36m', blue: '\x1b[34m',
 };
+function scriptCommand(script) { return packageScriptCommand(script, { cwd: ROOT }).display; }
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
@@ -57,10 +64,39 @@ function loadEnvFile() {
   }
 }
 
+function readSiloTokens() {
+  try {
+    const file = join(os.homedir(), '.refarm', 'identity.json');
+    if (!existsSync(file)) return {};
+    return JSON.parse(readFileSync(file, 'utf8')).tokens ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function configureModelEnvFromSilo() {
+  const tokens = readSiloTokens();
+  const storedProvider = tokens.modelProvider;
+  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || storedProvider || DEFAULT_MODEL_PROVIDER;
+  const model = process.env.MODEL_ID || tokens.modelId || tokens.model || defaultModelForProvider(provider);
+
+  if (provider && !process.env.MODEL_PROVIDER && !process.env.MODEL_DEFAULT_PROVIDER) {
+    process.env.MODEL_PROVIDER = provider;
+  }
+  if (model && !process.env.MODEL_ID) {
+    process.env.MODEL_ID = model;
+  }
+
+  const status = modelCredentialStatus(provider, tokens, process.env);
+  if (status.state === 'silo-api-key' && !process.env[status.envKey]) {
+    process.env[status.envKey] = tokens.modelApiKey;
+  }
+}
+
 function checkDaemon() {
   if (!existsSync(TRACTOR)) {
     console.error(`${c.red}tractor binary not found at ${TRACTOR}${c.reset}`);
-    console.error(`Build first: cd packages/tractor && cargo build --release`);
+    console.error(`Build first: cargo build --manifest-path packages/tractor/Cargo.toml --release`);
     process.exit(1);
   }
   const r = spawnSync(TRACTOR, ['health', '--ws-port', WS_PORT, '--skip-boot-probe'], {
@@ -379,15 +415,16 @@ function handleSlashCommand(line) {
 
 async function main() {
   loadEnvFile();
+  configureModelEnvFromSilo();
 
-  const provider = process.env.MODEL_PROVIDER || 'ollama';
+  const provider = process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || DEFAULT_MODEL_PROVIDER;
 
   // Check daemon is alive
   const daemonRunning = checkDaemon();
   if (!daemonRunning) {
     console.error(`${c.yellow}Daemon not responding on port ${WS_PORT}.${c.reset}`);
-    console.error(`Start it first:  ${c.cyan}pnpm run agent:daemon${c.reset}`);
-    console.error(`Or:              ${c.cyan}pnpm run agent:start${c.reset}  (foreground)`);
+    console.error(`Start it first:  ${c.cyan}${scriptCommand('agent:daemon')}${c.reset}`);
+    console.error(`Or:              ${c.cyan}${scriptCommand('agent:start')}${c.reset}  (foreground)`);
     process.exit(1);
   }
 

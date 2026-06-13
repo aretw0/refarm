@@ -34,7 +34,7 @@ export NPM_CONFIG_PREFIX=/home/${TARGET_USER}/.npm-global
 export CARGO_HOME=/usr/local/cargo
 export RUSTUP_HOME=/usr/local/rustup
 export CARGO_TERM_COLOR=always
-export PATH=/home/${TARGET_USER}/.local/share/pnpm:/home/${TARGET_USER}/.npm-global/bin:/home/${TARGET_USER}/.cargo-local/bin:/home/${TARGET_USER}/.local/bin:/usr/local/cargo/bin:\$PATH
+export PATH=/home/${TARGET_USER}/.local/share/pnpm/bin:/home/${TARGET_USER}/.local/share/pnpm:/home/${TARGET_USER}/.npm-global/bin:/home/${TARGET_USER}/.cargo-local/bin:/home/${TARGET_USER}/.local/bin:/usr/local/cargo/bin:\$PATH
 cd "${PROJECT_DIR}"
 INIT
 

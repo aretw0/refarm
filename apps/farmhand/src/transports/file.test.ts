@@ -126,6 +126,60 @@ describe("FileTransportAdapter", () => {
 		expect(logs![0]!.event).toBe("submitted");
 	});
 
+	it("writes executor metadata to task outcome logs", async () => {
+		executor.mockResolvedValueOnce({
+			status: "ok",
+			result: 42,
+			meta: {
+				modelScope: "worker",
+				modelProvider: "openai",
+				modelId: "gpt-5.3-codex-spark",
+			},
+		});
+		const effort = makeEffort();
+
+		await adapter.process(effort);
+
+		const logs = await adapter.logs("e1");
+		expect(logs).toContainEqual(
+			expect.objectContaining({
+				event: "task_attempt_succeeded",
+				meta: {
+					modelScope: "worker",
+					modelProvider: "openai",
+					modelId: "gpt-5.3-codex-spark",
+				},
+			}),
+		);
+	});
+
+	it("writes executor metadata to task failure logs", async () => {
+		executor.mockResolvedValueOnce({
+			status: "error",
+			error: "quota exceeded",
+			meta: {
+				modelScope: "worker",
+				modelProvider: "openai",
+				modelId: "gpt-5.3-codex-spark",
+			},
+		});
+		const effort = makeEffort();
+
+		await adapter.process(effort);
+
+		const logs = await adapter.logs("e1");
+		expect(logs).toContainEqual(
+			expect.objectContaining({
+				event: "task_attempt_failed",
+				meta: {
+					modelScope: "worker",
+					modelProvider: "openai",
+					modelId: "gpt-5.3-codex-spark",
+				},
+			}),
+		);
+	});
+
 	it("summary() aggregates by status", async () => {
 		const doneEffort = makeEffort({ id: "done-e", tasks: [] });
 		const pendingEffort = makeEffort({ id: "pending-e", tasks: [] });

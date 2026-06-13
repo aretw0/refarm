@@ -68,4 +68,3 @@ fn provider_runtime_push_executed_call_appends_schema_shape() {
     assert_eq!(entry["input"]["path"], "README.md");
     assert_eq!(entry["result"], "ok");
 }
-

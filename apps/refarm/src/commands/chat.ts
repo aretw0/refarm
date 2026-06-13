@@ -1,28 +1,69 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import readline from "node:readline";
+import { launchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
 	CwdContextProvider,
 	DateContextProvider,
 	GitStatusContextProvider,
+	OperatorStateProvider,
+	PolicyFilesContextProvider,
 	SessionDigestContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import { parseChatLine, CHAT_HELP_TEXT } from "./chat-repl.js";
-import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import readline from "node:readline";
+import {
+	loadChatHistory,
+	rememberChatHistoryLine,
+	saveChatHistory,
+} from "./chat-history.js";
+import {
+	CHAT_HELP_TEXT,
+	CHAT_RUNTIME_COMMANDS_HELP,
+	parseChatLine,
+} from "./chat-repl.js";
+import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
+import {
+	defaultModelDeps,
+	printCurrentModel,
+	printKnownModelProviders,
+	resetScopedModelRoute,
+	setFallbackModelRoute,
+	setModelBaseUrl,
+	setModelRoute,
+	type ModelCommandDeps,
+} from "./model.js";
+import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
+import {
+	readRuntimePluginState,
+	reloadRuntimePluginsAndWait,
+	type RuntimePluginState,
+} from "./runtime-plugins.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
+import {
+	autoStartRuntime,
+	defaultLaunchDeps,
+	findRepoRoot,
+} from "./session-launch.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+import { observedTaskResultError } from "./task-observation.js";
+export {
+	loadChatHistory,
+	rememberChatHistoryLine,
+	resolveChatHistoryPath,
+	saveChatHistory
+} from "./chat-history.js";
 
 export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -42,49 +83,18 @@ export interface ChatDeps {
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
 	reloadPlugins(pluginIds?: string[]): Promise<{ reloaded: string[]; skipped: string[] }>;
+	readPluginState?(): Promise<RuntimePluginState | null>;
+	model?: ModelCommandDeps;
+	configureCredentials?(args?: string[]): Promise<void>;
+	recoverRuntime?(): Promise<boolean>;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
 	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
 
 const DEFAULT_HISTORY_TURNS = 20;
-const MAX_CHAT_HISTORY_LINES = 500;
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
-export function resolveChatHistoryPath(homeDir = os.homedir()): string {
-	return path.join(homeDir, ".refarm", "chat-history");
-}
-
-export function loadChatHistory(historyPath = resolveChatHistoryPath()): string[] {
-	if (!fs.existsSync(historyPath)) return [];
-	return fs
-		.readFileSync(historyPath, "utf-8")
-		.split("\n")
-		.map((line) => line.trim())
-		.filter(Boolean)
-		.slice(0, MAX_CHAT_HISTORY_LINES);
-}
-
-export function rememberChatHistoryLine(
-	history: string[],
-	line: string,
-): string[] {
-	const trimmed = line.trim();
-	if (!trimmed || trimmed.startsWith("/")) return history;
-	return [
-		trimmed,
-		...history.filter((entry) => entry !== trimmed),
-	].slice(0, MAX_CHAT_HISTORY_LINES);
-}
-
-export function saveChatHistory(
-	history: readonly string[],
-	historyPath = resolveChatHistoryPath(),
-): void {
-	fs.mkdirSync(path.dirname(historyPath), { recursive: true });
-	fs.writeFileSync(historyPath, `${history.slice(0, MAX_CHAT_HISTORY_LINES).join("\n")}\n`, "utf-8");
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
@@ -94,73 +104,10 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 		body: JSON.stringify(effort),
 	});
 	if (!response.ok) {
-		throw new Error(`Farmhand HTTP ${response.status}`);
+		throw new Error(`Runtime HTTP ${response.status}`);
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
-
-async function reloadPluginsViaHttp(
-	pluginIds?: string[],
-): Promise<{ reloaded: string[]; skipped: string[] }> {
-	const response = await fetch(sidecarUrl("/plugins/reload"), {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: pluginIds ? JSON.stringify({ pluginIds }) : undefined,
-	});
-	if (!response.ok) {
-		throw new Error(`Farmhand HTTP ${response.status}`);
-	}
-
-	const { reloadId, reloaded, deferred, skipped } = (await response.json()) as {
-		reloadId: string;
-		reloaded: string[];
-		deferred: string[];
-		skipped: string[];
-	};
-
-	if (deferred.length === 0) {
-		return { reloaded, skipped };
-	}
-
-	// Poll until all deferred reloads complete
-	const pending = new Set(deferred);
-	const completed = new Set(reloaded);
-	const failed = new Set(skipped);
-
-	for (const p of deferred) {
-		process.stdout.write(chalk.yellow(`⏳ ${p}: waiting for active tasks...\n`));
-	}
-
-	while (pending.size > 0) {
-		await new Promise<void>((r) => setTimeout(r, 500));
-
-		const statusRes = await fetch(
-			sidecarUrl(`/plugins/reload/status/${reloadId}`),
-		);
-		if (!statusRes.ok) break;
-
-		const status = (await statusRes.json()) as {
-			pending: string[];
-			completed: string[];
-			failed: string[];
-		};
-
-		for (const p of status.completed) {
-			if (pending.delete(p)) completed.add(p);
-		}
-		for (const p of status.failed) {
-			if (pending.delete(p)) failed.add(p);
-		}
-		for (const p of [...pending]) {
-			if (!status.pending.includes(p)) {
-				pending.delete(p);
-				if (!completed.has(p)) failed.add(p);
-			}
-		}
-	}
-
-	return { reloaded: [...completed], skipped: [...failed] };
 }
 
 function followStreamFile(
@@ -286,6 +233,8 @@ function extractResultPayload(result: unknown): {
 			error: typeof task.error === "string" ? task.error : "Effort finished with task error",
 		};
 	}
+	const observedError = observedTaskResultError(task.result);
+	if (observedError) return { status: "error", error: observedError };
 	let payload: unknown = task.result;
 	if (typeof payload === "string") {
 		const rawContent = payload;
@@ -321,7 +270,18 @@ export function defaultChatDeps(): ChatDeps {
 	const resultsDir = path.join(os.homedir(), ".refarm", "task-results");
 	return {
 		submitEffort: submitViaHttp,
-		reloadPlugins: reloadPluginsViaHttp,
+		reloadPlugins: async (pluginIds?: string[]) => {
+			const result = await reloadRuntimePluginsAndWait(pluginIds, {
+				onDeferred: (pluginId) => {
+					process.stdout.write(
+						chalk.yellow(`⏳ ${pluginId}: waiting for active tasks...\n`),
+					);
+				},
+			});
+			if (!result) throw new Error("Refarm runtime plugin reload is unavailable");
+			return result;
+		},
+		readPluginState: readRuntimePluginState,
 		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
 		followStream: (effortId, onChunk, options) =>
 			followStreamFile(streamsDir, effortId, onChunk, options),
@@ -329,12 +289,30 @@ export function defaultChatDeps(): ChatDeps {
 		readActiveSessionId,
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
+		configureCredentials: runSowCommand,
+		recoverRuntime: () => autoStartRuntime(findRepoRoot(), defaultLaunchDeps()),
 	};
+}
+
+async function runSowCommand(args: string[] = []): Promise<void> {
+	const node = process.argv[0];
+	const entrypoint = process.argv[1];
+	if (!node || !entrypoint) {
+		throw new Error("Cannot locate the refarm CLI entrypoint for credential setup.");
+	}
+	const exitCode = await launchProcess({
+		command: node,
+		args: [entrypoint, "sow", ...args],
+		display: ["refarm", "sow", ...args].join(" "),
+	});
+	if (exitCode !== 0) {
+		throw new Error(`Credential setup exited with ${exitCode}`);
+	}
 }
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 
-function startThinkingSpinner(getMessage?: (frame: number, elapsedMs: number) => string): () => void {
+export function startThinkingSpinner(getMessage?: (frame: number, elapsedMs: number) => string): () => void {
 	if (!process.stdout.isTTY) return () => {};
 	const startMs = Date.now();
 	let frame = 0;
@@ -363,13 +341,9 @@ function usageLine(metadata: Record<string, unknown>): string {
 }
 
 function printChatError(message: string): void {
-	const isFarmhandDown =
-		message.includes("ECONNREFUSED") ||
-		message.includes("fetch failed") ||
-		message.includes("Farmhand HTTP");
-	if (isFarmhandDown) {
-		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+	if (isSidecarUnavailable(message)) {
+		console.error();
+		printSidecarUnavailable();
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}
@@ -383,6 +357,8 @@ async function runTurn(
 	const providers = [
 		new SessionDigestContextProvider(),
 		new CwdContextProvider(),
+		new PolicyFilesContextProvider(),
+		new OperatorStateProvider(),
 		new DateContextProvider(),
 		new GitStatusContextProvider(),
 	];
@@ -390,7 +366,7 @@ async function runTurn(
 	const entries = await registry.collect({ cwd: process.cwd(), query });
 	const system = buildSystemPrompt(entries);
 
-	const effort = createPiAgentRespondEffort({
+	const effort = createRuntimeAgentRespondEffort({
 		prompt: query,
 		system,
 		sessionId,
@@ -399,7 +375,12 @@ async function runTurn(
 	});
 
 	const submittedAtMs = Date.now();
-	const effortId = await deps.submitEffort(effort);
+	const effortId = await submitEffortWithRuntimeRecovery(effort, {
+		...deps,
+		onRecoveringRuntime: () => {
+			console.error(chalk.yellow("\nRefarm runtime stopped responding."));
+		},
+	});
 
 	const stopSpinner = startThinkingSpinner(deps.spinnerMessage?.bind(deps));
 	let spinnerCleared = false;
@@ -558,6 +539,50 @@ export async function runSessionRepl(
 					})();
 					break;
 
+				case "model":
+					rl.pause();
+					void (async () => {
+						try {
+							const modelDeps = deps.model ?? defaultModelDeps();
+							if (command.action === "current") {
+								printCurrentModel(await modelDeps.loadTokens());
+							} else if (command.action === "providers") {
+								printKnownModelProviders();
+							} else if (command.action === "fallback") {
+								await setFallbackModelRoute(command.ref, modelDeps);
+							} else if (command.action === "base-url") {
+								await setModelBaseUrl(command.url, modelDeps);
+							} else if (command.action === "reset") {
+								await resetScopedModelRoute(command.scope, modelDeps);
+							} else {
+								await setModelRoute(command.ref, command.scope, modelDeps);
+							}
+						} catch (error) {
+							const message = error instanceof Error ? error.message : String(error);
+							console.error(chalk.red(`✗  ${message}`));
+						}
+						console.log();
+						rl.resume();
+						rl.prompt();
+					})();
+					break;
+
+				case "login":
+					rl.pause();
+					void (async () => {
+						try {
+							await (deps.configureCredentials ?? runSowCommand)(command.args);
+							console.log(chalk.dim("Refarm runtime reloads saved credentials before each task."));
+						} catch (error) {
+							const message = error instanceof Error ? error.message : String(error);
+							console.error(chalk.red(`✗  ${message}`));
+						}
+						console.log();
+						rl.resume();
+						rl.prompt();
+					})();
+					break;
+
 				case "message": {
 					if (command.text.length === 0) {
 						rl.prompt();
@@ -596,6 +621,20 @@ export function createChatCommand(deps?: ChatDeps): Command {
 		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session")
 		.option("--session <id>", "Resume a specific session ID or prefix")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm chat
+  $ refarm chat --new
+  $ refarm chat --session <id-prefix>
+  $ refarm chat "continue daqui"
+
+Runtime commands:
+${CHAT_RUNTIME_COMMANDS_HELP}
+`,
+		)
 		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {
 			const { runSessionLaunchFlow } = await import("./session.js");
 			await runSessionLaunchFlow({ ...opts, message }, deps);

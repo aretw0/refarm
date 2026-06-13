@@ -73,5 +73,30 @@ validations/
 ```bash
 pnpm run test:e2e       # Playwright E2E (wasm-plugin/host)
 pnpm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
+pnpm run validation-pocs:test # POCs sintéticas + manifests + índice
+pnpm run validation-pocs:writing-consumer:test # Consumidor de escrita
+node scripts/ci/check-validation-poc-writing-consumer.mjs --json
 pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ```
+
+## Índice de Evidências POC
+
+`poc-evidence-index.json` é gerado por `pnpm run validation-pocs:index` a
+partir dos manifests `refarm.task-artifacts.v1`. Ele serve como mapa de leitura
+para consumidores externos: cenário, anexo, scorecard, limites, evidências de
+promoção de claims e `writingClaims` por tema.
+
+Cada item de `writingClaims` contém uma afirmação cuidadosa, as evidências
+primárias que sustentam a afirmação e o limite de linguagem que ainda não deve
+ser ultrapassado. Isso permite que vaults, labs ou ferramentas de escrita usem
+o índice sem copiar semântica privada de proposta para dentro do Refarm.
+
+`pnpm run validation-pocs:writing-consumer:test` valida esse contrato do ponto
+de vista de um consumidor externo: todas as evidências primárias precisam
+resolver para arquivos locais, cada tema precisa expor seus limites de uso, e o
+índice deve continuar neutro, sem termos de proposta ou vault privado.
+
+Para automação, `node scripts/ci/check-validation-poc-writing-consumer.mjs --json`
+emite um envelope estável com `ok`, `pocCount`, `indexPath` e `schema`; em falha,
+o mesmo modo retorna `ok: false` e `error` antes de sair com código diferente de
+zero.

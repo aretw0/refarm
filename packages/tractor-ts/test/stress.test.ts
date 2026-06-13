@@ -4,7 +4,7 @@
  * These tests push the Tractor to its limits to surface bottlenecks,
  * memory leaks, and concurrency issues before they hit production.
  *
- * Run: npx vitest run test/stress.test.ts
+ * Run: <package-manager> exec vitest run test/stress.test.ts
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";

@@ -76,9 +76,19 @@ describe("buildSystemPrompt", () => {
 			{ label: "last", content: "Z", priority: 90 },
 			{ label: "first", content: "A", priority: 10 },
 		]);
-		expect(prompt).toContain("You are pi-agent");
+		expect(prompt).toContain("You are the Refarm runtime agent");
 		expect(prompt).toContain("<contexts>");
 		expect(prompt).toContain('<context label="first">');
 		expect(prompt.indexOf("first")).toBeLessThan(prompt.indexOf("last"));
+	});
+
+	it("includes deterministic coding workflow guidance", () => {
+		const prompt = buildSystemPrompt([{ label: "cwd", content: "/workspaces/refarm" }]);
+		expect(prompt).toContain("When the user asks you to edit code");
+		expect(prompt).toContain("refarm package-manager --json");
+		expect(prompt).toContain("refarm agent finish --lane after-edit --run --json");
+		expect(prompt).toContain("refarm agent finish --lane before-push --run --json");
+		expect(prompt).toContain("refarm agent finish --profile package --workspace <dir> --run --json");
+		expect(prompt).toContain("Do not commit until verification passes");
 	});
 });

@@ -1,7 +1,12 @@
-import {
-	classifyRefarmStatusDiagnostics,
-	type RefarmStatusJson,
-} from "@refarm.dev/cli/status";
+import { InvalidArgumentError } from "commander";
+export {
+	assertLaunchAllowed,
+	resolveLaunchReadiness,
+} from "@refarm.dev/cli/launch-policy";
+export type {
+	LaunchReadiness,
+	RefarmLaunchReadiness,
+} from "@refarm.dev/cli/launch-policy";
 
 export function resolveLaunchMode<TMode extends string>(
 	input: unknown,
@@ -11,19 +16,7 @@ export function resolveLaunchMode<TMode extends string>(
 		return input as TMode;
 	}
 
-	throw new Error(
+	throw new InvalidArgumentError(
 		`Invalid --launcher value ${JSON.stringify(input)}. Use one of: ${allowed.join(", ")}.`,
 	);
-}
-
-export function assertLaunchAllowed(
-	json: RefarmStatusJson,
-	target: string,
-): void {
-	const diagnostics = classifyRefarmStatusDiagnostics(json);
-	if (diagnostics.failures.length > 0) {
-		throw new Error(
-			`Cannot launch ${target} due status failures: ${diagnostics.failures.join(", ")}.`,
-		);
-	}
 }

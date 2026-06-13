@@ -63,6 +63,13 @@ describe("refarm tree switch and guards", () => {
 			scope: "git",
 			operation: "switch",
 			reason: "executed",
+			nextAction: "refarm tree show --scope git safe/fork --json",
+			nextActions: ["refarm tree show --scope git safe/fork --json"],
+			nextCommand: "refarm tree show --scope git safe/fork --json",
+			nextCommands: [
+				"refarm tree show --scope git safe/fork --json",
+				"refarm tree list --scope git --json",
+			],
 			result: {
 				kind: "git-switch",
 				destructive: false,
@@ -79,23 +86,16 @@ describe("refarm tree switch and guards", () => {
 	it("rejects git tree switches when the branch is missing", async () => {
 		spawnSyncMock.mockReturnValueOnce(makeSpawnResult(1));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["safe/fork", "--scope", "git"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["safe/fork", "--scope", "git"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Git branch "safe/fork" does not exist.'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -107,23 +107,16 @@ describe("refarm tree switch and guards", () => {
 				makeSpawnResult(0, " M apps/refarm/src/commands/tree.ts\n"),
 			);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["safe/fork", "--scope", "git"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["safe/fork", "--scope", "git"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Git worktree must be clean before tree switch"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(3);
 	});
 
@@ -132,23 +125,16 @@ describe("refarm tree switch and guards", () => {
 			.mockReturnValueOnce(makeSpawnResult(0))
 			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["safe/fork", "--scope", "git"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["safe/fork", "--scope", "git"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Git branch "safe/fork" is already active.'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 
@@ -183,6 +169,13 @@ describe("refarm tree switch and guards", () => {
 			scope: "session",
 			operation: "switch",
 			reason: "executed",
+			nextAction: "refarm tree show abc123def456 --json",
+			nextActions: ["refarm tree show abc123def456 --json"],
+			nextCommand: "refarm tree show abc123def456 --json",
+			nextCommands: [
+				"refarm tree show abc123def456 --json",
+				"refarm tree list --scope session --json",
+			],
 			result: {
 				kind: "session-switch",
 				destructive: false,
@@ -208,18 +201,11 @@ describe("refarm tree switch and guards", () => {
 			() => undefined as string | undefined,
 		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["abc123"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123"], { from: "user" });
 
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm/session.lock"),
@@ -229,7 +215,45 @@ describe("refarm tree switch and guards", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints session switch verification failures as JSON", async () => {
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
+		vi.spyOn(fs, "readFileSync")
+			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
+			.mockReturnValueOnce("urn:refarm:session:v1:other00000001");
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(
+			() => undefined as string | undefined,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "switch",
+			scope: "session",
+			ok: false,
+			error: "session-tree-switch-failed",
+			prefix: "abc123",
+			sessionId: SESSION["@id"],
+			currentSessionIdBefore: "urn:refarm:session:v1:previous0001",
+			nextAction: "refarm tree preview abc123def456 --switch --json",
+			nextCommand: "refarm tree preview abc123def456 --switch --json",
+			nextCommands: [
+				"refarm tree preview abc123def456 --switch --json",
+				"refarm tree list --scope session --json",
+			],
+		});
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -240,46 +264,88 @@ describe("refarm tree switch and guards", () => {
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["abc123"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Session "abc123def456" is already active.'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+		expect(writeSpy).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints already-active session tree switches as JSON", async () => {
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
+		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "switch",
+			scope: "session",
+			ok: false,
+			error: "session-tree-already-active",
+			message: 'Session "abc123def456" is already active.',
+			prefix: "abc123",
+			sessionId: SESSION["@id"],
+			nextAction: "refarm tree show abc123def456 --json",
+			nextCommand: "refarm tree show abc123def456 --json",
+		});
+		expect(process.exitCode).toBe(1);
 		expect(writeSpy).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
 	it("rejects unsafe git tree switch targets before git execution", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "switch")!
-				.parseAsync(["HEAD", "--scope", "git"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["HEAD", "--scope", "git"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Invalid branch name "HEAD"'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints unsafe git tree switch targets as JSON before git execution", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["HEAD", "--scope", "git", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "switch",
+			ok: false,
+			error: "invalid-tree-branch-name",
+			message: expect.stringContaining('Invalid branch name "HEAD"'),
+			nextCommand: "refarm tree list --scope all --json",
+			nextCommands: ["refarm tree list --scope all --json"],
+			branchName: "HEAD",
+		});
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -287,29 +353,30 @@ describe("refarm tree switch and guards", () => {
 		"0",
 		"201",
 		"1abc",
-	])("fails closed for invalid session list limit %s", async (limit) => {
+	])("prints structured JSON for invalid session list limit %s", async (limit) => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "session", "--limit", limit, "--json"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "session", "--limit", limit, "--json"], {
+				from: "user",
+			});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(`Invalid --limit "${limit}"`),
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message: `Invalid --limit "${limit}". Use an integer from 1 to 200.`,
+				limit,
+				nextCommand: "refarm tree list --json",
+			}),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
@@ -318,27 +385,28 @@ describe("refarm tree switch and guards", () => {
 		"0",
 		"201",
 		"1abc",
-	])("fails closed for invalid all list limit %s", async (limit) => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
+	])("prints structured JSON for invalid all list limit %s", async (limit) => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "all", "--limit", limit, "--json"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", limit, "--json"], {
+				from: "user",
+			});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(`Invalid --limit "${limit}"`),
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message: `Invalid --limit "${limit}". Use an integer from 1 to 200.`,
+				limit,
+				nextCommand: "refarm tree list --json",
+			}),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -346,27 +414,28 @@ describe("refarm tree switch and guards", () => {
 		"0",
 		"201",
 		"1abc",
-	])("fails closed for invalid git list limit %s", async (limit) => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
+	])("prints structured JSON for invalid git list limit %s", async (limit) => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "git", "--limit", limit, "--json"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "git", "--limit", limit, "--json"], {
+				from: "user",
+			});
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(`Invalid --limit "${limit}"`),
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "invalid-tree-list-limit",
+				message: `Invalid --limit "${limit}". Use an integer from 1 to 200.`,
+				limit,
+				nextCommand: "refarm tree list --json",
+			}),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
@@ -374,25 +443,48 @@ describe("refarm tree switch and guards", () => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "list")!
-				.parseAsync(["--scope", "crdt"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "crdt"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--scope session|git|all"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints structured JSON for unsupported list scopes", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "crdt", "--json"], {
+				from: "user",
+			});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "list",
+				error: "unsupported-tree-list-scope",
+				message:
+					'refarm tree list currently supports --scope session|git|all; received "crdt".',
+				scope: "crdt",
+				allowedScopes: ["session", "git", "all"],
+				nextCommand: "refarm tree list --scope all --json",
+			}),
+		);
+		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
@@ -406,23 +498,44 @@ describe("refarm tree switch and guards", () => {
 		const fetchMock = vi.fn();
 		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === commandName)!
-				.parseAsync([...args], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === commandName)!
+			.parseAsync([...args], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--scope session|git for this operation"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints structured JSON when all scope is used outside read-only list", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123", "--scope", "all", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tree",
+				operation: "show",
+				error: "unsupported-tree-scope",
+				message:
+					'refarm tree currently supports --scope session|git for this operation; received "all".',
+				scope: "all",
+				allowedScopes: ["session", "git"],
+				nextCommand: "refarm tree list --scope all --json",
+			}),
+		);
+		expect(process.exitCode).toBe(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});

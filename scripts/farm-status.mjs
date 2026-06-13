@@ -3,7 +3,7 @@
  * farm-status — unified process and health status for the Refarm factory.
  *
  * Covers tractor (Rust WASM host) and farmhand (Node.js task orchestrator).
- * Run: pnpm run farm:status
+ * Run through the package manager configured in package.json.
  * See: docs/PROCESS_PLAYBOOK.md
  */
 
@@ -11,6 +11,12 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import os from 'node:os';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  defaultModelForProvider,
+  modelCredentialStatus,
+} from '../packages/config/src/model-routing.js';
+import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -25,6 +31,7 @@ function warn(label, msg) { console.log(`  ${c.yellow}[!]${c.reset} ${c.bold}${l
 function fail(label, msg) { console.log(`  ${c.red}[x]${c.reset} ${c.bold}${label.padEnd(14)}${c.reset} ${c.red}${msg}${c.reset}`); }
 function info(label, msg) { console.log(`  ${c.dim}[o]${c.reset} ${c.bold}${label.padEnd(14)}${c.reset} ${c.dim}${msg}${c.reset}`); }
 function section(name)    { console.log(`\n${c.bold}${name}${c.reset}`); }
+function scriptCommand(script) { return packageScriptCommand(script, { cwd: ROOT }).display; }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -141,7 +148,7 @@ function checkTractor() {
     if (b42.bound && b42.pid !== farmhandPid) {
       warn('tractor', `no PID file but port 42000 bound by PID ${b42.pid ?? '?'} (${b42.proc ?? 'unknown'}) — stale?`);
     } else {
-      info('tractor', `not running  ${c.dim}(start: pnpm run agent:daemon)${c.reset}`);
+      info('tractor', `not running  ${c.dim}(start: ${scriptCommand('agent:daemon')})${c.reset}`);
     }
     return false;
   }
@@ -167,7 +174,7 @@ async function checkFarmhand() {
     } else if (b42.bound) {
       info('farmhand', `not running  (port 42000 held by ${b42.proc ?? 'pid=' + b42.pid})`);
     } else {
-      info('farmhand', `not running  ${c.dim}(start: pnpm run farmhand:daemon)${c.reset}`);
+      info('farmhand', `not running  ${c.dim}(start: ${scriptCommand('farmhand:daemon')})${c.reset}`);
     }
     return false;
   }
@@ -199,13 +206,13 @@ function checkArtifacts() {
   if (existsSync(tractor)) {
     ok('tractor-bin', `${fileSize(tractor)}  built ${fileAge(tractor)}`);
   } else {
-    fail('tractor-bin', `not found — build: cd packages/tractor && cargo build --release`);
+    fail('tractor-bin', `not found — build: cargo build --manifest-path packages/tractor/Cargo.toml --release`);
   }
 
   if (existsSync(wasm)) {
     ok('pi_agent.wasm', `${fileSize(wasm)}  built ${fileAge(wasm)}`);
   } else {
-    fail('pi_agent.wasm', `not found — build: cd packages/pi-agent && cargo component build --release`);
+    fail('pi_agent.wasm', `not found — build: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release`);
   }
 
   const cargoTarget = process.env.CARGO_TARGET_DIR;
@@ -222,6 +229,10 @@ function readSiloTokens() {
   } catch { return {}; }
 }
 
+function effectiveProvider(envVars, silo, config) {
+  return envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || process.env.MODEL_DEFAULT_PROVIDER || config.provider || config.default_provider || config.modelProvider || silo.modelProvider || DEFAULT_MODEL_PROVIDER;
+}
+
 function checkModel() {
   const envFile = join(ROOT, '.refarm', '.env');
   const configFile = join(ROOT, '.refarm', 'config.json');
@@ -230,6 +241,7 @@ function checkModel() {
   let config = {};
   try { config = JSON.parse(readFileSync(configFile, 'utf8')); } catch { /* ok */ }
   const silo = readSiloTokens();
+  const provider = effectiveProvider(envVars, silo, config);
 
   const KEY_LABELS = {
     ANTHROPIC_API_KEY:  'Anthropic', OPENAI_API_KEY: 'OpenAI',
@@ -245,23 +257,24 @@ function checkModel() {
 
   // Silo credentials (set via `refarm sow`) — API key or OAuth
   if (configured.length === 0) {
-    if (silo.modelApiKey) {
-      const providerLabel = silo.modelProvider ?? 'key';
-      configured.push(`${providerLabel} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
-    } else if (silo.oauthProvider && silo.oauthCredentials?.[silo.oauthProvider]) {
-      configured.push(`${silo.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+    const status = modelCredentialStatus(provider, silo, { ...process.env, ...envVars });
+    if (status.state === 'silo-api-key') {
+      configured.push(`${provider} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
+    } else if (status.state === 'silo-oauth') {
+      configured.push(`${status.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+    } else if (status.state === 'not-required') {
+      configured.push(`${provider} ${c.dim}does not require API key${c.reset}`);
     }
   }
 
   if (configured.length) ok('keys', configured.join('  '));
   else fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
 
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || silo.modelProvider || config.provider || '(not configured)';
-  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(default)';
-  const budget   = config.budgets?.[provider] ?? null;
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.modelId || config.model || silo.modelId || silo.model || defaultModelForProvider(provider);
+  const budget   = provider ? config.budgets?.[provider] ?? null : null;
   info('model', [
     `provider=${c.cyan}${provider}${c.reset}`,
-    `model=${c.dim}${model}${c.reset}`,
+    `model=${c.dim}${model ?? '(default)'}${c.reset}`,
     budget ? `budget=${c.dim}$${budget}/30d${c.reset}` : null,
   ].filter(Boolean).join('  '));
 }

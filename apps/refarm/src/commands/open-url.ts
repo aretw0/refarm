@@ -1,9 +1,15 @@
-import { Command } from "commander";
 import {
 	openHostBrowserUrl,
 	resolveBrowserOpenCandidates,
 	type BrowserOpenResult,
 } from "@refarm.dev/cli/browser-open";
+import { Command } from "commander";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 import {
 	openDryRunMessage,
 	openFailureMessage,
@@ -16,6 +22,13 @@ export interface OpenUrlDeps {
 
 interface OpenUrlOptions {
 	dryRun?: boolean;
+	json?: boolean;
+}
+
+const OPEN_URL_SCHEMA_VERSION = 1;
+
+function openUrlCommandLine(url: string, flags: string[] = []): string {
+	return refarmCommand(["open-url", quoteCommandArg(url), ...flags]);
 }
 
 export function createOpenUrlCommand(deps?: Partial<OpenUrlDeps>): Command {
@@ -30,21 +43,101 @@ export function createOpenUrlCommand(deps?: Partial<OpenUrlDeps>): Command {
 		)
 		.argument("<url>", "URL to open")
 		.option("--dry-run", "Print opener candidates without executing them")
+		.option("--json", "Output machine-readable opener result")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ refarm open-url https://platform.openai.com/auth
+  $ refarm open-url https://dash.cloudflare.com --dry-run
+  $ refarm open-url https://dash.cloudflare.com --dry-run --json
+  $ BROWSER_OPEN_COMMAND="custom-open --flag" refarm open-url https://example.test
+  $ refarm config set operator.openExternalLinks never
+
+Notes:
+  Used by auth and provisioning flows to hand official links from a devcontainer to the host browser.
+  --dry-run prints the available opener candidates and does not open a browser.
+  BROWSER_OPEN_COMMAND appends the URL to an explicit opener command.
+  REFARM_BROWSER_OPEN_COMMAND is still accepted as a compatibility alias.
+  Set operator.openExternalLinks=never to keep flows headless and print URLs instead.
+`,
+		)
 		.action(async (url: string, options: OpenUrlOptions) => {
 			if (options.dryRun) {
+				const candidates = resolveBrowserOpenCandidates(url);
+				if (options.json) {
+					const nextCommand = candidates.length > 0
+						? openUrlCommandLine(url)
+						: openUrlCommandLine(url, ["--dry-run", "--json"]);
+					const nextAction = candidates.length > 0
+						? nextCommand
+						: `open manually: ${url}`;
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "open-url",
+							operation: "dry-run",
+							nextAction,
+							nextCommand,
+							nextCommands: [nextCommand],
+							extra: {
+								schemaVersion: OPEN_URL_SCHEMA_VERSION,
+								url,
+								dryRun: true,
+								candidates,
+							},
+						}),
+					);
+					return;
+				}
 				console.log(openDryRunMessage(url));
-				for (const candidate of resolveBrowserOpenCandidates(url)) {
+				for (const candidate of candidates) {
 					console.log(`candidate: ${candidate.display}`);
 				}
 				return;
 			}
 
-			console.log(openStartMessage(url));
+			if (!options.json) {
+				console.log(openStartMessage(url));
+			}
 			try {
 				const result = await resolvedDeps.open(url);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "open-url",
+							operation: "open",
+							extra: {
+								schemaVersion: OPEN_URL_SCHEMA_VERSION,
+								url,
+								dryRun: false,
+								result,
+							},
+						}),
+					);
+					return;
+				}
 				console.log(`Opened via: ${result.candidate.display}`);
 			} catch (error) {
 				process.exitCode = 1;
+				if (options.json) {
+					const message = error instanceof Error ? error.message : String(error);
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "open-url",
+							operation: "open",
+							error: "open-url-failed",
+							message,
+							nextAction: `open manually: ${url}`,
+							nextCommand: openUrlCommandLine(url, ["--dry-run", "--json"]),
+							extra: {
+								schemaVersion: OPEN_URL_SCHEMA_VERSION,
+								url,
+								dryRun: false,
+							},
+						}),
+					);
+					return;
+				}
 				console.error(openFailureMessage(error));
 				console.error(`Open this URL manually: ${url}`);
 			}

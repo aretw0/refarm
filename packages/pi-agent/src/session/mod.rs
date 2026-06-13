@@ -2,7 +2,7 @@ mod pure;
 
 pub(crate) use pure::{
     history_from_nodes, history_from_tree, provider_name_from_env, session_entry_node,
-    session_node, sum_provider_spend_usd,
+    session_node, session_participant_from_agent_id, sum_provider_spend_usd,
 };
 
 #[cfg(target_arch = "wasm32")]

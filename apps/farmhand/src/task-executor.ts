@@ -1,3 +1,7 @@
+import {
+	isRuntimeAgentErrorContent,
+	normalizePluginId,
+} from "@refarm.dev/config";
 import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 
 const FARMHAND_PLUGIN_ID = "farmhand";
@@ -8,6 +12,25 @@ export interface TaskExecutorInput {
 	pluginId: string;
 	fn: string;
 	args: unknown;
+}
+
+function resultContent(result: unknown): string | null {
+	if (typeof result === "string") return result;
+	if (Array.isArray(result)) {
+		const [content] = result;
+		return typeof content === "string" ? content : null;
+	}
+	if (result && typeof result === "object") {
+		const content = (result as { content?: unknown }).content;
+		return typeof content === "string" ? content : null;
+	}
+	return null;
+}
+
+function resultErrorMessage(result: unknown): string | null {
+	const content = resultContent(result);
+	if (!content) return null;
+	return isRuntimeAgentErrorContent(content) ? content : null;
 }
 
 export async function executeTask(
@@ -24,12 +47,13 @@ export async function executeTask(
 		"task:effortId": effortId,
 	};
 
-	const instance = tractor.plugins.get(pluginId);
+	const resolvedPluginId = normalizePluginId(pluginId);
+	const instance = tractor.plugins.get(resolvedPluginId);
 	if (!instance) {
 		await tractor.storeNode({
 			...baseResultNode,
 			"task:status": "error",
-			"task:error": `Plugin "${pluginId}" is not loaded on this Farmhand`,
+			"task:error": `Plugin "${resolvedPluginId}" is not loaded on this Farmhand`,
 		});
 		return;
 	}
@@ -40,6 +64,16 @@ export async function executeTask(
 				? JSON.stringify(args ?? {})
 				: args;
 		const result = await instance.call(fn, normalizedArgs);
+		const taskError = resultErrorMessage(result);
+		if (taskError) {
+			await tractor.storeNode({
+				...baseResultNode,
+				"task:status": "error",
+				"task:error": taskError,
+				"task:result": JSON.stringify(result),
+			});
+			return;
+		}
 		await tractor.storeNode({
 			...baseResultNode,
 			"task:status": "ok",

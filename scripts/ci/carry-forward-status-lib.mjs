@@ -7,6 +7,132 @@ export const FAILURE_STATUSES = new Set([
 	"action_required",
 ]);
 
+function envFlag(env, name) {
+	return env[name] === "true";
+}
+
+export function buildSkippedGateDefinitions(env = process.env) {
+	const codeChanges = envFlag(env, "CODE_CHANGES");
+	const definitions = [
+		{
+			key: "quality_security",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Security audit"],
+		},
+		{
+			key: "quality_tsconfig",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["TSConfig preflight"],
+		},
+		{
+			key: "quality_verify_full_turbo",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Verify (Full Turbo)", "Verify (Full Turbo fallback)"],
+		},
+		{
+			key: "task_smoke_core",
+			skip: codeChanges && !envFlag(env, "RUN_TASK_SMOKE"),
+			type: "step",
+			job: "quality",
+			stepNames: ["Farmhand task execution smoke (CLI ↔ sidecar)"],
+		},
+		{
+			key: "task_smoke_pi_agent",
+			skip: codeChanges && !envFlag(env, "RUN_TASK_SMOKE"),
+			type: "step",
+			job: "quality",
+			stepNames: ["Farmhand pi-agent respond smoke (effort round-trip)"],
+		},
+		{
+			key: "tractor_health_probe",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Tractor health probe smoke"],
+		},
+		{
+			key: "tractor_runtime_module",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Browser runtime descriptor gate (Tractor TS)"],
+		},
+		{
+			key: "tractor_release_smoke",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Runtime descriptor release-path smoke (Tractor TS)"],
+		},
+		{
+			key: "tractor_revocation_report",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Revocation diagnostics report smoke (Tractor TS)"],
+		},
+		{
+			key: "tractor_revocation_baseline",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Revocation diagnostics baseline lookup (Tractor TS)"],
+		},
+		{
+			key: "tractor_revocation_history",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Revocation diagnostics history smoke (Tractor TS)"],
+		},
+		{
+			key: "tractor_benchmark_gate",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Benchmark Quality Gate (Tractor)"],
+		},
+		{
+			key: "tractor_coverage_gate",
+			skip: false,
+			type: "step",
+			job: "quality",
+			stepNames: ["Coverage Quality Gate (Tractor)"],
+		},
+		{
+			key: "audit_moderate",
+			skip: !envFlag(env, "RUN_AUDIT"),
+			type: "job",
+			job: "audit-moderate",
+		},
+		{
+			key: "build",
+			skip: !envFlag(env, "RUN_BUILD"),
+			type: "job",
+			job: "build",
+		},
+		{
+			key: "e2e",
+			skip: !envFlag(env, "RUN_E2E"),
+			type: "job",
+			job: "e2e",
+		},
+		{
+			key: "deep_regression",
+			skip: !envFlag(env, "RUN_DEEP"),
+			type: "job",
+			job: "deep-regression",
+		},
+	];
+	return definitions.filter((gate) => gate.skip);
+}
+
 export function resolveGateFromJobs(gate, run, jobs, options = {}) {
 	const nonReusableStatuses =
 		options.nonReusableStatuses || NON_REUSABLE_STATUSES;

@@ -42,6 +42,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "@refarm.dev/config": "workspace:*"
+  },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",

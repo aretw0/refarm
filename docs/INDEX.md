@@ -22,6 +22,15 @@
 - **[Sovereign Workflow](WORKFLOW.md)** — SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](DEVOPS.md)** — Dev containers, CI, security, hardware requirements.
 - **[Process Playbook](PROCESS_PLAYBOOK.md)** — Daily operational commands: services, agents, smoke gates, troubleshooting.
+- **[Operator Daily Driver](REFARM_OPERATOR_DAILY_DRIVER.md)** — Short maintained loop for using Refarm as the daily CLI driver.
+- **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
+- **[NixOS Curated Runtime Strategy](NIXOS_CURATED_RUNTIME_STRATEGY.md)** — Strategic lane for evaluating Nix/NixOS as a reproducible Refarm substrate without becoming a distro prematurely.
+- **[Environment Substrate Inventory](ENVIRONMENT_SUBSTRATE_INVENTORY.md)** — Current ownership map for devcontainer, CI, host install, Rust/WASM, browser runtime, and future Nix lanes.
+- **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
+- **[PoC Validation Pressure](POC_VALIDATION_PRESSURE.md)** — How local draft pressure maps to reusable Refarm validations without coupling to private writing workflows.
+- **[PoC Prize Readiness](POC_PRIZE_READINESS.md)** — Gap analysis between deterministic validation POCs and submission-ready demonstration packets.
+- **[PoC Writing Handoff](POC_WRITING_HANDOFF.md)** — Sanitized map from generated POC artifacts to proposal-writing claims and limits.
+- **[Text Quality Config](TEXT_QUALITY_CONFIG.md)** — Dependency-free prose scoring contract, `.refarm/text-quality.json` discovery, and JSON error shape.
 - **[Colony Playbook](COLONY_PLAYBOOK.md)** — Parallel agent batch execution guide.
 - **[Known Limitations](KNOWN_LIMITATIONS.md)** — Technical hurdles, resource quotas, expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** — Guardrails and publishing hygiene.
@@ -84,7 +93,7 @@
 1. Leia [ARCHITECTURE.md](ARCHITECTURE.md) (visão geral)
 2. Entenda [WORKFLOW.md](WORKFLOW.md) (processo de desenvolvimento)
 3. Veja [roadmaps/MAIN.md](../roadmaps/MAIN.md) (próximos passos)
-4. Siga o [PROCESS_PLAYBOOK.md](PROCESS_PLAYBOOK.md) para comandos do dia-a-dia
+4. Siga o [REFARM_OPERATOR_DAILY_DRIVER.md](REFARM_OPERATOR_DAILY_DRIVER.md) para o fluxo curto de daily driver
 
 ### Onde documentar decisões?
 

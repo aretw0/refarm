@@ -42,6 +42,8 @@ enum PluginImpl {
 pub struct PluginInstanceHandle {
     pub id: String,
     pub state: PluginState,
+    /// Capabilities declared in the plugin's `capabilities.provides` manifest field.
+    pub provides: Vec<String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
 }
@@ -52,10 +54,12 @@ impl PluginInstanceHandle {
         plugin: RefarmPluginHost,
         store: Store<TractorStore>,
         telemetry: TelemetryBus,
+        provides: Vec<String>,
     ) -> Self {
         Self {
             id,
             state: PluginState::Idle,
+            provides,
             inner: PluginImpl::Component { plugin, store },
             telemetry,
         }
@@ -66,10 +70,12 @@ impl PluginInstanceHandle {
         instance: wasmtime::Instance,
         store: Store<P1Store>,
         telemetry: TelemetryBus,
+        provides: Vec<String>,
     ) -> Self {
         Self {
             id,
             state: PluginState::Idle,
+            provides,
             inner: PluginImpl::Module { instance, store },
             telemetry,
         }

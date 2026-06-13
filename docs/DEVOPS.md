@@ -79,7 +79,7 @@ When opening the workspace in VS Code with the Remote Containers extension:
    - Ensures Rust components (`rust-src`, `clippy`, `rustfmt`) for local/CI parity
    - Installs cargo tools: `cargo-component`, `wasm-tools`
    - Runs `pnpm install --frozen-lockfile` to install workspace dependencies
-   - Installs Playwright browsers (`npx playwright install --with-deps`)
+   - Installs Playwright browsers (`pnpm -C validations/sqlite-benchmark/browser exec playwright install --with-deps`)
    - Runs `pnpm run hooks:install`
    - Runs `pnpm run factory:preflight` for deterministic readiness checks
 3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
@@ -135,6 +135,31 @@ refarm sow --cloudflare
 refarm provision cloudflare turbo-cache --github-secrets
 ```
 
+OAuth model logins from `refarm sow` use local callback ports in the
+devcontainer:
+
+- OpenAI Codex: `localhost:1455/auth/callback`
+- Anthropic Claude: `localhost:53692/callback`
+
+These ports are declared in `.devcontainer/devcontainer.json` so VS Code
+forwards them to the host browser. If forwarding is unavailable, the CLI falls
+back to prompting for the redirect URL or authorization code. Set
+`REFARM_OAUTH_CALLBACK_MODE=manual` to force paste-only behavior.
+
+Interactive credential flows open official provider links by default when a TTY
+is attached. Headless and CI runs do not open browser windows. To disable this
+for operator sessions, set either:
+
+```json
+{
+  "operator": {
+    "openExternalLinks": "never"
+  }
+}
+```
+
+or export `REFARM_OPEN_EXTERNAL_LINKS=never`.
+
 Use `--github-secrets` for normal operator runs. It writes
 `TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` through `gh secret set` without
 printing the cache bearer token to stdout. `--print-secrets` exists only for
@@ -157,6 +182,52 @@ The shim lives in the devcontainer user bin directory and calls the current
 behavior without reinstalling the shim. `pnpm run cli:install` builds the CLI
 only when `dist/index.js` is missing; use `pnpm run cli:install -- --build` to
 force a rebuild before reinstalling it.
+
+Preview the install target without writing shims:
+
+```bash
+pnpm run cli:install -- --dry-run
+pnpm run cli:install -- --dry-run --json
+```
+
+`--json` emits the same `nextCommand` handoff shape used by the operator loop,
+so automation can install or preview the shim and then continue with the exact
+readiness command returned by the installer. When the bin directory is already
+in `PATH`, that command is `refarm check --next-action --json`; otherwise it
+uses the explicit shim path so the first check still works before the operator
+updates their shell. The installer also supports `--help` and fails closed on
+unknown arguments instead of ignoring them.
+
+Validate the installer, devcontainer contract, and node-substrate diagnostic
+surface without mutating a foreign checkout:
+
+```bash
+pnpm run cli:install:verify
+```
+
+Use `REFARM_CLI_BIN_DIR=<dir>` to install into an explicit directory. On
+Windows, the default user-level target is `%APPDATA%\npm`, matching the normal
+npm global shim location. After any install, continue with the installer output:
+
+```bash
+pnpm run cli:install -- --json
+```
+
+If the check reports node substrate materialization drift, do not repair a
+foreign `node_modules` tree silently. Use the environment-owned checkout or set
+the explicit rebuild opt-in described by the diagnostic.
+
+For non-interactive Docker Desktop or `docker exec` sessions, use the
+devcontainer's `farm` wrapper so commands run as the dev user with the same
+`HOME`, `PNPM_HOME`, and `PATH` as VS Code terminals:
+
+```bash
+docker exec <container> farm vscode /workspaces/refarm refarm resume --json
+```
+
+Direct `docker exec <container> refarm ...` is intentionally not the contract:
+that runs in the container runtime's default shell/user context and may not see
+the dev user's persisted shim directory.
 
 ### Devcontainer Image Baseline (Tracked)
 
@@ -221,6 +292,17 @@ pnpm run test:unit
   rm -rf node_modules
   pnpm install --frozen-lockfile
   ```
+
+**Issue: Wizer optional binary warning during devcontainer post-create**
+
+- **Symptom:** `pnpm install` logs a warning similar to `Failed to create bin ... @bytecodealliance/wizer-win32-x64 ... ENOENT`.
+- **Cause:** Docker Desktop bind mounts can expose stale `node_modules/.pnpm` entries from a previous host install. `@bytecodealliance/wizer` publishes one optional binary package per platform, and stale non-Linux packages may leave broken bin links in the Linux devcontainer.
+- **Fix:** `post-create.sh` removes stale non-linux-x64 Wizer optional package artifacts before `pnpm install --frozen-lockfile`. If the warning persists after reopening the devcontainer, use the broader package installation workaround above.
+
+**Issue: `sh: 1: playwright: not found` during devcontainer post-create**
+
+- **Cause:** the root workspace does not expose a `playwright` bin. Playwright is declared by the E2E validation packages.
+- **Fix:** `post-create.sh` runs Playwright through `validations/sqlite-benchmark/browser`, which owns `@playwright/test`.
 
 **Issue: `cargo clippy` / `cargo fmt` missing locally (but required by CI)**
 
@@ -390,6 +472,14 @@ Implementation baseline:
 - **E2E affected-first execution:** `Run E2E Tests (affected)` uses `--filter=${{ needs.changes.outputs.turbo_filter }}` when base commit is locally resolvable; otherwise falls back to full E2E safely.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
 - **Vitest reporting (CI):** default Vitest GitHub summary blocks are suppressed and replaced with an aggregated detailed report (`.artifacts/vitest/summary.md` + uploaded artifact `vitest-detailed-report`).
+- **Cargo registry transport:** WASM build jobs set
+  `CARGO_HTTP_MULTIPLEXING=false` to avoid intermittent crates.io HTTP/2
+  framing failures during `cargo component build`. This is a transport
+  hardening setting, not a compilation bypass.
+- **Text quality gate:** selected calibration docs and the dependency-free
+  text-quality scorer run a direct Node-only check in `Test & Quality` when
+  those files change. This keeps docs/prose pressure visible without forcing
+  full package installation for unrelated docs-only edits.
 
 ### Invalidation Rules
 
@@ -409,7 +499,7 @@ Implementation baseline:
 - Avoids rerunning `quality`, `e2e`, and package matrix work when their content signatures are unchanged.
 - Keeps `.project` validation running even when the broader `quality` gate is reused.
 - Avoids hard failure mode when turbo filter base SHA is unavailable in shallow SCM state (auto full fallback).
-- Improves test observability with per-workspace breakdown + slowest test files/cases in CI summary and `ci-metrics` artifacts.
+- Improves test observability with per-workspace breakdown, slowest test files/cases, and CI run timing snapshots in `ci-metrics` artifacts.
 
 ### Observed Cache-Proof Runs
 
@@ -422,7 +512,7 @@ Implementation baseline:
 
 - `pnpm install --frozen-lockfile` still runs once per job that needs setup due to job isolation on hosted runners.
 - `audit-moderate` still performs a non-blocking audit/report flow and is not currently content-signature cached.
-- Further reduction of Turbo task execution across runners would require remote task-output cache (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
+- Turbo remote cache reduces repeated task execution when `TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` are configured. Push runs use the shared `refarm` namespace. Same-repository PRs may use a PR-scoped namespace; fork PRs remain local-cache only.
 
 ### GitHub Pages base-path contract (Astro)
 
@@ -444,9 +534,11 @@ Domain rollout checklist:
 
 - `docs/DOMAIN_REFARM_DEV_CUTOVER.md`
 
-### Future: Turbo Remote Cache
+### Turbo Remote Cache
 
-**Status:** Not yet configured (awaiting credentials/team setup)
+**Status:** Supported through the Cloudflare-backed remote cache service. The
+shared setup action probes the Worker before enabling Turbo remote cache, then
+falls back to local `.turbo` cache if the service is unavailable.
 
 **What It Provides:**
 
@@ -460,26 +552,28 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 **Prerequisites:**
 
-- Turbo account with remote cache enabled (Vercel platform or self-hosted remote cache server).
-- `TURBO_TOKEN` secret added to repository settings (GitHub Actions secrets).
-- `TURBO_TEAM` configured (organization/team slug).
+- Cloudflare-backed `@refarm.dev/infra-turbo-cache` service provisioned.
+- `TURBO_CACHE_API_URL` secret added to repository settings.
+- `TURBO_CACHE_TOKEN` secret added to repository settings.
 
-**Configuration Steps (When Available):**
+**Configuration Steps:**
 
 1. **Add secrets to GitHub repository:**
    - Navigate to repository Settings → Secrets and variables → Actions
-   - Add `TURBO_TOKEN` (from Vercel dashboard or remote cache provider)
-   - Add `TURBO_TEAM` (team identifier, e.g., `refarm-team`)
+   - Add `TURBO_CACHE_API_URL` (Worker URL)
+   - Add `TURBO_CACHE_TOKEN` (Worker bearer token)
 
-2. **Update workflow environment variables:**
+2. **Use the shared setup action:**
 
    ```yaml
-   env:
-     TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-     TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+   - uses: ./.github/actions/setup
+     with:
+       turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+       turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+       trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+       is-pr: ${{ github.event_name == 'pull_request' }}
+       pr-number: ${{ github.event.pull_request.number }}
    ```
-
-   Add to `.github/workflows/test.yml` at job or workflow level.
 
 3. **Verify turbo.json cache configuration:**
    - Ensure `turbo.json` has proper `outputs` declared for each task.
@@ -488,13 +582,19 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 4. **Test remote cache:**
    - Run workflow twice with identical code.
    - Second run should show `>>> FULL TURBO` with cache hits from remote.
-   - Check Turbo dashboard for cache hit statistics.
+   - Check setup logs for `Remote Turbo cache configured`.
+
+**Trust boundaries:**
+
+- Push runs use the default `refarm` remote namespace.
+- Same-repository PRs use `refarm-pr-<number>`.
+- Fork PRs do not use remote cache even when secrets exist.
 
 **Cost Consideration:**
 
-- Vercel remote cache has free tier (limited cache storage/bandwidth).
-- Exceeding limits requires paid plan or self-hosted cache server.
-- Monitor usage via Vercel dashboard or remote cache provider metrics.
+- Cloudflare R2 stores Turbo artifacts under the namespace selected by `TURBO_TEAM`.
+- The Worker rejects artifacts larger than `MAX_ARTIFACT_BYTES` (default: 50 MB).
+- Scheduled cleanup deletes stale artifacts according to `ARTIFACT_TTL_SECONDS` (default: 30 days).
 
 **Documentation:**
 
@@ -507,8 +607,8 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 ### Current Status
 
-**Last Audit:** April 19, 2026
-**Total Issues Found:** 0 vulnerabilities
+**Last Audit:** June 12, 2026
+**Unresolved Issues Found:** 0 vulnerabilities
 **Breakdown:**
 
 - ✅ HIGH: 0
@@ -517,43 +617,42 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 ### Remediation Applied
 
-The audit noise that was breaking CI was removed with low-risk transitive dependency overrides in the root `package.json`:
+Security remediation uses effective workspace-level pnpm overrides in `pnpm-workspace.yaml`.
+Do not put transitive resolution policy under `package.json > pnpm.overrides`; in this workspace
+that creates a misleading second source of truth that may not be reflected in `pnpm-lock.yaml`.
 
-```json
-{
-  "overrides": {
-    "basic-ftp": "5.3.0",
-    "yaml-language-server": {
-      "yaml": "2.8.3"
-    }
-  }
-}
+```yaml
+overrides:
+  esbuild: 0.28.1
+  ws: 8.20.1
 ```
 
 #### Why this was safe
 
-1. `basic-ftp` is only pulled transitively by `get-uri` in dev tooling, and `5.3.0` is the upstream patched release for the advisory affecting `<=5.2.2`.
-2. `yaml-language-server` remained on the same package version already required by Astro tooling, but its nested `yaml` dependency was forced to `2.8.3`, which removes the vulnerable `2.7.1` copy without changing the workspace's public API surface.
-3. No app/package source code was changed — only dependency resolution.
+1. `esbuild@0.28.1` is the upstream patched release for `GHSA-gv7w-rqvm-qjhr`.
+2. `ws@8.20.1` is the upstream patched release for `GHSA-58qx-3vcg-4xpx`; the override fixes the vulnerable `wrangler > miniflare` transitive copy while package manifests continue using the central catalog.
+3. The overrides affect dependency resolution without changing app/package source code or public APIs.
+4. `pnpm install --frozen-lockfile`, `pnpm audit`, `pnpm audit --audit-level=high`, and an Astro/Vite build passed after the lockfile update.
 
 ### Verification Commands
 
 ```bash
 pnpm audit
 pnpm audit --audit-level=high
+pnpm run security:fix:dry
 ```
 
 Expected result:
 
 ```text
-No known vulnerabilities found
+No unignored vulnerabilities; pnpm may still count advisories explicitly listed in auditConfig as ignored.
 ```
 
 ### Ongoing Policy
 
 - Keep the CI gate in `.github/workflows/test.yml` blocking `high` and `critical` issues.
 - Keep the scheduled visibility workflow in `.github/workflows/security-audit.yml` generating artifacts for regression tracking.
-- If a future advisory reappears through a transitive dependency, prefer a targeted `overrides` fix before attempting broad major-version upgrades.
+- If a future advisory reappears through a transitive dependency, prefer a targeted `pnpm-workspace.yaml` `overrides` fix before attempting broad major-version upgrades.
 
 ---
 
@@ -744,7 +843,8 @@ Result summary:
 Attack order/backlog (if regression appears):
 1. Foundation: `config`, `toolbox`, `vtconfig`, `cli`
 2. Runtime: `tractor-rs`, `tractor-ts`, `plugin-manifest`
-3. Contracts/storage/sync: `*-contract-v1`, `storage-*`, `sync-*`
+3. Contracts/storage/sync: `effort/artifact/automation/*-contract-v1`,
+   `storage-*`, `sync-*`
 
 ### Build baseline matrix by domain (2026-04-24)
 
@@ -752,14 +852,16 @@ Attack order/backlog (if regression appears):
 |---|---|---|---|
 | Foundation | `pnpm run gate:smoke:foundation` | ✅ Green | `cli` type-check + tests de `config/toolbox/vtconfig` |
 | Runtime | `pnpm run gate:smoke:runtime` | ✅ Green | `tractor-rs` smoke/build checks + `tractor-ts` build/type-check/runtime-module smoke |
-| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + conformance/unit para pacotes prioritários |
-| Colony Full | `pnpm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio + `project:validate` |
+| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + unit/conformance for effort, artifact, automation, storage, sync, identity, task, and session contracts |
+| Colony Full | `pnpm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio, POCs sintéticas, manifests de artefatos + `project:validate` |
 
 Dependências operacionais entre domínios:
 
 - Foundation é base para tooling comum e deve ficar verde antes de ampliar paralelismo.
 - Runtime depende de preflight completo (toolchain Rust/WASM + smoke WS).
-- Contracts/Storage/Sync depende de baseline de contratos v1 e suites de conformance.
+- Contracts/Storage/Sync depende de baseline de contratos v1, suites de
+  conformance, e validação de manifests de artefatos quando outputs esperados
+  mudam.
 
 Bloqueadores monitorados:
 

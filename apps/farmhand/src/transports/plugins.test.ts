@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
 import http from "node:http";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpSidecar } from "./http.js";
 import { createPluginsRouteHandler } from "./plugins.js";
@@ -62,7 +65,12 @@ function makeTarget() {
 			register: vi.fn().mockResolvedValue(undefined),
 			trust: vi.fn().mockResolvedValue(undefined),
 		},
-		plugins: { load: vi.fn().mockResolvedValue(undefined) },
+		plugins: {
+			get: vi.fn((pluginId: string) =>
+				pluginId === "plugin-a" ? { call: vi.fn() } : undefined,
+			),
+			load: vi.fn().mockResolvedValue(undefined),
+		},
 	};
 }
 
@@ -117,12 +125,14 @@ describe("createPluginsRouteHandler", () => {
 	let port: number;
 	let target: ReturnType<typeof makeTarget>;
 	let tracker: PluginUsageTracker;
+	let baseDir: string;
 
 	async function startSidecar(idle = true) {
+		baseDir = mkdtempSync(join(tmpdir(), "farmhand-plugins-test-"));
 		target = makeTarget();
 		tracker = makeTracker(idle);
 		sidecar = new HttpSidecar(0, makeAdapter());
-		sidecar.addRouteHandler(createPluginsRouteHandler(target, "/tmp/test-refarm", tracker));
+		sidecar.addRouteHandler(createPluginsRouteHandler(target, baseDir, tracker));
 		await sidecar.start();
 		const addr = sidecar.httpServer.address();
 		port = typeof addr === "object" && addr !== null ? addr.port : 0;
@@ -130,10 +140,36 @@ describe("createPluginsRouteHandler", () => {
 
 	afterEach(async () => {
 		await sidecar.stop();
+		rmSync(baseDir, { recursive: true, force: true });
 		vi.clearAllMocks();
 		// Reset mock queues and re-establish base return values
 		vi.mocked(loadInstalledPlugins).mockReset().mockResolvedValue({ loaded: 1, skipped: 0 });
 		vi.mocked(listInstalledPluginIds).mockReset().mockReturnValue(["plugin-a"]);
+	});
+
+	describe("GET /plugins", () => {
+		beforeEach(() => startSidecar(true));
+
+		it("returns installed, loaded, and known plugin ids", async () => {
+			vi.mocked(listInstalledPluginIds).mockReturnValue(["plugin-a", "plugin-b"]);
+
+			const res = await request(port, "GET", "/plugins");
+
+			expect(res.status).toBe(200);
+			expect(res.body).toEqual({
+				installed: ["plugin-a", "plugin-b"],
+				local: [],
+				loaded: ["plugin-a"],
+				known: ["plugin-a", "plugin-b"],
+			});
+		});
+
+		it("returns 405 for non-GET /plugins", async () => {
+			const res = await request(port, "POST", "/plugins");
+
+			expect(res.status).toBe(405);
+			expect(res.body).toEqual({ error: "method not allowed" });
+		});
 	});
 
 	describe("POST /plugins/reload — immediate (plugin idle)", () => {
@@ -157,7 +193,7 @@ describe("createPluginsRouteHandler", () => {
 			await request(port, "POST", "/plugins/reload");
 			expect(loadInstalledPlugins).toHaveBeenCalledWith(
 				target,
-				"/tmp/test-refarm",
+				baseDir,
 				{ pluginFilter: ["plugin-a"] },
 			);
 		});
@@ -169,6 +205,21 @@ describe("createPluginsRouteHandler", () => {
 			const body = res.body as { reloaded: string[] };
 			expect(body.reloaded).toEqual(["plugin-a"]);
 			expect(listInstalledPluginIds).not.toHaveBeenCalled();
+		});
+
+		it("normalizes plugin id aliases from request body", async () => {
+			vi.mocked(loadInstalledPlugins).mockResolvedValueOnce({ loaded: 1, skipped: 0 });
+
+			const res = await request(port, "POST", "/plugins/reload", {
+				pluginIds: ["pi-agent"],
+			});
+
+			expect(res.status).toBe(200);
+			expect(loadInstalledPlugins).toHaveBeenCalledWith(
+				target,
+				baseDir,
+				{ pluginFilter: ["@refarm/pi-agent"] },
+			);
 		});
 
 		it("returns 405 for GET /plugins/reload", async () => {

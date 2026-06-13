@@ -6,7 +6,7 @@ Minimal Rust-based WASM plugin for testing JCO Component Model integration with 
 
 This plugin serves as:
 - **Compilation validation**: Confirms wit-bindgen correctly generates Component Model bindings
-- **JCO integration test**: Used by `packages/tractor/test/jco-integration.test.ts`
+- **JCO integration test**: Used by `packages/tractor-ts/test/jco-integration.test.ts`
 - **Reference implementation**: Template for other Rust-based plugins
 
 ## Build
@@ -53,7 +53,7 @@ This linking step will be implemented in the future `plugin-compiler` package.
 
 ## Testing
 
-Used by `packages/tractor/test/jco-integration.test.ts` to validate:
+Used by `packages/tractor-ts/test/jco-integration.test.ts` to validate:
 1. JCO library availability
 2. WASM compilation success
 3. Component metadata extraction

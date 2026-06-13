@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/cli",
 	"version": "0.1.0",
-	"description": "Refarm CLI library \u2014 status builder and shared types.",
+	"description": "Shared CLI primitives, process adapters, and compatibility Refarm contracts.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -17,6 +17,58 @@
 		"./browser-open": {
 			"types": "./dist/browser-open.d.ts",
 			"import": "./dist/browser-open.js"
+		},
+		"./command-line": {
+			"types": "./dist/command-line.d.ts",
+			"import": "./dist/command-line.js"
+		},
+		"./command-handoff": {
+			"types": "./dist/command-handoff.d.ts",
+			"import": "./dist/command-handoff.js"
+		},
+		"./json-output": {
+			"types": "./dist/json-output.d.ts",
+			"import": "./dist/json-output.js"
+		},
+		"./command-result": {
+			"types": "./dist/command-result.d.ts",
+			"import": "./dist/command-result.js"
+		},
+		"./command-plan": {
+			"types": "./dist/command-plan.d.ts",
+			"import": "./dist/command-plan.js"
+		},
+		"./execution-plan": {
+			"types": "./dist/execution-plan.d.ts",
+			"import": "./dist/execution-plan.js"
+		},
+		"./action-affordances": {
+			"types": "./dist/action-affordances.d.ts",
+			"import": "./dist/action-affordances.js"
+		},
+		"./operator-resume": {
+			"types": "./dist/operator-resume.d.ts",
+			"import": "./dist/operator-resume.js"
+		},
+		"./launch-process": {
+			"types": "./dist/launch-process.d.ts",
+			"import": "./dist/launch-process.js"
+		},
+		"./launch-policy": {
+			"types": "./dist/launch-policy.d.ts",
+			"import": "./dist/launch-policy.js"
+		},
+		"./git-command": {
+			"types": "./dist/git-command.d.ts",
+			"import": "./dist/git-command.js"
+		},
+		"./github-actions": {
+			"types": "./dist/github-actions.d.ts",
+			"import": "./dist/github-actions.js"
+		},
+		"./rust-substrate": {
+			"types": "./dist/rust-substrate.d.ts",
+			"import": "./dist/rust-substrate.js"
 		}
 	},
 	"scripts": {

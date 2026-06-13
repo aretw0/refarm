@@ -1,16 +1,16 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
-	createRefarmActionAffordanceRows,
-	createRefarmRendererActionDryRunEnvelope,
-	formatRefarmActionReadinessOutput,
-	formatRefarmActionAffordanceRows,
-	formatRefarmActionAffordanceSelection,
-	resolveRefarmActionAffordanceSelection,
-	type RefarmActionAffordanceRow,
-	type RefarmActionAffordanceSelectionMetadata,
-	type RefarmActionAffordanceSelectionReason,
-	type RefarmActionReadinessDryRunEnvelope,
+	createRendererSurfaceActionDryRunEnvelope,
+	createSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceRows,
+	formatSurfaceActionAffordanceSelection,
+	formatSurfaceActionReadinessOutput,
+	resolveSurfaceActionAffordanceSelection,
+	type SurfaceActionAffordanceRow,
+	type SurfaceActionAffordanceSelectionMetadata,
+	type SurfaceActionAffordanceSelectionReason,
+	type SurfaceActionReadinessDryRunEnvelope,
 } from "./action-affordances.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import {
@@ -18,19 +18,19 @@ import {
 	type ResolveStatusPayloadResult,
 } from "./status.js";
 
-export type HostSurfaceActionRow = RefarmActionAffordanceRow;
+export type HostSurfaceActionRow = SurfaceActionAffordanceRow;
 export type HostSurfaceActionSelectionReason =
-	RefarmActionAffordanceSelectionReason;
+	SurfaceActionAffordanceSelectionReason;
 
 export interface HostSurfaceActionSelectionResult {
 	selected?: HostSurfaceActionRow;
 	reason: HostSurfaceActionSelectionReason;
-	selection: RefarmActionAffordanceSelectionMetadata;
+	selection: SurfaceActionAffordanceSelectionMetadata;
 	rows: readonly HostSurfaceActionRow[];
 }
 
 export type HostSurfaceActionDryRunEnvelope =
-	RefarmActionReadinessDryRunEnvelope & {
+	SurfaceActionReadinessDryRunEnvelope & {
 		command: "actions";
 		renderer: RefarmStatusJson["renderer"]["kind"];
 	};
@@ -52,21 +52,21 @@ interface ActionsOptions {
 export function createHostSurfaceActionRows(
 	status: RefarmStatusJson,
 ): HostSurfaceActionRow[] {
-	return createRefarmActionAffordanceRows(status);
+	return createSurfaceActionAffordanceRows(status);
 }
 
 export function resolveHostSurfaceActionSelection(
 	status: RefarmStatusJson,
 	selection: string,
 ): HostSurfaceActionSelectionResult {
-	return resolveRefarmActionAffordanceSelection(status, selection);
+	return resolveSurfaceActionAffordanceSelection(status, selection);
 }
 
 export function createHostSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: HostSurfaceActionSelectionResult,
 ): HostSurfaceActionDryRunEnvelope {
-	return createRefarmRendererActionDryRunEnvelope(
+	return createRendererSurfaceActionDryRunEnvelope(
 		status,
 		status.renderer.kind,
 		selection,
@@ -77,15 +77,15 @@ export function createHostSurfaceActionDryRunEnvelope(
 export function formatHostSurfaceActionRows(
 	rows: readonly HostSurfaceActionRow[],
 ): string {
-	return formatRefarmActionAffordanceRows(rows, "Available host actions:");
+	return formatSurfaceActionAffordanceRows(rows, "Available host actions:");
 }
 
 export function formatHostSurfaceActionSelection(
 	selected: HostSurfaceActionRow,
 	rows: readonly HostSurfaceActionRow[],
-	selection?: RefarmActionAffordanceSelectionMetadata,
+	selection?: SurfaceActionAffordanceSelectionMetadata,
 ): string {
-	return formatRefarmActionAffordanceSelection(selected, rows, {
+	return formatSurfaceActionAffordanceSelection(selected, rows, {
 		selectedHeading: "Selected host action:",
 		availableHeading: "Available host actions:",
 		selection,
@@ -101,6 +101,22 @@ export function createActionsCommand(deps?: Partial<ActionsDeps>): Command {
 	return new Command("actions")
 		.description(
 			"List available host surface actions without executing product behavior",
+		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm actions",
+				"  $ refarm actions --renderer web",
+				"  $ refarm actions --select 1",
+				"  $ refarm actions --select open-status-report --json",
+				"",
+				"Notes:",
+				"  This command emits dry-run action metadata only; it does not execute actions.",
+				"  Use renderer-specific commands for live surfaces: refarm web --actions or refarm tui --actions.",
+				"  Use refarm headless --action-request <id-or-index> for automation envelopes.",
+			].join("\n"),
 		)
 		.option(
 			"--input <path>",
@@ -133,7 +149,7 @@ async function emitHostActionRows(
 		},
 		run: (json) => {
 			console.log(
-				formatRefarmActionReadinessOutput(json, {
+				formatSurfaceActionReadinessOutput(json, {
 					renderer: json.renderer.kind,
 					command: "actions",
 					json: options.json,

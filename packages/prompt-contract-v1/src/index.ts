@@ -34,7 +34,21 @@ export interface TextPrompt {
 	placeholder?: string;
 }
 
-export type OperatorPrompt = ConfirmPrompt | SelectPrompt | TextPrompt;
+export interface SecretPrompt {
+	type: "secret";
+	question: string;
+	/** Number of trailing characters to keep visible while typing. Defaults to 0. */
+	visibleTail?: number;
+}
+
+export type OperatorPrompt = ConfirmPrompt | SelectPrompt | TextPrompt | SecretPrompt;
+
+export class OperatorPromptCancelledError extends Error {
+	constructor(message = "Operator prompt cancelled") {
+		super(message);
+		this.name = "OperatorPromptCancelledError";
+	}
+}
 
 // ── OperatorChannel ───────────────────────────────────────────────────────────
 
@@ -42,6 +56,7 @@ export interface OperatorChannel {
 	ask(prompt: ConfirmPrompt): Promise<boolean>;
 	ask(prompt: SelectPrompt): Promise<string>;
 	ask(prompt: TextPrompt): Promise<string>;
+	ask(prompt: SecretPrompt): Promise<string>;
 	ask(prompt: OperatorPrompt): Promise<boolean | string>;
 }
 
@@ -53,9 +68,11 @@ export function createAutoOperatorChannel(): OperatorChannel {
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
+	function ask(prompt: SecretPrompt): Promise<string>;
 	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
 		if (prompt.type === "confirm") return prompt.default ?? true;
 		if (prompt.type === "select") return prompt.default ?? prompt.options[0]?.value ?? "";
+		if (prompt.type === "secret") return "";
 		return prompt.default ?? "";
 	}
 	return { ask };
@@ -72,6 +89,7 @@ export function createScriptedOperatorChannel(
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
+	function ask(prompt: SecretPrompt): Promise<string>;
 	async function ask(_prompt: OperatorPrompt): Promise<boolean | string> {
 		if (queue.length === 0) {
 			throw new RangeError("createScriptedOperatorChannel: answer queue exhausted");
@@ -88,9 +106,11 @@ export function createStdioOperatorChannel(): OperatorChannel {
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
+	function ask(prompt: SecretPrompt): Promise<string>;
 	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
 		if (prompt.type === "confirm") return askConfirm(prompt);
 		if (prompt.type === "select") return askSelect(prompt);
+		if (prompt.type === "secret") return askSecret(prompt);
 		return askText(prompt);
 	}
 	return { ask };
@@ -156,6 +176,67 @@ function askText(prompt: TextPrompt): Promise<string> {
 	});
 }
 
+function maskSecret(value: string, visibleTail: number): string {
+	if (visibleTail <= 0) return "*".repeat(value.length);
+	if (value.length <= visibleTail) return "*".repeat(value.length);
+	return "*".repeat(value.length - visibleTail) + value.slice(-visibleTail);
+}
+
+function askSecret(prompt: SecretPrompt): Promise<string> {
+	const input = process.stdin;
+	const output = process.stdout;
+	const visibleTail = prompt.visibleTail ?? 0;
+
+	if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== "function") {
+		return askText({ type: "text", question: prompt.question });
+	}
+
+	return new Promise((resolve, reject) => {
+		let value = "";
+		const wasRaw = input.isRaw;
+
+		const render = () => {
+			readline.clearLine(output, 0);
+			readline.cursorTo(output, 0);
+			output.write(`${prompt.question}: ${maskSecret(value, visibleTail)}`);
+		};
+
+		const cleanup = () => {
+			input.off("keypress", onKeypress);
+			input.setRawMode(wasRaw);
+			output.write("\n");
+		};
+
+		const onKeypress = (str: string, key: readline.Key) => {
+			if (key.ctrl && key.name === "c") {
+				cleanup();
+				reject(new OperatorPromptCancelledError());
+				return;
+			}
+			if (key.name === "return" || key.name === "enter") {
+				cleanup();
+				resolve(value);
+				return;
+			}
+			if (key.name === "backspace") {
+				value = value.slice(0, -1);
+				render();
+				return;
+			}
+			if (!key.ctrl && !key.meta && str) {
+				value += str;
+				render();
+			}
+		};
+
+		readline.emitKeypressEvents(input);
+		input.setRawMode(true);
+		input.resume();
+		input.on("keypress", onKeypress);
+		render();
+	});
+}
+
 // ── Conformance runner ────────────────────────────────────────────────────────
 
 export interface OperatorChannelConformanceResult {
@@ -211,6 +292,18 @@ export async function runOperatorChannelConformance(
 		if (typeof result !== "string") failures.push("text: did not return string");
 	} catch (e) {
 		failures.push(`text threw: ${String(e)}`);
+	}
+
+	// 4 — secret returns string
+	checksRun++;
+	try {
+		const result = await channel.ask({
+			type: "secret",
+			question: "_conformance_",
+		});
+		if (typeof result !== "string") failures.push("secret: did not return string");
+	} catch (e) {
+		failures.push(`secret threw: ${String(e)}`);
 	}
 
 	const failed = failures.length;

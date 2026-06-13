@@ -43,14 +43,14 @@ function makeStatus(overrides?: Partial<any>) {
 describe("resolveTuiLaunchSpec", () => {
 	it("maps watch and prompt launchers to deterministic commands", () => {
 		expect(resolveTuiLaunchSpec("watch")).toEqual({
-			command: "cargo",
-			args: ["run", "-p", "tractor", "--", "watch"],
-			display: "cargo run -p tractor -- watch",
+			command: "tractor",
+			args: ["watch"],
+			display: "tractor watch",
 		});
 		expect(resolveTuiLaunchSpec("prompt")).toEqual({
-			command: "cargo",
-			args: ["run", "-p", "tractor", "--", "prompt"],
-			display: "cargo run -p tractor -- prompt",
+			command: "tractor",
+			args: ["prompt"],
+			display: "tractor prompt",
 		});
 	});
 });
@@ -68,6 +68,24 @@ describe("tuiCommand", () => {
 			shutdown: vi.fn().mockResolvedValue(undefined),
 		});
 		launch.mockResolvedValue(0);
+	});
+
+	it("documents launch modes and runtime inspection in help", () => {
+		let help = "";
+		const command = createTuiCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm tui --launch --launcher prompt");
+		expect(help).toContain("tractor watch or tractor prompt");
+		expect(help).toContain("Use refarm runtime status");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
+		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor");
 	});
 
 	it("prints summary preflight by default", async () => {
@@ -323,7 +341,36 @@ describe("tuiCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects --actions --select in human output when the action is unavailable", async () => {
+	it("prints structured JSON when --select is used without --actions", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--select", "open-node", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tui",
+				operation: "actions",
+				error: "select-requires-actions",
+				message: "--select requires --actions.",
+				select: "open-node",
+				nextCommand: "refarm tui --actions --select 'open-node' --json",
+				nextCommands: ["refarm tui --actions --select 'open-node' --json"],
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
+	it("rejects --actions --select in operator output when the action is unavailable", async () => {
 		resolveStatusPayload.mockResolvedValueOnce({
 			json: makeStatus({
 				plugins: {
@@ -388,7 +435,7 @@ describe("tuiCommand", () => {
 
 		expect(launch).toHaveBeenCalledWith(
 			expect.objectContaining({
-				display: "cargo run -p tractor -- watch",
+				display: "tractor watch",
 			}),
 		);
 		expect(logSpy).toHaveBeenCalledWith(
@@ -411,7 +458,7 @@ describe("tuiCommand", () => {
 
 		expect(launch).toHaveBeenCalledWith(
 			expect.objectContaining({
-				display: "cargo run -p tractor -- prompt",
+				display: "tractor prompt",
 			}),
 		);
 	});
@@ -421,6 +468,9 @@ describe("tuiCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+		});
+		command.exitOverride((error) => {
+			throw error;
 		});
 
 		await expect(
@@ -472,7 +522,32 @@ describe("tuiCommand", () => {
 		expect(launch).not.toHaveBeenCalled();
 	});
 
-	it("rejects --json and --markdown together", async () => {
+	it("prints structured JSON when --json and --markdown are combined", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--json", "--markdown"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tui",
+				operation: "launch",
+				error: "exclusive-output-format",
+				message: "Choose only one output format: --json or --markdown.",
+				nextCommand: "refarm tui --launch --launcher watch --dry-run --json",
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
+	it("rejects --launch with --markdown", async () => {
 		const command = createTuiCommand({
 			resolveStatusPayload,
 			printStatusSummary,
@@ -480,22 +555,35 @@ describe("tuiCommand", () => {
 		});
 
 		await expect(
-			command.parseAsync(["--json", "--markdown"], { from: "user" }),
-		).rejects.toThrow(/Choose only one output format/);
+			command.parseAsync(["--launch", "--markdown"], { from: "user" }),
+		).rejects.toThrow(/cannot be combined/);
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
-	it("rejects --launch with --json", async () => {
+	it("prints structured JSON when --launch --json is missing --dry-run", async () => {
 		const command = createTuiCommand({
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
 		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await expect(
-			command.parseAsync(["--launch", "--json"], { from: "user" }),
-		).rejects.toThrow(/cannot be combined/);
+		await command.parseAsync(["--launch", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "tui",
+				operation: "launch",
+				error: "launch-json-requires-dry-run",
+				message: "--launch --json requires --dry-run.",
+				nextCommand: "refarm tui --launch --launcher watch --dry-run --json",
+				nextCommands: ["refarm tui --launch --launcher watch --dry-run --json"],
+			}),
+		);
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
 	});
 
 	it("rejects --dry-run without --launch", async () => {
@@ -525,6 +613,37 @@ describe("tuiCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("[dry-run] would launch tui runtime"),
 		);
+		logSpy.mockRestore();
+	});
+
+	it("prints launch dry-run as a single JSON envelope", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--launch", "--dry-run", "--json", "--launcher", "prompt"],
+			{ from: "user" },
+		);
+
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tui",
+			operation: "dry-run",
+			ok: true,
+			reason: "dry-run",
+			renderer: "tui",
+			launcher: "prompt",
+			runtimeLabel: "tui runtime",
+			launchCommand: "tractor prompt",
+			nextCommand: "refarm tui --launch --launcher prompt",
+			nextCommands: ["refarm tui --launch --launcher prompt"],
+		});
 		logSpy.mockRestore();
 	});
 

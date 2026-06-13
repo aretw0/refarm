@@ -1,0 +1,27 @@
+{
+  "id": "consent-decision-authz-sintetica-001",
+  "authorizationId": "authz-sintetica-001",
+  "decidedAt": "2026-01-01T00:00:00.000Z",
+  "holder": "cidadao-exemplo-001",
+  "requester": "servico-sintetico-beneficio",
+  "purpose": "verificar elegibilidade sintetica para atendimento demonstrativo",
+  "scope": [
+    "faixa_etaria",
+    "vinculo"
+  ],
+  "expiresAt": "2026-02-01T00:00:00.000Z",
+  "presentation": {
+    "attributesRequested": 2,
+    "attributesPresented": 2,
+    "unrequestedDisclosures": []
+  },
+  "revocation": {
+    "revokedAt": "2026-01-15T12:00:00.000Z",
+    "statusAfter": "revoked",
+    "usableAfterRevocation": false
+  },
+  "operatorReview": {
+    "required": true,
+    "reason": "Synthetic consent decision includes purpose, scope, expiration, selective disclosure, and revocation evidence for human review."
+  }
+}

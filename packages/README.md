@@ -35,7 +35,9 @@ These packages define the interoperability layers between Refarm and its plugins
 - **[`@refarm.dev/fence`](./fence)**: Scope & Boundary Auditing.
 - **[`@refarm.dev/thresher`](./thresher)**: Data Ingestion & Transformation.
 - **[`@refarm.dev/heartwood`](./heartwood)**: Cryptographic Core (WASM).
-- **[`@refarm.dev/cli`](./cli)**: The sovereign command-line interface.
+- **[`@refarm.dev/cli`](./cli)**: Shared CLI primitives, process adapters, JSON
+  envelopes, and compatibility Refarm contracts. The executable Refarm app lives
+  in `apps/refarm`.
 
 ---
 

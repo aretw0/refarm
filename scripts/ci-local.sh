@@ -129,28 +129,22 @@ run_step "project-block-consistency" node scripts/ci/project-block-consistency.m
 step "Missing dependency declarations"
 run_step "check-missing-deps" node scripts/check-missing-deps.mjs
 
-# ── 2. pnpm install --frozen-lockfile (mirrors setup action) ─────────────────
-step "Setup — pnpm install --frozen-lockfile"
-if [ ! -f pnpm-lock.yaml ]; then
-  fail "pnpm-lock.yaml is missing — CI would reject this."
-  (( FAIL++ )) || true
-  FAILED_STEPS+=("pnpm-lock.yaml exists")
-else
-  run_step "pnpm install --frozen-lockfile" pnpm install --frozen-lockfile
-fi
+# ── 2. Frozen dependency install (mirrors setup action) ──────────────────────
+step "Setup — frozen dependency install"
+run_step "frozen dependency install" node scripts/ci/run-frozen-install.mjs
 
 # ── 3. Security audit ────────────────────────────────────────────────────────
 step "Security Audit"
 if [ "$code_changes" = "true" ] || [ "$run_audit" = "true" ]; then
-  run_step "pnpm audit --audit-level=high" pnpm audit --audit-level=high
+  run_step "security:audit --level high" node scripts/security/audit.mjs --level high
 else
-  skip_step "pnpm audit" "no code changes"
+  skip_step "security:audit" "no code changes"
 fi
 
 # ── 4. TSConfig preflight ────────────────────────────────────────────────────
 step "TSConfig Preflight"
 if [ "$code_changes" = "true" ]; then
-  run_step "tsconfig:guard" pnpm run tsconfig:guard
+  run_step "tsconfig:guard" node scripts/ci/run-root-scripts.mjs tsconfig:guard
 else
   skip_step "tsconfig:guard" "no code changes"
 fi
@@ -172,17 +166,17 @@ skip_step "refarm:telemetry:gate:ci" "requires farmhand sidecar"
 # ── 7. Turbo: build lint type-check test ─────────────────────────────────────
 step "Turbo: build lint type-check test"
 if [ "$SKIP_TURBO" = "true" ]; then
-  skip_step "pnpm turbo ..." "--skip-turbo flag set"
+  skip_step "turbo ..." "--skip-turbo flag set"
 elif [ "$code_changes" = "true" ]; then
   if [ -n "$TURBO_FILTER" ]; then
-    run_step "pnpm turbo (affected: $TURBO_FILTER)" \
-      pnpm turbo run build lint type-check test:unit test:integration --filter="$TURBO_FILTER" --cache-dir="$LOCAL_TURBO_CACHE_DIR"
+    run_step "turbo (affected: $TURBO_FILTER)" \
+      node scripts/ci/run-package-binary.mjs turbo run build lint type-check test:unit test:integration --filter="$TURBO_FILTER" --cache-dir="$LOCAL_TURBO_CACHE_DIR"
   else
-    run_step "pnpm turbo (full fallback)" \
-      pnpm turbo run build lint type-check test:unit test:integration --cache-dir="$LOCAL_TURBO_CACHE_DIR"
+    run_step "turbo (full fallback)" \
+      node scripts/ci/run-package-binary.mjs turbo run build lint type-check test:unit test:integration --cache-dir="$LOCAL_TURBO_CACHE_DIR"
   fi
 else
-  skip_step "pnpm turbo" "no code changes"
+  skip_step "turbo" "no code changes"
 fi
 
 # ── 8. Tractor gates (skipped without origin/main) ───────────────────────────
@@ -191,7 +185,7 @@ if [ "$tractor_gates" = "true" ]; then
   skip_step "Benchmark Quality Gate" "requires checkout of origin/main — run manually if needed"
   skip_step "Coverage Quality Gate" "requires coverage:save baseline — run manually if needed"
   echo "  → tractor health probe smoke (best-effort — requires compiled Rust binary)"
-  if pnpm --filter @refarm.dev/tractor-rs run test:smoke:health 2>&1; then
+  if node scripts/ci/run-workspace-script.mjs packages/tractor test:smoke:health 2>&1; then
     ok "tractor:test:smoke:health"
     (( PASS++ )) || true
   else

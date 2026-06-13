@@ -13,6 +13,8 @@ import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
+import { readWorkspacePackages } from "./workspace-packages.mjs";
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
@@ -45,7 +47,7 @@ function isDependencyOnlyChange(files) {
 
     const allowed = [
         /(^|\/)package\.json$/,
-        /(^|\/)pnpm-lock\.yaml$/,
+        /(^|\/)(?:pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|bun\.lockb?)$/,
         /^final-report\.md$/,
         /^\.changeset\/.*\.md$/,
         /^\.github\/workflows\/granular-tests\.yml$/,
@@ -68,10 +70,15 @@ function getChangedPackages() {
         }
 
         // Use turbo's built-in dry-run to detect affected packages
-        const output = execSync(
-            "pnpm exec turbo run test --filter=...[origin/main] --dry-run=json",
-            { cwd: ROOT_DIR, encoding: "utf-8" }
+        const turbo = packageBinaryCommand(
+            "turbo",
+            ["run", "test", "--filter=...[origin/main]", "--dry-run=json"],
+            { cwd: ROOT_DIR },
         );
+        const output = execSync(`${turbo.command} ${turbo.args.join(" ")}`, {
+            cwd: ROOT_DIR,
+            encoding: "utf-8",
+        });
         const turboData = JSON.parse(output);
         
         // Filter out the root package marker
@@ -93,11 +100,7 @@ function getChangedPackages() {
  */
 function getAllWorkspacePackages() {
     try {
-        const output = execSync("pnpm ls -r --json --depth 0", { 
-            cwd: ROOT_DIR, 
-            encoding: "utf-8" 
-        });
-        return JSON.parse(output);
+        return readWorkspacePackages(ROOT_DIR);
     } catch (err) {
         console.error("❌ Failed to query workspace packages:", err.message);
         return [];

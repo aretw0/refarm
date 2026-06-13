@@ -1,12 +1,31 @@
+import { canonicalRuntimeAgentContent } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
 import { findSessionIdPrefixMatches, formatSessionId } from "./session-ids.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import {
+	type SessionParticipantAlias,
+	sessionParticipantFields,
+} from "./session-participants.js";
+import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
@@ -16,6 +35,7 @@ interface SessionNode {
 	created_at_ns?: number;
 	leaf_entry_id?: string | null;
 	parent_session_id?: string | null;
+	participants?: string[];
 }
 
 interface HistoryEntry {
@@ -29,16 +49,182 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
+	canonicalParticipants?: string[];
+	participantAliases?: SessionParticipantAlias[];
 }
 
-function writeActiveSessionOrExit(targetSessionId: string): void {
+interface SessionListReport {
+	activeSessionId: string | null;
+	activeSessionStatus: "none" | "active" | "stale";
+	sessions: SessionNode[];
+}
+
+interface ActiveSessionReport {
+	action: "created" | "switched" | "cleared";
+	activeSessionId: string | null;
+	session?: SessionNode;
+	cleared?: boolean;
+}
+
+interface SessionForkReport {
+	action: "forked";
+	activeSessionId: string;
+	session: SessionNode;
+	parentSessionId: string;
+	branchEntryId?: string;
+}
+
+type SessionsFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
+
+interface SessionsCommandDeps {
+	clearActiveSessionId?: () => boolean;
+	fetch?: SessionsFetch;
+	readActiveSessionId?: () => string | null;
+	sidecarUrl?: (path: string) => string;
+	writeActiveSessionIdAndVerify?: (sessionId: string) => void;
+}
+
+interface SessionsCommandServices {
+	clearActiveSessionId: () => boolean;
+	fetch: SessionsFetch;
+	readActiveSessionId: () => string | null;
+	sidecarUrl: (path: string) => string;
+	writeActiveSessionIdAndVerify: (sessionId: string) => void;
+}
+
+const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
+const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
+const SESSIONS_CLEAR_COMMAND = refarmCommand(["sessions", "clear"]);
+const SESSIONS_CLEAR_JSON_COMMAND = refarmCommand(["sessions", "clear", "--json"]);
+function sessionShowJsonCommand(sessionId: string): string {
+	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
+}
+
+function sessionUseJsonCommand(sessionId: string): string {
+	return refarmCommand(["sessions", "use", quoteCommandArg(sessionId), "--json"]);
+}
+
+function enrichSessionHistory(history: SessionHistory): SessionHistory {
+	return {
+		...history,
+		...sessionParticipantFields(history.session.participants),
+	};
+}
+
+function printSessionJsonSuccess<TExtra extends object>(
+	operation: string,
+	extra: TExtra,
+	nextCommands: string[] = [],
+): void {
+	printJson(
+		buildJsonSuccessEnvelope({
+			command: "sessions",
+			operation,
+			extra,
+			nextCommands,
+		}),
+	);
+}
+
+function resolveSessionsCommandServices(
+	deps: SessionsCommandDeps = {},
+): SessionsCommandServices {
+	return {
+		clearActiveSessionId: deps.clearActiveSessionId ?? clearActiveSessionId,
+		fetch: deps.fetch ?? ((input, init) => fetch(input, init)),
+		readActiveSessionId: deps.readActiveSessionId ?? readActiveSessionId,
+		sidecarUrl: deps.sidecarUrl ?? sidecarUrl,
+		writeActiveSessionIdAndVerify:
+			deps.writeActiveSessionIdAndVerify ?? writeActiveSessionIdAndVerify,
+	};
+}
+
+function sessionJsonOption(
+	opts: { json?: boolean } | undefined,
+	command?: Command,
+): boolean {
+	return opts?.json === true ||
+		command?.opts<{ json?: boolean }>().json === true ||
+		command?.parent?.opts<{ json?: boolean }>().json === true;
+}
+
+function writeActiveSessionOrReport(
+	services: SessionsCommandServices,
+	targetSessionId: string,
+	opts: { json?: boolean; operation?: string } = {},
+): boolean {
 	try {
-		writeActiveSessionIdAndVerify(targetSessionId);
+		services.writeActiveSessionIdAndVerify(targetSessionId);
+		return true;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		if (opts.json) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "sessions",
+					operation: opts.operation ?? "active",
+					error: "active-session-write-failed",
+					message,
+					nextAction: SESSIONS_LIST_JSON_COMMAND,
+					nextActions: [SESSIONS_LIST_JSON_COMMAND, RUNTIME_DOCTOR_COMMAND],
+					nextCommand: SESSIONS_LIST_JSON_COMMAND,
+					nextCommands: [
+						SESSIONS_LIST_JSON_COMMAND,
+						RUNTIME_DOCTOR_NEXT_COMMAND,
+					],
+					extra: {
+						action: "sessions",
+						targetSessionId,
+					},
+				}),
+			);
+			process.exitCode = 1;
+			return false;
+		}
 		console.error(chalk.red(`✗  ${message}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return false;
 	}
+}
+
+function printSessionPrefixError(
+	kind: "not-found" | "ambiguous",
+	prefix: string,
+	matches: string[] = [],
+	opts: { json?: boolean; operation?: string } = {},
+): void {
+	if (opts.json) {
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "sessions",
+				operation: opts.operation ?? "resolve",
+				error:
+					kind === "not-found"
+						? "session-not-found"
+						: "ambiguous-session-prefix",
+				nextAction: SESSIONS_LIST_JSON_COMMAND,
+				nextCommand: SESSIONS_LIST_JSON_COMMAND,
+				extra: {
+					action: "sessions",
+					prefix,
+					matches,
+				},
+			}),
+		);
+		process.exitCode = 1;
+		return;
+	}
+	if (kind === "not-found") {
+		console.error(chalk.red(`✗  No session matching "${prefix}"`));
+	} else {
+		console.error(
+			chalk.red(
+				`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`,
+			),
+		);
+		for (const m of matches) console.error(chalk.dim(`   ${m}`));
+	}
+	process.exitCode = 1;
 }
 
 function formatAge(createdAtNs: number | undefined): string {
@@ -53,38 +239,70 @@ function formatAge(createdAtNs: number | undefined): string {
 	return "just now";
 }
 
-export function createSessionsCommand(): Command {
+export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
+	const services = resolveSessionsCommandServices(deps);
 	return new Command("sessions")
 		.description("List and manage conversation sessions")
+		.option("--json", "Output machine-readable session list")
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm sessions",
+				"  $ refarm sessions --json",
+				"  $ refarm sessions new --name planning",
+				"  $ refarm sessions use <id-prefix>",
+				"  $ refarm sessions show <id-prefix>",
+				"  $ refarm sessions fork <id-prefix> --name experiment",
+				"  $ refarm sessions fork <id-prefix> --name experiment --json",
+				"",
+				"Notes:",
+				"  Sessions are stored in the active Refarm runtime.",
+				`  If sessions are unavailable, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
+				`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
+				`  Use ${RUNTIME_DOCTOR_NEXT_COMMAND} for command-only recovery automation.`,
+				`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
+				"  Prefixes must be unique; list sessions first when a prefix is ambiguous.",
+				"  Use refarm ask --new for a one-shot fresh session without naming it.",
+			].join("\n"),
+		)
 		.addCommand(
 			new Command("list")
 				.description("List recent sessions (default)")
-				.action(async () => {
-					await listSessions();
+				.option("--json", "Output machine-readable session list")
+				.action(async (opts: { json?: boolean }, command: Command) => {
+					await listSessions(services, { json: sessionJsonOption(opts, command) });
 				}),
 		)
 		.addCommand(
 			new Command("use")
 				.description("Switch to a session by ID prefix")
 				.argument("<id>", "Session ID or unique prefix")
-				.action(async (prefix: string) => {
-					await useSession(prefix);
+				.option("--json", "Output machine-readable active session update")
+				.action(async (prefix: string, opts: { json?: boolean }, command: Command) => {
+					await useSession(services, prefix, { json: sessionJsonOption(opts, command) });
 				}),
 		)
 		.addCommand(
 			new Command("new")
 				.description("Create a new session and switch to it")
 				.option("--name <name>", "Optional session name")
-				.action(async (opts: { name?: string }) => {
-					await createSession(opts);
+				.option("--json", "Output machine-readable created session metadata")
+				.action(async (opts: { name?: string; json?: boolean }, command: Command) => {
+					await createSession(services, {
+						...opts,
+						json: sessionJsonOption(opts, command),
+					});
 				}),
 		)
 		.addCommand(
 			new Command("show")
 				.description("Show conversation history for a session")
 				.argument("<id>", "Session ID or unique prefix")
-				.action(async (prefix: string) => {
-					await showSession(prefix);
+				.option("--json", "Output machine-readable session history")
+				.action(async (prefix: string, opts: { json?: boolean }, command: Command) => {
+					await showSession(services, prefix, { json: sessionJsonOption(opts, command) });
 				}),
 		)
 		.addCommand(
@@ -98,31 +316,46 @@ export function createSessionsCommand(): Command {
 					"Branch from a specific entry instead of the current leaf",
 				)
 				.option("--name <name>", "Name for the new forked session")
+				.option("--json", "Output machine-readable fork result")
 				.action(
-					async (prefix: string, opts: { at?: string; name?: string }) => {
-						await forkSession(prefix, opts);
+					async (prefix: string, opts: { at?: string; name?: string; json?: boolean }, command: Command) => {
+						await forkSession(services, prefix, {
+							...opts,
+							json: sessionJsonOption(opts, command),
+						});
 					},
 				),
 		)
 		.addCommand(
 			new Command("clear")
 				.description("Clear the active session (next ask starts fresh)")
-				.action(() => {
-					if (clearActiveSessionId()) {
+				.option("--json", "Output machine-readable clear result")
+				.action((opts: { json?: boolean }, command: Command) => {
+					const cleared = services.clearActiveSessionId();
+					if (sessionJsonOption(opts, command)) {
+						const report: ActiveSessionReport = {
+							action: "cleared",
+							activeSessionId: null,
+							cleared,
+						};
+						printSessionJsonSuccess("clear", report, [SESSIONS_LIST_JSON_COMMAND]);
+						return;
+					}
+					if (cleared) {
 						console.log(chalk.green("✓  Active session cleared."));
 					} else {
 						console.log(chalk.dim("No active session."));
 					}
 				}),
 		)
-		.action(async () => {
+		.action(async (opts: { json?: boolean }, command: Command) => {
 			// default action: list
-			await listSessions();
+			await listSessions(services, { json: sessionJsonOption(opts, command) });
 		});
 }
 
-async function fetchSessions(): Promise<SessionNode[]> {
-	const response = await fetch(sidecarUrl("/sessions"));
+async function fetchSessions(services: SessionsCommandServices): Promise<SessionNode[]> {
+	const response = await services.fetch(services.sidecarUrl("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -130,24 +363,66 @@ async function fetchSessions(): Promise<SessionNode[]> {
 	return body.sessions ?? [];
 }
 
-async function listSessions(): Promise<void> {
-	const activeId = readActiveSessionId();
+async function listSessions(
+	services: SessionsCommandServices,
+	opts: { json?: boolean } = {},
+): Promise<void> {
+	const activeId = services.readActiveSessionId();
 
 	let sessions: SessionNode[];
 	try {
-		sessions = await fetchSessions();
+		sessions = await fetchSessions(services);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "list",
+		});
+		return;
+	}
+
+	const report: SessionListReport = {
+		activeSessionId: activeId,
+		activeSessionStatus: activeId
+			? sessions.some((session) => session["@id"] === activeId)
+				? "active"
+				: "stale"
+			: "none",
+		sessions: [...sessions].sort(
+			(a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0),
+		),
+	};
+	if (opts.json) {
+		const activeSession = report.activeSessionId
+			? report.sessions.find((session) => session["@id"] === report.activeSessionId)
+			: undefined;
+		const nextSessionId = activeSession?.["@id"] ?? report.sessions[0]?.["@id"];
+		const nextCommands = nextSessionId
+			? [
+					sessionShowJsonCommand(nextSessionId),
+					sessionUseJsonCommand(nextSessionId),
+				]
+			: report.activeSessionStatus === "stale"
+				? [SESSIONS_CLEAR_JSON_COMMAND, SESSIONS_NEW_JSON_COMMAND]
+				: [SESSIONS_NEW_JSON_COMMAND];
+		printSessionJsonSuccess("list", report, nextCommands);
+		return;
 	}
 
 	if (sessions.length === 0) {
+		if (activeId) {
+			console.log(
+				chalk.dim(
+					`No sessions found. Active pointer is stale: ${activeId}`,
+				),
+			);
+			console.log(
+				chalk.dim(
+					`Clear it with: ${SESSIONS_CLEAR_COMMAND}`,
+				),
+			);
+			return;
+		}
 		console.log(
 			chalk.dim("No sessions yet. Start one with: refarm ask <query>"),
 		);
@@ -155,7 +430,7 @@ async function listSessions(): Promise<void> {
 	}
 
 	// Sort newest first by created_at_ns
-	sessions.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0));
+	sessions = report.sessions;
 
 	console.log(chalk.bold(`\n  Sessions  (${sessions.length} total)\n`));
 
@@ -188,11 +463,14 @@ async function listSessions(): Promise<void> {
 	);
 }
 
-async function createSession(opts: { name?: string }): Promise<void> {
+async function createSession(
+	services: SessionsCommandServices,
+	opts: { name?: string; json?: boolean },
+): Promise<void> {
 	let created: SessionNode;
 	try {
 		const body = opts.name ? { name: opts.name } : {};
-		const response = await fetch(sidecarUrl("/sessions"), {
+		const response = await services.fetch(services.sidecarUrl("/sessions"), {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
@@ -202,6 +480,32 @@ async function createSession(opts: { name?: string }): Promise<void> {
 			error?: string;
 		};
 		if (response.status === 404) {
+			if (opts.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "new",
+						error: "session-create-unavailable",
+						message: "Session creation endpoint is unavailable in this daemon.",
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextActions: [
+							RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+							RUNTIME_STATUS_COMMAND,
+						],
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+						nextCommands: [
+							RUNTIME_DOCTOR_NEXT_COMMAND,
+							RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+						],
+						extra: {
+							action: "sessions",
+							endpoint: "/sessions",
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
 			console.error(
 				chalk.red(
 					"✗  Session creation endpoint is unavailable in this daemon.",
@@ -209,30 +513,68 @@ async function createSession(opts: { name?: string }): Promise<void> {
 			);
 			console.error(
 				chalk.dim(
-					"   Restart or update backend and retry: refarm doctor",
+					`   Restart or update backend and retry: ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`,
 				),
 			);
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		if (!response.ok || !parsed.session) {
+			if (opts.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "new",
+						error: "session-create-failed",
+						message: parsed.error ?? `HTTP ${response.status}`,
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextActions: [
+							RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+							RUNTIME_STATUS_COMMAND,
+						],
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+						nextCommands: [
+							RUNTIME_DOCTOR_NEXT_COMMAND,
+							RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+						],
+						extra: {
+							action: "sessions",
+							endpoint: "/sessions",
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
 			console.error(
 				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
 			);
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		created = parsed.session;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "new",
+		});
+		return;
 	}
 
-	writeActiveSessionOrExit(created["@id"]);
+	if (!writeActiveSessionOrReport(services, created["@id"], { json: opts.json, operation: "new" })) return;
+	if (opts.json) {
+		const report: ActiveSessionReport = {
+			action: "created",
+			activeSessionId: created["@id"],
+			session: created,
+		};
+		printSessionJsonSuccess("new", report, [
+			sessionShowJsonCommand(created["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
+		return;
+	}
 	const short = formatSessionId(created["@id"]);
 	const name = created.name ? chalk.white(created.name) : chalk.dim("unnamed");
 	console.log(
@@ -242,41 +584,61 @@ async function createSession(opts: { name?: string }): Promise<void> {
 	);
 }
 
-async function useSession(prefix: string): Promise<void> {
+async function useSession(
+	services: SessionsCommandServices,
+	prefix: string,
+	opts: { json?: boolean } = {},
+): Promise<void> {
 	let sessions: SessionNode[];
 	try {
-		sessions = await fetchSessions();
+		sessions = await fetchSessions(services);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		console.error(chalk.red(`✗  ${msg}`));
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "use",
+		});
+		return;
 	}
 
 	const matches = findSessionIdPrefixMatches(prefix, sessions);
 
 	if (matches.length === 0) {
-		console.error(chalk.red(`✗  No session matching "${prefix}"`));
-		process.exit(1);
+		printSessionPrefixError("not-found", prefix, [], { ...opts, operation: "use" });
+		return;
 	}
 	if (matches.length > 1) {
-		console.error(
-			chalk.red(
-				`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`,
-			),
+		printSessionPrefixError(
+			"ambiguous",
+			prefix,
+			matches.map((match) => match["@id"]),
+			{ ...opts, operation: "use" },
 		);
-		for (const m of matches) console.error(chalk.dim(`   ${m["@id"]}`));
-		process.exit(1);
+		return;
 	}
 
-	writeActiveSessionOrExit(matches[0]!["@id"]);
+	if (!writeActiveSessionOrReport(services, matches[0]!["@id"], { json: opts.json, operation: "use" })) return;
+	if (opts.json) {
+		const report: ActiveSessionReport = {
+			action: "switched",
+			activeSessionId: matches[0]!["@id"],
+			session: matches[0]!,
+		};
+		printSessionJsonSuccess("use", report, [
+			sessionShowJsonCommand(matches[0]!["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
+		return;
+	}
 	console.log(
 		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]!["@id"])}`),
 	);
 }
 
 async function forkSession(
+	services: SessionsCommandServices,
 	prefix: string,
-	opts: { at?: string; name?: string },
+	opts: { at?: string; name?: string; json?: boolean },
 ): Promise<void> {
 	const body: Record<string, string> = {};
 	if (opts.at) body["entry_id"] = opts.at;
@@ -284,8 +646,8 @@ async function forkSession(
 
 	let fork: SessionNode;
 	try {
-		const response = await fetch(
-			sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/fork`),
+		const response = await services.fetch(
+			services.sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/fork`),
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -298,36 +660,70 @@ async function forkSession(
 			matches?: string[];
 		};
 		if (response.status === 404) {
-			console.error(chalk.red(`✗  No session matching "${prefix}"`));
-			process.exit(1);
+			printSessionPrefixError("not-found", prefix, [], {
+				json: opts.json,
+				operation: "fork",
+			});
+			return;
 		}
 		if (response.status === 409) {
-			console.error(
-				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
-			);
-			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exit(1);
+			printSessionPrefixError("ambiguous", prefix, parsed.matches ?? [], {
+				json: opts.json,
+				operation: "fork",
+			});
+			return;
 		}
 		if (!response.ok || !parsed.session) {
+			if (opts.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "fork",
+						error: "session-fork-failed",
+						message: parsed.error ?? `HTTP ${response.status}`,
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+						extra: {
+							action: "sessions",
+							prefix,
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
 			console.error(
 				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
 			);
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
 		fork = parsed.session;
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "fork",
+		});
+		return;
 	}
 
 	// Auto-switch to the new fork.
-	writeActiveSessionOrExit(fork["@id"]);
+	if (!writeActiveSessionOrReport(services, fork["@id"], { json: opts.json, operation: "fork" })) return;
+	if (opts.json) {
+		const report: SessionForkReport = {
+			action: "forked",
+			activeSessionId: fork["@id"],
+			session: fork,
+			parentSessionId: fork.parent_session_id ?? prefix,
+			...(fork.leaf_entry_id ? { branchEntryId: fork.leaf_entry_id } : {}),
+		};
+		printSessionJsonSuccess("fork", report, [
+			sessionShowJsonCommand(fork["@id"]),
+			SESSIONS_LIST_JSON_COMMAND,
+		]);
+		return;
+	}
 	const short = formatSessionId(fork["@id"]);
 	const parentShort = formatSessionId(fork.parent_session_id ?? prefix);
 	console.log(
@@ -341,43 +737,77 @@ async function forkSession(
 	console.log(chalk.dim("   Active session switched to the fork."));
 }
 
-async function showSession(prefix: string): Promise<void> {
+async function showSession(
+	services: SessionsCommandServices,
+	prefix: string,
+	opts: { json?: boolean } = {},
+): Promise<void> {
 	// Pass prefix directly — sidecar does exact-then-substring resolution.
 	const encodedId = encodeURIComponent(prefix);
 	let history: SessionHistory;
 	try {
-		const response = await fetch(
-			sidecarUrl(`/sessions/${encodedId}/history`),
+		const response = await services.fetch(
+			services.sidecarUrl(`/sessions/${encodedId}/history`),
 		);
 		const body = (await response.json()) as SessionHistory & {
 			error?: string;
 			matches?: string[];
 		};
 		if (response.status === 404) {
-			console.error(chalk.red(`✗  No session matching "${prefix}"`));
-			process.exit(1);
+			printSessionPrefixError("not-found", prefix, [], {
+				json: opts.json,
+				operation: "show",
+			});
+			return;
 		}
 		if (response.status === 409) {
-			console.error(
-				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${body.error}`),
-			);
-			for (const m of body.matches ?? []) console.error(chalk.dim(`   ${m}`));
-			process.exit(1);
+			printSessionPrefixError("ambiguous", prefix, body.matches ?? [], {
+				json: opts.json,
+				operation: "show",
+			});
+			return;
 		}
 		if (!response.ok) {
+			if (opts.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "sessions",
+						operation: "show",
+						error: "session-history-failed",
+						message: body.error ?? `HTTP ${response.status}`,
+						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+						extra: {
+							action: "sessions",
+							prefix,
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
 			console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 		}
-		history = body;
+		history = enrichSessionHistory(body);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Diagnose:  refarm doctor"));
-		} else {
-			console.error(chalk.red(`✗  ${msg}`));
-		}
-		process.exit(1);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "sessions",
+			operation: "show",
+		});
+		return;
+	}
+
+	if (opts.json) {
+		const activeSessionId = services.readActiveSessionId();
+		const nextCommands =
+			activeSessionId === history.session["@id"]
+				? []
+				: [sessionUseJsonCommand(history.session["@id"]), SESSIONS_LIST_JSON_COMMAND];
+		printSessionJsonSuccess("show", history, nextCommands);
+		return;
 	}
 
 	const session = history.session;
@@ -397,9 +827,12 @@ async function showSession(prefix: string): Promise<void> {
 
 	for (const entry of history.entries) {
 		const isUser = entry.kind === "user";
-		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Pi ");
+		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Agent");
 		console.log(label);
-		const lines = entry.content.split("\n");
+		const content = isUser
+			? entry.content
+			: canonicalRuntimeAgentContent(entry.content);
+		const lines = content.split("\n");
 		for (const line of lines) {
 			console.log(isUser ? chalk.blue(`  ${line}`) : `  ${line}`);
 		}

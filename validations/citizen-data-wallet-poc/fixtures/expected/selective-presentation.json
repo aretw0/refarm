@@ -1,0 +1,11 @@
+{
+  "id": "presentation-beneficio-sintetico-001",
+  "holder": "cidadao-exemplo-001",
+  "requester": "servico-sintetico-beneficio",
+  "authorizationId": "authz-sintetica-001",
+  "presentedAt": "2026-01-01T00:00:00.000Z",
+  "attributes": {
+    "faixa_etaria": "maior_de_18",
+    "vinculo": "beneficiario_sintetico"
+  }
+}

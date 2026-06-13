@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { packageScriptCommand } from './package-manager.mjs';
 
 function runCheck(name, command) {
     console.log(`\n⏳ Running ${name}...`);
@@ -25,10 +26,10 @@ async function main() {
     }
 
     const checks = [
-        { name: "Linter", command: "npm run lint" },
-        { name: "Type Checker", command: "npm run type-check" },
-        { name: "Unit Tests", command: "npm run test:unit" },
-        { name: "Integration Tests", command: "npm run test:integration" }
+        { name: "Linter", command: packageScriptCommand("lint").command },
+        { name: "Type Checker", command: packageScriptCommand("type-check").command },
+        { name: "Unit Tests", command: packageScriptCommand("test:unit").command },
+        { name: "Integration Tests", command: packageScriptCommand("test:integration").command }
         // E2E and Benchmarks can be added to the array as the suite expands
     ];
 

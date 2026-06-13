@@ -199,7 +199,7 @@ export class WasiImports {
 				const key = process.env.ANTHROPIC_API_KEY;
 				if (!key) {
 					throw new Error(
-						`No credentials configured for provider "${normalized}". Set ANTHROPIC_API_KEY (or run npm run agent:keys).`,
+						`No credentials configured for provider "${normalized}". Set ANTHROPIC_API_KEY or run refarm sow.`,
 					);
 				}
 				const token = sanitizeAuthToken(key);
@@ -217,7 +217,7 @@ export class WasiImports {
 						? providerEnv
 						: `${providerEnv} (or OPENAI_API_KEY)`;
 				throw new Error(
-					`No credentials configured for provider "${normalized}". Set ${envHint}, run npm run agent:keys, or use MODEL_PROVIDER=ollama.`,
+					`No credentials configured for provider "${normalized}". Set ${envHint}, run refarm sow, or use MODEL_PROVIDER=ollama.`,
 				);
 			}
 

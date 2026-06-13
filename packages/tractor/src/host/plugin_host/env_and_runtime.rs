@@ -5,7 +5,19 @@ fn is_forwardable_model_env_value(value: &str) -> bool {
 /// Build plugin env vars with project config override semantics:
 /// process MODEL_* vars first, then `.refarm/config.json` overwrites them.
 fn plugin_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
-    merge_plugin_env_vars(forwarded_model_env_vars(), refarm_config_env_vars_from(base))
+    let mut vars = forwarded_model_env_vars();
+    vars.extend(plugin_runtime_env_vars());
+    merge_plugin_env_vars(vars, refarm_config_env_vars_from(base))
+}
+
+fn plugin_runtime_env_vars() -> Vec<(String, String)> {
+    let mut vars = Vec::new();
+    push_trimmed_env_var(
+        &mut vars,
+        "REFARM_STREAMS_DIR",
+        std::env::var("REFARM_STREAMS_DIR").ok().as_deref(),
+    );
+    vars
 }
 
 fn merge_plugin_env_vars(
@@ -257,6 +269,24 @@ fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> 
     serde_json::from_slice::<serde_json::Value>(&bytes).ok()
 }
 
+fn preopen_plugin_runtime_dirs(wasi_builder: &mut WasiCtxBuilder) -> Result<()> {
+    let Ok(streams_dir) = std::env::var("REFARM_STREAMS_DIR") else {
+        return Ok(());
+    };
+    if streams_dir.trim().is_empty() {
+        return Ok(());
+    }
+
+    std::fs::create_dir_all(&streams_dir)?;
+    wasi_builder.preopened_dir(
+        &streams_dir,
+        streams_dir.as_str(),
+        DirPerms::all(),
+        FilePerms::all(),
+    )?;
+    Ok(())
+}
+
 fn now_ns() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -310,11 +340,19 @@ struct RuntimePluginManifest {
     version: String,
     entry: String,
     observability: RuntimePluginObservability,
+    #[serde(default)]
+    capabilities: RuntimePluginCapabilities,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 struct RuntimePluginObservability {
     hooks: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+struct RuntimePluginCapabilities {
+    #[serde(default)]
+    provides: Vec<String>,
 }
 
 const REQUIRED_RUNTIME_HOOKS: &[&str] = &[
@@ -330,7 +368,7 @@ fn read_runtime_plugin_manifest(path: &Path) -> Result<Option<RuntimePluginManif
         return Ok(None);
     };
 
-    for filename in ["plugin-manifest.json", "manifest.json"] {
+    for filename in ["plugin.json", "plugin-manifest.json", "manifest.json"] {
         let manifest_path = parent.join(filename);
         if !manifest_path.is_file() {
             continue;
@@ -465,11 +503,16 @@ impl PluginHost {
     /// Fase 3 TODO: if `agent_tools` is loaded, compose agent-fs/shell from it
     /// instead of the host primitive — see HANDOFF.md Tarefa 2B.
     pub async fn load(&self, path: &Path, sync: &NativeSync) -> Result<PluginInstanceHandle> {
-        let plugin_id = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
+        let manifest = read_runtime_plugin_manifest(path)?;
+        let plugin_id = manifest
+            .as_ref()
+            .map(|m| manifest_runtime_plugin_id(&m.id).to_string())
+            .unwrap_or_else(|| {
+                path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            });
 
         tracing::info!(plugin_id = %plugin_id, path = %path.display(), "Loading plugin");
         anyhow::ensure!(path.exists(), "Plugin file not found: {}", path.display());
@@ -505,6 +548,7 @@ impl PluginHost {
         for (k, v) in &env_vars {
             wasi_builder.env(k, v);
         }
+        preopen_plugin_runtime_dirs(&mut wasi_builder)?;
         let wasi = wasi_builder.build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
@@ -516,22 +560,25 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
 
-        if let Some(manifest) = read_runtime_plugin_manifest(path)? {
+        let provides = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
-            validate_manifest_runtime_alignment(&plugin_id, &metadata, &manifest)?;
+            validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
+            manifest.capabilities.provides.clone()
         } else {
             tracing::warn!(
                 plugin_id = %plugin_id,
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-        }
+            vec![]
+        };
 
         let mut handle = PluginInstanceHandle::new_component(
             plugin_id.clone(),
             plugin,
             store,
             self.telemetry.clone(),
+            provides,
         );
         handle.call_setup().await?;
 
@@ -591,6 +638,7 @@ impl PluginHost {
             for (k, v) in &env_vars {
                 builder.env(k, v);
             }
+            preopen_plugin_runtime_dirs(&mut builder)?;
             builder.build_p1()
         };
 
@@ -598,11 +646,16 @@ impl PluginHost {
         let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1 });
         let instance = self.module_linker.instantiate(&mut store, &module)?;
 
+        let provides = read_runtime_plugin_manifest(path)?
+            .map(|m| m.capabilities.provides)
+            .unwrap_or_default();
+
         let mut handle = PluginInstanceHandle::new_module(
             plugin_id.to_string(),
             instance,
             store,
             self.telemetry.clone(),
+            provides,
         );
         handle.call_setup().await?;
 
@@ -667,3 +720,69 @@ impl PluginHost {
 #[cfg(test)]
 #[path = "../plugin_host_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod capability_tests {
+    use super::*;
+
+    fn minimal_manifest(extra_json: &str) -> RuntimePluginManifest {
+        let json = format!(
+            r#"{{"id":"@test/plugin","version":"0.1.0","entry":"plugin.wasm",
+                "observability":{{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]}}
+                {}}}"#,
+            if extra_json.is_empty() { String::new() } else { format!(",{extra_json}") }
+        );
+        serde_json::from_str(&json).expect("valid manifest JSON")
+    }
+
+    #[test]
+    fn manifest_without_capabilities_defaults_to_empty() {
+        let m = minimal_manifest("");
+        assert!(m.capabilities.provides.is_empty());
+    }
+
+    #[test]
+    fn manifest_with_observe_agent_tools_capability() {
+        let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools"]}"#);
+        assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    }
+
+    #[test]
+    fn manifest_with_multiple_capabilities() {
+        let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools","audit-log"]}"#);
+        assert_eq!(m.capabilities.provides.len(), 2);
+        assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    }
+
+    #[test]
+    fn runtime_manifest_reader_accepts_plugin_json() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let wasm_path = dir.path().join("plugin.wasm");
+        std::fs::write(&wasm_path, b"wasm").expect("write wasm placeholder");
+        std::fs::write(
+            dir.path().join("plugin.json"),
+            r#"{"id":"@test/plugin","version":"0.1.0","entry":"plugin.wasm",
+                "observability":{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]},
+                "capabilities":{"provides":["agent:respond"]}}"#,
+        )
+        .expect("write plugin manifest");
+
+        let manifest = read_runtime_plugin_manifest(&wasm_path)
+            .expect("read manifest")
+            .expect("manifest found");
+
+        assert!(manifest.capabilities.provides.contains(&"agent:respond".to_string()));
+    }
+
+    #[test]
+    fn manifest_runtime_plugin_id_uses_manifest_identity_suffix() {
+        assert_eq!(manifest_runtime_plugin_id("@refarm/pi-agent"), "pi-agent");
+    }
+
+    #[test]
+    fn capability_constant_is_stable() {
+        // Guard: if CAP_OBSERVE_AGENT_TOOLS ever changes, existing plugin.json files
+        // would silently stop being routed as observers.
+        assert_eq!(crate::observer::CAP_OBSERVE_AGENT_TOOLS, "observe-agent-tools");
+    }
+}

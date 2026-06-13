@@ -1,6 +1,6 @@
 //! HTTP sidecar — implements the ADR-060 effort protocol on top of TractorNative.
 //!
-//! Binds on `127.0.0.1:<port>` (default 42001) and exposes:
+//! Binds on the configured host and port (`127.0.0.1:42001` by default) and exposes:
 //!   POST   /efforts                    — submit effort, returns { effortId }
 //!   GET    /efforts                    — list effort results
 //!   GET    /efforts/summary            — aggregate summary
@@ -8,6 +8,8 @@
 //!   GET    /efforts/:id/logs           — effort log entries
 //!   POST   /efforts/:id/retry          — re-enqueue
 //!   POST   /efforts/:id/cancel         — cancel
+//!   GET    /plugins                    — installed/loaded plugin state
+//!   POST   /plugins/reload             — report reload readiness for loaded plugins
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
 //! task. Results and stream chunks are written to the filesystem so that
@@ -86,6 +88,9 @@ type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
 pub struct SidecarState {
     pub efforts: EffortStore,
     pub agent_channels: AgentChannels,
+    /// ID of the loaded plugin with `"agent:respond"` capability, if any.
+    /// Populated by TractorNative.register_for_events; used for effort routing.
+    pub active_agent_id: Arc<RwLock<Option<String>>>,
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
     pub namespace: String,
@@ -94,6 +99,7 @@ pub struct SidecarState {
 impl SidecarState {
     pub fn new(
         agent_channels: AgentChannels,
+        active_agent_id: Arc<RwLock<Option<String>>>,
         base_dir: &Path,
         namespace: String,
     ) -> std::io::Result<Self> {
@@ -104,6 +110,7 @@ impl SidecarState {
         Ok(Self {
             efforts: Arc::new(RwLock::new(HashMap::new())),
             agent_channels,
+            active_agent_id,
             streams_dir,
             results_dir,
             namespace,
@@ -125,6 +132,7 @@ fn prompt_ref_from_effort(effort_id: &str) -> String {
 fn stream_ref_for_prompt(prompt_ref: &str) -> String {
     format!("urn:tractor:stream:agent-response:{prompt_ref}")
 }
+
 
 fn write_stream_chunk(
     streams_dir: &Path,
@@ -149,6 +157,65 @@ fn write_stream_chunk(
     Ok(())
 }
 
+async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
+    let loaded: Vec<String> = {
+        let channels = state.agent_channels.read().expect("channels poisoned");
+        let mut ids: Vec<String> = channels.keys().cloned().collect();
+        ids.sort();
+        ids
+    };
+    let active_agent = state
+        .active_agent_id
+        .read()
+        .expect("active_agent_id poisoned")
+        .clone();
+
+    Json(serde_json::json!({
+        "installed": loaded,
+        "loaded": loaded,
+        "local": [],
+        "known": loaded,
+        "activeAgent": active_agent,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PluginReloadRequest {
+    plugin_ids: Option<Vec<String>>,
+}
+
+async fn post_plugins_reload(
+    State(state): State<SidecarState>,
+    Json(request): Json<PluginReloadRequest>,
+) -> impl IntoResponse {
+    let loaded: Vec<String> = {
+        let channels = state.agent_channels.read().expect("channels poisoned");
+        let mut ids: Vec<String> = channels.keys().cloned().collect();
+        ids.sort();
+        ids
+    };
+    let requested = request.plugin_ids.unwrap_or_else(|| loaded.clone());
+    let mut reloaded = Vec::new();
+    let mut skipped = Vec::new();
+
+    for plugin_id in requested {
+        if loaded.contains(&plugin_id) {
+            reloaded.push(plugin_id);
+        } else {
+            skipped.push(plugin_id);
+        }
+    }
+
+    Json(serde_json::json!({
+        "reloadId": uuid::Uuid::new_v4().to_string(),
+        "reloaded": reloaded,
+        "deferred": [],
+        "skipped": skipped,
+    }))
+}
+
+#[derive(Debug)]
 struct TaskArgs {
     prompt: String,
     system: Option<String>,
@@ -156,14 +223,21 @@ struct TaskArgs {
     history_turns: Option<u64>,
 }
 
-fn extract_task_args(task: &EffortTask) -> TaskArgs {
+fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
     let args = &task.args;
-    TaskArgs {
-        prompt: args
-            .get("prompt")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
+    let prompt = args
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .or_else(|| args.get("query").and_then(|v| v.as_str()))
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| {
+            "sidecar: @refarm/pi-agent::respond requires args.prompt".to_string()
+        })?
+        .to_string();
+
+    Ok(TaskArgs {
+        prompt,
         system: args
             .get("system")
             .and_then(|v| v.as_str())
@@ -176,7 +250,7 @@ fn extract_task_args(task: &EffortTask) -> TaskArgs {
         history_turns: args
             .get("history_turns")
             .and_then(|v| v.as_u64()),
-    }
+    })
 }
 
 // ── effort dispatch ──────────────────────────────────────────────────────────
@@ -215,20 +289,29 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
 
         let fn_name = task.fn_name.as_deref().unwrap_or("respond");
 
-        // Only `@refarm/pi-agent` + `respond` is supported in Phase 1.
-        if task.plugin_id != "@refarm/pi-agent" || fn_name != "respond" {
+        // Only `respond` function is supported. The plugin must be the active agent.
+        if fn_name != "respond" {
             finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
                 status: "error".to_string(),
                 result: None,
                 error: Some(format!(
-                    "sidecar: unsupported task {}::{fn_name} (only @refarm/pi-agent::respond)",
-                    task.plugin_id
+                    "sidecar: unsupported function {fn_name} (only 'respond' is supported)"
                 )),
             }]);
             return;
         }
 
-        let args = extract_task_args(&task);
+        let args = match extract_task_args(&task) {
+            Ok(args) => args,
+            Err(error) => {
+                finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
+                    status: "error".to_string(),
+                    result: None,
+                    error: Some(error),
+                }]);
+                return;
+            }
+        };
         let prompt_ref = prompt_ref_from_effort(&effort_id);
         let stream_ref = stream_ref_for_prompt(&prompt_ref);
 
@@ -249,10 +332,20 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         }
         let payload = payload_obj.to_string();
 
-        // Dispatch to pi-agent channel.
+        // Dispatch to the active agent channel.
+        // Prefer the plugin registered via the "agent:respond" capability.
+        // Fall back to the task's plugin_id for backward compatibility
+        // (e.g. when loaded without a manifest in dev mode).
+        let agent_id = state
+            .active_agent_id
+            .read()
+            .expect("active_agent_id poisoned")
+            .clone()
+            .unwrap_or_else(|| task.plugin_id.clone());
+
         let sent = {
             let channels = state.agent_channels.read().expect("channels poisoned");
-            channels.get("@refarm/pi-agent").map(|tx| {
+            channels.get(&agent_id).map(|tx| {
                 tx.send(crate::AgentMessage {
                     event: "user:prompt".to_string(),
                     payload: Some(payload),
@@ -267,14 +360,14 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     &state.streams_dir,
                     &stream_ref,
                     0,
-                    "[pi-agent not loaded — run npm run agent:install then restart]",
+                    &format!("[agent not loaded ({agent_id}) - run refarm plugin status, then refarm plugin install or reload]"),
                     true,
                     None,
                 );
                 finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
                     status: "error".to_string(),
                     result: None,
-                    error: Some("@refarm/pi-agent not loaded".to_string()),
+                    error: Some(format!("{agent_id} not loaded")),
                 }]);
             }
             Some(Err(e)) => {
@@ -856,7 +949,7 @@ async fn get_task(
 
 // ── public API ────────────────────────────────────────────────────────────────
 
-pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
+pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
     let router = Router::new()
         .route("/efforts", post(post_efforts).get(get_efforts))
         .route("/efforts/summary", get(get_efforts_summary))
@@ -869,14 +962,16 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/sessions/:id/history", get(get_session_history))
         .route("/tasks", get(get_tasks))
         .route("/tasks/:id", get(get_task))
+        .route("/plugins", get(get_plugins))
+        .route("/plugins/reload", post(post_plugins_reload))
         .with_state(state);
 
-    let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
-    tracing::info!(port, "HTTP sidecar listening");
+    let bind_addr = format!("{host}:{port}");
+    let listener = TcpListener::bind(&bind_addr).await?;
+    tracing::info!(host = %host, port, "HTTP sidecar listening");
     axum::serve(listener, router).await?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests;
-

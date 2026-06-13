@@ -1,171 +1,83 @@
 # GitHub Actions Workflows
 
-## Overview
+This directory contains Refarm CI, release and deploy workflows. Treat release and deploy as separate surfaces.
 
-Este diretório contém workflows automatizados para CI/CD do projeto Refarm.
+## Core Workflows
 
-## Workflows Ativos
+### `test.yml` — Continuous Integration
 
-### 1. `test.yml` — Continuous Integration
+Runs the main quality checks for code changes:
 
-**Trigger:** Push, Pull Request
-**Objetivo:** Validar qualidade do código
+- TypeScript checks.
+- Lint.
+- Unit, conformance and selected integration tests.
+- Build and runtime descriptor smoke where applicable.
 
-**Steps:**
+### `deploy-dev.yml` — GitHub Pages Deploy
 
-- Type checking (TypeScript)
-- Lint (ESLint)
-- Unit tests + conformance tests
-- E2E tests (validations)
-- Build artefacts
+Builds and deploys `apps/dev` to GitHub Pages.
 
-### 2. `publish-packages.yml` — Package Publishing
+Properties:
 
-**Trigger:** Push de git tags no formato `@refarm.dev/<package>@<version>`
-**Objetivo:** Publicar pacotes no npm de forma segura e automatizada
+- trigger: push to `main`/`master` for app/package/deploy files, plus manual dispatch;
+- permissions: `contents: read`, `pages: write`, `id-token: write`;
+- setup cache mode: `off`;
+- build gate: Heartwood WASM package, `apps/dev`, and Astro base-path check;
+- artifact path: `apps/dev/dist`;
+- no npm publish or release token usage.
 
-**Examples:**
+### `release-changesets.yml` — Package Release
 
-```bash
-git tag @refarm.dev/storage-contract-v1@0.1.0
-git push origin @refarm.dev/storage-contract-v1@0.1.0
-```
+Creates Changesets release PRs and publishes packages only when release automation is explicitly enabled.
 
-**Steps:**
+Properties:
 
-1. Validações (type-check, tests, dry-run)
-2. Publish para npm com provenance
-3. Criação de GitHub Release
-4. Verificação pós-publicação
+- trigger: push to `main`, plus manual dispatch;
+- gate: `vars.RELEASE_AUTOMATION == 'true'`;
+- optional owner lock: `vars.RELEASE_OWNER`;
+- permissions: `contents: write`, `pull-requests: write`, `id-token: write`;
+- setup cache mode: `off`;
+- publish command: `changeset publish`;
+- npm token: `secrets.NPM_TOKEN`;
+- runtime descriptor release path is smoked before publish.
 
-**Requirements:**
+## Local Verification
 
-- `NPM_TOKEN` configurado em Secrets (automation token)
-- Version no `package.json` deve corresponder ao tag
-- Todos os testes devem passar
-
-## How to Publish a Package
-
-**Opção 1: Helper Script (Recomendado)**
+Use these checks before editing release or deploy workflows:
 
 ```bash
-# Bump patch version (0.1.0 → 0.1.1)
-npm run release storage-contract-v1 patch
-
-# Bump minor version (0.1.0 → 0.2.0)
-npm run release sync-contract-v1 minor
-
-# Set specific version
-npm run release identity-contract-v1 0.3.0
+pnpm run actions:pins
+pnpm run deploy:publish:workflow:test
+pnpm run release:check
+pnpm run runtime-descriptor:release-smoke
 ```
 
-O script automaticamente:
+`publish-packages.yml` is legacy tag-based automation. Do not use it as the default release path unless it is deliberately revived with a separate contract update.
 
-- ✅ Valida git status clean
-- ✅ Bumps version no package.json
-- ✅ Roda type-check + tests + conformance
-- ✅ Cria commit + tag
-- ℹ️ Informa comando para push do tag
+## Required Secrets And Variables
 
-**Opção 2: Manual**
+| Name | Kind | Used by | Purpose |
+|---|---|---|---|
+| `NPM_TOKEN` | secret | `release-changesets.yml` | npm publish through Changesets |
+| `RELEASE_AUTOMATION` | variable | `release-changesets.yml` | explicit opt-in for package release automation |
+| `RELEASE_OWNER` | variable | `release-changesets.yml` | optional owner lock |
+| `GITHUB_TOKEN` | automatic | GitHub Actions | release PRs and repository operations |
+
+## Optional CI Cache
+
+`TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` enable the Cloudflare-backed
+Turborepo remote cache. They are optional. The shared setup action restores the
+local `.turbo` GitHub Actions cache first, then enables the remote cache only
+when authenticated event and artifact probes pass. If the remote cache is
+unavailable or misconfigured, CI continues with the local cache and emits a
+setup warning instead of letting Turbo fail later during verification.
+
+## Release Recovery
+
+If a published version has a problem, prefer deprecation plus a fixed release. Do not use `npm unpublish` for normal recovery because it can break downstream installs.
 
 ```bash
-# 1. Navigate to package
-cd packages/storage-contract-v1
-
-# 2. Bump version
-npm version patch  # ou minor/major
-
-# 3. Build + test
-npm run build
-npm run test:unit
-
-# 4. Commit + tag (from root)
-cd ../..
-git add packages/storage-contract-v1/package.json
-git commit -m "chore(storage-contract-v1): release v0.1.1"
-git tag @refarm.dev/storage-contract-v1@0.1.1
-
-# 5. Push tag (triggers CI)
-git push origin @refarm.dev/storage-contract-v1@0.1.1
+npm deprecate @refarm.dev/<package>@<version> "Broken release - use <fixed-version>+"
 ```
 
-## Monitoring Releases
-
-1. **GitHub Actions:** <https://github.com/aretw0/refarm/actions>
-2. **npm Package:** <https://www.npmjs.com/package/@refarm.dev/storage-contract-v1>
-3. **GitHub Releases:** <https://github.com/aretw0/refarm/releases>
-
-## Rollback a Release
-
-Se uma versão foi publicada com problemas:
-
-```bash
-# 1. Deprecate no npm (não remove, apenas avisa)
-npm deprecate @refarm.dev/storage-contract-v1@0.1.1 "Broken release - use 0.1.2+"
-
-# 2. Publish hotfix
-npm run release storage-contract-v1 patch  # → 0.1.2
-git push origin @refarm.dev/storage-contract-v1@0.1.2
-```
-
-⚠️ **NUNCA use `npm unpublish`** — quebra dependências de consumidores.
-
-## Secrets Required
-
-Configurar em: <https://github.com/aretw0/refarm/settings/secrets/actions>
-
-| Secret | Description | How to Get |
-|--------|-------------|------------|
-| `NPM_TOKEN` | npm automation token | <https://www.npmjs.com/settings/[user]/tokens> → Generate (Automation) |
-| `GITHUB_TOKEN` | Provided automatically | - |
-
-## Security Best Practices
-
-1. ✅ Use **Automation tokens** (não Classic tokens)
-2. ✅ Enable **2FA** no npm account
-3. ✅ Publish com **provenance** (`--provenance` flag)
-4. ✅ Review changes antes do push do tag
-5. ✅ Monitor downloads suspeitos (typosquatting attacks)
-
-## Troubleshooting
-
-### "Version mismatch" Error
-
-```
-❌ Version mismatch: tag=0.1.1, package.json=0.1.0
-```
-
-**Fix:**
-
-```bash
-cd packages/storage-contract-v1
-npm version 0.1.1 --no-git-tag-version
-git add package.json
-git commit --amend --no-edit
-git push -f origin <branch>
-```
-
-### "NPM_TOKEN not set"
-
-```
-❌ This command requires you to be logged in
-```
-
-**Fix:** Configurar `NPM_TOKEN` no GitHub Secrets (ver acima).
-
-### "Publish failed - package already exists"
-
-Você tentou publicar uma versão que já existe no npm.
-
-**Fix:** Bump para próxima versão:
-
-```bash
-npm run release <package> patch
-```
-
-## References
-
-- [npm provenance](https://docs.npmjs.com/generating-provenance-statements)
-- [GitHub Actions](https://docs.github.com/en/actions)
-- [Semantic Versioning](https://semver.org/)
+Then prepare a new Changesets release through the normal gated release workflow.

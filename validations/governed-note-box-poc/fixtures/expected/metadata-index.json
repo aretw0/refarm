@@ -1,0 +1,68 @@
+{
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "notes": [
+    {
+      "id": "note-001",
+      "title": "Sandboxed Extensions",
+      "tags": [
+        "extensions",
+        "governance"
+      ],
+      "links": [
+        "note-002"
+      ],
+      "status": "ready",
+      "createdAt": "2026-01-01",
+      "bodyHash": "f1bd7af57ebed3211d51da34b6c0eefe63a6122a0048af38d267876666d8b1fe"
+    },
+    {
+      "id": "note-002",
+      "title": "Consent Receipts",
+      "tags": [
+        "audit",
+        "identity"
+      ],
+      "links": [
+        "note-001",
+        "note-003"
+      ],
+      "status": "ready",
+      "createdAt": "2026-01-02",
+      "bodyHash": "5086c639cca32e48a413d8a3d3b3e7f69ae01d32e92f05d5ab40653e96481f3a"
+    },
+    {
+      "id": "note-003",
+      "title": "Publication Review",
+      "tags": [
+        "publication",
+        "review"
+      ],
+      "links": [
+        "note-002"
+      ],
+      "status": "draft",
+      "createdAt": "2026-01-03",
+      "bodyHash": "40ebe93ea7b000deeab0482f42de1b94e1b3649e47e681302146d714ba0012ba"
+    }
+  ],
+  "byTag": {
+    "audit": [
+      "note-002"
+    ],
+    "extensions": [
+      "note-001"
+    ],
+    "governance": [
+      "note-001"
+    ],
+    "identity": [
+      "note-002"
+    ],
+    "publication": [
+      "note-003"
+    ],
+    "review": [
+      "note-003"
+    ]
+  }
+}

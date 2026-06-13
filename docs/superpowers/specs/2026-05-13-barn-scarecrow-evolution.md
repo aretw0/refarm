@@ -135,21 +135,28 @@ This unifies the install flow: integrity verification, binary kind detection, an
 
 ### Step 3 — Scarecrow: WIT Observation Hooks (additive)
 
-**Location:** `packages/tractor-ts/src/lib/wasi-imports.ts` — the WIT host bridge
+**Daemon path (Rust tractor) — IMPLEMENTED** in
+`packages/tractor/src/host/agent_tools_bridge/core.rs`.
 
-Add optional observation callbacks alongside the existing `model-bridge` and future host imports:
+Every `agent-fs` and `agent-shell` call now emits two observation signals:
 
-```typescript
-export interface WasmObservationHooks {
-  onWitCall?: (pluginId: string, interfaceName: string, functionName: string) => void;
-  onWitCallEnd?: (pluginId: string, interfaceName: string, durationMs: number) => void;
-  onMemoryGrow?: (pluginId: string, pages: number) => void;
-}
-```
+1. **`tracing::info!`** — structured log line with `plugin_id`, `op`, path/argv,
+   byte counts, exit codes, and `duration_ms` (spawn only). Visible via the
+   daemon's `RUST_LOG` subscriber.
 
-These wrap existing WIT import calls — no plugin changes needed. Plugins cannot bypass them. The hooks are optional so existing callers are unaffected.
+2. **`TelemetryBus.emit_named`** — typed events (`agent-tool:fs:read`,
+   `agent-tool:fs:write`, `agent-tool:fs:edit`, `agent-tool:shell:spawn`)
+   with JSON payloads. Any subscriber can receive them without touching the
+   bridge; future Scarecrow policy plugins will subscribe here.
 
-**Why in tractor-ts:** The WIT host is the only position where all plugin calls pass through. Scarecrow observation lives here, not in the plugin.
+Both signals are additive — no WIT contracts changed, no plugin recompile
+needed. Existing callers are unaffected.
+
+**Note on tractor-ts:** The TypeScript tractor (`packages/tractor-ts`) is the
+browser / OPFS path; its `wasi-imports.ts` agent-fs and agent-shell stubs are
+intentional no-ops. Observation hooks for that path follow when the browser
+daily-driver track requires them. The Rust tractor is the production engine for
+`refarm chat`; all daemon-path observation lives in `core.rs`.
 
 ### Step 4 — Scarecrow: Policy as Privileged Plugin
 

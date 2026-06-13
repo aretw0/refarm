@@ -70,7 +70,8 @@ ALTER TABLE nodes RENAME COLUMN payload TO content; -- OK in SQLite 3.25+, but
 
 ## `refarm migrate` Contract
 
-The `refarm migrate` command (in `@refarm.dev/cli`) is the user-facing entry point.
+The `refarm migrate` command in `apps/refarm` is the user-facing entry point.
+Reusable command/result helpers live in `@refarm.dev/cli`.
 
 ```bash
 refarm migrate --db ~/.local/share/refarm/refarm.db

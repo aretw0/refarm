@@ -40,7 +40,50 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 
 > _Active Inference_: `reso status` calibrates precision — it tells you how reliable the current environment signal is before you act on it.
 
-## 4. Hybrid Awareness
+## 4. Operator CLI Loop
+
+The Refarm CLI exposes a self-guiding operator loop through JSON handoffs. When
+working in this repo as an agent, use the CLI — do not guess at state.
+
+**Start of every slice:**
+
+```bash
+refarm resume --json           # "where was I?" — always follow nextCommands
+refarm check --next-action --json  # composite gate: health + runtime doctor
+```
+
+**After source edits, before committing:**
+
+```bash
+refarm agent finish --lane after-edit --run --json
+```
+
+**After an atomic commit:**
+
+```bash
+refarm agent finish --lane after-commit --run --json
+```
+
+**After changing public JSON output or CLI contracts:**
+
+```bash
+refarm agent finish --lane handoffs --run --json
+```
+
+**JSON handoff rules:**
+
+- Every JSON command exposes `ok`, `nextCommand`, and `nextCommands`. Always
+  inspect and follow them before guessing what to do next.
+- `refarm resume --json` in emergency (runtime not ready) returns only runtime
+  recovery commands. Do not dispatch work until the runtime is ready.
+- `refarm agent finish --run --json` success sets `nextCommand` to
+  `refarm resume --json`. Follow it to confirm state after the gate.
+- `refarm check --next-action --json` on pass returns `nextAction: null` and
+  `nextCommands: []` — that is the "all clear" signal to proceed.
+- `refarm agent --json` prints the full agent handoff plan with all available
+  commands for the current environment state.
+
+## 5. Hybrid Awareness
 
 - **Sovereign Stratification**: This monorepo is HÍBRIDO.
   - If a package has `tsconfig.build.json`, it is **TS-Strict** (source is `.ts`, `.js` in `src/` are artifacts).

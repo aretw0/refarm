@@ -1,0 +1,770 @@
+{
+  "schema": "refarm.validation-poc-evidence-index.v1",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "purpose": "Reader-facing index for synthetic validation POC evidence without copying consumer-specific vault semantics.",
+  "boundary": {
+    "canUseFor": [
+      "proposal evidence navigation",
+      "downstream lab or vault consumer mapping",
+      "claim-boundary review before writing"
+    ],
+    "mustNotUseFor": [
+      "formal standards conformance claims",
+      "real vault or service integration claims",
+      "submission-specific wording"
+    ]
+  },
+  "pocs": [
+    {
+      "id": "extension-sandbox",
+      "theme": "extension governance",
+      "manifestUri": "validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
+      "taskId": "task-extension-sandbox-poc",
+      "effortId": "effort-extension-sandbox-poc-001",
+      "evidence": {
+        "scenario": {
+          "id": "scenario-md",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path"
+          ]
+        },
+        "annex": {
+          "id": "annex-md",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/annex.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "annex",
+            "evidence-map"
+          ]
+        },
+        "scorecard": {
+          "id": "scorecard-json",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/scorecard.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "scorecard",
+            "pilot"
+          ]
+        },
+        "resultsTable": {
+          "id": "results-table-md",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
+          ]
+        },
+        "riskAndStandards": {
+          "id": "risk-and-standards-matrix-json",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/risk-and-standards-matrix.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "risk",
+            "standards",
+            "claim-promotion"
+          ]
+        },
+        "limits": {
+          "id": "limits-md",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/limits.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "limits",
+            "adoption",
+            "claim-boundary"
+          ]
+        },
+        "claimPromotion": [
+          {
+            "id": "risk-and-standards-matrix-json",
+            "uri": "validations/extension-sandbox-poc/fixtures/expected/risk-and-standards-matrix.json",
+            "role": "report",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "risk",
+              "standards",
+              "claim-promotion"
+            ]
+          },
+          {
+            "id": "runtime-evidence-json",
+            "uri": "validations/extension-sandbox-poc/fixtures/expected/runtime-evidence.json",
+            "role": "report",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "runtime",
+              "wasm",
+              "claim-promotion"
+            ]
+          }
+        ],
+        "readerStart": {
+          "id": "scenario-md",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path"
+          ]
+        }
+      },
+      "writingClaims": [
+        {
+          "id": "explicit-capability-decisions",
+          "carefulClaim": "A host can make extension capability decisions explicit and reviewable before promotion.",
+          "primaryEvidence": [
+            {
+              "id": "policy-decision-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/policy-decision.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "sandbox-report-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/sandbox-report.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "annex-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/annex.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "annex",
+                "evidence-map"
+              ]
+            }
+          ],
+          "doNotSayYet": "Production plugin governance is solved."
+        },
+        {
+          "id": "failure-policy-choice",
+          "carefulClaim": "Failure policy can be modeled as an operational choice, not hidden behavior.",
+          "primaryEvidence": [
+            {
+              "id": "sandbox-report-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/sandbox-report.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "scorecard-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            },
+            {
+              "id": "limits-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/limits.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "limits",
+                "adoption",
+                "claim-boundary"
+              ]
+            }
+          ],
+          "doNotSayYet": "Real host performance or complete isolation is proven."
+        },
+        {
+          "id": "linked-real-wasm-path",
+          "carefulClaim": "Synthetic policy evidence is connected to a real WASM validation path.",
+          "primaryEvidence": [
+            {
+              "id": "runtime-evidence-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/runtime-evidence.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "runtime",
+                "wasm",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "task-artifacts",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "provenance",
+                "manifest"
+              ]
+            }
+          ],
+          "doNotSayYet": "The synthetic report itself executed real WASM plugins."
+        }
+      ],
+      "consumerHints": {
+        "labels": [
+          "adoption",
+          "annex",
+          "claim-boundary",
+          "claim-promotion",
+          "evidence-map",
+          "limits",
+          "pilot",
+          "reader-path",
+          "results-table",
+          "risk",
+          "runtime",
+          "scenario",
+          "scorecard",
+          "standards",
+          "wasm"
+        ],
+        "countByRole": {
+          "dataset": 1,
+          "receipt": 1,
+          "report": 8
+        },
+        "countByReviewState": {
+          "accepted": 10
+        }
+      }
+    },
+    {
+      "id": "citizen-data-wallet",
+      "theme": "citizen data wallet",
+      "manifestUri": "validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
+      "taskId": "task-citizen-data-wallet-poc",
+      "effortId": "effort-citizen-data-wallet-poc-001",
+      "evidence": {
+        "scenario": {
+          "id": "scenario",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path"
+          ]
+        },
+        "annex": {
+          "id": "annex",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/annex.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "annex",
+            "evidence-map"
+          ]
+        },
+        "scorecard": {
+          "id": "scorecard",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/scorecard.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "scorecard",
+            "pilot"
+          ]
+        },
+        "resultsTable": {
+          "id": "results-table",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
+          ]
+        },
+        "riskAndStandards": {
+          "id": "risk-and-standards-matrix",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/risk-and-standards-matrix.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "risk",
+            "standards",
+            "claim-promotion"
+          ]
+        },
+        "limits": {
+          "id": "limits",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/limits.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "limits",
+            "adoption",
+            "claim-boundary"
+          ]
+        },
+        "claimPromotion": [
+          {
+            "id": "risk-and-standards-matrix",
+            "uri": "validations/citizen-data-wallet-poc/fixtures/expected/risk-and-standards-matrix.json",
+            "role": "report",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "risk",
+              "standards",
+              "claim-promotion"
+            ]
+          }
+        ],
+        "readerStart": {
+          "id": "scenario",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path"
+          ]
+        }
+      },
+      "writingClaims": [
+        {
+          "id": "reviewable-purpose-and-disclosure",
+          "carefulClaim": "Purpose, scope, expiration, and selective disclosure can be represented as reviewable artifacts.",
+          "primaryEvidence": [
+            {
+              "id": "service-request",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/service-request.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "authorization-receipt",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/authorization-receipt.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "selective-presentation",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/selective-presentation.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            }
+          ],
+          "doNotSayYet": "Formal wallet interoperability is proven."
+        },
+        {
+          "id": "visible-tamper-and-revocation",
+          "carefulClaim": "Tamper detection and revocation can be made visible to the operator and holder journey.",
+          "primaryEvidence": [
+            {
+              "id": "audit-trail",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/audit-trail.md",
+              "role": "audit-trail",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "revocation-event",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/revocation-event.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "consent-decision",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/consent-decision.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            }
+          ],
+          "doNotSayYet": "Legal compliance or production UX is ready."
+        },
+        {
+          "id": "pilot-evaluation-before-adoption",
+          "carefulClaim": "The flow can be evaluated with pilot criteria before institutional adoption.",
+          "primaryEvidence": [
+            {
+              "id": "scorecard",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            },
+            {
+              "id": "risk-and-standards-matrix",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/risk-and-standards-matrix.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "risk",
+                "standards",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "limits",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/limits.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "limits",
+                "adoption",
+                "claim-boundary"
+              ]
+            }
+          ],
+          "doNotSayYet": "LGPD, W3C VC, OpenID4VP, or EUDI conformance is certified."
+        }
+      ],
+      "consumerHints": {
+        "labels": [
+          "adoption",
+          "annex",
+          "claim-boundary",
+          "claim-promotion",
+          "evidence-map",
+          "limits",
+          "pilot",
+          "reader-path",
+          "results-table",
+          "risk",
+          "scenario",
+          "scorecard",
+          "standards"
+        ],
+        "countByRole": {
+          "audit-trail": 1,
+          "dataset": 1,
+          "receipt": 6,
+          "report": 6
+        },
+        "countByReviewState": {
+          "accepted": 14
+        }
+      }
+    },
+    {
+      "id": "governed-note-box",
+      "theme": "governed note box",
+      "manifestUri": "validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
+      "taskId": "task-governed-note-box-poc",
+      "effortId": "effort-governed-note-box-poc-001",
+      "evidence": {
+        "scenario": {
+          "id": "scenario",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path"
+          ]
+        },
+        "annex": {
+          "id": "annex",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/annex.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "annex",
+            "evidence-map"
+          ]
+        },
+        "scorecard": {
+          "id": "scorecard",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/scorecard.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "scorecard",
+            "pilot"
+          ]
+        },
+        "resultsTable": {
+          "id": "results-table",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
+          ]
+        },
+        "riskAndStandards": {
+          "id": "risk-and-standards-matrix",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/risk-and-standards-matrix.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "risk",
+            "standards",
+            "claim-promotion"
+          ]
+        },
+        "limits": {
+          "id": "limits",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/limits.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "limits",
+            "adoption",
+            "claim-boundary"
+          ]
+        },
+        "claimPromotion": [
+          {
+            "id": "risk-and-standards-matrix",
+            "uri": "validations/governed-note-box-poc/fixtures/expected/risk-and-standards-matrix.json",
+            "role": "report",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "risk",
+              "standards",
+              "claim-promotion"
+            ]
+          },
+          {
+            "id": "consumer-evidence",
+            "uri": "validations/governed-note-box-poc/fixtures/expected/consumer-evidence.json",
+            "role": "report",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "consumer",
+              "vault",
+              "claim-promotion"
+            ]
+          }
+        ],
+        "readerStart": {
+          "id": "scenario",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path"
+          ]
+        }
+      },
+      "writingClaims": [
+        {
+          "id": "provenance-separated-workflow",
+          "carefulClaim": "Local knowledge artifacts can keep provenance while separating intake, lab, and publication snapshots.",
+          "primaryEvidence": [
+            {
+              "id": "metadata-index",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/metadata-index.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "metadata",
+                "lab"
+              ]
+            },
+            {
+              "id": "lab-snapshot",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/lab-snapshot.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "lab"
+              ]
+            },
+            {
+              "id": "publication-snapshot",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/publication-snapshot.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "unreviewed",
+              "labels": [
+                "publication"
+              ]
+            }
+          ],
+          "doNotSayYet": "Real vault integration is implemented."
+        },
+        {
+          "id": "human-review-before-publish",
+          "carefulClaim": "Publication can remain blocked on human review while still producing useful lab evidence.",
+          "primaryEvidence": [
+            {
+              "id": "publication-preflight",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/publication-preflight.json",
+              "role": "audit-trail",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "publication",
+                "preflight"
+              ]
+            },
+            {
+              "id": "human-review",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/human-review.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "publication",
+                "human-review"
+              ]
+            },
+            {
+              "id": "scorecard",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            }
+          ],
+          "doNotSayYet": "Editorial policy completeness is proven."
+        },
+        {
+          "id": "manifest-selector-consumption",
+          "carefulClaim": "Downstream consumers can navigate evidence through manifest selectors instead of hard-coded file names.",
+          "primaryEvidence": [
+            {
+              "id": "consumer-evidence",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/consumer-evidence.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "consumer",
+                "vault",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "task-artifacts",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "provenance",
+                "manifest"
+              ]
+            },
+            {
+              "id": "poc-evidence-index",
+              "uri": "validations/poc-evidence-index.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "suite-index",
+                "claim-map"
+              ]
+            }
+          ],
+          "doNotSayYet": "Obsidian, Astro, Marimo, or work-mirror UX is owned by Refarm."
+        }
+      ],
+      "consumerHints": {
+        "labels": [
+          "adoption",
+          "annex",
+          "claim-boundary",
+          "claim-promotion",
+          "consumer",
+          "evidence-map",
+          "human-review",
+          "ingestion",
+          "lab",
+          "limits",
+          "metadata",
+          "pilot",
+          "preflight",
+          "publication",
+          "reader-path",
+          "results-table",
+          "risk",
+          "scenario",
+          "scorecard",
+          "standards",
+          "vault"
+        ],
+        "countByRole": {
+          "audit-trail": 1,
+          "dataset": 4,
+          "report": 8
+        },
+        "countByReviewState": {
+          "accepted": 12,
+          "unreviewed": 1
+        }
+      }
+    }
+  ]
+}

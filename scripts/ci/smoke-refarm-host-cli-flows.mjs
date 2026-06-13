@@ -3,8 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
 import {
 	parseJsonOutput,
+	runPackageScript,
 	runSubprocess,
 	stripAnsi,
 } from "./subprocess-utils.mjs";
@@ -35,13 +37,13 @@ export const ONLY_PROFILES = new Set([
 	"status-action",
 ]);
 
-const ONLY_PROFILE_NPM_SCRIPTS = new Map([
+const ONLY_PROFILE_PACKAGE_SCRIPTS = new Map([
 	["action-seams", "refarm:host:smoke:cli:action-seams"],
 	["actions-readiness", "refarm:host:smoke:cli:actions-readiness"],
 	["status-action", "refarm:host:smoke:cli:status-action"],
 ]);
 
-const ONLY_PROFILE_SKIP_BUILD_NPM_SCRIPTS = new Map([
+const ONLY_PROFILE_SKIP_BUILD_PACKAGE_SCRIPTS = new Map([
 	["action-seams", "refarm:host:smoke:cli:action-seams:skip-build"],
 	[
 		"actions-readiness",
@@ -98,22 +100,22 @@ export function resolveOnlyProfileSkipBuildCommand(profile) {
 	return command ? `${command} --skip-build` : undefined;
 }
 
-export function resolveOnlyProfileNpmScript(profile) {
-	return ONLY_PROFILE_NPM_SCRIPTS.get(profile);
+export function resolveOnlyProfilePackageScript(profile) {
+	return ONLY_PROFILE_PACKAGE_SCRIPTS.get(profile);
 }
 
-export function resolveOnlyProfileNpmCommand(profile) {
-	const script = resolveOnlyProfileNpmScript(profile);
-	return script ? `npm run ${script}` : undefined;
+export function resolveOnlyProfilePackageCommand(profile) {
+	const script = resolveOnlyProfilePackageScript(profile);
+	return script ? packageScriptCommand(script, { cwd: REPO_ROOT }).display : undefined;
 }
 
-export function resolveOnlyProfileSkipBuildNpmScript(profile) {
-	return ONLY_PROFILE_SKIP_BUILD_NPM_SCRIPTS.get(profile);
+export function resolveOnlyProfileSkipBuildPackageScript(profile) {
+	return ONLY_PROFILE_SKIP_BUILD_PACKAGE_SCRIPTS.get(profile);
 }
 
-export function resolveOnlyProfileSkipBuildNpmCommand(profile) {
-	const script = resolveOnlyProfileSkipBuildNpmScript(profile);
-	return script ? `npm run ${script}` : undefined;
+export function resolveOnlyProfileSkipBuildPackageCommand(profile) {
+	const script = resolveOnlyProfileSkipBuildPackageScript(profile);
+	return script ? packageScriptCommand(script, { cwd: REPO_ROOT }).display : undefined;
 }
 
 export function createOnlyProfileListEnvelope() {
@@ -121,11 +123,11 @@ export function createOnlyProfileListEnvelope() {
 		schemaVersion: 1,
 		profiles: Array.from(ONLY_PROFILES).map((profile) => ({
 			profile,
-			npmScript: resolveOnlyProfileNpmScript(profile),
-			npmCommand: resolveOnlyProfileNpmCommand(profile),
+			packageScript: resolveOnlyProfilePackageScript(profile),
+			packageCommand: resolveOnlyProfilePackageCommand(profile),
 			command: resolveOnlyProfileCommand(profile),
-			skipBuildNpmScript: resolveOnlyProfileSkipBuildNpmScript(profile),
-			skipBuildNpmCommand: resolveOnlyProfileSkipBuildNpmCommand(profile),
+			skipBuildPackageScript: resolveOnlyProfileSkipBuildPackageScript(profile),
+			skipBuildPackageCommand: resolveOnlyProfileSkipBuildPackageCommand(profile),
 			skipBuildCommand: resolveOnlyProfileSkipBuildCommand(profile),
 		})),
 	};
@@ -403,7 +405,7 @@ async function main() {
 			);
 		} else {
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-			await runSubprocess("pnpm", ["-C", "apps/refarm", "run", "build"], {
+			await runPackageScript("apps/refarm", "build", {
 				env: process.env,
 			});
 		}
@@ -917,11 +919,11 @@ async function main() {
 		}
 
 		console.log(
-			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when farmhand is down`,
+			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when runtime is down`,
 		);
 		await assertCommandFailsWith(
 			["telemetry", "--json", "--strict"],
-			"farmhand is not running",
+			"Refarm runtime is not running",
 		);
 
 		console.log(

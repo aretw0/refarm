@@ -2,9 +2,12 @@ import {
 	openHostBrowserUrl,
 	resolveBrowserOpenSpec,
 } from "@refarm.dev/cli/browser-open";
+import { launchProcess, type LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
+import { formatSurfaceActionReadinessOutput } from "./action-affordances.js";
+import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -12,26 +15,26 @@ import {
 	openStartMessage,
 } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
-import { assertLaunchGuardOptions } from "./launch-guards.js";
+import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
+import {
+	createPackageScriptCommand,
+	PACKAGE_MANAGER_OVERRIDE,
+	PACKAGE_MANAGERS,
+} from "./package-manager.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
-	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
+	type ResolveStatusPayloadResult,
 } from "./status.js";
-import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
 
-export interface WebLaunchSpec {
-	command: string;
-	args: string[];
-	display: string;
-}
+export type WebLaunchSpec = LaunchProcessSpec;
 
 export interface WebDeps {
 	resolveStatusPayload(options: {
@@ -59,11 +62,8 @@ interface WebOptions {
 export function resolveWebLaunchSpec(
 	mode: RefarmWebLauncherMode,
 ): WebLaunchSpec {
-	if (mode === "preview") {
-		return createLaunchProcessSpec("pnpm -C apps/dev run preview");
-	}
-
-	return createLaunchProcessSpec("pnpm -C apps/dev run dev");
+	const script = mode === "preview" ? "preview" : "dev";
+	return createPackageScriptCommand({ cwd: "apps/dev", script });
 }
 
 export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {
@@ -74,6 +74,76 @@ export { resolveBrowserOpenSpec };
 
 export async function openBrowserUrl(url: string): Promise<void> {
 	await openHostBrowserUrl(url);
+}
+
+function webLaunchCommand(options: {
+	launcher: RefarmWebLauncherMode;
+	open?: boolean;
+	openUrl?: string;
+}): string {
+	return refarmCommand([
+		"web",
+		"--launch",
+		"--launcher",
+		options.launcher,
+		...(options.open ? ["--open"] : []),
+		...(options.open && options.openUrl
+			? ["--open-url", quoteCommandArg(options.openUrl)]
+			: []),
+	]);
+}
+
+function webActionsSelectCommand(select: string): string {
+	return refarmCommand([
+		"web",
+		"--actions",
+		"--select",
+		quoteCommandArg(select),
+		"--json",
+	]);
+}
+
+function webLaunchGuardRecoveryCommand(options: WebOptions): string {
+	const launcher = resolveLaunchMode(options.launcher ?? "dev", WEB_LAUNCHER_MODES);
+	return refarmCommand([
+		"web",
+		"--launch",
+		"--launcher",
+		launcher,
+		"--dry-run",
+		"--json",
+	]);
+}
+
+function emitWebLaunchGuardError(options: WebOptions): boolean {
+	const input = {
+		json: options.json,
+		markdown: options.markdown,
+		launch: options.launch,
+		dryRun: options.dryRun,
+		requiresLaunch: [{ enabled: options.open, flag: "--open" }],
+	};
+	const error = resolveLaunchGuardError(input);
+	if (!error) return false;
+	if (!options.json) {
+		assertLaunchGuardOptions(input);
+		return true;
+	}
+	const nextCommand = webLaunchGuardRecoveryCommand(options);
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "web",
+			operation: "launch",
+			error: error.code,
+			message: error.message,
+			nextAction: nextCommand,
+			nextCommand,
+			nextCommands: [nextCommand],
+			extra: error.flag ? { flag: error.flag } : undefined,
+		}),
+	);
+	process.exitCode = 1;
+	return true;
 }
 
 export function createWebCommand(deps?: Partial<WebDeps>): Command {
@@ -89,6 +159,25 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.description(
 			"Report web renderer posture and optionally launch local web runtime",
 		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm web",
+				"  $ refarm web --launch",
+				"  $ refarm web --launch --open",
+				"  $ refarm web --dry-run --launcher preview",
+				"  $ refarm web --launch --dry-run --json",
+				"  $ refarm web --actions",
+				"",
+				"Notes:",
+				"  Without --launch, this runs a renderer preflight only.",
+				"  --dry-run prints launch readiness and the resolved process command without starting it.",
+				`  Override package-manager detection with ${PACKAGE_MANAGER_OVERRIDE}=${PACKAGE_MANAGERS.join("|")}.`,
+				"  --open follows operator.openExternalLinks; set it with refarm config.",
+			].join("\n"),
+		)
 		.option(
 			"--input <path>",
 			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
@@ -96,7 +185,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.option("--json", "Output machine-readable JSON")
 		.option("--markdown", "Output markdown report")
 		.option("--launch", "Launch the local web runtime after renderer preflight")
-		.option("--dry-run", "Print launcher command without executing it")
+		.option("--dry-run", "Print launch readiness without executing it")
 		.option("--open", "Open default browser after starting web runtime")
 		.option("--actions", "Output selectable Web surface action rows")
 		.option(
@@ -108,9 +197,33 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			"Browser URL used with --open",
 			"http://127.0.0.1:4321",
 		)
-		.option("--launcher <mode>", "Launcher mode: dev | preview", "dev")
+		.option(
+			"--launcher <mode>",
+			"Launcher mode: dev | preview",
+			(value) => resolveLaunchMode(value, WEB_LAUNCHER_MODES),
+			"dev",
+		)
 		.action(async (options: WebOptions) => {
 			if (options.select && !options.actions) {
+				if (options.json) {
+					const nextCommand = webActionsSelectCommand(options.select);
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "web",
+							operation: "actions",
+							error: "select-requires-actions",
+							message: "--select requires --actions.",
+							nextAction: nextCommand,
+							nextCommand,
+							nextCommands: [nextCommand],
+							extra: {
+								select: options.select,
+							},
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
 				throw new Error("--select requires --actions.");
 			}
 
@@ -120,23 +233,19 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				return;
 			}
 
-			assertLaunchGuardOptions({
-				json: options.json,
-				markdown: options.markdown,
-				launch: options.launch,
-				dryRun: options.dryRun,
-				requiresLaunch: [{ enabled: options.open, flag: "--open" }],
-			});
+			if (emitWebLaunchGuardError(options)) return;
 
 			const launchMode = resolveLaunchMode(
 				options.launcher ?? "dev",
 				WEB_LAUNCHER_MODES,
 			);
-			const outputMode = resolveJsonMarkdownStatusOutputMode({
-				json: options.json,
-				markdown: options.markdown,
-				defaultMode: "summary",
-			});
+			const outputMode = options.launch && options.dryRun && options.json
+				? "silent"
+				: resolveJsonMarkdownStatusOutputMode({
+						json: options.json,
+						markdown: options.markdown,
+						defaultMode: "summary",
+					});
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const json = await runStatusPreflight({
 				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
@@ -163,8 +272,21 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				startRuntimeLabel: "web runtime",
 				resolveLaunchSpec: () => resolveWebLaunchSpec(launchMode),
 				launchProcess: resolvedDeps.launch,
+				dryRunJson: options.json,
+				dryRunJsonCommand: "web",
+				dryRunJsonNextCommand: webLaunchCommand({
+					launcher: launchMode,
+					open: options.open,
+					openUrl,
+				}),
+				dryRunJsonExtra: () => ({
+					renderer: "web",
+					launcher: launchMode,
+					open: options.open === true,
+					...(options.open ? { openUrl } : {}),
+				}),
 				onDryRun: () => {
-					if (options.open) {
+					if (options.open && !options.json) {
 						console.log(openDryRunMessage(openUrl));
 					}
 				},
@@ -194,7 +316,7 @@ async function emitWebActionRows(
 		},
 		run: (json) => {
 			console.log(
-				formatRefarmActionReadinessOutput(json, {
+				formatSurfaceActionReadinessOutput(json, {
 					renderer: "web",
 					json: options.json,
 					select: options.select,

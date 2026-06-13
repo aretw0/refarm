@@ -31,7 +31,18 @@ fn try_fallback_completion(
     primary_err: &str,
 ) -> Option<ReactResult> {
     let fallback_name = std::env::var("MODEL_FALLBACK_PROVIDER").ok()?;
-    let fb = crate::provider::Provider::from_provider_name(&fallback_name);
+    if crate::budget_exceeded_for_provider(&fallback_name) {
+        return Some(error_result(
+            format!(
+                "[runtime-agent error] primary: {primary_err}; fallback: [budget] MODEL_BUDGET_{}_USD exceeded - fallback provider blocked",
+                fallback_name.to_uppercase(),
+            ),
+            "blocked".to_owned(),
+        ));
+    }
+    let fallback_model = std::env::var("MODEL_FALLBACK_MODEL_ID").unwrap_or_default();
+    let fb =
+        crate::provider::Provider::from_provider_name_with_model(&fallback_name, &fallback_model);
     let fb_model = fb.model().to_owned();
     if crate::streaming_config::stream_responses_enabled_from_env() {
         super::streaming_sink::update_active_stream_response_sink_model(&fb_model);
@@ -40,7 +51,7 @@ fn try_fallback_completion(
     Some(match fb.complete(system, messages) {
         Ok(r) => completion_result(fb_model, r),
         Err(e) => error_result(
-            format!("[pi-agent erro] primary: {primary_err}; fallback: {e}"),
+            format!("[runtime-agent error] primary: {primary_err}; fallback: {e}"),
             fb_model,
         ),
     })
@@ -72,7 +83,7 @@ pub(crate) fn run_wasm_react_with_prompt_ref(
             {
                 fallback_result
             } else {
-                error_result(format!("[pi-agent erro] {primary_err}"), model)
+                error_result(format!("[runtime-agent error] {primary_err}"), model)
             }
         }
     }
