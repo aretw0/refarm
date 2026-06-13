@@ -31,6 +31,7 @@ setup logic, it is premature.
 | Rust substrate | `.cargo/config.toml`, Dockerfile Rust install, CI setup | Toolchain, targets, components, resource limits |
 | Browser/E2E substrate | Dockerfile Playwright libraries, CI setup action | Chromium/Playwright runtime dependencies |
 | Runtime health | `refarm check --next-action --json`, `refarm agent finish --run --json` | Operator and agent readiness gates |
+| Substrate inventory check | `pnpm run environment-substrate:check --json` | Aggregated Node, Rust/WASM, Git/GitHub CLI, pnpm, and WASM tool availability |
 
 ## Environment Substrate
 
@@ -91,12 +92,13 @@ clearly than the current scripts. The first acceptable Nix lane should:
 
 ## Near-Term Work
 
-1. Add a substrate doctor target that reports Node, pnpm, GitHub CLI, Rust,
-   WASM, browser runtime, and common diagnostics in one JSON envelope.
-2. Extract the devcontainer contract into a reusable data shape that can be
+1. Promote the substrate check into the operator-facing CLI once the script
+   contract is stable enough for host, container, Windows, and CI use.
+2. Add browser runtime and devcontainer volume details to the same JSON
+   envelope without making the check expensive.
+3. Extract the devcontainer contract into a reusable data shape that can be
    compared by tests instead of only by shell scripts.
-3. Teach host install/readiness flows to point at the same missing-substrate
+4. Teach host install/readiness flows to point at the same missing-substrate
    vocabulary.
-4. Only then add an experimental Nix dev shell and judge it against this
+5. Only then add an experimental Nix dev shell and judge it against this
    inventory.
-

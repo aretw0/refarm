@@ -138,6 +138,8 @@
 		"platform-compat:check": "node scripts/ci/check-platform-compat.mjs",
 		"node-substrate:check:test": "node --test scripts/ci/test-check-node-substrate.mjs",
 		"rust-substrate:check:test": "node --test scripts/ci/test-check-rust-substrate-output.mjs",
+		"environment-substrate:check": "node scripts/ci/check-environment-substrate.mjs",
+		"environment-substrate:check:test": "node --test scripts/ci/test-check-environment-substrate.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",
 		"runtime-descriptor:revocation-report:test": "node --test scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
