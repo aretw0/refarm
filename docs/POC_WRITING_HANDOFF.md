@@ -94,6 +94,29 @@ This command runs all three synthetic POCs, validates every
 its scenario, annex, scorecard, risk matrix, limits, and claim-promotion
 evidence.
 
+## Theme Claim Map
+
+Use this table as a writing checklist. It is intentionally sanitized: it names
+the technical shape, the local evidence, and the limit that should stay visible
+until a stronger validation exists.
+
+| Theme | Careful claim | Primary evidence | Do not say yet |
+| --- | --- | --- | --- |
+| Extension sandbox | A host can make extension capability decisions explicit and reviewable before promotion. | `policy-decision.json`, `sandbox-report.json`, `annex.md` | Production plugin governance is solved. |
+| Extension sandbox | Failure policy can be modeled as an operational choice, not hidden behavior. | `sandbox-report.md`, `scorecard.json`, `limits.md` | Real host performance or complete isolation is proven. |
+| Extension sandbox | Synthetic policy evidence is connected to a real WASM validation path. | `runtime-evidence.json`, `task-artifacts.json` | The synthetic report itself executed real WASM plugins. |
+| Citizen data wallet | Purpose, scope, expiration, and selective disclosure can be represented as reviewable artifacts. | `service-request.json`, `authorization-receipt.json`, `selective-presentation.json` | Formal wallet interoperability is proven. |
+| Citizen data wallet | Tamper detection and revocation can be made visible to the operator and holder journey. | `audit-trail.md`, `revocation-event.json`, `consent-decision.json` | Legal compliance or production UX is ready. |
+| Citizen data wallet | The flow can be evaluated with pilot criteria before institutional adoption. | `scorecard.json`, `risk-and-standards-matrix.json`, `limits.md` | LGPD, W3C VC, OpenID4VP, or EUDI conformance is certified. |
+| Governed note box | Local knowledge artifacts can keep provenance while separating intake, lab, and publication snapshots. | `metadata-index.json`, `lab-snapshot.json`, `publication-snapshot.json` | Real vault integration is implemented. |
+| Governed note box | Publication can remain blocked on human review while still producing useful lab evidence. | `publication-preflight.json`, `human-review.md`, `scorecard.json` | Editorial policy completeness is proven. |
+| Governed note box | Downstream consumers can navigate evidence through manifest selectors instead of hard-coded file names. | `consumer-evidence.json`, `task-artifacts.json`, `poc-evidence-index.json` | Obsidian, Astro, Marimo, or work-mirror UX is owned by Refarm. |
+
+For all themes, phrase the POC as "repeatable validation evidence" or "pilot
+evidence" rather than as a finished implementation. Stronger wording should
+come only after a real runtime path, consumer project, formal conformance suite,
+or qualified institutional review produces its own artifact.
+
 ## Theme 1 Evidence: Extension Sandbox
 
 Extension artifact root:
