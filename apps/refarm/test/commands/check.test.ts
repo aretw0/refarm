@@ -110,6 +110,11 @@ function makeModelDoctorStatus(
 			ready: null,
 			skipped: true,
 		},
+		probeEnvironment: {
+			container: false,
+			localhostTargetsRuntime: true,
+			dockerHostBaseUrl: "http://host.docker.internal:11434",
+		},
 		handoffs: {
 			inspectCurrent: "refarm model current --json",
 			startOllama: "ollama serve",
