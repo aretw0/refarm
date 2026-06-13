@@ -7,8 +7,9 @@ name: Sync develop ← main
 # Supported cases:
 # - develop already equals main: no-op.
 # - develop is behind main: fast-forward develop to main.
-# - develop has the same tree as main but different history (typical squash release):
-#   reset develop to main with --force-with-lease.
+# - develop has the same tree as main but different history: stop and open a
+#   maintenance issue. This usually means main used a squash merge and develop
+#   still carries the atomic work history; do not rewrite it silently.
 # - develop and main differ by content: stop and open a maintenance issue.
 
 on:
@@ -73,10 +74,8 @@ jobs:
           fi
 
           if [ "$main_tree" = "$develop_tree" ]; then
-            git checkout -B develop "$main_ref"
-            git push --force-with-lease origin develop
-            echo "status=tree-equivalent-reset" >> "$GITHUB_OUTPUT"
-            echo "✅ develop reset to main because both branches have the same tree ($main_tree)."
+            echo "status=tree-equivalent-history-diverged" >> "$GITHUB_OUTPUT"
+            echo "::error::develop and main have the same tree but different history; automatic reset is disabled to preserve atomic develop history."
             exit 0
           fi
 
@@ -85,12 +84,12 @@ jobs:
           exit 0
 
       - name: Open issue on content divergence
-        if: steps.sync.outputs.status == 'content-diverged'
+        if: steps.sync.outputs.status == 'content-diverged' || steps.sync.outputs.status == 'tree-equivalent-history-diverged'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cat >/tmp/sync-develop-conflict.md <<'EOF'
-          ## Sync automático encontrou divergência real de conteúdo
+          ## Sync automático não deve reescrever `develop`
 
           `develop` e `main` não puderam ser alinhados automaticamente após o push em `main` `${{ github.sha }}`.
 
@@ -98,15 +97,25 @@ jobs:
 
           - `develop` já aponta para `main`;
           - `develop` é ancestral de `main` e pode receber fast-forward;
-          - `develop` e `main` têm a mesma árvore, mesmo com histórico diferente (caso típico de squash release).
 
-          Como as árvores diferem, é necessário revisar manualmente.
+          Quando `main` recebe um squash merge, `main` e `develop` podem ter a
+          mesma árvore mas histórico diferente. Reescrever `develop`
+          automaticamente nesse caso apagaria a rastreabilidade dos commits
+          atômicos mantidos em `develop`.
+
+          ### Decisão recomendada
+
+          Ajuste a política do repositório para permitir merge/rebase que
+          preserve os commits quando a intenção for sangrar `develop` para
+          `main`, ou mantenha o squash como decisão manual acompanhada de um
+          backup explícito da história de `develop`.
 
           ### Fix manual sugerido
 
           ```bash
           git fetch origin
           git checkout develop
+          git branch backup/develop-before-main-sync
           git diff --stat origin/main..origin/develop
           git log --oneline --left-right origin/main...origin/develop
           ```
