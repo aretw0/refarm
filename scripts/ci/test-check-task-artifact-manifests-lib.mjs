@@ -39,6 +39,12 @@ async function makeFixture(manifestOverrides = {}, artifactOverrides = {}) {
 				provenance: {
 					runId: "sample-run",
 					producer: "sample",
+					command: "node validations/sample/sample.mjs",
+					process: {
+						command: "node",
+						args: ["validations/sample/sample.mjs"],
+						display: "node validations/sample/sample.mjs",
+					},
 					producedAt: "2026-01-01T00:00:00.000Z",
 				},
 				...artifactOverrides,
@@ -83,6 +89,53 @@ describe("check-task-artifact-manifests", () => {
 		assert.equal(
 			issues.some((issue) => issue.path === "$.artifacts.0.uri"),
 			true,
+		);
+	});
+
+	it("requires process provenance for validation POC manifests", async () => {
+		const { manifestPath } = await makeFixture(undefined, {
+			provenance: {
+				runId: "sample-run",
+				producer: "sample",
+				command: "node validations/sample/sample.mjs",
+				producedAt: "2026-01-01T00:00:00.000Z",
+			},
+		});
+
+		const issues = validateTaskArtifactManifestFile(manifestPath);
+
+		assert.equal(
+			issues.some((issue) => issue.path === "$.artifacts.0.provenance.process"),
+			true,
+		);
+	});
+
+	it("requires provenance command to match process display", async () => {
+		const { manifestPath } = await makeFixture(undefined, {
+			provenance: {
+				runId: "sample-run",
+				producer: "sample",
+				command: "pnpm run sample",
+				process: {
+					command: "node",
+					args: ["validations/sample/sample.mjs"],
+					display: "node validations/sample/sample.mjs",
+				},
+				producedAt: "2026-01-01T00:00:00.000Z",
+			},
+		});
+
+		const issues = validateTaskArtifactManifestFile(manifestPath);
+
+		assert.deepEqual(
+			issues.filter((issue) => issue.path === "$.artifacts.0.provenance.command"),
+			[
+				{
+					manifestPath,
+					path: "$.artifacts.0.provenance.command",
+					message: "Expected provenance command to match process display.",
+				},
+			],
 		);
 	});
 });

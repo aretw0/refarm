@@ -42,6 +42,52 @@ function pushIssue(issues, manifestPath, issuePath, message) {
 	issues.push({ manifestPath, path: issuePath, message });
 }
 
+function validateStringArray(value, issues, manifestPath, issuePath) {
+	if (!Array.isArray(value)) {
+		pushIssue(issues, manifestPath, issuePath, "Expected array.");
+		return;
+	}
+	value.forEach((item, index) => {
+		if (!isNonEmptyString(item)) {
+			pushIssue(
+				issues,
+				manifestPath,
+				`${issuePath}.${index}`,
+				"Expected non-empty string.",
+			);
+		}
+	});
+}
+
+function validateProcessReference(value, issues, manifestPath, issuePath) {
+	if (!isRecord(value)) {
+		pushIssue(issues, manifestPath, issuePath, "Expected process object.");
+		return;
+	}
+	if (!isNonEmptyString(value.command)) {
+		pushIssue(issues, manifestPath, `${issuePath}.command`, "Expected non-empty string.");
+	}
+	validateStringArray(value.args, issues, manifestPath, `${issuePath}.args`);
+	if (!isNonEmptyString(value.display)) {
+		pushIssue(issues, manifestPath, `${issuePath}.display`, "Expected non-empty string.");
+	}
+	if (value.cwd !== undefined && !isNonEmptyString(value.cwd)) {
+		pushIssue(issues, manifestPath, `${issuePath}.cwd`, "Expected non-empty string.");
+	}
+	if (
+		value.packageManager !== undefined &&
+		value.packageManager !== null &&
+		!isNonEmptyString(value.packageManager)
+	) {
+		pushIssue(
+			issues,
+			manifestPath,
+			`${issuePath}.packageManager`,
+			"Expected non-empty string or null.",
+		);
+	}
+}
+
 function walkForManifests(rootDir) {
 	if (!existsSync(rootDir)) return [];
 	const found = [];
@@ -187,6 +233,33 @@ export function validateTaskArtifactManifestFile(manifestPath) {
 						"Expected non-empty string.",
 					);
 				}
+			}
+			if (!isNonEmptyString(artifact.provenance.command)) {
+				pushIssue(
+					issues,
+					manifestPath,
+					`${basePath}.provenance.command`,
+					"Expected non-empty string.",
+				);
+			}
+			validateProcessReference(
+				artifact.provenance.process,
+				issues,
+				manifestPath,
+				`${basePath}.provenance.process`,
+			);
+			if (
+				isRecord(artifact.provenance.process) &&
+				isNonEmptyString(artifact.provenance.command) &&
+				isNonEmptyString(artifact.provenance.process.display) &&
+				artifact.provenance.command !== artifact.provenance.process.display
+			) {
+				pushIssue(
+					issues,
+					manifestPath,
+					`${basePath}.provenance.command`,
+					"Expected provenance command to match process display.",
+				);
 			}
 		}
 
