@@ -85,7 +85,13 @@ describe("TaskArtifactManifest", () => {
           provenance: {
             runId: "wallet-poc-001",
             producer: "wallet:poc",
-            command: "pnpm run wallet:poc",
+            command: "node scripts/wallet-poc.mjs",
+            process: {
+              command: "node",
+              args: ["scripts/wallet-poc.mjs"],
+              display: "node scripts/wallet-poc.mjs",
+              cwd: "validations/citizen-data-wallet-poc",
+            },
             source: "validations/citizen-data-wallet-poc",
             sourceVersion: "synthetic-v1",
             producedAt: "2026-06-11T00:00:00.000Z",
@@ -104,6 +110,11 @@ describe("TaskArtifactManifest", () => {
     expect(manifest.artifacts[0]?.provenance.process?.args).toEqual([
       "scripts/wallet-poc.mjs",
     ]);
+    expect(
+      manifest.artifacts.every(
+        (artifact) => artifact.provenance.process?.display === artifact.provenance.command,
+      ),
+    ).toBe(true);
     expect(manifest.artifacts[0]?.role).toBe("audit-trail");
   });
 
