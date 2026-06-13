@@ -975,6 +975,54 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
+	it("reports runtime-agent final provider errors as JSON recovery handoffs", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:providerdown"),
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(
+							makeChunk(
+								"[runtime-agent error] http error: http://localhost:11434/v1/chat/completions: Connection Failed: Connect error: Connection refused (os error 111)",
+								0,
+								true,
+								{ model: "llama3.2" },
+							),
+						);
+					},
+				),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "model-provider-unavailable",
+			provider: "ollama",
+			nextAction: "refarm model doctor --json",
+			nextCommand: "refarm model doctor --json",
+			nextCommands: [
+				"refarm model doctor --json",
+				"ollama serve",
+				"refarm model base-url http://host.docker.internal:11434 --json",
+				"refarm model current --json",
+				"refarm model providers --json",
+			],
+		});
+		expect(deps.persistActiveSessionId).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("uses explicit --session value in effort payload", async () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);

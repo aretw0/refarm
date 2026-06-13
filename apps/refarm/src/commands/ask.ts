@@ -27,6 +27,7 @@ import {
 	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
+	MODEL_DOCTOR_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
 	OPENAI_DEFAULT_REF,
 	OPENAI_MODEL_JSON_COMMAND,
@@ -86,6 +87,12 @@ import { observedTaskResultError } from "./task-observation.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
 const OLLAMA_SERVE_COMMAND = "ollama serve";
+const OLLAMA_DOCKER_BASE_URL_COMMAND = refarmCommand([
+	"model",
+	"base-url",
+	"http://host.docker.internal:11434",
+	"--json",
+]);
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
 const REFARM_TASK_RESULTS_DIR_ENV_VAR = "REFARM_TASK_RESULTS_DIR";
 
@@ -549,6 +556,12 @@ function printAskError(message: string): void {
 	}
 }
 
+function observedAskContentError(content: string): string | null {
+	const trimmed = content.trim();
+	if (trimmed.startsWith("[runtime-agent error]")) return trimmed;
+	return null;
+}
+
 function buildAskErrorPayload(message: string): {
 	action: "ask";
 	ok: false;
@@ -568,7 +581,11 @@ function buildAskErrorPayload(message: string): {
 	const isProviderError =
 		message.includes("model-bridge request failed") ||
 		message.includes("Couldn't connect to server") ||
-		message.includes("curl: (7)");
+		message.includes("curl: (7)") ||
+		message.includes("Connection Failed") ||
+		message.includes("Connection refused") ||
+		message.includes("ECONNREFUSED") ||
+		message.includes("/v1/chat/completions");
 	const normalizedMessage = message.toLowerCase();
 	const isQuotaError =
 		normalizedMessage.includes("current quota") ||
@@ -643,11 +660,17 @@ function buildAskErrorPayload(message: string): {
 	}
 	if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
-		const provider = providerMatch?.[1] ?? "the configured provider";
+		const provider =
+			providerMatch?.[1] ??
+			(message.includes("11434") || message.toLowerCase().includes("ollama")
+				? "ollama"
+				: "the configured provider");
 		const providerNextCommands =
 			provider === "ollama"
 				? [
+						MODEL_DOCTOR_JSON_COMMAND,
 						OLLAMA_SERVE_COMMAND,
+						OLLAMA_DOCKER_BASE_URL_COMMAND,
 						MODEL_CURRENT_JSON_COMMAND,
 						MODEL_PROVIDERS_JSON_COMMAND,
 					]
@@ -664,7 +687,12 @@ function buildAskErrorPayload(message: string): {
 			nextAction: providerNextCommands[0]!,
 			nextActions:
 				provider === "ollama"
-					? [OLLAMA_SERVE_COMMAND, SOW_JSON_COMMAND]
+					? [
+							MODEL_DOCTOR_JSON_COMMAND,
+							OLLAMA_SERVE_COMMAND,
+							OLLAMA_DOCKER_BASE_URL_COMMAND,
+							SOW_JSON_COMMAND,
+						]
 					: [
 							MODEL_CURRENT_JSON_COMMAND,
 							MODEL_PROVIDERS_JSON_COMMAND,
@@ -1147,6 +1175,10 @@ Runtime:
 						) {
 							content = fallback.content;
 							metadata = fallback.metadata;
+							const contentError = observedAskContentError(content);
+							if (contentError) {
+								throw new Error(contentError);
+							}
 							if (!opts.json) {
 								process.stdout.write(`${fallback.content}\n`);
 							}
@@ -1178,6 +1210,10 @@ Runtime:
 						if (sessionFallback?.status === "ok") {
 							content = sessionFallback.content;
 							metadata = sessionFallback.metadata;
+							const contentError = observedAskContentError(content);
+							if (contentError) {
+								throw new Error(contentError);
+							}
 							if (!opts.json) {
 								process.stdout.write(`${sessionFallback.content}\n`);
 							}
@@ -1201,6 +1237,10 @@ Runtime:
 						throw streamError;
 					}
 
+					const contentError = observedAskContentError(content);
+					if (contentError) {
+						throw new Error(contentError);
+					}
 					persistActiveSession(sessionId);
 					if (opts.json) {
 						const result: AskJsonResult = {
