@@ -20,7 +20,7 @@ and **95/100** for selling the experience.
 
 ## Current Working Estimate
 
-**82/100 for assisted daily use**
+**83/100 for assisted daily use**
 
 Strong enough to keep using Refarm to harden Refarm through the self-guiding
 operator loop, but not yet strong enough to make it the only operator surface
@@ -75,6 +75,12 @@ What is already solid:
   `task resume --json`, top-level `resume --json`, stream-file creation,
   executable task status/log handoffs, and OpenAI-compatible request capture
   against `@refarm.dev/model-mock` without Ollama or paid model tokens.
+- 2026-06-13 local devcontainer validation ran
+  `refarm agent finish --lane agent-e2e-mock --run --json` end-to-end: it built
+  `@refarm.dev/model-mock`, rebuilt `@refarm.dev/pi-agent` WASM, built
+  `apps/refarm`, started an isolated runtime, captured two model-mock requests,
+  produced two stream files, and returned executable handoffs for plugin
+  status, `ask`, task status/logs, task resume, and top-level resume.
 - The no-token e2e path now builds `@refarm.dev/pi-agent` on a Windows-mounted
   checkout without relying on Git symlinks for WIT imports; `check:wit` guards
   the copied host WIT against drift from the canonical `refarm-plugin-wit`
@@ -133,9 +139,12 @@ What still blocks the 95/100 product target:
 
 What blocks primary daily-driver migration:
 
-- The actual operator loop (`runtime up → ask → session → resume → finish`) has
-  not been exercised end-to-end as a daily driver. The control plane is solid;
-  the execution plane reliability is unknown until used.
+- The no-token operator loop (`runtime up → ask → session → task → resume →
+  finish`) has been exercised end-to-end in the devcontainer, but not yet as the
+  operator's daily path on sustained non-Refarm work. The remaining uncertainty
+  is live daily-driver mileage: provider switching, external-repo policy,
+  recovery after real failures, and whether the loop stays ergonomic under
+  repeated work.
 - The first external-repo attempt targeted `agents-lab`. It exposed a host
   bootstrap gap before any model work ran: the Windows host had no `refarm`
   command in `PATH`, direct `node apps/refarm/dist/index.js` did not resolve
