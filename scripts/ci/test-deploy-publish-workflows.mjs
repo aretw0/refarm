@@ -57,3 +57,15 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.doesNotMatch(workflow, /pull_request_target:/);
 	assert.doesNotMatch(workflow, /npm\.pkg\.github\.com|packages:\s*write/);
 });
+
+test("develop sync workflow does not rewrite atomic history after squash releases", () => {
+	const workflow = read(".github/workflows/sync-develop.yml");
+
+	assert.match(workflow, /name: Sync develop ← main/);
+	assert.match(workflow, /git merge --ff-only "\$main_ref"/);
+	assert.match(workflow, /status=tree-equivalent-history-diverged/);
+	assert.match(workflow, /automatic reset is disabled to preserve atomic develop history/);
+	assert.match(workflow, /apagaria a rastreabilidade dos commits\s+atômicos mantidos em `develop`/);
+	assert.doesNotMatch(workflow, /git push --force-with-lease origin develop/);
+	assert.doesNotMatch(workflow, /status=tree-equivalent-reset/);
+});
