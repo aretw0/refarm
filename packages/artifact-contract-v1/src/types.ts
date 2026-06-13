@@ -217,6 +217,9 @@ function validateProvenance(
 	requireString(value.runId, `${path}.runId`, issues);
 	requireString(value.producer, `${path}.producer`, issues);
 	requireString(value.producedAt, `${path}.producedAt`, issues);
+	if (value.command !== undefined) {
+		requireString(value.command, `${path}.command`, issues);
+	}
 	if (value.process !== undefined) {
 		validateProcessReference(value.process, `${path}.process`, issues);
 		if (

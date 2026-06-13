@@ -210,6 +210,7 @@ describe("TaskArtifactManifest", () => {
           provenance: {
             runId: "",
             producer: "wallet:poc",
+            command: "",
             process: {
               command: "",
               args: ["ok", ""],
@@ -235,6 +236,7 @@ describe("TaskArtifactManifest", () => {
       "$.artifacts.0.reviewState",
       "$.artifacts.0.provenance.runId",
       "$.artifacts.0.provenance.producedAt",
+      "$.artifacts.0.provenance.command",
       "$.artifacts.0.provenance.process.command",
       "$.artifacts.0.provenance.process.args.1",
       "$.artifacts.0.provenance.process.display",
