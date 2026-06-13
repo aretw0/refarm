@@ -24,8 +24,8 @@ function run(command, args = []) {
 		display: [command, ...args].join(" "),
 		exitCode: result.status ?? 1,
 		ok: result.status === 0,
-		stdout: result.stdout.trim(),
-		stderr: result.stderr.trim(),
+		stdout: result.stdout?.trim() ?? "",
+		stderr: result.stderr?.trim() ?? "",
 		error: result.error?.message,
 	};
 }

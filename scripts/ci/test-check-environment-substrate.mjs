@@ -5,9 +5,10 @@ import test from "node:test";
 
 const scriptPath = "scripts/ci/check-environment-substrate.mjs";
 
-function runCheck(args = ["--json"]) {
+function runCheck(args = ["--json"], env = {}) {
 	return spawnSync(process.execPath, [scriptPath, ...args], {
 		encoding: "utf8",
+		env: { ...process.env, ...env },
 		stdio: ["ignore", "pipe", "pipe"],
 		windowsHide: true,
 	});
@@ -54,6 +55,25 @@ test("environment substrate check keeps optional diagnostics non-blocking", () =
 		output.nextActions.some((action) => /agent diagnostics/.test(action)),
 		false,
 	);
+});
+
+test("environment substrate check reports missing tools instead of crashing", () => {
+	const result = runCheck(["--json"], {
+		PATH: "",
+		Path: "",
+		REFARM_NODE_SUBSTRATE_PLATFORM: process.platform,
+	});
+
+	assert.notEqual(result.status, 0);
+	assert.doesNotMatch(result.stderr, /TypeError/);
+
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.schemaVersion, 1);
+	assert.equal(output.ok, false);
+	assert.ok(output.failedChecks.length > 0);
+	assert.ok(output.recommendations.some((recommendation) =>
+		recommendation.diagnostic.startsWith("environment-substrate:missing-"),
+	));
 });
 
 test("environment substrate check rejects unknown arguments", () => {
