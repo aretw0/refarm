@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { loadConfig } from "@refarm.dev/config";
+import { execSync } from 'node:child_process';
+import { loadConfig, packageScriptCommand } from "@refarm.dev/config";
 
 const colors = {
     reset: '\x1b[0m',
@@ -13,6 +14,12 @@ const colors = {
 const log = (msg) => console.log(`${colors.blue}[migration-check]${colors.reset} ${msg}`);
 const success = (msg) => console.log(`${colors.green}✔ ${msg}${colors.reset}`);
 const error = (msg) => console.log(`${colors.red}✘ ${msg}${colors.reset}`);
+
+const rootPkg = JSON.parse(readFileSync('package.json', 'utf8'));
+
+function scriptCommand(script) {
+    return packageScriptCommand(script, { cwd: process.cwd() }).command;
+}
 
 function run(cmd, desc) {
     log(`Running: ${desc}...`);
@@ -32,11 +39,11 @@ async function main() {
     let allPassed = true;
 
     // 1. Lint & Type Check
-    allPassed &= run('npm run lint', 'Linting (Turbo)');
-    allPassed &= run('npm run type-check', 'Type Checking (Turbo)');
+    allPassed &= run(scriptCommand('lint'), 'Linting (Turbo)');
+    allPassed &= run(scriptCommand('type-check'), 'Type Checking (Turbo)');
 
     // 2. Capability Contracts (BDD)
-    allPassed &= run('npm run test:capabilities', 'Capability Contracts (storage, identity, sync, manifest)');
+    allPassed &= run(scriptCommand('test:capabilities'), 'Capability Contracts (storage, identity, sync, manifest)');
 
     // 3. Benchmarks (Baselines)
     if (existsSync('packages/tractor/benchmarks/baseline.json')) {

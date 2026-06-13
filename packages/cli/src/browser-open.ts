@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { splitCommandLine } from "./command-line.js";
 
 export interface BrowserOpenSpec {
 	command: string;
@@ -20,6 +21,13 @@ export interface OpenHostBrowserUrlOptions
 	extends ResolveBrowserOpenCandidatesOptions {
 	run?: (candidate: BrowserOpenSpec) => Promise<void>;
 }
+
+export interface BestEffortBrowserOpenOptions {
+	timeoutMs?: number;
+}
+
+export const BROWSER_OPEN_COMMAND_ENV_VAR = "BROWSER_OPEN_COMMAND";
+export const LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR = "REFARM_BROWSER_OPEN_COMMAND";
 
 export function resolveBrowserOpenSpec(
 	url: string,
@@ -68,35 +76,50 @@ export function resolveBrowserOpenCandidates(
 		candidates.push({ command, args, display });
 	};
 
-	if (env.REFARM_BROWSER_OPEN_COMMAND) {
-		const parts = env.REFARM_BROWSER_OPEN_COMMAND.split(/\s+/).filter(Boolean);
+	const configuredCommand = resolveConfiguredBrowserOpenCommand(env);
+	if (configuredCommand) {
+		const parts = splitBrowserOpenCommand(
+			configuredCommand.commandLine,
+			configuredCommand.envVar,
+		);
 		const [command, ...args] = parts;
 		if (command) {
 			add(
 				command,
 				[...args, url],
-				`${env.REFARM_BROWSER_OPEN_COMMAND} ${url}`,
+				`${configuredCommand.commandLine} ${url}`,
 			);
 		}
 	}
 
-	if (env.VSCODE_IPC_HOOK_CLI || env.TERM_PROGRAM === "vscode") {
-		add("code", ["--open-url", url], `code --open-url ${url}`);
-	}
+	add(
+		"sh",
+		[
+			"-lc",
+			"for helper in /vscode/vscode-server/bin/linux-x64/*/bin/helpers/browser.sh \"$HOME\"/.vscode-server/bin/*/bin/helpers/browser.sh; do [ -x \"$helper\" ] && exec \"$helper\" \"$1\"; done; exit 127",
+			"refarm-vscode-open-external",
+			url,
+		],
+		`VS Code server openExternal ${url}`,
+	);
 
 	if (env.WSL_DISTRO_NAME || env.WSL_INTEROP) {
 		add("wslview", [url], `wslview ${url}`);
 	}
 
 	add("xdg-open", [url], `xdg-open ${url}`);
+	add("sensible-browser", [url], `sensible-browser ${url}`);
 	add("x-www-browser", [url], `x-www-browser ${url}`);
 	add("www-browser", [url], `www-browser ${url}`);
 
-	if (!candidates.some((candidate) => candidate.command === "code")) {
-		add("code", ["--open-url", url], `code --open-url ${url}`);
-	}
-
 	return candidates;
+}
+
+export function splitBrowserOpenCommand(
+	commandLine: string,
+	envVar = BROWSER_OPEN_COMMAND_ENV_VAR,
+): string[] {
+	return splitCommandLine(commandLine, envVar);
 }
 
 export async function openHostBrowserUrl(
@@ -154,6 +177,47 @@ export function runBrowserOpenCandidate(
 	});
 }
 
+export function runBestEffortBrowserOpenCandidate(
+	spec: BrowserOpenSpec,
+	options: BestEffortBrowserOpenOptions = {},
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		try {
+			const child = execFile(
+				spec.command,
+				spec.args,
+				{ timeout: options.timeoutMs ?? 5000 },
+				(error) => {
+					if (error) reject(error);
+					else resolve();
+				},
+			);
+			child.unref();
+		} catch (error) {
+			reject(error);
+		}
+	});
+}
+
 function formatBrowserOpenError(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function resolveConfiguredBrowserOpenCommand(
+	env: NodeJS.ProcessEnv,
+): { envVar: string; commandLine: string } | null {
+	const commandLine = env[BROWSER_OPEN_COMMAND_ENV_VAR];
+	if (commandLine) {
+		return { envVar: BROWSER_OPEN_COMMAND_ENV_VAR, commandLine };
+	}
+
+	const legacyCommandLine = env[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR];
+	if (legacyCommandLine) {
+		return {
+			envVar: LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR,
+			commandLine: legacyCommandLine,
+		};
+	}
+
+	return null;
 }

@@ -83,51 +83,66 @@ To check for updates: `refarm agent update`
 
 This is resolved — a fresh devcontainer or CI runner works without manual steps.
 
-### Gap 2 — History turns disabled by default
+### Gap 2 — History turns disabled by default — OPERATOR PROFILE AVAILABLE
 
 `MODEL_HISTORY_TURNS` defaults to 0. Self-iteration requires the agent to
 remember context across turns (what it just edited, what tests said). Without
 history, every `refarm chat` message starts fresh — the agent cannot reason
 about its own prior actions.
 
-**Path forward**: Set `MODEL_HISTORY_TURNS=20` in the farmhand environment (via
-Silo token or farmhand-start.sh). The chat CLI already carries session IDs;
-pi-agent reads history from the CRDT if turns > 0.
+**Path forward**: Apply the explicit coding profile when self-iteration is
+desired:
 
-### Gap 3 — Tool loop depth capped at 5
+```bash
+refarm config profile coding --local --json
+refarm runtime ensure --wait --next-command
+```
+
+This writes `MODEL_HISTORY_TURNS=20` to the selected `.refarm/config.json`.
+The chat CLI already carries session IDs; pi-agent reads history from the CRDT
+if turns > 0.
+
+### Gap 3 — Tool loop depth capped at 5 — OPERATOR PROFILE AVAILABLE
 
 `MODEL_TOOL_CALL_MAX_ITER=5` limits the ReAct loop. A coding task often needs:
 read → understand → edit → run tests → read failure → edit again → run again.
 That's 6–10 tool calls minimum for a non-trivial change.
 
-**Path forward**: Expose this as a `refarm chat --depth <n>` flag or set
-`MODEL_TOOL_CALL_MAX_ITER=20` in the farmhand environment for coding workloads.
+**Path forward**: The coding profile writes `MODEL_TOOL_CALL_MAX_ITER=20`.
+Future work can still add a per-run `refarm chat --depth <n>` override, but
+the durable repo-local path now exists through `refarm config profile coding`.
 
-### Gap 4 — Streaming not enabled by default
+### Gap 4 — Streaming not enabled by default — OPERATOR PROFILE AVAILABLE
 
 `MODEL_STREAM_RESPONSES` is opt-in. Without it, the user sees nothing until the
 task completes. For multi-minute coding tasks this is a bad experience.
 
-**Path forward**: Set `MODEL_STREAM_RESPONSES=1` in farmhand environment.
+**Path forward**: The coding profile writes `MODEL_STREAM_RESPONSES=1`.
+This keeps streaming opt-in while making the recommended self-iteration setup
+one deterministic command.
 
-### Gap 5 — No preflight check for farmhand availability
+### Gap 5 — No preflight check for farmhand availability — ADDRESSED
 
-`refarm chat` fails with a fetch error if farmhand is not running. The error
-message is opaque. ADR-065 (farmhand auto-start) covers this, but until it
-ships, users must manually start farmhand before `refarm chat`.
+ADR-065 is implemented. `refarm`, `refarm chat`, and `refarm ask` use the shared
+`session-launch.ts` readiness path: detect whether farmhand is running, offer
+auto-start under the configured policy (`ask` / `always` / `never`, controlled
+via `REFARM_RUNTIME_AUTOSTART` env or `.refarm/config.json`), spawn detached,
+and poll until ready. `refarm chat` also re-attempts the preflight after a
+failed effort submission via `recoverRuntime`.
 
-**Path forward**: ADR-065 implementation (detect not running, offer Y/n, spawn
-detached). See `docs/superpowers/specs/` for the pending ADR-065 spec.
-
-### Gap 6 — No verification contract (behavioral, not code)
+### Gap 6 — Verification contract in system prompt — ADDRESSED
 
 Pi-agent can run tests via agent-shell, but it doesn't know to run them. The
 system prompt and/or task prompt must instruct it to verify before committing.
 
-**Path forward**: The `chat.ts` system prompt (via `buildSystemPrompt` from
-`context-provider-v1`) should include a coding workflow instruction: "After
-editing, run `pnpm typecheck && pnpm test --filter <package>` and read the
-output before committing." This is a prompt engineering task, not a code change.
+`buildSystemPrompt` in `@refarm.dev/context-provider-v1` now includes a
+conditional coding workflow instruction: when the user asks for code edits, the
+agent should inspect the workspace, keep changes focused, verify before
+reporting completion, and prefer deterministic Refarm handoffs such as
+`refarm package-manager --json` and
+`refarm agent finish --lane after-edit --run --json`. The prompt avoids
+hardcoding a specific JavaScript package manager; package-manager selection
+remains delegated to Refarm's resolver.
 
 ---
 
@@ -164,11 +179,10 @@ already implemented for rapid iteration once the binary exists.
 **Phase 1 — Make it work (today)**
 
 1. Farmhand auto-installs pi-agent on boot (no manual step needed)
-2. Set env vars in farmhand startup:
+2. Apply the repo-local coding profile:
    ```
-   MODEL_HISTORY_TURNS=20
-   MODEL_TOOL_CALL_MAX_ITER=20
-   MODEL_STREAM_RESPONSES=1
+   refarm config profile coding --local --json
+   refarm runtime ensure --wait --next-command
    ```
 3. Start farmhand, run `refarm chat "describe the farmhand HTTP sidecar"`
 4. Verify streaming output and tool calls appear
@@ -180,12 +194,40 @@ already implemented for rapid iteration once the binary exists.
 - ADR-065: farmhand auto-start so `refarm chat` works without a separate daemon
 - Monitor bundled install logs to ensure pi-agent consistently installs on farmhand boot
 
-**Phase 3 — Make it self-aware (coding system prompt)**
+**Phase 3 — Make it self-aware (coding system prompt) — COMPLETE**
 
-- Inject a coding-specific system instruction into the context providers:
-  "You have access to the full refarm monorepo. Use agent-fs to read files and
-  agent-shell to run pnpm commands. Verify with typecheck and tests before committing."
-- This is a `context-provider-v1` contribution, not a farmhand or pi-agent change
+- `context-provider-v1` injects a coding workflow instruction into the shared
+  system prompt used by `refarm ask` and `refarm chat`.
+- `refarm agent finish --profile package --workspace <dir>` adds package-level
+  validation by discovering existing `type-check`, `lint`, and `build` scripts
+  through Refarm's package-manager resolver instead of hardcoding pnpm/npm/yarn.
+- `refarm agent finish --profile affected` turns Git status into package-level
+  validation automatically, preserving the quick finish gate and appending
+  scripts for changed workspaces.
+- `refarm agent finish --profile affected --since <ref>` keeps the same
+  affected-workspace validation available after atomic commits by comparing the
+  branch/worktree against a Git ref.
+- `--since upstream` resolves the current branch upstream locally, so agents can
+  validate branch changes without hardcoding `origin/develop` or fetching.
+- `refarm agent finish --lane <name>` provides stable shortcuts for the
+  recommended finish lanes (`after-edit`, `after-commit`, `before-push`, and
+  `with-package-tests`) while keeping the lower-level profile flags available.
+- `GitStatusContextProvider` now emits an `affected_workspaces` context block
+  with workspace-relative package candidates and matching package validation
+  commands. This lets pi-agent choose the package finish profile from context
+  instead of guessing from raw `git status` output.
+- `OperatorStateProvider` (priority 15) calls `refarm resume --json` and injects
+  the current gate status, pending `nextCommands`, and active session ID into
+  every effort. Pi-agent knows at the start of each session whether there is
+  pending gate work to resolve before starting new edits.
+- `PolicyFilesContextProvider` (priority 12) walks the git root for known policy
+  files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`)
+  and emits a pointer-first entry with absolute paths and headings. Pi-agent
+  reads the full policy via `agent-fs.read` before making code changes.
+  On the refarm repo this surfaces AGENTS.md — the same rules that govern Claude
+  Code — closing the symmetry between external-agent and native-agent orientation.
+- `buildSystemPrompt` now instructs pi-agent to read policy files before editing
+  and to call `refarm resume --json` at any point to refresh operator state.
 
 **Phase 4 — Scarecrow boundary (Barn Steps 3+4)**
 
@@ -215,10 +257,16 @@ already implemented for rapid iteration once the binary exists.
    agents-lab's `context-watchdog` (50%/68%/72%) are worth evaluating — but
    only after we understand why those specific thresholds were chosen there.
 
-2. **agent-shell working directory**: Does `agent-shell.spawn` respect the effort's
-   working directory, or does it always use farmhand's CWD? If the latter, relative
-   paths in `pnpm test --filter` commands may not work as expected.
+2. **agent-shell working directory** — ANSWERED: The `bash` tool in
+   `tool_dispatch/shell_tools.rs` accepts an explicit `cwd` parameter and passes
+   it to `spawn_process`. Pi-agent should always pass the working directory from
+   the `cwd` context block when calling `bash`. The `list_dir` and `search_files`
+   tools pass `cwd: None` (farmhand's CWD) and accept paths relative to that —
+   pass absolute paths to avoid ambiguity. Farmhand is normally started from the
+   repo root so relative paths work in practice, but absolute paths are safer.
 
-3. **Commit identity**: When pi-agent commits, git needs a user name and email.
-   Does the farmhand environment have `GIT_AUTHOR_*` set, or does it inherit from
-   `~/.gitconfig`? An unattended agent should commit as `refarm-bot` or similar.
+3. **Commit identity** — ANSWERED: Pi-agent inherits the git identity from
+   `~/.gitconfig` via the spawned `git commit` process — no special environment
+   setup needed for interactive self-iteration. For unattended/CI use a separate
+   `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` env pair should be injected into the
+   spawn env when pi-agent is operating headlessly. Tracked as Phase 4 work.

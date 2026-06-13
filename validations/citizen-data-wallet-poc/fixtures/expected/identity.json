@@ -1,0 +1,11 @@
+{
+  "id": "cidadao-exemplo-001",
+  "type": "synthetic-local-identity",
+  "displayName": "Pessoa Exemplo",
+  "publicKey": {
+    "crv": "Ed25519",
+    "x": "Fgwbu7lUyqmD-CG-H_56XhauWhVqOG1d3tIZ2I_ngrk",
+    "kty": "OKP"
+  },
+  "createdAt": "2026-01-01T00:00:00.000Z"
+}

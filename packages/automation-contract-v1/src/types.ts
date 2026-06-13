@@ -1,10 +1,10 @@
-import type { ManagedArtefact, ArtefactStatus } from "@refarm.dev/artefact-contract-v1";
+import type { ArtifactStatus, ManagedArtifact } from "@refarm.dev/artifact-contract-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 
 export const AUTOMATION_CAPABILITY = "automation:v1" as const;
 
 // Re-export for consumers who only import from this package
-export type { ArtefactStatus };
+export type { ArtifactStatus };
 
 // ── Body types ────────────────────────────────────────────────────────────────
 
@@ -67,9 +67,9 @@ export interface EventTrigger {
 
 export type AutomationTrigger = ManualTrigger | CronTrigger | EventTrigger;
 
-// ── Core artefact type ────────────────────────────────────────────────────────
+// ── Core artifact type ────────────────────────────────────────────────────────
 
-export interface Automation extends ManagedArtefact {
+export interface Automation extends ManagedArtifact {
 	name: string;
 	description?: string;
 	body: AutomationBody;
@@ -80,7 +80,7 @@ export interface Automation extends ManagedArtefact {
 // ── Adapter surface ───────────────────────────────────────────────────────────
 
 export interface AutomationFilter {
-	status?: ArtefactStatus | ArtefactStatus[];
+	status?: ArtifactStatus | ArtifactStatus[];
 	tags?: string[];
 }
 

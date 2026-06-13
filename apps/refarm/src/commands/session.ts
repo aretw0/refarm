@@ -1,21 +1,31 @@
+import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
-import {
-	checkSessionReadiness,
-	isFirstRun,
-	isSessionReady,
-	printOnboarding,
-	printSessionGuide,
-	autoStartFarmhand,
-	defaultLaunchDeps,
-	findRepoRoot,
-	type LaunchDeps,
-} from "./session-launch.js";
 import {
 	defaultChatDeps,
 	runSessionRepl,
 	type ChatDeps,
 } from "./chat.js";
+import {
+	PLUGIN_INSTALL_JSON_COMMAND,
+	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
+} from "./plugin-handoffs.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+} from "./runtime-recovery.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
+import {
+	autoStartRuntime,
+	checkSessionReadiness,
+	defaultLaunchDeps,
+	findRepoRoot,
+	isFirstRun,
+	isRuntimeRunning,
+	isSessionReady,
+	printOnboarding,
+	printSessionGuide,
+	type LaunchDeps,
+} from "./session-launch.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
@@ -62,6 +72,30 @@ async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<strin
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
 }
 
+async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> {
+	if (!deps.readPluginState) return true;
+	const state = await deps.readPluginState();
+	if (!state) return true;
+	if (state.loaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
+
+	if (state.installed.includes(RUNTIME_AGENT_PLUGIN_ID) && deps.reloadPlugins) {
+		const reload = await deps.reloadPlugins([RUNTIME_AGENT_PLUGIN_ID]);
+		if (reload.reloaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
+		const refreshed = await deps.readPluginState();
+		if (refreshed?.loaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
+	}
+
+	process.stderr.write("✗  Runtime agent is not loaded in the Refarm runtime.\n");
+	if (!state.installed.includes(RUNTIME_AGENT_PLUGIN_ID)) {
+		process.stderr.write(`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`);
+	} else {
+		process.stderr.write(`   Reload runtime plugins:   ${RUNTIME_AGENT_RELOAD_JSON_COMMAND}\n`);
+	}
+	process.stderr.write(`   Ensure runtime:           ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\n`);
+	process.stderr.write(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}\n`);
+	return false;
+}
+
 /**
  * Shared launch flow — both `refarm` (bare) and `refarm session` call this.
  *
@@ -84,25 +118,33 @@ export async function runSessionLaunchFlow(
 		if (recovered) readiness = { ...readiness, providerConfigured: true };
 	}
 
-	// Recovery pass 2: auto-start farmhand when provider is now configured.
-	let farmhandRunning = readiness.farmhandRunning;
-	if (!farmhandRunning && readiness.providerConfigured) {
-		farmhandRunning = await autoStartFarmhand(findRepoRoot(), launch);
-		if (!farmhandRunning) process.exit(1);
+	// Recovery pass 2: auto-start runtime when provider is now configured.
+	let runtimeRunning = isRuntimeRunning(readiness);
+	if (!runtimeRunning && readiness.providerConfigured) {
+		runtimeRunning = await autoStartRuntime(findRepoRoot(), launch);
+		if (!runtimeRunning) {
+			process.exitCode = 1;
+			return;
+		}
 	}
 
-	const effectiveReadiness = { ...readiness, farmhandRunning };
+	const effectiveReadiness = { ...readiness, runtimeRunning, farmhandRunning: runtimeRunning };
 	if (!isSessionReady(effectiveReadiness)) {
 		printSessionGuide(effectiveReadiness);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	if (isFirstRun()) {
 		printOnboarding();
-		process.exit(0);
+		return;
 	}
 
 	const deps = injectedDeps ?? defaultChatDeps();
+	if (!(await ensureSessionRuntimeAgentReady(deps))) {
+		process.exitCode = 1;
+		return;
+	}
 
 	let sessionId: string;
 	try {
@@ -110,7 +152,8 @@ export async function runSessionLaunchFlow(
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		process.stderr.write(`✗  ${message}\n`);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	await runSessionRepl(sessionId, deps, "refarm", opts.message);
@@ -120,6 +163,22 @@ export function createSessionCommand(deps?: ChatDeps): Command {
 	return new Command("session")
 		.description(
 			"Start or resume an interactive session (the default when running bare `refarm`)",
+		)
+		.addHelpText(
+			"after",
+			[
+				"",
+				"Examples:",
+				"  $ refarm session",
+				"  $ refarm session --new",
+				"  $ refarm session --session <id-prefix>",
+				"  $ refarm session \"continue daqui\"",
+				"",
+				"Notes:",
+				"  Bare refarm runs the same launch flow as refarm session.",
+				"  The launch flow configures credentials when missing and starts the selected runtime when allowed.",
+				"  Inside the REPL, use /help for runtime commands such as /model, /login, and /reload.",
+			].join("\n"),
 		)
 		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session, discarding conversation history")

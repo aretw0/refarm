@@ -1,0 +1,30 @@
+{
+  "id": "scorecard-citizen-data-wallet-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "scale": 5,
+  "gate": "continue",
+  "finalScore": 4.9,
+  "scores": {
+    "purposeAndScope": 5,
+    "selectiveDisclosure": 5,
+    "signatureIntegrity": 5,
+    "revocationUsability": 5,
+    "humanReview": 4
+  },
+  "weights": {
+    "purposeAndScope": 0.2,
+    "selectiveDisclosure": 0.25,
+    "signatureIntegrity": 0.25,
+    "revocationUsability": 0.2,
+    "humanReview": 0.1
+  },
+  "thresholds": {
+    "continue": 4.5,
+    "needsHumanReview": 3.5,
+    "doNotScaleBelow": 3.5
+  },
+  "limits": [
+    "Synthetic signature and attribute flow only; no standards conformance is claimed.",
+    "Production adoption requires accessibility, legal, and service-integration review."
+  ]
+}

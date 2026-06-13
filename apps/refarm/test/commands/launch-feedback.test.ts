@@ -19,8 +19,8 @@ describe("launch-feedback", () => {
 	});
 
 	it("renders launch dry-run and start messages", () => {
-		expect(launchDryRunMessage("web runtime", "npm run dev")).toBe(
-			"[dry-run] would launch web runtime: npm run dev",
+		expect(launchDryRunMessage("web runtime", "runner dev")).toBe(
+			"[dry-run] would launch web runtime: runner dev",
 		);
 		expect(launchStartMessage("TUI runtime", "cargo run -- watch")).toBe(
 			"Launching TUI runtime: cargo run -- watch",

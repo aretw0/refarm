@@ -1,12 +1,12 @@
-import { canTransition } from "@refarm.dev/artefact-contract-v1";
+import { canTransition } from "@refarm.dev/artifact-contract-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type {
+	ArtifactStatus,
 	Automation,
 	AutomationAdapter,
 	AutomationBody,
 	AutomationFilter,
 	AutomationSummary,
-	ArtefactStatus,
 	EffortTemplate,
 } from "./types.js";
 
@@ -55,7 +55,7 @@ export function createInMemoryAutomationAdapter(
 		effort: { direction: "in-memory", tasks: [] },
 	};
 
-	function transition(id: string, to: ArtefactStatus): Automation {
+	function transition(id: string, to: ArtifactStatus): Automation {
 		const current = store.get(id);
 		if (!current) throw new Error(`Automation not found: ${id}`);
 		if (!canTransition(current.status, to)) {

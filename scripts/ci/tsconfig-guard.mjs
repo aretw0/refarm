@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
 
 const repoRoot = process.cwd();
 const tscBin = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
@@ -120,23 +121,19 @@ function stripAnsi(text) {
 
 function runShowConfig(tsconfigPath) {
 	const rel = path.relative(repoRoot, tsconfigPath);
+	const tscCommand = packageBinaryCommand(
+		"tsc",
+		["--project", rel, "--showConfig", "--pretty", "false"],
+		{ cwd: repoRoot },
+	);
 	const command = exists(tscBin)
 		? {
 				cmd: process.execPath,
 				args: [tscBin, "--project", rel, "--showConfig", "--pretty", "false"],
 			}
 		: {
-				cmd: "npx",
-				args: [
-					"-p",
-					"typescript@6.0.3",
-					"tsc",
-					"--project",
-					rel,
-					"--showConfig",
-					"--pretty",
-					"false",
-				],
+				cmd: tscCommand.command,
+				args: tscCommand.args,
 			};
 
 	const run = spawnSync(command.cmd, command.args, {

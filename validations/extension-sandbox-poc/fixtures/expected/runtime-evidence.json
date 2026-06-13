@@ -1,0 +1,37 @@
+{
+  "id": "runtime-evidence-extension-sandbox-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "claim": "real WebAssembly plugin lifecycle has an adjacent validation path",
+  "claimStatus": "adjacent-validation",
+  "syntheticPocScope": "simulated-lifecycle",
+  "evidenceCommands": [
+    {
+      "id": "hello-world-wasm-build",
+      "command": "pnpm --filter @refarm.dev/hello-world-plugin run build",
+      "proves": "Rust source can build a WASI Preview 1 WebAssembly component artifact.",
+      "cost": "medium"
+    },
+    {
+      "id": "browser-plugin-lifecycle-e2e",
+      "command": "pnpm -C validations/wasm-plugin/host run test:e2e:chromium",
+      "proves": "Browser host can load the transpiled component and exercise setup, ingest, metadata, and teardown.",
+      "cost": "high"
+    },
+    {
+      "id": "tractor-jco-integration",
+      "command": "pnpm --filter @refarm.dev/tractor run test -- test/jco-integration.test.ts",
+      "proves": "JCO is available and the compiled hello-world plugin binary is recognized when present.",
+      "cost": "medium"
+    }
+  ],
+  "linkedEvidence": [
+    "validations/wasm-plugin/VALIDATION_RESULTS.md",
+    "validations/wasm-plugin/host/tests/e2e/plugin-lifecycle.spec.ts",
+    "packages/tractor-ts/test/jco-integration.test.ts"
+  ],
+  "promotionBoundary": {
+    "canSay": "The extension sandbox policy POC is linked to a real WASM validation path.",
+    "cannotSay": "The synthetic sandbox report itself executed real WASM plugins in production governance."
+  },
+  "nextPromotion": "Run the dedicated E2E command in the target environment and attach its output before claiming real execution in proposal text."
+}

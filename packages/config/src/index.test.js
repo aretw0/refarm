@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { findRefarmRoot, loadConfig, loadConfigAsync } from "./index.js";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+    defaultRefarmConfigPath,
+    findRefarmConfigPath,
+    findRefarmRoot,
+    loadConfig,
+    loadConfigAsync,
+} from "./index.js";
 
 describe("@refarm.dev/config Deterministic Tests", () => {
     const root = findRefarmRoot();
@@ -47,5 +56,41 @@ describe("@refarm.dev/config Deterministic Tests", () => {
           })
         );
     });
-});
 
+    it("prefers .refarm/config.json over legacy root config", () => {
+        const root = mkdtempSync(join(tmpdir(), "refarm-config-paths-"));
+        try {
+            mkdirSync(join(root, ".refarm"), { recursive: true });
+            writeFileSync(
+                join(root, "refarm.config.json"),
+                JSON.stringify({ brand: { slug: "legacy" } }),
+            );
+            writeFileSync(
+                defaultRefarmConfigPath(root),
+                JSON.stringify({ brand: { slug: "canonical" } }),
+            );
+
+            expect(findRefarmConfigPath(root)).toBe(defaultRefarmConfigPath(root));
+            expect(loadConfig(root).brand.slug).toBe("canonical");
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    it("keeps legacy root config readable for existing projects", () => {
+        const root = mkdtempSync(join(tmpdir(), "refarm-config-legacy-"));
+        try {
+            const legacyConfigPath = join(root, "refarm.config.json");
+            writeFileSync(
+                legacyConfigPath,
+                JSON.stringify({ brand: { slug: "legacy" } }),
+            );
+
+            expect(findRefarmConfigPath(root)).toBe(legacyConfigPath);
+            expect(findRefarmRoot(join(root, "nested"))).toBe(root);
+            expect(loadConfig(root).brand.slug).toBe("legacy");
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+});

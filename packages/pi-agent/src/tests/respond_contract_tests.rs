@@ -19,14 +19,20 @@ fn parse_respond_payload_session_fields_optional() {
     let payload = serde_json::json!({ "prompt": "hello" }).to_string();
     let req = parse_respond_payload(&payload).expect("prompt-only payload must parse");
     assert!(req.session_id.is_none(), "session_id must default to None");
-    assert!(req.history_turns.is_none(), "history_turns must default to None");
+    assert!(
+        req.history_turns.is_none(),
+        "history_turns must default to None"
+    );
 }
 
 #[test]
 fn parse_respond_payload_ignores_empty_session_id() {
     let payload = serde_json::json!({ "prompt": "hello", "session_id": "" }).to_string();
     let req = parse_respond_payload(&payload).expect("empty session_id must parse");
-    assert!(req.session_id.is_none(), "empty session_id must be treated as absent");
+    assert!(
+        req.session_id.is_none(),
+        "empty session_id must be treated as absent"
+    );
 }
 
 #[test]

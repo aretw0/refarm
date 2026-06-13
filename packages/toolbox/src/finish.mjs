@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { gitUrlAdapter } from './git-adapter.mjs';
 import { groupChanges } from './git-atomic-analysis.mjs';
 import { processCommits } from './git-commit-auto.mjs';
+import { packageScriptCommand } from './package-manager.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,7 +72,7 @@ async function main() {
     // 4. Generate Changeset if needed
     console.log("\n📦 Running Changeset CLI to document your work (Answer the prompts)...");
     try {
-        runCommand('npm run changeset');
+        runCommand(packageScriptCommand('changeset').command);
     } catch (err) {
         console.error("⚠️ Changeset generation skipped or failed. Be careful, a changeset is required for production patches.");
     }

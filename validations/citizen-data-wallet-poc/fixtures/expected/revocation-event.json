@@ -1,0 +1,9 @@
+{
+  "id": "revocation-authz-sintetica-001",
+  "authorizationId": "authz-sintetica-001",
+  "holder": "cidadao-exemplo-001",
+  "revokedAt": "2026-01-15T12:00:00.000Z",
+  "statusBefore": "active",
+  "statusAfter": "revoked",
+  "reason": "revogacao sintetica solicitada pelo titular ficticio"
+}

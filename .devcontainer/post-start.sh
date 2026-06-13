@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
+
 echo "[refarm-devcontainer] Post-start sanity check..."
+
+if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
+  echo "[refarm-devcontainer][warn] Package manager helper not found: $PACKAGE_MANAGER_HELPER"
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$PACKAGE_MANAGER_HELPER"
+PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
 
 repair_owned_dir() {
   local dir="$1"
@@ -23,25 +37,32 @@ ensure_pnpm() {
   repair_owned_dir /home/vscode/.local/state
   repair_owned_dir /home/vscode/.local/share
   repair_owned_dir "$pnpm_home"
+  repair_owned_dir "$pnpm_home/bin"
   repair_owned_dir "$pnpm_home/store"
   repair_owned_dir /home/vscode/.config
+  repair_owned_dir /home/vscode/.config/gh
   repair_owned_dir /home/vscode/.cache
 
   corepack prepare --activate || true
 
-  if ! command -v pnpm >/dev/null 2>&1; then
-    cat > "$pnpm_home/pnpm" <<'SH'
+  if command -v pnpm >/dev/null 2>&1 && pnpm --version >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "[refarm-devcontainer][warn] pnpm command is missing or broken; installing corepack-backed wrapper"
+  for target in "$pnpm_home/pnpm" "$pnpm_home/bin/pnpm"; do
+    cat > "$target" <<'SH'
 #!/usr/bin/env bash
 exec corepack pnpm "$@"
 SH
-    chmod +x "$pnpm_home/pnpm"
-  fi
+    chmod +x "$target"
+  done
 }
 
 ensure_hooks() {
   if [ -d .git ] && [ ! -x .git/hooks/pre-push ]; then
     echo "[refarm-devcontainer] Installing git hooks..."
-    pnpm run hooks:install >/dev/null 2>&1 || true
+    run_script_for_package_manager "$PACKAGE_MANAGER" hooks:install >/dev/null 2>&1 || true
   fi
 }
 
@@ -51,7 +72,7 @@ ensure_refarm_cli() {
   fi
 
   echo "[refarm-devcontainer] Installing missing refarm CLI shim..."
-  pnpm run cli:install >/dev/null 2>&1 || echo "[refarm-devcontainer][warn] Could not install refarm CLI shim. Run: pnpm run cli:install"
+  run_script_for_package_manager "$PACKAGE_MANAGER" cli:install >/dev/null 2>&1 || echo "[refarm-devcontainer][warn] Could not install refarm CLI shim. Run: $(script_command_for_package_manager "$PACKAGE_MANAGER" cli:install)"
 }
 
 ensure_git_transport() {
@@ -89,7 +110,8 @@ check_rust_baseline() {
   fi
 
   if [ ! -w /usr/local/rustup/downloads ] || [ ! -w /usr/local/cargo ]; then
-    sudo chown -R "$USER":"$USER" /usr/local/rustup /usr/local/cargo >/dev/null 2>&1 || true
+    local current_user="${USER:-$(id -un)}"
+    sudo chown -R "$current_user":"$current_user" /usr/local/rustup /usr/local/cargo >/dev/null 2>&1 || true
   fi
 
   local installed missing=()
@@ -107,6 +129,28 @@ check_rust_baseline() {
   fi
 }
 
+check_gh_auth_home() {
+  if ! command -v gh >/dev/null 2>&1; then
+    return
+  fi
+
+  local persisted_config="/home/vscode/.config/gh"
+  local root_config="/root/.config/gh"
+  local persisted_has_auth=false
+  local root_has_auth=false
+
+  if [ -f "$persisted_config/hosts.yml" ] || [ -f "$persisted_config/config.yml" ]; then
+    persisted_has_auth=true
+  fi
+  if [ -f "$root_config/hosts.yml" ] || [ -f "$root_config/config.yml" ]; then
+    root_has_auth=true
+  fi
+
+  if [ "$persisted_has_auth" = false ] && [ "$root_has_auth" = true ]; then
+    echo "[refarm-devcontainer][warn] GitHub CLI auth exists under /root, but the persisted dev user config is empty."
+    echo "[refarm-devcontainer][warn] Run: farm vscode /workspaces/refarm gh auth login"
+  fi
+}
 check_agent_env() {
   local missing=()
 
@@ -153,6 +197,7 @@ ensure_refarm_cli
 ensure_git_transport
 check_rust_baseline
 check_coding_agent_tools
+check_gh_auth_home
 check_agent_env
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

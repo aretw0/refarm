@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement two new packages — `artefact-contract-v1` (shared lifecycle base types) and `automation-contract-v1` (automation artefact with body/trigger discriminated unions, full adapter interface, in-memory adapter, and 14-check conformance suite).
+**Goal:** Implement two new packages — `artifact-contract-v1` (shared lifecycle base types) and `automation-contract-v1` (automation artifact with body/trigger discriminated unions, full adapter interface, in-memory adapter, and 14-check conformance suite).
 
-**Architecture:** `artefact-contract-v1` is a buildable package with pure types and the `canTransition()` guard — no adapter, no conformance suite. `automation-contract-v1` is a contract-v1 package that imports from both `artefact-contract-v1` and `effort-contract-v1`; its adapter interface exposes CRUD + status transition methods + `trigger()` returning an `Effort` ready to submit. The caller (farmhand/runtime) wires the two adapters together.
+**Architecture:** `artifact-contract-v1` is a buildable package with pure types and the `canTransition()` guard — no adapter, no conformance suite. `automation-contract-v1` is a contract-v1 package that imports from both `artifact-contract-v1` and `effort-contract-v1`; its adapter interface exposes CRUD + status transition methods + `trigger()` returning an `Effort` ready to submit. The caller (farmhand/runtime) wires the two adapters together.
 
-**Tech Stack:** TypeScript, Vitest, pnpm turbo generator (`pnpm turbo gen package`), `@refarm.dev/artefact-contract-v1`, `@refarm.dev/effort-contract-v1`.
+**Tech Stack:** TypeScript, Vitest, pnpm turbo generator (`pnpm turbo gen package`), `@refarm.dev/artifact-contract-v1`, `@refarm.dev/effort-contract-v1`.
 
 **Spec:** `docs/superpowers/specs/2026-05-17-automation-contract-v1-design.md`
 
@@ -15,9 +15,9 @@
 ## File map
 
 ```
-packages/artefact-contract-v1/          ← NEW (buildable)
+packages/artifact-contract-v1/          ← NEW (buildable)
   src/
-    types.ts                            ← ArtefactStatus, ManagedArtefact, canTransition, ARTEFACT_TERMINAL_STATES
+    types.ts                            ← ArtifactStatus, ManagedArtifact, canTransition, ARTIFACT_TERMINAL_STATES
     index.ts                            ← re-exports
     index.test.ts                       ← unit tests for canTransition
   package.json
@@ -42,14 +42,14 @@ scripts/ci/subprocess-utils.mjs        ← MODIFY: add both packages to TASK_SMO
 
 ---
 
-## Task 1: Scaffold and implement `artefact-contract-v1`
+## Task 1: Scaffold and implement `artifact-contract-v1`
 
 **Files:**
-- Create: `packages/artefact-contract-v1/` (via generator)
-- Modify: `packages/artefact-contract-v1/src/types.ts` (replace generated stub)
-- Modify: `packages/artefact-contract-v1/src/index.ts` (replace generated stub)
-- Modify: `packages/artefact-contract-v1/src/index.test.ts` (replace generated stub)
-- Modify: `packages/artefact-contract-v1/package.json` (fix test:unit script)
+- Create: `packages/artifact-contract-v1/` (via generator)
+- Modify: `packages/artifact-contract-v1/src/types.ts` (replace generated stub)
+- Modify: `packages/artifact-contract-v1/src/index.ts` (replace generated stub)
+- Modify: `packages/artifact-contract-v1/src/index.test.ts` (replace generated stub)
+- Modify: `packages/artifact-contract-v1/package.json` (fix test:unit script)
 - Modify: `scripts/ci/subprocess-utils.mjs` (add to BUILD_ORDER)
 
 - [ ] **Step 1: Scaffold the package**
@@ -60,28 +60,28 @@ pnpm turbo gen package
 ```
 
 Answer the prompts:
-- Package name: `artefact-contract-v1`
+- Package name: `artifact-contract-v1`
 - Package type: `buildable`
-- Description: `Shared artefact lifecycle types (draft/ready/active/archived) for managed artefacts`
+- Description: `Shared artifact lifecycle types (draft/ready/active/archived) for managed artifacts`
 - Private? `No`
 
-The generator creates `packages/artefact-contract-v1/` and patches `tsconfig.json` at root.
+The generator creates `packages/artifact-contract-v1/` and patches `tsconfig.json` at root.
 
 - [ ] **Step 2: Verify scaffold output**
 
 ```bash
-ls packages/artefact-contract-v1/src/
+ls packages/artifact-contract-v1/src/
 ```
 
 Expected: `index.ts  index.test.ts`
 
 - [ ] **Step 3: Write the failing test**
 
-Replace `packages/artefact-contract-v1/src/index.test.ts` with:
+Replace `packages/artifact-contract-v1/src/index.test.ts` with:
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { canTransition, ARTEFACT_TERMINAL_STATES } from "./types.js";
+import { canTransition, ARTIFACT_TERMINAL_STATES } from "./types.js";
 
 describe("canTransition", () => {
   it("draft → ready is valid", () => expect(canTransition("draft", "ready")).toBe(true));
@@ -100,10 +100,10 @@ describe("canTransition", () => {
   });
 });
 
-describe("ARTEFACT_TERMINAL_STATES", () => {
+describe("ARTIFACT_TERMINAL_STATES", () => {
   it("contains only archived", () => {
-    expect(ARTEFACT_TERMINAL_STATES.has("archived")).toBe(true);
-    expect(ARTEFACT_TERMINAL_STATES.size).toBe(1);
+    expect(ARTIFACT_TERMINAL_STATES.has("archived")).toBe(true);
+    expect(ARTIFACT_TERMINAL_STATES.size).toBe(1);
   });
 });
 ```
@@ -111,38 +111,38 @@ describe("ARTEFACT_TERMINAL_STATES", () => {
 - [ ] **Step 4: Run test to verify it fails**
 
 ```bash
-pnpm --filter @refarm.dev/artefact-contract-v1 test
+pnpm --filter @refarm.dev/artifact-contract-v1 test
 ```
 
 Expected: FAIL — `Cannot find module './types.js'`
 
 - [ ] **Step 5: Implement `src/types.ts`**
 
-Create `packages/artefact-contract-v1/src/types.ts`:
+Create `packages/artifact-contract-v1/src/types.ts`:
 
 ```typescript
-export const ARTEFACT_CAPABILITY = "artefact:v1" as const;
+export const ARTIFACT_CAPABILITY = "artifact:v1" as const;
 
-export type ArtefactStatus = "draft" | "ready" | "active" | "archived";
+export type ArtifactStatus = "draft" | "ready" | "active" | "archived";
 
-export const ARTEFACT_TERMINAL_STATES: ReadonlySet<ArtefactStatus> = new Set([
+export const ARTIFACT_TERMINAL_STATES: ReadonlySet<ArtifactStatus> = new Set([
 	"archived",
 ]);
 
-const VALID_TRANSITIONS = new Map<ArtefactStatus, ReadonlySet<ArtefactStatus>>([
+const VALID_TRANSITIONS = new Map<ArtifactStatus, ReadonlySet<ArtifactStatus>>([
 	["draft",    new Set(["ready", "archived"])],
 	["ready",    new Set(["draft", "active", "archived"])],
 	["active",   new Set(["ready", "archived"])],
 	["archived", new Set()],
 ]);
 
-export function canTransition(from: ArtefactStatus, to: ArtefactStatus): boolean {
+export function canTransition(from: ArtifactStatus, to: ArtifactStatus): boolean {
 	return VALID_TRANSITIONS.get(from)?.has(to) ?? false;
 }
 
-export interface ManagedArtefact {
+export interface ManagedArtifact {
 	id: string;
-	status: ArtefactStatus;
+	status: ArtifactStatus;
 	tags?: string[];
 	/** Adapter decides whether to increment on each update. */
 	revision?: number;
@@ -154,16 +154,16 @@ export interface ManagedArtefact {
 
 - [ ] **Step 6: Update `src/index.ts`**
 
-Replace `packages/artefact-contract-v1/src/index.ts` with:
+Replace `packages/artifact-contract-v1/src/index.ts` with:
 
 ```typescript
-export { ARTEFACT_CAPABILITY, ARTEFACT_TERMINAL_STATES, canTransition } from "./types.js";
-export type { ArtefactStatus, ManagedArtefact } from "./types.js";
+export { ARTIFACT_CAPABILITY, ARTIFACT_TERMINAL_STATES, canTransition } from "./types.js";
+export type { ArtifactStatus, ManagedArtifact } from "./types.js";
 ```
 
 - [ ] **Step 7: Fix `package.json` test:unit script**
 
-In `packages/artefact-contract-v1/package.json`, change:
+In `packages/artifact-contract-v1/package.json`, change:
 ```json
 "test:unit": "vitest run src/index.test.ts",
 ```
@@ -175,7 +175,7 @@ to:
 - [ ] **Step 8: Run test to verify it passes**
 
 ```bash
-pnpm --filter @refarm.dev/artefact-contract-v1 test
+pnpm --filter @refarm.dev/artifact-contract-v1 test
 ```
 
 Expected: PASS — 12 tests passing
@@ -183,20 +183,20 @@ Expected: PASS — 12 tests passing
 - [ ] **Step 9: Build the package**
 
 ```bash
-pnpm --filter @refarm.dev/artefact-contract-v1 build
+pnpm --filter @refarm.dev/artifact-contract-v1 build
 ```
 
-Expected: exits 0, `packages/artefact-contract-v1/dist/` created with `index.js`, `index.d.ts`
+Expected: exits 0, `packages/artifact-contract-v1/dist/` created with `index.js`, `index.d.ts`
 
 - [ ] **Step 10: Add to TASK_SMOKE_TS_BUILD_ORDER**
 
-In `scripts/ci/subprocess-utils.mjs`, add `"packages/artefact-contract-v1"` after `"packages/effort-contract-v1"`:
+In `scripts/ci/subprocess-utils.mjs`, add `"packages/artifact-contract-v1"` after `"packages/effort-contract-v1"`:
 
 ```javascript
 const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/root",
 	"packages/effort-contract-v1",
-	"packages/artefact-contract-v1",   // ← add this line
+	"packages/artifact-contract-v1",   // ← add this line
 	"packages/identity-contract-v1",
 	// ... rest unchanged
 ```
@@ -204,8 +204,8 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 - [ ] **Step 11: Commit**
 
 ```bash
-git add packages/artefact-contract-v1/ scripts/ci/subprocess-utils.mjs tsconfig.json
-git commit -m "feat(artefact-contract-v1): shared managed artefact lifecycle types"
+git add packages/artifact-contract-v1/ scripts/ci/subprocess-utils.mjs tsconfig.json
+git commit -m "feat(artifact-contract-v1): shared managed artifact lifecycle types"
 ```
 
 ---
@@ -237,7 +237,7 @@ In `packages/automation-contract-v1/package.json`, add a `"dependencies"` block 
 
 ```json
 "dependencies": {
-  "@refarm.dev/artefact-contract-v1": "workspace:*",
+  "@refarm.dev/artifact-contract-v1": "workspace:*",
   "@refarm.dev/effort-contract-v1": "workspace:*"
 },
 ```
@@ -273,7 +273,7 @@ Full `package.json` after edit:
   "files": ["dist", "README.md"],
   "publishConfig": { "access": "public" },
   "dependencies": {
-    "@refarm.dev/artefact-contract-v1": "workspace:*",
+    "@refarm.dev/artifact-contract-v1": "workspace:*",
     "@refarm.dev/effort-contract-v1": "workspace:*"
   },
   "devDependencies": {
@@ -295,13 +295,13 @@ pnpm install
 Replace the generated stub at `packages/automation-contract-v1/src/types.ts` with:
 
 ```typescript
-import type { ManagedArtefact, ArtefactStatus } from "@refarm.dev/artefact-contract-v1";
+import type { ManagedArtifact, ArtifactStatus } from "@refarm.dev/artifact-contract-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 
 export const AUTOMATION_CAPABILITY = "automation:v1" as const;
 
 // Re-export for consumers who only import from this package
-export type { ArtefactStatus };
+export type { ArtifactStatus };
 
 // ── Body types ────────────────────────────────────────────────────────────────
 
@@ -364,9 +364,9 @@ export interface EventTrigger {
 
 export type AutomationTrigger = ManualTrigger | CronTrigger | EventTrigger;
 
-// ── Core artefact type ────────────────────────────────────────────────────────
+// ── Core artifact type ────────────────────────────────────────────────────────
 
-export interface Automation extends ManagedArtefact {
+export interface Automation extends ManagedArtifact {
 	name: string;
 	description?: string;
 	body: AutomationBody;
@@ -377,7 +377,7 @@ export interface Automation extends ManagedArtefact {
 // ── Adapter surface ───────────────────────────────────────────────────────────
 
 export interface AutomationFilter {
-	status?: ArtefactStatus | ArtefactStatus[];
+	status?: ArtifactStatus | ArtifactStatus[];
 	tags?: string[];
 }
 
@@ -445,7 +445,7 @@ Replace the generated `packages/automation-contract-v1/src/index.ts` with:
 ```typescript
 export { AUTOMATION_CAPABILITY } from "./types.js";
 export type {
-	ArtefactStatus,
+	ArtifactStatus,
 	Automation,
 	AutomationAdapter,
 	AutomationBody,
@@ -493,10 +493,10 @@ export async function runAutomationV1Conformance(_adapter: AutomationAdapter): P
 
 - [ ] **Step 7: Add to TASK_SMOKE_TS_BUILD_ORDER**
 
-In `scripts/ci/subprocess-utils.mjs`, add `"packages/automation-contract-v1"` after `"packages/artefact-contract-v1"`:
+In `scripts/ci/subprocess-utils.mjs`, add `"packages/automation-contract-v1"` after `"packages/artifact-contract-v1"`:
 
 ```javascript
-	"packages/artefact-contract-v1",
+	"packages/artifact-contract-v1",
 	"packages/automation-contract-v1",  // ← add this line
 	"packages/identity-contract-v1",
 ```
@@ -504,7 +504,7 @@ In `scripts/ci/subprocess-utils.mjs`, add `"packages/automation-contract-v1"` af
 - [ ] **Step 8: Build the package**
 
 ```bash
-pnpm --filter @refarm.dev/artefact-contract-v1 build
+pnpm --filter @refarm.dev/artifact-contract-v1 build
 pnpm --filter @refarm.dev/automation-contract-v1 build
 ```
 
@@ -682,7 +682,7 @@ Expected: FAIL — stubs throw "not implemented"
 Replace `packages/automation-contract-v1/src/in-memory.ts` with:
 
 ```typescript
-import { canTransition } from "@refarm.dev/artefact-contract-v1";
+import { canTransition } from "@refarm.dev/artifact-contract-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type {
 	Automation,
@@ -690,7 +690,7 @@ import type {
 	AutomationBody,
 	AutomationFilter,
 	AutomationSummary,
-	ArtefactStatus,
+	ArtifactStatus,
 	EffortTemplate,
 } from "./types.js";
 
@@ -739,7 +739,7 @@ export function createInMemoryAutomationAdapter(
 		effort: { direction: "in-memory", tasks: [] },
 	};
 
-	function transition(id: string, to: ArtefactStatus): Automation {
+	function transition(id: string, to: ArtifactStatus): Automation {
 		const current = store.get(id);
 		if (!current) throw new Error(`Automation not found: ${id}`);
 		if (!canTransition(current.status, to)) {
@@ -1044,7 +1044,7 @@ Expected: all tests pass (3 conformance describe blocks + unit tests for transit
 - [ ] **Step 6: Build both packages**
 
 ```bash
-pnpm --filter @refarm.dev/artefact-contract-v1 build
+pnpm --filter @refarm.dev/artifact-contract-v1 build
 pnpm --filter @refarm.dev/automation-contract-v1 build
 ```
 
@@ -1053,7 +1053,7 @@ Expected: both exit 0
 - [ ] **Step 7: Run validate-packages to confirm no violations**
 
 ```bash
-node scripts/validate-packages.mjs 2>&1 | grep -E "artefact|automation|PASS|FAIL"
+node scripts/validate-packages.mjs 2>&1 | grep -E "artifact|automation|PASS|FAIL"
 ```
 
 Expected: no violations for either package

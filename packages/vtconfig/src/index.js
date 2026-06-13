@@ -49,8 +49,9 @@ export function withWasmBrowserConfig(overrides = {}) {
  *   VITEST_FORCE_DIST=pkg1,pkg2   — only the listed packages resolve via dist/
  *
  * Use cases:
- *   VITEST_USE_DIST=true pnpm -C packages/foo run test   # test against built artifacts
- *   VITEST_FORCE_DIST=@refarm.dev/barn pnpm run test     # isolate one published dep
+ *   VITEST_USE_DIST=true <package-manager> run test      # test against built artifacts
+ *   VITEST_FORCE_DIST=@refarm.dev/barn <package-manager> run test
+ *                                                        # isolate one published dep
  *
  * @param {string} root - The root directory of the monorepo.
  */

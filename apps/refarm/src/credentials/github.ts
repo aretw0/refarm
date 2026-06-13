@@ -1,10 +1,10 @@
-import chalk from "chalk";
 import { loadConfig } from "@refarm.dev/config";
-import type { CollectContext, CredentialProvider } from "./types.js";
+import chalk from "chalk";
 import { startSpinner } from "../utils/spinner.js";
+import type { CollectContext, CredentialProvider } from "./types.js";
 
 // Default client_id for the refarm GitHub OAuth App.
-// Override in refarm.config.json: { "providers": { "github": { "clientId": "..." } } }
+// Override in .refarm/config.json: { "providers": { "github": { "clientId": "..." } } }
 // or via env:                      REFARM_PROVIDER_GITHUB_CLIENT_ID=...
 // Device flow does not use a client_secret — this value is safe to commit.
 const DEFAULT_CLIENT_ID = "Ov23lier7kyBcgIUQsih";

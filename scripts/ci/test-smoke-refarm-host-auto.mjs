@@ -7,15 +7,21 @@ import {
 	decideProfile,
 	formatSmokeProfileList,
 	formatUnknownSmokeProfileMessage,
+	isCliInstallSurfaceFile,
 	isFarmhandSidecarFile,
 	isOpenApiProtocolFile,
+	isRefarmAgentRuntimeE2eFile,
 	isRefarmCheckGateFile,
 	isRefarmDriverTaskFile,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
+	isTaskArtifactManifestFile,
+	isTextQualitySurfaceFile,
+	isValidationPocFile,
 	listSmokeProfiles,
 	normalizeChangedFiles,
+	resolveProfileCommand,
 	resolveProfileScript,
 } from "./smoke-refarm-host-auto.mjs";
 
@@ -89,6 +95,56 @@ test("detects OpenAPI protocol files", () => {
 	);
 });
 
+test("detects task artifact manifest files", () => {
+	assert.equal(
+		isTaskArtifactManifestFile(
+			"validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
+		),
+		true,
+	);
+	assert.equal(
+		isTaskArtifactManifestFile(
+			"validations/extension-sandbox-poc/fixtures/expected/sandbox-report.md",
+		),
+		true,
+	);
+	assert.equal(
+		isTaskArtifactManifestFile(
+			"scripts/ci/check-task-artifact-manifests.mjs",
+		),
+		true,
+	);
+	assert.equal(
+		isTaskArtifactManifestFile("validations/extension-sandbox-poc/README.md"),
+		false,
+	);
+});
+
+test("detects validation POC files", () => {
+	assert.equal(
+		isValidationPocFile("validations/governed-note-box-poc/governed-note-box-poc.mjs"),
+		true,
+	);
+	assert.equal(
+		isValidationPocFile("validations/citizen-data-wallet-poc/wallet-poc.test.mjs"),
+		true,
+	);
+	assert.equal(
+		isValidationPocFile("scripts/ci/check-validation-poc-consumers.mjs"),
+		true,
+	);
+	assert.equal(
+		isValidationPocFile(
+			"validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
+		),
+		false,
+	);
+	assert.equal(
+		isValidationPocFile("validations/sqlite-benchmark/package.json"),
+		false,
+	);
+});
+
 test("detects driver task files", () => {
 	assert.equal(
 		isRefarmDriverTaskFile("apps/farmhand/src/transports/tasks.ts"),
@@ -131,6 +187,27 @@ test("detects farmhand sidecar files", () => {
 	);
 });
 
+test("detects agent runtime e2e files", () => {
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile("apps/refarm/src/commands/ask.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile("packages/model-mock/src/index.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile(
+			"packages/tractor/src/host/wasi_bridge/core.rs",
+		),
+		true,
+	);
+	assert.equal(
+		isRefarmAgentRuntimeE2eFile("apps/refarm/src/commands/tree.ts"),
+		false,
+	);
+});
+
 test("lists smoke profiles from the canonical profile map", () => {
 	assert.deepEqual(listSmokeProfiles(), [
 		"skip",
@@ -148,8 +225,13 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree-dist",
 		"tree",
 		"openapi",
+		"validation-pocs",
+		"task-artifacts",
+		"text-quality",
 		"sidecar",
 		"driver-tasks",
+		"agent-e2e-mock",
+		"install",
 		"check",
 		"quick",
 		"dev",
@@ -157,7 +239,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, check, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, validation-pocs, task-artifacts, text-quality, sidecar, driver-tasks, agent-e2e-mock, install, check, quick, dev, ci",
 	);
 });
 
@@ -221,8 +303,13 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
 			{ profile: "tree", script: "refarm:tree:verify" },
 			{ profile: "openapi", script: "openapi:check" },
+			{ profile: "validation-pocs", script: "validation-pocs:test" },
+			{ profile: "task-artifacts", script: "task-artifacts:check" },
+			{ profile: "text-quality", script: "text-quality:verify" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
+			{ profile: "agent-e2e-mock", script: "refarm:agent:e2e:mock" },
+			{ profile: "install", script: "cli:install:verify" },
 			{ profile: "check", script: "refarm:check:verify" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
@@ -231,13 +318,14 @@ test("creates a profile-to-script list envelope", () => {
 	});
 });
 
-test("maps profiles to npm scripts", () => {
+test("maps profiles to package scripts", () => {
 	assert.equal(isSmokeProfile("skip"), true);
 	assert.equal(isSmokeProfile("actions"), true);
 	assert.equal(isSmokeProfile("action-seams"), true);
 	assert.equal(isSmokeProfile("tree"), true);
 	assert.equal(isSmokeProfile("actions-headless"), true);
 	assert.equal(isSmokeProfile("tree-farmhand"), true);
+	assert.equal(isSmokeProfile("agent-e2e-mock"), true);
 	assert.equal(isSmokeProfile("unknown"), false);
 	assert.equal(resolveProfileScript("skip"), null);
 	assert.equal(
@@ -272,15 +360,41 @@ test("maps profiles to npm scripts", () => {
 	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
 	assert.equal(resolveProfileScript("openapi"), "openapi:check");
+	assert.equal(resolveProfileScript("validation-pocs"), "validation-pocs:test");
+	assert.equal(resolveProfileScript("task-artifacts"), "task-artifacts:check");
+	assert.equal(resolveProfileScript("text-quality"), "text-quality:verify");
 	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
 	assert.equal(
 		resolveProfileScript("driver-tasks"),
 		"refarm:driver:tasks:verify",
 	);
+	assert.equal(
+		resolveProfileScript("agent-e2e-mock"),
+		"refarm:agent:e2e:mock",
+	);
+	assert.equal(resolveProfileScript("install"), "cli:install:verify");
 	assert.equal(resolveProfileScript("check"), "refarm:check:verify");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
 	assert.equal(resolveProfileScript("ci"), "refarm:host:smoke:ci");
+	assert.equal(resolveProfileCommand("tree"), "pnpm run refarm:tree:verify");
+});
+
+test("maps profile command display through package manager override", () => {
+	const previous = process.env.REFARM_PACKAGE_MANAGER;
+	try {
+		process.env.REFARM_PACKAGE_MANAGER = "bun";
+		assert.equal(
+			resolveProfileCommand("tree"),
+			"bun run refarm:tree:verify",
+		);
+	} finally {
+		if (previous === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = previous;
+		}
+	}
 });
 
 test("detects composite check gate files", () => {
@@ -301,6 +415,48 @@ test("detects composite check gate files", () => {
 		isRefarmCheckGateFile("apps/refarm/src/commands/status.ts"),
 		false,
 	);
+});
+
+test("detects CLI install substrate files", () => {
+	assert.equal(isCliInstallSurfaceFile("scripts/install-refarm-cli.mjs"), true);
+	assert.equal(isCliInstallSurfaceFile("scripts/pi-agent-install.mjs"), true);
+	assert.equal(
+		isCliInstallSurfaceFile("scripts/ci/check-node-substrate.mjs"),
+		true,
+	);
+	assert.equal(isCliInstallSurfaceFile(".devcontainer/post-create.sh"), true);
+	assert.equal(
+		isCliInstallSurfaceFile("apps/refarm/src/commands/status.ts"),
+		false,
+	);
+});
+
+test("detects text quality surface files", () => {
+	assert.equal(
+		isTextQualitySurfaceFile("scripts/ci/text-quality-lib.mjs"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("scripts/ci/check-text-quality.mjs"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("scripts/ci/text-quality-config-schema.mjs"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("docs/POC_PRIZE_READINESS.md"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("docs/POC_WRITING_HANDOFF.md"),
+		true,
+	);
+	assert.equal(
+		isTextQualitySurfaceFile("docs/TEXT_QUALITY_CONFIG.md"),
+		true,
+	);
+	assert.equal(isTextQualitySurfaceFile("docs/random-note.md"), false);
 });
 
 test("routes action-readiness-only deltas to focused actions lane", () => {
@@ -340,6 +496,33 @@ test("routes composite check gate deltas to focused check lane", () => {
 	);
 });
 
+test("routes CLI install substrate deltas to focused install lane", () => {
+	assert.equal(
+		decideProfile([
+			"scripts/install-refarm-cli.mjs",
+			"scripts/ci/test-install-refarm-cli.mjs",
+			"docs/DEVOPS.md",
+		]).profile,
+		"install",
+	);
+	assert.equal(
+		decideProfile([
+			"scripts/pi-agent-install.mjs",
+			"scripts/install-refarm-cli.mjs",
+		]).profile,
+		"install",
+	);
+	assert.equal(
+		decideProfile([
+			".devcontainer/post-create.sh",
+			"scripts/ci/test-devcontainer-contract.mjs",
+			"package.json",
+		]).profile,
+		"install",
+	);
+	assert.equal(decideProfile(["package.json"]).profile, "ci");
+});
+
 test("routes tree-only deltas to focused tree lane", () => {
 	assert.equal(
 		decideProfile([
@@ -360,6 +543,54 @@ test("routes OpenAPI protocol deltas to focused OpenAPI lane", () => {
 			"specs/protocols/README.md",
 		]).profile,
 		"openapi",
+	);
+});
+
+test("routes validation POC deltas to focused POC lane", () => {
+	assert.equal(
+		decideProfile([
+			"validations/governed-note-box-poc/governed-note-box-poc.mjs",
+			"validations/governed-note-box-poc/governed-note-box-poc.test.mjs",
+			"scripts/ci/check-validation-poc-consumers.mjs",
+			"docs/POC_VALIDATION_PRESSURE.md",
+		]).profile,
+		"validation-pocs",
+	);
+});
+
+test("routes task artifact deltas to focused artifact lane", () => {
+	assert.equal(
+		decideProfile([
+			"validations/citizen-data-wallet-poc/fixtures/expected/wallet-report.md",
+			"validations/citizen-data-wallet-poc/fixtures/expected/task-artifacts.json",
+			"docs/POC_VALIDATION_PRESSURE.md",
+		]).profile,
+		"task-artifacts",
+	);
+	assert.equal(
+		decideProfile([
+			"scripts/ci/check-task-artifact-manifests.mjs",
+			"scripts/ci/test-check-task-artifact-manifests-lib.mjs",
+		]).profile,
+		"task-artifacts",
+	);
+});
+
+test("routes text quality deltas to focused docs quality lane", () => {
+	assert.equal(
+		decideProfile([
+			"scripts/ci/text-quality-lib.mjs",
+			"scripts/ci/text-quality-config-schema.mjs",
+			"scripts/ci/test-text-quality-lib.mjs",
+			"docs/TEXT_QUALITY_CONFIG.md",
+			"docs/POC_WRITING_HANDOFF.md",
+			"docs/VAULT_SEED_CONVERGENCE.md",
+		]).profile,
+		"text-quality",
+	);
+	assert.equal(
+		decideProfile(["docs/POC_PRIZE_READINESS.md"]).profile,
+		"text-quality",
 	);
 });
 
@@ -384,6 +615,17 @@ test("routes farmhand sidecar deltas to focused sidecar lane", () => {
 			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
 		]).profile,
 		"sidecar",
+	);
+});
+
+test("routes agent runtime model deltas to no-token e2e lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/ask.ts",
+			"packages/tractor/src/host/wasi_bridge/core.rs",
+			"docs/daily-driver-readiness.md",
+		]).profile,
+		"agent-e2e-mock",
 	);
 });
 
@@ -444,7 +686,7 @@ test("explicit CLI profile bypasses diff detection", () => {
 	);
 	assert.match(output, /profile=tree files=0/);
 	assert.match(output, /source=explicit-profile/);
-	assert.match(output, /action=npm run refarm:tree:verify/);
+	assert.match(output, /action=pnpm run refarm:tree:verify/);
 });
 
 test("explicit granular CLI profile maps to a narrow lane", () => {
@@ -459,7 +701,7 @@ test("explicit granular CLI profile maps to a narrow lane", () => {
 	);
 	assert.match(output, /profile=actions-headless files=0/);
 	assert.match(output, /source=explicit-profile/);
-	assert.match(output, /action=npm run refarm:actions:headless:test/);
+	assert.match(output, /action=pnpm run refarm:actions:headless:test/);
 });
 
 test("explicit action-seams CLI profile maps to the combined action seam lane", () => {
@@ -472,7 +714,7 @@ test("explicit action-seams CLI profile maps to the combined action seam lane", 
 	assert.match(output, /source=explicit-profile/);
 	assert.match(
 		output,
-		/action=npm run refarm:host:smoke:cli:action-seams/,
+		/action=pnpm run refarm:host:smoke:cli:action-seams/,
 	);
 });
 

@@ -113,7 +113,7 @@ describe("WindmillEngine", () => {
 
         await expect(engine.deploy("all")).resolves.toEqual({
             status: "error",
-            message: "No distribution targets defined in refarm.config.json",
+            message: "No distribution targets defined in .refarm/config.json",
         });
     });
 });

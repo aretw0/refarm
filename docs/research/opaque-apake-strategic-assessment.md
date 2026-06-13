@@ -1,7 +1,8 @@
 # OPAQUE aPAKE — Strategic Assessment for the Refarm Ecosystem
 
 **Date**: 2026-03-20
-**Status**: Research — Informing v0.2.0+ Identity Architecture
+**Status**: Research — Informing additive identity:v1 extensions and v0.2.0+
+identity adapters
 **Authors**: Refarm Team
 
 ---

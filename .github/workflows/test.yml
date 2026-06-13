@@ -31,14 +31,17 @@ jobs:
       ci_changes: ${{ steps.detect.outputs.ci_changes }}
       code_changes: ${{ steps.detect.outputs.code_changes }}
       tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
+      tractor_heavy_gates: ${{ steps.detect.outputs.tractor_heavy_gates }}
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
       run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
       run_deep: ${{ steps.detect.outputs.run_deep }}
+      text_quality_changes: ${{ steps.detect.outputs.text_quality_changes }}
       skip_duplicate_push: ${{ steps.detect.outputs.skip_duplicate_push }}
       quality_cache_key: ${{ steps.signatures.outputs.quality_key }}
       e2e_cache_key: ${{ steps.signatures.outputs.e2e_key }}
+      tractor_heavy_cache_key: ${{ steps.signatures.outputs.tractor_heavy_key }}
 
     steps:
       - name: Checkout
@@ -74,11 +77,13 @@ jobs:
               echo "ci_changes=false" >> "$GITHUB_OUTPUT"
               echo "code_changes=false" >> "$GITHUB_OUTPUT"
               echo "tractor_gates=false" >> "$GITHUB_OUTPUT"
+              echo "tractor_heavy_gates=false" >> "$GITHUB_OUTPUT"
               echo "run_build=false" >> "$GITHUB_OUTPUT"
               echo "run_e2e=false" >> "$GITHUB_OUTPUT"
               echo "run_task_smoke=false" >> "$GITHUB_OUTPUT"
               echo "run_audit=false" >> "$GITHUB_OUTPUT"
               echo "run_deep=false" >> "$GITHUB_OUTPUT"
+              echo "text_quality_changes=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
@@ -111,11 +116,13 @@ jobs:
             echo "ci_changes=true" >> "$GITHUB_OUTPUT"
             echo "code_changes=true" >> "$GITHUB_OUTPUT"
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
+            echo "tractor_heavy_gates=true" >> "$GITHUB_OUTPUT"
             echo "run_build=false" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
             echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
             echo "run_audit=true" >> "$GITHUB_OUTPUT"
             echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
+            echo "text_quality_changes=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -140,8 +147,13 @@ jobs:
           fi
 
           tractor_gates=false
-          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs|scripts/ci/carry-forward-status.*\.mjs)'; then
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs)'; then
             tractor_gates=true
+          fi
+
+          tractor_heavy_gates=false
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|pnpm-lock\.yaml$|scripts/ci/smoke-runtime-descriptor-release-path\.mjs)'; then
+            tractor_heavy_gates=true
           fi
 
           # Standalone build artifact job is retired for normal PR validation.
@@ -169,6 +181,11 @@ jobs:
             run_audit=true
           fi
 
+          text_quality_changes=false
+          if has_match '^(scripts/ci/(check-text-quality|test-text-quality-lib|text-quality-config-schema|text-quality-lib)\.mjs|docs/(ENVIRONMENT_SUBSTRATE_INVENTORY|NIXOS_CURATED_RUNTIME_STRATEGY|POC_VALIDATION_PRESSURE|POC_PRIZE_READINESS|POC_WRITING_HANDOFF|TEXT_QUALITY_CONFIG|VAULT_SEED_CONVERGENCE)\.md)$'; then
+            text_quality_changes=true
+          fi
+
           turbo_filter="...[$BASE_SHA]"
 
           echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
@@ -178,13 +195,15 @@ jobs:
           echo "ci_changes=$ci_changes" >> "$GITHUB_OUTPUT"
           echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
           echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
+          echo "tractor_heavy_gates=$tractor_heavy_gates" >> "$GITHUB_OUTPUT"
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
           echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
           echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
+          echo "text_quality_changes=$text_quality_changes" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep filter=$turbo_filter"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates tractor_heavy_gates=$tractor_heavy_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep text_quality=$text_quality_changes filter=$turbo_filter"
 
       - name: Compute validation signatures
         id: signatures
@@ -225,6 +244,19 @@ jobs:
           .cargo/config.toml
           EOF
 
+          cat > /tmp/refarm-tractor-heavy-signature-patterns.txt <<'EOF'
+          packages/tractor
+          packages/tractor-ts
+          scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs
+          scripts/ci/smoke-runtime-descriptor-release-path.mjs
+          package.json
+          pnpm-lock.yaml
+          turbo.json
+          .cargo/config.toml
+          .github/actions/setup
+          .github/workflows/test.yml
+          EOF
+
           node scripts/ci/content-signature.mjs \
             --name test-quality \
             --output quality_key \
@@ -234,6 +266,11 @@ jobs:
             --name test-e2e \
             --output e2e_key \
             --patterns-file /tmp/refarm-e2e-signature-patterns.txt
+
+          node scripts/ci/content-signature.mjs \
+            --name tractor-heavy \
+            --output tractor_heavy_key \
+            --patterns-file /tmp/refarm-tractor-heavy-signature-patterns.txt
 
   validate-scaffold:
     name: Validate package scaffold and action pins
@@ -248,12 +285,16 @@ jobs:
         run: node scripts/validate-packages.mjs
       - name: Validate GitHub Action pins
         run: node scripts/ci/check-github-action-pins.mjs
+      - name: Validate GitHub Action contracts
+        run: node scripts/ci/check-github-actions-contracts.mjs
 
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: changes
     if: needs.changes.outputs.skip_duplicate_push != 'true'
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
       - name: Checkout
@@ -276,6 +317,12 @@ jobs:
       - name: Validate .project cross-block consistency
         run: node scripts/ci/project-block-consistency.mjs
 
+      - name: Text quality verify
+        if: needs.changes.outputs.text_quality_changes == 'true'
+        run: |
+          node --test scripts/ci/test-text-quality-lib.mjs
+          node scripts/ci/check-text-quality.mjs docs/ENVIRONMENT_SUBSTRATE_INVENTORY.md docs/NIXOS_CURATED_RUNTIME_STRATEGY.md docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/POC_WRITING_HANDOFF.md docs/TEXT_QUALITY_CONFIG.md docs/VAULT_SEED_CONVERGENCE.md
+
       - name: Setup
         id: setup
         if: steps.quality_cache.outputs.cache-hit != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true')
@@ -283,8 +330,10 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
+          rust-coverage: ${{ needs.changes.outputs.tractor_heavy_gates }}
 
       # Turbo Cache is now handled in ./.github/actions/setup
       # - name: Cache Turbo
@@ -364,13 +413,25 @@ jobs:
             --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
             --out-dir .artifacts/runtime-descriptor-revocation-history
 
+      - name: Restore Tractor heavy result cache
+        id: tractor_heavy_cache
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && needs.changes.outputs.tractor_heavy_cache_key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/tractor-heavy
+          key: ${{ needs.changes.outputs.tractor_heavy_cache_key }}
+
+      - name: Tractor heavy cache hit
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful Tractor benchmark/coverage validation for unchanged heavy inputs."
+
       - name: Verify (Full Turbo)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
-        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Verify (Full Turbo fallback)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
-        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Verify (Full Turbo) skipped
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
@@ -393,10 +454,12 @@ jobs:
       # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true'
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
+          BENCH_BASELINE_COPY="$(mktemp)"
+          BASELINE_READY=false
 
           # Generate baseline from main (best-effort — skipped if main is on an
           # older package-manager config that pnpm can't handle).
@@ -407,6 +470,8 @@ jobs:
             pnpm install --frozen-lockfile
             cd packages/tractor
             pnpm run bench:save
+            cp benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+            BASELINE_READY=true
             cd ../..
           else
             echo "::warning::Benchmark baseline skipped — main branch uses older package-manager config (no pnpm-workspace.yaml)"
@@ -416,6 +481,9 @@ jobs:
           git checkout -f $CURRENT_BRANCH
           pnpm install --frozen-lockfile
           cd packages/tractor
+          if [ "$BASELINE_READY" = "true" ]; then
+            cp "$BENCH_BASELINE_COPY" benchmarks/baseline.json
+          fi
           pnpm run bench:check
 
           # Export payload to GHA env vars if the script exited cleanly
@@ -429,7 +497,7 @@ jobs:
           fi
 
       - name: Comment PR on Benchmark Increase
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -480,7 +548,7 @@ jobs:
 
       - name: Coverage Quality Gate (Tractor)
         id: coverage
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true'
         run: |
           cd packages/tractor
           pnpm run coverage:check
@@ -498,7 +566,7 @@ jobs:
           fi
 
       - name: Comment PR on Coverage Increase
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -554,12 +622,13 @@ jobs:
             }
 
       - name: Upload coverage
-        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && env.CODECOV_TOKEN != ''
         uses: ./.github/actions/codecov-upload
         with:
-          files: ./coverage/coverage-final.json
+          files: ./packages/tractor/coverage/lcov.info
           flags: unittests
           name: codecov-refarm
+          token: ${{ env.CODECOV_TOKEN }}
 
       - name: Upload revocation diagnostics report
         if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
@@ -588,6 +657,43 @@ jobs:
           mkdir -p .artifacts/validation-cache/test-quality
           printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/test-quality/last-successful-sha.txt
 
+      - name: Record Tractor heavy cache marker
+        if: success() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_cache_key != ''
+        run: |
+          mkdir -p .artifacts/validation-cache/tractor-heavy
+          printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/tractor-heavy/last-successful-sha.txt
+
+  platform-compat:
+    name: Platform compatibility (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    needs: changes
+    if: needs.changes.outputs.skip_duplicate_push != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.ci_changes == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-2025-vs2026]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          rust-target: "wasm32-wasip1"
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+      - name: Check platform compatibility
+        run: node scripts/ci/check-platform-compat.mjs
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -606,12 +712,13 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
       - name: Build (affected)
         if: needs.changes.outputs.turbo_filter != ''
-        run: pnpm turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Build (full fallback)
         if: needs.changes.outputs.turbo_filter == ''
@@ -660,6 +767,7 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -699,11 +807,11 @@ jobs:
 
       - name: Run E2E Tests (affected)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'affected'
-        run: pnpm turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Run E2E Tests (full fallback)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'full'
-        run: pnpm turbo run test:e2e --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --cache-dir=.turbo --output-logs=new-only --ui=stream
 
       - name: Upload Playwright report
         if: always() && steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_check.outputs.enabled == 'true'
@@ -737,11 +845,12 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
       - name: Deep regression (full stack)
-        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo --output-logs=new-only --ui=stream
 
   audit-moderate:
     runs-on: ubuntu-latest
@@ -759,6 +868,7 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -791,7 +901,7 @@ jobs:
 
   summary:
     if: always()
-    needs: [changes, quality, build, e2e, audit-moderate, deep-regression]
+    needs: [changes, quality, platform-compat, build, e2e, audit-moderate, deep-regression]
     runs-on: ubuntu-latest
 
     steps:
@@ -806,6 +916,7 @@ jobs:
           CODE_CHANGES: ${{ needs.changes.outputs.code_changes }}
           RUN_TASK_SMOKE: ${{ needs.changes.outputs.run_task_smoke }}
           TRACTOR_GATES: ${{ needs.changes.outputs.tractor_gates }}
+          TRACTOR_HEAVY_GATES: ${{ needs.changes.outputs.tractor_heavy_gates }}
           RUN_AUDIT: ${{ needs.changes.outputs.run_audit }}
           RUN_BUILD: ${{ needs.changes.outputs.run_build }}
           RUN_E2E: ${{ needs.changes.outputs.run_e2e }}
@@ -815,7 +926,7 @@ jobs:
 
       - name: Check all checks
         run: |
-          echo "changes: skip_duplicate_push=${{ needs.changes.outputs.skip_duplicate_push }} ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
+          echo "changes: skip_duplicate_push=${{ needs.changes.outputs.skip_duplicate_push }} ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} tractor_heavy_gates=${{ needs.changes.outputs.tractor_heavy_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
 
           if [ "${{ needs.changes.outputs.skip_duplicate_push }}" = "true" ]; then
             echo "::notice::Heavy push validation skipped because the open PR run is canonical for this develop head."
@@ -830,6 +941,13 @@ jobs:
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
             exit 1
+          fi
+
+          if [ "${{ needs.changes.outputs.code_changes }}" = "true" ] || [ "${{ needs.changes.outputs.ci_changes }}" = "true" ]; then
+            if [ "${{ needs.platform-compat.result }}" != "success" ]; then
+              echo "::error::Platform compatibility failed"
+              exit 1
+            fi
           fi
 
           if [ "${{ needs.changes.outputs.run_audit }}" = "true" ] && [ "${{ needs.audit-moderate.result }}" != "success" ]; then
@@ -855,8 +973,8 @@ jobs:
           echo "::notice::All checks passed!"
 
   ci-metrics:
-    if: always()
-    needs: [summary]
+    if: always() && needs.changes.outputs.skip_duplicate_push != 'true'
+    needs: [changes, summary]
     runs-on: ubuntu-latest
 
     steps:
@@ -875,46 +993,7 @@ jobs:
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
             > /tmp/ci-jobs.json
 
-          node - <<'NODE'
-          const fs = require('fs');
-
-          const payload = JSON.parse(fs.readFileSync('/tmp/ci-jobs.json', 'utf8'));
-          const jobs = (payload.jobs || []).map((job) => {
-            const started = job.started_at ? new Date(job.started_at).getTime() : null;
-            const ended = job.completed_at ? new Date(job.completed_at).getTime() : null;
-            const durationSec = started && ended ? Math.max(0, Math.round((ended - started) / 1000)) : 0;
-            return {
-              name: job.name,
-              status: job.status,
-              conclusion: job.conclusion || '-',
-              durationSec,
-            };
-          });
-
-          const totalSec = jobs.reduce((acc, j) => acc + j.durationSec, 0);
-
-          const report = {
-            runId: process.env.GITHUB_RUN_ID,
-            workflow: process.env.GITHUB_WORKFLOW,
-            jobs,
-            totalDurationSec: totalSec,
-          };
-
-          fs.writeFileSync('ci-run-metrics.json', JSON.stringify(report, null, 2));
-
-          const lines = [];
-          lines.push('## CI timing snapshot');
-          lines.push('');
-          lines.push('| Job | Status | Conclusion | Duration (s) |');
-          lines.push('|---|---|---|---:|');
-          for (const j of jobs) {
-            lines.push(`| ${j.name} | ${j.status} | ${j.conclusion} | ${j.durationSec} |`);
-          }
-          lines.push('');
-          lines.push(`**Total job-seconds:** ${totalSec}`);
-
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
-          NODE
+          node scripts/ci/export-ci-run-metrics.mjs --input /tmp/ci-jobs.json --output ci-run-metrics.json
 
       - name: Upload CI metrics artifact
         if: always()

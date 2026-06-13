@@ -1,19 +1,27 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import type {
 	Effort,
 	EffortLogEntry,
 	EffortResult,
 	EffortStatus,
 } from "@refarm.dev/effort-contract-v1";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { quoteCommandArgIfNeeded, refarmCommand } from "./command-handoff.js";
+import { observedEffortStatus } from "./task-observation.js";
+import { isFinalEffortStatus } from "./task-status.js";
 
 const SESSION_VERSION = 1 as const;
 const DEFAULT_MAX_EFFORTS = 25;
 
-const FINAL_STATUSES = new Set<EffortStatus>(["done", "failed", "cancelled"]);
-
 export type SessionStatus = EffortStatus | "not-found";
+
+export interface TaskSessionModelRoute {
+	scope?: string;
+	provider?: string;
+	modelId?: string;
+	ref?: string;
+}
 
 export interface TaskSessionEffortRecord {
 	effortId: string;
@@ -25,6 +33,13 @@ export interface TaskSessionEffortRecord {
 	lastStatusAt?: string;
 	lastCommand?: "run" | "status" | "list" | "logs" | "retry" | "cancel";
 	lastLogAt?: string;
+	lastModelRoute?: TaskSessionModelRoute;
+	statusCommand: string;
+	logsCommand: string;
+}
+
+export interface TaskSessionEffortCommands {
+	effortId: string;
 	statusCommand: string;
 	logsCommand: string;
 }
@@ -61,12 +76,78 @@ function nowIso(): string {
 	return new Date().toISOString();
 }
 
+export function buildTaskStatusCommand(
+	effortId: string,
+	transport: string,
+	options: { json?: boolean; watch?: boolean } = {},
+): string {
+	return refarmCommand([
+		"task",
+		"status",
+		quoteCommandArgIfNeeded(effortId),
+		"--transport",
+		quoteCommandArgIfNeeded(transport),
+		...(options.watch ? ["--watch"] : []),
+		...(options.json ? ["--json"] : []),
+	]);
+}
+
+export function buildTaskLogsCommand(
+	effortId: string,
+	transport: string,
+	options: { json?: boolean } = {},
+): string {
+	return refarmCommand([
+		"task",
+		"logs",
+		quoteCommandArgIfNeeded(effortId),
+		"--transport",
+		quoteCommandArgIfNeeded(transport),
+		...(options.json ? ["--json"] : []),
+	]);
+}
+
+export function buildTaskEffortCommands(
+	efforts: Array<Pick<EffortResult, "effortId">>,
+	transport: string,
+	options: { json?: boolean } = {},
+): TaskSessionEffortCommands[] {
+	return efforts.map((effort) => ({
+		effortId: effort.effortId,
+		statusCommand: buildTaskStatusCommand(effort.effortId, transport, {
+			json: options.json,
+		}),
+		logsCommand: buildTaskLogsCommand(effort.effortId, transport, {
+			json: options.json,
+		}),
+	}));
+}
+
+export function taskSessionEffortCommands(
+	efforts: Array<Pick<TaskSessionEffortRecord, "effortId" | "logsCommand" | "statusCommand" | "transport">>,
+	options: { json?: boolean } = {},
+): TaskSessionEffortCommands[] {
+	return efforts.map((effort) => ({
+		effortId: effort.effortId,
+		statusCommand: options.json
+			? buildTaskStatusCommand(effort.effortId, effort.transport, {
+					json: true,
+				})
+			: effort.statusCommand,
+		logsCommand: options.json
+			? buildTaskLogsCommand(effort.effortId, effort.transport, {
+					json: true,
+				})
+			: effort.logsCommand,
+	}));
+}
+
 function buildStatusCommand(effortId: string, transport: string): string {
-	return `refarm task status ${effortId} --transport ${transport}`;
+	return buildTaskStatusCommand(effortId, transport);
 }
 
 function buildLogsCommand(effortId: string, transport: string): string {
-	return `refarm task logs ${effortId} --transport ${transport}`;
+	return buildTaskLogsCommand(effortId, transport);
 }
 
 function emptyCheckpoint(): TaskSessionCheckpoint {
@@ -75,6 +156,57 @@ function emptyCheckpoint(): TaskSessionCheckpoint {
 		updatedAt: nowIso(),
 		efforts: [],
 	};
+}
+
+function normalizeModelRoute(raw: unknown): TaskSessionModelRoute | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const maybe = raw as Record<string, unknown>;
+	const scope = typeof maybe.scope === "string" ? maybe.scope : undefined;
+	const provider =
+		typeof maybe.provider === "string" ? maybe.provider : undefined;
+	const modelId =
+		typeof maybe.modelId === "string" ? maybe.modelId : undefined;
+	const ref = typeof maybe.ref === "string" ? maybe.ref : undefined;
+	if (!scope && !provider && !modelId && !ref) return undefined;
+	return { scope, provider, modelId, ref };
+}
+
+function modelRouteFromLogMeta(meta: unknown): TaskSessionModelRoute | undefined {
+	if (!meta || typeof meta !== "object") return undefined;
+	const current = meta as Record<string, unknown>;
+	const scope =
+		typeof current.modelScope === "string" ? current.modelScope : undefined;
+	const provider =
+		typeof current.modelProvider === "string"
+			? current.modelProvider
+			: undefined;
+	const modelId =
+		typeof current.modelId === "string" ? current.modelId : undefined;
+	const ref =
+		provider && modelId ? `${provider}/${modelId}` : provider ?? modelId;
+	if (!scope && !provider && !modelId && !ref) return undefined;
+	return { scope, provider, modelId, ref };
+}
+
+function latestModelRouteFromLogs(
+	logs: EffortLogEntry[],
+): TaskSessionModelRoute | undefined {
+	for (const entry of logs.slice().reverse()) {
+		const route = modelRouteFromLogMeta(entry.meta);
+		if (route) return route;
+	}
+	return undefined;
+}
+
+export function formatTaskSessionModelRoute(
+	route: TaskSessionModelRoute | undefined,
+): string | undefined {
+	if (!route) return undefined;
+	const ref = route.ref ?? (route.provider && route.modelId
+		? `${route.provider}/${route.modelId}`
+		: route.provider ?? route.modelId);
+	if (route.scope && ref) return `${route.scope} ${ref}`;
+	return route.scope ?? ref;
 }
 
 function normalizeCheckpoint(raw: unknown): TaskSessionCheckpoint {
@@ -118,6 +250,7 @@ function normalizeCheckpoint(raw: unknown): TaskSessionCheckpoint {
 							typeof current.lastLogAt === "string"
 								? current.lastLogAt
 								: undefined,
+						lastModelRoute: normalizeModelRoute(current.lastModelRoute),
 						statusCommand:
 							typeof current.statusCommand === "string"
 								? current.statusCommand
@@ -174,14 +307,17 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 	}): void {
 		this.updateState((state) => {
 			const effort = this.upsertEffort(state, input.effortId, input.transport);
-			effort.lastStatus = input.result?.status ?? "not-found";
+			const observedStatus = input.result
+				? observedEffortStatus(input.result)
+				: "not-found";
+			effort.lastStatus = observedStatus;
 			effort.lastStatusAt = nowIso();
 			effort.lastCommand = "status";
 			if (input.result?.submittedAt) {
 				effort.submittedAt = input.result.submittedAt;
 			}
 
-			if (input.result && !FINAL_STATUSES.has(input.result.status)) {
+			if (input.result && !isFinalEffortStatus(observedEffortStatus(input.result))) {
 				state.activeEffortId = input.effortId;
 			} else if (state.activeEffortId === input.effortId) {
 				state.activeEffortId = undefined;
@@ -197,14 +333,14 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 					result.effortId,
 					input.transport,
 				);
-				effort.lastStatus = result.status;
+				effort.lastStatus = observedEffortStatus(result);
 				effort.lastStatusAt = nowIso();
 				effort.lastCommand = "list";
 				effort.submittedAt = result.submittedAt ?? effort.submittedAt;
 			}
 
 			const firstActive = input.efforts.find(
-				(result) => !FINAL_STATUSES.has(result.status),
+				(result) => !isFinalEffortStatus(observedEffortStatus(result)),
 			);
 			state.activeEffortId = firstActive?.effortId;
 		});
@@ -220,6 +356,8 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 			effort.lastCommand = "logs";
 			const tail = input.logs[input.logs.length - 1];
 			effort.lastLogAt = tail?.timestamp;
+			const route = latestModelRouteFromLogs(input.logs);
+			if (route) effort.lastModelRoute = route;
 		});
 	}
 

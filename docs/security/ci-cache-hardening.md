@@ -35,14 +35,17 @@ validation contexts.
 
 PR jobs run without `actions/setup-node`'s pnpm cache. PR Turbo cache is isolated
 by PR number and exact content hash, and it does not use prefix restoration.
-Turbo remote cache is disabled for PR contexts even when cache secrets exist.
+Turbo remote cache is disabled for untrusted PR contexts even when cache secrets
+exist. Same-repository PRs may use the remote Turbo cache, but only in a
+PR-scoped remote namespace (`<team>-pr-<number>`), which is disjoint from the
+push namespace.
 
 ## What is NOT a vector
 
 - **pnpm cache in PR/publish**: disabled. Trusted push validation may use it.
 - **Rust cargo cache in publish/deploy**: disabled by `cache-mode: "off"`.
 - **Playwright browser cache in publish/deploy**: disabled by `cache-mode: "off"`.
-- **Turbo remote cache in PR/publish/deploy**: disabled by setup policy.
+- **Turbo remote cache in fork PR/publish/deploy**: disabled by setup policy.
 
 ## Supply chain hardening (complementary)
 

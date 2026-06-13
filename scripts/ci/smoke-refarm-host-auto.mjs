@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { runSubprocess } from "./subprocess-utils.mjs";
+import { packageScriptCommand } from "../../packages/config/src/package-manager.js";
+import { runPackageScript, runSubprocess } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-host-smoke:auto]";
 
@@ -20,8 +21,13 @@ const PROFILE_SCRIPT = {
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
 	openapi: "openapi:check",
+	"validation-pocs": "validation-pocs:test",
+	"task-artifacts": "task-artifacts:check",
+	"text-quality": "text-quality:verify",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
+	"agent-e2e-mock": "refarm:agent:e2e:mock",
+	install: "cli:install:verify",
 	check: "refarm:check:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
@@ -56,6 +62,11 @@ export function formatUnknownSmokeProfileMessage(profile) {
 
 export function resolveProfileScript(profile) {
 	return PROFILE_SCRIPT[profile];
+}
+
+export function resolveProfileCommand(profile) {
+	const script = resolveProfileScript(profile);
+	return script ? packageScriptCommand(script, { cwd: process.cwd() }).display : undefined;
 }
 
 export function createSmokeProfileDecisionEnvelope({
@@ -232,11 +243,60 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
+export function isCliInstallSurfaceFile(file) {
+	return (
+		file === ".devcontainer/devcontainer.json" ||
+		file === ".devcontainer/farm" ||
+		file === ".devcontainer/post-create.sh" ||
+		file === ".devcontainer/post-start.sh" ||
+		file === "scripts/install-refarm-cli.mjs" ||
+		file === "scripts/pi-agent-install.mjs" ||
+		file === "scripts/ci/check-node-substrate.mjs" ||
+		file === "scripts/ci/test-check-node-substrate.mjs" ||
+		file === "scripts/ci/test-devcontainer-contract.mjs" ||
+		file === "scripts/ci/test-install-refarm-cli.mjs"
+	);
+}
+
 export function isOpenApiProtocolFile(file) {
 	return (
 		file === "scripts/ci/check-openapi-specs.mjs" ||
 		file === "specs/protocols/README.md" ||
 		file.startsWith("specs/protocols/http/")
+	);
+}
+
+export function isTaskArtifactManifestFile(file) {
+	return (
+		file === "scripts/ci/check-task-artifact-manifests.mjs" ||
+		file === "scripts/ci/test-check-task-artifact-manifests-lib.mjs" ||
+		(file.startsWith("validations/") &&
+			(file.endsWith("/task-artifacts.json") ||
+				file.includes("/fixtures/expected/")))
+	);
+}
+
+export function isTextQualitySurfaceFile(file) {
+	return (
+		file === "scripts/ci/check-text-quality.mjs" ||
+		file === "scripts/ci/text-quality-config-schema.mjs" ||
+		file === "scripts/ci/test-text-quality-lib.mjs" ||
+		file === "scripts/ci/text-quality-lib.mjs" ||
+		file === "docs/POC_VALIDATION_PRESSURE.md" ||
+		file === "docs/POC_PRIZE_READINESS.md" ||
+		file === "docs/POC_WRITING_HANDOFF.md" ||
+		file === "docs/TEXT_QUALITY_CONFIG.md" ||
+		file === "docs/VAULT_SEED_CONVERGENCE.md"
+	);
+}
+
+export function isValidationPocFile(file) {
+	return (
+		file === "scripts/ci/check-validation-poc-consumers.mjs" ||
+		(!file.includes("/fixtures/expected/") &&
+			(file.startsWith("validations/citizen-data-wallet-poc/") ||
+				file.startsWith("validations/extension-sandbox-poc/") ||
+				file.startsWith("validations/governed-note-box-poc/")))
 	);
 }
 
@@ -262,6 +322,18 @@ export function isFarmhandSidecarFile(file) {
 		file === "apps/farmhand/src/transports/tasks.ts" ||
 		file === "apps/farmhand/src/transports/tasks.test.ts" ||
 		file === "specs/protocols/http/farmhand-sidecar.openapi.v1.json"
+	);
+}
+
+export function isRefarmAgentRuntimeE2eFile(file) {
+	return (
+		file === "apps/refarm/src/commands/ask.ts" ||
+		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
+		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
+		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
+		file.startsWith("packages/pi-agent/") ||
+		file.startsWith("packages/model-mock/") ||
+		file.startsWith("packages/tractor/src/host/wasi_bridge/")
 	);
 }
 
@@ -341,6 +413,41 @@ export function decideProfile(inputFiles) {
 	}
 
 	if (
+		files.some((file) => isValidationPocFile(file)) &&
+		files.every((file) => isValidationPocFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "validation-pocs",
+			reason:
+				"Validation POC delta; run deterministic POC tests, consumer smoke, and task artifact manifest validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isTaskArtifactManifestFile(file)) &&
+		files.every(
+			(file) => isTaskArtifactManifestFile(file) || isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "task-artifacts",
+			reason:
+				"Task artifact manifest delta; run focused manifest integrity validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isTextQualitySurfaceFile(file)) &&
+		files.every((file) => isTextQualitySurfaceFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "text-quality",
+			reason:
+				"Text quality scorer or calibrated prose delta; run focused docs text-quality lane.",
+		};
+	}
+
+	if (
 		files.some((file) => isRefarmDriverTaskFile(file)) &&
 		files.every(
 			(file) =>
@@ -376,6 +483,35 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "skip",
 			reason: "Docs-only delta; host smoke execution is not required.",
+		};
+	}
+
+	if (
+		files.some((file) => isCliInstallSurfaceFile(file)) &&
+		files.every(
+			(file) =>
+				isCliInstallSurfaceFile(file) ||
+				isDocsOnlyFile(file) ||
+				file === "package.json",
+		)
+	) {
+		return {
+			profile: "install",
+			reason:
+				"CLI install/substrate delta; run installer dry-run tests, devcontainer contract tests, and node substrate output tests.",
+		};
+	}
+
+	if (
+		files.some((file) => isRefarmAgentRuntimeE2eFile(file)) &&
+		files.every(
+			(file) => isRefarmAgentRuntimeE2eFile(file) || isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "agent-e2e-mock",
+			reason:
+				"Agent runtime/model bridge delta; run no-token Refarm agent e2e smoke.",
 		};
 	}
 
@@ -550,12 +686,12 @@ async function main() {
 		return;
 	}
 
-	console.log(`${LOGGER_PREFIX} action=npm run ${command}`);
+	console.log(`${LOGGER_PREFIX} action=${resolveProfileCommand(decision.profile)}`);
 	if (!execute) {
 		return;
 	}
 
-	await runSubprocess("pnpm", ["run", command], { env: process.env });
+	await runPackageScript(".", command, { env: process.env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -335,10 +335,14 @@ fn configured_fs_root() -> Result<Option<PathBuf>, String> {
     let Ok(raw) = std::env::var("MODEL_FS_ROOT") else {
         return Ok(None);
     };
+    configured_fs_root_from_raw(&raw)
+}
+
+fn configured_fs_root_from_raw(raw: &str) -> Result<Option<PathBuf>, String> {
     if raw.len() > MAX_FS_PATH_LEN {
         return Err("[blocked: invalid MODEL_FS_ROOT: exceeds max length]".to_string());
     }
-    if contains_control_chars(&raw) {
+    if contains_control_chars(raw) {
         return Err("[blocked: invalid MODEL_FS_ROOT: contains control characters]".to_string());
     }
     if !raw.is_ascii() {

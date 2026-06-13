@@ -18,6 +18,27 @@ describe("refarm tasks", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
+		process.exitCode = undefined;
+	});
+
+	it("documents task inspection and task command handoff in help", () => {
+		let help = "";
+		const command = createTasksCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm tasks --status active");
+		expect(help).toContain("refarm tasks show <task-id-prefix>");
+		expect(help).toContain("refarm tasks show <task-id-prefix> --json");
+		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
+		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor");
+		expect(help).toContain("Use refarm task for dispatch/retry/cancel operations");
 	});
 
 	it("lists tasks from the sidecar with filters", async () => {
@@ -60,6 +81,20 @@ describe("refarm tasks", () => {
 		expect(output).toContain("abc123def456");
 	});
 
+	it("rejects invalid limits before calling the sidecar", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const command = createTasksCommand();
+		command.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			command.parseAsync(["--limit", "many"], { from: "user" }),
+		).rejects.toThrow("--limit must be a positive integer.");
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it("prints empty state when no tasks exist", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -73,6 +108,49 @@ describe("refarm tasks", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("No tasks yet"),
 		);
+	});
+
+	it("sets exitCode when task listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync([], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints runtime errors as JSON when task listing cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync(["--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tasks",
+			operation: "list",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime ensure --wait --next-command",
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: [
+				"refarm runtime ensure --wait --next-command",
+				"refarm runtime start --wait",
+				"refarm doctor --next-command",
+			],
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:unavailable",
+					command: "refarm runtime ensure --wait --next-command",
+				}),
+			],
+		});
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("prints task lists as machine-readable JSON", async () => {
@@ -104,6 +182,15 @@ describe("refarm tasks", () => {
 			schemaVersion: 1,
 			command: "tasks",
 			operation: "list",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand:
+				"refarm tasks show 'urn:refarm:task:v1:abc123def456' --json",
+			nextCommands: [
+				"refarm tasks show 'urn:refarm:task:v1:abc123def456' --json",
+				"refarm tasks --json",
+			],
 			filters: {
 				status: "done",
 				session_id: "session-1",
@@ -200,6 +287,11 @@ describe("refarm tasks", () => {
 			schemaVersion: 1,
 			command: "tasks",
 			operation: "show",
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: "refarm tasks --json",
+			nextCommands: ["refarm tasks --json"],
 			prefix: "abc123",
 			task: {
 				"@id": "urn:refarm:task:v1:abc123def456",
@@ -234,18 +326,11 @@ describe("refarm tasks", () => {
 			),
 		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
 		const command = createTasksCommand();
-		await expect(
-			command.commands
-				.find((child) => child.name() === "show")!
-				.parseAsync(["aaa"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["aaa"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Ambiguous prefix"),
@@ -253,6 +338,150 @@ describe("refarm tasks", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("urn:refarm:task:v1:aaa111"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints ambiguous task prefixes as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse(
+					{
+						error: "ambiguous task prefix",
+						matches: [
+							"urn:refarm:task:v1:aaa111",
+							"urn:refarm:task:v1:aaa222",
+						],
+					},
+					409,
+				),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["aaa", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "ambiguous-task-prefix",
+			message: "ambiguous task prefix",
+			prefix: "aaa",
+			matches: [
+				"urn:refarm:task:v1:aaa111",
+				"urn:refarm:task:v1:aaa222",
+			],
+			nextAction: "refarm tasks --json",
+			nextActions: ["refarm tasks --json"],
+			nextCommand: "refarm tasks --json",
+			nextCommands: ["refarm tasks --json"],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints missing task prefixes as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(jsonResponse({ error: "missing" }, 404)),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["missing", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "task-not-found",
+			prefix: "missing",
+			nextAction: "refarm tasks --json",
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints task detail endpoint failures as JSON with recovery commands", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse({ error: "task storage unavailable" }, 500),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "task-show-failed",
+			message: "task storage unavailable",
+			prefix: "abc123",
+			nextAction: "refarm doctor --next-action",
+			nextActions: [
+				"refarm doctor --next-action",
+				"refarm runtime status",
+			],
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("sets exitCode when task details cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123"], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("prints runtime errors as JSON when task details cannot reach the runtime", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tasks",
+			operation: "show",
+			ok: false,
+			error: "runtime-unavailable",
+			nextAction: "refarm runtime ensure --wait --next-command",
+		});
+		expect(process.exitCode).toBe(1);
 	});
 });

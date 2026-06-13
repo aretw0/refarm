@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "checks": {
+    "allNotesHaveMetadata": true,
+    "draftsExcludedFromPublication": true,
+    "humanReviewRequired": true,
+    "noExternalServices": true
+  },
+  "blockers": [],
+  "warnings": [
+    "Synthetic draft note withheld from publication snapshot."
+  ]
+}

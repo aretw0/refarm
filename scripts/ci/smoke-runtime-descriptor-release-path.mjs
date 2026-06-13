@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { rm } from "node:fs/promises";
 import path from "node:path";
+import { packageBinaryCommand } from "../../packages/config/src/package-manager.js";
 import { parseArgs } from "./runtime-descriptor-cli.mjs";
 import { runSubprocess } from "./subprocess-utils.mjs";
 
@@ -41,14 +42,11 @@ async function main() {
 		"--dry-run",
 	]);
 
-	// Use pnpm exec (not pnpm run) so patterns are passed as positional args
-	// directly to vitest without pnpm injecting a "--" separator that vitest
-	// would interpret as Node.js flags rather than file-name filters.
-	await runSubprocess(
-		"pnpm",
+	// Use the package-manager binary runner so patterns are passed directly to
+	// vitest as positional file-name filters.
+	const vitestCommand = packageBinaryCommand(
+		"vitest",
 		[
-			"exec",
-			"vitest",
 			"run",
 			"--passWithNoTests",
 			"install-plugin",
@@ -58,6 +56,9 @@ async function main() {
 		],
 		{ cwd: path.join(root, "packages/tractor-ts") },
 	);
+	await runSubprocess(vitestCommand.command, vitestCommand.args, {
+		cwd: path.join(root, "packages/tractor-ts"),
+	});
 
 	console.log(
 		"[runtime-descriptor-release-smoke] export + publish(dry-run) + resolver tests passed",

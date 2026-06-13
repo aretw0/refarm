@@ -160,6 +160,8 @@ describe("status-with-actions fixture", () => {
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
 		expect(output).toEqual({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",
@@ -168,6 +170,10 @@ describe("status-with-actions fixture", () => {
 				label: "Blocked: no host actions available",
 			},
 			availableActions: [],
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
 		});
 		logSpy.mockRestore();
 	});

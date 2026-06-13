@@ -43,12 +43,12 @@ export class HealthCore {
     /**
      * Runs all registered auditors or a specific subset in a stratified sequence.
      */
-    async audit(requestedAuditors = null, policyId = null) {
+    async audit(requestedAuditors = null, policyId = null, options = {}) {
         const results = {};
         const policy = policyId ? await this.loadPolicy(policyId) : null;
 
         const context = {
-            rootDir: process.cwd(),
+            rootDir: options.rootDir || process.cwd(),
             timestamp: new Date().toISOString(),
             policy: policy || {} // Inject policy into the context
         };
@@ -64,11 +64,16 @@ export class HealthCore {
         }
 
         if (results.project) {
-            return {
+            const projectResult = {
                 ...results.project,
                 _orchestrator: results,
                 _policy: policy
             };
+            if (results.complexity) {
+                projectResult.complexity = results.complexity.blockingFindings || [];
+                projectResult.complexitySummary = results.complexity;
+            }
+            return projectResult;
         }
 
         return results;
@@ -77,14 +82,15 @@ export class HealthCore {
     /**
      * Helper for backward compatibility.
      */
-    async checkResolutionStatus() {
+    async checkResolutionStatus(rootDir = process.cwd()) {
         const projectAuditor = this.#auditors.get("project");
         if (!projectAuditor) return [];
-        return await projectAuditor.checkResolutionStatus(process.cwd());
+        return await projectAuditor.checkResolutionStatus(rootDir);
     }
 }
 
 import { FileSystemAuditor } from "./auditors/generic.js";
 import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
+import { ComplexityAuditor } from "./auditors/complexity.js";
 
-export { FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };
+export { ComplexityAuditor, FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };

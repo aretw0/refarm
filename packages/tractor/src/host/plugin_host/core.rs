@@ -15,7 +15,7 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Module, Store};
-use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::{DirPerms, FilePerms, ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
 use crate::host::instance::PluginInstanceHandle;
 use crate::host::wasi_bridge::TractorNativeBindings;

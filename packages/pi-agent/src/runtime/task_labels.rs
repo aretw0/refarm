@@ -18,7 +18,11 @@ pub(super) fn title_from_prompt(prompt: &str) -> String {
 pub(super) fn status_from_content(content: &str) -> &'static str {
     if content.starts_with("[budget]") {
         "blocked"
-    } else if content.starts_with("[pi-agent erro]") || content.starts_with("[pi-agent stub]") {
+    } else if content.starts_with("[runtime-agent error]")
+        || content.starts_with("[runtime-agent stub]")
+        || content.starts_with("[pi-agent erro]")
+        || content.starts_with("[pi-agent stub]")
+    {
         "failed"
     } else {
         "done"
@@ -91,12 +95,25 @@ mod tests {
     }
 
     #[test]
-    fn status_error_prefix_is_failed() {
+    fn status_runtime_agent_error_prefix_is_failed() {
+        assert_eq!(
+            status_from_content("[runtime-agent error] something"),
+            "failed"
+        );
+    }
+
+    #[test]
+    fn status_legacy_error_prefix_is_failed() {
         assert_eq!(status_from_content("[pi-agent erro] something"), "failed");
     }
 
     #[test]
-    fn status_stub_prefix_is_failed() {
+    fn status_runtime_agent_stub_prefix_is_failed() {
+        assert_eq!(status_from_content("[runtime-agent stub] noop"), "failed");
+    }
+
+    #[test]
+    fn status_legacy_stub_prefix_is_failed() {
         assert_eq!(status_from_content("[pi-agent stub] noop"), "failed");
     }
 

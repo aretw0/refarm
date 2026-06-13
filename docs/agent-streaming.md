@@ -1,6 +1,6 @@
-# pi-agent streaming responses
+# Runtime Agent Streaming Responses
 
-`pi-agent` supports opt-in provider SSE streaming through Tractor's host-owned
+The bundled runtime agent plugin supports opt-in provider SSE streaming through Tractor's host-owned
 `model-bridge::complete-http-stream` boundary.
 
 Streaming is disabled by default. Enable it per process/session with:
@@ -20,7 +20,7 @@ Project config can also govern startup plugin streaming. `.refarm/config.json`
 may set `"stream_responses": true` (or explicit `false`, which maps to
 `MODEL_STREAM_RESPONSES=0` and overrides process env for the plugin).
 
-When enabled, pi-agent requests provider-level `stream: true`; Tractor keeps
+When enabled, the runtime agent requests provider-level `stream: true`; Tractor keeps
 provider credentials and route enforcement in the host, reads the SSE response,
 dual-writes generic `StreamChunk` observations plus partial `AgentResponse`
 projection nodes, and returns a parser-compatible final provider JSON body to the

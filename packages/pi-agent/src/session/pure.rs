@@ -1,11 +1,11 @@
 /// Resolves the active provider name with full user control:
 ///   MODEL_PROVIDER          — explicit choice for this run
 ///   MODEL_DEFAULT_PROVIDER  — user's personal sovereign default (fallback when MODEL_PROVIDER unset)
-///   hardcoded "ollama"    — last resort: local, free, no key needed
+///   hardcoded "openai"      — last resort aligned with Refarm's shared model defaults
 pub(crate) fn provider_name_from_env() -> String {
     std::env::var("MODEL_PROVIDER")
         .or_else(|_| std::env::var("MODEL_DEFAULT_PROVIDER"))
-        .unwrap_or_else(|_| "ollama".into())
+        .unwrap_or_else(|_| "openai".into())
 }
 
 /// Sum `estimated_usd` from UsageRecord JSON payloads for `provider`
@@ -104,11 +104,15 @@ pub(crate) fn history_from_tree(
 /// Build a Session node JSON payload.
 /// `leaf_entry_id`: current tip of the conversation tree (None for empty session).
 /// `parent_session_id`: set when this session is a fork of another (None for root).
-fn default_session_participant() -> String {
-    match std::env::var("MODEL_AGENT_ID") {
-        Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
-        _ => "urn:refarm:agent:pi-agent".to_string(),
+pub(crate) fn session_participant_from_agent_id(agent_id: Option<&str>) -> String {
+    match agent_id {
+        Some(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
+        _ => "urn:refarm:agent:runtime-agent".to_string(),
     }
+}
+
+fn default_session_participant() -> String {
+    session_participant_from_agent_id(std::env::var("MODEL_AGENT_ID").ok().as_deref())
 }
 
 pub(crate) fn session_node(

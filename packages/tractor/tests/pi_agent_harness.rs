@@ -382,8 +382,8 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
         "context_id must reference the session URN, got: {}",
         task["context_id"]
     );
-    assert_eq!(task["assigned_to"], "urn:refarm:agent:pi-agent",
-        "assigned_to must default to pi-agent actor URN when LLM_AGENT_ID is unset");
+    assert_eq!(task["assigned_to"], "urn:refarm:agent:runtime-agent",
+        "assigned_to must default to runtime-agent actor URN when LLM_AGENT_ID is unset");
 
     // ── TaskEvent nodes ───────────────────────────────────────────────────────
     let event_nodes = sync.query_nodes("TaskEvent").expect("query TaskEvent");

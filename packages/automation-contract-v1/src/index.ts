@@ -1,6 +1,6 @@
 export { AUTOMATION_CAPABILITY } from "./types.js";
 export type {
-	ArtefactStatus,
+	ArtifactStatus,
 	Automation,
 	AutomationAdapter,
 	AutomationBody,

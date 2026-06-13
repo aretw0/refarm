@@ -4,7 +4,7 @@
  * Massive iteration multiplier to force measurable durations for
  * extremely efficient Map/List lookups.
  * 
- * Run: npx vitest bench test/composition.bench.ts
+ * Run: <package-manager> exec vitest bench test/composition.bench.ts
  */
 
 import { createMockManifest } from "@refarm.dev/plugin-manifest";

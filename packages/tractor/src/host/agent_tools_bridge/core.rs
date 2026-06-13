@@ -29,16 +29,31 @@ use crate::host::wasi_bridge::TractorNativeBindings;
 impl AgentFsHost for TractorNativeBindings {
     async fn read(&mut self, path: String) -> Result<Vec<u8>, String> {
         enforce_fs_root(&path)?;
-        tokio::fs::read(&path)
+        let bytes = tokio::fs::read(&path)
             .await
-            .map_err(|e| format!("read({path}): {e}"))
+            .map_err(|e| format!("read({path}): {e}"))?;
+        tracing::info!(plugin_id = %self.plugin_id, op = "agent-fs.read", path = %path, bytes = bytes.len());
+        self.telemetry.emit_named(
+            "agent-tool:fs:read",
+            Some(self.plugin_id.clone()),
+            Some(serde_json::json!({ "path": path, "bytes": bytes.len() })),
+        );
+        Ok(bytes)
     }
 
     async fn write(&mut self, path: String, content: Vec<u8>) -> Result<(), String> {
         enforce_fs_root(&path)?;
+        let bytes = content.len();
         atomic_write(&path, &content)
             .await
-            .map_err(|e| format!("write({path}): {e}"))
+            .map_err(|e| format!("write({path}): {e}"))?;
+        tracing::info!(plugin_id = %self.plugin_id, op = "agent-fs.write", path = %path, bytes = bytes);
+        self.telemetry.emit_named(
+            "agent-tool:fs:write",
+            Some(self.plugin_id.clone()),
+            Some(serde_json::json!({ "path": path, "bytes": bytes })),
+        );
+        Ok(())
     }
 
     async fn edit(&mut self, path: String, diff: String) -> Result<(), String> {
@@ -56,7 +71,14 @@ impl AgentFsHost for TractorNativeBindings {
 
         atomic_write(&path, patched.as_bytes())
             .await
-            .map_err(|e| format!("edit/write({path}): {e}"))
+            .map_err(|e| format!("edit/write({path}): {e}"))?;
+        tracing::info!(plugin_id = %self.plugin_id, op = "agent-fs.edit", path = %path, diff_bytes = diff.len());
+        self.telemetry.emit_named(
+            "agent-tool:fs:edit",
+            Some(self.plugin_id.clone()),
+            Some(serde_json::json!({ "path": path, "diff_bytes": diff.len() })),
+        );
+        Ok(())
     }
 }
 
@@ -73,8 +95,30 @@ impl AgentShellHost for TractorNativeBindings {
         if req.argv.is_empty() {
             return Err("spawn: argv must be non-empty".into());
         }
+        let t0 = tokio::time::Instant::now();
         let (stdout, stderr, exit_code, timed_out) =
             spawn_process(&req.argv, &req.env, req.cwd.as_deref(), req.timeout_ms, req.stdin.as_deref()).await?;
+        let duration_ms = t0.elapsed().as_millis() as u64;
+        let cmd = req.argv.first().map(|s| s.as_str()).unwrap_or("<empty>");
+        tracing::info!(
+            plugin_id = %self.plugin_id,
+            op = "agent-shell.spawn",
+            cmd = %cmd,
+            exit_code = exit_code,
+            duration_ms = duration_ms,
+            timed_out = timed_out,
+        );
+        self.telemetry.emit_named(
+            "agent-tool:shell:spawn",
+            Some(self.plugin_id.clone()),
+            Some(serde_json::json!({
+                "argv": req.argv,
+                "cwd": req.cwd,
+                "exit_code": exit_code,
+                "duration_ms": duration_ms,
+                "timed_out": timed_out,
+            })),
+        );
         Ok(SpawnResult { stdout, stderr, exit_code, timed_out })
     }
 }

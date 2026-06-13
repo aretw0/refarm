@@ -63,17 +63,13 @@ fn task_memory_enabled_from_env() -> bool {
 fn task_actor_urn() -> String {
     match std::env::var("MODEL_AGENT_ID") {
         Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
-        _ => "urn:refarm:agent:pi-agent".to_string(),
+        _ => "urn:refarm:agent:runtime-agent".to_string(),
     }
 }
 
 use super::task_labels::{status_from_content, title_from_prompt};
 
-pub(crate) fn open_prompt_task(
-    session_id: &str,
-    prompt_ref: &str,
-    prompt: &str,
-) -> Option<String> {
+pub(crate) fn open_prompt_task(session_id: &str, prompt_ref: &str, prompt: &str) -> Option<String> {
     if !task_memory_enabled_from_env() {
         return None;
     }
@@ -159,8 +155,14 @@ pub(crate) fn close_prompt_task(
     let _ = store_node(&status_event);
 }
 
-pub(crate) fn store_prompt_and_open_session(prompt: &str) -> Option<PromptContext> {
-    let prompt_ref = crate::new_pi_urn("prompt");
+pub(crate) fn store_prompt_and_open_session(
+    prompt: &str,
+    prompt_ref_override: Option<&str>,
+) -> Option<PromptContext> {
+    let prompt_ref = prompt_ref_override
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| crate::new_pi_urn("prompt"));
     let prompt_node = crate::user_prompt_node(&prompt_ref, prompt);
     if !store_node(&prompt_node) {
         return None;
@@ -283,4 +285,3 @@ pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput
     });
     let _ = store_node(&usage);
 }
-

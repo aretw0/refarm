@@ -58,6 +58,20 @@ describe("headlessCommand", () => {
 		});
 	});
 
+	it("documents automation output and dry-run action requests in help", () => {
+		let help = "";
+		headlessCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		headlessCommand.outputHelp();
+
+		expect(help).toContain("refarm headless --action-request <id-or-index>");
+		expect(help).toContain("Default output is JSON for automation");
+		expect(help).toContain("it does not open browsers or mutate state");
+	});
+
 	it("outputs JSON by default", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -109,6 +123,8 @@ describe("headlessCommand", () => {
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
 		expect(output).toMatchObject({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",
@@ -190,6 +206,8 @@ describe("headlessCommand", () => {
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
 		expect(output).toMatchObject({
 			schemaVersion: 1,
+			command: "headless",
+			operation: "action-dry-run",
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "headless",
@@ -205,7 +223,7 @@ describe("headlessCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects --action-request with human output flags", async () => {
+	it("rejects --action-request with operator output flags", async () => {
 		await expect(
 			headlessCommand.parseAsync(
 				["--action-request", "open-node", "--summary"],

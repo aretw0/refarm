@@ -41,7 +41,94 @@ describe("refarm telemetry", () => {
 		expect(deps.fetchTelemetryWindow).toHaveBeenCalledWith(60);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm Telemetry Snapshot");
+		expect(output).toContain("update/restart the Refarm runtime");
 		expect(output).toContain("no pressure signals");
+	});
+
+	it("documents strict telemetry gate usage in help", () => {
+		const command = createTelemetryCommand(makeDeps());
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm telemetry --json --strict");
+		expect(help).toContain("refarm telemetry --next-action");
+		expect(help).toContain("refarm telemetry --next-action --json");
+		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
+		expect(help).toContain("refarm doctor");
+	});
+
+	it("sets exitCode when telemetry cannot reach the runtime", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+		});
+		const command = createTelemetryCommand(deps);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync([], { from: "user" });
+
+		const output = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Refarm runtime is not running");
+		expect(process.exitCode).toBe(1);
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
+	it("prints runtime errors as JSON when telemetry cannot reach the runtime", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "telemetry",
+			operation: "snapshot",
+			ok: false,
+			error: "runtime-unavailable",
+			nextCommand: "refarm runtime ensure --wait --next-command",
+		});
+		expect(process.exitCode).toBe(1);
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
+	it("rejects invalid profile before fetching telemetry", async () => {
+		const deps = makeDeps();
+		const command = createTelemetryCommand(deps);
+		command.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			command.parseAsync(["--profile", "aggressive"], { from: "user" }),
+		).rejects.toThrow(
+			'invalid profile "aggressive". Use: conservative | balanced | throughput',
+		);
+		expect(deps.fetchTelemetry).not.toHaveBeenCalled();
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
+	it("rejects invalid numeric thresholds before fetching telemetry", async () => {
+		const deps = makeDeps();
+		const command = createTelemetryCommand(deps);
+		command.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			command.parseAsync(["--window-minutes", "soon"], { from: "user" }),
+		).rejects.toThrow("--window-minutes must be a positive integer.");
+		expect(deps.fetchTelemetry).not.toHaveBeenCalled();
+		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
 	});
 
 	it("emits core diagnostics in --json mode", async () => {
@@ -70,9 +157,21 @@ describe("refarm telemetry", () => {
 		);
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			command?: string;
+			operation?: string;
+			ok?: boolean;
 			diagnostics?: string[];
 			recommendations?: Array<{ diagnostic: string }>;
+			nextAction?: string | null;
+			nextActions?: string[];
+			nextCommand?: string | null;
+			nextCommands?: string[];
 		};
+		expect(payload).toMatchObject({
+			command: "telemetry",
+			operation: "snapshot",
+			ok: false,
+		});
 		expect(payload.diagnostics).toContain("saturation:queue");
 		expect(payload.diagnostics).toContain("saturation:inflight");
 		expect(payload.diagnostics).toContain("reliability:failures-present");
@@ -83,6 +182,12 @@ describe("refarm telemetry", () => {
 				"reliability:failures-present",
 			]),
 		);
+		expect(payload.nextActions?.[0]).toBe(
+			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+		);
+		expect(payload.nextAction).toBe(payload.nextActions?.[0]);
+		expect(payload.nextCommand).toBe("refarm task list --json");
+		expect(payload.nextCommands).toContain("refarm task list --json");
 	});
 
 	it("uses profile thresholds and window diagnostics", async () => {
@@ -148,24 +253,15 @@ describe("refarm telemetry", () => {
 		});
 		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
-		await expect(
-			command.parseAsync(["--json", "--strict"], { from: "user" }),
-		).rejects.toThrow("exit:2");
+		await command.parseAsync(["--json", "--strict"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			strict?: { passed?: boolean; matchedDiagnostics?: string[] };
 		};
 		expect(payload.strict?.passed).toBe(false);
 		expect(payload.strict?.matchedDiagnostics?.length).toBeGreaterThan(0);
-		expect(exitSpy).toHaveBeenCalledWith(2);
-
-		exitSpy.mockRestore();
+		expect(process.exitCode).toBe(2);
 	});
 
 	it("strict-on filters diagnostics and passes when no selected code matches", async () => {
@@ -185,11 +281,6 @@ describe("refarm telemetry", () => {
 		});
 		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
 
 		await command.parseAsync(
 			["--json", "--strict", "--strict-on", "reliability:failure-rate"],
@@ -201,9 +292,7 @@ describe("refarm telemetry", () => {
 		};
 		expect(payload.strict?.passed).toBe(true);
 		expect(payload.strict?.matchedDiagnostics).toEqual([]);
-		expect(exitSpy).not.toHaveBeenCalled();
-
-		exitSpy.mockRestore();
+		expect(process.exitCode).toBeUndefined();
 	});
 
 	it("prints recommendations in summary mode when diagnostics are present", async () => {
@@ -230,6 +319,105 @@ describe("refarm telemetry", () => {
 		expect(output).toContain("Recommendations");
 		expect(output).toContain("saturation:queue");
 	});
+
+	it("emits only the first telemetry recovery action with --next-action", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 8,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 8,
+				done: 10,
+				failed: 2,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--next-action", "--queue-warn", "5"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith(
+			"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+		);
+	});
+
+	it("emits the first telemetry recovery action as JSON", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 0,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 0,
+				done: 10,
+				failed: 0,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--json", "--next-action", "--queue-warn", "5"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction:
+				"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+			nextActions: [
+				"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+			],
+			nextCommand: "refarm task list --json",
+			nextCommands: ["refarm task list --json"],
+			strict: {
+				enabled: false,
+				targets: [],
+				matchedDiagnostics: ["saturation:queue"],
+				passed: true,
+			},
+		});
+	});
+
+	it("preserves strict exit code in next action JSON mode", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 0,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 20,
+				inProgress: 0,
+				done: 10,
+				failed: 0,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--json", "--next-action", "--strict", "--queue-warn", "5"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			strict?: { passed?: boolean };
+		};
+		expect(payload.strict?.passed).toBe(false);
+		expect(process.exitCode).toBe(2);
+	});
 });
 
 describe("buildTelemetryRecommendations", () => {
@@ -245,16 +433,19 @@ describe("buildTelemetryRecommendations", () => {
 				diagnostic: "saturation:queue",
 				summary: "The task queue is above the configured warning threshold.",
 				action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+				command: "refarm task list --json",
 			},
 			{
 				diagnostic: "reliability:failure-rate",
 				summary: "Recent failure rate is above the configured warning threshold.",
 				action: "Pause non-essential automation and investigate the dominant failing tasks.",
+				command: "refarm tasks --status failed --json",
 			},
 			{
 				diagnostic: "custom:diagnostic",
 				summary: "Telemetry diagnostic custom:diagnostic is present.",
 				action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+				command: "refarm doctor --next-command",
 			},
 		]);
 	});

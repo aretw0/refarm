@@ -9,7 +9,7 @@ pub(crate) fn fnv1a_hash(s: &str) -> u64 {
         .fold(BASIS, |h, b| h.wrapping_mul(PRIME) ^ b as u64)
 }
 
-/// Estimate cost in USD using public 2025 per-million-token rates.
+/// Estimate cost in USD using public per-million-token rates.
 /// Cached tokens are billed at ~10% of normal input rate (Anthropic/OpenAI prompt caching).
 /// Returns 0.0 for local/unknown models — sovereign infra is free.
 pub(crate) fn estimate_usd(
@@ -24,6 +24,14 @@ pub(crate) fn estimate_usd(
         (3.0, 15.0)
     } else if model.contains("claude-haiku") {
         (0.8, 4.0)
+    } else if model.contains("gpt-5.5") {
+        (5.0, 30.0)
+    } else if model.contains("gpt-5-mini") || model.contains("gpt-5.1-codex-mini") {
+        (0.25, 2.0)
+    } else if model.contains("gpt-5-nano") {
+        (0.05, 0.4)
+    } else if model.contains("gpt-5") {
+        (1.25, 10.0)
     } else if model.contains("gpt-4o") && !model.contains("mini") {
         (2.5, 10.0)
     } else if model.contains("gpt-4o-mini") {

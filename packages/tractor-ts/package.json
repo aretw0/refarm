@@ -44,7 +44,7 @@
 		"runtime-module:descriptor": "node scripts/generate-browser-runtime-module-descriptor.mjs",
 		"runtime-module:verify": "node scripts/verify-browser-runtime-module-descriptor.mjs",
 		"runtime-module:smoke": "node scripts/smoke-browser-runtime-module-descriptor.mjs",
-		"runtime-module:ci": "pnpm run runtime-module:smoke"
+		"runtime-module:ci": "node scripts/smoke-browser-runtime-module-descriptor.mjs"
 	},
 	"dependencies": {
 		"@bytecodealliance/jco": "catalog:",

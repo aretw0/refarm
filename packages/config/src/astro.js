@@ -6,7 +6,7 @@ import { findRefarmRoot, loadConfig } from "./index.js";
 
 /**
  * Wraps the standard Astro defineConfig with Refarm's monorepo defaults.
- * It automatically reads `refarm.config.json` and injects required headers for WebContainers.
+ * It automatically reads Refarm project config and injects required headers for WebContainers.
  */
 export function defineConfig(userConfig = {}) {
     const root = findRefarmRoot(); 

@@ -372,17 +372,24 @@ fn anthropic_api_key_from_env() -> Result<String, String> {
 }
 
 fn provider_name_from_env() -> String {
-    std::env::var("LLM_PROVIDER")
+    for key in [
+        "LLM_PROVIDER",
+        "LLM_DEFAULT_PROVIDER",
+        "MODEL_PROVIDER",
+        "MODEL_DEFAULT_PROVIDER",
+    ] {
+        if let Some(provider) = normalized_provider_from_env(key) {
+            return provider;
+        }
+    }
+    "ollama".to_string()
+}
+
+fn normalized_provider_from_env(key: &str) -> Option<String> {
+    std::env::var(key)
         .ok()
         .map(|v| normalize_provider_name(&v))
         .filter(|v| !v.is_empty() && is_safe_provider_token(v))
-        .or_else(|| {
-            std::env::var("LLM_DEFAULT_PROVIDER")
-                .ok()
-                .map(|v| normalize_provider_name(&v))
-                .filter(|v| !v.is_empty() && is_safe_provider_token(v))
-        })
-        .unwrap_or_else(|| "ollama".to_string())
 }
 
 fn normalize_provider_name(value: &str) -> String {
@@ -409,7 +416,7 @@ fn expected_llm_route_from_env() -> LlmRoute {
     }
 
     let path = known_provider_api_path(&provider).to_string();
-    let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
+    let base_url = llm_base_url_from_env().unwrap_or_else(|| {
         if let Some(url) = known_provider_base_url(&provider) {
             url.to_string()
         } else if is_openai_provider_family(&provider) {
@@ -420,6 +427,18 @@ fn expected_llm_route_from_env() -> LlmRoute {
     });
 
     LlmRoute { provider, base_url, path }
+}
+
+fn llm_base_url_from_env() -> Option<String> {
+    for key in ["LLM_BASE_URL", "MODEL_BASE_URL"] {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        }
+    }
+    None
 }
 
 fn enforce_llm_route(
@@ -614,4 +633,3 @@ fn normalize_path(path: &str) -> String {
 
     normalized
 }
-

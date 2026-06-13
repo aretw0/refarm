@@ -39,6 +39,8 @@ The CLI acts as the entry point for the "Farm". It converts user intent into a l
 
 ## Implementation Path
 
-1. **`@refarm.dev/cli`**: Lightweight entry point (oclif or commander).
+1. **`apps/refarm`**: Lightweight executable entry point.
+   **`@refarm.dev/cli`** provides reusable CLI primitives, envelopes, and
+   process adapters for that entry point.
 2. **`Sower` Logic Expansion**: Move scaffolding logic into the Sower core so it can be shared between the Browser (Plugin) and CLI.
 3. **Documentation-as-Automation**: Generate a `SETUP_GUIDE.md` dynamically based on the current config.

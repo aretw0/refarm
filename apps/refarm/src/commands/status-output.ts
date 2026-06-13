@@ -5,7 +5,7 @@ import {
 } from "@refarm.dev/cli/status";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 
-export type RefarmStatusOutputMode = "json" | "markdown" | "summary";
+export type RefarmStatusOutputMode = "json" | "markdown" | "summary" | "silent";
 
 export const STATUS_JSON_MARKDOWN_ERROR_MESSAGE =
 	"Choose only one output format: --json or --markdown.";
@@ -65,6 +65,10 @@ export function emitRefarmStatusOutput(options: {
 	mode: RefarmStatusOutputMode;
 	printSummary: (json: RefarmStatusJson) => void;
 }): void {
+	if (options.mode === "silent") {
+		return;
+	}
+
 	if (options.mode === "json") {
 		console.log(formatRefarmStatusJson(options.status));
 		return;

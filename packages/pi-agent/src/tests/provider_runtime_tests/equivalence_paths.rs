@@ -138,6 +138,7 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }
 
+
 #[test]
 fn provider_runtime_contract_and_state_dispatch_max_iter_termination_are_equivalent() {
     let mk_common = || {
@@ -283,4 +284,3 @@ fn provider_runtime_contract_and_state_non_dispatch_max_iter_termination_are_equ
     );
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }
-

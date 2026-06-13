@@ -32,6 +32,14 @@ describe("PluginUsageTracker", () => {
       tracker.releaseEffort("e2");
       expect(tracker.isIdle("plugin-a")).toBe(true);
     });
+
+    it("normalizes plugin aliases before tracking usage", () => {
+      tracker.registerEffort("e1", ["@refarm.dev/pi-agent"]);
+      expect(tracker.isIdle("@refarm/pi-agent")).toBe(false);
+      expect(tracker.isIdle("pi-agent")).toBe(false);
+      tracker.releaseEffort("e1");
+      expect(tracker.isIdle("@refarm/pi-agent")).toBe(true);
+    });
   });
 
   describe("releaseEffort", () => {
@@ -83,6 +91,15 @@ describe("PluginUsageTracker", () => {
       tracker.releaseEffort("e1");
       expect(cb1).toHaveBeenCalledOnce();
       expect(cb2).toHaveBeenCalledOnce();
+    });
+
+    it("fires alias callbacks when the canonical plugin goes idle", () => {
+      tracker.registerEffort("e1", ["@refarm.dev/pi-agent"]);
+      const cb = vi.fn();
+      tracker.onIdle("@refarm/pi-agent", cb);
+      expect(cb).not.toHaveBeenCalled();
+      tracker.releaseEffort("e1");
+      expect(cb).toHaveBeenCalledOnce();
     });
   });
 });

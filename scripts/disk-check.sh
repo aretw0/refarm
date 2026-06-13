@@ -160,6 +160,6 @@ top_named_dirs dist 8
 
 echo ""
 echo "Guidance:"
-echo "  npm run clean:light   # end-of-session: Rust incremental + .turbo"
-echo "  npm run clean:medium  # plus coverage/artifacts"
-echo "  npm run clean:heavy   # remove whole Rust target/ dirs; expensive rebuild"
+echo "  <package-manager> run clean:light   # end-of-session: Rust incremental + .turbo"
+echo "  <package-manager> run clean:medium  # plus coverage/artifacts"
+echo "  <package-manager> run clean:heavy   # remove whole Rust target/ dirs; expensive rebuild"

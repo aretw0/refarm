@@ -8,8 +8,8 @@
 		"build": "astro build",
 		"preview": "astro preview",
 		"astro:check": "astro check",
-		"type-check": "pnpm run astro:check && tsc --project tsconfig.json --noEmit",
-		"type-check:dist": "pnpm run astro:check && tsc --project tsconfig.build.json --noEmit",
+		"type-check": "astro check && tsc --project tsconfig.json --noEmit",
+		"type-check:dist": "astro check && tsc --project tsconfig.build.json --noEmit",
 		"test:unit": "vitest run",
 		"test": "vitest run",
 		"lint": "eslint src"

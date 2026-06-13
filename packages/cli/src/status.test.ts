@@ -13,7 +13,11 @@ import {
 	getRefarmStatusSchemaVersionIssue,
 	isRefarmStatusJson,
 	parseRefarmStatusJson,
+	REFARM_STATUS_DIAGNOSTICS,
+	REFARM_STATUS_FAILURE_DIAGNOSTICS,
+	REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS,
 	REFARM_STATUS_SCHEMA_VERSION,
+	REFARM_STATUS_WARNING_DIAGNOSTICS,
 } from "./status.js";
 
 const STATUS_JSON_GOLDEN = readFileSync(
@@ -42,6 +46,19 @@ describe("buildRefarmStatusJson", () => {
 	it("emits schemaVersion 1 always", () => {
 		expect(buildRefarmStatusJson(BASE_OPTIONS).schemaVersion).toBe(
 			REFARM_STATUS_SCHEMA_VERSION,
+		);
+	});
+
+	it("publishes stable status diagnostic code groups", () => {
+		expect(REFARM_STATUS_FAILURE_DIAGNOSTICS).toEqual([
+			REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
+			REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent,
+		]);
+		expect(REFARM_STATUS_WARNING_DIAGNOSTICS).toContain(
+			REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent,
+		);
+		expect(REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS).toContain(
+			REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable,
 		);
 	});
 
@@ -183,6 +200,27 @@ describe("buildRefarmStatusJson", () => {
 		});
 	});
 
+	it("preserves optional tractor engine runtime details", () => {
+		const result = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			runtime: {
+				ready: true,
+				databaseName: "refarm-main",
+				namespace: "refarm-main",
+				engine: {
+					configuredEngine: "auto",
+					activeEngine: "ts",
+				},
+			},
+		});
+
+		expect(result.runtime.engine).toEqual({
+			configuredEngine: "auto",
+			activeEngine: "ts",
+		});
+		expect(formatRefarmStatusJson(result)).toContain('"engine": {');
+	});
+
 	it("flags trust, plugin, and stream pressure diagnostics", () => {
 		const diagnostics = buildRefarmStatusJson({
 			...BASE_OPTIONS,
@@ -238,6 +276,32 @@ describe("status contract validation", () => {
 				plugins: {
 					...json.plugins,
 					availableActions: [{ id: "open-node" }],
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("validates optional tractor engine details", () => {
+		const json = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			runtime: {
+				ready: true,
+				databaseName: "refarm-main",
+				namespace: "refarm-main",
+				engine: {
+					configuredEngine: "rust",
+					activeEngine: "ts",
+				},
+			},
+		});
+
+		expect(isRefarmStatusJson(json)).toBe(true);
+		expect(
+			isRefarmStatusJson({
+				...json,
+				runtime: {
+					...json.runtime,
+					engine: { configuredEngine: "python" },
 				},
 			}),
 		).toBe(false);
@@ -397,7 +461,7 @@ describe("formatRefarmStatusMarkdown", () => {
 });
 
 describe("formatRefarmStatusSummary", () => {
-	it("renders a deterministic human summary", () => {
+	it("renders a deterministic operator summary", () => {
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson(BASE_OPTIONS),
 		);
@@ -408,7 +472,28 @@ describe("formatRefarmStatusSummary", () => {
 		expect(summary).toContain("  - runtime:not-ready");
 	});
 
-	it("renders available action details in human summaries", () => {
+	it("renders tractor engine details in operator summaries", () => {
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				runtime: {
+					ready: true,
+					databaseName: "refarm-main",
+					namespace: "refarm-main",
+					engine: {
+						configuredEngine: "rust",
+						activeEngine: "ts",
+					},
+				},
+			}),
+		);
+
+		expect(summary).toContain(
+			"Runtime:   ready — refarm-main (engine: ts, configured: rust)",
+		);
+	});
+
+	it("renders available action details in operator summaries", () => {
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson({
 				...BASE_OPTIONS,

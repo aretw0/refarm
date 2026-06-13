@@ -2,7 +2,7 @@
 
 /**
  * Check that all locale files have the same keys
- * Usage: pnpm run i18n:check
+ * Usage: run the i18n:check package script with the configured package manager.
  */
 
 import fs from 'fs';

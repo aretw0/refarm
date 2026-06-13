@@ -26,6 +26,29 @@ Packages own reusable blocks:
 - DS visual primitives;
 - future TUI renderer primitives.
 
+## Install Experience Bar
+
+The product install bar is the same shape operators expect from tools such as
+Claude Code: one PowerShell command on Windows, one `curl`/shell command on
+Unix-like systems, then `refarm check --next-action --json` explains the next
+recoverable step.
+
+That does not mean hiding the environment boundary. A released CLI install
+should be intentionally simple, while a development checkout must still keep
+`node_modules` owned by the current substrate:
+
+- Windows host validation uses Windows-owned shims such as `pnpm.cmd`;
+- Linux/devcontainer validation uses the container-owned `node_modules` volume;
+- shared runners must use spawn-safe package-manager commands from
+  `@refarm.dev/config`, not raw `spawn("pnpm", ...)`;
+- if `node-substrate:check` reports workspace materialization drift, repair the
+  owning checkout or use a separate platform checkout instead of mutating a
+  foreign `node_modules` tree.
+
+The operator-facing install should feel boring. The contributor-facing
+development substrate should be explicit enough that failures point to the right
+environment instead of turning into opaque setup folklore.
+
 ## First executable shape
 
 The first useful `refarm` command should be small and boring:
@@ -61,6 +84,27 @@ state using the same contracts as the apps?
   recommendation uses at least `{ diagnostic, summary, action }`; commands may
   add `severity` or `target` when useful. `refarm health` also keeps `issueType`
   as a compatibility alias for its project-audit issue code.
+
+Machine-readable failures should be actionable by default. Commands that expose
+`--json` should return expected recoverable failures as structured envelopes
+instead of human-only stderr:
+
+```json
+{
+  "ok": false,
+  "error": "stable-machine-code",
+  "message": "optional human-readable summary",
+  "nextAction": "refarm ...",
+  "nextActions": ["refarm ..."]
+}
+```
+
+Commands may add contextual fields such as `command`, `operation`,
+`schemaVersion`, `action`, `prefix`, or `matches`, but `error`, `nextAction`,
+and `nextActions` are the automation contract. New CLI code should use
+`buildJsonErrorEnvelope` from `apps/refarm/src/commands/json-output.ts` so
+operator-facing commands and agent-driven workflows converge on the same
+recovery shape when touched.
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
@@ -104,7 +148,11 @@ npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
+npm run refarm:host:smoke:auto:agent-e2e-mock
 npm run refarm:host:smoke:auto:test
+npm run text-quality:verify
+npm run docs:text-quality
+npm run cli:install:verify
 npm run refarm:actions:verify
 npm run refarm:tree:verify
 ```
@@ -156,8 +204,31 @@ npm run refarm:tree:verify
   diff-based auto lane.
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
+- `validation-pocs:test` runs the three synthetic validation POCs plus
+  `task-artifacts:check` and a consumer-selector smoke over the generated
+  manifests. The auto router selects it for POC source/test changes and keeps
+  expected-report-only changes on the narrower `task-artifacts` profile.
+- `text-quality:verify` runs the dependency-free prose scorer tests plus
+  `docs:text-quality` over selected calibration docs. The auto router selects
+  the `text-quality` profile for the scorer implementation, its tests, or those
+  calibrated docs instead of running a host smoke lane.
+- `refarm:host:smoke:auto:agent-e2e-mock` runs
+  `refarm:agent:e2e:mock`, the no-token runtime-agent/ask smoke against
+  `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
+  WASI LLM routing deltas before spending live provider tokens. The script
+  rebuilds `packages/pi-agent` WASM before installing the temporary bundled
+  plugin, so the smoke validates the current runtime-agent source rather than a
+  stale package artifact.
+- `cli:install:verify` runs installer dry-run regression tests, devcontainer
+  contract tests, node-substrate diagnostic output tests, and the aggregate
+  environment-substrate handoff test. The auto router
+  selects the `install` profile for CLI install/devcontainer/substrate deltas
+  so bootstrap work does not fall into the broad CI lane just because it touched
+  root `package.json` as a companion file.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | actions | tree | check | quick | dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | tree | validation-pocs |
+  task-artifacts | text-quality | agent-e2e-mock | install | check | quick |
+  dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
@@ -167,10 +238,14 @@ npm run refarm:tree:verify
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
   docs-only deltas still skip smoke. Manual `--profile` overrides also accept
   granular lane names such as `actions-headless`, `actions-renderers`,
-  `actions-test`, `actions-type`, `actions-dist`, `check`, `tree-test`, `tree-smoke`,
-  `tree-type`, `tree-farmhand`, and `tree-dist` for one-command narrow loop
-  previews/execution. Shared local helpers such as `execution-plan.ts` stay on
-  the `dev` lane because they feed more than one host contract.
+  `actions-test`, `actions-type`, `actions-dist`, `agent-e2e-mock`, `check`,
+  `install`, `tree-test`, `tree-smoke`, `tree-type`, `tree-farmhand`, and `tree-dist` for
+  one-command narrow loop previews/execution. Validation profiles such as
+  `validation-pocs` and `task-artifacts` are also available for generic
+  downstream-proof work, while `text-quality` covers the reusable prose scorer
+  and selected calibration docs. Shared local helpers such as
+  `execution-plan.ts` stay on the `dev` lane because they feed more than one
+  host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 
@@ -188,6 +263,8 @@ npm run refarm:tree:verify
   `npm run refarm:host:smoke:auto:profiles:json`
 - **Explicit granular profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
+- **No-token agent e2e lane:**
+  `npm run refarm:host:smoke:auto:agent-e2e-mock`
 - **Machine-readable profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless --json`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
@@ -224,6 +301,14 @@ A future CLI distro should compose, not own, these blocks:
 If product code starts duplicating reusable mechanics across apps, cultivate the
 mechanic into `packages/`. If the code is command UX, copy, defaults, or release
 policy, keep it in the CLI distro.
+
+Bootstrap installers are the exception to the normal extraction pressure. A
+local or one-command installer must be able to run before the Refarm package
+graph is built, linked, or even present on `PATH`. Keep those scripts
+self-contained for filesystem writes, shim creation, and first-run recovery
+handoffs. Move only pure contracts down into packages when a second runtime
+consumer needs them and the installer can still fail with a clear bootstrap
+diagnostic instead of a package-resolution stack trace.
 
 ## First slices before scaffolding
 

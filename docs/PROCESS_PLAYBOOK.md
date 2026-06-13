@@ -24,6 +24,9 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 
 ```bash
 pnpm run farm:status        # unified status: both services, ports, artifacts, MODEL
+refarm runtime              # selected runtime engine + autostart policy
+refarm config set tractor.engine auto      # auto | rust | ts
+refarm config set runtime.autostart ask    # ask | always | never
 refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
 pnpm run refarm:telemetry:gate:ci      # strict fail-closed gate (recommended CI policy)
 pnpm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
@@ -57,6 +60,28 @@ refarm tree fork --scope git <commit> --name <branch> # create branch without sw
 pnpm run refarm:actions:verify # closeout lane for action-readiness changes
 pnpm run refarm:tree:verify # closeout lane for tree stabilization changes
 ```
+
+---
+
+## CLI runtime controls
+
+`refarm` now owns the daily-driver runtime selection path. Use the manual
+`pnpm run agent:*` and `pnpm run farmhand:*` commands below when you are
+debugging the backends directly.
+
+```bash
+refarm runtime                         # show configured/active engine
+refarm runtime --json                  # machine-readable runtime status
+refarm config set tractor.engine auto  # prefer Rust tractor, fall back to TS farmhand
+refarm config set tractor.engine rust  # require Rust tractor; fail early if missing
+refarm config set tractor.engine ts    # force TypeScript farmhand
+refarm config set runtime.autostart always  # ask | always | never
+```
+
+`runtime.autostart` is the canonical autostart key for CLI flows. The legacy
+`farmhand.autostart` key still reads and writes the same stored value for
+compatibility. `REFARM_RUNTIME_AUTOSTART` is the preferred environment override;
+`REFARM_FARMHAND_AUTOSTART` remains a legacy fallback.
 
 ---
 
@@ -242,9 +267,12 @@ refarm tree switch --scope git experiment/refactor
 
 Preview commands are non-mutating. Blocked-but-resolvable previews should return
 operator-readable readiness (`Blocked: ...`) and, for JSON output,
-`readyToExecute: false`. Execution remains explicit via `tree fork` or
-`tree switch`. After changing tree contracts or adapter boundaries, run
-`pnpm run refarm:tree:verify` before considering the tree slice closed.
+`readyToExecute: false`. When a missing value can be supplied later, JSON output
+may include `templates` with declared parameters; `nextCommands` should stay
+empty until a concrete command is available. Execution remains explicit via
+`tree fork` or `tree switch`. After changing tree contracts or adapter
+boundaries, run `pnpm run refarm:tree:verify` before considering the tree slice
+closed.
 
 ### Scenario 4 — Port conflict at startup
 
@@ -342,8 +370,8 @@ When something is wrong, work top-down:
 
 ## Long-term direction
 
-This playbook is an interim measure. The `apps/refarm` CLI (`refarm-task`, etc.) is
-evolving to abstract daemon lifecycle, task dispatch, and status into first-class
-commands. When those ship, the manual steps above become `refarm start`, `refarm stop`,
-and `refarm status`. Until then, this doc and `pnpm run farm:status` are the canonical
-operator interface.
+This playbook is an interim measure. The `apps/refarm` CLI is evolving to
+abstract daemon lifecycle, runtime selection, task dispatch, and status into
+first-class commands. `refarm runtime`, `refarm status`, and `refarm ask`
+already cover the daily-driver path; use this doc and `pnpm run farm:status`
+when you need lower-level backend diagnostics.

@@ -182,6 +182,13 @@ describe("Effort chat integration", () => {
 					fn: "complete",
 				}),
 				effortId,
+				expect.objectContaining({
+					direction: "Summarize the release plan",
+					context: expect.objectContaining({
+						channel: "effort-chat",
+						replyTo: "terminal",
+					}),
+				}),
 			);
 
 			const taskList = await request(

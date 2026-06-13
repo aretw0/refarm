@@ -9,7 +9,7 @@
  *   - feature branches: warning-only mode
  *   - test:unit and security are advisory locally (enforced in CI)
  *
- * Usage: pnpm run hooks:install
+ * Usage: <package-manager> run hooks:install
  */
 
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "fs";
@@ -22,7 +22,7 @@ const rootDir = join(__dirname, "..");
 
 const hookContent = `#!/bin/sh
 # Pre-push hook: valida qualidade antes de push
-# Installed by: pnpm run hooks:install
+# Installed by: <package-manager> run hooks:install
 # Mode: context-aware (strict on main/develop, permissive on other branches)
 # Strategy: selective workspace checks + commit cache to avoid re-running
 
@@ -32,7 +32,76 @@ filter_vite_warning() {
   grep -v "The CJS build of Vite's Node API is deprecated" | grep -v "vite.dev/guide/troubleshooting"
 }
 
-has_npm_script() {
+detect_package_manager() {
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  helper="$repo_root/scripts/package-manager.sh"
+  if [ -f "$helper" ]; then
+    . "$helper"
+    resolve_package_manager "$repo_root"
+    return
+  fi
+
+  printf "npm"
+}
+
+PACKAGE_MANAGER=$(detect_package_manager)
+
+case "$PACKAGE_MANAGER" in
+  pnpm)
+    PACKAGE_RUN="pnpm run"
+    PACKAGE_RUN_SILENT="pnpm run --silent"
+    PACKAGE_EXEC="pnpm exec"
+    PACKAGE_AUDIT_HIGH="pnpm audit --audit-level=high --silent"
+    ;;
+  npm)
+    PACKAGE_RUN="npm run"
+    PACKAGE_RUN_SILENT="npm run --silent"
+    PACKAGE_EXEC="npm exec --"
+    PACKAGE_AUDIT_HIGH="npm audit --audit-level=high --silent"
+    ;;
+  yarn)
+    PACKAGE_RUN="yarn run"
+    PACKAGE_RUN_SILENT="yarn run --silent"
+    PACKAGE_EXEC="yarn"
+    PACKAGE_AUDIT_HIGH="yarn npm audit --severity high"
+    ;;
+  bun)
+    PACKAGE_RUN="bun run"
+    PACKAGE_RUN_SILENT="bun run"
+    PACKAGE_EXEC="bun x"
+    PACKAGE_AUDIT_HIGH="bun audit"
+    ;;
+  *)
+    PACKAGE_RUN="$PACKAGE_MANAGER run"
+    PACKAGE_RUN_SILENT="$PACKAGE_MANAGER run"
+    PACKAGE_EXEC="$PACKAGE_MANAGER exec"
+    PACKAGE_AUDIT_HIGH="$PACKAGE_MANAGER audit"
+    ;;
+esac
+
+package_run() {
+  script_name="$1"
+  shift
+  $PACKAGE_RUN "$script_name" "$@"
+}
+
+package_run_silent() {
+  script_name="$1"
+  shift
+  $PACKAGE_RUN_SILENT "$script_name" "$@"
+}
+
+package_exec() {
+  binary="$1"
+  shift
+  $PACKAGE_EXEC "$binary" "$@"
+}
+
+package_audit_high() {
+  $PACKAGE_AUDIT_HIGH
+}
+
+has_package_script() {
   script_name="$1"
   workspace_dir="$2"
   node -e 'const fs=require("fs");const path=require("path");const pkgPath=path.join(process.argv[2],"package.json");const pkg=JSON.parse(fs.readFileSync(pkgPath,"utf8"));process.exit(pkg.scripts&&pkg.scripts[process.argv[1]]?0:1);' "$script_name" "$workspace_dir" >/dev/null 2>&1
@@ -40,11 +109,11 @@ has_npm_script() {
 
 pick_lint_script() {
   workspace_dir="$1"
-  if has_npm_script "lint:prepush" "$workspace_dir"; then
+  if has_package_script "lint:prepush" "$workspace_dir"; then
     echo "lint:prepush"
     return 0
   fi
-  if has_npm_script "lint" "$workspace_dir"; then
+  if has_package_script "lint" "$workspace_dir"; then
     echo "lint"
     return 0
   fi
@@ -53,15 +122,15 @@ pick_lint_script() {
 
 pick_test_script() {
   workspace_dir="$1"
-  if has_npm_script "test:prepush" "$workspace_dir"; then
+  if has_package_script "test:prepush" "$workspace_dir"; then
     echo "test:prepush"
     return 0
   fi
-  if has_npm_script "test:unit" "$workspace_dir"; then
+  if has_package_script "test:unit" "$workspace_dir"; then
     echo "test:unit"
     return 0
   fi
-  if has_npm_script "test" "$workspace_dir"; then
+  if has_package_script "test" "$workspace_dir"; then
     echo "test"
     return 0
   fi
@@ -156,7 +225,7 @@ do
   printf '%s\\n' "$CHANGED_FILES" >> "$CHANGED_FILES_ALL"
 
   # Lint/type-check/unit-tests are triggered by source or build/lint config changes.
-  # Dependency-only manifest bumps (pnpm-lock.yaml/package.json) stay CI-driven.
+  # Dependency-only manifest/lockfile bumps stay CI-driven.
   if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     NEEDS_LINT=1
   fi
@@ -183,7 +252,7 @@ do
     NEEDS_QUALITY_GATE=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '(^|/)package\\.json$|(^|/)pnpm-lock\\.yaml$'; then
+  if echo "$CHANGED_FILES" | grep -Eq '(^|/)package\\.json$|(^|/)(pnpm-lock\\.yaml|package-lock\\.json|npm-shrinkwrap\\.json|yarn\\.lock|bun\\.lockb?)$'; then
     NEEDS_SECURITY_AUDIT=1
   fi
 done < "$REFS_FILE"
@@ -284,7 +353,7 @@ else
 
   if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
     echo "   🔎 Turbo scoped lint for changed workspaces"
-    if timeout 360 env CI=1 pnpm exec turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Turbo lint passed"
       mark_lane_validated "lint"
     else
@@ -303,7 +372,7 @@ else
       fi
     fi
   else
-    if timeout 360 env CI=1 pnpm exec turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Global Turbo lint passed"
       mark_lane_validated "lint"
     else
@@ -335,7 +404,7 @@ if [ $NEEDS_TYPECHECK -eq 0 ]; then
 elif lane_validated "type-check"; then
   echo "   ⚡ Type-check skipped (already validated for this push SHA)"
 else
-  if timeout 120 env CI=1 pnpm run --silent tsconfig:guard >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+  if timeout 120 env CI=1 $PACKAGE_RUN_SILENT tsconfig:guard >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
     echo "   ✅ TSConfig guard passed"
   else
     TYPECHECK_STATUS=$?
@@ -369,7 +438,7 @@ else
 
     if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_TYPECHECK -eq 0 ]; then
       echo "   🔎 Turbo scoped type-check for changed workspaces"
-      if timeout 300 env CI=1 pnpm exec turbo run type-check $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Turbo type-check passed"
         mark_lane_validated "type-check"
       else
@@ -393,7 +462,7 @@ else
         fi
       fi
     else
-      if timeout 300 env CI=1 pnpm exec turbo run type-check --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Global Turbo type-check passed"
         mark_lane_validated "type-check"
       else
@@ -435,7 +504,7 @@ else
 
   if [ -n "$CHANGED_WORKSPACES" ]; then
     echo "   🔎 Turbo scoped tests for changed workspaces"
-    if timeout 300 env CI=1 pnpm exec turbo run test --concurrency=4 $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=4 $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Turbo tests passed"
       mark_lane_validated "test"
     else
@@ -450,7 +519,7 @@ else
       UNIT_WARN=1
     fi
   else
-    if timeout 300 env CI=1 pnpm exec turbo run test --concurrency=4 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=4 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Global Turbo tests passed"
       mark_lane_validated "test"
     else
@@ -472,7 +541,7 @@ echo ""
 
 # 4a. Task smoke build-order integrity (always runs — fast graph walk, catches new packages missing from TASK_SMOKE_TS_BUILD_ORDER)
 echo "📋 Checking task smoke build-order integrity..."
-if timeout 30 pnpm run --silent task:build-order:check 2>/tmp/prepush-buildorder.err; then
+if timeout 30 $PACKAGE_RUN_SILENT task:build-order:check 2>/tmp/prepush-buildorder.err; then
   echo "   ✅ Build-order integrity OK"
 else
   BO_STATUS=$?
@@ -493,7 +562,7 @@ echo ""
 
 # 4b. Vitest config phantom dep check (always runs — fast file scan, catches missing devDeps that work locally via hoisting but fail in CI)
 echo "📦 Checking vitest.config.ts dependencies..."
-if timeout 15 pnpm run --silent deps:vitest-config-check 2>/tmp/prepush-vitestdeps.err; then
+if timeout 15 $PACKAGE_RUN_SILENT deps:vitest-config-check 2>/tmp/prepush-vitestdeps.err; then
   echo "   ✅ No phantom vitest deps"
 else
   VD_STATUS=$?
@@ -540,7 +609,7 @@ echo "🔒 Checking security (advisory local check)..."
 if [ $NEEDS_SECURITY_AUDIT -eq 0 ]; then
   echo "   ⏭️  Security audit skipped (no manifest/lockfile changes in push range)"
 else
-  if timeout 120 pnpm audit --audit-level=high --silent 2>/dev/null; then
+  if timeout 120 $PACKAGE_AUDIT_HIGH 2>/dev/null; then
     echo "   ✅ No high/critical vulnerabilities"
   else
     AUDIT_STATUS=$?
@@ -583,16 +652,25 @@ exit 0
 
 const postCheckoutHookContent = `#!/bin/sh
 # Post-checkout hook: warns/generates tractor baselines when switching branches
-# Installed by: pnpm run hooks:install
+# Installed by: <package-manager> run hooks:install
 
 # Keep branch changes non-blocking even when optional baselines are not implemented yet.
 cleanup_transient_artifacts() {
-  rm -f benchmarks/gha-payload.json coverage/gha-payload.json
+  rm -f "$TRACTOR_WORKSPACE/benchmarks/gha-payload.json" "$TRACTOR_WORKSPACE/coverage/gha-payload.json"
 }
 
-has_npm_script() {
+has_package_script() {
   script_name="$1"
-  node -e 'const fs = require("fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); process.exit(pkg.scripts && pkg.scripts[process.argv[1]] ? 0 : 1)' "$script_name"
+  node -e 'const fs = require("fs"); const path = require("path"); const pkg = JSON.parse(fs.readFileSync(path.join(process.argv[1], "package.json"), "utf8")); process.exit(pkg.scripts && pkg.scripts[process.argv[2]] ? 0 : 1)' "$TRACTOR_WORKSPACE" "$script_name"
+}
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+TRACTOR_WORKSPACE="$REPO_ROOT/packages/tractor"
+
+package_run() {
+  script_name="$1"
+  shift
+  node "$REPO_ROOT/scripts/ci/run-workspace-script.mjs" "$TRACTOR_WORKSPACE" "$script_name" -- "$@"
 }
 
 try_generate_baseline() {
@@ -601,12 +679,14 @@ try_generate_baseline() {
   missing_message="$3"
   success_message="$4"
 
-  if [ -f "$target_file" ]; then
+  target_path="$TRACTOR_WORKSPACE/$target_file"
+
+  if [ -f "$target_path" ]; then
     echo "$success_message"
     return 0
   fi
 
-  if ! has_npm_script "$script_name"; then
+  if ! has_package_script "$script_name"; then
     echo "ℹ️  Optional script '$script_name' is unavailable for this package. Skipping baseline."
     cleanup_transient_artifacts
     return 0
@@ -614,11 +694,11 @@ try_generate_baseline() {
 
   echo "$missing_message"
 
-  if pnpm run "$script_name"; then
-    if [ -f "$target_file" ]; then
-      echo "✅ Baseline generated: $target_file"
+  if package_run "$script_name"; then
+    if [ -f "$target_path" ]; then
+      echo "✅ Baseline generated: $target_path"
     else
-      echo "⚠️  Script '$script_name' did not produce $target_file. Skipping for this package."
+      echo "⚠️  Script '$script_name' did not produce $target_path. Skipping for this package."
       cleanup_transient_artifacts
     fi
   else
@@ -630,19 +710,18 @@ try_generate_baseline() {
 # Only trigger when switching branches, not when checking out files
 if [ "$3" = "1" ]; then
   echo "🌱 [Refarm] Branch changed. Validating Tractor Baselines..."
-  cd packages/tractor || exit 0
 
   try_generate_baseline \
     "benchmarks/baseline.json" \
     "bench:save" \
     "⚠️  No benchmark baseline found. Generating one now..." \
-    "✅ Benchmark baseline present. (Run 'npm run bench:save' manually to refresh)"
+    "✅ Benchmark baseline present. (Run 'node scripts/ci/run-workspace-script.mjs packages/tractor bench:save' manually to refresh)"
 
   try_generate_baseline \
     "benchmarks/coverage-baseline.json" \
     "coverage:save" \
     "⚠️  No coverage baseline found. Generating one now..." \
-    "✅ Coverage baseline present. (Run 'npm run coverage:save' manually to refresh)"
+    "✅ Coverage baseline present. (Run 'node scripts/ci/run-workspace-script.mjs packages/tractor coverage:save' manually to refresh)"
 fi
 `;
 

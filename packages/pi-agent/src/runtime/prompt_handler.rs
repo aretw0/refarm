@@ -44,7 +44,10 @@ fn write_final_stream_chunk(
         .create(true)
         .append(true)
         .open(&file_path)
-        .and_then(|mut f| { use std::io::Write; f.write_all(chunk.as_bytes()) });
+        .and_then(|mut f| {
+            use std::io::Write;
+            f.write_all(chunk.as_bytes())
+        });
 }
 
 fn json_string(s: &str) -> String {
@@ -52,7 +55,7 @@ fn json_string(s: &str) -> String {
     out.push('"');
     for ch in s.chars() {
         match ch {
-            '"'  => out.push_str("\\\""),
+            '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
@@ -60,7 +63,7 @@ fn json_string(s: &str) -> String {
             c if (c as u32) < 0x20 => {
                 out.push_str(&format!("\\u{:04x}", c as u32));
             }
-            c    => out.push(c),
+            c => out.push(c),
         }
     }
     out.push('"');
@@ -81,8 +84,10 @@ pub(crate) struct PromptExecutionOutcome {
 pub(crate) fn execute_prompt(
     prompt: &str,
     system_override: Option<&str>,
+    prompt_ref_override: Option<&str>,
 ) -> Option<PromptExecutionOutcome> {
-    let Some(ctx) = prompt_persistence::store_prompt_and_open_session(prompt) else {
+    let Some(ctx) = prompt_persistence::store_prompt_and_open_session(prompt, prompt_ref_override)
+    else {
         return None;
     };
     let task_memory_id =
@@ -180,14 +185,21 @@ pub(crate) fn handle_prompt(payload: String) {
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&payload) {
         if let Some(prompt) = v.get("prompt").and_then(|p| p.as_str()) {
             let system = v.get("system").and_then(|s| s.as_str());
-            let session_id = v.get("session_id").and_then(|s| s.as_str()).map(|s| s.to_owned());
-            let history_turns = v.get("history_turns").and_then(|n| n.as_u64()).map(|n| n as usize);
+            let prompt_ref = v.get("prompt_ref").and_then(|s| s.as_str());
+            let session_id = v
+                .get("session_id")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_owned());
+            let history_turns = v
+                .get("history_turns")
+                .and_then(|n| n.as_u64())
+                .map(|n| n as usize);
             let turns_str = history_turns.map(|n| n.to_string());
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
             let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
-            let _ = execute_prompt(prompt, system);
+            let _ = execute_prompt(prompt, system, prompt_ref);
             return;
         }
     }
-    let _ = execute_prompt(&payload, None);
+    let _ = execute_prompt(&payload, None, None);
 }

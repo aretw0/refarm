@@ -7,9 +7,9 @@
   "main": "./pkg/{{name}}.js",
   "types": "./pkg/{{name}}.js",
   "scripts": {
-    "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release && mkdir -p dist && cp $(node ../../scripts/ci/cargo-artifact-path.mjs wasm32-wasip1/release/refarm_{{snakeCase name}}.wasm) dist/refarm_{{snakeCase name}}.wasm",
+    "build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_{{snakeCase name}}.wasm dist/refarm_{{snakeCase name}}.wasm component build --target wasm32-wasip1 --release",
     "build:transpile": "jco transpile dist/refarm_{{snakeCase name}}.wasm -o pkg --name {{name}}",
     "build": "npm run build:wasm && npm run build:transpile",
-    "test": "RUSTUP_TOOLCHAIN=stable cargo test -- --test-threads=1"
+    "test": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1"
   }
 }

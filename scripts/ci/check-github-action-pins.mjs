@@ -9,14 +9,39 @@ import { join } from "node:path";
 
 const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
 const WORKFLOWS_DIR = join(ROOT, ".github", "workflows");
+const ACTIONS_DIR = join(ROOT, ".github", "actions");
 const SHA_40 = /^[0-9a-f]{40}$/i;
 
 const violations = [];
 
-for (const entry of readdirSync(WORKFLOWS_DIR, { withFileTypes: true })) {
-	if (!entry.isFile() || !/\.ya?ml$/.test(entry.name)) continue;
-	const filePath = join(WORKFLOWS_DIR, entry.name);
-	const lines = readFileSync(filePath, "utf8").split("\n");
+function listYamlFiles(dir, prefix = "") {
+	const files = [];
+	let entries = [];
+	try {
+		entries = readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return files;
+	}
+
+	for (const entry of entries) {
+		const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+		const full = join(dir, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...listYamlFiles(full, rel));
+			continue;
+		}
+		if (entry.isFile() && /\.ya?ml$/.test(entry.name)) {
+			files.push({ rel, full });
+		}
+	}
+	return files;
+}
+
+for (const file of [
+	...listYamlFiles(WORKFLOWS_DIR, ".github/workflows"),
+	...listYamlFiles(ACTIONS_DIR, ".github/actions"),
+]) {
+	const lines = readFileSync(file.full, "utf8").split("\n");
 
 	lines.forEach((line, index) => {
 		const trimmed = line.trim();
@@ -30,14 +55,14 @@ for (const entry of readdirSync(WORKFLOWS_DIR, { withFileTypes: true })) {
 
 		const at = spec.lastIndexOf("@");
 		if (at === -1) {
-			violations.push({ file: entry.name, line: index + 1, spec, reason: "missing ref" });
+			violations.push({ file: file.rel, line: index + 1, spec, reason: "missing ref" });
 			return;
 		}
 
 		const ref = spec.slice(at + 1);
 		if (!SHA_40.test(ref)) {
 			violations.push({
-				file: entry.name,
+				file: file.rel,
 				line: index + 1,
 				spec,
 				reason: "ref is not a full 40-character SHA",

@@ -1,8 +1,15 @@
 import {
 	classifyRefarmStatusDiagnostics,
+	REFARM_STATUS_DIAGNOSTICS,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import {
+	diagnosticNextActions,
+	diagnosticNextCommands,
+	type DiagnosticRecommendation,
+	type DiagnosticRecommendationSeverity,
+} from "./diagnostic-recommendations.js";
 import {
 	emitRefarmDoctorOutput,
 	resolveDoctorOutputMode,
@@ -11,14 +18,16 @@ import {
 	resolveRefarmRuntimeMetadata,
 	type RefarmRuntimeMetadata,
 } from "./runtime-metadata.js";
-import type {
-	DiagnosticRecommendation,
-	DiagnosticRecommendationSeverity,
-} from "./diagnostic-recommendations.js";
+import {
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_NOT_READY_RECOVERY_ACTION,
+} from "./runtime-recovery.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmDoctorReport {
+	command: "doctor";
+	operation: "diagnose";
 	ok: boolean;
 	failureCount: number;
 	warningCount: number;
@@ -26,6 +35,10 @@ export interface RefarmDoctorReport {
 	warnings: string[];
 	informational: string[];
 	recommendations: RefarmDoctorRecommendation[];
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 	host: RefarmRuntimeMetadata;
 	status: RefarmStatusJson;
 }
@@ -35,12 +48,15 @@ export interface RefarmDoctorRecommendation {
 	severity: DiagnosticRecommendationSeverity;
 	summary: DiagnosticRecommendation["summary"];
 	action: DiagnosticRecommendation["action"];
+	command?: DiagnosticRecommendation["command"];
 }
 
 export interface RefarmDoctorOptions {
 	renderer?: string;
 	input?: string;
 	json?: boolean;
+	nextAction?: boolean;
+	nextCommand?: boolean;
 	failOnWarnings?: boolean;
 }
 
@@ -54,19 +70,28 @@ export function buildRefarmDoctorReport(
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok =
 		failures.length === 0 && (!failOnWarnings || warnings.length === 0);
+	const recommendations = buildRefarmDoctorRecommendations({
+		failures,
+		warnings,
+		informational,
+	});
+	const nextActions = diagnosticNextActions(recommendations);
+	const nextCommands = diagnosticNextCommands(recommendations);
 
 	return {
+		command: "doctor",
+		operation: "diagnose",
 		ok,
 		failureCount: failures.length,
 		warningCount: warnings.length,
 		failures,
 		warnings,
 		informational,
-		recommendations: buildRefarmDoctorRecommendations({
-			failures,
-			warnings,
-			informational,
-		}),
+		recommendations,
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
 		host:
 			options.metadata ??
 			resolveRefarmRuntimeMetadata({
@@ -101,56 +126,57 @@ function createRefarmDoctorRecommendation(
 	severity: RefarmDoctorRecommendation["severity"],
 ): RefarmDoctorRecommendation {
 	switch (diagnostic) {
-		case "runtime:not-ready":
+		case REFARM_STATUS_DIAGNOSTICS.runtimeNotReady:
 			return {
 				diagnostic,
 				severity,
 				summary: "The runtime reported that it is not ready.",
-				action: "Start or repair the configured runtime, then rerun `refarm doctor --json`.",
+				action: RUNTIME_NOT_READY_RECOVERY_ACTION,
+				command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			};
-		case "trust:critical-present":
+		case REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Critical trust diagnostics are present.",
 				action: "Review trust policy and rejected capabilities before launching interactive surfaces.",
 			};
-		case "trust:warnings-present":
+		case REFARM_STATUS_DIAGNOSTICS.trustWarningsPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Trust warnings are present.",
 				action: "Inspect trust warnings and decide whether they should block this workflow.",
 			};
-		case "plugins:rejected-surfaces-present":
+		case REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "One or more plugin surfaces were rejected.",
 				action: "Inspect plugin manifests and host surface policy before exposing plugin UI.",
 			};
-		case "streams:active-present":
+		case REFARM_STATUS_DIAGNOSTICS.streamsActivePresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Runtime streams are still active.",
 				action: "Wait for active streams to finish, or inspect stream telemetry before shutdown.",
 			};
-		case "plugins:surface-actions-available":
+		case REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable:
 			return {
 				diagnostic,
 				severity,
 				summary: "Plugin surface actions are available.",
 				action: "Use the actions command or renderer action view to inspect available operations.",
 			};
-		case "renderer:non-interactive":
+		case REFARM_STATUS_DIAGNOSTICS.rendererNonInteractive:
 			return {
 				diagnostic,
 				severity,
 				summary: "The selected renderer is non-interactive.",
 				action: "Use a web or TUI renderer when the workflow requires interactive controls.",
 			};
-		case "renderer:no-rich-html":
+		case REFARM_STATUS_DIAGNOSTICS.rendererNoRichHtml:
 			return {
 				diagnostic,
 				severity,
@@ -179,7 +205,28 @@ export const doctorCommand = new Command("doctor")
 		"headless",
 	)
 	.option("--json", "Output machine-readable doctor report")
+	.option("--next-action", "Print only the first blocking recovery action")
+	.option("--next-command", "Print only the first executable recovery command")
 	.option("--fail-on-warnings", "Treat warning diagnostics as failures")
+	.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ refarm doctor
+  $ refarm doctor --json
+  $ refarm doctor --next-action
+  $ refarm doctor --next-action --json
+  $ refarm doctor --next-command
+  $ refarm doctor --fail-on-warnings
+  $ refarm doctor --renderer web
+  $ refarm doctor --input status.json
+
+Notes:
+  Doctor turns status diagnostics into operator recommendations.
+  Use refarm check when you also want the repository health gate.
+`,
+	)
 	.action(async (options: RefarmDoctorOptions) => {
 		const report = await withResolvedStatusPayload({
 			resolveStatusPayload,

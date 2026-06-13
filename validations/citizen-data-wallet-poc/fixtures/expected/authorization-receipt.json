@@ -1,0 +1,18 @@
+{
+  "id": "authz-sintetica-001",
+  "holder": "cidadao-exemplo-001",
+  "requester": "servico-sintetico-beneficio",
+  "purpose": "verificar elegibilidade sintetica para atendimento demonstrativo",
+  "scope": [
+    "faixa_etaria",
+    "vinculo"
+  ],
+  "issuedAt": "2026-01-01T00:00:00.000Z",
+  "expiresAt": "2026-02-01T00:00:00.000Z",
+  "status": "active",
+  "proof": {
+    "type": "Ed25519Signature2020-inspired",
+    "algorithm": "Ed25519",
+    "signature": "4V508OsnXrBt8PHw7u0Qhy6G1afQfQuCelI8DS60HbNt62IWaDTqxznAHnL4UyjUo56BpNyM_A8lcETjUbegDg"
+  }
+}

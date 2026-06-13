@@ -66,8 +66,8 @@ async function pollReady(url: string, timeoutMs: number): Promise<void> {
  * Start a farmhand instance as a subprocess in an isolated temp directory.
  *
  * The subprocess uses the built dist/index.js so tests run against the same
- * artifact that CI validates. Call `pnpm turbo build --filter=@refarm.dev/farmhand`
- * before running integration tests.
+ * artifact that CI validates. Build @refarm.dev/farmhand with the workspace
+ * package manager before running integration tests.
  */
 export async function startTestFarmhand(
 	opts: TestFarmhandOptions = {},

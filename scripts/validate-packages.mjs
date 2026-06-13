@@ -5,6 +5,7 @@
 
 import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { packageBinaryCommand } from "../packages/config/src/package-manager.js";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const PACKAGES_DIR = join(ROOT, "packages");
@@ -361,6 +362,15 @@ function validateApp(pkgDir, pkg) {
   return violations;
 }
 
+function validateRootPackageManagerConfig() {
+  const violations = [];
+  const rootPkg = readJson(join(ROOT, "package.json"));
+  if (rootPkg?.pnpm?.overrides && Object.keys(rootPkg.pnpm.overrides).length > 0) {
+    violations.push("package.json must not declare pnpm.overrides; use pnpm-workspace.yaml overrides so pnpm-lock.yaml reflects the effective workspace policy");
+  }
+  return violations;
+}
+
 const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => join(PACKAGES_DIR, d.name));
@@ -375,6 +385,16 @@ let violations = 0;
 let exemptions = 0;
 
 console.log(`Validating ${packageDirs.length} packages, ${appDirs.length} apps...\n`);
+
+const rootPackageManagerViolations = validateRootPackageManagerConfig();
+if (rootPackageManagerViolations.length === 0) {
+  console.log("  ✓ root package manager config");
+} else {
+  for (const v of rootPackageManagerViolations) {
+    console.log(`  ✗ root package manager config — ${v}`);
+    violations++;
+  }
+}
 
 for (const pkgDir of packageDirs) {
   const name = pkgDir.split("/").at(-1);
@@ -442,7 +462,8 @@ for (const appDir of appDirs) {
 console.log();
 if (violations > 0) {
   console.log(`${violations} violation(s) found.`);
-  console.log(`Run \`pnpm turbo gen package\` to scaffold new packages correctly.`);
+  const scaffold = packageBinaryCommand("turbo", ["gen", "package"], { cwd: ROOT });
+  console.log(`Run \`${scaffold.display}\` to scaffold new packages correctly.`);
   process.exit(1);
 } else {
   console.log(`All packages conform to their scaffold type. ${exemptions > 0 ? `(${exemptions} exempt)` : ""}`);

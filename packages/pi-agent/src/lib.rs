@@ -16,6 +16,7 @@
 //!   GEMINI_API_KEY=AIza...
 //!   MODEL_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
 //!   MODEL_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
+//!   MODEL_FALLBACK_MODEL_ID=<model-id>       (optional model override for MODEL_FALLBACK_PROVIDER)
 //!   MODEL_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. MODEL_BUDGET_ANTHROPIC_USD=5.0)
 //!   MODEL_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   MODEL_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
@@ -64,7 +65,7 @@ mod utils;
 // (provider.rs calls these via `super::`, tests access them via `use super::*`).
 #[allow(unused_imports)]
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
-pub(crate) use provider_config::{choose_model, openai_compat_defaults};
+pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
 pub(crate) use response_nodes::{
     agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
     UsageRecordPayload,
@@ -79,7 +80,7 @@ pub(crate) use session::{
 #[allow(unused_imports)]
 pub(crate) use session::{
     history_from_nodes, history_from_tree, provider_name_from_env, session_entry_node,
-    session_node, sum_provider_spend_usd,
+    session_node, session_participant_from_agent_id, sum_provider_spend_usd,
 };
 #[allow(unused_imports)]
 pub(crate) use structured_io::{
@@ -164,7 +165,12 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         .get("history_turns")
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
-    Ok(RespondPayload { prompt, system, session_id, history_turns })
+    Ok(RespondPayload {
+        prompt,
+        system,
+        session_id,
+        history_turns,
+    })
 }
 
 fn build_respond_json(
@@ -177,8 +183,8 @@ fn build_respond_json(
     estimated_usd: f64,
     usage_raw: String,
 ) -> String {
-    let usage_details = serde_json::from_str::<serde_json::Value>(&usage_raw)
-        .unwrap_or(serde_json::json!({}));
+    let usage_details =
+        serde_json::from_str::<serde_json::Value>(&usage_raw).unwrap_or(serde_json::json!({}));
     serde_json::json!({
         "content": content,
         "model": model,
@@ -200,8 +206,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
 
-    let outcome = runtime::execute_prompt(&req.prompt, req.system.as_deref())
-        .ok_or_else(|| {
+    let outcome =
+        runtime::execute_prompt(&req.prompt, req.system.as_deref(), None).ok_or_else(|| {
             PluginError::Internal("failed to persist prompt context before respond".to_string())
         })?;
     let estimated_usd = estimate_usd(

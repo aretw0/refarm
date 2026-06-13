@@ -3,9 +3,9 @@
  * audit-fix.mjs — automated pnpm audit remediation
  *
  * What pnpm audit doesn't handle:
- *   1. Root overrides that pin a transitive dep to a vulnerable version
+ *   1. Workspace overrides that pin a transitive dep to a vulnerable version
  *   2. Workspace direct deps that are in the vulnerable range
- *   3. Purely transitive deps that need a new root override
+ *   3. Purely transitive deps that need a new workspace override
  *
  * This script does all three, then reinstalls and verifies.
  *
@@ -19,9 +19,19 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { detectPackageManager } from "../../packages/config/src/package-manager.js";
+import {
+	normalizeAuditVulnerabilities,
+	parseWorkspaceOverridesText,
+	patchedMinimumVersion,
+	planAuditFixes,
+	renderWorkspaceOverridesText,
+} from "./audit-fix-lib.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DRY_RUN = process.argv.includes("--dry-run");
+const PACKAGE_MANAGER = detectPackageManager({ cwd: ROOT });
+const WORKSPACE_FILE = path.join(ROOT, "pnpm-workspace.yaml");
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,12 +45,31 @@ function writeJson(file, data) {
 	console.log(`  ✏  wrote ${path.relative(ROOT, file)}`);
 }
 
+function readWorkspaceOverrides() {
+	const text = readFileSync(WORKSPACE_FILE, "utf-8");
+	return parseWorkspaceOverridesText(text);
+}
+
+function writeWorkspaceOverrides(state) {
+	if (DRY_RUN) {
+		console.log(`  [dry-run] would write ${path.relative(ROOT, WORKSPACE_FILE)}`);
+		return;
+	}
+
+	writeFileSync(WORKSPACE_FILE, renderWorkspaceOverridesText(state));
+	console.log(`  ✏  wrote ${path.relative(ROOT, WORKSPACE_FILE)}`);
+}
+
 function run(cmd, args, opts = {}) {
 	return spawnSync(cmd, args, { encoding: "utf-8", cwd: ROOT, ...opts });
 }
 
-/** Minimum version that's strictly greater than the vulnerable range end. */
-function safeVersionFor(pkg, vulnerableRange) {
+/** Minimum patched version when the audit report exposes one, otherwise best effort above the vulnerable range. */
+function safeVersionFor(pkg, vuln) {
+	const patchedMinimum = patchedMinimumVersion(vuln);
+	if (patchedMinimum) return patchedMinimum;
+
+	const vulnerableRange = vuln.range ?? vuln.vulnerable_versions ?? "";
 	// pnpm view returns all versions matching a range (same registry API as npm view)
 	const above = run("pnpm", ["view", `${pkg}@>${vulnerableRange.split(" - ").pop()}`, "version", "--json"]);
 	if (above.status !== 0) return null;
@@ -69,9 +98,16 @@ async function workspacePackageFiles() {
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
+if (PACKAGE_MANAGER !== "pnpm") {
+	console.error(
+		`[security:audit-fix] Unsupported package manager "${PACKAGE_MANAGER}". This fixer edits pnpm-workspace.yaml overrides and currently supports pnpm only.`,
+	);
+	process.exit(1);
+}
+
 const auditResult = run("pnpm", ["audit", "--json"]);
 const report = JSON.parse(auditResult.stdout || "{}");
-const vulns = report.vulnerabilities ?? {};
+const vulns = normalizeAuditVulnerabilities(report);
 
 if (Object.keys(vulns).length === 0) {
 	console.log("✅ No vulnerabilities — nothing to fix.");
@@ -80,68 +116,33 @@ if (Object.keys(vulns).length === 0) {
 
 console.log(`🔍 Found ${Object.keys(vulns).length} vulnerable package(s). Analysing...\n`);
 
-const rootPkg = readJson(path.join(ROOT, "package.json"));
-rootPkg.pnpm ??= {};
-rootPkg.pnpm.overrides ??= {};
+const workspaceOverrideState = readWorkspaceOverrides();
 
 const workspaceFiles = await workspacePackageFiles();
-const workspacePkgs = workspaceFiles.map((f) => ({ file: f, data: readJson(f) }));
+const workspacePkgs = workspaceFiles.map((f) => ({
+	file: f,
+	name: path.relative(ROOT, path.dirname(f)),
+	data: readJson(f),
+}));
 
-let changed = false;
+const plan = planAuditFixes({
+	vulnerabilities: vulns,
+	workspacePackages: workspacePkgs,
+	workspaceOverrides: workspaceOverrideState.overrides,
+	safeVersionFor,
+});
 
-for (const [name, vuln] of Object.entries(vulns)) {
-	const range = vuln.range ?? "";
-	if (!range || vuln.fixAvailable === false) {
-		console.log(`⚠️  ${name}: no automatic fix available — review manually.`);
-		continue;
-	}
-
-	const safe = safeVersionFor(name, range);
-	if (!safe) {
-		console.log(`⚠️  ${name}: could not determine safe version for range "${range}".`);
-		continue;
-	}
-
-	console.log(`📦 ${name}  vulnerable: ${range}  →  safe: ${safe}`);
-
-	// 1. Bump root override if it exists and is in the vulnerable range
-	if (rootPkg.pnpm.overrides[name]) {
-		const current = rootPkg.pnpm.overrides[name];
-		console.log(`   override ${current} → ${safe}`);
-		rootPkg.pnpm.overrides[name] = safe;
-		changed = true;
-	}
-
-	// 2. Bump direct deps in every workspace that carries this package
-	for (const { file, data } of workspacePkgs) {
-		for (const depField of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
-			if (data[depField]?.[name]) {
-				const current = data[depField][name];
-				const next = `^${safe}`;
-				if (current === next) continue;
-				console.log(`   ${path.relative(ROOT, path.dirname(file))}  ${depField}.${name}: ${current} → ${next}`);
-				data[depField][name] = next;
-				writeJson(file, data);
-				changed = true;
-			}
-		}
-	}
-
-	// 3. If not a direct dep anywhere and no override yet, add one
-	const isDirectAnywhere = workspacePkgs.some((w) =>
-		["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"].some(
-			(f) => w.data[f]?.[name],
-		),
-	);
-	if (!isDirectAnywhere && !rootPkg.pnpm.overrides[name]) {
-		console.log(`   adding root override: ${name} → ${safe}`);
-		rootPkg.pnpm.overrides[name] = safe;
-		changed = true;
-	}
+for (const message of plan.messages) {
+	const prefix = message.level === "warn" ? "⚠️ " : "   ";
+	console.log(`${prefix}${message.text}`);
 }
 
-if (changed) {
-	writeJson(path.join(ROOT, "package.json"), rootPkg);
+for (const workspacePackage of plan.packageUpdates) {
+	writeJson(workspacePackage.file, workspacePackage.data);
+}
+
+if (plan.changed) {
+	writeWorkspaceOverrides({ ...workspaceOverrideState, overrides: plan.workspaceOverrides });
 }
 
 if (DRY_RUN) {

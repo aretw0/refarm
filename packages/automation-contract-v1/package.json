@@ -26,7 +26,7 @@
   "files": ["dist", "README.md"],
   "publishConfig": { "access": "public" },
   "dependencies": {
-    "@refarm.dev/artefact-contract-v1": "workspace:*",
+    "@refarm.dev/artifact-contract-v1": "workspace:*",
     "@refarm.dev/effort-contract-v1": "workspace:*"
   },
   "devDependencies": {

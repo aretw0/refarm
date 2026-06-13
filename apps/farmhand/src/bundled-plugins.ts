@@ -1,14 +1,15 @@
+import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 
 export interface BundledEntry {
 	id: string;
 	package: string;
 	wasmFile: string; // relative path within npm package, e.g. "dist/pi_agent.wasm"
+	requiredProvides?: string[];
 }
 
 export interface BundledResult {
@@ -67,6 +68,32 @@ async function writeInstalledVersion(pluginsDir: string, pluginId: string, versi
 	await writeFile(p, version, "utf-8");
 }
 
+async function installedBundleIsCurrent(
+	pluginsDir: string,
+	entry: BundledEntry,
+	version: string,
+	integrity: string,
+): Promise<boolean> {
+	const installedVersion = await readInstalledVersion(pluginsDir, entry.id);
+	if (installedVersion !== version) return false;
+
+	try {
+		const manifestPath = path.join(installDir(pluginsDir, entry.id), "plugin.json");
+		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
+			integrity?: unknown;
+			capabilities?: { provides?: unknown };
+		};
+		if (manifest.integrity !== integrity) return false;
+		if (!entry.requiredProvides?.length) return true;
+		const provides = Array.isArray(manifest.capabilities?.provides)
+			? manifest.capabilities.provides
+			: [];
+		return entry.requiredProvides.every((capability) => provides.includes(capability));
+	} catch {
+		return false;
+	}
+}
+
 // Mirror the convention from scripts/pi-agent-install.mjs:
 // - install dir: <pluginsDir>/@refarm/pi-agent/ (scoped like npm)
 // - wasm filename: plugin.wasm
@@ -87,12 +114,6 @@ export async function bundleInstallPlugin(
 		return { status: "failed", id: entry.id };
 	}
 
-	const installedVersion = await readInstalledVersion(pluginsDir, entry.id);
-	if (installedVersion === pkgVersion) {
-		logger.info(`[farmhand] bundled: ${entry.id} v${pkgVersion} already installed`);
-		return { status: "cached", id: entry.id };
-	}
-
 	const pkgDir = packageDir(entry.package);
 	if (!pkgDir) {
 		logger.warn(`[farmhand] bundled: ${entry.id}: cannot locate package directory`);
@@ -109,6 +130,11 @@ export async function bundleInstallPlugin(
 		const wasmBytes = readFileSync(wasmSrc);
 		const sha256 = createHash("sha256").update(wasmBytes).digest("hex");
 		const integrity = `sha256-${sha256}`;
+
+		if (await installedBundleIsCurrent(pluginsDir, entry, pkgVersion, integrity)) {
+			logger.info(`[farmhand] bundled: ${entry.id} v${pkgVersion} already installed`);
+			return { status: "cached", id: entry.id };
+		}
 
 		const destDir = installDir(pluginsDir, entry.id);
 		await mkdir(destDir, { recursive: true });

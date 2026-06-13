@@ -1,10 +1,10 @@
 # Farmhand Daily Driver Spec
 
 > **What problem are we solving?** `refarm` should be the only command a user
-> needs — the same role `claude` plays for Claude Code. Today, three things
-> break this promise: farmhand must be started manually before `refarm chat`
-> works; the TUI/REPL lacks polish needed for sustained daily use; and there is
-> no in-REPL path for credential or configuration flows.
+> needs — the same role `claude` plays for Claude Code. The original gaps were
+> transparent runtime startup, REPL polish, and in-flow credential/configuration.
+> Several of those are now implemented; this spec tracks what remains for the
+> daily-driver milestone.
 
 ---
 
@@ -29,160 +29,136 @@ specific and small.
   farmhand and streams responses (apps/refarm/src/commands/chat.ts)
 - **Session management** — session IDs persist via session-lock; `/new` resets,
   `/session <prefix>` switches
+- **Runtime lifecycle** — `refarm`, `refarm chat`, and `refarm ask` use the
+  shared session-launch readiness path and can ensure the selected runtime when
+  policy allows it
 - **Stream following** — NDJSON polling from `~/.refarm/streams/<effortId>.ndjson`
   with timeout handling
 - **Plugin hot-reload** — `/reload [id...]` hits `POST /plugins/reload` in the
   HTTP sidecar, no daemon restart needed
-- **Context providers** — CWD, git status, date, session digest are automatically
-  injected into each effort payload
+- **Context providers** — six providers are automatically injected into every
+  effort payload, in priority order: `policy_files` (AGENTS.md pointer at
+  priority 12), `operator_state` (current gate status + session at priority 15),
+  `cwd` (10), `date` (20), `session_digest` (20), `git_status` + `affected_workspaces`
+  (30/35). Pi-agent enters each session already oriented: it knows the project
+  rules, the current gate state, what changed, and which packages are affected.
 - **`refarm doctor`** — deterministic health audit (filesystem, builds, alignment)
+- **Coding profile** — `refarm config profile coding --local --json` writes
+  repo-local runtime tuning for history, tool-loop depth, and streaming
 - **`checkSessionReadiness()`** — probes farmhand, detects provider config; the
   readiness plumbing already exists in `session-launch.ts`
-- **`spawnFarmhand()`** in `LaunchDeps` — interface already defined; the auto-start
-  confirmation flow is stubbed for testing
+- **Readline history** — prompts persist in `~/.refarm/chat-history`
+- **In-REPL model/credential controls** — `/login`, `/model`, `/reload`, `/new`,
+  and `/session` are available in the REPL
 
 ### What's missing (the gaps)
 
 ---
 
-## Gap 1 — Farmhand auto-start (ADR-065 Phase 1)
+## Gap 1 — Transparent runtime auto-start — ADDRESSED
 
-**Status**: ADR accepted, implementation pending.
+**Status**: Implemented through the runtime lifecycle abstraction.
 
-When `refarm chat` runs and farmhand is not on `:42001`, the user gets a raw
-`fetch` connection refused error. The fix is in `session-launch.ts`:
+When `refarm`, `refarm chat`, or `refarm ask` needs a runtime and the sidecar is
+not ready, the shared launch flow can prompt and run:
 
 ```
 refarm
-✗  Farmhand is not running.
+✗  Refarm runtime is not running.
 
    Start it now? (Y/n) _
-   → Starting farmhand... ✓ Ready (1.2s)
+   → Starting TypeScript Farmhand... ✓ Ready (1.2s)
 
 refarm ▸ _
 ```
 
-**Implementation contract** (from ADR-065):
-- Confirm before starting — no silent background processes
-- Detached spawn via `spawn('node', [...], { detached: true, stdio: 'ignore' })`
-- Poll `GET /efforts/summary` every 300ms, max 10s, show elapsed time
-- Fallback on timeout: print manual instructions, exit 1
-- `LaunchDeps` interface is already defined in `session-launch.ts` — inject
-  real implementations in `chat.ts`, stub them in tests
-
-**Files to touch**: `apps/refarm/src/commands/session-launch.ts` (implement
-the stub), `apps/refarm/src/commands/chat.ts` (call `autoStartFarmhand()`
-before entering the REPL loop).
+The implementation now resolves `tractor.engine`, prefers the Rust tractor when
+available, falls back to TypeScript Farmhand when appropriate, and prints
+deterministic recovery commands such as `refarm runtime ensure --wait --next-command`.
 
 ---
 
-## Gap 2 — Crash resilience after auto-start (ADR-065 Phase 3)
+## Gap 2 — Crash resilience after auto-start (ADR-065 Phase 3) — ADDRESSED
 
-If farmhand crashes after being auto-started, the next effort submission gets
-a connection refused. Today there is no recovery path.
+If the selected runtime crashes after the REPL is already open, effort
+submission now detects connection-level sidecar failures, runs the same runtime
+auto-start policy used at session launch, and retries the same effort once after
+recovery. The session ID and readline history remain intact because the REPL was
+already paused for the active turn.
 
-**Target behavior**: on connection refused during an effort submission, pause
-the REPL, print `Farmhand stopped responding — restart? (Y/n)`, and restart
-if confirmed. The session ID is preserved; no history is lost.
-
-**Files to touch**: `chat.ts` — wrap `deps.submitEffort()` in a try/catch that
-detects `ECONNREFUSED`, calls `deps.spawnFarmhand()`, polls until ready, retries.
+Non-connection submission errors, such as runtime HTTP failures, are not treated
+as restart signals; they still surface as normal task/runtime errors.
 
 ---
 
-## Gap 3 — In-REPL credential configuration (ADR-065 Phase 2)
+## Gap 3 — In-REPL credential/model configuration — PARTIALLY ADDRESSED
 
-Today, configuring a model provider requires exiting `refarm chat`, running
-`refarm sow` or `refarm keys`, and restarting. This breaks flow.
+The REPL now has `/login` and `/model` controls, so common credential and model
+route changes no longer require leaving the session.
 
-**Target REPL commands**:
+Current commands:
 
 | Command | Effect |
 |---|---|
-| `/sow` | Pause readline → run credential collection flow → resume |
-| `/keys` | Pause readline → run model key setup → resume |
-| `/provider` | Switch active model provider (MODEL_PROVIDER) without restarting |
+| `/login` | Pause readline → run credential collection flow → resume |
+| `/model current` | Inspect active model routing |
+| `/model providers` | Inspect provider defaults and credential env vars |
+| `/model <provider/model>` | Switch the default route |
+| `/provider <provider/model>` | Alias for switching the default route |
+| `/model worker <provider/model>` | Switch the worker route |
+| `/model monitor <provider/model>` | Switch the monitor route |
+| `/model fallback <provider/model>` | Set fallback route |
+| `/model base-url <url>` | Set self-hosted/OpenAI-compatible endpoint |
 
-**Implementation contract**: `rl.pause()` → run interactive flow → `rl.resume()`.
-`sow.ts` and `keys.ts` must be callable as functions (not just CLI actions).
-
-**Files to touch**: `apps/refarm/src/commands/chat-repl.ts` (add `/sow`, `/keys`,
-`/provider` to `ChatCommand` union), `chat.ts` (handle new commands), `sow.ts`
-and `keys.ts` (extract callable function from Commander action).
-
----
-
-## Gap 4 — Readline history
-
-Today, `refarm chat` does not persist readline history between sessions. The
-user cannot press ↑ to recall previous prompts.
-
-**Target behavior**: persist readline history to `~/.refarm/chat-history` (max
-500 lines, newest first). On REPL start, load history into `rl.history`.
-
-Node.js `readline.Interface` does not support history persistence natively.
-Two options:
-
-- **readline-sync** integration (adds a dependency)
-- **Manual** — hook `rl.on('line')`, push to an in-memory array, write to disk
-  on exit. Load on startup. ~20 lines of code, no dependency.
-
-The manual approach is sufficient. History file per session-lock or global is a
-UX decision — global is more useful for muscle memory.
-
-**Files to touch**: `apps/refarm/src/commands/chat.ts` — add history load/save
-around the readline interface.
+Alias decision: `/sow` is supported as an alias for `/login`, and `/provider`
+is supported as an alias for `/model`. The stable vocabulary remains `/login`
+and `/model`; the aliases exist for operator muscle memory.
 
 ---
 
-## Gap 5 — Spinner UX for long-running tasks
+## Gap 4 — Readline history — ADDRESSED
 
-The `spinnerMessage` hook already exists in `ChatDeps` and farmhand already
-sends stream chunks. The gap is the spinner display while waiting for the first
-chunk.
-
-`chat.ts` already has a spinner frame logic (`⠸ Thinking…`). The issue is that
-the spinner may not clear properly on some terminals when the first chunk arrives,
-leaving ghost characters.
-
-This is a polish task, not a structural gap. Verify by running a slow model
-response and checking terminal output fidelity.
+`refarm chat` loads and saves prompt history in `~/.refarm/chat-history`, skips
+slash commands, deduplicates repeated prompts, and caps history length.
 
 ---
 
-## Gap 6 — `pi-agent` preflight check
+## Gap 5 — Spinner UX for long-running tasks — ADDRESSED
 
-If `@refarm/pi-agent` is not installed in farmhand (because farmhand hasn't
-booted with bundled plugin install yet), `refarm chat` submits efforts that time out silently. The user has
-no indication of what went wrong.
+The `spinnerMessage` hook exists in `ChatDeps` and farmhand sends stream chunks.
+`chat.ts` clears the spinner line with `\r\x1b[2K` before writing the first
+stream chunk, and the behavior is covered by a deterministic TTY test.
 
-**Target behavior**: on REPL start, `GET /plugins` from the sidecar, verify
-`@refarm/pi-agent` is in the loaded plugin list. If not:
+Non-TTY output remains quiet, so scripted/headless flows do not receive spinner
+frames.
 
-```
-✗  pi-agent is not installed. Run: refarm agent install
-```
+---
 
-**Files to touch**: `apps/refarm/src/commands/chat.ts` — add plugin preflight
-before entering REPL loop. The HTTP sidecar does not currently expose a
-`GET /plugins` endpoint; this endpoint needs to be added to `transports/plugins.ts`.
+## Gap 6 — `pi-agent` preflight check — ADDRESSED
+
+`refarm ask` checks runtime plugin state and can install/reload pi-agent with
+machine-readable recovery commands. `refarm chat` now performs the same preflight
+before entering the REPL: if pi-agent is installed but not loaded, it attempts a
+reload; if it remains unavailable, the REPL does not start and the user gets
+deterministic install/reload/runtime recovery commands.
 
 ---
 
 ## Sequencing
 
 **Today (unblock daily use):**
-1. Implement ADR-065 Phase 1 (Gap 1) — auto-start farmhand
-2. Add readline history (Gap 4) — 20 lines
-3. Add pi-agent preflight check (Gap 6) — requires `GET /plugins` endpoint
+1. Validate first-run devcontainer path end-to-end after a clean rebuild
 
 **Next sprint:**
-4. In-REPL `/sow`, `/keys` (Gap 3)
-5. Crash resilience (Gap 2)
-6. Spinner cleanup (Gap 5) — polish, verify before claiming done
+3. TUI-backed config surface for no-argument `refarm config`
+4. Package-level validation profiles — COMPLETE via `refarm agent finish --lane`
+   backed by `--profile affected` and `--profile package --workspace <dir>`,
+   surfaced in context through `affected_workspaces`; AGENTS.md pointer now
+   injected via `PolicyFilesContextProvider`; operator gate state via
+   `OperatorStateProvider`
 
 **After daily-driver milestone:**
-7. TUI mode — `refarm` bare launches a full-screen TUI (already partially
+5. TUI mode — `refarm` bare launches a full-screen TUI (already partially
    implemented in `tui.ts` and `tui-actions.ts`, gated behind `--launch` flag)
 
 ---

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createWebCommand,
 	resolveBrowserOpenSpec,
@@ -42,16 +42,39 @@ function makeStatus(overrides?: Partial<any>) {
 }
 
 describe("resolveWebLaunchSpec", () => {
+	const originalOverride = process.env.REFARM_PACKAGE_MANAGER;
+
+	afterEach(() => {
+		if (originalOverride === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = originalOverride;
+		}
+	});
+
 	it("maps dev and preview launchers to deterministic commands", () => {
 		expect(resolveWebLaunchSpec("dev")).toEqual({
+			packageManager: "pnpm",
 			command: "pnpm",
 			args: ["-C", "apps/dev", "run", "dev"],
 			display: "pnpm -C apps/dev run dev",
 		});
 		expect(resolveWebLaunchSpec("preview")).toEqual({
+			packageManager: "pnpm",
 			command: "pnpm",
 			args: ["-C", "apps/dev", "run", "preview"],
 			display: "pnpm -C apps/dev run preview",
+		});
+	});
+
+	it("honors package manager override for launchers", () => {
+		process.env.REFARM_PACKAGE_MANAGER = "npm";
+
+		expect(resolveWebLaunchSpec("dev")).toEqual({
+			packageManager: "npm",
+			command: "npm",
+			args: ["--prefix", "apps/dev", "run", "dev"],
+			display: "npm --prefix apps/dev run dev",
 		});
 	});
 });
@@ -84,16 +107,42 @@ describe("webCommand", () => {
 	const printStatusSummary = vi.fn();
 	const launch = vi.fn();
 	const open = vi.fn();
+	const originalPackageManager = process.env.REFARM_PACKAGE_MANAGER;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+		process.env.REFARM_PACKAGE_MANAGER = "pnpm";
 		resolveStatusPayload.mockResolvedValue({
 			json: makeStatus(),
 			shutdown: vi.fn().mockResolvedValue(undefined),
 		});
 		launch.mockResolvedValue(0);
 		open.mockResolvedValue(undefined);
+	});
+
+	afterEach(() => {
+		if (originalPackageManager === undefined) {
+			delete process.env.REFARM_PACKAGE_MANAGER;
+		} else {
+			process.env.REFARM_PACKAGE_MANAGER = originalPackageManager;
+		}
+	});
+
+	it("documents launch, dry-run, and action workflows in help", () => {
+		let help = "";
+		const command = createWebCommand();
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		command.outputHelp();
+
+		expect(help).toContain("refarm web --launch --open");
+		expect(help).toContain("refarm web --dry-run --launcher preview");
+		expect(help).toContain("--dry-run prints launch readiness");
+		expect(help).toContain("REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun");
 	});
 
 	it("prints summary preflight by default", async () => {
@@ -291,6 +340,36 @@ describe("webCommand", () => {
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
+	it("prints structured JSON when Web action selection is missing --actions", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--select", "open-node", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "web",
+				operation: "actions",
+				error: "select-requires-actions",
+				message: "--select requires --actions.",
+				select: "open-node",
+				nextCommand: "refarm web --actions --select 'open-node' --json",
+				nextCommands: ["refarm web --actions --select 'open-node' --json"],
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
 	it("rejects Web action rows with launch-only flags", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,
@@ -354,6 +433,9 @@ describe("webCommand", () => {
 			launch,
 			open,
 		});
+		command.exitOverride((error) => {
+			throw error;
+		});
 
 		await expect(
 			command.parseAsync(["--launch", "--launcher", "invalid"], {
@@ -406,7 +488,7 @@ describe("webCommand", () => {
 		expect(launch).not.toHaveBeenCalled();
 	});
 
-	it("rejects --launch with --json", async () => {
+	it("rejects --launch with --markdown", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,
 			printStatusSummary,
@@ -415,9 +497,36 @@ describe("webCommand", () => {
 		});
 
 		await expect(
-			command.parseAsync(["--launch", "--json"], { from: "user" }),
+			command.parseAsync(["--launch", "--markdown"], { from: "user" }),
 		).rejects.toThrow(/cannot be combined/);
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
+	});
+
+	it("prints structured JSON when --launch --json is missing --dry-run", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "web",
+				operation: "launch",
+				error: "launch-json-requires-dry-run",
+				message: "--launch --json requires --dry-run.",
+				nextCommand: "refarm web --launch --launcher dev --dry-run --json",
+				nextCommands: ["refarm web --launch --launcher dev --dry-run --json"],
+			}),
+		);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
 	});
 
 	it("rejects --dry-run without --launch", async () => {
@@ -463,6 +572,62 @@ describe("webCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("[dry-run] would launch web runtime"),
 		);
+		logSpy.mockRestore();
+	});
+
+	it("prints launch dry-run as a single JSON envelope", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--dry-run", "--json"], {
+			from: "user",
+		});
+
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "web",
+			operation: "dry-run",
+			ok: true,
+			reason: "dry-run",
+			renderer: "web",
+			launcher: "dev",
+			runtimeLabel: "web runtime",
+			launchCommand: "pnpm -C apps/dev run dev",
+			nextCommand: "refarm web --launch --launcher dev",
+			nextCommands: ["refarm web --launch --launcher dev"],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("includes browser open intent in web launch dry-run JSON", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--launch", "--dry-run", "--json", "--open", "--open-url", "http://localhost:9999"],
+			{ from: "user" },
+		);
+
+		expect(open).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			open: true,
+			openUrl: "http://localhost:9999",
+			nextCommand:
+				"refarm web --launch --launcher dev --open --open-url 'http://localhost:9999'",
+		});
 		logSpy.mockRestore();
 	});
 

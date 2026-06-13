@@ -15,6 +15,7 @@ import { execSync, execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { packageScriptCommand } from "../packages/config/src/package-manager.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -24,6 +25,10 @@ const mermaidConfigFile = path.join(specsDiagramsDir, "mermaid.config.json");
 
 const CI_MODE = process.argv.includes("--ci");
 const STRICT_SVG_SYNC = process.env.REFARM_DIAGRAM_SYNC_STRICT !== "0";
+
+function scriptCommand(script) {
+  return packageScriptCommand(script, { cwd: projectRoot }).display;
+}
 
 // Find all .mermaid files
 function findMermaidFiles() {
@@ -115,7 +120,7 @@ function validateDiagrams() {
         }
         console.error("");
         console.error("To fix, run locally:");
-        console.error("  pnpm run diagrams:fix\n");
+        console.error(`  ${scriptCommand("diagrams:fix")}\n`);
         console.error("Then commit the regenerated .svg files.");
         if (!STRICT_SVG_SYNC) {
           console.warn("⚠️  SVG sync drift is advisory for this run (REFARM_DIAGRAM_SYNC_STRICT=0).");
@@ -137,4 +142,3 @@ function validateDiagrams() {
 }
 
 validateDiagrams();
-

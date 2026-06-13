@@ -1,0 +1,441 @@
+# Refarm Operator Primitives
+
+Status: maintained contract map for the agentic daily-driver path.
+
+This document defines the primitives that must stay boring before Refarm becomes
+the operator's primary daily driver. It is intentionally narrower than the
+architecture docs: it captures what an agent can rely on when it is driving
+Refarm through JSON handoffs.
+
+## Layer Rule
+
+`apps/refarm` is the cockpit. It can compose commands, render operator output,
+and choose product defaults. It should not become the permanent home for every
+contract an agent needs.
+
+Durable behavior should move down when a second command, package, surface, or
+external consumer needs it:
+
+| Layer | Owns | Does not own |
+| --- | --- | --- |
+| `apps/refarm` | Product CLI UX, command composition, help text, operator recovery wording. | Reusable process execution, shared JSON envelopes, task/runtime state machines. |
+| `packages/cli` | Handoff strings, command plans, process specs, resume envelopes, status/action schemas, launch helpers. | Runtime execution or plugin lifecycle internals. |
+| `packages/config` | Stable IDs, aliases, defaults, provider and package-manager policy. | Operator presentation. |
+| `apps/farmhand` | Task execution, plugin lifecycle coordination, runtime-facing execution behavior. | CLI-only wording or Commander-specific parsing. |
+| `packages/tractor` | Runtime, plugin host, streams, sandbox boundary, runtime diagnostics. | Product command orchestration. |
+| `packages/pi-agent` | Runtime-agent behavior and WASM contract. | Product-wide "PiAgent" semantics. |
+
+## Public Handoff Contract
+
+Every public JSON command used by an agent should expose:
+
+- `ok`: whether the command reached the intended state.
+- `command` and `operation`: stable identifiers for the invoked surface.
+- `nextCommand`: the first executable continuation, or `null` for terminal
+  success.
+- `nextCommands`: ordered executable continuations. Empty means no recovery or
+  continuation is required.
+- `nextProcesses`: structured executable continuations when the command already
+  knows the process boundary (`command`, `args`, optional `cwd`, and `display`).
+  Prefer this field for agent runners; keep `nextCommands` as the stable
+  shell-ready display/backcompat contract.
+- `nextAction` and `nextActions`: user-facing action aliases that mirror the
+  command contract when appropriate.
+- `recommendations`: diagnostics with concrete commands when recovery requires
+  explanation.
+
+Executable handoffs must not contain placeholders, REPL-only commands, package
+manager-specific variants that depend on hidden state, or commands that require
+interactive secret entry without saying so.
+
+## Core Primitives
+
+### Resume
+
+Purpose: answer "where was I?" before dispatching new work.
+
+Required signals:
+
+- Runtime readiness and selected engine.
+- Current model route and credential state.
+- Active and recent sessions with `sessions show` handoffs.
+- Recent task checkpoint and effort status/log handoffs.
+- Last finish gate, failed command, and remaining validation commands.
+
+Start every agent slice with:
+
+```bash
+refarm resume --json
+refarm check --next-action --json
+```
+
+If `resume` returns `nextCommands`, follow the first command before inferring
+state from memory.
+
+### Session
+
+Purpose: preserve the operator timeline and make agent output inspectable.
+
+Session Rules:
+
+- `sessions show <id> --json` is terminal when the session is already active.
+- `sessions list --json` should not suggest stale active-session recovery.
+- New runtime-agent sessions should identify the participant as
+  `urn:refarm:agent:runtime-agent`.
+- Historical `urn:refarm:agent:pi-agent` participants and `[pi-agent ...]`
+  entries are compatibility data, not the product-facing concept.
+
+### Task And Effort
+
+Purpose: dispatch resumable work without hiding state in the CLI process.
+
+Task Rules:
+
+- `task resume --json` is the preferred continuation when a checkpoint exists.
+- Terminal or failed old efforts must not produce misleading resume handoffs.
+- `task status --json` should distinguish active, done, failed, and unknown
+  states with log and resume handoffs.
+- `task logs --json` should be inspectable after terminal states.
+- Operator-facing runtime-agent dispatch uses:
+
+```bash
+refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
+```
+
+The physical plugin id may still be `@refarm/pi-agent` in stored task metadata.
+The no-token `refarm:agent:e2e:mock` gate exercises this alias through HTTP
+task dispatch against the model mock and follows the returned status/log
+handoffs. It also checks `task resume --json` before and after the effort
+reaches `done`, so active continuations stay visible and terminal efforts do
+not keep misleading resume commands. Finally, it calls the top-level
+`resume --json` to ensure terminal task history remains inspectable without
+reintroducing `task resume` as the next step.
+
+### Runtime And Plugins
+
+Purpose: keep the execution plane recoverable without manual guessing.
+
+Runtime Rules:
+
+- `runtime.sidecarUrl` is the persisted endpoint primitive for the selected
+  runtime sidecar. `REFARM_SIDECAR_URL` may override it for one command, but
+  external workspaces should prefer:
+
+```bash
+refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
+```
+
+- `runtime status --json` must expose the resolved `sidecarUrl` and
+  `sidecarUrlSource` so agents can tell whether they are probing the default,
+  environment override, home config, or project-local config.
+- `runtime status --json` should also expose `sidecarProbe` with the probe URL,
+  readiness, HTTP status, timeout flag, or transport error. A failed runtime
+  probe should not require the operator to run `curl` manually to learn the
+  failure shape.
+- When Tractor runs inside Docker/devcontainer, the HTTP sidecar must bind to
+  the container interface (`0.0.0.0`) so the Docker-published `42001` reaches it
+  from host workspaces. Local non-container startup remains loopback-only by
+  default (`127.0.0.1`).
+- `runtime ensure --wait --json` converges to `resume` when ready.
+- If `runtime ensure --wait --json` starts a runtime but readiness does not
+  converge and the startup log has no actionable output, the recovery handoff
+  should point to `refarm runtime start --dry-run --json` before retrying
+  `ensure`.
+- `check --next-action --json` is the composite readiness gate.
+- `check --json` should include the local model provider doctor as a warning
+  signal. `check --next-action --json` remains blocking-only: `ok: true` means
+  `nextCommands: []`. Before an agentic prompt, run `model doctor --json` when
+  the selected route is a local provider.
+- `check --json` also carries execution substrate checks:
+  - `nodeSubstrate` verifies the package-manager execution tree for the current
+    platform (`node_modules`, `.bin` shims, devcontainer volume ownership, and
+    package-level dependency materialization). It blocks when a Linux container
+    and Windows host are sharing one `node_modules` tree, when `workspace:*`
+    links are not materialized for the current platform, or when a CLI package
+    can build but cannot resolve external dependencies such as
+    `chalk`/`commander` at runtime in the current environment.
+  - `rustSubstrate` is required only when the workspace declares Rust
+    (`Cargo.toml`, `rust-toolchain.toml`, or `.cargo/config.toml`). It verifies
+    `rustc`, `cargo`, `rustup target wasm32-wasip1`, `cargo component`, and on
+    Windows/MSVC the C++ build tools/linker path. In a JS-only external project
+    it should remain quiet instead of making Rust a global Refarm dependency.
+  - `nextCommand` must not suggest `cargo install cargo-component --locked`
+    while the Windows MSVC linker itself is unresolved; the operator must first
+    install/open the Visual Studio C++ build environment.
+- Plugin recovery should prefer the operator alias:
+
+```bash
+refarm plugin reload runtime-agent --json
+```
+
+- Plugin status may expose `@refarm/pi-agent` as installed/loaded identity
+  because that is the manifest id.
+- Reload outcomes must distinguish `reloaded`, `skipped`, and `deferred`.
+- The no-token `refarm:agent:e2e:mock` gate exercises
+  `plugin reload runtime-agent --json` against the isolated runtime and follows
+  the returned `plugin status --json` handoff. A loaded plugin may report
+  `skipped`; the contract is that the public alias normalizes to
+  `@refarm/pi-agent` and status remains inspectable.
+
+### Health Policy
+
+Purpose: separate generic workspace health from Refarm-specific assumptions
+before using the CLI in another repository.
+
+Health Rules:
+
+- `refarm health --policy --json` is the inspection primitive for the resolved
+  health policy. It should not run the auditors.
+- `refarm health --suggest-policy --json` is the dry-run calibration primitive.
+  It may run auditors, but it must not write `.refarm/config.json`.
+- `refarm health --apply-suggested-policy --json` is the explicit write
+  primitive. It should preserve unrelated `.refarm/config.json` fields, replace
+  only the `health` block, and then point back to
+  `refarm health --next-action --json`.
+- In the Refarm monorepo, the policy may carry Refarm-specific roots,
+  exemptions, and generated-source exclusions.
+
+Read-only consumer lane:
+
+- Work mirrors and evidence vaults may be inspected for calibration, but must
+  not be changed by Refarm. Use `refarm agent finish --templates --json` to get
+  the cwd-aware external-consumer templates instead of inventing ad hoc shell
+  commands. The operational playbook is
+  [`docs/EXTERNAL_CONSUMER_CALIBRATION.md`](EXTERNAL_CONSUMER_CALIBRATION.md).
+- `external-consumer-health-policy-json` resolves the effective policy from a
+  consumer directory without running auditors or writing config.
+- `external-consumer-health-suggest-policy-json` runs the dry-run suggestion
+  flow from a consumer directory and must remain non-mutating. Its output can be
+  copied into a writable project only after human review.
+- Never treat read-only suggestion output as approval to run
+  `refarm health --apply-suggested-policy --json` in that repository. Writes
+  belong in Refarm or in explicitly writable consumer projects.
+
+### Complexity Pressure
+
+Purpose: make large-file pressure visible before agents normalize working inside
+files that are too large to reason about cheaply.
+
+Complexity Rules:
+
+- Ecosystem primitive: `@refarm.dev/health` owns reusable complexity scanning,
+  and workspaces opt in through `health.complexity` in `.refarm/config.json`.
+  When enabled, `refarm health --json` reports blocking large files alongside
+  git/build diagnostics, so `refarm check --json` can carry the same pain into
+  an agentic daily-driver loop.
+- Refarm monorepo wrapper: `pnpm run repo:complexity` is the local baseline
+  audit for tracked files over the configured line budget.
+- Refarm monorepo wrapper: `pnpm run repo:complexity:changed:strict` is the
+  safe local gate for new slices. It blocks changed files that cross the line
+  budget without requiring the existing backlog to be fixed first.
+- The changed-file gate also blocks already-oversized source files once they
+  are touched. For example, `apps/refarm/src/commands/agent.ts` must be reduced
+  through coherent extraction before receiving new template, lane, or handoff
+  semantics; do not bypass the gate with a local exception.
+- `pnpm run gate:full:colony` includes `repo:complexity:test` and
+  `repo:complexity:changed:strict`, so the full gate exercises the wrapper and
+  blocks newly changed oversized files without ratcheting the whole backlog at
+  once.
+- Refarm monorepo wrapper: `pnpm run repo:complexity:strict` is diagnostic until
+  the current backlog is split or explicitly classified. Do not add it to broad
+  gates before the baseline is triaged.
+- Refarm-specific allowances such as generated fixtures, lockfiles, `.project`
+  state, and vendored artifacts belong in the repo wrapper. Source and
+  hand-written tests should normally be blocking unless there is a documented
+  extraction plan.
+- The report includes `category` and `summaryByCategory` so agents can separate
+  source, test, docs, scripts, fixtures, and project-state pressure before
+  choosing whether to split from below (shared helper/package) or above
+  (command/test decomposition).
+- JSON output keeps the complete `findings` arrays for audit, but also exposes
+  `topBlockingFindings`, `topFindings`, and `reportLimit` for compact agent
+  handoffs. Use `--limit <n>` when the operator needs a short triage view
+  instead of the full backlog.
+- The repo-local `repo:complexity` scripts are CI/operator wrappers over the
+  same `@refarm.dev/health` complexity auditor, not a second detector. Keep
+  repo-specific allowances in the wrapper and reusable scanning behavior in the
+  package.
+- Outside Refarm, the default policy is generic `workspace`; consumer-specific
+  generated docs, skill packages, non-TS package layouts, and complexity
+  allowances belong in that repo's `.refarm/config.json`.
+- `refarm health --next-action --json` and
+  `refarm check --next-action --json` should point to
+  `refarm health --suggest-policy --json` when the next useful move is policy
+  calibration rather than runtime repair.
+- `refarm check --json` remains the full diagnostic report; the
+  `--next-action --json` form should stay compact enough for an agent to follow
+  without parsing hundreds of equivalent file-level findings.
+- Do not expose `--apply-suggested-policy` as an automatic continuation from
+  dry-run suggestion output; applying policy is a deliberate write.
+
+### Text Quality Pressure
+
+Purpose: make prose drift visible before agents normalize unclear docs,
+submission scaffolding, or leftover assistant artifacts.
+
+Text Quality Rules:
+
+- Refarm owns the dependency-free scoring contract and JSON report shape for
+  generic prose checks.
+- Consumer-specific rubrics, dashboards, notebooks, and submission language
+  stay in consumer repositories such as `vault-seed` or writing vaults.
+- Consumers may opt in with `.refarm/text-quality.json`. The CLI discovers that
+  file automatically, while `--config <path>` remains the explicit override for
+  experiments, CI jobs, or consumer-specific wrappers. This keeps Refarm policy
+  out of surprising root-level files. The maintained field contract is
+  [`docs/TEXT_QUALITY_CONFIG.md`](TEXT_QUALITY_CONFIG.md).
+- Optional rubric scorecards produce `scores`, `weights`, and `finalScore` from
+  deterministic required/forbidden patterns. Refarm owns the generic scorecard
+  shape; consumer repositories own the domain criteria and thresholds.
+- `--json` reports include `ok: true` on success. Configuration failures report
+  `ok: false` with a stable `error.code`, message, and relative `configPath` so
+  agents can recover without scraping stack traces. Semantic config failures use
+  `ERR_TEXT_QUALITY_CONFIG_SCHEMA` and include `error.issues`.
+- `pnpm run text-quality:test` validates the scorer and CLI behavior.
+- `pnpm run docs:text-quality` checks selected Refarm calibration docs.
+- `pnpm run text-quality:verify` composes both checks.
+- `pnpm run gate:full:colony` includes `text-quality:verify`, so the full local
+  gate exercises the primitive without making every docs-only change a host
+  smoke.
+- The host-smoke auto router exposes the `text-quality` profile for scorer
+  source/test changes and selected calibration-doc deltas.
+
+### Model Routing
+
+Purpose: let the agent know which model path it is about to use.
+
+Model Routing Rules:
+
+- `model current --json` is the inspection primitive.
+- `model doctor --json` is the live local-provider probe. Keep
+  `model current` deterministic; use `model doctor` to check endpoints such as
+  Ollama and emit recovery commands like `ollama serve` or a Docker-aware
+  `model base-url` handoff when the runtime cannot reach the provider.
+- `sow --model <provider/model>` changes the route.
+- Credential collection may be interactive, but JSON recovery must name the
+  command that resumes inspection after configuration.
+- No-token validation should use the mock model path before live provider checks.
+
+### Finish
+
+Purpose: close a slice with enough verification signal for the changed surface.
+
+Finish Rules:
+
+- Before treating a package-script failure as a code failure, verify the local
+  Node execution substrate:
+
+```bash
+pnpm run node-substrate:check
+```
+
+  Missing `node_modules/.bin` or package-manager bin links means the environment
+  cannot run TypeScript/Vitest/ESLint gates reliably. Missing workspace CLI
+  workspace dependency links or runtime dependencies means a built command may
+  fail before it can print JSON handoffs. In devcontainers on Windows hosts,
+  `node_modules` should be container-owned, not shared with the host workspace
+  tree. Windows-native validation should use an environment-owned checkout
+  (for example a temporary clone) instead of reusing the same worktree whose
+  package-level `node_modules` links were materialized by the devcontainer.
+  Non-executable recovery guidance belongs in `nextAction`; `nextCommand`
+  should remain `null` unless it is an executable command string.
+- Before treating Rust/WASM build failures as code failures, verify the Rust
+  execution substrate:
+
+```bash
+pnpm run rust-substrate:check
+```
+
+  On Windows/MSVC, missing Visual Studio C++ build tools or Git's
+  `usr/bin/link.exe` shadowing the MSVC linker is an environment problem, not a
+  package build-order problem. The standalone substrate checker emits
+  structured recommendations and must keep human setup steps out of
+  `nextCommand`; `cargo install cargo-component --locked` is executable only
+  after the MSVC compiler/linker environment is available.
+- The `refarm` CLI entrypoint must remain a dependency-light bootstrap. If
+  package-level runtime dependencies cannot load, it should emit a JSON
+  `bootstrap/preflight` failure when JSON output is requested and point the
+  operator to `node scripts/ci/check-node-substrate.mjs --json`, instead of
+  crashing with a Node module-resolution stack trace.
+- Installer scripts are also bootstrap surfaces. They may keep small pure
+  helpers inline when importing `@refarm.dev/*` would make installation depend
+  on a built workspace package. Extract the helper once a second non-bootstrap
+  consumer needs it, or once the published install path can guarantee the
+  package is already available before the installer runs.
+- After source edits:
+
+```bash
+refarm agent finish --lane after-edit --run --json
+```
+
+- After public JSON or CLI contract changes:
+
+```bash
+refarm agent finish --lane handoffs --run --json
+```
+
+- After runtime-agent, model routing, or ask execution changes:
+
+```bash
+refarm agent finish --lane agent-e2e-mock --run --json
+```
+
+- A passing finish returns `nextCommand: "refarm resume --json"`.
+- When a source change modifies a workspace package API consumed through
+  `dist/`, build that dependency before running direct consumer tests. Turbo
+  and `refarm agent finish` encode this order; ad hoc commands such as
+  `pnpm -C apps/refarm exec vitest ...` do not.
+- Root scripts that call `scripts/ci/run-workspace-script.mjs` for
+  `apps/refarm` tests or type-checks should use `--with-dependency-builds`.
+  That wrapper builds the target workspace's transitive TypeScript workspace
+  dependencies in the shared build order before the consumer command. It should
+  not use broad package-manager filtering that also pulls Rust/WASM or unrelated
+  app builds into a focused app smoke.
+- `--with-dependency-builds --plan` is the readable contract for this ordering:
+  it should show package-local build commands such as
+  `pnpm -C packages/health run build`, then the final consumer command. If a
+  TypeScript dependency is missing from the shared order, the wrapper should
+  fail closed instead of guessing an order.
+
+## Hardening Order
+
+Before the operator migrates fully to Refarm as the primary daily driver, prefer
+work in this order:
+
+1. Keep the self-guiding loop green: `resume -> inspect handoff -> check ->
+   edit -> finish -> resume`.
+2. Keep no-token execution with model-mock ahead of live-provider token checks.
+3. Move repeated handoff/process/status contracts from `apps/refarm` into
+   shared packages only after repeated use proves the boundary.
+4. Exercise one non-Refarm task through the same primitives to prove Refarm is a
+   daily-driver tool, not only a self-maintenance loop.
+5. Keep `runtime-agent` as the operator concept and `@refarm/pi-agent` as the
+   compatibility identity until a package rename is worth the migration cost.
+
+## Cut Discipline
+
+The no-token operator smoke is now the confidence gate for the self-driving CLI
+loop. It covers runtime startup, plugin reload/status, `ask`, session handoff,
+HTTP task dispatch, task status/log handoffs, `task resume`, top-level `resume`,
+model-mock requests, and stream-file creation.
+
+Do not keep expanding this smoke just because another self-reference is
+possible. Add new assertions only when one of these is true:
+
+- a real operator slice fails and the failure would have been caught by the
+  smoke;
+- a second consumer needs the same primitive and exposes a boundary gap;
+- a public JSON handoff contract changes;
+- runtime/model/task behavior changes under the existing daily-driver path.
+
+Otherwise, the next maturity signal should come from using the same primitives
+on a non-Refarm task. That is the proof that Refarm is becoming a daily-driver
+tool instead of a system that only maintains itself.
+
+## Non-Goals For The Bootstrap Phase
+
+- Renaming the physical `packages/pi-agent` package or WASM artifact.
+- Rewriting historical session/task data.
+- Moving every helper out of `apps/refarm` before there is a second consumer.
+- Treating live model calls as the first validation signal when mock coverage is
+  available.

@@ -1,0 +1,399 @@
+{
+  "schema": "refarm.task-artifacts.v1",
+  "taskId": "task-governed-note-box-poc",
+  "effortId": "effort-governed-note-box-poc-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "artifacts": [
+    {
+      "id": "intake-snapshot",
+      "uri": "intake-snapshot.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "b4e4ca1a7f96c4a54aa7ac66436f65a7136b424355f95654a5ffb92ab6df6ed2"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "ingestion"
+      ]
+    },
+    {
+      "id": "metadata-index",
+      "uri": "metadata-index.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "52283ef9405e9d28dc3c15ecadd75a93d34ffe642a35aa67b3be8cfbe4c98d54"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "metadata",
+        "lab"
+      ]
+    },
+    {
+      "id": "lab-snapshot",
+      "uri": "lab-snapshot.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "bac32c223484661cffe8c8898db9cfc5af19f3114451b361889e17ef5c159f53"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "lab"
+      ]
+    },
+    {
+      "id": "publication-snapshot",
+      "uri": "publication-snapshot.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "bcacfafda9fd36731f7e97899174f46e39ecad1dc24b9e4a5a58a14ecbf46444"
+      },
+      "reviewState": "unreviewed",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "publication"
+      ]
+    },
+    {
+      "id": "publication-preflight",
+      "uri": "publication-preflight.json",
+      "mediaType": "application/json",
+      "role": "audit-trail",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "50df6f2b0c6a72ecb657fb6e932b372d4f0cacbb17f78f921f8e04e34b714ad0"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "publication",
+        "preflight"
+      ]
+    },
+    {
+      "id": "scorecard",
+      "uri": "scorecard.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "6ec77ad07a30f41c7789a4840c954bdb5c478548fa9e3108c954dd5599a8586d"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scorecard",
+        "pilot"
+      ]
+    },
+    {
+      "id": "risk-and-standards-matrix",
+      "uri": "risk-and-standards-matrix.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7e9bcd7d81e2a6980f33dcb03e4a60d5e26c50d72c019990a32856dff7f7ab37"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "risk",
+        "standards",
+        "claim-promotion"
+      ]
+    },
+    {
+      "id": "consumer-evidence",
+      "uri": "consumer-evidence.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7fde9cf20a9fd37cb93db64fb48db514f32f38f1a207133a466b645d001dff04"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "consumer",
+        "vault",
+        "claim-promotion"
+      ]
+    },
+    {
+      "id": "scenario",
+      "uri": "scenario.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "0e0daaadac629b53c3c1dd50109c5a8b5339a2803d6e0f5f84f2b1e3e2e96713"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scenario",
+        "reader-path"
+      ]
+    },
+    {
+      "id": "annex",
+      "uri": "annex.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "f190e20fda5cfb0f8892c84ed840fcd8bbc9ca4c43590acbe616d30717149b8e"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "annex",
+        "evidence-map"
+      ]
+    },
+    {
+      "id": "limits",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "d7e27a8c2b77b161921882ef81e8cbfb986a30936e7a2a327c91bb3bd36fcfa4"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "results-table",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "8161668c53c693e6a362e1254ecc73a44f1db2640b377935389320fd701dc8a6"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "human-review",
+      "uri": "human-review.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7166bedc1d364d75ac1880dfb8f27513bec5a9b6ff65a9ba1d18dde053c7cd1f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "publication",
+        "human-review"
+      ]
+    }
+  ]
+}

@@ -3,18 +3,20 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"build": "RUSTUP_TOOLCHAIN=stable cargo build --release",
-		"test": "RUSTUP_TOOLCHAIN=stable cargo test --lib && RUSTUP_TOOLCHAIN=stable cargo test --test ws_integration",
-		"lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
-		"lint:prepush": "RUSTUP_TOOLCHAIN=stable cargo clippy --lib -- -D warnings",
-		"test:unit": "pnpm run test",
-		"test:sidecar": "RUSTUP_TOOLCHAIN=stable cargo test --lib sidecar_ --quiet",
-		"test:prepush": "RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet",
-		"test:smoke:ws": "RUSTUP_TOOLCHAIN=stable cargo test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
-		"test:smoke:health": "RUSTUP_TOOLCHAIN=stable cargo test --bin tractor runtime_boot_probe_succeeds_in_memory_namespace -- --nocapture && RUSTUP_TOOLCHAIN=stable cargo test --bin tractor ws_probe_succeeds_when_daemon_is_listening -- --nocapture",
-		"test:integration": "pnpm run test:smoke:ws",
-		"bench:save": "RUSTUP_TOOLCHAIN=stable cargo run --release --bin tractor-bench -- save",
-		"bench:check": "RUSTUP_TOOLCHAIN=stable cargo run --release --bin tractor-bench -- check",
-		"coverage:check": "echo 'Coverage check not yet implemented for Rust core' && mkdir -p coverage && echo '{\"improved\": false, \"previous\": 0, \"current\": 0, \"diff\": \"0%\"}' > coverage/gha-payload.json"
+		"check:wit": "node ../../scripts/ci/check-tractor-wit-sync.mjs",
+		"build": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs build --release",
+		"test": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib && node ../../scripts/ci/cargo-run.mjs test --test ws_integration",
+		"lint": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs clippy -- -D warnings",
+		"lint:prepush": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs clippy --lib -- -D warnings",
+		"test:unit": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib",
+		"test:sidecar": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib sidecar_ --quiet",
+		"test:prepush": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib --quiet",
+		"test:smoke:ws": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
+		"test:smoke:health": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --bin tractor runtime_boot_probe_succeeds_in_memory_namespace -- --nocapture && node ../../scripts/ci/cargo-run.mjs test --bin tractor ws_probe_succeeds_when_daemon_is_listening -- --nocapture",
+		"test:integration": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
+		"bench:save": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- save",
+		"bench:check": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- check",
+		"coverage:save": "node scripts/coverage.mjs save",
+		"coverage:check": "node scripts/coverage.mjs check"
 	}
 }

@@ -1,5 +1,22 @@
 import chalk from "chalk";
+import { refarmCommand } from "./command-handoff.js";
+import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
+import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import { formatSessionId } from "./session-ids.js";
+import {
+	readActiveSessionId,
+	writeActiveSessionIdAndVerify,
+} from "./session-lock.js";
+import { reportSidecarError } from "./sidecar-error.js";
+import { sidecarUrl } from "./sidecar-url.js";
+import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
 	buildSessionForkPreviewEnvelope,
 	buildSessionSwitchEnvelope,
@@ -10,12 +27,14 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineNode,
 } from "./tree-model.js";
-import { formatSessionId } from "./session-ids.js";
-import {
-	readActiveSessionId,
-	writeActiveSessionIdAndVerify,
-} from "./session-lock.js";
-import { sidecarUrl } from "./sidecar-url.js";
+
+function treeShowCommand(id: string): string {
+	return refarmCommand(["tree", "show", id, "--json"]);
+}
+
+function treePreviewSwitchCommand(id: string): string {
+	return refarmCommand(["tree", "preview", id, "--switch", "--json"]);
+}
 
 interface SessionNode {
 	"@id": string;
@@ -56,6 +75,40 @@ function formatAge(createdAtNs: number | undefined): string {
 	return "just now";
 }
 
+function printSessionTreeErrorJson(input: {
+	operation: "show" | "preview" | "switch" | "fork";
+	error: string;
+	message: string;
+	prefix?: string;
+	matches?: string[];
+	nextAction?: string;
+	nextCommand?: string;
+	nextCommands?: string[];
+	extra?: Record<string, unknown>;
+}): void {
+	const nextAction = input.nextAction ?? TREE_SESSION_LIST_JSON_COMMAND;
+	const nextCommand = input.nextCommand ?? TREE_SESSION_LIST_JSON_COMMAND;
+	printJson(
+		buildJsonErrorEnvelope({
+			command: "tree",
+			operation: input.operation,
+			error: input.error,
+			message: input.message,
+			nextAction,
+			nextActions: [nextAction],
+			nextCommand,
+			nextCommands: input.nextCommands ?? [nextCommand],
+			extra: {
+				scope: REFARM_TREE_SESSION_SCOPE,
+				...(input.prefix ? { prefix: input.prefix } : {}),
+				...(input.matches ? { matches: input.matches } : {}),
+				...(input.extra ?? {}),
+			},
+		}),
+	);
+	process.exitCode = 1;
+}
+
 function createSessionTimelineNode(
 	session: SessionNode,
 ): RefarmSessionTimelineNode {
@@ -75,6 +128,16 @@ function createSessionTimelineNode(
 	};
 }
 
+function buildSessionTimelineNodes(
+	sessions: SessionNode[],
+	limit?: number,
+): RefarmSessionTimelineNode[] {
+	const nodes = [...sessions]
+		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
+		.map(createSessionTimelineNode);
+	return typeof limit === "number" ? nodes.slice(0, limit) : nodes;
+}
+
 async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	const suffix = typeof limit === "number" ? `?limit=${limit}` : "";
 	const response = await fetch(sidecarUrl(`/sessions${suffix}`));
@@ -85,7 +148,12 @@ async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	return body.sessions ?? [];
 }
 
-async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
+async function fetchSessionHistory(
+	prefix: string,
+	opts: { json?: boolean; operation: "show" | "preview" | "switch" | "fork" } = {
+		operation: "show",
+	},
+): Promise<SessionHistory | null> {
 	const response = await fetch(
 		sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
 	);
@@ -94,43 +162,69 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
 		matches?: string[];
 	};
 	if (response.status === 404) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "session-tree-node-not-found",
+				message: `No timeline node matching "${prefix}".`,
+				prefix,
+			});
+			return null;
+		}
 		console.error(chalk.red(`✗  No timeline node matching "${prefix}"`));
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	if (response.status === 409) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "ambiguous-session-tree-node",
+				message: body.error ?? `Ambiguous timeline node "${prefix}".`,
+				prefix,
+				matches: body.matches ?? [],
+			});
+			return null;
+		}
 		console.error(
 			chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`),
 		);
 		for (const match of body.matches ?? [])
 			console.error(chalk.dim(`   ${match}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	if (!response.ok) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "session-tree-history-failed",
+				message: body.error ?? `HTTP ${response.status}`,
+				prefix,
+				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+				nextCommands: [
+					RUNTIME_DOCTOR_NEXT_COMMAND,
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				],
+				extra: {
+					statusCommand: RUNTIME_STATUS_COMMAND,
+				},
+			});
+			return null;
+		}
 		console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return null;
 	}
 	return body;
-}
-
-function exitForSidecarError(err: unknown): never {
-	const msg = err instanceof Error ? err.message : String(err);
-	if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-		console.error(chalk.red("✗  farmhand sidecar is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
-	} else {
-		console.error(chalk.red(`✗  ${msg}`));
-	}
-	process.exit(1);
 }
 
 export async function getSessionTimelineNodes(
 	limit?: number,
 ): Promise<RefarmSessionTimelineNode[]> {
 	const sessions = await fetchSessions(limit);
-	const nodes = [...sessions]
-		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
-		.map(createSessionTimelineNode);
-	return typeof limit === "number" ? nodes.slice(0, limit) : nodes;
+	return buildSessionTimelineNodes(sessions, limit);
 }
 
 export async function listSessionTree(opts: {
@@ -141,14 +235,15 @@ export async function listSessionTree(opts: {
 	try {
 		sessions = await fetchSessions(opts.limit);
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "list",
+		});
+		return;
 	}
 
-	const nodes = [...sessions]
-		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
-		.map(createSessionTimelineNode);
-	const visibleNodes =
-		typeof opts.limit === "number" ? nodes.slice(0, opts.limit) : nodes;
+	const visibleNodes = buildSessionTimelineNodes(sessions, opts.limit);
 
 	if (opts.json) {
 		outputTreeJson(buildSessionTimelineListEnvelope(visibleNodes));
@@ -190,12 +285,21 @@ export async function showSessionTree(
 	prefix: string,
 	opts: { json?: boolean },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "show",
+		});
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "show",
+		});
+		return;
 	}
+	if (!history) return;
 	const node = createSessionTimelineNode(history.session);
 
 	if (opts.json) {
@@ -204,6 +308,7 @@ export async function showSessionTree(
 				node,
 				entries: history.entries,
 				total: history.total,
+				nextCommand: RESUME_JSON_COMMAND,
 			}),
 		);
 		return;
@@ -231,20 +336,45 @@ export async function previewSessionTree(
 	prefix: string,
 	opts: { json?: boolean; at?: string; name?: string },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "preview",
+		});
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "preview",
+		});
+		return;
 	}
+	if (!history) return;
 	const branchPointEntryId = opts.at ?? history.session.leaf_entry_id ?? null;
 	if (opts.at && !history.entries.some((entry) => entry.id === opts.at)) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: "preview",
+				error: "session-tree-entry-not-found",
+				message: `No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
+				prefix,
+				nextAction: treeShowCommand(formatSessionId(history.session["@id"])),
+				nextCommand: treeShowCommand(formatSessionId(history.session["@id"])),
+				extra: {
+					entryId: opts.at,
+					sessionId: history.session["@id"],
+				},
+			});
+			return;
+		}
 		console.error(
 			chalk.red(
 				`✗  No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
 			),
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	const envelope = buildSessionForkPreviewEnvelope({
 		node: createSessionTimelineNode(history.session),
@@ -272,26 +402,54 @@ export async function previewSessionTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+		console.log(
+			chalk.dim(
+				`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+			),
+		);
 }
 
 export async function switchSessionTree(
 	prefix: string,
 	opts: { json?: boolean },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "switch",
+		});
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "switch",
+		});
+		return;
 	}
+	if (!history) return;
 	const node = createSessionTimelineNode(history.session);
 	const currentSessionIdBefore = readActiveSessionId();
 	if (currentSessionIdBefore === node.nodeId) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: "switch",
+				error: "session-tree-already-active",
+				message: `Session "${node.metadata.shortId}" is already active.`,
+				prefix,
+				nextAction: treeShowCommand(node.metadata.shortId),
+				nextCommand: treeShowCommand(node.metadata.shortId),
+				extra: {
+					sessionId: node.nodeId,
+				},
+			});
+			return;
+		}
 		console.error(
 			chalk.red(`✗  Session "${node.metadata.shortId}" is already active.`),
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	let currentSessionIdAfter: string;
 	try {
@@ -301,8 +459,28 @@ export async function switchSessionTree(
 		).currentSessionIdAfter;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: "switch",
+				error: "session-tree-switch-failed",
+				message,
+				prefix,
+				nextAction: treePreviewSwitchCommand(node.metadata.shortId),
+				nextCommand: treePreviewSwitchCommand(node.metadata.shortId),
+				nextCommands: [
+					treePreviewSwitchCommand(node.metadata.shortId),
+					TREE_SESSION_LIST_JSON_COMMAND,
+				],
+				extra: {
+					sessionId: node.nodeId,
+					currentSessionIdBefore,
+				},
+			});
+			return;
+		}
 		console.error(chalk.red(`✗  ${message}`));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	const envelope = buildSessionSwitchEnvelope({
 		node,
@@ -326,12 +504,21 @@ export async function previewSessionSwitchTree(
 	prefix: string,
 	opts: { json?: boolean },
 ): Promise<void> {
-	let history: SessionHistory;
+	let history: SessionHistory | null;
 	try {
-		history = await fetchSessionHistory(prefix);
+		history = await fetchSessionHistory(prefix, {
+			json: opts.json,
+			operation: "preview",
+		});
 	} catch (err) {
-		exitForSidecarError(err);
+		reportSidecarError(err, {
+			json: opts.json,
+			command: "tree",
+			operation: "preview",
+		});
+		return;
 	}
+	if (!history) return;
 	const envelope = buildSessionSwitchPreviewEnvelope({
 		node: createSessionTimelineNode(history.session),
 		activeSessionIdBefore: readActiveSessionId(),
@@ -364,5 +551,9 @@ export async function previewSessionSwitchTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+	console.log(
+		chalk.dim(
+			`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+		),
+	);
 }

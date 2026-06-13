@@ -1,18 +1,18 @@
-export const DEFAULT_SIDECAR_URL = "http://127.0.0.1:42001";
-export const SIDECAR_URL_ENV_VAR = "REFARM_SIDECAR_URL";
+import {
+	DEFAULT_RUNTIME_SIDECAR_URL,
+	normalizeRuntimeSidecarUrl,
+	resolveRuntimeSidecarUrl,
+	RUNTIME_SIDECAR_URL_ENV_VAR,
+} from "../utils/runtime-config.js";
 
-export function normalizeSidecarUrl(value: string): string {
-	return value.trim().replace(/\/+$/, "");
-}
+export const DEFAULT_SIDECAR_URL = DEFAULT_RUNTIME_SIDECAR_URL;
+export const SIDECAR_URL_ENV_VAR = RUNTIME_SIDECAR_URL_ENV_VAR;
+export const normalizeSidecarUrl = normalizeRuntimeSidecarUrl;
 
 export function resolveSidecarUrl(
 	env: NodeJS.ProcessEnv = process.env,
 ): string {
-	const configured = env[SIDECAR_URL_ENV_VAR];
-	if (!configured || configured.trim().length === 0) {
-		return DEFAULT_SIDECAR_URL;
-	}
-	return normalizeSidecarUrl(configured);
+	return resolveRuntimeSidecarUrl({ env }).value;
 }
 
 export function sidecarUrl(

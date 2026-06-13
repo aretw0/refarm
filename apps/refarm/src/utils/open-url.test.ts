@@ -1,56 +1,140 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import * as childProcess from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { OPEN_EXTERNAL_LINKS_ENV_VAR } from "./open-external-links.js";
 
-vi.mock("node:child_process", () => ({
-	execFile: vi.fn(),
+const mockOpenHostBrowserUrl = vi.hoisted(() => vi.fn());
+const mockLoadConfig = vi.hoisted(() => vi.fn());
+const mockHasTty = vi.hoisted(() => vi.fn());
+const mockIsCI = vi.hoisted(() => vi.fn());
+
+vi.mock("@refarm.dev/cli/browser-open", () => ({
+	openHostBrowserUrl: mockOpenHostBrowserUrl,
+	runBestEffortBrowserOpenCandidate: vi.fn(),
+}));
+
+vi.mock("@refarm.dev/config", () => ({
+	loadConfig: mockLoadConfig,
 }));
 
 vi.mock("@refarm.dev/root", () => ({
-	isWsl: vi.fn().mockReturnValue(false),
+	hasTty: mockHasTty,
+	isCI: mockIsCI,
 }));
 
-import { isWsl } from "@refarm.dev/root";
-
-const mockExecFile = vi.mocked(childProcess.execFile);
-const mockIsWsl = vi.mocked(isWsl);
-
-function mockChild(unref = vi.fn()) {
-	return { unref } as unknown as ReturnType<typeof childProcess.execFile>;
-}
-
 describe("tryOpenUrl", () => {
-	afterEach(() => vi.clearAllMocks());
+	const originalEnv = process.env;
+	let tempDir: string;
 
-	it("never throws even if execFile throws", async () => {
-		mockExecFile.mockImplementation(() => { throw new Error("no such file"); });
+	afterEach(() => {
+		process.env = originalEnv;
+		if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+		vi.restoreAllMocks();
+		vi.clearAllMocks();
+	});
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-open-url-"));
+		vi.spyOn(process, "cwd").mockReturnValue(tempDir);
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tempDir, "home"));
+		process.env = { ...originalEnv };
+		mockLoadConfig.mockReturnValue({});
+		mockHasTty.mockReturnValue(true);
+		mockIsCI.mockReturnValue(false);
+	});
+
+	it("uses the shared host-browser opener", async () => {
+		mockOpenHostBrowserUrl.mockResolvedValueOnce({});
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+		expect(mockOpenHostBrowserUrl).toHaveBeenCalledWith(
+			"https://example.com",
+			expect.objectContaining({ run: expect.any(Function) }),
+		);
+	});
+
+	it("never throws when opening fails", async () => {
+		mockOpenHostBrowserUrl.mockRejectedValueOnce(new Error("not found"));
 		const { tryOpenUrl } = await import("./open-url.js");
 		expect(() => tryOpenUrl("https://example.com")).not.toThrow();
 	});
 
-	it("calls execFile with a timeout so a hanging child process cannot block the flow", async () => {
-		const child = mockChild();
-		mockExecFile.mockReturnValue(child);
+	it("does not open external links without an interactive TTY", async () => {
+		mockHasTty.mockReturnValue(false);
 		const { tryOpenUrl } = await import("./open-url.js");
 		tryOpenUrl("https://example.com");
-		const opts = mockExecFile.mock.calls[0]?.[2] as { timeout?: number } | undefined;
-		expect(opts?.timeout).toBeGreaterThan(0);
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
 	});
 
-	it("calls unref() so Node can exit even while browser is opening", async () => {
-		const unref = vi.fn();
-		mockExecFile.mockReturnValue(mockChild(unref));
+	it("does not open external links in CI", async () => {
+		mockIsCI.mockReturnValue(true);
 		const { tryOpenUrl } = await import("./open-url.js");
 		tryOpenUrl("https://example.com");
-		expect(unref).toHaveBeenCalled();
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
 	});
 
-	it("uses wslview when isWsl() returns true", async () => {
-		mockIsWsl.mockReturnValue(true);
-		const child = mockChild();
-		mockExecFile.mockReturnValue(child);
+	it("respects REFARM_OPEN_EXTERNAL_LINKS=never", async () => {
+		process.env[OPEN_EXTERNAL_LINKS_ENV_VAR] = "never";
 		const { tryOpenUrl } = await import("./open-url.js");
 		tryOpenUrl("https://example.com");
-		const bin = mockExecFile.mock.calls[0]?.[0] as string;
-		expect(bin).toBe("wslview");
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
+	});
+
+	it("respects operator.openExternalLinks=false from refarm config", async () => {
+		mockLoadConfig.mockReturnValue({ operator: { openExternalLinks: false } });
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
+	});
+
+	it("respects operator.openExternalLinks=never from .refarm config", async () => {
+		fs.mkdirSync(path.join(tempDir, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(tempDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "never" } }),
+			"utf-8",
+		);
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
+	});
+
+	it("respects operator.openExternalLinks=false from .refarm config", async () => {
+		fs.mkdirSync(path.join(tempDir, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(tempDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: false } }),
+			"utf-8",
+		);
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+		expect(mockOpenHostBrowserUrl).not.toHaveBeenCalled();
+	});
+
+	it("lets project-local external link policy override home preference", async () => {
+		const homeDir = path.join(tempDir, "home");
+		fs.mkdirSync(path.join(homeDir, ".refarm"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(homeDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "never" } }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(tempDir, ".refarm", "config.json"),
+			JSON.stringify({ operator: { openExternalLinks: "auto" } }),
+			"utf-8",
+		);
+		mockOpenHostBrowserUrl.mockResolvedValueOnce({});
+
+		const { tryOpenUrl } = await import("./open-url.js");
+		tryOpenUrl("https://example.com");
+
+		expect(mockOpenHostBrowserUrl).toHaveBeenCalledWith(
+			"https://example.com",
+			expect.objectContaining({ run: expect.any(Function) }),
+		);
 	});
 });

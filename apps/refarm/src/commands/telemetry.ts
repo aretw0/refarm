@@ -1,6 +1,25 @@
 import chalk from "chalk";
-import { Command } from "commander";
-import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
+import { Command, InvalidArgumentError } from "commander";
+import {
+	buildDiagnosticNextActionPayload,
+	diagnosticNextActions,
+	diagnosticNextCommands,
+	type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
+import { refarmCommand } from "./command-handoff.js";
+import { printJson } from "./json-output.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import {
+	isSidecarUnavailable,
+	printSidecarUnavailable,
+	reportSidecarError,
+} from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -28,6 +47,14 @@ const PROFILE_THRESHOLDS: Record<ThresholdProfileName, TelemetryThresholds> = {
 		failRateWarn: 30,
 	},
 };
+
+const TASK_LIST_JSON_COMMAND = refarmCommand(["task", "list", "--json"]);
+const FAILED_TASKS_JSON_COMMAND = refarmCommand([
+	"tasks",
+	"--status",
+	"failed",
+	"--json",
+]);
 
 export interface RuntimeTelemetrySnapshot {
 	queueDepth: number;
@@ -71,13 +98,29 @@ function parseDiagnosticList(raw: string | undefined): string[] {
 		.filter(Boolean);
 }
 
-function toPositiveInt(raw: string | undefined, fallback: number): number {
+function parsePositiveIntOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isInteger(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive integer.`);
+	}
+	return parsed;
+}
+
+function parsePositiveNumberOption(value: string, label: string): number {
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0) {
+		throw new InvalidArgumentError(`${label} must be a positive number.`);
+	}
+	return parsed;
+}
+
+function toPositiveInt(raw: number | string | undefined, fallback: number): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
 	return Math.floor(parsed);
 }
 
-function toPositiveNumber(raw: string | undefined, fallback: number): number {
+function toPositiveNumber(raw: number | string | undefined, fallback: number): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
 	return Number(parsed);
@@ -85,6 +128,15 @@ function toPositiveNumber(raw: string | undefined, fallback: number): number {
 
 function isThresholdProfileName(raw: string): raw is ThresholdProfileName {
 	return raw === "conservative" || raw === "balanced" || raw === "throughput";
+}
+
+function parseThresholdProfile(value: string): ThresholdProfileName {
+	if (isThresholdProfileName(value)) {
+		return value;
+	}
+	throw new InvalidArgumentError(
+		`invalid profile "${value}". Use: conservative | balanced | throughput`,
+	);
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
@@ -137,54 +189,59 @@ export function buildTelemetryRecommendations(
 					diagnostic,
 					summary: "The task queue is above the configured warning threshold.",
 					action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "saturation:inflight":
 				return {
 					diagnostic,
 					summary: "In-flight effort count is above the configured warning threshold.",
 					action: "Wait for active efforts to settle or increase worker capacity before starting more work.",
+					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "reliability:failures-present":
 				return {
 					diagnostic,
 					summary: "Failed efforts are present in the current telemetry snapshot.",
 					action: "Inspect failed effort logs and retry only after the failure cause is understood.",
+					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "reliability:failures-recent":
 				return {
 					diagnostic,
 					summary: "Recent telemetry window includes failed efforts.",
 					action: "Inspect recent failures before continuing automated execution.",
+					command: FAILED_TASKS_JSON_COMMAND,
 				};
 			case "reliability:failure-rate":
 				return {
 					diagnostic,
 					summary: "Recent failure rate is above the configured warning threshold.",
 					action: "Pause non-essential automation and investigate the dominant failing tasks.",
+					command: FAILED_TASKS_JSON_COMMAND,
 				};
 			default:
 				return {
 					diagnostic,
 					summary: `Telemetry diagnostic ${diagnostic} is present.`,
 					action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+					command: RUNTIME_DOCTOR_NEXT_COMMAND,
 				};
 		}
 	});
 }
 
-function printConnectionFailure(message: string): never {
-	if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
-		console.error(chalk.red("✗  farmhand is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+function printConnectionFailure(message: string): void {
+	if (isSidecarUnavailable(message)) {
+		printSidecarUnavailable();
 	} else if (message.includes("telemetry endpoint not available")) {
 		console.error(
 			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),
 		);
-		console.error(chalk.dim("   Update/restart farmhand and retry."));
+		console.error(chalk.dim("   Update or restart the Refarm runtime and retry."));
 	} else {
 		console.error(chalk.red(`✗  ${message}`));
 	}
-	process.exit(1);
+	process.exitCode = 1;
 }
 
 export function createTelemetryCommand(deps?: TelemetryDeps): Command {
@@ -198,43 +255,69 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 			"Show runtime telemetry snapshot and saturation/reliability signals",
 		)
 		.option("--json", "Output machine-readable JSON")
+		.option("--next-action", "Print only the first telemetry recovery action")
 		.option(
 			"--profile <name>",
 			"Threshold profile: conservative | balanced | throughput",
+			parseThresholdProfile,
 			"balanced",
 		)
-		.option("--window-minutes <n>", "Rolling window size in minutes", "60")
-		.option("--queue-warn <n>", "Warn threshold for queue depth")
-		.option("--inflight-warn <n>", "Warn threshold for in-flight efforts")
+		.option(
+			"--window-minutes <n>",
+			"Rolling window size in minutes",
+			(value) => parsePositiveIntOption(value, "--window-minutes"),
+			60,
+		)
+		.option("--queue-warn <n>", "Warn threshold for queue depth", (value) =>
+			parsePositiveIntOption(value, "--queue-warn"),
+		)
+		.option(
+			"--inflight-warn <n>",
+			"Warn threshold for in-flight efforts",
+			(value) => parsePositiveIntOption(value, "--inflight-warn"),
+		)
 		.option(
 			"--fail-rate-warn <pct>",
 			"Warn threshold for rolling-window failure rate (%)",
+			(value) => parsePositiveNumberOption(value, "--fail-rate-warn"),
 		)
 		.option("--strict", "Exit non-zero when selected diagnostics are present")
 		.option(
 			"--strict-on <codes>",
 			"Comma-separated diagnostic codes to enforce in strict mode (default: all diagnostics)",
 		)
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm telemetry
+  $ refarm telemetry --profile conservative
+  $ refarm telemetry --json --strict
+  $ refarm telemetry --next-action
+  $ refarm telemetry --next-action --json
+  $ refarm telemetry --json --strict-on saturation:queue,reliability:failure-rate
+
+Notes:
+  Use --strict in automation when telemetry pressure should fail the current step.
+  If telemetry cannot reach the local runtime, run ${RUNTIME_STATUS_COMMAND}, then ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.
+  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.
+  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.
+`,
+		)
 		.action(
 			async (opts: {
 				json?: boolean;
-				profile?: string;
-				windowMinutes?: string;
-				queueWarn?: string;
-				inflightWarn?: string;
-				failRateWarn?: string;
+				nextAction?: boolean;
+				profile?: ThresholdProfileName;
+				windowMinutes?: number;
+				queueWarn?: number;
+				inflightWarn?: number;
+				failRateWarn?: number;
 				strict?: boolean;
 				strictOn?: string;
 			}) => {
 				const profileName = opts.profile ?? "balanced";
-				if (!isThresholdProfileName(profileName)) {
-					console.error(
-						chalk.red(
-							`✗  invalid profile "${profileName}". Use: conservative | balanced | throughput`,
-						),
-					);
-					process.exit(1);
-				}
 
 				const baseThresholds = PROFILE_THRESHOLDS[profileName];
 				const thresholds = {
@@ -254,16 +337,34 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 				try {
 					snapshot = await resolved.fetchTelemetry();
 				} catch (err) {
-					const message = err instanceof Error ? err.message : String(err);
-					printConnectionFailure(message);
+					if (opts.json) {
+						reportSidecarError(err, {
+							json: true,
+							command: "telemetry",
+							operation: "snapshot",
+						});
+					} else {
+						const message = err instanceof Error ? err.message : String(err);
+						printConnectionFailure(message);
+					}
+					return;
 				}
 
 				let window: RuntimeTelemetryWindow | null = null;
 				try {
 					window = await resolved.fetchTelemetryWindow(windowMinutes);
 				} catch (err) {
-					const message = err instanceof Error ? err.message : String(err);
-					printConnectionFailure(message);
+					if (opts.json) {
+						reportSidecarError(err, {
+							json: true,
+							command: "telemetry",
+							operation: "window",
+						});
+					} else {
+						const message = err instanceof Error ? err.message : String(err);
+						printConnectionFailure(message);
+					}
+					return;
 				}
 
 				const diagnostics: string[] = [];
@@ -294,8 +395,13 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 						: [...diagnostics];
 				const strictPassed = !opts.strict || strictMatches.length === 0;
 				const recommendations = buildTelemetryRecommendations(diagnostics);
+				const nextActions = diagnosticNextActions(recommendations);
+				const nextCommands = diagnosticNextCommands(recommendations);
 
 				const payload = {
+					command: "telemetry",
+					operation: "snapshot",
+					ok: diagnostics.length === 0,
 					snapshot,
 					window,
 					thresholds: {
@@ -305,6 +411,10 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 					},
 					diagnostics,
 					recommendations,
+					nextAction: nextActions[0] ?? null,
+					nextActions,
+					nextCommand: nextCommands[0] ?? null,
+					nextCommands,
 					strict: {
 						enabled: !!opts.strict,
 						targets: strictTargets,
@@ -313,10 +423,34 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 					},
 				};
 
-				if (opts.json) {
-					console.log(JSON.stringify(payload, null, 2));
+				if (opts.nextAction && opts.json) {
+					printJson(
+						buildDiagnosticNextActionPayload({
+							ok: diagnostics.length === 0,
+							nextActions,
+							nextCommands,
+							strict: payload.strict,
+						}),
+					);
 					if (!strictPassed) {
-						process.exit(2);
+						process.exitCode = 2;
+					}
+					return;
+				}
+
+				if (opts.nextAction) {
+					const [action] = nextActions;
+					if (action) console.log(action);
+					if (!strictPassed) {
+						process.exitCode = 2;
+					}
+					return;
+				}
+
+				if (opts.json) {
+					printJson(payload);
+					if (!strictPassed) {
+						process.exitCode = 2;
 					}
 					return;
 				}
@@ -347,7 +481,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 				} else {
 					console.log(
 						chalk.dim(
-							"\n  recent window unavailable (update/restart farmhand to enable).",
+							"\n  recent window unavailable (update/restart the Refarm runtime to enable).",
 						),
 					);
 				}
@@ -378,7 +512,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 							chalk.dim(`  enforced codes: ${strictTargets.join(", ")}`),
 						);
 					}
-					process.exit(2);
+					process.exitCode = 2;
 				}
 			},
 		);

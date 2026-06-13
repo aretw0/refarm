@@ -265,7 +265,7 @@ describe("WasiImports — versioned WASI keys", () => {
 // Drift prevention: every refarm:plugin/* import in the transpiled pi-agent
 // artifact must have a matching key registered by WasiImports.generate().
 // Skips when pi-agent hasn't been built yet (fresh checkout, CI pre-build).
-// To build: npm run build --workspace=@refarm.dev/pi-agent
+// To build: run the package-manager build script for @refarm.dev/pi-agent.
 // ---------------------------------------------------------------------------
 describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
   it("every refarm:plugin/* import in _refarm_pi_agent.js has a host registration", () => {
@@ -274,7 +274,7 @@ describe("WasiImports — drift prevention: .jco-dist matches registered imports
     const artifactPath = resolve(piAgentDir, "dist/jco/_refarm_pi_agent.js");
 
     if (!existsSync(artifactPath)) {
-      console.warn("[drift-prevention] Skipping: pi-agent dist/jco not built. Run: npm run build --workspace=@refarm.dev/pi-agent");
+      console.warn("[drift-prevention] Skipping: pi-agent dist/jco not built. Run the package-manager build script for @refarm.dev/pi-agent.");
       return;
     }
 

@@ -26,19 +26,7 @@
     }
 
     fn configured_fs_root_err_for(raw: &str) -> String {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("MODEL_FS_ROOT").ok();
-
-        std::env::set_var("MODEL_FS_ROOT", raw);
-        let err = configured_fs_root().unwrap_err();
-
-        if let Some(prev) = prev {
-            std::env::set_var("MODEL_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("MODEL_FS_ROOT");
-        }
-
-        err
+        configured_fs_root_from_raw(raw).unwrap_err()
     }
 
     #[test]
@@ -1197,4 +1185,3 @@
             );
         }
     }
-

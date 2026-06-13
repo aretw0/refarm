@@ -11,6 +11,11 @@ The Tractor, Heartwood, and base Contracts (`-contract-v1`) are the foundation o
 
 - **Cadence**: Infrequent. Changes require architectural validation (ADRs).
 - **Versioning**: Strict Semantic Versioning. Breaking changes to capability contracts require a new package (e.g., `storage-contract-v2`).
+- **Pre-publish baseline**: Packages that have not reached npm yet should be
+  treated as still defining their first public artifact. Do not stack patch or
+  minor changesets that imply prior registry history; fold first-release contract
+  refinements into the initial-release changeset, or reset the package baseline
+  before release preparation.
 - **Release Security**:
   - Scripts like `release.mjs` only prepare a local environment. They enforce clean git states, build outputs, and capability test compliance.
   - They **never** publish directly. They create a signed Git tag.

@@ -70,6 +70,16 @@ describe("refarm tree fork", () => {
 			scope: "git",
 			operation: "fork",
 			reason: "executed",
+			nextAction: "refarm tree preview --scope git safe/fork --switch --json",
+			nextActions: [
+				"refarm tree preview --scope git safe/fork --switch --json",
+			],
+			nextCommand: "refarm tree preview --scope git safe/fork --switch --json",
+			nextCommands: [
+				"refarm tree preview --scope git safe/fork --switch --json",
+				"refarm tree show --scope git abcdef123456 --json",
+				"refarm tree list --scope git --json",
+			],
 			result: {
 				kind: "git-branch",
 				destructive: false,
@@ -91,27 +101,20 @@ describe("refarm tree fork", () => {
 			.mockReturnValueOnce(makeSpawnResult(0))
 			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(
 				'Git worktree changed from "main" to "safe/fork" during tree fork.',
 			),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("fails closed before branch creation when current ref cannot be read", async () => {
@@ -120,25 +123,18 @@ describe("refarm tree fork", () => {
 			.mockReturnValueOnce(makeSpawnResult(1))
 			.mockReturnValueOnce(makeSpawnResult(128, "", "fatal: ambiguous HEAD"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("fatal: ambiguous HEAD"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(3);
 	});
 
@@ -147,139 +143,132 @@ describe("refarm tree fork", () => {
 			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
 			.mockReturnValueOnce(makeSpawnResult(0));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
-					from: "user",
-				}),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining('Git branch "safe/fork" already exists.'),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 
 	it("rejects entry selectors for git tree forks before git execution", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(
-					[
-						"abcdef",
-						"--scope",
-						"git",
-						"--name",
-						"safe/fork",
-						"--at",
-						"entry-1",
-					],
-					{ from: "user" },
-				),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(
+				[
+					"abcdef",
+					"--scope",
+					"git",
+					"--name",
+					"safe/fork",
+					"--at",
+					"entry-1",
+				],
+				{ from: "user" },
+			);
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--at is only supported for session timelines"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
 	it("rejects entry selectors for git tree forks before branch-name validation", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(
-					[
-						"abcdef",
-						"--scope",
-						"git",
-						"--name",
-						"unsafe..name",
-						"--at",
-						"entry-1",
-					],
-					{ from: "user" },
-				),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(
+				[
+					"abcdef",
+					"--scope",
+					"git",
+					"--name",
+					"unsafe..name",
+					"--at",
+					"entry-1",
+				],
+				{ from: "user" },
+			);
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("--at is only supported for session timelines"),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
 	it("rejects session tree forks until session execution is explicit", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abc123", "--name", "safe/fork"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abc123", "--name", "safe/fork"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(
 				"refarm tree fork currently supports --scope git only",
 			),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("prints session tree fork rejection as JSON before branch-name validation", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abc123", "--name", "unsafe..name", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "tree",
+			operation: "fork",
+			ok: false,
+			error: "unsupported-tree-fork-scope",
+			message: expect.stringContaining(
+				"refarm tree fork currently supports --scope git only",
+			),
+			nextCommand: "refarm tree list --scope all --json",
+			scope: "session",
+			allowedScopes: ["git"],
+		});
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
 	it("rejects session tree forks before branch-name validation", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "fork")!
-				.parseAsync(["abc123", "--name", "unsafe..name"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(["abc123", "--name", "unsafe..name"], { from: "user" });
 
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(
 				"refarm tree fork currently supports --scope git only",
 			),
 		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(process.exitCode).toBe(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 

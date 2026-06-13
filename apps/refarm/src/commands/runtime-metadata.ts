@@ -1,3 +1,4 @@
+import { detectPackageManager, type PackageManagerName } from "@refarm.dev/config";
 import { readFileSync } from "node:fs";
 
 const UNKNOWN_VERSION = "unknown";
@@ -9,6 +10,7 @@ const DEFAULT_PACKAGE_JSON_PATH = new URL(
 let cachedVersion: string | undefined;
 
 interface ResolveVersionOptions {
+	cwd?: string;
 	env?: NodeJS.ProcessEnv;
 	packageJsonPath?: URL | string;
 	readPackageJson?: (path: URL | string) => string;
@@ -25,6 +27,7 @@ export interface RefarmRuntimeMetadata {
 	command: string;
 	profile: string;
 	version: string;
+	packageManager: PackageManagerName;
 }
 
 export interface ResolveRefarmRuntimeMetadataOptions
@@ -87,6 +90,10 @@ export function resolveRefarmRuntimeMetadata(
 	return {
 		...host,
 		version: resolveVersion(options),
+		packageManager: detectPackageManager({
+			cwd: options?.cwd ?? process.cwd(),
+			env: options?.env ?? process.env,
+		}),
 	};
 }
 

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { gitUrlAdapter } from './git-adapter.mjs';
+import { packageScriptCommand } from './package-manager.mjs';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -100,7 +101,7 @@ async function main() {
         runCommand('git checkout main');
         runCommand('git pull origin main');
         runCommand(`git checkout -b ${branchName}`);
-        console.log(`\n✅ Hotfix branch created. Run 'npm run task:finish' when done.`);
+        console.log(`\n✅ Hotfix branch created. Run '${packageScriptCommand('task:finish').display}' when done.`);
         process.exit(0);
     }
 
@@ -178,7 +179,7 @@ async function main() {
     }
 
     console.log(`\n🏁 Task Environment Ready! You are on branch: ${branchName}`);
-    console.log(`Run 'npm run task:finish' when you're done with your BDD/TDD/DDD cycle.`);
+    console.log(`Run '${packageScriptCommand('task:finish').display}' when you're done with your BDD/TDD/DDD cycle.`);
     process.exit(0);
 }
 

@@ -1,24 +1,14 @@
 #!/usr/bin/env node
-import chalk from "chalk";
-import { program } from "./program.js";
-import { TokenAuthError } from "./credentials/token-auth-error.js";
 
-function terminalLink(text: string, url: string): string {
-	return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
+import {
+	isModuleResolutionError,
+	renderBootstrapFailure,
+} from "./bootstrap-preflight.js";
+
+try {
+	await import("./cli-main.js");
+} catch (error) {
+	if (!isModuleResolutionError(error)) throw error;
+	renderBootstrapFailure(error);
+	process.exitCode = 1;
 }
-
-function renderTokenAuthError(err: TokenAuthError): void {
-	const urlText = process.stderr.isTTY
-		? terminalLink(chalk.cyan(err.rotationUrl), err.rotationUrl)
-		: chalk.cyan(err.rotationUrl);
-	process.stderr.write(chalk.red(`\n✗  ${err.message}\n`));
-	process.stderr.write(chalk.dim("   Rotate at: ") + urlText + "\n");
-}
-
-program.parseAsync(process.argv).catch((err: unknown) => {
-	if (err instanceof TokenAuthError) {
-		renderTokenAuthError(err);
-		process.exit(1);
-	}
-	throw err;
-});

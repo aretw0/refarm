@@ -39,8 +39,8 @@
         "./packages/homestead/src/sdk/surface-renderer"
       ],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
-      "@refarm.dev/artefact-contract-v1": [
-        "./packages/artefact-contract-v1/src/index"
+      "@refarm.dev/artifact-contract-v1": [
+        "./packages/artifact-contract-v1/src/index"
       ],
       "@refarm.dev/automation-contract-v1": [
         "./packages/automation-contract-v1/src/index"

@@ -4,11 +4,15 @@ import type {
 	EffortSummary,
 } from "@refarm.dev/effort-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTaskCommand, resolveAdapter } from "../../src/commands/task.js";
 import type {
 	TaskSessionCheckpoint,
 	TaskSessionRecorder,
 } from "../../src/commands/task-session.js";
+import {
+	createTaskCommand,
+	normalizeTaskArgs,
+	resolveAdapter,
+} from "../../src/commands/task.js";
 
 interface MockTaskAdapter {
 	submit: ReturnType<typeof vi.fn>;
@@ -81,6 +85,68 @@ describe("refarm task run", () => {
 		process.exitCode = undefined;
 	});
 
+	it("documents runtime task transports in help", () => {
+		const taskCommand = createTaskCommand();
+		let help = "";
+		taskCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		taskCommand.outputHelp();
+
+		expect(help).toContain("Manage Refarm runtime task efforts");
+		expect(help).toContain("refarm task run runtime-agent respond");
+		expect(help).toContain('{"prompt":"hello"}');
+		expect(help).toContain("http transport submits directly");
+		expect(help).toContain("refarm runtime status");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
+		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor");
+	});
+
+	it("documents task run examples and transport behavior", () => {
+		const taskCommand = createTaskCommand();
+		const runCommand = taskCommand.commands.find(
+			(command) => command.name() === "run",
+		);
+		let help = "";
+		runCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		runCommand?.outputHelp();
+
+		expect(help).toContain("refarm task run runtime-agent respond");
+		expect(help).toContain('{"query":"hello"}');
+		expect(help).toContain("http transport submits directly");
+		expect(help).toContain("refarm runtime ensure --wait --next-command");
+	});
+
+	it("normalizes legacy query args for runtime-agent respond tasks", () => {
+		expect(
+			normalizeTaskArgs("runtime-agent", "respond", { query: "hello" }),
+		).toEqual({ query: "hello", prompt: "hello" });
+		expect(
+			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", { query: "hello" }),
+		).toEqual({ query: "hello", prompt: "hello" });
+		expect(
+			normalizeTaskArgs("@refarm/pi-agent", "respond", { query: "hello" }),
+		).toEqual({ query: "hello", prompt: "hello" });
+		expect(
+			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", {
+				query: "legacy",
+				prompt: "canonical",
+			}),
+		).toEqual({ query: "legacy", prompt: "canonical" });
+		expect(normalizeTaskArgs("other", "respond", { query: "hello" })).toEqual({
+			query: "hello",
+		});
+	});
+
 	it("dispatches effort and prints effortId", async () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
@@ -108,6 +174,94 @@ describe("refarm task run", () => {
 		spy.mockRestore();
 	});
 
+	it("dispatches effort as JSON", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(
+				[
+					"my-plugin",
+					"process",
+					"--direction",
+					"Test effort",
+					"--args",
+					'{"value":1}',
+					"--json",
+				],
+				{ from: "user" },
+			);
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			effortId: string;
+			transport: string;
+			plugin: string;
+			fn: string;
+			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
+			effort: { direction: string; tasks: Array<{ args: unknown }> };
+		};
+		expect(payload).toEqual(
+			expect.objectContaining({
+				ok: true,
+				command: "task",
+				operation: "run",
+				effortId: "effort-abc",
+				transport: "file",
+				plugin: "my-plugin",
+				fn: "process",
+				nextCommand: "refarm task status effort-abc --transport file --watch --json",
+			}),
+		);
+		expect(payload.nextActions).toEqual(payload.nextCommands);
+		expect(payload.nextCommands).toContain("refarm task status effort-abc --transport file --json");
+		expect(payload.nextCommands).toContain("refarm task logs effort-abc --transport file --json");
+		expect(payload.effort.direction).toBe("Test effort");
+		expect(payload.effort.tasks[0]?.args).toEqual({ value: 1 });
+		expect(session.rememberRun).toHaveBeenCalledWith(
+			expect.objectContaining({ transport: "file" }),
+		);
+		spy.mockRestore();
+	});
+
+	it("dispatches runtime-agent respond query args as prompt with canonical plugin id", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(
+				["runtime-agent", "respond", "--args", '{"query":"hello"}'],
+				{ from: "user" },
+			);
+
+		expect(adapter.submit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						pluginId: "@refarm/pi-agent",
+						args: { query: "hello", prompt: "hello" },
+					}),
+				],
+			}),
+		);
+		spy.mockRestore();
+	});
+
 	it("prints error and sets exitCode when --args is invalid JSON", async () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
@@ -125,6 +279,69 @@ describe("refarm task run", () => {
 		expect(session.rememberRun).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 		spy.mockRestore();
+	});
+
+	it("prints structured JSON when --args is invalid JSON", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(["p", "f", "--args", "not-json", "--json"], {
+				from: "user",
+			});
+
+		expect(JSON.parse(String(spy.mock.calls[0]?.[0]))).toEqual(
+			expect.objectContaining({
+				ok: false,
+				command: "task",
+				operation: "run",
+				error: "invalid-task-args-json",
+				message: "--args must be valid JSON.",
+				plugin: "p",
+				fn: "f",
+				transport: "file",
+				nextCommand: "refarm task run 'p' 'f' --args '{}' --transport file --json",
+			}),
+		);
+		expect(resolver).not.toHaveBeenCalled();
+		expect(adapter.submit).not.toHaveBeenCalled();
+		expect(session.rememberRun).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		spy.mockRestore();
+	});
+
+	it("rejects unknown transports before resolving adapters", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const runCommand = taskCommand.commands.find(
+			(command) => command.name() === "run",
+		)!;
+		runCommand.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			runCommand.parseAsync(["p", "f", "--transport", "grpc"], { from: "user" }),
+		).rejects.toThrow('Invalid task transport "grpc". Use: file, http');
+
+		expect(resolver).not.toHaveBeenCalled();
+		expect(adapter.submit).not.toHaveBeenCalled();
 	});
 });
 
@@ -155,6 +372,24 @@ describe("refarm task status", () => {
 		});
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("No result yet"));
 		spy.mockRestore();
+	});
+
+	it("documents task status watch and transport options", () => {
+		const taskCommand = createTaskCommand();
+		const statusCommand = taskCommand.commands.find(
+			(command) => command.name() === "status",
+		);
+		let help = "";
+		statusCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		statusCommand?.outputHelp();
+
+		expect(help).toContain("refarm task status <effort-id> --watch");
+		expect(help).toContain("Use the same transport used by task run");
 	});
 
 	it("prints status and task results when found", async () => {
@@ -197,12 +432,200 @@ describe("refarm task status", () => {
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("t1"));
 		spy.mockRestore();
 	});
+
+	it("prints status transport in JSON output when found", async () => {
+		const result: EffortResult = {
+			effortId: "effort-abc",
+			status: "done",
+			results: [],
+			submittedAt: new Date().toISOString(),
+			completedAt: new Date().toISOString(),
+		};
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(result),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			transport: string;
+			nextCommand: string;
+		};
+		expect(payload.transport).toBe("http");
+		expect(payload.nextCommand).toBe(
+			"refarm task logs effort-abc --transport http --json",
+		);
+		spy.mockRestore();
+	});
+
+	it("reports observed failure for legacy ok task results with agent error payloads", async () => {
+		const result: EffortResult = {
+			effortId: "effort-legacy",
+			status: "done",
+			results: [
+				{
+					taskId: "t1",
+					effortId: "effort-legacy",
+					status: "ok",
+					result: JSON.stringify({
+						content: "[runtime-agent error] quota exceeded",
+						model: "gpt-5.5",
+					}),
+					completedAt: new Date().toISOString(),
+				},
+			],
+			submittedAt: new Date().toISOString(),
+			completedAt: new Date().toISOString(),
+		};
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(result),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-legacy", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			status: string;
+			observedStatus: string;
+			observedErrors: string[];
+			result: EffortResult;
+		};
+		expect(payload.status).toBe("done");
+		expect(payload.observedStatus).toBe("failed");
+		expect(payload.observedErrors).toEqual([
+			"[runtime-agent error] quota exceeded",
+		]);
+		expect(payload.result.status).toBe("done");
+		spy.mockRestore();
+	});
+
+	it("prints status not-found JSON with follow-up commands", async () => {
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(null),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			transport: string;
+			status: string;
+			nextActions: string[];
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.command).toBe("task");
+		expect(payload.operation).toBe("status");
+		expect(payload.transport).toBe("file");
+		expect(payload.status).toBe("not-found");
+		expect(payload.nextCommand).toBe(
+			"refarm task status effort-abc --transport file --watch --json",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm task logs effort-abc --transport file --json",
+		);
+		expect(payload.nextActions).toEqual(payload.nextCommands);
+		spy.mockRestore();
+	});
+
+	it("prints status adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			query: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "status",
+			error: "task-status-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			logsCommand: "refarm task logs effort-abc --transport http",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberStatus).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
 });
 
 describe("refarm task list/logs/retry/cancel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+	});
+
+	it("documents task list transport and continuation behavior", () => {
+		const taskCommand = createTaskCommand();
+		const listCommand = taskCommand.commands.find(
+			(command) => command.name() === "list",
+		);
+		let help = "";
+		listCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		listCommand?.outputHelp();
+
+		expect(help).toContain("refarm task list --transport http --json");
+		expect(help).toContain("JSON output includes status/log nextCommands");
+		expect(help).toContain("observedSummary/observedEfforts");
+		expect(help).toContain("Human output prints an Observed summary");
+		expect(help).toContain("Use resume to continue from the local checkpoint");
 	});
 
 	it("list prints summary and effort rows", async () => {
@@ -249,6 +672,230 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("list prints observed summary when stored statuses hide agent errors", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 0,
+				inProgress: 0,
+				done: 1,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-legacy",
+					status: "done",
+					results: [
+						{
+							taskId: "t1",
+							effortId: "effort-legacy",
+							status: "ok",
+							result: JSON.stringify({
+								content: "[runtime-agent error] quota exceeded",
+								model: "gpt-5.5",
+							}),
+							completedAt: new Date().toISOString(),
+						},
+					],
+					submittedAt: new Date().toISOString(),
+					completedAt: new Date().toISOString(),
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync([], { from: "user" });
+
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Efforts: total=1"),
+		);
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Observed: total=1"),
+		);
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("failed=1"));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("status=failed stored_status=done"),
+		);
+		spy.mockRestore();
+	});
+
+	it("list prints transport in JSON output", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 1,
+				inProgress: 0,
+				done: 0,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-abc",
+					status: "pending",
+					results: [],
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--transport", "http", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			transport: string;
+			effortCommands: Array<{
+				effortId: string;
+				statusCommand: string;
+				logsCommand: string;
+			}>;
+			modelInspectCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.transport).toBe("http");
+		expect(payload.effortCommands).toEqual([
+			{
+				effortId: "effort-abc",
+				statusCommand: "refarm task status effort-abc --transport http --json",
+				logsCommand: "refarm task logs effort-abc --transport http --json",
+			},
+		]);
+		expect(payload.modelInspectCommand).toBe("refarm model current --json");
+		expect(payload.nextCommands).toContain(
+			"refarm task status effort-abc --transport http --json",
+		);
+		spy.mockRestore();
+	});
+
+	it("list prints observed summary fields for legacy agent errors", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 0,
+				inProgress: 0,
+				done: 1,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-legacy",
+					status: "done",
+					results: [
+						{
+							taskId: "t1",
+							effortId: "effort-legacy",
+							status: "ok",
+							result: JSON.stringify({
+								content: "[runtime-agent error] quota exceeded",
+								model: "gpt-5.5",
+							}),
+							completedAt: new Date().toISOString(),
+						},
+					],
+					submittedAt: new Date().toISOString(),
+					completedAt: new Date().toISOString(),
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			summary: EffortSummary;
+			observedSummary: EffortSummary;
+			observedEfforts: Array<{
+				effortId: string;
+				status: string;
+				observedStatus: string;
+				observedErrors: string[];
+			}>;
+			nextCommands: string[];
+		};
+		expect(payload.summary.done).toBe(1);
+		expect(payload.summary.failed).toBe(0);
+		expect(payload.observedSummary.done).toBe(0);
+		expect(payload.observedSummary.failed).toBe(1);
+		expect(payload.observedEfforts).toEqual([
+			{
+				effortId: "effort-legacy",
+				status: "done",
+				observedStatus: "failed",
+				observedErrors: ["[runtime-agent error] quota exceeded"],
+			},
+		]);
+		expect(payload.nextCommands).toEqual([]);
+		spy.mockRestore();
+	});
+
+	it("prints list adapter failures as JSON without checkpoint writes", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--transport", "http", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "list",
+			error: "task-list-failed",
+			message: "HTTP 503",
+			transport: "http",
+			nextAction: "refarm doctor --next-action",
+			nextCommand: "refarm doctor --next-command",
+			nextCommands: [
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberList).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("logs prints entries", async () => {
 		const logs: EffortLogEntry[] = [
 			{
@@ -282,6 +929,203 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("logs prints model route metadata when present", async () => {
+		const logs: EffortLogEntry[] = [
+			{
+				effortId: "effort-abc",
+				timestamp: new Date().toISOString(),
+				level: "info",
+				event: "task_attempt_succeeded",
+				message: "Task succeeded",
+				taskId: "task-1",
+				attempt: 1,
+				meta: {
+					modelScope: "worker",
+					modelProvider: "openai",
+					modelId: "gpt-5.3-codex-spark",
+				},
+			},
+		];
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockResolvedValue(logs),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc"], { from: "user" });
+
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("scope=worker model=openai/gpt-5.3-codex-spark"),
+		);
+		spy.mockRestore();
+	});
+
+	it("logs prints empty JSON with status follow-up", async () => {
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockResolvedValue([]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			transport: string;
+			logs: EffortLogEntry[];
+			nextCommand: string;
+		};
+		expect(payload.ok).toBe(true);
+		expect(payload.command).toBe("task");
+		expect(payload.operation).toBe("logs");
+		expect(payload.transport).toBe("file");
+		expect(payload.logs).toEqual([]);
+		expect(payload.nextCommand).toBe(
+			"refarm task status effort-abc --transport file --json",
+		);
+		spy.mockRestore();
+	});
+
+	it("prints observed failure fields in logs JSON when a legacy result failed", async () => {
+		const result: EffortResult = {
+			effortId: "effort-legacy",
+			status: "done",
+			results: [
+				{
+					taskId: "t1",
+					effortId: "effort-legacy",
+					status: "ok",
+					result: JSON.stringify({
+						content: "[runtime-agent error] quota exceeded",
+						model: "gpt-5.5",
+					}),
+					completedAt: new Date().toISOString(),
+				},
+			],
+			submittedAt: new Date().toISOString(),
+			completedAt: new Date().toISOString(),
+		};
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(result),
+			logs: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-legacy",
+					timestamp: new Date().toISOString(),
+					level: "info",
+					event: "task_attempt_succeeded",
+					message: "Task succeeded on attempt 1",
+					taskId: "t1",
+					attempt: 1,
+				},
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-legacy", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			observedStatus: string;
+			observedErrors: string[];
+			logs: EffortLogEntry[];
+		};
+		expect(payload.observedStatus).toBe("failed");
+		expect(payload.observedErrors).toEqual([
+			"[runtime-agent error] quota exceeded",
+		]);
+		expect(payload.logs).toHaveLength(1);
+		spy.mockRestore();
+	});
+
+	it("prints log adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "logs",
+			error: "task-logs-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			statusCommand: "refarm task status effort-abc --transport http",
+			nextAction: "refarm task status effort-abc --transport http",
+			nextCommand: "refarm task status effort-abc --transport http",
+			nextCommands: [
+				"refarm task status effort-abc --transport http",
+				"refarm doctor --next-command",
+			],
+		});
+		expect(session.rememberLogs).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("rejects invalid log tail values before querying adapters", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logsCommand = taskCommand.commands.find(
+			(command) => command.name() === "logs",
+		)!;
+		logsCommand.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			logsCommand.parseAsync(["effort-abc", "--tail", "many"], { from: "user" }),
+		).rejects.toThrow("--tail must be a positive integer.");
+
+		expect(resolver).not.toHaveBeenCalled();
+		expect(adapter.logs).not.toHaveBeenCalled();
+	});
+
 	it("retry sets exitCode when rejected", async () => {
 		const adapter = createMockAdapter({
 			retry: vi.fn().mockResolvedValue(false),
@@ -300,6 +1144,144 @@ describe("refarm task list/logs/retry/cancel", () => {
 		expect(process.exitCode).toBe(1);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Retry rejected"));
 		spy.mockRestore();
+	});
+
+	it("retry prints accepted result as JSON", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockResolvedValue(true),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			effortId: string;
+			transport: string;
+			action: string;
+			accepted: boolean;
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			command: "task",
+			operation: "retry",
+			effortId: "effort-abc",
+			transport: "http",
+			action: "retry",
+			accepted: true,
+			nextCommand: "refarm task status effort-abc --transport http --watch --json",
+		});
+		expect(payload.nextAction).toContain("--watch");
+		expect(session.rememberControl).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "http",
+			action: "retry",
+		});
+		spy.mockRestore();
+	});
+
+	it("retry prints rejected result as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockResolvedValue(false),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			accepted: boolean;
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "task-retry-rejected",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport file --json",
+			nextCommand: "refarm task status effort-abc --transport file --json",
+		});
+		expect(payload.nextCommands).toContain("refarm doctor --next-command");
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("retry prints adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "retry",
+			error: "task-retry-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			action: "retry",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport http --json",
+			nextCommand: "refarm task status effort-abc --transport http --json",
+			nextCommands: [
+				"refarm task status effort-abc --transport http --json",
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("cancel requests cancellation", async () => {
@@ -326,6 +1308,144 @@ describe("refarm task list/logs/retry/cancel", () => {
 			expect.stringContaining("Cancel requested"),
 		);
 		spy.mockRestore();
+	});
+
+	it("cancel prints accepted result as JSON", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockResolvedValue(true),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			effortId: string;
+			transport: string;
+			action: string;
+			accepted: boolean;
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			command: "task",
+			operation: "cancel",
+			effortId: "effort-abc",
+			transport: "http",
+			action: "cancel",
+			accepted: true,
+			nextAction: "refarm task status effort-abc --transport http --json",
+			nextCommand: "refarm task status effort-abc --transport http --json",
+		});
+		expect(session.rememberControl).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "http",
+			action: "cancel",
+		});
+		spy.mockRestore();
+	});
+
+	it("cancel prints rejected result as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockResolvedValue(false),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--json"], { from: "user" });
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			accepted: boolean;
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "task-cancel-rejected",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport file --json",
+			nextCommand: "refarm task status effort-abc --transport file --json",
+		});
+		expect(payload.nextCommands).toContain("refarm doctor --next-command");
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("cancel prints adapter failures as JSON without stderr", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockRejectedValue(new Error("HTTP 503")),
+		});
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--transport", "http", "--json"], {
+				from: "user",
+			});
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			ok: false,
+			command: "task",
+			operation: "cancel",
+			error: "task-cancel-failed",
+			message: "HTTP 503",
+			effortId: "effort-abc",
+			transport: "http",
+			action: "cancel",
+			accepted: false,
+			nextAction: "refarm task status effort-abc --transport http --json",
+			nextCommand: "refarm task status effort-abc --transport http --json",
+			nextCommands: [
+				"refarm task status effort-abc --transport http --json",
+				"refarm doctor --next-command",
+				"refarm runtime ensure --wait --next-command",
+			],
+		});
+		expect(session.rememberControl).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 });
 
@@ -385,9 +1505,137 @@ describe("refarm task resume", () => {
 			.find((command) => command.name() === "resume")!
 			.parseAsync(["--json"], { from: "user" });
 
-		expect(spy).toHaveBeenCalledWith(
-			expect.stringContaining('"activeEffortId": "effort-abc"'),
-		);
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			checkpoint: TaskSessionCheckpoint;
+			effortCommands: Array<{
+				effortId: string;
+				statusCommand: string;
+				logsCommand: string;
+			}>;
+			modelInspectCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.checkpoint.activeEffortId).toBe("effort-abc");
+		expect(payload.effortCommands).toEqual([
+			{
+				effortId: "effort-abc",
+				statusCommand: "refarm task status effort-abc --transport http --json",
+				logsCommand: "refarm task logs effort-abc --transport http --json",
+			},
+		]);
+		expect(payload.modelInspectCommand).toBe("refarm model current --json");
+		expect(payload.nextCommands).toEqual([
+			"refarm task status effort-abc --transport http --watch --json",
+			"refarm task logs effort-abc --transport http --json",
+		]);
 		spy.mockRestore();
+	});
+
+	it("does not resume terminal checkpoint efforts when none is active", async () => {
+		const adapter = createMockAdapter();
+		const checkpoint: TaskSessionCheckpoint = {
+			version: 1,
+			updatedAt: new Date().toISOString(),
+			efforts: [
+				{
+					effortId: "effort-done",
+					transport: "file",
+					lastStatus: "done",
+					statusCommand: "refarm task status effort-done --transport file",
+					logsCommand: "refarm task logs effort-done --transport file",
+				},
+			],
+		};
+		const session = createMockSessionRecorder({
+			getCheckpoint: vi.fn().mockReturnValue(checkpoint),
+		});
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "resume")!
+			.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			checkpoint: {
+				efforts: Array<{
+					statusCommand: string;
+					logsCommand: string;
+				}>;
+			};
+			nextCommands: string[];
+		};
+		expect(payload.checkpoint.efforts[0]).toMatchObject({
+			statusCommand: "refarm task status effort-done --transport file --json",
+			logsCommand: "refarm task logs effort-done --transport file --json",
+		});
+		expect(payload.nextCommands).toEqual([]);
+		spy.mockRestore();
+	});
+
+	it("continues from a non-terminal checkpoint effort when none is active", async () => {
+		const adapter = createMockAdapter();
+		const checkpoint: TaskSessionCheckpoint = {
+			version: 1,
+			updatedAt: new Date().toISOString(),
+			efforts: [
+				{
+					effortId: "effort-done",
+					transport: "file",
+					lastStatus: "done",
+					statusCommand: "refarm task status effort-done --transport file",
+					logsCommand: "refarm task logs effort-done --transport file",
+				},
+				{
+					effortId: "effort-pending",
+					transport: "file",
+					lastStatus: "pending",
+					statusCommand: "refarm task status effort-pending --transport file",
+					logsCommand: "refarm task logs effort-pending --transport file",
+				},
+			],
+		};
+		const session = createMockSessionRecorder({
+			getCheckpoint: vi.fn().mockReturnValue(checkpoint),
+		});
+		const taskCommand = createTaskCommand(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "resume")!
+			.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			nextCommands: string[];
+		};
+		expect(payload.nextCommands).toEqual([
+			"refarm task status effort-pending --transport file --watch --json",
+			"refarm task logs effort-pending --transport file --json",
+		]);
+		spy.mockRestore();
+	});
+
+	it("documents local checkpoint behavior", () => {
+		const taskCommand = createTaskCommand();
+		const resumeCommand = taskCommand.commands.find(
+			(command) => command.name() === "resume",
+		);
+		let help = "";
+		resumeCommand?.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		resumeCommand?.outputHelp();
+
+		expect(help).toContain("refarm task resume --json");
+		expect(help).toContain("It does not contact the runtime by itself");
 	});
 });

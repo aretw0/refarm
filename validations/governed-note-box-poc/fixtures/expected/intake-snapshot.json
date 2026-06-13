@@ -1,0 +1,49 @@
+{
+  "source": "synthetic-local-notes",
+  "capturedAt": "2026-01-01T00:00:00.000Z",
+  "notes": [
+    {
+      "id": "note-001",
+      "title": "Sandboxed Extensions",
+      "body": "Synthetic note about extension capability review.",
+      "tags": [
+        "extensions",
+        "governance"
+      ],
+      "links": [
+        "note-002"
+      ],
+      "status": "ready",
+      "createdAt": "2026-01-01"
+    },
+    {
+      "id": "note-002",
+      "title": "Consent Receipts",
+      "body": "Synthetic note about scoped authorization evidence.",
+      "tags": [
+        "identity",
+        "audit"
+      ],
+      "links": [
+        "note-001",
+        "note-003"
+      ],
+      "status": "ready",
+      "createdAt": "2026-01-02"
+    },
+    {
+      "id": "note-003",
+      "title": "Publication Review",
+      "body": "Synthetic draft that should stay out of the publication snapshot.",
+      "tags": [
+        "publication",
+        "review"
+      ],
+      "links": [
+        "note-002"
+      ],
+      "status": "draft",
+      "createdAt": "2026-01-03"
+    }
+  ]
+}

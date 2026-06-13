@@ -10,34 +10,50 @@
  *  - FarmhandTask nodes → execute the plugin function, write result back to graph
  */
 
-import { mkdir, readFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { SiloCore } from "@refarm.dev/silo";
+import {
+	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_ID,
+	loadConfigAsync,
+} from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
-import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
-import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
-import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
-import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
-import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
-import { Tractor } from "@refarm.dev/tractor";
-import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
-import { loadConfigAsync } from "@refarm.dev/config";
 import type {
 	RuntimeHost,
 	RuntimePluginLoaderTarget,
 } from "@refarm.dev/runtime";
+import { SiloCore } from "@refarm.dev/silo";
+import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
+import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
+import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
+import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
+import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
+import { Tractor } from "@refarm.dev/tractor";
+import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
+import { mkdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
+import { injectConfigEnv } from "./config-env.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
+import {
+	createModelRouteResolver,
+	routeForScope,
+	routeResolutionEnv,
+	scopeForEffortSource,
+	withModelRouteEnv,
+} from "./model-routes.js";
+import { PluginUsageTracker } from "./plugin-usage-tracker.js";
+import {
+	createSiloModelEnvInjector,
+	type OAuthCreds,
+} from "./silo-model-env.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
-import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import {
 	FileTransportAdapter,
 	type TaskExecutorFn,
@@ -165,20 +181,6 @@ async function handleFarmhandTask(
 	});
 }
 
-const MODEL_ENV_KEY: Record<string, string> = {
-	anthropic: "ANTHROPIC_API_KEY",
-	openai: "OPENAI_API_KEY",
-	groq: "GROQ_API_KEY",
-	mistral: "MISTRAL_API_KEY",
-	xai: "XAI_API_KEY",
-	deepseek: "DEEPSEEK_API_KEY",
-	together: "TOGETHER_API_KEY",
-	openrouter: "OPENROUTER_API_KEY",
-	gemini: "GEMINI_API_KEY",
-};
-
-interface OAuthCreds { access: string; refresh: string; expires: number }
-
 const OAUTH_TOKEN_URLS: Record<string, string> = {
 	anthropic: "https://platform.claude.com/v1/oauth/token",
 	"openai-codex": "https://auth.openai.com/oauth/token",
@@ -187,6 +189,18 @@ const OAUTH_CLIENT_IDS: Record<string, string> = {
 	anthropic: "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
 	"openai-codex": "app_EMoamEEZ73f0CkXaXp7hrann",
 };
+
+const silo = new SiloCore();
+const modelRouteResolver = createModelRouteResolver({
+	loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
+});
+const siloModelEnvInjector = createSiloModelEnvInjector({
+	store: {
+		loadTokens: () => silo.loadTokens() as Promise<Record<string, unknown>>,
+		saveTokens: (tokens) => silo.saveTokens(tokens),
+	},
+	refreshOAuthToken,
+});
 
 async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
 	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
@@ -212,79 +226,7 @@ async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Prom
 }
 
 async function injectSiloModelEnv(): Promise<void> {
-	try {
-		const silo = new SiloCore();
-		const tokens = (await silo.loadTokens()) as Record<string, unknown>;
-		const provider = tokens.modelProvider as string | undefined;
-		const oauthProvider = tokens.oauthProvider as string | undefined;
-
-		if (provider && !process.env.MODEL_PROVIDER) {
-			process.env.MODEL_PROVIDER = provider;
-		}
-
-		// OAuth path: use (and possibly refresh) stored OAuth token
-		if (oauthProvider) {
-			const allOAuth = (tokens.oauthCredentials ?? {}) as Record<string, OAuthCreds>;
-			let creds = allOAuth[oauthProvider];
-			if (creds) {
-				if (Date.now() >= creds.expires) {
-					const refreshed = await refreshOAuthToken(oauthProvider, creds);
-					if (refreshed) {
-						creds = refreshed;
-						await silo.saveTokens({
-							oauthCredentials: { ...allOAuth, [oauthProvider]: refreshed },
-						});
-					} else {
-						console.warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} — agent may fail`);
-						return; // Don't inject an expired token
-					}
-				}
-				const envKey = MODEL_ENV_KEY[provider ?? oauthProvider];
-				if (envKey && !process.env[envKey]) {
-					process.env[envKey] = creds.access;
-				}
-				return;
-			}
-		}
-
-		// API key fallback
-		const apiKey = tokens.modelApiKey as string | undefined;
-		if (apiKey && provider) {
-			const envKey = MODEL_ENV_KEY[provider];
-			if (envKey && !process.env[envKey]) {
-				process.env[envKey] = apiKey;
-			}
-		}
-	} catch {
-		// Silo unavailable — farmhand-start.sh .env fallback still applies
-	}
-}
-
-async function injectConfigEnv(): Promise<void> {
-	try {
-		const cfgPath = path.join(os.homedir(), ".refarm", "config.json");
-		const raw = await readFile(cfgPath, "utf8").catch(() => null);
-		if (!raw) return;
-		const cfg = JSON.parse(raw) as Record<string, unknown>;
-
-		const envMap: Record<string, string> = {
-			MODEL_FS_ROOT:            "MODEL_FS_ROOT",
-			MODEL_SHELL_ALLOWLIST:    "MODEL_SHELL_ALLOWLIST",
-			MODEL_HISTORY_TURNS:      "MODEL_HISTORY_TURNS",
-			MODEL_TOOL_CALL_MAX_ITER: "MODEL_TOOL_CALL_MAX_ITER",
-			MODEL_STREAM_RESPONSES:   "MODEL_STREAM_RESPONSES",
-			MODEL_SYSTEM:             "MODEL_SYSTEM",
-		};
-
-		for (const [cfgKey, envKey] of Object.entries(envMap)) {
-			const v = cfg[cfgKey];
-			if (v !== undefined && v !== null && !process.env[envKey]) {
-				process.env[envKey] = String(v);
-			}
-		}
-	} catch {
-		// config injection is best-effort
-	}
+	await siloModelEnvInjector.inject();
 }
 
 async function main() {
@@ -325,7 +267,7 @@ async function main() {
 	await mkdir(pluginsDir, { recursive: true });
 
 	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
-	// Loaded first so project-local extensions can override bundled plugins like pi-agent.
+	// Loaded first so project-local extensions can override bundled runtime-agent plugins.
 	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
 	const localExtSummary = await localExtRegistry.load(runtime);
 	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
@@ -337,9 +279,10 @@ async function main() {
 	// Phase 1: Bundled plugins — auto-install from co-located npm packages
 	const defaultBundled: BundledEntry[] = [
 		{
-			id: "@refarm/pi-agent",
-			package: "@refarm.dev/pi-agent",
+			id: RUNTIME_AGENT_PLUGIN_ID,
+			package: RUNTIME_AGENT_NPM_PACKAGE,
 			wasmFile: "dist/pi_agent.wasm",
+			requiredProvides: ["agent:respond"],
 		},
 	];
 	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)
@@ -381,7 +324,7 @@ async function main() {
 	});
 	console.log(`[farmhand] Task memory persisted to ${taskDbPath}`);
 
-	const taskExecutorFn: TaskExecutorFn = async (task, effortId) => {
+	const taskExecutorFn: TaskExecutorFn = async (task, effortId, effort) => {
 		let status: "ok" | "error" = "ok";
 		let result: unknown;
 		let error: string | undefined;
@@ -415,13 +358,24 @@ async function main() {
 			},
 		};
 
-		await executeTask(captureTractor, {
-			taskId: task.id,
-			effortId,
-			pluginId: task.pluginId,
-			fn: task.fn,
-			args: task.args,
+		const scope = scopeForEffortSource(effort.source);
+		await injectSiloModelEnv();
+		const tokens = await modelRouteResolver.refreshTokens();
+		const route = routeForScope(tokens, scope, {
+			env: routeResolutionEnv(process.env, siloModelEnvInjector.managedEnvKeys()),
 		});
+		await withModelRouteEnv(
+			route,
+			() =>
+				executeTask(captureTractor, {
+					taskId: task.id,
+					effortId,
+					pluginId: task.pluginId,
+					fn: task.fn,
+					args: task.args,
+				}),
+			{ managedEnvKeys: siloModelEnvInjector.managedEnvKeys() },
+		);
 
 		try {
 			await taskMemoryBridge.recordOutcome(task, effortId, { status, error });
@@ -434,7 +388,16 @@ async function main() {
 			);
 		}
 
-		return { status, result, error };
+		return {
+			status,
+			result,
+			error,
+			meta: {
+				modelScope: scope,
+				modelProvider: route.provider,
+				modelId: route.modelId,
+			},
+		};
 	};
 
 	const pluginTracker = new PluginUsageTracker();
@@ -529,7 +492,6 @@ async function main() {
 		await httpSidecar.stop();
 		await transport.disconnect();
 		await runtime.shutdown?.();
-		process.exit(0);
 	}
 
 	process.on("SIGTERM", () => {
@@ -544,5 +506,5 @@ async function main() {
 
 main().catch((err) => {
 	console.error("[farmhand] Fatal error:", err);
-	process.exit(1);
+	process.exitCode = 1;
 });

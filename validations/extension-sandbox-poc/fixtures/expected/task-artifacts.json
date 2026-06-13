@@ -1,0 +1,300 @@
+{
+  "schema": "refarm.task-artifacts.v1",
+  "taskId": "task-extension-sandbox-poc",
+  "effortId": "effort-extension-sandbox-poc-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "artifacts": [
+    {
+      "id": "sandbox-report-json",
+      "uri": "sandbox-report.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "9a4b4d782ad1bef1fabdde576b6a27b1eb515e09668aaee58ef70409a3d776a2"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "policy-decision-json",
+      "uri": "policy-decision.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "398761265af7f699b871f9d6750265f5db56f24f462f62870988dccee678905d"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "scorecard-json",
+      "uri": "scorecard.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "8c296fa9b2fb9fbc4e51e3b6c564b155289575f806beb0e4c001f78ffcd23c0e"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scorecard",
+        "pilot"
+      ]
+    },
+    {
+      "id": "risk-and-standards-matrix-json",
+      "uri": "risk-and-standards-matrix.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "ae2f2fc5cc3091221426f56b0b41078ce4786cfa925f75652963e7db60e35018"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "risk",
+        "standards",
+        "claim-promotion"
+      ]
+    },
+    {
+      "id": "runtime-evidence-json",
+      "uri": "runtime-evidence.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "be474ef6274e9d9049b3715db4a1433bcb18fa57a1d4e45107944b1989d1454f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "runtime",
+        "wasm",
+        "claim-promotion"
+      ]
+    },
+    {
+      "id": "scenario-md",
+      "uri": "scenario.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "51a8021bf55389169972bdc2333734ff2bf498c2c8e44e7439a4fc66f7b38d3f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scenario",
+        "reader-path"
+      ]
+    },
+    {
+      "id": "annex-md",
+      "uri": "annex.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "0e04b18082e96dd50f549da29193f44ea38cce0b3f3ad8ff27793ecbe9fde801"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "annex",
+        "evidence-map"
+      ]
+    },
+    {
+      "id": "limits-md",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "0a6c7d2be7e6bc6ad2e89c2cf48b5e825f0558566799b7bf360acd79f51897b4"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "results-table-md",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "d578410812e567e6a953be7b3cb22c69875eeeb63d2637bae261c74f5c019997"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "sandbox-report-md",
+      "uri": "sandbox-report.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "a9a6df865f94e1d371346de1d558b979b0dc5a8a672c5baf38957e45dcfa94d2"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    }
+  ]
+}

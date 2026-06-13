@@ -1,0 +1,399 @@
+{
+  "schema": "refarm.task-artifacts.v1",
+  "taskId": "task-citizen-data-wallet-poc",
+  "effortId": "effort-citizen-data-wallet-poc-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "artifacts": [
+    {
+      "id": "identity",
+      "uri": "identity.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "f426749161dc0c78363f471213579a0125db0afa90684aa8a065849ea9394474"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "authority-attributes",
+      "uri": "authority-attributes.json",
+      "mediaType": "application/json",
+      "role": "dataset",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "de2dda54e9d332b252442ba9ef3e1431d7e61c23db5b26dd57a41d70b8dd7974"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "service-request",
+      "uri": "service-request.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "3ee8fc9b2b4a36f7f2fe1842ea76ec42b62c35b03b71e3496065dc17ddcf2981"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "authorization-receipt",
+      "uri": "authorization-receipt.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "b79fb836347f9379524b9bdc2c56541d49f3f301707a33d1f4dbe8396d73f29b"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "selective-presentation",
+      "uri": "selective-presentation.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "4e89d04c6f8428b1d2fd09ba935bf7e378d8a5bf6e37fa2abf2474d0ce3f60b5"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "revocation-event",
+      "uri": "revocation-event.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "34a1c35fef866e00083310c36d34e69a6d465c1fafc068a86c5cbf1dc60ee70c"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "consent-decision",
+      "uri": "consent-decision.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "150abc23c1932f2cefa7f7532dbbad319baf2ae47f1126cdc17504752b7a5545"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "scorecard",
+      "uri": "scorecard.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "b7599b442e900c703452fe3ad6f7cb339db2ba54ca3205afa1d740b1521f6e94"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scorecard",
+        "pilot"
+      ]
+    },
+    {
+      "id": "risk-and-standards-matrix",
+      "uri": "risk-and-standards-matrix.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "104b24b653f0f4b04acce84af5607e895e53746ca1a9f24166ab42f5259e4519"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "risk",
+        "standards",
+        "claim-promotion"
+      ]
+    },
+    {
+      "id": "scenario",
+      "uri": "scenario.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "2d8fab2cb21b574fc11d00f1dd33b7234107b737a42cdd2b4f077d6bb47c1770"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scenario",
+        "reader-path"
+      ]
+    },
+    {
+      "id": "annex",
+      "uri": "annex.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "ff725a6d954173216282c0dacc6d7121c803b3164a363fc93ca3c939ee3dd68a"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "annex",
+        "evidence-map"
+      ]
+    },
+    {
+      "id": "limits",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "28072b89af85c0e6a7092ecc52782b20117030c10c0d60b99f0b5078b309276e"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "results-table",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7843d83abc38a980f32066f553fbdaef878a34a039724becd291b5d52589f488"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "audit-trail",
+      "uri": "audit-trail.md",
+      "mediaType": "text/markdown",
+      "role": "audit-trail",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "96fca2a87fff7d520c26498be31cd1e91d1fef114353e29c000e5183323e3ef6"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      }
+    }
+  ]
+}

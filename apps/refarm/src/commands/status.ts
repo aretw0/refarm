@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import {
 	assertRefarmStatusJson,
 	buildRefarmStatusJson,
@@ -7,15 +5,31 @@ import {
 	parseRefarmStatusJson,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
+import { findRefarmConfigPath } from "@refarm.dev/config";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
+import { printJson } from "./json-output.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
+import { probeRuntimeReady } from "./runtime-readiness.js";
+import {
+	RUNTIME_DOCTOR_COMMAND,
+	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	RUNTIME_DOCTOR_NEXT_COMMAND,
+	RUNTIME_STATUS_COMMAND,
+} from "./runtime-recovery.js";
+import {
+	findRepoRoot,
+	readTractorEngineMode,
+	resolveLaunchRuntime,
+} from "./session-launch.js";
 import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
-import { withResolvedStatusPayload } from "./status-payload.js";
-import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
-import { runStatusPreflight } from "./status-preflight.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
+import { runStatusPreflight } from "./status-preflight.js";
+import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 
 export interface ResolveStatusPayloadOptions {
 	renderer?: string;
@@ -28,22 +42,36 @@ export interface ResolveStatusPayloadResult {
 }
 
 function readNamespaceFromConfig(): string | undefined {
+	const configPath = findRefarmConfigPath(process.cwd());
+	if (!configPath) return undefined;
 	try {
-		const raw = fs.readFileSync(
-			path.join(process.cwd(), "refarm.config.json"),
-			"utf-8",
-		);
+		const raw = fs.readFileSync(configPath, "utf-8");
 		return (JSON.parse(raw) as { brand?: { slug?: string } }).brand?.slug;
 	} catch {
 		return undefined;
 	}
 }
 
-function createStatusRuntimeSummary(namespace: string): RefarmStatusJson["runtime"] {
+async function createStatusRuntimeSummary(
+	namespace: string,
+): Promise<RefarmStatusJson["runtime"]> {
+	const configuredEngine = readTractorEngineMode();
+	const activeEngine = (() => {
+		try {
+			return resolveLaunchRuntime(findRepoRoot(), configuredEngine).activeEngine;
+		} catch {
+			return "unknown";
+		}
+	})();
+	const ready = await probeRuntimeReady(300);
 	return {
-		ready: true,
+		ready,
 		namespace,
 		databaseName: namespace,
+		engine: {
+			configuredEngine,
+			activeEngine,
+		},
 	};
 }
 
@@ -75,6 +103,25 @@ export const statusCommand = new Command("status")
 	.option(
 		"--action <id-or-index>",
 		"Invoke a live app-owned status action by available action ID or row index",
+	)
+	.addHelpText(
+		"after",
+		`
+
+Examples:
+  $ refarm status
+  $ refarm status --json
+  $ refarm status --markdown
+  $ refarm status --renderer web
+  $ refarm status --input status.json --markdown
+  $ refarm status --action inspect-trust
+
+Notes:
+  Use ${RUNTIME_STATUS_COMMAND} for runtime engine/readiness details.
+  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.
+  Use ${RUNTIME_DOCTOR_NEXT_COMMAND} for command-only recovery automation.
+  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.
+`,
 	)
 	.action(
 		async (options: {
@@ -129,15 +176,11 @@ async function emitStatusActionInvocation(options: {
 				throw new Error("Missing --action action ID or row index.");
 			}
 
-			console.log(
-				JSON.stringify(
-					await invokeRefarmStatusSurfaceActionSelection({
-						status: json,
-						selection: actionSelection,
-					}),
-					null,
-					2,
-				),
+			printJson(
+				await invokeRefarmStatusSurfaceActionSelection({
+					status: json,
+					selection: actionSelection,
+				}),
 			);
 		},
 	});
@@ -158,7 +201,7 @@ export async function resolveStatusPayload(
 	}
 	const renderer = resolveRefarmRenderer(requestedRenderer);
 	const namespace = readNamespaceFromConfig() ?? "refarm-main";
-	const runtime = createStatusRuntimeSummary(namespace);
+	const runtime = await createStatusRuntimeSummary(namespace);
 	const trust = createStatusTrustSummary();
 	const hostIdentity = resolveRefarmHostIdentity();
 

@@ -12,6 +12,7 @@ const validModes = new Set(["src", "dist", "status", "sync-tsconfig"]);
 
 if (["-h", "--help", "help"].includes(mode)) {
 	console.log("Usage: node scripts/reso.mjs <src|dist|status|sync-tsconfig>");
+	console.log("Deprecated wrapper: prefer 'node packages/toolbox/src/cli.mjs reso <mode>'.");
 	console.log("Policy: run 'status' at task start and before merge.");
 	process.exit(0);
 }
@@ -28,7 +29,6 @@ if (mode === "src" || mode === "dist") {
 	);
 }
 
-// Try to run via pnpm/npm exec if possible, or direct node call to toolbox
 const result = spawnSync("node", ["./packages/toolbox/src/cli.mjs", "reso", mode], {
 	stdio: "inherit",
 	shell: true,

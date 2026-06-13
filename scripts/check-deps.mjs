@@ -1,5 +1,10 @@
 import fs from 'fs';
 import { run } from 'npm-check-updates';
+import { packageScriptCommand } from '@refarm.dev/config';
+
+function scriptCommand(script) {
+  return packageScriptCommand(script, { cwd: process.cwd() }).display;
+}
 
 async function main() {
   const isUpdate = process.argv.includes('--update');
@@ -45,12 +50,12 @@ async function main() {
     }
     
     reportContent += '\n---\n';
-    reportContent += '> 🤖 **Nota:** Relatório gerado automaticamente por `pnpm run deps:check`.\n';
+    reportContent += `> 🤖 **Nota:** Relatório gerado automaticamente por \`${scriptCommand('deps:check')}\`.\n`;
     
     if (isUpdate) {
       reportContent += '> Atualização aplicada: os arquivos `package.json` foram modificados com as versões propostas.\n';
     } else {
-      reportContent += '> 💡 Execute `pnpm run deps:update` para aplicar as atualizações localmente se preferir antes de criar o PR.\n';
+      reportContent += `> 💡 Execute \`${scriptCommand('deps:update')}\` para aplicar as atualizações localmente se preferir antes de criar o PR.\n`;
     }
 
     fs.writeFileSync(reportPath, reportContent);

@@ -242,4 +242,3 @@ fn provider_runtime_openai_step_from_phase_with_dispatch_advances_when_continuin
     assert_eq!(state.wire_msgs.len(), 3);
     assert_eq!(state.executed_calls.len(), 1);
 }
-

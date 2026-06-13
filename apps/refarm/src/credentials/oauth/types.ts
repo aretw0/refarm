@@ -29,6 +29,11 @@ export interface OAuthLoginCallbacks {
 	 * Use when the environment cannot receive browser redirects (e.g. containers).
 	 */
 	skipCallbackServer?: boolean;
+	/**
+	 * Optional timeout for local callback flows. When reached, providers should
+	 * fall back to the manual code prompt instead of waiting forever.
+	 */
+	callbackTimeoutMs?: number;
 }
 
 export interface OAuthProviderInterface {

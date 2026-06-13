@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	buildSkippedGateDefinitions,
 	collectCarryForwardResults,
 	evaluateCarryForwardResults,
 	resolveGateFromJobs,
@@ -118,4 +119,36 @@ test("evaluateCarryForwardResults only fails on true failing statuses", () => {
 		),
 		true,
 	);
+});
+
+test("buildSkippedGateDefinitions ignores quality step carry-forward for non-code changes", () => {
+	const tracked = buildSkippedGateDefinitions({
+		CODE_CHANGES: "false",
+		RUN_TASK_SMOKE: "false",
+		TRACTOR_GATES: "false",
+		RUN_AUDIT: "true",
+		RUN_BUILD: "false",
+		RUN_E2E: "false",
+		RUN_DEEP: "true",
+	}).map((gate) => gate.key);
+
+	assert.deepEqual(tracked, ["build", "e2e"]);
+});
+
+test("buildSkippedGateDefinitions tracks task smoke but not irrelevant tractor gates for code changes", () => {
+	const tracked = buildSkippedGateDefinitions({
+		CODE_CHANGES: "true",
+		RUN_TASK_SMOKE: "false",
+		TRACTOR_GATES: "false",
+		RUN_AUDIT: "true",
+		RUN_BUILD: "true",
+		RUN_E2E: "true",
+		RUN_DEEP: "true",
+	}).map((gate) => gate.key);
+
+	assert.ok(tracked.includes("task_smoke_core"));
+	assert.equal(tracked.includes("tractor_benchmark_gate"), false);
+	assert.equal(tracked.includes("tractor_coverage_gate"), false);
+	assert.equal(tracked.includes("quality_security"), false);
+	assert.equal(tracked.includes("build"), false);
 });

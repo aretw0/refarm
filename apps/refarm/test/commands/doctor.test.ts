@@ -1,3 +1,4 @@
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockResolveStatusPayload, mockShutdown } = vi.hoisted(() => ({
@@ -15,7 +16,7 @@ import {
 	doctorCommand,
 } from "../../src/commands/doctor.js";
 
-function makeStatus(diagnostics: string[]) {
+function makeStatus(diagnostics: string[]): RefarmStatusJson {
 	return {
 		schemaVersion: 1 as const,
 		host: {
@@ -33,6 +34,10 @@ function makeStatus(diagnostics: string[]) {
 			ready: !diagnostics.includes("runtime:not-ready"),
 			namespace: "refarm-main",
 			databaseName: "refarm-main",
+			engine: {
+				configuredEngine: "auto",
+				activeEngine: "rust",
+			},
 		},
 		plugins: {
 			installed: 0,
@@ -64,10 +69,13 @@ describe("buildRefarmDoctorReport", () => {
 					command: "refarm",
 					profile: "dev",
 					version: "1.2.3",
+					packageManager: "pnpm",
 				},
 			},
 		);
 
+		expect(report.command).toBe("doctor");
+		expect(report.operation).toBe("diagnose");
 		expect(report.ok).toBe(false);
 		expect(report.failures).toEqual(["runtime:not-ready"]);
 		expect(report.warnings).toEqual(["trust:warnings-present"]);
@@ -86,7 +94,17 @@ describe("buildRefarmDoctorReport", () => {
 				severity: "info",
 			}),
 		]);
+		expect(report.nextActions).toEqual([
+			"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			"Inspect trust warnings and decide whether they should block this workflow.",
+		]);
+		expect(report.nextAction).toBe(
+			"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+		);
+		expect(report.nextCommands).toEqual(["refarm runtime ensure --wait --next-command"]);
+		expect(report.nextCommand).toBe("refarm runtime ensure --wait --next-command");
 		expect(report.host.version).toBe("1.2.3");
+		expect(report.host.packageManager).toBe("pnpm");
 	});
 
 	it("fails on warnings when failOnWarnings is enabled", () => {
@@ -113,7 +131,8 @@ describe("buildRefarmDoctorRecommendations", () => {
 				diagnostic: "runtime:not-ready",
 				severity: "failure",
 				summary: "The runtime reported that it is not ready.",
-				action: "Start or repair the configured runtime, then rerun `refarm doctor --json`.",
+				action: "Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				command: "refarm runtime ensure --wait --next-command",
 			},
 			{
 				diagnostic: "plugins:rejected-surfaces-present",
@@ -141,6 +160,24 @@ describe("doctorCommand", () => {
 		});
 	});
 
+	it("documents doctor output modes and check handoff in help", () => {
+		let help = "";
+		doctorCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		doctorCommand.outputHelp();
+
+		expect(help).toContain("refarm doctor --json");
+		expect(help).toContain("refarm doctor --next-action");
+		expect(help).toContain("refarm doctor --next-action --json");
+		expect(help).toContain("refarm doctor --next-command");
+		expect(help).toContain("refarm doctor --input status.json");
+		expect(help).toContain("Use refarm check");
+	});
+
 	it("prints PASS for informational diagnostics only", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -149,6 +186,9 @@ describe("doctorCommand", () => {
 		expect(process.exitCode).toBeUndefined();
 		expect(logSpy).toHaveBeenCalledWith("Doctor: PASS");
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Host:"));
+		expect(logSpy).toHaveBeenCalledWith(
+			"Runtime: ready (engine=rust, configured=auto)",
+		);
 		expect(mockShutdown).toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
@@ -192,6 +232,126 @@ describe("doctorCommand", () => {
 		expect(String(output)).toContain('"host"');
 		expect(String(output)).toContain('"status"');
 		expect(String(output)).toContain('"recommendations"');
+		expect(String(output)).toContain('"nextActions"');
+		expect(String(output)).toContain('"nextCommands"');
+		logSpy.mockRestore();
+	});
+
+	it("emits only the first blocking recovery action with --next-action", async () => {
+		mockResolveStatusPayload.mockResolvedValue({
+			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await doctorCommand.parseAsync(["--next-action"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith(
+			"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+		);
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
+	it("emits the first blocking recovery action as JSON", async () => {
+		mockResolveStatusPayload.mockResolvedValue({
+			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await doctorCommand.parseAsync(["--next-action", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction:
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			nextActions: [
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Inspect trust warnings and decide whether they should block this workflow.",
+			],
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: ["refarm runtime ensure --wait --next-command"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "The runtime reported that it is not ready.",
+					action:
+						"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+					command: "refarm runtime ensure --wait --next-command",
+				},
+				{
+					diagnostic: "trust:warnings-present",
+					severity: "warning",
+					summary: "Trust warnings are present.",
+					action:
+						"Inspect trust warnings and decide whether they should block this workflow.",
+				},
+			],
+		});
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
+	it("emits only the first executable recovery command with --next-command", async () => {
+		mockResolveStatusPayload.mockResolvedValue({
+			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await doctorCommand.parseAsync(["--next-command"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledOnce();
+		expect(logSpy).toHaveBeenCalledWith("refarm runtime ensure --wait --next-command");
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+	});
+
+	it("emits the first executable recovery command as JSON", async () => {
+		mockResolveStatusPayload.mockResolvedValue({
+			json: makeStatus(["runtime:not-ready", "trust:warnings-present"]),
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await doctorCommand.parseAsync(["--next-command", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction:
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+			nextActions: [
+				"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+				"Inspect trust warnings and decide whether they should block this workflow.",
+			],
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: ["refarm runtime ensure --wait --next-command"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "The runtime reported that it is not ready.",
+					action:
+						"Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`; use `refarm config set runtime.autostart always` if this should be automatic.",
+					command: "refarm runtime ensure --wait --next-command",
+				},
+				{
+					diagnostic: "trust:warnings-present",
+					severity: "warning",
+					summary: "Trust warnings are present.",
+					action:
+						"Inspect trust warnings and decide whether they should block this workflow.",
+				},
+			],
+		});
+		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 	});
 });

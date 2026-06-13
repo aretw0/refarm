@@ -43,6 +43,241 @@ package extraction still waits for an independent consumer outside `apps/refarm`
 When a selection is unavailable, guardrail errors list deterministic choices as
 `[row] id` pairs so operators can retry by stable ID or row index.
 
+## JSON continuation handoffs
+
+Machine-readable Refarm command output should separate human guidance from
+commands an operator agent can execute directly:
+
+- `nextAction` / `nextActions` describe the next useful operator intent. They
+  may include human language, REPL-only instructions, or manual steps. When an
+  action is expressed as a command-like string, keep it concrete; put
+  parameterized variants in explicit template catalogs instead.
+- `nextCommand` / `nextCommands` contain shell-ready commands only. Do not put
+  placeholders such as `<url>` or REPL commands such as `/reload` in these
+  fields.
+- `nextProcesses` contains structured process specs when the producer can
+  describe the boundary without shell parsing. Each spec should include
+  `command`, `args`, `display`, and optional `cwd` / `packageManager`. Agent
+  runners should prefer this field when present and fall back to `nextCommands`.
+- `refarm resume --json` includes `nextProcesses` for continuation commands it
+  can describe structurally, such as session observation, task listing, and
+  active task status/logs. Keep `nextCommands` as the operator-facing fallback.
+- Command payloads that describe a lower-level process should expose a canonical
+  `process` object with the same shape. Legacy fields such as `processCommand`
+  and `processArgs` may remain during migration, but new consumers should read
+  `process`.
+- `templates` contain parameterized command templates for flows that are
+  blocked until the operator supplies values. Each entry should include
+  `command`, declared `parameters`, and `useWhen` guidance. Treat templates as
+  input forms, not executable commands; every `<parameter>` in `command` or
+  `process.args` must be listed in `parameters`.
+- Templates that must run from another workspace should use `cwdParameter`
+  instead of encoding `cd <dir> && ...` into `command`. The `command` remains
+  the operator-facing/backcompat handoff; the cwd parameter tells a machine
+  runner where to execute it after substitution. When a template also includes
+  `process`, runners should substitute parameters in `process.args` and execute
+  `process.command` directly from the substituted cwd.
+- Shared template mechanics live in `@refarm.dev/cli/command-handoff`:
+  `commandTemplateParameters` validates placeholder declarations and
+  `instantiateProcessTemplate` turns a parameterized process template into a
+  spawn-ready `command` + `args` spec without shell parsing.
+- Public template catalogs that include placeholders should expose `process`
+  whenever the producer knows the executable argv. Keep `command` for operator
+  display and backwards compatibility.
+- Machine runners can call `instantiateCommandTemplate` with a template and
+  parameter map, or `instantiateCommandTemplateById` with a template catalog and
+  stable ID, to get substituted `command`, optional `process`, and optional
+  `cwd` without parsing shell text.
+- Execution-plan handoffs may attach `process` to generated templates via
+  `processTemplate`; machine runners should prefer that over parsing
+  `template.command`.
+- Prefer `refarm ...` commands for continuation when the CLI can express the
+  action. Use lower-level commands such as `git ls-remote ...` or
+  `gh secret list` only when they are the deterministic verification surface.
+- Preserve package-manager agnosticism in command handoffs. If a command needs
+  the workspace package manager, route it through the existing Refarm helper or
+  local package-manager resolver instead of hardcoding `pnpm`, `npm`, or `yarn`
+  in new logic.
+- Successful dry-runs should usually point at the equivalent apply command.
+  Successful apply flows should usually point at an observation command such as
+  `refarm health --next-action --json`, a status/list command, or a provider
+  verification command.
+- Successful check-only flows may be terminal. Prefer empty `nextCommands` when
+  the command already proved the requested condition and no recovery or follow-up
+  observation is needed.
+
+When adding or changing JSON output in `apps/refarm`, prefer the shared helpers
+in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
+`apps/refarm/src/commands/command-handoff.ts`. Tests should assert both the
+human-facing intent and the executable command when a flow is meant to be
+agent-driven.
+
+Run the contract test when touching public JSON handoffs:
+
+```bash
+refarm agent finish --lane handoffs --run --json
+pnpm --filter @refarm.dev/refarm run test:handoffs
+```
+
+The finish lane is the operator-facing route; the package script is the focused
+test target behind it. The contract statically rejects placeholders,
+interactive credential collection, and REPL-only commands in executable handoff
+fields. It also requires generated handoff arrays and declared template
+parameters, and exercises generated handoffs from the action, core agent, model,
+plugin, provision, renderer, package manager, tree, check, doctor, guide,
+headless, health, init, resume, runtime, sessions, sow, task, telemetry, and
+tidy commands.
+
+Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
+filtering, and deduplication for handoff lists. JSON emitters and command-result
+readers should reuse that helper instead of open-coding their own list cleanup.
+
+Command runners that consume Refarm JSON should parse through
+`apps/refarm/src/commands/command-result.ts`. The parser accepts pure JSON first
+and can recover a single JSON object from wrapper output when a subprocess emits
+context before or after the machine-readable payload. Do not make downstream
+agents scrape command-specific text.
+
+## Agent finish handoffs
+
+`refarm agent finish` is the CLI-owned end-of-slice handoff for coding agents.
+It prints an ordered plan by default and only executes when `--run` is present:
+
+```bash
+refarm agent --next-command
+refarm agent finish --json
+refarm agent finish --templates --json
+refarm agent finish --lanes --json
+refarm agent finish --lanes --json --next-command
+refarm agent finish --lane after-edit --run --json
+refarm agent finish --lane before-push --run --json
+refarm agent finish --lane handoffs --run --json
+refarm agent finish --lane agent-e2e-mock --run --json
+refarm agent finish --next-command
+refarm agent finish --json --next-command
+refarm agent finish --run --json
+refarm agent finish --run --next-command
+refarm agent finish --profile affected --run --json
+refarm agent finish --profile affected --since upstream --run --json
+refarm agent finish --profile affected --include-tests --run --json
+```
+
+The default plan is check-only: import organization check, health audit, then
+the composite readiness gate. Use the explicit fix mode when an agent should
+organize imports as the first finishing action:
+
+```bash
+refarm agent finish --fix --json
+refarm agent finish --fix --next-command
+refarm agent finish --fix --run --json
+refarm agent finish --fix --run --next-command
+```
+
+Keep `--fix` opt-in. It may rewrite source files through `refarm tidy imports`,
+while the default `finish --run` path should remain a verification-only signal.
+If a finish run fails, `nextCommand` should forward the failing command's
+recovery command, such as `refarm runtime start --wait`, instead of the whole
+plan.
+
+`refarm agent --json` exposes `verification.recommended` with lane commands so
+agents do not need to infer the default finish path from the command catalog:
+
+- `afterEdit`: dirty-tree validation after source edits;
+- `afterCommit`: most-recent-commit validation after atomic commits;
+- `beforePush`: final branch-local validation against upstream;
+- `handoffs`: public JSON handoff contract validation;
+- `agentE2eMock`: no-token runtime-agent/ask e2e smoke;
+- `withPackageTests`: opt-in package tests when the slice requires them.
+
+The same names can be passed to `refarm agent finish --lane <name>` as stable
+shortcuts for those recommended commands; `verification.recommended` already
+uses those lane shortcuts.
+
+For renderers or agents that need labels, `verification.lanes` also lists the
+same lane IDs with command, description, `useWhen`, and validation scope
+metadata. Use `useWhen` for operator-facing choice prompts and
+`validationScope` for automation policy.
+`verification.finishLanesJsonCommand` points to
+`refarm agent finish --lanes --json`, which exposes the same focused catalog
+without requiring the full agent handoff.
+
+Parameterized finish commands live under `verification.templates`. That is one
+template surface in the broader JSON handoff contract: entries include the
+command string, required `parameters`, and `useWhen` guidance. Treat them as
+templates, not executable `nextCommands`; substitute the concrete workspace
+directory or Git ref before execution.
+`verification.finishTemplatesJsonCommand` points to
+`refarm agent finish --templates --json`, which exposes only that template
+catalog when an agent does not need the full handoff payload.
+
+For code-editing slices, prefer `--profile affected` when Git status is the
+source of truth. It keeps the default check-only finish gate and appends
+package-level `type-check`, `lint`, and `build` scripts for changed workspaces
+that have those scripts. Use `--profile package --workspace <dir>` when the
+affected package is known explicitly or when validating a package without a Git
+diff.
+
+After committing an atomic slice, use the `after-commit` lane. It validates the
+most recent commit (`HEAD~1..HEAD`) so docs-only and small commits stay cheap:
+
+```bash
+refarm agent finish --lane after-commit --run --json
+```
+
+For runtime, model routing, runtime-agent, or `ask` execution-plane changes, use the
+explicit no-token e2e lane when you need the proof outside of `affected`
+selection:
+
+```bash
+refarm agent finish --lane agent-e2e-mock --run --json
+```
+
+For final branch-local validation before push, add `--since <ref>` or use the
+`before-push` lane. Use `--since upstream` when the current branch has an
+upstream configured; it resolves locally and does not fetch from the network:
+
+```bash
+refarm agent finish --profile affected --since upstream --run --json
+refarm agent finish --lane before-push --run --json
+```
+
+Keep package tests explicit. Add `--include-tests` when the slice needs package
+test scripts in addition to the default `type-check`, `lint`, and `build`
+scripts. This keeps the normal affected profile fast enough for frequent agent
+handoffs while preserving a deterministic test path.
+
+Each plan step declares an `effect`:
+
+- `observe` reads current state and reports it;
+- `verify` checks readiness without intentionally writing source;
+- `write` may modify source or local state and must stay opt-in.
+
+Plan and run envelopes also include top-level `effects` and `writes` fields so
+automation can reject write-capable plans without scanning every step.
+
+Plan and run envelopes include a `selection` block for deterministic routing:
+
+```json
+{
+  "selection": {
+    "profile": "affected",
+    "fix": false,
+    "includeTests": false,
+    "lane": "after-edit",
+    "since": null,
+    "sinceRef": null,
+    "validationScope": "dirtyTree",
+    "workspace": null,
+    "affectedWorkspaces": ["apps/refarm"]
+  }
+}
+```
+
+Use `selection.affectedWorkspaces` instead of scraping command strings when an
+agent needs to explain or branch on the package set selected by Git status. Use
+`selection.validationScope` to distinguish dirty-tree, branch-range, package,
+contract, and quick validation without inferring from flags.
+
 ## Live status affordances
 
 `apps/refarm` now publishes app-owned host status affordances from a local

@@ -14,7 +14,13 @@ import type {
 export type TaskExecutorFn = (
 	task: Task,
 	effortId: string,
-) => Promise<{ status: "ok" | "error"; result?: unknown; error?: string }>;
+	effort: Effort,
+) => Promise<{
+	status: "ok" | "error";
+	result?: unknown;
+	error?: string;
+	meta?: Record<string, unknown>;
+}>;
 
 export interface FileTransportOptions {
 	onEffortStart?: (effortId: string, pluginIds: string[]) => void;
@@ -494,7 +500,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 					});
 
 					try {
-						const output = await this.executor(task, effort.id);
+						const output = await this.executor(task, effort.id, effort);
 						if (output.status === "ok") {
 							successResult = {
 								taskId: task.id,
@@ -513,6 +519,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 								message: `Task succeeded on attempt ${attempt}`,
 								taskId: task.id,
 								attempt,
+								...(output.meta ? { meta: output.meta } : {}),
 							});
 							break;
 						}
@@ -535,6 +542,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 							message: outputError,
 							taskId: task.id,
 							attempt,
+							...(output.meta ? { meta: output.meta } : {}),
 						});
 					} catch (error: unknown) {
 						const message =

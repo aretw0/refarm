@@ -1,10 +1,94 @@
 import fs from "node:fs";
 import path from "node:path";
+export {
+    DEFAULT_MODEL_PROVIDER,
+    MODEL_BASE_URL_ENV_VAR,
+    MODEL_DEFAULT_PROVIDER_ENV_VAR,
+    MODEL_CREDENTIAL_ENV_KEYS,
+    MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+    MODEL_FALLBACK_PROVIDER_ENV_VAR,
+    MODEL_ID_ENV_VAR,
+    MODEL_PROVIDER_ENV_VAR,
+    MODEL_PROVIDERS,
+    MODEL_ROUTE_ENV_VARS,
+    MODEL_RUNTIME_ENV_VARS,
+    MODEL_SCOPES,
+    defaultProviderModelId,
+    defaultProviderModelRef,
+    effectiveModelRouteForScope,
+    defaultModelForProvider,
+    defaultModelForScope,
+    defaultScopedModelRef,
+    formatModelRef,
+    inferProviderFromModelId,
+    hasUsableModelCredential,
+    hasUsableModelCredentialSource,
+    isModelProvider,
+    isModelScope,
+    modelCredentialStatus,
+    modelCredentialEnvKey,
+    modelCredentialSource,
+    modelOAuthCredential,
+    modelRouteTokenUpdate,
+    parseModelScope,
+    parseModelRef,
+} from "./model-routing.js";
+export {
+    PI_AGENT_NPM_PACKAGE,
+    PI_AGENT_PLUGIN_ID,
+    RUNTIME_AGENT_ERROR_PREFIXES,
+    RUNTIME_AGENT_NPM_PACKAGE,
+    RUNTIME_AGENT_PLUGIN_ID,
+    canonicalRuntimeAgentContent,
+    isRuntimeAgentErrorContent,
+    isPiAgentPluginId,
+    isRuntimeAgentPluginId,
+    normalizePluginId,
+} from "./plugin-identity.js";
+export {
+    PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
+    PACKAGE_MANAGERS,
+    createPackageScriptCommand,
+    detectPackageManager,
+    packageBinaryCommand,
+    packageFrozenInstallCommand,
+    packageInstallCommand,
+    packageManagerOverrideDiagnostic,
+    packagePublishDryRunCommand,
+    packageScriptCommand,
+    parsePackageManager,
+} from "./package-manager.js";
+export {
+    affectedWorkspacePackagesFromChangedPaths,
+    affectedWorkspacePackagesFromGitStatus,
+    changedFilePathsFromGitNameOnly,
+    changedFilePathsFromGitStatus,
+    findWorkspacePackageForPath,
+    findWorkspaceRoot,
+} from "./workspace.js";
 
 /**
  * Common configuration utility for Refarm.
  * Implements a pluggable source system with Strategic Bootstrap and prioritized merging.
  */
+
+export const REFARM_CONFIG_CANONICAL_RELATIVE_PATH = path.join(".refarm", "config.json");
+export const REFARM_CONFIG_LEGACY_FILE_NAME = "refarm.config.json";
+
+export function refarmConfigPathCandidates(root) {
+    return [
+        path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH),
+        path.join(root, REFARM_CONFIG_LEGACY_FILE_NAME),
+    ];
+}
+
+export function defaultRefarmConfigPath(root) {
+    return path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH);
+}
+
+export function findRefarmConfigPath(root) {
+    return refarmConfigPathCandidates(root).find((candidate) => fs.existsSync(candidate)) ?? null;
+}
 
 /**
  * Helper to find the root directory of the monorepo.
@@ -12,8 +96,7 @@ import path from "node:path";
 export function findRefarmRoot(startDir = process.cwd()) {
     let currentDir = startDir;
     while (true) {
-        const configPath = path.join(currentDir, "refarm.config.json");
-        if (fs.existsSync(configPath)) return currentDir;
+        if (findRefarmConfigPath(currentDir)) return currentDir;
         const parentDir = path.dirname(currentDir);
         if (parentDir === currentDir) break;
         currentDir = parentDir;
@@ -88,8 +171,8 @@ function resolveInterpolation(config, current = config) {
 const JsonSource = {
     name: "json",
     loadSync(root) {
-        const configPath = path.join(root, "refarm.config.json");
-        if (!fs.existsSync(configPath)) return {};
+        const configPath = findRefarmConfigPath(root);
+        if (!configPath) return {};
         try {
             return JSON.parse(fs.readFileSync(configPath, "utf-8"));
         } catch (e) {
@@ -251,4 +334,11 @@ export async function loadConfigAsync(root = findRefarmRoot()) {
     return resolveInterpolation(config);
 }
 
-export default { findRefarmRoot, loadConfig, loadConfigAsync };
+export default {
+    findRefarmRoot,
+    refarmConfigPathCandidates,
+    defaultRefarmConfigPath,
+    findRefarmConfigPath,
+    loadConfig,
+    loadConfigAsync,
+};

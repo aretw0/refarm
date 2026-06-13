@@ -55,6 +55,8 @@ on:
 jobs:
   build-wasm:
     runs-on: ubuntu-latest
+    env:
+      CARGO_HTTP_MULTIPLEXING: "false"
     outputs:
       integrity-hash: ${{ steps.integrity.outputs.hash }}
 

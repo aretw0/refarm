@@ -5,7 +5,7 @@ import path from "node:path";
 import {
 	ensureTaskSmokeTypeBuilds,
 	parseJsonOutput,
-	runSubprocess,
+	runPackageScript,
 } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-telemetry-gate]";
@@ -96,7 +96,7 @@ function parseArgs(argv) {
 				options.skipBuild = true;
 				break;
 			case "--":
-				// pnpm appends '--' when extra args are passed via 'pnpm run script -- args'
+				// Package managers may append '--' when forwarding extra script args.
 				break;
 			case "--timeout-ms": {
 				const value = Number(argv[index + 1]);
@@ -243,7 +243,7 @@ async function main() {
 				skipWorkspaces: ["apps/refarm"],
 			});
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-			await runSubprocess("pnpm", ["-C", "apps/refarm", "run", "build"], {
+			await runPackageScript("apps/refarm", "build", {
 				env: process.env,
 				captureOutput: false,
 			});
@@ -252,7 +252,7 @@ async function main() {
 		const preReady = await isTelemetryReady();
 		if (!preReady) {
 			console.log(`${LOGGER_PREFIX} starting farmhand daemon...`);
-			await runSubprocess("pnpm", ["run", "farmhand:daemon"], {
+			await runPackageScript(".", "farmhand:daemon", {
 				env: process.env,
 				captureOutput: false,
 			});
@@ -291,7 +291,7 @@ async function main() {
 				console.log(
 					`${LOGGER_PREFIX} stopping farmhand daemon started by this gate...`,
 				);
-				await runSubprocess("pnpm", ["run", "farmhand:stop"], {
+				await runPackageScript(".", "farmhand:stop", {
 					env: process.env,
 					captureOutput: false,
 				});

@@ -2,14 +2,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { SaysResponse } from "./types.js";
 
 const FAKE_ID = "chatcmpl-mock-0001";
-const FAKE_MODEL = "gpt-4o-mini";
+export const MODEL_MOCK_DEFAULT_MODEL = "gpt-5.5";
 
 /** Non-streaming OpenAI JSON response */
 export function writeJsonResponse(res: ServerResponse, response: SaysResponse): void {
 	const body = JSON.stringify({
 		id: FAKE_ID,
 		object: "chat.completion",
-		model: FAKE_MODEL,
+		model: MODEL_MOCK_DEFAULT_MODEL,
 		choices: [
 			{
 				index: 0,
@@ -34,7 +34,7 @@ export function writeSseResponse(res: ServerResponse, response: SaysResponse): v
 	const delta = JSON.stringify({
 		id: FAKE_ID,
 		object: "chat.completion.chunk",
-		model: FAKE_MODEL,
+		model: MODEL_MOCK_DEFAULT_MODEL,
 		choices: [{ index: 0, delta: { role: "assistant", content: response.text }, finish_reason: null }],
 	});
 	res.write(`data: ${delta}\n\n`);
@@ -42,7 +42,7 @@ export function writeSseResponse(res: ServerResponse, response: SaysResponse): v
 	const done = JSON.stringify({
 		id: FAKE_ID,
 		object: "chat.completion.chunk",
-		model: FAKE_MODEL,
+		model: MODEL_MOCK_DEFAULT_MODEL,
 		choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
 	});
 	res.write(`data: ${done}\n\n`);

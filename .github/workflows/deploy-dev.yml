@@ -14,6 +14,9 @@ on:
     paths:
       - "apps/dev/**"
       - "packages/**"
+      - ".github/actions/deploy-pages/**"
+      - ".github/actions/setup/**"
+      - ".github/actions/upload-pages/**"
       - ".github/workflows/deploy-dev.yml"
   workflow_dispatch:
 

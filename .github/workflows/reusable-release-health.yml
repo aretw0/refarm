@@ -89,7 +89,7 @@ jobs:
             HAS_FAILURE="true"
           fi
 
-          pnpm audit --audit-level=${{ inputs.security-audit-level }} --omit=dev
+          pnpm audit --audit-level=${{ inputs.security-audit-level }} --prod
           if [ $? -ne 0 ]; then
             AUDIT_STATUS="failure"
             HAS_FAILURE="true"

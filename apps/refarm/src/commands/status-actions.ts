@@ -11,10 +11,10 @@ import type {
 	RefarmStatusSurfaceAction,
 } from "@refarm.dev/cli/status";
 import {
-	formatRefarmActionSelectionChoices,
-	getRefarmStatusAvailableActions,
-	resolveRefarmActionAffordanceSelection,
-	type RefarmActionAffordanceSelectionMetadata,
+	formatSurfaceActionSelectionChoices,
+	getStatusAvailableSurfaceActions,
+	resolveSurfaceActionAffordanceSelection,
+	type SurfaceActionAffordanceSelectionMetadata,
 } from "./action-affordances.js";
 import {
 	createRefarmStatusHostSurfaceState,
@@ -41,7 +41,7 @@ export interface RefarmStatusSurfaceActionInvocationEnvelope {
 	reason: "executed";
 	renderer: "status";
 	statusSource: "live";
-	selection: RefarmActionAffordanceSelectionMetadata;
+	selection: SurfaceActionAffordanceSelectionMetadata;
 	actionRequest: HomesteadSurfaceRenderActionRequest;
 	handled: boolean;
 	availableActions: readonly RefarmStatusSurfaceAction[];
@@ -122,14 +122,14 @@ export async function invokeRefarmStatusSurfaceAction(
 export async function invokeRefarmStatusSurfaceActionSelection(
 	options: InvokeRefarmStatusSurfaceActionSelectionOptions,
 ): Promise<RefarmStatusSurfaceActionInvocationEnvelope> {
-	const selectedAction = resolveRefarmActionAffordanceSelection(
+	const selectedAction = resolveSurfaceActionAffordanceSelection(
 		options.status,
 		options.selection,
 	);
 
 	if (!selectedAction.selected) {
 		throw new Error(
-			`Status action "${options.selection}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
+			`Status action "${options.selection}" is not available. Available selections: ${formatSurfaceActionSelectionChoices(selectedAction.rows)}.`,
 		);
 	}
 
@@ -139,7 +139,7 @@ export async function invokeRefarmStatusSurfaceActionSelection(
 
 	if (!resolution.request) {
 		throw new Error(
-			`Status action "${selectedAction.selected.id}" has no live handler. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
+			`Status action "${selectedAction.selected.id}" has no live handler. Available selections: ${formatSurfaceActionSelectionChoices(selectedAction.rows)}.`,
 		);
 	}
 
@@ -153,13 +153,13 @@ export async function invokeRefarmStatusSurfaceActionSelection(
 		selectedAction.selection,
 		resolution.request,
 		handled,
-		getRefarmStatusAvailableActions(options.status),
+		getStatusAvailableSurfaceActions(options.status),
 	);
 }
 
 export function createRefarmStatusSurfaceActionInvocationEnvelope(
 	status: RefarmStatusJson,
-	selection: RefarmActionAffordanceSelectionMetadata,
+	selection: SurfaceActionAffordanceSelectionMetadata,
 	actionRequest: HomesteadSurfaceRenderActionRequest,
 	handled: boolean,
 	availableActions: readonly RefarmStatusSurfaceAction[],

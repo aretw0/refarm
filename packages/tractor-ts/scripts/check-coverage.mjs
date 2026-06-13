@@ -1,9 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { packageScriptCommand } from '../../config/src/package-manager.js';
 
 const PROJECT_ROOT = process.cwd();
 const CURRENT_COVERAGE_PATH = path.join(PROJECT_ROOT, 'coverage', 'coverage-summary.json');
 const BASELINE_COVERAGE_PATH = path.join(PROJECT_ROOT, 'benchmarks', 'coverage-baseline.json');
+
+function scriptCommand(script) {
+    return packageScriptCommand(script, { cwd: PROJECT_ROOT }).display;
+}
 
 async function main() {
     let baseline = { lines: { pct: 0 } };
@@ -53,7 +58,7 @@ async function main() {
         console.log(`\n✅ [coverage] QUALITY GATE PASSED: Coverage increased by ${diff}%!`);
         console.log(`   Previous: ${baseline.lines.pct}%`);
         console.log(`   Current:  ${current}%\n`);
-        console.log(`   🎉 Great job! Please run 'pnpm run coverage:save' to lock in this new high score for the repository.`);
+        console.log(`   🎉 Great job! Please run '${scriptCommand('coverage:save')}' to lock in this new high score for the repository.`);
 
         // Output payload for GitHub Actions to pick up and comment on the PR
         if (process.env.GITHUB_ACTIONS) {

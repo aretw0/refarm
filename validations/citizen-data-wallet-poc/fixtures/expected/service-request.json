@@ -1,0 +1,12 @@
+{
+  "id": "request-beneficio-sintetico-001",
+  "requester": "servico-sintetico-beneficio",
+  "subject": "cidadao-exemplo-001",
+  "purpose": "verificar elegibilidade sintetica para atendimento demonstrativo",
+  "justification": "Somente faixa etaria e vinculo sintetico sao necessarios para esta simulacao.",
+  "requestedAttributes": [
+    "faixa_etaria",
+    "vinculo"
+  ],
+  "expiresAt": "2026-02-01T00:00:00.000Z"
+}

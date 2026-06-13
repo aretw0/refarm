@@ -1,10 +1,35 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 
 describe("open-url command", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+	});
+
+	it("documents devcontainer browser handoff workflows", () => {
+		const command = createOpenUrlCommand();
+		let help = "";
+		command.configureOutput({
+			writeOut: (chunk) => {
+				help += chunk;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm open-url https://platform.openai.com/auth");
+		expect(help).toContain(
+			"refarm open-url https://dash.cloudflare.com --dry-run",
+		);
+		expect(help).toContain(
+			"refarm open-url https://dash.cloudflare.com --dry-run --json",
+		);
+		expect(help).toContain("BROWSER_OPEN_COMMAND");
+		expect(help).toContain("REFARM_BROWSER_OPEN_COMMAND");
+		expect(help).toContain("operator.openExternalLinks never");
+		expect(help).toContain("devcontainer to the host browser");
+		expect(help).toContain("flows headless and print URLs instead");
 	});
 
 	it("prints opener candidates in dry-run mode", async () => {
@@ -21,6 +46,73 @@ describe("open-url command", () => {
 			expect.stringContaining("[dry-run] would open browser URL"),
 		);
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("candidate:"));
+		logSpy.mockRestore();
+	});
+
+	it("prints opener candidates as JSON in dry-run mode", async () => {
+		const open = vi.fn();
+		const command = createOpenUrlCommand({ open });
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(
+			["https://github.com/login/device", "--dry-run", "--json"],
+			{ from: "user" },
+		);
+
+		expect(open).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			command: string;
+			url: string;
+			dryRun: boolean;
+			ok: boolean;
+			candidates: unknown[];
+			nextAction: string;
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload).toMatchObject({
+			command: "open-url",
+			url: "https://github.com/login/device",
+			dryRun: true,
+			ok: true,
+		});
+		expect(payload.candidates.length).toBeGreaterThan(0);
+		expect(payload.nextAction).toBe(
+			"refarm open-url 'https://github.com/login/device'",
+		);
+		expect(payload.nextCommand).toBe(
+			"refarm open-url 'https://github.com/login/device'",
+		);
+		expect(payload.nextCommands).toEqual([
+			"refarm open-url 'https://github.com/login/device'",
+		]);
+		logSpy.mockRestore();
+	});
+
+	it("quotes dry-run JSON handoffs for URLs with query strings", async () => {
+		const open = vi.fn();
+		const command = createOpenUrlCommand({ open });
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(
+			["https://example.test/auth?code=a&state=b", "--dry-run", "--json"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload.nextAction).toBe(
+			"refarm open-url 'https://example.test/auth?code=a&state=b'",
+		);
+		expect(payload.nextCommand).toBe(payload.nextAction);
 		logSpy.mockRestore();
 	});
 
@@ -45,6 +137,38 @@ describe("open-url command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints successful opener result as JSON", async () => {
+		const open = vi.fn().mockResolvedValue({
+			url: "https://example.test/auth",
+			candidate: {
+				command: "code",
+				args: ["--open-url", "https://example.test/auth"],
+				display: "code --open-url https://example.test/auth",
+			},
+		});
+		const command = createOpenUrlCommand({ open });
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["https://example.test/auth", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			result: { candidate: { display: string } };
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			result: {
+				candidate: { display: "code --open-url https://example.test/auth" },
+			},
+		});
+		logSpy.mockRestore();
+	});
+
 	it("prints manual fallback instructions when open fails", async () => {
 		const open = vi.fn().mockRejectedValue(new Error("no opener"));
 		const command = createOpenUrlCommand({ open });
@@ -60,6 +184,42 @@ describe("open-url command", () => {
 		expect(errorSpy).toHaveBeenCalledWith(
 			"Open this URL manually: https://example.test/auth",
 		);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("prints opener failures as JSON without stderr", async () => {
+		const open = vi.fn().mockRejectedValue(new Error("no opener"));
+		const command = createOpenUrlCommand({ open });
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["https://example.test/auth", "--json"], {
+			from: "user",
+		});
+
+		expect(process.exitCode).toBe(1);
+		expect(errorSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(logs.join("\n")) as {
+			ok: boolean;
+			error: string;
+			message: string;
+			operation: string;
+			nextAction: string;
+			nextCommand: string;
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "open-url-failed",
+			message: "no opener",
+			operation: "open",
+			nextAction: "open manually: https://example.test/auth",
+			nextCommand:
+				"refarm open-url 'https://example.test/auth' --dry-run --json",
+		});
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
 	});
