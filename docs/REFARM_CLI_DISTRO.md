@@ -220,7 +220,8 @@ npm run refarm:tree:verify
   plugin, so the smoke validates the current runtime-agent source rather than a
   stale package artifact.
 - `cli:install:verify` runs installer dry-run regression tests, devcontainer
-  contract tests, and node-substrate diagnostic output tests. The auto router
+  contract tests, node-substrate diagnostic output tests, and the aggregate
+  environment-substrate handoff test. The auto router
   selects the `install` profile for CLI install/devcontainer/substrate deltas
   so bootstrap work does not fall into the broad CI lane just because it touched
   root `package.json` as a companion file.

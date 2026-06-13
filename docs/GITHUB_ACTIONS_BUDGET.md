@@ -129,8 +129,9 @@ The `platform-compat` job is the lightweight cross-platform proof. It runs on
 `windows-2025-vs2026` and `macos-latest`, reuses the shared setup/cache action,
 and checks:
 
-- Node substrate ownership and workspace dependency materialization;
-- Rust/WASM substrate availability, including `cargo-component`;
+- aggregate environment substrate health, including Node substrate ownership,
+  workspace dependency materialization, Git/GitHub CLI, pnpm, Rust/WASM, and
+  `cargo-component`;
 - dependency-ordered builds for `packages/cli` and `apps/refarm`;
 - focused CLI handoff tests that exercise operator/process contracts.
 
