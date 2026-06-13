@@ -18,6 +18,7 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.equal(result.stderr, "");
 
 	const output = JSON.parse(result.stdout);
+	assert.equal(output.schemaVersion, 1);
 	assert.equal(output.command, "environment-substrate");
 	assert.equal(output.operation, "check");
 	assert.equal(typeof output.ok, "boolean");
@@ -26,6 +27,7 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.equal(typeof output.nodeVersion, "string");
 	assert.ok(Array.isArray(output.checks));
 	assert.ok(Array.isArray(output.failedChecks));
+	assert.ok(Array.isArray(output.warningChecks));
 	assert.ok(Array.isArray(output.recommendations));
 	assert.ok(Array.isArray(output.nextActions));
 	assert.ok(Array.isArray(output.nextCommands));
@@ -33,7 +35,25 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.equal(typeof output.substrate.rust.ok, "boolean");
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
-	assert.ok(output.checks.some((check) => check.id === "tool_node"));
+	assert.ok(output.checks.some((check) => check.id === "tool_node" && check.required === true));
+	assert.ok(output.checks.some((check) => check.id === "diagnostic_jq" && check.required === false));
+});
+
+test("environment substrate check keeps optional diagnostics non-blocking", () => {
+	const result = runCheck();
+	const output = JSON.parse(result.stdout);
+
+	for (const check of output.warningChecks) {
+		assert.equal(check.required, false);
+	}
+	assert.equal(
+		output.failedChecks.some((check) => check.required === false),
+		false,
+	);
+	assert.equal(
+		output.nextActions.some((action) => /agent diagnostics/.test(action)),
+		false,
+	);
 });
 
 test("environment substrate check rejects unknown arguments", () => {
@@ -42,4 +62,3 @@ test("environment substrate check rejects unknown arguments", () => {
 	assert.equal(result.stdout, "");
 	assert.match(result.stderr, /Usage: node scripts\/ci\/check-environment-substrate\.mjs \[--json\]/);
 });
-

@@ -31,7 +31,7 @@ setup logic, it is premature.
 | Rust substrate | `.cargo/config.toml`, Dockerfile Rust install, CI setup | Toolchain, targets, components, resource limits |
 | Browser/E2E substrate | Dockerfile Playwright libraries, CI setup action | Chromium/Playwright runtime dependencies |
 | Runtime health | `refarm check --next-action --json`, `refarm agent finish --run --json` | Operator and agent readiness gates |
-| Substrate inventory check | `pnpm run environment-substrate:check --json` | Aggregated Node, Rust/WASM, Git/GitHub CLI, pnpm, and WASM tool availability |
+| Substrate inventory check | `pnpm run environment-substrate:check --json` | Versioned JSON for required Node/Rust/WASM/Git substrate plus non-blocking diagnostic tools |
 
 ## Environment Substrate
 
@@ -47,7 +47,9 @@ commands are expected to be reliable.
 - WASM tooling: `wasm-tools` and `cargo-component`.
 - Playwright/Chromium system libraries for Linux E2E runs.
 - Common diagnostics: `bash`, `jq`, `ripgrep`, `fd`, `shellcheck`, `shfmt`,
-  `tree`, `hyperfine`, and `direnv`.
+  `tree`, `hyperfine`, and `direnv`. These should be reported separately from
+  required cross-platform substrate so Windows/macOS are not blocked by
+  Linux-container diagnostics.
 - Bubblewrap capability for sandbox/runtime checks in the container.
 - Locale and encoding defaults that do not break Portuguese content.
 - Persistent caches for pnpm, npm globals, Turbo, Playwright, Cargo registry,

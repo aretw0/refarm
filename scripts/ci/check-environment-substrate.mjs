@@ -71,11 +71,12 @@ function compactOutput(result) {
 	};
 }
 
-function toolCheck(id, command, args = ["--version"]) {
+function toolCheck(id, command, args = ["--version"], options = {}) {
 	const result = run(command, args);
 	return {
 		id,
 		kind: "tool",
+		required: options.required !== false,
 		ok: result.ok,
 		command,
 		args,
@@ -99,6 +100,15 @@ const tools = [
 	toolCheck("tool_rustup", "rustup", ["--version"]),
 	toolCheck("tool_wasm_tools", "wasm-tools", ["--version"]),
 ];
+const diagnosticTools = [
+	toolCheck("diagnostic_bash", "bash", ["--version"], { required: false }),
+	toolCheck("diagnostic_jq", "jq", ["--version"], { required: false }),
+	toolCheck("diagnostic_rg", "rg", ["--version"], { required: false }),
+	toolCheck("diagnostic_fd", "fd", ["--version"], { required: false }),
+	toolCheck("diagnostic_shellcheck", "shellcheck", ["--version"], { required: false }),
+	toolCheck("diagnostic_shfmt", "shfmt", ["--version"], { required: false }),
+	toolCheck("diagnostic_bwrap", "bwrap", ["--version"], { required: false }),
+];
 
 const checks = [
 	{
@@ -116,6 +126,7 @@ const checks = [
 		exitCode: rustRun.exitCode,
 	},
 	...tools,
+	...diagnosticTools,
 ];
 
 const recommendations = [
@@ -138,16 +149,30 @@ const recommendations = [
 			action: `Install or expose ${check.command} in PATH for this environment.`,
 			target: check.command,
 		})),
+	...diagnosticTools
+		.filter((check) => !check.ok)
+		.map((check) => ({
+			diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
+			severity: "warning",
+			summary: `Diagnostic tool is not available: ${check.command}`,
+			action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
+			target: check.command,
+		})),
 ];
 
 const nextCommands = [
 	...(Array.isArray(nodeSubstrate.nextCommands) ? nodeSubstrate.nextCommands : []),
 	...(Array.isArray(rustSubstrate.nextCommands) ? rustSubstrate.nextCommands : []),
 ];
-const nextActions = recommendations.map((recommendation) => recommendation.action);
-const failedChecks = checks.filter((check) => !check.ok);
+const blockingRecommendations = recommendations.filter(
+	(recommendation) => recommendation.severity !== "warning" && recommendation.severity !== "info",
+);
+const nextActions = blockingRecommendations.map((recommendation) => recommendation.action);
+const failedChecks = checks.filter((check) => check.required !== false && !check.ok);
+const warningChecks = checks.filter((check) => check.required === false && !check.ok);
 
 const result = {
+	schemaVersion: 1,
 	ok: failedChecks.length === 0,
 	command: "environment-substrate",
 	operation: "check",
@@ -156,10 +181,12 @@ const result = {
 	nodeVersion: process.version,
 	checks,
 	failedChecks,
+	warningChecks,
 	substrate: {
 		node: nodeSubstrate,
 		rust: rustSubstrate,
 		tools,
+		diagnosticTools,
 	},
 	processes: {
 		nodeSubstrate: compactOutput(nodeRun),
@@ -190,4 +217,3 @@ if (json) {
 }
 
 process.exit(result.ok ? 0 : 1);
-
