@@ -34,7 +34,32 @@ function ids(artifacts) {
 	return artifacts.map((artifact) => artifact.id);
 }
 
+function assertProducerProcess(manifest, expected) {
+	for (const artifact of manifest.artifacts) {
+		assert.deepEqual(
+			artifact.provenance.process,
+			expected,
+			`${artifact.id} must preserve tokenized producer process`,
+		);
+		assert.equal(
+			artifact.provenance.command,
+			expected.display,
+			`${artifact.id} command display must match process display`,
+		);
+		assert.equal(
+			artifact.provenance.command.startsWith("pnpm run "),
+			false,
+			`${artifact.id} must not use package-manager scripts as provenance`,
+		);
+	}
+}
+
 const wallet = readManifest(MANIFESTS.wallet);
+assertProducerProcess(wallet, {
+	command: "node",
+	args: ["validations/citizen-data-wallet-poc/wallet-poc.mjs"],
+	display: "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+});
 assert.deepEqual(
 	ids(selectTaskArtifacts(wallet, {
 		mediaTypes: ["application/json"],
@@ -93,6 +118,11 @@ assert.deepEqual(
 );
 
 const extension = readManifest(MANIFESTS.extension);
+assertProducerProcess(extension, {
+	command: "node",
+	args: ["validations/extension-sandbox-poc/extension-sandbox-poc.mjs"],
+	display: "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+});
 assert.deepEqual(
 	ids(selectTaskArtifacts(extension, {
 		mediaTypes: ["text/markdown"],
@@ -149,6 +179,11 @@ assert.deepEqual(
 );
 
 const notes = readManifest(MANIFESTS.notes);
+assertProducerProcess(notes, {
+	command: "node",
+	args: ["validations/governed-note-box-poc/governed-note-box-poc.mjs"],
+	display: "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+});
 assert.deepEqual(
 	ids(selectTaskArtifacts(notes, {
 		labels: ["lab"],
