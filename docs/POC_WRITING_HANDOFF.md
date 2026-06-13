@@ -81,6 +81,35 @@ The safest writing posture is:
 - only promote a claim when it maps to a manifest artifact, command, or
   independently reviewed source.
 
+## POC Narrative Placement
+
+Do not hide the POC until the end of the proposal, and do not present the full
+POC before the reader understands the problem.
+
+Use this order when translating evidence into proposal text:
+
+1. Open with the concrete institutional problem and why the current workflow is
+   costly, fragile, slow, or hard to audit.
+2. Establish the technical and regulatory context with external references and
+   existing practices.
+3. Introduce the POC early as a controlled validation method: "a synthetic
+   proof of concept was built to test the operating hypothesis".
+4. Explain the architecture and workflow under test before showing result
+   tables.
+5. Present POC results as objective evidence: criteria, observed artifacts,
+   pass/watch/fail gates, and limits.
+6. Close with adoption path, risks, mitigations, and the next pilot boundary.
+
+This keeps the POC as a thread through the work instead of a late appendix. The
+reader should know that a POC exists early, but should only see the full
+evidence after the proposal has explained why the POC matters.
+
+Avoid two failure modes:
+
+- theory-first text where the POC appears only at the end and feels bolted on;
+- demo-first text where artifacts appear before the institutional problem and
+  architecture are clear.
+
 ## Validation Command
 
 ```bash
