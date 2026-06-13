@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 import { describe, it } from "node:test";
 import {
 	assertNoPrivateTerms,
 	validateValidationPocWritingConsumer,
 } from "./validation-poc-writing-consumer-lib.mjs";
+
+const CLI_PATH = path.resolve("scripts/ci/check-validation-poc-writing-consumer.mjs");
 
 function makeIndex(overrides = {}) {
 	return {
@@ -75,5 +79,21 @@ describe("validation poc writing consumer", () => {
 			() => validateValidationPocWritingConsumer(index, makeOptions()),
 			/governed-note-box must expose limits/,
 		);
+	});
+
+	it("emits a machine-readable success envelope", () => {
+		const result = spawnSync(process.execPath, [CLI_PATH, "--json"], {
+			cwd: path.resolve("."),
+			encoding: "utf8",
+		});
+
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(result.stderr, "");
+		assert.deepEqual(JSON.parse(result.stdout), {
+			ok: true,
+			pocCount: 3,
+			indexPath: "validations/poc-evidence-index.json",
+			schema: "refarm.validation-poc-evidence-index.v1",
+		});
 	});
 });
