@@ -74,6 +74,7 @@ validations/
 pnpm run test:e2e       # Playwright E2E (wasm-plugin/host)
 pnpm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
 pnpm run validation-pocs:test # POCs sintéticas + manifests + índice
+pnpm run validation-pocs:writing-consumer:test # Consumidor de escrita
 pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ```
 
@@ -88,3 +89,8 @@ Cada item de `writingClaims` contém uma afirmação cuidadosa, as evidências
 primárias que sustentam a afirmação e o limite de linguagem que ainda não deve
 ser ultrapassado. Isso permite que vaults, labs ou ferramentas de escrita usem
 o índice sem copiar semântica privada de proposta para dentro do Refarm.
+
+`pnpm run validation-pocs:writing-consumer:test` valida esse contrato do ponto
+de vista de um consumidor externo: todas as evidências primárias precisam
+resolver para arquivos locais, cada tema precisa expor seus limites de uso, e o
+índice deve continuar neutro, sem termos de proposta ou vault privado.
