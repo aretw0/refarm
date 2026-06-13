@@ -173,6 +173,28 @@ describe("TaskArtifactManifest", () => {
     });
   });
 
+  it("rejects contradictory command display and process display", () => {
+    const manifest = sampleManifest();
+    const result = validateTaskArtifactManifest({
+      ...manifest,
+      artifacts: [
+        {
+          ...manifest.artifacts[0],
+          provenance: {
+            ...manifest.artifacts[0].provenance,
+            command: "pnpm run wallet:poc",
+          },
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual({
+      path: "$.artifacts.0.provenance.command",
+      message: "Expected command to match process display.",
+    });
+  });
+
   it("reports path-aware issues for malformed manifests", () => {
     const result = validateTaskArtifactManifest({
       schema: "wrong",

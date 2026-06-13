@@ -219,6 +219,17 @@ function validateProvenance(
 	requireString(value.producedAt, `${path}.producedAt`, issues);
 	if (value.process !== undefined) {
 		validateProcessReference(value.process, `${path}.process`, issues);
+		if (
+			isNonEmptyString(value.command) &&
+			isRecord(value.process) &&
+			isNonEmptyString(value.process.display) &&
+			value.command !== value.process.display
+		) {
+			issues.push({
+				path: `${path}.command`,
+				message: "Expected command to match process display.",
+			});
+		}
 	}
 	if (value.inputHashes !== undefined) {
 		if (!Array.isArray(value.inputHashes)) {
