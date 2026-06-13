@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
@@ -14,9 +14,16 @@ import {
 } from "./extension-sandbox-poc.mjs";
 
 const FIXTURES_DIR = path.join(import.meta.dirname, "fixtures", "expected");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 function readFixture(fileName) {
 	return JSON.parse(readFileSync(path.join(FIXTURES_DIR, fileName), "utf8"));
+}
+
+function readPackageJson(...segments) {
+	return JSON.parse(
+		readFileSync(path.join(REPO_ROOT, ...segments, "package.json"), "utf8"),
+	);
 }
 
 describe("extension sandbox poc", () => {
@@ -114,6 +121,48 @@ describe("extension sandbox poc", () => {
 			),
 		);
 		assert.match(evidence.promotionBoundary.cannotSay, /synthetic sandbox report/);
+	});
+
+	it("keeps runtime evidence commands and linked files resolvable", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildRuntimeEvidence(report);
+		const commandsById = Object.fromEntries(
+			evidence.evidenceCommands.map((command) => [command.id, command.command]),
+		);
+		const helloWorld = readPackageJson("validations", "wasm-plugin", "hello-world");
+		const wasmHost = readPackageJson("validations", "wasm-plugin", "host");
+		const tractorTs = readPackageJson("packages", "tractor-ts");
+
+		assert.equal(
+			commandsById["hello-world-wasm-build"],
+			`pnpm --filter ${helloWorld.name} run build`,
+		);
+		assert.ok(helloWorld.scripts.build);
+		assert.equal(
+			commandsById["browser-plugin-lifecycle-e2e"],
+			"pnpm -C validations/wasm-plugin/host run test:e2e:chromium",
+		);
+		assert.ok(wasmHost.scripts["test:e2e:chromium"]);
+		assert.equal(
+			commandsById["tractor-jco-integration"],
+			`pnpm --filter ${tractorTs.name} run test -- test/jco-integration.test.ts`,
+		);
+		assert.ok(tractorTs.scripts.test);
+		assert.ok(
+			existsSync(
+				path.join(
+					REPO_ROOT,
+					"packages",
+					"tractor-ts",
+					"test",
+					"jco-integration.test.ts",
+				),
+			),
+		);
+
+		for (const linkedPath of evidence.linkedEvidence) {
+			assert.ok(existsSync(path.join(REPO_ROOT, linkedPath)), linkedPath);
+		}
 	});
 
 	it("keeps generated fixtures deterministic", () => {
