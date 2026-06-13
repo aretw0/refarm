@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildCodingAgentEvidence,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
@@ -124,6 +125,26 @@ describe("extension sandbox poc", () => {
 		assert.match(evidence.promotionBoundary.cannotSay, /synthetic sandbox report/);
 	});
 
+	it("publishes coding-agent governance evidence without claiming autonomy", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildCodingAgentEvidence(report);
+
+		assert.deepEqual(readFixture("coding-agent-evidence.json"), evidence);
+		assert.equal(evidence.claimStatus, "synthetic-governance-poc");
+		assert.deepEqual(evidence.capabilityModel.autoAllowed, ["storage:v1"]);
+		assert.ok(evidence.capabilityModel.blockedByDefault.includes("network:v1"));
+		assert.ok(evidence.capabilityModel.requiresReview.includes("workspace:write"));
+		assert.ok(
+			evidence.controlledRun.packets.some(
+				(packet) =>
+					packet.step === "capability-review" &&
+					packet.outcome === "network-blocked",
+			),
+		);
+		assert.match(evidence.promotionBoundary.canSay, /coding-agent workflow/);
+		assert.match(evidence.promotionBoundary.cannotSay, /production autonomous/);
+	});
+
 	it("keeps runtime evidence commands and linked files resolvable", () => {
 		const report = runExtensionSandboxPoc();
 		const evidence = buildRuntimeEvidence(report);
@@ -206,6 +227,7 @@ describe("extension sandbox poc", () => {
 				"scorecard.json",
 				"risk-and-standards-matrix.json",
 				"runtime-evidence.json",
+				"coding-agent-evidence.json",
 				"scenario.md",
 				"annex.md",
 				"limits.md",
