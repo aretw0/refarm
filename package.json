@@ -59,7 +59,7 @@
 		"validation-pocs:index": "node scripts/ci/build-validation-poc-evidence-index.mjs",
 		"validation-pocs:index:test": "node --test scripts/ci/test-validation-poc-evidence-index.mjs",
 		"validation-pocs:consumer:test": "node scripts/ci/run-workspace-script.mjs packages/artifact-contract-v1 build && node scripts/ci/check-validation-poc-consumers.mjs",
-		"validation-pocs:writing-consumer:test": "node scripts/ci/check-validation-poc-writing-consumer.mjs",
+		"validation-pocs:writing-consumer:test": "node --test scripts/ci/test-validation-poc-writing-consumer-lib.mjs && node scripts/ci/check-validation-poc-writing-consumer.mjs",
 		"validation-pocs:test": "node scripts/ci/run-root-scripts.mjs wallet:poc:test extension-sandbox:poc:test governed-note-box:poc:test task-artifacts:check validation-pocs:consumer:test validation-pocs:index:test validation-pocs:writing-consumer:test",
 		"task-artifacts:check": "node scripts/ci/check-task-artifact-manifests.mjs",
 		"task-artifacts:check:test": "node --test scripts/ci/test-check-task-artifact-manifests-lib.mjs",
