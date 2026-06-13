@@ -75,6 +75,7 @@ pnpm run test:e2e       # Playwright E2E (wasm-plugin/host)
 pnpm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
 pnpm run validation-pocs:test # POCs sintéticas + manifests + índice
 pnpm run validation-pocs:writing-consumer:test # Consumidor de escrita
+node scripts/ci/check-validation-poc-writing-consumer.mjs --json
 pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ```
 
@@ -94,3 +95,8 @@ o índice sem copiar semântica privada de proposta para dentro do Refarm.
 de vista de um consumidor externo: todas as evidências primárias precisam
 resolver para arquivos locais, cada tema precisa expor seus limites de uso, e o
 índice deve continuar neutro, sem termos de proposta ou vault privado.
+
+Para automação, `node scripts/ci/check-validation-poc-writing-consumer.mjs --json`
+emite um envelope estável com `ok`, `pocCount`, `indexPath` e `schema`; em falha,
+o mesmo modo retorna `ok: false` e `error` antes de sair com código diferente de
+zero.
