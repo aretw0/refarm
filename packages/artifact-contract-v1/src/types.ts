@@ -57,6 +57,19 @@ export interface ArtifactHash {
 	value: string;
 }
 
+export interface ArtifactProcessReference {
+	/** Executable name or absolute executable path. */
+	command: string;
+	/** Already-tokenized arguments. Consumers must not shell-split this field. */
+	args: readonly string[];
+	/** Shell-ready display string for operators and legacy handoffs. */
+	display: string;
+	/** Optional working directory used by the producer. */
+	cwd?: string;
+	/** Optional package manager label when the command came from a workspace runner. */
+	packageManager?: string | null;
+}
+
 export interface ArtifactProvenance {
 	/** Stable task, effort, job, notebook, or pipeline run identifier. */
 	runId: string;
@@ -64,6 +77,8 @@ export interface ArtifactProvenance {
 	producer: string;
 	/** Shell-ready display command, process display, or logical operation name. */
 	command?: string;
+	/** Structured process reference when the producer executed a tokenized process. */
+	process?: ArtifactProcessReference;
 	/** Source repository, vault, dataset, or other origin label. */
 	source?: string;
 	/** Dataset/model/template version known to the producer, when applicable. */
@@ -149,6 +164,47 @@ function validateHash(
 	}
 }
 
+function validateStringArray(
+	value: unknown,
+	path: string,
+	issues: ArtifactManifestValidationIssue[],
+): void {
+	if (!Array.isArray(value)) {
+		issues.push({ path, message: "Expected an array." });
+		return;
+	}
+	value.forEach((item, index) =>
+		requireString(item, `${path}.${index}`, issues),
+	);
+}
+
+function validateProcessReference(
+	value: unknown,
+	path: string,
+	issues: ArtifactManifestValidationIssue[],
+): void {
+	if (!isRecord(value)) {
+		issues.push({ path, message: "Expected a process reference object." });
+		return;
+	}
+	requireString(value.command, `${path}.command`, issues);
+	validateStringArray(value.args, `${path}.args`, issues);
+	requireString(value.display, `${path}.display`, issues);
+	if (value.cwd !== undefined) {
+		requireString(value.cwd, `${path}.cwd`, issues);
+	}
+	if (
+		value.packageManager !== undefined &&
+		value.packageManager !== null &&
+		!isNonEmptyString(value.packageManager)
+	) {
+		issues.push({
+			path: `${path}.packageManager`,
+			message: "Expected a non-empty string or null.",
+		});
+	}
+}
+
 function validateProvenance(
 	value: unknown,
 	path: string,
@@ -161,6 +217,9 @@ function validateProvenance(
 	requireString(value.runId, `${path}.runId`, issues);
 	requireString(value.producer, `${path}.producer`, issues);
 	requireString(value.producedAt, `${path}.producedAt`, issues);
+	if (value.process !== undefined) {
+		validateProcessReference(value.process, `${path}.process`, issues);
+	}
 	if (value.inputHashes !== undefined) {
 		if (!Array.isArray(value.inputHashes)) {
 			issues.push({ path: `${path}.inputHashes`, message: "Expected an array." });

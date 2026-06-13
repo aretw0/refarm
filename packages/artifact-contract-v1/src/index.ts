@@ -14,6 +14,7 @@ export type {
 	ArtifactHash,
 	ArtifactManifestValidationIssue,
 	ArtifactManifestValidationResult,
+	ArtifactProcessReference,
 	ArtifactProvenance,
 	ArtifactReviewState,
 	ArtifactStatus,

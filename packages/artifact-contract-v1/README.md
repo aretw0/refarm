@@ -13,6 +13,8 @@ Shared lifecycle base types for managed artifacts in the Refarm platform.
 - `TaskArtifactReference` — one generated output such as a dataset, report,
   audit trail, receipt, log, or nested manifest
 - `ArtifactProvenance` — producer/run/source metadata for a generated output
+- `ArtifactProcessReference` — optional structured process metadata for outputs
+  produced by shell-free runners
 - `validateTaskArtifactManifest(value)` — runtime validator that returns
   path-aware issues for JS consumers and CI checks
 - `isTaskArtifactManifest(value)` — type guard for validated manifests
@@ -63,7 +65,13 @@ const manifest: TaskArtifactManifest = {
       provenance: {
         runId: "wallet-poc-001",
         producer: "wallet:poc",
-        command: "pnpm run wallet:poc",
+        command: "node tools/produce-artifacts.mjs",
+        process: {
+          command: "node",
+          args: ["tools/produce-artifacts.mjs"],
+          display: "node tools/produce-artifacts.mjs",
+          cwd: "/workspaces/consumer-project",
+        },
         source: "validations/citizen-data-wallet-poc",
         sourceVersion: "synthetic-v1",
         producedAt: "2026-06-11T00:00:00.000Z",
@@ -76,6 +84,17 @@ const manifest: TaskArtifactManifest = {
 Consumers such as `vault-seed` can map these references to Lab datasets,
 publication reports, or audit notebooks while keeping vault-specific fields in
 their own manifests.
+
+When the producer uses a tokenized runner, store the exact executable boundary
+in `provenance.process`. Keep `provenance.command` as a stable display string
+for humans and older consumers. The `process.args` array is already tokenized;
+consumers must not shell-split it.
+
+The executable and script paths in `provenance.process` are consumer-owned
+evidence. They are not distributed by this package. `@refarm.dev/artifact-contract-v1`
+only distributes the TypeScript/JavaScript contract, runtime validator, and
+selection helpers; the producing project owns its scripts, notebooks, ETL jobs,
+or native binaries.
 
 Runtime consumers should validate untrusted or generated manifests before using
 their paths:

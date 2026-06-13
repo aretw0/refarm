@@ -59,7 +59,13 @@ describe("TaskArtifactManifest", () => {
           provenance: {
             runId: "wallet-poc-001",
             producer: "wallet:poc",
-            command: "pnpm run wallet:poc",
+            command: "node scripts/wallet-poc.mjs",
+            process: {
+              command: "node",
+              args: ["scripts/wallet-poc.mjs"],
+              display: "node scripts/wallet-poc.mjs",
+              cwd: "validations/citizen-data-wallet-poc",
+            },
             source: "validations/citizen-data-wallet-poc",
             sourceVersion: "synthetic-v1",
             producedAt: "2026-06-11T00:00:00.000Z",
@@ -95,6 +101,9 @@ describe("TaskArtifactManifest", () => {
 
     expect(manifest.schema).toBe("refarm.task-artifacts.v1");
     expect(manifest.artifacts[0]?.provenance.runId).toBe("wallet-poc-001");
+    expect(manifest.artifacts[0]?.provenance.process?.args).toEqual([
+      "scripts/wallet-poc.mjs",
+    ]);
     expect(manifest.artifacts[0]?.role).toBe("audit-trail");
   });
 
@@ -165,7 +174,18 @@ describe("TaskArtifactManifest", () => {
           role: "unknown",
           hash: { algorithm: "sha1", value: "abc" },
           reviewState: "maybe",
-          provenance: { runId: "", producer: "wallet:poc", producedAt: "" },
+          provenance: {
+            runId: "",
+            producer: "wallet:poc",
+            process: {
+              command: "",
+              args: ["ok", ""],
+              display: "",
+              cwd: "",
+              packageManager: "",
+            },
+            producedAt: "",
+          },
           labels: ["ok", ""],
         },
       ],
@@ -182,6 +202,11 @@ describe("TaskArtifactManifest", () => {
       "$.artifacts.0.reviewState",
       "$.artifacts.0.provenance.runId",
       "$.artifacts.0.provenance.producedAt",
+      "$.artifacts.0.provenance.process.command",
+      "$.artifacts.0.provenance.process.args.1",
+      "$.artifacts.0.provenance.process.display",
+      "$.artifacts.0.provenance.process.cwd",
+      "$.artifacts.0.provenance.process.packageManager",
       "$.artifacts.0.labels.1",
     ]);
   });

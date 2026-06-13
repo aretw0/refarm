@@ -72,6 +72,12 @@ Refarm now exposes the first generic building block for that path:
 and `createLaunchProcessRunner`. These helpers accept the same runner-shaped
 inputs that `dgk` already uses, keep execution shell-free, and preserve optional
 `cwd`, `display`, and package-manager metadata for later handoffs.
+`@refarm.dev/artifact-contract-v1` also accepts the same tokenized process shape
+inside `ArtifactProvenance.process`, so datasets, reports, notebook snapshots,
+and publication receipts can point back to the exact process boundary that
+produced them. The process points to consumer-owned scripts or binaries; Refarm
+does not distribute vault ETL, Astro, Marimo, or publication scripts through the
+artifact contract.
 
 ## 2026-06-11 Read-Only Calibration
 
@@ -207,6 +213,13 @@ consumer CLI directly to Refarm internals:
    - Lab outputs should be represented as task artifacts with stable paths,
      media type, producer command, input hashes, and review state. Vault-specific
      fields stay in `vault-seed`.
+   - When a lab or publication pipeline was run through a tokenized process,
+     `ArtifactProvenance.process` should carry `command`, `args`, `display`,
+     optional `cwd`, and optional `packageManager`; `command` remains the
+     human-readable compatibility display.
+   - The referenced executable is evidence, not payload. The consumer project
+     owns and distributes its scripts; Refarm owns the contract that validates
+     and describes them.
 
 4. **Skill/package compatibility**
    - `vault-seed` currently scaffolds Pi-style skill and extension packages.
