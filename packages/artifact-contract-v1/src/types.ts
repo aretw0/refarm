@@ -220,6 +220,12 @@ function validateProvenance(
 	if (value.command !== undefined) {
 		requireString(value.command, `${path}.command`, issues);
 	}
+	if (value.source !== undefined) {
+		requireString(value.source, `${path}.source`, issues);
+	}
+	if (value.sourceVersion !== undefined) {
+		requireString(value.sourceVersion, `${path}.sourceVersion`, issues);
+	}
 	if (value.process !== undefined) {
 		validateProcessReference(value.process, `${path}.process`, issues);
 		if (
@@ -299,6 +305,12 @@ export function validateTaskArtifactManifest(
 			path: "$.schema",
 			message: `Expected ${TASK_ARTIFACT_MANIFEST_SCHEMA}.`,
 		});
+	}
+	if (value.taskId !== undefined) {
+		requireString(value.taskId, "$.taskId", issues);
+	}
+	if (value.effortId !== undefined) {
+		requireString(value.effortId, "$.effortId", issues);
 	}
 	requireString(value.createdAt, "$.createdAt", issues);
 	if (!Array.isArray(value.artifacts)) {

@@ -198,6 +198,8 @@ describe("TaskArtifactManifest", () => {
   it("reports path-aware issues for malformed manifests", () => {
     const result = validateTaskArtifactManifest({
       schema: "wrong",
+      taskId: "",
+      effortId: "",
       createdAt: "",
       artifacts: [
         {
@@ -211,6 +213,8 @@ describe("TaskArtifactManifest", () => {
             runId: "",
             producer: "wallet:poc",
             command: "",
+            source: "",
+            sourceVersion: "",
             process: {
               command: "",
               args: ["ok", ""],
@@ -228,6 +232,8 @@ describe("TaskArtifactManifest", () => {
     expect(result.ok).toBe(false);
     expect(result.issues.map((issue) => issue.path)).toEqual([
       "$.schema",
+      "$.taskId",
+      "$.effortId",
       "$.createdAt",
       "$.artifacts.0.id",
       "$.artifacts.0.role",
@@ -237,6 +243,8 @@ describe("TaskArtifactManifest", () => {
       "$.artifacts.0.provenance.runId",
       "$.artifacts.0.provenance.producedAt",
       "$.artifacts.0.provenance.command",
+      "$.artifacts.0.provenance.source",
+      "$.artifacts.0.provenance.sourceVersion",
       "$.artifacts.0.provenance.process.command",
       "$.artifacts.0.provenance.process.args.1",
       "$.artifacts.0.provenance.process.display",
