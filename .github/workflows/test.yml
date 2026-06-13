@@ -41,6 +41,7 @@ jobs:
       skip_duplicate_push: ${{ steps.detect.outputs.skip_duplicate_push }}
       quality_cache_key: ${{ steps.signatures.outputs.quality_key }}
       e2e_cache_key: ${{ steps.signatures.outputs.e2e_key }}
+      tractor_heavy_cache_key: ${{ steps.signatures.outputs.tractor_heavy_key }}
 
     steps:
       - name: Checkout
@@ -243,6 +244,19 @@ jobs:
           .cargo/config.toml
           EOF
 
+          cat > /tmp/refarm-tractor-heavy-signature-patterns.txt <<'EOF'
+          packages/tractor
+          packages/tractor-ts
+          scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs
+          scripts/ci/smoke-runtime-descriptor-release-path.mjs
+          package.json
+          pnpm-lock.yaml
+          turbo.json
+          .cargo/config.toml
+          .github/actions/setup
+          .github/workflows/test.yml
+          EOF
+
           node scripts/ci/content-signature.mjs \
             --name test-quality \
             --output quality_key \
@@ -252,6 +266,11 @@ jobs:
             --name test-e2e \
             --output e2e_key \
             --patterns-file /tmp/refarm-e2e-signature-patterns.txt
+
+          node scripts/ci/content-signature.mjs \
+            --name tractor-heavy \
+            --output tractor_heavy_key \
+            --patterns-file /tmp/refarm-tractor-heavy-signature-patterns.txt
 
   validate-scaffold:
     name: Validate package scaffold and action pins
@@ -394,6 +413,18 @@ jobs:
             --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
             --out-dir .artifacts/runtime-descriptor-revocation-history
 
+      - name: Restore Tractor heavy result cache
+        id: tractor_heavy_cache
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && needs.changes.outputs.tractor_heavy_cache_key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/tractor-heavy
+          key: ${{ needs.changes.outputs.tractor_heavy_cache_key }}
+
+      - name: Tractor heavy cache hit
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful Tractor benchmark/coverage validation for unchanged heavy inputs."
+
       - name: Verify (Full Turbo)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
         run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
@@ -423,7 +454,7 @@ jobs:
       # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true'
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
@@ -466,7 +497,7 @@ jobs:
           fi
 
       - name: Comment PR on Benchmark Increase
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -517,7 +548,7 @@ jobs:
 
       - name: Coverage Quality Gate (Tractor)
         id: coverage
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true'
         run: |
           cd packages/tractor
           pnpm run coverage:check
@@ -535,7 +566,7 @@ jobs:
           fi
 
       - name: Comment PR on Coverage Increase
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -591,7 +622,7 @@ jobs:
             }
 
       - name: Upload coverage
-        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && env.CODECOV_TOKEN != ''
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && env.CODECOV_TOKEN != ''
         uses: ./.github/actions/codecov-upload
         with:
           files: ./packages/tractor/coverage/lcov.info
@@ -625,6 +656,12 @@ jobs:
         run: |
           mkdir -p .artifacts/validation-cache/test-quality
           printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/test-quality/last-successful-sha.txt
+
+      - name: Record Tractor heavy cache marker
+        if: success() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_cache_key != ''
+        run: |
+          mkdir -p .artifacts/validation-cache/tractor-heavy
+          printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/tractor-heavy/last-successful-sha.txt
 
   platform-compat:
     name: Platform compatibility (${{ matrix.os }})
@@ -936,8 +973,8 @@ jobs:
           echo "::notice::All checks passed!"
 
   ci-metrics:
-    if: always()
-    needs: [summary]
+    if: always() && needs.changes.outputs.skip_duplicate_push != 'true'
+    needs: [changes, summary]
     runs-on: ubuntu-latest
 
     steps:
