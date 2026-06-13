@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import path from "node:path";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");
@@ -12,7 +13,24 @@ if (unknownArgs.length > 0) {
 	process.exit(1);
 }
 
-function run(command, args = []) {
+function displayCommand(command, args = []) {
+	return [command, ...args].join(" ");
+}
+
+function windowsShellCommand(command, args = []) {
+	if (process.platform !== "win32") {
+		return { command, args, display: displayCommand(command, args) };
+	}
+	return {
+		command: "cmd.exe",
+		args: ["/d", "/s", "/c", command, ...args],
+		display: displayCommand(command, args),
+		logicalCommand: command,
+		logicalArgs: args,
+	};
+}
+
+function run(command, args = [], options = {}) {
 	const result = spawnSync(command, args, {
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "pipe"],
@@ -21,7 +39,7 @@ function run(command, args = []) {
 	return {
 		command,
 		args,
-		display: [command, ...args].join(" "),
+		display: options.display ?? displayCommand(command, args),
 		exitCode: result.status ?? 1,
 		ok: result.status === 0,
 		stdout: result.stdout?.trim() ?? "",
@@ -72,14 +90,16 @@ function compactOutput(result) {
 }
 
 function toolCheck(id, command, args = ["--version"], options = {}) {
-	const result = run(command, args);
+	const result = run(command, args, options);
+	const logicalCommand = options.logicalCommand ?? command;
+	const logicalArgs = options.logicalArgs ?? args;
 	return {
 		id,
 		kind: "tool",
 		required: options.required !== false,
 		ok: result.ok,
-		command,
-		args,
+		command: logicalCommand,
+		args: logicalArgs,
 		display: result.display,
 		version: result.ok ? result.stdout.split(/\r?\n/)[0] ?? "" : null,
 		error: result.ok ? null : result.stderr || result.error || "command failed",
@@ -88,7 +108,7 @@ function toolCheck(id, command, args = ["--version"], options = {}) {
 
 function toolCheckAlternatives(id, alternatives, options = {}) {
 	const attempts = alternatives.map((alternative) =>
-		toolCheck(id, alternative.command, alternative.args, options),
+		toolCheck(id, alternative.command, alternative.args, { ...options, ...alternative }),
 	);
 	const passingAttempt = attempts.find((attempt) => attempt.ok);
 	return {
@@ -108,6 +128,26 @@ function toolCheckAlternatives(id, alternatives, options = {}) {
 	};
 }
 
+function pnpmToolAlternatives(env = process.env) {
+	const alternatives = [
+		windowsShellCommand("pnpm", ["--version"]),
+		windowsShellCommand("pnpm.cmd", ["--version"]),
+		windowsShellCommand("corepack", ["pnpm", "--version"]),
+	];
+
+	if (process.platform === "win32" && env.PNPM_HOME) {
+		const pnpmHome = env.PNPM_HOME;
+		alternatives.push(
+			windowsShellCommand(path.join(pnpmHome, "pnpm.cmd"), ["--version"]),
+			windowsShellCommand(path.join(pnpmHome, "pnpm"), ["--version"]),
+			windowsShellCommand(path.join(pnpmHome, "bin", "pnpm.cmd"), ["--version"]),
+			windowsShellCommand(path.join(pnpmHome, "bin", "pnpm"), ["--version"]),
+		);
+	}
+
+	return alternatives;
+}
+
 const nodeRun = run(process.execPath, ["scripts/ci/check-node-substrate.mjs", "--json"]);
 const rustRun = run(process.execPath, ["scripts/ci/check-rust-substrate.mjs", "--json"]);
 const nodeSubstrate = parseJsonRun(nodeRun);
@@ -115,11 +155,7 @@ const rustSubstrate = parseJsonRun(rustRun);
 
 const tools = [
 	toolCheck("tool_node", process.execPath, ["--version"]),
-	toolCheckAlternatives("tool_pnpm", [
-		{ command: "pnpm", args: ["--version"] },
-		{ command: "pnpm.cmd", args: ["--version"] },
-		{ command: "corepack", args: ["pnpm", "--version"] },
-	]),
+	toolCheckAlternatives("tool_pnpm", pnpmToolAlternatives()),
 	toolCheck("tool_git", "git", ["--version"]),
 	toolCheck("tool_gh", "gh", ["--version"]),
 	toolCheck("tool_rustc", "rustc", ["-V"]),
