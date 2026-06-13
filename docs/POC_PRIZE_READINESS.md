@@ -32,6 +32,51 @@ That bar is broader than "the POC runs." A prize-facing POC must let a reviewer
 see the claim, run or inspect the evidence, understand limits, and map the
 result to operational value.
 
+## Benchmark Transfer Pattern
+
+Read-only calibration against the prior winning-style benchmark suggests that a
+strong proposal does not hide the POC until the end, but also does not lead with
+raw demo artifacts. The useful structure is a narrative ladder:
+
+1. concrete institutional context;
+2. quantified problem;
+3. general objective and specific objectives;
+4. architecture and method;
+5. POC with verifiable steps;
+6. limits, risks, and mitigations;
+7. expected institutional impact.
+
+For Refarm evidence, the transfer should happen at the level of argumentative
+function, not wording. The POCs should appear early as the controlled validation
+method, then the full artifact map should appear only after the reader
+understands the problem, operating model, and adoption boundary.
+
+The writing-safe rule is:
+
+- mention the POC early as a method;
+- explain architecture before result tables;
+- present generated artifacts as evidence, not as product marketing;
+- keep non-claims visible near every stronger claim;
+- keep prize wording, institutional estimates, and private draft language
+  outside this repository.
+
+## Proposal Evidence Matrix
+
+Use this matrix as the minimum bar before external writing turns a POC into a
+claim. Each row should be defensible from a generated artifact, a validation
+command, or a public reference owned outside this repository.
+
+| Theme | Problem | Architectural decision | POC evidence | Observable metric | Current limit |
+| --- | --- | --- | --- | --- | --- |
+| Extension sandbox | Extension ecosystems need reviewable capability boundaries before promotion. | Manifest + policy decision + lifecycle evidence before install/promotion. | `policy-decision.json`, `sandbox-report.json`, `runtime-evidence.json`, `task-artifacts.json`. | denied capabilities counted; isolated failures counted; policy mode recorded; artifact hashes present. | Synthetic policy POC; real WASM/runtime path remains separate evidence. |
+| Citizen data wallet | Personal data sharing needs purpose, scope, expiration, revocation, and auditability. | Authorization receipt + selective presentation + revocation event + consent decision. | `service-request.json`, `authorization-receipt.json`, `selective-presentation.json`, `revocation-event.json`, `consent-decision.json`. | requested vs disclosed attributes; receipt integrity check; revocation status; review state. | No formal wallet, legal, UX, or standards conformance claim. |
+| Governed note box | Knowledge workflows need provenance from intake through lab/publication without publishing drafts by accident. | Metadata index + lab snapshot + publication snapshot + human-review preflight. | `metadata-index.json`, `lab-snapshot.json`, `publication-snapshot.json`, `publication-preflight.json`, `consumer-evidence.json`. | source count; publishable vs draft count; review gate status; manifest selector coverage. | Synthetic workflow; vault UX and publication remain consumer-owned, especially in `vault-seed`. |
+
+This matrix is the practical definition of "POC rich enough for writing": a
+claim is mature only when the reader can see why the problem matters, which
+technical decision addresses it, which artifact proves the mechanism, which
+metric would gate a pilot, and which boundary prevents overclaiming.
+
 ## Current POC Readiness
 
 | POC | Current Strength | Current Gap | Prize Readiness |

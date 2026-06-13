@@ -104,6 +104,11 @@ This keeps the POC as a thread through the work instead of a late appendix. The
 reader should know that a POC exists early, but should only see the full
 evidence after the proposal has explained why the POC matters.
 
+Before promoting a POC result into prose, check the proposal evidence matrix in
+[POC Prize Readiness](POC_PRIZE_READINESS.md#proposal-evidence-matrix): every
+strong claim should have a problem, architectural decision, artifact, metric,
+and current limit.
+
 Avoid two failure modes:
 
 - theory-first text where the POC appears only at the end and feels bolted on;
