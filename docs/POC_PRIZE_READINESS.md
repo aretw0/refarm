@@ -63,7 +63,8 @@ result to operational value.
   `adoption`, and `claim-boundary`.
 - `validations/poc-evidence-index.json`, a suite-level reader map that points
   each theme to scenario, annex, scorecard, risk, limits, and claim-promotion
-  evidence.
+  evidence, plus sanitized `writingClaims` that map careful proposal claims to
+  primary evidence and explicit non-claims.
 - Consumer-oriented provenance: producer command, source path, hashes, media
   type, review state, and intended consumer labels.
 - Focused validation lane: `pnpm run validation-pocs:test`.
@@ -131,6 +132,8 @@ Each POC should grow one lightweight "demonstration packet":
 8. `poc-evidence-index.json`
    - Implemented at `validations/poc-evidence-index.json`.
    - Provides the suite-level reading order and claim-promotion pointers.
+   - Carries `writingClaims` so downstream tools can navigate from careful
+     claim to primary evidence and language boundary.
    - Keeps consumer navigation generic instead of embedding vault or proposal
      semantics in Refarm.
 

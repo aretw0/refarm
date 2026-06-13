@@ -81,5 +81,10 @@ pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 
 `poc-evidence-index.json` é gerado por `pnpm run validation-pocs:index` a
 partir dos manifests `refarm.task-artifacts.v1`. Ele serve como mapa de leitura
-para consumidores externos: cenário, anexo, scorecard, limites e evidências de
-promoção de claims por tema.
+para consumidores externos: cenário, anexo, scorecard, limites, evidências de
+promoção de claims e `writingClaims` por tema.
+
+Cada item de `writingClaims` contém uma afirmação cuidadosa, as evidências
+primárias que sustentam a afirmação e o limite de linguagem que ainda não deve
+ser ultrapassado. Isso permite que vaults, labs ou ferramentas de escrita usem
+o índice sem copiar semântica privada de proposta para dentro do Refarm.
