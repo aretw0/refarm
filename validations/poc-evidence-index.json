@@ -115,6 +115,19 @@
               "wasm",
               "claim-promotion"
             ]
+          },
+          {
+            "id": "coding-agent-evidence-json",
+            "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-evidence.json",
+            "role": "report",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "coding-agent",
+              "agent-governance",
+              "claim-promotion",
+              "theme-1"
+            ]
           }
         ],
         "readerStart": {
@@ -231,14 +244,56 @@
             }
           ],
           "doNotSayYet": "The synthetic report itself executed real WASM plugins."
+        },
+        {
+          "id": "coding-agent-governance-shape",
+          "carefulClaim": "A coding-agent workflow can be framed with explicit capability review, provenance, and human promotion gates.",
+          "primaryEvidence": [
+            {
+              "id": "coding-agent-evidence-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-evidence.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "coding-agent",
+                "agent-governance",
+                "claim-promotion",
+                "theme-1"
+              ]
+            },
+            {
+              "id": "policy-decision-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/policy-decision.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "limits-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/limits.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "limits",
+                "adoption",
+                "claim-boundary"
+              ]
+            }
+          ],
+          "doNotSayYet": "A production autonomous coding agent or safe unattended repository mutation is proven."
         }
       ],
       "consumerHints": {
         "labels": [
           "adoption",
+          "agent-governance",
           "annex",
           "claim-boundary",
           "claim-promotion",
+          "coding-agent",
           "evidence-map",
           "limits",
           "pilot",
@@ -249,15 +304,16 @@
           "scenario",
           "scorecard",
           "standards",
+          "theme-1",
           "wasm"
         ],
         "countByRole": {
           "dataset": 1,
           "receipt": 1,
-          "report": 8
+          "report": 9
         },
         "countByReviewState": {
-          "accepted": 10
+          "accepted": 11
         }
       }
     },

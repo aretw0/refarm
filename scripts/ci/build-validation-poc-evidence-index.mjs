@@ -34,6 +34,18 @@ export const POCS = [
 				evidenceIds: ["runtime-evidence-json", "task-artifacts"],
 				doNotSayYet: "The synthetic report itself executed real WASM plugins.",
 			},
+			{
+				id: "coding-agent-governance-shape",
+				carefulClaim:
+					"A coding-agent workflow can be framed with explicit capability review, provenance, and human promotion gates.",
+				evidenceIds: [
+					"coding-agent-evidence-json",
+					"policy-decision-json",
+					"limits-md",
+				],
+				doNotSayYet:
+					"A production autonomous coding agent or safe unattended repository mutation is proven.",
+			},
 		],
 	},
 	{

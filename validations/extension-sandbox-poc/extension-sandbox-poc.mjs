@@ -369,6 +369,80 @@ export function buildRuntimeEvidence(report) {
 	};
 }
 
+export function buildCodingAgentEvidence(report) {
+	return {
+		id: "coding-agent-evidence-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A coding-agent-shaped workflow can keep authority, evidence, and human review explicit before repository changes are promoted.",
+		claimStatus: "synthetic-governance-poc",
+		scenario: {
+			id: "controlled-coding-agent-change",
+			operatorIntent:
+				"Ask a local coding agent to prepare a bounded source change while the host controls capabilities and promotion.",
+			agentRole:
+				"Plan, inspect permitted files, propose artifacts, and stop before unreviewed writes or network expansion.",
+			hostRole:
+				"Validate requested capabilities, record lifecycle evidence, isolate failures, and require operator review for promotion.",
+		},
+		capabilityModel: {
+			defaultGranted: GRANTED_CAPABILITIES,
+			requestedByAgent: [
+				"storage:v1",
+				"workspace:read",
+				"workspace:write",
+				"process:run",
+				"network:v1",
+			],
+			autoAllowed: ["storage:v1"],
+			requiresReview: ["workspace:write", "process:run"],
+			blockedByDefault: ["network:v1"],
+			lesson:
+				"Provider/model access and operational authority are separate; external access stays denied until an operator grants a specific capability.",
+		},
+		controlledRun: {
+			taskId: TASK_ID,
+			effortId: EFFORT_ID,
+			packets: [
+				{
+					step: "intent",
+					outcome: "accepted-for-planning",
+					evidence: ["scenario.md"],
+				},
+				{
+					step: "capability-review",
+					outcome: report.checks.deniedBlocked ? "network-blocked" : "needs-work",
+					evidence: ["policy-decision.json", "sandbox-report.json"],
+				},
+				{
+					step: "failure-mode",
+					outcome: report.checks.warnContinueSurvivesFailure
+						? "isolated-before-promotion"
+						: "needs-work",
+					evidence: ["sandbox-report.md", "scorecard.json"],
+				},
+				{
+					step: "promotion",
+					outcome: "human-review-required",
+					evidence: ["task-artifacts.json", "limits.md"],
+				},
+			],
+		},
+		calibrationSignals: [
+			"Adjacent local curation favors a small default stack, explicit capabilities, report-only delegation rehearsal, provider budget visibility, and adapters over runtime lock-in.",
+			"Those lessons are represented here as evidence packets and promotion gates, not as an always-on autonomous coding agent.",
+		],
+		promotionBoundary: {
+			canSay:
+				"The POC demonstrates the governance shape for a coding-agent workflow: explicit capability review, failure policy, provenance, and human promotion gates.",
+			cannotSay:
+				"The POC proves a production autonomous coding agent, complete repository sandboxing, or safe unattended code changes.",
+		},
+		nextPromotion:
+			"Connect this packet to a real coding-agent smoke that produces a proposed patch, a review packet, and a denied-capability receipt without mutating protected files.",
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -525,6 +599,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Lifecycle trace is recorded | ${report.checks.lifecycleEventsRecorded} lifecycle events | pass | \`sandbox-report.md\` |
 | Strict policy aborts unsafe flow | strict host status is \`${report.policyDecision.recommendedHostStatus}\` | pass | \`policy-decision.json\` |
 | Real execution claim stays bounded | real WASM remains adjacent validation | watch | \`runtime-evidence.json\`, \`limits.md\` |
+| Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | \`coding-agent-evidence.json\`, \`policy-decision.json\` |
 
 ## Claim Boundary
 
@@ -559,6 +634,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scorecard.json": "report",
 		"risk-and-standards-matrix.json": "report",
 		"runtime-evidence.json": "report",
+		"coding-agent-evidence.json": "report",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
@@ -569,6 +645,12 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scorecard.json": ["scorecard", "pilot"],
 		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
 		"runtime-evidence.json": ["runtime", "wasm", "claim-promotion"],
+		"coding-agent-evidence.json": [
+			"coding-agent",
+			"agent-governance",
+			"claim-promotion",
+			"theme-1",
+		],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"limits.md": ["limits", "adoption", "claim-boundary"],
@@ -609,12 +691,14 @@ export function writeArtifacts(outDir) {
 	const scorecard = buildPilotScorecard(report);
 	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
 	const runtimeEvidence = buildRuntimeEvidence(report);
+	const codingAgentEvidence = buildCodingAgentEvidence(report);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
 		"scorecard.json": jsonText(scorecard),
 		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
 		"runtime-evidence.json": jsonText(runtimeEvidence),
+		"coding-agent-evidence.json": jsonText(codingAgentEvidence),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),

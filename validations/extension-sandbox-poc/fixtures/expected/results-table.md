@@ -9,6 +9,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Lifecycle trace is recorded | 10 lifecycle events | pass | `sandbox-report.md` |
 | Strict policy aborts unsafe flow | strict host status is `aborted` | pass | `policy-decision.json` |
 | Real execution claim stays bounded | real WASM remains adjacent validation | watch | `runtime-evidence.json`, `limits.md` |
+| Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | `coding-agent-evidence.json`, `policy-decision.json` |
 
 ## Claim Boundary
 

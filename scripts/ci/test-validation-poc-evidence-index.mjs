@@ -36,7 +36,7 @@ describe("validation poc evidence index", () => {
 			assert.equal(poc.evidence.limits?.role, "report");
 			assert.ok(poc.evidence.limits.labels.includes("claim-boundary"));
 			assert.ok(poc.evidence.claimPromotion.length >= 1);
-			assert.equal(poc.writingClaims.length, 3);
+			assert.ok(poc.writingClaims.length >= 3);
 			for (const claim of poc.writingClaims) {
 				assert.equal(typeof claim.carefulClaim, "string");
 				assert.equal(typeof claim.doNotSayYet, "string");

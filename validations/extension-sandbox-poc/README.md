@@ -26,6 +26,9 @@ read secrets.
   conformance claim.
 - A runtime evidence artifact links this synthetic policy POC to the dedicated
   real WASM build and browser lifecycle validation path.
+- A coding-agent evidence artifact frames the same policy controls as a
+  bounded agent workflow with capability review, provenance, and human
+  promotion gates.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
@@ -37,6 +40,8 @@ read secrets.
 - Real WebAssembly execution inside this synthetic policy report.
 - Browser runtime descriptor installation.
 - Production plugin governance.
+- Production autonomous coding-agent operation.
+- Safe unattended repository mutation.
 - Performance of a real host or plugin.
 - Complete capability enforcement across all Refarm runtimes.
 
@@ -74,6 +79,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `scorecard.json`
 - `risk-and-standards-matrix.json`
 - `runtime-evidence.json`
+- `coding-agent-evidence.json`
 - `sandbox-report.md`
 - `scenario.md`
 - `annex.md`
