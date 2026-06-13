@@ -98,7 +98,9 @@ evidence.
 
 Use this table as a writing checklist. It is intentionally sanitized: it names
 the technical shape, the local evidence, and the limit that should stay visible
-until a stronger validation exists.
+until a stronger validation exists. The same map is encoded as `writingClaims`
+inside `validations/poc-evidence-index.json` for downstream tools or vaults that
+prefer machine-readable evidence navigation.
 
 | Theme | Careful claim | Primary evidence | Do not say yet |
 | --- | --- | --- | --- |

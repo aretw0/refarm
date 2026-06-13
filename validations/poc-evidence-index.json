@@ -117,6 +117,110 @@
           ]
         }
       },
+      "writingClaims": [
+        {
+          "id": "explicit-capability-decisions",
+          "carefulClaim": "A host can make extension capability decisions explicit and reviewable before promotion.",
+          "primaryEvidence": [
+            {
+              "id": "policy-decision-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/policy-decision.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "sandbox-report-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/sandbox-report.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "annex-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/annex.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "annex",
+                "evidence-map"
+              ]
+            }
+          ],
+          "doNotSayYet": "Production plugin governance is solved."
+        },
+        {
+          "id": "failure-policy-choice",
+          "carefulClaim": "Failure policy can be modeled as an operational choice, not hidden behavior.",
+          "primaryEvidence": [
+            {
+              "id": "sandbox-report-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/sandbox-report.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "scorecard-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            },
+            {
+              "id": "limits-md",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/limits.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "limits",
+                "adoption",
+                "claim-boundary"
+              ]
+            }
+          ],
+          "doNotSayYet": "Real host performance or complete isolation is proven."
+        },
+        {
+          "id": "linked-real-wasm-path",
+          "carefulClaim": "Synthetic policy evidence is connected to a real WASM validation path.",
+          "primaryEvidence": [
+            {
+              "id": "runtime-evidence-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/runtime-evidence.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "runtime",
+                "wasm",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "task-artifacts",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "provenance",
+                "manifest"
+              ]
+            }
+          ],
+          "doNotSayYet": "The synthetic report itself executed real WASM plugins."
+        }
+      ],
       "consumerHints": {
         "labels": [
           "adoption",
@@ -234,6 +338,112 @@
           ]
         }
       },
+      "writingClaims": [
+        {
+          "id": "reviewable-purpose-and-disclosure",
+          "carefulClaim": "Purpose, scope, expiration, and selective disclosure can be represented as reviewable artifacts.",
+          "primaryEvidence": [
+            {
+              "id": "service-request",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/service-request.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "authorization-receipt",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/authorization-receipt.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "selective-presentation",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/selective-presentation.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            }
+          ],
+          "doNotSayYet": "Formal wallet interoperability is proven."
+        },
+        {
+          "id": "visible-tamper-and-revocation",
+          "carefulClaim": "Tamper detection and revocation can be made visible to the operator and holder journey.",
+          "primaryEvidence": [
+            {
+              "id": "audit-trail",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/audit-trail.md",
+              "role": "audit-trail",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "revocation-event",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/revocation-event.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "consent-decision",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/consent-decision.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            }
+          ],
+          "doNotSayYet": "Legal compliance or production UX is ready."
+        },
+        {
+          "id": "pilot-evaluation-before-adoption",
+          "carefulClaim": "The flow can be evaluated with pilot criteria before institutional adoption.",
+          "primaryEvidence": [
+            {
+              "id": "scorecard",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            },
+            {
+              "id": "risk-and-standards-matrix",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/risk-and-standards-matrix.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "risk",
+                "standards",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "limits",
+              "uri": "validations/citizen-data-wallet-poc/fixtures/expected/limits.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "limits",
+                "adoption",
+                "claim-boundary"
+              ]
+            }
+          ],
+          "doNotSayYet": "LGPD, W3C VC, OpenID4VP, or EUDI conformance is certified."
+        }
+      ],
       "consumerHints": {
         "labels": [
           "adoption",
@@ -362,6 +572,127 @@
           ]
         }
       },
+      "writingClaims": [
+        {
+          "id": "provenance-separated-workflow",
+          "carefulClaim": "Local knowledge artifacts can keep provenance while separating intake, lab, and publication snapshots.",
+          "primaryEvidence": [
+            {
+              "id": "metadata-index",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/metadata-index.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "metadata",
+                "lab"
+              ]
+            },
+            {
+              "id": "lab-snapshot",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/lab-snapshot.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "lab"
+              ]
+            },
+            {
+              "id": "publication-snapshot",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/publication-snapshot.json",
+              "role": "dataset",
+              "mediaType": "application/json",
+              "reviewState": "unreviewed",
+              "labels": [
+                "publication"
+              ]
+            }
+          ],
+          "doNotSayYet": "Real vault integration is implemented."
+        },
+        {
+          "id": "human-review-before-publish",
+          "carefulClaim": "Publication can remain blocked on human review while still producing useful lab evidence.",
+          "primaryEvidence": [
+            {
+              "id": "publication-preflight",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/publication-preflight.json",
+              "role": "audit-trail",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "publication",
+                "preflight"
+              ]
+            },
+            {
+              "id": "human-review",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/human-review.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "publication",
+                "human-review"
+              ]
+            },
+            {
+              "id": "scorecard",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            }
+          ],
+          "doNotSayYet": "Editorial policy completeness is proven."
+        },
+        {
+          "id": "manifest-selector-consumption",
+          "carefulClaim": "Downstream consumers can navigate evidence through manifest selectors instead of hard-coded file names.",
+          "primaryEvidence": [
+            {
+              "id": "consumer-evidence",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/consumer-evidence.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "consumer",
+                "vault",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "task-artifacts",
+              "uri": "validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "provenance",
+                "manifest"
+              ]
+            },
+            {
+              "id": "poc-evidence-index",
+              "uri": "validations/poc-evidence-index.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "suite-index",
+                "claim-map"
+              ]
+            }
+          ],
+          "doNotSayYet": "Obsidian, Astro, Marimo, or work-mirror UX is owned by Refarm."
+        }
+      ],
       "consumerHints": {
         "labels": [
           "adoption",
