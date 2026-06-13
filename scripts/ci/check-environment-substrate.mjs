@@ -80,8 +80,31 @@ function toolCheck(id, command, args = ["--version"], options = {}) {
 		ok: result.ok,
 		command,
 		args,
+		display: result.display,
 		version: result.ok ? result.stdout.split(/\r?\n/)[0] ?? "" : null,
 		error: result.ok ? null : result.stderr || result.error || "command failed",
+	};
+}
+
+function toolCheckAlternatives(id, alternatives, options = {}) {
+	const attempts = alternatives.map((alternative) =>
+		toolCheck(id, alternative.command, alternative.args, options),
+	);
+	const passingAttempt = attempts.find((attempt) => attempt.ok);
+	return {
+		...(passingAttempt ?? attempts[0]),
+		id,
+		kind: "tool",
+		required: options.required !== false,
+		ok: Boolean(passingAttempt),
+		command: passingAttempt?.command ?? attempts[0].command,
+		args: passingAttempt?.args ?? attempts[0].args,
+		display: passingAttempt?.display ?? attempts[0].display,
+		attempts,
+		version: passingAttempt?.version ?? null,
+		error: passingAttempt
+			? null
+			: attempts.map((attempt) => `${attempt.display}: ${attempt.error}`).join("; "),
 	};
 }
 
@@ -92,7 +115,11 @@ const rustSubstrate = parseJsonRun(rustRun);
 
 const tools = [
 	toolCheck("tool_node", process.execPath, ["--version"]),
-	toolCheck("tool_pnpm", "pnpm", ["--version"]),
+	toolCheckAlternatives("tool_pnpm", [
+		{ command: "pnpm", args: ["--version"] },
+		{ command: "pnpm.cmd", args: ["--version"] },
+		{ command: "corepack", args: ["pnpm", "--version"] },
+	]),
 	toolCheck("tool_git", "git", ["--version"]),
 	toolCheck("tool_gh", "gh", ["--version"]),
 	toolCheck("tool_rustc", "rustc", ["-V"]),

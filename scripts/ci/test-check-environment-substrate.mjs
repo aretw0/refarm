@@ -37,6 +37,12 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "tool_node" && check.required === true));
+	assert.ok(output.checks.some((check) =>
+		check.id === "tool_pnpm" &&
+		check.required === true &&
+		Array.isArray(check.attempts) &&
+		check.attempts.some((attempt) => attempt.command === "corepack"),
+	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_wasm_tools" && check.required === false));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_jq" && check.required === false));
 });
