@@ -105,10 +105,10 @@ jobs:
 
           ### Decisão recomendada
 
-          Ajuste a política do repositório para permitir merge/rebase que
-          preserve os commits quando a intenção for sangrar `develop` para
-          `main`, ou mantenha o squash como decisão manual acompanhada de um
-          backup explícito da história de `develop`.
+          Mantenha a história linear usando rebase merge quando a intenção for
+          preservar os commits atômicos em `main`. Quando o GitHub exigir
+          squash, trate o alinhamento de `develop` como uma decisão manual com
+          backup explícito da história atômica.
 
           ### Fix manual sugerido
 
