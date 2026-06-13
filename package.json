@@ -48,7 +48,7 @@
 		"repo:complexity:strict": "node scripts/repo-complexity-check.mjs --max-lines 1000 --strict",
 		"repo:complexity:test": "node --test scripts/ci/test-repo-complexity-check.mjs",
 		"text-quality:test": "node --test scripts/ci/test-text-quality-lib.mjs",
-		"docs:text-quality": "node scripts/ci/check-text-quality.mjs docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/POC_WRITING_HANDOFF.md docs/TEXT_QUALITY_CONFIG.md docs/VAULT_SEED_CONVERGENCE.md",
+		"docs:text-quality": "node scripts/ci/check-text-quality.mjs docs/NIXOS_CURATED_RUNTIME_STRATEGY.md docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/POC_WRITING_HANDOFF.md docs/TEXT_QUALITY_CONFIG.md docs/VAULT_SEED_CONVERGENCE.md",
 		"text-quality:verify": "node scripts/ci/run-root-scripts.mjs text-quality:test docs:text-quality",
 		"wallet:poc": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
 		"wallet:poc:test": "node --test validations/citizen-data-wallet-poc/wallet-poc.test.mjs",
