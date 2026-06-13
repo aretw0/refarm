@@ -335,6 +335,37 @@
       ]
     },
     {
+      "id": "results-table",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "8161668c53c693e6a362e1254ecc73a44f1db2640b377935389320fd701dc8a6"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "governed-note-box-poc-001",
+        "producer": "governed-note-box:poc",
+        "command": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/governed-note-box-poc/governed-note-box-poc.mjs"
+          ],
+          "display": "node validations/governed-note-box-poc/governed-note-box-poc.mjs"
+        },
+        "source": "validations/governed-note-box-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
       "id": "human-review",
       "uri": "human-review.md",
       "mediaType": "text/markdown",

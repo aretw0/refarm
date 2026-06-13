@@ -240,6 +240,37 @@
       ]
     },
     {
+      "id": "results-table-md",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "d578410812e567e6a953be7b3cb22c69875eeeb63d2637bae261c74f5c019997"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
       "id": "sandbox-report-md",
       "uri": "sandbox-report.md",
       "mediaType": "text/markdown",

@@ -267,6 +267,25 @@ Promote claims only after a consumer project reads the manifest, produces vault-
 `;
 }
 
+export function buildResultsTableMarkdown(report) {
+	return `# Governed Note Box PoC Results Table
+
+Scope: synthetic local validation only. No real vault, work draft, personal data, institutional data, or secrets are used.
+
+| Criterion | Observed result | Gate | Evidence |
+| --- | --- | --- | --- |
+| Intake stays controlled | ${report.intakeSnapshot.notes.length} synthetic notes ingested | pass | \`intake-snapshot.json\` |
+| Metadata is preserved | ${report.metadataIndex.notes.length} metadata records with body hashes | pass | \`metadata-index.json\` |
+| Lab evidence is available | ${report.labSnapshot.metrics.links} links and ${report.labSnapshot.metrics.tags} tags indexed | pass | \`lab-snapshot.json\` |
+| Drafts stay unpublished | ${report.labSnapshot.metrics.draftNotes} draft withheld from publication | pass | \`publication-snapshot.json\` |
+| Human review remains explicit | review required before publish | watch | \`publication-preflight.json\`, \`human-review.md\` |
+
+## Claim Boundary
+
+Use this table to describe the controlled synthetic note workflow. Do not use it to claim real vault integration, complete publication workflow, or ownership of downstream vault UX by Refarm.
+`;
+}
+
 export function buildPilotScorecard(report) {
 	const scores = {
 		metadataPreservation: report.checks.allNotesHaveMetadata ? 5 : 0,
@@ -472,6 +491,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
+		"results-table.md": "report",
 		"human-review.md": "report",
 	};
 	const labels = {
@@ -486,6 +506,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"limits.md": ["limits", "adoption", "claim-boundary"],
+		"results-table.md": ["results-table", "reader-path", "claim-boundary"],
 		"human-review.md": ["publication", "human-review"],
 	};
 
@@ -535,6 +556,7 @@ export function writeArtifacts(outDir) {
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),
+		"results-table.md": buildResultsTableMarkdown(report),
 		"human-review.md": buildReviewMarkdown(report),
 	};
 	const manifest = buildTaskArtifactManifest(writtenArtifacts);

@@ -116,6 +116,13 @@ assert.deepEqual(
 	})),
 	["limits"],
 );
+assert.deepEqual(
+	ids(selectTaskArtifacts(wallet, {
+		labels: ["results-table"],
+		roles: ["report"],
+	})),
+	["results-table"],
+);
 
 const extension = readManifest(MANIFESTS.extension);
 assertProducerProcess(extension, {
@@ -129,7 +136,7 @@ assert.deepEqual(
 		producer: "extension-sandbox:poc",
 		roles: ["report"],
 	})),
-	["scenario-md", "annex-md", "limits-md", "sandbox-report-md"],
+	["scenario-md", "annex-md", "limits-md", "results-table-md", "sandbox-report-md"],
 );
 assert.equal(
 	findTaskArtifactById(extension, "policy-decision-json")?.mediaType,
@@ -176,6 +183,13 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["limits-md"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(extension, {
+		labels: ["results-table"],
+		roles: ["report"],
+	})),
+	["results-table-md"],
 );
 
 const notes = readManifest(MANIFESTS.notes);
@@ -250,6 +264,13 @@ assert.deepEqual(
 		roles: ["report"],
 	})),
 	["limits"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(notes, {
+		labels: ["results-table"],
+		roles: ["report"],
+	})),
+	["results-table"],
 );
 assert.equal(findTaskArtifactById(notes, "human-review")?.mediaType, "text/markdown");
 

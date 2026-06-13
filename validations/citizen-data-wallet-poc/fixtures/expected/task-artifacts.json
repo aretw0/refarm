@@ -339,6 +339,37 @@
       ]
     },
     {
+      "id": "results-table",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "7843d83abc38a980f32066f553fbdaef878a34a039724becd291b5d52589f488"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "citizen-data-wallet-poc-001",
+        "producer": "wallet:poc",
+        "command": "node validations/citizen-data-wallet-poc/wallet-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/citizen-data-wallet-poc/wallet-poc.mjs"
+          ],
+          "display": "node validations/citizen-data-wallet-poc/wallet-poc.mjs"
+        },
+        "source": "validations/citizen-data-wallet-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
       "id": "audit-trail",
       "uri": "audit-trail.md",
       "mediaType": "text/markdown",

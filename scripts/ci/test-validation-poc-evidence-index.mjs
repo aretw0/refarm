@@ -31,6 +31,8 @@ describe("validation poc evidence index", () => {
 		);
 		for (const poc of index.pocs) {
 			assert.equal(poc.evidence.readerStart?.id, poc.evidence.scenario?.id);
+			assert.equal(poc.evidence.resultsTable?.role, "report");
+			assert.ok(poc.evidence.resultsTable.labels.includes("results-table"));
 			assert.equal(poc.evidence.limits?.role, "report");
 			assert.ok(poc.evidence.limits.labels.includes("claim-boundary"));
 			assert.ok(poc.evidence.claimPromotion.length >= 1);

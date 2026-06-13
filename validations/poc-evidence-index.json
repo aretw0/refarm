@@ -55,6 +55,18 @@
             "pilot"
           ]
         },
+        "resultsTable": {
+          "id": "results-table-md",
+          "uri": "validations/extension-sandbox-poc/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
+          ]
+        },
         "riskAndStandards": {
           "id": "risk-and-standards-matrix-json",
           "uri": "validations/extension-sandbox-poc/fixtures/expected/risk-and-standards-matrix.json",
@@ -231,6 +243,7 @@
           "limits",
           "pilot",
           "reader-path",
+          "results-table",
           "risk",
           "runtime",
           "scenario",
@@ -241,10 +254,10 @@
         "countByRole": {
           "dataset": 1,
           "receipt": 1,
-          "report": 7
+          "report": 8
         },
         "countByReviewState": {
-          "accepted": 9
+          "accepted": 10
         }
       }
     },
@@ -286,6 +299,18 @@
           "labels": [
             "scorecard",
             "pilot"
+          ]
+        },
+        "resultsTable": {
+          "id": "results-table",
+          "uri": "validations/citizen-data-wallet-poc/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
           ]
         },
         "riskAndStandards": {
@@ -454,6 +479,7 @@
           "limits",
           "pilot",
           "reader-path",
+          "results-table",
           "risk",
           "scenario",
           "scorecard",
@@ -463,10 +489,10 @@
           "audit-trail": 1,
           "dataset": 1,
           "receipt": 6,
-          "report": 5
+          "report": 6
         },
         "countByReviewState": {
-          "accepted": 13
+          "accepted": 14
         }
       }
     },
@@ -508,6 +534,18 @@
           "labels": [
             "scorecard",
             "pilot"
+          ]
+        },
+        "resultsTable": {
+          "id": "results-table",
+          "uri": "validations/governed-note-box-poc/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
           ]
         },
         "riskAndStandards": {
@@ -710,6 +748,7 @@
           "preflight",
           "publication",
           "reader-path",
+          "results-table",
           "risk",
           "scenario",
           "scorecard",
@@ -719,10 +758,10 @@
         "countByRole": {
           "audit-trail": 1,
           "dataset": 4,
-          "report": 7
+          "report": 8
         },
         "countByReviewState": {
-          "accepted": 11,
+          "accepted": 12,
           "unreviewed": 1
         }
       }

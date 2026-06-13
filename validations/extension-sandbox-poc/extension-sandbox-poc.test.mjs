@@ -6,6 +6,7 @@ import {
 	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
+	buildResultsTableMarkdown,
 	buildRiskAndStandardsMatrix,
 	buildRuntimeEvidence,
 	buildTaskArtifactManifest,
@@ -182,6 +183,10 @@ describe("extension sandbox poc", () => {
 		assert.equal(limits, buildLimitsMarkdown());
 		assert.match(limits, /Do Not Claim/);
 		assert.match(limits, /Real WebAssembly execution/);
+		const resultsTable = readFileSync(path.join(FIXTURES_DIR, "results-table.md"), "utf8");
+		assert.equal(resultsTable, buildResultsTableMarkdown(report));
+		assert.match(resultsTable, /Extension Sandbox PoC Results Table/);
+		assert.match(resultsTable, /Claim Boundary/);
 		const markdown = readFileSync(path.join(FIXTURES_DIR, "sandbox-report.md"), "utf8");
 		assert.match(markdown, /No real plugins, services, institutional data, or secrets/);
 		assert.match(markdown, /Warn\+continue survives isolated failure: true/);
@@ -204,6 +209,7 @@ describe("extension sandbox poc", () => {
 				"scenario.md",
 				"annex.md",
 				"limits.md",
+				"results-table.md",
 				"sandbox-report.md",
 			],
 		);

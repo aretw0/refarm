@@ -6,6 +6,7 @@ import {
 	authorizationPayload,
 	buildPilotScorecard,
 	buildLimitsMarkdown,
+	buildResultsTableMarkdown,
 	buildRiskAndStandardsMatrix,
 	buildTaskArtifactManifest,
 	createAuthorizationReceipt,
@@ -148,6 +149,10 @@ describe("citizen data wallet poc", () => {
 		assert.equal(limits, buildLimitsMarkdown());
 		assert.match(limits, /Do Not Claim/);
 		assert.match(limits, /W3C VC, OpenID4VP, or OpenID4VCI conformance/);
+		const resultsTable = readFileSync(path.join(FIXTURES_DIR, "results-table.md"), "utf8");
+		assert.equal(resultsTable, buildResultsTableMarkdown(result));
+		assert.match(resultsTable, /Citizen Data Wallet PoC Results Table/);
+		assert.match(resultsTable, /Claim Boundary/);
 
 		const auditTrail = readFileSync(path.join(FIXTURES_DIR, "audit-trail.md"), "utf8");
 		assert.match(auditTrail, /No real personal, institutional, or secret data is used/);
@@ -161,7 +166,7 @@ describe("citizen data wallet poc", () => {
 		assert.equal(manifest.schema, "refarm.task-artifacts.v1");
 		assert.equal(manifest.taskId, "task-citizen-data-wallet-poc");
 		assert.equal(manifest.effortId, "effort-citizen-data-wallet-poc-001");
-		assert.equal(manifest.artifacts.length, 13);
+		assert.equal(manifest.artifacts.length, 14);
 		assert.deepEqual(
 			manifest.artifacts.map((artifact) => artifact.uri),
 			[
@@ -177,6 +182,7 @@ describe("citizen data wallet poc", () => {
 				"scenario.md",
 				"annex.md",
 				"limits.md",
+				"results-table.md",
 				"audit-trail.md",
 			],
 		);

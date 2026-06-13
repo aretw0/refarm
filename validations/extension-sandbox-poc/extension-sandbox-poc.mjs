@@ -507,6 +507,31 @@ Promote claims only after the real WASM/browser lifecycle validation, install/de
 `;
 }
 
+export function buildResultsTableMarkdown(report) {
+	const deniedCapabilityCount = report.policyDecision.deniedPlugins.reduce(
+		(total, plugin) => total + plugin.missingCapabilities.length,
+		0,
+	);
+	const isolatedFailureCount = report.policyDecision.isolatedFailures.length;
+
+	return `# Extension Sandbox PoC Results Table
+
+Scope: synthetic local validation only. No real plugins, services, institutional data, or secrets are used.
+
+| Criterion | Observed result | Gate | Evidence |
+| --- | --- | --- | --- |
+| Denied capabilities are explicit | ${deniedCapabilityCount} denied capability observations | pass | \`policy-decision.json\` |
+| Failure handling is observable | ${isolatedFailureCount} isolated failure in warn+continue mode | pass | \`sandbox-report.json\` |
+| Lifecycle trace is recorded | ${report.checks.lifecycleEventsRecorded} lifecycle events | pass | \`sandbox-report.md\` |
+| Strict policy aborts unsafe flow | strict host status is \`${report.policyDecision.recommendedHostStatus}\` | pass | \`policy-decision.json\` |
+| Real execution claim stays bounded | real WASM remains adjacent validation | watch | \`runtime-evidence.json\`, \`limits.md\` |
+
+## Claim Boundary
+
+Use this table to describe measured synthetic policy behavior. Do not use it to claim production plugin governance, complete isolation, or real WASM execution inside the synthetic sandbox report.
+`;
+}
+
 function weightedScore(scores, weights) {
 	const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
 	const total = Object.entries(scores).reduce(
@@ -537,6 +562,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
+		"results-table.md": "report",
 		"sandbox-report.md": "report",
 	};
 	const labels = {
@@ -546,6 +572,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"limits.md": ["limits", "adoption", "claim-boundary"],
+		"results-table.md": ["results-table", "reader-path", "claim-boundary"],
 	};
 
 	return {
@@ -591,6 +618,7 @@ export function writeArtifacts(outDir) {
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),
+		"results-table.md": buildResultsTableMarkdown(report),
 		"sandbox-report.md": buildSandboxReportMarkdown(report),
 	};
 	const manifest = buildTaskArtifactManifest(writtenArtifacts);

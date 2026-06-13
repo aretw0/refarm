@@ -6,6 +6,7 @@ import {
 	buildConsumerEvidence,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
+	buildResultsTableMarkdown,
 	PRODUCER_PROCESS,
 	buildRiskAndStandardsMatrix,
 	buildTaskArtifactManifest,
@@ -135,6 +136,10 @@ describe("governed note box poc", () => {
 		assert.equal(limits, buildLimitsMarkdown());
 		assert.match(limits, /Do Not Claim/);
 		assert.match(limits, /Real vault integration/);
+		const resultsTable = readFileSync(path.join(FIXTURES_DIR, "results-table.md"), "utf8");
+		assert.equal(resultsTable, buildResultsTableMarkdown(report));
+		assert.match(resultsTable, /Governed Note Box PoC Results Table/);
+		assert.match(resultsTable, /Claim Boundary/);
 
 		const review = readFileSync(path.join(FIXTURES_DIR, "human-review.md"), "utf8");
 		assert.match(review, /No real vault, work draft, personal data, institutional data, or secrets/);
@@ -161,6 +166,7 @@ describe("governed note box poc", () => {
 				"scenario.md",
 				"annex.md",
 				"limits.md",
+				"results-table.md",
 				"human-review.md",
 			],
 		);

@@ -293,6 +293,25 @@ Promote claims only after a real protocol test suite, accessibility review, serv
 `;
 }
 
+export function buildResultsTableMarkdown(result) {
+	return `# Citizen Data Wallet PoC Results Table
+
+Scope: synthetic local validation only. No real personal, institutional, or secret data is used.
+
+| Criterion | Observed result | Gate | Evidence |
+| --- | --- | --- | --- |
+| Request scope is explicit | ${result.request.requestedAttributes.length} requested attributes | pass | \`service-request.json\` |
+| Disclosure is minimized | ${Object.keys(result.presentation.attributes).length} of ${Object.keys(result.attributes.attributes).length} attributes presented | pass | \`selective-presentation.json\` |
+| Authorization is signed | signature verifies against canonical payload | pass | \`authorization-receipt.json\` |
+| Revocation changes usability | status moves from ${result.revocation.statusBefore} to ${result.revocation.statusAfter} | pass | \`revocation-event.json\` |
+| Standards and legal claims stay bounded | interoperability and compliance remain outside this proof | watch | \`risk-and-standards-matrix.json\`, \`limits.md\` |
+
+## Claim Boundary
+
+Use this table to describe a reviewable synthetic authorization journey. Do not use it to claim wallet interoperability, LGPD compliance, production UX, or public-service integration.
+`;
+}
+
 export function createConsentDecision({
 	request = createServiceRequest(),
 	authorization = createAuthorizationReceipt(request),
@@ -499,6 +518,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
+		"results-table.md": "report",
 		"audit-trail.md": "audit-trail",
 	};
 	const labels = {
@@ -507,6 +527,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"limits.md": ["limits", "adoption", "claim-boundary"],
+		"results-table.md": ["results-table", "reader-path", "claim-boundary"],
 	};
 
 	return {
@@ -566,6 +587,7 @@ export function writeArtifacts(outDir) {
 		"scenario.md": buildScenarioMarkdown(result),
 		"annex.md": buildAnnexMarkdown(result, scorecard),
 		"limits.md": buildLimitsMarkdown(),
+		"results-table.md": buildResultsTableMarkdown(result),
 		"audit-trail.md": auditTrail,
 	};
 	const manifest = buildTaskArtifactManifest(writtenArtifacts);

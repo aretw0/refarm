@@ -211,6 +211,7 @@ function buildPocIndex(rootDir, poc) {
 			scenario: labelledRef(poc, manifest, ["scenario"]),
 			annex: labelledRef(poc, manifest, ["annex"]),
 			scorecard: labelledRef(poc, manifest, ["scorecard"]),
+			resultsTable: labelledRef(poc, manifest, ["results-table"]),
 			riskAndStandards: labelledRef(poc, manifest, ["risk", "standards"]),
 			limits: labelledRef(poc, manifest, ["limits", "adoption"]),
 			claimPromotion,
