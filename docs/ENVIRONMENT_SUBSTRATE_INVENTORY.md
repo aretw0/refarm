@@ -31,7 +31,7 @@ setup logic, it is premature.
 | Rust substrate | `.cargo/config.toml`, Dockerfile Rust install, CI setup | Toolchain, targets, components, resource limits |
 | Browser/E2E substrate | Dockerfile Playwright libraries, CI setup action | Chromium/Playwright runtime dependencies |
 | Runtime health | `refarm check --next-action --json`, `refarm agent finish --run --json` | Operator and agent readiness gates |
-| Substrate inventory check | `pnpm run environment-substrate:check --json` | Versioned JSON for required Node/Rust/WASM/Git substrate plus non-blocking diagnostic tools |
+| Substrate inventory check | `pnpm run environment-substrate:check --json` | Versioned JSON for required Node/Rust/Git substrate plus non-blocking WASM and diagnostic tools |
 
 ## Environment Substrate
 
@@ -44,7 +44,9 @@ commands are expected to be reliable.
 - Rust stable with `rust-src`, `clippy`, and `rustfmt`.
 - Rust targets: `x86_64-unknown-linux-gnu`, `wasm32-unknown-unknown`, and
   `wasm32-wasip1`.
-- WASM tooling: `wasm-tools` and `cargo-component`.
+- WASM tooling: `cargo-component` is required when Rust/WASM packages are in
+  scope; `wasm-tools` is currently reported as a non-blocking diagnostic because
+  not every cross-platform runner installs it.
 - Playwright/Chromium system libraries for Linux E2E runs.
 - Common diagnostics: `bash`, `jq`, `ripgrep`, `fd`, `shellcheck`, `shfmt`,
   `tree`, `hyperfine`, and `direnv`. These should be reported separately from

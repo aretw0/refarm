@@ -98,9 +98,9 @@ const tools = [
 	toolCheck("tool_rustc", "rustc", ["-V"]),
 	toolCheck("tool_cargo", "cargo", ["-V"]),
 	toolCheck("tool_rustup", "rustup", ["--version"]),
-	toolCheck("tool_wasm_tools", "wasm-tools", ["--version"]),
 ];
 const diagnosticTools = [
+	toolCheck("diagnostic_wasm_tools", "wasm-tools", ["--version"], { required: false }),
 	toolCheck("diagnostic_bash", "bash", ["--version"], { required: false }),
 	toolCheck("diagnostic_jq", "jq", ["--version"], { required: false }),
 	toolCheck("diagnostic_rg", "rg", ["--version"], { required: false }),
