@@ -41,6 +41,7 @@ export const POCS = [
 				evidenceIds: [
 					"coding-agent-evidence-json",
 					"coding-agent-smoke-json",
+					"coding-agent-temp-workspace-json",
 					"policy-decision-json",
 					"limits-md",
 				],

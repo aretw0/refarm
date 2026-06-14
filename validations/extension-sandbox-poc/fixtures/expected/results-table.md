@@ -11,6 +11,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Real execution claim stays bounded | real WASM remains adjacent validation | watch | `runtime-evidence.json`, `limits.md` |
 | Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | `coding-agent-evidence.json`, `policy-decision.json` |
 | Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | `coding-agent-smoke.json` |
+| Coding-agent temp rehearsal stays isolated | the patch is rehearsed only against a temporary workspace copy | pass | `coding-agent-temp-workspace.json` |
 
 ## Claim Boundary
 

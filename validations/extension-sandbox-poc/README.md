@@ -31,6 +31,8 @@ read secrets.
   promotion gates.
 - A coding-agent smoke artifact records a proposed patch, a review packet, and
   a denied `network:v1` receipt without mutating protected files.
+- A coding-agent temporary-workspace artifact rehearses the proposed patch
+  against a workspace copy while keeping repository promotion blocked on review.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
@@ -45,6 +47,7 @@ read secrets.
 - Production autonomous coding-agent operation.
 - Safe unattended repository mutation.
 - Real model-driven patch generation.
+- Complete repository sandboxing or unattended promotion.
 - Performance of a real host or plugin.
 - Complete capability enforcement across all Refarm runtimes.
 
@@ -84,6 +87,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `runtime-evidence.json`
 - `coding-agent-evidence.json`
 - `coding-agent-smoke.json`
+- `coding-agent-temp-workspace.json`
 - `sandbox-report.md`
 - `scenario.md`
 - `annex.md`

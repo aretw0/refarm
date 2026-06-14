@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -23,6 +24,7 @@ function readJson(fileName) {
 
 const smoke = readJson("coding-agent-smoke.json");
 const evidence = readJson("coding-agent-evidence.json");
+const rehearsal = readJson("coding-agent-temp-workspace.json");
 const manifest = readJson("task-artifacts.json");
 
 assert.equal(isTaskArtifactManifest(manifest), true);
@@ -87,4 +89,65 @@ assert.match(smoke.promotionBoundary.canSay, /evidence packet shape/);
 assert.match(smoke.promotionBoundary.cannotSay, /real model-driven coding agent/);
 assert.match(smoke.nextPromotion, /temporary workspace/);
 
-console.log("Validated coding-agent POC packet invariants.");
+const rehearsalArtifact = findTaskArtifactById(
+	manifest,
+	"coding-agent-temp-workspace-json",
+);
+assert.ok(rehearsalArtifact, "coding-agent-temp-workspace-json must be published");
+assert.equal(rehearsalArtifact.role, "receipt");
+assert.equal(rehearsalArtifact.reviewState, "accepted");
+assert.ok(rehearsalArtifact.labels.includes("coding-agent"));
+assert.ok(rehearsalArtifact.labels.includes("temporary-workspace"));
+assert.ok(rehearsalArtifact.labels.includes("review-packet"));
+assert.ok(rehearsalArtifact.labels.includes("claim-promotion"));
+assert.ok(rehearsalArtifact.labels.includes("theme-1"));
+
+assert.equal(rehearsal.mode, "temporary-workspace-copy");
+assert.equal(rehearsal.workspace.repositoryMutationAllowed, false);
+assert.equal(rehearsal.workspace.workspaceMutationAllowed, true);
+assert.equal(rehearsal.input.sourceSmoke, "coding-agent-smoke.json");
+assert.equal(rehearsal.input.proposedPatchId, smoke.outputs.proposedPatch.id);
+assert.deepEqual(
+	rehearsal.reviewPacket.requiredBeforePromotion,
+	smoke.outputs.reviewPacket.requiredBeforePromotion,
+);
+assert.ok(
+	rehearsal.receipts.some(
+		(receipt) =>
+			receipt.capability === "network:v1" && receipt.status === "denied",
+	),
+);
+assert.ok(
+	rehearsal.receipts.some(
+		(receipt) =>
+			receipt.capability === "repository:write" && receipt.status === "denied",
+	),
+);
+assert.deepEqual(rehearsal.observedRepositoryWrites, []);
+assert.deepEqual(rehearsal.protectedSurfaceTouches, []);
+assert.equal(rehearsal.checks.tempWorkspaceUsed, true);
+assert.equal(rehearsal.checks.repositoryMutationBlocked, true);
+assert.equal(rehearsal.checks.reviewPacketPreserved, true);
+assert.equal(rehearsal.checks.deniedCapabilityReceiptPreserved, true);
+assert.equal(rehearsal.checks.protectedSurfacesUntouched, true);
+assert.equal(rehearsal.checks.fileHashChangedOnlyInsideTempWorkspace, true);
+assert.match(rehearsal.promotionBoundary.cannotSay, /real model-driven coding agent/);
+
+const tempRoot = mkdtempSync(path.join(os.tmpdir(), "refarm-coding-agent-rehearsal-"));
+try {
+	const targetPath = path.join(tempRoot, rehearsal.workspace.targetPath);
+	mkdirSync(path.dirname(targetPath), { recursive: true });
+	writeFileSync(targetPath, rehearsal.fileState.before);
+	assert.equal(readFileSync(targetPath, "utf8"), rehearsal.fileState.before);
+	writeFileSync(targetPath, rehearsal.fileState.after);
+	assert.equal(readFileSync(targetPath, "utf8"), rehearsal.fileState.after);
+	assert.equal(
+		rehearsal.fileState.after.includes("reviewRequired"),
+		true,
+		"temporary workspace rehearsal must apply the reviewed change",
+	);
+} finally {
+	rmSync(tempRoot, { force: true, recursive: true });
+}
+
+console.log("Validated coding-agent POC packet invariants and temp rehearsal.");
