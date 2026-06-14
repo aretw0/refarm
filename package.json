@@ -175,6 +175,7 @@
 		"release-engine:plan": "node scripts/release-engine.mjs plan --json",
 		"release-engine:check": "node scripts/release-engine.mjs check --json",
 		"release-engine:gates": "node scripts/release-engine.mjs gates --json",
+		"release-engine:orchestrate": "node scripts/release-engine-orchestrator.mjs",
 		"i18n:check": "node scripts/check-locales.mjs",
 		"i18n:check:test": "node --test scripts/ci/test-check-locales-lib.mjs",
 		"diagrams:generate": "node scripts/ci/generate-diagrams.mjs",

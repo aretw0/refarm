@@ -30,6 +30,7 @@ Comandos disponíveis:
 - `pnpm release-engine:plan` → plano + status (usa `.refarm/config.json` por padrão)
 - `pnpm release-engine:check` → plano + dry-run de gates
 - `pnpm release-engine:gates` → execução de gates (`--dry-run` disponível)
+- `pnpm release-engine:orchestrate --repo . --repo ../vault-seed check --only-required --json` → roda `release-engine` em vários repositórios em um único comando.
 - `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política
 
 ## Critérios para a 1ª minor (sem entrar cedo em breaking)
