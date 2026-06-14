@@ -179,6 +179,30 @@ assert.deepEqual(
 );
 assert.deepEqual(
 	ids(selectTaskArtifacts(extension, {
+		labels: ["coding-agent", "agent-governance"],
+		roles: ["report"],
+	})),
+	["coding-agent-evidence-json"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(extension, {
+		labels: ["coding-agent", "smoke", "review-packet"],
+		roles: ["receipt"],
+	})),
+	["coding-agent-smoke-json"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(extension, {
+		labels: ["coding-agent", "denied-capability"],
+		mediaTypes: ["application/json"],
+		reviewStates: ["accepted"],
+		roles: ["receipt"],
+		source: "validations/extension-sandbox-poc",
+	})),
+	["coding-agent-smoke-json"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(extension, {
 		labels: ["limits", "adoption"],
 		roles: ["report"],
 	})),
