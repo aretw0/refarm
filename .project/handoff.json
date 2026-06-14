@@ -1,6 +1,6 @@
 {
-  "context": "Checkpoint 2026-05-12 (sessão 3 — parte 2). ADR-065 ACCEPTED: farmhand transparent lifecycle. refarm sow agora coleta LLM credentials (mascaradas via secretInput, salvas via SiloCore). Farmhand injeta credenciais do Silo em env vars no boot. detectProvider() corrigido para checar home + CWD. Próximo passo: implementar autoStartFarmhand() em session-launch.ts.",
-  "timestamp": "2026-05-12T14:30:00.000Z",
+  "context": "Checkpoint 2026-06-14 (sessão 3 — parte 3). ADR-065 aceita: farmhand transparent lifecycle com auto-start orientado por sessão. Esta rodada validou ambiente de execução no container e concluiu smoke full stack no host: foundation, contracts, runtime e refarm:host:smoke:ci passaram após ajuste semântico do teste de telemetry fail-closed.",
+  "timestamp": "2026-06-14T03:55:00.000Z",
   "current_phase": 12,
   "current_tasks": [
     "refarm chat / refarm session / bare refarm → runSessionLaunchFlow() convergência implementada.",
@@ -9,12 +9,15 @@
     "init idempotente: guard existsSync(configPath || identityPath) + --force flag. Tests cobrindo re-run e --force.",
     "Branding cleanup: 'sovereign' removido de logs/CLI, mantido em ADRs/docs com parcimônia.",
     "ADR-064: TokenAuthError contract — erro de credencial deve carregar provider + reason + rotationUrl para qualquer superfície renderizar graciosamente.",
-    "packages/pi-agent (Rust): 16 ferramentas definidas (read_file, write_file, edit_file, bash, search_files, list_dir, read_structured, write_structured, LSP, sessões). packages/agent-tools: WASM component executando as ferramentas."
+    "packages/pi-agent (Rust): 16 ferramentas definidas (read_file, write_file, edit_file, bash, search_files, list_dir, read_structured, write_structured, LSP, sessões). packages/agent-tools: WASM component executando as ferramentas.",
+    "Validação de portas do host concluída no container: project:validate, gate:smoke:foundation, gate:smoke:contracts, gate:smoke:runtime e refarm:host:smoke:ci.",
+    "Smoke CLI ajustado de forma agnóstica: mensagem de telemetry fail-closed alinhada para diagnóstico (runtime-request-failed/telemetry endpoint not available)."
   ],
   "blockers": [],
   "next_actions": [
     "[EM ANDAMENTO] autoStartFarmhand() em session-launch.ts: LaunchDeps interface, Y/n confirm, spawn detached, poll GET /efforts/summary cada 300ms max 10s. ADR-065 Phase 1.",
-    "[PRÓXIMO] Verificar se farmhand→LLM funciona end-to-end: refarm sow → API key → refarm → resposta LLM.",
+    "[CONCLUÍDO] refarm:host:smoke:ci no container: todos blocos passing após ajuste semântico de texto de erro em telemetry.",
+    "[PRÓXIMO] Verificar farmhand→LLM end-to-end: refarm sow → API key configurada → refarm chat -> resposta LLM real.",
     "Spinner durante geração no REPL — readline fica mudo enquanto LLM processa.",
     "Histórico de input (↑) no readline — historySize não configurado.",
     "TokenAuthError: implementar a classe no layer de credenciais (ADR-064 escrito, não codificado).",
@@ -35,6 +38,7 @@
   ],
   "files_in_flux": [
     ".project/handoff.json",
-    ".project/phases/P12-Daily-Driver-TUI.json"
+    ".project/phases/P12-Daily-Driver-TUI.json",
+    ".project/phases/P2-Pipeline.json"
   ]
 }
