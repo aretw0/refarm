@@ -519,6 +519,84 @@ export function buildCodingAgentSmoke(report, evidence = buildCodingAgentEvidenc
 	};
 }
 
+export function buildCodingAgentTempWorkspaceRehearsal(
+	report,
+	evidence = buildCodingAgentEvidence(report),
+	smoke = buildCodingAgentSmoke(report, evidence),
+) {
+	const before = "export const policyMode = \"fail-fast\";\n";
+	const after = `${before}export const reviewRequired = true;\n`;
+
+	return {
+		id: "coding-agent-temp-workspace-rehearsal-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A bounded coding-agent proposal can be rehearsed against a temporary workspace copy while repository promotion remains blocked on review.",
+		claimStatus: "deterministic-temp-workspace-rehearsal",
+		mode: "temporary-workspace-copy",
+		input: {
+			taskId: TASK_ID,
+			sourceSmoke: "coding-agent-smoke.json",
+			intent: evidence.scenario.operatorIntent,
+			proposedPatchId: smoke.outputs.proposedPatch.id,
+		},
+		workspace: {
+			kind: "temporary-directory",
+			root: "<os-tmp>/refarm-coding-agent-rehearsal",
+			targetPath: "synthetic-workspace/allowed-module.ts",
+			repositoryMutationAllowed: false,
+			workspaceMutationAllowed: true,
+		},
+		fileState: {
+			before,
+			after,
+			beforeHash: sha256Text(before),
+			afterHash: sha256Text(after),
+		},
+		reviewPacket: {
+			id: "temp-workspace-review-packet-001",
+			status: "requires-operator-review",
+			requiredBeforePromotion: smoke.outputs.reviewPacket.requiredBeforePromotion,
+			primaryEvidence: [
+				"coding-agent-smoke.json",
+				"coding-agent-evidence.json",
+				"policy-decision.json",
+				"limits.md",
+			],
+		},
+		receipts: [
+			smoke.outputs.deniedCapabilityReceipt,
+			{
+				id: "repository-mutation-denied-001",
+				capability: "repository:write",
+				status: "denied",
+				reason:
+					"the rehearsal may write only to a temporary workspace copy until an operator promotes the reviewed patch",
+				evidence: ["coding-agent-smoke.json", "limits.md"],
+			},
+		],
+		observedRepositoryWrites: [],
+		protectedSurfaceTouches: [],
+		checks: {
+			tempWorkspaceUsed: true,
+			repositoryMutationBlocked: true,
+			reviewPacketPreserved: true,
+			deniedCapabilityReceiptPreserved:
+				smoke.outputs.deniedCapabilityReceipt.status === "denied",
+			protectedSurfacesUntouched: true,
+			fileHashChangedOnlyInsideTempWorkspace: sha256Text(before) !== sha256Text(after),
+		},
+		promotionBoundary: {
+			canSay:
+				"The POC now rehearses the proposed coding-agent change against a temporary workspace copy and preserves the same review packet shape before promotion.",
+			cannotSay:
+				"The rehearsal executed a real model-driven coding agent, proved complete repository sandboxing, or promoted unattended writes.",
+		},
+		nextPromotion:
+			"Replace the deterministic planner with a real model/tool harness that must emit the same temporary-workspace rehearsal packet before any repository write is considered.",
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -677,6 +755,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Real execution claim stays bounded | real WASM remains adjacent validation | watch | \`runtime-evidence.json\`, \`limits.md\` |
 | Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | \`coding-agent-evidence.json\`, \`policy-decision.json\` |
 | Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | \`coding-agent-smoke.json\` |
+| Coding-agent temp rehearsal stays isolated | the patch is rehearsed only against a temporary workspace copy | pass | \`coding-agent-temp-workspace.json\` |
 
 ## Claim Boundary
 
@@ -713,6 +792,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"runtime-evidence.json": "report",
 		"coding-agent-evidence.json": "report",
 		"coding-agent-smoke.json": "receipt",
+		"coding-agent-temp-workspace.json": "receipt",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
@@ -732,6 +812,14 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"coding-agent-smoke.json": [
 			"coding-agent",
 			"smoke",
+			"review-packet",
+			"denied-capability",
+			"claim-promotion",
+			"theme-1",
+		],
+		"coding-agent-temp-workspace.json": [
+			"coding-agent",
+			"temporary-workspace",
 			"review-packet",
 			"denied-capability",
 			"claim-promotion",
@@ -779,6 +867,11 @@ export function writeArtifacts(outDir) {
 	const runtimeEvidence = buildRuntimeEvidence(report);
 	const codingAgentEvidence = buildCodingAgentEvidence(report);
 	const codingAgentSmoke = buildCodingAgentSmoke(report, codingAgentEvidence);
+	const codingAgentTempWorkspace = buildCodingAgentTempWorkspaceRehearsal(
+		report,
+		codingAgentEvidence,
+		codingAgentSmoke,
+	);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
@@ -787,6 +880,7 @@ export function writeArtifacts(outDir) {
 		"runtime-evidence.json": jsonText(runtimeEvidence),
 		"coding-agent-evidence.json": jsonText(codingAgentEvidence),
 		"coding-agent-smoke.json": jsonText(codingAgentSmoke),
+		"coding-agent-temp-workspace.json": jsonText(codingAgentTempWorkspace),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),

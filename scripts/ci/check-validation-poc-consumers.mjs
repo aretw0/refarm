@@ -193,13 +193,20 @@ assert.deepEqual(
 );
 assert.deepEqual(
 	ids(selectTaskArtifacts(extension, {
+		labels: ["coding-agent", "temporary-workspace", "review-packet"],
+		roles: ["receipt"],
+	})),
+	["coding-agent-temp-workspace-json"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(extension, {
 		labels: ["coding-agent", "denied-capability"],
 		mediaTypes: ["application/json"],
 		reviewStates: ["accepted"],
 		roles: ["receipt"],
 		source: "validations/extension-sandbox-poc",
 	})),
-	["coding-agent-smoke-json"],
+	["coding-agent-smoke-json", "coding-agent-temp-workspace-json"],
 );
 assert.deepEqual(
 	ids(selectTaskArtifacts(extension, {

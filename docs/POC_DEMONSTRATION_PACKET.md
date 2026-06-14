@@ -72,8 +72,9 @@ Extension evidence already present:
 - warn-and-continue versus fail-fast behavior;
 - human-reviewable `policy-decision.json`;
 - runtime evidence pointer for real WASM validation path.
-- coding-agent evidence and proposal-only smoke artifacts for capability review,
-  review packet, denied-capability receipt, and protected-surface non-mutation.
+- coding-agent evidence, proposal-only smoke, and temporary-workspace rehearsal
+  artifacts for capability review, review packet, denied-capability receipt,
+  protected-surface non-mutation, and isolated pre-promotion patch rehearsal.
 
 Extension reader gap:
 
@@ -93,6 +94,7 @@ Extension metrics to expose:
 | lifecycle events recorded | `sandbox-report.md` or JSON report | show setup, ingest, teardown traceability |
 | linked runtime commands | `runtime-evidence.json` | show route to real execution validation |
 | proposal-only agent packet | `coding-agent-smoke.json` | show that coding-agent promotion depends on review evidence, not hidden writes |
+| temp-workspace rehearsal | `coding-agent-temp-workspace.json` | show the patch can be rehearsed outside the repository before promotion |
 
 Extension claim boundary:
 
@@ -100,6 +102,7 @@ Extension claim boundary:
 - complete isolation guarantees;
 - real WASM execution inside the synthetic sandbox report;
 - real model-driven coding-agent patch generation;
+- complete repository sandboxing;
 - certification or compliance.
 
 ## Theme 2: Citizen Data Wallet

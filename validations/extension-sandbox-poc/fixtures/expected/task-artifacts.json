@@ -215,6 +215,40 @@
       ]
     },
     {
+      "id": "coding-agent-temp-workspace-json",
+      "uri": "coding-agent-temp-workspace.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "56b390307bfa2dcc45b0f12aac94567a4d3b71fb468f95e49ef1fb891e6cd099"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "coding-agent",
+        "temporary-workspace",
+        "review-packet",
+        "denied-capability",
+        "claim-promotion",
+        "theme-1"
+      ]
+    },
+    {
       "id": "scenario-md",
       "uri": "scenario.md",
       "mediaType": "text/markdown",
@@ -312,7 +346,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "aa5a7cb71cc149bd79343ee7655e7c055560c8e802ef4e513f98b5ced294c5b1"
+        "value": "80fc95a20f2b4fda54aaeffe64c74d1fddb11b4a8176dbbcb704b10ea851d773"
       },
       "reviewState": "accepted",
       "provenance": {

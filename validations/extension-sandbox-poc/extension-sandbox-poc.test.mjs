@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import {
 	buildCodingAgentEvidence,
 	buildCodingAgentSmoke,
+	buildCodingAgentTempWorkspaceRehearsal,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
@@ -165,6 +166,28 @@ describe("extension sandbox poc", () => {
 		assert.match(smoke.promotionBoundary.cannotSay, /real model-driven coding agent/);
 	});
 
+	it("publishes a temporary-workspace coding-agent rehearsal packet", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildCodingAgentEvidence(report);
+		const smoke = buildCodingAgentSmoke(report, evidence);
+		const rehearsal = buildCodingAgentTempWorkspaceRehearsal(report, evidence, smoke);
+
+		assert.deepEqual(readFixture("coding-agent-temp-workspace.json"), rehearsal);
+		assert.equal(rehearsal.claimStatus, "deterministic-temp-workspace-rehearsal");
+		assert.equal(rehearsal.mode, "temporary-workspace-copy");
+		assert.equal(rehearsal.workspace.repositoryMutationAllowed, false);
+		assert.equal(rehearsal.workspace.workspaceMutationAllowed, true);
+		assert.notEqual(rehearsal.fileState.beforeHash, rehearsal.fileState.afterHash);
+		assert.deepEqual(rehearsal.observedRepositoryWrites, []);
+		assert.deepEqual(rehearsal.protectedSurfaceTouches, []);
+		assert.equal(rehearsal.checks.tempWorkspaceUsed, true);
+		assert.equal(rehearsal.checks.repositoryMutationBlocked, true);
+		assert.equal(rehearsal.checks.reviewPacketPreserved, true);
+		assert.equal(rehearsal.checks.deniedCapabilityReceiptPreserved, true);
+		assert.equal(rehearsal.checks.protectedSurfacesUntouched, true);
+		assert.match(rehearsal.promotionBoundary.cannotSay, /real model-driven coding agent/);
+	});
+
 	it("keeps runtime evidence commands and linked files resolvable", () => {
 		const report = runExtensionSandboxPoc();
 		const evidence = buildRuntimeEvidence(report);
@@ -249,6 +272,7 @@ describe("extension sandbox poc", () => {
 				"runtime-evidence.json",
 				"coding-agent-evidence.json",
 				"coding-agent-smoke.json",
+				"coding-agent-temp-workspace.json",
 				"scenario.md",
 				"annex.md",
 				"limits.md",

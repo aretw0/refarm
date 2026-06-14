@@ -143,6 +143,21 @@
               "claim-promotion",
               "theme-1"
             ]
+          },
+          {
+            "id": "coding-agent-temp-workspace-json",
+            "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-temp-workspace.json",
+            "role": "receipt",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "coding-agent",
+              "temporary-workspace",
+              "review-packet",
+              "denied-capability",
+              "claim-promotion",
+              "theme-1"
+            ]
           }
         ],
         "readerStart": {
@@ -293,6 +308,21 @@
               ]
             },
             {
+              "id": "coding-agent-temp-workspace-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-temp-workspace.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "coding-agent",
+                "temporary-workspace",
+                "review-packet",
+                "denied-capability",
+                "claim-promotion",
+                "theme-1"
+              ]
+            },
+            {
               "id": "policy-decision-json",
               "uri": "validations/extension-sandbox-poc/fixtures/expected/policy-decision.json",
               "role": "receipt",
@@ -337,16 +367,17 @@
           "scorecard",
           "smoke",
           "standards",
+          "temporary-workspace",
           "theme-1",
           "wasm"
         ],
         "countByRole": {
           "dataset": 1,
-          "receipt": 2,
+          "receipt": 3,
           "report": 9
         },
         "countByReviewState": {
-          "accepted": 12
+          "accepted": 13
         }
       }
     },
