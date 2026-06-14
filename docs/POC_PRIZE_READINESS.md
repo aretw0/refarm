@@ -68,7 +68,7 @@ command, or a public reference owned outside this repository.
 
 | Theme | Problem | Architectural decision | POC evidence | Observable metric | Current limit |
 | --- | --- | --- | --- | --- | --- |
-| Extension sandbox | Extension and coding-agent ecosystems need reviewable capability boundaries before promotion. | Manifest + policy decision + lifecycle evidence + human promotion gate before install, tool use, or stronger autonomy. | `policy-decision.json`, `sandbox-report.json`, `runtime-evidence.json`, `coding-agent-evidence.json`, `task-artifacts.json`. | denied capabilities counted; isolated failures counted; policy mode recorded; coding-agent capability boundary recorded; artifact hashes present. | Synthetic policy POC; real WASM/runtime and real coding-agent execution paths remain separate evidence. |
+| Extension sandbox | Extension and coding-agent ecosystems need reviewable capability boundaries before promotion. | Manifest + policy decision + lifecycle evidence + human promotion gate before install, tool use, or stronger autonomy. | `policy-decision.json`, `sandbox-report.json`, `runtime-evidence.json`, `coding-agent-evidence.json`, `coding-agent-smoke.json`, `task-artifacts.json`. | denied capabilities counted; isolated failures counted; policy mode recorded; coding-agent capability boundary recorded; proposal-only smoke recorded; artifact hashes present. | Synthetic policy POC; real WASM/runtime and real model-driven coding-agent execution paths remain separate evidence. |
 | Citizen data wallet | Personal data sharing needs purpose, scope, expiration, revocation, and auditability. | Authorization receipt + selective presentation + revocation event + consent decision. | `service-request.json`, `authorization-receipt.json`, `selective-presentation.json`, `revocation-event.json`, `consent-decision.json`. | requested vs disclosed attributes; receipt integrity check; revocation status; review state. | No formal wallet, legal, UX, or standards conformance claim. |
 | Governed note box | Knowledge workflows need provenance from intake through lab/publication without publishing drafts by accident. | Metadata index + lab snapshot + publication snapshot + human-review preflight. | `metadata-index.json`, `lab-snapshot.json`, `publication-snapshot.json`, `publication-preflight.json`, `consumer-evidence.json`. | source count; publishable vs draft count; review gate status; manifest selector coverage. | Synthetic workflow; vault UX and publication remain consumer-owned, especially in `vault-seed`. |
 
@@ -81,7 +81,7 @@ metric would gate a pilot, and which boundary prevents overclaiming.
 
 | POC | Current Strength | Current Gap | Prize Readiness |
 | --- | --- | --- | --- |
-| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artifacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, runtime evidence pointer, and coding-agent governance packet. | The synthetic sandbox report still does not execute real WASM or a real coding-agent patch loop; those remain dedicated validation paths. | Medium-high. Strong demonstration packet, still synthetic but linked to real runtime evidence and now easier to present as a governed coding-agent scenario. |
+| Extension sandbox | Strong deterministic policy exercise: manifest validation, denied capability, fail-fast vs warn+continue, policy decision, task artifacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, runtime evidence pointer, coding-agent governance packet, and proposal-only coding-agent smoke. | The synthetic sandbox report still does not execute real WASM or a real model-driven coding-agent patch loop; those remain dedicated validation paths. | Medium-high. Strong demonstration packet, still synthetic but linked to real runtime evidence and now easier to present as a governed coding-agent scenario. |
 | Citizen data wallet | Strong consent artifact: purpose, scope, expiration, selective disclosure, revocation, tamper check, audit trail, task artifacts, pilot scorecard, scenario, evidence annex, and risk/standards matrix. | It lacks UX/accessibility review, legal review, and standards test-suite evidence for any formal compliance claim. | Medium-high. The evidence is coherent; public-service journey polish remains external. |
 | Governed note box | Strong local knowledge workflow: intake, metadata, graph/lab snapshot, publication snapshot, human review, task artifacts, pilot scorecard, scenario, evidence annex, risk/standards matrix, and consumer evidence. | It is intentionally synthetic and not yet consumed by a real vault-seed-style lab/export/publication project or real vault quality gates. | Medium-high. Good contract pressure for Refarm and credible Theme 3 input, still synthetic. |
 
@@ -104,6 +104,9 @@ metric would gate a pilot, and which boundary prevents overclaiming.
   `runtime`, `wasm`, and `claim-promotion`.
 - `coding-agent-evidence.json` for the extension sandbox, exposed through labels
   `coding-agent`, `agent-governance`, `claim-promotion`, and `theme-1`.
+- `coding-agent-smoke.json` for the extension sandbox, exposed through labels
+  `coding-agent`, `smoke`, `review-packet`, `denied-capability`,
+  `claim-promotion`, and `theme-1`.
 - `consumer-evidence.json` for the governed note box, exposed through labels
   `consumer`, `vault`, and `claim-promotion`.
 - `limits.md` reports for each POC, exposed through labels `limits`,
@@ -170,20 +173,27 @@ Each POC should grow one lightweight "demonstration packet":
    - Keeps the proposal claim precise: governance shape, not production
      autonomous coding.
 
-7. `consumer-evidence.json`
+7. `coding-agent-smoke.json`
+   - Implemented for the extension sandbox.
+   - Records a proposed patch, review packet, denied-capability receipt, and
+     protected-surface non-mutation as deterministic smoke evidence.
+   - Keeps the proposal claim precise: packet shape, not real model-driven
+     patch generation.
+
+8. `consumer-evidence.json`
    - Implemented for the governed note box.
    - Documents downstream selector queries for lab datasets, publication
      datasets, publication preflight, and consumer readiness.
    - Keeps the proposal claim precise: manifest-consumer-ready, not real vault
      integration.
 
-8. `limits.md`
+9. `limits.md`
    - Implemented for all three POCs.
    - Non-goals, adoption risks, and when the model should not be used.
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.
 
-9. `poc-evidence-index.json`
+10. `poc-evidence-index.json`
    - Implemented at `validations/poc-evidence-index.json`.
    - Provides the suite-level reading order and claim-promotion pointers.
    - Carries `writingClaims` so downstream tools can navigate from careful

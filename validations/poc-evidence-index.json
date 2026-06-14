@@ -128,6 +128,21 @@
               "claim-promotion",
               "theme-1"
             ]
+          },
+          {
+            "id": "coding-agent-smoke-json",
+            "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-smoke.json",
+            "role": "receipt",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "coding-agent",
+              "smoke",
+              "review-packet",
+              "denied-capability",
+              "claim-promotion",
+              "theme-1"
+            ]
           }
         ],
         "readerStart": {
@@ -263,6 +278,21 @@
               ]
             },
             {
+              "id": "coding-agent-smoke-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-smoke.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "coding-agent",
+                "smoke",
+                "review-packet",
+                "denied-capability",
+                "claim-promotion",
+                "theme-1"
+              ]
+            },
+            {
               "id": "policy-decision-json",
               "uri": "validations/extension-sandbox-poc/fixtures/expected/policy-decision.json",
               "role": "receipt",
@@ -294,26 +324,29 @@
           "claim-boundary",
           "claim-promotion",
           "coding-agent",
+          "denied-capability",
           "evidence-map",
           "limits",
           "pilot",
           "reader-path",
           "results-table",
+          "review-packet",
           "risk",
           "runtime",
           "scenario",
           "scorecard",
+          "smoke",
           "standards",
           "theme-1",
           "wasm"
         ],
         "countByRole": {
           "dataset": 1,
-          "receipt": 1,
+          "receipt": 2,
           "report": 9
         },
         "countByReviewState": {
-          "accepted": 11
+          "accepted": 12
         }
       }
     },

@@ -29,6 +29,8 @@ read secrets.
 - A coding-agent evidence artifact frames the same policy controls as a
   bounded agent workflow with capability review, provenance, and human
   promotion gates.
+- A coding-agent smoke artifact records a proposed patch, a review packet, and
+  a denied `network:v1` receipt without mutating protected files.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
@@ -42,6 +44,7 @@ read secrets.
 - Production plugin governance.
 - Production autonomous coding-agent operation.
 - Safe unattended repository mutation.
+- Real model-driven patch generation.
 - Performance of a real host or plugin.
 - Complete capability enforcement across all Refarm runtimes.
 
@@ -80,6 +83,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `risk-and-standards-matrix.json`
 - `runtime-evidence.json`
 - `coding-agent-evidence.json`
+- `coding-agent-smoke.json`
 - `sandbox-report.md`
 - `scenario.md`
 - `annex.md`

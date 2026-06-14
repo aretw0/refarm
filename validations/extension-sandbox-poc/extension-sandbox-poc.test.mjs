@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import {
 	buildCodingAgentEvidence,
+	buildCodingAgentSmoke,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
@@ -145,6 +146,25 @@ describe("extension sandbox poc", () => {
 		assert.match(evidence.promotionBoundary.cannotSay, /production autonomous/);
 	});
 
+	it("publishes a proposal-only coding-agent smoke packet", () => {
+		const report = runExtensionSandboxPoc();
+		const smoke = buildCodingAgentSmoke(report);
+
+		assert.deepEqual(readFixture("coding-agent-smoke.json"), smoke);
+		assert.equal(smoke.claimStatus, "deterministic-smoke");
+		assert.equal(smoke.mode, "proposal-only");
+		assert.equal(smoke.outputs.proposedPatch.mutatesWorkspace, false);
+		assert.equal(smoke.outputs.deniedCapabilityReceipt.capability, "network:v1");
+		assert.equal(smoke.outputs.deniedCapabilityReceipt.status, "denied");
+		assert.deepEqual(smoke.observedWrites, []);
+		assert.deepEqual(smoke.protectedSurfaceTouches, []);
+		assert.equal(smoke.checks.proposedPatchRecorded, true);
+		assert.equal(smoke.checks.deniedCapabilityReceiptRecorded, true);
+		assert.equal(smoke.checks.operatorReviewRequired, true);
+		assert.equal(smoke.checks.protectedSurfacesUntouched, true);
+		assert.match(smoke.promotionBoundary.cannotSay, /real model-driven coding agent/);
+	});
+
 	it("keeps runtime evidence commands and linked files resolvable", () => {
 		const report = runExtensionSandboxPoc();
 		const evidence = buildRuntimeEvidence(report);
@@ -228,6 +248,7 @@ describe("extension sandbox poc", () => {
 				"risk-and-standards-matrix.json",
 				"runtime-evidence.json",
 				"coding-agent-evidence.json",
+				"coding-agent-smoke.json",
 				"scenario.md",
 				"annex.md",
 				"limits.md",
