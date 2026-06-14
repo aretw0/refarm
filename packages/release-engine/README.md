@@ -22,6 +22,15 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - **Changeset-aware**: sem mudançasets, o plano cai para fallback conservador.
 - **Não é um fluxo “publish instantâneo”**: o pacote prepara o plano e verifica ordem/gates; publicação final permanece sob controle do CI.
 
+## Uso sem publicar (fase local)
+
+- O pacote foi criado para ser testado em outros projetos antes de publicação do npm:
+  - mantenha o projeto consumidor com a dependência apontando para a fonte local do repositório Refarm (ex.: `workspace:*` em monorepo, ou `link:`/`file:` durante calibração),
+  - declare `releasePolicy` em `.refarm/config.json`,
+  - execute o CLI com `node <repo>/packages/release-engine/src/cli.mjs ...`.
+
+- `release-policy.json` continua suportado para compatibilidade e scripts legados.
+
 ## Uso rápido
 
 ```bash
@@ -42,7 +51,7 @@ node packages/release-engine/src/cli.mjs plan --json --policy não-existe.json
 
 - Adaptadores de **PublishTarget** para npm, GitHub Release, crates.io, etc.
 - Adaptadores de **RuntimeGateProvider** por domínio (CI, local, observabilidade).
-- Export de plano como artefato para auditoria humana.
+- Exportar API de plano como artefato para auditoria humana.
 - Integração com outros projetos via `packages/release-engine` como submódulo/pacote publicado.
 
 ## Próximos passos

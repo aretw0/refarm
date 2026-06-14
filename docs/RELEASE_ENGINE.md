@@ -15,6 +15,15 @@ O primeiro motor foi introduzido em `packages/release-engine` e o Refarm já dec
 
 Esta camada de engine não embute política do Refarm; ela só fornece defaults neutros. As escolhas de gate, ordem e publicação ficam declaradas no bloco `releasePolicy` (ou políticas por projeto).
 
+## Como usar hoje (sem publicar)
+
+- `release-engine` é **testável por projeto sem publish**: basta que o projeto dependa do pacote local (ou instalado) e carregue `releasePolicy` em `.refarm/config.json`.
+- O fallback para `release-policy.json` continua para compatibilidade e cenários explícitos.
+- No limite, um projeto consumidor pode executar:
+  - `node <caminho>/packages/release-engine/src/cli.mjs plan --json --only-required`
+  - `node <caminho>/packages/release-engine/src/cli.mjs check --only-required --json`
+- Isso mantém a integração de projetos (`refarm`, `vault-seed`, `agents-lab`) independente do fato de o pacote estar ou não publicado.
+
 Comandos disponíveis:
 
 - `node scripts/release-engine.mjs plan --only-required --dry-run --json` (pré-flight)
