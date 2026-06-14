@@ -5,7 +5,7 @@
 
 Este pacote é a primeira abstração consolidada da política de release do Refarm como produto reutilizável.
 
-> Contexto atual: o pacote ainda **não foi publicado**. Neste ciclo, **prioridade absoluta é evitar breaking changes**, mantendo compatibilidade retroativa, comportamento padrão neutro/fail-safe e pequenos passos verificáveis.
+> Contexto atual: o pacote ainda **não foi publicado**. Neste ciclo, a prioridade é preparar um **primeiro release com qualidade de minor madura**, reduzindo risco de mudanças de breaking logo após lançar.
 
 ## V0 — Núcleo de Planejamento Determinístico
 
@@ -33,9 +33,9 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [ ] Documentar contratos de provider e integração em CI.
 - [ ] Publicar o pacote como `@refarm.dev/release-engine` quando cobertura de uso estabilizar.
 
-## V0.x — Composição segura sem quebra (pré-publicação)
+## V0.x — Composição segura pré-publicação
 
-**Objetivo:** dar base para uso por outros projetos sem alterar contratos existentes.
+**Objetivo:** dar base para uso por outros projetos, com qualidade suficiente para chegar ao primeiro minor de forma saudável.
 
 ### SDD (Spec Driven)
 - [ ] Definir contrato formal de provider (interface mínima, campos obrigatórios/ opcionais, códigos de erro estruturados).
@@ -57,7 +57,7 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [ ] Adicionar `CHANGELOG` inicial (`0.0.1-dev` → `0.0.z`) com disciplina de semver.
 - [ ] Definir pacote de exemplo `release-provider` canônico (changesets) sem alterar engine principal.
 - [ ] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
-- [ ] Somente após trilha de integração madura, publicar primeira **minor**.
+- [ ] Publicar **primeiro minor** com base em critérios objetivos de estabilidade funcional e integração (não por pressa).
 
 ## V1 — Engine de Convergência (pós-primeira minor)
 
