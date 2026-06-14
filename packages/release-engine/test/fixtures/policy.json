@@ -1,0 +1,44 @@
+{
+  "policyVersion": "2026-01",
+  "mode": "changeset",
+  "providers": [
+    {
+      "id": "changesets",
+      "type": "changesets",
+      "supportsPublish": true,
+      "supportsDryRun": true
+    }
+  ],
+  "packageProfiles": [
+    {
+      "id": "@refarm.dev/foo",
+      "risk": "core",
+      "mustPassChecks": [
+        "pnpm run type-check"
+      ],
+      "tags": [
+        "kernel"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "preflight",
+      "name": "Preflight",
+      "commands": [
+        "echo preflight"
+      ],
+      "required": true,
+      "riskWeight": 1
+    },
+    {
+      "id": "release",
+      "name": "Release",
+      "commands": [
+        "echo release"
+      ],
+      "required": false,
+      "riskWeight": 2
+    }
+  ]
+}

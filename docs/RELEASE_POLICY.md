@@ -7,6 +7,12 @@ This policy defines the cadence, security, and velocity for different layers of 
 ## 1. The Core Kernel (`@refarm.dev/*`)
 **Velocity Strategy: Slow, Deliberate, and Immutable.**
 
+Refarm now owns a dedicated release policy engine in `packages/release-engine` with
+neutral defaults. Refarm-specific semantics are declared in `.refarm/config.json` under
+`releasePolicy`, so decisions stay in our embedded configuration layer instead of in the
+engine package itself. Both `vault-seed` and `agents-lab` should consume their own intentional
+`releasePolicy` blocks (can copy/evolve this shape) as soon as their policy surface is aligned.
+
 The Tractor, Heartwood, and base Contracts (`-contract-v1`) are the foundation of user sovereignty. A bug here compromises all data.
 
 - **Cadence**: Infrequent. Changes require architectural validation (ADRs).

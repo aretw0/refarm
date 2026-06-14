@@ -34,6 +34,9 @@ jobs:
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
 
+      - name: Release policy plan (preflight)
+        run: node scripts/release-engine.mjs plan --only-required --dry-run --json
+
       - name: Validate quality gates
         run: |
           pnpm run lint

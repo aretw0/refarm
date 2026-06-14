@@ -1,0 +1,34 @@
+{
+  "name": "@refarm.dev/release-engine",
+  "version": "0.1.0",
+  "description": "Deterministic release planning and publication policy engine for Refarm-powered projects.",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./src/index.mjs"
+    }
+  },
+  "bin": {
+    "release-engine": "./src/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/release-engine.test.mjs"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "ROADMAP.md",
+    "CHANGELOG.md",
+    "release-policy.schema.json"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretw0/refarm.git",
+    "directory": "packages/release-engine"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

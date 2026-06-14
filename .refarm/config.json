@@ -5,6 +5,126 @@
   "MODEL_SHELL_ALLOWLIST": "ls,cat,find,grep,git,node,npm,cargo,rustc,wasm-tools,bash,sh",
   "MODEL_HISTORY_TURNS": 10,
   "MODEL_TOOL_CALL_MAX_ITER": 8,
+  "releasePolicy": {
+    "policyVersion": "2026-01",
+    "mode": "changeset",
+    "providers": [
+      {
+        "id": "changesets",
+        "type": "changesets",
+        "supportsPublish": true,
+        "supportsDryRun": true,
+        "publishCommands": [
+          "pnpm changeset version",
+          "pnpm changeset publish"
+        ],
+        "publishDryRunCommands": [
+          "pnpm changeset version"
+        ],
+        "publishRequiresManualApproval": true
+      },
+      {
+        "id": "legacy-tags",
+        "type": "legacy-tag",
+        "supportsPublish": false,
+        "supportsDryRun": false
+      }
+    ],
+    "packageProfiles": [
+      {
+        "id": "@refarm.dev/storage-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel"
+        ]
+      },
+      {
+        "id": "@refarm.dev/sync-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel"
+        ]
+      },
+      {
+        "id": "@refarm.dev/identity-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel"
+        ]
+      },
+      {
+        "id": "@refarm.dev/plugin-manifest",
+        "risk": "plugin",
+        "mustPassChecks": [
+          "pnpm run type-check",
+          "pnpm run test:unit"
+        ],
+        "tags": [
+          "plugin-contract"
+        ]
+      }
+    ],
+    "phases": [
+      {
+        "id": "preflight",
+        "name": "Preflight",
+        "commands": [
+          "git status --porcelain"
+        ],
+        "required": true,
+        "riskWeight": 1
+      },
+      {
+        "id": "quality",
+        "name": "Quality Gates",
+        "commands": [
+          "pnpm run lint",
+          "pnpm run type-check"
+        ],
+        "required": true,
+        "riskWeight": 5
+      },
+      {
+        "id": "contracts",
+        "name": "Contract Smoke",
+        "commands": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "required": true,
+        "riskWeight": 6
+      },
+      {
+        "id": "runtime-descriptor",
+        "name": "Runtime Descriptor Release Smoke",
+        "commands": [
+          "pnpm run runtime-descriptor:release-smoke -- --sha local"
+        ],
+        "required": true,
+        "riskWeight": 4
+      },
+      {
+        "id": "telemetry",
+        "name": "Telemetry gate",
+        "commands": [
+          "pnpm run refarm:telemetry:gate:ci -- --out .artifacts/release-engine/telemetry-gate.json --timeout-ms 20000"
+        ],
+        "required": false,
+        "riskWeight": 2
+      }
+    ]
+  },
   "health": {
     "preset": "refarm",
     "ignoredGitVisibilityPatterns": [
