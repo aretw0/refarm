@@ -31,7 +31,24 @@ Comandos disponíveis:
 - `pnpm release-engine:check` → plano + dry-run de gates
 - `pnpm release-engine:gates` → execução de gates (`--dry-run` disponível)
 - `pnpm release-engine:orchestrate --repo . --repo ../vault-seed check --only-required --json` → roda `release-engine` em vários repositórios em um único comando.
-- `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política
+- `pnpm release-engine:orchestrate --repo-manifest ./docs/release-workspaces.example.json check --json` → usa um manifesto compartilhado por plataforma/projeto.
+- `pnpm release-engine:orchestrate --repo-manifest ./docs/release-workspaces.example.json --policy ./policies/global-release-policy.json check --only-required --json` → política global padrão para entradas sem `policy` local.
+- `pnpm release-engine:orchestrate --engine-cli ./path/ao/cli.js check` → substitui o entrypoint do engine para cenários de teste/integração.
+- `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política para entradas sem override local.
+
+Exemplo de manifesto simples (`release-workspaces.json`):
+
+```json
+{
+  "repos": [
+    { "label": "refarm", "path": ".", "args": ["--json"] },
+    { "label": "vault-seed", "path": "../vault-seed", "policy": "release-policy.json", "args": ["--only-required", "--json"] },
+    { "label": "agents-lab", "path": "../agents-lab", "args": ["--only-required", "--json"] }
+  ]
+}
+```
+
+A intenção aqui é manter `release-engine` neutro e permitir que o seu control-plane de projetos (ou um futuro bot/canal) escolha qual política e quais repositórios executar, sem que a engine saiba de chat, Telegram, Matrix, etc.
 
 ## Critérios para a 1ª minor (sem entrar cedo em breaking)
 

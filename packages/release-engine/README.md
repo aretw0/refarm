@@ -54,6 +54,14 @@ node packages/release-engine/src/cli.mjs plan --json --policy não-existe.json
 - Exportar API de plano como artefato para auditoria humana.
 - Integração com outros projetos via `packages/release-engine` como submódulo/pacote publicado.
 
+### Arquitetura de controle operacional
+
+- O `release-engine` permanece neutro; não conhece Telegram/Matrix/Cascade ou outro canal.
+- Um control-plane host (ex.: `apps/refarm`) escolhe quais repositórios/políticas executar e invoca o CLI por repositório.
+- Um orquestrador interno (`scripts/release-engine-orchestrator.mjs`) já existe para esse papel e pode ser alimentado por manifesto (`--repo-manifest`) sem acoplar a engine a um produto.
+- O manifesto pode carregar `args` e `policy` por repositório (`--policy` local por entrada), permitindo que um único control-plane invoque projetos heterogêneos com contratos diferentes sem tocar no engine.
+- Dessa forma, a integração de canais futuros fica concentrada no host/entrada (bot/adaptador), mantendo o pacote reutilizável.
+
 ## Próximos passos
 
 - Cobrir contratos JSON Schema (incluindo validadores de runtime)
