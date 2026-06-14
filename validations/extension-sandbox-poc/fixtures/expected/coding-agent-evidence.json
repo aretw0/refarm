@@ -77,5 +77,5 @@
     "canSay": "The POC demonstrates the governance shape for a coding-agent workflow: explicit capability review, failure policy, provenance, and human promotion gates.",
     "cannotSay": "The POC proves a production autonomous coding agent, complete repository sandboxing, or safe unattended code changes."
   },
-  "nextPromotion": "Connect this packet to a real coding-agent smoke that produces a proposed patch, a review packet, and a denied-capability receipt without mutating protected files."
+  "nextPromotion": "Promote from deterministic smoke to real agent execution only after a coding-agent harness produces the same review packet shape without mutating protected files."
 }

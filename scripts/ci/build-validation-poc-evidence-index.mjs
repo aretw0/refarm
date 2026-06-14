@@ -40,6 +40,7 @@ export const POCS = [
 					"A coding-agent workflow can be framed with explicit capability review, provenance, and human promotion gates.",
 				evidenceIds: [
 					"coding-agent-evidence-json",
+					"coding-agent-smoke-json",
 					"policy-decision-json",
 					"limits-md",
 				],

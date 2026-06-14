@@ -155,7 +155,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "5157a9ad974f24f4806780cf4056879f919e1f64a77ef84409717d3b949234e4"
+        "value": "bd26b7096041a2a8decd3491e5ddce684578aacf6945dbd061304a9b61648a83"
       },
       "reviewState": "accepted",
       "provenance": {
@@ -176,6 +176,40 @@
       "labels": [
         "coding-agent",
         "agent-governance",
+        "claim-promotion",
+        "theme-1"
+      ]
+    },
+    {
+      "id": "coding-agent-smoke-json",
+      "uri": "coding-agent-smoke.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "dce86936004ac6a78e21831ca3e47dde2c9488f8d268da8820c190cbc36910e5"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "coding-agent",
+        "smoke",
+        "review-packet",
+        "denied-capability",
         "claim-promotion",
         "theme-1"
       ]
@@ -278,7 +312,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "a2b924b71a90192b5e7a6b0ec4574238ea814b7bf4e52f718681cea439970e25"
+        "value": "aa5a7cb71cc149bd79343ee7655e7c055560c8e802ef4e513f98b5ced294c5b1"
       },
       "reviewState": "accepted",
       "provenance": {

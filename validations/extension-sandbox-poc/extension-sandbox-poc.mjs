@@ -439,7 +439,83 @@ export function buildCodingAgentEvidence(report) {
 				"The POC proves a production autonomous coding agent, complete repository sandboxing, or safe unattended code changes.",
 		},
 		nextPromotion:
-			"Connect this packet to a real coding-agent smoke that produces a proposed patch, a review packet, and a denied-capability receipt without mutating protected files.",
+			"Promote from deterministic smoke to real agent execution only after a coding-agent harness produces the same review packet shape without mutating protected files.",
+	};
+}
+
+export function buildCodingAgentSmoke(report, evidence = buildCodingAgentEvidence(report)) {
+	const deniedNetwork = evidence.capabilityModel.blockedByDefault.includes("network:v1");
+	const reviewRequired =
+		evidence.capabilityModel.requiresReview.includes("workspace:write") &&
+		evidence.capabilityModel.requiresReview.includes("process:run");
+	const proposedPatch = {
+		id: "proposed-patch-001",
+		format: "unified-diff",
+		targetPath: "validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts",
+		mutatesWorkspace: false,
+		diff:
+			"--- a/validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts\n" +
+			"+++ b/validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts\n" +
+			"@@ -1,3 +1,4 @@\n" +
+			" export const policyMode = \"fail-fast\";\n" +
+			"+export const reviewRequired = true;\n",
+	};
+
+	return {
+		id: "coding-agent-smoke-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A bounded coding-agent smoke can produce a proposed patch, review packet, and denied-capability receipt without writing to protected files.",
+		claimStatus: "deterministic-smoke",
+		mode: "proposal-only",
+		input: {
+			taskId: TASK_ID,
+			intent: evidence.scenario.operatorIntent,
+			grantedCapabilities: evidence.capabilityModel.autoAllowed,
+			requestedCapabilities: evidence.capabilityModel.requestedByAgent,
+		},
+		outputs: {
+			proposedPatch,
+			reviewPacket: {
+				id: "review-packet-001",
+				status: "requires-operator-review",
+				requiredBeforePromotion: ["workspace:write", "process:run"],
+				primaryEvidence: [
+					"coding-agent-evidence.json",
+					"policy-decision.json",
+					"limits.md",
+				],
+			},
+			deniedCapabilityReceipt: {
+				id: "denied-capability-network-v1-001",
+				capability: "network:v1",
+				status: deniedNetwork ? "denied" : "needs-work",
+				reason: "network access is not part of the default grant",
+				evidence: ["policy-decision.json", "sandbox-report.json"],
+			},
+		},
+		protectedSurfaces: [
+			".github/workflows/**",
+			".project/**",
+			"packages/tractor/**",
+			"packages/plugin-manifest/**",
+		],
+		observedWrites: [],
+		protectedSurfaceTouches: [],
+		checks: {
+			proposedPatchRecorded: proposedPatch.mutatesWorkspace === false,
+			deniedCapabilityReceiptRecorded: deniedNetwork && report.checks.deniedBlocked,
+			operatorReviewRequired: reviewRequired,
+			protectedSurfacesUntouched: true,
+		},
+		promotionBoundary: {
+			canSay:
+				"The smoke proves the evidence packet shape a governed coding-agent run must produce before promotion.",
+			cannotSay:
+				"The smoke executed a real model-driven coding agent or applied repository changes.",
+		},
+		nextPromotion:
+			"Replace the deterministic proposed patch with an agent-produced patch in a temporary workspace, then compare the same receipt and review packet shape.",
 	};
 }
 
@@ -600,6 +676,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Strict policy aborts unsafe flow | strict host status is \`${report.policyDecision.recommendedHostStatus}\` | pass | \`policy-decision.json\` |
 | Real execution claim stays bounded | real WASM remains adjacent validation | watch | \`runtime-evidence.json\`, \`limits.md\` |
 | Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | \`coding-agent-evidence.json\`, \`policy-decision.json\` |
+| Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | \`coding-agent-smoke.json\` |
 
 ## Claim Boundary
 
@@ -635,6 +712,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"risk-and-standards-matrix.json": "report",
 		"runtime-evidence.json": "report",
 		"coding-agent-evidence.json": "report",
+		"coding-agent-smoke.json": "receipt",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
@@ -648,6 +726,14 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"coding-agent-evidence.json": [
 			"coding-agent",
 			"agent-governance",
+			"claim-promotion",
+			"theme-1",
+		],
+		"coding-agent-smoke.json": [
+			"coding-agent",
+			"smoke",
+			"review-packet",
+			"denied-capability",
 			"claim-promotion",
 			"theme-1",
 		],
@@ -692,6 +778,7 @@ export function writeArtifacts(outDir) {
 	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
 	const runtimeEvidence = buildRuntimeEvidence(report);
 	const codingAgentEvidence = buildCodingAgentEvidence(report);
+	const codingAgentSmoke = buildCodingAgentSmoke(report, codingAgentEvidence);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
@@ -699,6 +786,7 @@ export function writeArtifacts(outDir) {
 		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
 		"runtime-evidence.json": jsonText(runtimeEvidence),
 		"coding-agent-evidence.json": jsonText(codingAgentEvidence),
+		"coding-agent-smoke.json": jsonText(codingAgentSmoke),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),
