@@ -23,6 +23,15 @@ Comandos disponíveis:
 - `pnpm release-engine:gates` → execução de gates (`--dry-run` disponível)
 - `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política
 
+## Critérios para a 1ª minor (sem entrar cedo em breaking)
+
+- `node --test packages/release-engine/test/release-engine.test.mjs`
+- `node scripts/release-engine.mjs plan --only-required --json`
+- `node scripts/release-engine.mjs check --only-required --json`
+- `node --test scripts/ci/test-smoke-refarm-host-cli-flows.mjs`
+- `git diff` limpo e saída de `check` não precisa bloquear fluxos legados em execução já existente.
+- `releasePolicy` no `refarm` validado em `.refarm/config.json` (fallback neutro confirmado).
+
 ## Próximo movimento de convergência
 
 - Consolidar providers reais para `refarm`, `vault-seed`, `agents-lab` via o mesmo contrato de política sem duplicar scripts de fluxo.
