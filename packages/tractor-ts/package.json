@@ -48,7 +48,7 @@
 	},
 	"dependencies": {
 		"@bytecodealliance/jco": "catalog:",
-		"@bytecodealliance/preview2-shim": "^0.17.3",
+		"@bytecodealliance/preview2-shim": "^0.18.1",
 		"@noble/ed25519": "catalog:",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",

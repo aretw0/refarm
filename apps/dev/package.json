@@ -25,7 +25,7 @@
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
 		"@refarm.me/identity-nostr": "workspace:*",
-		"astro": "^6.2.2"
+		"astro": "^6.4.7"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",

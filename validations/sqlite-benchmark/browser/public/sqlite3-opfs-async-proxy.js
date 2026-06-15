@@ -49,9 +49,19 @@
 	theFunc().then(...) is not compatible with the change to
 	synchronous, but we do do not use those APIs that way. i.e. we don't
 	_need_ to change anything for this, but at some point (after Chrome
-	versions (approximately) 104-107 are extinct) should change our
+	versions (approximately) 104-107 are extinct) we should change our
 	usage of those methods to remove the "await".
 	*/
+	const urlParams = new URL(globalThis.location.href).searchParams;
+	const vfsName = urlParams.get("vfs");
+	if (!vfsName) throw new Error("Expecting vfs=opfs|opfs-wl URL argument for this worker");
+	/**
+	We use this to allow us to differentiate debug output from
+	multiple instances, e.g. multiple Workers to the "opfs"
+	VFS or both the "opfs" and "opfs-wl" VFSes.
+	*/
+	const workerId = Math.random() * 1e7 | 0;
+	const isWebLocker = "opfs-wl" === urlParams.get("vfs");
 	const wPost = (type, ...args) => postMessage({
 		type,
 		payload: args
@@ -67,6 +77,160 @@
 		this API.
 		*/
 		const state = Object.create(null);
+		const initS11n = function() {
+			/**
+			This proxy de/serializes cross-thread function arguments and
+			output-pointer values via the state.sabIO SharedArrayBuffer,
+			using the region defined by (state.sabS11nOffset,
+			state.sabS11nOffset + state.sabS11nSize]. Only one dataset is
+			recorded at a time.
+			
+			This is not a general-purpose format. It only supports the
+			range of operations, and data sizes, needed by the
+			sqlite3_vfs and sqlite3_io_methods operations. Serialized
+			data are transient and this serialization algorithm may
+			change at any time.
+			
+			The data format can be succinctly summarized as:
+			
+			Nt...Td...D
+			
+			Where:
+			
+			- N = number of entries (1 byte)
+			
+			- t = type ID of first argument (1 byte)
+			
+			- ...T = type IDs of the 2nd and subsequent arguments (1 byte
+			each).
+			
+			- d = raw bytes of first argument (per-type size).
+			
+			- ...D = raw bytes of the 2nd and subsequent arguments (per-type
+			size).
+			
+			All types except strings have fixed sizes. Strings are stored
+			using their TextEncoder/TextDecoder representations. It would
+			arguably make more sense to store them as Int16Arrays of
+			their JS character values, but how best/fastest to get that
+			in and out of string form is an open point. Initial
+			experimentation with that approach did not gain us any speed.
+			
+			Historical note: this impl was initially about 1% this size by
+			using using JSON.stringify/parse(), but using fit-to-purpose
+			serialization saves considerable runtime.
+			*/
+			if (state.s11n) return state.s11n;
+			const textDecoder = new TextDecoder(), textEncoder = new TextEncoder("utf-8"), viewU8 = new Uint8Array(state.sabIO, state.sabS11nOffset, state.sabS11nSize), viewDV = new DataView(state.sabIO, state.sabS11nOffset, state.sabS11nSize);
+			state.s11n = Object.create(null);
+			const TypeIds = Object.create(null);
+			TypeIds.number = {
+				id: 1,
+				size: 8,
+				getter: "getFloat64",
+				setter: "setFloat64"
+			};
+			TypeIds.bigint = {
+				id: 2,
+				size: 8,
+				getter: "getBigInt64",
+				setter: "setBigInt64"
+			};
+			TypeIds.boolean = {
+				id: 3,
+				size: 4,
+				getter: "getInt32",
+				setter: "setInt32"
+			};
+			TypeIds.string = { id: 4 };
+			const getTypeId = (v) => TypeIds[typeof v] || toss("Maintenance required: this value type cannot be serialized.", v);
+			const getTypeIdById = (tid) => {
+				switch (tid) {
+					case TypeIds.number.id: return TypeIds.number;
+					case TypeIds.bigint.id: return TypeIds.bigint;
+					case TypeIds.boolean.id: return TypeIds.boolean;
+					case TypeIds.string.id: return TypeIds.string;
+					default: toss("Invalid type ID:", tid);
+				}
+			};
+			/**
+			Returns an array of the deserialized state stored by the most
+			recent serialize() operation (from this thread or the
+			counterpart thread), or null if the serialization buffer is
+			empty.  If passed a truthy argument, the serialization buffer
+			is cleared after deserialization.
+			*/
+			state.s11n.deserialize = function(clear = false) {
+				performance.now();
+				const argc = viewU8[0];
+				const rc = argc ? [] : null;
+				if (argc) {
+					const typeIds = [];
+					let offset = 1, i, n, v;
+					for (i = 0; i < argc; ++i, ++offset) typeIds.push(getTypeIdById(viewU8[offset]));
+					for (i = 0; i < argc; ++i) {
+						const t = typeIds[i];
+						if (t.getter) {
+							v = viewDV[t.getter](offset, state.littleEndian);
+							offset += t.size;
+						} else {
+							n = viewDV.getInt32(offset, state.littleEndian);
+							offset += 4;
+							v = textDecoder.decode(viewU8.slice(offset, offset + n));
+							offset += n;
+						}
+						rc.push(v);
+					}
+				}
+				if (clear) viewU8[0] = 0;
+				return rc;
+			};
+			/**
+			Serializes all arguments to the shared buffer for consumption
+			by the counterpart thread.
+			
+			This routine is only intended for serializing OPFS VFS
+			arguments and (in at least one special case) result values,
+			and the buffer is sized to be able to comfortably handle
+			those.
+			
+			If passed no arguments then it zeroes out the serialization
+			state.
+			*/
+			state.s11n.serialize = function(...args) {
+				performance.now();
+				if (args.length) {
+					const typeIds = [];
+					let i = 0, offset = 1;
+					viewU8[0] = args.length & 255;
+					for (; i < args.length; ++i, ++offset) {
+						typeIds.push(getTypeId(args[i]));
+						viewU8[offset] = typeIds[i].id;
+					}
+					for (i = 0; i < args.length; ++i) {
+						const t = typeIds[i];
+						if (t.setter) {
+							viewDV[t.setter](offset, args[i], state.littleEndian);
+							offset += t.size;
+						} else {
+							const s = textEncoder.encode(args[i]);
+							viewDV.setInt32(offset, s.byteLength, state.littleEndian);
+							offset += 4;
+							viewU8.set(s, offset);
+							offset += s.byteLength;
+						}
+					}
+				} else viewU8[0] = 0;
+			};
+			state.s11n.storeException = state.asyncS11nExceptions ? ((priority, e) => {
+				if (priority <= state.asyncS11nExceptions) state.s11n.serialize([
+					e.name,
+					": ",
+					e.message
+				].join(""));
+			}) : () => {};
+			return state.s11n;
+		};
 		/**
 		verbose:
 		
@@ -82,7 +246,7 @@
 			2: console.log.bind(console)
 		};
 		const logImpl = (level, ...args) => {
-			if (state.verbose > level) loggers[level]("OPFS asyncer:", ...args);
+			if (state.verbose > level) loggers[level](vfsName + " async-proxy", workerId + ":", ...args);
 		};
 		const log = (...args) => logImpl(2, ...args);
 		const warn = (...args) => logImpl(1, ...args);
@@ -96,12 +260,13 @@
 		*/
 		const __openFiles = Object.create(null);
 		/**
-		__implicitLocks is a Set of sqlite3_file pointers (integers) which were
-		"auto-locked".  i.e. those for which we obtained a sync access
-		handle without an explicit xLock() call. Such locks will be
-		released during db connection idle time, whereas a sync access
-		handle obtained via xLock(), or subsequently xLock()'d after
-		auto-acquisition, will not be released until xUnlock() is called.
+		__implicitLocks is a Set of sqlite3_file pointers (integers)
+		which were "auto-locked".  i.e. those for which we necessarily
+		obtain a sync access handle without an explicit xLock() call
+		guarding access. Such locks will be released during
+		`waitLoop()`'s idle time, whereas a sync access handle obtained
+		via xLock(), or subsequently xLock()'d after auto-acquisition,
+		will not be released until xUnlock() is called.
 		
 		Maintenance reminder: if we relinquish auto-locks at the end of the
 		operation which acquires them, we pay a massive performance
@@ -241,10 +406,11 @@
 		
 		In order to help alleviate cross-tab contention for a dabase, if
 		an exception is thrown while acquiring the handle, this routine
-		will wait briefly and try again, up to some fixed number of
-		times. If acquisition still fails at that point it will give up
-		and propagate the exception. Client-level code will see that as
-		an I/O error.
+		will wait briefly and try again, up to `maxTries` of times. If
+		acquisition still fails at that point it will give up and
+		propagate the exception. Client-level code will see that either
+		as an I/O error or SQLITE_BUSY, depending on the exception and
+		the context.
 		
 		2024-06-12: there is a rare race condition here which has been
 		reported a single time:
@@ -259,12 +425,31 @@
 		there's another race condition there). That's easy to say but
 		creating a viable test for that condition has proven challenging
 		so far.
+		
+		Interface quirk: if fh.xLock is falsy and the handle is acquired
+		then fh.fid is added to __implicitLocks(). If fh.xLock is truthy,
+		it is not added as an implicit lock. i.e. xLock() impls must set
+		fh.xLock immediately _before_ calling this and must arrange to
+		restore it to its previous value if this function throws.
+		
+		2026-03-06:
+		
+		- baseWaitTime is the number of milliseconds to wait for the
+		first retry, increasing by one factor for each retry. It defaults
+		to (state.asyncIdleWaitTime*2).
+		
+		- maxTries is the number of attempt to make, each one spaced out
+		by one additional factor of the baseWaitTime (e.g. 300, then 600,
+		then 900, the 1200...). This MUST be an integer >0.
+		
+		Only the Web Locks impl should use the 3rd and 4th parameters.
 		*/
-		const getSyncHandle = async (fh, opName) => {
+		const getSyncHandle = async (fh, opName, baseWaitTime, maxTries = 6) => {
 			if (!fh.syncHandle) {
 				const t = performance.now();
 				log("Acquiring sync handle for", fh.filenameAbs);
-				const maxTries = 6, msBase = state.asyncIdleWaitTime * 2;
+				const msBase = baseWaitTime ?? state.asyncIdleWaitTime * 2;
+				maxTries ??= 6;
 				let i = 1, ms = msBase;
 				for (;; ms = msBase * ++i) try {
 					fh.syncHandle = await fh.fileHandle.createSyncAccessHandle();
@@ -285,6 +470,9 @@
 		/**
 		Stores the given value at state.sabOPView[state.opIds.rc] and then
 		Atomics.notify()'s it.
+		
+		The opName is only used for logging and debugging - all result
+		codes are expected on the same state.sabOPView slot.
 		*/
 		const storeAndNotify = (opName, value) => {
 			log(opName + "() => notify(", value, ")");
@@ -388,21 +576,6 @@
 				await releaseImplicitLock(fh);
 				storeAndNotify("xFileSize", rc);
 			},
-			xLock: async function(fid, lockType) {
-				const fh = __openFiles[fid];
-				let rc = 0;
-				const oldLockType = fh.xLock;
-				fh.xLock = lockType;
-				if (!fh.syncHandle) try {
-					await getSyncHandle(fh, "xLock");
-					__implicitLocks.delete(fid);
-				} catch (e) {
-					state.s11n.storeException(1, e);
-					rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_IOERR_LOCK);
-					fh.xLock = oldLockType;
-				}
-				storeAndNotify("xLock", rc);
-			},
 			xOpen: async function(fid, filename, flags, opfsFlags) {
 				const opName = "xOpen";
 				const create = state.sq3Codes.SQLITE_OPEN_CREATE & flags;
@@ -448,7 +621,6 @@
 						rc = state.sq3Codes.SQLITE_IOERR_SHORT_READ;
 					}
 				} catch (e) {
-					error("xRead() failed", e, fh);
 					state.s11n.storeException(1, e);
 					rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_IOERR_READ);
 				}
@@ -473,14 +645,124 @@
 					affirmNotRO("xTruncate", fh);
 					await (await getSyncHandle(fh, "xTruncate")).truncate(size);
 				} catch (e) {
-					error("xTruncate():", e, fh);
 					state.s11n.storeException(2, e);
 					rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_IOERR_TRUNCATE);
 				}
 				await releaseImplicitLock(fh);
 				storeAndNotify("xTruncate", rc);
 			},
-			xUnlock: async function(fid, lockType) {
+			xWrite: async function(fid, n, offset64) {
+				let rc;
+				const fh = __openFiles[fid];
+				try {
+					affirmNotRO("xWrite", fh);
+					rc = n === (await getSyncHandle(fh, "xWrite")).write(fh.sabView.subarray(0, n), { at: Number(offset64) }) ? 0 : state.sq3Codes.SQLITE_IOERR_WRITE;
+				} catch (e) {
+					state.s11n.storeException(1, e);
+					rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_IOERR_WRITE);
+				}
+				await releaseImplicitLock(fh);
+				storeAndNotify("xWrite", rc);
+			}
+		};
+		if (isWebLocker) {
+			/** Registry of active Web Locks: fid -> { mode, resolveRelease } */
+			const __activeWebLocks = Object.create(null);
+			vfsAsyncImpls.xLock = async function(fid, lockType, isFromUnlock) {
+				const whichOp = isFromUnlock ? "xUnlock" : "xLock";
+				const fh = __openFiles[fid];
+				const requestedMode = lockType >= state.sq3Codes.SQLITE_LOCK_RESERVED ? "exclusive" : "shared";
+				const existing = __activeWebLocks[fid];
+				if (existing) {
+					if (existing.mode === requestedMode || existing.mode === "exclusive" && requestedMode === "shared") {
+						fh.xLock = lockType;
+						storeAndNotify(whichOp, 0);
+						return 0;
+					}
+					await closeSyncHandle(fh);
+					existing.resolveRelease();
+					delete __activeWebLocks[fid];
+				}
+				const lockName = "sqlite3-vfs-opfs:" + fh.filenameAbs;
+				const oldLockType = fh.xLock;
+				return new Promise((resolveWaitLoop) => {
+					navigator.locks.request(lockName, { mode: requestedMode }, async (lock) => {
+						__implicitLocks.delete(fid);
+						let rc = 0;
+						try {
+							fh.xLock = lockType;
+							await getSyncHandle(fh, "xLock", state.asyncIdleWaitTime, 5);
+						} catch (e) {
+							fh.xLock = oldLockType;
+							state.s11n.storeException(1, e);
+							rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_BUSY);
+						}
+						const releasePromise = rc ? void 0 : new Promise((resolveRelease) => {
+							__activeWebLocks[fid] = {
+								mode: requestedMode,
+								resolveRelease
+							};
+						});
+						storeAndNotify(whichOp, rc);
+						resolveWaitLoop(0);
+						await releasePromise;
+					});
+				});
+			};
+			/** Internal helper for the opfs-wl xUnlock() */
+			const wlCloseHandle = async (fh) => {
+				let rc = 0;
+				try {
+					await closeSyncHandle(fh);
+				} catch (e) {
+					state.s11n.storeException(1, e);
+					rc = state.sq3Codes.SQLITE_IOERR_UNLOCK;
+				}
+				return rc;
+			};
+			vfsAsyncImpls.xUnlock = async function(fid, lockType) {
+				const fh = __openFiles[fid];
+				const existing = __activeWebLocks[fid];
+				if (!existing) {
+					const rc = await wlCloseHandle(fh);
+					storeAndNotify("xUnlock", rc);
+					return rc;
+				}
+				let rc = 0;
+				if (lockType === state.sq3Codes.SQLITE_LOCK_NONE) {
+					rc = await wlCloseHandle(fh);
+					existing.resolveRelease();
+					delete __activeWebLocks[fid];
+					fh.xLock = lockType;
+				} else if (lockType === state.sq3Codes.SQLITE_LOCK_SHARED && existing.mode === "exclusive") {
+					rc = await wlCloseHandle(fh);
+					if (0 === rc) {
+						fh.xLock = lockType;
+						existing.resolveRelease();
+						delete __activeWebLocks[fid];
+						return vfsAsyncImpls.xLock(fid, lockType, true);
+					}
+				} else error("xUnlock() unhandled condition", fh);
+				storeAndNotify("xUnlock", rc);
+				return 0;
+			};
+		} else {
+			vfsAsyncImpls.xLock = async function(fid, lockType) {
+				const fh = __openFiles[fid];
+				let rc = 0;
+				const oldLockType = fh.xLock;
+				fh.xLock = lockType;
+				if (!fh.syncHandle) try {
+					await getSyncHandle(fh, "xLock");
+					__implicitLocks.delete(fid);
+				} catch (e) {
+					state.s11n.storeException(1, e);
+					rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_IOERR_LOCK);
+					fh.xLock = oldLockType;
+				}
+				storeAndNotify("xLock", rc);
+			};
+			vfsAsyncImpls.xUnlock = async function(fid, lockType) {
 				let rc = 0;
 				const fh = __openFiles[fid];
 				if (fh.syncHandle && state.sq3Codes.SQLITE_LOCK_NONE === lockType) try {
@@ -490,138 +772,64 @@
 					rc = state.sq3Codes.SQLITE_IOERR_UNLOCK;
 				}
 				storeAndNotify("xUnlock", rc);
-			},
-			xWrite: async function(fid, n, offset64) {
-				let rc;
-				const fh = __openFiles[fid];
-				try {
-					affirmNotRO("xWrite", fh);
-					rc = n === (await getSyncHandle(fh, "xWrite")).write(fh.sabView.subarray(0, n), { at: Number(offset64) }) ? 0 : state.sq3Codes.SQLITE_IOERR_WRITE;
-				} catch (e) {
-					error("xWrite():", e, fh);
-					state.s11n.storeException(1, e);
-					rc = GetSyncHandleError.convertRc(e, state.sq3Codes.SQLITE_IOERR_WRITE);
-				}
-				await releaseImplicitLock(fh);
-				storeAndNotify("xWrite", rc);
-			}
-		};
-		const initS11n = () => {
-			/**
-			ACHTUNG: this code is 100% duplicated in the other half of this
-			proxy! The documentation is maintained in the "synchronous half".
-			*/
-			if (state.s11n) return state.s11n;
-			const textDecoder = new TextDecoder(), textEncoder = new TextEncoder("utf-8"), viewU8 = new Uint8Array(state.sabIO, state.sabS11nOffset, state.sabS11nSize), viewDV = new DataView(state.sabIO, state.sabS11nOffset, state.sabS11nSize);
-			state.s11n = Object.create(null);
-			const TypeIds = Object.create(null);
-			TypeIds.number = {
-				id: 1,
-				size: 8,
-				getter: "getFloat64",
-				setter: "setFloat64"
 			};
-			TypeIds.bigint = {
-				id: 2,
-				size: 8,
-				getter: "getBigInt64",
-				setter: "setBigInt64"
-			};
-			TypeIds.boolean = {
-				id: 3,
-				size: 4,
-				getter: "getInt32",
-				setter: "setInt32"
-			};
-			TypeIds.string = { id: 4 };
-			const getTypeId = (v) => TypeIds[typeof v] || toss("Maintenance required: this value type cannot be serialized.", v);
-			const getTypeIdById = (tid) => {
-				switch (tid) {
-					case TypeIds.number.id: return TypeIds.number;
-					case TypeIds.bigint.id: return TypeIds.bigint;
-					case TypeIds.boolean.id: return TypeIds.boolean;
-					case TypeIds.string.id: return TypeIds.string;
-					default: toss("Invalid type ID:", tid);
-				}
-			};
-			state.s11n.deserialize = function(clear = false) {
-				const argc = viewU8[0];
-				const rc = argc ? [] : null;
-				if (argc) {
-					const typeIds = [];
-					let offset = 1, i, n, v;
-					for (i = 0; i < argc; ++i, ++offset) typeIds.push(getTypeIdById(viewU8[offset]));
-					for (i = 0; i < argc; ++i) {
-						const t = typeIds[i];
-						if (t.getter) {
-							v = viewDV[t.getter](offset, state.littleEndian);
-							offset += t.size;
-						} else {
-							n = viewDV.getInt32(offset, state.littleEndian);
-							offset += 4;
-							v = textDecoder.decode(viewU8.slice(offset, offset + n));
-							offset += n;
-						}
-						rc.push(v);
-					}
-				}
-				if (clear) viewU8[0] = 0;
-				return rc;
-			};
-			state.s11n.serialize = function(...args) {
-				if (args.length) {
-					const typeIds = [];
-					let i = 0, offset = 1;
-					viewU8[0] = args.length & 255;
-					for (; i < args.length; ++i, ++offset) {
-						typeIds.push(getTypeId(args[i]));
-						viewU8[offset] = typeIds[i].id;
-					}
-					for (i = 0; i < args.length; ++i) {
-						const t = typeIds[i];
-						if (t.setter) {
-							viewDV[t.setter](offset, args[i], state.littleEndian);
-							offset += t.size;
-						} else {
-							const s = textEncoder.encode(args[i]);
-							viewDV.setInt32(offset, s.byteLength, state.littleEndian);
-							offset += 4;
-							viewU8.set(s, offset);
-							offset += s.byteLength;
-						}
-					}
-				} else viewU8[0] = 0;
-			};
-			state.s11n.storeException = state.asyncS11nExceptions ? ((priority, e) => {
-				if (priority <= state.asyncS11nExceptions) state.s11n.serialize([
-					e.name,
-					": ",
-					e.message
-				].join(""));
-			}) : () => {};
-			return state.s11n;
-		};
+		}
 		const waitLoop = async function f() {
-			const opHandlers = Object.create(null);
-			for (let k of Object.keys(state.opIds)) {
-				const vi = vfsAsyncImpls[k];
-				if (!vi) continue;
-				const o = Object.create(null);
-				opHandlers[state.opIds[k]] = o;
-				o.key = k;
-				o.f = vi;
-			}
-			while (!flagAsyncShutdown) try {
-				if ("not-equal" !== Atomics.wait(state.sabOPView, state.opIds.whichOp, 0, state.asyncIdleWaitTime)) {
-					await releaseImplicitLocks();
-					continue;
+			if (!f.inited) {
+				f.inited = true;
+				f.opHandlers = Object.create(null);
+				for (let k of Object.keys(state.opIds)) {
+					const vi = vfsAsyncImpls[k];
+					if (!vi) continue;
+					const o = Object.create(null);
+					f.opHandlers[state.opIds[k]] = o;
+					o.key = k;
+					o.f = vi;
 				}
-				const opId = Atomics.load(state.sabOPView, state.opIds.whichOp);
-				Atomics.store(state.sabOPView, state.opIds.whichOp, 0);
-				const hnd = opHandlers[opId] ?? toss("No waitLoop handler for whichOp #", opId);
-				const args = state.s11n.deserialize(true) || [];
-				if (hnd.f) await hnd.f(...args);
-				else error("Missing callback for opId", opId);
+			}
+			const opIds = state.opIds;
+			const opView = state.sabOPView;
+			const slotWhichOp = opIds.whichOp;
+			const idleWaitTime = state.asyncIdleWaitTime;
+			const hasWaitAsync = !!Atomics.waitAsync;
+			while (!flagAsyncShutdown) try {
+				let opId;
+				if (hasWaitAsync) {
+					opId = Atomics.load(opView, slotWhichOp);
+					if (0 === opId) {
+						const rv = Atomics.waitAsync(opView, slotWhichOp, 0, idleWaitTime);
+						if (rv.async) await rv.value;
+						await releaseImplicitLocks();
+						continue;
+					}
+				} else {
+					/**
+					For browsers without Atomics.waitAsync(), we require
+					the legacy implementation. Browser versions where
+					waitAsync() arrived:
+					
+					Chrome: 90 (2021-04-13)
+					Firefox: 145 (2025-11-11)
+					Safari: 16.4 (2023-03-27)
+					
+					The "opfs" VFS was not born until Chrome was somewhere in
+					the v104-108 range (Summer/Autumn 2022) and did not work
+					with Safari < v17 (2023-09-18) due to a WebKit bug which
+					restricted OPFS access from sub-Workers.
+					
+					The waitAsync() counterpart of this block can be used by
+					both "opfs" and "opfs-wl", whereas this block can only be
+					used by "opfs". Performance comparisons between the two
+					in high-contention tests have been indecisive.
+					*/
+					if ("not-equal" !== Atomics.wait(state.sabOPView, slotWhichOp, 0, state.asyncIdleWaitTime)) {
+						await releaseImplicitLocks();
+						continue;
+					}
+					opId = Atomics.load(state.sabOPView, slotWhichOp);
+				}
+				Atomics.store(opView, slotWhichOp, 0);
+				await (f.opHandlers[opId]?.f ?? toss("No waitLoop handler for whichOp #", opId))(...state.s11n.deserialize(true) || []);
 			} catch (e) {
 				error("in waitLoop():", e);
 			}
@@ -658,9 +866,11 @@
 			wPost("opfs-async-loaded");
 		}).catch((e) => error("error initializing OPFS asyncer:", e));
 	};
-	if (!globalThis.SharedArrayBuffer) wPost("opfs-unavailable", "Missing SharedArrayBuffer API.", "The server must emit the COOP/COEP response headers to enable that.");
+	if (globalThis.window === globalThis) wPost("opfs-unavailable", "This code cannot run from the main thread.", "Load it as a Worker from a separate Worker.");
+	else if (!globalThis.SharedArrayBuffer) wPost("opfs-unavailable", "Missing SharedArrayBuffer API.", "The server must emit the COOP/COEP response headers to enable that.");
 	else if (!globalThis.Atomics) wPost("opfs-unavailable", "Missing Atomics API.", "The server must emit the COOP/COEP response headers to enable that.");
-	else if (!globalThis.FileSystemHandle || !globalThis.FileSystemDirectoryHandle || !globalThis.FileSystemFileHandle || !globalThis.FileSystemFileHandle.prototype.createSyncAccessHandle || !navigator?.storage?.getDirectory) wPost("opfs-unavailable", "Missing required OPFS APIs.");
+	else if (isWebLocker && !globalThis.Atomics.waitAsync) wPost("opfs-unavailable", "Missing required Atomics.waitSync() for " + vfsName);
+	else if (!globalThis.FileSystemHandle || !globalThis.FileSystemDirectoryHandle || !globalThis.FileSystemFileHandle?.prototype?.createSyncAccessHandle || !navigator?.storage?.getDirectory) wPost("opfs-unavailable", "Missing required OPFS APIs.");
 	else installAsyncProxy();
 	//#endregion
 })();

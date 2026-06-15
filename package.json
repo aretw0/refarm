@@ -217,7 +217,7 @@
 	"homepage": "https://refarm.dev",
 	"devDependencies": {
 		"@changesets/cli": "^2.31.0",
-		"@mermaid-js/mermaid-cli": "^11.14.0",
+		"@mermaid-js/mermaid-cli": "^11.15.0",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/fence": "workspace:*",
@@ -227,20 +227,20 @@
 		"@refarm.dev/thresher": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@refarm.dev/windmill": "workspace:*",
-		"@turbo/gen": "^2.9.14",
-		"@types/node": "^25.6.0",
-		"@vitest/coverage-v8": "^4.1.4",
-		"@vitest/ui": "^4.1.4",
+		"@turbo/gen": "^2.9.18",
+		"@types/node": "^25.9.3",
+		"@vitest/coverage-v8": "^4.1.9",
+		"@vitest/ui": "^4.1.9",
 		"chokidar": "^5.0.0",
-		"eslint": "^10.3.0",
+		"eslint": "^10.5.0",
 		"globals": "^17.6.0",
-		"jest": "^30.3.0",
-		"jsdom": "^29.0.2",
-		"npm-check-updates": "^21.0.2",
-		"turbo": "^2.9.14",
+		"jest": "^30.4.2",
+		"jsdom": "^29.1.1",
+		"npm-check-updates": "^22.2.3",
+		"turbo": "^2.9.18",
 		"typescript": "^6.0.3",
-		"typescript-eslint": "^8.59.2",
-		"vitest": "^4.1.4"
+		"typescript-eslint": "^8.61.0",
+		"vitest": "^4.1.9"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
@@ -256,7 +256,7 @@
 		]
 	},
 	"//": "jest is kept for type-safety/compatibility with certain node_modules in vitest runs",
-	"packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499",
+	"packageManager": "pnpm@11.7.0",
 	"engines": {
 		"node": ">=22"
 	}

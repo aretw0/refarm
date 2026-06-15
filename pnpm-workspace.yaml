@@ -2,17 +2,17 @@ catalog:
   # build tooling
   typescript: "^6.0.3"
   # wasm runtime
-  "@bytecodealliance/jco": "^1.18.0"
+  "@bytecodealliance/jco": "^1.23.1"
   # crypto / identity primitives
   "@noble/ed25519": "^3.1.0"
-  nostr-tools: "^2.23.3"
+  nostr-tools: "^2.23.5"
   # sync / storage
-  isomorphic-git: "^1.37.5"
+  isomorphic-git: "^1.38.4"
   # websocket
-  ws: "^8.20.0"
+  ws: "^8.21.0"
   "@types/ws": "^8.18.1"
   # node types
-  "@types/node": "^25.6.0"
+  "@types/node": "^25.9.3"
 
 packages:
   - "packages/*"
@@ -34,3 +34,27 @@ overrides:
 auditConfig:
   ignoreGhsas:
     - GHSA-48c2-rrv3-qjmp
+minimumReleaseAgeExclude:
+  - '@bytecodealliance/jco@1.23.1'
+  - '@cloudflare/workers-types@4.20260615.1'
+  - '@playwright/test@1.61.0'
+  - '@storybook/addon-a11y@10.4.5'
+  - '@storybook/addon-links@10.4.5'
+  - '@storybook/builder-vite@10.4.5'
+  - '@storybook/csf-plugin@10.4.5'
+  - '@storybook/html-vite@10.4.5'
+  - '@storybook/html@10.4.5'
+  - '@vitest/coverage-v8@4.1.9'
+  - '@vitest/expect@4.1.9'
+  - '@vitest/mocker@4.1.9'
+  - '@vitest/pretty-format@4.1.9'
+  - '@vitest/runner@4.1.9'
+  - '@vitest/snapshot@4.1.9'
+  - '@vitest/spy@4.1.9'
+  - '@vitest/ui@4.1.9'
+  - '@vitest/utils@4.1.9'
+  - astro@6.4.7
+  - playwright-core@1.61.0
+  - playwright@1.61.0
+  - storybook@10.4.5
+  - vitest@4.1.9

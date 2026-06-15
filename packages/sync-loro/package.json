@@ -27,7 +27,7 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
-		"loro-crdt": "^1.11.0",
+		"loro-crdt": "^1.13.2",
 		"@refarm.dev/sync-contract-v1": "workspace:*",
 		"@refarm.dev/storage-contract-v1": "workspace:*"
 	},

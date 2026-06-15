@@ -38,7 +38,7 @@
     "@refarm.dev/task-contract-v1": "workspace:*",
     "@refarm.dev/windmill": "workspace:*",
     "chalk": "^5.6.2",
-    "commander": "^14.0.3"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
