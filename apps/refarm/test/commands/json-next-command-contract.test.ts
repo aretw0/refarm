@@ -1,4 +1,11 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -37,7 +44,9 @@ import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
 import { HISTORY } from "./tree.fixtures.js";
 
-const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), { throwIfNoEntry: false })
+const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), {
+	throwIfNoEntry: false,
+})
 	? join(process.cwd(), "src", "commands")
 	: join(process.cwd(), "apps", "refarm", "src", "commands");
 
@@ -48,7 +57,14 @@ const PACKAGE_CLI_SRC_DIR = [
 
 const STATUS_WITH_ACTIONS_FIXTURE = [
 	join(process.cwd(), "test", "fixtures", "status-with-actions.json"),
-	join(process.cwd(), "apps", "refarm", "test", "fixtures", "status-with-actions.json"),
+	join(
+		process.cwd(),
+		"apps",
+		"refarm",
+		"test",
+		"fixtures",
+		"status-with-actions.json",
+	),
 ].find((file) => statSync(file, { throwIfNoEntry: false })?.isFile());
 
 function commandSourceFiles(dir = COMMANDS_DIR): string[] {
@@ -65,17 +81,23 @@ function optionalSourceFiles(dir: string | undefined): string[] {
 }
 
 function hasInteractiveSowCommand(value: string): boolean {
-	return /\brefarm sow(?:\b| --(?:github|cloudflare|all)\b)/.test(value) &&
+	return (
+		/\brefarm sow(?:\b| --(?:github|cloudflare|all)\b)/.test(value) &&
 		!/\brefarm sow\b[^"'`]*--json\b/.test(value) &&
-		!/\brefarm sow --model\b/.test(value);
+		!/\brefarm sow --model\b/.test(value)
+	);
 }
 
 function hasPlaceholderCommand(value: string): boolean {
-	return /["'`][^"'`]*(?:nextCommand|nextCommands|actionCommand)?[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(value);
+	return /["'`][^"'`]*(?:nextCommand|nextCommands|actionCommand)?[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(
+		value,
+	);
 }
 
 function hasCommandLikePlaceholderAction(value: string): boolean {
-	return /["'`]\s*(?:refarm|git|gh|pnpm|npm|yarn|bun|cargo|node)\b[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(value);
+	return /["'`]\s*(?:refarm|git|gh|pnpm|npm|yarn|bun|cargo|node)\b[^"'`]*<[^>"'`]+>[^"'`]*["'`]/.test(
+		value,
+	);
 }
 
 function hasReplCommand(value: string): boolean {
@@ -98,21 +120,26 @@ function isJsonCommand(value: string): boolean {
 	return /\s--json(?:\s|$)/.test(value);
 }
 
-function generatedExecutableCommands(payloads: {
-	nextCommand?: string | null;
-	nextCommands?: string[];
-}[]): string[] {
+function generatedExecutableCommands(
+	payloads: {
+		nextCommand?: string | null;
+		nextCommands?: string[];
+	}[],
+): string[] {
 	return payloads.flatMap((payload) =>
-		[payload.nextCommand, ...(payload.nextCommands ?? [])]
-			.filter((command): command is string => typeof command === "string"),
+		[payload.nextCommand, ...(payload.nextCommands ?? [])].filter(
+			(command): command is string => typeof command === "string",
+		),
 	);
 }
 
-function generatedCommandEntries(payloads: Array<{
-	nextCommand?: string | null;
-	nextCommands?: string[];
-	sampleId: string;
-}>): Array<{ command: string; sampleId: string }> {
+function generatedCommandEntries(
+	payloads: Array<{
+		nextCommand?: string | null;
+		nextCommands?: string[];
+		sampleId: string;
+	}>,
+): Array<{ command: string; sampleId: string }> {
 	return payloads.flatMap((payload) =>
 		[payload.nextCommand, ...(payload.nextCommands ?? [])]
 			.filter((command): command is string => typeof command === "string")
@@ -120,21 +147,26 @@ function generatedCommandEntries(payloads: Array<{
 	);
 }
 
-function generatedActions(payloads: {
-	nextAction?: string | null;
-	nextActions?: string[];
-}[]): string[] {
+function generatedActions(
+	payloads: {
+		nextAction?: string | null;
+		nextActions?: string[];
+	}[],
+): string[] {
 	return payloads.flatMap((payload) =>
-		[payload.nextAction, ...(payload.nextActions ?? [])]
-			.filter((action): action is string => typeof action === "string"),
+		[payload.nextAction, ...(payload.nextActions ?? [])].filter(
+			(action): action is string => typeof action === "string",
+		),
 	);
 }
 
-function generatedActionEntries(payloads: Array<{
-	nextAction?: string | null;
-	nextActions?: string[];
-	sampleId: string;
-}>): Array<{ action: string; sampleId: string }> {
+function generatedActionEntries(
+	payloads: Array<{
+		nextAction?: string | null;
+		nextActions?: string[];
+		sampleId: string;
+	}>,
+): Array<{ action: string; sampleId: string }> {
 	return payloads.flatMap((payload) =>
 		[payload.nextAction, ...(payload.nextActions ?? [])]
 			.filter((action): action is string => typeof action === "string")
@@ -142,13 +174,17 @@ function generatedActionEntries(payloads: Array<{
 	);
 }
 
-function generatedHandoffEntries(payloads: Array<{
-	handoffs?: Record<string, unknown>;
-	sampleId: string;
-}>): Array<{ handoff: string; key: string; sampleId: string }> {
+function generatedHandoffEntries(
+	payloads: Array<{
+		handoffs?: Record<string, unknown>;
+		sampleId: string;
+	}>,
+): Array<{ handoff: string; key: string; sampleId: string }> {
 	return payloads.flatMap((payload) =>
 		Object.entries(payload.handoffs ?? {})
-			.filter((entry): entry is [string, string] => typeof entry[1] === "string")
+			.filter(
+				(entry): entry is [string, string] => typeof entry[1] === "string",
+			)
 			.map(([key, handoff]) => ({ handoff, key, sampleId: payload.sampleId })),
 	);
 }
@@ -159,10 +195,12 @@ type GeneratedProcess = {
 	display?: unknown;
 };
 
-function generatedProcessEntries(payloads: Array<{
-	nextProcesses?: unknown;
-	sampleId: string;
-}>): Array<{ process: GeneratedProcess; sampleId: string; index: number }> {
+function generatedProcessEntries(
+	payloads: Array<{
+		nextProcesses?: unknown;
+		sampleId: string;
+	}>,
+): Array<{ process: GeneratedProcess; sampleId: string; index: number }> {
 	return payloads.flatMap((payload) =>
 		Array.isArray(payload.nextProcesses)
 			? payload.nextProcesses.map((process, index) => ({
@@ -174,29 +212,42 @@ function generatedProcessEntries(payloads: Array<{
 	);
 }
 
-function generatedProcessShapeViolations(payloads: Array<{
-	nextProcesses?: unknown;
-	sampleId: string;
-}>): string[] {
+function generatedProcessShapeViolations(
+	payloads: Array<{
+		nextProcesses?: unknown;
+		sampleId: string;
+	}>,
+): string[] {
 	return payloads.flatMap((payload) => {
 		if (payload.nextProcesses === undefined) return [];
 		if (!Array.isArray(payload.nextProcesses)) {
 			return [`${payload.sampleId}.nextProcesses: not an array`];
 		}
-		return generatedProcessEntries([payload]).flatMap(({ process, sampleId, index }) => {
-			const prefix = `${sampleId}.nextProcesses[${index}]`;
-			const violations: string[] = [];
-			if (typeof process.command !== "string" || process.command.trim() === "") {
-				violations.push(`${prefix}.command`);
-			}
-			if (!Array.isArray(process.args) || !process.args.every((arg) => typeof arg === "string")) {
-				violations.push(`${prefix}.args`);
-			}
-			if (typeof process.display !== "string" || process.display.trim() === "") {
-				violations.push(`${prefix}.display`);
-			}
-			return violations;
-		});
+		return generatedProcessEntries([payload]).flatMap(
+			({ process, sampleId, index }) => {
+				const prefix = `${sampleId}.nextProcesses[${index}]`;
+				const violations: string[] = [];
+				if (
+					typeof process.command !== "string" ||
+					process.command.trim() === ""
+				) {
+					violations.push(`${prefix}.command`);
+				}
+				if (
+					!Array.isArray(process.args) ||
+					!process.args.every((arg) => typeof arg === "string")
+				) {
+					violations.push(`${prefix}.args`);
+				}
+				if (
+					typeof process.display !== "string" ||
+					process.display.trim() === ""
+				) {
+					violations.push(`${prefix}.display`);
+				}
+				return violations;
+			},
+		);
 	});
 }
 
@@ -242,19 +293,22 @@ function collectGeneratedTemplates(value: unknown): GeneratedTemplate[] {
 		if (key !== "templates" || !Array.isArray(entry)) return nested;
 		return [
 			...entry
-				.filter((template): template is { command: string; parameters?: string[] } =>
-					Boolean(template) &&
-					typeof template === "object" &&
-					typeof (template as { command?: unknown }).command === "string",
+				.filter(
+					(template): template is { command: string; parameters?: string[] } =>
+						Boolean(template) &&
+						typeof template === "object" &&
+						typeof (template as { command?: unknown }).command === "string",
 				)
 				.map((template) => ({
 					command: template.command,
 					cwdParameter: (template as { cwdParameter?: string }).cwdParameter,
 					id: (template as { id?: string }).id,
 					parameters: template.parameters ?? [],
-					process: (template as {
-						process?: { command?: string; args?: string[]; display?: string };
-					}).process,
+					process: (
+						template as {
+							process?: { command?: string; args?: string[]; display?: string };
+						}
+					).process,
 					useWhen: (template as { useWhen?: string }).useWhen,
 				})),
 			...nested,
@@ -262,18 +316,22 @@ function collectGeneratedTemplates(value: unknown): GeneratedTemplate[] {
 	});
 }
 
-function sampleCommandTemplateParameters(parameters: string[]): Record<string, string> {
+function sampleCommandTemplateParameters(
+	parameters: string[],
+): Record<string, string> {
 	return Object.fromEntries(
 		parameters.map((parameter) => [
 			parameter,
-			({
-				dir: "../agents-lab",
-				"effort-id": "effort-123",
-				fn: "respond",
-				plugin: "runtime-agent",
-				"plugin.wasm": "dist/plugin.wasm",
-				ref: "HEAD~1",
-			} as Record<string, string>)[parameter] ?? `sample-${parameter}`,
+			(
+				{
+					dir: "../agents-lab",
+					"effort-id": "effort-123",
+					fn: "respond",
+					plugin: "runtime-agent",
+					"plugin.wasm": "dist/plugin.wasm",
+					ref: "HEAD~1",
+				} as Record<string, string>
+			)[parameter] ?? `sample-${parameter}`,
 		]),
 	);
 }
@@ -395,11 +453,24 @@ function createContractAskSuccessCommand() {
 	const sessionId = "urn:refarm:session:v1:contract123456";
 	return createAskCommand({
 		submitEffort: vi.fn().mockResolvedValue("effort-contract-123"),
-		followStream: vi.fn().mockImplementation(
-			async (_effortId: string, onChunk: (chunk: { content: string; is_final: boolean; metadata?: unknown }) => void) => {
-				onChunk({ content: "contract response", is_final: true, metadata: undefined });
-			},
-		),
+		followStream: vi
+			.fn()
+			.mockImplementation(
+				async (
+					_effortId: string,
+					onChunk: (chunk: {
+						content: string;
+						is_final: boolean;
+						metadata?: unknown;
+					}) => void,
+				) => {
+					onChunk({
+						content: "contract response",
+						is_final: true,
+						metadata: undefined,
+					});
+				},
+			),
 		readActiveSessionId: vi.fn().mockReturnValue(sessionId),
 		persistActiveSessionId: vi.fn(),
 	});
@@ -409,9 +480,9 @@ function createContractAskCommand() {
 	return createAskCommand({
 		submitEffort: vi.fn(),
 		followStream: vi.fn(),
-		resolveSessionIdPrefix: vi.fn().mockRejectedValue(
-			new Error("No session matching abc123"),
-		),
+		resolveSessionIdPrefix: vi
+			.fn()
+			.mockRejectedValue(new Error("No session matching abc123")),
 	});
 }
 
@@ -769,9 +840,11 @@ function createContractModelCommand() {
 	};
 	return createModelCommand({
 		loadTokens: async () => tokens,
-		saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
-			Object.assign(tokens, update);
-		}),
+		saveTokens: vi
+			.fn()
+			.mockImplementation(async (update: Record<string, unknown>) => {
+				Object.assign(tokens, update);
+			}),
 	});
 }
 
@@ -792,53 +865,55 @@ function createContractSessionsCommand() {
 		parent_session_id: session["@id"],
 	};
 	let activeSessionId: string | null = session["@id"];
-	const fetch = vi.fn().mockImplementation(async (url: string | URL, init?: RequestInit) => {
-		const value = String(url);
-		if (value.endsWith("/sessions") && init?.method === "POST") {
+	const fetch = vi
+		.fn()
+		.mockImplementation(async (url: string | URL, init?: RequestInit) => {
+			const value = String(url);
+			if (value.endsWith("/sessions") && init?.method === "POST") {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({ session }),
+				};
+			}
+			if (value.endsWith("/sessions")) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({ sessions: [session] }),
+				};
+			}
+			if (value.endsWith("/fork")) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({ session: fork }),
+				};
+			}
+			if (value.endsWith("/history")) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						session,
+						entries: [
+							{
+								id: "entry-abc",
+								kind: "user",
+								content: "hello",
+								timestamp_ns: 1_700_000_000_000_000_000,
+							},
+						],
+						total: 1,
+					}),
+				};
+			}
 			return {
-				ok: true,
-				status: 200,
-				json: async () => ({ session }),
+				ok: false,
+				status: 404,
+				json: async () => ({ error: "not found" }),
 			};
-		}
-		if (value.endsWith("/sessions")) {
-			return {
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [session] }),
-			};
-		}
-		if (value.endsWith("/fork")) {
-			return {
-				ok: true,
-				status: 200,
-				json: async () => ({ session: fork }),
-			};
-		}
-		if (value.endsWith("/history")) {
-			return {
-				ok: true,
-				status: 200,
-				json: async () => ({
-					session,
-					entries: [
-						{
-							id: "entry-abc",
-							kind: "user",
-							content: "hello",
-							timestamp_ns: 1_700_000_000_000_000_000,
-						},
-					],
-					total: 1,
-				}),
-			};
-		}
-		return {
-			ok: false,
-			status: 404,
-			json: async () => ({ error: "not found" }),
-		};
-	});
+		});
 	return createSessionsCommand({
 		clearActiveSessionId: vi.fn().mockImplementation(() => {
 			activeSessionId = null;
@@ -847,14 +922,18 @@ function createContractSessionsCommand() {
 		fetch,
 		readActiveSessionId: vi.fn().mockImplementation(() => activeSessionId),
 		sidecarUrl: (path) => `http://contract.test${path}`,
-		writeActiveSessionIdAndVerify: vi.fn().mockImplementation((sessionId: string) => {
-			activeSessionId = sessionId;
-		}),
+		writeActiveSessionIdAndVerify: vi
+			.fn()
+			.mockImplementation((sessionId: string) => {
+				activeSessionId = sessionId;
+			}),
 	});
 }
 
 function createContractSessionsSubcommand(name: string) {
-	const command = createContractSessionsCommand().commands.find((entry) => entry.name() === name);
+	const command = createContractSessionsCommand().commands.find(
+		(entry) => entry.name() === name,
+	);
 	if (!command) throw new Error(`Missing sessions subcommand ${name}`);
 	return command;
 }
@@ -864,10 +943,12 @@ function createContractSowCommand() {
 	return createSowCommand({
 		createSilo: () => ({
 			loadTokens: vi.fn().mockResolvedValue(tokens),
-			saveTokens: vi.fn().mockImplementation(async (update: Record<string, unknown>) => {
-				Object.assign(tokens, update);
-				return {};
-			}),
+			saveTokens: vi
+				.fn()
+				.mockImplementation(async (update: Record<string, unknown>) => {
+					Object.assign(tokens, update);
+					return {};
+				}),
 		}),
 		createOperator: () => ({ ask: vi.fn() }),
 		env: () => ({}),
@@ -951,11 +1032,15 @@ interface ParsedCommandJson {
 
 interface JsonCommandSample {
 	args: string[];
-	command: { parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown> };
+	command: {
+		parseAsync: (args: string[], options: { from: "user" }) => Promise<unknown>;
+	};
 	id: string;
 }
 
-async function parseCommandJson(sample: JsonCommandSample): Promise<ParsedCommandJson & { sampleId: string }> {
+async function parseCommandJson(
+	sample: JsonCommandSample,
+): Promise<ParsedCommandJson & { sampleId: string }> {
 	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	const originalExitCode = process.exitCode;
 	try {
@@ -970,7 +1055,9 @@ async function parseCommandJson(sample: JsonCommandSample): Promise<ParsedComman
 	}
 }
 
-async function parseCommandJsonSamples(samples: JsonCommandSample[]): Promise<Array<ParsedCommandJson & { sampleId: string }>> {
+async function parseCommandJsonSamples(
+	samples: JsonCommandSample[],
+): Promise<Array<ParsedCommandJson & { sampleId: string }>> {
 	const payloads: Array<ParsedCommandJson & { sampleId: string }> = [];
 	for (const sample of samples) {
 		payloads.push(await parseCommandJson(sample));
@@ -987,7 +1074,9 @@ function propertyBlocks(source: string, property: string): string[] {
 		const arrayStart = source.indexOf("[", pattern.lastIndex);
 		const lineEnd = source.indexOf("\n", pattern.lastIndex);
 		if (arrayStart === -1 || (lineEnd !== -1 && lineEnd < arrayStart)) {
-			blocks.push(source.slice(start, lineEnd === -1 ? source.length : lineEnd));
+			blocks.push(
+				source.slice(start, lineEnd === -1 ? source.length : lineEnd),
+			);
 			continue;
 		}
 		let depth = 0;
@@ -1010,10 +1099,15 @@ describe("JSON next command contract", () => {
 	it("keeps interactive credential collection out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"]
-				.flatMap((property) => propertyBlocks(source, property)
-					.filter(hasInteractiveSowCommand)
-					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
+				(property) =>
+					propertyBlocks(source, property)
+						.filter(hasInteractiveSowCommand)
+						.map(
+							(block) =>
+								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
+						),
+			);
 		});
 
 		expect(violations).toEqual([]);
@@ -1022,10 +1116,15 @@ describe("JSON next command contract", () => {
 	it("keeps placeholders out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"]
-				.flatMap((property) => propertyBlocks(source, property)
-					.filter(hasPlaceholderCommand)
-					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
+				(property) =>
+					propertyBlocks(source, property)
+						.filter(hasPlaceholderCommand)
+						.map(
+							(block) =>
+								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
+						),
+			);
 		});
 
 		expect(violations).toEqual([]);
@@ -1034,10 +1133,14 @@ describe("JSON next command contract", () => {
 	it("keeps command-like placeholders out of static action handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextAction", "nextActions"]
-				.flatMap((property) => propertyBlocks(source, property)
+			return ["nextAction", "nextActions"].flatMap((property) =>
+				propertyBlocks(source, property)
 					.filter(hasCommandLikePlaceholderAction)
-					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+					.map(
+						(block) =>
+							`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
+					),
+			);
 		});
 
 		expect(violations).toEqual([]);
@@ -1046,10 +1149,15 @@ describe("JSON next command contract", () => {
 	it("keeps REPL-only commands out of executable handoffs", () => {
 		const violations = commandSourceFiles().flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"]
-				.flatMap((property) => propertyBlocks(source, property)
-					.filter(hasReplCommand)
-					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
+				(property) =>
+					propertyBlocks(source, property)
+						.filter(hasReplCommand)
+						.map(
+							(block) =>
+								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
+						),
+			);
 		});
 
 		expect(violations).toEqual([]);
@@ -1062,10 +1170,15 @@ describe("JSON next command contract", () => {
 		];
 		const violations = files.flatMap((file) => {
 			const source = readFileSync(file, "utf8");
-			return ["nextCommand", "nextCommands", "actionCommand"]
-				.flatMap((property) => propertyBlocks(source, property)
-					.filter(hasHardcodedPackageManagerCommand)
-					.map((block) => `${relative(process.cwd(), file)} ${property}: ${block.trim()}`));
+			return ["nextCommand", "nextCommands", "actionCommand"].flatMap(
+				(property) =>
+					propertyBlocks(source, property)
+						.filter(hasHardcodedPackageManagerCommand)
+						.map(
+							(block) =>
+								`${relative(process.cwd(), file)} ${property}: ${block.trim()}`,
+						),
+			);
 		});
 
 		expect(violations).toEqual([]);
@@ -1078,14 +1191,46 @@ describe("JSON next command contract", () => {
 		try {
 			vi.stubGlobal("fetch", makeContractFetch());
 			const payloads = await parseCommandJsonSamples([
-				{ id: "actions", command: createContractActionsCommand(), args: ["--select", "inspect-trust", "--json"] },
-				{ id: "agent-handoff", command: createAgentCommand(), args: ["--json"] },
-				{ id: "agent-finish-plan", command: createAgentCommand(), args: ["finish", "--json"] },
-				{ id: "agent-finish-templates", command: createAgentCommand(), args: ["finish", "--templates", "--json"] },
-				{ id: "agent-finish-lanes", command: createAgentCommand(), args: ["finish", "--lanes", "--json"] },
-				{ id: "agent-finish-after-edit", command: createAgentCommand(), args: ["finish", "--lane", "after-edit", "--json"] },
-				{ id: "agent-finish-handoffs", command: createAgentCommand(), args: ["finish", "--lane", "handoffs", "--json"] },
-				{ id: "agent-finish-with-package-tests", command: createAgentCommand(), args: ["finish", "--lane", "with-package-tests", "--json"] },
+				{
+					id: "actions",
+					command: createContractActionsCommand(),
+					args: ["--select", "inspect-trust", "--json"],
+				},
+				{
+					id: "agent-handoff",
+					command: createAgentCommand(),
+					args: ["--json"],
+				},
+				{
+					id: "agent-finish-plan",
+					command: createAgentCommand(),
+					args: ["finish", "--json"],
+				},
+				{
+					id: "agent-finish-templates",
+					command: createAgentCommand(),
+					args: ["finish", "--templates", "--json"],
+				},
+				{
+					id: "agent-finish-lanes",
+					command: createAgentCommand(),
+					args: ["finish", "--lanes", "--json"],
+				},
+				{
+					id: "agent-finish-after-edit",
+					command: createAgentCommand(),
+					args: ["finish", "--lane", "after-edit", "--json"],
+				},
+				{
+					id: "agent-finish-handoffs",
+					command: createAgentCommand(),
+					args: ["finish", "--lane", "handoffs", "--json"],
+				},
+				{
+					id: "agent-finish-with-package-tests",
+					command: createAgentCommand(),
+					args: ["finish", "--lane", "with-package-tests", "--json"],
+				},
 				{
 					id: "ask-success",
 					command: createContractAskSuccessCommand(),
@@ -1093,7 +1238,10 @@ describe("JSON next command contract", () => {
 				},
 				{
 					id: "ask-conflict",
-					command: createAskCommand({ submitEffort: vi.fn(), followStream: vi.fn() }),
+					command: createAskCommand({
+						submitEffort: vi.fn(),
+						followStream: vi.fn(),
+					}),
 					args: ["hello", "--new", "--session", "abc", "--json"],
 				},
 				{
@@ -1104,7 +1252,13 @@ describe("JSON next command contract", () => {
 				{
 					id: "config-set-local",
 					command: config.command,
-					args: ["set", "operator.openExternalLinks", "never", "--local", "--json"],
+					args: [
+						"set",
+						"operator.openExternalLinks",
+						"never",
+						"--local",
+						"--json",
+					],
 				},
 				{
 					id: "config-get-local",
@@ -1126,33 +1280,66 @@ describe("JSON next command contract", () => {
 					command: doctorCommand,
 					args: ["--input", status.path, "--json"],
 				},
-				{ id: "extension-list", command: extensionCommand, args: ["list", "--json"] },
-				{ id: "extension-publish", command: extensionCommand, args: ["publish", "my-tool", "--json"] },
-				{ id: "extension-save-missing-scope", command: extensionCommand, args: ["save", "my-tool", "--json"] },
-				{ id: "guide", command: createContractGuideCommand(), args: ["--json"] },
+				{
+					id: "extension-list",
+					command: extensionCommand,
+					args: ["list", "--json"],
+				},
+				{
+					id: "extension-publish",
+					command: extensionCommand,
+					args: ["publish", "my-tool", "--json"],
+				},
+				{
+					id: "extension-save-missing-scope",
+					command: extensionCommand,
+					args: ["save", "my-tool", "--json"],
+				},
+				{
+					id: "guide",
+					command: createContractGuideCommand(),
+					args: ["--json"],
+				},
 				{
 					id: "headless-action-request",
 					command: headlessCommand,
 					args: [
 						"--input",
-						STATUS_WITH_ACTIONS_FIXTURE ?? "test/fixtures/status-with-actions.json",
+						STATUS_WITH_ACTIONS_FIXTURE ??
+							"test/fixtures/status-with-actions.json",
 						"--action-request",
 						"inspect-trust",
 					],
 				},
 				{ id: "health", command: healthCommand, args: ["--json"] },
-				{ id: "health-policy", command: healthCommand, args: ["--policy", "--json"] },
-				{ id: "health-suggest-policy", command: healthCommand, args: ["--suggest-policy", "--json"] },
+				{
+					id: "health-policy",
+					command: healthCommand,
+					args: ["--policy", "--json"],
+				},
+				{
+					id: "health-suggest-policy",
+					command: healthCommand,
+					args: ["--suggest-policy", "--json"],
+				},
 				{
 					id: "init",
 					command: init.command,
 					args: ["contract-workspace", "--template", "workspace", "--json"],
 				},
-				{ id: "migrate-missing-target", command: migrateCommand, args: ["--dry-run", "--json"] },
+				{
+					id: "migrate-missing-target",
+					command: migrateCommand,
+					args: ["--dry-run", "--json"],
+				},
 				{
 					id: "open-url-dry-run",
 					command: createOpenUrlCommand({ open: vi.fn() }),
-					args: ["https://example.test/auth?code=a&state=b", "--dry-run", "--json"],
+					args: [
+						"https://example.test/auth?code=a&state=b",
+						"--dry-run",
+						"--json",
+					],
 				},
 				{
 					id: "package-manager",
@@ -1198,14 +1385,26 @@ describe("JSON next command contract", () => {
 					args: ["reset", "--scope", "worker", "--json"],
 				},
 				{ id: "plugin-list", command: pluginCommand, args: ["list", "--json"] },
-				{ id: "plugin-status", command: pluginCommand, args: ["status", "--json"] },
+				{
+					id: "plugin-status",
+					command: pluginCommand,
+					args: ["status", "--json"],
+				},
 				{
 					id: "plugin-bundle-dry-run",
 					command: pluginCommand,
 					args: ["bundle", "contract-plugin.wasm", "--dry-run", "--json"],
 				},
-				{ id: "provision-list", command: provisionCommand, args: ["list", "--json"] },
-				{ id: "provision-cloudflare", command: provisionCommand, args: ["cloudflare", "--dry-run", "--json"] },
+				{
+					id: "provision-list",
+					command: provisionCommand,
+					args: ["list", "--json"],
+				},
+				{
+					id: "provision-cloudflare",
+					command: provisionCommand,
+					args: ["cloudflare", "--dry-run", "--json"],
+				},
 				{
 					id: "provision-cloudflare-turbo-cache",
 					command: provisionCommand,
@@ -1224,7 +1423,9 @@ describe("JSON next command contract", () => {
 				{
 					id: "resume",
 					command: createResumeCommand({
-						resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+						resolveStatusPayload: async () => ({
+							json: makeReadyStatus("tui"),
+						}),
 						sessionRecorder: {
 							rememberRun: vi.fn(),
 							rememberStatus: vi.fn(),
@@ -1244,6 +1445,32 @@ describe("JSON next command contract", () => {
 						loadModelTokens: vi.fn().mockResolvedValue({}),
 					}),
 					args: ["--json"],
+				},
+				{
+					id: "resume-next-action-json",
+					command: createResumeCommand({
+						resolveStatusPayload: async () => ({
+							json: makeReadyStatus("tui"),
+						}),
+						sessionRecorder: {
+							rememberRun: vi.fn(),
+							rememberStatus: vi.fn(),
+							rememberList: vi.fn(),
+							rememberLogs: vi.fn(),
+							rememberControl: vi.fn(),
+							getCheckpoint: vi.fn().mockReturnValue(null),
+						},
+						finishRecorder: {
+							rememberRun: vi.fn(),
+							getCheckpoint: vi.fn().mockReturnValue(null),
+							getLatest: vi.fn().mockReturnValue(null),
+						},
+						readActiveSessionId: vi.fn().mockReturnValue(null),
+						loadRecentSessions: vi.fn().mockResolvedValue([]),
+						loadChatHistory: vi.fn().mockReturnValue([]),
+						loadModelTokens: vi.fn().mockResolvedValue({}),
+					}),
+					args: ["--next-action", "--json"],
 				},
 				{
 					id: "runtime-status",
@@ -1302,7 +1529,9 @@ describe("JSON next command contract", () => {
 				},
 				{
 					id: "tasks-show",
-					command: createTasksCommand().commands.find((command) => command.name() === "show")!,
+					command: createTasksCommand().commands.find(
+						(command) => command.name() === "show",
+					)!,
 					args: ["abc123def456", "--json"],
 				},
 				{
@@ -1343,7 +1572,13 @@ describe("JSON next command contract", () => {
 				{
 					id: "tidy-imports-dry-run",
 					command: createContractTidyCommand(),
-					args: ["imports", "--check", "--dry-run", "--json", "apps/refarm/src/program.ts"],
+					args: [
+						"imports",
+						"--check",
+						"--dry-run",
+						"--json",
+						"apps/refarm/src/program.ts",
+					],
 				},
 				{
 					id: "tree-invalid-list-scope",
@@ -1378,7 +1613,9 @@ describe("JSON next command contract", () => {
 				{
 					id: "tui-launch-dry-run",
 					command: createTuiCommand({
-						resolveStatusPayload: async () => ({ json: makeReadyStatus("tui") }),
+						resolveStatusPayload: async () => ({
+							json: makeReadyStatus("tui"),
+						}),
 						printStatusSummary: vi.fn(),
 						launch: vi.fn(),
 					}),
@@ -1387,7 +1624,9 @@ describe("JSON next command contract", () => {
 				{
 					id: "web-launch-dry-run",
 					command: createWebCommand({
-						resolveStatusPayload: async () => ({ json: makeReadyStatus("web") }),
+						resolveStatusPayload: async () => ({
+							json: makeReadyStatus("web"),
+						}),
 						printStatusSummary: vi.fn(),
 						launch: vi.fn(),
 						open: vi.fn(),
@@ -1415,34 +1654,57 @@ describe("JSON next command contract", () => {
 			const handoffPlaceholders = handoffEntries
 				.filter(({ handoff }) => /<[^>]+>/.test(handoff))
 				.map(({ handoff, key, sampleId }) => `${sampleId}.${key}: ${handoff}`);
-			const processPlaceholders = processEntries
-				.flatMap(({ process, sampleId, index }) => [
-					...(typeof process.command === "string" && /<[^>]+>/.test(process.command)
-						? [`${sampleId}.nextProcesses[${index}].command: ${process.command}`]
+			const processPlaceholders = processEntries.flatMap(
+				({ process, sampleId, index }) => [
+					...(typeof process.command === "string" &&
+					/<[^>]+>/.test(process.command)
+						? [
+								`${sampleId}.nextProcesses[${index}].command: ${process.command}`,
+							]
 						: []),
 					...(Array.isArray(process.args)
 						? process.args
-								.filter((arg): arg is string => typeof arg === "string" && /<[^>]+>/.test(arg))
-								.map((arg) => `${sampleId}.nextProcesses[${index}].args: ${arg}`)
+								.filter(
+									(arg): arg is string =>
+										typeof arg === "string" && /<[^>]+>/.test(arg),
+								)
+								.map(
+									(arg) => `${sampleId}.nextProcesses[${index}].args: ${arg}`,
+								)
 						: []),
-					...(typeof process.display === "string" && /<[^>]+>/.test(process.display)
-						? [`${sampleId}.nextProcesses[${index}].display: ${process.display}`]
+					...(typeof process.display === "string" &&
+					/<[^>]+>/.test(process.display)
+						? [
+								`${sampleId}.nextProcesses[${index}].display: ${process.display}`,
+							]
 						: []),
-				]);
+				],
+			);
 			const replOnly = commandEntries
 				.filter(({ command }) => /^\/[A-Za-z]/.test(command))
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const taskReadCommandsWithoutJson = commandEntries
-				.filter(({ command }) => isTaskReadCommand(command) && !isJsonCommand(command))
+				.filter(
+					({ command }) =>
+						isTaskReadCommand(command) && !isJsonCommand(command),
+				)
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const taskReadActionsWithoutJson = actionEntries
-				.filter(({ action }) => isTaskReadCommand(action) && !isJsonCommand(action))
+				.filter(
+					({ action }) => isTaskReadCommand(action) && !isJsonCommand(action),
+				)
 				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const provisionCommandsWithoutJson = commandEntries
-				.filter(({ command }) => isProvisionTurboCacheCommand(command) && !isJsonCommand(command))
+				.filter(
+					({ command }) =>
+						isProvisionTurboCacheCommand(command) && !isJsonCommand(command),
+				)
 				.map(({ command, sampleId }) => `${sampleId}: ${command}`);
 			const provisionActionsWithoutJson = actionEntries
-				.filter(({ action }) => isProvisionTurboCacheCommand(action) && !isJsonCommand(action))
+				.filter(
+					({ action }) =>
+						isProvisionTurboCacheCommand(action) && !isJsonCommand(action),
+				)
 				.map(({ action, sampleId }) => `${sampleId}: ${action}`);
 			const missingNextActions = payloads
 				.filter((payload) => !Array.isArray(payload.nextActions))
@@ -1451,14 +1713,17 @@ describe("JSON next command contract", () => {
 				.filter((payload) => !Array.isArray(payload.nextCommands))
 				.map((payload) => payload.sampleId);
 			const commandFieldPlaceholderLeaks = payloads.flatMap((payload) =>
-				generatedCommandFieldPlaceholderLeaks(payload)
-					.map((leak) => `${payload.sampleId}.${leak}`),
+				generatedCommandFieldPlaceholderLeaks(payload).map(
+					(leak) => `${payload.sampleId}.${leak}`,
+				),
 			);
 			const commandFieldsWithoutJson = payloads.flatMap((payload) =>
-				generatedCommandFieldsWithoutJson(payload)
-					.map((leak) => `${payload.sampleId}.${leak}`),
+				generatedCommandFieldsWithoutJson(payload).map(
+					(leak) => `${payload.sampleId}.${leak}`,
+				),
 			);
-			const singularPluralMismatches = singularPluralHandoffMismatches(payloads);
+			const singularPluralMismatches =
+				singularPluralHandoffMismatches(payloads);
 			const processShapeViolations = generatedProcessShapeViolations(payloads);
 
 			expect(placeholders).toEqual([]);
@@ -1513,12 +1778,13 @@ describe("JSON next command contract", () => {
 					template.process?.command ?? "",
 					...(template.process?.args ?? []),
 					template.process?.display ?? "",
-				])
-					.some((parameter) => !template.parameters.includes(parameter)),
+				]).some((parameter) => !template.parameters.includes(parameter)),
 			)
 			.map((template) => template.command);
 		const parameterizedTemplatesWithoutProcess = templates
-			.filter((template) => commandTemplateParameters(template.command).length > 0)
+			.filter(
+				(template) => commandTemplateParameters(template.command).length > 0,
+			)
 			.filter((template) => !template.process)
 			.map((template) => template.command);
 		const instantiatedTemplatesWithPlaceholders = templates
@@ -1546,14 +1812,15 @@ describe("JSON next command contract", () => {
 					sampleCommandTemplateParameters(template.parameters),
 				),
 			)
-			.filter((template) =>
-				commandTemplateParameters([
-					template.command,
-					template.process?.command ?? "",
-					...(template.process?.args ?? []),
-					template.process?.display ?? "",
-					template.cwd ?? "",
-				]).length > 0,
+			.filter(
+				(template) =>
+					commandTemplateParameters([
+						template.command,
+						template.process?.command ?? "",
+						...(template.process?.args ?? []),
+						template.process?.display ?? "",
+						template.cwd ?? "",
+					]).length > 0,
 			)
 			.map((template) => template.command);
 
@@ -1591,11 +1858,13 @@ describe("JSON next command contract", () => {
 		expect(templates).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
-					command: "refarm agent finish --profile package --workspace <dir> --next-command",
+					command:
+						"refarm agent finish --profile package --workspace <dir> --next-command",
 					parameters: ["dir"],
 				}),
 				expect.objectContaining({
-					command: "refarm agent finish --profile affected --since <ref> --run --json",
+					command:
+						"refarm agent finish --profile affected --since <ref> --run --json",
 					parameters: ["ref"],
 				}),
 				expect.objectContaining({

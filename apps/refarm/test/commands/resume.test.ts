@@ -9,7 +9,12 @@ import type {
 
 const status: RefarmStatusJson = {
 	schemaVersion: 1,
-	host: { app: "apps/refarm", command: "refarm", profile: "dev", mode: "headless" },
+	host: {
+		app: "apps/refarm",
+		command: "refarm",
+		profile: "dev",
+		mode: "headless",
+	},
 	renderer: { id: "refarm-headless", kind: "headless", capabilities: [] },
 	runtime: {
 		ready: true,
@@ -22,7 +27,9 @@ const status: RefarmStatusJson = {
 	diagnostics: [],
 };
 
-function recorder(checkpoint: TaskSessionCheckpoint | null): TaskSessionRecorder {
+function recorder(
+	checkpoint: TaskSessionCheckpoint | null,
+): TaskSessionRecorder {
 	return {
 		rememberRun: vi.fn(),
 		rememberStatus: vi.fn(),
@@ -81,9 +88,9 @@ describe("resume command", () => {
 				nextCommands: ["refarm runtime start --wait"],
 				remainingCommands: [],
 			}),
-			readActiveSessionId: vi.fn().mockReturnValue(
-				"urn:refarm:session:v1:abcdef1234567890",
-			),
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:abcdef1234567890"),
 			loadModelTokens: vi.fn().mockResolvedValue({
 				modelProvider: "openai",
 				modelId: "gpt-5.5",
@@ -104,16 +111,24 @@ describe("resume command", () => {
 
 		await command.parseAsync([], { from: "user" });
 
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Operator resume"));
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Model: default openai/gpt-5.5"));
 		expect(spy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm task status effort-1 --transport http --watch"),
+			expect.stringContaining("Operator resume"),
+		);
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Model: default openai/gpt-5.5"),
+		);
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"refarm task status effort-1 --transport http --watch",
+			),
 		);
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm sessions show ef1234567890 --json"),
 		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("ship it"));
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Recent sessions:"));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Recent sessions:"),
+		);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("name=planning"));
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Finish: failed"));
 		expect(spy).toHaveBeenCalledWith(
@@ -139,7 +154,9 @@ describe("resume command", () => {
 
 		await command.parseAsync(["--json"], { from: "user" });
 
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining('"command": "resume"'));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining('"command": "resume"'),
+		);
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining('"nextCommand": "refarm model current --json"'),
 		);
@@ -147,6 +164,77 @@ describe("resume command", () => {
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining('"doctorCommand": "refarm model doctor --json"'),
 		);
+		spy.mockRestore();
+	});
+
+	it("prints only the next command in plain text", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+		});
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--next-action"], { from: "user" });
+
+		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledWith("refarm model current --json");
+		spy.mockRestore();
+	});
+
+	it("prints only the next command in JSON format", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--next-command", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			command: string;
+			nextCommand?: string | null;
+			nextAction?: string | null;
+			nextActions?: string[];
+			nextCommands?: string[];
+			nextProcesses?: Array<{
+				command: string;
+				args: string[];
+				display: string;
+			}>;
+		};
+		expect(payload.command).toBe("resume");
+		expect(payload.nextCommand).toBe("refarm model current --json");
+		expect(payload.nextActions).toContain("refarm model current --json");
+		expect(payload.nextCommands?.[0]).toBe("refarm model current --json");
+		expect(payload.nextAction).toBe("refarm model current --json");
+		expect(Array.isArray(payload.nextProcesses)).toBe(true);
+		expect(
+			(payload.nextProcesses ?? []).some(
+				(process) =>
+					process.command === "refarm" &&
+					process.args.join(" ") === "model current --json" &&
+					process.display === "refarm model current --json",
+			),
+		).toBe(true);
 		spy.mockRestore();
 	});
 
@@ -227,7 +315,9 @@ describe("resume command", () => {
 
 		const output = spy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("failedStep: health");
-		expect(output).toContain("failedCommand: refarm health --next-action --json");
+		expect(output).toContain(
+			"failedCommand: refarm health --next-action --json",
+		);
 		expect(output).toContain("remaining: 1 command");
 		spy.mockRestore();
 	});
@@ -250,7 +340,9 @@ describe("resume command", () => {
 
 		expect(resolveStatusPayload).not.toHaveBeenCalled();
 		expect(loadRecentSessions).not.toHaveBeenCalled();
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining("Runtime: not inspected"));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("Runtime: not inspected"),
+		);
 		spy.mockRestore();
 	});
 });

@@ -15,7 +15,7 @@ import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { printJson } from "./json-output.js";
+import { printJson, buildJsonSuccessEnvelope } from "./json-output.js";
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
@@ -48,6 +48,8 @@ export interface ResumeDeps {
 interface ResumeOptions {
 	json?: boolean;
 	status?: boolean;
+	nextAction?: boolean;
+	nextCommand?: boolean;
 }
 
 export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
@@ -63,12 +65,16 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 	};
 
 	return new Command("resume")
-		.description("Show the operator resume view across runtime and worker tasks")
+		.description(
+			"Show the operator resume view across runtime and worker tasks",
+		)
 		.option("--json", "Print machine-readable JSON output")
 		.option(
 			"--no-status",
 			"Skip runtime status inspection and only read local checkpoints",
 		)
+		.option("--next-action", "Print only the first recovery command and exit")
+		.option("--next-command", "Alias for --next-action")
 		.addHelpText(
 			"after",
 			`
@@ -76,6 +82,8 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 Examples:
   $ refarm resume
   $ refarm resume --json
+  $ refarm resume --next-action
+  $ refarm resume --next-action --json
   $ refarm resume --no-status
 
 Notes:
@@ -89,33 +97,59 @@ Notes:
 		});
 }
 
-async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<void> {
+async function emitResume(
+	options: ResumeOptions,
+	deps: ResumeDeps,
+): Promise<void> {
 	const taskCheckpoint = deps.sessionRecorder.getCheckpoint();
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
 	const model = await loadModelResumeSummary(deps);
-	const recentSessions = options.status === false
-		? []
-		: await deps.loadRecentSessions();
-	const statusResult = options.status === false
-		? undefined
-		: await deps.resolveStatusPayload({ renderer: "headless" });
+	const recentSessions =
+		options.status === false ? [] : await deps.loadRecentSessions();
+	const statusResult =
+		options.status === false
+			? undefined
+			: await deps.resolveStatusPayload({ renderer: "headless" });
 	try {
 		const status = statusResult?.json;
+		const envelope = buildOperatorResumeEnvelope({
+			status,
+			model,
+			taskCheckpoint,
+			activeSessionId,
+			recentSessions,
+			recentPrompts,
+			finish,
+		});
 
-		if (options.json) {
+		const nextCommandMode = options.nextAction || options.nextCommand;
+		if (nextCommandMode && options.json) {
 			printJson(
-				buildOperatorResumeEnvelope({
-					status,
-					model,
-					taskCheckpoint,
-					activeSessionId,
-					recentSessions,
-					recentPrompts,
-					finish,
+				buildJsonSuccessEnvelope({
+					command: "resume",
+					operation: "operator",
+					nextAction: envelope.nextAction,
+					nextActions: envelope.nextActions,
+					nextCommands: envelope.nextCommands,
+					extra: {
+						nextProcesses: envelope.nextProcesses,
+					},
 				}),
 			);
+			return;
+		}
+		if (nextCommandMode) {
+			const [command] = envelope.nextCommands;
+			if (command) {
+				console.log(command);
+			}
+			return;
+		}
+
+		if (options.json) {
+			printJson(envelope);
 			return;
 		}
 
@@ -129,15 +163,7 @@ async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<voi
 			finish,
 		});
 		console.log(formatOperatorResumeSummary(summary));
-		const nextCommands = buildOperatorResumeEnvelope({
-			status,
-			model,
-			taskCheckpoint,
-			activeSessionId,
-			recentSessions,
-			recentPrompts,
-			finish,
-		}).nextCommands;
+		const nextCommands = envelope.nextCommands;
 		if (nextCommands.length > 0) {
 			console.log("");
 			console.log("Next commands:");
