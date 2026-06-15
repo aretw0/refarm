@@ -159,6 +159,7 @@
 		"clean:light": "bash scripts/workspace-clean.sh light",
 		"clean:medium": "bash scripts/workspace-clean.sh medium",
 		"clean:heavy": "bash scripts/workspace-clean.sh heavy",
+		"env:safety": "bash scripts/env-safety-check.sh",
 		"deps:check": "node scripts/check-deps.mjs",
 		"deps:update": "node scripts/check-deps.mjs --update",
 		"deps:missing": "node scripts/check-missing-deps.mjs",

@@ -672,7 +672,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-2025-vs2026]
+        os: [ubuntu-latest, macos-latest, windows-2025-vs2026]
 
     steps:
       - name: Checkout
@@ -690,6 +690,7 @@ jobs:
           trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
+          env-safety-mode: strict
 
       - name: Check platform compatibility
         run: node scripts/ci/check-platform-compat.mjs
@@ -901,7 +902,16 @@ jobs:
 
   summary:
     if: always()
-    needs: [changes, quality, platform-compat, build, e2e, audit-moderate, deep-regression]
+    needs:
+      [
+        changes,
+        quality,
+        platform-compat,
+        build,
+        e2e,
+        audit-moderate,
+        deep-regression,
+      ]
     runs-on: ubuntu-latest
 
     steps:
