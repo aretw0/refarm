@@ -13,7 +13,7 @@ Shared primitives for dispatch/control-surface transport handling.
 - Channel transport helpers (`channel:*` resolution and route builders).
 - Channel effort payload validation and normalization used by runtime HTTP surface handlers.
 - Source/metadata normalization currently mirrors the Rust core contract.
-- Shared universal contract reference: `../../docs/superpowers/specs/2026-06-17-dispatch-control-plane-contract.md`.
+- Shared universal contract reference: `../../specs/features/dispatch-control-plane-contract.md`.
 
 ## Native Rust backend integration
 

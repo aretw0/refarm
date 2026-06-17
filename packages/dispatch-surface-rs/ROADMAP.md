@@ -38,7 +38,7 @@ This crate is the **native canonical substrate** for transport/control-surface p
 
 - Documented and stabilized the universal control-plane contract for host/channel consumers:
   - `packages/dispatch-surface` + `dispatch-surface-rs` parity surface.
-  - `docs/superpowers/specs/2026-06-17-dispatch-control-plane-contract.md`.
+  - `specs/features/dispatch-control-plane-contract.md`.
 - Added explicit distribution policy for generated artifacts in `README.md`.
 
 
