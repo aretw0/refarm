@@ -111,4 +111,53 @@ describe("channel http transport adapter", () => {
 		expect(fetchSpy.mock.calls[5]?.[0]).toBe(`${baseUrl}/efforts/summary`);
 		expect(fetchSpy.mock.calls[6]?.[0]).toBe(`${baseUrl}/efforts`);
 	});
+
+	it("targets encoded channel names via shared control-surface path builders", async () => {
+		const baseUrl = resolveSidecarUrl();
+		const adapter = resolveAdapter("channel:matrix team");
+		const submittedAt = new Date().toISOString();
+		fetchSpy.mockResolvedValueOnce(mockJsonResponse({ effortId: "effort-1" }));
+		fetchSpy.mockResolvedValueOnce(
+			mockJsonResponse({
+				effortId: "effort-1",
+				status: "done",
+				results: [],
+			} satisfies EffortResult),
+		);
+		fetchSpy.mockResolvedValueOnce(mockJsonResponse([] as EffortLogEntry[]));
+		fetchSpy.mockResolvedValueOnce(mockJsonResponse({ accepted: true }));
+		fetchSpy.mockResolvedValueOnce(mockJsonResponse({ accepted: true }));
+		fetchSpy.mockResolvedValueOnce(
+			mockJsonResponse({
+				total: 0,
+				pending: 0,
+				inProgress: 0,
+				done: 0,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+		);
+		fetchSpy.mockResolvedValueOnce(mockJsonResponse([] as EffortResult[]));
+
+		await adapter.submit({
+			id: "effort-1",
+			direction: "matrix prompt",
+			tasks: [{ id: "task-1", pluginId: "runtime", fn: "respond", args: {} }],
+			submittedAt,
+		});
+		await adapter.query("effort-1");
+		await adapter.logs("effort-1");
+		await adapter.retry("effort-1");
+		await adapter.cancel("effort-1");
+		await adapter.summary();
+		await adapter.list();
+
+		expect(fetchSpy).toHaveBeenNthCalledWith(
+			1,
+			`${baseUrl}/channels/${encodeURIComponent("matrix team")}/efforts`,
+			expect.objectContaining({ method: "POST" }),
+		);
+	});
 });

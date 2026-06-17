@@ -1,6 +1,7 @@
 import type http from "node:http";
 import {
 	buildChannelEffort,
+	decodeChannel,
 	isChannelEffortPayload,
 } from "@refarm.dev/dispatch-surface";
 import type { SidecarAdapter } from "./http.js";
@@ -36,11 +37,13 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
 		const { pathname } = requestUrl;
 
+		const decodedSegment = (value: string): string => decodeChannel(value);
+
 		const submitMatch = pathname.match(/^\/channels\/([^/]+)\/efforts$/);
 		if (submitMatch && req.method === "POST") {
 			void (async () => {
 				try {
-					const channel = decodeURIComponent(submitMatch[1] ?? "");
+					const channel = decodedSegment(submitMatch[1] ?? "");
 					const body = await readJson<unknown>(req);
 
 					if (!isChannelEffortPayload(body)) {
@@ -75,7 +78,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (logsMatch && req.method === "GET") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(logsMatch[2] ?? "");
+					const effortId = decodedSegment(logsMatch[2] ?? "");
 					const result = await adapter.logs(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
@@ -97,7 +100,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (retryMatch && req.method === "POST") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(retryMatch[2] ?? "");
+					const effortId = decodedSegment(retryMatch[2] ?? "");
 					const accepted = await adapter.retry(effortId);
 					if (!accepted) {
 						toJson(res, 409, { error: "retry not allowed" });
@@ -119,7 +122,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (cancelMatch && req.method === "POST") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(cancelMatch[2] ?? "");
+					const effortId = decodedSegment(cancelMatch[2] ?? "");
 					const accepted = await adapter.cancel(effortId);
 					if (!accepted) {
 						toJson(res, 409, { error: "cancel not allowed" });
@@ -141,7 +144,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (statusMatch && req.method === "GET") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(statusMatch[2] ?? "");
+					const effortId = decodedSegment(statusMatch[2] ?? "");
 					const result = await adapter.query(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
@@ -163,7 +166,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (streamMatch && req.method === "GET") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(streamMatch[2] ?? "");
+					const effortId = decodedSegment(streamMatch[2] ?? "");
 					const result = await adapter.logs(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
@@ -185,7 +188,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (evidenceMatch && req.method === "GET") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(evidenceMatch[2] ?? "");
+					const effortId = decodedSegment(evidenceMatch[2] ?? "");
 					const result = await adapter.logs(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });
@@ -207,7 +210,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (statusByIdMatch && req.method === "GET") {
 			void (async () => {
 				try {
-					const effortId = decodeURIComponent(statusByIdMatch[2] ?? "");
+					const effortId = decodedSegment(statusByIdMatch[2] ?? "");
 					const result = await adapter.query(effortId);
 					if (!result) {
 						toJson(res, 404, { error: "not found" });

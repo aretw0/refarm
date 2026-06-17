@@ -6,6 +6,13 @@ import type {
 	EffortSummary,
 	EffortTransportAdapter,
 } from "@refarm.dev/effort-contract-v1";
+import {
+	buildChannelEffortPath,
+	buildChannelEffortsPath,
+	parseTaskTransport as parseDispatchTransport,
+	resolveChannelFromTransport,
+	type DispatchTransport,
+} from "@refarm.dev/dispatch-surface";
 import chalk from "chalk";
 import { InvalidArgumentError } from "commander";
 import fs from "node:fs";
@@ -45,16 +52,16 @@ export interface TaskOperationsAdapter extends EffortTransportAdapter {
 	summary(): Promise<EffortSummary>;
 }
 
-const TASK_TRANSPORTS = ["file", "http"] as const;
-export type TaskTransport = (typeof TASK_TRANSPORTS)[number];
+export type TaskTransport = DispatchTransport;
 
 export function parseTaskTransport(value: string): TaskTransport {
-	if ((TASK_TRANSPORTS as readonly string[]).includes(value)) {
-		return value as TaskTransport;
+	try {
+		return parseDispatchTransport(value);
+	} catch (error) {
+		throw new InvalidArgumentError(
+			error instanceof Error ? error.message : String(error),
+		);
 	}
-	throw new InvalidArgumentError(
-		`Invalid task transport "${value}". Use: ${TASK_TRANSPORTS.join(", ")}`,
-	);
 }
 
 export function parsePositiveIntOption(value: string, label: string): number {
@@ -147,7 +154,10 @@ export function formatEffortSummary(summary: EffortSummary): string {
 	return `total=${summary.total} pending=${summary.pending} in-progress=${summary.inProgress} done=${summary.done} partial=${summary.partial} failed=${summary.failed} timed-out=${summary.timedOut} cancelled=${summary.cancelled}`;
 }
 
-export function effortSummariesEqual(a: EffortSummary, b: EffortSummary): boolean {
+export function effortSummariesEqual(
+	a: EffortSummary,
+	b: EffortSummary,
+): boolean {
 	return (
 		a.total === b.total &&
 		a.pending === b.pending &&
@@ -160,14 +170,19 @@ export function effortSummariesEqual(a: EffortSummary, b: EffortSummary): boolea
 	);
 }
 
-export function formatLogMeta(meta: Record<string, unknown> | undefined): string {
+export function formatLogMeta(
+	meta: Record<string, unknown> | undefined,
+): string {
 	if (!meta) return "";
-	const modelScope = typeof meta.modelScope === "string" ? meta.modelScope : undefined;
-	const modelProvider = typeof meta.modelProvider === "string" ? meta.modelProvider : undefined;
+	const modelScope =
+		typeof meta.modelScope === "string" ? meta.modelScope : undefined;
+	const modelProvider =
+		typeof meta.modelProvider === "string" ? meta.modelProvider : undefined;
 	const modelId = typeof meta.modelId === "string" ? meta.modelId : undefined;
-	const modelRoute = modelProvider && modelId
-		? `${modelProvider}/${modelId}`
-		: modelProvider ?? modelId;
+	const modelRoute =
+		modelProvider && modelId
+			? `${modelProvider}/${modelId}`
+			: (modelProvider ?? modelId);
 	const parts = [
 		modelScope ? `scope=${modelScope}` : undefined,
 		modelRoute ? `model=${modelRoute}` : undefined,
@@ -228,7 +243,9 @@ export function taskCheckpointJsonHandoff(
 	};
 }
 
-export function isResumableTaskSessionEffort(effort: TaskSessionEffortRecord): boolean {
+export function isResumableTaskSessionEffort(
+	effort: TaskSessionEffortRecord,
+): boolean {
 	if (!effort.lastStatus || effort.lastStatus === "not-found") return false;
 	return !isFinalEffortStatus(effort.lastStatus);
 }
@@ -344,7 +361,10 @@ export function reportTaskListError(
 				error: "task-list-failed",
 				message,
 				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-				nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
+				nextActions: [
+					RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+					RUNTIME_STATUS_COMMAND,
+				],
 				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 				nextCommands: [
 					RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -586,8 +606,90 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	}
 }
 
+class HttpChannelTransportClient implements TaskOperationsAdapter {
+	private readonly channel: string;
+
+	constructor(
+		private readonly baseUrl: string,
+		channel: string,
+	) {
+		this.channel = channel;
+	}
+
+	private channelEffortsPath(): string {
+		return buildChannelEffortsPath(this.baseUrl, this.channel);
+	}
+
+	private effortPath(effortId: string): string {
+		return buildChannelEffortPath(this.baseUrl, this.channel, effortId);
+	}
+
+	async submit(effort: Effort): Promise<string> {
+		const response = await fetch(this.channelEffortsPath(), {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(effort),
+		});
+
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const payload = (await response.json()) as { effortId: string };
+		return payload.effortId;
+	}
+
+	async query(effortId: string): Promise<EffortResult | null> {
+		const response = await fetch(`${this.effortPath(effortId)}/status`);
+		if (response.status === 404) return null;
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return (await response.json()) as EffortResult;
+	}
+
+	async list(): Promise<EffortResult[]> {
+		const response = await fetch(`${this.baseUrl}/efforts`);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return (await response.json()) as EffortResult[];
+	}
+
+	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
+		const response = await fetch(`${this.effortPath(effortId)}/logs`);
+		if (response.status === 404) return null;
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return (await response.json()) as EffortLogEntry[];
+	}
+
+	private async command(
+		effortId: string,
+		action: "retry" | "cancel",
+	): Promise<boolean> {
+		const response = await fetch(`${this.effortPath(effortId)}/${action}`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+		});
+		if (response.status === 409 || response.status === 404) return false;
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return true;
+	}
+
+	async retry(effortId: string): Promise<boolean> {
+		return this.command(effortId, "retry");
+	}
+
+	async cancel(effortId: string): Promise<boolean> {
+		return this.command(effortId, "cancel");
+	}
+
+	async summary(): Promise<EffortSummary> {
+		const response = await fetch(`${this.baseUrl}/efforts/summary`);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		return (await response.json()) as EffortSummary;
+	}
+}
+
 export function resolveAdapter(transport: string): TaskOperationsAdapter {
 	const resolvedTransport = parseTaskTransport(transport);
+	const channel = resolveChannelFromTransport(resolvedTransport);
+	if (channel) {
+		return new HttpChannelTransportClient(resolveSidecarUrl(), channel);
+	}
 	if (resolvedTransport === "http") {
 		return new HttpTransportClient(resolveSidecarUrl());
 	}
@@ -626,4 +728,3 @@ export function resolveTaskAdapter(
 		adapter: adapterResolver(transport),
 	};
 }
-
