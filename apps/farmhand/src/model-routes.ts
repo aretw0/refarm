@@ -36,6 +36,7 @@ export function routeResolutionEnv(
 export function scopeForEffortSource(source: string | undefined): ModelScope {
 	if (source === "refarm-ask" || source === "refarm-chat") return "default";
 	if (source === "refarm-monitor") return "monitor";
+	if (source?.startsWith("channel:")) return "worker";
 	return "worker";
 }
 
@@ -88,7 +89,8 @@ export function withModelRouteEnv<T>(
 		previousProviderManaged &&
 		previousProvider !== undefined &&
 		route.provider !== undefined &&
-		route.provider.trim().toLowerCase() !== previousProvider.trim().toLowerCase();
+		route.provider.trim().toLowerCase() !==
+			previousProvider.trim().toLowerCase();
 	if (route.provider) {
 		process.env[MODEL_PROVIDER_ENV_VAR] = route.provider;
 	} else {

@@ -1,0 +1,50 @@
+package refarm:dispatch-surface@0.1.0;
+
+interface dispatch-surface-control {
+    /// Supported transport kinds.
+    variant dispatch-transport {
+        file,
+        http,
+        channel(string),
+    }
+
+    /// Parse and validate transport strings.
+    parse-task-transport: func(transport: string) -> result<dispatch-transport, string>;
+
+    /// Resolve channel name from a parsed transport, if any.
+    resolve-channel-from-transport: func(transport: dispatch-transport) -> option<string>;
+
+    /// Validate effort payload shape (`direction` + `tasks: array`).
+    is-channel-effort-payload: func(payload-json: string) -> bool;
+
+    /// Normalize source fallback to `channel:<name>` when absent.
+    normalize-channel-source: func(channel: string, source: option<string>) -> string;
+
+    /// Normalize channel metadata and merge into context.
+    normalize-channel-context: func(
+        context-json: string,
+        channel: string,
+        reply-to: option<string>,
+        trace-ids-json: option<string>,
+    ) -> string;
+
+    /// Build canonical channel effort JSON.
+    build-channel-effort: func(payload-json: string, channel: string) -> result<string, string>;
+
+    /// Escape/unescape channel identifiers in routes.
+    encode-channel: func(channel: string) -> string;
+    decode-channel: func(channel: string) -> string;
+
+    /// Build route helpers.
+    build-channel-efforts-path: func(base-url: string, channel: string) -> string;
+    build-channel-effort-path: func(
+        base-url: string,
+        channel: string,
+        effort-id: string,
+        segment: option<string>,
+    ) -> string;
+}
+
+world dispatch-surface {
+    export dispatch-surface-control;
+}

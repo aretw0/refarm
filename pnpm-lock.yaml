@@ -166,6 +166,9 @@ importers:
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@refarm.dev/dispatch-surface':
+        specifier: workspace:*
+        version: link:../../packages/dispatch-surface
       '@refarm.dev/effort-contract-v1':
         specifier: workspace:*
         version: link:../../packages/effort-contract-v1
@@ -282,6 +285,9 @@ importers:
       '@refarm.dev/context-provider-v1':
         specifier: workspace:*
         version: link:../../packages/context-provider-v1
+      '@refarm.dev/dispatch-surface':
+        specifier: workspace:*
+        version: link:../../packages/dispatch-surface
       '@refarm.dev/effort-contract-v1':
         specifier: workspace:*
         version: link:../../packages/effort-contract-v1
@@ -459,6 +465,22 @@ importers:
       ws:
         specifier: 8.20.1
         version: 8.20.1
+
+  packages/dispatch-surface:
+    dependencies:
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/ds:
     devDependencies:
@@ -851,6 +873,8 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
+
+  packages/release-engine: {}
 
   packages/root:
     devDependencies:

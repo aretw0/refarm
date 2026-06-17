@@ -1,0 +1,17 @@
+{
+	"extends": [
+		"../../tsconfig.json",
+		"@refarm.dev/tsconfig/buildable.json"
+	],
+	"compilerOptions": {
+		"outDir": "dist",
+		"baseUrl": "../..",
+		"rootDir": "src",
+		"paths": {
+			"@refarm.dev/effort-contract-v1": ["./packages/effort-contract-v1/dist/index.d.ts"]
+		}
+	},
+	"include": [
+		"src/**/*"
+	]
+}

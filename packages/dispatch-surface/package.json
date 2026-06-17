@@ -1,0 +1,44 @@
+{
+  "name": "@refarm.dev/dispatch-surface",
+  "version": "0.1.0",
+  "description": "Shared transport and control-surface primitives for dispatch and effort control planes.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "eslint src",
+    "type-check": "tsc --noEmit",
+    "pretest": "pnpm run build",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:parity": "vitest run parity.test.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "dispatch",
+    "transport",
+    "control-plane",
+    "effort",
+    "task",
+    "channel"
+  ],
+  "dependencies": {
+    "@refarm.dev/effort-contract-v1": "workspace:*"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
+  }
+}

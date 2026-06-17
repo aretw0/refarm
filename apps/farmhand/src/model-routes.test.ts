@@ -69,6 +69,8 @@ describe("model routes", () => {
 		expect(scopeForEffortSource("refarm-chat")).toBe("default");
 		expect(scopeForEffortSource("refarm-monitor")).toBe("monitor");
 		expect(scopeForEffortSource("refarm-task")).toBe("worker");
+		expect(scopeForEffortSource("channel:telegram")).toBe("worker");
+		expect(scopeForEffortSource("channel:matrix")).toBe("worker");
 		expect(scopeForEffortSource(undefined)).toBe("worker");
 	});
 
@@ -134,20 +136,16 @@ describe("model routes", () => {
 		};
 
 		expect(
-			routeForScope(
-				tokens,
-				"worker",
-				{
-					env: routeResolutionEnv(
-						{
-							MODEL_PROVIDER: "openai",
-							MODEL_ID: "gpt-5.5",
-							OPENAI_API_KEY: "sk-managed",
-						},
-						["MODEL_PROVIDER", "MODEL_ID", "OPENAI_API_KEY"],
-					),
-				},
-			),
+			routeForScope(tokens, "worker", {
+				env: routeResolutionEnv(
+					{
+						MODEL_PROVIDER: "openai",
+						MODEL_ID: "gpt-5.5",
+						OPENAI_API_KEY: "sk-managed",
+					},
+					["MODEL_PROVIDER", "MODEL_ID", "OPENAI_API_KEY"],
+				),
+			}),
 		).toEqual({
 			provider: "anthropic",
 			modelId: "claude-sonnet-4-6",

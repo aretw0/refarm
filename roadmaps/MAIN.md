@@ -172,12 +172,14 @@ The following core plugins provide the infrastructure for development and manage
 
 ### Tooling & Infrastructure
 
-| Component           | Purpose                                  | Roadmap                                                                         |
-| ------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
-| **CLI**             | Refarm Developer Tool (`refarm` command) | [`packages/cli/ROADMAP.md`](../packages/cli/ROADMAP.md)                         |
-| **Plugin-Manifest** | Plugin Metadata Contract                 | [`packages/plugin-manifest/ROADMAP.md`](../packages/plugin-manifest/ROADMAP.md) |
-| **Toolbox**         | Common utilities and build tools         | [`packages/toolbox/ROADMAP.md`](../packages/toolbox/ROADMAP.md)                 |
-| **Config**          | Sovereign Settings Manager               | [`packages/config/ROADMAP.md`](../packages/config/ROADMAP.md)                   |
+| Component                  | Purpose                                                     | Roadmap                                                                                  |
+| -------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **CLI**                    | Refarm Developer Tool (`refarm` command)                    | [`packages/cli/ROADMAP.md`](../packages/cli/ROADMAP.md)                                  |
+| **Plugin-Manifest**        | Plugin Metadata Contract                                    | [`packages/plugin-manifest/ROADMAP.md`](../packages/plugin-manifest/ROADMAP.md)          |
+| **Toolbox**                | Common utilities and build tools                            | [`packages/toolbox/ROADMAP.md`](../packages/toolbox/ROADMAP.md)                          |
+| **Config**                 | Sovereign Settings Manager                                  | [`packages/config/ROADMAP.md`](../packages/config/ROADMAP.md)                            |
+| **Dispatch Surface (TS)**   | Shared control-plane transport contracts (`refarm`/`farmhand`) | [`packages/dispatch-surface/README.md`](../packages/dispatch-surface/README.md)         |
+| **Dispatch Surface (Rust)** | Canonical transport semantics (portable + Wasm future)        | [`packages/dispatch-surface-rs/ROADMAP.md`](../packages/dispatch-surface-rs/ROADMAP.md) |
 
 ---
 
@@ -214,7 +216,8 @@ These items were discovered during tractor development and require follow-up:
 | Consumer testing with Rust daemon | Medium   | 7 consumers tested with `tractor-ts`; end-to-end validation with native Rust daemon in production pending                                 |
 | Schema migration tooling          | Medium   | No migration script if user has a legacy `.db` from an older schema; `schema_compat_ts_db_readable` passes but no upgrade path documented |
 | Cross-platform CI (Windows/macOS) | Low      | CI currently Linux-only; acceptable for edge/IoT focus                                                                                    |
-| Plugin manifest co-signing test   | Low      | Trust grants verified; co-signing of manifest not end-to-end tested                                                                       |
+| Dispatch Surface Rust parity    | Medium   | ✅ Completed: TS/Rust parity is implemented (`packages/dispatch-surface` optional fallback to Wasm), validated by `test:parity` + `dispatch-surface:ci`, and gated in root CI when dispatch artifacts change. |
+| Plugin manifest co-signing test  | Low      | Trust grants verified; co-signing of manifest not end-to-end tested                                                                       |
 
 ### 🧠 Kernel-Level Agents
 
