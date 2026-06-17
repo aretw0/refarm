@@ -64,4 +64,4 @@ A intenção aqui é manter `release-engine` neutro e permitir que o seu control
 - Consolidar providers reais para `refarm`, `vault-seed`, `agents-lab` via o mesmo contrato de política sem duplicar scripts de fluxo.
 - Publicar somente a API de política/gating do `release-engine` quando estabilidade da suíte de testes e integrações de projeto estabilizar.
 - Integrar o contrato `@refarm.dev/dispatch-surface` ao policy de publicação: releases de pacotes/ambientes que alteram a superfície de dispatch devem rodar `dispatch-surface:build-rs:release` em modo estrito, conforme já ligado em `.github/workflows/release-changesets.yml`, `.github/workflows/publish-packages.yml`, e `.github/workflows/publish-crates.yml`.
-- A detecção de impacto desta cláusula está centralizada em `scripts/ci/release-dispatch-surface-build.sh` para evitar divergência entre workflows de publicação.
+- A detecção de impacto desta cláusula está centralizada em `scripts/ci/release-dispatch-surface-build.sh` para evitar divergência entre workflows de publicação (inclusive `.github/workflows/test.yml`, usando `--check`).
