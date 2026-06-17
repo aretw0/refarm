@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildChannelEffort,
+	getRegisteredChannelControlSurface,
 	isChannelEffortPayload,
 	parseTaskTransport,
+	removeChannelControlSurfaceAdapter,
 	resolveChannelControlSurfaceAdapter,
+	setChannelControlSurfaceAdapter,
 } from "./dispatch-surface.js";
 
 describe("dispatch transport parser", () => {
@@ -72,5 +75,40 @@ describe("channel control-surface adapters", () => {
 		expect(
 			unknown.adapter.buildListPath("http://127.0.0.1:42001", "future-irc"),
 		).toBe("http://127.0.0.1:42001/efforts");
+	});
+
+	it("supports registry override and restore via set/remove", () => {
+		const original = getRegisteredChannelControlSurface("matrix");
+		expect(original).toBeDefined();
+		if (!original) return;
+
+		const custom = {
+			...original,
+			adapter: {
+				...original.adapter,
+				capabilities: {
+					...original.adapter.capabilities,
+					retry: false,
+				},
+			},
+		};
+
+		const previous = setChannelControlSurfaceAdapter("matrix", custom.adapter);
+		expect(previous?.channel).toBe("matrix");
+		expect(
+			resolveChannelControlSurfaceAdapter("matrix").adapter.capabilities.retry,
+		).toBe(false);
+
+		removeChannelControlSurfaceAdapter("matrix");
+		expect(getRegisteredChannelControlSurface("matrix")).toBeUndefined();
+		expect(resolveChannelControlSurfaceAdapter("matrix").channel).toBe("matrix");
+		expect(
+			resolveChannelControlSurfaceAdapter("matrix").adapter.capabilities.retry,
+		).toBe(true);
+
+		setChannelControlSurfaceAdapter("matrix", original.adapter);
+		expect(
+			getRegisteredChannelControlSurface("matrix")?.adapter,
+		).toBe(original.adapter);
 	});
 });
