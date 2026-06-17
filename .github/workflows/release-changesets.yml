@@ -37,6 +37,10 @@ jobs:
       - name: Release policy plan (preflight)
         run: node scripts/release-engine.mjs plan --only-required --dry-run --json
 
+      - name: Strict dispatch-surface native artifact build (release mode)
+        run: |
+          bash scripts/ci/release-dispatch-surface-build.sh "${{ github.event.before }}" "${{ github.sha }}"
+
       - name: Validate quality gates
         run: |
           pnpm run lint

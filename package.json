@@ -214,7 +214,10 @@
 		"agent:streaming:clients": "node scripts/ci/run-workspace-script.mjs packages/tractor-ts type-check && node scripts/ci/run-workspace-script.mjs packages/tractor-ts test:unit -- agent-response-stream.test.ts stream-chunk.test.ts stream-session.test.ts stream-view.test.ts",
 		"agent:streaming:studio": "node scripts/ci/run-workspace-script.mjs packages/homestead test && node scripts/ci/run-workspace-script.mjs packages/homestead type-check && node scripts/ci/run-workspace-script.mjs apps/dev test && node scripts/ci/run-workspace-script.mjs apps/dev type-check",
 		"agent:streaming:harness": "node scripts/ci/agent-cargo-gates.mjs streaming:harness",
-		"agent:streaming:harness:build": "node scripts/ci/agent-cargo-gates.mjs streaming:harness:build"
+		"agent:streaming:harness:build": "node scripts/ci/agent-cargo-gates.mjs streaming:harness:build",
+		"dispatch-surface:build-rs": "node scripts/build-dispatch-surface-rs.mjs",
+		"dispatch-surface:build-rs:release": "DISPATCH_SURFACE_REQUIRE_JCO=1 pnpm run dispatch-surface:build-rs",
+		"dispatch-surface:ci": "pnpm run dispatch-surface:build-rs && pnpm --filter @refarm.dev/dispatch-surface lint && pnpm --filter @refarm.dev/dispatch-surface type-check && pnpm --filter @refarm.dev/dispatch-surface test:parity"
 	},
 	"repository": {
 		"type": "git",

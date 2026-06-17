@@ -40,7 +40,11 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Build all packages
-        run: ppnpm -r run build
+        run: pnpm -r run build
+
+      - name: Strict dispatch-surface native artifact build (release mode)
+        run: |
+          bash scripts/ci/release-dispatch-surface-build.sh "${{ github.sha }}~1" "${{ github.sha }}"
 
       - name: Extract package info from tag
         id: pkg
