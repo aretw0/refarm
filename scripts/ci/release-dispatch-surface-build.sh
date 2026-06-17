@@ -36,7 +36,7 @@ if [ -z "$CHANGED_FILES" ]; then
 	CHANGED_FILES="$(git show --name-only --pretty=format: "$HEAD_SHA")"
 fi
 
-if echo "$CHANGED_FILES" | grep -Eq '^(packages/dispatch-surface($|/)|packages/dispatch-surface-rs($|/)|scripts/build-dispatch-surface-rs\.mjs$|docs/superpowers/specs/2026-06-17-dispatch-control-plane-contract\.md$|^package\.json$|packages/dispatch-surface/src/|packages/dispatch-surface-rs/src/)'; then
+if echo "$CHANGED_FILES" | grep -Eq '^(packages/dispatch-surface($|/)|packages/dispatch-surface-rs($|/)|scripts/build-dispatch-surface-rs\.mjs$|specs/features/dispatch-control-plane-contract\.md$|^package\.json$|packages/dispatch-surface/src/|packages/dispatch-surface-rs/src/)'; then
 	if [ "$CHECK_ONLY" = "true" ]; then
 		echo "run_dispatch_surface_ci=true"
 		echo "BASE_SHA=$BASE_SHA"

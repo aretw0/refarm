@@ -3,7 +3,7 @@
 **Status**: Accepted  
 **Date**: 2026-06-01  
 **Deciders**: Arthur Silva  
-**Related**: Barn/Scarecrow evolution spec (`docs/superpowers/specs/2026-05-13-barn-scarecrow-evolution.md`), ADR-050 (Zig/WASM agent-tool host strategy)
+**Related**: Barn/Scarecrow evolution work (package-owned policy implementation and plugin lifecycle), ADR-050 (Zig/WASM agent-tool host strategy)
 
 ---
 
