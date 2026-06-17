@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { randomUUID } from "node:crypto";
 
 const TASK_TRANSPORTS = ["file", "http"] as const;
 type StaticDispatchTransport = (typeof TASK_TRANSPORTS)[number];
@@ -326,4 +326,121 @@ export function buildChannelEffortPath(
 	return `${buildChannelEffortsPath(baseUrl, channel)}/${encodeURIComponent(
 		effortId,
 	)}${segment ? `/${segment}` : ""}`;
+}
+
+export interface ChannelControlSurfaceCapabilities {
+	submit: boolean;
+	query: boolean;
+	logs: boolean;
+	summary: boolean;
+	list: boolean;
+	retry: boolean;
+	cancel: boolean;
+}
+
+export interface ChannelControlSurfaceAdapter {
+	readonly id: string;
+	readonly capabilities: ChannelControlSurfaceCapabilities;
+	buildSubmitPath(baseUrl: string, channel: string): string;
+	buildQueryPath(baseUrl: string, channel: string, effortId: string): string;
+	buildLogsPath(baseUrl: string, channel: string, effortId: string): string;
+	buildRetryPath(baseUrl: string, channel: string, effortId: string): string;
+	buildCancelPath(baseUrl: string, channel: string, effortId: string): string;
+	buildSummaryPath(baseUrl: string, channel: string): string;
+	buildListPath(baseUrl: string, channel: string): string;
+}
+
+interface KnownChannelControlSurfaceDescriptor {
+	readonly channel: string;
+	readonly adapter: ChannelControlSurfaceAdapter;
+}
+
+const CONTROL_SURFACE_ID = "http-channel-control";
+
+const DEFAULT_CHANNEL_CONTROL_SURFACE: ChannelControlSurfaceAdapter = {
+	id: CONTROL_SURFACE_ID,
+	capabilities: {
+		submit: true,
+		query: true,
+		logs: true,
+		summary: true,
+		list: true,
+		retry: true,
+		cancel: true,
+	},
+	buildSubmitPath: (baseUrl: string, channel: string) =>
+		buildChannelEffortsPath(baseUrl, channel),
+	buildQueryPath: (baseUrl: string, channel: string, effortId: string) =>
+		buildChannelEffortPath(baseUrl, channel, effortId, "status"),
+	buildLogsPath: (baseUrl: string, channel: string, effortId: string) =>
+		buildChannelEffortPath(baseUrl, channel, effortId, "logs"),
+	buildRetryPath: (baseUrl: string, channel: string, effortId: string) =>
+		buildChannelEffortPath(baseUrl, channel, effortId, "retry"),
+	buildCancelPath: (baseUrl: string, channel: string, effortId: string) =>
+		buildChannelEffortPath(baseUrl, channel, effortId, "cancel"),
+	buildSummaryPath: (baseUrl: string) =>
+		`${baseUrl.replace(/\/$/, "")}/efforts/summary`,
+	buildListPath: (baseUrl: string) => `${baseUrl.replace(/\/$/, "")}/efforts`,
+};
+
+const CONTROL_SURFACE_REGISTRY = new Map<
+	string,
+	KnownChannelControlSurfaceDescriptor
+>([
+	["matrix", { channel: "matrix", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE }],
+	[
+		"telegram",
+		{ channel: "telegram", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE },
+	],
+	[
+		"telegram-dm",
+		{ channel: "telegram-dm", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE },
+	],
+]);
+
+export function setChannelControlSurfaceAdapter(
+	channel: string,
+	adapter: ChannelControlSurfaceAdapter,
+): KnownChannelControlSurfaceDescriptor | undefined {
+	const normalized = normalizeChannelAlias(channel);
+	const previous = CONTROL_SURFACE_REGISTRY.get(normalized);
+	CONTROL_SURFACE_REGISTRY.set(normalized, {
+		channel: normalized,
+		adapter,
+	});
+	return previous;
+}
+
+export function removeChannelControlSurfaceAdapter(channel: string): void {
+	CONTROL_SURFACE_REGISTRY.delete(normalizeChannelAlias(channel));
+}
+
+export function getRegisteredChannelControlSurface(
+	channel: string,
+): KnownChannelControlSurfaceDescriptor | undefined {
+	return CONTROL_SURFACE_REGISTRY.get(normalizeChannelAlias(channel));
+}
+
+function normalizeChannelAlias(value: string): string {
+	return value.trim();
+}
+
+export function listKnownChannelControlSurfaces(): string[] {
+	return [...CONTROL_SURFACE_REGISTRY.keys()].sort();
+}
+
+export function isKnownChannelControlSurface(channel: string): boolean {
+	return CONTROL_SURFACE_REGISTRY.has(normalizeChannelAlias(channel));
+}
+
+export function resolveChannelControlSurfaceAdapter(channel: string): {
+	channel: string;
+	adapter: ChannelControlSurfaceAdapter;
+} {
+	const normalized = normalizeChannelAlias(channel);
+	const matched = CONTROL_SURFACE_REGISTRY.get(normalized);
+	if (matched) {
+		return matched;
+	}
+	return { channel: normalized, adapter: DEFAULT_CHANNEL_CONTROL_SURFACE };
 }

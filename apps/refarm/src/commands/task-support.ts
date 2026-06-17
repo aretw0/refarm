@@ -1,4 +1,11 @@
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
+import {
+	parseTaskTransport as parseDispatchTransport,
+	resolveChannelControlSurfaceAdapter,
+	resolveChannelFromTransport,
+	type ChannelControlSurfaceAdapter,
+	type DispatchTransport,
+} from "@refarm.dev/dispatch-surface";
 import type {
 	Effort,
 	EffortLogEntry,
@@ -6,13 +13,6 @@ import type {
 	EffortSummary,
 	EffortTransportAdapter,
 } from "@refarm.dev/effort-contract-v1";
-import {
-	buildChannelEffortPath,
-	buildChannelEffortsPath,
-	parseTaskTransport as parseDispatchTransport,
-	resolveChannelFromTransport,
-	type DispatchTransport,
-} from "@refarm.dev/dispatch-surface";
 import chalk from "chalk";
 import { InvalidArgumentError } from "commander";
 import fs from "node:fs";
@@ -608,20 +608,20 @@ class HttpTransportClient implements TaskOperationsAdapter {
 
 class HttpChannelTransportClient implements TaskOperationsAdapter {
 	private readonly channel: string;
+	private readonly adapter: ChannelControlSurfaceAdapter;
 
 	constructor(
 		private readonly baseUrl: string,
 		channel: string,
+		adapter?: ChannelControlSurfaceAdapter,
 	) {
 		this.channel = channel;
+		this.adapter =
+			adapter ?? resolveChannelControlSurfaceAdapter(channel).adapter;
 	}
 
 	private channelEffortsPath(): string {
-		return buildChannelEffortsPath(this.baseUrl, this.channel);
-	}
-
-	private effortPath(effortId: string): string {
-		return buildChannelEffortPath(this.baseUrl, this.channel, effortId);
+		return this.adapter.buildSubmitPath(this.baseUrl, this.channel);
 	}
 
 	async submit(effort: Effort): Promise<string> {
@@ -637,20 +637,35 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async query(effortId: string): Promise<EffortResult | null> {
-		const response = await fetch(`${this.effortPath(effortId)}/status`);
+		if (!this.adapter.capabilities.query) {
+			throw new Error(`Channel adapter does not support query`);
+		}
+		const response = await fetch(
+			this.adapter.buildQueryPath(this.baseUrl, this.channel, effortId),
+		);
 		if (response.status === 404) return null;
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortResult;
 	}
 
 	async list(): Promise<EffortResult[]> {
-		const response = await fetch(`${this.baseUrl}/efforts`);
+		if (!this.adapter.capabilities.list) {
+			throw new Error(`Channel adapter does not support list`);
+		}
+		const response = await fetch(
+			this.adapter.buildListPath(this.baseUrl, this.channel),
+		);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortResult[];
 	}
 
 	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
-		const response = await fetch(`${this.effortPath(effortId)}/logs`);
+		if (!this.adapter.capabilities.logs) {
+			throw new Error(`Channel adapter does not support logs`);
+		}
+		const response = await fetch(
+			this.adapter.buildLogsPath(this.baseUrl, this.channel, effortId),
+		);
 		if (response.status === 404) return null;
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortLogEntry[];
@@ -660,7 +675,17 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 		effortId: string,
 		action: "retry" | "cancel",
 	): Promise<boolean> {
-		const response = await fetch(`${this.effortPath(effortId)}/${action}`, {
+		if (action === "retry" && !this.adapter.capabilities.retry) {
+			throw new Error(`Channel adapter does not support retry`);
+		}
+		if (action === "cancel" && !this.adapter.capabilities.cancel) {
+			throw new Error(`Channel adapter does not support cancel`);
+		}
+		const path =
+			action === "retry"
+				? this.adapter.buildRetryPath(this.baseUrl, this.channel, effortId)
+				: this.adapter.buildCancelPath(this.baseUrl, this.channel, effortId);
+		const response = await fetch(path, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 		});
@@ -678,7 +703,12 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async summary(): Promise<EffortSummary> {
-		const response = await fetch(`${this.baseUrl}/efforts/summary`);
+		if (!this.adapter.capabilities.summary) {
+			throw new Error(`Channel adapter does not support summary`);
+		}
+		const response = await fetch(
+			this.adapter.buildSummaryPath(this.baseUrl, this.channel),
+		);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortSummary;
 	}
@@ -688,7 +718,12 @@ export function resolveAdapter(transport: string): TaskOperationsAdapter {
 	const resolvedTransport = parseTaskTransport(transport);
 	const channel = resolveChannelFromTransport(resolvedTransport);
 	if (channel) {
-		return new HttpChannelTransportClient(resolveSidecarUrl(), channel);
+		const { adapter } = resolveChannelControlSurfaceAdapter(channel);
+		return new HttpChannelTransportClient(
+			resolveSidecarUrl(),
+			channel,
+			adapter,
+		);
 	}
 	if (resolvedTransport === "http") {
 		return new HttpTransportClient(resolveSidecarUrl());

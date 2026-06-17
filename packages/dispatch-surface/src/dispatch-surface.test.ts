@@ -3,6 +3,7 @@ import {
 	buildChannelEffort,
 	isChannelEffortPayload,
 	parseTaskTransport,
+	resolveChannelControlSurfaceAdapter,
 } from "./dispatch-surface.js";
 
 describe("dispatch transport parser", () => {
@@ -51,5 +52,25 @@ describe("channel effort construction", () => {
 			replyTo: "thread-1",
 			traceIds: ["t1", "t2"],
 		});
+	});
+});
+
+describe("channel control-surface adapters", () => {
+	it("resolves known and fallback adapters", () => {
+		const known = resolveChannelControlSurfaceAdapter("matrix");
+		const unknown = resolveChannelControlSurfaceAdapter("future-irc");
+
+		expect(known.channel).toBe("matrix");
+		expect(
+			known.adapter.buildSubmitPath("http://127.0.0.1:42001", "matrix"),
+		).toBe("http://127.0.0.1:42001/channels/matrix/efforts");
+		expect(
+			known.adapter.buildSummaryPath("http://127.0.0.1:42001", "matrix"),
+		).toBe("http://127.0.0.1:42001/efforts/summary");
+
+		expect(unknown.channel).toBe("future-irc");
+		expect(
+			unknown.adapter.buildListPath("http://127.0.0.1:42001", "future-irc"),
+		).toBe("http://127.0.0.1:42001/efforts");
 	});
 });

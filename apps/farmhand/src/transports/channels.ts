@@ -1,9 +1,10 @@
-import type http from "node:http";
 import {
 	buildChannelEffort,
 	decodeChannel,
 	isChannelEffortPayload,
+	resolveChannelControlSurfaceAdapter,
 } from "@refarm.dev/dispatch-surface";
+import type http from "node:http";
 import type { SidecarAdapter } from "./http.js";
 
 function readJson<T>(req: http.IncomingMessage): Promise<T> {
@@ -32,6 +33,22 @@ function toJson(res: http.ServerResponse, status: number, body: unknown): void {
 	res.end(payload);
 }
 
+function hasChannelCapability(
+	channel: string,
+	capability:
+		| "submit"
+		| "query"
+		| "logs"
+		| "summary"
+		| "list"
+		| "retry"
+		| "cancel",
+): boolean {
+	return resolveChannelControlSurfaceAdapter(channel).adapter.capabilities[
+		capability
+	];
+}
+
 export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 	return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
 		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -44,6 +61,10 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			void (async () => {
 				try {
 					const channel = decodedSegment(submitMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "submit")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const body = await readJson<unknown>(req);
 
 					if (!isChannelEffortPayload(body)) {
@@ -78,6 +99,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (logsMatch && req.method === "GET") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(logsMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "logs")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(logsMatch[2] ?? "");
 					const result = await adapter.logs(effortId);
 					if (!result) {
@@ -100,6 +126,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (retryMatch && req.method === "POST") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(retryMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "retry")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(retryMatch[2] ?? "");
 					const accepted = await adapter.retry(effortId);
 					if (!accepted) {
@@ -122,6 +153,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (cancelMatch && req.method === "POST") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(cancelMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "cancel")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(cancelMatch[2] ?? "");
 					const accepted = await adapter.cancel(effortId);
 					if (!accepted) {
@@ -144,6 +180,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (statusMatch && req.method === "GET") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(statusMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "query")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(statusMatch[2] ?? "");
 					const result = await adapter.query(effortId);
 					if (!result) {
@@ -166,6 +207,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (streamMatch && req.method === "GET") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(streamMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "logs")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(streamMatch[2] ?? "");
 					const result = await adapter.logs(effortId);
 					if (!result) {
@@ -188,6 +234,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (evidenceMatch && req.method === "GET") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(evidenceMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "logs")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(evidenceMatch[2] ?? "");
 					const result = await adapter.logs(effortId);
 					if (!result) {
@@ -210,6 +261,11 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 		if (statusByIdMatch && req.method === "GET") {
 			void (async () => {
 				try {
+					const channel = decodedSegment(statusByIdMatch[1] ?? "");
+					if (!hasChannelCapability(channel, "query")) {
+						toJson(res, 405, { error: "channel operation unsupported" });
+						return;
+					}
 					const effortId = decodedSegment(statusByIdMatch[2] ?? "");
 					const result = await adapter.query(effortId);
 					if (!result) {

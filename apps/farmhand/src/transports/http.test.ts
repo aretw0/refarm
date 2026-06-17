@@ -1,8 +1,13 @@
-import http from "node:http";
+import {
+	getRegisteredChannelControlSurface,
+	removeChannelControlSurfaceAdapter,
+	setChannelControlSurfaceAdapter,
+} from "@refarm.dev/dispatch-surface";
 import type { Effort, EffortResult } from "@refarm.dev/effort-contract-v1";
+import http from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HttpSidecar } from "./http.js";
 import { createControlSurfaceRouteHandler } from "./channels.js";
+import { HttpSidecar } from "./http.js";
 
 function makeAdapter(result: EffortResult | null = null) {
 	return {
@@ -49,6 +54,51 @@ function makeAdapter(result: EffortResult | null = null) {
 	};
 }
 
+type MockChannelControlSurface = {
+	id: string;
+	capabilities: {
+		submit: boolean;
+		query: boolean;
+		logs: boolean;
+		summary: boolean;
+		list: boolean;
+		retry: boolean;
+		cancel: boolean;
+	};
+	buildSubmitPath(...args: unknown[]): string;
+	buildQueryPath(...args: unknown[]): string;
+	buildLogsPath(...args: unknown[]): string;
+	buildRetryPath(...args: unknown[]): string;
+	buildCancelPath(...args: unknown[]): string;
+	buildSummaryPath(...args: unknown[]): string;
+	buildListPath(...args: unknown[]): string;
+};
+
+function controlSurfaceAdapter(
+	capabilities: Partial<MockChannelControlSurface["capabilities"]> = {},
+): MockChannelControlSurface {
+	return {
+		id: "test-channel-control",
+		capabilities: {
+			submit: true,
+			query: true,
+			logs: true,
+			summary: true,
+			list: true,
+			retry: true,
+			cancel: true,
+			...capabilities,
+		},
+		buildSubmitPath: () => "",
+		buildQueryPath: () => "",
+		buildLogsPath: () => "",
+		buildRetryPath: () => "",
+		buildCancelPath: () => "",
+		buildSummaryPath: () => "",
+		buildListPath: () => "",
+	};
+}
+
 async function request(
 	port: number,
 	method: string,
@@ -88,6 +138,23 @@ async function request(
 		if (payload) req.write(payload);
 		req.end();
 	});
+}
+
+function withDisabledChannelCapabilities(
+	disabledCapabilities: Partial<MockChannelControlSurface["capabilities"]> = {},
+): () => void {
+	const previous = getRegisteredChannelControlSurface("matrix");
+	setChannelControlSurfaceAdapter(
+		"matrix",
+		controlSurfaceAdapter(disabledCapabilities),
+	);
+	return () => {
+		if (previous) {
+			setChannelControlSurfaceAdapter(previous.channel, previous.adapter);
+			return;
+		}
+		removeChannelControlSurfaceAdapter("matrix");
+	};
 }
 
 describe("HttpSidecar", () => {
@@ -304,6 +371,42 @@ describe("HttpSidecar", () => {
 		expect(status).toBe(202);
 		expect((body as Record<string, unknown>).accepted).toBe(true);
 		expect(adapter.retry).toHaveBeenCalledWith("e1");
+	});
+
+	it("POST /channels/:channel/efforts/:id/retry is rejected when adapter disables retry", async () => {
+		const restore = withDisabledChannelCapabilities({ retry: false });
+		try {
+			const { status, body } = await request(
+				PORT,
+				"POST",
+				"/channels/matrix/efforts/e1/retry",
+			);
+			expect(status).toBe(405);
+			expect((body as Record<string, unknown>).error).toBe(
+				"channel operation unsupported",
+			);
+			expect(adapter.retry).not.toHaveBeenCalled();
+		} finally {
+			restore();
+		}
+	});
+
+	it("GET /channels/:channel/efforts/:id returns 405 when query unsupported", async () => {
+		const restore = withDisabledChannelCapabilities({ query: false });
+		try {
+			const { status, body } = await request(
+				PORT,
+				"GET",
+				"/channels/matrix/efforts/e1/status",
+			);
+			expect(status).toBe(405);
+			expect((body as Record<string, unknown>).error).toBe(
+				"channel operation unsupported",
+			);
+			expect(adapter.query).not.toHaveBeenCalled();
+		} finally {
+			restore();
+		}
 	});
 
 	it("POST /channels/:channel/efforts/:id/cancel returns accepted", async () => {
