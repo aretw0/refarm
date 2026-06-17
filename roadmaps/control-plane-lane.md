@@ -34,15 +34,15 @@ Objetivo: manter Refarm como base de controle da tua vida e trabalho, no teu com
 
 ### 1) Runtime de controle canônico pronto para múltiplos canais
 
-- [ ] `channel:*` resolvido por adapter com capabilities por operação (`submit`, `query`, `logs`, `summary`, `list`, `retry`, `cancel`).
+- [x] `channel:*` resolvido por adapter com capabilities por operação (`submit`, `query`, `logs`, `summary`, `list`, `retry`, `cancel`).
 - [x] `@refarm.dev/dispatch-surface` expõe primitivas canônicas para validação de capability (`hasChannelControlCapability`, `assertChannelControlCapability`) + mensagem canônica de operação não suportada.
-- [ ] Erros de operação sem capability retornam sinal determinístico (ex.: `405` + body estável).
+- [x] Erros de operação sem capability retornam sinal determinístico (ex.: `405` + body estável).
 - [ ] Runtime de controle principal (Tractor) já é o caminho de produção da camada daemon.
 - [ ] `farmhand` atua como compat/ponte apenas onde necessário, com trilha explícita de remoção.
 
 ### 2) Interface única de canal (sem duplicação)
 
-- [ ] CLI (`apps/refarm`) usa as mesmas abstrações de `dispatch-surface` para envio/consulta/status/retry.
+- [x] CLI (`apps/refarm`) usa as mesmas abstrações de `dispatch-surface` para envio/consulta/status/retry.
 - [ ] CLI e runtime compartilham normalização de payload (`source`, `context`, `submittedAt`, `replyTo`, `traceIds`).
 - [ ] Contrato de logs/summary/status preserva forma estável entre `http` e canais (`channel:*`).
 
