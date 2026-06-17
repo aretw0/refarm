@@ -1,5 +1,6 @@
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import {
+	assertChannelControlCapability,
 	parseTaskTransport as parseDispatchTransport,
 	resolveChannelControlSurfaceAdapter,
 	resolveChannelFromTransport,
@@ -625,6 +626,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async submit(effort: Effort): Promise<string> {
+		assertChannelControlCapability(this.adapter, "submit");
 		const response = await fetch(this.channelEffortsPath(), {
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -637,9 +639,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async query(effortId: string): Promise<EffortResult | null> {
-		if (!this.adapter.capabilities.query) {
-			throw new Error(`Channel adapter does not support query`);
-		}
+		assertChannelControlCapability(this.adapter, "query");
 		const response = await fetch(
 			this.adapter.buildQueryPath(this.baseUrl, this.channel, effortId),
 		);
@@ -649,9 +649,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async list(): Promise<EffortResult[]> {
-		if (!this.adapter.capabilities.list) {
-			throw new Error(`Channel adapter does not support list`);
-		}
+		assertChannelControlCapability(this.adapter, "list");
 		const response = await fetch(
 			this.adapter.buildListPath(this.baseUrl, this.channel),
 		);
@@ -660,9 +658,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
-		if (!this.adapter.capabilities.logs) {
-			throw new Error(`Channel adapter does not support logs`);
-		}
+		assertChannelControlCapability(this.adapter, "logs");
 		const response = await fetch(
 			this.adapter.buildLogsPath(this.baseUrl, this.channel, effortId),
 		);
@@ -675,12 +671,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 		effortId: string,
 		action: "retry" | "cancel",
 	): Promise<boolean> {
-		if (action === "retry" && !this.adapter.capabilities.retry) {
-			throw new Error(`Channel adapter does not support retry`);
-		}
-		if (action === "cancel" && !this.adapter.capabilities.cancel) {
-			throw new Error(`Channel adapter does not support cancel`);
-		}
+		assertChannelControlCapability(this.adapter, action);
 		const path =
 			action === "retry"
 				? this.adapter.buildRetryPath(this.baseUrl, this.channel, effortId)
@@ -703,9 +694,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 	}
 
 	async summary(): Promise<EffortSummary> {
-		if (!this.adapter.capabilities.summary) {
-			throw new Error(`Channel adapter does not support summary`);
-		}
+		assertChannelControlCapability(this.adapter, "summary");
 		const response = await fetch(
 			this.adapter.buildSummaryPath(this.baseUrl, this.channel),
 		);

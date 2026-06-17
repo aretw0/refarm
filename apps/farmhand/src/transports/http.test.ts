@@ -1,4 +1,5 @@
 import {
+	CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
 	getRegisteredChannelControlSurface,
 	removeChannelControlSurfaceAdapter,
 	setChannelControlSurfaceAdapter,
@@ -383,7 +384,7 @@ describe("HttpSidecar", () => {
 			);
 			expect(status).toBe(405);
 			expect((body as Record<string, unknown>).error).toBe(
-				"channel operation unsupported",
+				CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
 			);
 			expect(adapter.retry).not.toHaveBeenCalled();
 		} finally {
@@ -401,7 +402,7 @@ describe("HttpSidecar", () => {
 			);
 			expect(status).toBe(405);
 			expect((body as Record<string, unknown>).error).toBe(
-				"channel operation unsupported",
+				CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
 			);
 			expect(adapter.query).not.toHaveBeenCalled();
 		} finally {
