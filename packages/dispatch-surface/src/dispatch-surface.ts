@@ -338,6 +338,11 @@ export interface ChannelControlSurfaceCapabilities {
 	cancel: boolean;
 }
 
+export type ChannelControlSurfaceOperation = keyof ChannelControlSurfaceCapabilities;
+
+export const CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR =
+	"channel operation unsupported";
+
 export interface ChannelControlSurfaceAdapter {
 	readonly id: string;
 	readonly capabilities: ChannelControlSurfaceCapabilities;
@@ -348,6 +353,22 @@ export interface ChannelControlSurfaceAdapter {
 	buildCancelPath(baseUrl: string, channel: string, effortId: string): string;
 	buildSummaryPath(baseUrl: string, channel: string): string;
 	buildListPath(baseUrl: string, channel: string): string;
+}
+
+export function hasChannelControlCapability(
+	adapter: ChannelControlSurfaceAdapter,
+	action: ChannelControlSurfaceOperation,
+): boolean {
+	return !!adapter.capabilities[action];
+}
+
+export function assertChannelControlCapability(
+	adapter: ChannelControlSurfaceAdapter,
+	action: ChannelControlSurfaceOperation,
+): void {
+	if (!hasChannelControlCapability(adapter, action)) {
+		throw new Error(CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR);
+	}
 }
 
 interface KnownChannelControlSurfaceDescriptor {

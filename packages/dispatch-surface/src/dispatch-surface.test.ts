@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildChannelEffort,
+	CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
+	assertChannelControlCapability,
+	hasChannelControlCapability,
 	getRegisteredChannelControlSurface,
 	isChannelEffortPayload,
 	parseTaskTransport,
@@ -22,9 +25,9 @@ describe("dispatch transport parser", () => {
 
 describe("channel effort payload validation", () => {
 	it("accepts valid effort payloads", () => {
-		expect(isChannelEffortPayload({ direction: "x", tasks: [] as const })).toBe(
-			true,
-		);
+		expect(
+			isChannelEffortPayload({ direction: "x", tasks: [] as const }),
+		).toBe(true);
 	});
 
 	it("rejects invalid effort payloads", () => {
@@ -65,7 +68,10 @@ describe("channel control-surface adapters", () => {
 
 		expect(known.channel).toBe("matrix");
 		expect(
-			known.adapter.buildSubmitPath("http://127.0.0.1:42001", "matrix"),
+			known.adapter.buildSubmitPath(
+				"http://127.0.0.1:42001",
+				"matrix",
+			),
 		).toBe("http://127.0.0.1:42001/channels/matrix/efforts");
 		expect(
 			known.adapter.buildSummaryPath("http://127.0.0.1:42001", "matrix"),
@@ -77,7 +83,7 @@ describe("channel control-surface adapters", () => {
 		).toBe("http://127.0.0.1:42001/efforts");
 	});
 
-	it("supports registry override and restore via set/remove", () => {
+	it("supports canonical capability checks and registry override", () => {
 		const original = getRegisteredChannelControlSurface("matrix");
 		expect(original).toBeDefined();
 		if (!original) return;
@@ -93,22 +99,39 @@ describe("channel control-surface adapters", () => {
 			},
 		};
 
-		const previous = setChannelControlSurfaceAdapter("matrix", custom.adapter);
-		expect(previous?.channel).toBe("matrix");
+		expect(hasChannelControlCapability(original.adapter, "retry")).toBe(true);
+		setChannelControlSurfaceAdapter("matrix", custom.adapter);
+		expect(hasChannelControlCapability(custom.adapter, "retry")).toBe(false);
 		expect(
 			resolveChannelControlSurfaceAdapter("matrix").adapter.capabilities.retry,
 		).toBe(false);
 
-		removeChannelControlSurfaceAdapter("matrix");
-		expect(getRegisteredChannelControlSurface("matrix")).toBeUndefined();
-		expect(resolveChannelControlSurfaceAdapter("matrix").channel).toBe("matrix");
 		expect(
-			resolveChannelControlSurfaceAdapter("matrix").adapter.capabilities.retry,
-		).toBe(true);
+			() =>
+				assertChannelControlCapability(
+					resolveChannelControlSurfaceAdapter("matrix").adapter,
+					"retry",
+				),
+		).toThrow(CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR);
 
 		setChannelControlSurfaceAdapter("matrix", original.adapter);
 		expect(
-			getRegisteredChannelControlSurface("matrix")?.adapter,
-		).toBe(original.adapter);
+			resolveChannelControlSurfaceAdapter("matrix").adapter.capabilities.retry,
+		).toBe(true);
+		expect(() =>
+			assertChannelControlCapability(
+				resolveChannelControlSurfaceAdapter("matrix").adapter,
+				"retry",
+			),
+		).not.toThrow();
+
+		removeChannelControlSurfaceAdapter("matrix");
+		expect(resolveChannelControlSurfaceAdapter("matrix").channel).toBe("matrix");
+		expect(
+			hasChannelControlCapability(
+				resolveChannelControlSurfaceAdapter("matrix").adapter,
+				"retry",
+			),
+		).toBe(true);
 	});
 });
