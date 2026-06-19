@@ -4,7 +4,9 @@
 
 - Internal docs and roadmap alignment for v0.x pre-publishing stability.
 - Default policy lookup now prefers embedded `.refarm/config.json` (`releasePolicy`) with safe fallback to `release-policy.json` and neutral defaults.
-- `release-engine` CLI supports required plan preflight and dry-run gates with JSON outputs suitable for host/controller orchestration.
+- `@refarm.dev/release-engine` exposes the release policy SDK used by `refarm release`; the package-local CLI remains only a smoke surface.
+- Policy selections can drive release candidates through `releasePolicy.defaultSelection`/`selections`, and missing explicit selections fail closed.
+- Release policy validation now rejects ambiguous provider contracts, including publish-capable providers without `publishCommands`.
 
 ## 0.0.x-dev
 
@@ -14,7 +16,7 @@
   - Topological package ordering and blocker reporting.
 - Policy-driven gates with required/optional phase classification.
 - Package test suite with fixture workspaces and embedded-policy coverage.
-- `packages/release-engine` package scaffolding, schema, README and wrapper scripts.
+- `packages/release-engine` package scaffolding, schema, README and package-local smoke CLI.
 
 ## Planned 0.1.0
 

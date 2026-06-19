@@ -123,6 +123,10 @@ export function validatePolicy(policy) {
     throw new Error("At least one phase is required");
   }
 
+  if (policy.packageProfiles !== undefined && !Array.isArray(policy.packageProfiles)) {
+    throw new Error("packageProfiles must be an array when declared");
+  }
+
   for (const phase of policy.phases) {
     assert.ok(phase.id, `phase id is required: ${JSON.stringify(phase)}`);
     assert.ok(phase.name, `phase name is required: ${phase.id}`);
@@ -131,7 +135,94 @@ export function validatePolicy(policy) {
     assert.ok(typeof phase.riskWeight === "number", `phase.riskWeight must be numeric for ${phase.id}`);
   }
 
+  const providerIds = new Set();
+  for (const provider of policy.providers) {
+    assert.ok(provider.id, `provider id is required: ${JSON.stringify(provider)}`);
+    if (providerIds.has(provider.id)) {
+      throw new Error(`Duplicate provider id: ${provider.id}`);
+    }
+    providerIds.add(provider.id);
+
+    assert.equal(typeof provider.type, "string", `provider.type must be string for ${provider.id}`);
+    assert.equal(typeof provider.supportsPublish, "boolean", `provider.supportsPublish must be boolean for ${provider.id}`);
+    assert.equal(typeof provider.supportsDryRun, "boolean", `provider.supportsDryRun must be boolean for ${provider.id}`);
+    validateCommandList(provider.publishCommands, `provider.publishCommands for ${provider.id}`);
+    validateCommandList(provider.publishDryRunCommands, `provider.publishDryRunCommands for ${provider.id}`);
+
+    if (provider.supportsPublish && (!Array.isArray(provider.publishCommands) || provider.publishCommands.length === 0)) {
+      throw new Error(`provider publishCommands must be a non-empty array when supportsPublish is true for ${provider.id}`);
+    }
+  }
+
+  const profileIds = new Set();
+  const allowedProfileRisks = ["core", "app", "plugin", "shared"];
+  const allowedProfileBumps = ["patch", "minor", "major"];
+  for (const profile of policy.packageProfiles || []) {
+    assert.ok(profile.id, `package profile id is required: ${JSON.stringify(profile)}`);
+    if (profileIds.has(profile.id)) {
+      throw new Error(`Duplicate package profile id: ${profile.id}`);
+    }
+    profileIds.add(profile.id);
+
+    if (profile.risk !== undefined && !allowedProfileRisks.includes(profile.risk)) {
+      throw new Error(`package profile risk must be one of: ${allowedProfileRisks.join(", ")} for ${profile.id}`);
+    }
+
+    if (profile.bump !== undefined && !allowedProfileBumps.includes(profile.bump)) {
+      throw new Error(`package profile bump must be one of: ${allowedProfileBumps.join(", ")} for ${profile.id}`);
+    }
+
+    if (profile.tags !== undefined && !Array.isArray(profile.tags)) {
+      throw new Error(`package profile tags must be array for ${profile.id}`);
+    }
+  }
+
+  if (policy.defaultSelection !== undefined && typeof policy.defaultSelection !== "string") {
+    throw new Error("defaultSelection must be a string");
+  }
+
+  if (policy.selections !== undefined && !Array.isArray(policy.selections)) {
+    throw new Error("selections must be an array");
+  }
+
+  const selections = Array.isArray(policy.selections) ? policy.selections : [];
+  const selectionIds = new Set();
+  for (const selection of selections) {
+    assert.ok(selection.id, `selection id is required: ${JSON.stringify(selection)}`);
+    if (selectionIds.has(selection.id)) {
+      throw new Error(`Duplicate release policy selection id: ${selection.id}`);
+    }
+    selectionIds.add(selection.id);
+
+    if (!Array.isArray(selection.profileTags) || selection.profileTags.length === 0) {
+      throw new Error(`selection profileTags must be a non-empty array for ${selection.id}`);
+    }
+
+    for (const tag of selection.profileTags) {
+      if (typeof tag !== "string" || tag.length === 0) {
+        throw new Error(`selection profileTags must contain non-empty strings for ${selection.id}`);
+      }
+    }
+  }
+
+  if (policy.defaultSelection && !selectionIds.has(policy.defaultSelection)) {
+    throw new Error(`defaultSelection does not match a declared selection: ${policy.defaultSelection}`);
+  }
+
   return true;
+}
+
+function validateCommandList(commands, label) {
+  if (commands === undefined) return;
+  if (!Array.isArray(commands)) {
+    throw new Error(`${label} must be an array`);
+  }
+
+  for (const command of commands) {
+    if (typeof command !== "string" || command.length === 0) {
+      throw new Error(`${label} must contain non-empty strings`);
+    }
+  }
 }
 
 function readJson(absPath) {
@@ -221,10 +312,21 @@ function readChangesetCandidates(cwd = process.cwd()) {
   }));
 }
 
-function resolveCandidatePackages({ cwd, packageNames, policy }) {
+function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] }) {
   const allPackages = readPackageJsonsForWorkspace(cwd);
-  let candidates = packageNames
-    ? packageNames.filter(Boolean).map((name) => ({ name, bump: "patch", source: "manual" }))
+  const explicitPackageNames = Array.isArray(packageNames)
+    ? packageNames.filter(Boolean)
+    : [];
+  let candidates = explicitPackageNames.length > 0
+    ? explicitPackageNames.map((name) => ({ name, bump: "patch", source: "manual" }))
+    : profileTags.length > 0
+      ? (policy.packageProfiles || [])
+          .filter((profile) => profileHasTags(profile, profileTags))
+          .map((profile) => ({
+            name: profile.id,
+            bump: profile.bump || "patch",
+            source: "policy-tag",
+          }))
     : readChangesetCandidates(cwd);
 
   const normalized = [];
@@ -261,6 +363,36 @@ function resolveCandidatePackages({ cwd, packageNames, policy }) {
   }
 
   return { allPackages, candidates: normalized };
+}
+
+export function resolvePolicySelection(policy, selectionId = "default") {
+  const selections = Array.isArray(policy?.selections) ? policy.selections : [];
+  const resolvedId = selectionId === "default"
+    ? policy?.defaultSelection
+    : selectionId;
+  if (!resolvedId) return null;
+  return selections.find((selection) => selection?.id === resolvedId) || null;
+}
+
+function requirePolicySelection(policy, selectionId) {
+  const selection = resolvePolicySelection(policy, selectionId);
+  if (selection) return selection;
+
+  const declared = Array.isArray(policy?.selections)
+    ? policy.selections.map((item) => item?.id).filter(Boolean)
+    : [];
+  const suffix = declared.length > 0
+    ? ` Available selections: ${declared.join(", ")}.`
+    : " No selections are declared in the active release policy.";
+  const target = selectionId === "default"
+    ? `default (${policy?.defaultSelection || "not configured"})`
+    : selectionId;
+  throw new Error(`Release policy selection not found: ${target}.${suffix}`);
+}
+
+function profileHasTags(profile, requiredTags) {
+  const tags = new Set(Array.isArray(profile?.tags) ? profile.tags : []);
+  return requiredTags.every((tag) => tags.has(tag));
 }
 
 function topologicalOrder(candidates, allPackages) {
@@ -309,11 +441,29 @@ function topologicalOrder(candidates, allPackages) {
   return order;
 }
 
-export function buildReleasePlan({ cwd = process.cwd(), policyPath = "release-policy.json", packageNames, dryRun = false } = {}) {
+export function buildReleasePlan({
+  cwd = process.cwd(),
+  policyPath = "release-policy.json",
+  packageNames,
+  profileTags = [],
+  selectionId,
+  dryRun = false,
+} = {}) {
   const policy = loadPolicy(policyPath, cwd);
   validatePolicy(policy);
 
-  const { allPackages, candidates } = resolveCandidatePackages({ cwd, packageNames, policy });
+  const selection = profileTags.length > 0
+    ? null
+    : selectionId ? requirePolicySelection(policy, selectionId) : null;
+  const resolvedProfileTags = profileTags.length > 0
+    ? profileTags
+    : Array.isArray(selection?.profileTags) ? selection.profileTags : [];
+  const { allPackages, candidates } = resolveCandidatePackages({
+    cwd,
+    packageNames,
+    policy,
+    profileTags: resolvedProfileTags,
+  });
   const ready = candidates.filter((item) => item.status === "ok");
   const blockers = candidates.filter((item) => item.status !== "ok");
 
@@ -370,6 +520,13 @@ export function buildReleasePlan({ cwd = process.cwd(), policyPath = "release-po
     orderedNames,
     gates: policy.phases,
     publishIntents,
+    profileTags: resolvedProfileTags,
+    selection: selection
+      ? {
+          id: selection.id,
+          description: selection.description || null,
+        }
+      : null,
     dryRun,
     releaseNotes: `Ready to release ${orderedNames.length} package(s): ${orderedNames.join(", ")}`,
   };
@@ -453,8 +610,12 @@ export function formatPlan(plan) {
   const lineB = `Packages (${plan.orderedNames.length}): ${plan.orderedNames.join(", ")}`;
   const lineC = `Phases: ${plan.gates.map((gate) => gate.id).join(", ")}`;
   const lineD = `Publish providers: ${plan.publishIntents.map((item) => item.provider).join(", ")}`;
+  const profileTags = releasePlanPackageProfiles(plan)
+    .map((item) => `${item.id}[${item.tags.join(",") || item.risk}]`)
+    .join("; ");
+  const lineE = profileTags ? `Profiles: ${profileTags}` : "Profiles: none";
 
-  return [lineA, lineB, lineC, lineD].join("\n");
+  return [lineA, lineB, lineC, lineD, lineE].join("\n");
 }
 
 export function summarizePlan(plan) {
@@ -463,9 +624,34 @@ export function summarizePlan(plan) {
     packageCount: plan.orderedNames?.length || 0,
     packages: plan.orderedNames || [],
     blockers: plan.blockers || [],
+    packageProfiles: releasePlanPackageProfiles(plan),
     requiredGates: (plan.gates || []).filter((gate) => gate.required).map((gate) => gate.id),
     providers: (plan.publishIntents || []).map((item) => item.provider),
+    profileTags: plan.profileTags || [],
+    selection: plan.selection || null,
     ok: Boolean(plan.ok),
     dryRun: Boolean(plan.dryRun),
   };
+}
+
+export function releasePlanPackageProfiles(plan) {
+  return (plan.orderedPackages || [])
+    .map((entry) => {
+      if (!entry?.profile) {
+        return {
+          id: entry.name,
+          risk: null,
+          tags: [],
+          mustPassChecks: [],
+        };
+      }
+      return {
+        id: entry.name,
+        risk: entry.profile.risk ?? null,
+        tags: Array.isArray(entry.profile.tags) ? entry.profile.tags : [],
+        mustPassChecks: Array.isArray(entry.profile.mustPassChecks)
+          ? entry.profile.mustPassChecks
+          : [],
+      };
+    });
 }

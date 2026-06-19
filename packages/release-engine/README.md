@@ -11,9 +11,11 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - Leitura de política de release (fonte padrão: `.refarm/config.json` no projeto)
 - Descoberta de candidatos via `changeset` ou lista explícita
 - Ordenação topológica por dependência entre pacotes
-- Geração de plano (status, bloqueadores, ordem)
+- Geração de plano (status, bloqueadores, ordem, perfis/tags de pacote)
 - Execução padronizada de gates de qualidade/release
-- CLI minimal (`release-engine`): `plan`, `check`, `gates`
+- API pública para hosts como `refarm release`
+- JSON Schema importável em `@refarm.dev/release-engine/release-policy.schema.json`
+- CLI local minimal para smoke do próprio pacote (`node packages/release-engine/src/cli.mjs`): `plan`, `check`, `gates`
 
 ## Arquitetura inicial
 
@@ -27,39 +29,71 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - O pacote foi criado para ser testado em outros projetos antes de publicação do npm:
   - mantenha o projeto consumidor com a dependência apontando para a fonte local do repositório Refarm (ex.: `workspace:*` em monorepo, ou `link:`/`file:` durante calibração),
   - declare `releasePolicy` em `.refarm/config.json`,
-  - execute o CLI com `node <repo>/packages/release-engine/src/cli.mjs ...`.
+  - importe a API pública por package name (`@refarm.dev/release-engine`) ou use `refarm release` como control-plane.
 
 - `release-policy.json` continua suportado para compatibilidade e scripts legados.
+
+O `src/cli.mjs` é mantido para smoke local do pacote. Não o trate como entrypoint estável para consumidores; o entrypoint operacional é `refarm release`.
 
 ## Uso rápido
 
 ```bash
-# plano a partir de changesets pendentes (usa .refarm/config.json por padrão)
-node packages/release-engine/src/cli.mjs plan --json
+# plano operacional via Refarm (usa .refarm/config.json por padrão)
+refarm release plan --json
+
+# plano por seleção declarada na política
+refarm release plan --selection default --json
 
 # validar candidatos explícitos (sem changesets)
-node packages/release-engine/src/cli.mjs plan @scope/pkg-name
+refarm release plan @scope/pkg-name
+
+# listar candidatos por postura declarada na política
+refarm release plan --tag kernel-contract --json
 
 # rodar gates em dry-run (sem executar comandos)
-node packages/release-engine/src/cli.mjs check --dry-run
+refarm release check --selection default --dry-run
 
 # quando não houver política no projeto, usa defaults neutros (não executivos)
-node packages/release-engine/src/cli.mjs plan --json --policy não-existe.json
+refarm release plan --json --policy não-existe.json
 ```
+
+O payload JSON de `plan` inclui `packageProfiles` para os pacotes selecionados,
+derivado da política ativa. Isso permite que um control plane diferencie
+`kernel-contract`, `kernel-primitive`, `reference-hold`, `internal-lab` ou outras
+tags de postura sem acoplar essas categorias ao engine.
+
+`--tag` pode ser repetido e usa filtro AND: `--tag kernel --tag candidate`
+seleciona apenas perfis que tenham ambas as tags. Prefira `--selection <id>`
+para comandos diários: `--selection default` resolve
+`releasePolicy.defaultSelection`. Uma seleção explícita inexistente falha cedo,
+para evitar que erro de configuração vire plano por changesets acidentalmente.
+
+Consumidores que validam configuração antes de chamar o engine podem carregar o
+schema publicado em
+`@refarm.dev/release-engine/release-policy.schema.json`.
+
+## Invariantes de policy
+
+`validatePolicy` rejeita configuração ambígua antes de montar plano:
+
+- `providers` e `packageProfiles` devem usar IDs únicos.
+- providers com `supportsPublish: true` devem declarar `publishCommands` não vazios.
+- `defaultSelection`, quando declarado, deve apontar para uma entrada de `selections`.
+- cada seleção deve declarar `profileTags` com pelo menos uma tag não vazia.
+- `packageProfiles[].risk` e `packageProfiles[].bump`, quando declarados, devem usar os enums do schema.
 
 ## Convergência futura (já pensada)
 
 - Adaptadores de **PublishTarget** para npm, GitHub Release, crates.io, etc.
 - Adaptadores de **RuntimeGateProvider** por domínio (CI, local, observabilidade).
 - Exportar API de plano como artefato para auditoria humana.
-- Integração com outros projetos via `packages/release-engine` como submódulo/pacote publicado.
+- Integração com outros projetos via `@refarm.dev/release-engine` como pacote publicado ou dependência local durante calibração.
 
 ### Arquitetura de controle operacional
 
 - O `release-engine` permanece neutro; não conhece Telegram/Matrix/Cascade ou outro canal.
-- Um control-plane host (ex.: `apps/refarm`) escolhe quais repositórios/políticas executar e invoca o CLI por repositório.
-- Um orquestrador interno (`scripts/release-engine-orchestrator.mjs`) já existe para esse papel e pode ser alimentado por manifesto (`--repo-manifest`) sem acoplar a engine a um produto.
-- O manifesto pode carregar `args` e `policy` por repositório (`--policy` local por entrada), permitindo que um único control-plane invoque projetos heterogêneos com contratos diferentes sem tocar no engine.
+- Um control-plane host (ex.: `apps/refarm`) escolhe quais repositórios/políticas executar e invoca a API pública do pacote.
+- `refarm release plan --cwd <repo> --selection default --json` é a superfície operacional inicial para aplicar a mesma política em outros workspaces sem acoplar o engine a um produto.
 - Dessa forma, a integração de canais futuros fica concentrada no host/entrada (bot/adaptador), mantendo o pacote reutilizável.
 
 ## Próximos passos

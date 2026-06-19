@@ -312,6 +312,9 @@ importers:
       '@refarm.dev/registry':
         specifier: workspace:*
         version: link:../../packages/registry
+      '@refarm.dev/release-engine':
+        specifier: workspace:*
+        version: link:../../packages/release-engine
       '@refarm.dev/root':
         specifier: workspace:*
         version: link:../../packages/root

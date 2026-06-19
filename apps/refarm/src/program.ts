@@ -16,6 +16,7 @@ import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
 import { provisionCommand } from "./commands/provision.js";
+import { releaseCommand } from "./commands/release.js";
 import { resumeCommand } from "./commands/resume.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import {
@@ -38,6 +39,7 @@ import { tidyCommand } from "./commands/tidy.js";
 import { treeCommand } from "./commands/tree.js";
 import { tuiCommand } from "./commands/tui.js";
 import { webCommand } from "./commands/web.js";
+import { workspaceCommand } from "./commands/workspace.js";
 import { defaultProviderModelRef } from "./model-routing.js";
 
 export const program = new Command();
@@ -104,6 +106,8 @@ program
 			"  $ refarm check --next-command    Print the next executable recovery command",
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
+			"  $ refarm workspace execution --json Inspect workspace executor/cache readiness",
+			"  $ refarm release plan --selection default --json Plan release candidates by configured policy selection",
 			"  $ refarm agent --next-command    Print the first agent handoff command",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --lane after-edit --run --json Verify changed workspaces",
@@ -194,8 +198,10 @@ program.addCommand(guideCommand);
 program.addCommand(checkCommand);
 program.addCommand(configCommand);
 program.addCommand(healthCommand);
+program.addCommand(releaseCommand);
 program.addCommand(modelCommand);
 program.addCommand(webCommand);
+program.addCommand(workspaceCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
 program.addCommand(

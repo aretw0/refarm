@@ -6,9 +6,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import test from "node:test";
 import {
   buildReleasePlan,
+  formatPlan,
   loadPolicy,
   validatePolicy,
   summarizePlan,
+  releasePlanPackageProfiles,
 } from "../src/index.mjs";
 
 function createWorkspace(root, pkgDefs, changesets = [], embeddedPolicy = null) {
@@ -87,6 +89,35 @@ function createWorkspace(root, pkgDefs, changesets = [], embeddedPolicy = null) 
 }
 
 const fixturePolicy = path.join(process.cwd(), "packages/release-engine/test/fixtures/policy.json");
+const packageManifestPath = path.resolve(new URL("../package.json", import.meta.url).pathname);
+
+function validPolicy(overrides = {}) {
+  return {
+    policyVersion: "2026-01",
+    mode: "changeset",
+    providers: [
+      {
+        id: "changesets",
+        type: "changesets",
+        supportsPublish: true,
+        supportsDryRun: true,
+        publishCommands: ["pnpm changeset publish"],
+        publishDryRunCommands: ["pnpm changeset version"],
+      },
+    ],
+    packageProfiles: [],
+    phases: [
+      {
+        id: "preflight",
+        name: "Preflight",
+        commands: ["echo preflight"],
+        required: true,
+        riskWeight: 1,
+      },
+    ],
+    ...overrides,
+  };
+}
 
 function withTempWorkspace(setup) {
   const root = mkdtempSync(path.join(os.tmpdir(), "refarm-release-engine-"));
@@ -109,6 +140,196 @@ test("validates explicit policy", () => {
   const policy = loadPolicy("packages/release-engine/test/fixtures/policy.json", process.cwd());
   assert.equal(policy.mode, "changeset");
   assert.equal(validatePolicy(policy), true);
+});
+
+test("exports the release policy schema as a public package subpath", () => {
+  const pkg = JSON.parse(fs.readFileSync(packageManifestPath, "utf8"));
+  assert.equal(
+    pkg.exports["./release-policy.schema.json"],
+    "./release-policy.schema.json",
+  );
+  assert.ok(pkg.files.includes("release-policy.schema.json"));
+});
+
+test("validates package profile bump policy", () => {
+  assert.equal(
+    validatePolicy(validPolicy({
+      packageProfiles: [
+        {
+          id: "@refarm.dev/contract",
+          risk: "core",
+          bump: "minor",
+        },
+      ],
+    })),
+    true,
+  );
+});
+
+test("allows release policy without package profiles", () => {
+  const { packageProfiles, ...policy } = validPolicy();
+  assert.equal(validatePolicy(policy), true);
+});
+
+test("rejects non-array package profiles", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      packageProfiles: {},
+    })),
+    /packageProfiles must be an array when declared/,
+  );
+});
+
+test("rejects duplicate release policy selection ids", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      defaultSelection: "kernel-candidates",
+      selections: [
+        {
+          id: "kernel-candidates",
+          profileTags: ["kernel"],
+        },
+        {
+          id: "kernel-candidates",
+          profileTags: ["daily-driver"],
+        },
+      ],
+    })),
+    /Duplicate release policy selection id: kernel-candidates/,
+  );
+});
+
+test("rejects default release policy selection without declaration", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      defaultSelection: "missing-selection",
+      selections: [
+        {
+          id: "kernel-candidates",
+          profileTags: ["kernel"],
+        },
+      ],
+    })),
+    /defaultSelection does not match a declared selection: missing-selection/,
+  );
+});
+
+test("rejects release policy selections without profile tags", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      selections: [
+        {
+          id: "empty-selection",
+          profileTags: [],
+        },
+      ],
+    })),
+    /selection profileTags must be a non-empty array for empty-selection/,
+  );
+});
+
+test("rejects duplicate release policy provider ids", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      providers: [
+        {
+          id: "changesets",
+          type: "changesets",
+          supportsPublish: true,
+          supportsDryRun: true,
+          publishCommands: ["pnpm changeset publish"],
+        },
+        {
+          id: "changesets",
+          type: "npm",
+          supportsPublish: true,
+          supportsDryRun: true,
+          publishCommands: ["pnpm publish"],
+        },
+      ],
+    })),
+    /Duplicate provider id: changesets/,
+  );
+});
+
+test("rejects duplicate release package profile ids", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      packageProfiles: [
+        {
+          id: "@refarm.dev/contract",
+          risk: "core",
+        },
+        {
+          id: "@refarm.dev/contract",
+          risk: "shared",
+        },
+      ],
+    })),
+    /Duplicate package profile id: @refarm\.dev\/contract/,
+  );
+});
+
+test("rejects publish-capable providers without publish commands", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      providers: [
+        {
+          id: "changesets",
+          type: "changesets",
+          supportsPublish: true,
+          supportsDryRun: true,
+        },
+      ],
+    })),
+    /provider publishCommands must be a non-empty array when supportsPublish is true for changesets/,
+  );
+});
+
+test("rejects empty provider publish commands", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      providers: [
+        {
+          id: "changesets",
+          type: "changesets",
+          supportsPublish: true,
+          supportsDryRun: true,
+          publishCommands: [""],
+        },
+      ],
+    })),
+    /provider\.publishCommands for changesets must contain non-empty strings/,
+  );
+});
+
+test("rejects invalid release package profile risk", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      packageProfiles: [
+        {
+          id: "@refarm.dev/contract",
+          risk: "unknown",
+        },
+      ],
+    })),
+    /package profile risk must be one of: core, app, plugin, shared for @refarm\.dev\/contract/,
+  );
+});
+
+test("rejects invalid release package profile bump", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      packageProfiles: [
+        {
+          id: "@refarm.dev/contract",
+          risk: "core",
+          bump: "release",
+        },
+      ],
+    })),
+    /package profile bump must be one of: patch, minor, major for @refarm\.dev\/contract/,
+  );
 });
 
 test("orders candidates by dependency graph", () => {
@@ -177,6 +398,274 @@ test("supports explicit package selection", () => {
 
     assert.equal(plan.ok, true);
     assert.deepEqual(plan.orderedNames, ["@refarm.dev/alpha"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("summarizes package release profiles for selected packages", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/alpha": {
+          dir: "alpha",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "embedded",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+            publishDryRunCommands: ["pnpm changeset version"],
+          },
+        ],
+        packageProfiles: [
+          {
+            id: "@refarm.dev/alpha",
+            risk: "shared",
+            mustPassChecks: ["pnpm --filter @refarm.dev/alpha run build"],
+            tags: ["kernel", "kernel-primitive"],
+          },
+        ],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 7,
+          },
+        ],
+      },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      packageNames: ["@refarm.dev/alpha"],
+    });
+
+    assert.deepEqual(releasePlanPackageProfiles(plan), [
+      {
+        id: "@refarm.dev/alpha",
+        risk: "shared",
+        tags: ["kernel", "kernel-primitive"],
+        mustPassChecks: ["pnpm --filter @refarm.dev/alpha run build"],
+      },
+    ]);
+    assert.deepEqual(summarizePlan(plan).packageProfiles, releasePlanPackageProfiles(plan));
+    assert.match(formatPlan(plan), /kernel-primitive/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("selects release candidates by profile tag", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/contract": {
+          dir: "contract",
+        },
+        "@refarm.dev/app": {
+          dir: "app",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "embedded",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+            publishDryRunCommands: ["pnpm changeset version"],
+          },
+        ],
+        packageProfiles: [
+          {
+            id: "@refarm.dev/contract",
+            risk: "core",
+            tags: ["kernel", "kernel-contract"],
+          },
+          {
+            id: "@refarm.dev/app",
+            risk: "app",
+            tags: ["daily-driver"],
+          },
+        ],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 7,
+          },
+        ],
+      },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      profileTags: ["kernel-contract"],
+    });
+
+    assert.equal(plan.ok, true);
+    assert.deepEqual(plan.orderedNames, ["@refarm.dev/contract"]);
+    assert.equal(plan.orderedPackages[0].source, "policy-tag");
+    assert.deepEqual(summarizePlan(plan).profileTags, ["kernel-contract"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("selects release candidates by default policy selection", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/contract": {
+          dir: "contract",
+        },
+        "@refarm.dev/app": {
+          dir: "app",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "embedded",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+            publishDryRunCommands: ["pnpm changeset version"],
+          },
+        ],
+        defaultSelection: "kernel-candidates",
+        selections: [
+          {
+            id: "kernel-candidates",
+            description: "Kernel candidates",
+            profileTags: ["kernel", "candidate"],
+          },
+        ],
+        packageProfiles: [
+          {
+            id: "@refarm.dev/contract",
+            risk: "core",
+            tags: ["kernel", "candidate"],
+          },
+          {
+            id: "@refarm.dev/app",
+            risk: "app",
+            tags: ["daily-driver"],
+          },
+        ],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 7,
+          },
+        ],
+      },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      selectionId: "default",
+    });
+
+    assert.equal(plan.ok, true);
+    assert.deepEqual(plan.orderedNames, ["@refarm.dev/contract"]);
+    assert.deepEqual(summarizePlan(plan).profileTags, ["kernel", "candidate"]);
+    assert.equal(summarizePlan(plan).selection.id, "kernel-candidates");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("fails explicit release selection when policy selection is missing", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/contract": {
+          dir: "contract",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "embedded",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+            publishDryRunCommands: ["pnpm changeset version"],
+          },
+        ],
+        defaultSelection: "kernel-candidates",
+        selections: [
+          {
+            id: "kernel-candidates",
+            profileTags: ["kernel", "candidate"],
+          },
+        ],
+        packageProfiles: [
+          {
+            id: "@refarm.dev/contract",
+            risk: "core",
+            tags: ["kernel", "candidate"],
+          },
+        ],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 7,
+          },
+        ],
+      },
+    );
+  });
+
+  try {
+    assert.throws(
+      () => buildReleasePlan({
+        cwd: root,
+        selectionId: "missing-selection",
+      }),
+      /Release policy selection not found: missing-selection\. Available selections: kernel-candidates\./,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

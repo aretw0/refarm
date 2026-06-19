@@ -4,19 +4,20 @@
   "description": "Deterministic release planning and publication policy engine for Refarm-powered projects.",
   "type": "module",
   "main": "./src/index.mjs",
+  "types": "./types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./types/index.d.ts",
       "import": "./src/index.mjs"
-    }
-  },
-  "bin": {
-    "release-engine": "./src/cli.mjs"
+    },
+    "./release-policy.schema.json": "./release-policy.schema.json"
   },
   "scripts": {
     "test": "node --test test/release-engine.test.mjs"
   },
   "files": [
     "src",
+    "types",
     "README.md",
     "ROADMAP.md",
     "CHANGELOG.md",

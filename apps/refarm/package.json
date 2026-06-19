@@ -31,6 +31,7 @@
     "@refarm.dev/infra-cloudflare": "workspace:*",
     "@refarm.dev/infra-turbo-cache": "workspace:*",
     "@refarm.dev/registry": "workspace:*",
+    "@refarm.dev/release-engine": "workspace:*",
     "@refarm.dev/root": "workspace:*",
     "@refarm.dev/runtime": "workspace:*",
     "@refarm.dev/silo": "workspace:*",

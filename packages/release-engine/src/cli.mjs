@@ -14,6 +14,8 @@ function usage() {
     `  --dry-run          Skip command execution (for gate commands)\n` +
     `  --cwd <dir>        Workspace root for plan resolution\n` +
     `  --policy <file>    Policy filename; when omitted uses embedded .refarm/config.json releasePolicy with fallback to release-policy.json/neutral defaults\n` +
+    `  --selection <id>   Select packages using a policy selection; "default" resolves releasePolicy.defaultSelection\n` +
+    `  --tag <tag>        Select packages whose release policy profile contains the tag; repeat for AND filtering\n` +
     `  --only-required    Run only required release gates\n` +
     `  --check-gates      Also run gate validation after plan\n`);
   process.exit(1);
@@ -37,6 +39,8 @@ function parseArgsRobust(rawArgs) {
     json: false,
     checkGates: false,
     onlyRequired: false,
+    tags: [],
+    selection: null,
     packages: [],
   };
 
@@ -68,6 +72,14 @@ function parseArgsRobust(rawArgs) {
         parsed.policyPath = collectCommandValue(arg, rawArgs, i);
         i += 1;
         break;
+      case "--tag":
+        parsed.tags.push(collectCommandValue(arg, rawArgs, i));
+        i += 1;
+        break;
+      case "--selection":
+        parsed.selection = collectCommandValue(arg, rawArgs, i);
+        i += 1;
+        break;
       case "--cwd":
         parsed.cwd = path.resolve(collectCommandValue(arg, rawArgs, i));
         i += 1;
@@ -93,6 +105,8 @@ async function main() {
     cwd: parsed.cwd,
     policyPath: parsed.policyPath,
     packageNames: parsed.packages,
+    profileTags: parsed.tags,
+    selectionId: parsed.selection,
     dryRun: parsed.dryRun,
   });
 

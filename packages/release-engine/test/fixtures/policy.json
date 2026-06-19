@@ -6,7 +6,13 @@
       "id": "changesets",
       "type": "changesets",
       "supportsPublish": true,
-      "supportsDryRun": true
+      "supportsDryRun": true,
+      "publishCommands": [
+        "pnpm changeset publish"
+      ],
+      "publishDryRunCommands": [
+        "pnpm changeset version"
+      ]
     }
   ],
   "packageProfiles": [
