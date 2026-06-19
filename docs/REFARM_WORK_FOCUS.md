@@ -14,6 +14,151 @@ The CLI product should be named `refarm` and live as a distro under
 `apps/refarm`. Packages remain reusable blocks. This preserves Refarm's
 composition model: apps make product choices; packages provide primitives.
 
+## 2026-06 release focus
+
+Treat `v0.1.0` as an earned reliability label, not as a calendar milestone. The
+useful cut is three lanes:
+
+| Lane | Purpose | Release posture |
+| --- | --- | --- |
+| Release Kernel | Small reusable contracts and SDK primitives: storage, sync, identity, artifacts, process handoffs, dispatch surfaces, provenance, health, and policy envelopes. | Publish only when conformance, docs, and consumer-neutral boundaries are clear. |
+| Daily Driver | The `refarm` command, runtime readiness, finish gates, sessions, plugin lifecycle, model credentials, logs, recovery, and local operator UX. | Gates public version confidence; must work for the creator before broad promises. |
+| Lab | POCs, benchmark harnesses, `vault-seed`, `agents-lab`, external workspaces, and prize-writing evidence pressure. | Feeds reusable primitives back into Refarm without making consumer UX part of core. |
+
+This keeps convergence productive: Refarm becomes the shared substrate, while
+consumer projects keep their vocabulary, publishing surface, and local workflow.
+Do not promote a lab pattern into the Release Kernel until a second consumer or
+the daily-driver loop needs the same primitive.
+
+### Current consolidation checkpoint
+
+The active consolidation slice has enough surface area. Treat the current work
+as a set of release-review slices to stabilize, not as permission to add another
+control plane:
+
+1. Release planning: `@refarm.dev/release-engine` is the reusable primitive;
+   `refarm release` is the operator surface.
+2. Workspace execution: `@refarm.dev/cli` owns product-neutral executor/cache
+   discovery; `apps/refarm` owns JSON handoffs and operator commands.
+3. Toolchain hygiene: pnpm 11 policy lives in workspace-level config, with
+   package validation guarding against stale `package.json > pnpm` policy.
+4. Test runner boundaries: Vitest handles Vite/workspace suites; `node:test`
+   stays for Node-native CI scripts.
+5. Environment substrate: derived artifact ownership is now a substrate check.
+   A checkout should have one coherent execution owner; clean ignored outputs
+   when environments are mixed instead of adding source workarounds.
+
+Next work should close these slices with tests, docs, and atomic commits before
+expanding runtime behavior. The strongest release signal remains:
+
+```bash
+refarm release check --selection default --dry-run --json
+refarm agent finish --lane after-edit --run --json
+```
+
+The current container/host friction is a valid product signal. Refarm should
+eventually make external workspace and cache inspection boring through explicit
+profiles, read-only posture, structured handoffs, and capability-scoped bridges
+instead of relying on ad hoc mounts or host-specific path knowledge. Until that
+exists, treat adjacent checkouts and Windows-host paths as external consumers:
+inspect read-only when mounted, never write silently, and record reusable
+pressure as Refarm docs or contracts.
+
+Daily-driver validation must be workspace-portable. Refarm should not make the
+operator remember whether a project uses Turbo, Nx, Make, Cargo, or only package
+scripts. The CLI should discover the workspace execution surface, select an
+adapter, report cache/provisioning status, and fall back explicitly when a tool
+is not declared. Turbo is one adapter for cache-aware JavaScript monorepos, not
+Refarm's semantic contract.
+
+Concrete operator loop for external workspaces:
+
+```bash
+refarm workspace execution --cwd ../agents-lab --json
+refarm workspace execution --cwd ../greenhouse/vault-seed --json
+refarm agent finish --templates --json
+```
+
+`workspace execution` is the read-only probe for executor/cache readiness. It
+reports the selected executor, Turbo adapter availability when present, local
+cache presence, remote cache configuration, and any adapter installation handoff.
+External-consumer templates should stay read-only (`effects: ["observe"]`,
+`writes: false`) until a human chooses a concrete validation or provisioning
+command. Prefer `--cwd <dir>` for cross-checkout probes so container/host
+bridges do not require changing shell state.
+
+The reusable discovery logic lives in `@refarm.dev/cli/workspace-execution`.
+The reusable declared-workspace sweep logic lives in
+`@refarm.dev/cli/workspace-sweep`, which resolves declared paths and bridges,
+builds compact summaries, and emits stable recommendations without depending on
+the `refarm` app. Its reusable payload is the command-neutral
+`{ mode, summary, recommendations, observations }` object; `apps/refarm` adds
+product shell concerns such as `command`, `operation`, `ok`, JSON handoff fields,
+check recommendations, and provisioning commands. Keep executor/cache discovery
+product-agnostic unless a consumer proves it needs a Refarm-specific policy
+hook.
+
+Workspace declarations belong in `.refarm/config.json` under `workspaces`.
+Each entry is intent, not observed state:
+
+```json
+{
+  "workspaces": {
+    "agents-lab": {
+      "path": "../agents-lab",
+      "kind": "lab",
+      "execution": { "preferredAdapter": "auto" }
+    }
+  }
+}
+```
+
+Use `refarm workspace list --json` to inspect configured workspaces and
+`refarm workspace execution --workspace <id> --json` to observe a declared
+workspace without manually changing shell directories. Use
+`refarm workspace execution --all --json` for a read-only control-plane sweep
+across every declared workspace; missing paths are reported per observation
+instead of turning the whole command into a write or recovery action.
+
+For container/host boundaries, workspace entries can include filesystem bridge
+candidates:
+
+```json
+{
+  "workspaces": {
+    "agents-lab": {
+      "path": "../agents-lab",
+      "bridges": [
+        {
+          "id": "windows-host",
+          "kind": "filesystem",
+          "path": "/mnt/c/Users/aretw/Documents/GitHub/agents-lab",
+          "hostPath": "C:\\Users\\aretw\\Documents\\GitHub\\agents-lab",
+          "mountHint": "Mount the Windows checkout into this container."
+        }
+      ]
+    }
+  }
+}
+```
+
+`workspace execution --all --json` reports the declared path, bridge candidates,
+which candidates exist, and the resolved path used for observation. The same
+payload includes a compact `summary` plus stable `recommendations` so agents can
+decide whether the next step is mounting a workspace, installing an adapter, or
+provisioning remote cache without scraping every observation manually. When a
+recommendation has an executable `nextCommand`, the app-level JSON envelope also
+promotes it into `nextCommands`; mount hints stay as recommendation data because
+they are environment actions, not shell commands.
+`refarm check --json` includes the same declared-workspace sweep as
+`checks.workspaceSweep`; missing consumer checkouts are warnings, not blocking
+readiness failures, because external workspaces may simply be unmounted in the
+current container.
+`refarm agent --json` exposes the sweep as `environment.workspaceSweep`, and
+`refarm agent finish --templates --json` includes the read-only
+`declared-workspaces-execution-all-json` template for agents that need the full
+declared-workspace control-plane signal before choosing work.
+
 ## Short-term focus
 
 Make the host boundary concrete without prematurely building a full CLI or TUI.

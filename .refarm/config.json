@@ -5,6 +5,57 @@
   "MODEL_SHELL_ALLOWLIST": "ls,cat,find,grep,git,node,npm,cargo,rustc,wasm-tools,bash,sh",
   "MODEL_HISTORY_TURNS": 10,
   "MODEL_TOOL_CALL_MAX_ITER": 8,
+  "workspaces": {
+    "agents-lab": {
+      "path": "../agents-lab",
+      "kind": "lab",
+      "execution": {
+        "preferredAdapter": "auto"
+      },
+      "bridges": [
+        {
+          "id": "windows-host",
+          "kind": "filesystem",
+          "path": "/mnt/c/Users/aretw/Documents/GitHub/agents-lab",
+          "hostPath": "C:\\Users\\aretw\\Documents\\GitHub\\agents-lab",
+          "mountHint": "Mount the Windows checkout into this container or adjust this bridge path."
+        }
+      ]
+    },
+    "refarm": {
+      "path": ".",
+      "kind": "refarm",
+      "execution": {
+        "preferredAdapter": "auto"
+      },
+      "cache": {
+        "local": true,
+        "remote": {
+          "provider": "cloudflare-turbo",
+          "env": {
+            "apiUrl": "TURBO_CACHE_API_URL",
+            "token": "TURBO_CACHE_TOKEN"
+          }
+        }
+      }
+    },
+    "vault-seed": {
+      "path": "../greenhouse/vault-seed",
+      "kind": "vault",
+      "execution": {
+        "preferredAdapter": "auto"
+      },
+      "bridges": [
+        {
+          "id": "windows-host",
+          "kind": "filesystem",
+          "path": "/mnt/c/Users/aretw/Documents/GitHub/greenhouse/vault-seed",
+          "hostPath": "C:\\Users\\aretw\\Documents\\GitHub\\greenhouse\\vault-seed",
+          "mountHint": "Mount the Windows checkout into this container or adjust this bridge path."
+        }
+      ]
+    }
+  },
   "releasePolicy": {
     "policyVersion": "2026-01",
     "mode": "changeset",
@@ -30,6 +81,24 @@
         "supportsDryRun": false
       }
     ],
+    "defaultSelection": "kernel-candidates",
+    "selections": [
+      {
+        "id": "kernel-candidates",
+        "description": "First-release kernel candidates for daily-driver planning.",
+        "profileTags": [
+          "kernel",
+          "candidate"
+        ]
+      },
+      {
+        "id": "kernel-contracts",
+        "description": "All kernel contract packages tracked by release policy.",
+        "profileTags": [
+          "kernel-contract"
+        ]
+      }
+    ],
     "packageProfiles": [
       {
         "id": "@refarm.dev/storage-contract-v1",
@@ -39,7 +108,9 @@
         ],
         "tags": [
           "contract",
-          "kernel"
+          "kernel",
+          "kernel-contract",
+          "candidate"
         ]
       },
       {
@@ -50,7 +121,9 @@
         ],
         "tags": [
           "contract",
-          "kernel"
+          "kernel",
+          "kernel-contract",
+          "candidate"
         ]
       },
       {
@@ -61,7 +134,137 @@
         ],
         "tags": [
           "contract",
-          "kernel"
+          "kernel",
+          "kernel-contract",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/artifact-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/automation-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/effort-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/session-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "integration-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/task-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "integration-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/stream-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/context-provider-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/cli",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/cli run build",
+          "pnpm --filter @refarm.dev/cli exec vitest run"
+        ],
+        "tags": [
+          "kernel",
+          "kernel-primitive",
+          "boundary-review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/config",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/config exec vitest run"
+        ],
+        "tags": [
+          "kernel",
+          "kernel-primitive",
+          "boundary-review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/release-engine",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/release-engine run test"
+        ],
+        "tags": [
+          "kernel",
+          "kernel-primitive",
+          "dogfood"
         ]
       },
       {
@@ -72,7 +275,9 @@
           "pnpm run test:unit"
         ],
         "tags": [
-          "plugin-contract"
+          "plugin-contract",
+          "reference-hold",
+          "multi-layer-plugin-hold"
         ]
       }
     ],
@@ -130,7 +335,8 @@
     "ignoredGitVisibilityPatterns": [
       "**/*.d.ts",
       "packages/pi-agent/src/bindings.rs",
-      "validations/wasm-plugin/host/dist-vscode/**"
+      "validations/sqlite-benchmark/browser/public/sqlite3-opfs-async-proxy.js",
+      "validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs"
     ]
   }
 }

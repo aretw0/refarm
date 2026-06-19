@@ -15,46 +15,49 @@ O primeiro motor foi introduzido em `packages/release-engine` e o Refarm já dec
 
 Esta camada de engine não embute política do Refarm; ela só fornece defaults neutros. As escolhas de gate, ordem e publicação ficam declaradas no bloco `releasePolicy` (ou políticas por projeto).
 
-## Como usar hoje (sem publicar)
+## Como usar hoje
 
-- `release-engine` é **testável por projeto sem publish**: basta que o projeto dependa do pacote local (ou instalado) e carregue `releasePolicy` em `.refarm/config.json`.
+- `@refarm.dev/release-engine` é a **primitiva/SDK**: projetos consumidores dependem do pacote e importam a API pública por package name.
+- `refarm release` é a **superfície operacional**: operadores e handoffs usam a CLI do Refarm, não caminhos internos do pacote.
 - O fallback para `release-policy.json` continua para compatibilidade e cenários explícitos.
-- No limite, um projeto consumidor pode executar:
-  - `node <caminho>/packages/release-engine/src/cli.mjs plan --json --only-required`
-  - `node <caminho>/packages/release-engine/src/cli.mjs check --only-required --json`
-- Isso mantém a integração de projetos (`refarm`, `vault-seed`, `agents-lab`) independente do fato de o pacote estar ou não publicado.
+- `--selection <id>` seleciona grupos declarados em `releasePolicy.selections`; `--selection default` resolve `releasePolicy.defaultSelection`.
+- Seleção explícita que não existe falha cedo. Isso evita que erro de política vire plano baseado em changesets por acidente.
+- A policy runtime também valida invariantes estruturais: providers e perfis de pacote não podem ter IDs duplicados, providers publicadores precisam declarar `publishCommands`, `defaultSelection` precisa apontar para uma seleção declarada, toda seleção precisa declarar `profileTags` não vazias e `risk`/`bump` seguem os enums do schema.
 
-Comandos disponíveis:
+Comandos operacionais:
 
-- `node scripts/release-engine.mjs plan --only-required --dry-run --json` (pré-flight)
-- `pnpm release-engine:plan` → plano + status (usa `.refarm/config.json` por padrão)
-- `pnpm release-engine:check` → plano + dry-run de gates
-- `pnpm release-engine:gates` → execução de gates (`--dry-run` disponível)
-- `pnpm release-engine:orchestrate --repo . --repo ../vault-seed check --only-required --json` → roda `release-engine` em vários repositórios em um único comando.
-- `pnpm release-engine:orchestrate --repo-manifest ./docs/release-workspaces.example.json check --json` → usa um manifesto compartilhado por plataforma/projeto.
-- `pnpm release-engine:orchestrate --repo-manifest ./docs/release-workspaces.example.json --policy ./policies/global-release-policy.json check --only-required --json` → política global padrão para entradas sem `policy` local.
-- `pnpm release-engine:orchestrate --engine-cli ./path/ao/cli.js check` → substitui o entrypoint do engine para cenários de teste/integração.
-- `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política para entradas sem override local.
+- `refarm release plan --selection default --json` → plano declarado para a seleção padrão do workspace.
+- `refarm release plan --tag kernel-contract --json` → plano por tags de perfil, útil para auditoria.
+- `refarm release check --selection default --dry-run --json` → plano + dry-run dos gates.
+- `refarm release gates --selection default --dry-run --only-required --json` → valida somente gates obrigatórios em dry-run.
+- `refarm release plan --cwd ../vault-seed --selection default --json` → usa o Refarm como control-plane para outro workspace com política própria.
+- `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política.
 
-Exemplo de manifesto simples (`release-workspaces.json`):
+Uso como SDK:
 
-```json
-{
-  "repos": [
-    { "label": "refarm", "path": ".", "args": ["--json"] },
-    { "label": "vault-seed", "path": "../vault-seed", "policy": "release-policy.json", "args": ["--only-required", "--json"] },
-    { "label": "agents-lab", "path": "../agents-lab", "args": ["--only-required", "--json"] }
-  ]
-}
+```js
+import {
+  buildReleasePlan,
+  runReleaseGates,
+  summarizePlan,
+} from "@refarm.dev/release-engine";
+
+const plan = buildReleasePlan({
+  cwd: process.cwd(),
+  selectionId: "default",
+});
+
+console.log(summarizePlan(plan));
+runReleaseGates(plan, { dryRun: true, onlyRequired: true });
 ```
 
-A intenção aqui é manter `release-engine` neutro e permitir que o seu control-plane de projetos (ou um futuro bot/canal) escolha qual política e quais repositórios executar, sem que a engine saiba de chat, Telegram, Matrix, etc.
+A intenção aqui é manter `release-engine` neutro e permitir que o control-plane de projetos (ou um futuro bot/canal) escolha qual política e quais repositórios executar, sem que a engine saiba de chat, Telegram, Matrix, etc.
 
 ## Critérios para a 1ª minor (sem entrar cedo em breaking)
 
 - `node --test packages/release-engine/test/release-engine.test.mjs`
-- `node scripts/release-engine.mjs plan --only-required --json`
-- `node scripts/release-engine.mjs check --only-required --json`
+- `refarm release plan --selection default --json`
+- `refarm release check --selection default --dry-run --json`
 - `node --test scripts/ci/test-smoke-refarm-host-cli-flows.mjs`
 - `git diff` limpo e saída de `check` não precisa bloquear fluxos legados em execução já existente.
 - `releasePolicy` no `refarm` validado em `.refarm/config.json` (fallback neutro confirmado).
