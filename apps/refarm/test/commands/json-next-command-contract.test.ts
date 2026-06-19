@@ -42,6 +42,7 @@ import { createTidyCommand } from "../../src/commands/tidy.js";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
+import { createWorkspaceCommand } from "../../src/commands/workspace.js";
 import { HISTORY } from "./tree.fixtures.js";
 
 const COMMANDS_DIR = statSync(join(process.cwd(), "src", "commands"), {
@@ -1348,6 +1349,14 @@ describe("JSON next command contract", () => {
 						env: { REFARM_PACKAGE_MANAGER: "npm" },
 					}),
 					args: ["--json"],
+				},
+				{
+					id: "workspace-execution",
+					command: createWorkspaceCommand({
+						cwd: () => ".",
+						env: {},
+					}),
+					args: ["execution", "--json"],
 				},
 				{
 					id: "check",

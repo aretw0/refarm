@@ -69,6 +69,14 @@
 		"./rust-substrate": {
 			"types": "./dist/rust-substrate.d.ts",
 			"import": "./dist/rust-substrate.js"
+		},
+		"./workspace-execution": {
+			"types": "./dist/workspace-execution.d.ts",
+			"import": "./dist/workspace-execution.js"
+		},
+		"./workspace-sweep": {
+			"types": "./dist/workspace-sweep.d.ts",
+			"import": "./dist/workspace-sweep.js"
 		}
 	},
 	"scripts": {
@@ -78,6 +86,46 @@
 		"type-check": "tsc --noEmit",
 		"test": "vitest run"
 	},
+	"files": [
+		"README.md",
+		"ROADMAP.md",
+		"dist/action-affordances.d.ts",
+		"dist/action-affordances.js",
+		"dist/browser-open.d.ts",
+		"dist/browser-open.js",
+		"dist/command-handoff.d.ts",
+		"dist/command-handoff.js",
+		"dist/command-line.d.ts",
+		"dist/command-line.js",
+		"dist/command-plan.d.ts",
+		"dist/command-plan.js",
+		"dist/command-result.d.ts",
+		"dist/command-result.js",
+		"dist/execution-plan.d.ts",
+		"dist/execution-plan.js",
+		"dist/git-command.d.ts",
+		"dist/git-command.js",
+		"dist/github-actions.d.ts",
+		"dist/github-actions.js",
+		"dist/index.d.ts",
+		"dist/index.js",
+		"dist/json-output.d.ts",
+		"dist/json-output.js",
+		"dist/launch-policy.d.ts",
+		"dist/launch-policy.js",
+		"dist/launch-process.d.ts",
+		"dist/launch-process.js",
+		"dist/operator-resume.d.ts",
+		"dist/operator-resume.js",
+		"dist/rust-substrate.d.ts",
+		"dist/rust-substrate.js",
+		"dist/status.d.ts",
+		"dist/status.js",
+		"dist/workspace-execution.d.ts",
+		"dist/workspace-execution.js",
+		"dist/workspace-sweep.d.ts",
+		"dist/workspace-sweep.js"
+	],
 	"dependencies": {
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/trust": "workspace:*",

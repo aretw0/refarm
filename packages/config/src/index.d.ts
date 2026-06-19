@@ -79,6 +79,27 @@ export type {
     WorkspacePackageOptions,
 } from "./workspace.js";
 export {
+    WORKSPACE_EXECUTION_ADAPTERS,
+    WORKSPACE_KINDS,
+    WORKSPACE_REMOTE_CACHE_PROVIDERS,
+    declaredWorkspaceFromConfig,
+    declaredWorkspacesFromConfig,
+    parseWorkspaceExecutionAdapter,
+    parseWorkspaceKind,
+    parseWorkspaceRemoteCacheProvider,
+} from "./workspaces-config.js";
+export type {
+    DeclaredWorkspaceBridge,
+    DeclaredWorkspaceCache,
+    DeclaredWorkspaceConfig,
+    DeclaredWorkspaceExecution,
+    DeclaredWorkspaceRemoteCache,
+    DeclaredWorkspaceRemoteCacheEnv,
+    WorkspaceExecutionAdapter,
+    WorkspaceKind,
+    WorkspaceRemoteCacheProvider,
+} from "./workspaces-config.js";
+export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
     changedFilePathsFromGitNameOnly,

@@ -67,6 +67,37 @@ export type {
 	GitHubActionsSecretOptions,
 } from "./github-actions.js";
 export {
+	buildWorkspaceExecutionStatus,
+	workspaceCanUseTurboAdapter,
+} from "./workspace-execution.js";
+export type {
+	WorkspaceExecutionPackageManager,
+	WorkspaceExecutionStatus,
+} from "./workspace-execution.js";
+export {
+	buildWorkspaceSweepPayload,
+	missingWorkspacePathMessage,
+	observeDeclaredWorkspacesExecution,
+	observeDeclaredWorkspaceExecution,
+	resolveDeclaredWorkspacePath,
+	summarizeWorkspaceExecutionObservations,
+	workspaceExecutionRecommendations,
+	workspaceSweepRecommendationNextCommands,
+} from "./workspace-sweep.js";
+export type {
+	WorkspacePathCandidate,
+	WorkspacePathResolution,
+	WorkspaceSweepBridge,
+	WorkspaceSweepBuildStatus,
+	WorkspaceSweepBuildStatusOptions,
+	WorkspaceSweepDeclaredWorkspace,
+	WorkspaceSweepObservation,
+	WorkspaceSweepOptions,
+	WorkspaceSweepPayload,
+	WorkspaceSweepRecommendation,
+	WorkspaceSweepSummary,
+} from "./workspace-sweep.js";
+export {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
 	commandPlanEffects,

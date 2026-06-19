@@ -4,17 +4,36 @@
   "description": "Centralized configuration wrapper for Refarm applications",
   "type": "module",
   "main": "./src/index.js",
+  "types": "./src/index.d.ts",
   "exports": {
     ".": "./src/index.js",
     "./astro": "./src/astro.js",
     "./model-routing": "./src/model-routing.js",
     "./package-manager": "./src/package-manager.js",
-    "./workspace": "./src/workspace.js"
+    "./workspace": "./src/workspace.js",
+    "./workspaces-config": "./src/workspaces-config.js"
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",
     "test": "vitest run"
   },
+  "files": [
+    "README.md",
+    "ROADMAP.md",
+    "src/astro.js",
+    "src/index.d.ts",
+    "src/index.js",
+    "src/model-routing.d.ts",
+    "src/model-routing.js",
+    "src/package-manager.d.ts",
+    "src/package-manager.js",
+    "src/plugin-identity.js",
+    "src/types.js",
+    "src/workspace.d.ts",
+    "src/workspace.js",
+    "src/workspaces-config.d.ts",
+    "src/workspaces-config.js"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/aretw0/refarm.git",

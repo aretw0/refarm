@@ -61,6 +61,16 @@ export {
     parsePackageManager,
 } from "./package-manager.js";
 export {
+    WORKSPACE_EXECUTION_ADAPTERS,
+    WORKSPACE_KINDS,
+    WORKSPACE_REMOTE_CACHE_PROVIDERS,
+    declaredWorkspaceFromConfig,
+    declaredWorkspacesFromConfig,
+    parseWorkspaceExecutionAdapter,
+    parseWorkspaceKind,
+    parseWorkspaceRemoteCacheProvider,
+} from "./workspaces-config.js";
+export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
     changedFilePathsFromGitNameOnly,
