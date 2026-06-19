@@ -338,7 +338,8 @@ export interface ChannelControlSurfaceCapabilities {
 	cancel: boolean;
 }
 
-export type ChannelControlSurfaceOperation = keyof ChannelControlSurfaceCapabilities;
+export type ChannelControlSurfaceOperation =
+	keyof ChannelControlSurfaceCapabilities;
 
 export const CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR =
 	"channel operation unsupported";
