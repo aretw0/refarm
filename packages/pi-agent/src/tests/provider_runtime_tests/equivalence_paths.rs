@@ -69,7 +69,10 @@ fn provider_runtime_contract_and_state_primitives_dispatch_paths_are_equivalent(
     assert_eq!(state_out.text, contract_out.text);
     assert_eq!(state_out.response, contract_out.response);
     assert_eq!(state_out.state.usage_totals.tokens_in, 2);
-    assert_eq!(state_out.state.usage_totals.tokens_in, contract_out.state.usage_totals.tokens_in);
+    assert_eq!(
+        state_out.state.usage_totals.tokens_in,
+        contract_out.state.usage_totals.tokens_in
+    );
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }
 
@@ -137,7 +140,6 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
     );
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }
-
 
 #[test]
 fn provider_runtime_contract_and_state_dispatch_max_iter_termination_are_equivalent() {

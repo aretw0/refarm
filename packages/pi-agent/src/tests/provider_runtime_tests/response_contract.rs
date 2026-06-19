@@ -71,7 +71,8 @@ fn provider_runtime_provider_response_phase_contract_into_parts_splits_shape() {
         8_u8,
     );
 
-    let (response, phase) = crate::provider_runtime::provider_response_phase_contract_into_parts(contract);
+    let (response, phase) =
+        crate::provider_runtime::provider_response_phase_contract_into_parts(contract);
     assert_eq!(response["ok"], "parts");
     assert_eq!(phase, 8);
 }

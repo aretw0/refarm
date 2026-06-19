@@ -150,7 +150,8 @@ pub(crate) use anthropic_text::{anthropic_text_content, require_anthropic_text_c
 pub(crate) use anthropic_tool_uses::{anthropic_content_array, parse_anthropic_tool_uses};
 #[cfg(test)]
 pub(crate) use openai_message::{
-    openai_choice_message, openai_message_content, require_openai_message_content,
+    normalize_openai_codex_response, openai_choice_message, openai_message_content,
+    require_openai_message_content,
 };
 #[cfg(test)]
 pub(crate) use openai_phase::openai_has_tool_calls;
@@ -190,7 +191,10 @@ pub(crate) use request_body_anthropic::{
     build_anthropic_body, build_anthropic_body_with_streaming,
 };
 #[cfg(test)]
-pub(crate) use request_body_openai::{build_openai_body, build_openai_body_with_streaming};
+pub(crate) use request_body_openai::{
+    build_openai_body, build_openai_body_with_streaming,
+    build_openai_codex_responses_body_with_streaming,
+};
 #[cfg(test)]
 pub(crate) use request_iteration::iteration_response_and_phase_with;
 #[cfg(test)]
