@@ -28,7 +28,11 @@ import {
 	type CommandPlanStepRunResult,
 } from "./command-plan.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
-import { createPackageScriptCommand } from "./package-manager.js";
+import {
+	createPackageBinaryCommand,
+	createPackageScriptCommand,
+} from "./package-manager.js";
+import { workspaceCanUseTurboAdapter } from "./workspace-execution.js";
 
 export interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
@@ -258,14 +262,54 @@ function packageFinishStepsForWorkspace(
 		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
 		["build", "Build the package after source changes."],
 	] as const;
-	return candidates
-		.filter(([script]) => typeof scripts[script] === "string")
+	const availableCandidates = candidates
+		.filter(([script]) => typeof scripts[script] === "string");
+	if (availableCandidates.length === 0) return [];
+	if (workspaceCanUseTurboAdapter(findWorkspaceRoot()) && workspace !== ".") {
+		return [turboPackageValidationStep(
+			workspace,
+			availableCandidates.map(([script]) => script),
+			availableCandidates.map(([, description]) => description),
+			idPrefix,
+		)];
+	}
+	return availableCandidates
 		.map(([script, description]) => packageScriptStep(
 			workspace,
 			script,
 			description,
 			idPrefix,
 		));
+}
+
+function turboPackageValidationStep(
+	workspace: string,
+	scripts: readonly string[],
+	descriptions: readonly string[],
+	idPrefix = "package",
+): CommandPlanStep {
+	const repoRoot = findWorkspaceRoot();
+	const command = createPackageBinaryCommand("turbo", [
+		"run",
+		...scripts,
+		`--filter=./${workspace}`,
+		"--output-logs=errors-only",
+		"--ui=stream",
+	], { cwd: repoRoot });
+	return {
+		id: `${idPrefix}-validation`,
+		command: command.display,
+		args: [command.command, ...command.args],
+		description: `Run package validation via the selected workspace executor: ${descriptions.join(" ")}`,
+		effect: "verify",
+		process: {
+			command: command.command,
+			args: command.args,
+			cwd: repoRoot,
+			display: command.display,
+			packageManager: command.packageManager,
+		},
+	};
 }
 
 function affectedPackageFinishSteps(

@@ -2,6 +2,10 @@ import {
 	runRustSubstrateCheck,
 	type RustSubstrateCheck,
 } from "@refarm.dev/cli/rust-substrate";
+import {
+	declaredWorkspacesFromConfig,
+	loadConfig,
+} from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs/promises";
@@ -18,7 +22,7 @@ import {
 	buildRefarmDoctorReport,
 	type RefarmDoctorReport,
 } from "./doctor.js";
-import { type HealthReport, runHealthAudit } from "./health.js";
+import { runHealthAudit, type HealthReport } from "./health.js";
 import { printJson } from "./json-output.js";
 import {
 	buildModelDoctorStatus,
@@ -26,6 +30,18 @@ import {
 	type ModelDoctorStatus,
 } from "./model.js";
 import { resolveStatusPayload } from "./status.js";
+import {
+	buildWorkspaceExecutionStatus,
+	type WorkspaceExecutionStatus,
+} from "./workspace-execution.js";
+import {
+	buildWorkspaceExecutionSweepPayload,
+	observeDeclaredWorkspacesExecution,
+	type WorkspaceExecutionObservation,
+	type WorkspaceExecutionRecommendation,
+	type WorkspaceExecutionSummary,
+	type WorkspaceExecutionSweepPayload,
+} from "./workspace.js";
 
 export type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 
@@ -88,6 +104,9 @@ export interface RefarmCheckReport {
 		model?: ModelDoctorStatus;
 		nodeSubstrate?: NodeSubstrateCheck;
 		rustSubstrate?: RustSubstrateCheck;
+		workspaceExecution?: WorkspaceExecutionStatus;
+		workspaceSweep?: WorkspaceSweepCheck;
+		releasePolicy?: ReleasePolicyCheck;
 	};
 	recommendations: DiagnosticRecommendation[];
 	nextAction: string | null;
@@ -117,6 +136,32 @@ export interface RefarmCheckDeps {
 	runModelDoctor?(): Promise<ModelDoctorStatus>;
 	runNodeSubstrate?(): Promise<NodeSubstrateCheck>;
 	runRustSubstrate?(): Promise<RustSubstrateCheck>;
+	runWorkspaceExecution?(): Promise<WorkspaceExecutionStatus>;
+	runWorkspaceSweep?(): Promise<WorkspaceSweepCheck>;
+	runReleasePolicy?(): Promise<ReleasePolicyCheck>;
+}
+
+export interface WorkspaceSweepCheck {
+	command: "workspace";
+	operation: "execution";
+	ok: boolean;
+	mode: WorkspaceExecutionSweepPayload["mode"];
+	summary: WorkspaceExecutionSummary;
+	recommendations: WorkspaceExecutionRecommendation[];
+	observations: WorkspaceExecutionObservation[];
+}
+
+export interface ReleasePolicyCheck {
+	command: "release";
+	operation: "plan";
+	ok: boolean;
+	status: string;
+	packageCount: number;
+	packages: string[];
+	profileTags: string[];
+	packageProfiles: unknown[];
+	blockers: unknown[];
+	recommendedCommand: string;
 }
 
 export function buildRefarmCheckReport(checks: {
@@ -125,10 +170,16 @@ export function buildRefarmCheckReport(checks: {
 	model?: ModelDoctorStatus;
 	nodeSubstrate?: NodeSubstrateCheck;
 	rustSubstrate?: RustSubstrateCheck;
+	workspaceExecution?: WorkspaceExecutionStatus;
+	workspaceSweep?: WorkspaceSweepCheck;
+	releasePolicy?: ReleasePolicyCheck;
 }): RefarmCheckReport {
 	const recommendations: DiagnosticRecommendation[] = [
 		...(checks.nodeSubstrate?.recommendations ?? []),
 		...(checks.rustSubstrate?.recommendations ?? []),
+		...workspaceExecutionCheckRecommendations(checks.workspaceExecution),
+		...workspaceSweepCheckRecommendations(checks.workspaceSweep),
+		...releasePolicyCheckRecommendations(checks.releasePolicy),
 		...checks.health.recommendations,
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
@@ -152,6 +203,12 @@ export function buildRefarmCheckReport(checks: {
 		failureCount,
 		warningCount:
 			checks.doctor.warningCount +
+			workspaceExecutionCheckRecommendations(checks.workspaceExecution).filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
+			workspaceSweepCheckRecommendations(checks.workspaceSweep).filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
 			modelDoctorCheckRecommendations(checks.model).length,
 		checks,
 		recommendations,
@@ -160,6 +217,76 @@ export function buildRefarmCheckReport(checks: {
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
 	};
+}
+
+function releasePolicyCheckRecommendations(
+	releasePolicy: ReleasePolicyCheck | undefined,
+): DiagnosticRecommendation[] {
+	if (!releasePolicy) return [];
+	return [
+		{
+			diagnostic: "release-policy:kernel-candidates",
+			severity: "info",
+			summary: `Release policy currently selects ${releasePolicy.packageCount} kernel candidate package${releasePolicy.packageCount === 1 ? "" : "s"}.`,
+			action: "Inspect the release plan before preparing npm or crates publication.",
+			command: releasePolicy.recommendedCommand,
+		},
+	];
+}
+
+function workspaceSweepCheckRecommendations(
+	sweep: WorkspaceSweepCheck | undefined,
+): DiagnosticRecommendation[] {
+	if (!sweep) return [];
+	return sweep.recommendations.map((recommendation) => ({
+		diagnostic: `workspace-sweep:${recommendation.code}`,
+		severity: recommendation.code === "workspace-path-missing" ? "warning" : "info",
+		summary: recommendation.message,
+		action: workspaceSweepRecommendationAction(recommendation),
+		command: recommendation.nextCommand,
+		target: recommendation.workspaceId,
+	}));
+}
+
+function workspaceSweepRecommendationAction(
+	recommendation: WorkspaceExecutionRecommendation,
+): string {
+	if (recommendation.code === "workspace-path-missing") {
+		return recommendation.mountHints?.[0] ?? "Make the declared workspace path visible to this runtime, or update its bridge configuration.";
+	}
+	if (recommendation.code === "turbo-install-needed") {
+		return "Declare Turbo in the target workspace so Refarm can use cache-aware validation.";
+	}
+	return "Provision or configure the declared remote cache for this workspace.";
+}
+
+function workspaceExecutionCheckRecommendations(
+	execution: WorkspaceExecutionStatus | undefined,
+): DiagnosticRecommendation[] {
+	if (!execution) return [];
+	const recommendations: DiagnosticRecommendation[] = [];
+	const turbo = execution.adapters.turbo;
+	if (turbo.configured && !turbo.declared && turbo.installCommand) {
+		recommendations.push({
+			diagnostic: "workspace-execution:turbo-adapter-unprovisioned",
+			severity: "warning",
+			summary: "Workspace has turbo.json, but the Turbo adapter is not declared in package.json.",
+			action: "Declare Turbo in the workspace so Refarm can use cache-aware validation, or remove turbo.json if direct package scripts are intentional.",
+			command: turbo.installCommand,
+			target: execution.root,
+		});
+	}
+	if (turbo.available && !execution.cache.remote.configured) {
+		recommendations.push({
+			diagnostic: "workspace-execution:remote-cache-not-configured",
+			severity: "info",
+			summary: "Workspace validation can use the local Turbo cache, but no remote cache credentials are configured.",
+			action: "Provision or configure a remote cache when validation should get hits across machines and containers.",
+			command: execution.cache.remote.provisionCommand,
+			target: execution.root,
+		});
+	}
+	return recommendations;
 }
 
 function modelDoctorCheckRecommendations(
@@ -185,6 +312,21 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	if (report.checks.rustSubstrate?.required) {
 		console.log(
 			`Rust substrate: ${report.checks.rustSubstrate.ok ? "pass" : "fail"} (${report.checks.rustSubstrate.missing.length} missing)`,
+		);
+	}
+	if (report.checks.workspaceExecution) {
+		console.log(
+			`Workspace execution: ${report.checks.workspaceExecution.executor.selected} (local cache ${report.checks.workspaceExecution.cache.local.available ? "available" : "not found"}, remote cache ${report.checks.workspaceExecution.cache.remote.configured ? "configured" : "not configured"})`,
+		);
+	}
+	if (report.checks.workspaceSweep) {
+		console.log(
+			`Workspace sweep: ${report.checks.workspaceSweep.summary.ok}/${report.checks.workspaceSweep.summary.total} ready (${report.checks.workspaceSweep.summary.missingPath} missing path${report.checks.workspaceSweep.summary.missingPath === 1 ? "" : "s"}, ${report.checks.workspaceSweep.summary.remoteCacheUnconfigured} remote cache pending)`,
+		);
+	}
+	if (report.checks.releasePolicy) {
+		console.log(
+			`Release policy: ${report.checks.releasePolicy.packageCount} kernel candidate${report.checks.releasePolicy.packageCount === 1 ? "" : "s"} (${report.checks.releasePolicy.profileTags.join(" + ")})`,
 		);
 	}
 	console.log(
@@ -259,6 +401,58 @@ async function runDefaultModelDoctor(): Promise<ModelDoctorStatus> {
 	const deps = defaultModelDeps();
 	const tokens = await deps.loadTokens();
 	return buildModelDoctorStatus(tokens);
+}
+
+async function runDefaultWorkspaceExecution(): Promise<WorkspaceExecutionStatus> {
+	return buildWorkspaceExecutionStatus();
+}
+
+async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
+	const config = loadConfig(process.cwd());
+	const observations = observeDeclaredWorkspacesExecution(
+		declaredWorkspacesFromConfig(config, { baseDir: process.cwd() }),
+		undefined,
+	);
+	return {
+		command: "workspace",
+		operation: "execution",
+		ok: true,
+		...buildWorkspaceExecutionSweepPayload(observations),
+	};
+}
+
+async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
+	const recommendedCommand = "refarm release plan --selection default --json";
+	const engine = await import("@refarm.dev/release-engine") as {
+		buildReleasePlan: (options: {
+			cwd?: string;
+			selectionId?: string;
+			profileTags?: string[];
+		}) => unknown;
+		summarizePlan: (plan: unknown) => {
+			ok: boolean;
+			status: string;
+			packageCount: number;
+			packages: string[];
+			profileTags: string[];
+			packageProfiles: unknown[];
+			blockers: unknown[];
+		};
+	};
+	const plan = engine.buildReleasePlan({ cwd: process.cwd(), selectionId: "default" });
+	const summary = engine.summarizePlan(plan);
+	return {
+		command: "release",
+		operation: "plan",
+		ok: summary.ok,
+		status: summary.status,
+		packageCount: summary.packageCount,
+		packages: summary.packages,
+		profileTags: summary.profileTags,
+		packageProfiles: summary.packageProfiles,
+		blockers: summary.blockers,
+		recommendedCommand,
+	};
 }
 
 async function exists(filePath: string): Promise<boolean> {
@@ -607,6 +801,9 @@ export function createCheckCommand(
 	runModelDoctor: runDefaultModelDoctor,
 	runNodeSubstrate: runDefaultNodeSubstrate,
 	runRustSubstrate: runRustSubstrateCheck,
+	runWorkspaceExecution: runDefaultWorkspaceExecution,
+	runWorkspaceSweep: runDefaultWorkspaceSweep,
+	runReleasePolicy: runDefaultReleasePolicy,
 	},
 ): Command {
 	return new Command("check")
@@ -640,9 +837,15 @@ Notes:
 				failOnWarnings: options.failOnWarnings,
 			});
 			const model = await deps.runModelDoctor?.();
+			const workspaceExecution = await deps.runWorkspaceExecution?.();
+			const workspaceSweep = await deps.runWorkspaceSweep?.();
+			const releasePolicy = await deps.runReleasePolicy?.();
 			const report = buildRefarmCheckReport({
 				nodeSubstrate,
 				rustSubstrate,
+				workspaceExecution,
+				workspaceSweep,
+				releasePolicy,
 				health,
 				doctor,
 				model,

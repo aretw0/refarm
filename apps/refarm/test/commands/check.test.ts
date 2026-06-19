@@ -4,11 +4,14 @@ import {
 	createCheckCommand,
 	type NodeSubstrateCheck,
 	type RefarmCheckDeps,
+	type ReleasePolicyCheck,
 	type RustSubstrateCheck,
+	type WorkspaceSweepCheck,
 } from "../../src/commands/check.js";
 import type { RefarmDoctorReport } from "../../src/commands/doctor.js";
 import type { HealthReport } from "../../src/commands/health.js";
 import type { ModelDoctorStatus } from "../../src/commands/model.js";
+import type { WorkspaceExecutionStatus } from "../../src/commands/workspace-execution.js";
 
 function makeHealthReport(overrides: Partial<HealthReport> = {}): HealthReport {
 	return {
@@ -164,16 +167,104 @@ function makeRustSubstrateCheck(
 	};
 }
 
+function makeWorkspaceExecutionStatus(
+	overrides: Partial<WorkspaceExecutionStatus> = {},
+): WorkspaceExecutionStatus {
+	return {
+		root: "/workspaces/refarm",
+		rootSource: "turbo",
+		executor: {
+			selected: "turbo",
+			reason: "Workspace declares turbo and has turbo.json; cache-aware validation can use the Turbo adapter.",
+		},
+		adapters: {
+			directScript: {
+				available: true,
+			},
+			turbo: {
+				available: true,
+				configured: true,
+				declared: true,
+				configPath: "/workspaces/refarm/turbo.json",
+				installCommand: null,
+			},
+		},
+		cache: {
+			local: {
+				available: true,
+				path: "/workspaces/refarm/.turbo/cache",
+			},
+			remote: {
+				configured: true,
+				apiUrlEnv: "TURBO_CACHE_API_URL",
+				tokenEnv: "TURBO_CACHE_TOKEN",
+				provisionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+			},
+		},
+		...overrides,
+	};
+}
+
+function makeWorkspaceSweepCheck(
+	overrides: Partial<WorkspaceSweepCheck> = {},
+): WorkspaceSweepCheck {
+	return {
+		command: "workspace",
+		operation: "execution",
+		mode: "all",
+		ok: true,
+		summary: {
+			total: 1,
+			ok: 1,
+			failed: 0,
+			missingPath: 0,
+			turboInstallNeeded: 0,
+			remoteCacheUnconfigured: 0,
+		},
+		recommendations: [],
+		observations: [],
+		...overrides,
+	};
+}
+
+function makeReleasePolicyCheck(
+	overrides: Partial<ReleasePolicyCheck> = {},
+): ReleasePolicyCheck {
+	return {
+		command: "release",
+		operation: "plan",
+		ok: true,
+		status: "ready",
+		packageCount: 3,
+		packages: [
+			"@refarm.dev/storage-contract-v1",
+			"@refarm.dev/sync-contract-v1",
+			"@refarm.dev/identity-contract-v1",
+		],
+		profileTags: ["kernel", "candidate"],
+		packageProfiles: [],
+		blockers: [],
+		recommendedCommand: "refarm release plan --selection default --json",
+		...overrides,
+	};
+}
+
 function makeDeps(overrides: {
 	health?: Partial<HealthReport>;
 	doctor?: Partial<RefarmDoctorReport>;
 	model?: Partial<ModelDoctorStatus>;
 	nodeSubstrate?: Partial<NodeSubstrateCheck>;
 	rustSubstrate?: Partial<RustSubstrateCheck>;
+	workspaceExecution?: Partial<WorkspaceExecutionStatus>;
+	workspaceSweep?: Partial<WorkspaceSweepCheck>;
+	releasePolicy?: Partial<ReleasePolicyCheck>;
 } = {}): RefarmCheckDeps {
 	return {
 		runNodeSubstrate: vi.fn().mockResolvedValue(makeNodeSubstrateCheck(overrides.nodeSubstrate)),
 		runRustSubstrate: vi.fn().mockResolvedValue(makeRustSubstrateCheck(overrides.rustSubstrate)),
+		runWorkspaceExecution: vi.fn().mockResolvedValue(makeWorkspaceExecutionStatus(overrides.workspaceExecution)),
+		runWorkspaceSweep: vi.fn().mockResolvedValue(makeWorkspaceSweepCheck(overrides.workspaceSweep)),
+		runReleasePolicy: vi.fn().mockResolvedValue(makeReleasePolicyCheck(overrides.releasePolicy)),
 		runHealth: vi.fn().mockResolvedValue(makeHealthReport(overrides.health)),
 		runDoctor: vi.fn().mockResolvedValue(makeDoctorReport(overrides.doctor)),
 		runModelDoctor: vi.fn().mockResolvedValue(makeModelDoctorStatus(overrides.model)),
@@ -185,6 +276,9 @@ describe("buildRefarmCheckReport", () => {
 		const report = buildRefarmCheckReport({
 			nodeSubstrate: makeNodeSubstrateCheck(),
 			rustSubstrate: makeRustSubstrateCheck(),
+			workspaceExecution: makeWorkspaceExecutionStatus(),
+			workspaceSweep: makeWorkspaceSweepCheck(),
+			releasePolicy: makeReleasePolicyCheck(),
 			health: makeHealthReport({
 				ok: false,
 				issueCount: 2,
@@ -220,7 +314,7 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.ok).toBe(false);
 		expect(report.failureCount).toBe(3);
 		expect(report.warningCount).toBe(1);
-		expect(report.recommendations).toHaveLength(2);
+		expect(report.recommendations).toHaveLength(3);
 		expect(report.nextAction).toBe("Add the build config.");
 		expect(report.nextActions).toEqual([
 			"Add the build config.",
@@ -230,8 +324,127 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.nextCommands).toEqual(["refarm runtime start --wait"]);
 		expect(report.checks.nodeSubstrate?.ok).toBe(true);
 		expect(report.checks.rustSubstrate?.ok).toBe(true);
+		expect(report.checks.workspaceExecution?.executor.selected).toBe("turbo");
+		expect(report.checks.workspaceSweep?.summary.total).toBe(1);
+		expect(report.checks.releasePolicy?.packageCount).toBe(3);
 		expect(report.checks.health.issueCount).toBe(2);
 		expect(report.checks.doctor.failureCount).toBe(1);
+	});
+
+	it("warns without blocking when declared workspaces are not visible to this runtime", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck(),
+			workspaceExecution: makeWorkspaceExecutionStatus(),
+			workspaceSweep: makeWorkspaceSweepCheck({
+				summary: {
+					total: 2,
+					ok: 1,
+					failed: 1,
+					missingPath: 1,
+					turboInstallNeeded: 0,
+					remoteCacheUnconfigured: 0,
+				},
+				recommendations: [
+					{
+						code: "workspace-path-missing",
+						workspaceId: "agents-lab",
+						message: "No declared or bridged path is visible for workspace agents-lab.",
+						mountHints: ["Mount the Windows checkout into this container."],
+					},
+				],
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(true);
+		expect(report.warningCount).toBe(1);
+		expect(report.nextAction).toBeNull();
+		expect(report.nextCommand).toBeNull();
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "workspace-sweep:workspace-path-missing",
+				severity: "warning",
+				target: "agents-lab",
+				action: "Mount the Windows checkout into this container.",
+			}),
+		);
+	});
+
+	it("warns without blocking when turbo config is present but the adapter is not provisioned", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck(),
+			workspaceExecution: makeWorkspaceExecutionStatus({
+				executor: {
+					selected: "direct-script",
+					reason: "Workspace has turbo.json but does not declare turbo; Refarm will use package scripts until the adapter is provisioned.",
+				},
+				adapters: {
+					directScript: {
+						available: true,
+					},
+					turbo: {
+						available: false,
+						configured: true,
+						declared: false,
+						configPath: "/tmp/project/turbo.json",
+						installCommand: "pnpm add -D -w turbo",
+					},
+				},
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(true);
+		expect(report.warningCount).toBe(1);
+		expect(report.nextAction).toBeNull();
+		expect(report.nextCommand).toBeNull();
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "workspace-execution:turbo-adapter-unprovisioned",
+				severity: "warning",
+				command: "pnpm add -D -w turbo",
+			}),
+		);
+	});
+
+	it("reports remote cache status as informational when local turbo execution is available", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck(),
+			workspaceExecution: makeWorkspaceExecutionStatus({
+				cache: {
+					local: {
+						available: true,
+						path: "/workspaces/refarm/.turbo/cache",
+					},
+					remote: {
+						configured: false,
+						apiUrlEnv: "TURBO_CACHE_API_URL",
+						tokenEnv: "TURBO_CACHE_TOKEN",
+						provisionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+					},
+				},
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(true);
+		expect(report.nextCommands).toEqual([]);
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "workspace-execution:remote-cache-not-configured",
+				severity: "info",
+				command: "refarm provision cloudflare turbo-cache --dry-run --json",
+			}),
+		);
 	});
 
 	it("blocks readiness when the node execution substrate is platform-mismatched", () => {
@@ -459,6 +672,8 @@ describe("checkCommand", () => {
 
 		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
 		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runWorkspaceExecution).toHaveBeenCalledOnce();
+		expect(deps.runWorkspaceSweep).toHaveBeenCalledOnce();
 		expect(deps.runHealth).toHaveBeenCalledOnce();
 		expect(deps.runDoctor).toHaveBeenCalledWith({ failOnWarnings: undefined });
 		expect(deps.runModelDoctor).toHaveBeenCalledOnce();
@@ -469,6 +684,9 @@ describe("checkCommand", () => {
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"nodeSubstrate"');
 		expect(output).toContain('"rustSubstrate"');
+		expect(output).toContain('"workspaceExecution"');
+		expect(output).toContain('"workspaceSweep"');
+		expect(output).toContain('"releasePolicy"');
 		expect(output).toContain('"health"');
 		expect(output).toContain('"doctor"');
 		expect(output).toContain('"model"');
@@ -512,6 +730,8 @@ describe("checkCommand", () => {
 		expect(output).toContain("Check: FAIL");
 		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues, 0 workspace links, 0 runtime deps)");
 		expect(output).toContain("Rust substrate: pass (0 missing)");
+		expect(output).toContain("Workspace execution: turbo (local cache available, remote cache configured)");
+		expect(output).toContain("Workspace sweep: 1/1 ready (0 missing paths, 0 remote cache pending)");
 		expect(output).toContain("Health: fail (1 issue)");
 		expect(output).toContain("Doctor: pass (0 failures, 0 warnings)");
 		expect(output).toContain("Model: pass (0 warnings)");
@@ -579,12 +799,12 @@ describe("checkCommand", () => {
 		expect(output.ok).toBe(true);
 		expect(output.warningCount).toBe(1);
 		expect(output.nextCommand).toBeNull();
-		expect(output.recommendations).toEqual([
+		expect(output.recommendations).toEqual(expect.arrayContaining([
 			expect.objectContaining({
 				diagnostic: "model-provider-unreachable",
 				severity: "warning",
 			}),
-		]);
+		]));
 		expect(process.exitCode).toBeUndefined();
 
 		logSpy.mockRestore();

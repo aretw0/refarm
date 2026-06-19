@@ -35,6 +35,24 @@ async function finishTemplates(): Promise<FinishTemplate[]> {
 describe("agent external consumer templates", () => {
 	it("keeps external consumer templates as read-only JSON probes", async () => {
 		const templates = await finishTemplates();
+		expect(templates).toContainEqual(
+			expect.objectContaining({
+				id: "declared-workspaces-execution-all-json",
+				command: "refarm workspace execution --all --json",
+				effects: ["observe"],
+				writes: false,
+				parameters: [],
+			}),
+		);
+		expect(templates).toContainEqual(
+			expect.objectContaining({
+				id: "declared-release-kernel-candidates-json",
+				command: "refarm release plan --selection default --json",
+				effects: ["observe"],
+				writes: false,
+				parameters: [],
+			}),
+		);
 		const externalTemplates = templates.filter((template) =>
 			template.id.startsWith("external-consumer-")
 		);
@@ -42,14 +60,23 @@ describe("agent external consumer templates", () => {
 		expect(externalTemplates.map((template) => template.id)).toEqual([
 			"external-consumer-resume-json",
 			"external-consumer-check-json",
+			"external-consumer-workspace-execution-json",
+			"external-consumer-release-plan-json",
 			"external-consumer-health-policy-json",
 			"external-consumer-health-suggest-policy-json",
 		]);
 
 		for (const template of externalTemplates) {
 			expect(template.parameters).toEqual(["dir"]);
-			expect(template.cwdParameter).toBe("dir");
-			expect(template.command).toMatch(/^refarm (?:resume|check|health)\b/);
+			if (
+				template.id === "external-consumer-workspace-execution-json" ||
+				template.id === "external-consumer-release-plan-json"
+			) {
+				expect(template.cwdParameter).toBeUndefined();
+			} else {
+				expect(template.cwdParameter).toBe("dir");
+			}
+			expect(template.command).toMatch(/^refarm (?:resume|check|workspace|release|health)\b/);
 			expect(template.command).toMatch(/\s--json$/);
 			expect(template.effects).toEqual(["observe"]);
 			expect(template.writes).toBe(false);
@@ -61,6 +88,32 @@ describe("agent external consumer templates", () => {
 			);
 			if (template.id === "external-consumer-health-policy-json") {
 				expect(template.useWhen).toMatch(/without running auditors or writing config/);
+			}
+			if (template.id === "external-consumer-workspace-execution-json") {
+				expect(template.useWhen).toMatch(/executor and cache readiness/);
+				expect(template.command).toBe("refarm workspace execution --cwd <dir> --json");
+				expect(template.process?.args).toEqual([
+					"workspace",
+					"execution",
+					"--cwd",
+					"<dir>",
+					"--json",
+				]);
+			}
+			if (template.id === "external-consumer-release-plan-json") {
+				expect(template.useWhen).toMatch(/default release-policy selection/);
+				expect(template.command).toBe(
+					"refarm release plan --cwd <dir> --selection default --json",
+				);
+				expect(template.process?.args).toEqual([
+					"release",
+					"plan",
+					"--cwd",
+					"<dir>",
+					"--selection",
+					"default",
+					"--json",
+				]);
 			}
 			if (template.id === "external-consumer-health-suggest-policy-json") {
 				expect(template.useWhen).toMatch(/without writing \.refarm\/config\.json/);
