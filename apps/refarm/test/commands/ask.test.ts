@@ -55,6 +55,7 @@ describe("refarm ask", () => {
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
 	const originalBaseUrl = process.env.MODEL_BASE_URL;
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
+	const originalRefarmHome = process.env.REFARM_HOME;
 	const originalHome = process.env.HOME;
 	const originalStreamsDir = process.env.REFARM_STREAMS_DIR;
 	const originalTaskResultsDir = process.env.REFARM_TASK_RESULTS_DIR;
@@ -67,6 +68,7 @@ describe("refarm ask", () => {
 		process.env.HOME = tempHome;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
+		delete process.env.REFARM_HOME;
 		delete process.env.REFARM_STREAMS_DIR;
 		delete process.env.REFARM_TASK_RESULTS_DIR;
 	});
@@ -91,6 +93,11 @@ describe("refarm ask", () => {
 			delete process.env.OPENAI_API_KEY;
 		} else {
 			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
+		if (originalRefarmHome === undefined) {
+			delete process.env.REFARM_HOME;
+		} else {
+			process.env.REFARM_HOME = originalRefarmHome;
 		}
 		if (originalStreamsDir === undefined) {
 			delete process.env.REFARM_STREAMS_DIR;
@@ -434,8 +441,8 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "model-credentials-missing",
-			nextAction: "refarm sow --model ollama/llama3.2 --json",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 			handoffs: {
 				interactive: "refarm sow",
 				inspectCurrent: "refarm model current --json",
@@ -444,19 +451,87 @@ describe("refarm ask", () => {
 				openExternalLinks: "refarm config get operator.openExternalLinks --json",
 			},
 		});
-		expect(payload.nextActions).toContain(
-			"refarm sow --model ollama/llama3.2 --json",
-		);
+		expect(payload.nextActions).toContain("refarm sow");
 		expect(payload.nextActions).toContain("refarm sow --json");
 		expect(payload.nextActions).toContain("refarm model current --json");
-		expect(payload.nextActions).not.toContain("refarm sow");
-		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm sow");
 		expect(payload.nextCommands).toContain(
 			"refarm sow --model ollama/llama3.2 --json",
 		);
 		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("fails before submitting when the current model only has subscription OAuth", async () => {
+		process.env.REFARM_HOME = tempHome ?? "";
+		process.env.MODEL_PROVIDER = "openai";
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.MODEL_BASE_URL;
+		delete process.env.OPENAI_API_KEY;
+		fs.mkdirSync(path.join(process.env.REFARM_HOME, ""), { recursive: true });
+		fs.writeFileSync(
+			path.join(process.env.REFARM_HOME, "identity.json"),
+			JSON.stringify({
+				tokens: {
+					modelProvider: "openai",
+					modelId: "gpt-5.5",
+					oauthProvider: "openai-codex",
+					oauthCredentials: {
+						"openai-codex": { access: "oauth-access-test" },
+					},
+				},
+			}),
+		);
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			nextCommands: string[];
+			recommendations: { diagnostic: string }[];
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "model-subscription-runtime-unsupported",
+			current: {
+				provider: "openai",
+				modelId: "gpt-5.5",
+				ref: "openai/gpt-5.5",
+			},
+			credential: {
+				state: "silo-oauth",
+				status: "Silo OAuth (openai-codex)",
+			},
+		});
+		expect(payload.nextCommands).toContain("refarm model current --json");
+		expect(payload.nextCommands).toContain("refarm sow --json");
+		expect(payload.nextCommands).toContain(
+			"refarm sow --model 'openai/gpt-5.5' --json",
+		);
+		expect(payload.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "model-subscription-runtime-unsupported",
+			}),
+		]);
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 

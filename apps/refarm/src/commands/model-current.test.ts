@@ -65,6 +65,53 @@ describe("printCurrentModel", () => {
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 	});
 
+	it("warns when subscription OAuth is the only stored runtime credential", () => {
+		const output = captureCurrentModel({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			oauthProvider: "openai-codex",
+			oauthCredentials: {
+				"openai-codex": { access: "oauth-access-test" },
+			},
+		});
+
+		expect(output).toContain("key:      Silo OAuth (openai-codex)");
+		expect(output).toContain("subscription OAuth");
+		expect(output).toContain("not a runtime API credential yet");
+		expect(output).toContain("fix:     refarm sow --json");
+	});
+
+	it("prints subscription OAuth recovery actions in JSON", () => {
+		const payload = captureCurrentModelJson({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			oauthProvider: "openai-codex",
+			oauthCredentials: {
+				"openai-codex": { access: "oauth-access-test" },
+			},
+		}) as {
+			ok: boolean;
+			nextActions: string[];
+			nextCommands: string[];
+			recommendations: Array<{ diagnostic: string; severity: string }>;
+		};
+
+		expect(payload.ok).toBe(true);
+		expect(payload.nextActions).toContain("refarm sow --json");
+		expect(payload.nextActions.some((command) =>
+			command.includes("refarm sow --model") && command.includes("openai/gpt-5.5")
+		)).toBe(true);
+		expect(payload.nextCommands.some((command) =>
+			command.includes("refarm sow --model") && command.includes("openai/gpt-5.5")
+		)).toBe(true);
+		expect(payload.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "model-subscription-runtime-unsupported",
+				severity: "warning",
+			}),
+		);
+	});
+
 	it("marks environment overrides as the active source", () => {
 		process.env.MODEL_PROVIDER = "gemini";
 

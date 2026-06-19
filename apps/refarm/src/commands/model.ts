@@ -244,30 +244,13 @@ function stringToken(value: unknown): string | undefined {
 		: undefined;
 }
 
-function oauthCredentialApiKey(tokens: ModelTokens): string | undefined {
-	const oauthProvider = stringToken(tokens.oauthProvider);
-	if (!oauthProvider) return undefined;
-	const credentials = tokens.oauthCredentials;
-	if (!credentials || typeof credentials !== "object") return undefined;
-	const record = credentials as Record<string, unknown>;
-	const credential = record[oauthProvider];
-	if (typeof credential === "string") return stringToken(credential);
-	if (!credential || typeof credential !== "object") return undefined;
-	const values = credential as Record<string, unknown>;
-	return (
-		stringToken(values.access) ??
-		stringToken(values.accessToken) ??
-		stringToken(values.apiKey)
-	);
-}
-
 function modelRuntimeCredentialEnv(
 	provider: string | undefined,
 	tokens: ModelTokens,
 ): [string, string] | null {
 	const envKey = modelCredentialEnvKey(provider);
 	if (!envKey || process.env[envKey]) return null;
-	const apiKey = stringToken(tokens.modelApiKey) ?? oauthCredentialApiKey(tokens);
+	const apiKey = stringToken(tokens.modelApiKey);
 	return apiKey ? [envKey, apiKey] : null;
 }
 
@@ -588,7 +571,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 	const seenMissingProviders = new Set<string>();
 	for (const scope of MODEL_SCOPES) {
 		const credential = status.routeCredentials[scope];
-		if (credential.state !== "missing") continue;
+		if (credential.state !== "missing" && credential.state !== "silo-oauth") continue;
 		const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
 		if (seenMissingProviders.has(providerKey)) continue;
 		seenMissingProviders.add(providerKey);
@@ -597,6 +580,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 				SOW_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
 				refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
+				LOCAL_MODEL_JSON_COMMAND,
 			);
 			continue;
 		}
@@ -621,8 +605,33 @@ function currentModelMissingRecommendations(
 ): NonNullable<CurrentModelStatus["recommendations"]> {
 	const recommendations: NonNullable<CurrentModelStatus["recommendations"]> = [];
 	const seenMissingProviders = new Set<string>();
+	const seenSubscriptionProviders = new Set<string>();
 	for (const scope of MODEL_SCOPES) {
 		const credential = status.routeCredentials[scope];
+		if (credential.state === "silo-oauth") {
+			const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
+			if (seenSubscriptionProviders.has(providerKey)) continue;
+			seenSubscriptionProviders.add(providerKey);
+			recommendations.push({
+				diagnostic: scope === "default"
+					? "model-subscription-runtime-unsupported"
+					: `model-${scope}-subscription-runtime-unsupported`,
+				severity: "warning",
+				summary: `${scope === "default" ? "The current" : `The ${scope}`} model route uses subscription OAuth, which is stored for operator login but is not a runtime API credential yet.`,
+				action: "Configure an API-key provider, use a local model route, or add a runtime adapter for the subscription provider.",
+				command: scope === "default"
+					? SOW_JSON_COMMAND
+					: refarmCommand([
+							"model",
+							"set",
+							"--scope",
+							scope,
+							quoteCommandArg(OLLAMA_DEFAULT_REF),
+							"--json",
+						]),
+			});
+			continue;
+		}
 		if (credential.state !== "missing") continue;
 		const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
 		if (seenMissingProviders.has(providerKey)) continue;

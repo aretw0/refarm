@@ -147,7 +147,7 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints shell runtime env from Silo OAuth credentials", async () => {
+	it("does not export subscription OAuth credentials as runtime API keys", async () => {
 		const deps = makeDeps({
 			modelProvider: "openai",
 			modelId: "gpt-5.5",
@@ -162,7 +162,10 @@ describe("modelCommand", () => {
 		await command.parseAsync(["env", "--shell"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("export OPENAI_API_KEY='oauth-access-test'");
+		expect(output).toContain("export MODEL_PROVIDER='openai'");
+		expect(output).toContain("export MODEL_ID='gpt-5.5'");
+		expect(output).not.toContain("OPENAI_API_KEY");
+		expect(output).not.toContain("oauth-access-test");
 
 		logSpy.mockRestore();
 	});
