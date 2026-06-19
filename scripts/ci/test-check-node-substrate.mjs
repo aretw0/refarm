@@ -8,7 +8,7 @@ import test from "node:test";
 const scriptPath = path.resolve("scripts/ci/check-node-substrate.mjs");
 
 function makeWorkspace({
-	packageManager = "pnpm@11.1.2",
+	packageManager = "pnpm@11.7.0",
 	platform = process.platform,
 	withBins = false,
 	withForeignBins = false,
@@ -122,7 +122,7 @@ test("node substrate check reports missing workspace execution shims", () => {
 
 		const payload = JSON.parse(result.stdout);
 		assert.equal(payload.ok, false);
-		assert.equal(payload.packageManager, "pnpm@11.1.2");
+		assert.equal(payload.packageManager, "pnpm@11.7.0");
 		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
 		assert.deepEqual(
 			payload.missing.map((check) => check.id),

@@ -109,11 +109,11 @@ function compactList(items, limit = 20) {
 	return items.slice(0, limit);
 }
 
-function printCompactIssues(items, formatItem, moreLabel, limit = 20) {
+function printCompactIssues(items, formatItem, moreLabel, limit = 20, totalCount = items.length) {
 	for (const item of items.slice(0, limit)) {
 		console.error(formatItem(item));
 	}
-	const remaining = items.length - limit;
+	const remaining = totalCount - limit;
 	if (remaining > 0) {
 		console.error(`  ... ${remaining} more ${moreLabel}`);
 	}
@@ -342,11 +342,15 @@ async function main() {
 			result.missingWorkspaceDependencyLinks,
 			(dependency) => `  unresolved workspace dependency link: ${dependency.package} -> ${dependency.dependency}`,
 			"workspace dependency link(s)",
+			20,
+			result.missingWorkspaceDependencyLinkCount,
 		);
 		printCompactIssues(
 			result.missingRuntimeDependencies,
 			(dependency) => `  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`,
 			"runtime dependency issue(s)",
+			20,
+			result.missingRuntimeDependencyCount,
 		);
 		for (const issue of result.mountIssues) {
 			console.error(`  mount mismatch: expected ${issue.target} to be a dedicated mount`);

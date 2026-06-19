@@ -68,9 +68,17 @@ function runProbe(command: string, args: string[] = []): {
 	} catch (error) {
 		const probeError = error as {
 			message?: string;
+			status?: number;
 			stdout?: Buffer | string;
 			stderr?: Buffer | string;
 		};
+		if (probeError.status === 0) {
+			return {
+				ok: true,
+				stdout: probeError.stdout?.toString().trim() ?? "",
+				stderr: probeError.stderr?.toString().trim() ?? "",
+			};
+		}
 		return {
 			ok: false,
 			stdout: probeError.stdout?.toString().trim() ?? "",
