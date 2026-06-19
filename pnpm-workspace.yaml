@@ -14,6 +14,10 @@ catalog:
   # node types
   "@types/node": "^25.6.0"
 
+shamefullyHoist: false
+strictPeerDependencies: false
+linkWorkspacePackages: true
+
 packages:
   - "packages/*"
   - "apps/*"
@@ -23,7 +27,11 @@ packages:
   - "validations/*/hello-world"
   - "templates/*"
 allowBuilds:
+  "@loro-crdt/base": true
+  "@playwright/test": true
+  better-sqlite3: true
   esbuild: true
+  playwright: true
   puppeteer: true
   sharp: true
   unrs-resolver: true

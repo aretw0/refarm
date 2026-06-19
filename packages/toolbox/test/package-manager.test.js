@@ -21,7 +21,7 @@ describe("toolbox package manager commands", () => {
         const root = mkdtempSync(join(tmpdir(), "refarm-toolbox-pm-"));
         const app = join(root, "apps", "dev");
         mkdirSync(app, { recursive: true });
-        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.1.2 " }));
+        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.7.0 " }));
         writeFileSync(join(app, "package.json"), JSON.stringify({ name: "dev" }));
 
         try {
