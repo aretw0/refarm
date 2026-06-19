@@ -12,7 +12,7 @@ export {
 	hasUsableModelCredentialSource,
 	inferProviderFromModelId,
 	isModelProvider,
-	isModelScope, isSubscriptionModelProvider, modelCredentialEnvKey,
+	isModelScope, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, modelCredentialEnvKey,
 	modelCredentialSource, modelCredentialStatus, modelOAuthCredential,
 	modelRouteTokenUpdate, parseModelRef, parseModelScope, type EffectiveModelRoute, type ModelCredentialSource, type ModelCredentialStatus, type ModelCredentialTokens, type ModelRef,
 	type ModelRouteTokens,

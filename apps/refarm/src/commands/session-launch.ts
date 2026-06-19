@@ -14,7 +14,6 @@ import {
 } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -22,6 +21,7 @@ import {
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
 	MODEL_PROVIDER_ENV_VAR,
 } from "../model-routing.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	resolveAutostartMode,
 	resolveTractorEngineMode,
@@ -99,17 +99,17 @@ export async function checkSessionReadiness(): Promise<SessionReadiness> {
 
 // Exported for tests — returns dirs to search for .refarm config, home first.
 export function refarmSearchDirs(): string[] {
-	return [
-		path.join(os.homedir(), ".refarm"),
+	return Array.from(new Set([
+		resolveRefarmHome(),
 		path.join(process.cwd(), ".refarm"),
-	];
+	]));
 }
 
 function detectProvider(): boolean {
 	const envProvider =
 		stringValue(process.env[MODEL_PROVIDER_ENV_VAR]) ??
 		stringValue(process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
-	if (envProvider) return hasProviderCredential(envProvider, {});
+	if (envProvider && hasProviderCredential(envProvider, {})) return true;
 	if (hasProviderCredential(DEFAULT_MODEL_PROVIDER, {})) return true;
 
 	for (const base of refarmSearchDirs()) {

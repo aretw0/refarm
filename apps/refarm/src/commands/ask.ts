@@ -1,5 +1,6 @@
 import {
 	isRuntimeAgentPluginId,
+	isRuntimeSubscriptionModelProvider,
 	isSubscriptionModelProvider,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config";
@@ -898,6 +899,7 @@ async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStat
 	const status = buildCurrentModelStatus(tokens);
 	const defaultCredential = status.routeCredentials.default;
 	if (!isSubscriptionModelProvider(status.current.provider)) return null;
+	if (isRuntimeSubscriptionModelProvider(status.current.provider)) return null;
 	if (defaultCredential.state === "missing" || defaultCredential.state === "not-required") {
 		return null;
 	}

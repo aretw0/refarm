@@ -35,6 +35,9 @@ export const SUBSCRIPTION_MODEL_PROVIDERS = [
     "openai-codex",
     "github-copilot",
 ];
+export const RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS = [
+    "openai-codex",
+];
 
 export const MODEL_CREDENTIAL_ENV_KEYS = {
     openai: "OPENAI_API_KEY",
@@ -175,6 +178,10 @@ export function isModelProvider(value) {
 
 export function isSubscriptionModelProvider(value) {
     return SUBSCRIPTION_MODEL_PROVIDERS.includes(value?.trim().toLowerCase());
+}
+
+export function isRuntimeSubscriptionModelProvider(value) {
+    return RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS.includes(value?.trim().toLowerCase());
 }
 
 export function defaultProviderModelRef(provider = DEFAULT_MODEL_PROVIDER) {

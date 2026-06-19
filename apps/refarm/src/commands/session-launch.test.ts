@@ -24,6 +24,8 @@ const providerEnvKeys = [
 	"MODEL_PROVIDER",
 	"MODEL_DEFAULT_PROVIDER",
 	"OPENAI_API_KEY",
+	"OPENAI_CODEX_ACCESS_TOKEN",
+	"GITHUB_COPILOT_ACCESS_TOKEN",
 	"ANTHROPIC_API_KEY",
 	"GROQ_API_KEY",
 	"MISTRAL_API_KEY",
@@ -36,11 +38,13 @@ const providerEnvKeys = [
 const originalProviderEnv = Object.fromEntries(
 	providerEnvKeys.map((key) => [key, process.env[key]]),
 ) as Record<typeof providerEnvKeys[number], string | undefined>;
+const originalRefarmHome = process.env.REFARM_HOME;
 
 beforeEach(() => {
 	for (const key of providerEnvKeys) {
 		delete process.env[key];
 	}
+	delete process.env.REFARM_HOME;
 	stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 	stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 	consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -54,6 +58,11 @@ afterEach(() => {
 		} else {
 			process.env[key] = value;
 		}
+	}
+	if (originalRefarmHome === undefined) {
+		delete process.env.REFARM_HOME;
+	} else {
+		process.env.REFARM_HOME = originalRefarmHome;
 	}
 	stdoutWriteSpy.mockRestore();
 	stderrWriteSpy.mockRestore();
@@ -156,6 +165,13 @@ describe("refarmSearchDirs", () => {
 		const dirs = refarmSearchDirs();
 		expect(dirs.some((d) => d.includes(".refarm"))).toBe(true);
 		expect(dirs.length).toBeGreaterThanOrEqual(2);
+	});
+
+	it("prefers REFARM_HOME when present", () => {
+		const refarmHome = join(tmpdir(), `refarm-home-${Date.now()}`);
+		process.env.REFARM_HOME = refarmHome;
+		const dirs = refarmSearchDirs();
+		expect(dirs[0]).toBe(refarmHome);
 	});
 });
 
@@ -286,6 +302,65 @@ describe("checkSessionReadiness", () => {
 			});
 		} finally {
 			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("recognizes subscription OAuth identity from REFARM_HOME", async () => {
+		const refarmHome = join(tmpdir(), `refarm-home-readiness-${Date.now()}`);
+		mkdirSync(refarmHome, { recursive: true });
+		process.env.REFARM_HOME = refarmHome;
+		writeFileSync(
+			join(refarmHome, "identity.json"),
+			JSON.stringify({
+				tokens: {
+					modelProvider: "openai-codex",
+					oauthProvider: "openai-codex",
+					oauthCredentials: {
+						"openai-codex": { access: "oauth-access-test" },
+					},
+				},
+			}),
+		);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(refarmHome, { recursive: true, force: true });
+		}
+	});
+
+	it("continues searching identity credentials when MODEL_PROVIDER is set", async () => {
+		const refarmHome = join(tmpdir(), `refarm-home-readiness-${Date.now()}`);
+		mkdirSync(refarmHome, { recursive: true });
+		process.env.REFARM_HOME = refarmHome;
+		process.env.MODEL_PROVIDER = "openai-codex";
+		writeFileSync(
+			join(refarmHome, "identity.json"),
+			JSON.stringify({
+				tokens: {
+					modelProvider: "openai-codex",
+					oauthProvider: "openai-codex",
+					oauthCredentials: {
+						"openai-codex": { access: "oauth-access-test" },
+					},
+				},
+			}),
+		);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toMatchObject({
+				providerConfigured: true,
+				runtimeRunning: false,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(refarmHome, { recursive: true, force: true });
 		}
 	});
 

@@ -21,6 +21,7 @@ import {
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
+    isRuntimeSubscriptionModelProvider,
     isSubscriptionModelProvider,
     modelCredentialStatus,
     modelCredentialEnvKey,
@@ -273,6 +274,12 @@ describe("model routing config", () => {
         expect(isSubscriptionModelProvider("github-copilot")).toBe(true);
         expect(isSubscriptionModelProvider("openai")).toBe(false);
         expect(isSubscriptionModelProvider("anthropic")).toBe(false);
+    });
+
+    it("classifies subscription providers with runtime adapters separately", () => {
+        expect(isRuntimeSubscriptionModelProvider("openai-codex")).toBe(true);
+        expect(isRuntimeSubscriptionModelProvider("github-copilot")).toBe(false);
+        expect(isRuntimeSubscriptionModelProvider("openai")).toBe(false);
     });
 
     it("validates known model route scopes", () => {

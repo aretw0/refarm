@@ -37,6 +37,7 @@ describe("printCurrentModel", () => {
 		delete process.env.MODEL_FALLBACK_MODEL_ID;
 		delete process.env.OPENAI_API_KEY;
 		delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
+		delete process.env.GITHUB_COPILOT_ACCESS_TOKEN;
 	});
 
 	it("shows the effective default route even when credentials are missing", () => {
@@ -66,7 +67,7 @@ describe("printCurrentModel", () => {
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 	});
 
-	it("warns when subscription OAuth is the only stored runtime credential", () => {
+	it("shows supported subscription OAuth without runtime unsupported warning", () => {
 		const output = captureCurrentModel({
 			modelProvider: "openai-codex",
 			modelId: "gpt-5.5",
@@ -77,12 +78,11 @@ describe("printCurrentModel", () => {
 		});
 
 		expect(output).toContain("key:      Silo OAuth (openai-codex)");
-		expect(output).toContain("subscription OAuth");
-		expect(output).toContain("not a runtime API credential yet");
-		expect(output).toContain("fix:     refarm sow --json");
+		expect(output).not.toContain("not a runtime API credential yet");
+		expect(output).not.toContain("fix:     refarm sow --json");
 	});
 
-	it("prints subscription OAuth recovery actions in JSON", () => {
+	it("prints no runtime unsupported recovery actions for supported subscription OAuth", () => {
 		const payload = captureCurrentModelJson({
 			modelProvider: "openai-codex",
 			modelId: "gpt-5.5",
@@ -94,43 +94,37 @@ describe("printCurrentModel", () => {
 			ok: boolean;
 			nextActions: string[];
 			nextCommands: string[];
-			recommendations: Array<{ diagnostic: string; severity: string }>;
+			recommendations?: Array<{ diagnostic: string; severity: string }>;
 		};
 
 		expect(payload.ok).toBe(true);
-		expect(payload.nextActions).toContain("refarm sow --json");
-		expect(payload.nextActions.some((command) =>
-			command.includes("refarm sow --model") && command.includes("openai-codex/gpt-5.5")
-		)).toBe(true);
-		expect(payload.nextCommands.some((command) =>
-			command.includes("refarm sow --model") && command.includes("openai-codex/gpt-5.5")
-		)).toBe(true);
-		expect(payload.recommendations).toContainEqual(
+		expect(payload.nextActions).toEqual([]);
+		expect(payload.nextCommands).toEqual([]);
+		expect(payload.recommendations ?? []).not.toContainEqual(
 			expect.objectContaining({
 				diagnostic: "model-subscription-runtime-unsupported",
-				severity: "warning",
 			}),
 		);
 	});
 
-	it("warns when a subscription provider token comes from the environment", () => {
-		process.env.MODEL_PROVIDER = "openai-codex";
-		process.env.MODEL_ID = "gpt-5.5";
-		process.env.OPENAI_CODEX_ACCESS_TOKEN = "codex-access-test";
+	it("warns when an unsupported subscription provider token comes from the environment", () => {
+		process.env.MODEL_PROVIDER = "github-copilot";
+		process.env.MODEL_ID = "gpt-4o";
+		process.env.GITHUB_COPILOT_ACCESS_TOKEN = "copilot-access-test";
 
 		const output = captureCurrentModel();
 
-		expect(output).toContain("current: openai-codex/gpt-5.5");
-		expect(output).toContain("key env:  OPENAI_CODEX_ACCESS_TOKEN");
-		expect(output).toContain("key:      OPENAI_CODEX_ACCESS_TOKEN env");
+		expect(output).toContain("current: github-copilot/gpt-4o");
+		expect(output).toContain("key env:  GITHUB_COPILOT_ACCESS_TOKEN");
+		expect(output).toContain("key:      GITHUB_COPILOT_ACCESS_TOKEN env");
 		expect(output).toContain("subscription OAuth");
 		expect(output).toContain("not a runtime API credential yet");
 	});
 
-	it("prints subscription env recovery actions in JSON", () => {
-		process.env.MODEL_PROVIDER = "openai-codex";
-		process.env.MODEL_ID = "gpt-5.5";
-		process.env.OPENAI_CODEX_ACCESS_TOKEN = "codex-access-test";
+	it("prints unsupported subscription env recovery actions in JSON", () => {
+		process.env.MODEL_PROVIDER = "github-copilot";
+		process.env.MODEL_ID = "gpt-4o";
+		process.env.GITHUB_COPILOT_ACCESS_TOKEN = "copilot-access-test";
 
 		const payload = captureCurrentModelJson() as {
 			ok: boolean;
@@ -142,7 +136,7 @@ describe("printCurrentModel", () => {
 		expect(payload.ok).toBe(true);
 		expect(payload.nextActions).toContain("refarm sow --json");
 		expect(payload.nextCommands.some((command) =>
-			command.includes("refarm sow --model") && command.includes("openai-codex/gpt-5.5")
+			command.includes("refarm sow --model") && command.includes("github-copilot/gpt-4o")
 		)).toBe(true);
 		expect(payload.recommendations).toContainEqual(
 			expect.objectContaining({

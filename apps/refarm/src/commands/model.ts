@@ -14,6 +14,7 @@ import {
 	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
+	isRuntimeSubscriptionModelProvider,
 	isSubscriptionModelProvider,
 	MODEL_BASE_URL_ENV_VAR,
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
@@ -574,6 +575,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 		const credential = status.routeCredentials[scope];
 		const subscriptionUnsupported =
 			isSubscriptionModelProvider(credential.provider) &&
+			!isRuntimeSubscriptionModelProvider(credential.provider) &&
 			credential.state !== "missing" &&
 			credential.state !== "not-required";
 		if (credential.state !== "missing" && !subscriptionUnsupported) continue;
@@ -615,6 +617,7 @@ function currentModelMissingRecommendations(
 		const credential = status.routeCredentials[scope];
 		const subscriptionUnsupported =
 			isSubscriptionModelProvider(credential.provider) &&
+			!isRuntimeSubscriptionModelProvider(credential.provider) &&
 			credential.state !== "missing" &&
 			credential.state !== "not-required";
 		if (subscriptionUnsupported) {

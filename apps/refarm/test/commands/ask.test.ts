@@ -57,6 +57,7 @@ describe("refarm ask", () => {
 	const originalBaseUrl = process.env.MODEL_BASE_URL;
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
 	const originalOpenAiCodexToken = process.env.OPENAI_CODEX_ACCESS_TOKEN;
+	const originalGithubCopilotToken = process.env.GITHUB_COPILOT_ACCESS_TOKEN;
 	const originalRefarmHome = process.env.REFARM_HOME;
 	const originalHome = process.env.HOME;
 	const originalStreamsDir = process.env.REFARM_STREAMS_DIR;
@@ -72,6 +73,7 @@ describe("refarm ask", () => {
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
 		delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
+		delete process.env.GITHUB_COPILOT_ACCESS_TOKEN;
 		delete process.env.REFARM_HOME;
 		delete process.env.REFARM_STREAMS_DIR;
 		delete process.env.REFARM_TASK_RESULTS_DIR;
@@ -107,6 +109,11 @@ describe("refarm ask", () => {
 			delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
 		} else {
 			process.env.OPENAI_CODEX_ACCESS_TOKEN = originalOpenAiCodexToken;
+		}
+		if (originalGithubCopilotToken === undefined) {
+			delete process.env.GITHUB_COPILOT_ACCESS_TOKEN;
+		} else {
+			process.env.GITHUB_COPILOT_ACCESS_TOKEN = originalGithubCopilotToken;
 		}
 		if (originalRefarmHome === undefined) {
 			delete process.env.REFARM_HOME;
@@ -482,7 +489,7 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
-	it("fails before submitting when the current model only has subscription OAuth", async () => {
+	it("submits when openai-codex has subscription OAuth credentials", async () => {
 		process.env.REFARM_HOME = tempHome ?? "";
 		process.env.MODEL_PROVIDER = "openai-codex";
 		delete process.env.MODEL_DEFAULT_PROVIDER;
@@ -517,49 +524,26 @@ describe("refarm ask", () => {
 		await command.parseAsync(["hello", "--json"], { from: "user" });
 
 		expect(errSpy).not.toHaveBeenCalled();
-		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
-			ok: boolean;
-			error: string;
-			nextCommands: string[];
-			recommendations: { diagnostic: string }[];
-		};
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
 		expect(payload).toMatchObject({
-			ok: false,
-			error: "model-subscription-runtime-unsupported",
-			current: {
-				provider: "openai-codex",
-				modelId: "gpt-5.5",
-				ref: "openai-codex/gpt-5.5",
-			},
-			credential: {
-				state: "silo-oauth",
-				status: "Silo OAuth (openai-codex)",
-			},
+			ok: true,
+			content: "hello world",
 		});
-		expect(payload.nextCommands).toContain("refarm model current --json");
-		expect(payload.nextCommands).toContain("refarm sow --json");
-		expect(payload.nextCommands).toContain(
-			"refarm sow --model 'openai-codex/gpt-5.5' --json",
-		);
-		expect(payload.recommendations).toEqual([
-			expect.objectContaining({
-				diagnostic: "model-subscription-runtime-unsupported",
-			}),
-		]);
-		expect(deps.submitEffort).not.toHaveBeenCalled();
-		expect(process.exitCode).toBe(1);
+		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		expect(process.exitCode).toBeUndefined();
 
 		logSpy.mockRestore();
 		errSpy.mockRestore();
 	});
 
-	it("fails before submitting when a subscription provider token comes from env", async () => {
+	it("fails before submitting when an unsupported subscription provider token comes from env", async () => {
 		process.env.REFARM_HOME = tempHome ?? "";
-		process.env.MODEL_PROVIDER = "openai-codex";
-		process.env.MODEL_ID = "gpt-5.5";
-		process.env.OPENAI_CODEX_ACCESS_TOKEN = "codex-access-test";
+		process.env.MODEL_PROVIDER = "github-copilot";
+		process.env.MODEL_ID = "gpt-4o";
+		process.env.GITHUB_COPILOT_ACCESS_TOKEN = "copilot-access-test";
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
+		delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps();
 		const launchDeps: LaunchDeps = {
@@ -585,7 +569,7 @@ describe("refarm ask", () => {
 			error: "model-subscription-runtime-unsupported",
 			credential: {
 				state: "env",
-				envKey: "OPENAI_CODEX_ACCESS_TOKEN",
+				envKey: "GITHUB_COPILOT_ACCESS_TOKEN",
 			},
 		});
 		expect(deps.submitEffort).not.toHaveBeenCalled();
