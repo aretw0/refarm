@@ -154,7 +154,10 @@ export function createSiloModelEnvInjector(
 								return;
 							}
 						}
-						const envKey = modelCredentialEnvKey(provider ?? oauthProvider);
+						if (oauthProvider && !routeProviderOverridden && provider !== oauthProvider) {
+							setManagedEnv(MODEL_PROVIDER_ENV_VAR, oauthProvider);
+						}
+						const envKey = modelCredentialEnvKey(oauthProvider);
 						if (envKey) setManagedEnv(envKey, effectiveCreds.access);
 						return;
 					}

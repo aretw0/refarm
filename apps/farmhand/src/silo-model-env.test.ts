@@ -267,7 +267,9 @@ describe("createSiloModelEnvInjector", () => {
 
 		await injector.inject();
 
-		expect(env.OPENAI_API_KEY).toBe("fresh");
+		expect(env.MODEL_PROVIDER).toBe("openai-codex");
+		expect(env.OPENAI_API_KEY).toBeUndefined();
+		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("fresh");
 		expect(store.saveTokens).toHaveBeenCalledWith({
 			oauthCredentials: {
 				"openai-codex": refreshed,
