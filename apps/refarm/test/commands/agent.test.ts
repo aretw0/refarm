@@ -1738,6 +1738,7 @@ describe("agent command", () => {
 			"-m",
 			"docs",
 		], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 2;\n", "utf8");
 		const originalCwd = process.cwd();
 		process.chdir(root);
 		const runRefarm = vi.fn((args: string[]) => ({

@@ -281,15 +281,24 @@ function affectedPackageFinishSteps(
 	);
 }
 
-function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
+function affectedWorkspacesFromGit(options: {
+	includeWorkingTree?: boolean;
+	repoRoot?: string;
+	since?: string;
+} = {}): string[] {
 	return affectedWorkspacePackagesFromChangedPaths(
 		options.repoRoot ?? findWorkspaceRoot(),
 		changedPathsFromGit(options),
 	);
 }
 
-function changedPathsFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
+function changedPathsFromGit(options: {
+	includeWorkingTree?: boolean;
+	repoRoot?: string;
+	since?: string;
+} = {}): string[] {
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
+	const includeWorkingTree = options.includeWorkingTree ?? true;
 	try {
 		const status = readGitCommand(
 			["status", "--short", "--untracked-files=all"],
@@ -298,13 +307,13 @@ function changedPathsFromGit(options: { repoRoot?: string; since?: string } = {}
 		if (!options.since) {
 			return changedFilePathsFromGitStatus(status);
 		}
-		const diff = readGitCommand(
-			["diff", "--name-only", options.since, "--"],
-			{ cwd: repoRoot },
-		);
+		const diffArgs = includeWorkingTree
+			? ["diff", "--name-only", options.since, "--"]
+			: ["diff", "--name-only", options.since, "HEAD", "--"];
+		const diff = readGitCommand(diffArgs, { cwd: repoRoot });
 		return [
 			...changedFilePathsFromGitNameOnly(diff),
-			...changedFilePathsFromGitStatus(status),
+			...(includeWorkingTree ? changedFilePathsFromGitStatus(status) : []),
 		];
 	} catch {
 		if (options.since) {
@@ -596,7 +605,11 @@ export function resolveFinishSelectionContext(
 	if (selection.profile !== "affected") return {};
 	const repoRoot = findWorkspaceRoot();
 	const sinceRef = selection.since ? resolveSinceRef(repoRoot, selection.since) : undefined;
-	const changedPaths = changedPathsFromGit({ repoRoot, since: sinceRef });
+	const changedPaths = changedPathsFromGit({
+		includeWorkingTree: selection.lane !== "after-commit",
+		repoRoot,
+		since: sinceRef,
+	});
 	return {
 		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths),
 		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
