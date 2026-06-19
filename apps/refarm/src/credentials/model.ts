@@ -193,5 +193,5 @@ export const modelCredentialProvider: CredentialProvider & {
 /** Map from OAuth provider id → Silo modelProvider id used by runtime agents and Farmhand. */
 export const OAUTH_PROVIDER_TO_MODEL_PROVIDER: Record<string, string> = {
 	"anthropic": "anthropic",
-	"openai-codex": "openai",
+	"openai-codex": "openai-codex",
 };

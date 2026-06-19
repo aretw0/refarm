@@ -19,6 +19,8 @@ export const MODEL_RUNTIME_ENV_VARS = [
 ];
 export const MODEL_PROVIDERS = [
     "openai",
+    "openai-codex",
+    "github-copilot",
     "anthropic",
     "ollama",
     "groq",
@@ -29,10 +31,15 @@ export const MODEL_PROVIDERS = [
     "together",
     "openrouter",
 ];
+export const SUBSCRIPTION_MODEL_PROVIDERS = [
+    "openai-codex",
+    "github-copilot",
+];
 
 export const MODEL_CREDENTIAL_ENV_KEYS = {
     openai: "OPENAI_API_KEY",
-    "openai-codex": "OPENAI_API_KEY",
+    "openai-codex": "OPENAI_CODEX_ACCESS_TOKEN",
+    "github-copilot": "GITHUB_COPILOT_ACCESS_TOKEN",
     anthropic: "ANTHROPIC_API_KEY",
     groq: "GROQ_API_KEY",
     mistral: "MISTRAL_API_KEY",
@@ -102,7 +109,7 @@ export function modelCredentialStatus(provider, tokens = {}, env = defaultEnv())
         return { state: "silo-api-key", envKey: credentialEnv };
     }
     const oauthProvider = modelOAuthCredential(tokens);
-    if (oauthProvider) {
+    if (oauthProvider && (!normalizedProvider || oauthProvider.toLowerCase() === normalizedProvider)) {
         return { state: "silo-oauth", envKey: credentialEnv, oauthProvider };
     }
     return { state: "missing", envKey: credentialEnv };
@@ -121,6 +128,7 @@ export function hasUsableModelCredentialSource(source = {}, env = defaultEnv()) 
 
 export function inferProviderFromModelId(modelId) {
     const normalized = modelId.trim().toLowerCase();
+    if (normalized.includes("codex")) return "openai-codex";
     if (normalized.startsWith("gpt-") || normalized.startsWith("o")) return "openai";
     if (normalized.startsWith("claude-")) return "anthropic";
     if (normalized.startsWith("grok-")) return "xai";
@@ -134,6 +142,10 @@ export function defaultModelForProvider(provider) {
     switch (provider?.trim().toLowerCase()) {
         case "openai":
             return "gpt-5.5";
+        case "openai-codex":
+            return "gpt-5.5";
+        case "github-copilot":
+            return "gpt-4o";
         case "anthropic":
             return "claude-sonnet-4-6";
         case "groq":
@@ -161,6 +173,10 @@ export function isModelProvider(value) {
     return MODEL_PROVIDERS.includes(value?.trim().toLowerCase());
 }
 
+export function isSubscriptionModelProvider(value) {
+    return SUBSCRIPTION_MODEL_PROVIDERS.includes(value?.trim().toLowerCase());
+}
+
 export function defaultProviderModelRef(provider = DEFAULT_MODEL_PROVIDER) {
     return formatModelRef(provider, defaultModelForProvider(provider));
 }
@@ -171,7 +187,7 @@ export function defaultProviderModelId(provider = DEFAULT_MODEL_PROVIDER) {
 
 export function defaultModelForScope(provider, scope) {
     const normalized = provider?.trim().toLowerCase();
-    if (scope === "worker" && normalized === "openai") {
+    if (scope === "worker" && (normalized === "openai" || normalized === "openai-codex")) {
         return "gpt-5.3-codex-spark";
     }
     return defaultModelForProvider(provider);

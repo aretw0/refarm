@@ -24,6 +24,7 @@
 - **[Process Playbook](PROCESS_PLAYBOOK.md)** — Daily operational commands: services, agents, smoke gates, troubleshooting.
 - **[Operator Daily Driver](REFARM_OPERATOR_DAILY_DRIVER.md)** — Short maintained loop for using Refarm as the daily CLI driver.
 - **[Operator Primitives](OPERATOR_PRIMITIVES.md)** — Stable JSON, session, task, runtime, model, and finish primitives for agentic operation.
+- **[Model Provider Strata](model-provider-strata.md)** — API-key billing vs subscription-backed provider contract for model routing.
 - **[NixOS Curated Runtime Strategy](NIXOS_CURATED_RUNTIME_STRATEGY.md)** — Strategic lane for evaluating Nix/NixOS as a reproducible Refarm substrate without becoming a distro prematurely.
 - **[Environment Substrate Inventory](ENVIRONMENT_SUBSTRATE_INVENTORY.md)** — Current ownership map for devcontainer, CI, host install, Rust/WASM, browser runtime, and future Nix lanes.
 - **[Action Readiness Cookbook](REFARM_ACTION_READINESS_COOKBOOK.md)** — JSON handoff contract, `nextCommand` rules, and end-of-slice agent finish flow.
@@ -56,6 +57,7 @@
 
 ## 🚀 Release Planning
 
+- **[Release Kernel Inventory](RELEASE_KERNEL_INVENTORY.md)** — Current package classification for kernel contracts, primitives, reference implementations, daily-driver surfaces, and lab/internal work.
 - **[v0.1.0 Release Gate](v0.1.0-release-gate.md)** — Daily-driver-first gate; contract publication on hold until Refarm replaces the current pi workflow.
 - **[Daily Driver Control Plane Plan](superpowers/plans/2026-05-17-refarm-daily-driver-control-plane.md)** — Convergence lane for Farmhand as the local/remote control plane, plugin safety, TUI/PWA clients, and documentation alignment before publication.
 - **[Daily-Driver Parity Checklist](DAILY_DRIVER_PARITY.md)** — Capability checklist mapping pi workflow to Refarm surfaces.

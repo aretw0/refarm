@@ -14,6 +14,7 @@ import {
 	defaultScopedModelRef,
 	effectiveModelRouteForScope,
 	formatModelRef,
+	isSubscriptionModelProvider,
 	MODEL_BASE_URL_ENV_VAR,
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
 	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
@@ -571,7 +572,11 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 	const seenMissingProviders = new Set<string>();
 	for (const scope of MODEL_SCOPES) {
 		const credential = status.routeCredentials[scope];
-		if (credential.state !== "missing" && credential.state !== "silo-oauth") continue;
+		const subscriptionUnsupported =
+			isSubscriptionModelProvider(credential.provider) &&
+			credential.state !== "missing" &&
+			credential.state !== "not-required";
+		if (credential.state !== "missing" && !subscriptionUnsupported) continue;
 		const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
 		if (seenMissingProviders.has(providerKey)) continue;
 		seenMissingProviders.add(providerKey);
@@ -608,7 +613,11 @@ function currentModelMissingRecommendations(
 	const seenSubscriptionProviders = new Set<string>();
 	for (const scope of MODEL_SCOPES) {
 		const credential = status.routeCredentials[scope];
-		if (credential.state === "silo-oauth") {
+		const subscriptionUnsupported =
+			isSubscriptionModelProvider(credential.provider) &&
+			credential.state !== "missing" &&
+			credential.state !== "not-required";
+		if (subscriptionUnsupported) {
 			const providerKey = credential.provider?.trim().toLowerCase() ?? scope;
 			if (seenSubscriptionProviders.has(providerKey)) continue;
 			seenSubscriptionProviders.add(providerKey);

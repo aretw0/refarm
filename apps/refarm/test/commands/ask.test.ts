@@ -53,8 +53,10 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 describe("refarm ask", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
+	const originalModelId = process.env.MODEL_ID;
 	const originalBaseUrl = process.env.MODEL_BASE_URL;
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
+	const originalOpenAiCodexToken = process.env.OPENAI_CODEX_ACCESS_TOKEN;
 	const originalRefarmHome = process.env.REFARM_HOME;
 	const originalHome = process.env.HOME;
 	const originalStreamsDir = process.env.REFARM_STREAMS_DIR;
@@ -66,8 +68,10 @@ describe("refarm ask", () => {
 		process.exitCode = undefined;
 		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ask-home-"));
 		process.env.HOME = tempHome;
+		delete process.env.MODEL_ID;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
+		delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
 		delete process.env.REFARM_HOME;
 		delete process.env.REFARM_STREAMS_DIR;
 		delete process.env.REFARM_TASK_RESULTS_DIR;
@@ -84,6 +88,11 @@ describe("refarm ask", () => {
 		} else {
 			process.env.MODEL_DEFAULT_PROVIDER = originalDefaultProvider;
 		}
+		if (originalModelId === undefined) {
+			delete process.env.MODEL_ID;
+		} else {
+			process.env.MODEL_ID = originalModelId;
+		}
 		if (originalBaseUrl === undefined) {
 			delete process.env.MODEL_BASE_URL;
 		} else {
@@ -93,6 +102,11 @@ describe("refarm ask", () => {
 			delete process.env.OPENAI_API_KEY;
 		} else {
 			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
+		if (originalOpenAiCodexToken === undefined) {
+			delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
+		} else {
+			process.env.OPENAI_CODEX_ACCESS_TOKEN = originalOpenAiCodexToken;
 		}
 		if (originalRefarmHome === undefined) {
 			delete process.env.REFARM_HOME;
@@ -470,7 +484,7 @@ describe("refarm ask", () => {
 
 	it("fails before submitting when the current model only has subscription OAuth", async () => {
 		process.env.REFARM_HOME = tempHome ?? "";
-		process.env.MODEL_PROVIDER = "openai";
+		process.env.MODEL_PROVIDER = "openai-codex";
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.MODEL_BASE_URL;
 		delete process.env.OPENAI_API_KEY;
@@ -479,7 +493,7 @@ describe("refarm ask", () => {
 			path.join(process.env.REFARM_HOME, "identity.json"),
 			JSON.stringify({
 				tokens: {
-					modelProvider: "openai",
+					modelProvider: "openai-codex",
 					modelId: "gpt-5.5",
 					oauthProvider: "openai-codex",
 					oauthCredentials: {
@@ -513,9 +527,9 @@ describe("refarm ask", () => {
 			ok: false,
 			error: "model-subscription-runtime-unsupported",
 			current: {
-				provider: "openai",
+				provider: "openai-codex",
 				modelId: "gpt-5.5",
-				ref: "openai/gpt-5.5",
+				ref: "openai-codex/gpt-5.5",
 			},
 			credential: {
 				state: "silo-oauth",
@@ -525,13 +539,55 @@ describe("refarm ask", () => {
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain(
-			"refarm sow --model 'openai/gpt-5.5' --json",
+			"refarm sow --model 'openai-codex/gpt-5.5' --json",
 		);
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({
 				diagnostic: "model-subscription-runtime-unsupported",
 			}),
 		]);
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("fails before submitting when a subscription provider token comes from env", async () => {
+		process.env.REFARM_HOME = tempHome ?? "";
+		process.env.MODEL_PROVIDER = "openai-codex";
+		process.env.MODEL_ID = "gpt-5.5";
+		process.env.OPENAI_CODEX_ACCESS_TOKEN = "codex-access-test";
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.OPENAI_API_KEY;
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			credential: { state: string; envKey: string };
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "model-subscription-runtime-unsupported",
+			credential: {
+				state: "env",
+				envKey: "OPENAI_CODEX_ACCESS_TOKEN",
+			},
+		});
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 

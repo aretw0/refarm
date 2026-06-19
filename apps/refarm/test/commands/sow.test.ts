@@ -72,6 +72,35 @@ describe("sowCommand — default (no flags)", () => {
 		);
 	});
 
+	it("keeps subscription OAuth providers separate from API key providers", async () => {
+		mockModelCollect.mockResolvedValue({
+			provider: "openai-codex",
+			apiKey: "oauth-access-test",
+			oauthCredentials: {
+				access: "oauth-access-test",
+				refresh: "oauth-refresh-test",
+				expires: Date.now() + 60_000,
+				accountId: "chatgpt-account-test",
+			},
+		});
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		expect(mockSaveTokens).toHaveBeenCalledWith(
+			expect.objectContaining({
+				modelProvider: "openai-codex",
+				oauthProvider: "openai-codex",
+				oauthCredentials: {
+					"openai-codex": expect.objectContaining({
+						access: "oauth-access-test",
+						refresh: "oauth-refresh-test",
+						accountId: "chatgpt-account-test",
+					}),
+				},
+			}),
+		);
+	});
+
 	it("sets provider/model without prompting when a full model ref is passed", async () => {
 		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
 		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], { from: "user" });

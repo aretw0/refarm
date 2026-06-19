@@ -1,5 +1,6 @@
 import {
 	isRuntimeAgentPluginId,
+	isSubscriptionModelProvider,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config";
 import {
@@ -896,7 +897,10 @@ async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStat
 	const tokens = await defaultModelDeps().loadTokens();
 	const status = buildCurrentModelStatus(tokens);
 	const defaultCredential = status.routeCredentials.default;
-	if (defaultCredential.state !== "silo-oauth") return null;
+	if (!isSubscriptionModelProvider(status.current.provider)) return null;
+	if (defaultCredential.state === "missing" || defaultCredential.state === "not-required") {
+		return null;
+	}
 	return status;
 }
 

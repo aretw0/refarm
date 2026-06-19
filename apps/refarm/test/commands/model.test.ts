@@ -149,7 +149,7 @@ describe("modelCommand", () => {
 
 	it("does not export subscription OAuth credentials as runtime API keys", async () => {
 		const deps = makeDeps({
-			modelProvider: "openai",
+			modelProvider: "openai-codex",
 			modelId: "gpt-5.5",
 			oauthProvider: "openai-codex",
 			oauthCredentials: {
@@ -162,9 +162,10 @@ describe("modelCommand", () => {
 		await command.parseAsync(["env", "--shell"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("export MODEL_PROVIDER='openai'");
+		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).not.toContain("OPENAI_API_KEY");
+		expect(output).not.toContain("OPENAI_CODEX_ACCESS_TOKEN");
 		expect(output).not.toContain("oauth-access-test");
 
 		logSpy.mockRestore();

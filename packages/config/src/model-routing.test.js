@@ -21,6 +21,7 @@ import {
     inferProviderFromModelId,
     isModelProvider,
     isModelScope,
+    isSubscriptionModelProvider,
     modelCredentialStatus,
     modelCredentialEnvKey,
     modelCredentialSource,
@@ -59,6 +60,8 @@ describe("model routing config", () => {
 
     it("resolves provider defaults used by refarm runtimes", () => {
         expect(defaultModelForProvider("openai")).toBe("gpt-5.5");
+        expect(defaultModelForProvider("openai-codex")).toBe("gpt-5.5");
+        expect(defaultModelForProvider("github-copilot")).toBe("gpt-4o");
         expect(defaultModelForProvider("anthropic")).toBe("claude-sonnet-4-6");
         expect(defaultModelForProvider("groq")).toBe("llama-3.3-70b-versatile");
         expect(defaultModelForProvider("mistral")).toBe("mistral-medium-3-5");
@@ -72,6 +75,7 @@ describe("model routing config", () => {
 
     it("uses a separate OpenAI worker route", () => {
         expect(defaultModelForScope("openai", "worker")).toBe("gpt-5.3-codex-spark");
+        expect(defaultModelForScope("openai-codex", "worker")).toBe("gpt-5.3-codex-spark");
         expect(defaultModelForScope("gemini", "worker")).toBe("gemini-3-flash-preview");
     });
 
@@ -171,6 +175,7 @@ describe("model routing config", () => {
 
     it("formats default provider and scoped model refs", () => {
         expect(defaultProviderModelRef("openai")).toBe("openai/gpt-5.5");
+        expect(defaultProviderModelRef("openai-codex")).toBe("openai-codex/gpt-5.5");
         expect(defaultProviderModelId("ollama")).toBe("llama3.2");
         expect(defaultScopedModelRef("worker", "openai")).toBe("openai/gpt-5.3-codex-spark");
         expect(formatModelRef(undefined, undefined)).toBe("<not configured>");
@@ -248,6 +253,7 @@ describe("model routing config", () => {
 
     it("infers providers from known model prefixes", () => {
         expect(inferProviderFromModelId("gpt-5.5")).toBe("openai");
+        expect(inferProviderFromModelId("gpt-5.3-codex-spark")).toBe("openai-codex");
         expect(inferProviderFromModelId("claude-sonnet-4-6")).toBe("anthropic");
         expect(inferProviderFromModelId("gemini-3-flash-preview")).toBe("gemini");
         expect(inferProviderFromModelId("grok-4.3")).toBe("xai");
@@ -256,8 +262,17 @@ describe("model routing config", () => {
 
     it("validates known provider route prefixes", () => {
         expect(isModelProvider("openai")).toBe(true);
+        expect(isModelProvider("openai-codex")).toBe(true);
+        expect(isModelProvider("github-copilot")).toBe(true);
         expect(isModelProvider("together")).toBe(true);
         expect(isModelProvider("meta-llama")).toBe(false);
+    });
+
+    it("classifies subscription-backed providers separately from API providers", () => {
+        expect(isSubscriptionModelProvider("openai-codex")).toBe(true);
+        expect(isSubscriptionModelProvider("github-copilot")).toBe(true);
+        expect(isSubscriptionModelProvider("openai")).toBe(false);
+        expect(isSubscriptionModelProvider("anthropic")).toBe(false);
     });
 
     it("validates known model route scopes", () => {
@@ -272,7 +287,8 @@ describe("model routing config", () => {
 
     it("resolves provider credential env keys", () => {
         expect(modelCredentialEnvKey("openai")).toBe("OPENAI_API_KEY");
-        expect(modelCredentialEnvKey("openai-codex")).toBe("OPENAI_API_KEY");
+        expect(modelCredentialEnvKey("openai-codex")).toBe("OPENAI_CODEX_ACCESS_TOKEN");
+        expect(modelCredentialEnvKey("github-copilot")).toBe("GITHUB_COPILOT_ACCESS_TOKEN");
         expect(modelCredentialEnvKey("gemini")).toBe("GEMINI_API_KEY");
         expect(modelCredentialEnvKey("ollama")).toBeUndefined();
         expect(modelCredentialEnvKey("unknown")).toBeUndefined();
@@ -287,8 +303,9 @@ describe("model routing config", () => {
         ).toEqual({ state: "silo-api-key", envKey: "OPENAI_API_KEY" });
         expect(
             modelCredentialStatus(
-                "openai",
+                "openai-codex",
                 {
+                    modelProvider: "openai-codex",
                     oauthProvider: "openai-codex",
                     oauthCredentials: { "openai-codex": { access: "token" } },
                 },
@@ -296,8 +313,22 @@ describe("model routing config", () => {
             ),
         ).toEqual({
             state: "silo-oauth",
-            envKey: "OPENAI_API_KEY",
+            envKey: "OPENAI_CODEX_ACCESS_TOKEN",
             oauthProvider: "openai-codex",
+        });
+        expect(
+            modelCredentialStatus(
+                "openai",
+                {
+                    modelProvider: "openai-codex",
+                    oauthProvider: "openai-codex",
+                    oauthCredentials: { "openai-codex": { access: "token" } },
+                },
+                {},
+            ),
+        ).toEqual({
+            state: "missing",
+            envKey: "OPENAI_API_KEY",
         });
         expect(modelCredentialStatus("openai", {}, {})).toEqual({
             state: "missing",

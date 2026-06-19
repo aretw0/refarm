@@ -22,6 +22,7 @@ export const MODEL_RUNTIME_ENV_VARS: readonly [
     typeof MODEL_FALLBACK_MODEL_ID_ENV_VAR,
 ];
 export const MODEL_PROVIDERS: readonly string[];
+export const SUBSCRIPTION_MODEL_PROVIDERS: readonly string[];
 export const MODEL_CREDENTIAL_ENV_KEYS: Readonly<Record<string, string>>;
 
 export interface ModelRef {
@@ -66,6 +67,7 @@ export type ModelCredentialStatus =
 
 export function inferProviderFromModelId(modelId: string): string | undefined;
 export function isModelProvider(value: string | undefined): boolean;
+export function isSubscriptionModelProvider(value: string | undefined): boolean;
 export function modelCredentialEnvKey(provider: string | undefined): string | undefined;
 export function modelCredentialSource(source?: Record<string, unknown>): ModelCredentialSource;
 export function modelOAuthCredential(tokens?: ModelCredentialTokens): string | undefined;
