@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-ownership.mjs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");
@@ -152,6 +153,16 @@ const nodeRun = run(process.execPath, ["scripts/ci/check-node-substrate.mjs", "-
 const rustRun = run(process.execPath, ["scripts/ci/check-rust-substrate.mjs", "--json"]);
 const nodeSubstrate = parseJsonRun(nodeRun);
 const rustSubstrate = parseJsonRun(rustRun);
+const artifactOwnershipIssues = findDerivedArtifactOwnershipIssues();
+const artifactOwnershipCheck = {
+	id: "derived_artifact_ownership",
+	kind: "workspace-artifacts",
+	required: true,
+	ok: artifactOwnershipIssues.length === 0,
+	command: "pnpm run workspace:artifacts:ownership",
+	issueCount: artifactOwnershipIssues.length,
+	issues: artifactOwnershipIssues,
+};
 
 const tools = [
 	toolCheck("tool_node", process.execPath, ["--version"]),
@@ -188,6 +199,7 @@ const checks = [
 		command: "node scripts/ci/check-rust-substrate.mjs --json",
 		exitCode: rustRun.exitCode,
 	},
+	artifactOwnershipCheck,
 	...tools,
 	...diagnosticTools,
 ];
@@ -212,6 +224,19 @@ const recommendations = [
 			action: `Install or expose ${check.command} in PATH for this environment.`,
 			target: check.command,
 		})),
+	...(artifactOwnershipCheck.ok
+		? []
+		: [
+			{
+				diagnostic: "environment-substrate:derived-artifact-ownership",
+				severity: "failure",
+				summary: "Derived workspace artifacts are owned by another user or container.",
+				action:
+					"Run pnpm run workspace:artifacts:ownership, then clean only the reported ignored outputs in the environment that owns them.",
+				target: "workspace-artifacts",
+				issues: artifactOwnershipIssues,
+			},
+		]),
 	...diagnosticTools
 		.filter((check) => !check.ok)
 		.map((check) => ({

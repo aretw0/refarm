@@ -134,6 +134,8 @@
 		"devcontainer:contract:test": "node --test scripts/ci/test-devcontainer-contract.mjs",
 		"runtime:start-helpers:test": "node --test scripts/ci/test-runtime-start-helpers.mjs",
 		"workspace-script:test": "node --test scripts/ci/test-run-workspace-script.mjs",
+		"workspace:artifacts:ownership": "node scripts/ci/check-derived-artifact-ownership.mjs",
+		"workspace:artifacts:ownership:test": "node --test scripts/ci/test-check-derived-artifact-ownership-lib.mjs",
 		"node-substrate:check": "node scripts/ci/check-node-substrate.mjs",
 		"rust-substrate:check": "node scripts/ci/check-rust-substrate.mjs",
 		"platform-compat:check": "node scripts/ci/check-platform-compat.mjs",

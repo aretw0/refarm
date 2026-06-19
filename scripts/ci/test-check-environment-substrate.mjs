@@ -36,6 +36,12 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.equal(typeof output.substrate.rust.ok, "boolean");
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
+	assert.ok(output.checks.some((check) =>
+		check.id === "derived_artifact_ownership" &&
+		check.kind === "workspace-artifacts" &&
+		check.required === true &&
+		check.command === "pnpm run workspace:artifacts:ownership",
+	));
 	assert.ok(output.checks.some((check) => check.id === "tool_node" && check.required === true));
 	assert.ok(output.checks.some((check) =>
 		check.id === "tool_pnpm" &&

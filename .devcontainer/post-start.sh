@@ -4,6 +4,12 @@ set -euo pipefail
 export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
 export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$ROOT/.cache/npm}"
+export REFARM_DEVCONTAINER="${REFARM_DEVCONTAINER:-true}"
+export REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
+export REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/.cache/cargo-target}"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 
 echo "[refarm-devcontainer] Post-start sanity check..."
@@ -42,6 +48,11 @@ ensure_pnpm() {
 	repair_owned_dir /home/vscode/.config
 	repair_owned_dir /home/vscode/.config/gh
 	repair_owned_dir /home/vscode/.cache
+	repair_owned_dir "$NPM_CONFIG_CACHE"
+	repair_owned_dir "$REFARM_HOME"
+	repair_owned_dir "$XDG_DATA_HOME"
+	repair_owned_dir "$REFARM_STREAMS_DIR"
+	repair_owned_dir "$CARGO_TARGET_DIR"
 
 	corepack prepare --activate || true
 

@@ -81,7 +81,7 @@ if [ "$MODE" = "--check" ]; then
 	done
 	if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
 		SIZE="$(size_mb "$VOLUME_TARGET")"
-		printf "  %6sM  %s  (CARGO_TARGET_DIR volume)\n" "$SIZE" "$VOLUME_TARGET"
+		printf "  %6sM  %s  (CARGO_TARGET_DIR workspace cache)\n" "$SIZE" "$VOLUME_TARGET"
 		TOTAL=$((TOTAL + SIZE))
 	fi
 	echo "  ─────────────────"
@@ -103,7 +103,7 @@ if [ "$MODE" = "--full" ]; then
 	done
 	if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
 		SIZE="$(size_mb "$VOLUME_TARGET")"
-		echo "  Removing $VOLUME_TARGET (${SIZE}M)  [CARGO_TARGET_DIR volume]"
+		echo "  Removing $VOLUME_TARGET (${SIZE}M)  [CARGO_TARGET_DIR workspace cache]"
 		rm -rf "$VOLUME_TARGET"
 		mkdir -p "$VOLUME_TARGET"
 	fi
@@ -127,7 +127,7 @@ for pkg in "${RUST_PACKAGES[@]}"; do
 done
 
 if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
-	clean_target_tree "$VOLUME_TARGET (CARGO_TARGET_DIR volume)" "$VOLUME_TARGET"
+	clean_target_tree "$VOLUME_TARGET (CARGO_TARGET_DIR workspace cache)" "$VOLUME_TARGET"
 fi
 
 echo ""

@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+public/sqlite3*
+public/sql-wasm*.wasm
 
 # Editor directories and files
 .vscode/*

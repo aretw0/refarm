@@ -20,6 +20,13 @@ function run(command, args = []) {
 			stdout: execFileSync(command, args, { encoding: "utf8", windowsHide: true }).trim(),
 		};
 	} catch (error) {
+		if (error.status === 0) {
+			return {
+				ok: true,
+				stdout: error.stdout?.toString().trim() ?? "",
+				stderr: error.stderr?.toString().trim() ?? "",
+			};
+		}
 		return {
 			ok: false,
 			stdout: error.stdout?.toString().trim() ?? "",

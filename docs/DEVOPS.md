@@ -64,7 +64,7 @@ Refarm uses **VS Code Dev Containers** to provide a consistent, reproducible dev
 
 - **Base:** Debian GNU/Linux 12 (bookworm)
 - **Node.js:** v22.16.0
-- **pnpm:** 11.1.2 (pinned via `packageManager` in `package.json`, managed by corepack)
+- **pnpm:** 11.7.0 (pinned via `packageManager` in `package.json`, managed by corepack)
 - **Rust:** 1.94.0
 - **Cargo:** 1.94.0
 
@@ -86,6 +86,34 @@ When opening the workspace in VS Code with the Remote Containers extension:
    - Re-validates Rust toolchain health (`stable` + component baseline checks)
    - Reinstalls git hooks when missing
    - Warns when GitHub CLI authentication is missing for push-capable Git operations
+
+### Checkout Environment Ownership
+
+Use one coherent execution environment per checkout. Generated outputs and
+caches such as `.turbo/`, `apps/*/dist`, Vite optimizer caches, and validation
+`dist/` directories are ignored artifacts, but they still belong to the
+environment that produced them. If another container/user writes those outputs,
+subsequent builds can fail while trying to unlink or rewrite them.
+
+Run this before broad local gates when a checkout has moved between host,
+container, or elevated shells:
+
+```bash
+pnpm run workspace:artifacts:ownership
+```
+
+If it reports mismatched ownership, clean only the reported ignored outputs in
+the environment that owns them, then rerun the check. Do not add source-level
+workarounds for derived artifact ownership problems.
+
+### Test Runner Boundaries
+
+- Use **Vitest** for suites that import from `vitest`, need Vite transforms, jsdom,
+  mocks, or workspace TS app/package behavior.
+- Use **`node:test`** only for Node-native CI scripts and small `.mjs` checks that
+  do not depend on Vitest APIs or Vite transforms.
+- `pnpm run test-runner:contracts` scans root scripts so `node --test` does not
+  accidentally target a Vitest-backed file.
 
 ### GitHub Authentication In Devcontainers
 
@@ -122,11 +150,11 @@ container or after rebuilding without a persisted GitHub CLI config volume.
 
 ### Refarm Silo Persistence
 
-`refarm sow` writes operator credentials to `~/.refarm/identity.json` through
-`@refarm.dev/silo`. The devcontainer mounts `/home/vscode/.refarm` as the
-Docker volume `refarm-home`, so these credentials survive normal container
-rebuilds. Removing Docker volumes or rebuilding with a different volume name
-intentionally resets the Silo.
+`refarm sow` writes operator credentials under `$REFARM_HOME` through
+`@refarm.dev/silo`. In the devcontainer, `REFARM_HOME` defaults to
+`/workspaces/refarm/.refarm` so human shells, hooks, and sandboxed agents use
+the same workspace-scoped state. Removing `.refarm/` intentionally resets the
+Silo for this checkout.
 
 Use this after a fresh setup or intentional reset:
 

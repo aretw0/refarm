@@ -5,6 +5,12 @@ set -euo pipefail
 export PNPM_HOME="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
 export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$ROOT/.cache/npm}"
+export REFARM_DEVCONTAINER="${REFARM_DEVCONTAINER:-true}"
+export REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
+export REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/.cache/cargo-target}"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 
 log() {
@@ -153,7 +159,10 @@ for dir in \
   /home/vscode/.config/gh \
   /home/vscode/.npm-global \
   /home/vscode/.npm-global/bin \
-  /home/vscode/.refarm \
+  "$NPM_CONFIG_CACHE" \
+  "$REFARM_HOME" \
+  "$XDG_DATA_HOME" \
+  "$REFARM_STREAMS_DIR" \
   /home/vscode/.pi \
   /home/vscode/.claude \
   /home/vscode/.codex \
@@ -161,7 +170,7 @@ for dir in \
   /home/vscode/.cache \
   /home/vscode/.cache/ms-playwright \
   /home/vscode/.cache/puppeteer \
-  /home/vscode/.cargo-target
+  "$CARGO_TARGET_DIR"
   do
   repair_owned_dir "$dir"
 done

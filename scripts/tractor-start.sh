@@ -41,10 +41,12 @@ resolve_cargo_target() {
 
 _CARGO_TARGET="$(resolve_cargo_target)"
 TRACTOR="$_CARGO_TARGET/release/tractor"
-PI_AGENT="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
-INSTALLED_PI_AGENT="$HOME/.refarm/plugins/@refarm/pi-agent/plugin.wasm"
+AGENT_PLUGIN="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
 REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
-REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$HOME/.refarm/streams}"
+REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
+REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
+INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/pi-agent/plugin.wasm"
 REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
 
 if [ -z "$REFARM_HTTP_HOST" ]; then
@@ -118,18 +120,19 @@ if [ ! -f "$TRACTOR" ]; then
   exit 1
 fi
 
-if [ ! -f "$PI_AGENT" ]; then
-  echo "❌  pi_agent.wasm not found at $PI_AGENT"
-  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
-  exit 1
-fi
-
 if [ -f "$REFARM_CLI" ]; then
   node "$REFARM_CLI" plugin update --json >/dev/null 2>&1 || true
 fi
 
-if [ -f "$INSTALLED_PI_AGENT" ]; then
-  PI_AGENT="$INSTALLED_PI_AGENT"
+if [ -f "$INSTALLED_AGENT_PLUGIN" ]; then
+  AGENT_PLUGIN="$INSTALLED_AGENT_PLUGIN"
+fi
+
+if [ ! -f "$AGENT_PLUGIN" ]; then
+  echo "❌  agent plugin wasm not found at $AGENT_PLUGIN"
+  echo "   Install it with: refarm plugin update"
+  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
+  exit 1
 fi
 
 # ── load .refarm/.env ─────────────────────────────────────────────────────────
@@ -194,21 +197,24 @@ for arg in "$@"; do
   esac
 done
 
-TRACTOR_ARGS=(--plugin "$PI_AGENT")
+TRACTOR_ARGS=(--plugin "$AGENT_PLUGIN")
 if [ "$HAS_HTTP_HOST" = "0" ]; then
   TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
 fi
+TRACTOR_ARGS+=(--refarm-dir "$REFARM_HOME")
 TRACTOR_ARGS+=("$@")
 
 echo "   Starting tractor daemon"
 echo "   provider : $MODEL_PROVIDER"
-echo "   plugin   : $PI_AGENT"
+echo "   plugin   : $AGENT_PLUGIN"
 echo "   streams  : $REFARM_STREAMS_DIR"
 echo "   http bind: $REFARM_HTTP_HOST:42001"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
-mkdir -p "$(dirname "$PID_FILE")" "$REFARM_STREAMS_DIR"
+mkdir -p "$(dirname "$PID_FILE")" "$REFARM_HOME" "$REFARM_STREAMS_DIR" "$XDG_DATA_HOME"
+export REFARM_HOME
 export REFARM_STREAMS_DIR
+export XDG_DATA_HOME
 
 if [ "$BACKGROUND" = "1" ]; then
   # Kill any existing daemon from a previous run
