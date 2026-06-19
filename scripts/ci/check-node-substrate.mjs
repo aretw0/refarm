@@ -3,6 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import { readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = process.cwd();
 
@@ -10,12 +11,6 @@ function usage() {
 	console.error("Usage: node scripts/ci/check-node-substrate.mjs [--json]");
 }
 
-const json = process.argv.includes("--json");
-const unknownArgs = process.argv.slice(2).filter((arg) => arg !== "--json");
-if (unknownArgs.length > 0) {
-	usage();
-	process.exit(1);
-}
 const platform = process.env.REFARM_NODE_SUBSTRATE_PLATFORM ?? process.platform;
 const allowLocalRebuild = process.env.REFARM_NODE_SUBSTRATE_ALLOW_REBUILD === "1";
 
@@ -202,156 +197,172 @@ async function workspaceDependencyLinkChecks() {
 	return results;
 }
 
-const requiredBins = ["vitest", "tsc", "eslint"];
-const checks = [];
-const foreignPlatformShims = [];
-const workspaceLinkChecks = await workspaceDependencyLinkChecks();
-const runtimeChecks = await runtimeDependencyChecks();
-const devcontainerMountCheck = await devcontainerNodeModulesMountCheck();
+export async function checkNodeSubstrate() {
+	const requiredBins = ["vitest", "tsc", "eslint"];
+	const checks = [];
+	const foreignPlatformShims = [];
+	const workspaceLinkChecks = await workspaceDependencyLinkChecks();
+	const runtimeChecks = await runtimeDependencyChecks();
+	const devcontainerMountCheck = await devcontainerNodeModulesMountCheck();
 
-checks.push({
-	id: "node_modules",
-	ok: await exists(path.join(ROOT, "node_modules")),
-	path: "node_modules",
-});
-
-checks.push({
-	id: "node_modules_bin",
-	ok: await exists(path.join(ROOT, "node_modules", ".bin")),
-	path: "node_modules/.bin",
-});
-
-for (const binary of requiredBins) {
-	const expectedPath = path.join(ROOT, "node_modules", ".bin", binName(binary));
-	const ok = await exists(expectedPath);
 	checks.push({
-		id: `bin_${binary}`,
-		ok,
-		path: `node_modules/.bin/${binName(binary)}`,
+		id: "node_modules",
+		ok: await exists(path.join(ROOT, "node_modules")),
+		path: "node_modules",
 	});
 
-	if (!ok) {
-		for (const foreignName of foreignBinNames(binary)) {
-			const foreignPath = path.join(ROOT, "node_modules", ".bin", foreignName);
-			if (await exists(foreignPath)) {
-				foreignPlatformShims.push({
-					binary,
-					expected: `node_modules/.bin/${binName(binary)}`,
-					found: `node_modules/.bin/${foreignName}`,
-				});
+	checks.push({
+		id: "node_modules_bin",
+		ok: await exists(path.join(ROOT, "node_modules", ".bin")),
+		path: "node_modules/.bin",
+	});
+
+	for (const binary of requiredBins) {
+		const expectedPath = path.join(ROOT, "node_modules", ".bin", binName(binary));
+		const ok = await exists(expectedPath);
+		checks.push({
+			id: `bin_${binary}`,
+			ok,
+			path: `node_modules/.bin/${binName(binary)}`,
+		});
+
+		if (!ok) {
+			for (const foreignName of foreignBinNames(binary)) {
+				const foreignPath = path.join(ROOT, "node_modules", ".bin", foreignName);
+				if (await exists(foreignPath)) {
+					foreignPlatformShims.push({
+						binary,
+						expected: `node_modules/.bin/${binName(binary)}`,
+						found: `node_modules/.bin/${foreignName}`,
+					});
+				}
 			}
 		}
 	}
+
+	const missing = checks.filter((check) => !check.ok);
+	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
+	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
+	const mountIssues = devcontainerMountCheck?.ok === false ? [devcontainerMountCheck] : [];
+	const packageManager = await readPackageManager();
+	const installCommand = packageManager?.startsWith("pnpm")
+		? "pnpm install --frozen-lockfile --config.confirm-modules-purge=false"
+		: "npm install";
+	const environmentCommand = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
+	const workspaceMaterializationCommand = allowLocalRebuild
+		? installCommand
+		: "Current checkout appears to be materialized for another environment. Use a separate checkout for this platform, or set REFARM_NODE_SUBSTRATE_ALLOW_REBUILD=1 before rebuilding node_modules here.";
+	const sharedWorkspaceMaterialization = platform === "win32" && missingWorkspaceDependencyLinks.length > 20;
+	const primaryNextAction = foreignPlatformShims.length > 0 || mountIssues.length > 0
+		? environmentCommand
+		: sharedWorkspaceMaterialization
+			? workspaceMaterializationCommand
+		: installCommand;
+	const executableNextCommand =
+		primaryNextAction === installCommand ? installCommand : null;
+	const recommendations = missing.length > 0 || mountIssues.length > 0
+		? foreignPlatformShims.length > 0 || mountIssues.length > 0
+			? [
+				environmentCommand,
+				"Do not run package-manager install from this platform against the current shared node_modules tree.",
+			]
+			: [
+				installCommand,
+				"Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
+			]
+		: [];
+	if (
+		(missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0) &&
+		!recommendations.includes(primaryNextAction)
+	) {
+		recommendations.push(primaryNextAction);
+	}
+	const executableNextCommands = executableNextCommand ? [executableNextCommand] : [];
+	return {
+		ok: missing.length === 0 &&
+			missingWorkspaceDependencyLinks.length === 0 &&
+			missingRuntimeDependencies.length === 0 &&
+			mountIssues.length === 0,
+		platform,
+		actualPlatform: process.platform,
+		packageManager,
+		workspaceMaterialization: sharedWorkspaceMaterialization
+			? {
+				id: "shared_workspace_node_modules_materialization",
+				ok: false,
+				platform,
+				missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
+				localRebuildOptIn: allowLocalRebuild,
+				localRebuildCommand: installCommand,
+				recommendation: workspaceMaterializationCommand,
+			}
+			: null,
+		checks,
+		missing,
+		workspaceLinkCount: workspaceLinkChecks.length,
+		missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
+		missingWorkspaceDependencyLinks: compactList(missingWorkspaceDependencyLinks),
+		runtimeChecks,
+		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
+		missingRuntimeDependencies: compactList(missingRuntimeDependencies),
+		foreignPlatformShims,
+		mountIssues,
+		recommendations,
+		command: "node-substrate",
+		operation: "check",
+		nextAction: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextAction : null,
+		nextActions: recommendations,
+		nextCommand: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommand : null,
+		nextCommands: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommands : [],
+	};
 }
 
-const missing = checks.filter((check) => !check.ok);
-const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
-const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
-const mountIssues = devcontainerMountCheck?.ok === false ? [devcontainerMountCheck] : [];
-const packageManager = await readPackageManager();
-const installCommand = packageManager?.startsWith("pnpm")
-	? "pnpm install --frozen-lockfile --config.confirm-modules-purge=false"
-	: "npm install";
-const environmentCommand = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
-const workspaceMaterializationCommand = allowLocalRebuild
-	? installCommand
-	: "Current checkout appears to be materialized for another environment. Use a separate checkout for this platform, or set REFARM_NODE_SUBSTRATE_ALLOW_REBUILD=1 before rebuilding node_modules here.";
-const sharedWorkspaceMaterialization = platform === "win32" && missingWorkspaceDependencyLinks.length > 20;
-const primaryNextAction = foreignPlatformShims.length > 0 || mountIssues.length > 0
-	? environmentCommand
-	: sharedWorkspaceMaterialization
-		? workspaceMaterializationCommand
-	: installCommand;
-const executableNextCommand =
-	primaryNextAction === installCommand ? installCommand : null;
-const recommendations = missing.length > 0 || mountIssues.length > 0
-	? foreignPlatformShims.length > 0 || mountIssues.length > 0
-		? [
-			environmentCommand,
-			"Do not run package-manager install from this platform against the current shared node_modules tree.",
-		]
-		: [
-			installCommand,
-			"Rebuild/reopen the devcontainer if Linux and Windows are sharing the same node_modules tree.",
-		]
-	: [];
-if (
-	(missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0) &&
-	!recommendations.includes(primaryNextAction)
-) {
-	recommendations.push(primaryNextAction);
-}
-const executableNextCommands = executableNextCommand ? [executableNextCommand] : [];
-const result = {
-	ok: missing.length === 0 &&
-		missingWorkspaceDependencyLinks.length === 0 &&
-		missingRuntimeDependencies.length === 0 &&
-		mountIssues.length === 0,
-	platform,
-	actualPlatform: process.platform,
-	packageManager,
-	workspaceMaterialization: sharedWorkspaceMaterialization
-		? {
-			id: "shared_workspace_node_modules_materialization",
-			ok: false,
-			platform,
-			missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
-			localRebuildOptIn: allowLocalRebuild,
-			localRebuildCommand: installCommand,
-			recommendation: workspaceMaterializationCommand,
+async function main() {
+	const json = process.argv.includes("--json");
+	const unknownArgs = process.argv.slice(2).filter((arg) => arg !== "--json");
+	if (unknownArgs.length > 0) {
+		usage();
+		process.exit(1);
+	}
+
+	const result = await checkNodeSubstrate();
+	if (json) {
+		console.log(JSON.stringify(result, null, 2));
+	} else if (result.ok) {
+		console.log("node-substrate: OK");
+	} else {
+		console.error("node-substrate: missing package-manager execution substrate");
+		for (const check of result.missing) {
+			console.error(`  missing: ${check.path}`);
 		}
-		: null,
-	checks,
-	missing,
-	workspaceLinkCount: workspaceLinkChecks.length,
-	missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
-	missingWorkspaceDependencyLinks: compactList(missingWorkspaceDependencyLinks),
-	runtimeChecks,
-	missingRuntimeDependencyCount: missingRuntimeDependencies.length,
-	missingRuntimeDependencies: compactList(missingRuntimeDependencies),
-	foreignPlatformShims,
-	mountIssues,
-	recommendations,
-	command: "node-substrate",
-	operation: "check",
-	nextAction: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? primaryNextAction : null,
-	nextActions: recommendations,
-	nextCommand: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommand : null,
-	nextCommands: missing.length > 0 || missingWorkspaceDependencyLinks.length > 0 || missingRuntimeDependencies.length > 0 || mountIssues.length > 0 ? executableNextCommands : [],
-};
+		for (const shim of result.foreignPlatformShims) {
+			console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
+		}
+		printCompactIssues(
+			result.missingWorkspaceDependencyLinks,
+			(dependency) => `  unresolved workspace dependency link: ${dependency.package} -> ${dependency.dependency}`,
+			"workspace dependency link(s)",
+		);
+		printCompactIssues(
+			result.missingRuntimeDependencies,
+			(dependency) => `  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`,
+			"runtime dependency issue(s)",
+		);
+		for (const issue of result.mountIssues) {
+			console.error(`  mount mismatch: expected ${issue.target} to be a dedicated mount`);
+		}
+		console.error(`  next: ${result.nextAction}`);
+		const secondaryRecommendation = result.recommendations.find(
+			(recommendation) => recommendation !== result.nextAction,
+		);
+		if (result.foreignPlatformShims.length === 0 && result.mountIssues.length === 0 && secondaryRecommendation) {
+			console.error(`  also: ${secondaryRecommendation}`);
+		}
+	}
 
-if (json) {
-	console.log(JSON.stringify(result, null, 2));
-} else if (result.ok) {
-	console.log("node-substrate: OK");
-} else {
-	console.error("node-substrate: missing package-manager execution substrate");
-	for (const check of missing) {
-		console.error(`  missing: ${check.path}`);
-	}
-	for (const shim of foreignPlatformShims) {
-		console.error(`  platform mismatch: expected ${shim.expected}, found ${shim.found}`);
-	}
-	printCompactIssues(
-		missingWorkspaceDependencyLinks,
-		(dependency) => `  unresolved workspace dependency link: ${dependency.package} -> ${dependency.dependency}`,
-		"workspace dependency link(s)",
-	);
-	printCompactIssues(
-		missingRuntimeDependencies,
-		(dependency) => `  unresolved runtime dependency: ${dependency.package} -> ${dependency.dependency}`,
-		"runtime dependency issue(s)",
-	);
-	for (const issue of mountIssues) {
-		console.error(`  mount mismatch: expected ${issue.target} to be a dedicated mount`);
-	}
-	console.error(`  next: ${primaryNextAction}`);
-	const secondaryRecommendation = recommendations.find(
-		(recommendation) => recommendation !== primaryNextAction,
-	);
-	if (foreignPlatformShims.length === 0 && mountIssues.length === 0 && secondaryRecommendation) {
-		console.error(`  also: ${secondaryRecommendation}`);
-	}
+	process.exit(result.ok ? 0 : 1);
 }
 
-process.exit(result.ok ? 0 : 1);
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+	await main();
+}

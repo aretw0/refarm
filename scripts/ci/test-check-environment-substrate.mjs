@@ -50,6 +50,10 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 		check.attempts.some((attempt) => attempt.command === "corepack"),
 	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_wasm_tools" && check.required === false));
+	assert.ok(output.checks.some((check) =>
+		check.id === "diagnostic_rustup_version" &&
+		check.required === false,
+	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_jq" && check.required === false));
 });
 
@@ -62,6 +66,10 @@ test("environment substrate check keeps optional diagnostics non-blocking", () =
 	}
 	assert.equal(
 		output.failedChecks.some((check) => check.required === false),
+		false,
+	);
+	assert.equal(
+		output.failedChecks.some((check) => check.id === "diagnostic_rustup_version"),
 		false,
 	);
 	assert.equal(
