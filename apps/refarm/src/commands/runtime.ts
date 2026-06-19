@@ -265,10 +265,11 @@ function runtimeStartDiagnosticRecovery(
 	) {
 		return {
 			nextCommands: [
-				LOCAL_MODEL_JSON_COMMAND,
+				SOW_INTERACTIVE_COMMAND,
 				MODEL_CURRENT_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
 				SOW_JSON_COMMAND,
+				LOCAL_MODEL_JSON_COMMAND,
 				OPERATOR_LINKS_CONFIG_COMMAND,
 			],
 			recommendations: [
@@ -277,7 +278,7 @@ function runtimeStartDiagnosticRecovery(
 					severity: "failure",
 					summary: "The runtime startup log reports missing model credentials.",
 					action: "Inspect credential handoffs and configure a usable model route.",
-					command: LOCAL_MODEL_JSON_COMMAND,
+					command: SOW_INTERACTIVE_COMMAND,
 				},
 			],
 			handoffs: {
