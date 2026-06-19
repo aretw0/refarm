@@ -22,8 +22,8 @@ import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_PROVIDERS_JSON_COMMAND,
-	OLLAMA_DEFAULT_REF,
 	OPERATOR_LINKS_CONFIG_COMMAND,
+	SOW_INTERACTIVE_COMMAND,
 } from "./credential-handoffs.js";
 import {
 	buildJsonErrorEnvelope,
@@ -71,6 +71,7 @@ interface SowOptions {
 }
 
 interface SowSilo {
+	storagePath?: string;
 	loadTokens(): Promise<unknown>;
 	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
 }
@@ -138,8 +139,8 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 							operation: "credentials",
 							error: "empty-model",
 							message: "--model cannot be empty.",
-							nextAction: refarmCommand(["sow", "--model", OLLAMA_DEFAULT_REF]),
-							nextCommand: LOCAL_MODEL_JSON_COMMAND,
+							nextAction: SOW_INTERACTIVE_COMMAND,
+							nextCommand: SOW_INTERACTIVE_COMMAND,
 							extra: { action: "sow" },
 						}),
 					);
@@ -158,8 +159,8 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 							operation: "credentials",
 							error: "model-provider-required",
 							message: `Could not infer provider for model "${initialModelRef.modelId}".`,
-							nextAction: refarmCommand(["sow", "--model", OLLAMA_DEFAULT_REF]),
-							nextCommand: LOCAL_MODEL_JSON_COMMAND,
+							nextAction: SOW_INTERACTIVE_COMMAND,
+							nextCommand: SOW_INTERACTIVE_COMMAND,
 							extra: {
 								action: "sow",
 								modelId: initialModelRef.modelId,
@@ -170,7 +171,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 					return;
 				}
 				console.error(chalk.red(`✗  Could not infer provider for model "${initialModelRef.modelId}".`));
-				console.error(chalk.dim(`   Use provider/model, for example: refarm sow --model ${OLLAMA_DEFAULT_REF}`));
+				console.error(chalk.dim("   Run refarm sow to choose a provider, or pass provider/model explicitly."));
 				process.exitCode = 1;
 				return;
 			}
@@ -220,6 +221,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 					: refarmCommand(["sow", `--${interactivePrompts[0]}`]);
 				const nextCommands = configureModel
 					? [
+							SOW_INTERACTIVE_COMMAND,
 							LOCAL_MODEL_JSON_COMMAND,
 							MODEL_PROVIDERS_JSON_COMMAND,
 							MODEL_CURRENT_JSON_COMMAND,
@@ -359,7 +361,8 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 				return;
 			}
 
-			console.log(chalk.gray("\n  Credentials stored at ~/.refarm/identity.json"));
+			const storagePath = stringValue(silo.storagePath) ?? "Refarm Silo identity storage";
+			console.log(chalk.gray(`\n  Credentials stored at ${storagePath}`));
 			console.log(
 				chalk.dim(
 					"  Refarm runtime reloads saved Silo credentials before each task.",
@@ -379,6 +382,7 @@ export function createSowCommand(deps: SowDeps = defaultSowDeps()): Command {
 		} catch (error) {
 			if (!isPromptCancelledError(error)) throw error;
 			console.log(chalk.gray("\n  Cancelled."));
+			process.exitCode = 130;
 		}
 	});
 }

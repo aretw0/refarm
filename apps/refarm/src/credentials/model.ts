@@ -2,7 +2,8 @@ import { modelCredentialEnvKey } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
-import type { OAuthCredentials, OAuthProviderInterface } from "./oauth/index.js";
+import { startProgressIndicator, type ProgressIndicator } from "../utils/spinner.js";
+import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } from "./oauth/index.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
@@ -86,6 +87,7 @@ async function runOAuthFlow(
 ): Promise<ModelCredential> {
 	const containerEnv = isContainer();
 	const hasPortForwarding =
+		process.env["REFARM_DEVCONTAINER"] === "true" ||
 		Boolean(process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) ||
 		Boolean(process.env["REMOTE_CONTAINERS"]) ||
 		Boolean(process.env["CODESPACES"]);
@@ -93,32 +95,41 @@ async function runOAuthFlow(
 	const callbackCanReachBrowser =
 		Boolean(provider.usesCallbackServer) && !forceManual && (!containerEnv || hasPortForwarding);
 	const needsManualCode = Boolean(provider.usesCallbackServer) && !callbackCanReachBrowser;
+	let progress: ProgressIndicator | undefined;
 
-	const creds = await provider.login({
+	const loginCallbacks: OAuthLoginCallbacks = {
 		onAuth: ({ url, instructions }) => {
 			console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
 			console.log(chalk.cyan(`  → ${url}\n`));
-			if (needsManualCode) {
-				console.log(chalk.yellow("  ⚠  Running in a container — the browser redirect cannot reach this environment."));
-				console.log(chalk.dim("     After logging in, copy the full redirect URL or authorization code and paste it below.\n"));
-			} else if (containerEnv && provider.usesCallbackServer) {
-				console.log(chalk.dim("     Devcontainer detected — VS Code should forward the callback port automatically."));
-				console.log(chalk.dim("     If the browser does not return here, you will be prompted to paste the redirect URL.\n"));
-			}
-			ctx.tryOpenUrl(url);
-		},
-		onPrompt: async ({ message }) => promptCode(ctx, message),
-		onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
-		...(callbackCanReachBrowser && containerEnv ? {
-			callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
-		} : {}),
-		// In plain containers without a known port-forwarding bridge, the host
-		// browser cannot reach the callback server, so prompt for the code.
+				if (needsManualCode) {
+					console.log(chalk.yellow("  ⚠  Running in a container — the browser redirect cannot reach this environment."));
+					console.log(chalk.dim("     After logging in, copy the full redirect URL or authorization code and paste it below.\n"));
+				} else if (containerEnv && provider.usesCallbackServer) {
+					console.log(chalk.dim("     Devcontainer detected — VS Code should forward the callback port automatically."));
+					console.log(chalk.dim("     If the browser does not return here, you will be prompted to paste the redirect URL.\n"));
+				}
+				ctx.tryOpenUrl(url);
+			},
+			onPrompt: async ({ message }) => promptCode(ctx, message),
+			onProgress: (msg) => {
+				if (progress) {
+					progress.update(msg);
+					return;
+				}
+				progress = startProgressIndicator(msg);
+			},
+			...(callbackCanReachBrowser && containerEnv ? {
+				callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
+			} : {}),
+			// In plain containers without a known port-forwarding bridge, the host
+			// browser cannot reach the callback server, so prompt for the code.
 		...(needsManualCode ? {
 			skipCallbackServer: true,
 			onManualCodeInput: () => promptCode(ctx, "Paste the redirect URL or authorization code:"),
 		} : {}),
-	});
+	};
+
+	const creds = await provider.login(loginCallbacks).finally(() => progress?.stop());
 	console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
 	return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
 }

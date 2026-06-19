@@ -195,9 +195,9 @@ describe("sowCommand — default (no flags)", () => {
 			status: "interactive-required",
 			prompts: ["model"],
 			nextAction: "refarm sow",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextCommand: "refarm sow",
 		});
-		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm sow");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain(
 			"refarm config get operator.openExternalLinks --json",
@@ -248,8 +248,8 @@ describe("sowCommand — default (no flags)", () => {
 			operation: "credentials",
 			ok: false,
 			error: "empty-model",
-			nextAction: "refarm sow --model ollama/llama3.2",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 		});
 		expect(process.exitCode).toBe(1);
 		expect(mockModelCollect).not.toHaveBeenCalled();
@@ -278,8 +278,8 @@ describe("sowCommand — default (no flags)", () => {
 			operation: "credentials",
 			ok: false,
 			error: "model-provider-required",
-			nextAction: "refarm sow --model ollama/llama3.2",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 		});
 		expect(process.exitCode).toBe(1);
 		expect(mockModelCollect).not.toHaveBeenCalled();
@@ -548,6 +548,6 @@ describe("sowCommand — SIGINT handling", () => {
 		error.name = "ExitPromptError";
 		mockModelCollect.mockRejectedValueOnce(error);
 		await sowCommand.parseAsync([], { from: "user" });
-		expect(process.exitCode).toBeUndefined();
+		expect(process.exitCode).toBe(130);
 	});
 });
