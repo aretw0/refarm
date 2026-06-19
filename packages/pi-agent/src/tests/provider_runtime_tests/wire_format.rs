@@ -68,6 +68,10 @@ fn provider_runtime_append_openai_tool_message_shape() {
 #[test]
 fn provider_runtime_openai_compat_path_known_overrides() {
     assert_eq!(
+        crate::provider_runtime::openai_compat_path("openai-codex"),
+        "/codex/responses"
+    );
+    assert_eq!(
         crate::provider_runtime::openai_compat_path("groq"),
         "/openai/v1/chat/completions"
     );

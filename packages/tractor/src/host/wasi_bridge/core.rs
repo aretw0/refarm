@@ -256,6 +256,16 @@ fn send_llm_http_post(
     if use_anthropic_auth(&provider) {
         let key = anthropic_api_key_from_env()?;
         req = req.set("x-api-key", &key);
+    } else if use_openai_codex_auth(&provider) {
+        let Some(header) = bearer_key_for_provider(&provider)? else {
+            return Err("OPENAI_CODEX_ACCESS_TOKEN not set".to_string());
+        };
+        let account_id = openai_codex_account_id_from_env()?;
+        req = req
+            .set("authorization", &header)
+            .set("chatgpt-account-id", &account_id)
+            .set("originator", "refarm")
+            .set("OpenAI-Beta", "responses=experimental");
     } else if let Some(header) = bearer_key_for_provider(&provider)? {
         req = req.set("authorization", &header);
     }
@@ -287,9 +297,14 @@ fn use_anthropic_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("anthropic")
 }
 
+fn use_openai_codex_auth(provider: &str) -> bool {
+    provider.trim().eq_ignore_ascii_case("openai-codex")
+}
+
 // Registry of known providers that need no LLM_BASE_URL to work.
 fn known_provider_base_url(provider: &str) -> Option<&'static str> {
     match provider.trim().to_ascii_lowercase().as_str() {
+        "openai-codex" => Some("https://chatgpt.com/backend-api"),
         "groq"       => Some("https://api.groq.com"),
         "mistral"    => Some("https://api.mistral.ai"),
         "xai"        => Some("https://api.x.ai"),
@@ -304,6 +319,7 @@ fn known_provider_base_url(provider: &str) -> Option<&'static str> {
 // Some providers diverge from the standard /v1/chat/completions path.
 fn known_provider_api_path(provider: &str) -> &'static str {
     match provider.trim().to_ascii_lowercase().as_str() {
+        "openai-codex" => "/codex/responses",
         "groq"       => "/openai/v1/chat/completions",
         "openrouter" => "/api/v1/chat/completions",
         "gemini"     => "/v1beta/openai/chat/completions",
@@ -316,15 +332,19 @@ fn known_provider_api_path(provider: &str) -> &'static str {
 fn bearer_key_for_provider(provider: &str) -> Result<Option<String>, String> {
     let normalized = normalize_provider_name(provider);
 
-    let primary_env_var = if is_openai_provider_family(&normalized) {
+    let primary_env_var = if use_openai_codex_auth(&normalized) {
+        "OPENAI_CODEX_ACCESS_TOKEN".to_string()
+    } else if is_openai_provider_family(&normalized) {
         "OPENAI_API_KEY".to_string()
     } else {
         format!("{}_API_KEY", normalized.to_ascii_uppercase().replace('-', "_"))
     };
 
+    let allow_openai_api_key_fallback =
+        !use_openai_codex_auth(&normalized) && primary_env_var != "OPENAI_API_KEY";
     let (raw_key, used_var): (String, String) = match std::env::var(&primary_env_var) {
         Ok(k) => (k, primary_env_var),
-        Err(_) if primary_env_var != "OPENAI_API_KEY" => match std::env::var("OPENAI_API_KEY") {
+        Err(_) if allow_openai_api_key_fallback => match std::env::var("OPENAI_API_KEY") {
             Ok(k) => (k, "OPENAI_API_KEY".to_string()),
             Err(_) => return Ok(None),
         },
@@ -334,6 +354,61 @@ fn bearer_key_for_provider(provider: &str) -> Result<Option<String>, String> {
     let key = sanitize_auth_token_for_header(&raw_key)
         .ok_or_else(|| format!("[blocked: invalid {used_var}]"))?;
     Ok(Some(format!("Bearer {key}")))
+}
+
+fn openai_codex_account_id_from_env() -> Result<String, String> {
+    if let Ok(account_id) = std::env::var("OPENAI_CODEX_ACCOUNT_ID") {
+        return sanitize_auth_token_for_header(&account_id)
+            .ok_or_else(|| "[blocked: invalid OPENAI_CODEX_ACCOUNT_ID]".to_string());
+    }
+    let token = std::env::var("OPENAI_CODEX_ACCESS_TOKEN")
+        .map_err(|_| "OPENAI_CODEX_ACCESS_TOKEN not set".to_string())?;
+    extract_chatgpt_account_id_from_jwt(&token)
+        .ok_or_else(|| "[blocked: invalid OPENAI_CODEX_ACCESS_TOKEN account claim]".to_string())
+}
+
+fn extract_chatgpt_account_id_from_jwt(token: &str) -> Option<String> {
+    let payload = token.split('.').nth(1)?;
+    let bytes = decode_base64url(payload)?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let account_id = value
+        .get("https://api.openai.com/auth")?
+        .get("chatgpt_account_id")?
+        .as_str()?;
+    sanitize_auth_token_for_header(account_id)
+}
+
+fn decode_base64url(value: &str) -> Option<Vec<u8>> {
+    fn sextet(byte: u8) -> Option<u8> {
+        match byte {
+            b'A'..=b'Z' => Some(byte - b'A'),
+            b'a'..=b'z' => Some(byte - b'a' + 26),
+            b'0'..=b'9' => Some(byte - b'0' + 52),
+            b'-' => Some(62),
+            b'_' => Some(63),
+            b'=' => None,
+            _ => None,
+        }
+    }
+
+    let mut out = Vec::with_capacity(value.len() * 3 / 4);
+    let mut buffer = 0u32;
+    let mut bits = 0u8;
+    for byte in value.bytes() {
+        let Some(next) = sextet(byte) else {
+            if byte == b'=' {
+                break;
+            }
+            return None;
+        };
+        buffer = (buffer << 6) | u32::from(next);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(((buffer >> bits) & 0xff) as u8);
+        }
+    }
+    Some(out)
 }
 
 fn enforce_llm_request_body(body: &[u8]) -> Result<(), String> {

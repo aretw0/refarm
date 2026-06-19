@@ -11,6 +11,8 @@
             "MODEL_PROVIDER",
             "MODEL_DEFAULT_PROVIDER",
             "MODEL_BASE_URL",
+            "OPENAI_CODEX_ACCESS_TOKEN",
+            "OPENAI_CODEX_ACCOUNT_ID",
         ] {
             std::env::remove_var(k);
         }
@@ -73,7 +75,7 @@
     }
 
     #[test]
-    fn expected_route_uses_openai_family_default_provider_when_primary_is_blank() {
+    fn expected_route_uses_openai_codex_default_provider_when_primary_is_blank() {
         let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "   ");
@@ -81,8 +83,8 @@
 
         let route = expected_llm_route_from_env();
         assert_eq!(route.provider, "openai-codex");
-        assert_eq!(route.base_url, "https://api.openai.com");
-        assert_eq!(route.path, "/v1/chat/completions");
+        assert_eq!(route.base_url, "https://chatgpt.com/backend-api");
+        assert_eq!(route.path, "/codex/responses");
 
         reset_llm_env();
     }
@@ -116,15 +118,15 @@
     }
 
     #[test]
-    fn expected_route_defaults_openai_family_to_openai_base_url() {
+    fn expected_route_defaults_openai_codex_to_chatgpt_backend() {
         let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "openai-codex");
 
         let route = expected_llm_route_from_env();
         assert_eq!(route.provider, "openai-codex");
-        assert_eq!(route.base_url, "https://api.openai.com");
-        assert_eq!(route.path, "/v1/chat/completions");
+        assert_eq!(route.base_url, "https://chatgpt.com/backend-api");
+        assert_eq!(route.path, "/codex/responses");
 
         reset_llm_env();
     }
