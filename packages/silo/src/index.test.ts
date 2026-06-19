@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { SiloCore } from "./index.js";
+import { resolveRefarmHome, SiloCore } from "./index.js";
 
 vi.mock("@refarm.dev/heartwood", () => ({
     default: {
@@ -28,6 +28,26 @@ describe("@refarm.dev/silo Smoke Tests", () => {
         });
         const provisioned = await silo.provision();
         expect(provisioned.REFARM_GITHUB_TOKEN).toBe("test-token");
+    });
+
+    it("respects REFARM_HOME for identity storage", async () => {
+        const tempDir = await mkdtemp(path.join(os.tmpdir(), "refarm-silo-home-"));
+        const originalRefarmHome = process.env.REFARM_HOME;
+        process.env.REFARM_HOME = tempDir;
+
+        try {
+            const silo = new SiloCore({});
+
+            expect(resolveRefarmHome()).toBe(tempDir);
+            expect(silo.storagePath).toBe(path.join(tempDir, "identity.json"));
+        } finally {
+            if (originalRefarmHome === undefined) {
+                delete process.env.REFARM_HOME;
+            } else {
+                process.env.REFARM_HOME = originalRefarmHome;
+            }
+            await rm(tempDir, { recursive: true, force: true });
+        }
     });
 
     it("should persist long JWT-shaped GitHub tokens without parsing or truncation", async () => {

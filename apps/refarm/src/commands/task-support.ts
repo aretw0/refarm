@@ -17,8 +17,8 @@ import type {
 import chalk from "chalk";
 import { InvalidArgumentError } from "commander";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
 	buildJsonErrorEnvelope,
@@ -718,7 +718,7 @@ export function resolveAdapter(transport: string): TaskOperationsAdapter {
 		return new HttpTransportClient(resolveSidecarUrl());
 	}
 
-	return new FileTransportClient(path.join(os.homedir(), ".refarm"));
+	return new FileTransportClient(resolveRefarmHome());
 }
 
 export function deriveAttemptCount(result: EffortResult): number {

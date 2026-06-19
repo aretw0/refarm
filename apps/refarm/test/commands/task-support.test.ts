@@ -3,6 +3,9 @@ import {
 	EffortResult,
 	EffortSummary,
 } from "@refarm.dev/effort-contract-v1";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveSidecarUrl } from "../../src/commands/sidecar-url.js";
 import {
@@ -159,5 +162,40 @@ describe("channel http transport adapter", () => {
 			`${baseUrl}/channels/${encodeURIComponent("matrix team")}/efforts`,
 			expect.objectContaining({ method: "POST" }),
 		);
+	});
+});
+
+describe("file task transport adapter", () => {
+	it("uses REFARM_HOME as the writable task base", async () => {
+		const previousRefarmHome = process.env.REFARM_HOME;
+		const refarmHome = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-task-home-"));
+		try {
+			process.env.REFARM_HOME = refarmHome;
+			const adapter = resolveAdapter("file");
+			const submittedAt = new Date().toISOString();
+
+			await adapter.submit({
+				id: "effort-refarm-home",
+				direction: "test",
+				tasks: [],
+				submittedAt,
+			});
+
+			expect(
+				fs.existsSync(path.join(refarmHome, "tasks", "effort-refarm-home.json")),
+			).toBe(true);
+			expect(
+				fs.existsSync(
+					path.join(refarmHome, "task-results", "effort-refarm-home.json"),
+				),
+			).toBe(true);
+		} finally {
+			if (previousRefarmHome === undefined) {
+				delete process.env.REFARM_HOME;
+			} else {
+				process.env.REFARM_HOME = previousRefarmHome;
+			}
+			fs.rmSync(refarmHome, { recursive: true, force: true });
+		}
 	});
 });

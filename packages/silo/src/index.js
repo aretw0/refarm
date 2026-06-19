@@ -11,7 +11,7 @@ import { KeyManager } from "./key-manager.js";
 export class SiloCore {
     constructor(config = {}) {
         this.config = config;
-        this.storagePath = path.join(os.homedir(), ".refarm", "identity.json");
+        this.storagePath = config.storagePath || path.join(resolveRefarmHome(), "identity.json");
     }
 
     /**
@@ -160,6 +160,11 @@ export class SiloCore {
             .map(([key, val]) => `${key}=${val}`)
             .join("\n");
     }
+}
+
+export function resolveRefarmHome(env = process.env) {
+    const configured = typeof env.REFARM_HOME === "string" ? env.REFARM_HOME.trim() : "";
+    return configured || path.join(os.homedir(), ".refarm");
 }
 
 export default SiloCore;
