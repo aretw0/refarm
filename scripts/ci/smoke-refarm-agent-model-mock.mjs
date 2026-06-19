@@ -91,7 +91,7 @@ async function getFreePort() {
 
 function cargoTargetDir() {
 	if (process.env.CARGO_TARGET_DIR) return path.resolve(process.env.CARGO_TARGET_DIR);
-	return "/home/vscode/.cargo-target";
+	return "/workspaces/refarm/.cache/cargo-target";
 }
 
 function runtimeArtifact(relativePath) {

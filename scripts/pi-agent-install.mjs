@@ -6,7 +6,7 @@
  * WASM path resolution order (first found wins):
  *   1. $CARGO_TARGET_DIR env var (set by devcontainer or ~/.bashrc)
  *   2. target-dir in .cargo/config.toml (same value, but read directly)
- *   3. packages/pi-agent/target/ (workspace fallback, no Docker volume)
+ *   3. packages/pi-agent/target/ (workspace fallback)
  *
  * Usage:
  *   <package-manager> run agent:install

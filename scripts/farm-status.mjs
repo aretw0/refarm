@@ -217,7 +217,7 @@ function checkArtifacts() {
 
   const cargoTarget = process.env.CARGO_TARGET_DIR;
   if (cargoTarget) {
-    info('cargo-target', `${cargoTarget}  ${c.dim}(Docker volume — off host C:\\)${c.reset}`);
+    info('cargo-target', `${cargoTarget}  ${c.dim}(workspace cache shared by shells and agents)${c.reset}`);
   }
 }
 
