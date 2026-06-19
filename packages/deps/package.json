@@ -31,6 +31,9 @@
 		"url": "https://github.com/aretw0/refarm.git",
 		"directory": "packages/deps"
 	},
+	"files": [
+		"package.json"
+	],
 	"publishConfig": {
 		"access": "public"
 	}

@@ -21,6 +21,13 @@
 		"@refarm.dev/storage-contract-v1": "workspace:*"
 	},
 	"license": "MIT",
+	"files": [
+		"README.md",
+		"dist/index.js",
+		"dist/index.d.ts",
+		"dist/memory-storage.js",
+		"dist/memory-storage.d.ts"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

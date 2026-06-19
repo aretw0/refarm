@@ -24,6 +24,11 @@
     "@refarm.dev/vtconfig": "workspace:*"
   },
   "license": "MIT",
+  "files": [
+    "README.md",
+    "dist/*.js",
+    "dist/*.d.ts"
+  ],
   "publishConfig": {
     "access": "public"
   }
