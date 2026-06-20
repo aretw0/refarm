@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
+	finishCacheObservations,
 	finishRunResumeCommand,
 	finishSelectionFromLane,
 	finishSelectionMetadata,
@@ -434,12 +435,16 @@ Notes:
 						command: "agent",
 						operation: "finish",
 					}, result);
+					const cacheObservations = finishCacheObservations(result);
 					printJson({
 						...envelope,
 						...(result.ok ? {
 							nextCommand: RESUME_JSON_COMMAND,
 							nextCommands: [RESUME_JSON_COMMAND],
 						} : {}),
+						...(cacheObservations.length > 0
+							? { cache: { steps: cacheObservations } }
+							: {}),
 						selection: selectionMetadata,
 					});
 				} else if (options.nextCommand) {

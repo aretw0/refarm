@@ -5,6 +5,10 @@ import {
 	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
+import {
+	parseTurboCacheRunSummary,
+	type TurboCacheRunSummary,
+} from "@refarm.dev/infra-turbo-cache";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -84,6 +88,18 @@ export interface AgentFinishSelectionContext {
 	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
 	sinceRef?: string;
+}
+
+export interface AgentFinishCacheObservation {
+	stepId: string;
+	command: string;
+	tool: string;
+	cached: number;
+	total: number;
+	hitRate: number;
+	status: string;
+	tasksSuccessful?: number;
+	tasksTotal?: number;
 }
 
 export function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
@@ -569,7 +585,27 @@ export function runAgentFinishPlan(
 	} = {},
 ): CommandPlanRunResult {
 	return runCommandPlan(selectedFinishSteps(options), (step) =>
-		step.process ? deps.runProcess(step) : deps.runRefarm(step.args),
+		step.process
+			? enrichFinishStepResult(step, deps.runProcess(step))
+			: deps.runRefarm(step.args),
+	);
+}
+
+function enrichFinishStepResult(
+	step: CommandPlanStep,
+	result: CommandPlanStepRunResult,
+): CommandPlanStepRunResult & { cache?: TurboCacheRunSummary } {
+	if (!isTurboPackageValidationStep(step)) return result;
+	const cache = parseTurboCacheRunSummary(`${result.stdout}\n${result.stderr}`);
+	return cache ? { ...result, cache } : result;
+}
+
+function isTurboPackageValidationStep(step: CommandPlanStep): boolean {
+	return Boolean(
+		step.process &&
+			step.process.command.includes("pnpm") &&
+			step.process.args.includes("turbo") &&
+			step.process.args.includes("run"),
 	);
 }
 
@@ -668,7 +704,9 @@ export function printAgentFinishRunHuman(
 	console.log("Refarm agent finish");
 	if (selection) console.log(`Selection: ${formatFinishSelection(selection)}`);
 	for (const step of result.steps) {
-		console.log(`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}`);
+		console.log(
+			`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}${formatStepCacheSuffix(step)}`,
+		);
 	}
 	if (result.ok) {
 		console.log("Finish checks passed.");
@@ -684,6 +722,22 @@ export function printAgentFinishRunHuman(
 			console.log(`  ${command}`);
 		}
 	}
+}
+
+function formatStepCacheSuffix(step: CommandPlanStepRunResult): string {
+	const cache = (step as CommandPlanStepRunResult & { cache?: TurboCacheRunSummary }).cache;
+	if (!cache) return "";
+	const percent = Math.round(cache.hitRate * 100);
+	return ` (cache: ${cache.cached}/${cache.total}, ${percent}%, ${cache.status})`;
+}
+
+export function finishCacheObservations(
+	result: CommandPlanRunResult,
+): AgentFinishCacheObservation[] {
+	return result.steps.flatMap((step) => {
+		const cache = (step as CommandPlanStepRunResult & { cache?: TurboCacheRunSummary }).cache;
+		return cache ? [{ ...cache, stepId: step.id, command: step.command }] : [];
+	});
 }
 
 function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {

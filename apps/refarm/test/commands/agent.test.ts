@@ -1253,7 +1253,11 @@ describe("agent command", () => {
 			...step,
 			ok: true,
 			exitCode: 0,
-			stdout: "",
+			stdout: [
+				" Tasks:    38 successful, 38 total",
+				"Cached:    34 cached, 38 total",
+				"  Time:    16.984s",
+			].join("\n"),
 			stderr: "",
 		}));
 		const agentCommand = createAgentCommand({ runRefarm, runProcess });
@@ -1271,12 +1275,37 @@ describe("agent command", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			steps: { id: string; ok: boolean }[];
+			steps: {
+				id: string;
+				ok: boolean;
+				cache?: { cached: number; total: number; status: string };
+			}[];
+			cache?: {
+				steps: Array<{
+					stepId: string;
+					cached: number;
+					total: number;
+					status: string;
+				}>;
+			};
 		};
 		expect(payload.ok).toBe(true);
 		expect(runRefarm).toHaveBeenCalledTimes(3);
 		expect(runProcess).toHaveBeenCalledTimes(1);
 		expect(payload.steps.map((step) => step.id)).toContain("package-validation");
+		expect(payload.steps.at(-1)?.cache).toMatchObject({
+			cached: 34,
+			total: 38,
+			status: "partial-hit",
+		});
+		expect(payload.cache?.steps).toEqual([
+			expect.objectContaining({
+				stepId: "package-validation",
+				cached: 34,
+				total: 38,
+				status: "partial-hit",
+			}),
+		]);
 		logSpy.mockRestore();
 	});
 
@@ -2613,6 +2642,46 @@ describe("agent command", () => {
 		);
 		expect(logSpy).toHaveBeenCalledWith("Finish checks passed.");
 		expect(runRefarm).toHaveBeenCalledTimes(3);
+		logSpy.mockRestore();
+	});
+
+	it("prints turbo cache summary in operator finish reports", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const runProcess = vi.fn((step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "Cached:    38 cached, 38 total",
+			stderr: "",
+		}));
+		const agentCommand = createAgentCommand({ runRefarm, runProcess });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--profile",
+			"package",
+			"--workspace",
+			"apps/refarm",
+			"--run",
+		], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("package-validation:"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("(cache: 38/38, 100%, full-hit)"),
+		);
 		logSpy.mockRestore();
 	});
 
