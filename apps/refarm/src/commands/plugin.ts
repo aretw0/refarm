@@ -14,6 +14,7 @@ import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	quoteCommandArg,
 	refarmCommand,
+	refarmProcess,
 	shellCommand,
 } from "./command-handoff.js";
 import {
@@ -42,7 +43,6 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -83,37 +83,21 @@ function pluginReloadRestartCommand(pluginIds: string[], json = false): string {
 	]);
 }
 
-function runtimeStartProcess(wait: boolean) {
-	return {
-		command: "refarm",
-		args: ["runtime", "start", ...(wait ? ["--wait"] : [])],
-		display: wait ? RUNTIME_START_WAIT_COMMAND : RUNTIME_START_COMMAND,
-	};
+function runtimeRestartProcess(wait: boolean) {
+	return refarmProcess(["runtime", "restart", ...(wait ? ["--wait"] : [])]);
 }
 
 async function restartRuntimeForPluginReload(wait: boolean): Promise<{
 	ok: boolean;
-	stopCommand: string;
-	startCommand: string;
+	restartCommand: string;
 	failedCommand?: string;
 }> {
-	const stop = createPackageScriptCommand({ cwd: ".", script: "agent:stop" });
-	const start = runtimeStartProcess(wait);
-	const stopResult = await runLaunchProcess(stop, { capture: false });
-	if (stopResult.exitCode !== 0) {
-		return {
-			ok: false,
-			stopCommand: stop.display,
-			startCommand: start.display,
-			failedCommand: stop.display,
-		};
-	}
-	const startResult = await runLaunchProcess(start, { capture: false });
+	const restart = runtimeRestartProcess(wait);
+	const startResult = await runLaunchProcess(restart, { capture: false });
 	return {
 		ok: startResult.exitCode === 0,
-		stopCommand: stop.display,
-		startCommand: start.display,
-		...(startResult.exitCode === 0 ? {} : { failedCommand: start.display }),
+		restartCommand: restart.display,
+		...(startResult.exitCode === 0 ? {} : { failedCommand: restart.display }),
 	};
 }
 
@@ -801,7 +785,7 @@ async function reloadRuntimePluginCommand(
 		if (options.restartIfNeeded) {
 			const restart = await restartRuntimeForPluginReload(options.wait === true);
 			if (restart.ok) {
-				console.log(`  ✓ runtime restarted (${restart.startCommand})`);
+				console.log(`  ✓ runtime restarted (${restart.restartCommand})`);
 				return;
 			}
 			console.error(`  ✗ runtime restart failed: ${restart.failedCommand}`);

@@ -336,6 +336,83 @@ describe("runtime command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("stops the runtime through the runtime command", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const stopRuntime = vi.fn().mockReturnValue({
+			ok: true,
+			stopped: true,
+			pid: 123,
+			pidFile: "/repo/.refarm/tractor.pid",
+		});
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+			stopRuntime,
+		});
+
+		await command.parseAsync(["stop", "--json"], { from: "user" });
+
+		expect(stopRuntime).toHaveBeenCalledWith("/repo");
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "runtime",
+			operation: "stop",
+			ok: true,
+			stopped: true,
+			pid: 123,
+			nextCommand: null,
+		});
+		logSpy.mockRestore();
+	});
+
+	it("restarts the runtime through stop and selected start command", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const stopRuntime = vi.fn().mockReturnValue({
+			ok: true,
+			stopped: true,
+			pid: 123,
+			pidFile: "/repo/.refarm/tractor.pid",
+		});
+		const startRuntime = vi.fn();
+		const waitUntilReady = vi.fn().mockResolvedValue(true);
+		const command = createRuntimeCommand({
+			repoRoot: () => "/repo",
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+			stopRuntime,
+			startRuntime,
+			waitUntilReady,
+		});
+
+		await command.parseAsync(["restart", "--wait", "--json"], { from: "user" });
+
+		expect(stopRuntime).toHaveBeenCalledWith("/repo");
+		expect(startRuntime).toHaveBeenCalledOnce();
+		expect(waitUntilReady).toHaveBeenCalledOnce();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "runtime",
+			operation: "restart",
+			ok: true,
+			stop: {
+				stopped: true,
+				pid: 123,
+			},
+			started: true,
+			ready: true,
+		});
+		logSpy.mockRestore();
+	});
+
 	it("waits for runtime readiness when requested", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const startRuntime = vi.fn();

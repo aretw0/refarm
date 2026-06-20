@@ -761,19 +761,14 @@ describe("plugin status", () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
-			expect.objectContaining({
-				args: expect.arrayContaining(["run", "agent:stop"]),
-			}),
-			{ capture: false },
-		);
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
 			{
 				command: "refarm",
-				args: ["runtime", "start", "--wait"],
-				display: "refarm runtime start --wait",
+				args: ["runtime", "restart", "--wait"],
+				display: "refarm runtime restart --wait",
 			},
 			{ capture: false },
 		);
+		expect(mockRunLaunchProcess).toHaveBeenCalledTimes(1);
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: true,
 			command: "plugin",

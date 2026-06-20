@@ -5,11 +5,13 @@ import {
 } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import {
 	resolveRuntimeSidecarUrl,
 	TRACTOR_ENGINE_ENV_VAR,
 } from "../utils/runtime-config.js";
+import { refarmCommand } from "./command-handoff.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -62,13 +64,23 @@ interface RuntimeCommandDeps {
 		configuredEngine: TractorEngineMode,
 	): LaunchRuntimeSelection;
 	startRuntime?(command: RuntimeLaunchCommand): void;
+	stopRuntime?(repoRoot: string): RuntimeStopResult;
 	probeReadiness?(): Promise<RuntimeReadinessProbe>;
 	probeReady?(): Promise<boolean>;
 	waitUntilReady?(): Promise<boolean>;
 }
 
 type RuntimeStatusPayload = RuntimeStatusSummary;
+interface RuntimeStopResult {
+	ok: boolean;
+	stopped: boolean;
+	alreadyStopped?: boolean;
+	pid?: number;
+	pidFile: string;
+	message?: string;
+}
 const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
+const RUNTIME_STOP_JSON_COMMAND = refarmCommand(["runtime", "stop", "--json"]);
 const START_LOG_TAIL_LINES = 40;
 
 interface RuntimeStartDiagnostics {
@@ -97,13 +109,22 @@ interface RuntimeDiagnosticRecovery {
 type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
 	TExtra & {
 		command: "runtime";
-		operation: "status" | "ensure" | "start";
+		operation: "status" | "ensure" | "start" | "restart";
 		ok: boolean;
 		nextAction: string | null;
 		nextActions: string[];
 		nextCommand: string | null;
 		nextCommands: string[];
 	};
+
+type RuntimeStopJsonPayload = RuntimeStopResult & {
+	command: "runtime";
+	operation: "stop";
+	nextAction: null;
+	nextActions: [];
+	nextCommand: null;
+	nextCommands: [];
+};
 
 function defaultDeps(): RuntimeCommandDeps {
 	return {
@@ -114,6 +135,86 @@ function defaultDeps(): RuntimeCommandDeps {
 		resolveRuntime: resolveLaunchRuntime,
 		probeReadiness: () => probeRuntimeReadiness(300),
 		waitUntilReady: waitForRuntimeReady,
+	};
+}
+
+function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
+	const pidFile = join(repoRoot, ".refarm", "tractor.pid");
+	if (!existsSync(pidFile)) {
+		return {
+			ok: true,
+			stopped: false,
+			alreadyStopped: true,
+			pidFile,
+			message: "No runtime PID file found.",
+		};
+	}
+
+	const raw = readFileSync(pidFile, "utf-8").trim();
+	const pid = Number.parseInt(raw, 10);
+	if (!Number.isFinite(pid) || pid <= 0) {
+		try {
+			unlinkSync(pidFile);
+		} catch {
+			// Best-effort cleanup; the invalid PID is the primary error.
+		}
+		return {
+			ok: false,
+			stopped: false,
+			pidFile,
+			message: `Invalid runtime PID in ${pidFile}: ${raw}`,
+		};
+	}
+
+	try {
+		process.kill(pid, 0);
+	} catch {
+		try {
+			unlinkSync(pidFile);
+		} catch {
+			// Best-effort cleanup; stale PID is already handled.
+		}
+		return {
+			ok: true,
+			stopped: false,
+			alreadyStopped: true,
+			pid,
+			pidFile,
+			message: "Runtime process was not running; cleaned PID file.",
+		};
+	}
+
+	try {
+		process.kill(pid, "SIGTERM");
+		unlinkSync(pidFile);
+		return {
+			ok: true,
+			stopped: true,
+			pid,
+			pidFile,
+		};
+	} catch (error) {
+		return {
+			ok: false,
+			stopped: false,
+			pid,
+			pidFile,
+			message: error instanceof Error ? error.message : String(error),
+		};
+	}
+}
+
+function buildRuntimeStopJsonPayload(
+	result: RuntimeStopResult,
+): RuntimeStopJsonPayload {
+	return {
+		command: "runtime",
+		operation: "stop",
+		...result,
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
 	};
 }
 
@@ -368,6 +469,8 @@ Examples:
   $ ${RUNTIME_START_WAIT_COMMAND}
   $ ${RUNTIME_ENSURE_WAIT_COMMAND}
   $ ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}
+  $ refarm runtime stop
+  $ refarm runtime restart --wait
   $ refarm runtime start --dry-run
   $ refarm runtime --json
   $ refarm runtime status --json
@@ -409,6 +512,142 @@ Notes:
 						return;
 					}
 					printRuntimeStatus(payload);
+				}),
+		)
+		.addCommand(
+			new Command("stop")
+				.description("Stop the selected Refarm runtime sidecar")
+				.option("--json", "Output machine-readable JSON")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm runtime stop
+  $ refarm runtime stop --json
+
+Notes:
+  This stops the local runtime process tracked by the selected workspace.
+`,
+				)
+				.action((opts: { json?: boolean }, subcommand: Command) => {
+					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const result = (deps.stopRuntime ?? stopRuntimeProcess)(deps.repoRoot());
+					if (json) {
+						printJson(buildRuntimeStopJsonPayload(result));
+						if (!result.ok) process.exitCode = 1;
+						return;
+					}
+					if (result.ok && result.stopped) {
+						console.log(chalk.green(`Runtime stopped (pid ${result.pid}).`));
+						return;
+					}
+					if (result.ok) {
+						console.log(chalk.dim(result.message ?? "Runtime was not running."));
+						return;
+					}
+					console.error(chalk.red(`✗  ${result.message ?? "Runtime stop failed."}`));
+					process.exitCode = 1;
+				}),
+		)
+		.addCommand(
+			new Command("restart")
+				.description("Restart the selected Refarm runtime sidecar")
+				.option("--wait", "Wait until the local runtime sidecar responds")
+				.option("--json", "Output machine-readable JSON")
+				.addHelpText(
+					"after",
+					`
+
+Examples:
+  $ refarm runtime restart
+  $ refarm runtime restart --wait
+  $ refarm runtime restart --wait --json
+
+Notes:
+  restart is the explicit stop/start path used when a plugin cannot hot-reload.
+`,
+				)
+				.action(async (
+					opts: { wait?: boolean; json?: boolean },
+					subcommand: Command,
+				) => {
+					const json = opts.json || subcommand.parent?.opts<{ json?: boolean }>().json;
+					const stop = (deps.stopRuntime ?? stopRuntimeProcess)(deps.repoRoot());
+					if (!stop.ok) {
+						if (json) {
+							printJson({
+								command: "runtime",
+								operation: "restart",
+								ok: false,
+								stop,
+								nextAction: RUNTIME_STOP_JSON_COMMAND,
+								nextActions: [RUNTIME_STOP_JSON_COMMAND],
+								nextCommand: RUNTIME_STOP_JSON_COMMAND,
+								nextCommands: [
+									RUNTIME_STOP_JSON_COMMAND,
+									RUNTIME_DOCTOR_NEXT_COMMAND,
+								],
+							});
+						} else {
+							console.error(chalk.red(`✗  ${stop.message ?? "Runtime stop failed."}`));
+						}
+						process.exitCode = 1;
+						return;
+					}
+
+					const { payload, command } = await resolveRuntimeStartCommand(deps);
+					if (!command) {
+						if (json) {
+							printJson(buildRuntimeJsonPayload(payload, {
+								stop,
+								started: false,
+							}, undefined, "restart"));
+						} else {
+							console.error(chalk.red("✗  Cannot restart Refarm runtime."));
+							if (payload.issue) console.error(chalk.dim(`   ${payload.issue}`));
+						}
+						process.exitCode = 1;
+						return;
+					}
+
+					(deps.startRuntime ?? startRuntimeProcess)(command);
+					const ready = opts.wait
+						? await (deps.waitUntilReady ?? waitForRuntimeReady)()
+						: undefined;
+					if (json) {
+						const diagnostics = opts.wait && ready !== true
+							? runtimeStartDiagnostics(command)
+							: undefined;
+						const recovery = runtimeStartDiagnosticRecovery(diagnostics);
+						printJson(buildRuntimeJsonPayload({
+							...payload,
+							...(ready !== undefined ? { ready } : {}),
+						}, {
+							stop,
+							launchCommand: command,
+							started: true,
+							...(diagnostics ? { diagnostics } : {}),
+							...(recovery.recommendations ? { recommendations: recovery.recommendations } : {}),
+							...(recovery.handoffs ? { handoffs: recovery.handoffs } : {}),
+						}, recovery.nextCommands, "restart"));
+						if (opts.wait && !ready) process.exitCode = 1;
+						return;
+					}
+					if (stop.stopped) {
+						console.log(chalk.green(`Stopped runtime (pid ${stop.pid}).`));
+					}
+					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
+					console.log(chalk.dim(`  command: ${command.display}`));
+					if (opts.wait) {
+						if (ready) {
+							console.log(chalk.green("Runtime ready."));
+						} else {
+							console.error(chalk.red("Runtime did not become ready before timeout."));
+							console.error(chalk.dim(`  Diagnose: ${RUNTIME_DOCTOR_COMMAND}`));
+							process.exitCode = 1;
+						}
+					}
 				}),
 		)
 		.addCommand(
