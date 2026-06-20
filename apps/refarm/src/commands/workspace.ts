@@ -58,6 +58,11 @@ export interface WorkspaceSourceMaterializeCommandOptions {
 	json?: boolean;
 }
 
+export interface WorkspaceSourceRefreshCommandOptions {
+	dryRun?: boolean;
+	json?: boolean;
+}
+
 export interface WorkspaceSourceDeclarationsCommandOptions {
 	json?: boolean;
 }
@@ -95,6 +100,13 @@ const WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND = refarmCommand([
 	"workspace",
 	"sources",
 	"materialize",
+	"--dry-run",
+	"--json",
+]);
+const WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND = refarmCommand([
+	"workspace",
+	"sources",
+	"refresh",
 	"--dry-run",
 	"--json",
 ]);
@@ -388,11 +400,15 @@ function printWorkspaceSources(
 					? "Materialize declared repositories into the source cache; no devcontainer rebuild is required."
 					: plan.summary.unconfigured > 0
 						? "Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place."
+						: plan.summary.refreshRequired > 0
+							? "Refresh stale source cache checkouts."
 					: null,
 				nextCommands: plan.summary.materializable > 0
 					? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
 					: plan.summary.unconfigured > 0
 						? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
+						: plan.summary.refreshRequired > 0
+							? [WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND]
 					: [],
 			}),
 		);
@@ -563,6 +579,60 @@ function printWorkspaceSourceMaterialize(
 	}
 }
 
+function printWorkspaceSourceRefresh(
+	options: WorkspaceSourceRefreshCommandOptions,
+	deps: WorkspaceCommandDeps | undefined,
+): void {
+	if (!options.dryRun) {
+		if (options.json) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "workspace",
+					operation: "source-refresh",
+					error: "source-refresh-requires-dry-run",
+					message: "Workspace source refresh currently requires --dry-run.",
+					nextAction: "Inspect the source refresh plan before fetching repositories.",
+					nextCommand: WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND,
+				}),
+			);
+			return;
+		}
+		throw new Error("workspace sources refresh currently requires --dry-run");
+	}
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
+	const processes = plan.items.flatMap((item) => item.refreshProcess ? [item.refreshProcess] : []);
+	const nextAction = processes.length > 0
+		? "Run the listed git fetch processes to refresh stale source cache checkouts."
+		: null;
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "workspace",
+				operation: "source-refresh-dry-run",
+				extra: {
+					dryRun: true,
+					refreshCount: processes.length,
+					processes,
+					nextProcesses: processes,
+					plan,
+				},
+				nextAction,
+			}),
+		);
+		return;
+	}
+	console.log(chalk.bold("Workspace source refresh"));
+	console.log(chalk.yellow("  (dry-run — no repositories will be fetched)\n"));
+	if (processes.length === 0) {
+		console.log(chalk.dim("  no source cache refresh needed"));
+		return;
+	}
+	for (const process of processes) {
+		console.log(`  ${process.display}`);
+	}
+}
+
 export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 	const command = new Command("workspace")
 		.description("Inspect workspace execution and cache capabilities")
@@ -581,6 +651,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace sources --json",
 				"  $ refarm workspace sources declarations --json",
 				"  $ refarm workspace sources materialize --dry-run --json",
+				"  $ refarm workspace sources refresh --dry-run --json",
 				"  $ refarm workspace list --json",
 				"",
 				"Notes:",
@@ -667,6 +738,18 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 			printWorkspaceSourceMaterialize({
 				...options,
 				json: options.json || materializeCommand.parent?.opts().json,
+			}, deps);
+		});
+
+	sourcesCommand
+		.command("refresh")
+		.description("Refresh stale local source cache checkouts")
+		.option("--dry-run", "Print fetch processes without executing them")
+		.option("--json", "Output machine-readable refresh dry-run")
+		.action((options: WorkspaceSourceRefreshCommandOptions, refreshCommand: Command) => {
+			printWorkspaceSourceRefresh({
+				...options,
+				json: options.json || refreshCommand.parent?.opts().json,
 			}, deps);
 		});
 

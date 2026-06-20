@@ -240,6 +240,7 @@ describe("workspace sweep", () => {
 				cached: 1,
 				materializable: 1,
 				unconfigured: 1,
+				refreshRequired: 1,
 			},
 			items: [
 				{
@@ -252,6 +253,7 @@ describe("workspace sweep", () => {
 					updateIntervalSeconds: 300,
 					rebuildRequired: false,
 					process: null,
+					refreshProcess: null,
 				},
 				{
 					workspaceId: "cached",
@@ -261,6 +263,10 @@ describe("workspace sweep", () => {
 					refreshRequired: true,
 					rebuildRequired: false,
 					process: null,
+					refreshProcess: {
+						command: "git",
+						args: ["-C", cachedPath, "fetch", "--prune"],
+					},
 				},
 				{
 					workspaceId: "missing",
@@ -270,6 +276,7 @@ describe("workspace sweep", () => {
 					cacheAgeSeconds: null,
 					refreshRequired: false,
 					rebuildRequired: false,
+					refreshProcess: null,
 					process: {
 						command: "git",
 						args: [
@@ -291,6 +298,7 @@ describe("workspace sweep", () => {
 					refreshRequired: false,
 					rebuildRequired: false,
 					process: null,
+					refreshProcess: null,
 				},
 			],
 		});

@@ -118,6 +118,11 @@ export interface WorkspaceSourceCachePlanItem {
 		args: string[];
 		display: string;
 	} | null;
+	refreshProcess: {
+		command: "git";
+		args: string[];
+		display: string;
+	} | null;
 }
 
 export interface WorkspaceSourceCachePlan {
@@ -130,6 +135,7 @@ export interface WorkspaceSourceCachePlan {
 		cached: number;
 		materializable: number;
 		unconfigured: number;
+		refreshRequired: number;
 	};
 	items: WorkspaceSourceCachePlanItem[];
 }
@@ -365,6 +371,9 @@ export function buildWorkspaceSourceCachePlan(
 			process: state === "materializable" && repository
 				? gitCloneProcess(repository, cachePath)
 				: null,
+			refreshProcess: state === "cached" && cacheAgeSeconds !== null && cacheAgeSeconds >= updateIntervalSeconds
+				? gitRefreshProcess(cachePath)
+				: null,
 		};
 	});
 	return {
@@ -377,6 +386,7 @@ export function buildWorkspaceSourceCachePlan(
 			cached: items.filter((item) => item.state === "cached").length,
 			materializable: items.filter((item) => item.state === "materializable").length,
 			unconfigured: items.filter((item) => item.state === "unconfigured").length,
+			refreshRequired: items.filter((item) => item.refreshRequired).length,
 		},
 		items,
 	};
@@ -405,6 +415,15 @@ function gitCloneProcess(
 		repository.url,
 		cachePath,
 	];
+	return {
+		command: "git",
+		args,
+		display: ["git", ...args.map(quoteCommandArgIfNeeded)].join(" "),
+	};
+}
+
+function gitRefreshProcess(cachePath: string): WorkspaceSourceCachePlanItem["refreshProcess"] {
+	const args = ["-C", cachePath, "fetch", "--prune"];
 	return {
 		command: "git",
 		args,

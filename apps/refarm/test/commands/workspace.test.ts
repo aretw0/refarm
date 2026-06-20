@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -577,6 +577,132 @@ describe("workspace command", () => {
 			nextAction: "Run the listed git clone processes to materialize source cache checkouts.",
 			nextCommand: null,
 			nextCommands: [],
+		});
+	});
+
+	it("routes stale source cache plans to refresh dry-run", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const cachePath = join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab");
+		mkdirSync(cachePath, { recursive: true });
+		const staleCacheTime = new Date(Date.now() - 600_000);
+		utimesSync(cachePath, staleCacheTime, staleCacheTime);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					"agents-lab": {
+						path: missingRoot,
+						repository: {
+							url: "https://github.com/example/agents-lab.git",
+							ref: "develop",
+						},
+					},
+				},
+			}),
+		}).parseAsync(["sources", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "sources",
+			ok: true,
+			summary: {
+				cached: 1,
+				refreshRequired: 1,
+			},
+			items: [
+				{
+					workspaceId: "agents-lab",
+					state: "cached",
+					refreshRequired: true,
+					refreshProcess: {
+						command: "git",
+						args: ["-C", cachePath, "fetch", "--prune"],
+					},
+				},
+			],
+			nextAction: "Refresh stale source cache checkouts.",
+			nextCommand: "refarm workspace sources refresh --dry-run --json",
+			nextCommands: ["refarm workspace sources refresh --dry-run --json"],
+		});
+	});
+
+	it("prints source cache refresh as a dry-run with next processes", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const cachePath = join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab");
+		mkdirSync(cachePath, { recursive: true });
+		const staleCacheTime = new Date(Date.now() - 600_000);
+		utimesSync(cachePath, staleCacheTime, staleCacheTime);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					"agents-lab": {
+						path: missingRoot,
+						repository: {
+							url: "https://github.com/example/agents-lab.git",
+							ref: "develop",
+						},
+					},
+				},
+			}),
+		}).parseAsync(["sources", "refresh", "--dry-run", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "source-refresh-dry-run",
+			ok: true,
+			dryRun: true,
+			refreshCount: 1,
+			processes: [
+				{
+					command: "git",
+					args: ["-C", cachePath, "fetch", "--prune"],
+				},
+			],
+			nextProcesses: [
+				{
+					command: "git",
+					args: ["-C", cachePath, "fetch", "--prune"],
+				},
+			],
+			plan: {
+				summary: {
+					refreshRequired: 1,
+				},
+			},
+			nextAction: "Run the listed git fetch processes to refresh stale source cache checkouts.",
+			nextCommand: null,
+			nextCommands: [],
+		});
+	});
+
+	it("requires dry-run before source cache refresh", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({ workspaces: {} }),
+		}).parseAsync(["sources", "refresh", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "source-refresh",
+			ok: false,
+			error: "source-refresh-requires-dry-run",
+			message: "Workspace source refresh currently requires --dry-run.",
+			nextAction: "Inspect the source refresh plan before fetching repositories.",
+			nextCommand: "refarm workspace sources refresh --dry-run --json",
+			nextCommands: ["refarm workspace sources refresh --dry-run --json"],
 		});
 	});
 
