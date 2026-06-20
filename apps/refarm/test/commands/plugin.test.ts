@@ -687,13 +687,16 @@ describe("plugin status", () => {
 			command: "plugin",
 			operation: "reload",
 			error: "runtime-plugin-reload-partial",
-			message: "One or more runtime plugins failed to reload.",
+			message: "One or more runtime plugins require a runtime restart to reload.",
 			requested: ["pi-agent"],
 			reloaded: ["@local/tool"],
 			skipped: ["@refarm/pi-agent"],
-			nextAction: "refarm plugin status --json",
-			nextCommand: "refarm plugin status --json",
+			nextAction:
+				"refarm plugin reload 'pi-agent' --restart-if-needed --wait --json",
+			nextCommand:
+				"refarm plugin reload 'pi-agent' --restart-if-needed --wait --json",
 			nextCommands: [
+				"refarm plugin reload 'pi-agent' --restart-if-needed --wait --json",
 				"refarm plugin status --json",
 				"refarm doctor --next-command",
 			],
@@ -725,9 +728,62 @@ describe("plugin status", () => {
 			expect.stringContaining("@local/tool reloaded"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("@refarm/pi-agent failed to reload"),
+			expect.stringContaining("@refarm/pi-agent requires runtime restart to reload"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"refarm plugin reload 'pi-agent' --restart-if-needed --wait",
+			),
 		);
 		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("restarts runtime when partial plugin reload is allowed to restart", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					reloadId: "reload-1",
+					reloaded: [],
+					deferred: [],
+					skipped: ["@refarm/pi-agent"],
+				}),
+			}),
+		);
+		mockRunLaunchProcess.mockResolvedValue({ exitCode: 0 });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("reload", "runtime-agent", "--restart-if-needed", "--wait", "--json");
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			expect.objectContaining({
+				args: expect.arrayContaining(["run", "agent:stop"]),
+			}),
+			{ capture: false },
+		);
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			{
+				command: "refarm",
+				args: ["runtime", "start", "--wait"],
+				display: "refarm runtime start --wait",
+			},
+			{ capture: false },
+		);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: true,
+			command: "plugin",
+			operation: "reload",
+			requested: ["runtime-agent"],
+			reloaded: [],
+			skipped: ["@refarm/pi-agent"],
+			restarted: true,
+			nextCommand: "refarm plugin status --json",
+		});
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
 	});

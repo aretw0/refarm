@@ -42,6 +42,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
@@ -62,6 +63,59 @@ const BUNDLED_PLUGINS = [
 type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
+const PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND = refarmCommand([
+	"plugin",
+	"reload",
+	"runtime-agent",
+	"--restart-if-needed",
+	"--wait",
+	"--json",
+]);
+
+function pluginReloadRestartCommand(pluginIds: string[], json = false): string {
+	return refarmCommand([
+		"plugin",
+		"reload",
+		...pluginIds.map(quoteCommandArg),
+		"--restart-if-needed",
+		"--wait",
+		...(json ? ["--json"] : []),
+	]);
+}
+
+function runtimeStartProcess(wait: boolean) {
+	return {
+		command: "refarm",
+		args: ["runtime", "start", ...(wait ? ["--wait"] : [])],
+		display: wait ? RUNTIME_START_WAIT_COMMAND : RUNTIME_START_COMMAND,
+	};
+}
+
+async function restartRuntimeForPluginReload(wait: boolean): Promise<{
+	ok: boolean;
+	stopCommand: string;
+	startCommand: string;
+	failedCommand?: string;
+}> {
+	const stop = createPackageScriptCommand({ cwd: ".", script: "agent:stop" });
+	const start = runtimeStartProcess(wait);
+	const stopResult = await runLaunchProcess(stop, { capture: false });
+	if (stopResult.exitCode !== 0) {
+		return {
+			ok: false,
+			stopCommand: stop.display,
+			startCommand: start.display,
+			failedCommand: stop.display,
+		};
+	}
+	const startResult = await runLaunchProcess(start, { capture: false });
+	return {
+		ok: startResult.exitCode === 0,
+		stopCommand: stop.display,
+		startCommand: start.display,
+		...(startResult.exitCode === 0 ? {} : { failedCommand: start.display }),
+	};
+}
 
 function pluginBundleCommand(
 	input: string,
@@ -600,7 +654,7 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 
 async function reloadRuntimePluginCommand(
 	pluginIds: string[],
-	options: { json?: boolean } = {},
+	options: { json?: boolean; restartIfNeeded?: boolean; wait?: boolean } = {},
 ): Promise<void> {
 	const requested = pluginIds.length > 0 ? pluginIds : undefined;
 	if (!options.json) {
@@ -652,15 +706,62 @@ async function reloadRuntimePluginCommand(
 
 	if (options.json) {
 		if (result.skipped.length > 0) {
+			const restartCommand = pluginReloadRestartCommand(pluginIds, true);
+			if (options.restartIfNeeded) {
+				const restart = await restartRuntimeForPluginReload(options.wait === true);
+				if (!restart.ok) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "plugin",
+							operation: "reload",
+							error: "runtime-plugin-restart-failed",
+							message: "Runtime restart failed after one or more plugins required restart to reload.",
+							nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+							nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+							nextCommands: [
+								restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+								PLUGIN_STATUS_JSON_COMMAND,
+								RUNTIME_DOCTOR_NEXT_COMMAND,
+							],
+							extra: {
+								requested: pluginIds,
+								reloaded: result.reloaded,
+								skipped: result.skipped,
+								restarted: false,
+								restart,
+							},
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "plugin",
+						operation: "reload",
+						nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+						nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+						extra: {
+							requested: pluginIds,
+							reloaded: result.reloaded,
+							skipped: result.skipped,
+							restarted: true,
+							restart,
+						},
+					}),
+				);
+				return;
+			}
 			printJson(
 				buildJsonErrorEnvelope({
 					command: "plugin",
 					operation: "reload",
 					error: "runtime-plugin-reload-partial",
-					message: "One or more runtime plugins failed to reload.",
-					nextAction: PLUGIN_STATUS_JSON_COMMAND,
-					nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+					message: "One or more runtime plugins require a runtime restart to reload.",
+					nextAction: restartCommand,
+					nextCommand: restartCommand,
 					nextCommands: [
+						restartCommand,
 						PLUGIN_STATUS_JSON_COMMAND,
 						RUNTIME_DOCTOR_NEXT_COMMAND,
 					],
@@ -694,9 +795,21 @@ async function reloadRuntimePluginCommand(
 		console.log(`  ✓ ${pluginId} reloaded`);
 	}
 	for (const pluginId of result.skipped) {
-		console.error(`  ✗ ${pluginId} failed to reload`);
+		console.error(`  ✗ ${pluginId} requires runtime restart to reload`);
 	}
 	if (result.skipped.length > 0) {
+		if (options.restartIfNeeded) {
+			const restart = await restartRuntimeForPluginReload(options.wait === true);
+			if (restart.ok) {
+				console.log(`  ✓ runtime restarted (${restart.startCommand})`);
+				return;
+			}
+			console.error(`  ✗ runtime restart failed: ${restart.failedCommand}`);
+		} else {
+			console.error(
+				`  Restart if needed: ${pluginReloadRestartCommand(pluginIds)}`,
+			);
+		}
 		process.exitCode = 1;
 	}
 	if (result.reloaded.length === 0 && result.skipped.length === 0) {
@@ -814,13 +927,17 @@ pluginCommand
 			"  $ refarm plugin reload",
 			"  $ refarm plugin reload runtime-agent",
 			"  $ refarm plugin reload runtime-agent --json",
+			`  $ ${PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND}`,
 			"",
 			"Notes:",
 			"  This is the non-interactive equivalent of /reload in refarm chat.",
+			"  Hot reload is attempted first; runtime restart only happens with --restart-if-needed.",
 			`  Use ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if the runtime is not running.`,
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable reload result")
+	.option("--restart-if-needed", "Restart the runtime when hot reload is not supported")
+	.option("--wait", "Wait for runtime readiness after --restart-if-needed")
 	.action(reloadRuntimePluginCommand);
 
 pluginCommand
