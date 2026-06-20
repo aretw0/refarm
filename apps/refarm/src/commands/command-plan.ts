@@ -1,6 +1,7 @@
 export {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
+	commandPlanCacheObservations,
 	commandPlanEffects,
 	commandPlanStepCommands,
 	commandPlanStepProcesses,
@@ -9,6 +10,7 @@ export {
 	runCommandPlan,
 	runCommandPlanCliStep,
 	runCommandPlanProcessStep,
+	type CommandPlanCacheObservation,
 	type CommandPlanCliStepRunOptions,
 	type CommandPlanCommandRunOptions,
 	type CommandPlanEffect,
@@ -19,6 +21,7 @@ export {
 	type CommandPlanRunEnvelope,
 	type CommandPlanRunResult,
 	type CommandPlanStep,
+	type CommandPlanStepCacheObservation,
 	type CommandPlanStepRunResult,
 	type CommandPlanStepSummary,
 } from "@refarm.dev/cli/command-plan";

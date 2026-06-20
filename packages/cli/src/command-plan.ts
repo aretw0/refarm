@@ -34,12 +34,28 @@ export interface CommandPlanStep {
 
 export type CommandPlanEffect = NonNullable<CommandPlanStep["effect"]>;
 
+export interface CommandPlanCacheObservation {
+	tool: string;
+	cached: number;
+	total: number;
+	hitRate: number;
+	status: string;
+	tasksSuccessful?: number;
+	tasksTotal?: number;
+}
+
+export interface CommandPlanStepCacheObservation extends CommandPlanCacheObservation {
+	stepId: string;
+	command: string;
+}
+
 export interface CommandPlanStepRunResult extends CommandPlanStep {
 	ok: boolean;
 	exitCode: number;
 	stdout: string;
 	stderr: string;
 	payload?: unknown;
+	cache?: CommandPlanCacheObservation;
 }
 
 export interface CommandPlanCommandRunOptions {
@@ -79,6 +95,7 @@ export interface CommandPlanStepSummary {
 	effect?: CommandPlanEffect;
 	process?: CommandPlanStep["process"];
 	payload?: unknown;
+	cache?: CommandPlanCacheObservation;
 }
 
 export interface CommandPlanEnvelopeContext {
@@ -218,7 +235,16 @@ export function commandPlanStepSummary(
 		...(step.effect ? { effect: step.effect } : {}),
 		...(step.process ? { process: step.process } : {}),
 		...(step.payload !== undefined ? { payload: commandPlanPayloadSummary(step.payload) } : {}),
+		...(step.cache ? { cache: step.cache } : {}),
 	};
+}
+
+export function commandPlanCacheObservations(
+	result: CommandPlanRunResult,
+): CommandPlanStepCacheObservation[] {
+	return result.steps.flatMap((step) =>
+		step.cache ? [{ ...step.cache, stepId: step.id, command: step.command }] : [],
+	);
 }
 
 function commandPlanPayloadSummary(payload: unknown): unknown {

@@ -105,6 +105,7 @@ export type {
 export {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
+	commandPlanCacheObservations,
 	commandPlanEffects,
 	commandPlanStepCommands,
 	commandPlanStepProcesses,
@@ -116,6 +117,7 @@ export {
 } from "./command-plan.js";
 export type {
 	CommandPlanCliStepRunOptions,
+	CommandPlanCacheObservation,
 	CommandPlanCommandRunOptions,
 	CommandPlanEffect,
 	CommandPlanEnvelope,
@@ -125,6 +127,7 @@ export type {
 	CommandPlanRunEnvelope,
 	CommandPlanRunResult,
 	CommandPlanStep,
+	CommandPlanStepCacheObservation,
 	CommandPlanStepRunResult,
 	CommandPlanStepSummary,
 } from "./command-plan.js";

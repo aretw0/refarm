@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
+	commandPlanCacheObservations,
 	commandPlanEffects,
 	commandPlanStepCommands,
 	commandPlanStepProcesses,
@@ -318,6 +319,45 @@ describe("command plan runner", () => {
 				packageManager: "npm",
 			},
 		});
+	});
+
+	it("keeps cache observations in command plan summaries and aggregate reports", () => {
+		const result = runCommandPlan([processSteps[0]!], (step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+			cache: {
+				tool: "turbo",
+				cached: 4,
+				total: 5,
+				hitRate: 0.8,
+				status: "partial-hit",
+			},
+		}));
+
+		expect(commandPlanStepSummary(result.steps[0]!)).toMatchObject({
+			id: "type-check",
+			cache: {
+				tool: "turbo",
+				cached: 4,
+				total: 5,
+				hitRate: 0.8,
+				status: "partial-hit",
+			},
+		});
+		expect(commandPlanCacheObservations(result)).toEqual([
+			{
+				tool: "turbo",
+				cached: 4,
+				total: 5,
+				hitRate: 0.8,
+				status: "partial-hit",
+				stepId: "type-check",
+				command: "refarm agent finish --workspace packages/cli --json",
+			},
+		]);
 	});
 
 	it("runs CLI steps and parses JSON payloads from stdout", () => {

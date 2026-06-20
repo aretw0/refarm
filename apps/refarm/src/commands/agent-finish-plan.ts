@@ -5,10 +5,7 @@ import {
 	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
-import {
-	parseTurboCacheRunSummary,
-	type TurboCacheRunSummary,
-} from "@refarm.dev/infra-turbo-cache";
+import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -23,6 +20,7 @@ import {
 import { refarmCommand } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
+	commandPlanCacheObservations,
 	commandPlanStepCommands,
 	runCommandPlan,
 	runCommandPlanCliStep,
@@ -88,18 +86,6 @@ export interface AgentFinishSelectionContext {
 	affectedScriptChecks?: string[];
 	affectedWorkspaces?: string[];
 	sinceRef?: string;
-}
-
-export interface AgentFinishCacheObservation {
-	stepId: string;
-	command: string;
-	tool: string;
-	cached: number;
-	total: number;
-	hitRate: number;
-	status: string;
-	tasksSuccessful?: number;
-	tasksTotal?: number;
 }
 
 export function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
@@ -594,7 +580,7 @@ export function runAgentFinishPlan(
 function enrichFinishStepResult(
 	step: CommandPlanStep,
 	result: CommandPlanStepRunResult,
-): CommandPlanStepRunResult & { cache?: TurboCacheRunSummary } {
+): CommandPlanStepRunResult {
 	if (!isTurboPackageValidationStep(step)) return result;
 	const cache = parseTurboCacheRunSummary(`${result.stdout}\n${result.stderr}`);
 	return cache ? { ...result, cache } : result;
@@ -725,7 +711,7 @@ export function printAgentFinishRunHuman(
 }
 
 function formatStepCacheSuffix(step: CommandPlanStepRunResult): string {
-	const cache = (step as CommandPlanStepRunResult & { cache?: TurboCacheRunSummary }).cache;
+	const cache = step.cache;
 	if (!cache) return "";
 	const percent = Math.round(cache.hitRate * 100);
 	return ` (cache: ${cache.cached}/${cache.total}, ${percent}%, ${cache.status})`;
@@ -733,11 +719,8 @@ function formatStepCacheSuffix(step: CommandPlanStepRunResult): string {
 
 export function finishCacheObservations(
 	result: CommandPlanRunResult,
-): AgentFinishCacheObservation[] {
-	return result.steps.flatMap((step) => {
-		const cache = (step as CommandPlanStepRunResult & { cache?: TurboCacheRunSummary }).cache;
-		return cache ? [{ ...cache, stepId: step.id, command: step.command }] : [];
-	});
+): ReturnType<typeof commandPlanCacheObservations> {
+	return commandPlanCacheObservations(result);
 }
 
 function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {
