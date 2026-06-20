@@ -389,6 +389,55 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("prints a devcontainer mount plan for missing workspace bridges", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					bridged: {
+						path: missingRoot,
+						bridges: [
+							{
+								id: "windows-host",
+								kind: "filesystem",
+								path: "/mnt/c/Users/aretw/Documents/GitHub/bridged",
+								hostPath: "C:\\Users\\aretw\\Documents\\GitHub\\bridged",
+								mountHint: "Mount the host checkout into the dev container.",
+							},
+						],
+					},
+				},
+			}),
+		}).parseAsync(["mounts", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "mounts",
+			ok: true,
+			mode: "all",
+			mountCount: 1,
+			mounts: [
+				{
+					workspaceId: "bridged",
+					mount: `source=C:\\Users\\aretw\\Documents\\GitHub\\bridged,target=${missingRoot},type=bind`,
+				},
+			],
+			instructions: [
+				"Add the listed mount strings to .devcontainer/devcontainer.json mounts.",
+				"Rebuild the devcontainer after changing mounts.",
+			],
+			nextAction:
+				"Add listed mounts to .devcontainer/devcontainer.json and rebuild the devcontainer.",
+			nextCommand: null,
+			nextCommands: [],
+		});
+	});
+
 	it("keeps --all read-only and reports missing declared workspaces as observations", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");

@@ -43,6 +43,10 @@ export interface WorkspaceStatusCommandOptions {
 	json?: boolean;
 }
 
+export interface WorkspaceMountsCommandOptions {
+	json?: boolean;
+}
+
 export interface WorkspaceCommandDeps {
 	cwd?: () => string;
 	env?: NodeJS.ProcessEnv;
@@ -211,6 +215,34 @@ export function buildWorkspaceExecutionSweepPayload(
 	return buildWorkspaceSweepPayload(observations) as WorkspaceExecutionSweepPayload;
 }
 
+function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
+	mode: "all";
+	mountCount: number;
+	mounts: Array<{
+		workspaceId: string;
+		mount: string;
+	}>;
+	instructions: string[];
+} {
+	const mounts = payload.recommendations.flatMap((recommendation) =>
+		(recommendation.devcontainerMounts ?? []).map((mount) => ({
+			workspaceId: recommendation.workspaceId,
+			mount,
+		})),
+	);
+	return {
+		mode: "all",
+		mountCount: mounts.length,
+		mounts,
+		instructions: mounts.length > 0
+			? [
+					"Add the listed mount strings to .devcontainer/devcontainer.json mounts.",
+					"Rebuild the devcontainer after changing mounts.",
+				]
+			: [],
+	};
+}
+
 function printWorkspaceStatus(
 	options: WorkspaceStatusCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
@@ -236,6 +268,41 @@ function printWorkspaceStatus(
 	printWorkspaceExecutionObservations(observations);
 }
 
+function printWorkspaceMounts(
+	options: WorkspaceMountsCommandOptions,
+	deps: WorkspaceCommandDeps | undefined,
+): void {
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const observations = observeDeclaredWorkspacesExecution(
+		loadDeclaredWorkspaces(deps, baseDir),
+		deps,
+	);
+	const payload = buildWorkspaceExecutionSweepPayload(observations);
+	const plan = buildWorkspaceMountPlan(payload);
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "workspace",
+				operation: "mounts",
+				extra: plan,
+				nextAction: plan.mountCount > 0
+					? "Add listed mounts to .devcontainer/devcontainer.json and rebuild the devcontainer."
+					: null,
+			}),
+		);
+		return;
+	}
+	console.log(chalk.bold("Workspace mounts"));
+	if (plan.mountCount === 0) {
+		console.log(chalk.dim("  no missing bridge mounts detected"));
+		return;
+	}
+	for (const mount of plan.mounts) {
+		console.log(`  ${mount.workspaceId}: ${mount.mount}`);
+	}
+	console.log(chalk.dim("  Add these to .devcontainer/devcontainer.json mounts, then rebuild."));
+}
+
 export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 	const command = new Command("workspace")
 		.description("Inspect workspace execution and cache capabilities")
@@ -250,6 +317,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace execution --workspace agents-lab --json",
 				"  $ refarm workspace execution --all --json",
 				"  $ refarm workspace status --json",
+				"  $ refarm workspace mounts --json",
 				"  $ refarm workspace list --json",
 				"",
 				"Notes:",
@@ -301,6 +369,14 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--json", "Output machine-readable workspace status")
 		.action((options: WorkspaceStatusCommandOptions) => {
 			printWorkspaceStatus(options, deps);
+		});
+
+	command
+		.command("mounts")
+		.description("Plan devcontainer mounts for missing declared workspace bridges")
+		.option("--json", "Output machine-readable devcontainer mount plan")
+		.action((options: WorkspaceMountsCommandOptions) => {
+			printWorkspaceMounts(options, deps);
 		});
 
 	command
