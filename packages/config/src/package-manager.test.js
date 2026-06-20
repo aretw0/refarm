@@ -8,6 +8,7 @@ import {
     createPackageScriptCommand,
     detectPackageManager,
     packageAddDevCommand,
+    packageAuditCommand,
     packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
@@ -300,6 +301,29 @@ describe("package manager config", () => {
             command: pmCommand("bun"),
             args: pmArgs("bun", ["audit"]),
             display: "bun audit",
+        });
+    });
+
+    it("formats audit commands with optional severity for each supported manager", () => {
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["audit"]),
+            display: "pnpm audit",
+        });
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" }, auditLevel: "moderate" })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["audit", "--audit-level=moderate"]),
+            display: "npm audit --audit-level=moderate",
+        });
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" }, auditLevel: "high" })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["npm", "audit", "--severity", "high"]),
+            display: "yarn npm audit --severity high",
+        });
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" }, auditLevel: "critical" })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["audit", "--audit-level=critical"]),
+            display: "bun audit --audit-level=critical",
         });
     });
 

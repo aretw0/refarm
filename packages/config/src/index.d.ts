@@ -56,6 +56,7 @@ export function isRuntimeAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentErrorContent(content: string): boolean;
 export function canonicalRuntimeAgentContent(content: string): string;
 export type {
+    PackageAuditCommandOptions,
     PackageCommandString,
     PackageBinaryCommand,
     PackageManagerName,
@@ -70,6 +71,7 @@ export {
     createPackageScriptCommand,
     detectPackageManager,
     packageAddDevCommand,
+    packageAuditCommand,
     packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,

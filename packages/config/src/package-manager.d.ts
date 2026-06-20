@@ -92,6 +92,14 @@ export function packageAddDevCommand(
     options?: PackageManagerOptions,
 ): PackageSpawnCommand;
 
+export interface PackageAuditCommandOptions extends PackageManagerOptions {
+    auditLevel?: "low" | "moderate" | "high" | "critical" | null;
+}
+
+export function packageAuditCommand(
+    options?: PackageAuditCommandOptions,
+): PackageSpawnCommand;
+
 export function packageAuditHighCommand(
     options?: PackageManagerOptions,
 ): PackageSpawnCommand;

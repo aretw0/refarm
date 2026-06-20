@@ -1,5 +1,6 @@
 export {
     detectPackageManager,
+    packageAuditCommand,
     packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,

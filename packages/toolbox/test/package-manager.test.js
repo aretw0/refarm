@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     detectPackageManager,
+    packageAuditCommand,
     packageAuditHighCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
@@ -52,6 +53,14 @@ describe("toolbox package manager commands", () => {
             command: "npm",
             args: ["audit", "--audit-level=high", "--silent"],
             display: "npm audit --audit-level=high --silent",
+        });
+    });
+
+    it("re-exports audit command resolution", () => {
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" }, auditLevel: "critical" })).toMatchObject({
+            command: "yarn",
+            args: ["npm", "audit", "--severity", "critical"],
+            display: "yarn npm audit --severity critical",
         });
     });
 });

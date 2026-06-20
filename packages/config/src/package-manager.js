@@ -275,6 +275,45 @@ export function packageAddDevCommand(dependencyName, { cwd = process.cwd(), env 
     }
 }
 
+export function packageAuditCommand({
+    cwd = process.cwd(),
+    env = process.env,
+    auditLevel = null,
+} = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm":
+        case "npm":
+        case "bun": {
+            const command = packageManagerSpawnCommand(
+                packageManager,
+                ["audit", ...(auditLevel ? [`--audit-level=${auditLevel}`] : [])],
+            );
+            return {
+                packageManager,
+                command: command.command,
+                args: command.args,
+                display: `${packageManager} audit${auditLevel ? ` --audit-level=${auditLevel}` : ""}`,
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(
+                packageManager,
+                ["npm", "audit", ...(auditLevel ? ["--severity", auditLevel] : [])],
+            );
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: `yarn npm audit${auditLevel ? ` --severity ${auditLevel}` : ""}`,
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env } = {}) {
     const packageManager = detectPackageManager({ cwd, env });
 

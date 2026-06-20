@@ -55,6 +55,7 @@ export {
     createPackageScriptCommand,
     detectPackageManager,
     packageAddDevCommand,
+    packageAuditCommand,
     packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
