@@ -222,6 +222,9 @@ function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
 		workspaceId: string;
 		mount: string;
 	}>;
+	devcontainerJson: {
+		mounts: string[];
+	};
 	instructions: string[];
 } {
 	const mounts = payload.recommendations.flatMap((recommendation) =>
@@ -234,6 +237,9 @@ function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
 		mode: "all",
 		mountCount: mounts.length,
 		mounts,
+		devcontainerJson: {
+			mounts: mounts.map((mount) => mount.mount),
+		},
 		instructions: mounts.length > 0
 			? [
 					"Add the listed mount strings to .devcontainer/devcontainer.json mounts.",
