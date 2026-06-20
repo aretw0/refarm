@@ -510,8 +510,8 @@ describe("workspace command", () => {
 			],
 			nextAction:
 				"Materialize declared repositories into the source cache; no devcontainer rebuild is required.",
-			nextCommand: null,
-			nextCommands: [],
+			nextCommand: "refarm workspace sources materialize --dry-run --json",
+			nextCommands: ["refarm workspace sources materialize --dry-run --json"],
 		});
 	});
 
@@ -694,6 +694,7 @@ describe("workspace command", () => {
 			nextCommand: "refarm workspace sources --json",
 			nextCommands: [
 				"refarm workspace sources --json",
+				"refarm workspace sources materialize --dry-run --json",
 				"refarm workspace mounts --json",
 				"refarm provision cloudflare turbo-cache --dry-run --json",
 			],

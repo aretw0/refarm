@@ -285,7 +285,10 @@ function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
 function workspaceStatusNextCommands(payload: WorkspaceExecutionSweepPayload): string[] {
 	const nextCommands = workspaceSweepRecommendationNextCommands(payload.recommendations);
 	if (!hasMissingWorkspacePath(payload)) return nextCommands;
-	const missingPathCommands = [WORKSPACE_SOURCES_JSON_COMMAND];
+	const missingPathCommands = [
+		WORKSPACE_SOURCES_JSON_COMMAND,
+		WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND,
+	];
 	if (buildWorkspaceMountPlan(payload).mountCount > 0) {
 		missingPathCommands.push(WORKSPACE_MOUNTS_JSON_COMMAND);
 	}
@@ -375,6 +378,9 @@ function printWorkspaceSources(
 					: plan.summary.unconfigured > 0
 						? "Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place."
 					: null,
+				nextCommands: plan.summary.materializable > 0
+					? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
+					: [],
 			}),
 		);
 		return;
