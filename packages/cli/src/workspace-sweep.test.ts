@@ -124,6 +124,7 @@ describe("workspace sweep", () => {
 					local: {
 						available: false,
 						path: path.join(cwd, ".turbo", "cache"),
+						kind: null,
 					},
 					remote: {
 						configured: false,

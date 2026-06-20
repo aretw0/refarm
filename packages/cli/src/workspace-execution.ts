@@ -27,6 +27,7 @@ export interface WorkspaceExecutionStatus {
 		local: {
 			available: boolean;
 			path: string | null;
+			kind: "cache-dir" | "workspace-state" | null;
 		};
 		remote: {
 			configured: boolean;
@@ -50,7 +51,7 @@ export function buildWorkspaceExecutionStatus(options: {
 	const turboConfigured = fs.existsSync(turboConfigPath);
 	const turboDeclared = workspaceDeclaresDependency(root, "turbo");
 	const turboAvailable = turboConfigured && turboDeclared;
-	const localCachePath = turboConfigured ? path.join(root, ".turbo", "cache") : null;
+	const localCache = turboConfigured ? detectLocalTurboCache(root) : { available: false, path: null, kind: null };
 	const remoteConfigured = Boolean(env.TURBO_CACHE_API_URL && env.TURBO_CACHE_TOKEN);
 	return {
 		root,
@@ -88,8 +89,9 @@ export function buildWorkspaceExecutionStatus(options: {
 		},
 		cache: {
 			local: {
-				available: Boolean(localCachePath && fs.existsSync(localCachePath)),
-				path: localCachePath,
+				available: localCache.available,
+				path: localCache.path,
+				kind: localCache.kind,
 			},
 			remote: {
 				configured: remoteConfigured,
@@ -98,6 +100,44 @@ export function buildWorkspaceExecutionStatus(options: {
 			},
 		},
 	};
+}
+
+function detectLocalTurboCache(root: string): {
+	available: boolean;
+	path: string | null;
+	kind: "cache-dir" | "workspace-state" | null;
+} {
+	const rootCachePath = path.join(root, ".turbo", "cache");
+	if (fs.existsSync(rootCachePath)) {
+		return {
+			available: true,
+			path: rootCachePath,
+			kind: "cache-dir",
+		};
+	}
+
+	const turboStatePath = path.join(root, ".turbo");
+	if (directoryHasEntries(turboStatePath)) {
+		return {
+			available: true,
+			path: turboStatePath,
+			kind: "workspace-state",
+		};
+	}
+
+	return {
+		available: false,
+		path: rootCachePath,
+		kind: null,
+	};
+}
+
+function directoryHasEntries(dir: string): boolean {
+	try {
+		return fs.readdirSync(dir).length > 0;
+	} catch {
+		return false;
+	}
 }
 
 export function workspaceCanUseTurboAdapter(cwd = process.cwd()): boolean {

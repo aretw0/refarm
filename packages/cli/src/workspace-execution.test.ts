@@ -165,11 +165,35 @@ describe("workspace execution discovery", () => {
 		expect(status.cache.local).toEqual({
 			available: true,
 			path: path.join(tempRoot, ".turbo", "cache"),
+			kind: "cache-dir",
 		});
 		expect(status.cache.remote).toEqual({
 			configured: true,
 			apiUrlEnv: "TURBO_CACHE_API_URL",
 			tokenEnv: "TURBO_CACHE_TOKEN",
+		});
+	});
+
+	it("reports Turbo workspace state as local cache readiness for Turbo 2 layouts", () => {
+		writeJson(path.join(tempRoot, "package.json"), {
+			devDependencies: {
+				turbo: "^2.0.0",
+			},
+		});
+		writeJson(path.join(tempRoot, "turbo.json"), {
+			tasks: {},
+		});
+		fs.mkdirSync(path.join(tempRoot, ".turbo"), { recursive: true });
+		fs.writeFileSync(path.join(tempRoot, ".turbo", "turbo-build.log"), "cache hit\n");
+
+		const status = buildWorkspaceExecutionStatus({
+			cwd: tempRoot,
+		});
+
+		expect(status.cache.local).toEqual({
+			available: true,
+			path: path.join(tempRoot, ".turbo"),
+			kind: "workspace-state",
 		});
 	});
 });

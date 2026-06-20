@@ -195,6 +195,7 @@ function makeWorkspaceExecutionStatus(
 			local: {
 				available: true,
 				path: "/workspaces/refarm/.turbo/cache",
+				kind: "cache-dir",
 			},
 			remote: {
 				configured: true,
@@ -424,6 +425,7 @@ describe("buildRefarmCheckReport", () => {
 					local: {
 						available: true,
 						path: "/workspaces/refarm/.turbo/cache",
+						kind: "cache-dir",
 					},
 					remote: {
 						configured: false,
