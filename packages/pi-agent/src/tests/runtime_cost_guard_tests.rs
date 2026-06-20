@@ -50,6 +50,16 @@ fn estimate_usd_openai_worker_codex_uses_gpt_5_family_rate() {
 }
 
 #[test]
+fn estimate_billable_usd_subscription_providers_are_not_api_billed() {
+    assert_eq!(pricing_mode_for_provider("openai-codex"), "subscription");
+    assert_eq!(
+        estimate_billable_usd("openai-codex", "gpt-5.5", 1000, 500, 0),
+        0.0
+    );
+    assert!(estimate_usd("gpt-5.5", 1000, 500, 0) > 0.0);
+}
+
+#[test]
 fn estimate_usd_ollama_is_zero() {
     assert_eq!(estimate_usd("llama3.2", 10000, 5000, 0), 0.0);
     assert_eq!(estimate_usd("mistral", 1000, 1000, 0), 0.0);

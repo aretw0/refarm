@@ -249,9 +249,15 @@ function extractResultPayload(result: unknown): {
 	if (typeof value.model === "string") metadata.model = value.model;
 	if (typeof value.provider === "string") metadata.provider = value.provider;
 	if (value.usage && typeof value.usage === "object") {
-		const usage = value.usage as { tokens_in?: unknown; tokens_out?: unknown; estimated_usd?: unknown };
+		const usage = value.usage as {
+			tokens_in?: unknown;
+			tokens_out?: unknown;
+			pricing_mode?: unknown;
+			estimated_usd?: unknown;
+		};
 		if (typeof usage.tokens_in === "number") metadata.tokens_in = usage.tokens_in;
 		if (typeof usage.tokens_out === "number") metadata.tokens_out = usage.tokens_out;
+		if (typeof usage.pricing_mode === "string") metadata.pricing_mode = usage.pricing_mode;
 		if (typeof usage.estimated_usd === "number") metadata.estimated_usd = usage.estimated_usd;
 	}
 	return { status: "ok", content, metadata: Object.keys(metadata).length > 0 ? metadata : undefined };
@@ -333,11 +339,20 @@ function usageLine(metadata: Record<string, unknown>): string {
 	const model = metadata.model ?? "unknown";
 	const tokensIn = metadata.tokens_in ?? 0;
 	const tokensOut = metadata.tokens_out ?? 0;
-	const usd =
-		metadata.estimated_usd != null
+	const pricing = pricingDisplay(metadata);
+	return `model: ${model}  tokens: ${tokensIn} in / ${tokensOut} out  ${pricing}`;
+}
+
+function pricingDisplay(metadata: Record<string, unknown>): string {
+	if (metadata.pricing_mode === "subscription" || metadata.provider === "openai-codex") {
+		return "subscription";
+	}
+	if (metadata.pricing_mode === "local" || metadata.provider === "ollama") {
+		return "local";
+	}
+	return metadata.estimated_usd != null
 			? `~$${Number(metadata.estimated_usd).toFixed(4)}`
 			: "";
-	return `model: ${model}  tokens: ${tokensIn} in / ${tokensOut} out  ${usd}`;
 }
 
 function printChatError(message: string): void {

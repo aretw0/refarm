@@ -88,7 +88,10 @@ pub(crate) use structured_io::{
 };
 pub(crate) use tools::{tools_anthropic, tools_openai};
 #[allow(unused_imports)]
-pub(crate) use utils::{estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns};
+pub(crate) use utils::{
+    estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns,
+    pricing_mode_for_provider,
+};
 
 use exports::refarm::plugin::integration::{
     Guest as IntegrationGuest, PluginError, PluginMetadata,
@@ -185,6 +188,7 @@ fn build_respond_json(
 ) -> String {
     let usage_details =
         serde_json::from_str::<serde_json::Value>(&usage_raw).unwrap_or(serde_json::json!({}));
+    let pricing_mode = pricing_mode_for_provider(&provider);
     serde_json::json!({
         "content": content,
         "model": model,
@@ -193,6 +197,7 @@ fn build_respond_json(
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
             "tokens_reasoning": tokens_reasoning,
+            "pricing_mode": pricing_mode,
             "estimated_usd": estimated_usd,
             "raw": usage_details,
         }
@@ -210,7 +215,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         runtime::execute_prompt(&req.prompt, req.system.as_deref(), None).ok_or_else(|| {
             PluginError::Internal("failed to persist prompt context before respond".to_string())
         })?;
-    let estimated_usd = estimate_usd(
+    let estimated_usd = estimate_billable_usd(
+        &outcome.provider,
         &outcome.model,
         outcome.tokens_in,
         outcome.tokens_out,
@@ -246,7 +252,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         usage_raw,
     ) = runtime::react_with_prompt_ref(&req.prompt, None);
     let provider = provider_name_from_env().to_string();
-    let estimated_usd = estimate_usd(&model, tokens_in, tokens_out, tokens_cached);
+    let estimated_usd =
+        estimate_billable_usd(&provider, &model, tokens_in, tokens_out, tokens_cached);
     Ok(build_respond_json(
         content,
         model,

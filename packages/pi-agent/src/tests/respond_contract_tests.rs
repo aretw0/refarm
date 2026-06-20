@@ -101,6 +101,13 @@ fn respond_returns_complete_structure() {
             .is_some(),
         "usage.estimated_usd must be numeric"
     );
+    assert!(
+        usage
+            .get("pricing_mode")
+            .and_then(|value| value.as_str())
+            .is_some(),
+        "usage.pricing_mode must be a string"
+    );
 }
 
 #[test]

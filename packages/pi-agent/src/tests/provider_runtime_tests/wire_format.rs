@@ -67,10 +67,10 @@ fn provider_runtime_append_openai_tool_message_shape() {
 
 #[test]
 fn provider_runtime_openai_compat_path_known_overrides() {
-	assert_eq!(
-		crate::provider_runtime::openai_compat_path("openai-codex"),
-		"/backend-api/codex/responses"
-	);
+    assert_eq!(
+        crate::provider_runtime::openai_compat_path("openai-codex"),
+        "/backend-api/codex/responses"
+    );
     assert_eq!(
         crate::provider_runtime::openai_compat_path("groq"),
         "/openai/v1/chat/completions"
@@ -145,9 +145,9 @@ fn provider_runtime_build_openai_codex_body_uses_responses_shape() {
         false,
     );
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
-	assert_eq!(v["model"], "gpt-5.5");
-	assert_eq!(v["stream"], true);
-	assert_eq!(v["instructions"], "sys");
+    assert_eq!(v["model"], "gpt-5.5");
+    assert_eq!(v["stream"], true);
+    assert_eq!(v["instructions"], "sys");
     assert_eq!(v["input"][0]["role"], "user");
     assert_eq!(v["input"][0]["content"], "hi");
     assert_eq!(v["tools"][0]["type"], "function");

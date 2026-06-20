@@ -270,6 +270,42 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("prints subscription pricing mode instead of api cost for subscription providers", async () => {
+		const deps = makeDeps({
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(makeChunk("ok", 0, true, {
+							model: "gpt-5.5",
+							provider: "openai-codex",
+							tokens_in: 50,
+							tokens_out: 2,
+							pricing_mode: "subscription",
+							estimated_usd: 0,
+						}));
+					},
+				),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(allLogs).toContain("model:");
+		expect(allLogs).toContain("gpt-5.5");
+		expect(allLogs).toContain("50 in / 2 out");
+		expect(allLogs).toContain("subscription");
+		expect(allLogs).not.toContain("~$");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("prints ask result as JSON without streaming text", async () => {
 		const deps = makeDeps({
 			readActiveSessionId: vi

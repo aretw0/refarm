@@ -51,7 +51,37 @@ async function runRefarmJsonResult(args, env) {
 
 async function runRefarmHandoff(command, env) {
 	assert(command.startsWith("refarm "), `unsupported handoff command: ${command}`);
-	return runRefarm(command.split(/\s+/).slice(1), env);
+	return runRefarm(splitHandoffCommand(command).slice(1), env);
+}
+
+function splitHandoffCommand(command) {
+	const args = [];
+	let current = "";
+	let quote = null;
+	for (const char of command.trim()) {
+		if (quote) {
+			if (char === quote) {
+				quote = null;
+			} else {
+				current += char;
+			}
+			continue;
+		}
+		if (char === "'" || char === '"') {
+			quote = char;
+			continue;
+		}
+		if (/\s/.test(char)) {
+			if (current) {
+				args.push(current);
+				current = "";
+			}
+			continue;
+		}
+		current += char;
+	}
+	if (current) args.push(current);
+	return args;
 }
 
 async function waitForTaskDone(effortId, env, timeoutMs = 10_000) {
@@ -233,10 +263,17 @@ async function main() {
 		});
 		await waitForMockRuntime(env);
 
-		const pluginReload = await runRefarmJsonResult(
+		let pluginReload = await runRefarmJsonResult(
 			["plugin", "reload", "runtime-agent", "--json"],
 			env,
 		);
+		if (
+			pluginReload.ok === false &&
+			typeof pluginReload.nextCommand === "string" &&
+			pluginReload.nextCommand.includes("--restart-if-needed")
+		) {
+			pluginReload = await runRefarmHandoff(pluginReload.nextCommand, env);
+		}
 		assert(
 			pluginReload.command === "plugin" && pluginReload.operation === "reload",
 			`runtime-agent plugin reload returned unexpected payload: ${JSON.stringify(pluginReload)}`,

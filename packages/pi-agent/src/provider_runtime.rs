@@ -206,8 +206,8 @@ pub(crate) use stream_events::emit_stream_response_chunk_drafts_from_sse;
 #[cfg(test)]
 pub(crate) use stream_events::{
     emit_stream_response_chunk_drafts_from_sse, parse_openai_codex_response_from_sse,
-    parse_sse_data_events, parse_stream_response_chunk_drafts_from_sse,
-    parse_stream_text_deltas, parse_stream_text_deltas_from_sse,
+    parse_sse_data_events, parse_stream_response_chunk_drafts_from_sse, parse_stream_text_deltas,
+    parse_stream_text_deltas_from_sse,
 };
 
 #[cfg(target_arch = "wasm32")]

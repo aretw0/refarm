@@ -76,7 +76,11 @@ pub(crate) fn parse_openai_codex_response_from_sse(
     }
 
     if let Some(response) = last_response {
-        return Ok(finalize_openai_codex_sse_response(response, &output_items, &text));
+        return Ok(finalize_openai_codex_sse_response(
+            response,
+            &output_items,
+            &text,
+        ));
     }
     if !text.is_empty() {
         return Ok(serde_json::json!({ "output_text": text }));
