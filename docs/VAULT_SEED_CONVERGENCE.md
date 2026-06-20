@@ -239,7 +239,7 @@ consumer CLI directly to Refarm internals:
      review reports.
    - Refarm should own the dependency-free scoring contract and JSON report
      shape for generic docs/prose.
-   - Prize-specific rubrics, vault dashboards, notebooks, and submission
+   - Submission-specific rubrics, vault dashboards, notebooks, and submission
      language stay in the consumer projects.
    - The first generic lane is `pnpm run text-quality:test`; `pnpm run
      docs:text-quality` applies the scorer to selected Refarm calibration docs
