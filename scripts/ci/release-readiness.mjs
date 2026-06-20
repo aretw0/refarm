@@ -150,6 +150,18 @@ function summarizeCapturedJson(stdout) {
 	}
 }
 
+function serializeStepFailure(error) {
+	if (!error || typeof error !== "object") {
+		return { error: String(error) };
+	}
+	return {
+		error: error instanceof Error ? error.message : String(error),
+		...(typeof error.exitCode === "number" ? { exitCode: error.exitCode } : {}),
+		...(typeof error.stdout === "string" ? { stdout: error.stdout } : {}),
+		...(typeof error.stderr === "string" ? { stderr: error.stderr } : {}),
+	};
+}
+
 async function runPlan(plan, { json }) {
 	const results = [];
 
@@ -177,7 +189,7 @@ async function runPlan(plan, { json }) {
 			results.push({
 				...serializeStep(step),
 				ok: false,
-				error: error instanceof Error ? error.message : String(error),
+				...serializeStepFailure(error),
 			});
 			return { ok: false, failedStepId: step.id, results };
 		}

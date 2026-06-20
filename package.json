@@ -181,7 +181,7 @@
 		"release:policy:check": "node packages/release-engine/src/cli.mjs gates --selection default --dry-run --only-required --json",
 		"release:readiness": "node scripts/ci/release-readiness.mjs",
 		"release:readiness:plan": "node scripts/ci/release-readiness.mjs --plan",
-		"release:readiness:test": "node --test scripts/ci/test-release-readiness.mjs",
+		"release:readiness:test": "node --test scripts/ci/test-release-readiness.mjs scripts/ci/test-subprocess-utils.mjs",
 		"release:check": "node scripts/release-check.mjs",
 		"i18n:check": "node scripts/check-locales.mjs",
 		"i18n:check:test": "node --test scripts/ci/test-check-locales-lib.mjs",

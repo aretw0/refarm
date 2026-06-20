@@ -318,7 +318,13 @@ export function runSubprocess(command, commandArgs, options = {}) {
 			});
 		}
 
-		child.on("error", reject);
+		child.on("error", (error) => {
+			error.command = command;
+			error.args = commandArgs;
+			error.stdout = stdout;
+			error.stderr = stderr;
+			reject(error);
+		});
 		child.on("exit", (code) => {
 			if (code === 0) {
 				resolve({ stdout, stderr });
@@ -328,7 +334,13 @@ export function runSubprocess(command, commandArgs, options = {}) {
 			const details = options.captureOutput
 				? `${stderr || stdout || "unknown error"}`
 				: `${command} exited with code ${code}`;
-			reject(new Error(details.trim()));
+			const error = new Error(details.trim());
+			error.exitCode = code;
+			error.command = command;
+			error.args = commandArgs;
+			error.stdout = stdout;
+			error.stderr = stderr;
+			reject(error);
 		});
 	});
 }
