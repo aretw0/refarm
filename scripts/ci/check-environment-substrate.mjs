@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import dns from "node:dns/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-ownership.mjs";
@@ -120,6 +121,42 @@ function toolCheckAlternatives(id, alternatives, options = {}) {
 	};
 }
 
+async function networkDnsCheck(id, hostname, options = {}) {
+	const timeoutMs = options.timeoutMs ?? 2000;
+	const startedAt = Date.now();
+	try {
+		const addresses = await Promise.race([
+			dns.lookup(hostname, { all: true }),
+			new Promise((_, reject) =>
+				setTimeout(() => reject(new Error(`DNS lookup timed out after ${timeoutMs}ms`)), timeoutMs),
+			),
+		]);
+		return {
+			id,
+			kind: "network-dns",
+			required: false,
+			ok: true,
+			hostname,
+			timeoutMs,
+			durationMs: Date.now() - startedAt,
+			addresses,
+			error: null,
+		};
+	} catch (error) {
+		return {
+			id,
+			kind: "network-dns",
+			required: false,
+			ok: false,
+			hostname,
+			timeoutMs,
+			durationMs: Date.now() - startedAt,
+			addresses: [],
+			error: compactError(error instanceof Error ? error.message : String(error)),
+		};
+	}
+}
+
 function pnpmToolAlternatives(env = process.env) {
 	const alternatives = [
 		windowsShellCommand("pnpm", ["--version"]),
@@ -172,6 +209,9 @@ const diagnosticTools = [
 	toolCheck("diagnostic_shfmt", "shfmt", ["--version"], { required: false }),
 	toolCheck("diagnostic_bwrap", "bwrap", ["--version"], { required: false }),
 ];
+const networkDiagnostics = [
+	await networkDnsCheck("diagnostic_network_registry_dns", "registry.npmjs.org"),
+];
 
 const checks = [
 	{
@@ -191,6 +231,7 @@ const checks = [
 	artifactOwnershipCheck,
 	...tools,
 	...diagnosticTools,
+	...networkDiagnostics,
 ];
 
 const recommendations = [
@@ -243,6 +284,17 @@ const recommendations = [
 				action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
 				target: check.command,
 			}),
+	...networkDiagnostics
+		.filter((check) => !check.ok)
+		.map((check) => ({
+			diagnostic: `environment-substrate:${check.id.replace(/^diagnostic_/, "")}`,
+			severity: "warning",
+			summary: `Network DNS lookup failed for ${check.hostname}.`,
+			action:
+				"Rebuild the devcontainer or restart Docker Desktop; if this persists behind VPN/corporate DNS, configure container DNS intentionally.",
+			target: check.hostname,
+			error: check.error,
+		})),
 ];
 
 const nextCommands = [
@@ -272,6 +324,7 @@ const result = {
 		rust: rustSubstrate,
 		tools,
 		diagnosticTools,
+		networkDiagnostics,
 	},
 	processes: {
 		nodeSubstrate: compactImportedCheck(

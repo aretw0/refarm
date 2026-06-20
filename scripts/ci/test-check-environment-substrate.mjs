@@ -34,6 +34,7 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.ok(Array.isArray(output.nextCommands));
 	assert.equal(typeof output.substrate.node.ok, "boolean");
 	assert.equal(typeof output.substrate.rust.ok, "boolean");
+	assert.ok(Array.isArray(output.substrate.networkDiagnostics));
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
 	assert.ok(output.checks.some((check) =>
@@ -55,6 +56,12 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 		check.required === false,
 	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_jq" && check.required === false));
+	assert.ok(output.checks.some((check) =>
+		check.id === "diagnostic_network_registry_dns" &&
+		check.kind === "network-dns" &&
+		check.required === false &&
+		check.hostname === "registry.npmjs.org",
+	));
 });
 
 test("environment substrate check keeps optional diagnostics non-blocking", () => {
@@ -70,6 +77,10 @@ test("environment substrate check keeps optional diagnostics non-blocking", () =
 	);
 	assert.equal(
 		output.failedChecks.some((check) => check.id === "diagnostic_rustup_version"),
+		false,
+	);
+	assert.equal(
+		output.failedChecks.some((check) => check.id === "diagnostic_network_registry_dns"),
 		false,
 	);
 	assert.equal(
