@@ -777,10 +777,70 @@ describe("workspace command", () => {
 			operation: "source-materialize",
 			ok: false,
 			error: "source-materialize-requires-dry-run",
-			message: "Workspace source materialization currently requires --dry-run.",
-			nextAction: "Inspect the source materialization plan before cloning repositories.",
+			message: "Workspace source materialization currently requires --dry-run or --run.",
+			nextAction: "Inspect the source materialization plan before cloning repositories, or use --run to execute it.",
 			nextCommand: "refarm workspace sources materialize --dry-run --json",
 			nextCommands: ["refarm workspace sources materialize --dry-run --json"],
+		});
+	});
+
+	it("runs source cache materialization processes when explicitly requested", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const cachePath = join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					"agents-lab": {
+						path: missingRoot,
+						repository: {
+							url: "https://github.com/example/agents-lab.git",
+							ref: "develop",
+						},
+					},
+				},
+			}),
+			runCommandPlanStep: (step) => ({
+				...step,
+				ok: true,
+				exitCode: 0,
+				stdout: "",
+				stderr: "",
+			}),
+		}).parseAsync(["sources", "materialize", "--run", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			action: "source-materialize",
+			status: "passed",
+			writes: true,
+			command: "workspace",
+			operation: "source-materialize-run",
+			ok: true,
+			steps: [
+				{
+					id: "source-cache-materialize-1",
+					command: `git clone '--filter=blob:none' --branch develop https://github.com/example/agents-lab.git ${cachePath}`,
+					args: [
+						"clone",
+						"--filter=blob:none",
+						"--branch",
+						"develop",
+						"https://github.com/example/agents-lab.git",
+						cachePath,
+					],
+					description: "Materialize a declared repository into the source cache.",
+					effect: "write",
+					ok: true,
+					exitCode: 0,
+				},
+			],
+			nextAction: null,
+			nextCommand: null,
+			nextProcesses: [],
 		});
 	});
 
