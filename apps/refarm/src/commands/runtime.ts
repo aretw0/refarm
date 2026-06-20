@@ -77,6 +77,17 @@ interface RuntimeStopResult {
 	alreadyStopped?: boolean;
 	pid?: number;
 	pidFile: string;
+	targets?: RuntimeStopTargetResult[];
+	message?: string;
+}
+
+interface RuntimeStopTargetResult {
+	name: "tractor" | "farmhand";
+	ok: boolean;
+	stopped: boolean;
+	alreadyStopped?: boolean;
+	pid?: number;
+	pidFile: string;
 	message?: string;
 }
 const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
@@ -138,15 +149,18 @@ function defaultDeps(): RuntimeCommandDeps {
 	};
 }
 
-function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
-	const pidFile = join(repoRoot, ".refarm", "tractor.pid");
+function stopRuntimeTarget(
+	name: RuntimeStopTargetResult["name"],
+	pidFile: string,
+): RuntimeStopTargetResult {
 	if (!existsSync(pidFile)) {
 		return {
+			name,
 			ok: true,
 			stopped: false,
 			alreadyStopped: true,
 			pidFile,
-			message: "No runtime PID file found.",
+			message: `No ${name} PID file found.`,
 		};
 	}
 
@@ -159,10 +173,11 @@ function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 			// Best-effort cleanup; the invalid PID is the primary error.
 		}
 		return {
+			name,
 			ok: false,
 			stopped: false,
 			pidFile,
-			message: `Invalid runtime PID in ${pidFile}: ${raw}`,
+			message: `Invalid ${name} PID in ${pidFile}: ${raw}`,
 		};
 	}
 
@@ -175,12 +190,13 @@ function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 			// Best-effort cleanup; stale PID is already handled.
 		}
 		return {
+			name,
 			ok: true,
 			stopped: false,
 			alreadyStopped: true,
 			pid,
 			pidFile,
-			message: "Runtime process was not running; cleaned PID file.",
+			message: `${name} process was not running; cleaned PID file.`,
 		};
 	}
 
@@ -188,6 +204,7 @@ function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 		process.kill(pid, "SIGTERM");
 		unlinkSync(pidFile);
 		return {
+			name,
 			ok: true,
 			stopped: true,
 			pid,
@@ -195,6 +212,7 @@ function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 		};
 	} catch (error) {
 		return {
+			name,
 			ok: false,
 			stopped: false,
 			pid,
@@ -202,6 +220,29 @@ function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 			message: error instanceof Error ? error.message : String(error),
 		};
 	}
+}
+
+function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
+	const targets = [
+		stopRuntimeTarget("tractor", join(repoRoot, ".refarm", "tractor.pid")),
+		stopRuntimeTarget("farmhand", join(repoRoot, ".refarm", "farmhand.pid")),
+	];
+	const failed = targets.find((target) => !target.ok);
+	const stopped = targets.filter((target) => target.stopped);
+	const primary = failed ?? stopped[0] ?? targets[0]!;
+	return {
+		ok: !failed,
+		stopped: stopped.length > 0,
+		alreadyStopped: stopped.length === 0 && !failed,
+		...(stopped.length === 1 && stopped[0]?.pid ? { pid: stopped[0].pid } : {}),
+		pidFile: primary.pidFile,
+		targets,
+		message: failed
+			? failed.message
+			: stopped.length > 0
+				? `Stopped ${stopped.map((target) => target.name).join(", ")} runtime process${stopped.length === 1 ? "" : "es"}.`
+				: "No runtime PID files found.",
+	};
 }
 
 function buildRuntimeStopJsonPayload(
@@ -539,7 +580,7 @@ Notes:
 						return;
 					}
 					if (result.ok && result.stopped) {
-						console.log(chalk.green(`Runtime stopped (pid ${result.pid}).`));
+						console.log(chalk.green(result.message ?? "Runtime stopped."));
 						return;
 					}
 					if (result.ok) {
@@ -635,7 +676,7 @@ Notes:
 						return;
 					}
 					if (stop.stopped) {
-						console.log(chalk.green(`Stopped runtime (pid ${stop.pid}).`));
+						console.log(chalk.green(stop.message ?? "Stopped runtime."));
 					}
 					console.log(chalk.green(`Started ${payload.activeEngine} runtime.`));
 					console.log(chalk.dim(`  command: ${command.display}`));

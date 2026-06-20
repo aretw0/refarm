@@ -11,13 +11,12 @@
 #
 # See: docs/PROCESS_PLAYBOOK.md
 #
-# Stop: <package-manager> run farmhand:stop
-# Status: <package-manager> run farm:status
+# Stop: refarm runtime stop
+# Status: refarm runtime
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
 FARMHAND_ENTRY="$ROOT/apps/farmhand/src/index.ts"
 FARMHAND_LOADER_REGISTER="$ROOT/scripts/farmhand-node-register-loader.mjs"
@@ -27,14 +26,6 @@ LOG_FILE="$ROOT/.refarm/farmhand.log"
 WS_PORT=42000
 HTTP_PORT=42001
 
-if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
-  echo "❌  package manager helper not found: $PACKAGE_MANAGER_HELPER"
-  exit 1
-fi
-
-# shellcheck disable=SC1090
-source "$PACKAGE_MANAGER_HELPER"
-
 if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
   echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
   exit 1
@@ -42,13 +33,6 @@ fi
 
 # shellcheck disable=SC1090
 source "$MODEL_PROVIDER_HELPER"
-
-PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
-
-script_command() {
-  local script="$1"
-  script_command_for_package_manager "$PACKAGE_MANAGER" "$script"
-}
 
 # ── flags ─────────────────────────────────────────────────────────────────────
 
@@ -71,8 +55,7 @@ check_port_pid() {
 WS_PID="$(check_port_pid $WS_PORT)"
 if [ -n "$WS_PID" ]; then
   echo "❌  Port $WS_PORT is already bound by PID $WS_PID."
-  echo "   If tractor is running: $(script_command agent:stop)"
-  echo "   If farmhand is running: $(script_command farmhand:stop)"
+  echo "   If another runtime is running: refarm runtime stop"
   echo "   See: docs/PROCESS_PLAYBOOK.md"
   exit 1
 fi
@@ -81,7 +64,7 @@ HTTP_PID="$(check_port_pid $HTTP_PORT)"
 if [ -n "$HTTP_PID" ]; then
   echo "❌  Port $HTTP_PORT is already bound by PID $HTTP_PID."
   echo "   Another farmhand or CI stub may be running."
-  echo "   Stop it first, or check: $(script_command farm:status)"
+  echo "   Stop it first, or check: refarm runtime"
   exit 1
 fi
 
@@ -159,8 +142,8 @@ if [ "$BACKGROUND" = "1" ]; then
   echo "   pid      : $(cat "$PID_FILE")"
   echo "   log      : $LOG_FILE"
   echo ""
-  echo "   Status  : $(script_command farm:status)"
-  echo "   Stop    : $(script_command farmhand:stop)"
+  echo "   Status  : refarm runtime"
+  echo "   Stop    : refarm runtime stop"
 else
   exec node "${FARMHAND_NODE_ARGS[@]}"
 fi

@@ -123,7 +123,7 @@ function checkDaemon() {
       warn('daemon', `process alive (pid ${pid}) but WS not responding`);
     }
   } catch {
-    warn('daemon', `PID ${pid} not alive — stale PID file. Run: ${scriptCommand('agent:stop')}`);
+    warn('daemon', `PID ${pid} not alive — stale PID file. Run: refarm runtime stop`);
   }
 }
 

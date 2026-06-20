@@ -370,6 +370,48 @@ describe("runtime command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("stops all known runtime pid files through the runtime command", async () => {
+		const root = join(tmpdir(), `refarm-runtime-stop-${Date.now()}`);
+		mkdirSync(join(root, ".refarm"), { recursive: true });
+		writeFileSync(join(root, ".refarm", "tractor.pid"), "111");
+		writeFileSync(join(root, ".refarm", "farmhand.pid"), "222");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+		const command = createRuntimeCommand({
+			repoRoot: () => root,
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		try {
+			await command.parseAsync(["stop", "--json"], { from: "user" });
+
+			expect(killSpy).toHaveBeenCalledWith(111, 0);
+			expect(killSpy).toHaveBeenCalledWith(111, "SIGTERM");
+			expect(killSpy).toHaveBeenCalledWith(222, 0);
+			expect(killSpy).toHaveBeenCalledWith(222, "SIGTERM");
+			expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+				command: "runtime",
+				operation: "stop",
+				ok: true,
+				stopped: true,
+				targets: [
+					{ name: "tractor", stopped: true, pid: 111 },
+					{ name: "farmhand", stopped: true, pid: 222 },
+				],
+			});
+		} finally {
+			killSpy.mockRestore();
+			logSpy.mockRestore();
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("restarts the runtime through stop and selected start command", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const stopRuntime = vi.fn().mockReturnValue({

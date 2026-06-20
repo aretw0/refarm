@@ -9,12 +9,11 @@
 #
 # Keys are loaded from .refarm/.env (gitignored).
 # Run `refarm sow` to configure them.
-# Run `<package-manager> run agent:stop` to stop a backgrounded daemon.
+# Run `refarm runtime stop` to stop a backgrounded daemon.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
 ENV_FILE="$ROOT/.refarm/.env"
 PID_FILE="$ROOT/.refarm/tractor.pid"
@@ -57,14 +56,6 @@ if [ -z "$REFARM_HTTP_HOST" ]; then
   fi
 fi
 
-if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
-  echo "❌  package manager helper not found: $PACKAGE_MANAGER_HELPER"
-  exit 1
-fi
-
-# shellcheck disable=SC1090
-source "$PACKAGE_MANAGER_HELPER"
-
 if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
   echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
   exit 1
@@ -72,13 +63,6 @@ fi
 
 # shellcheck disable=SC1090
 source "$MODEL_PROVIDER_HELPER"
-
-PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
-
-script_command() {
-  local script="$1"
-  script_command_for_package_manager "$PACKAGE_MANAGER" "$script"
-}
 
 # ── parse --background flag (strip before forwarding to tractor) ──────────────
 
@@ -106,8 +90,7 @@ _port_pid() {
 _existing="$(_port_pid 42000)"
 if [ -n "$_existing" ]; then
   echo "❌  Port 42000 is already bound by PID $_existing."
-  echo "   If farmhand is running: $(script_command farmhand:stop)"
-  echo "   If another tractor is running: $(script_command agent:stop)"
+  echo "   If another runtime is running: refarm runtime stop"
   echo "   See: docs/PROCESS_PLAYBOOK.md"
   exit 1
 fi
@@ -234,8 +217,8 @@ if [ "$BACKGROUND" = "1" ]; then
   echo $! > "$PID_FILE"
   echo "   Started  : pid $(cat "$PID_FILE")"
   echo ""
-  echo "   Check status : $(script_command agent:status)"
-  echo "   Stop daemon  : $(script_command agent:stop)"
+  echo "   Check status : refarm runtime"
+  echo "   Stop runtime : refarm runtime stop"
   echo "   Follow log   : tail -f $LOG_FILE"
 else
   echo ""
