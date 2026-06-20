@@ -63,6 +63,7 @@ export interface WorkspaceSweepRecommendation {
 	message: string;
 	nextCommand?: string;
 	mountHints?: string[];
+	devcontainerMounts?: string[];
 }
 
 export interface WorkspaceSweepPayload<TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus> {
@@ -233,11 +234,19 @@ export function workspaceExecutionRecommendations(
 			const mountHints = observation.resolution.candidates
 				.map((candidate) => candidate.mountHint)
 				.filter((hint): hint is string => Boolean(hint));
+			const devcontainerMounts = observation.resolution.candidates
+				.map((candidate) =>
+					candidate.hostPath
+						? `source=${candidate.hostPath},target=${observation.declaredWorkspace.absolutePath},type=bind`
+						: null,
+				)
+				.filter((mount): mount is string => Boolean(mount));
 			recommendations.push({
 				code: "workspace-path-missing",
 				workspaceId,
 				message: missingWorkspacePathMessage(workspaceId),
 				mountHints,
+				...(devcontainerMounts.length > 0 ? { devcontainerMounts } : {}),
 			});
 		}
 		if (observation.status?.adapters.turbo.installCommand) {

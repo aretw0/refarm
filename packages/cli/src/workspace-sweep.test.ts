@@ -53,6 +53,9 @@ describe("workspace sweep", () => {
 				workspaceId: "demo",
 				message: "No declared or bridged path is visible for workspace demo.",
 				mountHints: ["Mount C:\\work\\demo inside this runtime."],
+				devcontainerMounts: [
+					`source=C:\\work\\demo,target=${path.join(tempRoot, "missing")},type=bind`,
+				],
 			},
 		]);
 	});
