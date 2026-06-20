@@ -29,6 +29,35 @@ export interface FollowStreamOptions {
 	readFallback?: () => Promise<RuntimeEffortPollFallback | null>;
 }
 
+export interface RuntimeSessionFallbackResult {
+	status: "ok";
+	content: string;
+	metadata?: Record<string, unknown>;
+}
+
+export async function readEffortAndSessionFallback(
+	effortId: string,
+	sessionId: string,
+	deps: {
+		readEffortResult?: (effortId: string) => Promise<RuntimeEffortResult | null>;
+		readSessionFallback?: (
+			sessionId: string,
+		) => Promise<RuntimeSessionFallbackResult | null>;
+	},
+): Promise<RuntimeEffortResult | RuntimeSessionFallbackResult | null> {
+	const fallbackFromEffort = deps.readEffortResult
+		? await deps.readEffortResult(effortId)
+		: null;
+	if (fallbackFromEffort) {
+		return fallbackFromEffort;
+	}
+
+	if (!deps.readSessionFallback) {
+		return null;
+	}
+	return deps.readSessionFallback(sessionId);
+}
+
 function stringEnv(value: string | undefined): string | null {
 	const trimmed = value?.trim();
 	return trimmed ? trimmed : null;

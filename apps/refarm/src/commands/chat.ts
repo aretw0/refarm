@@ -16,6 +16,7 @@ import { Command } from "commander";
 import readline from "node:readline";
 import {
 	followStreamFile,
+	readEffortAndSessionFallback,
 	readEffortResultFile,
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
@@ -397,7 +398,10 @@ async function runTurn(
 		);
 	} catch (streamError) {
 		clearSpinner();
-		const fallback = await deps.readEffortResult?.(effortId);
+		const fallback = await readEffortAndSessionFallback(effortId, sessionId, {
+			readEffortResult: deps.readEffortResult,
+			readSessionFallback: deps.readSessionFallback,
+		});
 		if (fallback?.status === "ok" && typeof fallback.content === "string") {
 			process.stdout.write(`${fallback.content}\n`);
 			if (fallback.metadata) {
@@ -408,16 +412,6 @@ async function runTurn(
 		}
 		if (fallback?.status === "error") {
 			throw new Error(fallback.error ?? "Effort failed without details");
-		}
-
-		const sessionFallback = await deps.readSessionFallback?.(sessionId);
-		if (sessionFallback?.status === "ok") {
-			process.stdout.write(`${sessionFallback.content}\n`);
-			if (sessionFallback.metadata) {
-				console.log(chalk.gray(`\n${"─".repeat(41)}`));
-				console.log(chalk.gray(usageLine(sessionFallback.metadata)));
-			}
-			return;
 		}
 
 		throw streamError;

@@ -59,6 +59,7 @@ import {
 import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
 import {
 	followStreamFile,
+	readEffortAndSessionFallback,
 	readEffortResultFile,
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
@@ -1141,11 +1142,16 @@ Runtime:
 							{ submittedAtMs },
 						);
 					} catch (streamError) {
-						const fallback = await resolved.readEffortResult?.(effortId);
-						if (
-							fallback?.status === "ok" &&
-							typeof fallback.content === "string"
-						) {
+						const fallback = await readEffortAndSessionFallback(
+							effortId,
+							sessionId,
+							{
+								readEffortResult: resolved.readEffortResult,
+								readSessionFallback: resolved.readSessionFallback,
+							},
+						);
+						if (fallback?.status === "ok" &&
+							typeof fallback.content === "string") {
 							content = fallback.content;
 							metadata = fallback.metadata;
 							const contentError = observedAskContentError(content);
@@ -1176,35 +1182,6 @@ Runtime:
 							throw new Error(
 								fallback.error ?? "Effort failed without details",
 							);
-						}
-
-						const sessionFallback =
-							await resolved.readSessionFallback?.(sessionId);
-						if (sessionFallback?.status === "ok") {
-							content = sessionFallback.content;
-							metadata = sessionFallback.metadata;
-							const contentError = observedAskContentError(content);
-							if (contentError) {
-								throw new Error(contentError);
-							}
-							if (!opts.json) {
-								process.stdout.write(`${sessionFallback.content}\n`);
-							}
-							if (sessionFallback.metadata && !opts.json) {
-								console.log(chalk.gray(`\n${"─".repeat(41)}`));
-								console.log(chalk.gray(usageLine(sessionFallback.metadata)));
-							}
-							persistActiveSession(sessionId);
-							if (opts.json) {
-								const result: AskJsonResult = {
-									effortId,
-									sessionId,
-									content,
-									...(metadata ? { metadata } : {}),
-								};
-								printAskSuccessJson(result);
-							}
-							return;
 						}
 
 						throw streamError;
