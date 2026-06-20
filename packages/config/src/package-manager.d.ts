@@ -92,6 +92,10 @@ export function packageAddDevCommand(
     options?: PackageManagerOptions,
 ): PackageSpawnCommand;
 
+export function packageAuditHighCommand(
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
+
 export function packagePublishDryRunCommand(
     options?: PackageManagerOptions,
 ): PackageCommandString;

@@ -275,6 +275,51 @@ export function packageAddDevCommand(dependencyName, { cwd = process.cwd(), env 
     }
 }
 
+export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["audit", "--audit-level=high", "--silent"]);
+            return {
+                packageManager,
+                command: pnpm.command,
+                args: pnpm.args,
+                display: "pnpm audit --audit-level=high --silent",
+            };
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["audit", "--audit-level=high", "--silent"]);
+            return {
+                packageManager,
+                command: npm.command,
+                args: npm.args,
+                display: "npm audit --audit-level=high --silent",
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["npm", "audit", "--severity", "high"]);
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: "yarn npm audit --severity high",
+            };
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["audit"]);
+            return {
+                packageManager,
+                command: bun.command,
+                args: bun.args,
+                display: "bun audit",
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
     const packageManager = detectPackageManager({ cwd, env });
 

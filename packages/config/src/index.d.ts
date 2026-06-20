@@ -70,6 +70,7 @@ export {
     createPackageScriptCommand,
     detectPackageManager,
     packageAddDevCommand,
+    packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
