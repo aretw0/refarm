@@ -41,7 +41,11 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "./json-output.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
@@ -130,12 +134,15 @@ export interface CurrentModelStatus {
 		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
 		status: string | null;
 	};
-	routeCredentials: Record<ModelScope, {
-		provider: string | undefined;
-		envKey: string | undefined;
-		state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
-		status: string | null;
-	}>;
+	routeCredentials: Record<
+		ModelScope,
+		{
+			provider: string | undefined;
+			envKey: string | undefined;
+			state: "not-required" | "env" | "silo-api-key" | "silo-oauth" | "missing";
+			status: string | null;
+		}
+	>;
 	baseUrl: string | undefined;
 	fallback: string | undefined;
 	source: {
@@ -267,16 +274,21 @@ function runtimeOAuthCredential(
 	tokens: ModelTokens,
 ): RuntimeOAuthCredential | null {
 	if (!provider || tokens.oauthProvider !== provider) return null;
-	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") return null;
+	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object")
+		return null;
 	const value = tokens.oauthCredentials[provider];
 	if (!value || typeof value !== "object") return null;
 	const candidate = value as { access?: unknown; accountId?: unknown };
-	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) {
+	if (
+		typeof candidate.access !== "string" ||
+		candidate.access.trim().length === 0
+	) {
 		return null;
 	}
 	return {
 		access: candidate.access,
-		...(typeof candidate.accountId === "string" && candidate.accountId.trim().length > 0
+		...(typeof candidate.accountId === "string" &&
+		candidate.accountId.trim().length > 0
 			? { accountId: candidate.accountId }
 			: {}),
 	};
@@ -313,7 +325,10 @@ function printModelEnvShell(
 	const credential = modelRuntimeCredentialEnv(status.current.provider, tokens);
 	if (credential) entries.push(credential);
 	if (options.includeSecrets) {
-		const oauthCredential = runtimeOAuthCredential(status.current.provider, tokens);
+		const oauthCredential = runtimeOAuthCredential(
+			status.current.provider,
+			tokens,
+		);
 		const oauthEnvKey = modelCredentialEnvKey(status.current.provider);
 		if (oauthCredential && oauthEnvKey && !process.env[oauthEnvKey]) {
 			entries.push([oauthEnvKey, oauthCredential.access]);
@@ -340,8 +355,8 @@ function printModelEnvShell(
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 	return Boolean(
 		tokens.modelRoutes &&
-		typeof tokens.modelRoutes === "object" &&
-		Object.keys(tokens.modelRoutes).length > 0,
+			typeof tokens.modelRoutes === "object" &&
+			Object.keys(tokens.modelRoutes).length > 0,
 	);
 }
 
@@ -425,8 +440,10 @@ function modelDoctorRecommendations(
 		{
 			diagnostic: "model-provider-unreachable",
 			severity: "failure",
-			summary: "The current local model provider endpoint is not reachable from the runtime process.",
-			action: "Start Ollama where Refarm can reach it, or set a base URL that matches the runtime network.",
+			summary:
+				"The current local model provider endpoint is not reachable from the runtime process.",
+			action:
+				"Start Ollama where Refarm can reach it, or set a base URL that matches the runtime network.",
 			command: MODEL_DOCTOR_JSON_COMMAND,
 		},
 	];
@@ -438,7 +455,10 @@ async function probeOllamaProvider(
 ): Promise<ModelDoctorStatus["providerProbe"]> {
 	const fetchImpl = deps.fetch ?? globalThis.fetch;
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), MODEL_PROVIDER_PROBE_TIMEOUT_MS);
+	const timeout = setTimeout(
+		() => controller.abort(),
+		MODEL_PROVIDER_PROBE_TIMEOUT_MS,
+	);
 	const url = `${trimTrailingSlash(baseUrl)}/api/tags`;
 	try {
 		const response = await fetchImpl(url, {
@@ -455,10 +475,12 @@ async function probeOllamaProvider(
 	} catch (error) {
 		const name = error instanceof Error ? error.name : undefined;
 		const cause = error instanceof Error ? error.cause : undefined;
-		const causeRecord = cause && typeof cause === "object"
-			? cause as Record<string, unknown>
-			: undefined;
-		const causeCode = typeof causeRecord?.code === "string" ? causeRecord.code : undefined;
+		const causeRecord =
+			cause && typeof cause === "object"
+				? (cause as Record<string, unknown>)
+				: undefined;
+		const causeCode =
+			typeof causeRecord?.code === "string" ? causeRecord.code : undefined;
 		const message = error instanceof Error ? error.message : String(error);
 		return {
 			provider: "ollama",
@@ -545,11 +567,14 @@ async function printModelDoctor(
 	}
 	console.log(`  probe:   ${status.providerProbe.url}`);
 	if (status.providerProbe.ready) {
-		console.log(chalk.green(`  status:  ready (${status.providerProbe.status})`));
+		console.log(
+			chalk.green(`  status:  ready (${status.providerProbe.status})`),
+		);
 		return;
 	}
 	console.log(chalk.red("  status:  unreachable"));
-	if (status.providerProbe.error) console.log(`  error:   ${status.providerProbe.error}`);
+	if (status.providerProbe.error)
+		console.log(`  error:   ${status.providerProbe.error}`);
 	for (const command of modelDoctorRecoveryCommands(status)) {
 		console.log(chalk.dim(`  fix:     ${command}`));
 	}
@@ -564,13 +589,17 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	console.log(`  current: ${chalk.cyan(status.current.ref)}`);
 	if (provider) console.log(`  provider: ${provider}`);
 	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
-	if (status.credential.envKey) console.log(`  key env:  ${status.credential.envKey}`);
-	if (status.credential.status) console.log(`  key:      ${status.credential.status}`);
+	if (status.credential.envKey)
+		console.log(`  key env:  ${status.credential.envKey}`);
+	if (status.credential.status)
+		console.log(`  key:      ${status.credential.status}`);
 	if (status.baseUrl) console.log(`  base url: ${status.baseUrl}`);
 	if (status.fallback) console.log(`  fallback: ${status.fallback}`);
-	if (provider === "ollama") console.log(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
+	if (provider === "ollama")
+		console.log(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
 	if (status.routes.worker) console.log(`  worker:   ${status.routes.worker}`);
-	if (status.routes.monitor) console.log(`  monitor:  ${status.routes.monitor}`);
+	if (status.routes.monitor)
+		console.log(`  monitor:  ${status.routes.monitor}`);
 	for (const recommendation of status.recommendations ?? []) {
 		console.log(chalk.yellow(`  warning: ${recommendation.summary}`));
 		if (recommendation.command) {
@@ -579,7 +608,9 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	}
 	if (status.source.kind === "environment") {
 		console.log(chalk.dim("  source:   environment overrides are active"));
-		console.log(chalk.dim(`  env:      ${status.source.envOverrides.join(", ")}`));
+		console.log(
+			chalk.dim(`  env:      ${status.source.envOverrides.join(", ")}`),
+		);
 	} else if (status.source.kind === "identity") {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {
@@ -587,11 +618,17 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim(`  openai default: ${OPENAI_DEFAULT_REF}`));
 		console.log(chalk.dim(`  openai worker:  ${OPENAI_WORKER_REF}`));
 		console.log(chalk.dim(`  openai monitor: ${OPENAI_MONITOR_REF}`));
-		console.log(chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`));
+		console.log(
+			chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`),
+		);
 		console.log(chalk.dim("  login:          refarm sow"));
 	}
 	if (provider && !status.credential.envKey && provider !== "ollama") {
-		console.log(chalk.dim("  custom provider: set endpoint with refarm model base-url <url>"));
+		console.log(
+			chalk.dim(
+				"  custom provider: set endpoint with refarm model base-url <url>",
+			),
+		);
 	}
 }
 
@@ -634,7 +671,12 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 			commands.push(
 				SOW_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
-				refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
+				refarmCommand([
+					"sow",
+					"--model",
+					quoteCommandArg(status.current.ref),
+					"--json",
+				]),
 				LOCAL_MODEL_JSON_COMMAND,
 			);
 			continue;
@@ -658,7 +700,8 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 function currentModelMissingRecommendations(
 	status: Pick<CurrentModelStatus, "routeCredentials">,
 ): NonNullable<CurrentModelStatus["recommendations"]> {
-	const recommendations: NonNullable<CurrentModelStatus["recommendations"]> = [];
+	const recommendations: NonNullable<CurrentModelStatus["recommendations"]> =
+		[];
 	const seenMissingProviders = new Set<string>();
 	const seenSubscriptionProviders = new Set<string>();
 	for (const scope of MODEL_SCOPES) {
@@ -673,22 +716,25 @@ function currentModelMissingRecommendations(
 			if (seenSubscriptionProviders.has(providerKey)) continue;
 			seenSubscriptionProviders.add(providerKey);
 			recommendations.push({
-				diagnostic: scope === "default"
-					? "model-subscription-runtime-unsupported"
-					: `model-${scope}-subscription-runtime-unsupported`,
+				diagnostic:
+					scope === "default"
+						? "model-subscription-runtime-unsupported"
+						: `model-${scope}-subscription-runtime-unsupported`,
 				severity: "warning",
 				summary: `${scope === "default" ? "The current" : `The ${scope}`} model route uses subscription OAuth, which is stored for operator login but is not a runtime API credential yet.`,
-				action: "Configure an API-key provider, use a local model route, or add a runtime adapter for the subscription provider.",
-				command: scope === "default"
-					? SOW_JSON_COMMAND
-					: refarmCommand([
-							"model",
-							"set",
-							"--scope",
-							scope,
-							quoteCommandArg(OLLAMA_DEFAULT_REF),
-							"--json",
-						]),
+				action:
+					"Configure an API-key provider, use a local model route, or add a runtime adapter for the subscription provider.",
+				command:
+					scope === "default"
+						? SOW_JSON_COMMAND
+						: refarmCommand([
+								"model",
+								"set",
+								"--scope",
+								scope,
+								quoteCommandArg(OLLAMA_DEFAULT_REF),
+								"--json",
+							]),
 			});
 			continue;
 		}
@@ -700,7 +746,8 @@ function currentModelMissingRecommendations(
 			recommendations.push({
 				diagnostic: "model-credentials-missing",
 				severity: "failure",
-				summary: "The current model route requires credentials that are not available.",
+				summary:
+					"The current model route requires credentials that are not available.",
 				action: "Inspect provider requirements or run the credential handoff.",
 				command: SOW_JSON_COMMAND,
 			});
@@ -710,7 +757,8 @@ function currentModelMissingRecommendations(
 			diagnostic: `model-${scope}-credentials-missing`,
 			severity: "failure",
 			summary: `The ${scope} model route requires credentials that are not available.`,
-			action: "Configure credentials or switch the scoped route to a no-key local model.",
+			action:
+				"Configure credentials or switch the scoped route to a no-key local model.",
 			command: refarmCommand([
 				"model",
 				"set",
@@ -732,7 +780,11 @@ function currentModelHandoffs(
 		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
 		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
 		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
-		setModel: refarmCommand(["model", quoteCommandArg(status.current.ref), "--json"]),
+		setModel: refarmCommand([
+			"model",
+			quoteCommandArg(status.current.ref),
+			"--json",
+		]),
 		setWorkerModel: refarmCommand([
 			"model",
 			"set",
@@ -753,7 +805,10 @@ function currentModelHandoffs(
 }
 
 function currentModelRecovery(
-	status: Pick<CurrentModelStatus, "credential" | "current" | "routes" | "routeCredentials">,
+	status: Pick<
+		CurrentModelStatus,
+		"credential" | "current" | "routes" | "routeCredentials"
+	>,
 ): Pick<CurrentModelStatus, "recommendations" | "handoffs"> {
 	const recommendations = currentModelMissingRecommendations(status);
 	if (recommendations.length === 0) {
@@ -779,13 +834,19 @@ export function resolveRuntimeModelRoute(
 	};
 }
 
-export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
-	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
+export function buildCurrentModelStatus(
+	tokens: ModelTokens,
+): CurrentModelStatus {
+	const defaultRoute = effectiveModelRouteForScope(tokens, "default", {
+		env: process.env,
+	});
 	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
-	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
+	const resolvedModel =
+		defaultRoute.modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
 	const routeProviderOverridden = Boolean(
-		process.env[MODEL_PROVIDER_ENV_VAR] ?? process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR],
+		process.env[MODEL_PROVIDER_ENV_VAR] ??
+			process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR],
 	);
 	const storedProviderMatchesRoute =
 		!routeProviderOverridden ||
@@ -794,23 +855,29 @@ export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus
 	const credentialEnv = modelCredentialEnvKey(provider);
 	const credentialState = modelCredentialState(provider, tokens);
 	const credentialStatus = modelCredentialStatus(provider, tokens);
-	const baseUrl = process.env[MODEL_BASE_URL_ENV_VAR] ?? (storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
+	const baseUrl =
+		process.env[MODEL_BASE_URL_ENV_VAR] ??
+		(storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
 	const fallbackProvider =
-		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ?? tokens.modelFallbackProvider;
+		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ??
+		tokens.modelFallbackProvider;
 	let fallbackRef: string | undefined;
 	if (fallbackProvider) {
 		const fallbackModelId =
 			process.env[MODEL_FALLBACK_MODEL_ID_ENV_VAR] ??
-			(process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ? undefined : tokens.modelFallbackModelId) ??
+			(process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR]
+				? undefined
+				: tokens.modelFallbackModelId) ??
 			defaultModelForProvider(fallbackProvider);
-		fallbackRef = formatModelRef(
-			fallbackProvider,
-			fallbackModelId,
-		);
+		fallbackRef = formatModelRef(fallbackProvider, fallbackModelId);
 	}
-	const worker = effectiveModelRouteForScope(tokens, "worker", { env: process.env });
+	const worker = effectiveModelRouteForScope(tokens, "worker", {
+		env: process.env,
+	});
 	const workerRoute = formatModelRef(worker.provider, worker.modelId);
-	const monitor = effectiveModelRouteForScope(tokens, "monitor", { env: process.env });
+	const monitor = effectiveModelRouteForScope(tokens, "monitor", {
+		env: process.env,
+	});
 	const monitorRoute = formatModelRef(monitor.provider, monitor.modelId);
 	const routeCredentials: CurrentModelStatus["routeCredentials"] = {
 		default: modelRouteCredentialStatus(provider, tokens),
@@ -886,7 +953,11 @@ function printModelValidationErrorJson(input: {
 			message: input.message,
 			nextAction: nextCommand,
 			nextCommand,
-			nextCommands: [nextCommand, MODEL_PROVIDERS_JSON_COMMAND, LOCAL_MODEL_JSON_COMMAND],
+			nextCommands: [
+				nextCommand,
+				MODEL_PROVIDERS_JSON_COMMAND,
+				LOCAL_MODEL_JSON_COMMAND,
+			],
 			extra: input.extra,
 		}),
 	);
@@ -898,13 +969,23 @@ export function printKnownModelProviders(): void {
 		const { defaultModel, workerModel, monitorModel, credentialEnv } = provider;
 		console.log(`  ${chalk.cyan(provider.provider)}`);
 		if (defaultModel) console.log(`    default: ${defaultModel}`);
-		if (workerModel && workerModel !== defaultModel) console.log(`    worker:  ${workerModel}`);
-		if (monitorModel && monitorModel !== defaultModel) console.log(`    monitor: ${monitorModel}`);
+		if (workerModel && workerModel !== defaultModel)
+			console.log(`    worker:  ${workerModel}`);
+		if (monitorModel && monitorModel !== defaultModel)
+			console.log(`    monitor: ${monitorModel}`);
 		if (credentialEnv) console.log(`    key env: ${credentialEnv}`);
 	}
 	console.log(chalk.dim(""));
-	console.log(chalk.dim("Custom/self-hosted providers are allowed with provider/model refs."));
-	console.log(chalk.dim("Use refarm model base-url <url> when the provider does not have a built-in endpoint."));
+	console.log(
+		chalk.dim(
+			"Custom/self-hosted providers are allowed with provider/model refs.",
+		),
+	);
+	console.log(
+		chalk.dim(
+			"Use refarm model base-url <url> when the provider does not have a built-in endpoint.",
+		),
+	);
 }
 
 export function printKnownModelProvidersJson(): void {
@@ -953,8 +1034,14 @@ export async function setModelRoute(
 			process.exitCode = 1;
 			return null;
 		}
-		console.error(chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`));
-		console.error(chalk.dim(`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`));
+		console.error(
+			chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`),
+		);
+		console.error(
+			chalk.dim(
+				`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`,
+			),
+		);
 		process.exitCode = 1;
 		return null;
 	}
@@ -996,7 +1083,10 @@ export async function setFallbackModelRoute(
 		}
 		return result;
 	}
-	const parsed = parseModelRef(ref, tokens.modelFallbackProvider ?? tokens.modelProvider);
+	const parsed = parseModelRef(
+		ref,
+		tokens.modelFallbackProvider ?? tokens.modelProvider,
+	);
 	if (!parsed) {
 		if (options.json) {
 			printModelValidationErrorJson({
@@ -1022,8 +1112,16 @@ export async function setFallbackModelRoute(
 			process.exitCode = 1;
 			return null;
 		}
-		console.error(chalk.red(`✗  Could not infer provider for fallback model "${parsed.modelId}".`));
-		console.error(chalk.dim(`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`));
+		console.error(
+			chalk.red(
+				`✗  Could not infer provider for fallback model "${parsed.modelId}".`,
+			),
+		);
+		console.error(
+			chalk.dim(
+				`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`,
+			),
+		);
 		process.exitCode = 1;
 		return null;
 	}
@@ -1055,13 +1153,18 @@ export async function resetScopedModelRoute(
 		if (options.json) {
 			printModelValidationErrorJson({
 				error: "default-route-reset-not-supported",
-				message: "Default route reset is explicit: set the desired provider/model.",
+				message:
+					"Default route reset is explicit: set the desired provider/model.",
 				nextCommand: OPENAI_MODEL_JSON_COMMAND,
 			});
 			process.exitCode = 1;
 			return null;
 		}
-		console.error(chalk.red("✗  Default route reset is explicit: set the desired provider/model."));
+		console.error(
+			chalk.red(
+				"✗  Default route reset is explicit: set the desired provider/model.",
+			),
+		);
 		console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
 		process.exitCode = 1;
 		return null;
@@ -1069,7 +1172,9 @@ export async function resetScopedModelRoute(
 
 	const tokens = await deps.loadTokens();
 	const routes =
-		tokens.modelRoutes && typeof tokens.modelRoutes === "object" && !Array.isArray(tokens.modelRoutes)
+		tokens.modelRoutes &&
+		typeof tokens.modelRoutes === "object" &&
+		!Array.isArray(tokens.modelRoutes)
 			? { ...tokens.modelRoutes }
 			: {};
 	delete routes[scope];
@@ -1126,11 +1231,16 @@ export async function setModelBaseUrl(
 	return result;
 }
 
-export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()): Command {
+export function createModelCommand(
+	deps: ModelCommandDeps = defaultModelDeps(),
+): Command {
 	const command = new Command("model")
 		.description("Inspect and change the active model route")
 		.argument("[ref]", "provider/model, or model for the current provider")
-		.option("--json", "Output machine-readable current route or mutation result")
+		.option(
+			"--json",
+			"Output machine-readable current route or mutation result",
+		)
 		.addHelpText(
 			"after",
 			`
@@ -1226,7 +1336,9 @@ Notes:
 
 	command
 		.command("providers")
-		.description("List known provider defaults and credential environment variables")
+		.description(
+			"List known provider defaults and credential environment variables",
+		)
 		.option("--json", "Output machine-readable provider defaults")
 		.addHelpText(
 			"after",
@@ -1282,7 +1394,10 @@ Notes:
 	command
 		.command("fallback")
 		.description("Set or disable the persisted fallback model route")
-		.argument("<ref>", "provider/model, model for current fallback provider, or off")
+		.argument(
+			"<ref>",
+			"provider/model, model for current fallback provider, or off",
+		)
 		.option("--json", "Output machine-readable fallback update")
 		.addHelpText(
 			"after",
@@ -1314,7 +1429,11 @@ Notes:
 	command
 		.command("reset")
 		.description("Reset a scoped model route to its built-in default")
-		.option("--scope <scope>", `Scoped route to reset: worker, monitor`, "worker")
+		.option(
+			"--scope <scope>",
+			`Scoped route to reset: worker, monitor`,
+			"worker",
+		)
 		.option("--json", "Output machine-readable reset result")
 		.addHelpText(
 			"after",
@@ -1350,7 +1469,9 @@ Notes:
 						process.exitCode = 1;
 						return;
 					}
-					console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
+					console.error(
+						chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`),
+					);
 					console.error(chalk.dim("   Use: worker, monitor"));
 					process.exitCode = 1;
 					return;
@@ -1364,7 +1485,10 @@ Notes:
 	command
 		.command("base-url")
 		.description("Set or disable the persisted OpenAI-compatible base URL")
-		.argument("<url>", "Base URL for custom/self-hosted model providers, or off")
+		.argument(
+			"<url>",
+			"Base URL for custom/self-hosted model providers, or off",
+		)
 		.option("--json", "Output machine-readable base URL update")
 		.addHelpText(
 			"after",
@@ -1438,7 +1562,9 @@ Notes:
 						process.exitCode = 1;
 						return;
 					}
-					console.error(chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`));
+					console.error(
+						chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`),
+					);
 					console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
 					process.exitCode = 1;
 					return;
