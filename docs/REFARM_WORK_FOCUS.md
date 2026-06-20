@@ -98,6 +98,17 @@ check recommendations, and provisioning commands. Keep executor/cache discovery
 product-agnostic unless a consumer proves it needs a Refarm-specific policy
 hook.
 
+Execution reports should identify tools through structured process metadata, not
+by scraping display strings. `CommandProcessSpec.tool` is the portable label for
+the executor that produced a process step (`package-script`, `turbo`, future
+`nx`, `make`, `cargo`, etc.). Cache reporting follows the same rule:
+`@refarm.dev/cli` owns the generic `cache.steps[]`/`CommandPlanCacheObservation`
+shape, while adapter packages own tool-specific observation. Today
+`@refarm.dev/infra-turbo-cache` parses Turborepo output and `apps/refarm` only
+wires that parser into `agent finish` steps whose `process.tool` is `turbo`.
+New executors should emit the same generic cache shape instead of teaching
+operators or agents to parse runner-specific logs.
+
 Workspace declarations belong in `.refarm/config.json` under `workspaces`.
 Each entry is intent, not observed state:
 
