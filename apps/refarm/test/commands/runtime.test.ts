@@ -493,6 +493,70 @@ describe("runtime command", () => {
 		}
 	});
 
+	it("stops default-port tractor processes discovered from socket ownership", async () => {
+		const root = join(tmpdir(), `refarm-runtime-stop-${Date.now()}`);
+		mkdirSync(join(root, ".refarm"), { recursive: true });
+		const previousProcRoot = process.env.REFARM_PROC_ROOT;
+		const previousSsOutput = process.env.REFARM_SS_OUTPUT;
+		process.env.REFARM_PROC_ROOT = join(tmpdir(), `refarm-empty-proc-${Date.now()}`);
+		process.env.REFARM_SS_OUTPUT = [
+			"State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess",
+			'LISTEN 0 4096 0.0.0.0:42001 0.0.0.0:* users:(("tractor",pid=444,fd=16))',
+			'LISTEN 0 4096 0.0.0.0:42000 0.0.0.0:* users:(("tractor",pid=444,fd=17))',
+		].join("\n");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+		const command = createRuntimeCommand({
+			repoRoot: () => root,
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		try {
+			await command.parseAsync(["stop", "--json"], { from: "user" });
+
+			expect(killSpy).toHaveBeenCalledWith(444, 0);
+			expect(killSpy).toHaveBeenCalledWith(444, "SIGTERM");
+			const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+			expect(payload).toMatchObject({
+				command: "runtime",
+				operation: "stop",
+				ok: true,
+				stopped: true,
+			});
+			expect(payload.targets).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						name: "tractor",
+						stopped: true,
+						pid: 444,
+						source: "port-scan",
+						orphan: true,
+					}),
+				]),
+			);
+		} finally {
+			if (previousProcRoot === undefined) {
+				delete process.env.REFARM_PROC_ROOT;
+			} else {
+				process.env.REFARM_PROC_ROOT = previousProcRoot;
+			}
+			if (previousSsOutput === undefined) {
+				delete process.env.REFARM_SS_OUTPUT;
+			} else {
+				process.env.REFARM_SS_OUTPUT = previousSsOutput;
+			}
+			killSpy.mockRestore();
+			logSpy.mockRestore();
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("restarts the runtime through stop and selected start command", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const stopRuntime = vi.fn().mockReturnValue({

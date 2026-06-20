@@ -1,3 +1,4 @@
+import { runLaunchProcessSync } from "@refarm.dev/cli/launch-process";
 import {
 	RUNTIME_ENGINE_MODES,
 	type RuntimeSidecarProbeSummary,
@@ -88,7 +89,7 @@ interface RuntimeStopTargetResult {
 	alreadyStopped?: boolean;
 	pid?: number;
 	pidFile: string;
-	source?: "pid-file" | "process-scan";
+	source?: "pid-file" | "process-scan" | "port-scan";
 	orphan?: boolean;
 	message?: string;
 }
@@ -326,6 +327,40 @@ function findDefaultPortTractorProcesses(repoRoot: string): number[] {
 	return pids;
 }
 
+function parseDefaultPortRuntimeSocketProcesses(output: string): number[] {
+	const pids = new Set<number>();
+	for (const line of output.split(/\r?\n/)) {
+		if (!/:(42000|42001)\b/.test(line)) continue;
+		if (!line.includes('"tractor"') && !line.includes('"farmhand"')) continue;
+		for (const match of line.matchAll(/\bpid=(\d+)\b/g)) {
+			const pid = Number.parseInt(match[1]!, 10);
+			if (Number.isFinite(pid) && pid > 0 && pid !== process.pid) {
+				pids.add(pid);
+			}
+		}
+	}
+	return [...pids];
+}
+
+function findDefaultPortRuntimeSocketProcesses(): number[] {
+	const configuredOutput = process.env.REFARM_SS_OUTPUT;
+	if (configuredOutput !== undefined) {
+		return parseDefaultPortRuntimeSocketProcesses(configuredOutput);
+	}
+	if (process.env.NODE_ENV === "test" || process.env.VITEST) return [];
+	if (process.platform !== "linux") return [];
+	const result = runLaunchProcessSync(
+		{
+			command: "ss",
+			args: ["-tlnp"],
+			display: "ss -tlnp",
+		},
+		{ capture: true },
+	);
+	if (result.exitCode !== 0) return [];
+	return parseDefaultPortRuntimeSocketProcesses(result.stdout ?? "");
+}
+
 function stopRuntimePid(
 	name: RuntimeStopTargetResult["name"],
 	pid: number,
@@ -386,6 +421,11 @@ function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 	for (const pid of findDefaultPortTractorProcesses(repoRoot)) {
 		if (knownPids.has(pid)) continue;
 		targets.push(stopRuntimePid("tractor", pid, tractorPidFile, "process-scan", true));
+		knownPids.add(pid);
+	}
+	for (const pid of findDefaultPortRuntimeSocketProcesses()) {
+		if (knownPids.has(pid)) continue;
+		targets.push(stopRuntimePid("tractor", pid, tractorPidFile, "port-scan", true));
 		knownPids.add(pid);
 	}
 	const failed = targets.find((target) => !target.ok);
