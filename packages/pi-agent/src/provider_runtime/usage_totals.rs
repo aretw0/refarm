@@ -16,13 +16,30 @@ impl UsageTotals {
     }
 
     pub(crate) fn ingest_openai_usage(&mut self, usage: &serde_json::Value) {
-        self.tokens_in += usage["prompt_tokens"].as_u64().unwrap_or(0) as u32;
-        self.tokens_out += usage["completion_tokens"].as_u64().unwrap_or(0) as u32;
-        self.tokens_cached += usage["prompt_tokens_details"]["cached_tokens"]
-            .as_u64()
-            .unwrap_or(0) as u32;
-        self.tokens_reasoning += usage["completion_tokens_details"]["reasoning_tokens"]
-            .as_u64()
-            .unwrap_or(0) as u32;
+        self.tokens_in += usage_u32(usage, &["prompt_tokens", "input_tokens"]);
+        self.tokens_out += usage_u32(usage, &["completion_tokens", "output_tokens"]);
+        self.tokens_cached += nested_usage_u32(
+            usage,
+            &["prompt_tokens_details", "input_tokens_details"],
+            "cached_tokens",
+        );
+        self.tokens_reasoning += nested_usage_u32(
+            usage,
+            &["completion_tokens_details", "output_tokens_details"],
+            "reasoning_tokens",
+        );
     }
+}
+
+fn usage_u32(usage: &serde_json::Value, keys: &[&str]) -> u32 {
+    keys.iter()
+        .find_map(|key| usage[*key].as_u64())
+        .unwrap_or(0) as u32
+}
+
+fn nested_usage_u32(usage: &serde_json::Value, parents: &[&str], key: &str) -> u32 {
+    parents
+        .iter()
+        .find_map(|parent| usage[*parent][key].as_u64())
+        .unwrap_or(0) as u32
 }
