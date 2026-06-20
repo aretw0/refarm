@@ -697,6 +697,43 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("routes source materialization dry-run to declarations when repositories are missing", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					missing: {
+						path: missingRoot,
+					},
+				},
+			}),
+		}).parseAsync(["sources", "materialize", "--dry-run", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "source-materialize-dry-run",
+			ok: true,
+			dryRun: true,
+			materializeCount: 0,
+			processes: [],
+			nextProcesses: [],
+			plan: {
+				summary: {
+					materializable: 0,
+					unconfigured: 1,
+				},
+			},
+			nextAction: "Declare repository intent for missing workspaces before materializing source cache checkouts.",
+			nextCommand: "refarm workspace sources declarations --json",
+			nextCommands: ["refarm workspace sources declarations --json"],
+		});
+	});
+
 	it("prioritizes source cache inspection before mounts and remote cache provisioning", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");

@@ -533,6 +533,11 @@ function printWorkspaceSourceMaterialize(
 					plan,
 				},
 				nextAction,
+				nextCommands: processes.length > 0
+					? []
+					: plan.summary.unconfigured > 0
+						? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
+						: [],
 			}),
 		);
 		return;
