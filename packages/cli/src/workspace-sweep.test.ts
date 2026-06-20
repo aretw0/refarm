@@ -193,10 +193,13 @@ describe("workspace sweep", () => {
 
 	it("plans source repository cache without requiring devcontainer rebuilds", () => {
 		const visiblePath = path.join(tempRoot, "visible");
+		const visibleCachePath = path.join(tempRoot, ".refarm", "cache", "checkouts", "github.com", "example", "visible");
 		const cachedPath = path.join(tempRoot, ".refarm", "cache", "checkouts", "github.com", "example", "cached");
 		fs.mkdirSync(visiblePath, { recursive: true });
+		fs.mkdirSync(visibleCachePath, { recursive: true });
 		fs.mkdirSync(cachedPath, { recursive: true });
 		const staleCacheTime = new Date(Date.now() - 600_000);
+		fs.utimesSync(visibleCachePath, staleCacheTime, staleCacheTime);
 		fs.utimesSync(cachedPath, staleCacheTime, staleCacheTime);
 
 		const plan = buildWorkspaceSourceCachePlan([
@@ -248,7 +251,7 @@ describe("workspace sweep", () => {
 					state: "visible",
 					cacheKey: "github.com/example/visible",
 					resolvedPath: visiblePath,
-					cacheAgeSeconds: null,
+					cacheExists: true,
 					refreshRequired: false,
 					updateIntervalSeconds: 300,
 					rebuildRequired: false,
@@ -302,6 +305,8 @@ describe("workspace sweep", () => {
 				},
 			],
 		});
+		expect(plan.items.find((item) => item.workspaceId === "visible")?.cacheAgeSeconds)
+			.toBeGreaterThanOrEqual(300);
 		expect(plan.items.find((item) => item.workspaceId === "cached")?.cacheAgeSeconds)
 			.toBeGreaterThanOrEqual(300);
 	});

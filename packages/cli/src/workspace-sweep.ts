@@ -355,6 +355,9 @@ export function buildWorkspaceSourceCachePlan(
 				: repository
 					? "materializable"
 					: "unconfigured";
+		const refreshRequired = state === "cached" &&
+			cacheAgeSeconds !== null &&
+			cacheAgeSeconds >= updateIntervalSeconds;
 		return {
 			workspaceId: workspace.id,
 			state,
@@ -365,13 +368,13 @@ export function buildWorkspaceSourceCachePlan(
 			cachePath,
 			cacheExists,
 			cacheAgeSeconds,
-			refreshRequired: cacheAgeSeconds !== null && cacheAgeSeconds >= updateIntervalSeconds,
+			refreshRequired,
 			updateIntervalSeconds,
 			rebuildRequired: false as const,
 			process: state === "materializable" && repository
 				? gitCloneProcess(repository, cachePath)
 				: null,
-			refreshProcess: state === "cached" && cacheAgeSeconds !== null && cacheAgeSeconds >= updateIntervalSeconds
+			refreshProcess: refreshRequired
 				? gitRefreshProcess(cachePath)
 				: null,
 		};
