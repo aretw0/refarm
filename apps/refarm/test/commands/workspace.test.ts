@@ -428,10 +428,12 @@ describe("workspace command", () => {
 				},
 			],
 			devcontainerJson: {
+				path: ".devcontainer/devcontainer.json",
 				mounts: [
 					`source=C:\\Users\\aretw\\Documents\\GitHub\\bridged,target=${missingRoot},type=bind`,
 				],
 			},
+			rebuildRequired: true,
 			instructions: [
 				"Add the listed mount strings to .devcontainer/devcontainer.json mounts.",
 				"Rebuild the devcontainer after changing mounts.",
