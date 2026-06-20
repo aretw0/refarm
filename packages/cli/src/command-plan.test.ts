@@ -44,6 +44,7 @@ const processSteps: CommandPlanStep[] = [
 			cwd: "/workspaces/refarm",
 			display: "pnpm -C packages/cli run type-check",
 			packageManager: "pnpm",
+			tool: "direct-script",
 		},
 	},
 	{
@@ -58,6 +59,7 @@ const processSteps: CommandPlanStep[] = [
 			cwd: "/workspaces/refarm",
 			display: "pnpm -C packages/cli run build",
 			packageManager: "pnpm",
+			tool: "direct-script",
 		},
 	},
 ];
@@ -96,6 +98,7 @@ describe("command plan runner", () => {
 				cwd: "/workspaces/refarm",
 				display: "pnpm -C packages/cli run type-check",
 				packageManager: "pnpm",
+				tool: "direct-script",
 			},
 			{
 				command: "pnpm",
@@ -103,6 +106,7 @@ describe("command plan runner", () => {
 				cwd: "/workspaces/refarm",
 				display: "pnpm -C packages/cli run build",
 				packageManager: "pnpm",
+				tool: "direct-script",
 			},
 		]);
 		expect(buildCommandPlanEnvelope({
@@ -122,6 +126,7 @@ describe("command plan runner", () => {
 					cwd: "/workspaces/refarm",
 					display: "pnpm -C packages/cli run type-check",
 					packageManager: "pnpm",
+					tool: "direct-script",
 				},
 				{
 					command: "pnpm",
@@ -129,6 +134,7 @@ describe("command plan runner", () => {
 					cwd: "/workspaces/refarm",
 					display: "pnpm -C packages/cli run build",
 					packageManager: "pnpm",
+					tool: "direct-script",
 				},
 			],
 		});

@@ -1219,7 +1219,11 @@ describe("agent command", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			steps: { id: string; command: string; process?: { packageManager?: string | null } }[];
+			steps: {
+				id: string;
+				command: string;
+				process?: { packageManager?: string | null; tool?: string };
+			}[];
 			nextCommands: string[];
 		};
 
@@ -1234,6 +1238,7 @@ describe("agent command", () => {
 			"pnpm exec turbo run type-check lint build '--filter=./apps/refarm' '--output-logs=errors-only' '--ui=stream'",
 		);
 		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		expect(payload.steps.at(-1)?.process?.tool).toBe("turbo");
 		logSpy.mockRestore();
 	});
 

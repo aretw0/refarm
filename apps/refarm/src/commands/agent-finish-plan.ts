@@ -142,6 +142,7 @@ function packageScriptStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			tool: "package-script",
 		},
 	};
 }
@@ -310,6 +311,7 @@ function turboPackageValidationStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			tool: "turbo",
 		},
 	};
 }
@@ -587,12 +589,7 @@ function enrichFinishStepResult(
 }
 
 function isTurboPackageValidationStep(step: CommandPlanStep): boolean {
-	return Boolean(
-		step.process &&
-			step.process.command.includes("pnpm") &&
-			step.process.args.includes("turbo") &&
-			step.process.args.includes("run"),
-	);
+	return step.process?.tool === "turbo";
 }
 
 export function buildAgentFinishPlanEnvelope(

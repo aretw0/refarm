@@ -21,6 +21,7 @@ export interface CommandProcessSpec {
 	cwd?: string;
 	display: string;
 	packageManager?: string | null;
+	tool?: string;
 }
 
 export interface CommandPlanStep {
