@@ -109,6 +109,8 @@ export interface WorkspaceSourceCachePlanItem {
 	resolvedPath: string | null;
 	cachePath: string;
 	cacheExists: boolean;
+	cacheAgeSeconds: number | null;
+	refreshRequired: boolean;
 	updateIntervalSeconds: number;
 	rebuildRequired: false;
 	process: {
@@ -339,6 +341,7 @@ export function buildWorkspaceSourceCachePlan(
 		const cacheKey = repository ? repositoryCacheKey(repository.url) : null;
 		const cachePath = path.join(cacheRoot, cacheKey ?? safeWorkspaceCacheName(workspace.id));
 		const cacheExists = fs.existsSync(cachePath);
+		const cacheAgeSeconds = cacheExists ? cachePathAgeSeconds(cachePath) : null;
 		const state: WorkspaceSourceCacheState = resolution.resolvedPath
 			? "visible"
 			: cacheExists
@@ -355,6 +358,8 @@ export function buildWorkspaceSourceCachePlan(
 			resolvedPath: resolution.resolvedPath ?? (cacheExists ? cachePath : null),
 			cachePath,
 			cacheExists,
+			cacheAgeSeconds,
+			refreshRequired: cacheAgeSeconds !== null && cacheAgeSeconds >= updateIntervalSeconds,
 			updateIntervalSeconds,
 			rebuildRequired: false as const,
 			process: state === "materializable" && repository
@@ -375,6 +380,11 @@ export function buildWorkspaceSourceCachePlan(
 		},
 		items,
 	};
+}
+
+function cachePathAgeSeconds(cachePath: string): number {
+	const stats = fs.statSync(cachePath);
+	return Math.max(0, Math.floor((Date.now() - stats.mtimeMs) / 1000));
 }
 
 function remoteProvisionCommand(status: WorkspaceExecutionStatus): string | undefined {

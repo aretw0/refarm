@@ -196,6 +196,8 @@ describe("workspace sweep", () => {
 		const cachedPath = path.join(tempRoot, ".refarm", "cache", "checkouts", "github.com", "example", "cached");
 		fs.mkdirSync(visiblePath, { recursive: true });
 		fs.mkdirSync(cachedPath, { recursive: true });
+		const staleCacheTime = new Date(Date.now() - 600_000);
+		fs.utimesSync(cachedPath, staleCacheTime, staleCacheTime);
 
 		const plan = buildWorkspaceSourceCachePlan([
 			createWorkspace({
@@ -245,6 +247,8 @@ describe("workspace sweep", () => {
 					state: "visible",
 					cacheKey: "github.com/example/visible",
 					resolvedPath: visiblePath,
+					cacheAgeSeconds: null,
+					refreshRequired: false,
 					updateIntervalSeconds: 300,
 					rebuildRequired: false,
 					process: null,
@@ -254,6 +258,7 @@ describe("workspace sweep", () => {
 					state: "cached",
 					cacheKey: "github.com/example/cached",
 					resolvedPath: cachedPath,
+					refreshRequired: true,
 					rebuildRequired: false,
 					process: null,
 				},
@@ -262,6 +267,8 @@ describe("workspace sweep", () => {
 					state: "materializable",
 					cacheKey: "github.com/example/missing",
 					resolvedPath: null,
+					cacheAgeSeconds: null,
+					refreshRequired: false,
 					rebuildRequired: false,
 					process: {
 						command: "git",
@@ -280,11 +287,15 @@ describe("workspace sweep", () => {
 					state: "unconfigured",
 					repository: null,
 					cacheKey: null,
+					cacheAgeSeconds: null,
+					refreshRequired: false,
 					rebuildRequired: false,
 					process: null,
 				},
 			],
 		});
+		expect(plan.items.find((item) => item.workspaceId === "cached")?.cacheAgeSeconds)
+			.toBeGreaterThanOrEqual(300);
 	});
 });
 
