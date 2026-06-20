@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     detectPackageManager,
+    packageAuditHighCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
     packageScriptCommand,
@@ -43,6 +44,14 @@ describe("toolbox package manager commands", () => {
             command: "pnpm",
             args: ["install", "--frozen-lockfile"],
             display: "pnpm install --frozen-lockfile",
+        });
+    });
+
+    it("re-exports high severity audit command resolution", () => {
+        expect(packageAuditHighCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: "npm",
+            args: ["audit", "--audit-level=high", "--silent"],
+            display: "npm audit --audit-level=high --silent",
         });
     });
 });
