@@ -22,6 +22,7 @@ import {
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import {
 	buildWorkspaceExecutionStatus,
@@ -65,6 +66,12 @@ export type WorkspaceExecutionSweepPayload = Omit<
 	observations: WorkspaceExecutionObservation[];
 };
 export type { WorkspacePathCandidate, WorkspacePathResolution };
+
+const WORKSPACE_MOUNTS_JSON_COMMAND = refarmCommand([
+	"workspace",
+	"mounts",
+	"--json",
+]);
 
 function printWorkspaceExecutionStatus(status: WorkspaceExecutionStatus): void {
 	console.log(chalk.bold("Workspace execution"));
@@ -249,6 +256,13 @@ function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
 	};
 }
 
+function workspaceStatusNextCommands(payload: WorkspaceExecutionSweepPayload): string[] {
+	const nextCommands = workspaceSweepRecommendationNextCommands(payload.recommendations);
+	return buildWorkspaceMountPlan(payload).mountCount > 0
+		? [WORKSPACE_MOUNTS_JSON_COMMAND, ...nextCommands]
+		: nextCommands;
+}
+
 function printWorkspaceStatus(
 	options: WorkspaceStatusCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
@@ -266,7 +280,7 @@ function printWorkspaceStatus(
 				command: "workspace",
 				operation,
 				extra: payload,
-				nextCommands: workspaceSweepRecommendationNextCommands(payload.recommendations),
+				nextCommands: workspaceStatusNextCommands(payload),
 			}),
 		);
 		return;

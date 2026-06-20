@@ -443,6 +443,61 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("prioritizes the mount plan before remote cache provisioning in workspace status", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const targetRoot = createWorkspaceRoot({
+			packageJson: {
+				packageManager: "pnpm@11.7.0",
+				devDependencies: {
+					turbo: "^2.9.14",
+				},
+			},
+			turbo: true,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					bridged: {
+						path: missingRoot,
+						bridges: [
+							{
+								id: "windows-host",
+								kind: "filesystem",
+								path: "/mnt/c/Users/aretw/Documents/GitHub/bridged",
+								hostPath: "C:\\Users\\aretw\\Documents\\GitHub\\bridged",
+								mountHint: "Mount the host checkout into the dev container.",
+							},
+						],
+					},
+					refarm: {
+						path: targetRoot,
+						cache: {
+							remote: {
+								provider: "cloudflare-turbo",
+							},
+						},
+					},
+				},
+			}),
+		}).parseAsync(["status", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "status",
+			ok: true,
+			nextCommand: "refarm workspace mounts --json",
+			nextCommands: [
+				"refarm workspace mounts --json",
+				"refarm provision cloudflare turbo-cache --dry-run --json",
+			],
+		});
+	});
+
 	it("keeps --all read-only and reports missing declared workspaces as observations", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");
