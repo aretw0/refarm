@@ -1,12 +1,14 @@
 //! Pi Agent — sovereign AI agent for edge nodes and Raspberry Pi.
 //!
 //! # Provider selection (env vars)
-//!   MODEL_PROVIDER=anthropic|openai|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
+//!   MODEL_PROVIDER=anthropic|openai|openai-codex|github-copilot|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
 //!   MODEL_DEFAULT_PROVIDER=<name>            (user's sovereign default, overrides ollama floor)
 //!   MODEL_ID=<model-id>                      (provider-specific default if unset)
 //!   MODEL_BASE_URL=<url>                     (optional override for any provider)
 //!   ANTHROPIC_API_KEY=sk-ant-...
 //!   OPENAI_API_KEY=sk-...                    (openai; also fallback for unknown compat providers)
+//!   OPENAI_CODEX_ACCESS_TOKEN=ey...           (openai-codex subscription token)
+//!   GITHUB_COPILOT_ACCESS_TOKEN=gho_...      (github-copilot subscription token)
 //!   GROQ_API_KEY=gsk_...
 //!   MISTRAL_API_KEY=...
 //!   XAI_API_KEY=xai-...
@@ -65,11 +67,6 @@ mod utils;
 // (provider.rs calls these via `super::`, tests access them via `use super::*`).
 #[allow(unused_imports)]
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
-pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
-pub(crate) use response_nodes::{
-    agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
-    UsageRecordPayload,
-};
 #[allow(unused_imports)]
 pub(crate) use runtime::react;
 #[cfg(target_arch = "wasm32")]
@@ -86,7 +83,6 @@ pub(crate) use session::{
 pub(crate) use structured_io::{
     apply_edits, detect_format, read_structured_parse, validate_structured,
 };
-pub(crate) use tools::{tools_anthropic, tools_openai};
 #[allow(unused_imports)]
 pub(crate) use utils::{
     estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns,

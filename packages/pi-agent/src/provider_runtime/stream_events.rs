@@ -64,11 +64,9 @@ pub(crate) fn parse_openai_codex_response_from_sse(
                     text.push_str(delta);
                 }
             }
-            Some("response.output_text.done") => {
-                if text.is_empty() {
-                    if let Some(done_text) = value.get("text").and_then(serde_json::Value::as_str) {
-                        text.push_str(done_text);
-                    }
+            Some("response.output_text.done") if text.is_empty() => {
+                if let Some(done_text) = value.get("text").and_then(serde_json::Value::as_str) {
+                    text.push_str(done_text);
                 }
             }
             _ => {}

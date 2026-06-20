@@ -166,8 +166,6 @@ pub(crate) use phase_common::{
 pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_with;
 #[cfg(test)]
 pub(crate) use openai_tool_phase::advance_openai_tool_phase_with;
-pub(crate) use request_headers_anthropic::anthropic_headers;
-pub(crate) use request_headers_openai::openai_compat_headers;
 #[cfg(test)]
 pub(crate) use tool_execution::{
     execute_anthropic_tools_with, execute_openai_tools_with, execute_tools_with,
@@ -184,7 +182,6 @@ pub(crate) use tool_wire::{
     append_anthropic_tool_results_message, append_openai_assistant_message,
     append_openai_tool_message, append_openai_tool_messages, OpenAiToolMessage,
 };
-pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
 pub(crate) use request_body_anthropic::{
@@ -220,9 +217,6 @@ pub(crate) use loop_dispatch_tests::{
     run_completion_loop_from_common_config_with_dispatch,
     run_completion_loop_from_plan_with_dispatch,
 };
-pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
-pub(crate) use usage_extract::response_usage;
-pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
 pub(crate) use usage_totals::UsageTotals;
 
 #[cfg(test)]
