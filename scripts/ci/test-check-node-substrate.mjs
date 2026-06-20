@@ -139,6 +139,22 @@ test("node substrate check reports missing workspace execution shims", () => {
 	}
 });
 
+test("node substrate check uses detected frozen install command outside pnpm", () => {
+	const tempDir = makeWorkspace({ packageManager: "npm@11.0.0" });
+	try {
+		const result = runCheck(tempDir);
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.packageManager, "npm@11.0.0");
+		assert.equal(payload.nextCommand, "npm ci");
+		assert.deepEqual(payload.nextCommands, ["npm ci"]);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
 test("node substrate check reports shims generated for a different platform", () => {
 	const tempDir = makeWorkspace({ withForeignBins: true });
 	try {

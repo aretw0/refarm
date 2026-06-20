@@ -4,6 +4,7 @@ import { readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { packageFrozenInstallCommand } from "@refarm.dev/config";
 
 const ROOT = process.cwd();
 
@@ -30,6 +31,12 @@ async function readPackageManager() {
 	} catch {
 		return null;
 	}
+}
+
+function nodeSubstrateInstallCommand() {
+	const command = packageFrozenInstallCommand({ cwd: ROOT, env: process.env });
+	if (command.packageManager !== "pnpm") return command.display;
+	return `${command.display} --config.confirm-modules-purge=false`;
 }
 
 async function readJson(filePath) {
@@ -245,9 +252,7 @@ export async function checkNodeSubstrate() {
 	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 	const mountIssues = devcontainerMountCheck?.ok === false ? [devcontainerMountCheck] : [];
 	const packageManager = await readPackageManager();
-	const installCommand = packageManager?.startsWith("pnpm")
-		? "pnpm install --frozen-lockfile --config.confirm-modules-purge=false"
-		: "npm install";
+	const installCommand = nodeSubstrateInstallCommand();
 	const environmentCommand = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
 	const workspaceMaterializationCommand = allowLocalRebuild
 		? installCommand
