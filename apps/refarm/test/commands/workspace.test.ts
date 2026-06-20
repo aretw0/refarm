@@ -699,10 +699,66 @@ describe("workspace command", () => {
 			operation: "source-refresh",
 			ok: false,
 			error: "source-refresh-requires-dry-run",
-			message: "Workspace source refresh currently requires --dry-run.",
-			nextAction: "Inspect the source refresh plan before fetching repositories.",
+			message: "Workspace source refresh currently requires --dry-run or --run.",
+			nextAction: "Inspect the source refresh plan before fetching repositories, or use --run to execute it.",
 			nextCommand: "refarm workspace sources refresh --dry-run --json",
 			nextCommands: ["refarm workspace sources refresh --dry-run --json"],
+		});
+	});
+
+	it("runs source cache refresh processes when explicitly requested", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const cachePath = join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab");
+		mkdirSync(cachePath, { recursive: true });
+		const staleCacheTime = new Date(Date.now() - 600_000);
+		utimesSync(cachePath, staleCacheTime, staleCacheTime);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					"agents-lab": {
+						path: missingRoot,
+						repository: {
+							url: "https://github.com/example/agents-lab.git",
+							ref: "develop",
+						},
+					},
+				},
+			}),
+			runCommandPlanStep: (step) => ({
+				...step,
+				ok: true,
+				exitCode: 0,
+				stdout: "",
+				stderr: "",
+			}),
+		}).parseAsync(["sources", "refresh", "--run", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			action: "source-refresh",
+			status: "passed",
+			writes: true,
+			command: "workspace",
+			operation: "source-refresh-run",
+			ok: true,
+			steps: [
+				{
+					id: "source-cache-refresh-1",
+					command: `git -C ${cachePath} fetch --prune`,
+					args: ["-C", cachePath, "fetch", "--prune"],
+					description: "Refresh a stale source cache checkout.",
+					effect: "write",
+					ok: true,
+					exitCode: 0,
+				},
+			],
+			nextAction: null,
+			nextCommand: null,
+			nextProcesses: [],
 		});
 	});
 

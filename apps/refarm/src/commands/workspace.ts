@@ -1,4 +1,12 @@
 import {
+	buildCommandPlanRunEnvelope,
+	runCommandPlan,
+	runCommandPlanProcessStep,
+	type CommandPlanStep,
+	type CommandPlanStepRunResult,
+	type CommandProcessSpec,
+} from "@refarm.dev/cli/command-plan";
+import {
 	workspaceExecutionRecommendations as baseWorkspaceExecutionRecommendations,
 	buildWorkspaceSourceCachePlan,
 	buildWorkspaceSweepPayload,
@@ -60,6 +68,7 @@ export interface WorkspaceSourceMaterializeCommandOptions {
 
 export interface WorkspaceSourceRefreshCommandOptions {
 	dryRun?: boolean;
+	run?: boolean;
 	json?: boolean;
 }
 
@@ -71,6 +80,7 @@ export interface WorkspaceCommandDeps {
 	cwd?: () => string;
 	env?: NodeJS.ProcessEnv;
 	loadConfig?: (root?: string) => unknown;
+	runCommandPlanStep?: (step: CommandPlanStep) => CommandPlanStepRunResult;
 }
 
 export type WorkspaceExecutionObservation = WorkspaceSweepObservation<WorkspaceExecutionStatus> & {
@@ -579,32 +589,66 @@ function printWorkspaceSourceMaterialize(
 	}
 }
 
+function workspaceSourceRefreshSteps(
+	processes: CommandProcessSpec[],
+): CommandPlanStep[] {
+	return processes.map((process, index) => ({
+		id: `source-cache-refresh-${index + 1}`,
+		command: process.display,
+		args: process.args,
+		description: "Refresh a stale source cache checkout.",
+		effect: "write",
+		process,
+	}));
+}
+
 function printWorkspaceSourceRefresh(
 	options: WorkspaceSourceRefreshCommandOptions,
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
-	if (!options.dryRun) {
+	if (!options.dryRun && !options.run) {
 		if (options.json) {
 			printJson(
 				buildJsonErrorEnvelope({
 					command: "workspace",
 					operation: "source-refresh",
 					error: "source-refresh-requires-dry-run",
-					message: "Workspace source refresh currently requires --dry-run.",
-					nextAction: "Inspect the source refresh plan before fetching repositories.",
+					message: "Workspace source refresh currently requires --dry-run or --run.",
+					nextAction: "Inspect the source refresh plan before fetching repositories, or use --run to execute it.",
 					nextCommand: WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND,
 				}),
 			);
 			return;
 		}
-		throw new Error("workspace sources refresh currently requires --dry-run");
+		throw new Error("workspace sources refresh currently requires --dry-run or --run");
 	}
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
 	const processes = plan.items.flatMap((item) => item.refreshProcess ? [item.refreshProcess] : []);
+	const steps = workspaceSourceRefreshSteps(processes);
 	const nextAction = processes.length > 0
 		? "Run the listed git fetch processes to refresh stale source cache checkouts."
 		: null;
+	if (options.run) {
+		const result = runCommandPlan(
+			steps,
+			deps?.runCommandPlanStep ??
+				((step) => runCommandPlanProcessStep(step, { cwd: baseDir, env: deps?.env ?? process.env })),
+		);
+		if (options.json) {
+			printJson(buildCommandPlanRunEnvelope({
+				action: "source-refresh",
+				command: "workspace",
+				operation: "source-refresh-run",
+			}, result));
+			return;
+		}
+		console.log(chalk.bold("Workspace source refresh"));
+		for (const step of result.steps) {
+			console.log(`${step.ok ? "  ✓" : "  ✗"} ${step.command}`);
+		}
+		return;
+	}
 	if (options.json) {
 		printJson(
 			buildJsonSuccessEnvelope({
@@ -745,6 +789,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.command("refresh")
 		.description("Refresh stale local source cache checkouts")
 		.option("--dry-run", "Print fetch processes without executing them")
+		.option("--run", "Execute stale source cache refresh processes")
 		.option("--json", "Output machine-readable refresh dry-run")
 		.action((options: WorkspaceSourceRefreshCommandOptions, refreshCommand: Command) => {
 			printWorkspaceSourceRefresh({
