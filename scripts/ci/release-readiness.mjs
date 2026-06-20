@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
-import { runSubprocess } from "./subprocess-utils.mjs";
+import { parseJsonOutput, runSubprocess } from "./subprocess-utils.mjs";
 
 const ROOT = process.cwd();
 
@@ -91,6 +91,65 @@ function serializePlan(plan) {
 	return plan.map((step) => serializeStep(step));
 }
 
+function collectWarningCount(value) {
+	if (!value || typeof value !== "object") return 0;
+	let count = 0;
+	if (
+		typeof value.warningCount === "number" &&
+		Number.isFinite(value.warningCount)
+	) {
+		count += value.warningCount;
+	}
+	if (Array.isArray(value)) {
+		for (const entry of value) count += collectWarningCount(entry);
+		return count;
+	}
+	for (const entry of Object.values(value)) {
+		count += collectWarningCount(entry);
+	}
+	return count;
+}
+
+function collectRecommendations(value, path = []) {
+	if (!value || typeof value !== "object") return [];
+	const found = [];
+	if (Array.isArray(value)) {
+		for (const [index, entry] of value.entries()) {
+			found.push(...collectRecommendations(entry, [...path, String(index)]));
+		}
+		return found;
+	}
+	if (Array.isArray(value.recommendations)) {
+		for (const recommendation of value.recommendations) {
+			if (!recommendation || typeof recommendation !== "object") continue;
+			found.push({
+				path: [...path, "recommendations"].join("."),
+				...recommendation,
+			});
+		}
+	}
+	for (const [key, entry] of Object.entries(value)) {
+		if (key === "recommendations") continue;
+		found.push(...collectRecommendations(entry, [...path, key]));
+	}
+	return found;
+}
+
+function summarizeCapturedJson(stdout) {
+	if (!stdout) return {};
+	try {
+		const payload = parseJsonOutput(stdout);
+		const warningCount = collectWarningCount(payload);
+		const recommendations = collectRecommendations(payload);
+		return {
+			...(warningCount > 0 ? { warningCount } : {}),
+			...(recommendations.length > 0 ? { recommendations } : {}),
+		};
+	} catch {
+		return {};
+	}
+}
+
 async function runPlan(plan, { json }) {
 	const results = [];
 
@@ -106,11 +165,13 @@ async function runPlan(plan, { json }) {
 				env: process.env,
 				captureOutput: json,
 			});
+			const summary = json ? summarizeCapturedJson(result.stdout) : {};
 			results.push({
 				...serializeStep(step),
 				ok: true,
 				stdout: result.stdout,
 				stderr: result.stderr,
+				...summary,
 			});
 		} catch (error) {
 			results.push({
@@ -123,6 +184,42 @@ async function runPlan(plan, { json }) {
 	}
 
 	return { ok: true, failedStepId: null, results };
+}
+
+function aggregateResults(results) {
+	const warningCount = results.reduce(
+		(total, result) => total + (result.warningCount ?? 0),
+		0,
+	);
+	const recommendationKeys = new Set();
+	const recommendations = [];
+	for (const result of results) {
+		for (const recommendation of result.recommendations ?? []) {
+			const target = recommendation.target ?? recommendation.workspaceId ?? null;
+			const text = recommendation.summary ?? recommendation.message ?? null;
+			const key = text
+				? JSON.stringify([result.id, target, text])
+				: JSON.stringify([
+						result.id,
+						recommendation.diagnostic,
+						recommendation.code,
+						target,
+						recommendation.action,
+						recommendation.command,
+						recommendation.nextCommand,
+					]);
+			if (recommendationKeys.has(key)) continue;
+			recommendationKeys.add(key);
+			recommendations.push({
+				stepId: result.id,
+				...recommendation,
+			});
+		}
+	}
+	return {
+		...(warningCount > 0 ? { warningCount } : {}),
+		...(recommendations.length > 0 ? { recommendations } : {}),
+	};
 }
 
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -162,6 +259,7 @@ if (planOnly) {
 }
 
 const runResult = await runPlan(plan, { json });
+const aggregate = aggregateResults(runResult.results);
 
 if (json) {
 	console.log(
@@ -173,6 +271,7 @@ if (json) {
 				failedStepId: runResult.failedStepId,
 				steps: serializePlan(plan),
 				results: runResult.results,
+				...aggregate,
 			},
 			null,
 			2,
