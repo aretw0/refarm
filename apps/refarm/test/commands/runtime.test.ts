@@ -416,8 +416,13 @@ describe("runtime command", () => {
 		const root = join(tmpdir(), `refarm-runtime-stop-${Date.now()}`);
 		const procRoot = join(tmpdir(), `refarm-proc-${Date.now()}`);
 		mkdirSync(join(root, ".refarm"), { recursive: true });
+		mkdirSync(join(procRoot, "111"), { recursive: true });
 		mkdirSync(join(procRoot, "333"), { recursive: true });
 		writeFileSync(join(root, ".refarm", "tractor.pid"), "111");
+		writeFileSync(
+			join(procRoot, "111", "cmdline"),
+			["/home/vscode/.npm-global/bin/codex", "resume"].join("\0"),
+		);
 		writeFileSync(
 			join(procRoot, "333", "cmdline"),
 			[
@@ -433,12 +438,7 @@ describe("runtime command", () => {
 		const previousProcRoot = process.env.REFARM_PROC_ROOT;
 		process.env.REFARM_PROC_ROOT = procRoot;
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const killSpy = vi.spyOn(process, "kill").mockImplementation((pid) => {
-			if (pid === 111) {
-				throw new Error("ESRCH");
-			}
-			return true;
-		});
+		const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
 		const command = createRuntimeCommand({
 			repoRoot: () => root,
 			readEngine: () => "auto",
@@ -454,6 +454,7 @@ describe("runtime command", () => {
 			await command.parseAsync(["stop", "--json"], { from: "user" });
 
 			expect(killSpy).toHaveBeenCalledWith(111, 0);
+			expect(killSpy).not.toHaveBeenCalledWith(111, "SIGTERM");
 			expect(killSpy).toHaveBeenCalledWith(333, 0);
 			expect(killSpy).toHaveBeenCalledWith(333, "SIGTERM");
 			expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({

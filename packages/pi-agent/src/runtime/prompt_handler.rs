@@ -7,15 +7,17 @@ use super::{prompt_persistence, react_loop::react_with_prompt_ref, streaming_sin
 /// No-op if the directory cannot be created or the file cannot be written.
 /// Only active in the WASM build — native builds (unit tests) are a no-op.
 #[cfg(not(target_arch = "wasm32"))]
-fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: u32, _: u32) {}
+fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32) {}
 
 #[cfg(target_arch = "wasm32")]
 fn write_final_stream_chunk(
     prompt_ref: &str,
     content: &str,
     model: &str,
+    provider: &str,
     tokens_in: u32,
     tokens_out: u32,
+    tokens_cached: u32,
 ) {
     let streams_dir = match std::env::var("REFARM_STREAMS_DIR") {
         Ok(v) if !v.is_empty() => v,
@@ -32,12 +34,16 @@ fn write_final_stream_chunk(
         return;
     }
 
-    let estimated_usd = (tokens_in as f64 * 0.000_003) + (tokens_out as f64 * 0.000_015);
-    let chunk = format!(
-        "{{\"stream_ref\":{stream_ref_json},\"sequence\":0,\"content\":{content_json},\"is_final\":true,\"metadata\":{{\"model\":{model_json},\"tokens_in\":{tokens_in},\"tokens_out\":{tokens_out},\"estimated_usd\":{estimated_usd:.6}}}}}\n",
-        stream_ref_json = json_string(&stream_ref),
-        content_json   = json_string(content),
-        model_json     = json_string(model),
+    let chunk = super::streaming_metadata::final_stream_chunk_ndjson(
+        super::streaming_metadata::FinalStreamChunkInput {
+            stream_ref: &stream_ref,
+            content,
+            model,
+            provider,
+            tokens_in,
+            tokens_out,
+            tokens_cached,
+        },
     );
 
     let _ = std::fs::OpenOptions::new()
@@ -48,26 +54,6 @@ fn write_final_stream_chunk(
             use std::io::Write;
             f.write_all(chunk.as_bytes())
         });
-}
-
-fn json_string(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                out.push_str(&format!("\\u{:04x}", c as u32));
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
 }
 
 pub(crate) struct PromptExecutionOutcome {
@@ -159,7 +145,15 @@ pub(crate) fn execute_prompt(
         tokens_out,
     );
 
-    write_final_stream_chunk(&ctx.prompt_ref, &content, &model, tokens_in, tokens_out);
+    write_final_stream_chunk(
+        &ctx.prompt_ref,
+        &content,
+        &model,
+        &provider_name,
+        tokens_in,
+        tokens_out,
+        tokens_cached,
+    );
 
     Some(PromptExecutionOutcome {
         content,

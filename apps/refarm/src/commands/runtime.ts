@@ -151,6 +151,30 @@ function defaultDeps(): RuntimeCommandDeps {
 	};
 }
 
+function procCmdline(pid: number): string[] | null {
+	if (process.platform !== "linux") return null;
+	const procRoot = process.env.REFARM_PROC_ROOT ?? "/proc";
+	try {
+		return parseProcCmdline(readFileSync(join(procRoot, String(pid), "cmdline"), "utf-8"));
+	} catch {
+		return null;
+	}
+}
+
+function isFarmhandProcess(args: string[]): boolean {
+	return args.some((arg) => arg.includes("farmhand"));
+}
+
+function runtimePidMatchesTarget(
+	name: RuntimeStopTargetResult["name"],
+	pid: number,
+): boolean | null {
+	const args = procCmdline(pid);
+	if (!args) return null;
+	if (name === "tractor") return args.some(isTractorArg);
+	return isFarmhandProcess(args);
+}
+
 function stopRuntimeTarget(
 	name: RuntimeStopTargetResult["name"],
 	pidFile: string,
@@ -202,6 +226,24 @@ function stopRuntimeTarget(
 			pidFile,
 			source: "pid-file",
 			message: `${name} process was not running; cleaned PID file.`,
+		};
+	}
+
+	if (runtimePidMatchesTarget(name, pid) === false) {
+		try {
+			unlinkSync(pidFile);
+		} catch {
+			// Best-effort cleanup; mismatched PID is already handled.
+		}
+		return {
+			name,
+			ok: true,
+			stopped: false,
+			alreadyStopped: true,
+			pid,
+			pidFile,
+			source: "pid-file",
+			message: `${name} PID file pointed at a different process; cleaned PID file.`,
 		};
 	}
 
