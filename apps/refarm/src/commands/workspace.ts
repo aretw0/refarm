@@ -568,14 +568,28 @@ function printWorkspaceSourceMaterialize(
 				((step) => runCommandPlanProcessStep(step, { cwd: baseDir, env: deps?.env ?? process.env })),
 		);
 		if (options.json) {
-			printJson(buildCommandPlanRunEnvelope({
+			const envelope = buildCommandPlanRunEnvelope({
 				action: "source-materialize",
 				command: "workspace",
 				operation: "source-materialize-run",
-			}, result));
+			}, result);
+			if (processes.length === 0 && plan.summary.unconfigured > 0) {
+				envelope.nextAction = nextAction;
+				envelope.nextActions = [nextAction].filter((action): action is string => Boolean(action));
+				envelope.nextCommand = WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND;
+				envelope.nextCommands = [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND];
+			}
+			printJson(envelope);
 			return;
 		}
 		console.log(chalk.bold("Workspace source materialize"));
+		if (result.steps.length === 0) {
+			console.log(chalk.dim(nextAction ?? "  no source cache materialization needed"));
+			if (processes.length === 0 && plan.summary.unconfigured > 0) {
+				console.log(chalk.dim(`  next: ${WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND}`));
+			}
+			return;
+		}
 		for (const step of result.steps) {
 			console.log(`${step.ok ? "  ✓" : "  ✗"} ${step.command}`);
 		}
