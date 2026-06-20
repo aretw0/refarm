@@ -203,6 +203,12 @@ export function buildRefarmCheckReport(checks: {
 			checks.doctor.ok,
 		failureCount,
 		warningCount:
+			(checks.nodeSubstrate?.recommendations ?? []).filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
+			(checks.rustSubstrate?.recommendations ?? []).filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
 			checks.doctor.warningCount +
 			workspaceExecutionCheckRecommendations(checks.workspaceExecution).filter(
 				(recommendation) => recommendation.severity === "warning",

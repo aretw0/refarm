@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -23,6 +23,8 @@ export interface RustSubstrateCheck {
 	missing: string[];
 	linker: string | null;
 	compiler: string | null;
+	warnings: string[];
+	warningCount: number;
 	recommendations: RustSubstrateRecommendation[];
 }
 
@@ -56,35 +58,16 @@ function runProbe(command: string, args: string[] = []): {
 	stdout: string;
 	stderr: string;
 } {
-	try {
-		return {
-			ok: true,
-			stdout: execFileSync(command, args, {
-				encoding: "utf8",
-				windowsHide: true,
-			}).trim(),
-			stderr: "",
-		};
-	} catch (error) {
-		const probeError = error as {
-			message?: string;
-			status?: number;
-			stdout?: Buffer | string;
-			stderr?: Buffer | string;
-		};
-		if (probeError.status === 0) {
-			return {
-				ok: true,
-				stdout: probeError.stdout?.toString().trim() ?? "",
-				stderr: probeError.stderr?.toString().trim() ?? "",
-			};
-		}
-		return {
-			ok: false,
-			stdout: probeError.stdout?.toString().trim() ?? "",
-			stderr: probeError.stderr?.toString().trim() ?? probeError.message ?? "",
-		};
-	}
+	const result = spawnSync(command, args, {
+		encoding: "utf8",
+		stdio: ["ignore", "pipe", "pipe"],
+		windowsHide: true,
+	});
+	return {
+		ok: result.status === 0,
+		stdout: result.stdout?.trim() ?? "",
+		stderr: result.stderr?.trim() ?? result.error?.message ?? "",
+	};
 }
 
 function stripAnsi(value: string): string {
@@ -117,6 +100,8 @@ export async function runRustSubstrateCheck(
 			missing: [],
 			linker: null,
 			compiler: null,
+			warnings: [],
+			warningCount: 0,
 			recommendations: [],
 		};
 	}
@@ -124,6 +109,7 @@ export async function runRustSubstrateCheck(
 	const rustc = runProbe("rustc", ["-vV"]);
 	const cargoList = runProbe("cargo", ["--list"]);
 	const rustupTargets = runProbe("rustup", ["target", "list", "--installed"]);
+	const rustupVersion = runProbe("rustup", ["--version"]);
 	const rustcHost = rustc.stdout.match(/^host:\s*(.+)$/m)?.[1] ?? null;
 	const installedTargets = rustupTargets.stdout.split(/\r?\n/).filter(Boolean);
 	const cargoCommands = stripAnsi(cargoList.stdout).split(/\r?\n/).map((line) => line.trim());
@@ -132,6 +118,8 @@ export async function runRustSubstrateCheck(
 	if (!rustc.ok) missing.push("rustc");
 	if (!cargoList.ok) missing.push("cargo");
 	if (!rustupTargets.ok) missing.push("rustup_targets");
+	const warnings: string[] = [];
+	if (!rustupVersion.ok) warnings.push("rustup_version");
 	if (!installedTargets.includes("wasm32-wasip1")) missing.push("target_wasm32_wasip1");
 	if (!cargoCommands.some((line) => line === "component" || line.startsWith("component "))) {
 		missing.push("cargo_component");
@@ -161,6 +149,7 @@ export async function runRustSubstrateCheck(
 		rustcHost,
 		linker,
 		explicitMsvcLinkerOk,
+		warnings,
 	});
 	return {
 		command: "rust-substrate",
@@ -172,6 +161,8 @@ export async function runRustSubstrateCheck(
 		missing,
 		linker: effectiveLinker,
 		compiler,
+		warnings,
+		warningCount: warnings.length,
 		recommendations,
 	};
 }
@@ -181,6 +172,7 @@ function buildRustSubstrateRecommendations(input: {
 	rustcHost: string | null;
 	linker: string | null;
 	explicitMsvcLinkerOk?: boolean;
+	warnings?: string[];
 }): RustSubstrateRecommendation[] {
 	const recommendations: RustSubstrateRecommendation[] = [];
 	const missingMsvcPrerequisite =
@@ -235,6 +227,15 @@ function buildRustSubstrateRecommendations(input: {
 			severity: "failure",
 			summary: "The Rust toolchain is required by this workspace.",
 			action: `Install Rust with rustup, then retry \`${RUST_SUBSTRATE_RETRY_CHECK_COMMAND}\`.`,
+		});
+	}
+	if (input.warnings?.includes("rustup_version")) {
+		recommendations.push({
+			diagnostic: "rust-substrate:rustup-version-probe",
+			severity: "warning",
+			summary: "rustup --version failed, but Rust target validation succeeded through rustup target list.",
+			action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
+			target: "rustup --version",
 		});
 	}
 	return recommendations;

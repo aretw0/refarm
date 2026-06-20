@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,25 +9,16 @@ function usage() {
 }
 
 function run(command, args = []) {
-	try {
-		return {
-			ok: true,
-			stdout: execFileSync(command, args, { encoding: "utf8", windowsHide: true }).trim(),
-		};
-	} catch (error) {
-		if (error.status === 0) {
-			return {
-				ok: true,
-				stdout: error.stdout?.toString().trim() ?? "",
-				stderr: error.stderr?.toString().trim() ?? "",
-			};
-		}
-		return {
-			ok: false,
-			stdout: error.stdout?.toString().trim() ?? "",
-			stderr: error.stderr?.toString().trim() ?? error.message,
-		};
-	}
+	const result = spawnSync(command, args, {
+		encoding: "utf8",
+		stdio: ["ignore", "pipe", "pipe"],
+		windowsHide: true,
+	});
+	return {
+		ok: result.status === 0,
+		stdout: result.stdout?.trim() ?? "",
+		stderr: result.stderr?.trim() ?? result.error?.message ?? "",
+	};
 }
 
 function stripAnsi(value) {
@@ -44,10 +35,12 @@ function commandSource(command) {
 	return result.ok && result.stdout ? result.stdout : null;
 }
 
-export function checkRustSubstrate() {
-	const rustc = run("rustc", ["-vV"]);
-	const cargoList = run("cargo", ["--list"]);
-	const rustupTargets = run("rustup", ["target", "list", "--installed"]);
+export function checkRustSubstrate(options = {}) {
+	const runCommand = options.runCommand ?? run;
+	const rustc = runCommand("rustc", ["-vV"]);
+	const cargoList = runCommand("cargo", ["--list"]);
+	const rustupTargets = runCommand("rustup", ["target", "list", "--installed"]);
+	const rustupVersion = runCommand("rustup", ["--version"]);
 
 	const rustcHost = rustc.stdout.match(/^host:\s*(.+)$/m)?.[1] ?? null;
 	const installedTargets = rustupTargets.stdout.split(/\r?\n/).filter(Boolean);
@@ -59,6 +52,7 @@ export function checkRustSubstrate() {
 		{ id: "rustc", ok: rustc.ok, detail: rustcHost },
 		{ id: "cargo", ok: cargoList.ok },
 		{ id: "rustup_targets", ok: rustupTargets.ok },
+		{ id: "rustup_version", ok: rustupVersion.ok, required: false },
 		{ id: "target_wasm32_wasip1", ok: hasWasiTarget },
 		{ id: "cargo_component", ok: hasCargoComponent },
 	];
@@ -86,7 +80,10 @@ export function checkRustSubstrate() {
 		});
 	}
 
-	const missing = checks.filter((check) => !check.ok);
+	const missing = checks.filter((check) => check.required !== false && !check.ok);
+	const warnings = checks
+		.filter((check) => check.required === false && !check.ok)
+		.map((check) => check.id);
 	const needsMsvc =
 		process.platform === "win32" &&
 		rustcHost?.endsWith("-msvc") &&
@@ -135,8 +132,20 @@ export function checkRustSubstrate() {
 			target: "cargo component",
 		});
 	}
+	if (!rustupVersion.ok) {
+		recommendations.push({
+			diagnostic: "rust-substrate:rustup-version-probe",
+			severity: "warning",
+			summary: "rustup --version failed, but Rust target validation succeeded through rustup target list.",
+			action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
+			target: "rustup --version",
+		});
+	}
 
-	const nextActions = recommendations.map((recommendation) => recommendation.action);
+	const blockingRecommendations = recommendations.filter(
+		(recommendation) => recommendation.severity !== "warning" && recommendation.severity !== "info",
+	);
+	const nextActions = blockingRecommendations.map((recommendation) => recommendation.action);
 	const nextCommands = recommendations
 		.map((recommendation) => recommendation.command)
 		.filter((command) => typeof command === "string" && command.length > 0);
@@ -146,6 +155,8 @@ export function checkRustSubstrate() {
 		rustcHost,
 		checks,
 		missing,
+		warnings,
+		warningCount: warnings.length,
 		recommendations,
 		command: "rust-substrate",
 		operation: "check",
@@ -168,7 +179,9 @@ function main() {
 	if (json) {
 		console.log(JSON.stringify(result, null, 2));
 	} else if (result.ok) {
-		console.log("rust-substrate: OK");
+		console.log(
+			`rust-substrate: OK${result.warningCount > 0 ? ` (${result.warningCount} warning${result.warningCount === 1 ? "" : "s"})` : ""}`,
+		);
 	} else {
 		console.error("rust-substrate: missing Rust/WASM execution substrate");
 		for (const check of result.missing) {

@@ -164,6 +164,8 @@ function makeRustSubstrateCheck(
 		missing: [],
 		linker: null,
 		compiler: null,
+		warnings: [],
+		warningCount: 0,
 		recommendations: [],
 		...overrides,
 	};
@@ -372,6 +374,40 @@ describe("buildRefarmCheckReport", () => {
 				severity: "warning",
 				target: "agents-lab",
 				action: "Mount the Windows checkout into this container.",
+			}),
+		);
+	});
+
+	it("warns without blocking when rustup version probing fails", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck({
+				warnings: ["rustup_version"],
+				warningCount: 1,
+				recommendations: [
+					{
+						diagnostic: "rust-substrate:rustup-version-probe",
+						severity: "warning",
+						summary: "rustup --version failed, but Rust target validation succeeded through rustup target list.",
+						action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
+						target: "rustup --version",
+					},
+				],
+			}),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(true);
+		expect(report.warningCount).toBe(1);
+		expect(report.nextAction).toBeNull();
+		expect(report.nextCommand).toBeNull();
+		expect(report.recommendations).toContainEqual(
+			expect.objectContaining({
+				diagnostic: "rust-substrate:rustup-version-probe",
+				severity: "warning",
+				target: "rustup --version",
 			}),
 		);
 	});
