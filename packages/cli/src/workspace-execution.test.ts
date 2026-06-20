@@ -67,6 +67,24 @@ describe("workspace execution discovery", () => {
 		});
 	});
 
+	it("uses shared package-manager primitives for adapter install handoffs", () => {
+		writeJson(path.join(tempRoot, "package.json"), {
+			devDependencies: {},
+		});
+		writeJson(path.join(tempRoot, "turbo.json"), {
+			tasks: {},
+		});
+
+		expect(buildWorkspaceExecutionStatus({
+			cwd: tempRoot,
+			packageManager: "npm",
+		}).adapters.turbo.installCommand).toBe("npm install --save-dev turbo");
+		expect(buildWorkspaceExecutionStatus({
+			cwd: tempRoot,
+			packageManager: "bun",
+		}).adapters.turbo.installCommand).toBe("bun add -d turbo");
+	});
+
 	it("infers the package manager for adapter install handoffs", () => {
 		writeJson(path.join(tempRoot, "package.json"), {
 			packageManager: "pnpm@11.7.0",

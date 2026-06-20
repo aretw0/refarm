@@ -230,6 +230,51 @@ export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process
     }
 }
 
+export function packageAddDevCommand(dependencyName, { cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["add", "-D", "-w", dependencyName]);
+            return {
+                packageManager,
+                command: pnpm.command,
+                args: pnpm.args,
+                display: `pnpm add -D -w ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["install", "--save-dev", dependencyName]);
+            return {
+                packageManager,
+                command: npm.command,
+                args: npm.args,
+                display: `npm install --save-dev ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["add", "-D", "-W", dependencyName]);
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: `yarn add -D -W ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["add", "-d", dependencyName]);
+            return {
+                packageManager,
+                command: bun.command,
+                args: bun.args,
+                display: `bun add -d ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
     const packageManager = detectPackageManager({ cwd, env });
 

@@ -69,6 +69,7 @@ export {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
+    packageAddDevCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,

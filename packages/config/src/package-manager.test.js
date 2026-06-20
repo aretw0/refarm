@@ -7,6 +7,7 @@ import {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
+    packageAddDevCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
@@ -252,6 +253,29 @@ describe("package manager config", () => {
             command: pmCommand("bun"),
             args: pmArgs("bun", ["install", "--frozen-lockfile"]),
             display: "bun install --frozen-lockfile",
+        });
+    });
+
+    it("formats dev dependency install commands for each supported manager", () => {
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["add", "-D", "-w", "turbo"]),
+            display: "pnpm add -D -w turbo",
+        });
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["install", "--save-dev", "turbo"]),
+            display: "npm install --save-dev turbo",
+        });
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["add", "-D", "-W", "turbo"]),
+            display: "yarn add -D -W turbo",
+        });
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["add", "-d", "turbo"]),
+            display: "bun add -d turbo",
         });
     });
 

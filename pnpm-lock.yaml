@@ -405,6 +405,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../config
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../homestead

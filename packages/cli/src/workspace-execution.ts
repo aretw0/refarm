@@ -1,3 +1,4 @@
+import { packageAddDevCommand } from "@refarm.dev/config";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -75,7 +76,13 @@ export function buildWorkspaceExecutionStatus(options: {
 				declared: turboDeclared,
 				configPath: turboConfigured ? turboConfigPath : null,
 				installCommand: turboConfigured && !turboDeclared
-					? packageManagerInstallDevCommand(packageManager, "turbo")
+					? packageAddDevCommand("turbo", {
+							cwd: root,
+							env: {
+								...env,
+								REFARM_PACKAGE_MANAGER: packageManager,
+							},
+						}).display
 					: null,
 			},
 		},
@@ -175,14 +182,4 @@ function parseWorkspacePackageManager(value: unknown): WorkspaceExecutionPackage
 	const name = value.trim().split("@")[0]?.trim();
 	if (name === "pnpm" || name === "npm" || name === "yarn" || name === "bun") return name;
 	return null;
-}
-
-function packageManagerInstallDevCommand(
-	packageManager: WorkspaceExecutionPackageManager,
-	dependencyName: string,
-): string {
-	if (packageManager === "pnpm") return `pnpm add -D -w ${dependencyName}`;
-	if (packageManager === "yarn") return `yarn add -D -W ${dependencyName}`;
-	if (packageManager === "bun") return `bun add -d ${dependencyName}`;
-	return `npm install --save-dev ${dependencyName}`;
 }

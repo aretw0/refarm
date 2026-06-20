@@ -127,9 +127,10 @@
 		"dist/workspace-sweep.js"
 	],
 	"dependencies": {
+		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
-		"@refarm.dev/trust": "workspace:*",
-		"@refarm.dev/runtime": "workspace:*"
+		"@refarm.dev/runtime": "workspace:*",
+		"@refarm.dev/trust": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",
 	"publishConfig": {

@@ -87,6 +87,11 @@ export function packageFrozenInstallCommand(
     options?: PackageManagerOptions,
 ): PackageSpawnCommand;
 
+export function packageAddDevCommand(
+    dependencyName: string,
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
+
 export function packagePublishDryRunCommand(
     options?: PackageManagerOptions,
 ): PackageCommandString;
