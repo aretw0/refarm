@@ -258,6 +258,7 @@ describe("createSiloModelEnvInjector", () => {
 			access: "fresh",
 			refresh: "next-refresh",
 			expires: Date.now() + 60_000,
+			accountId: "account-test",
 		};
 		const injector = createSiloModelEnvInjector({
 			store,
@@ -270,6 +271,7 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.MODEL_PROVIDER).toBe("openai-codex");
 		expect(env.OPENAI_API_KEY).toBeUndefined();
 		expect(env.OPENAI_CODEX_ACCESS_TOKEN).toBe("fresh");
+		expect(env.OPENAI_CODEX_ACCOUNT_ID).toBe("account-test");
 		expect(store.saveTokens).toHaveBeenCalledWith({
 			oauthCredentials: {
 				"openai-codex": refreshed,

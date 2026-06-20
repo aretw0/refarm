@@ -105,6 +105,11 @@ export interface ModelTokens {
 	oauthCredentials?: Record<string, unknown>;
 }
 
+interface RuntimeOAuthCredential {
+	access: string;
+	accountId?: string;
+}
+
 export interface ModelCommandDeps {
 	loadTokens(): Promise<ModelTokens>;
 	saveTokens(tokens: Record<string, unknown>): Promise<unknown>;
@@ -256,11 +261,34 @@ function modelRuntimeCredentialEnv(
 	return apiKey ? [envKey, apiKey] : null;
 }
 
+function runtimeOAuthCredential(
+	provider: string | undefined,
+	tokens: ModelTokens,
+): RuntimeOAuthCredential | null {
+	if (!provider || tokens.oauthProvider !== provider) return null;
+	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") return null;
+	const value = tokens.oauthCredentials[provider];
+	if (!value || typeof value !== "object") return null;
+	const candidate = value as { access?: unknown; accountId?: unknown };
+	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) {
+		return null;
+	}
+	return {
+		access: candidate.access,
+		...(typeof candidate.accountId === "string" && candidate.accountId.trim().length > 0
+			? { accountId: candidate.accountId }
+			: {}),
+	};
+}
+
 function shellQuote(value: string): string {
 	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-function printModelEnvShell(tokens: ModelTokens): void {
+function printModelEnvShell(
+	tokens: ModelTokens,
+	options: { includeSecrets?: boolean } = {},
+): void {
 	const status = buildCurrentModelStatus(tokens);
 	const entries: [string, string][] = [];
 	if (status.current.provider) {
@@ -283,6 +311,20 @@ function printModelEnvShell(tokens: ModelTokens): void {
 	}
 	const credential = modelRuntimeCredentialEnv(status.current.provider, tokens);
 	if (credential) entries.push(credential);
+	if (options.includeSecrets) {
+		const oauthCredential = runtimeOAuthCredential(status.current.provider, tokens);
+		const oauthEnvKey = modelCredentialEnvKey(status.current.provider);
+		if (oauthCredential && oauthEnvKey && !process.env[oauthEnvKey]) {
+			entries.push([oauthEnvKey, oauthCredential.access]);
+		}
+		if (
+			status.current.provider === "openai-codex" &&
+			oauthCredential?.accountId &&
+			!process.env.OPENAI_CODEX_ACCOUNT_ID
+		) {
+			entries.push(["OPENAI_CODEX_ACCOUNT_ID", oauthCredential.accountId]);
+		}
+	}
 
 	for (const [key, value] of entries) {
 		console.log(`export ${key}=${shellQuote(value)}`);
@@ -1193,6 +1235,7 @@ Notes:
 		.command("env")
 		.description("Print shell exports for the current model runtime")
 		.option("--shell", "Output POSIX shell export statements")
+		.option("--include-secrets", "Include local runtime credential secrets")
 		.addHelpText(
 			"after",
 			`
@@ -1207,13 +1250,13 @@ Notes:
   Silo. It does not call the model provider.
 `,
 		)
-		.action(async (opts: { shell?: boolean }) => {
+		.action(async (opts: { shell?: boolean; includeSecrets?: boolean }) => {
 			const tokens = await deps.loadTokens();
 			if (!opts.shell) {
 				console.log("Use --shell to print model runtime exports.");
 				return;
 			}
-			printModelEnvShell(tokens);
+			printModelEnvShell(tokens, { includeSecrets: opts.includeSecrets });
 		});
 
 	command

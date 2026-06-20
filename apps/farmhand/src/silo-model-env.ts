@@ -12,6 +12,7 @@ export interface OAuthCreds {
 	access: string;
 	refresh: string;
 	expires: number;
+	accountId?: string;
 }
 
 export interface SiloModelTokens {
@@ -65,6 +66,9 @@ function oauthCredentialsFor(
 				access: candidate.access,
 				refresh: candidate.refresh,
 				expires: candidate.expires,
+				...(typeof candidate.accountId === "string" && candidate.accountId.trim().length > 0
+					? { accountId: candidate.accountId.trim() }
+					: {}),
 			}
 		: undefined;
 }
@@ -159,6 +163,9 @@ export function createSiloModelEnvInjector(
 						}
 						const envKey = modelCredentialEnvKey(oauthProvider);
 						if (envKey) setManagedEnv(envKey, effectiveCreds.access);
+						if (oauthProvider === "openai-codex" && effectiveCreds.accountId) {
+							setManagedEnv("OPENAI_CODEX_ACCOUNT_ID", effectiveCreds.accountId);
+						}
 						return;
 					}
 				}

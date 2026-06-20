@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Installs pi-agent into ~/.refarm/plugins/@refarm/pi-agent/ so farmhand
- * can auto-load it on boot.
+ * Installs pi-agent into $REFARM_HOME/plugins/@refarm/pi-agent/ so the
+ * runtime can auto-load it on boot.
  *
  * WASM path resolution order (first found wins):
  *   1. $CARGO_TARGET_DIR env var (set by devcontainer or ~/.bashrc)
@@ -68,7 +68,8 @@ if (!wasmSrc) {
 console.log(`[pi-agent-install] Found WASM at: ${wasmSrc}`);
 
 // Install destination — scoped path mirrors npm convention; canonical id is in plugin.json.
-const pluginDir = path.join(os.homedir(), ".refarm/plugins/@refarm/pi-agent");
+const refarmHome = process.env.REFARM_HOME?.trim() || path.join(os.homedir(), ".refarm");
+const pluginDir = path.join(refarmHome, "plugins/@refarm/pi-agent");
 mkdirSync(pluginDir, { recursive: true });
 
 const wasmDest = path.join(pluginDir, "pi_agent.wasm");

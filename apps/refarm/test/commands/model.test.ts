@@ -153,7 +153,7 @@ describe("modelCommand", () => {
 			modelId: "gpt-5.5",
 			oauthProvider: "openai-codex",
 			oauthCredentials: {
-				"openai-codex": { access: "oauth-access-test" },
+				"openai-codex": { access: "oauth-access-test", accountId: "account-test" },
 			},
 		});
 		const command = createModelCommand(deps);
@@ -167,6 +167,31 @@ describe("modelCommand", () => {
 		expect(output).not.toContain("OPENAI_API_KEY");
 		expect(output).not.toContain("OPENAI_CODEX_ACCESS_TOKEN");
 		expect(output).not.toContain("oauth-access-test");
+		expect(output).not.toContain("account-test");
+
+		logSpy.mockRestore();
+	});
+
+	it("exports subscription OAuth credentials for local runtime launch scripts", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai-codex",
+			modelId: "gpt-5.5",
+			oauthProvider: "openai-codex",
+			oauthCredentials: {
+				"openai-codex": { access: "oauth-access-test", accountId: "account-test" },
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["env", "--shell", "--include-secrets"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
+		expect(output).toContain("export MODEL_ID='gpt-5.5'");
+		expect(output).toContain("export OPENAI_CODEX_ACCESS_TOKEN='oauth-access-test'");
+		expect(output).toContain("export OPENAI_CODEX_ACCOUNT_ID='account-test'");
+		expect(output).not.toContain("OPENAI_API_KEY");
 
 		logSpy.mockRestore();
 	});

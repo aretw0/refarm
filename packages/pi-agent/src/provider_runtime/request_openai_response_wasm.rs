@@ -6,6 +6,7 @@ use super::{
     },
     request_http_wasm::execute_json_request_with_streaming_callback,
     request_path::openai_compat_path,
+    stream_events::parse_openai_codex_response_from_sse,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -27,17 +28,23 @@ pub(crate) fn openai_iteration_response(
     } else {
         build_openai_body_with_streaming(model, wire_msgs, crate::tools_openai(), stream)
     };
-    let response = execute_json_request_with_streaming_callback(
-        provider,
-        base_url,
-        openai_compat_path(provider),
-        headers,
-        &body,
-        crate::runtime::streaming_sink::record_stream_bytes_for_active_sink,
-    )?;
     Ok(if provider == "openai-codex" {
-        normalize_openai_codex_response(response)
+        let bytes = crate::provider::http_post_via_host(
+            provider,
+            base_url,
+            openai_compat_path(provider),
+            headers,
+            body.as_bytes(),
+        )?;
+        normalize_openai_codex_response(parse_openai_codex_response_from_sse(&bytes)?)
     } else {
-        response
+        execute_json_request_with_streaming_callback(
+            provider,
+            base_url,
+            openai_compat_path(provider),
+            headers,
+            &body,
+            crate::runtime::streaming_sink::record_stream_bytes_for_active_sink,
+        )?
     })
 }

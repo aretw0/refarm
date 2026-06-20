@@ -29,6 +29,83 @@ pub(crate) fn parse_stream_text_deltas_from_sse(bytes: &[u8]) -> Vec<String> {
     parse_stream_text_deltas(&payloads)
 }
 
+pub(crate) fn parse_openai_codex_response_from_sse(
+    bytes: &[u8],
+) -> Result<serde_json::Value, String> {
+    let payloads = parse_sse_data_events(bytes);
+    let mut text = String::new();
+    let mut last_response: Option<serde_json::Value> = None;
+    let mut output_items = Vec::new();
+
+    for payload in payloads {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&payload) else {
+            continue;
+        };
+        if let Some(response) = value.get("response") {
+            last_response = Some(response.clone());
+        }
+        match value.get("type").and_then(serde_json::Value::as_str) {
+            Some("response.completed") => {
+                if let Some(response) = value.get("response") {
+                    return Ok(finalize_openai_codex_sse_response(
+                        response.clone(),
+                        &output_items,
+                        &text,
+                    ));
+                }
+            }
+            Some("response.output_item.done") => {
+                if let Some(item) = value.get("item") {
+                    output_items.push(item.clone());
+                }
+            }
+            Some("response.output_text.delta") => {
+                if let Some(delta) = value.get("delta").and_then(serde_json::Value::as_str) {
+                    text.push_str(delta);
+                }
+            }
+            Some("response.output_text.done") => {
+                if text.is_empty() {
+                    if let Some(done_text) = value.get("text").and_then(serde_json::Value::as_str) {
+                        text.push_str(done_text);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(response) = last_response {
+        return Ok(finalize_openai_codex_sse_response(response, &output_items, &text));
+    }
+    if !text.is_empty() {
+        return Ok(serde_json::json!({ "output_text": text }));
+    }
+    Err("parse: missing OpenAI Codex SSE response".to_string())
+}
+
+fn finalize_openai_codex_sse_response(
+    mut response: serde_json::Value,
+    output_items: &[serde_json::Value],
+    text: &str,
+) -> serde_json::Value {
+    let output_is_empty = response
+        .get("output")
+        .and_then(serde_json::Value::as_array)
+        .is_none_or(Vec::is_empty);
+    if output_is_empty && !output_items.is_empty() {
+        response["output"] = serde_json::Value::Array(output_items.to_vec());
+    }
+    let has_text = response
+        .get("output_text")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|value| !value.is_empty());
+    if !has_text && output_items.is_empty() && !text.is_empty() {
+        response["output_text"] = serde_json::Value::String(text.to_string());
+    }
+    response
+}
+
 pub(crate) fn parse_stream_response_chunk_drafts_from_sse(
     bytes: &[u8],
     last_sequence: Option<u32>,

@@ -1,6 +1,6 @@
 pub(crate) fn openai_compat_path(provider: &str) -> &'static str {
     match provider {
-        "openai-codex" => "/codex/responses",
+        "openai-codex" => "/backend-api/codex/responses",
         "groq" => "/openai/v1/chat/completions",
         "openrouter" => "/api/v1/chat/completions",
         "gemini" => "/v1beta/openai/chat/completions",

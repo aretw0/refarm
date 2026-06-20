@@ -198,6 +198,7 @@ async function main() {
 		...baseEnv,
 		...mock.env,
 		HOME: tempDir,
+		REFARM_HOME: refarmHomeDir,
 		REFARM_SIDECAR_URL: `http://127.0.0.1:${httpPort}`,
 		REFARM_STREAMS_DIR: streamsDir,
 		REFARM_OPERATOR_IDENTITY_FILE: identityFile,

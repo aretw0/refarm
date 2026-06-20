@@ -67,10 +67,10 @@ fn provider_runtime_append_openai_tool_message_shape() {
 
 #[test]
 fn provider_runtime_openai_compat_path_known_overrides() {
-    assert_eq!(
-        crate::provider_runtime::openai_compat_path("openai-codex"),
-        "/codex/responses"
-    );
+	assert_eq!(
+		crate::provider_runtime::openai_compat_path("openai-codex"),
+		"/backend-api/codex/responses"
+	);
     assert_eq!(
         crate::provider_runtime::openai_compat_path("groq"),
         "/openai/v1/chat/completions"
@@ -145,8 +145,9 @@ fn provider_runtime_build_openai_codex_body_uses_responses_shape() {
         false,
     );
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert_eq!(v["model"], "gpt-5.5");
-    assert_eq!(v["instructions"], "sys");
+	assert_eq!(v["model"], "gpt-5.5");
+	assert_eq!(v["stream"], true);
+	assert_eq!(v["instructions"], "sys");
     assert_eq!(v["input"][0]["role"], "user");
     assert_eq!(v["input"][0]["content"], "hi");
     assert_eq!(v["tools"][0]["type"], "function");
@@ -388,6 +389,50 @@ fn provider_runtime_parse_stream_text_deltas_from_sse_combines_framing_and_paylo
         b"data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"b\"}}\n\ndata: [DONE]\n",
     );
     assert_eq!(deltas, vec!["a".to_string(), "b".to_string()]);
+}
+
+#[test]
+fn provider_runtime_parse_openai_codex_response_from_completed_sse() {
+    let response = crate::provider_runtime::parse_openai_codex_response_from_sse(
+        br#"data: {"type":"response.output_text.delta","delta":"he"}
+
+data: {"type":"response.completed","response":{"output_text":"hello","usage":{"input_tokens":1,"output_tokens":1}}}
+
+"#,
+    )
+    .unwrap();
+    assert_eq!(response["output_text"], "hello");
+    assert_eq!(response["usage"]["input_tokens"], 1);
+}
+
+#[test]
+fn provider_runtime_parse_openai_codex_response_uses_done_item_when_completed_output_is_empty() {
+    let response = crate::provider_runtime::parse_openai_codex_response_from_sse(
+        br#"data: {"type":"response.output_text.delta","delta":"he"}
+
+data: {"type":"response.output_item.done","output_index":1,"item":{"type":"message","content":[{"type":"output_text","text":"hello"}]}}
+
+data: {"type":"response.completed","response":{"output":[],"usage":{"input_tokens":1,"output_tokens":1}}}
+
+"#,
+    )
+    .unwrap();
+    let normalized = crate::provider_runtime::normalize_openai_codex_response(response);
+    assert_eq!(normalized["choices"][0]["message"]["content"], "hello");
+    assert_eq!(normalized["usage"]["output_tokens"], 1);
+}
+
+#[test]
+fn provider_runtime_parse_openai_codex_response_from_text_delta_sse() {
+    let response = crate::provider_runtime::parse_openai_codex_response_from_sse(
+        br#"data: {"type":"response.output_text.delta","delta":"he"}
+
+data: {"type":"response.output_text.delta","delta":"llo"}
+
+"#,
+    )
+    .unwrap();
+    assert_eq!(response["output_text"], "hello");
 }
 
 #[test]

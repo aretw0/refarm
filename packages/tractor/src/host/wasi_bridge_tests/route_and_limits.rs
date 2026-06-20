@@ -83,8 +83,8 @@
 
         let route = expected_llm_route_from_env();
         assert_eq!(route.provider, "openai-codex");
-        assert_eq!(route.base_url, "https://chatgpt.com/backend-api");
-        assert_eq!(route.path, "/codex/responses");
+        assert_eq!(route.base_url, "https://chatgpt.com");
+        assert_eq!(route.path, "/backend-api/codex/responses");
 
         reset_llm_env();
     }
@@ -125,8 +125,8 @@
 
         let route = expected_llm_route_from_env();
         assert_eq!(route.provider, "openai-codex");
-        assert_eq!(route.base_url, "https://chatgpt.com/backend-api");
-        assert_eq!(route.path, "/codex/responses");
+        assert_eq!(route.base_url, "https://chatgpt.com");
+        assert_eq!(route.path, "/backend-api/codex/responses");
 
         reset_llm_env();
     }

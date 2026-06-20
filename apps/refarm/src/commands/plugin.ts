@@ -9,8 +9,8 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import os from "node:os";
 import path, { basename, extname } from "node:path";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	quoteCommandArg,
 	refarmCommand,
@@ -85,7 +85,9 @@ function pluginBundleCommand(
 	]);
 }
 
-const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
+function pluginsBaseDir(): string {
+	return path.join(resolveRefarmHome(), "plugins");
+}
 
 interface PluginListEntry {
 	id: string;
@@ -216,7 +218,7 @@ function readPackageVersion(pkgDir: string): string | null {
 
 function sentinelPath(pluginId: string): string {
 	return path.join(
-		pluginsBaseDir,
+		pluginsBaseDir(),
 		".versions",
 		pluginId.replace(/\//g, "_").replace(/@/g, ""),
 	);
@@ -239,7 +241,7 @@ async function installedBundleIsCurrent(
 	if (installed !== version) return false;
 
 	try {
-		const manifestPath = path.join(pluginsBaseDir, plugin.id, "plugin.json");
+		const manifestPath = path.join(pluginsBaseDir(), plugin.id, "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
 			integrity?: unknown;
 			capabilities?: { provides?: unknown };
@@ -323,7 +325,7 @@ async function installPlugin(
 			};
 		}
 
-		const destDir = path.join(pluginsBaseDir, plugin.id);
+		const destDir = path.join(pluginsBaseDir(), plugin.id);
 		await mkdir(destDir, { recursive: true });
 
 		copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));
@@ -719,7 +721,7 @@ export const pluginCommand = new Command("plugin").description(
 		"  $ refarm",
 		"",
 	"Notes:",
-	"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
+	"  Install writes bundled plugin artifacts into $REFARM_HOME/plugins, or ~/.refarm/plugins when REFARM_HOME is unset.",
 	`  Status reads the active Refarm runtime; ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if unavailable.`,
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,

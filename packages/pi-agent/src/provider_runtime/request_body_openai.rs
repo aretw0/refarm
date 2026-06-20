@@ -29,7 +29,7 @@ pub(crate) fn build_openai_codex_responses_body_with_streaming(
     model: &str,
     wire_msgs: &[serde_json::Value],
     tools: serde_json::Value,
-    stream: bool,
+    _stream: bool,
 ) -> String {
     let mut instructions = Vec::new();
     let mut input = Vec::new();
@@ -50,7 +50,7 @@ pub(crate) fn build_openai_codex_responses_body_with_streaming(
     let mut body = serde_json::json!({
         "model": model,
         "store": false,
-        "stream": stream,
+        "stream": true,
         "input": input,
         "tools": openai_chat_tools_to_responses_tools(tools),
     });

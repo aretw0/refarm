@@ -155,7 +155,7 @@ if [ -z "${MODEL_PROVIDER:-}" ]; then
 fi
 
 if [ -f "$REFARM_CLI" ]; then
-  _model_env_exports="$(node "$REFARM_CLI" model env --shell 2>/dev/null || true)"
+  _model_env_exports="$(node "$REFARM_CLI" model env --shell --include-secrets 2>/dev/null || true)"
   if [ -n "$_model_env_exports" ]; then
     eval "$_model_env_exports"
   fi
@@ -174,6 +174,7 @@ require_key() {
 
 case "$MODEL_PROVIDER" in
   anthropic)   require_key ANTHROPIC_API_KEY ;;
+  openai-codex) require_key OPENAI_CODEX_ACCESS_TOKEN ;;
   openai*)     require_key OPENAI_API_KEY ;;
   groq)        require_key GROQ_API_KEY ;;
   mistral)     require_key MISTRAL_API_KEY ;;

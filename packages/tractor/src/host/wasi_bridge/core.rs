@@ -304,7 +304,7 @@ fn use_openai_codex_auth(provider: &str) -> bool {
 // Registry of known providers that need no LLM_BASE_URL to work.
 fn known_provider_base_url(provider: &str) -> Option<&'static str> {
     match provider.trim().to_ascii_lowercase().as_str() {
-        "openai-codex" => Some("https://chatgpt.com/backend-api"),
+        "openai-codex" => Some("https://chatgpt.com"),
         "groq"       => Some("https://api.groq.com"),
         "mistral"    => Some("https://api.mistral.ai"),
         "xai"        => Some("https://api.x.ai"),
@@ -319,7 +319,7 @@ fn known_provider_base_url(provider: &str) -> Option<&'static str> {
 // Some providers diverge from the standard /v1/chat/completions path.
 fn known_provider_api_path(provider: &str) -> &'static str {
     match provider.trim().to_ascii_lowercase().as_str() {
-        "openai-codex" => "/codex/responses",
+        "openai-codex" => "/backend-api/codex/responses",
         "groq"       => "/openai/v1/chat/completions",
         "openrouter" => "/api/v1/chat/completions",
         "gemini"     => "/v1beta/openai/chat/completions",
