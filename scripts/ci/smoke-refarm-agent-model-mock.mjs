@@ -263,17 +263,10 @@ async function main() {
 		});
 		await waitForMockRuntime(env);
 
-		let pluginReload = await runRefarmJsonResult(
+		const pluginReload = await runRefarmJsonResult(
 			["plugin", "reload", "runtime-agent", "--json"],
 			env,
 		);
-		if (
-			pluginReload.ok === false &&
-			typeof pluginReload.nextCommand === "string" &&
-			pluginReload.nextCommand.includes("--restart-if-needed")
-		) {
-			pluginReload = await runRefarmHandoff(pluginReload.nextCommand, env);
-		}
 		assert(
 			pluginReload.command === "plugin" && pluginReload.operation === "reload",
 			`runtime-agent plugin reload returned unexpected payload: ${JSON.stringify(pluginReload)}`,
@@ -287,10 +280,10 @@ async function main() {
 			`runtime-agent plugin reload did not normalize alias to physical plugin id: ${JSON.stringify(pluginReload)}`,
 		);
 		assert(
-			pluginReload.nextCommand === "refarm plugin status --json",
+			pluginReload.nextCommands?.includes("refarm plugin status --json"),
 			`runtime-agent plugin reload did not expose status handoff: ${JSON.stringify(pluginReload)}`,
 		);
-		const pluginStatus = await runRefarmHandoff(pluginReload.nextCommand, env);
+		const pluginStatus = await runRefarm(["plugin", "status", "--json"], env);
 		assert(
 			pluginStatus.ok === true &&
 				pluginStatus.plugins?.some(

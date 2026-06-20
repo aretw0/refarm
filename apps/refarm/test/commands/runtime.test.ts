@@ -412,6 +412,86 @@ describe("runtime command", () => {
 		}
 	});
 
+	it("stops orphaned default-port tractor processes launched from this checkout", async () => {
+		const root = join(tmpdir(), `refarm-runtime-stop-${Date.now()}`);
+		const procRoot = join(tmpdir(), `refarm-proc-${Date.now()}`);
+		mkdirSync(join(root, ".refarm"), { recursive: true });
+		mkdirSync(join(procRoot, "333"), { recursive: true });
+		writeFileSync(join(root, ".refarm", "tractor.pid"), "111");
+		writeFileSync(
+			join(procRoot, "333", "cmdline"),
+			[
+				join(root, ".cache", "cargo-target", "release", "tractor"),
+				"--plugin",
+				join(root, ".refarm", "plugins", "@refarm", "pi-agent", "plugin.wasm"),
+				"--http-host",
+				"0.0.0.0",
+				"--refarm-dir",
+				join(tmpdir(), "refarm-agent-mock", ".refarm"),
+			].join("\0"),
+		);
+		const previousProcRoot = process.env.REFARM_PROC_ROOT;
+		process.env.REFARM_PROC_ROOT = procRoot;
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const killSpy = vi.spyOn(process, "kill").mockImplementation((pid) => {
+			if (pid === 111) {
+				throw new Error("ESRCH");
+			}
+			return true;
+		});
+		const command = createRuntimeCommand({
+			repoRoot: () => root,
+			readEngine: () => "auto",
+			readAutostart: () => "ask",
+			resolveRuntime: () => ({
+				configuredEngine: "auto",
+				activeEngine: "rust",
+				reason: "auto-rust-available",
+			}),
+		});
+
+		try {
+			await command.parseAsync(["stop", "--json"], { from: "user" });
+
+			expect(killSpy).toHaveBeenCalledWith(111, 0);
+			expect(killSpy).toHaveBeenCalledWith(333, 0);
+			expect(killSpy).toHaveBeenCalledWith(333, "SIGTERM");
+			expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+				command: "runtime",
+				operation: "stop",
+				ok: true,
+				stopped: true,
+				targets: [
+					{
+						name: "tractor",
+						stopped: false,
+						alreadyStopped: true,
+						pid: 111,
+						source: "pid-file",
+					},
+					{ name: "farmhand", stopped: false, source: "pid-file" },
+					{
+						name: "tractor",
+						stopped: true,
+						pid: 333,
+						source: "process-scan",
+						orphan: true,
+					},
+				],
+			});
+		} finally {
+			if (previousProcRoot === undefined) {
+				delete process.env.REFARM_PROC_ROOT;
+			} else {
+				process.env.REFARM_PROC_ROOT = previousProcRoot;
+			}
+			killSpy.mockRestore();
+			logSpy.mockRestore();
+			rmSync(root, { recursive: true, force: true });
+			rmSync(procRoot, { recursive: true, force: true });
+		}
+	});
+
 	it("restarts the runtime through stop and selected start command", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const stopRuntime = vi.fn().mockReturnValue({

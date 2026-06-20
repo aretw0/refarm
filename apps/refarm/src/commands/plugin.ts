@@ -1,6 +1,7 @@
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	isRuntimeAgentPluginId,
+	normalizePluginId,
 	RUNTIME_AGENT_NPM_PACKAGE,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config";
@@ -658,6 +659,61 @@ async function reloadRuntimePluginCommand(
 	});
 
 	if (!result) {
+		if (options.restartIfNeeded) {
+			const restart = await restartRuntimeForPluginReload(options.wait === true);
+			if (restart.ok) {
+				const skipped = (requested ?? []).map(normalizePluginId);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "plugin",
+							operation: "reload",
+							nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+							nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+							extra: {
+								requested: pluginIds,
+								reloaded: [],
+								skipped,
+								restarted: true,
+								restart,
+							},
+						}),
+					);
+				} else {
+					console.log(`  ✓ runtime restarted (${restart.restartCommand})`);
+				}
+				return;
+			}
+			if (options.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "plugin",
+						operation: "reload",
+						error: "runtime-plugin-restart-failed",
+						message: "Runtime restart failed after plugin reload endpoint was unavailable.",
+						nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+						nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+						nextCommands: [
+							restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+							PLUGIN_STATUS_JSON_COMMAND,
+							RUNTIME_DOCTOR_NEXT_COMMAND,
+						],
+						extra: {
+							requested: pluginIds,
+							reloaded: [],
+							skipped: (requested ?? []).map(normalizePluginId),
+							restarted: false,
+							restart,
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
+			console.error(`  ✗ runtime restart failed: ${restart.failedCommand}`);
+			process.exitCode = 1;
+			return;
+		}
 		if (options.json) {
 			printJson(
 				buildJsonErrorEnvelope({

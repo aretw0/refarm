@@ -5,7 +5,7 @@ import {
 } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import {
 	resolveRuntimeSidecarUrl,
@@ -88,6 +88,8 @@ interface RuntimeStopTargetResult {
 	alreadyStopped?: boolean;
 	pid?: number;
 	pidFile: string;
+	source?: "pid-file" | "process-scan";
+	orphan?: boolean;
 	message?: string;
 }
 const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
@@ -160,6 +162,7 @@ function stopRuntimeTarget(
 			stopped: false,
 			alreadyStopped: true,
 			pidFile,
+			source: "pid-file",
 			message: `No ${name} PID file found.`,
 		};
 	}
@@ -177,6 +180,7 @@ function stopRuntimeTarget(
 			ok: false,
 			stopped: false,
 			pidFile,
+			source: "pid-file",
 			message: `Invalid ${name} PID in ${pidFile}: ${raw}`,
 		};
 	}
@@ -196,6 +200,7 @@ function stopRuntimeTarget(
 			alreadyStopped: true,
 			pid,
 			pidFile,
+			source: "pid-file",
 			message: `${name} process was not running; cleaned PID file.`,
 		};
 	}
@@ -209,6 +214,7 @@ function stopRuntimeTarget(
 			stopped: true,
 			pid,
 			pidFile,
+			source: "pid-file",
 		};
 	} catch (error) {
 		return {
@@ -217,16 +223,129 @@ function stopRuntimeTarget(
 			stopped: false,
 			pid,
 			pidFile,
+			source: "pid-file",
+			message: error instanceof Error ? error.message : String(error),
+		};
+	}
+}
+
+function parseProcCmdline(raw: string): string[] {
+	return raw.split("\0").filter((part) => part.length > 0);
+}
+
+function isTractorArg(arg: string): boolean {
+	const normalized = arg.replace(/\\/g, "/");
+	return normalized === "tractor" || normalized.endsWith("/tractor");
+}
+
+function argValue(args: string[], name: string): string | null {
+	const index = args.indexOf(name);
+	if (index >= 0) return args[index + 1] ?? null;
+	const prefix = `${name}=`;
+	const value = args.find((arg) => arg.startsWith(prefix));
+	return value ? value.slice(prefix.length) : null;
+}
+
+function hasExplicitRuntimePorts(args: string[]): boolean {
+	return argValue(args, "--port") !== null || argValue(args, "--http-port") !== null;
+}
+
+function tractorProcessBelongsToRepo(args: string[], repoRoot: string): boolean {
+	const normalizedRepoRoot = repoRoot.replace(/\\/g, "/");
+	return args.some((arg) => arg.replace(/\\/g, "/").startsWith(normalizedRepoRoot));
+}
+
+function findDefaultPortTractorProcesses(repoRoot: string): number[] {
+	if (process.platform !== "linux") return [];
+	const procRoot = process.env.REFARM_PROC_ROOT ?? "/proc";
+	let entries: string[];
+	try {
+		entries = readdirSync(procRoot);
+	} catch {
+		return [];
+	}
+	const currentPid = process.pid;
+	const pids: number[] = [];
+	for (const entry of entries) {
+		if (!/^\d+$/.test(entry)) continue;
+		const pid = Number.parseInt(entry, 10);
+		if (!Number.isFinite(pid) || pid <= 0 || pid === currentPid) continue;
+		let args: string[];
+		try {
+			args = parseProcCmdline(readFileSync(join(procRoot, entry, "cmdline"), "utf-8"));
+		} catch {
+			continue;
+		}
+		if (args.length === 0 || !isTractorArg(args[0]!)) continue;
+		if (hasExplicitRuntimePorts(args)) continue;
+		if (!tractorProcessBelongsToRepo(args, repoRoot)) continue;
+		pids.push(pid);
+	}
+	return pids;
+}
+
+function stopRuntimePid(
+	name: RuntimeStopTargetResult["name"],
+	pid: number,
+	pidFile: string,
+	source: RuntimeStopTargetResult["source"],
+	orphan = false,
+): RuntimeStopTargetResult {
+	try {
+		process.kill(pid, 0);
+	} catch {
+		return {
+			name,
+			ok: true,
+			stopped: false,
+			alreadyStopped: true,
+			pid,
+			pidFile,
+			source,
+			...(orphan ? { orphan: true } : {}),
+			message: `${name} process was not running.`,
+		};
+	}
+	try {
+		process.kill(pid, "SIGTERM");
+		return {
+			name,
+			ok: true,
+			stopped: true,
+			pid,
+			pidFile,
+			source,
+			...(orphan ? { orphan: true } : {}),
+		};
+	} catch (error) {
+		return {
+			name,
+			ok: false,
+			stopped: false,
+			pid,
+			pidFile,
+			source,
+			...(orphan ? { orphan: true } : {}),
 			message: error instanceof Error ? error.message : String(error),
 		};
 	}
 }
 
 function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
+	const tractorPidFile = join(repoRoot, ".refarm", "tractor.pid");
+	const farmhandPidFile = join(repoRoot, ".refarm", "farmhand.pid");
 	const targets = [
-		stopRuntimeTarget("tractor", join(repoRoot, ".refarm", "tractor.pid")),
-		stopRuntimeTarget("farmhand", join(repoRoot, ".refarm", "farmhand.pid")),
+		stopRuntimeTarget("tractor", tractorPidFile),
+		stopRuntimeTarget("farmhand", farmhandPidFile),
 	];
+	const knownPids = new Set(
+		targets.flatMap((target) => (target.pid ? [target.pid] : [])),
+	);
+	for (const pid of findDefaultPortTractorProcesses(repoRoot)) {
+		if (knownPids.has(pid)) continue;
+		targets.push(stopRuntimePid("tractor", pid, tractorPidFile, "process-scan", true));
+		knownPids.add(pid);
+	}
 	const failed = targets.find((target) => !target.ok);
 	const stopped = targets.filter((target) => target.stopped);
 	const primary = failed ?? stopped[0] ?? targets[0]!;

@@ -783,6 +783,66 @@ describe("plugin status", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("restarts runtime when reload endpoint is unavailable and restart is allowed", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+		mockRunLaunchProcess.mockResolvedValue({ exitCode: 0 });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await run("reload", "runtime-agent", "--restart-if-needed", "--wait", "--json");
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+			{
+				command: "refarm",
+				args: ["runtime", "restart", "--wait"],
+				display: "refarm runtime restart --wait",
+			},
+			{ capture: false },
+		);
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: true,
+			command: "plugin",
+			operation: "reload",
+			requested: ["runtime-agent"],
+			reloaded: [],
+			skipped: ["@refarm/pi-agent"],
+			restarted: true,
+			nextCommand: "refarm plugin status --json",
+		});
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("reports restart failure when reload endpoint is unavailable", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+		mockRunLaunchProcess.mockResolvedValue({ exitCode: 1 });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await run("reload", "runtime-agent", "--restart-if-needed", "--wait", "--json");
+
+			expect(errorSpy).not.toHaveBeenCalled();
+			expect(process.exitCode).toBe(1);
+			expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+				ok: false,
+				command: "plugin",
+				operation: "reload",
+				error: "runtime-plugin-restart-failed",
+				requested: ["runtime-agent"],
+				reloaded: [],
+				skipped: ["@refarm/pi-agent"],
+				restarted: false,
+				nextCommand: "refarm runtime restart --wait",
+			});
+		} finally {
+			process.exitCode = undefined;
+			logSpy.mockRestore();
+			errorSpy.mockRestore();
+		}
+	});
+
 	it("prints unavailable runtime plugin state as JSON", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
