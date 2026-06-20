@@ -697,6 +697,33 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("prints source repository declaration snippets in human output", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					missing: {
+						path: missingRoot,
+					},
+				},
+			}),
+		}).parseAsync(["sources", "declarations"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Workspace source declarations");
+		expect(output).toContain(`missing: ${missingRoot}`);
+		expect(output).toContain("add to .refarm/config.json:");
+		expect(output).toContain('"repository": {');
+		expect(output).toContain('"url": "<git-url>"');
+		expect(output).toContain('"ref": null');
+		expect(output).toContain("next: refarm workspace sources materialize --dry-run --json");
+	});
+
 	it("routes source materialization dry-run to declarations when repositories are missing", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");

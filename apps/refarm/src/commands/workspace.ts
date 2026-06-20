@@ -489,7 +489,17 @@ function printWorkspaceSourceDeclarations(
 	}
 	for (const declaration of declarationPlan.declarations) {
 		console.log(`  ${declaration.workspaceId}: ${declaration.path}`);
+		console.log(chalk.dim(`    add to ${declarationPlan.configPath}:`));
+		const snippet = JSON.stringify(
+			declaration.snippet.workspaces[declaration.workspaceId],
+			null,
+			2,
+		);
+		for (const line of snippet.split("\n")) {
+			console.log(chalk.dim(`    ${line}`));
+		}
 	}
+	console.log(chalk.dim(`  next: ${WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND}`));
 }
 
 function printWorkspaceSourceMaterialize(
