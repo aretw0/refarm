@@ -77,3 +77,19 @@ test("shell package manager helper formats workspace binary commands", () => {
 		assert.equal(result.stdout, expected);
 	}
 });
+
+test("shell package manager helper formats high severity audit commands", () => {
+	const cases = [
+		["pnpm", "pnpm audit --audit-level=high --silent"],
+		["npm", "npm audit --audit-level=high --silent"],
+		["yarn", "yarn npm audit --severity high"],
+		["bun", "bun audit"],
+	];
+
+	for (const [packageManager, expected] of cases) {
+		const result = sh(`audit_high_command_for_package_manager ${packageManager}`);
+
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(result.stdout, expected);
+	}
+});
