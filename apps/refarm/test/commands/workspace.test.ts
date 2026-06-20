@@ -515,6 +515,93 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("prints source cache materialization as a dry-run with next processes", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const cachePath = join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					"agents-lab": {
+						path: missingRoot,
+						repository: {
+							url: "https://github.com/example/agents-lab.git",
+							ref: "develop",
+						},
+					},
+				},
+			}),
+		}).parseAsync(["sources", "materialize", "--dry-run", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "source-materialize-dry-run",
+			ok: true,
+			dryRun: true,
+			materializeCount: 1,
+			processes: [
+				{
+					command: "git",
+					args: [
+						"clone",
+						"--filter=blob:none",
+						"--branch",
+						"develop",
+						"https://github.com/example/agents-lab.git",
+						cachePath,
+					],
+				},
+			],
+			nextProcesses: [
+				{
+					command: "git",
+					args: [
+						"clone",
+						"--filter=blob:none",
+						"--branch",
+						"develop",
+						"https://github.com/example/agents-lab.git",
+						cachePath,
+					],
+				},
+			],
+			plan: {
+				summary: {
+					materializable: 1,
+				},
+			},
+			nextAction: "Run the listed git clone processes to materialize source cache checkouts.",
+			nextCommand: null,
+			nextCommands: [],
+		});
+	});
+
+	it("requires dry-run before source cache materialization", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({ workspaces: {} }),
+		}).parseAsync(["sources", "materialize", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "source-materialize",
+			ok: false,
+			error: "source-materialize-requires-dry-run",
+			message: "Workspace source materialization currently requires --dry-run.",
+			nextAction: "Inspect the source materialization plan before cloning repositories.",
+			nextCommand: "refarm workspace sources materialize --dry-run --json",
+			nextCommands: ["refarm workspace sources materialize --dry-run --json"],
+		});
+	});
+
 	it("explains missing repository intent in the source cache plan", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");

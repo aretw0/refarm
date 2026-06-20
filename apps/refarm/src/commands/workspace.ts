@@ -24,7 +24,7 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "./command-handoff.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,
@@ -50,6 +50,11 @@ export interface WorkspaceMountsCommandOptions {
 }
 
 export interface WorkspaceSourcesCommandOptions {
+	json?: boolean;
+}
+
+export interface WorkspaceSourceMaterializeCommandOptions {
+	dryRun?: boolean;
 	json?: boolean;
 }
 
@@ -80,6 +85,13 @@ const WORKSPACE_MOUNTS_JSON_COMMAND = refarmCommand([
 const WORKSPACE_SOURCES_JSON_COMMAND = refarmCommand([
 	"workspace",
 	"sources",
+	"--json",
+]);
+const WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND = refarmCommand([
+	"workspace",
+	"sources",
+	"materialize",
+	"--dry-run",
 	"--json",
 ]);
 
@@ -379,6 +391,62 @@ function printWorkspaceSources(
 	}
 }
 
+function printWorkspaceSourceMaterialize(
+	options: WorkspaceSourceMaterializeCommandOptions,
+	deps: WorkspaceCommandDeps | undefined,
+): void {
+	if (!options.dryRun) {
+		if (options.json) {
+			printJson(
+				buildJsonErrorEnvelope({
+					command: "workspace",
+					operation: "source-materialize",
+					error: "source-materialize-requires-dry-run",
+					message: "Workspace source materialization currently requires --dry-run.",
+					nextAction: "Inspect the source materialization plan before cloning repositories.",
+					nextCommand: WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND,
+				}),
+			);
+			return;
+		}
+		throw new Error("workspace sources materialize currently requires --dry-run");
+	}
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
+	const processes = plan.items.flatMap((item) => item.process ? [item.process] : []);
+	const nextAction = processes.length > 0
+		? "Run the listed git clone processes to materialize source cache checkouts."
+		: plan.summary.unconfigured > 0
+			? "Declare repository intent for missing workspaces before materializing source cache checkouts."
+			: null;
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "workspace",
+				operation: "source-materialize-dry-run",
+				extra: {
+					dryRun: true,
+					materializeCount: processes.length,
+					processes,
+					nextProcesses: processes,
+					plan,
+				},
+				nextAction,
+			}),
+		);
+		return;
+	}
+	console.log(chalk.bold("Workspace source materialize"));
+	console.log(chalk.yellow("  (dry-run — no repositories will be cloned)\n"));
+	if (processes.length === 0) {
+		console.log(chalk.dim(nextAction ?? "  no source cache materialization needed"));
+		return;
+	}
+	for (const process of processes) {
+		console.log(`  ${process.display}`);
+	}
+}
+
 export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 	const command = new Command("workspace")
 		.description("Inspect workspace execution and cache capabilities")
@@ -395,6 +463,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace status --json",
 				"  $ refarm workspace mounts --json",
 				"  $ refarm workspace sources --json",
+				"  $ refarm workspace sources materialize --dry-run --json",
 				"  $ refarm workspace list --json",
 				"",
 				"Notes:",
@@ -456,13 +525,26 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 			printWorkspaceMounts(options, deps);
 		});
 
-	command
+	const sourcesCommand = command
 		.command("sources")
 		.description("Plan local source cache materialization for declared workspace repositories")
-		.option("--json", "Output machine-readable source cache plan")
-		.action((options: WorkspaceSourcesCommandOptions) => {
-			printWorkspaceSources(options, deps);
+		.option("--json", "Output machine-readable source cache plan");
+
+	sourcesCommand
+		.command("materialize")
+		.description("Materialize declared workspace repositories into the local source cache")
+		.option("--dry-run", "Print clone processes without executing them")
+		.option("--json", "Output machine-readable materialization dry-run")
+		.action((options: WorkspaceSourceMaterializeCommandOptions, materializeCommand: Command) => {
+			printWorkspaceSourceMaterialize({
+				...options,
+				json: options.json || materializeCommand.parent?.opts().json,
+			}, deps);
 		});
+
+	sourcesCommand.action((options: WorkspaceSourcesCommandOptions) => {
+		printWorkspaceSources(options, deps);
+	});
 
 	command
 		.command("list")
