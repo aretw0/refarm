@@ -336,6 +336,59 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("prints declared workspace status as a first-class operator command", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const targetRoot = createWorkspaceRoot({
+			packageJson: {
+				packageManager: "pnpm@11.7.0",
+				devDependencies: {
+					turbo: "^2.9.14",
+				},
+			},
+			turbo: true,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					refarm: {
+						path: targetRoot,
+						cache: {
+							remote: {
+								provider: "cloudflare-turbo",
+							},
+						},
+					},
+				},
+			}),
+		}).parseAsync(["status", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "status",
+			ok: true,
+			mode: "all",
+			summary: {
+				total: 1,
+				ok: 1,
+				failed: 0,
+				remoteCacheUnconfigured: 1,
+			},
+			recommendations: [
+				{
+					code: "remote-cache-unconfigured",
+					workspaceId: "refarm",
+					nextCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+				},
+			],
+			nextCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+			nextCommands: ["refarm provision cloudflare turbo-cache --dry-run --json"],
+		});
+	});
+
 	it("keeps --all read-only and reports missing declared workspaces as observations", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");

@@ -39,6 +39,10 @@ export interface WorkspaceListCommandOptions {
 	json?: boolean;
 }
 
+export interface WorkspaceStatusCommandOptions {
+	json?: boolean;
+}
+
 export interface WorkspaceCommandDeps {
 	cwd?: () => string;
 	env?: NodeJS.ProcessEnv;
@@ -207,6 +211,31 @@ export function buildWorkspaceExecutionSweepPayload(
 	return buildWorkspaceSweepPayload(observations) as WorkspaceExecutionSweepPayload;
 }
 
+function printWorkspaceStatus(
+	options: WorkspaceStatusCommandOptions,
+	deps: WorkspaceCommandDeps | undefined,
+	operation: "execution" | "status" = "status",
+): void {
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const observations = observeDeclaredWorkspacesExecution(
+		loadDeclaredWorkspaces(deps, baseDir),
+		deps,
+	);
+	const payload = buildWorkspaceExecutionSweepPayload(observations);
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "workspace",
+				operation,
+				extra: payload,
+				nextCommands: workspaceSweepRecommendationNextCommands(payload.recommendations),
+			}),
+		);
+		return;
+	}
+	printWorkspaceExecutionObservations(observations);
+}
+
 export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 	const command = new Command("workspace")
 		.description("Inspect workspace execution and cache capabilities")
@@ -220,6 +249,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace execution --cwd ../agents-lab --json",
 				"  $ refarm workspace execution --workspace agents-lab --json",
 				"  $ refarm workspace execution --all --json",
+				"  $ refarm workspace status --json",
 				"  $ refarm workspace list --json",
 				"",
 				"Notes:",
@@ -237,24 +267,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--json", "Output machine-readable workspace execution status")
 		.action((options: WorkspaceExecutionCommandOptions) => {
 			if (options.all) {
-				const baseDir = deps?.cwd?.() ?? process.cwd();
-				const observations = observeDeclaredWorkspacesExecution(
-					loadDeclaredWorkspaces(deps, baseDir),
-					deps,
-				);
-				const payload = buildWorkspaceExecutionSweepPayload(observations);
-				if (options.json) {
-					printJson(
-						buildJsonSuccessEnvelope({
-							command: "workspace",
-							operation: "execution",
-							extra: payload,
-							nextCommands: workspaceSweepRecommendationNextCommands(payload.recommendations),
-						}),
-					);
-					return;
-				}
-				printWorkspaceExecutionObservations(observations);
+				printWorkspaceStatus({ json: options.json }, deps, "execution");
 				return;
 			}
 			const resolved = resolveWorkspaceExecutionCwd(options, deps);
@@ -280,6 +293,14 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				return;
 			}
 			printWorkspaceExecutionStatus(status);
+		});
+
+	command
+		.command("status")
+		.description("Inspect every declared workspace and cache readiness")
+		.option("--json", "Output machine-readable workspace status")
+		.action((options: WorkspaceStatusCommandOptions) => {
+			printWorkspaceStatus(options, deps);
 		});
 
 	command
