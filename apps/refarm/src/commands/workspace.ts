@@ -58,6 +58,10 @@ export interface WorkspaceSourceMaterializeCommandOptions {
 	json?: boolean;
 }
 
+export interface WorkspaceSourceDeclarationsCommandOptions {
+	json?: boolean;
+}
+
 export interface WorkspaceCommandDeps {
 	cwd?: () => string;
 	env?: NodeJS.ProcessEnv;
@@ -92,6 +96,12 @@ const WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND = refarmCommand([
 	"sources",
 	"materialize",
 	"--dry-run",
+	"--json",
+]);
+const WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND = refarmCommand([
+	"workspace",
+	"sources",
+	"declarations",
 	"--json",
 ]);
 
@@ -287,6 +297,7 @@ function workspaceStatusNextCommands(payload: WorkspaceExecutionSweepPayload): s
 	if (!hasMissingWorkspacePath(payload)) return nextCommands;
 	const missingPathCommands = [
 		WORKSPACE_SOURCES_JSON_COMMAND,
+		WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND,
 		WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND,
 	];
 	if (buildWorkspaceMountPlan(payload).mountCount > 0) {
@@ -380,6 +391,8 @@ function printWorkspaceSources(
 					: null,
 				nextCommands: plan.summary.materializable > 0
 					? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
+					: plan.summary.unconfigured > 0
+						? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
 					: [],
 			}),
 		);
@@ -394,6 +407,88 @@ function printWorkspaceSources(
 	for (const item of plan.items) {
 		console.log(`  ${item.workspaceId}: ${item.state}`);
 		if (item.process) console.log(chalk.dim(`    ${item.process.display}`));
+	}
+}
+
+function buildWorkspaceSourceDeclarationPlan(plan: ReturnType<typeof buildWorkspaceSourceCachePlan>): {
+	mode: "all";
+	configPath: string;
+	declarationCount: number;
+	declarations: Array<{
+		workspaceId: string;
+		path: string;
+		snippet: {
+			workspaces: Record<string, {
+				repository: {
+					url: string;
+					ref: string | null;
+				};
+			}>;
+		};
+	}>;
+	instructions: string[];
+} {
+	const declarations = plan.items
+		.filter((item) => item.state === "unconfigured" && !item.repository)
+		.map((item) => ({
+			workspaceId: item.workspaceId,
+			path: item.requestedPath,
+			snippet: {
+				workspaces: {
+					[item.workspaceId]: {
+						repository: {
+							url: "<git-url>",
+							ref: null,
+						},
+					},
+				},
+			},
+		}));
+	return {
+		mode: "all",
+		configPath: ".refarm/config.json",
+		declarationCount: declarations.length,
+		declarations,
+		instructions: declarations.length > 0
+			? [
+					"Fill each repository.url with the canonical Git remote for that workspace.",
+					"Keep ref null unless this workspace should materialize a specific branch or tag.",
+					"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
+				]
+			: [],
+	};
+}
+
+function printWorkspaceSourceDeclarations(
+	options: WorkspaceSourceDeclarationsCommandOptions,
+	deps: WorkspaceCommandDeps | undefined,
+): void {
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const sourcePlan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
+	const declarationPlan = buildWorkspaceSourceDeclarationPlan(sourcePlan);
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "workspace",
+				operation: "source-declarations",
+				extra: declarationPlan,
+				nextAction: declarationPlan.declarationCount > 0
+					? "Add repository declarations for missing source cache workspaces."
+					: null,
+				nextCommands: declarationPlan.declarationCount > 0
+					? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
+					: [],
+			}),
+		);
+		return;
+	}
+	console.log(chalk.bold("Workspace source declarations"));
+	if (declarationPlan.declarationCount === 0) {
+		console.log(chalk.dim("  no missing repository declarations detected"));
+		return;
+	}
+	for (const declaration of declarationPlan.declarations) {
+		console.log(`  ${declaration.workspaceId}: ${declaration.path}`);
 	}
 }
 
@@ -469,6 +564,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace status --json",
 				"  $ refarm workspace mounts --json",
 				"  $ refarm workspace sources --json",
+				"  $ refarm workspace sources declarations --json",
 				"  $ refarm workspace sources materialize --dry-run --json",
 				"  $ refarm workspace list --json",
 				"",
@@ -535,6 +631,17 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.command("sources")
 		.description("Plan local source cache materialization for declared workspace repositories")
 		.option("--json", "Output machine-readable source cache plan");
+
+	sourcesCommand
+		.command("declarations")
+		.description("Plan missing repository declarations for source cache materialization")
+		.option("--json", "Output machine-readable repository declaration plan")
+		.action((options: WorkspaceSourceDeclarationsCommandOptions, declarationsCommand: Command) => {
+			printWorkspaceSourceDeclarations({
+				...options,
+				json: options.json || declarationsCommand.parent?.opts().json,
+			}, deps);
+		});
 
 	sourcesCommand
 		.command("materialize")

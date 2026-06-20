@@ -641,6 +641,59 @@ describe("workspace command", () => {
 			],
 			nextAction:
 				"Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place.",
+			nextCommand: "refarm workspace sources declarations --json",
+			nextCommands: ["refarm workspace sources declarations --json"],
+		});
+	});
+
+	it("prints missing source repository declaration snippets", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					missing: {
+						path: missingRoot,
+					},
+				},
+			}),
+		}).parseAsync(["sources", "declarations", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "source-declarations",
+			ok: true,
+			mode: "all",
+			configPath: ".refarm/config.json",
+			declarationCount: 1,
+			declarations: [
+				{
+					workspaceId: "missing",
+					path: missingRoot,
+					snippet: {
+						workspaces: {
+							missing: {
+								repository: {
+									url: "<git-url>",
+									ref: null,
+								},
+							},
+						},
+					},
+				},
+			],
+			instructions: [
+				"Fill each repository.url with the canonical Git remote for that workspace.",
+				"Keep ref null unless this workspace should materialize a specific branch or tag.",
+				"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
+			],
+			nextAction: "Add repository declarations for missing source cache workspaces.",
+			nextCommand: "refarm workspace sources materialize --dry-run --json",
+			nextCommands: ["refarm workspace sources materialize --dry-run --json"],
 		});
 	});
 
@@ -694,6 +747,7 @@ describe("workspace command", () => {
 			nextCommand: "refarm workspace sources --json",
 			nextCommands: [
 				"refarm workspace sources --json",
+				"refarm workspace sources declarations --json",
 				"refarm workspace sources materialize --dry-run --json",
 				"refarm workspace mounts --json",
 				"refarm provision cloudflare turbo-cache --dry-run --json",
