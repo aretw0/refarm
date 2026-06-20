@@ -1,3 +1,7 @@
+import {
+	resolvePluginPackage,
+	type PluginPackageSource,
+} from "@refarm.dev/barn";
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	isRuntimeAgentPluginId,
@@ -9,7 +13,6 @@ import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path, { basename, extname } from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
@@ -132,6 +135,8 @@ interface PluginListEntry {
 	id: string;
 	version: string | null;
 	source: "bundled";
+	packageSource: PluginPackageSource;
+	packageDir: string | null;
 	installed: boolean;
 }
 
@@ -186,6 +191,8 @@ interface PluginInstallResult {
 	packageName: string;
 	status: PluginInstallStatus;
 	version: string | null;
+	packageSource: PluginPackageSource;
+	packageDir?: string;
 	message?: string;
 	buildCommand?: string;
 	bytes?: number;
@@ -208,40 +215,6 @@ function localRuntimeAgentBuildCommand(): string {
 		cwd: "packages/pi-agent",
 		script: "build",
 	}).display;
-}
-
-function resolvePackageDirFromNodeModules(packageName: string): string | null {
-	try {
-		const require = createRequire(import.meta.url);
-		const pkgJsonPath = require.resolve(`${packageName}/package.json`);
-		return path.dirname(pkgJsonPath);
-	} catch {
-		return null;
-	}
-}
-
-function resolveWorkspacePackageDir(plugin: BundledPlugin): string | null {
-	if (!("workspaceDir" in plugin)) return null;
-	let current = process.cwd();
-	while (true) {
-		const pkgDir = path.join(current, plugin.workspaceDir);
-		const pkgJsonPath = path.join(pkgDir, "package.json");
-		if (existsSync(pkgJsonPath)) {
-			try {
-				const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8")) as { name?: string };
-				if (pkgJson.name === plugin.npmPackage) return pkgDir;
-			} catch {
-				return null;
-			}
-		}
-		const parent = path.dirname(current);
-		if (parent === current) return null;
-		current = parent;
-	}
-}
-
-function resolvePackageDir(plugin: BundledPlugin): string | null {
-	return resolvePackageDirFromNodeModules(plugin.npmPackage) ?? resolveWorkspacePackageDir(plugin);
 }
 
 function readPackageVersion(pkgDir: string): string | null {
@@ -303,18 +276,20 @@ async function installPlugin(
 	options: { quiet?: boolean } = {},
 ): Promise<PluginInstallResult> {
 	const quiet = options.quiet === true;
-	const pkgDir = resolvePackageDir(plugin);
-	if (!pkgDir) {
-		const message = `package ${plugin.npmPackage} not found in node_modules`;
+	const resolution = resolvePluginPackage(plugin, { baseUrl: import.meta.url });
+	if (!resolution) {
+		const message = `package ${plugin.npmPackage} not found in node_modules or workspace`;
 		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
 		return {
 			id: plugin.id,
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: null,
+			packageSource: "unresolved",
 			message,
 		};
 	}
+	const { pkgDir } = resolution;
 
 	const pkgVersion = readPackageVersion(pkgDir);
 	if (!pkgVersion) {
@@ -325,6 +300,8 @@ async function installPlugin(
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: null,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			message,
 		};
 	}
@@ -342,6 +319,8 @@ async function installPlugin(
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: pkgVersion,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			message,
 			buildCommand,
 		};
@@ -360,6 +339,8 @@ async function installPlugin(
 				packageName: plugin.npmPackage,
 				status: "cached",
 				version: pkgVersion,
+				packageSource: resolution.source,
+				packageDir: pkgDir,
 				message,
 			};
 		}
@@ -388,13 +369,17 @@ async function installPlugin(
 		await writeFile(sentinel, pkgVersion, "utf-8");
 
 		if (!quiet) {
-			console.log(`  ✓ ${plugin.id} v${pkgVersion} installed (${wasmBytes.byteLength} bytes)`);
+			console.log(
+				`  ✓ ${plugin.id} v${pkgVersion} installed from ${resolution.source} (${wasmBytes.byteLength} bytes)`,
+			);
 		}
 		return {
 			id: plugin.id,
 			packageName: plugin.npmPackage,
 			status: "installed",
 			version: pkgVersion,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			bytes: wasmBytes.byteLength,
 			integrity,
 		};
@@ -406,6 +391,8 @@ async function installPlugin(
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: pkgVersion,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			message,
 		};
 	}
@@ -464,10 +451,13 @@ async function buildPluginListReport(): Promise<PluginListReport> {
 
 	for (const plugin of BUNDLED_PLUGINS) {
 		const version = await readInstalledVersion(plugin.id);
+		const resolution = resolvePluginPackage(plugin, { baseUrl: import.meta.url });
 		plugins.push({
 			id: plugin.id,
 			version,
 			source: "bundled",
+			packageSource: resolution?.source ?? "unresolved",
+			packageDir: resolution?.pkgDir ?? null,
 			installed: version !== null,
 		});
 	}
@@ -502,13 +492,20 @@ async function listInstalledPlugins(options: { json?: boolean } = {}): Promise<v
 
 	const idWidth = Math.max(...results.map((r) => r.id.length), 4);
 	const verWidth = Math.max(...results.map((r) => (r.version ?? "not installed").length), 7);
+	const sourceWidth = Math.max(
+		...results.map((r) => `${r.source}/${r.packageSource}`.length),
+		6,
+	);
 
 	console.log(
-		`  ${"PLUGIN".padEnd(idWidth)}  ${"VERSION".padEnd(verWidth)}  SOURCE`,
+		`  ${"PLUGIN".padEnd(idWidth)}  ${"VERSION".padEnd(verWidth)}  ${"SOURCE".padEnd(sourceWidth)}  PACKAGE`,
 	);
-	for (const { id, version, source } of results) {
+	for (const { id, version, source, packageSource, packageDir } of results) {
 		const ver = version ?? "not installed";
-		console.log(`  ${id.padEnd(idWidth)}  ${ver.padEnd(verWidth)}  ${source}`);
+		const sourceLabel = `${source}/${packageSource}`;
+		console.log(
+			`  ${id.padEnd(idWidth)}  ${ver.padEnd(verWidth)}  ${sourceLabel.padEnd(sourceWidth)}  ${packageDir ?? "-"}`,
+		);
 	}
 }
 

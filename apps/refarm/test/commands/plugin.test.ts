@@ -133,7 +133,7 @@ describe("plugin install", () => {
 		await run("install");
 
 		expect(consoleSpy).toHaveBeenCalledWith(
-			expect.stringContaining("not found in node_modules"),
+			expect.stringContaining("not found in node_modules or workspace"),
 		);
 		consoleSpy.mockRestore();
 	});
@@ -165,6 +165,9 @@ describe("plugin install", () => {
 		);
 		expect(consoleSpy).toHaveBeenCalledWith(
 			expect.stringContaining("installed"),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(
+			expect.stringContaining("workspace"),
 		);
 		consoleSpy.mockRestore();
 		mockRequireResolve.mockReset();
@@ -287,6 +290,8 @@ describe("plugin install", () => {
 					packageName: "@refarm.dev/pi-agent",
 					status: "installed",
 					version: "0.4.1",
+					packageSource: "node_modules",
+					packageDir: "/fake/node_modules/@refarm.dev/pi-agent",
 					bytes: 10,
 					integrity: "sha256-deadbeef",
 				},
@@ -319,14 +324,15 @@ describe("plugin install", () => {
 					packageName: "@refarm.dev/pi-agent",
 					status: "failed",
 					version: null,
-					message: "package @refarm.dev/pi-agent not found in node_modules",
+					packageSource: "unresolved",
+					message: "package @refarm.dev/pi-agent not found in node_modules or workspace",
 				},
 			],
 			command: "plugin",
 			operation: "install",
 			ok: false,
 			error: "plugin-install-failed",
-			message: "package @refarm.dev/pi-agent not found in node_modules",
+			message: "package @refarm.dev/pi-agent not found in node_modules or workspace",
 			nextAction: "refarm plugin install",
 			nextActions: ["refarm plugin install"],
 			nextCommand: "refarm plugin install --json",
@@ -369,6 +375,8 @@ describe("plugin install", () => {
 					packageName: "@refarm.dev/pi-agent",
 					status: "cached",
 					version: "0.4.1",
+					packageSource: "node_modules",
+					packageDir: "/fake/node_modules/@refarm.dev/pi-agent",
 					message: "already up-to-date",
 				},
 			],
@@ -416,6 +424,7 @@ describe("plugin list", () => {
 
 	it("prints plugin inventory as JSON", async () => {
 		mockReadFile.mockResolvedValue("0.4.1");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
 
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -426,6 +435,8 @@ describe("plugin list", () => {
 				id: string;
 				version: string | null;
 				source: string;
+				packageSource: string;
+				packageDir: string | null;
 				installed: boolean;
 			}>;
 			nextCommand: string | null;
@@ -435,6 +446,8 @@ describe("plugin list", () => {
 				id: "@refarm/pi-agent",
 				version: "0.4.1",
 				source: "bundled",
+				packageSource: "node_modules",
+				packageDir: "/fake/node_modules/@refarm.dev/pi-agent",
 				installed: true,
 			},
 		]);

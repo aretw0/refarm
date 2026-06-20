@@ -277,6 +277,9 @@ importers:
 
   apps/refarm:
     dependencies:
+      '@refarm.dev/barn':
+        specifier: workspace:*
+        version: link:../../packages/barn
       '@refarm.dev/cli':
         specifier: workspace:*
         version: link:../../packages/cli
