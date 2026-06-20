@@ -156,6 +156,7 @@ describe("refarm ask", () => {
 
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model providers");
+		expect(help).toContain('refarm ask "hello" --scope worker');
 		expect(help).toContain("refarm model openai/gpt-5.5");
 	});
 
@@ -203,6 +204,64 @@ describe("refarm ask", () => {
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 	}, 30_000);
+
+	it("submits ask worker scope as an explicit worker-routed ask source", async () => {
+		process.env.MODEL_PROVIDER = "openai-codex";
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--scope", "worker"], { from: "user" });
+
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				source: "refarm-ask:worker",
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							prompt: "hello",
+							provider: "openai-codex",
+							model: "gpt-5.3-codex-spark",
+						}),
+					}),
+				],
+			}),
+		);
+		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(allLogs).toContain("runtime agent (worker)");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("rejects invalid ask model scopes as JSON", async () => {
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--scope", "fast", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(payload).toMatchObject({
+			ok: false,
+			command: "ask",
+			operation: "options",
+			error: "invalid-model-scope",
+			nextAction: "refarm ask 'hello' --scope worker --json",
+			nextCommand: "refarm ask 'hello' --scope worker --json",
+			allowedScopes: ["default", "worker", "monitor"],
+		});
+		expect(payload.nextCommands).toContain("refarm model current --json");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
 
 	it("falls back to production active-session helpers when deps omit pointer hooks", async () => {
 		const deps: AskDeps = {

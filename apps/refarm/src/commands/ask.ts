@@ -23,6 +23,12 @@ import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+	MODEL_SCOPES,
+	parseModelRef,
+	parseModelScope,
+	type ModelScope,
+} from "../model-routing.js";
 import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import {
@@ -434,6 +440,7 @@ async function readEffortResultFile(
 }
 
 const DEFAULT_HISTORY_TURNS = 10;
+const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
 function stringEnv(value: string | undefined): string | null {
 	const trimmed = value?.trim();
@@ -458,6 +465,17 @@ export function resolveRuntimeTaskResultsDir(
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+function sourceForAskScope(scope: ModelScope): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
+	switch (scope) {
+		case "default":
+			return "refarm-ask";
+		case "worker":
+			return "refarm-ask:worker";
+		case "monitor":
+			return "refarm-ask:monitor";
+	}
 }
 
 async function collectDefaultSystemPrompt(request: {
@@ -1071,6 +1089,7 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 		.option("--files <files>", "Comma-separated file paths to include")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Use a specific session ID or unique prefix")
+		.option("--scope <scope>", `Model route scope to use (${MODEL_SCOPE_HELP})`)
 		.option("--json", "Output machine-readable ask result")
 		.addHelpText(
 			"after",
@@ -1079,6 +1098,7 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 Examples:
   $ refarm ask "hello"
   $ refarm ask "hello" --json
+  $ refarm ask "hello" --scope worker
   $ refarm ask "explain this package" --files README.md,package.json
   $ refarm ask "start fresh" --new
 
@@ -1089,6 +1109,7 @@ Runtime:
   Configure credentials:  refarm sow
   Inspect model route:    refarm model current
   List model defaults:    refarm model providers
+  Use worker route:       refarm ask "hello" --scope worker
   Switch default model:   refarm model ${OPENAI_DEFAULT_REF}
   Diagnose runtime:       ${RUNTIME_DOCTOR_COMMAND}
   Always autostart:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}
@@ -1100,7 +1121,13 @@ Runtime:
 		.action(
 			async (
 				query: string,
-				opts: { files?: string; new?: boolean; session?: string; json?: boolean },
+				opts: {
+					files?: string;
+					new?: boolean;
+					session?: string;
+					scope?: string;
+					json?: boolean;
+				},
 			) => {
 				if (!deps || launchDeps) {
 					const subscriptionUnsupported =
@@ -1167,6 +1194,53 @@ Runtime:
 					process.exitCode = 1;
 					return;
 				}
+
+				const modelScope = parseModelScope(opts.scope) ?? null;
+				if (opts.scope && !modelScope) {
+					const recoveryCommand = refarmCommand([
+						"ask",
+						quoteCommandArg(query),
+						"--scope",
+						"worker",
+						...(opts.json ? ["--json"] : []),
+					]);
+					if (opts.json) {
+						printJson(
+							buildJsonErrorEnvelope({
+								command: "ask",
+								operation: "options",
+								error: "invalid-model-scope",
+								message: `Invalid model scope "${opts.scope}". Use: ${MODEL_SCOPE_HELP}.`,
+								nextAction: recoveryCommand,
+								nextActions: [recoveryCommand, MODEL_CURRENT_JSON_COMMAND],
+								nextCommand: recoveryCommand,
+								nextCommands: [recoveryCommand, MODEL_CURRENT_JSON_COMMAND],
+								extra: {
+									action: "ask",
+									allowedScopes: MODEL_SCOPES,
+								},
+							}),
+						);
+						process.exitCode = 1;
+						return;
+					}
+					console.error(
+						chalk.red(
+							`\n✗  Invalid model scope "${opts.scope}". Use: ${MODEL_SCOPE_HELP}.`,
+						),
+					);
+					console.error(chalk.dim(`   Inspect routes: ${MODEL_CURRENT_JSON_COMMAND}`));
+					process.exitCode = 1;
+					return;
+				}
+				const askScope = modelScope ?? "default";
+				const routeStatus = buildCurrentModelStatus(
+					await defaultModelDeps().loadTokens(),
+				);
+				const selectedRoute = parseModelRef(
+					routeStatus.routes[askScope],
+					routeStatus.current.provider,
+				);
 
 				if (opts.new) {
 					clearActiveSession();
@@ -1243,12 +1317,15 @@ Runtime:
 					prompt: query,
 					system,
 					sessionId,
-					source: "refarm-ask",
+					source: sourceForAskScope(askScope),
 					historyTurns: DEFAULT_HISTORY_TURNS,
+					modelProvider: selectedRoute?.provider,
+					modelId: selectedRoute?.modelId,
 				});
 
 				if (!opts.json) {
-					console.log(chalk.bold.cyan(`runtime agent ▸ ${query}\n`));
+					const scopeLabel = askScope === "default" ? "" : ` (${askScope})`;
+					console.log(chalk.bold.cyan(`runtime agent${scopeLabel} ▸ ${query}\n`));
 				}
 
 				try {

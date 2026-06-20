@@ -20,12 +20,23 @@ export interface ModelRouteOptions {
 	env?: NodeJS.ProcessEnv;
 }
 
+const REFARM_MANAGED_MODEL_ENV_KEYS = "REFARM_MANAGED_MODEL_ENV_KEYS";
+
+function managedModelEnvKeys(env: NodeJS.ProcessEnv): string[] {
+	const value = env[REFARM_MANAGED_MODEL_ENV_KEYS];
+	if (!value) return [];
+	return value
+		.split(",")
+		.map((key) => key.trim())
+		.filter(Boolean);
+}
+
 export function routeResolutionEnv(
 	env: NodeJS.ProcessEnv,
 	managedKeys: string[],
 ): NodeJS.ProcessEnv {
 	const routeEnv = { ...env };
-	for (const key of managedKeys) {
+	for (const key of [...managedKeys, ...managedModelEnvKeys(env)]) {
 		if (key === MODEL_PROVIDER_ENV_VAR || key === MODEL_ID_ENV_VAR) {
 			delete routeEnv[key];
 		}
@@ -35,6 +46,8 @@ export function routeResolutionEnv(
 
 export function scopeForEffortSource(source: string | undefined): ModelScope {
 	if (source === "refarm-ask" || source === "refarm-chat") return "default";
+	if (source === "refarm-ask:worker") return "worker";
+	if (source === "refarm-ask:monitor") return "monitor";
 	if (source === "refarm-monitor") return "monitor";
 	if (source?.startsWith("channel:")) return "worker";
 	return "worker";

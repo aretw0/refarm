@@ -1,4 +1,4 @@
-use super::{prompt_persistence, react_loop::react_with_prompt_ref, streaming_sink};
+use super::{prompt_persistence, react_loop::react_with_prompt_ref_and_route, streaming_sink};
 
 /// Write the final is_final=true StreamChunk to the NDJSON stream file.
 ///
@@ -72,6 +72,16 @@ pub(crate) fn execute_prompt(
     system_override: Option<&str>,
     prompt_ref_override: Option<&str>,
 ) -> Option<PromptExecutionOutcome> {
+    execute_prompt_with_route(prompt, system_override, prompt_ref_override, None, None)
+}
+
+pub(crate) fn execute_prompt_with_route(
+    prompt: &str,
+    system_override: Option<&str>,
+    prompt_ref_override: Option<&str>,
+    provider_override: Option<&str>,
+    model_override: Option<&str>,
+) -> Option<PromptExecutionOutcome> {
     let Some(ctx) = prompt_persistence::store_prompt_and_open_session(prompt, prompt_ref_override)
     else {
         return None;
@@ -94,7 +104,12 @@ pub(crate) fn execute_prompt(
         tokens_reasoning,
         model,
         usage_raw,
-    ) = react_with_prompt_ref(prompt, Some(&ctx.prompt_ref));
+    ) = react_with_prompt_ref_and_route(
+        prompt,
+        Some(&ctx.prompt_ref),
+        provider_override,
+        model_override,
+    );
     let duration_ms = crate::now_ns().saturating_sub(t0) / 1_000_000;
     let streaming_enabled = crate::streaming_config::stream_responses_enabled_from_env();
     let last_partial_sequence = streaming_sink::take_active_stream_last_sequence();
@@ -188,10 +203,24 @@ pub(crate) fn handle_prompt(payload: String) {
                 .get("history_turns")
                 .and_then(|n| n.as_u64())
                 .map(|n| n as usize);
+            let provider = v
+                .get("provider")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_owned());
+            let model = v
+                .get("model")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_owned());
             let turns_str = history_turns.map(|n| n.to_string());
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
             let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
-            let _ = execute_prompt(prompt, system, prompt_ref);
+            let _ = execute_prompt_with_route(
+                prompt,
+                system,
+                prompt_ref,
+                provider.as_deref(),
+                model.as_deref(),
+            );
             return;
         }
     }

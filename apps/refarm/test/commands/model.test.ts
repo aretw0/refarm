@@ -143,6 +143,9 @@ describe("modelCommand", () => {
 		expect(output).toContain("export MODEL_PROVIDER='openai'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).toContain("export OPENAI_API_KEY='sk-silo-test'");
+		expect(output).toContain(
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY'",
+		);
 
 		logSpy.mockRestore();
 	});
@@ -164,6 +167,9 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
+		expect(output).toContain(
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID'",
+		);
 		expect(output).not.toContain("OPENAI_API_KEY");
 		expect(output).not.toContain("OPENAI_CODEX_ACCESS_TOKEN");
 		expect(output).not.toContain("oauth-access-test");
@@ -191,6 +197,9 @@ describe("modelCommand", () => {
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).toContain("export OPENAI_CODEX_ACCESS_TOKEN='oauth-access-test'");
 		expect(output).toContain("export OPENAI_CODEX_ACCOUNT_ID='account-test'");
+		expect(output).toContain(
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_CODEX_ACCESS_TOKEN,OPENAI_CODEX_ACCOUNT_ID'",
+		);
 		expect(output).not.toContain("OPENAI_API_KEY");
 
 		logSpy.mockRestore();

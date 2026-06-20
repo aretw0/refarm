@@ -15,6 +15,19 @@ fn parse_respond_payload_parses_session_fields() {
 }
 
 #[test]
+fn parse_respond_payload_parses_model_route_fields() {
+    let payload = serde_json::json!({
+        "prompt": "hello",
+        "provider": " openai-codex ",
+        "model": " gpt-5.3-codex-spark ",
+    })
+    .to_string();
+    let req = parse_respond_payload(&payload).expect("valid payload must parse");
+    assert_eq!(req.provider.as_deref(), Some("openai-codex"));
+    assert_eq!(req.model.as_deref(), Some("gpt-5.3-codex-spark"));
+}
+
+#[test]
 fn parse_respond_payload_session_fields_optional() {
     let payload = serde_json::json!({ "prompt": "hello" }).to_string();
     let req = parse_respond_payload(&payload).expect("prompt-only payload must parse");

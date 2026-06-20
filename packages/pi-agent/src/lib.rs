@@ -105,6 +105,8 @@ struct RespondPayload {
     system: Option<String>,
     session_id: Option<String>,
     history_turns: Option<usize>,
+    provider: Option<String>,
+    model: Option<String>,
 }
 
 /// RAII guard: sets an env var for the duration of a call, restores on drop.
@@ -168,11 +170,25 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         .get("history_turns")
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
+    let provider = parsed
+        .get("provider")
+        .and_then(|v| v.as_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+    let model = parsed
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
     Ok(RespondPayload {
         prompt,
         system,
         session_id,
         history_turns,
+        provider,
+        model,
     })
 }
 
@@ -211,10 +227,16 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
 
-    let outcome =
-        runtime::execute_prompt(&req.prompt, req.system.as_deref(), None).ok_or_else(|| {
-            PluginError::Internal("failed to persist prompt context before respond".to_string())
-        })?;
+    let outcome = runtime::execute_prompt_with_route(
+        &req.prompt,
+        req.system.as_deref(),
+        None,
+        req.provider.as_deref(),
+        req.model.as_deref(),
+    )
+    .ok_or_else(|| {
+        PluginError::Internal("failed to persist prompt context before respond".to_string())
+    })?;
     let estimated_usd = estimate_billable_usd(
         &outcome.provider,
         &outcome.model,
@@ -237,6 +259,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
 #[cfg(not(target_arch = "wasm32"))]
 fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let turns_str = req.history_turns.map(|n| n.to_string());
+    let _provider = EnvGuard::maybe_set("MODEL_PROVIDER", req.provider.as_deref());
+    let _model = EnvGuard::maybe_set("MODEL_ID", req.model.as_deref());
     let _system = EnvGuard::maybe_set("MODEL_SYSTEM", req.system.as_deref());
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());

@@ -52,6 +52,7 @@ const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
 const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;
+const REFARM_MANAGED_MODEL_ENV_KEYS = "REFARM_MANAGED_MODEL_ENV_KEYS";
 
 interface JsonOptionCarrier {
 	json?: boolean;
@@ -328,6 +329,11 @@ function printModelEnvShell(
 
 	for (const [key, value] of entries) {
 		console.log(`export ${key}=${shellQuote(value)}`);
+	}
+	if (entries.length > 0) {
+		console.log(
+			`export ${REFARM_MANAGED_MODEL_ENV_KEYS}=${shellQuote(entries.map(([key]) => key).join(","))}`,
+		);
 	}
 }
 

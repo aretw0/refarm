@@ -19,6 +19,6 @@ pub(crate) use react_loop::react_with_prompt_ref;
 pub(crate) use types::ReactResult;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use prompt_handler::execute_prompt;
+pub(crate) use prompt_handler::execute_prompt_with_route;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use prompt_handler::handle_prompt;
