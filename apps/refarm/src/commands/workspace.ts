@@ -77,6 +77,11 @@ const WORKSPACE_MOUNTS_JSON_COMMAND = refarmCommand([
 	"mounts",
 	"--json",
 ]);
+const WORKSPACE_SOURCES_JSON_COMMAND = refarmCommand([
+	"workspace",
+	"sources",
+	"--json",
+]);
 
 function printWorkspaceExecutionStatus(status: WorkspaceExecutionStatus): void {
 	console.log(chalk.bold("Workspace execution"));
@@ -267,9 +272,18 @@ function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
 
 function workspaceStatusNextCommands(payload: WorkspaceExecutionSweepPayload): string[] {
 	const nextCommands = workspaceSweepRecommendationNextCommands(payload.recommendations);
-	return buildWorkspaceMountPlan(payload).mountCount > 0
-		? [WORKSPACE_MOUNTS_JSON_COMMAND, ...nextCommands]
-		: nextCommands;
+	if (!hasMissingWorkspacePath(payload)) return nextCommands;
+	const missingPathCommands = [WORKSPACE_SOURCES_JSON_COMMAND];
+	if (buildWorkspaceMountPlan(payload).mountCount > 0) {
+		missingPathCommands.push(WORKSPACE_MOUNTS_JSON_COMMAND);
+	}
+	return [...missingPathCommands, ...nextCommands];
+}
+
+function hasMissingWorkspacePath(payload: WorkspaceExecutionSweepPayload): boolean {
+	return payload.recommendations.some(
+		(recommendation) => recommendation.code === "workspace-path-missing",
+	);
 }
 
 function printWorkspaceStatus(
@@ -346,6 +360,8 @@ function printWorkspaceSources(
 				extra: plan,
 				nextAction: plan.summary.materializable > 0
 					? "Materialize declared repositories into the source cache; no devcontainer rebuild is required."
+					: plan.summary.unconfigured > 0
+						? "Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place."
 					: null,
 			}),
 		);

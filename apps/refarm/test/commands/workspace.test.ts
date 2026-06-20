@@ -515,7 +515,49 @@ describe("workspace command", () => {
 		});
 	});
 
-	it("prioritizes the mount plan before remote cache provisioning in workspace status", async () => {
+	it("explains missing repository intent in the source cache plan", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					missing: {
+						path: missingRoot,
+					},
+				},
+			}),
+		}).parseAsync(["sources", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "sources",
+			ok: true,
+			summary: {
+				total: 1,
+				visible: 0,
+				cached: 0,
+				materializable: 0,
+				unconfigured: 1,
+			},
+			items: [
+				{
+					workspaceId: "missing",
+					state: "unconfigured",
+					repository: null,
+					process: null,
+					rebuildRequired: false,
+				},
+			],
+			nextAction:
+				"Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place.",
+		});
+	});
+
+	it("prioritizes source cache inspection before mounts and remote cache provisioning", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");
 		const targetRoot = createWorkspaceRoot({
@@ -562,8 +604,9 @@ describe("workspace command", () => {
 			command: "workspace",
 			operation: "status",
 			ok: true,
-			nextCommand: "refarm workspace mounts --json",
+			nextCommand: "refarm workspace sources --json",
 			nextCommands: [
+				"refarm workspace sources --json",
 				"refarm workspace mounts --json",
 				"refarm provision cloudflare turbo-cache --dry-run --json",
 			],
