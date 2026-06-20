@@ -6,8 +6,8 @@ import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
-	RUNTIME_AGENT_NPM_PACKAGE,
-	RUNTIME_AGENT_PLUGIN_ID,
+	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
+	RUNTIME_AGENT_PLUGIN_ID
 } from "@refarm.dev/config";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
@@ -52,19 +52,8 @@ import {
 } from "./runtime-recovery.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
-// To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
-const BUNDLED_PLUGINS = [
-	{
-		id: RUNTIME_AGENT_PLUGIN_ID,
-		npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
-		workspaceDir: "packages/pi-agent",
-		wasmFile: "dist/pi_agent.wasm",
-		manifestFile: "dist/plugin.json",
-		requiredProvides: ["agent:respond"],
-	},
-] as const;
-
-type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
+const BUNDLED_PLUGINS = REFARM_BUNDLED_PLUGIN_DESCRIPTORS;
+type BundledPlugin = (typeof REFARM_BUNDLED_PLUGIN_DESCRIPTORS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
 const PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND = refarmCommand([
