@@ -1,5 +1,7 @@
+import os from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	buildNodeSubstrateRecommendations,
 	buildRefarmCheckReport,
 	createCheckCommand,
 	type NodeSubstrateCheck,
@@ -553,6 +555,56 @@ describe("buildRefarmCheckReport", () => {
 		expect(report.recommendations[0]?.diagnostic).toBe(
 			"node-substrate:missing-runtime-dependencies",
 		);
+	});
+
+	it("uses the detected package-manager install command in node substrate recovery", () => {
+		expect(
+			buildNodeSubstrateRecommendations({
+				missing: ["node_modules/.bin/vitest"],
+				foreignPlatformShims: [],
+				mountIssues: [],
+				missingWorkspaceDependencyLinks: [],
+				missingRuntimeDependencies: [],
+				installCommand: "npm ci",
+			}),
+		).toMatchObject([
+			{
+				diagnostic: "node-substrate:missing-package-manager-bins",
+				command: "npm ci",
+			},
+		]);
+	});
+
+	it("does not suggest reinstall for massive Windows workspace link materialization failures", () => {
+		const missingWorkspaceDependencyLinks = Array.from({ length: 21 }, (_, index) => ({
+			id: `workspace_dep_${index}`,
+			ok: false,
+			package: `@refarm.dev/package-${index}`,
+			dependency: "@refarm.dev/shared",
+			path: `packages/package-${index}`,
+		}));
+		const platformSpy = vi.spyOn(os, "platform").mockReturnValue("win32");
+
+		try {
+			expect(
+				buildNodeSubstrateRecommendations({
+					missing: [],
+					foreignPlatformShims: [],
+					mountIssues: [],
+					missingWorkspaceDependencyLinks,
+					missingRuntimeDependencies: [],
+					installCommand: "npm ci",
+				}),
+			).toMatchObject([
+				{
+					diagnostic: "node-substrate:missing-workspace-dependency-links",
+					command: undefined,
+					action: "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.",
+				},
+			]);
+		} finally {
+			platformSpy.mockRestore();
+		}
 	});
 
 	it("blocks readiness when a workspace dependency link is not materialized", () => {

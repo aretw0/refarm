@@ -5,6 +5,7 @@ import {
 import {
 	declaredWorkspacesFromConfig,
 	loadConfig,
+	packageFrozenInstallCommand,
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -514,12 +515,14 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
 	const runtimeChecks = await findNodeSubstrateRuntimeChecks(root);
 	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
+	const installCommand = packageFrozenInstallCommand({ cwd: root }).display;
 	const recommendations = buildNodeSubstrateRecommendations({
 		missing,
 		foreignPlatformShims,
 		mountIssues,
 		missingWorkspaceDependencyLinks,
 		missingRuntimeDependencies,
+		installCommand,
 	});
 	return {
 		command: "node-substrate",
@@ -543,13 +546,15 @@ function compactNodeSubstrateDependencyIssues<T>(issues: T[]): T[] {
 	return issues.slice(0, 20);
 }
 
-function buildNodeSubstrateRecommendations(input: {
+export function buildNodeSubstrateRecommendations(input: {
 	missing: string[];
 	foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"];
 	mountIssues: NodeSubstrateCheck["mountIssues"];
 	missingWorkspaceDependencyLinks: NodeSubstrateCheck["missingWorkspaceDependencyLinks"];
 	missingRuntimeDependencies: NodeSubstrateCheck["missingRuntimeDependencies"];
+	installCommand?: string;
 }): DiagnosticRecommendation[] {
+	const installCommand = input.installCommand ?? packageFrozenInstallCommand().display;
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
 			{
@@ -576,7 +581,7 @@ function buildNodeSubstrateRecommendations(input: {
 				severity: "failure",
 				summary: "node_modules is missing package-manager execution shims required by Refarm checks.",
 				action: NODE_SUBSTRATE_INSTALL_COMMAND,
-				command: "pnpm install --frozen-lockfile",
+				command: installCommand,
 				target: input.missing.join(", "),
 			},
 		];
@@ -594,7 +599,7 @@ function buildNodeSubstrateRecommendations(input: {
 				action: massiveWindowsWorkspaceLinkFailure
 					? NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND
 					: NODE_SUBSTRATE_INSTALL_COMMAND,
-				command: massiveWindowsWorkspaceLinkFailure ? undefined : "pnpm install --frozen-lockfile",
+				command: massiveWindowsWorkspaceLinkFailure ? undefined : installCommand,
 				target: input.missingWorkspaceDependencyLinks
 					.slice(0, 20)
 					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
@@ -609,7 +614,7 @@ function buildNodeSubstrateRecommendations(input: {
 				severity: "failure",
 				summary: "One or more workspace CLI packages cannot resolve declared external runtime dependencies from this environment.",
 				action: NODE_SUBSTRATE_INSTALL_COMMAND,
-				command: "pnpm install --frozen-lockfile",
+				command: installCommand,
 				target: input.missingRuntimeDependencies
 					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
 					.join(", "),
