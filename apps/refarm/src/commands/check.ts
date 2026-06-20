@@ -9,10 +9,13 @@ import {
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
+import { execFile } from "node:child_process";
+import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -49,6 +52,8 @@ export type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 const NODE_SUBSTRATE_ENVIRONMENT_COMMAND = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
 const NODE_SUBSTRATE_INSTALL_COMMAND = "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
 const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
+const NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND = "Use an environment-owned checkout or fix tracked source ownership for the current operator, then retry `refarm check --next-action --json`.";
+const execFileAsync = promisify(execFile);
 
 export interface NodeSubstrateCheck {
 	command: "node-substrate";
@@ -89,6 +94,14 @@ export interface NodeSubstrateCheck {
 		package: string;
 		dependency: string;
 		path: string;
+	}>;
+	sourceAccessIssueCount: number;
+	sourceAccessIssues: Array<{
+		path: string;
+		reason: "broken-symlink" | "missing" | "not-writable";
+		uid?: number;
+		gid?: number;
+		mode?: string;
 	}>;
 	recommendations: DiagnosticRecommendation[];
 }
@@ -313,7 +326,7 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 	console.log(chalk.bold(`Check: ${report.ok ? "PASS" : "FAIL"}`));
 	if (report.checks.nodeSubstrate) {
 		console.log(
-			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues, ${report.checks.nodeSubstrate.missingWorkspaceDependencyLinks.length} workspace links, ${report.checks.nodeSubstrate.missingRuntimeDependencies.length} runtime deps)`,
+			`Node substrate: ${report.checks.nodeSubstrate.ok ? "pass" : "fail"} (${report.checks.nodeSubstrate.missing.length} missing, ${report.checks.nodeSubstrate.foreignPlatformShims.length} foreign shims, ${report.checks.nodeSubstrate.mountIssues.length} mount issues, ${report.checks.nodeSubstrate.missingWorkspaceDependencyLinks.length} workspace links, ${report.checks.nodeSubstrate.missingRuntimeDependencies.length} runtime deps, ${report.checks.nodeSubstrate.sourceAccessIssueCount} source access issues)`,
 		);
 	}
 	if (report.checks.rustSubstrate?.required) {
@@ -521,6 +534,7 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
 	const runtimeChecks = await findNodeSubstrateRuntimeChecks(root);
 	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
+	const sourceAccessIssues = await findNodeSubstrateSourceAccessIssues(root);
 	const installCommand = packageFrozenInstallCommand({ cwd: root }).display;
 	const recommendations = buildNodeSubstrateRecommendations({
 		missing,
@@ -528,6 +542,7 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		mountIssues,
 		missingWorkspaceDependencyLinks,
 		missingRuntimeDependencies,
+		sourceAccessIssues,
 		installCommand,
 	});
 	return {
@@ -544,6 +559,8 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		runtimeChecks,
 		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
 		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(missingRuntimeDependencies),
+		sourceAccessIssueCount: sourceAccessIssues.length,
+		sourceAccessIssues: sourceAccessIssues.slice(0, 20),
 		recommendations,
 	};
 }
@@ -558,9 +575,11 @@ export function buildNodeSubstrateRecommendations(input: {
 	mountIssues: NodeSubstrateCheck["mountIssues"];
 	missingWorkspaceDependencyLinks: NodeSubstrateCheck["missingWorkspaceDependencyLinks"];
 	missingRuntimeDependencies: NodeSubstrateCheck["missingRuntimeDependencies"];
+	sourceAccessIssues?: NodeSubstrateCheck["sourceAccessIssues"];
 	installCommand?: string;
 }): DiagnosticRecommendation[] {
 	const installCommand = input.installCommand ?? packageFrozenInstallCommand().display;
+	const sourceAccessIssues = input.sourceAccessIssues ?? [];
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
 			{
@@ -576,6 +595,20 @@ export function buildNodeSubstrateRecommendations(input: {
 					...input.foreignPlatformShims.map((shim) => `${shim.found} -> ${shim.expected}`),
 					...input.mountIssues.map((issue) => `${issue.path} -> ${issue.target}`),
 				]
+					.join(", "),
+			},
+		];
+	}
+	if (sourceAccessIssues.length > 0) {
+		return [
+			{
+				diagnostic: "node-substrate:source-inaccessible",
+				severity: "failure",
+				summary: "One or more tracked source files are not writable or do not resolve in this environment.",
+				action: NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND,
+				target: sourceAccessIssues
+					.slice(0, 20)
+					.map((issue) => `${issue.path} (${issue.reason})`)
 					.join(", "),
 			},
 		];
@@ -658,6 +691,81 @@ async function findNodeSubstrateWorkspaceLinkChecks(
 		}
 	}
 	return checks;
+}
+
+async function findNodeSubstrateSourceAccessIssues(
+	root: string,
+): Promise<NodeSubstrateCheck["sourceAccessIssues"]> {
+	const trackedFiles = await readGitTrackedFiles(root);
+	const issues: NodeSubstrateCheck["sourceAccessIssues"] = [];
+	for (const relativePath of trackedFiles) {
+		if (!isSourceOwnershipCandidate(relativePath)) continue;
+		const absolutePath = path.join(root, relativePath);
+		try {
+			const lstat = await fs.lstat(absolutePath);
+			if (lstat.isSymbolicLink()) {
+				try {
+					await fs.stat(absolutePath);
+				} catch {
+					issues.push({
+						path: relativePath,
+						reason: "broken-symlink",
+						uid: lstat.uid,
+						gid: lstat.gid,
+						mode: (lstat.mode & 0o777).toString(8).padStart(3, "0"),
+					});
+					if (issues.length >= 200) break;
+					continue;
+				}
+			} else if (!lstat.isFile()) {
+				continue;
+			}
+			await fs.access(absolutePath, fsConstants.W_OK);
+		} catch {
+			try {
+				const stat = await fs.lstat(absolutePath);
+				issues.push({
+					path: relativePath,
+					reason: "not-writable",
+					uid: stat.uid,
+					gid: stat.gid,
+					mode: (stat.mode & 0o777).toString(8).padStart(3, "0"),
+				});
+			} catch {
+				issues.push({ path: relativePath, reason: "missing" });
+			}
+			if (issues.length >= 200) break;
+		}
+	}
+	return issues;
+}
+
+function isSourceOwnershipCandidate(relativePath: string): boolean {
+	return !relativePath.startsWith(".git/") &&
+		!relativePath.includes("/node_modules/") &&
+		!relativePath.startsWith("node_modules/") &&
+		!relativePath.includes("/dist/") &&
+		!relativePath.startsWith("dist/") &&
+		!relativePath.includes("/build/") &&
+		!relativePath.startsWith("build/") &&
+		!relativePath.includes("/.turbo/") &&
+		!relativePath.startsWith(".turbo/");
+}
+
+async function readGitTrackedFiles(root: string): Promise<string[]> {
+	try {
+		const { stdout } = await execFileAsync("git", ["ls-files", "-z"], {
+			cwd: root,
+			encoding: "utf8",
+			maxBuffer: 20 * 1024 * 1024,
+		});
+		return stdout
+			.split("\0")
+			.map((file) => file.trim())
+			.filter(Boolean);
+	} catch {
+		return [];
+	}
 }
 
 async function findNodeSubstrateRuntimeChecks(

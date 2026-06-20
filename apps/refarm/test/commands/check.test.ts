@@ -146,6 +146,8 @@ function makeNodeSubstrateCheck(
 		runtimeChecks: [],
 		missingRuntimeDependencyCount: 0,
 		missingRuntimeDependencies: [],
+		sourceAccessIssueCount: 0,
+		sourceAccessIssues: [],
 		recommendations: [],
 		...overrides,
 	};
@@ -613,6 +615,52 @@ describe("buildRefarmCheckReport", () => {
 		]);
 	});
 
+	it("blocks readiness when tracked source files are not writable", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck({
+				ok: false,
+				sourceAccessIssueCount: 1,
+				sourceAccessIssues: [
+					{
+						path: "docs/REFARM_ACTION_READINESS_COOKBOOK.md",
+						reason: "not-writable",
+						uid: 65534,
+						gid: 65534,
+						mode: "644",
+					},
+				],
+				recommendations: buildNodeSubstrateRecommendations({
+					missing: [],
+					foreignPlatformShims: [],
+					mountIssues: [],
+					missingWorkspaceDependencyLinks: [],
+					missingRuntimeDependencies: [],
+					sourceAccessIssues: [
+						{
+							path: "docs/REFARM_ACTION_READINESS_COOKBOOK.md",
+							reason: "not-writable",
+							uid: 65534,
+							gid: 65534,
+							mode: "644",
+						},
+					],
+				}),
+			}),
+			rustSubstrate: makeRustSubstrateCheck(),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.nextCommand).toBeNull();
+		expect(report.recommendations[0]).toMatchObject({
+			diagnostic: "node-substrate:source-inaccessible",
+			severity: "failure",
+			target: "docs/REFARM_ACTION_READINESS_COOKBOOK.md (not-writable)",
+		});
+	});
+
 	it("does not suggest reinstall for massive Windows workspace link materialization failures", () => {
 		const missingWorkspaceDependencyLinks = Array.from({ length: 21 }, (_, index) => ({
 			id: `workspace_dep_${index}`,
@@ -818,7 +866,7 @@ describe("checkCommand", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: FAIL");
-		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues, 0 workspace links, 0 runtime deps)");
+		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues, 0 workspace links, 0 runtime deps, 0 source access issues)");
 		expect(output).toContain("Rust substrate: pass (0 missing)");
 		expect(output).toContain("Workspace execution: turbo (local cache available, remote cache configured)");
 		expect(output).toContain("Workspace sweep: 1/1 ready (0 missing paths, 0 remote cache pending)");
