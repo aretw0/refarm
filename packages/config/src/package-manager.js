@@ -387,6 +387,51 @@ export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process
     }
 }
 
+export function packageWorkspacePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["publish", "-r", "--dry-run"]);
+            return {
+                packageManager,
+                command: pnpm.command,
+                args: pnpm.args,
+                display: "pnpm publish -r --dry-run",
+            };
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["publish", "--workspaces", "--dry-run"]);
+            return {
+                packageManager,
+                command: npm.command,
+                args: npm.args,
+                display: "npm publish --workspaces --dry-run",
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["workspaces", "foreach", "-A", "npm", "publish", "--dry-run"]);
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: "yarn workspaces foreach -A npm publish --dry-run",
+            };
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["publish", "--dry-run"]);
+            return {
+                packageManager,
+                command: bun.command,
+                args: bun.args,
+                display: "bun publish --dry-run",
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packageBinaryCommand(
     binary,
     args = [],

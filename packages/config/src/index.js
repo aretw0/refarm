@@ -63,6 +63,7 @@ export {
     packageManagerOverrideDiagnostic,
     packagePublishDryRunCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
     parsePackageManager,
 } from "./package-manager.js";
 export {

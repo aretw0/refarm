@@ -9,6 +9,7 @@ import {
     packageFrozenInstallCommand,
     packageInstallCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
 } from "../src/package-manager.mjs";
 
 describe("toolbox package manager commands", () => {
@@ -61,6 +62,14 @@ describe("toolbox package manager commands", () => {
             command: "yarn",
             args: ["npm", "audit", "--severity", "critical"],
             display: "yarn npm audit --severity critical",
+        });
+    });
+
+    it("re-exports workspace publish dry-run command resolution", () => {
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: "pnpm",
+            args: ["publish", "-r", "--dry-run"],
+            display: "pnpm publish -r --dry-run",
         });
     });
 });

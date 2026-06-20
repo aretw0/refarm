@@ -18,6 +18,7 @@ import {
     packageManagerSpawnCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
 } from "./package-manager.js";
 
 const pmCommand = (name) => packageManagerSpawnCommand(name).command;
@@ -339,6 +340,29 @@ describe("package manager config", () => {
         });
         expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
             command: "bun publish --dry-run",
+        });
+    });
+
+    it("formats workspace publish dry-run commands for each supported manager", () => {
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["publish", "-r", "--dry-run"]),
+            display: "pnpm publish -r --dry-run",
+        });
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["publish", "--workspaces", "--dry-run"]),
+            display: "npm publish --workspaces --dry-run",
+        });
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["workspaces", "foreach", "-A", "npm", "publish", "--dry-run"]),
+            display: "yarn workspaces foreach -A npm publish --dry-run",
+        });
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["publish", "--dry-run"]),
+            display: "bun publish --dry-run",
         });
     });
 });

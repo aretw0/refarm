@@ -108,6 +108,10 @@ export function packagePublishDryRunCommand(
     options?: PackageManagerOptions,
 ): PackageCommandString;
 
+export function packageWorkspacePublishDryRunCommand(
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
+
 export function packageBinaryCommand(
     binary: string,
     args?: string[],

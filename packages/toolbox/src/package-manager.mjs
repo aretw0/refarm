@@ -7,4 +7,5 @@ export {
     packageInstallCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
 } from "@refarm.dev/config";
