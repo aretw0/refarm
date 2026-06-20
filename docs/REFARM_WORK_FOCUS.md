@@ -150,6 +150,34 @@ provisioning remote cache without scraping every observation manually. When a
 recommendation has an executable `nextCommand`, the app-level JSON envelope also
 promotes it into `nextCommands`; mount hints stay as recommendation data because
 they are environment actions, not shell commands.
+
+Mounts are the heavy path: use them when the operator needs the real host
+checkout visible inside the devcontainer for editing or running that checkout in
+place. For read-heavy use cases such as reference lookup, benchmark discovery,
+agent context, and cross-project analysis, prefer source materialization into
+Refarm's managed checkout cache. Declared workspaces can include repository
+intent:
+
+```json
+{
+  "workspaces": {
+    "agents-lab": {
+      "path": "../agents-lab",
+      "repository": {
+        "url": "https://github.com/example/agents-lab.git",
+        "ref": "develop"
+      }
+    }
+  }
+}
+```
+
+`refarm workspace sources --json` is the read-only plan for that layer. It uses
+a stable checkout cache under `.refarm/cache/checkouts/<host>/<owner>/<repo>`,
+plans partial clones with `--filter=blob:none`, reports a throttled refresh
+window, and never requires a devcontainer rebuild. Treat the shared checkout
+cache as an observation cache: read from it freely, but create a worktree or a
+separate editable checkout before making task-specific writes.
 `refarm check --json` includes the same declared-workspace sweep as
 `checks.workspaceSweep`; missing consumer checkouts are warnings, not blocking
 readiness failures, because external workspaces may simply be unmounted in the

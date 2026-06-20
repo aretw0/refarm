@@ -51,6 +51,7 @@ describe("workspace config declarations", () => {
                     local: true,
                     remote: null,
                 },
+                repository: null,
                 bridges: [],
             },
             {
@@ -71,6 +72,7 @@ describe("workspace config declarations", () => {
                         },
                     },
                 },
+                repository: null,
                 bridges: [],
             },
         ]);
@@ -96,7 +98,27 @@ describe("workspace config declarations", () => {
                 local: true,
                 remote: null,
             },
+            repository: null,
             bridges: [],
+        });
+    });
+
+    it("normalizes optional source repository intent", () => {
+        expect(declaredWorkspaceFromConfig({
+            workspaces: {
+                "agents-lab": {
+                    path: "../agents-lab",
+                    repository: {
+                        url: " https://github.com/example/agents-lab.git ",
+                        ref: " develop ",
+                    },
+                },
+            },
+        }, "agents-lab", { baseDir: "/workspaces/refarm" })).toMatchObject({
+            repository: {
+                url: "https://github.com/example/agents-lab.git",
+                ref: "develop",
+            },
         });
     });
 

@@ -1,5 +1,6 @@
 import {
 	workspaceExecutionRecommendations as baseWorkspaceExecutionRecommendations,
+	buildWorkspaceSourceCachePlan,
 	buildWorkspaceSweepPayload,
 	missingWorkspacePathMessage,
 	observeDeclaredWorkspaceExecution as observeBaseDeclaredWorkspaceExecution,
@@ -45,6 +46,10 @@ export interface WorkspaceStatusCommandOptions {
 }
 
 export interface WorkspaceMountsCommandOptions {
+	json?: boolean;
+}
+
+export interface WorkspaceSourcesCommandOptions {
 	json?: boolean;
 }
 
@@ -327,6 +332,37 @@ function printWorkspaceMounts(
 	console.log(chalk.dim("  Add these to .devcontainer/devcontainer.json mounts, then rebuild."));
 }
 
+function printWorkspaceSources(
+	options: WorkspaceSourcesCommandOptions,
+	deps: WorkspaceCommandDeps | undefined,
+): void {
+	const baseDir = deps?.cwd?.() ?? process.cwd();
+	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "workspace",
+				operation: "sources",
+				extra: plan,
+				nextAction: plan.summary.materializable > 0
+					? "Materialize declared repositories into the source cache; no devcontainer rebuild is required."
+					: null,
+			}),
+		);
+		return;
+	}
+	console.log(chalk.bold("Workspace sources"));
+	console.log(chalk.dim(`  cache: ${plan.cacheRoot}`));
+	if (plan.items.length === 0) {
+		console.log(chalk.dim("  none declared"));
+		return;
+	}
+	for (const item of plan.items) {
+		console.log(`  ${item.workspaceId}: ${item.state}`);
+		if (item.process) console.log(chalk.dim(`    ${item.process.display}`));
+	}
+}
+
 export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 	const command = new Command("workspace")
 		.description("Inspect workspace execution and cache capabilities")
@@ -342,6 +378,7 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 				"  $ refarm workspace execution --all --json",
 				"  $ refarm workspace status --json",
 				"  $ refarm workspace mounts --json",
+				"  $ refarm workspace sources --json",
 				"  $ refarm workspace list --json",
 				"",
 				"Notes:",
@@ -401,6 +438,14 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--json", "Output machine-readable devcontainer mount plan")
 		.action((options: WorkspaceMountsCommandOptions) => {
 			printWorkspaceMounts(options, deps);
+		});
+
+	command
+		.command("sources")
+		.description("Plan local source cache materialization for declared workspace repositories")
+		.option("--json", "Output machine-readable source cache plan")
+		.action((options: WorkspaceSourcesCommandOptions) => {
+			printWorkspaceSources(options, deps);
 		});
 
 	command

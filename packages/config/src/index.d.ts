@@ -100,6 +100,7 @@ export type {
     DeclaredWorkspaceCache,
     DeclaredWorkspaceConfig,
     DeclaredWorkspaceExecution,
+    DeclaredWorkspaceRepository,
     DeclaredWorkspaceRemoteCache,
     DeclaredWorkspaceRemoteCacheEnv,
     WorkspaceExecutionAdapter,

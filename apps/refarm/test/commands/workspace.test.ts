@@ -445,6 +445,76 @@ describe("workspace command", () => {
 		});
 	});
 
+	it("prints a source cache plan for declared workspace repositories", async () => {
+		const controlRoot = createWorkspaceRoot();
+		const missingRoot = join(controlRoot, "..", "missing-workspace");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createWorkspaceCommand({
+			cwd: () => controlRoot,
+			env: {},
+			loadConfig: () => ({
+				workspaces: {
+					"agents-lab": {
+						path: missingRoot,
+						repository: {
+							url: "https://github.com/example/agents-lab.git",
+							ref: "develop",
+						},
+					},
+				},
+			}),
+		}).parseAsync(["sources", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "workspace",
+			operation: "sources",
+			ok: true,
+			mode: "all",
+			cacheRoot: join(controlRoot, ".refarm", "cache", "checkouts"),
+			rebuildRequired: false,
+			summary: {
+				total: 1,
+				visible: 0,
+				cached: 0,
+				materializable: 1,
+				unconfigured: 0,
+			},
+			items: [
+				{
+					workspaceId: "agents-lab",
+					state: "materializable",
+					repository: {
+						url: "https://github.com/example/agents-lab.git",
+						ref: "develop",
+					},
+					cacheKey: "github.com/example/agents-lab",
+					requestedPath: missingRoot,
+					resolvedPath: null,
+					cachePath: join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab"),
+					cacheExists: false,
+					updateIntervalSeconds: 300,
+					rebuildRequired: false,
+					process: {
+						command: "git",
+						args: [
+							"clone",
+							"--filter=blob:none",
+							"--branch",
+							"develop",
+							"https://github.com/example/agents-lab.git",
+							join(controlRoot, ".refarm", "cache", "checkouts", "github.com", "example", "agents-lab"),
+						],
+					},
+				},
+			],
+			nextAction:
+				"Materialize declared repositories into the source cache; no devcontainer rebuild is required.",
+			nextCommand: null,
+			nextCommands: [],
+		});
+	});
+
 	it("prioritizes the mount plan before remote cache provisioning in workspace status", async () => {
 		const controlRoot = createWorkspaceRoot();
 		const missingRoot = join(controlRoot, "..", "missing-workspace");

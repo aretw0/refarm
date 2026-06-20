@@ -75,6 +75,7 @@ export type {
 	WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 export {
+	buildWorkspaceSourceCachePlan,
 	buildWorkspaceSweepPayload,
 	missingWorkspacePathMessage,
 	observeDeclaredWorkspacesExecution,
@@ -87,10 +88,14 @@ export {
 export type {
 	WorkspacePathCandidate,
 	WorkspacePathResolution,
+	WorkspaceSourceCachePlan,
+	WorkspaceSourceCachePlanItem,
+	WorkspaceSourceCacheState,
 	WorkspaceSweepBridge,
 	WorkspaceSweepBuildStatus,
 	WorkspaceSweepBuildStatusOptions,
 	WorkspaceSweepDeclaredWorkspace,
+	WorkspaceSweepRepository,
 	WorkspaceSweepObservation,
 	WorkspaceSweepOptions,
 	WorkspaceSweepPayload,

@@ -57,6 +57,7 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
     const execution = normalizeWorkspaceExecution(value.execution);
     const cache = normalizeWorkspaceCache(value.cache ?? value.execution?.cache);
     const bridges = normalizeWorkspaceBridges(value.bridges);
+    const repository = normalizeWorkspaceRepository(value.repository);
 
     return {
         id,
@@ -65,6 +66,7 @@ function normalizeDeclaredWorkspace(id, value, baseDir) {
         kind,
         execution,
         cache,
+        repository,
         bridges,
     };
 }
@@ -112,6 +114,20 @@ function normalizeWorkspaceBridges(value) {
             hostPath: typeof bridge.hostPath === "string" && bridge.hostPath.trim() ? bridge.hostPath.trim() : null,
             mountHint: typeof bridge.mountHint === "string" && bridge.mountHint.trim() ? bridge.mountHint.trim() : null,
         }));
+}
+
+function normalizeWorkspaceRepository(value) {
+    const repository = isRecord(value) ? value : {};
+    const url = typeof repository.url === "string" && repository.url.trim()
+        ? repository.url.trim()
+        : null;
+    if (!url) return null;
+    return {
+        url,
+        ref: typeof repository.ref === "string" && repository.ref.trim()
+            ? repository.ref.trim()
+            : null,
+    };
 }
 
 function isRecord(value) {
