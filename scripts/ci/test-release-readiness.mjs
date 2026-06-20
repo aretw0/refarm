@@ -44,3 +44,18 @@ test("prints structured release readiness metadata", () => {
 		],
 	);
 });
+
+test("accepts package-manager argument separators before json flags", () => {
+	const output = execFileSync(
+		process.execPath,
+		[SCRIPT, "--plan", "--", "--json"],
+		{
+			encoding: "utf8",
+		},
+	);
+	const payload = JSON.parse(output);
+
+	assert.equal(payload.ok, true);
+	assert.equal(payload.mode, "plan");
+	assert.equal(payload.steps.at(-1).id, "publish-dry-run");
+});

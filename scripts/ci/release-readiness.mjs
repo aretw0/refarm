@@ -78,7 +78,54 @@ function buildPlan() {
 	}));
 }
 
-const args = process.argv.slice(2);
+function serializeStep({ id, script, reason, display }) {
+	return {
+		id,
+		script,
+		reason,
+		command: display,
+	};
+}
+
+function serializePlan(plan) {
+	return plan.map((step) => serializeStep(step));
+}
+
+async function runPlan(plan, { json }) {
+	const results = [];
+
+	for (const step of plan) {
+		if (!json) {
+			console.log(`\n[release-readiness] ${step.id}: ${step.display}`);
+			console.log(`[release-readiness] ${step.reason}`);
+		}
+
+		try {
+			const result = await runSubprocess(step.command, step.args, {
+				cwd: ROOT,
+				env: process.env,
+				captureOutput: json,
+			});
+			results.push({
+				...serializeStep(step),
+				ok: true,
+				stdout: result.stdout,
+				stderr: result.stderr,
+			});
+		} catch (error) {
+			results.push({
+				...serializeStep(step),
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return { ok: false, failedStepId: step.id, results };
+		}
+	}
+
+	return { ok: true, failedStepId: null, results };
+}
+
+const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const planOnly = args.includes("--plan");
 const json = args.includes("--json");
 const unknownArgs = args.filter((arg) => arg !== "--plan" && arg !== "--json");
@@ -91,39 +138,46 @@ if (unknownArgs.length > 0) {
 
 const plan = buildPlan();
 
-if (json) {
-	console.log(
-		JSON.stringify(
-			{
-				ok: true,
-				command: "release-readiness",
-				mode: planOnly ? "plan" : "run",
-				steps: plan.map(({ id, script, reason, display }) => ({
-					id,
-					script,
-					reason,
-					command: display,
-				})),
-			},
-			null,
-			2,
-		),
-	);
-	if (planOnly) process.exit(0);
-}
-
 if (planOnly) {
+	if (json) {
+		console.log(
+			JSON.stringify(
+				{
+					ok: true,
+					command: "release-readiness",
+					mode: "plan",
+					steps: serializePlan(plan),
+				},
+				null,
+				2,
+			),
+		);
+		process.exit(0);
+	}
+
 	for (const step of plan) {
 		console.log(`${step.id}: ${step.display}`);
 	}
 	process.exit(0);
 }
 
-for (const step of plan) {
-	console.log(`\n[release-readiness] ${step.id}: ${step.display}`);
-	console.log(`[release-readiness] ${step.reason}`);
-	await runSubprocess(step.command, step.args, {
-		cwd: ROOT,
-		env: process.env,
-	});
+const runResult = await runPlan(plan, { json });
+
+if (json) {
+	console.log(
+		JSON.stringify(
+			{
+				ok: runResult.ok,
+				command: "release-readiness",
+				mode: "run",
+				failedStepId: runResult.failedStepId,
+				steps: serializePlan(plan),
+				results: runResult.results,
+			},
+			null,
+			2,
+		),
+	);
 }
+
+if (!runResult.ok) process.exit(1);
