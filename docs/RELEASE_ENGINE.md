@@ -33,6 +33,17 @@ Comandos operacionais:
 - `refarm release plan --cwd ../vault-seed --selection default --json` → usa o Refarm como control-plane para outro workspace com política própria.
 - `--policy <arquivo>` ainda pode ser usado para sobrepor explicitamente a fonte de política.
 
+Readiness de primeira release:
+
+- `pnpm run release:readiness:plan` → mostra a sequência de gates que responde "estamos prontos para publicar?" sem executar nada.
+- `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
+- `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
+
+Essa camada não substitui o `release-engine`: ela é um orquestrador de repo que
+amarra saúde do operador, política de release, substratos Node/Rust, ownership de
+artefatos, contratos de GitHub Actions e dry-run de publicação em uma pergunta
+única.
+
 Uso como SDK:
 
 ```js

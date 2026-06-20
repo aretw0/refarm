@@ -60,6 +60,11 @@ Plugins are where the ecosystem breathes. Because Tractor enforces capability co
 ## Security of `pnpm run release`
 Our local `pnpm run release` script is a **Preparation Tool**, not a deployment tool.
 
+Before preparing a package-specific release, run `pnpm run release:readiness:plan`
+to inspect the first-release gate sequence, then `pnpm run release:readiness`
+when the local environment should prove npm/crates/workflow readiness end to end.
+This gate composes existing checks instead of minting a second release policy.
+
 1. It blocks execution if the git working tree is dirty.
 2. It bumps the version locally.
 3. It runs `type-check`, `build`, and `test:capabilities` (checking backwards compatibility).
