@@ -299,6 +299,14 @@ export function resolveChatRuntimeModelRoute(
 	return resolveRuntimeModelRoute(modelStatus, "default");
 }
 
+export function buildChatSessionResumeHint(sessionId: string): string {
+	return `To continue this session, run: refarm session --session ${sessionId}`;
+}
+
+export function buildChatOperatorResumeHint(): string {
+	return "To inspect next operator action, run: refarm resume --next-action";
+}
+
 export async function createChatEffort(
 	query: string,
 	sessionId: string,
@@ -461,12 +469,8 @@ export async function runSessionRepl(
 			switch (command.kind) {
 				case "exit":
 					console.log(chalk.dim("Goodbye."));
-					console.log(
-						chalk.dim(
-							`To continue this session, run: refarm session --session ${activeSessionId}`,
-						),
-					);
-					console.log(chalk.dim("To inspect next operator action, run: refarm resume --next-action"));
+					console.log(chalk.dim(buildChatSessionResumeHint(activeSessionId)));
+					console.log(chalk.dim(buildChatOperatorResumeHint()));
 					rl.close();
 					resolve();
 					break;
