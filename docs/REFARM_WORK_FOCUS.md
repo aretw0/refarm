@@ -175,9 +175,16 @@ intent:
 `refarm workspace sources --json` is the read-only plan for that layer. It uses
 a stable checkout cache under `.refarm/cache/checkouts/<host>/<owner>/<repo>`,
 plans partial clones with `--filter=blob:none`, reports a throttled refresh
-window, and never requires a devcontainer rebuild. Treat the shared checkout
-cache as an observation cache: read from it freely, but create a worktree or a
-separate editable checkout before making task-specific writes.
+window, and never requires a devcontainer rebuild. When a missing workspace has
+no repository intent yet, follow `refarm workspace sources declarations --json`
+and fill the emitted `.refarm/config.json` snippets with canonical Git remotes.
+After that, use `refarm workspace sources materialize --dry-run --json` to
+inspect clone commands and `refarm workspace sources materialize --run --json`
+to execute them explicitly. Stale cached checkouts surface through
+`refarm workspace sources refresh --dry-run --json` and refresh only when the
+operator opts into `--run`. Treat the shared checkout cache as an observation
+cache: read from it freely, but create a worktree or a separate editable
+checkout before making task-specific writes.
 `refarm check --json` includes the same declared-workspace sweep as
 `checks.workspaceSweep`; missing consumer checkouts are warnings, not blocking
 readiness failures, because external workspaces may simply be unmounted in the
