@@ -3,6 +3,7 @@ import {
 	buildCurrentModelStatus,
 	buildModelDoctorStatus,
 	createModelCommand,
+	resolveRuntimeModelRoute,
 	type ModelCommandDeps,
 } from "../../src/commands/model.js";
 
@@ -242,6 +243,30 @@ describe("modelCommand", () => {
 		expect(output).toContain("fix:     refarm model set --scope worker 'ollama/llama3.2' --json");
 
 		logSpy.mockRestore();
+	});
+
+	it("resolves runtime model route per scope", () => {
+		const status = buildCurrentModelStatus({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: {
+				worker: "openai/gpt-5.3-codex-spark",
+				monitor: "ollama/llama3.1",
+			},
+		});
+
+		expect(resolveRuntimeModelRoute(status, "default")).toEqual({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+		expect(resolveRuntimeModelRoute(status, "worker")).toEqual({
+			modelProvider: "openai",
+			modelId: "gpt-5.3-codex-spark",
+		});
+		expect(resolveRuntimeModelRoute(status, "monitor")).toEqual({
+			modelProvider: "ollama",
+			modelId: "llama3.1",
+		});
 	});
 
 	it("prints the default route when only the default provider key env is set", async () => {

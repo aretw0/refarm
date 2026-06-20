@@ -20,12 +20,8 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import {
 	MODEL_SCOPES,
-	parseModelRef,
 	parseModelScope,
 	type ModelScope,
 } from "../model-routing.js";
@@ -53,6 +49,7 @@ import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
 	type CurrentModelStatus,
+	resolveRuntimeModelRoute,
 } from "./model.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
@@ -60,6 +57,13 @@ import {
 	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
+import {
+	followStreamFile,
+	readEffortResultFile,
+	readLatestAgentEntryFromSession,
+	resolveRuntimeStreamsDir,
+	resolveRuntimeTaskResultsDir,
+} from "./runtime-stream.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePlugins,
@@ -96,9 +100,12 @@ import {
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
-import { observedTaskResultError } from "./task-observation.js";
 
-const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"]);
+const SESSIONS_LIST_JSON_COMMAND = refarmCommand([
+	"sessions",
+	"list",
+	"--json",
+]);
 const OLLAMA_SERVE_COMMAND = "ollama serve";
 const OLLAMA_DOCKER_BASE_URL_COMMAND = refarmCommand([
 	"model",
@@ -106,8 +113,14 @@ const OLLAMA_DOCKER_BASE_URL_COMMAND = refarmCommand([
 	"http://host.docker.internal:11434",
 	"--json",
 ]);
-const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
-const REFARM_TASK_RESULTS_DIR_ENV_VAR = "REFARM_TASK_RESULTS_DIR";
+
+export {
+	followStreamFile,
+	readEffortResultFile,
+	readLatestAgentEntryFromSession,
+	resolveRuntimeStreamsDir,
+	resolveRuntimeTaskResultsDir,
+};
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -132,7 +145,9 @@ export interface AskDeps {
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
 	readPluginState?(): Promise<RuntimePluginState | null>;
-	reloadPlugins?(pluginIds: string[]): Promise<RuntimePluginReloadResult | null>;
+	reloadPlugins?(
+		pluginIds: string[],
+	): Promise<RuntimePluginReloadResult | null>;
 	collectSystemPrompt?(request: {
 		cwd: string;
 		query: string;
@@ -164,310 +179,13 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	return payload.effortId;
 }
 
-async function readLatestAgentEntryFromSession(sessionId: string): Promise<{
-	status: "ok";
-	content: string;
-	metadata?: Record<string, unknown>;
-} | null> {
-	try {
-		const response = await fetch(
-			sidecarUrl(`/sessions/${encodeURIComponent(sessionId)}/history`),
-		);
-		if (!response.ok) return null;
-		const payload = (await response.json()) as {
-			entries?: Array<{
-				kind?: unknown;
-				content?: unknown;
-				timestamp_ns?: unknown;
-			}>;
-		};
-		const agentEntry = [...(payload.entries ?? [])]
-			.reverse()
-			.find(
-				(entry) =>
-					entry.kind === "agent" && typeof entry.content === "string",
-			);
-		if (!agentEntry || typeof agentEntry.content !== "string") return null;
-		return {
-			status: "ok",
-			content: agentEntry.content,
-			metadata: { source: "session-history" },
-		};
-	} catch {
-		return null;
-	}
-}
-
-function followStreamFile(
-	streamsDir: string,
-	effortId: string,
-	onChunk: (chunk: StreamChunk) => void,
-	readFallback?: () => Promise<{
-		status: "ok" | "error";
-		content?: string;
-		metadata?: Record<string, unknown>;
-		error?: string;
-	} | null>,
-	options?: { timeoutMs?: number; submittedAtMs?: number },
-): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const submittedAtMs = options?.submittedAtMs ?? Date.now();
-		const timeoutMs = options?.timeoutMs ?? 45_000;
-		const deadline = Date.now() + timeoutMs;
-
-		const resolveStreamFilePath = (): string | null => {
-			const exactPath = path.join(streamsDir, `${effortId}.ndjson`);
-			if (fs.existsSync(exactPath)) return exactPath;
-			if (!fs.existsSync(streamsDir)) return null;
-
-			const candidates = fs
-				.readdirSync(streamsDir)
-				.filter((filename) => filename.endsWith(".ndjson"))
-				.map((filename) => {
-					const filePath = path.join(streamsDir, filename);
-					const mtimeMs = fs.statSync(filePath).mtimeMs;
-					return { filePath, mtimeMs };
-				})
-				.filter((entry) => entry.mtimeMs >= submittedAtMs - 2_000)
-				.sort((left, right) => right.mtimeMs - left.mtimeMs);
-
-			return candidates[0]?.filePath ?? null;
-		};
-
-		let filePath: string | null = null;
-		let offset = 0;
-		let finished = false;
-		let polling = false;
-
-		function stopAndReject(message: string): void {
-			if (finished) return;
-			finished = true;
-			clearInterval(timer);
-			reject(new Error(message));
-		}
-
-		async function readNew(): Promise<void> {
-			if (polling) return;
-			polling = true;
-
-			try {
-				if (finished) return;
-				if (!filePath) {
-					filePath = resolveStreamFilePath();
-				}
-				if (filePath && fs.existsSync(filePath)) {
-					const content = fs.readFileSync(filePath, "utf-8");
-					const lines = content.split("\n").filter(Boolean);
-					for (let index = offset; index < lines.length; index++) {
-						let chunk: StreamChunk;
-						try {
-							chunk = JSON.parse(lines[index]!) as StreamChunk;
-						} catch {
-							continue;
-						}
-						onChunk(chunk);
-						if (chunk.is_final) {
-							finished = true;
-							clearInterval(timer);
-							resolve();
-							return;
-						}
-					}
-					offset = lines.length;
-				}
-
-				if (readFallback) {
-					try {
-						const fallback = await readFallback();
-						if (
-							fallback?.status === "ok" &&
-							typeof fallback.content === "string"
-						) {
-							onChunk({
-								stream_ref: effortId,
-								sequence: Number.MAX_SAFE_INTEGER,
-								content: fallback.content,
-								is_final: true,
-								metadata: fallback.metadata,
-							});
-							finished = true;
-							clearInterval(timer);
-							resolve();
-							return;
-						}
-
-						if (fallback?.status === "error") {
-							stopAndReject(
-								fallback.error ?? `Effort ${effortId} failed without details`,
-							);
-							return;
-						}
-					} catch {
-						// ignore fallback read errors and keep stream polling path
-					}
-				}
-
-				if (Date.now() >= deadline) {
-					stopAndReject(
-						filePath
-							? `Timed out waiting final stream chunk for effort ${effortId}`
-							: `Timed out waiting for stream file for effort ${effortId}`,
-					);
-				}
-			} finally {
-				polling = false;
-			}
-		}
-
-		const timer = setInterval(() => {
-			void readNew();
-		}, 100);
-		void readNew();
-	});
-}
-
-function extractAskResultFromEffortResult(result: unknown): {
-	status: "ok" | "error";
-	content?: string;
-	metadata?: Record<string, unknown>;
-	error?: string;
-} | null {
-	if (!result || typeof result !== "object") return null;
-	const effort = result as {
-		status?: string;
-		results?: Array<{
-			status?: string;
-			result?: unknown;
-			error?: unknown;
-		}>;
-	};
-
-	if (effort.status !== "done" && effort.status !== "failed") return null;
-
-	const task = Array.isArray(effort.results) ? effort.results[0] : undefined;
-	if (!task || typeof task !== "object") return null;
-
-	if (task.status === "error") {
-		return {
-			status: "error",
-			error:
-				typeof task.error === "string"
-					? task.error
-					: "Effort finished with task error",
-		};
-	}
-
-	const observedError = observedTaskResultError(task.result);
-	if (observedError) {
-		return { status: "error", error: observedError };
-	}
-
-	let payload: unknown = task.result;
-	if (typeof payload === "string") {
-		try {
-			payload = JSON.parse(payload);
-		} catch {
-			const rawContent = payload;
-			return typeof rawContent === "string"
-				? { status: "ok", content: rawContent }
-				: null;
-		}
-	}
-
-	if (typeof payload === "string") {
-		return { status: "ok", content: payload };
-	}
-
-	if (!payload || typeof payload !== "object") {
-		return null;
-	}
-
-	const value = payload as {
-		content?: unknown;
-		model?: unknown;
-		provider?: unknown;
-		usage?: unknown;
-	};
-	const content = value.content;
-	if (typeof content !== "string") return null;
-
-	const metadata: Record<string, unknown> = {};
-	if (typeof value.model === "string") metadata.model = value.model;
-	if (typeof value.provider === "string") metadata.provider = value.provider;
-	if (value.usage && typeof value.usage === "object") {
-		const usage = value.usage as {
-			tokens_in?: unknown;
-			tokens_out?: unknown;
-			pricing_mode?: unknown;
-			estimated_usd?: unknown;
-		};
-		if (typeof usage.tokens_in === "number")
-			metadata.tokens_in = usage.tokens_in;
-		if (typeof usage.tokens_out === "number")
-			metadata.tokens_out = usage.tokens_out;
-		if (typeof usage.pricing_mode === "string")
-			metadata.pricing_mode = usage.pricing_mode;
-		if (typeof usage.estimated_usd === "number")
-			metadata.estimated_usd = usage.estimated_usd;
-	}
-
-	return {
-		status: "ok",
-		content,
-		metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-	};
-}
-
-async function readEffortResultFile(
-	resultsDir: string,
-	effortId: string,
-): Promise<{
-	status: "ok" | "error";
-	content?: string;
-	metadata?: Record<string, unknown>;
-	error?: string;
-} | null> {
-	const resultPath = path.join(resultsDir, `${effortId}.json`);
-	if (!fs.existsSync(resultPath)) return null;
-
-	try {
-		const raw = fs.readFileSync(resultPath, "utf-8");
-		const parsed = JSON.parse(raw);
-		return extractAskResultFromEffortResult(parsed);
-	} catch {
-		return null;
-	}
-}
-
-const DEFAULT_HISTORY_TURNS = 10;
-const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
-
-function stringEnv(value: string | undefined): string | null {
-	const trimmed = value?.trim();
-	return trimmed ? trimmed : null;
-}
-
-export function resolveRuntimeStreamsDir(env: NodeJS.ProcessEnv = process.env): string {
-	return (
-		stringEnv(env[REFARM_STREAMS_DIR_ENV_VAR]) ??
-		path.join(os.homedir(), ".refarm", "streams")
-	);
-}
-
-export function resolveRuntimeTaskResultsDir(
-	env: NodeJS.ProcessEnv = process.env,
-): string {
-	return (
-		stringEnv(env[REFARM_TASK_RESULTS_DIR_ENV_VAR]) ??
-		path.join(os.homedir(), ".refarm", "task-results")
-	);
-}
-
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
-function sourceForAskScope(scope: ModelScope): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
+function sourceForAskScope(
+	scope: ModelScope,
+): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
 	switch (scope) {
 		case "default":
 			return "refarm-ask";
@@ -540,6 +258,9 @@ function defaultDeps(): AskDeps {
 	};
 }
 
+const DEFAULT_HISTORY_TURNS = 10;
+const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+
 function usageLine(metadata: Record<string, unknown>): string {
 	const model = metadata.model ?? "unknown";
 	const tokensIn = metadata.tokens_in ?? 0;
@@ -549,25 +270,38 @@ function usageLine(metadata: Record<string, unknown>): string {
 }
 
 function pricingDisplay(metadata: Record<string, unknown>): string {
-	if (metadata.pricing_mode === "subscription" || metadata.provider === "openai-codex") {
+	if (
+		metadata.pricing_mode === "subscription" ||
+		metadata.provider === "openai-codex"
+	) {
 		return "subscription";
 	}
 	if (metadata.pricing_mode === "local" || metadata.provider === "ollama") {
 		return "local";
 	}
 	return metadata.estimated_usd != null
-			? `~$${Number(metadata.estimated_usd).toFixed(4)}`
-			: "";
+		? `~$${Number(metadata.estimated_usd).toFixed(4)}`
+		: "";
 }
 
 function printAskError(message: string): void {
 	const payload = buildAskErrorPayload(message);
 	if (payload.error === "agent-not-loaded") {
-		console.error(chalk.red("\n✗  Runtime agent is not loaded in the Refarm runtime."));
-		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
-		console.error(chalk.dim("   Reload runtime plugins:   /reload runtime-agent"));
-		console.error(chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`));
-		console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
+		console.error(
+			chalk.red("\n✗  Runtime agent is not loaded in the Refarm runtime."),
+		);
+		console.error(
+			chalk.dim("   Install bundled plugins:  refarm plugin install"),
+		);
+		console.error(
+			chalk.dim("   Reload runtime plugins:   /reload runtime-agent"),
+		);
+		console.error(
+			chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`),
+		);
+		console.error(
+			chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`),
+		);
 	} else if (payload.error === "runtime-unavailable") {
 		console.error();
 		printSidecarUnavailable();
@@ -581,7 +315,9 @@ function printAskError(message: string): void {
 			console.error(chalk.dim("   Reconfigure/login:  refarm sow"));
 			console.error(chalk.dim("   Inspect route:      refarm model current"));
 			console.error(chalk.dim("   List providers:     refarm model providers"));
-			console.error(chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`));
+			console.error(
+				chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`),
+			);
 		}
 	} else if (payload.error === "model-quota-exceeded") {
 		console.error(chalk.red("\n✗  Model quota or billing limit reached."));
@@ -659,7 +395,8 @@ function buildAskErrorPayload(message: string): {
 						diagnostic: "agent-not-loaded",
 						severity: "failure",
 						summary: "The runtime agent plugin is not loaded in the runtime.",
-						action: "Install or reload the bundled runtime agent plugin, then ensure the runtime is ready.",
+						action:
+							"Install or reload the bundled runtime agent plugin, then ensure the runtime is ready.",
 						command: RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 					},
 				],
@@ -688,8 +425,10 @@ function buildAskErrorPayload(message: string): {
 				action: "ask",
 				recommendations: [
 					buildRuntimeUnavailableRecommendation({
-						summary: "The runtime sidecar is not reachable while submitting an ask.",
-						action: "Ensure the selected runtime is running before submitting again.",
+						summary:
+							"The runtime sidecar is not reachable while submitting an ask.",
+						action:
+							"Ensure the selected runtime is running before submitting again.",
 					}),
 				],
 			},
@@ -793,7 +532,10 @@ function printAskSuccessJson(result: AskJsonResult): void {
 			command: "ask",
 			operation: "submit",
 			nextAction: RESUME_JSON_COMMAND,
-			nextActions: [RESUME_JSON_COMMAND, AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND],
+			nextActions: [
+				RESUME_JSON_COMMAND,
+				AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
+			],
 			nextCommand: RESUME_JSON_COMMAND,
 			nextCommands: [
 				RESUME_JSON_COMMAND,
@@ -854,17 +596,26 @@ function printMissingModelCredentials(json: boolean): void {
 	);
 }
 
-function subscriptionRuntimeUnsupportedCommands(status: CurrentModelStatus): string[] {
+function subscriptionRuntimeUnsupportedCommands(
+	status: CurrentModelStatus,
+): string[] {
 	return [
 		MODEL_CURRENT_JSON_COMMAND,
 		SOW_JSON_COMMAND,
 		MODEL_PROVIDERS_JSON_COMMAND,
-		refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
+		refarmCommand([
+			"sow",
+			"--model",
+			quoteCommandArg(status.current.ref),
+			"--json",
+		]),
 		LOCAL_MODEL_JSON_COMMAND,
 	];
 }
 
-function buildSubscriptionRuntimeUnsupportedEnvelope(status: CurrentModelStatus) {
+function buildSubscriptionRuntimeUnsupportedEnvelope(
+	status: CurrentModelStatus,
+) {
 	const nextCommands = subscriptionRuntimeUnsupportedCommands(status);
 	return buildJsonErrorEnvelope({
 		command: "ask",
@@ -901,7 +652,10 @@ function buildSubscriptionRuntimeUnsupportedEnvelope(status: CurrentModelStatus)
 	});
 }
 
-function printSubscriptionRuntimeUnsupported(status: CurrentModelStatus, json: boolean): void {
+function printSubscriptionRuntimeUnsupported(
+	status: CurrentModelStatus,
+	json: boolean,
+): void {
 	if (json) {
 		printJson(buildSubscriptionRuntimeUnsupportedEnvelope(status));
 		return;
@@ -912,16 +666,24 @@ function printSubscriptionRuntimeUnsupported(status: CurrentModelStatus, json: b
 		),
 	);
 	if (status.credential.status) {
-		console.error(chalk.dim(`   Stored credential: ${status.credential.status}`));
+		console.error(
+			chalk.dim(`   Stored credential: ${status.credential.status}`),
+		);
 	}
 	console.error(
 		chalk.dim(
 			"   This path needs an API-key provider, a local model route, or a subscription runtime adapter.",
 		),
 	);
-	console.error(chalk.dim(`   Inspect route:       ${MODEL_CURRENT_JSON_COMMAND}`));
-	console.error(chalk.dim(`   Reconfigure/login:   ${SOW_INTERACTIVE_COMMAND}`));
-	console.error(chalk.dim(`   Local no-key route:   ${LOCAL_MODEL_JSON_COMMAND}`));
+	console.error(
+		chalk.dim(`   Inspect route:       ${MODEL_CURRENT_JSON_COMMAND}`),
+	);
+	console.error(
+		chalk.dim(`   Reconfigure/login:   ${SOW_INTERACTIVE_COMMAND}`),
+	);
+	console.error(
+		chalk.dim(`   Local no-key route:   ${LOCAL_MODEL_JSON_COMMAND}`),
+	);
 }
 
 async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStatus | null> {
@@ -930,13 +692,19 @@ async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStat
 	const defaultCredential = status.routeCredentials.default;
 	if (!isSubscriptionModelProvider(status.current.provider)) return null;
 	if (isRuntimeSubscriptionModelProvider(status.current.provider)) return null;
-	if (defaultCredential.state === "missing" || defaultCredential.state === "not-required") {
+	if (
+		defaultCredential.state === "missing" ||
+		defaultCredential.state === "not-required"
+	) {
 		return null;
 	}
 	return status;
 }
 
-async function ensureAskRuntimeReady(launch: LaunchDeps, json = false): Promise<boolean> {
+async function ensureAskRuntimeReady(
+	launch: LaunchDeps,
+	json = false,
+): Promise<boolean> {
 	let readiness = await checkSessionReadiness();
 
 	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -1035,16 +803,24 @@ async function ensureAgentReady(
 				operation: "plugin-readiness",
 				error: "agent-not-loaded",
 				message: "No agent is loaded in the Refarm runtime.",
-				nextAction: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_COMMAND,
+				nextAction: agentInstalled
+					? RUNTIME_AGENT_RELOAD_JSON_COMMAND
+					: PLUGIN_INSTALL_COMMAND,
 				nextActions: [
-					...(agentInstalled ? [RUNTIME_AGENT_RELOAD_JSON_COMMAND] : [PLUGIN_INSTALL_COMMAND]),
+					...(agentInstalled
+						? [RUNTIME_AGENT_RELOAD_JSON_COMMAND]
+						: [PLUGIN_INSTALL_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_COMMAND,
 					RUNTIME_DOCTOR_COMMAND,
 				],
-				nextCommand: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_JSON_COMMAND,
+				nextCommand: agentInstalled
+					? RUNTIME_AGENT_RELOAD_JSON_COMMAND
+					: PLUGIN_INSTALL_JSON_COMMAND,
 				nextCommands: [
-					...(agentInstalled ? [RUNTIME_AGENT_RELOAD_JSON_COMMAND] : [PLUGIN_INSTALL_JSON_COMMAND]),
+					...(agentInstalled
+						? [RUNTIME_AGENT_RELOAD_JSON_COMMAND]
+						: [PLUGIN_INSTALL_JSON_COMMAND]),
 					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 					RUNTIME_START_WAIT_COMMAND,
 					RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -1057,8 +833,11 @@ async function ensureAgentReady(
 							diagnostic: "agent-not-loaded",
 							severity: "failure",
 							summary: "No agent plugin is loaded in the runtime.",
-							action: "Install or reload an agent plugin, then ensure the runtime is ready.",
-							command: agentInstalled ? RUNTIME_AGENT_RELOAD_JSON_COMMAND : PLUGIN_INSTALL_JSON_COMMAND,
+							action:
+								"Install or reload an agent plugin, then ensure the runtime is ready.",
+							command: agentInstalled
+								? RUNTIME_AGENT_RELOAD_JSON_COMMAND
+								: PLUGIN_INSTALL_JSON_COMMAND,
 						},
 					],
 				},
@@ -1068,14 +847,21 @@ async function ensureAgentReady(
 	}
 	console.error(chalk.red("\n✗  No agent is loaded in the Refarm runtime."));
 	if (!agentInstalled) {
-		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
+		console.error(
+			chalk.dim("   Install bundled plugins:  refarm plugin install"),
+		);
 	}
 	console.error(chalk.dim("   Reload runtime plugins:   /reload"));
-	console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
+	console.error(
+		chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`),
+	);
 	return false;
 }
 
-export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
+export function createAskCommand(
+	deps?: AskDeps,
+	launchDeps?: LaunchDeps,
+): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
 	const clearActiveSession =
@@ -1175,13 +961,9 @@ Runtime:
 								error: "invalid-options",
 								message: "--new and --session cannot be used together.",
 								nextAction: recoveryCommand,
-								nextActions: [
-									recoveryCommand,
-								],
+								nextActions: [recoveryCommand],
 								nextCommand: recoveryCommand,
-								nextCommands: [
-									recoveryCommand,
-								],
+								nextCommands: [recoveryCommand],
 								extra: { action: "ask" },
 							}),
 						);
@@ -1229,7 +1011,9 @@ Runtime:
 							`\n✗  Invalid model scope "${opts.scope}". Use: ${MODEL_SCOPE_HELP}.`,
 						),
 					);
-					console.error(chalk.dim(`   Inspect routes: ${MODEL_CURRENT_JSON_COMMAND}`));
+					console.error(
+						chalk.dim(`   Inspect routes: ${MODEL_CURRENT_JSON_COMMAND}`),
+					);
 					process.exitCode = 1;
 					return;
 				}
@@ -1237,10 +1021,7 @@ Runtime:
 				const routeStatus = buildCurrentModelStatus(
 					await defaultModelDeps().loadTokens(),
 				);
-				const selectedRoute = parseModelRef(
-					routeStatus.routes[askScope],
-					routeStatus.current.provider,
-				);
+				const selectedRoute = resolveRuntimeModelRoute(routeStatus, askScope);
 
 				if (opts.new) {
 					clearActiveSession();
@@ -1319,13 +1100,15 @@ Runtime:
 					sessionId,
 					source: sourceForAskScope(askScope),
 					historyTurns: DEFAULT_HISTORY_TURNS,
-					modelProvider: selectedRoute?.provider,
-					modelId: selectedRoute?.modelId,
+					modelProvider: selectedRoute.modelProvider,
+					modelId: selectedRoute.modelId,
 				});
 
 				if (!opts.json) {
 					const scopeLabel = askScope === "default" ? "" : ` (${askScope})`;
-					console.log(chalk.bold.cyan(`runtime agent${scopeLabel} ▸ ${query}\n`));
+					console.log(
+						chalk.bold.cyan(`runtime agent${scopeLabel} ▸ ${query}\n`),
+					);
 				}
 
 				try {

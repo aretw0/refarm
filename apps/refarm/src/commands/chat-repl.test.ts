@@ -3,11 +3,17 @@ import { CHAT_HELP_TEXT, parseChatLine } from "./chat-repl.js";
 
 describe("parseChatLine", () => {
 	it("treats plain text as a message", () => {
-		expect(parseChatLine("hello world")).toEqual({ kind: "message", text: "hello world" });
+		expect(parseChatLine("hello world")).toEqual({
+			kind: "message",
+			text: "hello world",
+		});
 	});
 
 	it("trims whitespace from plain text", () => {
-		expect(parseChatLine("  hi there  ")).toEqual({ kind: "message", text: "hi there" });
+		expect(parseChatLine("  hi there  ")).toEqual({
+			kind: "message",
+			text: "hi there",
+		});
 	});
 
 	it("empty line is an empty message", () => {
@@ -47,8 +53,14 @@ describe("parseChatLine", () => {
 	});
 
 	it("parses /model as current model", () => {
-		expect(parseChatLine("/model")).toEqual({ kind: "model", action: "current" });
-		expect(parseChatLine("/model current")).toEqual({ kind: "model", action: "current" });
+		expect(parseChatLine("/model")).toEqual({
+			kind: "model",
+			action: "current",
+		});
+		expect(parseChatLine("/model current")).toEqual({
+			kind: "model",
+			action: "current",
+		});
 	});
 
 	it("parses /model providers", () => {
@@ -68,7 +80,10 @@ describe("parseChatLine", () => {
 	});
 
 	it("parses /provider as a model route alias", () => {
-		expect(parseChatLine("/provider")).toEqual({ kind: "model", action: "current" });
+		expect(parseChatLine("/provider")).toEqual({
+			kind: "model",
+			action: "current",
+		});
 		expect(parseChatLine("/provider providers")).toEqual({
 			kind: "model",
 			action: "providers",
@@ -79,7 +94,9 @@ describe("parseChatLine", () => {
 			scope: "default",
 			ref: "openai/gpt-5.5",
 		});
-		expect(parseChatLine("/provider worker openai/gpt-5.3-codex-spark")).toEqual({
+		expect(
+			parseChatLine("/provider worker openai/gpt-5.3-codex-spark"),
+		).toEqual({
 			kind: "model",
 			action: "set",
 			scope: "worker",
@@ -163,9 +180,15 @@ describe("parseChatLine", () => {
 			kind: "login",
 			args: ["--model", "openai/gpt-5.5"],
 		});
-		expect(parseChatLine("/sow --model 'openrouter/anthropic/claude-sonnet-4.6'")).toEqual({
+		expect(
+			parseChatLine("/sow --model 'openrouter/anthropic/claude-sonnet-4.6'"),
+		).toEqual({
 			kind: "login",
 			args: ["--model", "openrouter/anthropic/claude-sonnet-4.6"],
+		});
+		expect(parseChatLine("/keys")).toEqual({
+			kind: "keys",
+			action: "provider-keys",
 		});
 	});
 
@@ -174,7 +197,9 @@ describe("parseChatLine", () => {
 			kind: "session",
 			prefix: "daily driver",
 		});
-		expect(parseChatLine("/model set --scope worker 'openai/gpt-5.3-codex-spark'")).toEqual({
+		expect(
+			parseChatLine("/model set --scope worker 'openai/gpt-5.3-codex-spark'"),
+		).toEqual({
 			kind: "model",
 			action: "set",
 			scope: "worker",
@@ -205,12 +230,22 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("/help")).toEqual({ kind: "help" });
 	});
 
+	it("parses /status", () => {
+		expect(parseChatLine("/status")).toEqual({ kind: "status" });
+	});
+
 	it("parses /session with prefix", () => {
-		expect(parseChatLine("/session abc123")).toEqual({ kind: "session", prefix: "abc123" });
+		expect(parseChatLine("/session abc123")).toEqual({
+			kind: "session",
+			prefix: "abc123",
+		});
 	});
 
 	it("treats /session without prefix as plain message", () => {
-		expect(parseChatLine("/session")).toEqual({ kind: "message", text: "/session" });
+		expect(parseChatLine("/session")).toEqual({
+			kind: "message",
+			text: "/session",
+		});
 	});
 
 	it("is case-insensitive for slash commands", () => {
@@ -219,11 +254,17 @@ describe("parseChatLine", () => {
 	});
 
 	it("treats unknown slash commands as plain messages", () => {
-		expect(parseChatLine("/unknown")).toEqual({ kind: "message", text: "/unknown" });
+		expect(parseChatLine("/unknown")).toEqual({
+			kind: "message",
+			text: "/unknown",
+		});
 	});
 
 	it("does not treat non-leading slash as command", () => {
-		expect(parseChatLine("hello /world")).toEqual({ kind: "message", text: "hello /world" });
+		expect(parseChatLine("hello /world")).toEqual({
+			kind: "message",
+			text: "hello /world",
+		});
 	});
 
 	it("documents runtime-oriented slash commands", () => {
@@ -231,11 +272,15 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/reload runtime-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model providers");
 		expect(CHAT_HELP_TEXT).toContain("/provider openai/gpt-5.5");
-		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
+		expect(CHAT_HELP_TEXT).toContain(
+			"/model worker openai/gpt-5.3-codex-spark",
+		);
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
 		expect(CHAT_HELP_TEXT).toContain("/model reset worker");
 		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");
 		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
+		expect(CHAT_HELP_TEXT).toContain("/keys");
+		expect(CHAT_HELP_TEXT).toContain("/status");
 	});
 });

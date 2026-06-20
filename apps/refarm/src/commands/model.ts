@@ -765,6 +765,20 @@ function currentModelRecovery(
 	};
 }
 
+export function resolveRuntimeModelRoute(
+	modelStatus: CurrentModelStatus,
+	scope: ModelScope,
+): { modelProvider?: string; modelId?: string } {
+	const selectedRoute = parseModelRef(
+		modelStatus.routes[scope],
+		modelStatus.current.provider,
+	);
+	return {
+		modelProvider: selectedRoute?.provider,
+		modelId: selectedRoute?.modelId,
+	};
+}
+
 export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", { env: process.env });
 	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
