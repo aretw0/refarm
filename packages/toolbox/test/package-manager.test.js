@@ -68,8 +68,8 @@ describe("toolbox package manager commands", () => {
     it("re-exports workspace publish dry-run command resolution", () => {
         expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
             command: "pnpm",
-            args: ["publish", "-r", "--dry-run"],
-            display: "pnpm publish -r --dry-run",
+            args: ["publish", "-r", "--dry-run", "--no-git-checks"],
+            display: "pnpm publish -r --dry-run --no-git-checks",
         });
     });
 });

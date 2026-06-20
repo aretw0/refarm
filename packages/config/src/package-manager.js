@@ -364,6 +364,11 @@ export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process
 
     switch (packageManager) {
         case "pnpm":
+            return {
+                packageManager,
+                command: "pnpm publish --dry-run --no-git-checks",
+                display: "pnpm publish --dry-run --no-git-checks",
+            };
         case "npm":
             return {
                 packageManager,
@@ -392,12 +397,12 @@ export function packageWorkspacePublishDryRunCommand({ cwd = process.cwd(), env 
 
     switch (packageManager) {
         case "pnpm": {
-            const pnpm = packageManagerSpawnCommand(packageManager, ["publish", "-r", "--dry-run"]);
+            const pnpm = packageManagerSpawnCommand(packageManager, ["publish", "-r", "--dry-run", "--no-git-checks"]);
             return {
                 packageManager,
                 command: pnpm.command,
                 args: pnpm.args,
-                display: "pnpm publish -r --dry-run",
+                display: "pnpm publish -r --dry-run --no-git-checks",
             };
         }
         case "npm": {

@@ -330,7 +330,7 @@ describe("package manager config", () => {
 
     it("formats publish dry-run commands for each supported manager", () => {
         expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
-            command: "pnpm publish --dry-run",
+            command: "pnpm publish --dry-run --no-git-checks",
         });
         expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
             command: "npm publish --dry-run",
@@ -346,8 +346,8 @@ describe("package manager config", () => {
     it("formats workspace publish dry-run commands for each supported manager", () => {
         expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
             command: pmCommand("pnpm"),
-            args: pmArgs("pnpm", ["publish", "-r", "--dry-run"]),
-            display: "pnpm publish -r --dry-run",
+            args: pmArgs("pnpm", ["publish", "-r", "--dry-run", "--no-git-checks"]),
+            display: "pnpm publish -r --dry-run --no-git-checks",
         });
         expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
             command: pmCommand("npm"),
