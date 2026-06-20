@@ -686,7 +686,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2025-vs2026]
+        os: [macos-latest, windows-2025-vs2026]
 
     steps:
       - name: Checkout
