@@ -10,6 +10,7 @@
     "./astro": "./src/astro.js",
     "./model-routing": "./src/model-routing.js",
     "./package-manager": "./src/package-manager.js",
+    "./plugin-identity": "./src/plugin-identity.js",
     "./workspace": "./src/workspace.js",
     "./workspaces-config": "./src/workspaces-config.js"
   },
@@ -27,6 +28,7 @@
     "src/model-routing.js",
     "src/package-manager.d.ts",
     "src/package-manager.js",
+    "src/plugin-identity.d.ts",
     "src/plugin-identity.js",
     "src/types.js",
     "src/workspace.d.ts",

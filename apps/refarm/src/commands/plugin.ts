@@ -8,7 +8,7 @@ import {
 	normalizePluginId,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 	RUNTIME_AGENT_PLUGIN_ID
-} from "@refarm.dev/config";
+} from "@refarm.dev/config/plugin-identity";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
