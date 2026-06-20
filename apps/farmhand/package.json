@@ -45,13 +45,13 @@
 		"ws": "catalog:"
 	},
 	"devDependencies": {
+		"@refarm.dev/deps": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/model-mock": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
 		"@types/node": "catalog:",
 		"@types/ws": "catalog:",
-		"@refarm.dev/vtconfig": "workspace:*",
-		"typescript": "catalog:",
-		"@refarm.dev/deps": "workspace:*",
-		"@refarm.dev/model-mock": "workspace:*"
+		"typescript": "catalog:"
 	},
 	"license": "AGPL-3.0-only"
 }

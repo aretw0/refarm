@@ -3,6 +3,7 @@ import dns from "node:dns/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-ownership.mjs";
+import { findWorkspaceSourceOwnershipIssues } from "./check-workspace-source-ownership.mjs";
 import { checkNodeSubstrate } from "./check-node-substrate.mjs";
 import { checkRustSubstrate } from "./check-rust-substrate.mjs";
 
@@ -179,16 +180,48 @@ function pnpmToolAlternatives(env = process.env) {
 
 const nodeSubstrate = await checkNodeSubstrate();
 const rustSubstrate = checkRustSubstrate();
-const artifactOwnershipIssues = findDerivedArtifactOwnershipIssues();
-const artifactOwnershipCheck = {
-	id: "derived_artifact_ownership",
-	kind: "workspace-artifacts",
-	required: true,
-	ok: artifactOwnershipIssues.length === 0,
-	command: "pnpm run workspace:artifacts:ownership",
-	issueCount: artifactOwnershipIssues.length,
-	issues: artifactOwnershipIssues,
+
+function ownershipCheck(id, kind, command, findIssues) {
+	try {
+		const issues = findIssues();
+		return {
+			id,
+			kind,
+			required: true,
+			ok: issues.length === 0,
+			command,
+			issueCount: issues.length,
+			issues,
+			error: null,
+		};
+	} catch (error) {
+		return {
+			id,
+			kind,
+			required: true,
+			ok: false,
+			command,
+			issueCount: null,
+			issues: [],
+			error: compactError(error instanceof Error ? error.message : String(error)),
+		};
+	}
+}
+
+const sourceOwnershipCheck = {
+	...ownershipCheck(
+		"workspace_source_ownership",
+		"workspace-source",
+		"pnpm run workspace:source:ownership",
+		findWorkspaceSourceOwnershipIssues,
+	),
 };
+const artifactOwnershipCheck = ownershipCheck(
+	"derived_artifact_ownership",
+	"workspace-artifacts",
+	"pnpm run workspace:artifacts:ownership",
+	findDerivedArtifactOwnershipIssues,
+);
 
 const tools = [
 	toolCheck("tool_node", process.execPath, ["--version"]),
@@ -228,6 +261,7 @@ const checks = [
 		command: "node scripts/ci/check-rust-substrate.mjs --json",
 		exitCode: rustSubstrate.ok ? 0 : 1,
 	},
+	sourceOwnershipCheck,
 	artifactOwnershipCheck,
 	...tools,
 	...diagnosticTools,
@@ -264,7 +298,22 @@ const recommendations = [
 				action:
 					"Run pnpm run workspace:artifacts:ownership, then clean only the reported ignored outputs in the environment that owns them.",
 				target: "workspace-artifacts",
-				issues: artifactOwnershipIssues,
+				issues: artifactOwnershipCheck.issues,
+				error: artifactOwnershipCheck.error,
+			},
+		]),
+	...(sourceOwnershipCheck.ok
+		? []
+		: [
+			{
+				diagnostic: "environment-substrate:workspace-source-ownership",
+				severity: "failure",
+				summary: "Tracked workspace source files are owned by another user or container.",
+				action:
+					"Run pnpm run workspace:source:ownership, then repair checkout ownership before building or editing source.",
+				target: "workspace-source",
+				issues: sourceOwnershipCheck.issues,
+				error: sourceOwnershipCheck.error,
 			},
 		]),
 	...diagnosticTools

@@ -27,6 +27,34 @@ export const defaultTrackedDerivedArtifactPatterns = [
 	/^validations\/sqlite-benchmark\/browser\/public\/sql-wasm.*\.wasm$/,
 ];
 
+function existingImmediateChildDistRoots(rootDir, workspaceDir) {
+	const parentDir = path.join(rootDir, workspaceDir);
+	let entries;
+	try {
+		entries = fs.readdirSync(parentDir, { withFileTypes: true });
+	} catch (error) {
+		if (error?.code === "ENOENT") return [];
+		throw error;
+	}
+
+	return entries
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => path.join(workspaceDir, entry.name, "dist"))
+		.filter((artifactRoot) =>
+			fs.existsSync(path.join(rootDir, artifactRoot)),
+		);
+}
+
+export function defaultOwnershipArtifactRoots(rootDir = root) {
+	return [
+		...new Set([
+			...defaultArtifactRoots,
+			...existingImmediateChildDistRoots(rootDir, "apps"),
+			...existingImmediateChildDistRoots(rootDir, "packages"),
+		]),
+	];
+}
+
 export function walkArtifacts(dir, issues, options = {}) {
 	const { rootDir = root, currentUid: expectedUid = currentUid, limit = 50 } = options;
 	if (issues.length >= limit) return;
@@ -82,10 +110,11 @@ export function findTrackedDerivedArtifactIssues(options = {}) {
 export function findDerivedArtifactOwnershipIssues(options = {}) {
 	const {
 		rootDir = root,
-		artifactRoots = defaultArtifactRoots,
 		currentUid: expectedUid = currentUid,
 		limit = 50,
 	} = options;
+	const artifactRoots =
+		options.artifactRoots ?? defaultOwnershipArtifactRoots(rootDir);
 	const issues = [];
 	for (const artifactRoot of artifactRoots) {
 		walkArtifacts(path.join(rootDir, artifactRoot), issues, {

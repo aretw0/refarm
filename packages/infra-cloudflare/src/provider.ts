@@ -1,10 +1,12 @@
 import { execFile, spawn } from "node:child_process";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
-const DEFAULT_WRANGLER_BIN = require.resolve("wrangler/bin/wrangler.js");
+const WRANGLER_PACKAGE_ROOT = dirname(require.resolve("wrangler/package.json"));
+const DEFAULT_WRANGLER_BIN = join(WRANGLER_PACKAGE_ROOT, "bin", "wrangler.js");
 
 export interface CloudflareProviderOptions {
 	apiToken: string;

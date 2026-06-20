@@ -52,6 +52,27 @@ test("reports derived artifacts whose uid differs from the expected workspace ui
 		]);
 	}));
 
+test("discovers package dist artifacts from the suite root", () =>
+	withTempRoot((root) => {
+		const artifactPath = path.join(root, "packages/health/dist/index.js");
+		fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+		fs.writeFileSync(artifactPath, "console.log('derived');\n");
+
+		const actualUid = fs.lstatSync(artifactPath).uid;
+		const issues = findDerivedArtifactOwnershipIssues({
+			rootDir: root,
+			currentUid: actualUid + 1,
+		});
+
+		assert.deepEqual(issues, [
+			{
+				path: "packages/health/dist/index.js",
+				uid: actualUid,
+				gid: fs.lstatSync(artifactPath).gid,
+			},
+		]);
+	}));
+
 test("limits the number of reported ownership issues", () =>
 	withTempRoot((root) => {
 		const artifactDir = path.join(root, "cache");

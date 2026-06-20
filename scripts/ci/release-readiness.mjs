@@ -31,6 +31,11 @@ const RELEASE_READINESS_STEPS = [
 		reason: "Container/host environment assumptions must be explicit.",
 	},
 	{
+		id: "source-ownership",
+		script: "workspace:source:ownership",
+		reason: "Tracked source files must be editable by the workspace user before build/release work.",
+	},
+	{
 		id: "derived-artifacts",
 		script: "workspace:artifacts:ownership",
 		reason: "Generated artifacts must stay derived from source, not manually edited.",
