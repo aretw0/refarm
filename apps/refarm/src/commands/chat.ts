@@ -13,10 +13,14 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import readline from "node:readline";
+import {
+	followStreamFile,
+	readEffortResultFile,
+	readLatestAgentEntryFromSession,
+	resolveRuntimeStreamsDir,
+	resolveRuntimeTaskResultsDir,
+} from "./runtime-stream.js";
 import {
 	loadChatHistory,
 	rememberChatHistoryLine,
@@ -29,9 +33,11 @@ import {
 } from "./chat-repl.js";
 import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
+	buildCurrentModelStatus,
 	defaultModelDeps,
 	printCurrentModel,
 	printKnownModelProviders,
+	resolveRuntimeModelRoute,
 	resetScopedModelRoute,
 	setFallbackModelRoute,
 	setModelBaseUrl,
@@ -55,22 +61,41 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
+import {
+	isSidecarUnavailable,
+	printSidecarUnavailable,
+} from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
-import { observedTaskResultError } from "./task-observation.js";
 export {
 	loadChatHistory,
 	rememberChatHistoryLine,
 	resolveChatHistoryPath,
-	saveChatHistory
+	saveChatHistory,
 } from "./chat-history.js";
+
+export {
+	followStreamFile,
+	readEffortResultFile,
+	readLatestAgentEntryFromSession,
+	resolveRuntimeStreamsDir,
+	resolveRuntimeTaskResultsDir,
+};
 
 export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
 	followStream(
 		effortId: string,
 		onChunk: (chunk: StreamChunk) => void,
-		options?: { timeoutMs?: number; submittedAtMs?: number },
+		options?: {
+			timeoutMs?: number;
+			submittedAtMs?: number;
+			readFallback?: () => Promise<{
+				status: "ok" | "error";
+				content?: string;
+				metadata?: Record<string, unknown>;
+				error?: string;
+			} | null>;
+		},
 	): Promise<void>;
 	readEffortResult?(effortId: string): Promise<{
 		status: "ok" | "error";
@@ -82,8 +107,15 @@ export interface ChatDeps {
 	readActiveSessionId?(): string | null;
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
-	reloadPlugins(pluginIds?: string[]): Promise<{ reloaded: string[]; skipped: string[] }>;
+	reloadPlugins(
+		pluginIds?: string[],
+	): Promise<{ reloaded: string[]; skipped: string[] }>;
 	readPluginState?(): Promise<RuntimePluginState | null>;
+	readSessionFallback?(sessionId: string): Promise<{
+		status: "ok";
+		content: string;
+		metadata?: Record<string, unknown>;
+	} | null>;
 	model?: ModelCommandDeps;
 	configureCredentials?(args?: string[]): Promise<void>;
 	recoverRuntime?(): Promise<boolean>;
@@ -110,170 +142,21 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	return payload.effortId;
 }
 
-function followStreamFile(
-	streamsDir: string,
-	effortId: string,
-	onChunk: (chunk: StreamChunk) => void,
-	options?: { timeoutMs?: number; submittedAtMs?: number },
-): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const submittedAtMs = options?.submittedAtMs ?? Date.now();
-		const timeoutMs = options?.timeoutMs ?? 60_000;
-		const deadline = Date.now() + timeoutMs;
-		let filePath: string | null = null;
-		let offset = 0;
-		let finished = false;
-		let polling = false;
-
-		function resolveStreamFilePath(): string | null {
-			const exactPath = path.join(streamsDir, `${effortId}.ndjson`);
-			if (fs.existsSync(exactPath)) return exactPath;
-			if (!fs.existsSync(streamsDir)) return null;
-
-			const candidates = fs
-				.readdirSync(streamsDir)
-				.filter((filename) => filename.endsWith(".ndjson"))
-				.map((filename) => {
-					const filePath = path.join(streamsDir, filename);
-					const mtimeMs = fs.statSync(filePath).mtimeMs;
-					return { filePath, mtimeMs };
-				})
-				.filter((entry) => entry.mtimeMs >= submittedAtMs - 2_000)
-				.sort((left, right) => right.mtimeMs - left.mtimeMs);
-
-			return candidates[0]?.filePath ?? null;
-		}
-
-		function stopAndReject(message: string): void {
-			if (finished) return;
-			finished = true;
-			clearInterval(timer);
-			reject(new Error(message));
-		}
-
-		async function readNew(): Promise<void> {
-			if (polling) return;
-			polling = true;
-			try {
-				if (finished) return;
-				if (!filePath) filePath = resolveStreamFilePath();
-				if (filePath && fs.existsSync(filePath)) {
-					const content = fs.readFileSync(filePath, "utf-8");
-					const lines = content.split("\n").filter(Boolean);
-					for (let index = offset; index < lines.length; index++) {
-						let chunk: StreamChunk;
-						try {
-							chunk = JSON.parse(lines[index]!) as StreamChunk;
-						} catch {
-							continue;
-						}
-						onChunk(chunk);
-						if (chunk.is_final) {
-							finished = true;
-							clearInterval(timer);
-							resolve();
-							return;
-						}
-					}
-					offset = lines.length;
-				}
-				if (Date.now() >= deadline) {
-					stopAndReject(
-						filePath
-							? `Timed out waiting final stream chunk for effort ${effortId}`
-							: `Timed out waiting for stream file for effort ${effortId}`,
-					);
-				}
-			} finally {
-				polling = false;
-			}
-		}
-
-		const timer = setInterval(() => {
-			void readNew();
-		}, 100);
-		void readNew();
-	});
-}
-
-async function readEffortResultFile(
-	resultsDir: string,
-	effortId: string,
-): Promise<{
-	status: "ok" | "error";
-	content?: string;
-	metadata?: Record<string, unknown>;
-	error?: string;
-} | null> {
-	const resultPath = path.join(resultsDir, `${effortId}.json`);
-	if (!fs.existsSync(resultPath)) return null;
-	try {
-		const raw = fs.readFileSync(resultPath, "utf-8");
-		const parsed = JSON.parse(raw) as unknown;
-		return extractResultPayload(parsed);
-	} catch {
-		return null;
-	}
-}
-
-function extractResultPayload(result: unknown): {
-	status: "ok" | "error";
-	content?: string;
-	metadata?: Record<string, unknown>;
-	error?: string;
-} | null {
-	if (!result || typeof result !== "object") return null;
-	const effort = result as { status?: string; results?: Array<{ status?: string; result?: unknown; error?: unknown }> };
-	if (effort.status !== "done" && effort.status !== "failed") return null;
-	const task = Array.isArray(effort.results) ? effort.results[0] : undefined;
-	if (!task || typeof task !== "object") return null;
-	if (task.status === "error") {
-		return {
-			status: "error",
-			error: typeof task.error === "string" ? task.error : "Effort finished with task error",
-		};
-	}
-	const observedError = observedTaskResultError(task.result);
-	if (observedError) return { status: "error", error: observedError };
-	let payload: unknown = task.result;
-	if (typeof payload === "string") {
-		const rawContent = payload;
-		try { payload = JSON.parse(payload); } catch { return { status: "ok", content: rawContent }; }
-	}
-	if (typeof payload === "string") return { status: "ok", content: payload };
-	if (!payload || typeof payload !== "object") return null;
-	const value = payload as { content?: unknown; model?: unknown; provider?: unknown; usage?: unknown };
-	const content = value.content;
-	if (typeof content !== "string") return null;
-	const metadata: Record<string, unknown> = {};
-	if (typeof value.model === "string") metadata.model = value.model;
-	if (typeof value.provider === "string") metadata.provider = value.provider;
-	if (value.usage && typeof value.usage === "object") {
-		const usage = value.usage as {
-			tokens_in?: unknown;
-			tokens_out?: unknown;
-			pricing_mode?: unknown;
-			estimated_usd?: unknown;
-		};
-		if (typeof usage.tokens_in === "number") metadata.tokens_in = usage.tokens_in;
-		if (typeof usage.tokens_out === "number") metadata.tokens_out = usage.tokens_out;
-		if (typeof usage.pricing_mode === "string") metadata.pricing_mode = usage.pricing_mode;
-		if (typeof usage.estimated_usd === "number") metadata.estimated_usd = usage.estimated_usd;
-	}
-	return { status: "ok", content, metadata: Object.keys(metadata).length > 0 ? metadata : undefined };
-}
-
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+async function resolveSessionIdPrefixFromSidecar(
+	prefix: string,
+): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
-	const body = (await response.json()) as { sessions?: Array<{ "@id": string }> };
+	const body = (await response.json()) as {
+		sessions?: Array<{ "@id": string }>;
+	};
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
 }
 
 export function defaultChatDeps(): ChatDeps {
-	const streamsDir = path.join(os.homedir(), ".refarm", "streams");
-	const resultsDir = path.join(os.homedir(), ".refarm", "task-results");
+	const streamsDir = resolveRuntimeStreamsDir();
+	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
 		submitEffort: submitViaHttp,
 		reloadPlugins: async (pluginIds?: string[]) => {
@@ -284,14 +167,22 @@ export function defaultChatDeps(): ChatDeps {
 					);
 				},
 			});
-			if (!result) throw new Error("Refarm runtime plugin reload is unavailable");
+			if (!result)
+				throw new Error("Refarm runtime plugin reload is unavailable");
 			return result;
 		},
 		readPluginState: readRuntimePluginState,
 		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
 		followStream: (effortId, onChunk, options) =>
-			followStreamFile(streamsDir, effortId, onChunk, options),
+			followStreamFile(
+				streamsDir,
+				effortId,
+				onChunk,
+				() => readEffortResultFile(resultsDir, effortId),
+				options,
+			),
 		readEffortResult: (effortId) => readEffortResultFile(resultsDir, effortId),
+		readSessionFallback: readLatestAgentEntryFromSession,
 		readActiveSessionId,
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
@@ -300,11 +191,31 @@ export function defaultChatDeps(): ChatDeps {
 	};
 }
 
+async function runStatusCommand(args: string[] = []): Promise<void> {
+	const node = process.argv[0];
+	const entrypoint = process.argv[1];
+	if (!node || !entrypoint) {
+		throw new Error(
+			"Cannot locate the refarm CLI entrypoint for status check.",
+		);
+	}
+	const exitCode = await launchProcess({
+		command: node,
+		args: [entrypoint, "status", ...args],
+		display: ["refarm", "status", ...args].join(" "),
+	});
+	if (exitCode !== 0) {
+		throw new Error(`Status command exited with ${exitCode}`);
+	}
+}
+
 async function runSowCommand(args: string[] = []): Promise<void> {
 	const node = process.argv[0];
 	const entrypoint = process.argv[1];
 	if (!node || !entrypoint) {
-		throw new Error("Cannot locate the refarm CLI entrypoint for credential setup.");
+		throw new Error(
+			"Cannot locate the refarm CLI entrypoint for credential setup.",
+		);
 	}
 	const exitCode = await launchProcess({
 		command: node,
@@ -316,14 +227,29 @@ async function runSowCommand(args: string[] = []): Promise<void> {
 	}
 }
 
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
+const SPINNER_FRAMES = [
+	"⠋",
+	"⠙",
+	"⠹",
+	"⠸",
+	"⠼",
+	"⠴",
+	"⠦",
+	"⠧",
+	"⠇",
+	"⠏",
+] as const;
 
-export function startThinkingSpinner(getMessage?: (frame: number, elapsedMs: number) => string): () => void {
+export function startThinkingSpinner(
+	getMessage?: (frame: number, elapsedMs: number) => string,
+): () => void {
 	if (!process.stdout.isTTY) return () => {};
 	const startMs = Date.now();
 	let frame = 0;
 	const timer = setInterval(() => {
-		const msg = getMessage ? getMessage(frame, Date.now() - startMs) : "Thinking…";
+		const msg = getMessage
+			? getMessage(frame, Date.now() - startMs)
+			: "Thinking…";
 		process.stdout.write(
 			`\r${chalk.dim(SPINNER_FRAMES[frame % SPINNER_FRAMES.length])}  ${chalk.dim(msg)}`,
 		);
@@ -344,15 +270,18 @@ function usageLine(metadata: Record<string, unknown>): string {
 }
 
 function pricingDisplay(metadata: Record<string, unknown>): string {
-	if (metadata.pricing_mode === "subscription" || metadata.provider === "openai-codex") {
+	if (
+		metadata.pricing_mode === "subscription" ||
+		metadata.provider === "openai-codex"
+	) {
 		return "subscription";
 	}
 	if (metadata.pricing_mode === "local" || metadata.provider === "ollama") {
 		return "local";
 	}
 	return metadata.estimated_usd != null
-			? `~$${Number(metadata.estimated_usd).toFixed(4)}`
-			: "";
+		? `~$${Number(metadata.estimated_usd).toFixed(4)}`
+		: "";
 }
 
 function printChatError(message: string): void {
@@ -362,6 +291,38 @@ function printChatError(message: string): void {
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}
+}
+
+export function resolveChatRuntimeModelRoute(
+	modelStatus: ReturnType<typeof buildCurrentModelStatus>,
+): { modelProvider?: string; modelId?: string } {
+	return resolveRuntimeModelRoute(modelStatus, "default");
+}
+
+export async function createChatEffort(
+	query: string,
+	sessionId: string,
+	modelDeps: ModelCommandDeps,
+	options:
+		| {
+				system: string;
+				historyTurns?: number;
+		  }
+		| undefined,
+): Promise<Effort> {
+	const modelStatus = buildCurrentModelStatus(await modelDeps.loadTokens());
+	const { modelProvider, modelId } = resolveChatRuntimeModelRoute(modelStatus);
+	const historyTurns = options?.historyTurns ?? DEFAULT_HISTORY_TURNS;
+
+	return createRuntimeAgentRespondEffort({
+		prompt: query,
+		system: options?.system ?? "",
+		sessionId,
+		source: "refarm-chat",
+		historyTurns,
+		modelProvider,
+		modelId,
+	});
 }
 
 async function runTurn(
@@ -381,12 +342,9 @@ async function runTurn(
 	const entries = await registry.collect({ cwd: process.cwd(), query });
 	const system = buildSystemPrompt(entries);
 
-	const effort = createRuntimeAgentRespondEffort({
-		prompt: query,
+	const modelDeps = deps.model ?? defaultModelDeps();
+	const effort = await createChatEffort(query, sessionId, modelDeps, {
 		system,
-		sessionId,
-		source: "refarm-chat",
-		historyTurns: DEFAULT_HISTORY_TURNS,
 	});
 
 	const submittedAtMs = Date.now();
@@ -414,14 +372,20 @@ async function runTurn(
 				process.stdout.write(chunk.content);
 				if (chunk.is_final) {
 					process.stdout.write("\n");
-					const metadata = chunk.metadata as Record<string, unknown> | undefined;
+					const metadata = chunk.metadata as
+						| Record<string, unknown>
+						| undefined;
 					if (metadata) {
 						console.log(chalk.gray(`\n${"─".repeat(41)}`));
 						console.log(chalk.gray(usageLine(metadata)));
 					}
 				}
 			},
-			{ submittedAtMs },
+			{
+				submittedAtMs,
+				readFallback: () =>
+					deps.readEffortResult?.(effortId) ?? Promise.resolve(null),
+			},
 		);
 	} catch (streamError) {
 		clearSpinner();
@@ -437,6 +401,17 @@ async function runTurn(
 		if (fallback?.status === "error") {
 			throw new Error(fallback.error ?? "Effort failed without details");
 		}
+
+		const sessionFallback = await deps.readSessionFallback?.(sessionId);
+		if (sessionFallback?.status === "ok") {
+			process.stdout.write(`${sessionFallback.content}\n`);
+			if (sessionFallback.metadata) {
+				console.log(chalk.gray(`\n${"─".repeat(41)}`));
+				console.log(chalk.gray(usageLine(sessionFallback.metadata)));
+			}
+			return;
+		}
+
 		throw streamError;
 	}
 }
@@ -452,7 +427,8 @@ export async function runSessionRepl(
 	initialMessage?: string,
 ): Promise<void> {
 	const clearActiveSession = deps.clearActiveSessionId ?? clearActiveSessionId;
-	const persistActiveSession = deps.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
+	const persistActiveSession =
+		deps.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
 	let activeSessionId = sessionId;
 
@@ -485,6 +461,12 @@ export async function runSessionRepl(
 			switch (command.kind) {
 				case "exit":
 					console.log(chalk.dim("Goodbye."));
+					console.log(
+						chalk.dim(
+							`To continue this session, run: refarm session --session ${activeSessionId}`,
+						),
+					);
+					console.log(chalk.dim("To inspect next operator action, run: refarm resume --next-action"));
 					rl.close();
 					resolve();
 					break;
@@ -493,6 +475,22 @@ export async function runSessionRepl(
 					console.log(chalk.dim(CHAT_HELP_TEXT));
 					console.log();
 					rl.prompt();
+					break;
+
+				case "status":
+					rl.pause();
+					void (async () => {
+						try {
+							await runStatusCommand();
+						} catch (error) {
+							const message =
+								error instanceof Error ? error.message : String(error);
+							console.error(chalk.red(`✗  ${message}`));
+						}
+						console.log();
+						rl.resume();
+						rl.prompt();
+					})();
 					break;
 
 				case "new":
@@ -514,10 +512,13 @@ export async function runSessionRepl(
 								: prefix;
 							persistActiveSession(activeSessionId);
 							console.log(
-								chalk.dim(`✓ Switched to session: ${activeSessionId.slice(-8)}`),
+								chalk.dim(
+									`✓ Switched to session: ${activeSessionId.slice(-8)}`,
+								),
 							);
 						} catch (error) {
-							const message = error instanceof Error ? error.message : String(error);
+							const message =
+								error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));
 						}
 						console.log();
@@ -545,7 +546,8 @@ export async function runSessionRepl(
 								console.log(chalk.dim("No plugins to reload."));
 							}
 						} catch (error) {
-							const message = error instanceof Error ? error.message : String(error);
+							const message =
+								error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));
 						}
 						console.log();
@@ -573,7 +575,8 @@ export async function runSessionRepl(
 								await setModelRoute(command.ref, command.scope, modelDeps);
 							}
 						} catch (error) {
-							const message = error instanceof Error ? error.message : String(error);
+							const message =
+								error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));
 						}
 						console.log();
@@ -583,13 +586,21 @@ export async function runSessionRepl(
 					break;
 
 				case "login":
+				case "keys": {
 					rl.pause();
 					void (async () => {
 						try {
-							await (deps.configureCredentials ?? runSowCommand)(command.args);
-							console.log(chalk.dim("Refarm runtime reloads saved credentials before each task."));
+							await (deps.configureCredentials ?? runSowCommand)(
+								command.kind === "keys" ? ["--reconfigure"] : command.args,
+							);
+							console.log(
+								chalk.dim(
+									"Refarm runtime reloads saved credentials before each task.",
+								),
+							);
 						} catch (error) {
-							const message = error instanceof Error ? error.message : String(error);
+							const message =
+								error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));
 						}
 						console.log();
@@ -597,6 +608,7 @@ export async function runSessionRepl(
 						rl.prompt();
 					})();
 					break;
+				}
 
 				case "message": {
 					if (command.text.length === 0) {
@@ -610,7 +622,8 @@ export async function runSessionRepl(
 							await runTurn(command.text, activeSessionId, deps);
 							persistActiveSession(activeSessionId);
 						} catch (error) {
-							const message = error instanceof Error ? error.message : String(error);
+							const message =
+								error instanceof Error ? error.message : String(error);
 							printChatError(message);
 						}
 						console.log();
@@ -650,10 +663,15 @@ Runtime commands:
 ${CHAT_RUNTIME_COMMANDS_HELP}
 `,
 		)
-		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {
-			const { runSessionLaunchFlow } = await import("./session.js");
-			await runSessionLaunchFlow({ ...opts, message }, deps);
-		});
+		.action(
+			async (
+				message: string | undefined,
+				opts: { new?: boolean; session?: string },
+			) => {
+				const { runSessionLaunchFlow } = await import("./session.js");
+				await runSessionLaunchFlow({ ...opts, message }, deps);
+			},
+		);
 }
 
 export const chatCommand = createChatCommand();
