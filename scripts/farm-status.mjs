@@ -3,7 +3,7 @@
  * farm-status — unified process and health status for the Refarm factory.
  *
  * Covers tractor (Rust WASM host) and farmhand (Node.js task orchestrator).
- * Run through the package manager configured in package.json.
+ * Prefer `refarm runtime` for daily-driver runtime lifecycle.
  * See: docs/PROCESS_PLAYBOOK.md
  */
 
@@ -16,7 +16,6 @@ import {
   defaultModelForProvider,
   modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
-import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -31,7 +30,6 @@ function warn(label, msg) { console.log(`  ${c.yellow}[!]${c.reset} ${c.bold}${l
 function fail(label, msg) { console.log(`  ${c.red}[x]${c.reset} ${c.bold}${label.padEnd(14)}${c.reset} ${c.red}${msg}${c.reset}`); }
 function info(label, msg) { console.log(`  ${c.dim}[o]${c.reset} ${c.bold}${label.padEnd(14)}${c.reset} ${c.dim}${msg}${c.reset}`); }
 function section(name)    { console.log(`\n${c.bold}${name}${c.reset}`); }
-function scriptCommand(script) { return packageScriptCommand(script, { cwd: ROOT }).display; }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -148,7 +146,7 @@ function checkTractor() {
     if (b42.bound && b42.pid !== farmhandPid) {
       warn('tractor', `no PID file but port 42000 bound by PID ${b42.pid ?? '?'} (${b42.proc ?? 'unknown'}) — stale?`);
     } else {
-      info('tractor', `not running  ${c.dim}(start: ${scriptCommand('agent:daemon')})${c.reset}`);
+      info('tractor', `not running  ${c.dim}(start: refarm runtime ensure --wait)${c.reset}`);
     }
     return false;
   }
@@ -174,7 +172,7 @@ async function checkFarmhand() {
     } else if (b42.bound) {
       info('farmhand', `not running  (port 42000 held by ${b42.proc ?? 'pid=' + b42.pid})`);
     } else {
-      info('farmhand', `not running  ${c.dim}(start: ${scriptCommand('farmhand:daemon')})${c.reset}`);
+      info('farmhand', `not running  ${c.dim}(start: refarm runtime ensure --wait)${c.reset}`);
     }
     return false;
   }

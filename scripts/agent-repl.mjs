@@ -6,7 +6,7 @@
  *   Run the agent:repl package script with the configured package manager.
  *
  * Prerequisites:
- *   Run agent:daemon (or agent:start) in a separate terminal.
+ *   Run refarm runtime ensure --wait in a separate terminal.
  *   Configure at least one LLM provider.
  */
 
@@ -20,7 +20,6 @@ import {
   defaultModelForProvider,
   modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
-import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const TRACTOR = process.env.CARGO_TARGET_DIR
@@ -34,7 +33,6 @@ const c = {
   green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m',
   cyan: '\x1b[36m', blue: '\x1b[34m',
 };
-function scriptCommand(script) { return packageScriptCommand(script, { cwd: ROOT }).display; }
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
@@ -423,8 +421,8 @@ async function main() {
   const daemonRunning = checkDaemon();
   if (!daemonRunning) {
     console.error(`${c.yellow}Daemon not responding on port ${WS_PORT}.${c.reset}`);
-    console.error(`Start it first:  ${c.cyan}${scriptCommand('agent:daemon')}${c.reset}`);
-    console.error(`Or:              ${c.cyan}${scriptCommand('agent:start')}${c.reset}  (foreground)`);
+    console.error(`Start it first:  ${c.cyan}refarm runtime ensure --wait${c.reset}`);
+    console.error(`Inspect status:   ${c.cyan}refarm runtime${c.reset}`);
     process.exit(1);
   }
 

@@ -15,7 +15,6 @@ import {
   defaultModelForProvider,
   modelCredentialStatus,
 } from '../packages/config/src/model-routing.js';
-import { packageScriptCommand } from '../packages/config/src/package-manager.js';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -42,7 +41,6 @@ function ok(label, msg)   { console.log(`  ${c.green}[+]${c.reset} ${c.bold}${la
 function warn(label, msg) { console.log(`  ${c.yellow}[!]${c.reset} ${c.bold}${label.padEnd(12)}${c.reset} ${c.yellow}${msg}${c.reset}`); }
 function fail(label, msg) { console.log(`  ${c.red}[x]${c.reset} ${c.bold}${label.padEnd(12)}${c.reset} ${c.red}${msg}${c.reset}`); }
 function info(label, msg) { console.log(`  ${c.dim}[o]${c.reset} ${c.bold}${label.padEnd(12)}${c.reset} ${c.dim}${msg}${c.reset}`); }
-function scriptCommand(script) { return packageScriptCommand(script, { cwd: ROOT }).display; }
 
 function readEnv() {
   if (!existsSync(ENV_FILE)) return {};
@@ -100,7 +98,7 @@ function checkDaemon() {
   }
 
   if (!existsSync(PID_FILE)) {
-    info('daemon', `not running (no PID file) — start: ${scriptCommand('agent:daemon')}`);
+    info('daemon', `not running (no PID file) — start: refarm runtime ensure --wait`);
     return;
   }
 
