@@ -39,7 +39,9 @@ export async function readEffortAndSessionFallback(
 	effortId: string,
 	sessionId: string,
 	deps: {
-		readEffortResult?: (effortId: string) => Promise<RuntimeEffortResult | null>;
+		readEffortResult?: (
+			effortId: string,
+		) => Promise<RuntimeEffortResult | null>;
 		readSessionFallback?: (
 			sessionId: string,
 		) => Promise<RuntimeSessionFallbackResult | null>;

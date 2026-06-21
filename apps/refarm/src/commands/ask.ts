@@ -1150,8 +1150,10 @@ Runtime:
 								readSessionFallback: resolved.readSessionFallback,
 							},
 						);
-						if (fallback?.status === "ok" &&
-							typeof fallback.content === "string") {
+						if (
+							fallback?.status === "ok" &&
+							typeof fallback.content === "string"
+						) {
 							content = fallback.content;
 							metadata = fallback.metadata;
 							const contentError = observedAskContentError(content);
