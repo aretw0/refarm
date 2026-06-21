@@ -90,6 +90,14 @@ Prefer commands that emit JSON when another agent or script will consume the
 result. Public JSON commands expose `ok`, `nextCommand`, `nextCommands`, and
 enough context to recover without hidden session knowledge.
 
+## Configurações locais vs ações de sincronização
+
+- `refarm config` modifica **configuração local persistida do CLI** (ex.:
+  `runtime.sidecarUrl`, `runtime.autostart`, `operator.openExternalLinks`).
+- `refarm configure` executa **ações operacionais** de integração (atualmente
+  `configure github`), lendo credenciais do silo e enviando-as para alvos externos
+  (ex.: `gh secret set`) sem alterar o arquivo local de `config`.
+
 When running in agentic JSON mode, commands are self-guiding:
 - `ask --json` success → `nextCommands`: resume, session show, after-edit finish
 - `agent finish --run --json` pass → `nextCommands`: resume
@@ -222,6 +230,26 @@ The app boundary is now guarded by `apps/refarm/test/architecture`: app source
 does not import `node:child_process`, does not execute package managers directly,
 and app commands use agnostic surface-action helper names. Keep compatibility
 aliases in shared packages, not in app-local wrappers.
+
+## Refarm-as-primary Readiness Check
+
+Antes de depender do refarm como fluxo principal, valide este mínimo
+funcional em sequência (cada etapa com sucesso):
+
+1. **Session loop:** `refarm chat`/`refarm ask` funcionam continuamente (sem reset de runtime) e `sessions use` recupera contexto anterior.
+2. **Recovery:** `refarm resume --json` mostra caminho claro após encerramento forçado; `refarm sessions clear` não quebra continuidade.
+3. **Runtime/provider:** modelos configurados por rota em uso (`refarm model current --json`) e fallback explícito por provider.
+4. **Observabilidade:** `refarm status --json` e `refarm check --next-action --json` retornam estado limpo em operação normal.
+5. **Hardening:** `refarm agent finish --lane agent-e2e-mock --run --json` e `refarm agent finish --lane before-push --run --json` passam após mudanças no motor.
+
+Use este ciclo após qualquer ajuste de `ask/chat/session`:
+
+```bash
+refarm resume --json
+refarm status --json
+refarm check --next-action --json
+refarm sessions list --json
+```
 
 ## Stop Condition
 
