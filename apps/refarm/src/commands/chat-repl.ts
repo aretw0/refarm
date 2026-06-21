@@ -201,7 +201,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /model base-url http://127.0.0.1:8000
   /model fallback ollama/llama3.2
   /login [args...]  Configure credentials without leaving the session
-  /sow [args...]    Configure credentials without leaving the session
+  /sow [args...]    Alias for /login
   /keys             Reconfigure model/provider credentials inline
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix

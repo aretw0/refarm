@@ -280,6 +280,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");
 		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
+		expect(CHAT_HELP_TEXT).toContain("/sow [args...]");
 		expect(CHAT_HELP_TEXT).toContain("/keys");
 		expect(CHAT_HELP_TEXT).toContain("/status");
 	});
