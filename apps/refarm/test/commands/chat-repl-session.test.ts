@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CHAT_HELP_TEXT } from "../../src/commands/chat-repl.js";
 import type { ChatDeps } from "../../src/commands/chat.js";
 import { runSessionRepl } from "../../src/commands/chat.js";
-import { CHAT_HELP_TEXT } from "../../src/commands/chat-repl.js";
 
 const mockedCreateInterface = vi.hoisted(() => vi.fn());
 const mockedLaunchProcess = vi.hoisted(() => vi.fn());
@@ -195,6 +195,71 @@ describe("runSessionRepl", () => {
 
 		consoleSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+
+	it("forwards /sow credentials command to configure hook", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		const configureCredentials = vi.fn().mockResolvedValue(undefined);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			configureCredentials,
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/sow --provider openai");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(configureCredentials).toHaveBeenCalledWith([
+			"--provider",
+			"openai",
+		]);
+		const out = logs.join("\n");
+		expect(out).toContain(
+			"Refarm runtime reloads saved credentials before each task.",
+		);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("forwards /keys to configure hook with reconfigure flag", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		const configureCredentials = vi.fn().mockResolvedValue(undefined);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			configureCredentials,
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/keys");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(configureCredentials).toHaveBeenCalledWith(["--reconfigure"]);
+		const out = logs.join("\n");
+		expect(out).toContain(
+			"Refarm runtime reloads saved credentials before each task.",
+		);
+
+		consoleSpy.mockRestore();
 	});
 
 	it("prints status command exception and continues", async () => {

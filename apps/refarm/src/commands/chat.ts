@@ -357,14 +357,6 @@ export {
 		system,
 	});
 
-	const submittedAtMs = Date.now();
-	const effortId = await submitEffortWithRuntimeRecovery(effort, {
-		...deps,
-		onRecoveringRuntime: () => {
-			console.error(chalk.yellow("\nRefarm runtime stopped responding."));
-		},
-	});
-
 	const stopSpinner = startThinkingSpinner(deps.spinnerMessage?.bind(deps));
 	let spinnerCleared = false;
 	function clearSpinner() {
@@ -374,7 +366,15 @@ export {
 		}
 	}
 
+	const submittedAtMs = Date.now();
+	let effortId: string | null = null;
 	try {
+		effortId = await submitEffortWithRuntimeRecovery(effort, {
+			...deps,
+			onRecoveringRuntime: () => {
+				console.error(chalk.yellow("\nRefarm runtime stopped responding."));
+			},
+		});
 		await deps.followStream(
 			effortId,
 			(chunk) => {
@@ -393,12 +393,18 @@ export {
 			},
 			{
 				submittedAtMs,
-				readFallback: () =>
-					deps.readEffortResult?.(effortId) ?? Promise.resolve(null),
+				readFallback: () => {
+					if (!effortId || !deps.readEffortResult) {
+						return Promise.resolve(null);
+					}
+					return deps.readEffortResult(effortId);
+				},
 			},
 		);
 	} catch (streamError) {
-		clearSpinner();
+		if (!effortId) {
+			throw streamError;
+		}
 		const fallback = await readEffortAndSessionFallback(effortId, sessionId, {
 			readEffortResult: deps.readEffortResult,
 			readSessionFallback: deps.readSessionFallback,
@@ -416,6 +422,8 @@ export {
 		}
 
 		throw streamError;
+	} finally {
+		clearSpinner();
 	}
 	}
 
