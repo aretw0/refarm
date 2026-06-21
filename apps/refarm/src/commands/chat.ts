@@ -637,6 +637,12 @@ export async function runSessionRepl(
 			}
 		});
 
+		rl.on("SIGINT", () => {
+			console.log(chalk.dim("Goodbye."));
+			printResumeHints();
+			rl.close();
+		});
+
 		rl.on("close", () => {
 			saveChatHistory(chatHistory);
 			console.log(chalk.dim("\nSession saved."));
