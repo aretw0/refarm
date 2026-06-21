@@ -4,12 +4,17 @@ import type { ChatDeps } from "../../src/commands/chat.js";
 import { runSessionRepl } from "../../src/commands/chat.js";
 
 const mockedCreateInterface = vi.hoisted(() => vi.fn());
+const mockedLaunchProcess = vi.hoisted(() => vi.fn());
 
 vi.mock("node:readline", () => ({
 	default: {
 		createInterface: mockedCreateInterface,
 	},
 	createInterface: mockedCreateInterface,
+}));
+
+vi.mock("@refarm.dev/cli/launch-process", () => ({
+	launchProcess: mockedLaunchProcess,
 }));
 
 vi.mock("../../src/commands/chat-history.js", () => ({
@@ -122,6 +127,71 @@ describe("runSessionRepl", () => {
 		);
 
 		consoleSpy.mockRestore();
+	});
+
+	it("executes /status without exiting", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		mockedLaunchProcess.mockResolvedValue(0);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/status");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(mockedLaunchProcess).toHaveBeenCalledWith({
+			command: process.argv[0],
+			args: [process.argv[1], "status"],
+			display: "refarm status",
+		});
+		expect(logs.join("\n")).not.toContain("Goodbye.");
+		expect(logs.join("\n")).not.toContain("To continue this session");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("prints status failure path and continues", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+		const errorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		mockedLaunchProcess.mockResolvedValue(2);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/status");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(
+			errorSpy.mock.calls.map((call) => String(call[0])).join("\n"),
+		).toContain("Status command exited with 2");
+
+		const out = logs.join("\n");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
+		errorSpy.mockRestore();
 	});
 
 	it("prints resume hints exactly once on /exit", async () => {
@@ -239,9 +309,9 @@ describe("runSessionRepl", () => {
 			});
 
 		const oldSessionId = "urn:refarm:session:v1:test";
-		const resolveSessionIdPrefix = vi.fn().mockRejectedValue(
-			new Error("No session matching: missing"),
-		);
+		const resolveSessionIdPrefix = vi
+			.fn()
+			.mockRejectedValue(new Error("No session matching: missing"));
 		const persistActiveSessionId = vi.fn();
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
