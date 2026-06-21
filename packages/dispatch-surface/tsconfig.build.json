@@ -6,7 +6,7 @@
 	"compilerOptions": {
 		"rootDir": "src",
 		"paths": {
-			"@refarm.dev/effort-contract-v1": ["./packages/effort-contract-v1/dist/index.d.ts"]
+			"@refarm.dev/effort-contract-v1": ["packages/effort-contract-v1/dist/index.d.ts"]
 		}
 	}
 }
