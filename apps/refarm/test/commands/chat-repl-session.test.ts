@@ -14,7 +14,9 @@ vi.mock("node:readline", () => ({
 
 vi.mock("../../src/commands/chat-history.js", () => ({
 	loadChatHistory: vi.fn().mockReturnValue([]),
-	rememberChatHistoryLine: vi.fn((history: string[], line: string) => [...history, line]),
+	rememberChatHistoryLine: vi
+		.fn()
+		.mockImplementation((history: string[], line: string) => [...history, line]),
 	saveChatHistory: vi.fn(),
 	resolveChatHistoryPath: vi.fn(),
 }));
@@ -69,9 +71,9 @@ describe("runSessionRepl", () => {
 		};
 
 		const sessionId = "urn:refarm:session:v1:test";
-		const repl = runSessionRepl(sessionId, deps);
+		runSessionRepl(sessionId, deps);
 		lastInterface.emit("close");
-		await repl;
+		await Promise.resolve();
 
 		const out = logs.join("\n");
 		expect(out).toContain(
@@ -99,9 +101,9 @@ describe("runSessionRepl", () => {
 		};
 
 		const sessionId = "urn:refarm:session:v1:test";
-		const repl = runSessionRepl(sessionId, deps);
+		runSessionRepl(sessionId, deps);
 		lastInterface.emit("SIGINT");
-		await repl;
+		await Promise.resolve();
 
 		const out = logs.join("\n");
 		expect(out).toContain("Goodbye.");
@@ -111,6 +113,38 @@ describe("runSessionRepl", () => {
 		expect(out).toContain(
 			"To inspect next operator action, run: refarm resume --next-action",
 		);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("prints resume hints exactly once on /exit", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
+			logs.push(String(args[0]));
+			return undefined;
+		});
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		const sessionId = "urn:refarm:session:v1:test";
+		runSessionRepl(sessionId, deps);
+		lastInterface.emit("line", "/exit");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain("Goodbye.");
+		expect(out).toContain(
+			`To continue this session, run: refarm session --session ${sessionId}`,
+		);
+		expect(out).toContain(
+			"To inspect next operator action, run: refarm resume --next-action",
+		);
+		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
+		expect((out.match(/Session saved\./g) ?? []).length).toBe(1);
 
 		consoleSpy.mockRestore();
 	});
