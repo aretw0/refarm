@@ -1,6 +1,8 @@
 use super::{
-    anthropic_headers, loop_plan_builders::anthropic_loop_plan,
-    loop_runner_common::provider_runner_common_config, loop_runner_types::AnthropicRunnerConfig,
+    loop_plan_builders::anthropic_loop_plan,
+    loop_runner_common::provider_runner_common_config,
+    loop_runner_types::AnthropicRunnerConfig,
+    request_headers_anthropic::anthropic_headers,
 };
 
 pub(crate) fn anthropic_runner_config<'a>(

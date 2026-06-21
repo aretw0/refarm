@@ -33,6 +33,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/ds",
 	"packages/homestead",
 	"packages/cli",
+	"packages/barn",
 	"packages/prompt-contract-v1",
 	"packages/infra-contract-v1",
 	"packages/policy-contract-v1",
@@ -162,7 +163,9 @@ export async function ensureWorkspaceTypeDependencyBuilds(
 ) {
 	const workspaceDirs = await workspaceTypeDependencyBuildDirs(workspaceDir);
 	if (workspaceDirs.length === 0) {
-		console.log(`${loggerPrefix} no TypeScript workspace dependencies to build.`);
+		console.log(
+			`${loggerPrefix} no TypeScript workspace dependencies to build.`,
+		);
 		return;
 	}
 	console.log(

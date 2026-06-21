@@ -1,4 +1,8 @@
 use crate::refarm::plugin::tractor_bridge;
+use crate::response_nodes::{
+    agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
+    UsageRecordPayload,
+};
 
 pub(crate) struct PromptContext {
     pub prompt_ref: String,
@@ -163,7 +167,7 @@ pub(crate) fn store_prompt_and_open_session(
         .filter(|value| !value.trim().is_empty())
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| crate::new_pi_urn("prompt"));
-    let prompt_node = crate::user_prompt_node(&prompt_ref, prompt);
+    let prompt_node = user_prompt_node(&prompt_ref, prompt);
     if !store_node(&prompt_node) {
         return None;
     }
@@ -180,7 +184,7 @@ pub(crate) fn store_agent_response_chunk(
     prompt_ref: &str,
     record: AgentResponseChunkRecord,
 ) -> bool {
-    let response = crate::agent_response_node(crate::AgentResponsePayload {
+    let response = agent_response_node(AgentResponsePayload {
         prompt_ref,
         content: &record.content,
         tool_calls: record.tool_calls,
@@ -272,7 +276,7 @@ pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: Agent
 }
 
 pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput) {
-    let usage = crate::usage_record_node(crate::UsageRecordPayload {
+    let usage = usage_record_node(UsageRecordPayload {
         prompt_ref,
         provider: &usage_input.provider_name,
         model: &usage_input.model,

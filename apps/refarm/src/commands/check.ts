@@ -1,3 +1,4 @@
+import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	runRustSubstrateCheck,
 	type RustSubstrateCheck,
@@ -9,7 +10,6 @@ import {
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
-import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -22,10 +22,7 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
-import {
-	buildRefarmDoctorReport,
-	type RefarmDoctorReport,
-} from "./doctor.js";
+import { buildRefarmDoctorReport, type RefarmDoctorReport } from "./doctor.js";
 import { runHealthAudit, type HealthReport } from "./health.js";
 import { printJson } from "./json-output.js";
 import {
@@ -49,10 +46,14 @@ import {
 
 export type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 
-const NODE_SUBSTRATE_ENVIRONMENT_COMMAND = "Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
-const NODE_SUBSTRATE_INSTALL_COMMAND = "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
-const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
-const NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND = "Use an environment-owned checkout or fix tracked source ownership for the current operator, then retry `refarm check --next-action --json`.";
+const NODE_SUBSTRATE_ENVIRONMENT_COMMAND =
+	"Run validation inside the environment that owns this node_modules tree, or rebuild/reopen the devcontainer so node_modules is isolated per platform.";
+const NODE_SUBSTRATE_INSTALL_COMMAND =
+	"Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
+const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND =
+	"Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
+const NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND =
+	"Use an environment-owned checkout or fix tracked source ownership for the current operator, then retry `refarm check --next-action --json`.";
 
 export interface NodeSubstrateCheck {
 	command: "node-substrate";
@@ -197,7 +198,9 @@ export function buildRefarmCheckReport(checks: {
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
 	];
-	const blockingRecommendations = recommendations.filter(isBlockingRecommendation);
+	const blockingRecommendations = recommendations.filter(
+		isBlockingRecommendation,
+	);
 	const failureCount =
 		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.rustSubstrate?.ok === false ? 1 : 0) +
@@ -209,7 +212,8 @@ export function buildRefarmCheckReport(checks: {
 	return {
 		command: "check",
 		operation: "readiness",
-		ok: (checks.nodeSubstrate?.ok ?? true) &&
+		ok:
+			(checks.nodeSubstrate?.ok ?? true) &&
 			(checks.rustSubstrate?.ok ?? true) &&
 			checks.health.ok &&
 			checks.doctor.ok,
@@ -247,7 +251,8 @@ function releasePolicyCheckRecommendations(
 			diagnostic: "release-policy:kernel-candidates",
 			severity: "info",
 			summary: `Release policy currently selects ${releasePolicy.packageCount} kernel candidate package${releasePolicy.packageCount === 1 ? "" : "s"}.`,
-			action: "Inspect the release plan before preparing npm or crates publication.",
+			action:
+				"Inspect the release plan before preparing npm or crates publication.",
 			command: releasePolicy.recommendedCommand,
 		},
 	];
@@ -259,7 +264,8 @@ function workspaceSweepCheckRecommendations(
 	if (!sweep) return [];
 	return sweep.recommendations.map((recommendation) => ({
 		diagnostic: `workspace-sweep:${recommendation.code}`,
-		severity: recommendation.code === "workspace-path-missing" ? "warning" : "info",
+		severity:
+			recommendation.code === "workspace-path-missing" ? "warning" : "info",
 		summary: recommendation.message,
 		action: workspaceSweepRecommendationAction(recommendation),
 		command: recommendation.nextCommand,
@@ -271,7 +277,10 @@ function workspaceSweepRecommendationAction(
 	recommendation: WorkspaceExecutionRecommendation,
 ): string {
 	if (recommendation.code === "workspace-path-missing") {
-		return recommendation.mountHints?.[0] ?? "Make the declared workspace path visible to this runtime, or update its bridge configuration.";
+		return (
+			recommendation.mountHints?.[0] ??
+			"Make the declared workspace path visible to this runtime, or update its bridge configuration."
+		);
 	}
 	if (recommendation.code === "turbo-install-needed") {
 		return "Declare Turbo in the target workspace so Refarm can use cache-aware validation.";
@@ -289,8 +298,10 @@ function workspaceExecutionCheckRecommendations(
 		recommendations.push({
 			diagnostic: "workspace-execution:turbo-adapter-unprovisioned",
 			severity: "warning",
-			summary: "Workspace has turbo.json, but the Turbo adapter is not declared in package.json.",
-			action: "Declare Turbo in the workspace so Refarm can use cache-aware validation, or remove turbo.json if direct package scripts are intentional.",
+			summary:
+				"Workspace has turbo.json, but the Turbo adapter is not declared in package.json.",
+			action:
+				"Declare Turbo in the workspace so Refarm can use cache-aware validation, or remove turbo.json if direct package scripts are intentional.",
 			command: turbo.installCommand,
 			target: execution.root,
 		});
@@ -299,8 +310,10 @@ function workspaceExecutionCheckRecommendations(
 		recommendations.push({
 			diagnostic: "workspace-execution:remote-cache-not-configured",
 			severity: "info",
-			summary: "Workspace validation can use the local Turbo cache, but no remote cache credentials are configured.",
-			action: "Provision or configure a remote cache when validation should get hits across machines and containers.",
+			summary:
+				"Workspace validation can use the local Turbo cache, but no remote cache credentials are configured.",
+			action:
+				"Provision or configure a remote cache when validation should get hits across machines and containers.",
 			command: execution.cache.remote.provisionCommand,
 			target: execution.root,
 		});
@@ -317,8 +330,12 @@ function modelDoctorCheckRecommendations(
 	}));
 }
 
-function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
-	return recommendation.severity !== "warning" && recommendation.severity !== "info";
+function isBlockingRecommendation(
+	recommendation: DiagnosticRecommendation,
+): boolean {
+	return (
+		recommendation.severity !== "warning" && recommendation.severity !== "info"
+	);
 }
 
 function printRefarmCheckSummary(report: RefarmCheckReport): void {
@@ -355,7 +372,9 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 		`Doctor: ${report.checks.doctor.ok ? "pass" : "fail"} (${report.checks.doctor.failureCount} failure${report.checks.doctor.failureCount === 1 ? "" : "s"}, ${report.checks.doctor.warningCount} warning${report.checks.doctor.warningCount === 1 ? "" : "s"})`,
 	);
 	if (report.checks.model) {
-		const modelWarnings = modelDoctorCheckRecommendations(report.checks.model).length;
+		const modelWarnings = modelDoctorCheckRecommendations(
+			report.checks.model,
+		).length;
 		console.log(
 			`Model: ${modelWarnings === 0 ? "pass" : "warn"} (${modelWarnings} warning${modelWarnings === 1 ? "" : "s"})`,
 		);
@@ -442,7 +461,7 @@ async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
 
 async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
 	const recommendedCommand = "refarm release plan --selection default --json";
-	const engine = await import("@refarm.dev/release-engine") as {
+	const engine = (await import("@refarm.dev/release-engine")) as {
 		buildReleasePlan: (options: {
 			cwd?: string;
 			selectionId?: string;
@@ -458,7 +477,10 @@ async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
 			blockers: unknown[];
 		};
 	};
-	const plan = engine.buildReleasePlan({ cwd: process.cwd(), selectionId: "default" });
+	const plan = engine.buildReleasePlan({
+		cwd: process.cwd(),
+		selectionId: "default",
+	});
 	const summary = engine.summarizePlan(plan);
 	return {
 		command: "release",
@@ -499,9 +521,7 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	for (const relativePath of [
 		"node_modules",
 		"path:node_modules/.bin",
-		...["vitest", "tsc", "eslint"].map(
-			(binary) => `bin:${binary}`,
-		),
+		...["vitest", "tsc", "eslint"].map((binary) => `bin:${binary}`),
 	]) {
 		if (relativePath.startsWith("bin:")) {
 			const binary = relativePath.slice("bin:".length);
@@ -530,7 +550,9 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	}
 	const mountIssues = await findNodeSubstrateMountIssues(root);
 	const workspaceLinkChecks = await findNodeSubstrateWorkspaceLinkChecks(root);
-	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
+	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter(
+		(check) => !check.ok,
+	);
 	const runtimeChecks = await findNodeSubstrateRuntimeChecks(root);
 	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 	const sourceAccessIssues = await findNodeSubstrateSourceAccessIssues(root);
@@ -554,10 +576,14 @@ async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 		mountIssues,
 		workspaceLinkCount: workspaceLinkChecks.length,
 		missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
-		missingWorkspaceDependencyLinks: compactNodeSubstrateDependencyIssues(missingWorkspaceDependencyLinks),
+		missingWorkspaceDependencyLinks: compactNodeSubstrateDependencyIssues(
+			missingWorkspaceDependencyLinks,
+		),
 		runtimeChecks,
 		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
-		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(missingRuntimeDependencies),
+		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(
+			missingRuntimeDependencies,
+		),
 		sourceAccessIssueCount: sourceAccessIssues.length,
 		sourceAccessIssues: sourceAccessIssues.slice(0, 20),
 		recommendations,
@@ -577,24 +603,30 @@ export function buildNodeSubstrateRecommendations(input: {
 	sourceAccessIssues?: NodeSubstrateCheck["sourceAccessIssues"];
 	installCommand?: string;
 }): DiagnosticRecommendation[] {
-	const installCommand = input.installCommand ?? packageFrozenInstallCommand().display;
+	const installCommand =
+		input.installCommand ?? packageFrozenInstallCommand().display;
 	const sourceAccessIssues = input.sourceAccessIssues ?? [];
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
 			{
-				diagnostic: input.mountIssues.length > 0
-					? "node-substrate:shared-devcontainer-node-modules"
-					: "node-substrate:foreign-platform-shims",
+				diagnostic:
+					input.mountIssues.length > 0
+						? "node-substrate:shared-devcontainer-node-modules"
+						: "node-substrate:foreign-platform-shims",
 				severity: "failure",
-				summary: input.mountIssues.length > 0
-					? "The devcontainer contract expects node_modules to be a dedicated Docker volume, but this runtime is using the shared workspace mount."
-					: "node_modules contains package-manager shims for a different platform.",
+				summary:
+					input.mountIssues.length > 0
+						? "The devcontainer contract expects node_modules to be a dedicated Docker volume, but this runtime is using the shared workspace mount."
+						: "node_modules contains package-manager shims for a different platform.",
 				action: NODE_SUBSTRATE_ENVIRONMENT_COMMAND,
 				target: [
-					...input.foreignPlatformShims.map((shim) => `${shim.found} -> ${shim.expected}`),
-					...input.mountIssues.map((issue) => `${issue.path} -> ${issue.target}`),
-				]
-					.join(", "),
+					...input.foreignPlatformShims.map(
+						(shim) => `${shim.found} -> ${shim.expected}`,
+					),
+					...input.mountIssues.map(
+						(issue) => `${issue.path} -> ${issue.target}`,
+					),
+				].join(", "),
 			},
 		];
 	}
@@ -603,7 +635,8 @@ export function buildNodeSubstrateRecommendations(input: {
 			{
 				diagnostic: "node-substrate:source-inaccessible",
 				severity: "failure",
-				summary: "One or more tracked source files are not writable or do not resolve in this environment.",
+				summary:
+					"One or more tracked source files are not writable or do not resolve in this environment.",
 				action: NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND,
 				target: sourceAccessIssues
 					.slice(0, 20)
@@ -617,7 +650,8 @@ export function buildNodeSubstrateRecommendations(input: {
 			{
 				diagnostic: "node-substrate:missing-package-manager-bins",
 				severity: "failure",
-				summary: "node_modules is missing package-manager execution shims required by Refarm checks.",
+				summary:
+					"node_modules is missing package-manager execution shims required by Refarm checks.",
 				action: NODE_SUBSTRATE_INSTALL_COMMAND,
 				command: installCommand,
 				target: input.missing.join(", "),
@@ -626,7 +660,8 @@ export function buildNodeSubstrateRecommendations(input: {
 	}
 	if (input.missingWorkspaceDependencyLinks.length > 0) {
 		const massiveWindowsWorkspaceLinkFailure =
-			os.platform() === "win32" && input.missingWorkspaceDependencyLinks.length > 20;
+			os.platform() === "win32" &&
+			input.missingWorkspaceDependencyLinks.length > 20;
 		return [
 			{
 				diagnostic: "node-substrate:missing-workspace-dependency-links",
@@ -637,10 +672,14 @@ export function buildNodeSubstrateRecommendations(input: {
 				action: massiveWindowsWorkspaceLinkFailure
 					? NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND
 					: NODE_SUBSTRATE_INSTALL_COMMAND,
-				command: massiveWindowsWorkspaceLinkFailure ? undefined : installCommand,
+				command: massiveWindowsWorkspaceLinkFailure
+					? undefined
+					: installCommand,
 				target: input.missingWorkspaceDependencyLinks
 					.slice(0, 20)
-					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
+					.map(
+						(dependency) => `${dependency.package} -> ${dependency.dependency}`,
+					)
 					.join(", "),
 			},
 		];
@@ -650,11 +689,14 @@ export function buildNodeSubstrateRecommendations(input: {
 			{
 				diagnostic: "node-substrate:missing-runtime-dependencies",
 				severity: "failure",
-				summary: "One or more workspace CLI packages cannot resolve declared external runtime dependencies from this environment.",
+				summary:
+					"One or more workspace CLI packages cannot resolve declared external runtime dependencies from this environment.",
 				action: NODE_SUBSTRATE_INSTALL_COMMAND,
 				command: installCommand,
 				target: input.missingRuntimeDependencies
-					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
+					.map(
+						(dependency) => `${dependency.package} -> ${dependency.dependency}`,
+					)
 					.join(", "),
 			},
 		];
@@ -740,7 +782,8 @@ async function findNodeSubstrateSourceAccessIssues(
 }
 
 function isSourceOwnershipCandidate(relativePath: string): boolean {
-	return !relativePath.startsWith(".git/") &&
+	return (
+		!relativePath.startsWith(".git/") &&
 		!relativePath.includes("/node_modules/") &&
 		!relativePath.startsWith("node_modules/") &&
 		!relativePath.includes("/dist/") &&
@@ -748,7 +791,8 @@ function isSourceOwnershipCandidate(relativePath: string): boolean {
 		!relativePath.includes("/build/") &&
 		!relativePath.startsWith("build/") &&
 		!relativePath.includes("/.turbo/") &&
-		!relativePath.startsWith(".turbo/");
+		!relativePath.startsWith(".turbo/")
+	);
 }
 
 async function readGitTrackedFiles(root: string): Promise<string[]> {
@@ -776,9 +820,15 @@ async function findNodeSubstrateRuntimeChecks(
 ): Promise<NodeSubstrateCheck["runtimeChecks"]> {
 	const checks: NodeSubstrateCheck["runtimeChecks"] = [];
 	for await (const workspacePackage of readWorkspacePackageManifests(root)) {
-		if (!workspacePackage.manifest.bin || !workspacePackage.manifest.dependencies) continue;
+		if (
+			!workspacePackage.manifest.bin ||
+			!workspacePackage.manifest.dependencies
+		)
+			continue;
 		const requireFromPackage = createRequire(workspacePackage.manifestPath);
-		for (const [dependency, version] of Object.entries(workspacePackage.manifest.dependencies).sort()) {
+		for (const [dependency, version] of Object.entries(
+			workspacePackage.manifest.dependencies,
+		).sort()) {
 			if (version.startsWith("workspace:")) continue;
 			try {
 				requireFromPackage.resolve(dependency);
@@ -866,7 +916,9 @@ async function findNodeSubstrateMountIssues(
 	];
 }
 
-async function readDevcontainerNodeModulesTarget(root: string): Promise<string | null> {
+async function readDevcontainerNodeModulesTarget(
+	root: string,
+): Promise<string | null> {
 	try {
 		const raw = await fs.readFile(
 			path.join(root, ".devcontainer", "devcontainer.json"),
@@ -880,14 +932,12 @@ async function readDevcontainerNodeModulesTarget(root: string): Promise<string |
 				mount.split(",").map((field) => {
 					const index = field.indexOf("=");
 					if (index === -1) return [field.trim(), ""];
-					return [
-						field.slice(0, index).trim(),
-						field.slice(index + 1).trim(),
-					];
+					return [field.slice(0, index).trim(), field.slice(index + 1).trim()];
 				}),
 			);
 			if (fields.source !== "refarm-node-modules") continue;
-			if (typeof fields.target !== "string" || fields.target.length === 0) continue;
+			if (typeof fields.target !== "string" || fields.target.length === 0)
+				continue;
 			const target = path.resolve(fields.target);
 			if (target === path.resolve(root, "node_modules")) return target;
 		}
@@ -919,21 +969,27 @@ function decodeMountInfoPath(value: string): string {
 export function createCheckCommand(
 	deps: RefarmCheckDeps = {
 		runHealth: runHealthAudit,
-	runDoctor: runDefaultDoctor,
-	runModelDoctor: runDefaultModelDoctor,
-	runNodeSubstrate: runDefaultNodeSubstrate,
-	runRustSubstrate: runRustSubstrateCheck,
-	runWorkspaceExecution: runDefaultWorkspaceExecution,
-	runWorkspaceSweep: runDefaultWorkspaceSweep,
-	runReleasePolicy: runDefaultReleasePolicy,
+		runDoctor: runDefaultDoctor,
+		runModelDoctor: runDefaultModelDoctor,
+		runNodeSubstrate: runDefaultNodeSubstrate,
+		runRustSubstrate: runRustSubstrateCheck,
+		runWorkspaceExecution: runDefaultWorkspaceExecution,
+		runWorkspaceSweep: runDefaultWorkspaceSweep,
+		runReleasePolicy: runDefaultReleasePolicy,
 	},
 ): Command {
 	return new Command("check")
 		.description("Run the cheap composite readiness gate")
 		.option("--json", "Output machine-readable composite report")
 		.option("--next-action", "Print only the first blocking recovery action")
-		.option("--next-command", "Print only the first executable recovery command")
-		.option("--fail-on-warnings", "Treat doctor warning diagnostics as failures")
+		.option(
+			"--next-command",
+			"Print only the first executable recovery command",
+		)
+		.option(
+			"--fail-on-warnings",
+			"Treat doctor warning diagnostics as failures",
+		)
 		.addHelpText(
 			"after",
 			`

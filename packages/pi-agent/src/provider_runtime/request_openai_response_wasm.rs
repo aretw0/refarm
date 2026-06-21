@@ -10,6 +10,9 @@ use super::{
 };
 
 #[cfg(target_arch = "wasm32")]
+use crate::tools::tools_openai;
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn openai_iteration_response(
     provider: &str,
     base_url: &str,
@@ -22,11 +25,11 @@ pub(crate) fn openai_iteration_response(
         build_openai_codex_responses_body_with_streaming(
             model,
             wire_msgs,
-            crate::tools_openai(),
+            tools_openai(),
             stream,
         )
     } else {
-        build_openai_body_with_streaming(model, wire_msgs, crate::tools_openai(), stream)
+        build_openai_body_with_streaming(model, wire_msgs, tools_openai(), stream)
     };
     Ok(if provider == "openai-codex" {
         let bytes = crate::provider::http_post_via_host(

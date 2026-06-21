@@ -5,6 +5,9 @@ use super::{
 };
 
 #[cfg(target_arch = "wasm32")]
+use crate::tools::tools_anthropic;
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn anthropic_iteration_response(
     model: &str,
     system: &str,
@@ -15,7 +18,7 @@ pub(crate) fn anthropic_iteration_response(
         model,
         system,
         wire_msgs,
-        crate::tools_anthropic(),
+        tools_anthropic(),
         crate::streaming_config::provider_stream_request_enabled_from_env(),
     );
     execute_json_request_with_streaming_callback(

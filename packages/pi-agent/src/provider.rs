@@ -1,4 +1,7 @@
-use crate::refarm::plugin::model_bridge;
+use crate::{
+    provider_config::{openai_compat_defaults, choose_model, ANTHROPIC_DEFAULT_MODEL},
+    refarm::plugin::model_bridge,
+};
 
 pub struct CompletionResult {
     pub content: String,
@@ -31,16 +34,16 @@ impl Provider {
     pub fn from_provider_name_with_model(provider_name: &str, explicit_model: &str) -> Self {
         if provider_name == "anthropic" {
             return Provider::Anthropic {
-                model: crate::choose_model(explicit_model, crate::ANTHROPIC_DEFAULT_MODEL),
+                model: choose_model(explicit_model, ANTHROPIC_DEFAULT_MODEL),
             };
         }
 
-        let (default_base, default_model) = crate::openai_compat_defaults(provider_name);
+        let (default_base, default_model) = openai_compat_defaults(provider_name);
         let base_url = std::env::var("MODEL_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
         Provider::OpenAiCompat {
             provider: provider_name.to_owned(),
             base_url,
-            model: crate::choose_model(explicit_model, default_model),
+            model: choose_model(explicit_model, default_model),
         }
     }
 
