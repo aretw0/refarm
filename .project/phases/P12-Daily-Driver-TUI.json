@@ -53,7 +53,5 @@
     "reload_protocol": "POST /plugins/reload → farmhand chama loadInstalledPlugins() → retorna { reloaded, skipped }",
     "session_persistence": "Reutiliza session-lock.ts existente — mesmo mecanismo do ask"
   },
-  "remaining": [
-    "Coverage baselines: storage-sqlite, context-provider-v1 (sem testes ainda)"
-  ]
+  "remaining": []
 }
