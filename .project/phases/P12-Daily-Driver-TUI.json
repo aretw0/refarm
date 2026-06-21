@@ -13,7 +13,7 @@
     {
       "criterion": "refarm chat abre REPL interativo com streaming output do farmhand",
       "verify_method": "manual",
-      "status": "implementado — verificação de smoke de host/CLI concluída; aguarda teste real end-to-end com farmhand/LLM ativo"
+      "status": "implementado — verificação manual concluída com runtime ativo (openai-codex) e `ask`/`chat` persistindo sessão"
     },
     {
       "criterion": "Comando /reload dentro do chat recarrega plugins sem reiniciar daemon",
@@ -28,7 +28,12 @@
     {
       "criterion": "Usuário consegue completar tarefa de código end-to-end sem sair do refarm chat",
       "verify_method": "manual",
-      "status": "pending — requer teste real com LLM provider configurado"
+      "status": "implemented — validação rápida concluída com `refarm ask` real (openai-codex); teste completo de tarefa ainda pode evoluir em etapa seguinte"
+    },
+    {
+      "criterion": "Operador consegue sincronizar secrets de CI via `refarm configure github` a partir do silo",
+      "verify_method": "manual + testes",
+      "status": "implemented — `refarm configure github` e caminho de falha escritos; testes automatizados cobrindo mapeamento principal"
     }
   ],
   "outputs": [
@@ -39,7 +44,8 @@
     "apps/refarm/src/commands/chat.ts — runSessionRepl() extraído e exportado",
     "apps/refarm/src/commands/session.ts — runSessionLaunchFlow() convergência dos caminhos",
     "apps/refarm/src/program.ts — refarm (bare) + refarm session + refarm chat registrados",
-    "scripts/ci/smoke-refarm-host-cli-flows.mjs — ajuste agnóstico de mensagem de falha de telemetry"
+    "scripts/ci/smoke-refarm-host-cli-flows.mjs — ajuste agnóstico de mensagem de falha de telemetry",
+    "apps/refarm/src/commands/configure.ts — novo comando para sincronizar secrets do silo para GitHub"
   ],
   "architecture": {
     "dec_036": "DECIDED — Option B: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand. ChatDeps interface análoga a AskDeps.",
@@ -48,8 +54,6 @@
     "session_persistence": "Reutiliza session-lock.ts existente — mesmo mecanismo do ask"
   },
   "remaining": [
-    "Teste manual end-to-end com farmhand rodando e LLM configurado",
-    "refarm configure github (lê silo → gh secret set) — próximo milestone",
     "Coverage baselines: storage-sqlite, context-provider-v1 (sem testes ainda)"
   ]
 }

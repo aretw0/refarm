@@ -5,6 +5,7 @@ import { askCommand } from "./commands/ask.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
+import { configureCommand } from "./commands/configure.js";
 import { deployCommand } from "./commands/deploy.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { extensionCommand } from "./commands/extension.js";
@@ -80,7 +81,9 @@ function createLazyCommand<TOptions extends Record<string, unknown>>(
 	}
 	return command.action(async (...actionArgs: unknown[]) => {
 		const invokedCommand = actionArgs.at(-1) as Command;
-		const argument = config.argument ? (actionArgs[0] as string | undefined) : undefined;
+		const argument = config.argument
+			? (actionArgs[0] as string | undefined)
+			: undefined;
 		const opts = invokedCommand.opts<TOptions>();
 		const loaded = await config.load();
 		await loaded.parseAsync(config.toArgs(argument, opts), { from: "user" });
@@ -97,7 +100,7 @@ program
 			"",
 			"Common workflows:",
 			"  $ refarm                         Start or resume the interactive agent session",
-			"  $ refarm ask \"hello\"             Send one prompt and exit",
+			'  $ refarm ask "hello"             Send one prompt and exit',
 			"  $ refarm resume                  Show runtime and worker resume hints",
 			"  $ refarm sow                     Configure credentials and model provider",
 			"  $ refarm runtime                 Inspect selected runtime engine and autostart",
@@ -135,7 +138,11 @@ program.addCommand(
 	createLazyCommand<{ force?: boolean }>({
 		name: "init",
 		description: "Initialize a new Refarm workspace",
-		argument: { flags: "[name]", description: "Project name", defaultValue: "my-workspace" },
+		argument: {
+			flags: "[name]",
+			description: "Project name",
+			defaultValue: "my-workspace",
+		},
 		options: [
 			{
 				flags: "--force",
@@ -178,8 +185,14 @@ program.addCommand(
 		options: [
 			{ flags: "--model <ref>", description: SOW_MODEL_OPTION_DESCRIPTION },
 			{ flags: "--github", description: "Configure GitHub credentials" },
-			{ flags: "--cloudflare", description: "Configure Cloudflare credentials" },
-			{ flags: "--all", description: "Configure or reconfigure all credentials" },
+			{
+				flags: "--cloudflare",
+				description: "Configure Cloudflare credentials",
+			},
+			{
+				flags: "--all",
+				description: "Configure or reconfigure all credentials",
+			},
 			{ flags: "--json", description: "Output machine-readable sow result" },
 		],
 		helpText: SOW_HELP_TEXT,
@@ -197,6 +210,7 @@ program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(checkCommand);
 program.addCommand(configCommand);
+program.addCommand(configureCommand);
 program.addCommand(healthCommand);
 program.addCommand(releaseCommand);
 program.addCommand(modelCommand);
@@ -210,8 +224,14 @@ program.addCommand(
 		description: "Mirror your project to another Git remote",
 		options: [
 			{ flags: "--target <url>", description: "Target Git URL for mirroring" },
-			{ flags: "--dry-run", description: "Simulate the migration without pushing" },
-			{ flags: "--json", description: "Output machine-readable migration result" },
+			{
+				flags: "--dry-run",
+				description: "Simulate the migration without pushing",
+			},
+			{
+				flags: "--json",
+				description: "Output machine-readable migration result",
+			},
 		],
 		helpText: `
 
