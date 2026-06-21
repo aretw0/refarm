@@ -1,10 +1,6 @@
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import { Command } from "commander";
-import {
-	defaultChatDeps,
-	runSessionRepl,
-	type ChatDeps,
-} from "./chat.js";
+import { defaultChatDeps, runSessionRepl, type ChatDeps } from "./chat.js";
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
 	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
@@ -69,15 +65,21 @@ async function resolveTargetSession(
 	return readActive() ?? newSessionId();
 }
 
-async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+async function _resolveSessionIdPrefixFromSidecar(
+	prefix: string,
+): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
-	const body = (await response.json()) as { sessions?: Array<{ "@id": string }> };
+	const body = (await response.json()) as {
+		sessions?: Array<{ "@id": string }>;
+	};
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
 }
 
-async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> {
+async function ensureSessionRuntimeAgentReady(
+	deps: ChatDeps,
+): Promise<boolean> {
 	if (!deps.readPluginState) return true;
 	const state = await deps.readPluginState();
 	if (!state) return true;
@@ -90,14 +92,24 @@ async function ensureSessionRuntimeAgentReady(deps: ChatDeps): Promise<boolean> 
 		if (refreshed?.loaded.includes(RUNTIME_AGENT_PLUGIN_ID)) return true;
 	}
 
-	process.stderr.write("✗  Runtime agent is not loaded in the Refarm runtime.\n");
+	process.stderr.write(
+		"✗  Runtime agent is not loaded in the Refarm runtime.\n",
+	);
 	if (!state.installed.includes(RUNTIME_AGENT_PLUGIN_ID)) {
-		process.stderr.write(`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`);
+		process.stderr.write(
+			`   Install bundled plugins:  ${PLUGIN_INSTALL_JSON_COMMAND}\n`,
+		);
 	} else {
-		process.stderr.write(`   Reload runtime plugins:   ${RUNTIME_AGENT_RELOAD_JSON_COMMAND}\n`);
+		process.stderr.write(
+			`   Reload runtime plugins:   ${RUNTIME_AGENT_RELOAD_JSON_COMMAND}\n`,
+		);
 	}
-	process.stderr.write(`   Ensure runtime:           ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\n`);
-	process.stderr.write(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}\n`);
+	process.stderr.write(
+		`   Ensure runtime:           ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\n`,
+	);
+	process.stderr.write(
+		`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}\n`,
+	);
 	return false;
 }
 
@@ -133,7 +145,11 @@ export async function runSessionLaunchFlow(
 		}
 	}
 
-	const effectiveReadiness = { ...readiness, runtimeRunning, farmhandRunning: runtimeRunning };
+	const effectiveReadiness = {
+		...readiness,
+		runtimeRunning,
+		farmhandRunning: runtimeRunning,
+	};
 	if (!isSessionReady(effectiveReadiness)) {
 		printSessionGuide(effectiveReadiness);
 		process.exitCode = 1;
@@ -177,7 +193,7 @@ export function createSessionCommand(deps?: ChatDeps): Command {
 				"  $ refarm session",
 				"  $ refarm session --new",
 				"  $ refarm session --session <id-prefix>",
-				"  $ refarm session \"continue daqui\"",
+				'  $ refarm session "continue daqui"',
 				"",
 				"Notes:",
 				"  Bare refarm runs the same launch flow as refarm session.",
@@ -188,9 +204,14 @@ export function createSessionCommand(deps?: ChatDeps): Command {
 		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Resume a specific session ID or unique prefix")
-		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {
-			await runSessionLaunchFlow({ ...opts, message }, deps);
-		});
+		.action(
+			async (
+				message: string | undefined,
+				opts: { new?: boolean; session?: string },
+			) => {
+				await runSessionLaunchFlow({ ...opts, message }, deps);
+			},
+		);
 }
 
 export const sessionCommand = createSessionCommand();

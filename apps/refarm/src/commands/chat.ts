@@ -188,7 +188,8 @@ export {
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
 		configureCredentials: runSowCommand,
-		recoverRuntime: () => autoStartFarmhand(findRepoRoot(), defaultLaunchDeps()),
+		recoverRuntime: () =>
+			autoStartFarmhand(findRepoRoot(), defaultLaunchDeps()),
 	};
 	}
 
