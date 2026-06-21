@@ -433,6 +433,12 @@ export async function runSessionRepl(
 		deps.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
 	let activeSessionId = sessionId;
+	let hasPrintedResumeHint = false;
+	const printResumeHints = () => {
+		hasPrintedResumeHint = true;
+		console.log(chalk.dim(buildChatSessionResumeHint(activeSessionId)));
+		console.log(chalk.dim(buildChatOperatorResumeHint()));
+	};
 
 	console.log(
 		chalk.bold.cyan(label) +
@@ -463,10 +469,8 @@ export async function runSessionRepl(
 			switch (command.kind) {
 				case "exit":
 					console.log(chalk.dim("Goodbye."));
-					console.log(chalk.dim(buildChatSessionResumeHint(activeSessionId)));
-					console.log(chalk.dim(buildChatOperatorResumeHint()));
+					printResumeHints();
 					rl.close();
-					resolve();
 					break;
 
 				case "help":
@@ -636,6 +640,9 @@ export async function runSessionRepl(
 		rl.on("close", () => {
 			saveChatHistory(chatHistory);
 			console.log(chalk.dim("\nSession saved."));
+			if (!hasPrintedResumeHint) {
+				printResumeHints();
+			}
 			resolve();
 		});
 	});
