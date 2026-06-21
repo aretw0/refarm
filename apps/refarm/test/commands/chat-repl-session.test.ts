@@ -168,11 +168,13 @@ describe("runSessionRepl", () => {
 			});
 
 		const nextSessionId = "urn:refarm:session:v1:switched";
+		const persistActiveSessionId = vi.fn();
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
 			resolveSessionIdPrefix: vi.fn().mockResolvedValue(nextSessionId),
+			persistActiveSessionId,
 		};
 
 		runSessionRepl("urn:refarm:session:v1:test", deps);
@@ -183,9 +185,53 @@ describe("runSessionRepl", () => {
 		await Promise.resolve();
 
 		expect(deps.resolveSessionIdPrefix).toHaveBeenCalledWith("switched");
+		expect(persistActiveSessionId).toHaveBeenCalledWith(nextSessionId);
 		const out = logs.join("\n");
 		expect(out).toContain(
 			`To continue this session, run: refarm session --session ${nextSessionId}`,
+		);
+		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("keeps prior session id when /session fails", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const oldSessionId = "urn:refarm:session:v1:test";
+		const resolveSessionIdPrefix = vi.fn().mockRejectedValue(
+			new Error("No session matching: missing"),
+		);
+		const persistActiveSessionId = vi.fn();
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			resolveSessionIdPrefix,
+			persistActiveSessionId,
+		};
+
+		runSessionRepl(oldSessionId, deps);
+		lastInterface.emit("line", "/session missing");
+		await Promise.resolve();
+		await Promise.resolve();
+		lastInterface.emit("line", "/exit");
+		await Promise.resolve();
+
+		expect(resolveSessionIdPrefix).toHaveBeenCalledWith("missing");
+		expect(persistActiveSessionId).not.toHaveBeenCalled();
+		const out = logs.join("\n");
+		expect(out).toContain(
+			`To continue this session, run: refarm session --session ${oldSessionId}`,
+		);
+		expect(out).not.toContain(
+			"To continue this session, run: refarm session --session urn:refarm:session:v1:missing",
 		);
 		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
 
@@ -201,8 +247,9 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		const generatedSession =
-			"urn:refarm:session:v1:".concat("11111111-2222-3333-4444-555555555555".replace(/-/g, ""));
+		const generatedSession = "urn:refarm:session:v1:".concat(
+			"11111111-2222-3333-4444-555555555555".replace(/-/g, ""),
+		);
 		const randomUUIDSpy = vi
 			.spyOn(crypto, "randomUUID")
 			.mockReturnValue("11111111-2222-3333-4444-555555555555");
