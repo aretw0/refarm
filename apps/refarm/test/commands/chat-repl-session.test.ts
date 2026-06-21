@@ -194,6 +194,39 @@ describe("runSessionRepl", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints status command exception and continues", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+		const errorSpy = vi
+			.spyOn(console, "error")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		mockedLaunchProcess.mockRejectedValue(new Error("launch exploded"));
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/status");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(
+			errorSpy.mock.calls.map((call) => String(call[0])).join("\n"),
+		).toContain("launch exploded");
+
+		const out = logs.join("\n");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("prints resume hints exactly once on /exit", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi
