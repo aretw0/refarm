@@ -133,7 +133,6 @@ fn stream_ref_for_prompt(prompt_ref: &str) -> String {
     format!("urn:tractor:stream:agent-response:{prompt_ref}")
 }
 
-
 fn write_stream_chunk(
     streams_dir: &Path,
     stream_ref: &str,
@@ -152,7 +151,10 @@ fn write_stream_chunk(
     if let Some(meta) = metadata {
         chunk["metadata"] = meta;
     }
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(&path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)?;
     writeln!(file, "{}", chunk)?;
     Ok(())
 }
@@ -221,6 +223,8 @@ struct TaskArgs {
     system: Option<String>,
     session_id: Option<String>,
     history_turns: Option<u64>,
+    provider: Option<String>,
+    model: Option<String>,
 }
 
 fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
@@ -231,9 +235,7 @@ fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
         .or_else(|| args.get("query").and_then(|v| v.as_str()))
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| {
-            "sidecar: @refarm/pi-agent::respond requires args.prompt".to_string()
-        })?
+        .ok_or_else(|| "sidecar: @refarm/pi-agent::respond requires args.prompt".to_string())?
         .to_string();
 
     Ok(TaskArgs {
@@ -247,9 +249,19 @@ fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
             .and_then(|v| v.as_str())
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string()),
-        history_turns: args
-            .get("history_turns")
-            .and_then(|v| v.as_u64()),
+        history_turns: args.get("history_turns").and_then(|v| v.as_u64()),
+        provider: args
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
+        model: args
+            .get("model")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
     })
 }
 
@@ -278,11 +290,16 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         let task = match effort.tasks.first() {
             Some(t) => t.clone(),
             None => {
-                finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
-                    status: "error".to_string(),
-                    result: None,
-                    error: Some("effort has no tasks".to_string()),
-                }]);
+                finalise_effort(
+                    &state.efforts,
+                    &effort_id,
+                    "failed",
+                    vec![TaskResult {
+                        status: "error".to_string(),
+                        result: None,
+                        error: Some("effort has no tasks".to_string()),
+                    }],
+                );
                 return;
             }
         };
@@ -291,29 +308,46 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
 
         // Only `respond` function is supported. The plugin must be the active agent.
         if fn_name != "respond" {
-            finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
-                status: "error".to_string(),
-                result: None,
-                error: Some(format!(
-                    "sidecar: unsupported function {fn_name} (only 'respond' is supported)"
-                )),
-            }]);
+            finalise_effort(
+                &state.efforts,
+                &effort_id,
+                "failed",
+                vec![TaskResult {
+                    status: "error".to_string(),
+                    result: None,
+                    error: Some(format!(
+                        "sidecar: unsupported function {fn_name} (only 'respond' is supported)"
+                    )),
+                }],
+            );
             return;
         }
 
         let args = match extract_task_args(&task) {
             Ok(args) => args,
             Err(error) => {
-                finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
-                    status: "error".to_string(),
-                    result: None,
-                    error: Some(error),
-                }]);
+                finalise_effort(
+                    &state.efforts,
+                    &effort_id,
+                    "failed",
+                    vec![TaskResult {
+                        status: "error".to_string(),
+                        result: None,
+                        error: Some(error),
+                    }],
+                );
                 return;
             }
         };
         let prompt_ref = prompt_ref_from_effort(&effort_id);
         let stream_ref = stream_ref_for_prompt(&prompt_ref);
+        tracing::info!(
+            effort_id = %effort_id,
+            source = effort.source.as_deref().unwrap_or(""),
+            provider = args.provider.as_deref().unwrap_or(""),
+            model = args.model.as_deref().unwrap_or(""),
+            "dispatching sidecar effort to active agent"
+        );
 
         // Build the structured payload for pi-agent's handle_prompt.
         // Includes all session context so pi-agent maintains conversation history.
@@ -329,6 +363,12 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         }
         if let Some(turns) = args.history_turns {
             payload_obj["history_turns"] = Value::Number(turns.into());
+        }
+        if let Some(provider) = args.provider {
+            payload_obj["provider"] = Value::String(provider);
+        }
+        if let Some(model) = args.model {
+            payload_obj["model"] = Value::String(model);
         }
         let payload = payload_obj.to_string();
 
@@ -364,11 +404,16 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     true,
                     None,
                 );
-                finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
-                    status: "error".to_string(),
-                    result: None,
-                    error: Some(format!("{agent_id} not loaded")),
-                }]);
+                finalise_effort(
+                    &state.efforts,
+                    &effort_id,
+                    "failed",
+                    vec![TaskResult {
+                        status: "error".to_string(),
+                        result: None,
+                        error: Some(format!("{agent_id} not loaded")),
+                    }],
+                );
             }
             Some(Err(e)) => {
                 let _ = write_stream_chunk(
@@ -379,20 +424,30 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     true,
                     None,
                 );
-                finalise_effort(&state.efforts, &effort_id, "failed", vec![TaskResult {
-                    status: "error".to_string(),
-                    result: None,
-                    error: Some(format!("channel send error: {e}")),
-                }]);
+                finalise_effort(
+                    &state.efforts,
+                    &effort_id,
+                    "failed",
+                    vec![TaskResult {
+                        status: "error".to_string(),
+                        result: None,
+                        error: Some(format!("channel send error: {e}")),
+                    }],
+                );
             }
             Some(Ok(())) => {
                 // Success — the plugin runner thread will write stream chunks.
                 // Mark done optimistically; a future improvement polls the CRDT for the real result.
-                finalise_effort(&state.efforts, &effort_id, "done", vec![TaskResult {
-                    status: "ok".to_string(),
-                    result: None,
-                    error: None,
-                }]);
+                finalise_effort(
+                    &state.efforts,
+                    &effort_id,
+                    "done",
+                    vec![TaskResult {
+                        status: "ok".to_string(),
+                        result: None,
+                        error: None,
+                    }],
+                );
             }
         }
     });
@@ -461,7 +516,10 @@ async fn post_efforts(
 ) -> impl IntoResponse {
     let effort_id = effort.id.clone();
     dispatch_effort(state, effort);
-    (StatusCode::OK, Json(serde_json::json!({ "effortId": effort_id })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "effortId": effort_id })),
+    )
 }
 
 async fn get_efforts(State(state): State<SidecarState>) -> impl IntoResponse {
@@ -492,7 +550,9 @@ async fn get_effort(
 ) -> impl IntoResponse {
     let store = state.efforts.read().expect("effort store poisoned");
     match store.get(&id) {
-        Some(result) => (StatusCode::OK, Json(serde_json::to_value(result).unwrap())).into_response(),
+        Some(result) => {
+            (StatusCode::OK, Json(serde_json::to_value(result).unwrap())).into_response()
+        }
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
     }
 }
@@ -512,10 +572,16 @@ async fn post_effort_retry(
     let store = state.efforts.read().expect("effort store poisoned");
     match store.get(&id) {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
-        Some(e) if e.status == "active" || e.status == "pending" => {
-            err(StatusCode::CONFLICT, "retry not allowed: effort in progress").into_response()
-        }
-        Some(_) => (StatusCode::ACCEPTED, Json(serde_json::json!({ "accepted": true }))).into_response(),
+        Some(e) if e.status == "active" || e.status == "pending" => err(
+            StatusCode::CONFLICT,
+            "retry not allowed: effort in progress",
+        )
+        .into_response(),
+        Some(_) => (
+            StatusCode::ACCEPTED,
+            Json(serde_json::json!({ "accepted": true })),
+        )
+            .into_response(),
     }
 }
 
@@ -526,10 +592,16 @@ async fn post_effort_cancel(
     let store = state.efforts.read().expect("effort store poisoned");
     match store.get(&id) {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
-        Some(e) if e.status == "done" || e.status == "failed" => {
-            err(StatusCode::CONFLICT, "cancel not allowed: effort already terminal").into_response()
-        }
-        Some(_) => (StatusCode::ACCEPTED, Json(serde_json::json!({ "accepted": true }))).into_response(),
+        Some(e) if e.status == "done" || e.status == "failed" => err(
+            StatusCode::CONFLICT,
+            "cancel not allowed: effort already terminal",
+        )
+        .into_response(),
+        Some(_) => (
+            StatusCode::ACCEPTED,
+            Json(serde_json::json!({ "accepted": true })),
+        )
+            .into_response(),
     }
 }
 
@@ -727,10 +799,7 @@ async fn get_session_history(
         Ok(None) => {
             // Try prefix match over all Session nodes.
             let rows = storage.query_nodes("Session").unwrap_or_default();
-            let matched: Vec<_> = rows
-                .iter()
-                .filter(|r| r.id.contains(&session_id))
-                .collect();
+            let matched: Vec<_> = rows.iter().filter(|r| r.id.contains(&session_id)).collect();
             match matched.len() {
                 0 => return err(StatusCode::NOT_FOUND, "session not found").into_response(),
                 1 => matched[0].payload.clone(),

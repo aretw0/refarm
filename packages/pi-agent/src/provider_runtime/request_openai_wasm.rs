@@ -1,7 +1,8 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
     request_iteration::iteration_response_and_phase_with,
-    request_openai_response_wasm::openai_iteration_response, OpenAiIterationPhase, UsageTotals,
+    request_openai_response_wasm::openai_iteration_response, usage_phase::openai_phase_after_usage,
+    OpenAiIterationPhase, UsageTotals,
 };
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn openai_iteration_response_and_phase(
@@ -15,6 +16,6 @@ pub(crate) fn openai_iteration_response_and_phase(
     iteration_response_and_phase_with(
         || openai_iteration_response(provider, base_url, model, wire_msgs, headers),
         usage_totals,
-        super::openai_phase_after_usage,
+        openai_phase_after_usage,
     )
 }

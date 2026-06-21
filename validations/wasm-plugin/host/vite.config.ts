@@ -36,7 +36,6 @@ export default withWasmBrowserConfig(
       open: true,
     },
     build: {
-      outDir: 'dist-vscode',
       target: 'esnext',
     },
   }),

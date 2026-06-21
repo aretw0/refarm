@@ -9,7 +9,28 @@ pub(crate) fn fnv1a_hash(s: &str) -> u64 {
         .fold(BASIS, |h, b| h.wrapping_mul(PRIME) ^ b as u64)
 }
 
-/// Estimate cost in USD using public per-million-token rates.
+pub(crate) fn pricing_mode_for_provider(provider: &str) -> &'static str {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "openai-codex" | "github-copilot" => "subscription",
+        "ollama" => "local",
+        _ => "api",
+    }
+}
+
+pub(crate) fn estimate_billable_usd(
+    provider: &str,
+    model: &str,
+    tokens_in: u32,
+    tokens_out: u32,
+    tokens_cached: u32,
+) -> f64 {
+    if pricing_mode_for_provider(provider) != "api" {
+        return 0.0;
+    }
+    estimate_usd(model, tokens_in, tokens_out, tokens_cached)
+}
+
+/// Estimate API cost in USD using public per-million-token rates.
 /// Cached tokens are billed at ~10% of normal input rate (Anthropic/OpenAI prompt caching).
 /// Returns 0.0 for local/unknown models — sovereign infra is free.
 pub(crate) fn estimate_usd(

@@ -21,6 +21,8 @@ export {
     MODEL_ROUTE_ENV_VARS,
     MODEL_RUNTIME_ENV_VARS,
     MODEL_SCOPES,
+    RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS,
+    SUBSCRIPTION_MODEL_PROVIDERS,
     defaultProviderModelId,
     defaultProviderModelRef,
     effectiveModelRouteForScope,
@@ -33,6 +35,8 @@ export {
     hasUsableModelCredentialSource,
     isModelProvider,
     isModelScope,
+    isRuntimeSubscriptionModelProvider,
+    isSubscriptionModelProvider,
     modelCredentialStatus,
     modelCredentialEnvKey,
     modelCredentialSource,
@@ -45,6 +49,16 @@ export const PI_AGENT_PLUGIN_ID: "@refarm/pi-agent";
 export const PI_AGENT_NPM_PACKAGE: "@refarm.dev/pi-agent";
 export const RUNTIME_AGENT_PLUGIN_ID: typeof PI_AGENT_PLUGIN_ID;
 export const RUNTIME_AGENT_NPM_PACKAGE: typeof PI_AGENT_NPM_PACKAGE;
+export interface RefarmBundledPluginDescriptor {
+    readonly id: string;
+    readonly npmPackage: string;
+    readonly workspaceDir: string;
+    readonly wasmFile: string;
+    readonly manifestFile: string;
+    readonly requiredProvides: readonly string[];
+}
+export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR: RefarmBundledPluginDescriptor;
+export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS: readonly RefarmBundledPluginDescriptor[];
 export const RUNTIME_AGENT_ERROR_PREFIXES: readonly string[];
 export function normalizePluginId(pluginId: string): string;
 export function isPiAgentPluginId(pluginId: string): boolean;
@@ -52,6 +66,7 @@ export function isRuntimeAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentErrorContent(content: string): boolean;
 export function canonicalRuntimeAgentContent(content: string): string;
 export type {
+    PackageAuditCommandOptions,
     PackageCommandString,
     PackageBinaryCommand,
     PackageManagerName,
@@ -65,17 +80,43 @@ export {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
+    packageAddDevCommand,
+    packageAuditCommand,
+    packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
     packageManagerOverrideDiagnostic,
     packagePublishDryRunCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
     parsePackageManager,
 } from "./package-manager.js";
 export type {
     WorkspacePackageOptions,
 } from "./workspace.js";
+export {
+    WORKSPACE_EXECUTION_ADAPTERS,
+    WORKSPACE_KINDS,
+    WORKSPACE_REMOTE_CACHE_PROVIDERS,
+    declaredWorkspaceFromConfig,
+    declaredWorkspacesFromConfig,
+    parseWorkspaceExecutionAdapter,
+    parseWorkspaceKind,
+    parseWorkspaceRemoteCacheProvider,
+} from "./workspaces-config.js";
+export type {
+    DeclaredWorkspaceBridge,
+    DeclaredWorkspaceCache,
+    DeclaredWorkspaceConfig,
+    DeclaredWorkspaceExecution,
+    DeclaredWorkspaceRepository,
+    DeclaredWorkspaceRemoteCache,
+    DeclaredWorkspaceRemoteCacheEnv,
+    WorkspaceExecutionAdapter,
+    WorkspaceKind,
+    WorkspaceRemoteCacheProvider,
+} from "./workspaces-config.js";
 export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,

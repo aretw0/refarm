@@ -65,6 +65,9 @@ fn agent_response_schema_has_required_fields() {
     assert_eq!(node["is_final"], true);
     assert_eq!(node["sequence"], 0);
     for sub in ["model", "tokens_in", "tokens_out", "duration_ms"] {
-        assert!(node["inference"].get(sub).is_some(), "inference missing: {sub}");
+        assert!(
+            node["inference"].get(sub).is_some(),
+            "inference missing: {sub}"
+        );
     }
 }

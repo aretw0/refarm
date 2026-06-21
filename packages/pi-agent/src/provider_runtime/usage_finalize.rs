@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use super::{response_usage, CompletionLoopOutcome, ProviderLoopState, UsageTotals};
+use super::{usage_extract::response_usage, CompletionLoopOutcome, ProviderLoopState, UsageTotals};
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn completion_result(

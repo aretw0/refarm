@@ -9,6 +9,8 @@ describe("createRuntimeAgentRespondEffort", () => {
 			sessionId: "urn:refarm:session:v1:abc",
 			source: "refarm-chat",
 			historyTurns: 20,
+			modelProvider: "openai-codex",
+			modelId: "gpt-5.3-codex-spark",
 			now: () => new Date("2026-05-18T19:00:00.000Z"),
 			randomUUID: (() => {
 				const ids = ["effort-id", "task-id"];
@@ -29,6 +31,8 @@ describe("createRuntimeAgentRespondEffort", () => {
 						system: "system context",
 						session_id: "urn:refarm:session:v1:abc",
 						history_turns: 20,
+						provider: "openai-codex",
+						model: "gpt-5.3-codex-spark",
 					},
 				},
 			],

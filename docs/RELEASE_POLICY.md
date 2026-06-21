@@ -7,6 +7,24 @@ This policy defines the cadence, security, and velocity for different layers of 
 ## 1. The Core Kernel (`@refarm.dev/*`)
 **Velocity Strategy: Slow, Deliberate, and Immutable.**
 
+Refarm now owns a dedicated release policy engine in `packages/release-engine` with
+neutral defaults. Refarm-specific semantics are declared in `.refarm/config.json` under
+`releasePolicy`, so decisions stay in our embedded configuration layer instead of in the
+engine package itself. Both `vault-seed` and `agents-lab` should consume their own intentional
+`releasePolicy` blocks (can copy/evolve this shape) as soon as their policy surface is aligned.
+
+Daily-driver probes:
+
+- `refarm release plan --selection default --json` shows the configured daily-driver release selection.
+- `refarm release plan --tag kernel-contract --json` shows the wider kernel contract surface.
+- `refarm agent --json` and `refarm agent finish --templates --json` expose release policy probes as read-only handoffs for agents and external workspaces.
+
+Package release posture is tracked in
+[`RELEASE_KERNEL_INVENTORY.md`](RELEASE_KERNEL_INVENTORY.md). Treat that
+inventory as the current source for whether a package is a kernel contract,
+kernel primitive, reference implementation, daily-driver surface, or lab/internal
+surface before adding release policy entries.
+
 The Tractor, Heartwood, and base Contracts (`-contract-v1`) are the foundation of user sovereignty. A bug here compromises all data.
 
 - **Cadence**: Infrequent. Changes require architectural validation (ADRs).
@@ -41,6 +59,11 @@ Plugins are where the ecosystem breathes. Because Tractor enforces capability co
 
 ## Security of `pnpm run release`
 Our local `pnpm run release` script is a **Preparation Tool**, not a deployment tool.
+
+Before preparing a package-specific release, run `pnpm run release:readiness:plan`
+to inspect the first-release gate sequence, then `pnpm run release:readiness`
+when the local environment should prove npm/crates/workflow readiness end to end.
+This gate composes existing checks instead of minting a second release policy.
 
 1. It blocks execution if the git working tree is dirty.
 2. It bumps the version locally.

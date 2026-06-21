@@ -1,12 +1,14 @@
 //! Pi Agent — sovereign AI agent for edge nodes and Raspberry Pi.
 //!
 //! # Provider selection (env vars)
-//!   MODEL_PROVIDER=anthropic|openai|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
+//!   MODEL_PROVIDER=anthropic|openai|openai-codex|github-copilot|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
 //!   MODEL_DEFAULT_PROVIDER=<name>            (user's sovereign default, overrides ollama floor)
 //!   MODEL_ID=<model-id>                      (provider-specific default if unset)
 //!   MODEL_BASE_URL=<url>                     (optional override for any provider)
 //!   ANTHROPIC_API_KEY=sk-ant-...
 //!   OPENAI_API_KEY=sk-...                    (openai; also fallback for unknown compat providers)
+//!   OPENAI_CODEX_ACCESS_TOKEN=ey...           (openai-codex subscription token)
+//!   GITHUB_COPILOT_ACCESS_TOKEN=gho_...      (github-copilot subscription token)
 //!   GROQ_API_KEY=gsk_...
 //!   MISTRAL_API_KEY=...
 //!   XAI_API_KEY=xai-...
@@ -65,11 +67,6 @@ mod utils;
 // (provider.rs calls these via `super::`, tests access them via `use super::*`).
 #[allow(unused_imports)]
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
-pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
-pub(crate) use response_nodes::{
-    agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
-    UsageRecordPayload,
-};
 #[allow(unused_imports)]
 pub(crate) use runtime::react;
 #[cfg(target_arch = "wasm32")]
@@ -86,9 +83,21 @@ pub(crate) use session::{
 pub(crate) use structured_io::{
     apply_edits, detect_format, read_structured_parse, validate_structured,
 };
-pub(crate) use tools::{tools_anthropic, tools_openai};
 #[allow(unused_imports)]
-pub(crate) use utils::{estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns};
+pub(crate) use utils::{
+    estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns,
+    pricing_mode_for_provider,
+};
+
+#[cfg(test)]
+pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
+#[cfg(test)]
+pub(crate) use response_nodes::{
+    agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
+    UsageRecordPayload,
+};
+#[cfg(test)]
+pub(crate) use tools::{tools_anthropic, tools_openai};
 
 use exports::refarm::plugin::integration::{
     Guest as IntegrationGuest, PluginError, PluginMetadata,
@@ -102,6 +111,8 @@ struct RespondPayload {
     system: Option<String>,
     session_id: Option<String>,
     history_turns: Option<usize>,
+    provider: Option<String>,
+    model: Option<String>,
 }
 
 /// RAII guard: sets an env var for the duration of a call, restores on drop.
@@ -165,11 +176,25 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         .get("history_turns")
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
+    let provider = parsed
+        .get("provider")
+        .and_then(|v| v.as_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+    let model = parsed
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
     Ok(RespondPayload {
         prompt,
         system,
         session_id,
         history_turns,
+        provider,
+        model,
     })
 }
 
@@ -185,6 +210,7 @@ fn build_respond_json(
 ) -> String {
     let usage_details =
         serde_json::from_str::<serde_json::Value>(&usage_raw).unwrap_or(serde_json::json!({}));
+    let pricing_mode = pricing_mode_for_provider(&provider);
     serde_json::json!({
         "content": content,
         "model": model,
@@ -193,6 +219,7 @@ fn build_respond_json(
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
             "tokens_reasoning": tokens_reasoning,
+            "pricing_mode": pricing_mode,
             "estimated_usd": estimated_usd,
             "raw": usage_details,
         }
@@ -206,11 +233,18 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
 
-    let outcome =
-        runtime::execute_prompt(&req.prompt, req.system.as_deref(), None).ok_or_else(|| {
-            PluginError::Internal("failed to persist prompt context before respond".to_string())
-        })?;
-    let estimated_usd = estimate_usd(
+    let outcome = runtime::execute_prompt_with_route(
+        &req.prompt,
+        req.system.as_deref(),
+        None,
+        req.provider.as_deref(),
+        req.model.as_deref(),
+    )
+    .ok_or_else(|| {
+        PluginError::Internal("failed to persist prompt context before respond".to_string())
+    })?;
+    let estimated_usd = estimate_billable_usd(
+        &outcome.provider,
         &outcome.model,
         outcome.tokens_in,
         outcome.tokens_out,
@@ -231,6 +265,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
 #[cfg(not(target_arch = "wasm32"))]
 fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let turns_str = req.history_turns.map(|n| n.to_string());
+    let _provider = EnvGuard::maybe_set("MODEL_PROVIDER", req.provider.as_deref());
+    let _model = EnvGuard::maybe_set("MODEL_ID", req.model.as_deref());
     let _system = EnvGuard::maybe_set("MODEL_SYSTEM", req.system.as_deref());
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
@@ -246,7 +282,8 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
         usage_raw,
     ) = runtime::react_with_prompt_ref(&req.prompt, None);
     let provider = provider_name_from_env().to_string();
-    let estimated_usd = estimate_usd(&model, tokens_in, tokens_out, tokens_cached);
+    let estimated_usd =
+        estimate_billable_usd(&provider, &model, tokens_in, tokens_out, tokens_cached);
     Ok(build_respond_json(
         content,
         model,

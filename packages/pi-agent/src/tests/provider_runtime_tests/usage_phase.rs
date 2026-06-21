@@ -33,6 +33,23 @@ fn provider_runtime_usage_totals_ingest_openai_fields() {
 }
 
 #[test]
+fn provider_runtime_usage_totals_ingest_openai_responses_fields() {
+    let usage = serde_json::json!({
+        "input_tokens": 12,
+        "output_tokens": 6,
+        "input_tokens_details": {"cached_tokens": 7},
+        "output_tokens_details": {"reasoning_tokens": 2}
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    totals.ingest_openai_usage(&usage);
+
+    assert_eq!(totals.tokens_in, 12);
+    assert_eq!(totals.tokens_out, 6);
+    assert_eq!(totals.tokens_cached, 7);
+    assert_eq!(totals.tokens_reasoning, 2);
+}
+
+#[test]
 fn provider_runtime_response_usage_returns_usage_object() {
     let response = serde_json::json!({"usage": {"prompt_tokens": 9}});
     assert_eq!(

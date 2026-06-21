@@ -99,7 +99,7 @@ notification requires no changes to the endpoint contract.
 
 ## Technical Approach
 
-See design doc: [`docs/superpowers/specs/2026-05-13-graceful-plugin-reload-and-model-rename-design.md`](../../docs/superpowers/specs/2026-05-13-graceful-plugin-reload-and-model-rename-design.md)
+See design doc: [`Feature: Plugin Lifecycle`](./plugin-lifecycle.md)
 
 ### New components
 
@@ -146,6 +146,5 @@ polling to SSE requires no changes to the Farmhand endpoint contract.
 
 ## References
 
-- [Design doc](../../docs/superpowers/specs/2026-05-13-graceful-plugin-reload-and-model-rename-design.md)
-- [Feature: Plugin Lifecycle](plugin-lifecycle.md)
+- [Plugin lifecycle spec](./plugin-lifecycle.md)
 - [ADR-065: Farmhand Transparent Lifecycle](../ADRs/ADR-065-farmhand-transparent-lifecycle.md)

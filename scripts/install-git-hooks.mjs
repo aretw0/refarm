@@ -51,33 +51,30 @@ case "$PACKAGE_MANAGER" in
     PACKAGE_RUN="pnpm run"
     PACKAGE_RUN_SILENT="pnpm run --silent"
     PACKAGE_EXEC="pnpm exec"
-    PACKAGE_AUDIT_HIGH="pnpm audit --audit-level=high --silent"
     ;;
   npm)
     PACKAGE_RUN="npm run"
     PACKAGE_RUN_SILENT="npm run --silent"
     PACKAGE_EXEC="npm exec --"
-    PACKAGE_AUDIT_HIGH="npm audit --audit-level=high --silent"
     ;;
   yarn)
     PACKAGE_RUN="yarn run"
     PACKAGE_RUN_SILENT="yarn run --silent"
     PACKAGE_EXEC="yarn"
-    PACKAGE_AUDIT_HIGH="yarn npm audit --severity high"
     ;;
   bun)
     PACKAGE_RUN="bun run"
     PACKAGE_RUN_SILENT="bun run"
     PACKAGE_EXEC="bun x"
-    PACKAGE_AUDIT_HIGH="bun audit"
     ;;
   *)
     PACKAGE_RUN="$PACKAGE_MANAGER run"
     PACKAGE_RUN_SILENT="$PACKAGE_MANAGER run"
     PACKAGE_EXEC="$PACKAGE_MANAGER exec"
-    PACKAGE_AUDIT_HIGH="$PACKAGE_MANAGER audit"
     ;;
 esac
+
+PACKAGE_AUDIT_HIGH=$(audit_high_command_for_package_manager "$PACKAGE_MANAGER" 2>/dev/null || printf "%s audit" "$PACKAGE_MANAGER")
 
 package_run() {
   script_name="$1"

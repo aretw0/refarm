@@ -128,6 +128,42 @@ function agentFinishTemplates() {
 			useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
 		},
 		{
+			id: "external-consumer-workspace-execution-json",
+			command: refarmCommand(["workspace", "execution", "--cwd", "<dir>", "--json"]),
+			process: refarmProcess(["workspace", "execution", "--cwd", "<dir>", "--json"]),
+			effects: ["observe"],
+			writes: false,
+			parameters: ["dir"],
+			useWhen: "Inspect executor and cache readiness in a non-Refarm consumer workspace before choosing validation commands.",
+		},
+		{
+			id: "declared-workspaces-execution-all-json",
+			command: refarmCommand(["workspace", "execution", "--all", "--json"]),
+			process: refarmProcess(["workspace", "execution", "--all", "--json"]),
+			effects: ["observe"],
+			writes: false,
+			parameters: [],
+			useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
+		},
+		{
+			id: "declared-release-kernel-candidates-json",
+			command: refarmCommand(["release", "plan", "--selection", "default", "--json"]),
+			process: refarmProcess(["release", "plan", "--selection", "default", "--json"]),
+			effects: ["observe"],
+			writes: false,
+			parameters: [],
+			useWhen: "Inspect the current workspace default release-policy selection without executing gates or publishing.",
+		},
+		{
+			id: "external-consumer-release-plan-json",
+			command: refarmCommand(["release", "plan", "--cwd", "<dir>", "--selection", "default", "--json"]),
+			process: refarmProcess(["release", "plan", "--cwd", "<dir>", "--selection", "default", "--json"]),
+			effects: ["observe"],
+			writes: false,
+			parameters: ["dir"],
+			useWhen: "Inspect a non-Refarm consumer workspace default release-policy selection without executing gates or publishing.",
+		},
+		{
 			id: "external-consumer-health-policy-json",
 			command: refarmCommand(["health", "--policy", "--json"]),
 			process: refarmProcess(["health", "--policy", "--json"]),
@@ -258,6 +294,9 @@ function agentFinishTemplates() {
 export const agentRuntimePlan = {
 	environment: {
 		packageManager: refarmCommand(["package-manager", "--json"]),
+		workspaceExecution: refarmCommand(["workspace", "execution", "--json"]),
+		workspaceSweep: refarmCommand(["workspace", "execution", "--all", "--json"]),
+		releaseKernelCandidates: refarmCommand(["release", "plan", "--selection", "default", "--json"]),
 		codingProfile: refarmCommand(["config", "profile", "coding", "--local", "--json"]),
 	},
 	runtime: {

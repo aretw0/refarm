@@ -87,9 +87,30 @@ export function packageFrozenInstallCommand(
     options?: PackageManagerOptions,
 ): PackageSpawnCommand;
 
+export function packageAddDevCommand(
+    dependencyName: string,
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
+
+export interface PackageAuditCommandOptions extends PackageManagerOptions {
+    auditLevel?: "low" | "moderate" | "high" | "critical" | null;
+}
+
+export function packageAuditCommand(
+    options?: PackageAuditCommandOptions,
+): PackageSpawnCommand;
+
+export function packageAuditHighCommand(
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
+
 export function packagePublishDryRunCommand(
     options?: PackageManagerOptions,
 ): PackageCommandString;
+
+export function packageWorkspacePublishDryRunCommand(
+    options?: PackageManagerOptions,
+): PackageSpawnCommand;
 
 export function packageBinaryCommand(
     binary: string,

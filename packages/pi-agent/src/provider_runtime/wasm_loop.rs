@@ -1,6 +1,6 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
-    run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch,
+    state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch,
     usage_finalize::finalize_completion_from_outcome, ProviderLoopState,
     ProviderRunnerCommonConfig, UsageTotals,
 };

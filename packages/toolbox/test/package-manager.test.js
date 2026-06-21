@@ -4,9 +4,12 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     detectPackageManager,
+    packageAuditCommand,
+    packageAuditHighCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
 } from "../src/package-manager.mjs";
 
 describe("toolbox package manager commands", () => {
@@ -21,7 +24,7 @@ describe("toolbox package manager commands", () => {
         const root = mkdtempSync(join(tmpdir(), "refarm-toolbox-pm-"));
         const app = join(root, "apps", "dev");
         mkdirSync(app, { recursive: true });
-        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.1.2 " }));
+        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.7.0 " }));
         writeFileSync(join(app, "package.json"), JSON.stringify({ name: "dev" }));
 
         try {
@@ -43,6 +46,30 @@ describe("toolbox package manager commands", () => {
             command: "pnpm",
             args: ["install", "--frozen-lockfile"],
             display: "pnpm install --frozen-lockfile",
+        });
+    });
+
+    it("re-exports high severity audit command resolution", () => {
+        expect(packageAuditHighCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: "npm",
+            args: ["audit", "--audit-level=high", "--silent"],
+            display: "npm audit --audit-level=high --silent",
+        });
+    });
+
+    it("re-exports audit command resolution", () => {
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" }, auditLevel: "critical" })).toMatchObject({
+            command: "yarn",
+            args: ["npm", "audit", "--severity", "critical"],
+            display: "yarn npm audit --severity critical",
+        });
+    });
+
+    it("re-exports workspace publish dry-run command resolution", () => {
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: "pnpm",
+            args: ["publish", "-r", "--dry-run", "--no-git-checks"],
+            display: "pnpm publish -r --dry-run --no-git-checks",
         });
     });
 });

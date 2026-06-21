@@ -3,6 +3,7 @@ import {
 	buildCurrentModelStatus,
 	buildModelDoctorStatus,
 	createModelCommand,
+	resolveRuntimeModelRoute,
 	type ModelCommandDeps,
 } from "../../src/commands/model.js";
 
@@ -12,6 +13,7 @@ function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 	return {
 		loadTokens: vi.fn().mockResolvedValue(tokens),
 		saveTokens: vi.fn().mockResolvedValue({}),
+		isContainer: vi.fn().mockReturnValue(false),
 	};
 }
 
@@ -142,17 +144,23 @@ describe("modelCommand", () => {
 		expect(output).toContain("export MODEL_PROVIDER='openai'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).toContain("export OPENAI_API_KEY='sk-silo-test'");
+		expect(output).toContain(
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY'",
+		);
 
 		logSpy.mockRestore();
 	});
 
-	it("prints shell runtime env from Silo OAuth credentials", async () => {
+	it("does not export subscription OAuth credentials as runtime API keys", async () => {
 		const deps = makeDeps({
-			modelProvider: "openai",
+			modelProvider: "openai-codex",
 			modelId: "gpt-5.5",
 			oauthProvider: "openai-codex",
 			oauthCredentials: {
-				"openai-codex": { access: "oauth-access-test" },
+				"openai-codex": {
+					access: "oauth-access-test",
+					accountId: "account-test",
+				},
 			},
 		});
 		const command = createModelCommand(deps);
@@ -161,7 +169,49 @@ describe("modelCommand", () => {
 		await command.parseAsync(["env", "--shell"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("export OPENAI_API_KEY='oauth-access-test'");
+		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
+		expect(output).toContain("export MODEL_ID='gpt-5.5'");
+		expect(output).toContain(
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID'",
+		);
+		expect(output).not.toContain("OPENAI_API_KEY");
+		expect(output).not.toContain("OPENAI_CODEX_ACCESS_TOKEN");
+		expect(output).not.toContain("oauth-access-test");
+		expect(output).not.toContain("account-test");
+
+		logSpy.mockRestore();
+	});
+
+	it("exports subscription OAuth credentials for local runtime launch scripts", async () => {
+		const deps = makeDeps({
+			modelProvider: "openai-codex",
+			modelId: "gpt-5.5",
+			oauthProvider: "openai-codex",
+			oauthCredentials: {
+				"openai-codex": {
+					access: "oauth-access-test",
+					accountId: "account-test",
+				},
+			},
+		});
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["env", "--shell", "--include-secrets"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
+		expect(output).toContain("export MODEL_ID='gpt-5.5'");
+		expect(output).toContain(
+			"export OPENAI_CODEX_ACCESS_TOKEN='oauth-access-test'",
+		);
+		expect(output).toContain("export OPENAI_CODEX_ACCOUNT_ID='account-test'");
+		expect(output).toContain(
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_CODEX_ACCESS_TOKEN,OPENAI_CODEX_ACCOUNT_ID'",
+		);
+		expect(output).not.toContain("OPENAI_API_KEY");
 
 		logSpy.mockRestore();
 	});
@@ -199,10 +249,38 @@ describe("modelCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("current: ollama/llama3.2");
 		expect(output).toContain("worker:   openai/gpt-5.3-codex-spark");
-		expect(output).toContain("warning: The worker model route requires credentials");
-		expect(output).toContain("fix:     refarm model set --scope worker 'ollama/llama3.2' --json");
+		expect(output).toContain(
+			"warning: The worker model route requires credentials",
+		);
+		expect(output).toContain(
+			"fix:     refarm model set --scope worker 'ollama/llama3.2' --json",
+		);
 
 		logSpy.mockRestore();
+	});
+
+	it("resolves runtime model route per scope", () => {
+		const status = buildCurrentModelStatus({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+			modelRoutes: {
+				worker: "openai/gpt-5.3-codex-spark",
+				monitor: "ollama/llama3.1",
+			},
+		});
+
+		expect(resolveRuntimeModelRoute(status, "default")).toEqual({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+		expect(resolveRuntimeModelRoute(status, "worker")).toEqual({
+			modelProvider: "openai",
+			modelId: "gpt-5.3-codex-spark",
+		});
+		expect(resolveRuntimeModelRoute(status, "monitor")).toEqual({
+			modelProvider: "ollama",
+			modelId: "llama3.1",
+		});
 	});
 
 	it("prints the default route when only the default provider key env is set", async () => {
@@ -299,15 +377,19 @@ describe("modelCommand", () => {
 			localNoKeyModel: "refarm sow --model ollama/llama3.2 --json",
 			openExternalLinks: "refarm config get operator.openExternalLinks --json",
 			setModel: "refarm model 'openai/gpt-5.5' --json",
-			setWorkerModel: "refarm model set --scope worker 'openai/gpt-5.3-codex-spark' --json",
-			setMonitorModel: "refarm model set --scope monitor 'openai/gpt-5.5' --json",
+			setWorkerModel:
+				"refarm model set --scope worker 'openai/gpt-5.3-codex-spark' --json",
+			setMonitorModel:
+				"refarm model set --scope monitor 'openai/gpt-5.5' --json",
 		});
 
 		logSpy.mockRestore();
 	});
 
 	it("probes the configured Ollama endpoint in model doctor JSON", async () => {
-		const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(new Response("{}", { status: 200 }));
 		const deps = makeDeps({
 			modelProvider: "ollama",
 			modelId: "llama3.2",
@@ -342,9 +424,11 @@ describe("modelCommand", () => {
 	});
 
 	it("reports Ollama reachability failures as model doctor handoffs", async () => {
-		const fetchMock = vi.fn().mockRejectedValue(
-			new Error("fetch failed", { cause: { code: "ECONNREFUSED" } }),
-		);
+		const fetchMock = vi
+			.fn()
+			.mockRejectedValue(
+				new Error("fetch failed", { cause: { code: "ECONNREFUSED" } }),
+			);
 		const deps = makeDeps({ modelProvider: "ollama", modelId: "llama3.2" });
 		deps.fetch = fetchMock as unknown as typeof fetch;
 		const command = createModelCommand(deps);
@@ -354,6 +438,10 @@ describe("modelCommand", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			providerProbe: { ready: boolean; error: string };
+			probeEnvironment: {
+				container: boolean;
+				localhostTargetsRuntime: boolean;
+			};
 			nextCommand: string;
 			nextCommands: string[];
 			recommendations: { diagnostic: string; command: string }[];
@@ -364,12 +452,17 @@ describe("modelCommand", () => {
 		};
 		expect(payload.providerProbe.ready).toBe(false);
 		expect(payload.providerProbe.error).toContain("ECONNREFUSED");
+		expect(payload.probeEnvironment).toMatchObject({
+			container: false,
+			localhostTargetsRuntime: true,
+		});
 		expect(payload.nextCommand).toBe("ollama serve");
 		expect(payload.nextCommands).toContain("ollama serve");
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(payload.handoffs).toMatchObject({
 			startOllama: "ollama serve",
-			setDockerOllamaBaseUrl: "refarm model base-url http://host.docker.internal:11434 --json",
+			setDockerOllamaBaseUrl:
+				"refarm model base-url http://host.docker.internal:11434 --json",
 		});
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({
@@ -381,11 +474,51 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prioritizes Docker host base-url recovery for container-local Ollama probes", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockRejectedValue(
+				new Error("fetch failed", { cause: { code: "ECONNREFUSED" } }),
+			);
+		const deps = makeDeps({ modelProvider: "ollama", modelId: "llama3.2" });
+		deps.fetch = fetchMock as unknown as typeof fetch;
+		deps.isContainer = vi.fn().mockReturnValue(true);
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["doctor", "--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			probeEnvironment: {
+				container: boolean;
+				localhostTargetsRuntime: boolean;
+				dockerHostBaseUrl: string;
+			};
+			nextCommand: string;
+			nextCommands: string[];
+		};
+		expect(payload.probeEnvironment).toEqual({
+			container: true,
+			localhostTargetsRuntime: true,
+			dockerHostBaseUrl: "http://host.docker.internal:11434",
+		});
+		expect(payload.nextCommand).toBe(
+			"refarm model base-url http://host.docker.internal:11434 --json",
+		);
+		expect(payload.nextCommands).toEqual([
+			"refarm model base-url http://host.docker.internal:11434 --json",
+			"ollama serve",
+			"refarm model current --json",
+		]);
+
+		logSpy.mockRestore();
+	});
+
 	it("skips live provider probes for remote model providers", async () => {
 		const fetchMock = vi.fn();
 		const status = await buildModelDoctorStatus(
 			{ modelProvider: "openai", modelId: "gpt-5.5" },
-			{ fetch: fetchMock as unknown as typeof fetch },
+			{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
 		);
 
 		expect(status.providerProbe).toMatchObject({
@@ -492,8 +625,10 @@ describe("modelCommand", () => {
 
 		expect(status.handoffs).toMatchObject({
 			setModel: "refarm model 'vllm/Qwen3-Coder-480B-A35B-Instruct' --json",
-			setWorkerModel: "refarm model set --scope worker 'ollama/llama3.2' --json",
-			setMonitorModel: "refarm model set --scope monitor 'anthropic/claude-sonnet-4.5' --json",
+			setWorkerModel:
+				"refarm model set --scope worker 'ollama/llama3.2' --json",
+			setMonitorModel:
+				"refarm model set --scope monitor 'anthropic/claude-sonnet-4.5' --json",
 		});
 	});
 
@@ -542,7 +677,9 @@ describe("modelCommand", () => {
 		expect(output).toContain("vllm/Qwen3-Coder-480B-A35B-Instruct");
 		expect(output).toContain("base url: http://127.0.0.1:8000");
 		expect(output).toContain("fallback: ollama/llama3.2");
-		expect(output).toContain("custom provider: set endpoint with refarm model base-url");
+		expect(output).toContain(
+			"custom provider: set endpoint with refarm model base-url",
+		);
 
 		logSpy.mockRestore();
 	});
@@ -757,7 +894,9 @@ describe("modelCommand", () => {
 
 	it("documents model set examples in subcommand help", () => {
 		const command = createModelCommand(makeDeps());
-		const setCommand = command.commands.find((subcommand) => subcommand.name() === "set");
+		const setCommand = command.commands.find(
+			(subcommand) => subcommand.name() === "set",
+		);
 		let help = "";
 		setCommand?.configureOutput({
 			writeOut: (value) => {
@@ -768,7 +907,9 @@ describe("modelCommand", () => {
 		setCommand?.outputHelp();
 
 		expect(help).toContain("refarm model set openai/gpt-5.5");
-		expect(help).toContain("refarm model set --scope worker openai/gpt-5.3-codex-spark");
+		expect(help).toContain(
+			"refarm model set --scope worker openai/gpt-5.3-codex-spark",
+		);
 		expect(help).toContain("provider-specific model id");
 	});
 
@@ -777,7 +918,9 @@ describe("modelCommand", () => {
 		const command = createModelCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command.parseAsync(["fallback", "ollama/qwen2.5-coder"], { from: "user" });
+		await command.parseAsync(["fallback", "ollama/qwen2.5-coder"], {
+			from: "user",
+		});
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelFallbackProvider: "ollama",
@@ -852,7 +995,9 @@ describe("modelCommand", () => {
 		const command = createModelCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command.parseAsync(["base-url", "http://127.0.0.1:8000"], { from: "user" });
+		await command.parseAsync(["base-url", "http://127.0.0.1:8000"], {
+			from: "user",
+		});
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelBaseUrl: "http://127.0.0.1:8000",
@@ -1163,7 +1308,9 @@ describe("modelCommand", () => {
 			}),
 		);
 		expect(payload.nextCommands).toContain("refarm model providers --json");
-		expect(payload.nextCommands).toContain("refarm sow --model ollama/llama3.2 --json");
+		expect(payload.nextCommands).toContain(
+			"refarm sow --model ollama/llama3.2 --json",
+		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 
@@ -1174,9 +1321,12 @@ describe("modelCommand", () => {
 		const deps = makeDeps();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await createModelCommand(deps).parseAsync(["set", "local-model", "--json"], {
-			from: "user",
-		});
+		await createModelCommand(deps).parseAsync(
+			["set", "local-model", "--json"],
+			{
+				from: "user",
+			},
+		);
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;

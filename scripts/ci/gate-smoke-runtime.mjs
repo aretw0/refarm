@@ -43,7 +43,7 @@ const STEPS = [
 	cargo(["test", "--lib", "agent_tools_bridge", "--quiet"]),
 	cargo(["test", "--lib", "plugin_host", "--quiet"]),
 	cargo(["test", "--lib", "wasi_bridge", "--quiet"]),
-	rootScript("test:smoke:ws"),
+	workspaceScript("packages/tractor", "test:smoke:ws"),
 	workspaceScript("packages/tractor-ts", "build"),
 	workspaceScript("packages/tractor-ts", "type-check"),
 	workspaceScript("packages/tractor-ts", "runtime-module:ci"),

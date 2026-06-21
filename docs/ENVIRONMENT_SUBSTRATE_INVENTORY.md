@@ -31,7 +31,7 @@ setup logic, it is premature.
 | Rust substrate | `.cargo/config.toml`, Dockerfile Rust install, CI setup | Toolchain, targets, components, resource limits |
 | Browser/E2E substrate | Dockerfile Playwright libraries, CI setup action | Chromium/Playwright runtime dependencies |
 | Runtime health | `refarm check --next-action --json`, `refarm agent finish --run --json` | Operator and agent readiness gates |
-| Substrate inventory check | `pnpm run environment-substrate:check --json` | Versioned JSON for required Node/Rust/Git substrate plus non-blocking WASM and diagnostic tools |
+| Substrate inventory check | `pnpm run environment-substrate:check --json` | Versioned JSON for required Node/Rust/Git substrate plus non-blocking WASM, network DNS, and diagnostic tools |
 
 ## Environment Substrate
 
@@ -52,6 +52,10 @@ commands are expected to be reliable.
   `tree`, `hyperfine`, and `direnv`. These should be reported separately from
   required cross-platform substrate so Windows/macOS are not blocked by
   Linux-container diagnostics.
+- Network DNS for package registries is reported as a non-blocking diagnostic.
+  Container DNS can fail transiently under Docker Desktop or VPN/corporate DNS;
+  the project should surface that early instead of letting `pnpm audit`,
+  `pnpm outdated`, or dependency update flows fail without context.
 - Bubblewrap capability for sandbox/runtime checks in the container.
 - Locale and encoding defaults that do not break Portuguese content.
 - Persistent caches for pnpm, npm globals, Turbo, Playwright, Cargo registry,

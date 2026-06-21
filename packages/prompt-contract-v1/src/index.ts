@@ -60,6 +60,11 @@ export interface OperatorChannel {
 	ask(prompt: OperatorPrompt): Promise<boolean | string>;
 }
 
+export interface StdioOperatorChannelOptions {
+	input?: NodeJS.ReadStream;
+	output?: NodeJS.WriteStream;
+}
+
 // ── createAutoOperatorChannel ─────────────────────────────────────────────────
 // Returns the `default` value for every prompt without prompting.
 // Use in non-interactive environments (CI, automated scripts).
@@ -102,22 +107,30 @@ export function createScriptedOperatorChannel(
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
 // Interactive readline implementation. No external dependencies.
 
-export function createStdioOperatorChannel(): OperatorChannel {
+export function createStdioOperatorChannel(
+	options: StdioOperatorChannelOptions = {},
+): OperatorChannel {
+	const input = options.input ?? process.stdin;
+	const output = options.output ?? process.stdout;
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
 	function ask(prompt: TextPrompt): Promise<string>;
 	function ask(prompt: SecretPrompt): Promise<string>;
 	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
-		if (prompt.type === "confirm") return askConfirm(prompt);
-		if (prompt.type === "select") return askSelect(prompt);
-		if (prompt.type === "secret") return askSecret(prompt);
-		return askText(prompt);
+		if (prompt.type === "confirm") return askConfirm(prompt, input, output);
+		if (prompt.type === "select") return askSelect(prompt, input, output);
+		if (prompt.type === "secret") return askSecret(prompt, input, output);
+		return askText(prompt, input, output);
 	}
 	return { ask };
 }
 
-function askConfirm(prompt: ConfirmPrompt): Promise<boolean> {
-	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+function askConfirm(
+	prompt: ConfirmPrompt,
+	input: NodeJS.ReadStream,
+	output: NodeJS.WriteStream,
+): Promise<boolean> {
+	const rl = readline.createInterface({ input, output });
 	const hint = prompt.default === false ? "(y/N)" : "(Y/n)";
 	return new Promise((resolve) => {
 		rl.question(`${prompt.question} ${hint} `, (answer) => {
@@ -129,13 +142,28 @@ function askConfirm(prompt: ConfirmPrompt): Promise<boolean> {
 	});
 }
 
-function askSelect(prompt: SelectPrompt): Promise<string> {
-	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-	process.stdout.write(`${prompt.question}\n`);
+function askSelect(
+	prompt: SelectPrompt,
+	input: NodeJS.ReadStream,
+	output: NodeJS.WriteStream,
+): Promise<string> {
+	if (input.isTTY && output.isTTY && typeof input.setRawMode === "function") {
+		return askSelectTui(prompt, input, output);
+	}
+	return askSelectNumbered(prompt, input, output);
+}
+
+function askSelectNumbered(
+	prompt: SelectPrompt,
+	input: NodeJS.ReadStream,
+	output: NodeJS.WriteStream,
+): Promise<string> {
+	const rl = readline.createInterface({ input, output });
+	output.write(`${prompt.question}\n`);
 	prompt.options.forEach((opt, i) => {
 		const marker = opt.value === prompt.default ? "▶" : " ";
-		const desc = opt.description ? `  — ${opt.description}` : "";
-		process.stdout.write(`  ${marker} ${i + 1}. ${opt.label}${desc}\n`);
+		const desc = opt.description ? ` - ${opt.description}` : "";
+		output.write(`  ${marker} ${i + 1}. ${opt.label}${desc}\n`);
 	});
 	const defaultIndex =
 		prompt.default !== undefined
@@ -163,13 +191,106 @@ function askSelect(prompt: SelectPrompt): Promise<string> {
 	});
 }
 
-function askText(prompt: TextPrompt): Promise<string> {
-	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+function askSelectTui(
+	prompt: SelectPrompt,
+	input: NodeJS.ReadStream,
+	output: NodeJS.WriteStream,
+): Promise<string> {
+	if (prompt.options.length === 0) return Promise.resolve("");
+	const defaultIndex =
+		prompt.default !== undefined
+			? prompt.options.findIndex((o) => o.value === prompt.default)
+			: 0;
+	let selectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
+
+	return new Promise((resolve, reject) => {
+		const wasRaw = input.isRaw;
+		let renderedLines = 0;
+
+		const render = () => {
+			if (renderedLines > 0) {
+				readline.moveCursor(output, 0, -renderedLines);
+				readline.cursorTo(output, 0);
+				readline.clearScreenDown(output);
+			}
+			const lines = [
+				prompt.question,
+				...prompt.options.map((opt, i) => {
+					const marker = i === selectedIndex ? ">" : " ";
+					const desc = opt.description ? ` - ${opt.description}` : "";
+					return formatSelectLine(`  ${marker} ${opt.label}${desc}`, i === selectedIndex, output);
+				}),
+				"  Use Up/Down and Enter.",
+			];
+			output.write(lines.join("\n"));
+			renderedLines = lines.length - 1;
+		};
+
+		const cleanup = () => {
+			input.off("keypress", onKeypress);
+			input.setRawMode(wasRaw);
+			input.pause();
+			output.write("\n");
+		};
+
+		const onKeypress = (str: string, key: readline.Key) => {
+			if (key.ctrl && key.name === "c") {
+				cleanup();
+				reject(new OperatorPromptCancelledError());
+				return;
+			}
+			if (key.name === "up") {
+				selectedIndex = (selectedIndex + prompt.options.length - 1) % prompt.options.length;
+				render();
+				return;
+			}
+			if (key.name === "down") {
+				selectedIndex = (selectedIndex + 1) % prompt.options.length;
+				render();
+				return;
+			}
+			if (key.name === "return" || key.name === "enter") {
+				cleanup();
+				resolve(prompt.options[selectedIndex]?.value ?? "");
+				return;
+			}
+			if (/^[1-9]$/.test(str)) {
+				const n = Number.parseInt(str, 10) - 1;
+				if (n >= 0 && n < prompt.options.length) {
+					selectedIndex = n;
+					render();
+				}
+			}
+		};
+
+		readline.emitKeypressEvents(input);
+		input.setRawMode(true);
+		input.resume();
+		input.on("keypress", onKeypress);
+		render();
+	});
+}
+
+function formatSelectLine(line: string, selected: boolean, output: NodeJS.WriteStream): string {
+	if (!selected || !output.isTTY || process.env.NO_COLOR) return line;
+	return `\x1b[7m${line}\x1b[0m`;
+}
+
+function promptSuffix(question: string): string {
+	return /[:?]\s*$/.test(question) ? " " : ": ";
+}
+
+function askText(
+	prompt: TextPrompt,
+	input: NodeJS.ReadStream,
+	output: NodeJS.WriteStream,
+): Promise<string> {
+	const rl = readline.createInterface({ input, output });
 	let hint = "";
 	if (prompt.placeholder) hint += ` (${prompt.placeholder})`;
 	if (prompt.default) hint += ` [${prompt.default}]`;
 	return new Promise((resolve) => {
-		rl.question(`${prompt.question}${hint}: `, (answer) => {
+		rl.question(`${prompt.question}${hint}${promptSuffix(prompt.question)}`, (answer) => {
 			rl.close();
 			resolve(answer.trim() || prompt.default || "");
 		});
@@ -182,13 +303,15 @@ function maskSecret(value: string, visibleTail: number): string {
 	return "*".repeat(value.length - visibleTail) + value.slice(-visibleTail);
 }
 
-function askSecret(prompt: SecretPrompt): Promise<string> {
-	const input = process.stdin;
-	const output = process.stdout;
+function askSecret(
+	prompt: SecretPrompt,
+	input: NodeJS.ReadStream,
+	output: NodeJS.WriteStream,
+): Promise<string> {
 	const visibleTail = prompt.visibleTail ?? 0;
 
 	if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== "function") {
-		return askText({ type: "text", question: prompt.question });
+		return askText({ type: "text", question: prompt.question }, input, output);
 	}
 
 	return new Promise((resolve, reject) => {
@@ -204,6 +327,7 @@ function askSecret(prompt: SecretPrompt): Promise<string> {
 		const cleanup = () => {
 			input.off("keypress", onKeypress);
 			input.setRawMode(wasRaw);
+			input.pause();
 			output.write("\n");
 		};
 

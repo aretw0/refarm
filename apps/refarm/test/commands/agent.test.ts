@@ -108,7 +108,13 @@ describe("agent command", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
 			status: string;
-			environment: { packageManager: string; codingProfile: string };
+			environment: {
+				packageManager: string;
+				workspaceExecution: string;
+				workspaceSweep: string;
+				releaseKernelCandidates: string;
+				codingProfile: string;
+			};
 			runtime: {
 				status: string;
 				ensure: string;
@@ -190,6 +196,9 @@ describe("agent command", () => {
 			status: "handoff",
 			environment: {
 				packageManager: "refarm package-manager --json",
+				workspaceExecution: "refarm workspace execution --json",
+				workspaceSweep: "refarm workspace execution --all --json",
+				releaseKernelCandidates: "refarm release plan --selection default --json",
 				codingProfile: "refarm config profile coding --local --json",
 			},
 			runtime: {
@@ -337,13 +346,19 @@ describe("agent command", () => {
 						cwdParameter: "dir",
 						useWhen: "Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
 					}),
-					expect.objectContaining({
-						id: "external-consumer-health-suggest-policy-json",
-						command: "refarm health --suggest-policy --json",
-						parameters: ["dir"],
-						cwdParameter: "dir",
-						useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
-					}),
+						expect.objectContaining({
+							id: "external-consumer-health-suggest-policy-json",
+							command: "refarm health --suggest-policy --json",
+							parameters: ["dir"],
+							cwdParameter: "dir",
+							useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
+						}),
+						expect.objectContaining({
+							id: "declared-workspaces-execution-all-json",
+							command: "refarm workspace execution --all --json",
+							parameters: [],
+							useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
+						}),
 					expect.objectContaining({
 						id: "affected-since-ref-run-json",
 						command: "refarm agent finish --profile affected --since <ref> --run --json",
@@ -358,6 +373,8 @@ describe("agent command", () => {
 		expect(payload.nextActions).toContain("refarm runtime status --json");
 		expect(payload.nextActions).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextActions).toContain("refarm package-manager --json");
+		expect(payload.nextActions).toContain("refarm workspace execution --json");
+		expect(payload.nextActions).toContain("refarm workspace execution --all --json");
 		expect(payload.nextActions).toContain("refarm config profile coding --local --json");
 		expect(payload.nextActions).toContain("refarm model doctor --json");
 		expect(payload.nextActions).toContain("refarm model providers --json");
@@ -390,6 +407,8 @@ describe("agent command", () => {
 			"refarm model doctor --json",
 			"refarm model providers --json",
 			"refarm package-manager --json",
+			"refarm workspace execution --json",
+			"refarm workspace execution --all --json",
 			"refarm config profile coding --local --json",
 			"refarm plugin list --json",
 			"refarm task resume --json",
@@ -733,6 +752,50 @@ describe("agent command", () => {
 				useWhen: "Run the readiness gate from a non-Refarm consumer workspace.",
 			}),
 			expect.objectContaining({
+				id: "external-consumer-workspace-execution-json",
+				command: "refarm workspace execution --cwd <dir> --json",
+				process: {
+					command: "refarm",
+					args: ["workspace", "execution", "--cwd", "<dir>", "--json"],
+					display: "refarm workspace execution --cwd <dir> --json",
+				},
+				parameters: ["dir"],
+				useWhen: "Inspect executor and cache readiness in a non-Refarm consumer workspace before choosing validation commands.",
+			}),
+			expect.objectContaining({
+				id: "declared-workspaces-execution-all-json",
+				command: "refarm workspace execution --all --json",
+				process: {
+					command: "refarm",
+					args: ["workspace", "execution", "--all", "--json"],
+					display: "refarm workspace execution --all --json",
+				},
+				parameters: [],
+				useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
+			}),
+			expect.objectContaining({
+				id: "declared-release-kernel-candidates-json",
+				command: "refarm release plan --selection default --json",
+				process: {
+					command: "refarm",
+					args: ["release", "plan", "--selection", "default", "--json"],
+					display: "refarm release plan --selection default --json",
+				},
+				parameters: [],
+				useWhen: "Inspect the current workspace default release-policy selection without executing gates or publishing.",
+			}),
+			expect.objectContaining({
+				id: "external-consumer-release-plan-json",
+				command: "refarm release plan --cwd <dir> --selection default --json",
+				process: {
+					command: "refarm",
+					args: ["release", "plan", "--cwd", "<dir>", "--selection", "default", "--json"],
+					display: "refarm release plan --cwd <dir> --selection default --json",
+				},
+				parameters: ["dir"],
+				useWhen: "Inspect a non-Refarm consumer workspace default release-policy selection without executing gates or publishing.",
+			}),
+			expect.objectContaining({
 				id: "external-consumer-health-policy-json",
 				command: "refarm health --policy --json",
 				process: {
@@ -878,6 +941,18 @@ describe("agent command", () => {
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			"external-consumer-health-policy-json: refarm health --policy --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"external-consumer-workspace-execution-json: refarm workspace execution --cwd <dir> --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"declared-workspaces-execution-all-json: refarm workspace execution --all --json",
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"  Use when: Inspect executor and cache readiness in a non-Refarm consumer workspace before choosing validation commands.",
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"  Use when: Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			"  Use when: Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
@@ -1144,7 +1219,11 @@ describe("agent command", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			steps: { id: string; command: string; process?: { packageManager?: string | null } }[];
+			steps: {
+				id: string;
+				command: string;
+				process?: { packageManager?: string | null; tool?: string };
+			}[];
 			nextCommands: string[];
 		};
 
@@ -1153,14 +1232,13 @@ describe("agent command", () => {
 			"tidy-imports-check",
 			"health",
 			"check",
-			"package-type-check",
-			"package-lint",
-			"package-build",
+			"package-validation",
 		]);
-		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run type-check");
-		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run lint");
-		expect(payload.nextCommands).toContain("pnpm -C apps/refarm run build");
+		expect(payload.nextCommands).toContain(
+			"pnpm exec turbo run type-check lint build '--filter=./apps/refarm' '--output-logs=errors-only' '--ui=stream'",
+		);
 		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		expect(payload.steps.at(-1)?.process?.tool).toBe("turbo");
 		logSpy.mockRestore();
 	});
 
@@ -1180,7 +1258,11 @@ describe("agent command", () => {
 			...step,
 			ok: true,
 			exitCode: 0,
-			stdout: "",
+			stdout: [
+				" Tasks:    38 successful, 38 total",
+				"Cached:    34 cached, 38 total",
+				"  Time:    16.984s",
+			].join("\n"),
 			stderr: "",
 		}));
 		const agentCommand = createAgentCommand({ runRefarm, runProcess });
@@ -1198,12 +1280,37 @@ describe("agent command", () => {
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
-			steps: { id: string; ok: boolean }[];
+			steps: {
+				id: string;
+				ok: boolean;
+				cache?: { cached: number; total: number; status: string };
+			}[];
+			cache?: {
+				steps: Array<{
+					stepId: string;
+					cached: number;
+					total: number;
+					status: string;
+				}>;
+			};
 		};
 		expect(payload.ok).toBe(true);
 		expect(runRefarm).toHaveBeenCalledTimes(3);
-		expect(runProcess).toHaveBeenCalledTimes(3);
-		expect(payload.steps.map((step) => step.id)).toContain("package-type-check");
+		expect(runProcess).toHaveBeenCalledTimes(1);
+		expect(payload.steps.map((step) => step.id)).toContain("package-validation");
+		expect(payload.steps.at(-1)?.cache).toMatchObject({
+			cached: 34,
+			total: 38,
+			status: "partial-hit",
+		});
+		expect(payload.cache?.steps).toEqual([
+			expect.objectContaining({
+				stepId: "package-validation",
+				cached: 34,
+				total: 38,
+				status: "partial-hit",
+			}),
+		]);
 		logSpy.mockRestore();
 	});
 
@@ -1272,7 +1379,9 @@ describe("agent command", () => {
 			"check",
 			"script-refarm-agent-e2e-mock",
 		]);
-		expect(payload.nextCommands).toContain("pnpm -C /workspaces/refarm run refarm:agent:e2e:mock");
+		expect(payload.nextCommands).toContain(
+			"pnpm -C . run refarm:agent:e2e:mock",
+		);
 		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
 		logSpy.mockRestore();
 	});
@@ -1382,6 +1491,56 @@ describe("agent command", () => {
 			}),
 			"utf8",
 		);
+		const appDir = path.join(root, "apps", "refarm");
+		mkdirSync(appDir, { recursive: true });
+		writeFileSync(
+			path.join(appDir, "package.json"),
+			JSON.stringify({
+				name: "refarm-test",
+				scripts: { "type-check": "tsc --noEmit" },
+			}),
+			"utf8",
+		);
+		const originalCwd = process.cwd();
+		process.chdir(appDir);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"package",
+				"--workspace",
+				"apps/refarm",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { cwd?: string } }[];
+		};
+		const typeCheck = payload.steps.find((step) => step.id === "package-type-check");
+		expect(typeCheck?.command).toBe("npm --prefix apps/refarm run type-check");
+		expect(typeCheck?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
+	it("falls back to package scripts when a workspace has turbo config but no turbo dependency", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-no-turbo-"));
+		tempDirs.push(root);
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				private: true,
+				workspaces: ["apps/*"],
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(root, "turbo.json"), JSON.stringify({ tasks: {} }), "utf8");
 		const appDir = path.join(root, "apps", "refarm");
 		mkdirSync(appDir, { recursive: true });
 		writeFileSync(
@@ -1738,6 +1897,7 @@ describe("agent command", () => {
 			"-m",
 			"docs",
 		], { cwd: root, stdio: "ignore" });
+		writeFileSync(path.join(appDir, "src", "index.ts"), "export const value = 2;\n", "utf8");
 		const originalCwd = process.cwd();
 		process.chdir(root);
 		const runRefarm = vi.fn((args: string[]) => ({
@@ -2487,6 +2647,46 @@ describe("agent command", () => {
 		);
 		expect(logSpy).toHaveBeenCalledWith("Finish checks passed.");
 		expect(runRefarm).toHaveBeenCalledTimes(3);
+		logSpy.mockRestore();
+	});
+
+	it("prints turbo cache summary in operator finish reports", async () => {
+		const runRefarm = vi.fn((args: string[]) => ({
+			id: args.join(" "),
+			command: `refarm ${args.join(" ")}`,
+			args,
+			description: "test step",
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+		const runProcess = vi.fn((step) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "Cached:    38 cached, 38 total",
+			stderr: "",
+		}));
+		const agentCommand = createAgentCommand({ runRefarm, runProcess });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await agentCommand.parseAsync([
+			"finish",
+			"--profile",
+			"package",
+			"--workspace",
+			"apps/refarm",
+			"--run",
+		], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("package-validation:"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("(cache: 38/38, 100%, full-hit)"),
+		);
 		logSpy.mockRestore();
 	});
 

@@ -57,12 +57,33 @@ fn try_fallback_completion(
     })
 }
 
-pub(crate) fn run_wasm_react_with_prompt_ref(
+pub(crate) fn run_wasm_react_with_prompt_ref_and_route(
     prompt: &str,
     prompt_ref: Option<&str>,
+    provider_override: Option<&str>,
+    model_override: Option<&str>,
 ) -> ReactResult {
-    let primary_name = crate::provider_name_from_env();
-    let prov = crate::provider::Provider::from_env();
+    let has_route_override = provider_override
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+        || model_override
+            .map(str::trim)
+            .is_some_and(|value| !value.is_empty());
+    let primary_name = provider_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(crate::provider_name_from_env);
+    let explicit_model = model_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| std::env::var("MODEL_ID").unwrap_or_default());
+    let prov = if has_route_override {
+        crate::provider::Provider::from_provider_name_with_model(&primary_name, &explicit_model)
+    } else {
+        crate::provider::Provider::from_env()
+    };
     let model = prov.model().to_owned();
     if crate::streaming_config::stream_responses_enabled_from_env() {
         if let Some(prompt_ref) = prompt_ref {
@@ -87,4 +108,11 @@ pub(crate) fn run_wasm_react_with_prompt_ref(
             }
         }
     }
+}
+
+pub(crate) fn run_wasm_react_with_prompt_ref(
+    prompt: &str,
+    prompt_ref: Option<&str>,
+) -> ReactResult {
+    run_wasm_react_with_prompt_ref_and_route(prompt, prompt_ref, None, None)
 }

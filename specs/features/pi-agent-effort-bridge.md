@@ -167,6 +167,5 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 ## References
 
-- [Design doc](../../docs/superpowers/specs/2026-05-01-pi-agent-effort-bridge-design.md)
 - [Farmhand Task Execution spec](./farmhand-task-execution.md)
 - [Pi-agent ROADMAP](../../packages/pi-agent/ROADMAP.md)

@@ -51,7 +51,37 @@ async function runRefarmJsonResult(args, env) {
 
 async function runRefarmHandoff(command, env) {
 	assert(command.startsWith("refarm "), `unsupported handoff command: ${command}`);
-	return runRefarm(command.split(/\s+/).slice(1), env);
+	return runRefarm(splitHandoffCommand(command).slice(1), env);
+}
+
+function splitHandoffCommand(command) {
+	const args = [];
+	let current = "";
+	let quote = null;
+	for (const char of command.trim()) {
+		if (quote) {
+			if (char === quote) {
+				quote = null;
+			} else {
+				current += char;
+			}
+			continue;
+		}
+		if (char === "'" || char === '"') {
+			quote = char;
+			continue;
+		}
+		if (/\s/.test(char)) {
+			if (current) {
+				args.push(current);
+				current = "";
+			}
+			continue;
+		}
+		current += char;
+	}
+	if (current) args.push(current);
+	return args;
 }
 
 async function waitForTaskDone(effortId, env, timeoutMs = 10_000) {
@@ -91,7 +121,7 @@ async function getFreePort() {
 
 function cargoTargetDir() {
 	if (process.env.CARGO_TARGET_DIR) return path.resolve(process.env.CARGO_TARGET_DIR);
-	return "/home/vscode/.cargo-target";
+	return "/workspaces/refarm/.cache/cargo-target";
 }
 
 function runtimeArtifact(relativePath) {
@@ -198,6 +228,7 @@ async function main() {
 		...baseEnv,
 		...mock.env,
 		HOME: tempDir,
+		REFARM_HOME: refarmHomeDir,
 		REFARM_SIDECAR_URL: `http://127.0.0.1:${httpPort}`,
 		REFARM_STREAMS_DIR: streamsDir,
 		REFARM_OPERATOR_IDENTITY_FILE: identityFile,
@@ -249,10 +280,10 @@ async function main() {
 			`runtime-agent plugin reload did not normalize alias to physical plugin id: ${JSON.stringify(pluginReload)}`,
 		);
 		assert(
-			pluginReload.nextCommand === "refarm plugin status --json",
+			pluginReload.nextCommands?.includes("refarm plugin status --json"),
 			`runtime-agent plugin reload did not expose status handoff: ${JSON.stringify(pluginReload)}`,
 		);
-		const pluginStatus = await runRefarmHandoff(pluginReload.nextCommand, env);
+		const pluginStatus = await runRefarm(["plugin", "status", "--json"], env);
 		assert(
 			pluginStatus.ok === true &&
 				pluginStatus.plugins?.some(

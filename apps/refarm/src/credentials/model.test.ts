@@ -1,8 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { OperatorChannel, SelectPrompt } from "@refarm.dev/prompt-contract-v1";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@refarm.dev/root", () => ({
 	isContainer: vi.fn().mockReturnValue(false),
+}));
+
+const { startProgressIndicatorMock } = vi.hoisted(() => ({
+	startProgressIndicatorMock: vi.fn(() => ({
+		update: vi.fn(),
+		stop: vi.fn(),
+	})),
+}));
+
+vi.mock("../utils/spinner.js", () => ({
+	startProgressIndicator: startProgressIndicatorMock,
 }));
 
 // OAuth flows open browsers — mock them out
@@ -24,11 +35,17 @@ vi.mock("./oauth/index.js", () => ({
 }));
 
 import { isContainer } from "@refarm.dev/root";
-import { anthropicOAuthProvider } from "./oauth/index.js";
 import { modelCredentialProvider } from "./model.js";
+import { anthropicOAuthProvider } from "./oauth/index.js";
 
 const mockOAuthLogin = vi.mocked(anthropicOAuthProvider.login);
 const mockIsContainer = vi.mocked(isContainer);
+
+function lastProgress() {
+	return startProgressIndicatorMock.mock.results.at(-1)?.value as
+		| { update: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }
+		| undefined;
+}
 
 function makeCtx(answers: string[]) {
 	const queue = [...answers];
@@ -176,6 +193,10 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 
 	it("provides onManualCodeInput when provider uses callback server in a container", async () => {
 		mockIsContainer.mockReturnValue(true);
+		delete process.env["REFARM_DEVCONTAINER"];
+		delete process.env["VSCODE_REMOTE_CONTAINERS_SESSION"];
+		delete process.env["REMOTE_CONTAINERS"];
+		delete process.env["CODESPACES"];
 		mockOAuthLogin.mockImplementation(async (callbacks) => {
 			expect(callbacks.onManualCodeInput).toBeDefined();
 			ctx.ask.mockResolvedValueOnce("auth-code-123");
@@ -198,6 +219,18 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 		await modelCredentialProvider.collectModel(ctx);
 	});
 
+	it("uses the callback server when the Refarm devcontainer flag is set", async () => {
+		mockIsContainer.mockReturnValue(true);
+		process.env["REFARM_DEVCONTAINER"] = "true";
+		mockOAuthLogin.mockImplementation(async (callbacks) => {
+			expect(callbacks.skipCallbackServer).toBeUndefined();
+			expect(callbacks.onManualCodeInput).toBeUndefined();
+			expect(callbacks.callbackTimeoutMs).toBeGreaterThan(0);
+			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
+		});
+		await modelCredentialProvider.collectModel(ctx);
+	});
+
 	it("does not provide onManualCodeInput outside a container", async () => {
 		mockIsContainer.mockReturnValue(false);
 		mockOAuthLogin.mockImplementation(async (callbacks) => {
@@ -205,5 +238,18 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
 		});
 		await modelCredentialProvider.collectModel(ctx);
+	});
+
+	it("shows progress while exchanging OAuth callback codes", async () => {
+		mockIsContainer.mockReturnValue(false);
+		mockOAuthLogin.mockImplementation(async (callbacks) => {
+			callbacks.onProgress?.("Exchanging code for tokens...");
+			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
+		});
+
+		await modelCredentialProvider.collectModel(ctx);
+
+		expect(startProgressIndicatorMock).toHaveBeenCalledWith("Exchanging code for tokens...");
+		expect(lastProgress()?.stop).toHaveBeenCalledOnce();
 	});
 });

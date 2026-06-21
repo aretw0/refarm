@@ -8,7 +8,7 @@ import test from "node:test";
 const scriptPath = path.resolve("scripts/ci/check-node-substrate.mjs");
 
 function makeWorkspace({
-	packageManager = "pnpm@11.1.2",
+	packageManager = "pnpm@11.7.0",
 	platform = process.platform,
 	withBins = false,
 	withForeignBins = false,
@@ -122,7 +122,7 @@ test("node substrate check reports missing workspace execution shims", () => {
 
 		const payload = JSON.parse(result.stdout);
 		assert.equal(payload.ok, false);
-		assert.equal(payload.packageManager, "pnpm@11.1.2");
+		assert.equal(payload.packageManager, "pnpm@11.7.0");
 		assert.equal(payload.nextCommand, "pnpm install --frozen-lockfile --config.confirm-modules-purge=false");
 		assert.deepEqual(
 			payload.missing.map((check) => check.id),
@@ -134,6 +134,22 @@ test("node substrate check reports missing workspace execution shims", () => {
 				"bin_eslint",
 			],
 		);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("node substrate check uses detected frozen install command outside pnpm", () => {
+	const tempDir = makeWorkspace({ packageManager: "npm@11.0.0" });
+	try {
+		const result = runCheck(tempDir);
+		assert.notEqual(result.status, 0);
+
+		const payload = JSON.parse(result.stdout);
+		assert.equal(payload.ok, false);
+		assert.equal(payload.packageManager, "npm@11.0.0");
+		assert.equal(payload.nextCommand, "npm ci");
+		assert.deepEqual(payload.nextCommands, ["npm ci"]);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}

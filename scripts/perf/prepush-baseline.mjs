@@ -5,6 +5,7 @@ import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   detectPackageManager,
+  packageAuditHighCommand,
   packageScriptCommand
 } from '../../packages/config/src/package-manager.js';
 
@@ -65,20 +66,6 @@ function scriptCommand(script) {
   return packageScriptCommand(script, { cwd: ROOT }).command;
 }
 
-function auditCommand(packageManager) {
-  switch (packageManager) {
-    case 'pnpm':
-    case 'npm':
-      return `${packageManager} audit --audit-level=high --silent`;
-    case 'yarn':
-      return 'yarn npm audit --severity high';
-    case 'bun':
-      return 'bun audit';
-    default:
-      return `${packageManager} audit`;
-  }
-}
-
 const outPath = getArg('--out', 'artifacts/perf/prepush-baseline.csv');
 const includeAudit = !hasFlag('--skip-audit');
 const source = getArg('--source', 'local-dev');
@@ -93,7 +80,7 @@ const checks = [
 ];
 
 if (includeAudit) {
-  checks.push({ name: 'security_audit_high', cmd: auditCommand(packageManager) });
+  checks.push({ name: 'security_audit_high', cmd: packageAuditHighCommand({ cwd: ROOT }).display });
 }
 
 const meta = {

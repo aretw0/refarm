@@ -1,0 +1,20 @@
+{
+  "repos": [
+    {
+      "label": "refarm",
+      "path": ".",
+      "args": ["--json"]
+    },
+    {
+      "label": "vault-seed",
+      "path": "../vault-seed",
+      "policy": "release-policy.json",
+      "args": ["--only-required", "--json"]
+    },
+    {
+      "label": "agents-lab",
+      "path": "../agents-lab",
+      "args": ["--only-required", "--json"]
+    }
+  ]
+}

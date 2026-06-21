@@ -37,6 +37,79 @@ test("devcontainer isolates node_modules from the host platform", () => {
 	);
 });
 
+test("devcontainer keeps npm cache writable and persistent", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+
+	assert.equal(config.containerEnv.NPM_CONFIG_CACHE, "/workspaces/refarm/.cache/npm");
+	assert.equal(config.containerEnv.REFARM_DEVCONTAINER, "true");
+	assert.ok(
+		!config.mounts.some((mount) => mount.includes("target=/home/vscode/.npm-cache")),
+		"npm cache must stay in the writable workspace cache, not a home mount that agent sandboxes may expose read-only",
+	);
+	assert.match(postCreate, /export NPM_CONFIG_CACHE="\$\{NPM_CONFIG_CACHE:-\$ROOT\/\.cache\/npm\}"/);
+	assert.match(postCreate, /export REFARM_DEVCONTAINER="\$\{REFARM_DEVCONTAINER:-true\}"/);
+	assert.match(postCreate, /"\$NPM_CONFIG_CACHE"/);
+	assert.match(postStart, /export NPM_CONFIG_CACHE="\$\{NPM_CONFIG_CACHE:-\$ROOT\/\.cache\/npm\}"/);
+	assert.match(postStart, /export REFARM_DEVCONTAINER="\$\{REFARM_DEVCONTAINER:-true\}"/);
+	assert.match(postStart, /repair_owned_dir "\$NPM_CONFIG_CACHE"/);
+	assert.match(farm, /export NPM_CONFIG_CACHE=\$\{PROJECT_DIR\}\/\.cache\/npm/);
+	assert.match(farm, /export REFARM_DEVCONTAINER=true/);
+});
+
+test("devcontainer keeps runtime mutable state inside the workspace", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+	const tractorStart = readFileSync("scripts/tractor-start.sh", "utf8");
+
+	assert.equal(config.containerEnv.REFARM_HOME, "/workspaces/refarm/.refarm");
+	assert.equal(config.containerEnv.XDG_DATA_HOME, "/workspaces/refarm/.refarm/data");
+	assert.equal(config.containerEnv.REFARM_STREAMS_DIR, "/workspaces/refarm/.refarm/streams");
+	assert.ok(
+		!config.mounts.some((mount) => mount.includes("target=/home/vscode/.refarm")),
+		"Refarm mutable state must stay under REFARM_HOME in the workspace, not a home volume",
+	);
+	assert.match(postCreate, /export REFARM_HOME="\$\{REFARM_HOME:-\$ROOT\/\.refarm\}"/);
+	assert.match(postCreate, /export XDG_DATA_HOME="\$\{XDG_DATA_HOME:-\$REFARM_HOME\/data\}"/);
+	assert.match(postCreate, /export REFARM_STREAMS_DIR="\$\{REFARM_STREAMS_DIR:-\$REFARM_HOME\/streams\}"/);
+	assert.doesNotMatch(postCreate, /\/home\/vscode\/\.refarm/);
+	assert.match(postStart, /repair_owned_dir "\$REFARM_HOME"/);
+	assert.match(postStart, /repair_owned_dir "\$XDG_DATA_HOME"/);
+	assert.match(postStart, /repair_owned_dir "\$REFARM_STREAMS_DIR"/);
+	assert.match(farm, /export REFARM_HOME=\$\{PROJECT_DIR\}\/\.refarm/);
+	assert.match(farm, /export XDG_DATA_HOME=\$\{REFARM_HOME\}\/data/);
+	assert.match(farm, /export REFARM_STREAMS_DIR=\$\{REFARM_HOME\}\/streams/);
+	assert.match(tractorStart, /REFARM_HOME="\$\{REFARM_HOME:-\$ROOT\/\.refarm\}"/);
+	assert.match(tractorStart, /XDG_DATA_HOME="\$\{XDG_DATA_HOME:-\$REFARM_HOME\/data\}"/);
+	assert.match(tractorStart, /REFARM_STREAMS_DIR="\$\{REFARM_STREAMS_DIR:-\$REFARM_HOME\/streams\}"/);
+	assert.match(tractorStart, /INSTALLED_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/pi-agent\/plugin\.wasm"/);
+	assert.ok(!tractorStart.includes(["INSTALLED", "PI", "AGENT"].join("_")));
+	assert.doesNotMatch(tractorStart, /\$HOME\/\.refarm\/plugins/);
+	assert.match(tractorStart, /--refarm-dir "\$REFARM_HOME"/);
+	assert.match(tractorStart, /export REFARM_HOME/);
+	assert.match(tractorStart, /export XDG_DATA_HOME/);
+});
+
+test("devcontainer keeps Rust target artifacts inside the workspace cache", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const cargoConfig = readFileSync(".cargo/config.toml", "utf8");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+
+	assert.equal(config.containerEnv.CARGO_TARGET_DIR, "/workspaces/refarm/.cache/cargo-target");
+	assert.ok(
+		!config.mounts.some((mount) => mount.includes("target=/home/vscode/.cargo-target")),
+		"Cargo target must stay in the writable workspace cache, not a home mount that agent sandboxes may expose read-only",
+	);
+	assert.match(cargoConfig, /target-dir = "\/workspaces\/refarm\/\.cache\/cargo-target"/);
+	assert.match(postCreate, /"\$CARGO_TARGET_DIR"/);
+	assert.match(farm, /export CARGO_TARGET_DIR=\$\{PROJECT_DIR\}\/\.cache\/cargo-target/);
+});
+
 test("post-start does not rely on USER being set", () => {
 	const content = readFileSync(".devcontainer/post-start.sh", "utf8");
 	assert.doesNotMatch(content, /\$USER/);

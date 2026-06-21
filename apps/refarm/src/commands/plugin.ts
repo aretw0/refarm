@@ -1,19 +1,24 @@
+import {
+	resolvePluginPackage,
+	type PluginPackageSource,
+} from "@refarm.dev/barn";
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	isRuntimeAgentPluginId,
-	RUNTIME_AGENT_NPM_PACKAGE,
-	RUNTIME_AGENT_PLUGIN_ID,
-} from "@refarm.dev/config";
+	normalizePluginId,
+	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
+	RUNTIME_AGENT_PLUGIN_ID
+} from "@refarm.dev/config/plugin-identity";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import os from "node:os";
 import path, { basename, extname } from "node:path";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	quoteCommandArg,
 	refarmCommand,
+	refarmProcess,
 	shellCommand,
 } from "./command-handoff.js";
 import {
@@ -47,21 +52,47 @@ import {
 } from "./runtime-recovery.js";
 
 // Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
-// To add a new bundled plugin: add an entry here and add it as a dep in farmhand/package.json.
-const BUNDLED_PLUGINS = [
-	{
-		id: RUNTIME_AGENT_PLUGIN_ID,
-		npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
-		workspaceDir: "packages/pi-agent",
-		wasmFile: "dist/pi_agent.wasm",
-		manifestFile: "dist/plugin.json",
-		requiredProvides: ["agent:respond"],
-	},
-] as const;
-
-type BundledPlugin = (typeof BUNDLED_PLUGINS)[number];
+const BUNDLED_PLUGINS = REFARM_BUNDLED_PLUGIN_DESCRIPTORS;
+type BundledPlugin = (typeof REFARM_BUNDLED_PLUGIN_DESCRIPTORS)[number];
 const PACKAGE_MANAGER_OVERRIDE_HELP = PACKAGE_MANAGERS.join("|");
 const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
+const PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND = refarmCommand([
+	"plugin",
+	"reload",
+	"runtime-agent",
+	"--restart-if-needed",
+	"--wait",
+	"--json",
+]);
+
+function pluginReloadRestartCommand(pluginIds: string[], json = false): string {
+	return refarmCommand([
+		"plugin",
+		"reload",
+		...pluginIds.map(quoteCommandArg),
+		"--restart-if-needed",
+		"--wait",
+		...(json ? ["--json"] : []),
+	]);
+}
+
+function runtimeRestartProcess(wait: boolean) {
+	return refarmProcess(["runtime", "restart", ...(wait ? ["--wait"] : [])]);
+}
+
+async function restartRuntimeForPluginReload(wait: boolean): Promise<{
+	ok: boolean;
+	restartCommand: string;
+	failedCommand?: string;
+}> {
+	const restart = runtimeRestartProcess(wait);
+	const startResult = await runLaunchProcess(restart, { capture: false });
+	return {
+		ok: startResult.exitCode === 0,
+		restartCommand: restart.display,
+		...(startResult.exitCode === 0 ? {} : { failedCommand: restart.display }),
+	};
+}
 
 function pluginBundleCommand(
 	input: string,
@@ -85,12 +116,16 @@ function pluginBundleCommand(
 	]);
 }
 
-const pluginsBaseDir = path.join(os.homedir(), ".refarm", "plugins");
+function pluginsBaseDir(): string {
+	return path.join(resolveRefarmHome(), "plugins");
+}
 
 interface PluginListEntry {
 	id: string;
 	version: string | null;
 	source: "bundled";
+	packageSource: PluginPackageSource;
+	packageDir: string | null;
 	installed: boolean;
 }
 
@@ -145,6 +180,8 @@ interface PluginInstallResult {
 	packageName: string;
 	status: PluginInstallStatus;
 	version: string | null;
+	packageSource: PluginPackageSource;
+	packageDir?: string;
 	message?: string;
 	buildCommand?: string;
 	bytes?: number;
@@ -169,40 +206,6 @@ function localRuntimeAgentBuildCommand(): string {
 	}).display;
 }
 
-function resolvePackageDirFromNodeModules(packageName: string): string | null {
-	try {
-		const require = createRequire(import.meta.url);
-		const pkgJsonPath = require.resolve(`${packageName}/package.json`);
-		return path.dirname(pkgJsonPath);
-	} catch {
-		return null;
-	}
-}
-
-function resolveWorkspacePackageDir(plugin: BundledPlugin): string | null {
-	if (!("workspaceDir" in plugin)) return null;
-	let current = process.cwd();
-	while (true) {
-		const pkgDir = path.join(current, plugin.workspaceDir);
-		const pkgJsonPath = path.join(pkgDir, "package.json");
-		if (existsSync(pkgJsonPath)) {
-			try {
-				const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8")) as { name?: string };
-				if (pkgJson.name === plugin.npmPackage) return pkgDir;
-			} catch {
-				return null;
-			}
-		}
-		const parent = path.dirname(current);
-		if (parent === current) return null;
-		current = parent;
-	}
-}
-
-function resolvePackageDir(plugin: BundledPlugin): string | null {
-	return resolvePackageDirFromNodeModules(plugin.npmPackage) ?? resolveWorkspacePackageDir(plugin);
-}
-
 function readPackageVersion(pkgDir: string): string | null {
 	try {
 		const pkgJson = JSON.parse(
@@ -216,7 +219,7 @@ function readPackageVersion(pkgDir: string): string | null {
 
 function sentinelPath(pluginId: string): string {
 	return path.join(
-		pluginsBaseDir,
+		pluginsBaseDir(),
 		".versions",
 		pluginId.replace(/\//g, "_").replace(/@/g, ""),
 	);
@@ -239,7 +242,7 @@ async function installedBundleIsCurrent(
 	if (installed !== version) return false;
 
 	try {
-		const manifestPath = path.join(pluginsBaseDir, plugin.id, "plugin.json");
+		const manifestPath = path.join(pluginsBaseDir(), plugin.id, "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
 			integrity?: unknown;
 			capabilities?: { provides?: unknown };
@@ -262,18 +265,20 @@ async function installPlugin(
 	options: { quiet?: boolean } = {},
 ): Promise<PluginInstallResult> {
 	const quiet = options.quiet === true;
-	const pkgDir = resolvePackageDir(plugin);
-	if (!pkgDir) {
-		const message = `package ${plugin.npmPackage} not found in node_modules`;
+	const resolution = resolvePluginPackage(plugin, { baseUrl: import.meta.url });
+	if (!resolution) {
+		const message = `package ${plugin.npmPackage} not found in node_modules or workspace`;
 		if (!quiet) console.error(`  ✗ ${plugin.id}: ${message}`);
 		return {
 			id: plugin.id,
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: null,
+			packageSource: "unresolved",
 			message,
 		};
 	}
+	const { pkgDir } = resolution;
 
 	const pkgVersion = readPackageVersion(pkgDir);
 	if (!pkgVersion) {
@@ -284,6 +289,8 @@ async function installPlugin(
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: null,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			message,
 		};
 	}
@@ -301,6 +308,8 @@ async function installPlugin(
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: pkgVersion,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			message,
 			buildCommand,
 		};
@@ -319,11 +328,13 @@ async function installPlugin(
 				packageName: plugin.npmPackage,
 				status: "cached",
 				version: pkgVersion,
+				packageSource: resolution.source,
+				packageDir: pkgDir,
 				message,
 			};
 		}
 
-		const destDir = path.join(pluginsBaseDir, plugin.id);
+		const destDir = path.join(pluginsBaseDir(), plugin.id);
 		await mkdir(destDir, { recursive: true });
 
 		copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));
@@ -347,13 +358,17 @@ async function installPlugin(
 		await writeFile(sentinel, pkgVersion, "utf-8");
 
 		if (!quiet) {
-			console.log(`  ✓ ${plugin.id} v${pkgVersion} installed (${wasmBytes.byteLength} bytes)`);
+			console.log(
+				`  ✓ ${plugin.id} v${pkgVersion} installed from ${resolution.source} (${wasmBytes.byteLength} bytes)`,
+			);
 		}
 		return {
 			id: plugin.id,
 			packageName: plugin.npmPackage,
 			status: "installed",
 			version: pkgVersion,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			bytes: wasmBytes.byteLength,
 			integrity,
 		};
@@ -365,6 +380,8 @@ async function installPlugin(
 			packageName: plugin.npmPackage,
 			status: "failed",
 			version: pkgVersion,
+			packageSource: resolution.source,
+			packageDir: pkgDir,
 			message,
 		};
 	}
@@ -423,10 +440,13 @@ async function buildPluginListReport(): Promise<PluginListReport> {
 
 	for (const plugin of BUNDLED_PLUGINS) {
 		const version = await readInstalledVersion(plugin.id);
+		const resolution = resolvePluginPackage(plugin, { baseUrl: import.meta.url });
 		plugins.push({
 			id: plugin.id,
 			version,
 			source: "bundled",
+			packageSource: resolution?.source ?? "unresolved",
+			packageDir: resolution?.pkgDir ?? null,
 			installed: version !== null,
 		});
 	}
@@ -461,13 +481,20 @@ async function listInstalledPlugins(options: { json?: boolean } = {}): Promise<v
 
 	const idWidth = Math.max(...results.map((r) => r.id.length), 4);
 	const verWidth = Math.max(...results.map((r) => (r.version ?? "not installed").length), 7);
+	const sourceWidth = Math.max(
+		...results.map((r) => `${r.source}/${r.packageSource}`.length),
+		6,
+	);
 
 	console.log(
-		`  ${"PLUGIN".padEnd(idWidth)}  ${"VERSION".padEnd(verWidth)}  SOURCE`,
+		`  ${"PLUGIN".padEnd(idWidth)}  ${"VERSION".padEnd(verWidth)}  ${"SOURCE".padEnd(sourceWidth)}  PACKAGE`,
 	);
-	for (const { id, version, source } of results) {
+	for (const { id, version, source, packageSource, packageDir } of results) {
 		const ver = version ?? "not installed";
-		console.log(`  ${id.padEnd(idWidth)}  ${ver.padEnd(verWidth)}  ${source}`);
+		const sourceLabel = `${source}/${packageSource}`;
+		console.log(
+			`  ${id.padEnd(idWidth)}  ${ver.padEnd(verWidth)}  ${sourceLabel.padEnd(sourceWidth)}  ${packageDir ?? "-"}`,
+		);
 	}
 }
 
@@ -598,7 +625,7 @@ async function printRuntimePluginStatus(options: { json?: boolean } = {}): Promi
 
 async function reloadRuntimePluginCommand(
 	pluginIds: string[],
-	options: { json?: boolean } = {},
+	options: { json?: boolean; restartIfNeeded?: boolean; wait?: boolean } = {},
 ): Promise<void> {
 	const requested = pluginIds.length > 0 ? pluginIds : undefined;
 	if (!options.json) {
@@ -618,6 +645,61 @@ async function reloadRuntimePluginCommand(
 	});
 
 	if (!result) {
+		if (options.restartIfNeeded) {
+			const restart = await restartRuntimeForPluginReload(options.wait === true);
+			if (restart.ok) {
+				const skipped = (requested ?? []).map(normalizePluginId);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "plugin",
+							operation: "reload",
+							nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+							nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+							extra: {
+								requested: pluginIds,
+								reloaded: [],
+								skipped,
+								restarted: true,
+								restart,
+							},
+						}),
+					);
+				} else {
+					console.log(`  ✓ runtime restarted (${restart.restartCommand})`);
+				}
+				return;
+			}
+			if (options.json) {
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "plugin",
+						operation: "reload",
+						error: "runtime-plugin-restart-failed",
+						message: "Runtime restart failed after plugin reload endpoint was unavailable.",
+						nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+						nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+						nextCommands: [
+							restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+							PLUGIN_STATUS_JSON_COMMAND,
+							RUNTIME_DOCTOR_NEXT_COMMAND,
+						],
+						extra: {
+							requested: pluginIds,
+							reloaded: [],
+							skipped: (requested ?? []).map(normalizePluginId),
+							restarted: false,
+							restart,
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
+			console.error(`  ✗ runtime restart failed: ${restart.failedCommand}`);
+			process.exitCode = 1;
+			return;
+		}
 		if (options.json) {
 			printJson(
 				buildJsonErrorEnvelope({
@@ -650,15 +732,62 @@ async function reloadRuntimePluginCommand(
 
 	if (options.json) {
 		if (result.skipped.length > 0) {
+			const restartCommand = pluginReloadRestartCommand(pluginIds, true);
+			if (options.restartIfNeeded) {
+				const restart = await restartRuntimeForPluginReload(options.wait === true);
+				if (!restart.ok) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "plugin",
+							operation: "reload",
+							error: "runtime-plugin-restart-failed",
+							message: "Runtime restart failed after one or more plugins required restart to reload.",
+							nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+							nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+							nextCommands: [
+								restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
+								PLUGIN_STATUS_JSON_COMMAND,
+								RUNTIME_DOCTOR_NEXT_COMMAND,
+							],
+							extra: {
+								requested: pluginIds,
+								reloaded: result.reloaded,
+								skipped: result.skipped,
+								restarted: false,
+								restart,
+							},
+						}),
+					);
+					process.exitCode = 1;
+					return;
+				}
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "plugin",
+						operation: "reload",
+						nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+						nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+						extra: {
+							requested: pluginIds,
+							reloaded: result.reloaded,
+							skipped: result.skipped,
+							restarted: true,
+							restart,
+						},
+					}),
+				);
+				return;
+			}
 			printJson(
 				buildJsonErrorEnvelope({
 					command: "plugin",
 					operation: "reload",
 					error: "runtime-plugin-reload-partial",
-					message: "One or more runtime plugins failed to reload.",
-					nextAction: PLUGIN_STATUS_JSON_COMMAND,
-					nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+					message: "One or more runtime plugins require a runtime restart to reload.",
+					nextAction: restartCommand,
+					nextCommand: restartCommand,
 					nextCommands: [
+						restartCommand,
 						PLUGIN_STATUS_JSON_COMMAND,
 						RUNTIME_DOCTOR_NEXT_COMMAND,
 					],
@@ -692,9 +821,21 @@ async function reloadRuntimePluginCommand(
 		console.log(`  ✓ ${pluginId} reloaded`);
 	}
 	for (const pluginId of result.skipped) {
-		console.error(`  ✗ ${pluginId} failed to reload`);
+		console.error(`  ✗ ${pluginId} requires runtime restart to reload`);
 	}
 	if (result.skipped.length > 0) {
+		if (options.restartIfNeeded) {
+			const restart = await restartRuntimeForPluginReload(options.wait === true);
+			if (restart.ok) {
+				console.log(`  ✓ runtime restarted (${restart.restartCommand})`);
+				return;
+			}
+			console.error(`  ✗ runtime restart failed: ${restart.failedCommand}`);
+		} else {
+			console.error(
+				`  Restart if needed: ${pluginReloadRestartCommand(pluginIds)}`,
+			);
+		}
 		process.exitCode = 1;
 	}
 	if (result.reloaded.length === 0 && result.skipped.length === 0) {
@@ -719,7 +860,7 @@ export const pluginCommand = new Command("plugin").description(
 		"  $ refarm",
 		"",
 	"Notes:",
-	"  Install writes bundled plugin artifacts into ~/.refarm/plugins.",
+	"  Install writes bundled plugin artifacts into $REFARM_HOME/plugins, or ~/.refarm/plugins when REFARM_HOME is unset.",
 	`  Status reads the active Refarm runtime; ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if unavailable.`,
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
@@ -812,13 +953,17 @@ pluginCommand
 			"  $ refarm plugin reload",
 			"  $ refarm plugin reload runtime-agent",
 			"  $ refarm plugin reload runtime-agent --json",
+			`  $ ${PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND}`,
 			"",
 			"Notes:",
 			"  This is the non-interactive equivalent of /reload in refarm chat.",
+			"  Hot reload is attempted first; runtime restart only happens with --restart-if-needed.",
 			`  Use ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if the runtime is not running.`,
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable reload result")
+	.option("--restart-if-needed", "Restart the runtime when hot reload is not supported")
+	.option("--wait", "Wait for runtime readiness after --restart-if-needed")
 	.action(reloadRuntimePluginCommand);
 
 pluginCommand

@@ -17,6 +17,10 @@ import {
 	type ApplicationProcessSpec,
 } from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import {
+	buildWorkspaceExecutionStatus,
+	type WorkspaceExecutionStatus,
+} from "./workspace-execution.js";
 
 export type { PackageManagerName } from "@refarm.dev/config";
 export const PACKAGE_MANAGERS = SHARED_PACKAGE_MANAGERS;
@@ -27,12 +31,15 @@ export interface RefarmPackageScriptCommandOptions
 	env?: NodeJS.ProcessEnv;
 }
 
+export type { WorkspaceExecutionStatus } from "./workspace-execution.js";
+
 export interface PackageManagerStatus {
 	packageManager: PackageManagerName;
 	cwd: string;
 	override: string | null;
 	overrideValid: boolean;
 	validPackageManagers: readonly PackageManagerName[];
+	execution: WorkspaceExecutionStatus;
 	handoffs: {
 		tidyImportsDryRun: string;
 	};
@@ -73,6 +80,7 @@ export function buildPackageManagerStatus(options: {
 	const env = options.env ?? process.env;
 	const cwd = options.cwd ?? process.cwd();
 	const diagnostic = packageManagerOverrideDiagnostic(env);
+	const packageManager = detectSharedPackageManager({ cwd, env });
 	const tidyImportsCheck = createSharedPackageScriptCommand({
 		cwd,
 		script: "imports:organize",
@@ -85,11 +93,12 @@ export function buildPackageManagerStatus(options: {
 		env,
 	});
 	return {
-		packageManager: detectSharedPackageManager({ cwd, env }),
+		packageManager,
 		cwd,
 		override: env[PACKAGE_MANAGER_OVERRIDE]?.trim() || null,
 		overrideValid: Boolean(env[PACKAGE_MANAGER_OVERRIDE]) && !diagnostic,
 		validPackageManagers: PACKAGE_MANAGERS,
+		execution: buildWorkspaceExecutionStatus({ cwd, env, packageManager }),
 		handoffs: {
 			tidyImportsDryRun: refarmCommand([
 				"tidy",
@@ -140,6 +149,24 @@ function printPackageManagerStatus(status: PackageManagerStatus): void {
 	}
 	console.log(`  valid:    ${status.validPackageManagers.join(", ")}`);
 	console.log(chalk.dim(`  cwd:      ${status.cwd}`));
+	console.log(chalk.bold("Workspace execution"));
+	console.log(`  executor: ${status.execution.executor.selected}`);
+	console.log(chalk.dim(`  reason:   ${status.execution.executor.reason}`));
+	if (status.execution.adapters.turbo.configured) {
+		console.log(
+			`  turbo:    ${
+				status.execution.adapters.turbo.available ? "available" : "not provisioned"
+			}`,
+		);
+		if (status.execution.adapters.turbo.installCommand) {
+			console.log(chalk.dim(`  install:  ${status.execution.adapters.turbo.installCommand}`));
+		}
+	}
+	console.log(
+		`  cache:    local ${
+			status.execution.cache.local.available ? "available" : "not found"
+		}, remote ${status.execution.cache.remote.configured ? "configured" : "not configured"}`,
+	);
 	console.log(chalk.dim(`  inspect:  ${status.handoffs.tidyImportsDryRun}`));
 	console.log(chalk.dim(`  check:    ${status.commands.tidyImportsCheck.display}`));
 	console.log(chalk.dim(`  apply:    ${status.commands.tidyImportsApply.display}`));

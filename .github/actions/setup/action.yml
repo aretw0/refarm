@@ -18,6 +18,10 @@ inputs:
     description: "Whether to install cargo-llvm-cov for Rust coverage gates."
     required: false
     default: "false"
+  env-safety-mode:
+    description: "Environment safety precheck mode: warn (non-blocking) or strict (fail on issues)."
+    required: false
+    default: "warn"
   turbo-cache-api:
     description: "Turbo remote cache API URL (TURBO_API). When healthy, remote cache is layered over local GHA cache."
     required: false
@@ -140,6 +144,16 @@ runs:
         echo "TURBO_TOKEN=${{ inputs.turbo-cache-token }}" >> "$GITHUB_ENV"
         echo "TURBO_TEAM=$team" >> "$GITHUB_ENV"
         echo "Remote Turbo cache configured (api=$api team=$team)"
+
+    - name: Environment safety precheck
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if [ "${{ inputs.env-safety-mode }}" = "strict" ]; then
+          bash scripts/env-safety-check.sh --strict
+        else
+          bash scripts/env-safety-check.sh --warn || true
+        fi
 
     - name: Install dependencies
       shell: bash

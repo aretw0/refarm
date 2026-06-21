@@ -5,8 +5,10 @@ export interface RuntimeAgentRespondEffortOptions {
 	prompt: string;
 	system: string;
 	sessionId: string;
-	source: "refarm-ask" | "refarm-chat";
+	source: "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" | "refarm-chat";
 	historyTurns: number;
+	modelProvider?: string;
+	modelId?: string;
 	now?: () => Date;
 	randomUUID?: () => string;
 }
@@ -17,9 +19,20 @@ export function createRuntimeAgentRespondEffort({
 	sessionId,
 	source,
 	historyTurns,
+	modelProvider,
+	modelId,
 	now = () => new Date(),
 	randomUUID = () => crypto.randomUUID(),
 }: RuntimeAgentRespondEffortOptions): Effort {
+	const args: Record<string, unknown> = {
+		prompt,
+		system,
+		session_id: sessionId,
+		history_turns: historyTurns,
+	};
+	if (modelProvider) args.provider = modelProvider;
+	if (modelId) args.model = modelId;
+
 	return {
 		id: randomUUID(),
 		direction: "ask",
@@ -28,12 +41,7 @@ export function createRuntimeAgentRespondEffort({
 				id: randomUUID(),
 				pluginId: RUNTIME_AGENT_PLUGIN_ID,
 				fn: "respond",
-				args: {
-					prompt,
-					system,
-					session_id: sessionId,
-					history_turns: historyTurns,
-				},
+				args,
 			},
 		],
 		source,

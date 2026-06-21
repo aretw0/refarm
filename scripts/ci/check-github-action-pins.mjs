@@ -6,8 +6,9 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
+const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const WORKFLOWS_DIR = join(ROOT, ".github", "workflows");
 const ACTIONS_DIR = join(ROOT, ".github", "actions");
 const SHA_40 = /^[0-9a-f]{40}$/i;
@@ -55,7 +56,12 @@ for (const file of [
 
 		const at = spec.lastIndexOf("@");
 		if (at === -1) {
-			violations.push({ file: file.rel, line: index + 1, spec, reason: "missing ref" });
+			violations.push({
+				file: file.rel,
+				line: index + 1,
+				spec,
+				reason: "missing ref",
+			});
 			return;
 		}
 

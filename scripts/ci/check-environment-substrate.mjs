@@ -1,6 +1,11 @@
 #!/usr/bin/env node
+import dns from "node:dns/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-ownership.mjs";
+import { findWorkspaceSourceOwnershipIssues } from "./check-workspace-source-ownership.mjs";
+import { checkNodeSubstrate } from "./check-node-substrate.mjs";
+import { checkRustSubstrate } from "./check-rust-substrate.mjs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");
@@ -15,6 +20,11 @@ if (unknownArgs.length > 0) {
 
 function displayCommand(command, args = []) {
 	return [command, ...args].join(" ");
+}
+
+function compactError(value, limit = 1600) {
+	if (!value) return value;
+	return value.length > limit ? `${value.slice(0, limit)}...` : value;
 }
 
 function windowsShellCommand(command, args = []) {
@@ -48,21 +58,6 @@ function run(command, args = [], options = {}) {
 	};
 }
 
-function parseJsonRun(result) {
-	try {
-		return JSON.parse(result.stdout);
-	} catch {
-		return {
-			ok: false,
-			command: result.command,
-			operation: "check",
-			parseError: true,
-			stdout: result.stdout,
-			stderr: result.stderr,
-		};
-	}
-}
-
 function normalizeRecommendation(source, recommendation) {
 	if (typeof recommendation === "string") {
 		return {
@@ -78,14 +73,13 @@ function normalizeRecommendation(source, recommendation) {
 	};
 }
 
-function compactOutput(result) {
+function compactImportedCheck(result, display) {
 	return {
 		ok: result.ok,
-		exitCode: result.exitCode,
-		display: result.display,
-		stdout: result.stdout.slice(0, 4000),
-		stderr: result.stderr.slice(0, 4000),
-		error: result.error,
+		exitCode: result.ok ? 0 : 1,
+		display,
+		stdout: "",
+		stderr: "",
 	};
 }
 
@@ -102,7 +96,7 @@ function toolCheck(id, command, args = ["--version"], options = {}) {
 		args: logicalArgs,
 		display: result.display,
 		version: result.ok ? result.stdout.split(/\r?\n/)[0] ?? "" : null,
-		error: result.ok ? null : result.stderr || result.error || "command failed",
+		error: result.ok ? null : compactError(result.stderr || result.error || "command failed"),
 	};
 }
 
@@ -128,6 +122,42 @@ function toolCheckAlternatives(id, alternatives, options = {}) {
 	};
 }
 
+async function networkDnsCheck(id, hostname, options = {}) {
+	const timeoutMs = options.timeoutMs ?? 2000;
+	const startedAt = Date.now();
+	try {
+		const addresses = await Promise.race([
+			dns.lookup(hostname, { all: true }),
+			new Promise((_, reject) =>
+				setTimeout(() => reject(new Error(`DNS lookup timed out after ${timeoutMs}ms`)), timeoutMs),
+			),
+		]);
+		return {
+			id,
+			kind: "network-dns",
+			required: false,
+			ok: true,
+			hostname,
+			timeoutMs,
+			durationMs: Date.now() - startedAt,
+			addresses,
+			error: null,
+		};
+	} catch (error) {
+		return {
+			id,
+			kind: "network-dns",
+			required: false,
+			ok: false,
+			hostname,
+			timeoutMs,
+			durationMs: Date.now() - startedAt,
+			addresses: [],
+			error: compactError(error instanceof Error ? error.message : String(error)),
+		};
+	}
+}
+
 function pnpmToolAlternatives(env = process.env) {
 	const alternatives = [
 		windowsShellCommand("pnpm", ["--version"]),
@@ -148,10 +178,50 @@ function pnpmToolAlternatives(env = process.env) {
 	return alternatives;
 }
 
-const nodeRun = run(process.execPath, ["scripts/ci/check-node-substrate.mjs", "--json"]);
-const rustRun = run(process.execPath, ["scripts/ci/check-rust-substrate.mjs", "--json"]);
-const nodeSubstrate = parseJsonRun(nodeRun);
-const rustSubstrate = parseJsonRun(rustRun);
+const nodeSubstrate = await checkNodeSubstrate();
+const rustSubstrate = checkRustSubstrate();
+
+function ownershipCheck(id, kind, command, findIssues) {
+	try {
+		const issues = findIssues();
+		return {
+			id,
+			kind,
+			required: true,
+			ok: issues.length === 0,
+			command,
+			issueCount: issues.length,
+			issues,
+			error: null,
+		};
+	} catch (error) {
+		return {
+			id,
+			kind,
+			required: true,
+			ok: false,
+			command,
+			issueCount: null,
+			issues: [],
+			error: compactError(error instanceof Error ? error.message : String(error)),
+		};
+	}
+}
+
+const sourceOwnershipCheck = {
+	...ownershipCheck(
+		"workspace_source_ownership",
+		"workspace-source",
+		"pnpm run workspace:source:ownership",
+		findWorkspaceSourceOwnershipIssues,
+	),
+};
+const artifactOwnershipCheck = ownershipCheck(
+	"derived_artifact_ownership",
+	"workspace-artifacts",
+	"pnpm run workspace:artifacts:ownership",
+	findDerivedArtifactOwnershipIssues,
+);
 
 const tools = [
 	toolCheck("tool_node", process.execPath, ["--version"]),
@@ -160,9 +230,9 @@ const tools = [
 	toolCheck("tool_gh", "gh", ["--version"]),
 	toolCheck("tool_rustc", "rustc", ["-V"]),
 	toolCheck("tool_cargo", "cargo", ["-V"]),
-	toolCheck("tool_rustup", "rustup", ["--version"]),
 ];
 const diagnosticTools = [
+	toolCheck("diagnostic_rustup_version", "rustup", ["--version"], { required: false }),
 	toolCheck("diagnostic_wasm_tools", "wasm-tools", ["--version"], { required: false }),
 	toolCheck("diagnostic_bash", "bash", ["--version"], { required: false }),
 	toolCheck("diagnostic_jq", "jq", ["--version"], { required: false }),
@@ -172,6 +242,9 @@ const diagnosticTools = [
 	toolCheck("diagnostic_shfmt", "shfmt", ["--version"], { required: false }),
 	toolCheck("diagnostic_bwrap", "bwrap", ["--version"], { required: false }),
 ];
+const networkDiagnostics = [
+	await networkDnsCheck("diagnostic_network_registry_dns", "registry.npmjs.org"),
+];
 
 const checks = [
 	{
@@ -179,17 +252,20 @@ const checks = [
 		kind: "substrate",
 		ok: nodeSubstrate.ok === true,
 		command: "node scripts/ci/check-node-substrate.mjs --json",
-		exitCode: nodeRun.exitCode,
+		exitCode: nodeSubstrate.ok ? 0 : 1,
 	},
 	{
 		id: "rust_substrate",
 		kind: "substrate",
 		ok: rustSubstrate.ok === true,
 		command: "node scripts/ci/check-rust-substrate.mjs --json",
-		exitCode: rustRun.exitCode,
+		exitCode: rustSubstrate.ok ? 0 : 1,
 	},
+	sourceOwnershipCheck,
+	artifactOwnershipCheck,
 	...tools,
 	...diagnosticTools,
+	...networkDiagnostics,
 ];
 
 const recommendations = [
@@ -212,14 +288,61 @@ const recommendations = [
 			action: `Install or expose ${check.command} in PATH for this environment.`,
 			target: check.command,
 		})),
+	...(artifactOwnershipCheck.ok
+		? []
+		: [
+			{
+				diagnostic: "environment-substrate:derived-artifact-ownership",
+				severity: "failure",
+				summary: "Derived workspace artifacts are owned by another user or container.",
+				action:
+					"Run pnpm run workspace:artifacts:ownership, then clean only the reported ignored outputs in the environment that owns them.",
+				target: "workspace-artifacts",
+				issues: artifactOwnershipCheck.issues,
+				error: artifactOwnershipCheck.error,
+			},
+		]),
+	...(sourceOwnershipCheck.ok
+		? []
+		: [
+			{
+				diagnostic: "environment-substrate:workspace-source-ownership",
+				severity: "failure",
+				summary: "Tracked workspace source files are owned by another user or container.",
+				action:
+					"Run pnpm run workspace:source:ownership, then repair checkout ownership before building or editing source.",
+				target: "workspace-source",
+				issues: sourceOwnershipCheck.issues,
+				error: sourceOwnershipCheck.error,
+			},
+		]),
 	...diagnosticTools
 		.filter((check) => !check.ok)
+		.map((check) => check.id === "diagnostic_rustup_version"
+			? {
+				diagnostic: "environment-substrate:rustup-version-probe",
+				severity: "warning",
+				summary: "rustup --version failed, but Rust target validation is handled by rust-substrate.",
+				action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
+				target: check.command,
+			}
+			: {
+				diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
+				severity: "warning",
+				summary: `Diagnostic tool is not available: ${check.command}`,
+				action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
+				target: check.command,
+			}),
+	...networkDiagnostics
+		.filter((check) => !check.ok)
 		.map((check) => ({
-			diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
+			diagnostic: `environment-substrate:${check.id.replace(/^diagnostic_/, "")}`,
 			severity: "warning",
-			summary: `Diagnostic tool is not available: ${check.command}`,
-			action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
-			target: check.command,
+			summary: `Network DNS lookup failed for ${check.hostname}.`,
+			action:
+				"Rebuild the devcontainer or restart Docker Desktop; if this persists behind VPN/corporate DNS, configure container DNS intentionally.",
+			target: check.hostname,
+			error: check.error,
 		})),
 ];
 
@@ -250,10 +373,17 @@ const result = {
 		rust: rustSubstrate,
 		tools,
 		diagnosticTools,
+		networkDiagnostics,
 	},
 	processes: {
-		nodeSubstrate: compactOutput(nodeRun),
-		rustSubstrate: compactOutput(rustRun),
+		nodeSubstrate: compactImportedCheck(
+			nodeSubstrate,
+			"node scripts/ci/check-node-substrate.mjs --json",
+		),
+		rustSubstrate: compactImportedCheck(
+			rustSubstrate,
+			"node scripts/ci/check-rust-substrate.mjs --json",
+		),
 	},
 	recommendations,
 	nextAction: nextActions[0] ?? null,

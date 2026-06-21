@@ -72,12 +72,33 @@ describe("package manager command resolution", () => {
 				cwd: ".",
 				env: { REFARM_PACKAGE_MANAGER: "bun" },
 			}),
-		).toEqual({
+		).toMatchObject({
 			packageManager: "bun",
 			cwd: ".",
 			override: "bun",
 			overrideValid: true,
 			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
+			execution: {
+				executor: {
+					selected: "turbo",
+				},
+				adapters: {
+					directScript: {
+						available: true,
+					},
+					turbo: {
+						available: true,
+						configured: true,
+						declared: true,
+					},
+				},
+				cache: {
+					remote: {
+						configured: false,
+						provisionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+					},
+				},
+			},
 			handoffs: {
 				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
 			},
@@ -125,7 +146,7 @@ describe("package manager command resolution", () => {
 			env: { REFARM_PACKAGE_MANAGER: "npm" },
 		}).parseAsync(["--json"], { from: "user" });
 
-		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			command: "package-manager",
 			operation: "current",
 			ok: true,
@@ -134,6 +155,21 @@ describe("package manager command resolution", () => {
 			override: "npm",
 			overrideValid: true,
 			validPackageManagers: ["pnpm", "npm", "yarn", "bun"],
+			execution: {
+				executor: {
+					selected: "turbo",
+				},
+				adapters: {
+					directScript: {
+						available: true,
+					},
+					turbo: {
+						available: true,
+						configured: true,
+						declared: true,
+					},
+				},
+			},
 			handoffs: {
 				tidyImportsDryRun: "refarm tidy imports --dry-run --json",
 			},
@@ -177,10 +213,50 @@ describe("package manager command resolution", () => {
 		});
 	});
 
+	it("reports direct-script fallback when turbo config exists without a turbo dependency", () => {
+		const dir = mkdtempSync(join(tmpdir(), "refarm-pm-exec-test-"));
+		writeFileSync(
+			join(dir, "package.json"),
+			JSON.stringify({ packageManager: "pnpm@11.7.0" }),
+		);
+		writeFileSync(join(dir, "turbo.json"), JSON.stringify({ tasks: {} }));
+
+		try {
+			expect(
+				buildPackageManagerStatus({
+					cwd: dir,
+					env: {},
+				}).execution,
+			).toMatchObject({
+				root: dir,
+				executor: {
+					selected: "direct-script",
+				},
+				adapters: {
+					turbo: {
+						available: false,
+						configured: true,
+						declared: false,
+						configPath: join(dir, "turbo.json"),
+						installCommand: "pnpm add -D -w turbo",
+					},
+				},
+				cache: {
+					remote: {
+						configured: false,
+						provisionCommand: "refarm provision cloudflare turbo-cache --dry-run --json",
+					},
+				},
+			});
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it("walks past package.json files without packageManager", () => {
 		const dir = mkdtempSync(join(tmpdir(), "refarm-pm-walk-test-"));
 		const appDir = join(dir, "apps", "refarm");
-		writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@11.1.2" }));
+		writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@11.7.0" }));
 		mkdirSync(appDir, { recursive: true });
 		writeFileSync(join(appDir, "package.json"), JSON.stringify({ name: "@refarm.dev/refarm" }));
 
@@ -195,7 +271,7 @@ describe("package manager command resolution", () => {
 		const dir = mkdtempSync(join(tmpdir(), "refarm-pm-path-test-"));
 		const appDir = join(dir, "apps", "refarm");
 		mkdirSync(appDir, { recursive: true });
-		writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@11.1.2" }));
+		writeFileSync(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@11.7.0" }));
 		writeFileSync(join(appDir, "package.json"), JSON.stringify({ name: "@refarm.dev/refarm" }));
 
 		try {

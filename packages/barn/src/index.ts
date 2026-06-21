@@ -12,6 +12,9 @@ import {
 	type PluginArtifactMetadata,
 	type PluginBinaryCacheAdapter,
 } from "@refarm.dev/plugin-manifest";
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 
 export interface PluginEntry {
 	id: string;
@@ -21,6 +24,62 @@ export interface PluginEntry {
 	installedAt: number;
 	cacheStatus: "hit" | "miss";
 	wasmHash: string;
+}
+
+export type PluginPackageSource = "node_modules" | "workspace" | "unresolved";
+
+export interface PluginPackageResolution {
+	source: Exclude<PluginPackageSource, "unresolved">;
+	pkgDir: string;
+}
+
+export interface PluginPackageDescriptor {
+	npmPackage: string;
+	workspaceDir?: string;
+}
+
+export function resolvePluginPackageFromNodeModules(
+	packageName: string,
+	options: { baseUrl?: string } = {},
+): PluginPackageResolution | null {
+	try {
+		const require = createRequire(options.baseUrl ?? import.meta.url);
+		const pkgJsonPath = require.resolve(`${packageName}/package.json`);
+		return { source: "node_modules", pkgDir: path.dirname(pkgJsonPath) };
+	} catch {
+		return null;
+	}
+}
+
+export function resolveWorkspacePluginPackage(
+	plugin: PluginPackageDescriptor,
+	options: { cwd?: string } = {},
+): PluginPackageResolution | null {
+	if (!plugin.workspaceDir) return null;
+	let current = options.cwd ?? process.cwd();
+	while (true) {
+		const pkgDir = path.join(current, plugin.workspaceDir);
+		const pkgJsonPath = path.join(pkgDir, "package.json");
+		if (existsSync(pkgJsonPath)) {
+			try {
+				const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8")) as { name?: string };
+				if (pkgJson.name === plugin.npmPackage) return { source: "workspace", pkgDir };
+			} catch {
+				return null;
+			}
+		}
+		const parent = path.dirname(current);
+		if (parent === current) return null;
+		current = parent;
+	}
+}
+
+export function resolvePluginPackage(
+	plugin: PluginPackageDescriptor,
+	options: { cwd?: string; baseUrl?: string } = {},
+): PluginPackageResolution | null {
+	return resolvePluginPackageFromNodeModules(plugin.npmPackage, options) ??
+		resolveWorkspacePluginPackage(plugin, options);
 }
 
 type CachedBinary = {

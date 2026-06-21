@@ -74,7 +74,7 @@ Pi-agent extends the base contract by storing extra CRDT fields (`leaf_entry_id`
 **`SessionEntry`** (`urn:refarm:session-entry:v1:{id}`): append-only, `parent_entry_id`
 linked list for branch-safe history walks.
 
-Full schemas and TypeScript interfaces: [design spec](../../docs/superpowers/specs/2026-05-03-task-session-contracts-design.md).
+Full schemas and TypeScript interfaces are covered by the feature specs: [task-contract-v1](../features/task-contract-v1.md), [session-contract-v1](../features/session-contract-v1.md).
 
 ### Pi-agent namespace migration
 

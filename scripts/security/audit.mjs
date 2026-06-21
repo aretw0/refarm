@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { detectPackageManager } from "../../packages/config/src/package-manager.js";
+import { packageAuditCommand } from "../../packages/config/src/package-manager.js";
 
 function parseArgs(argv) {
 	let auditLevel = null;
@@ -35,24 +35,7 @@ function parseArgs(argv) {
 }
 
 function auditCommand({ auditLevel = null } = {}) {
-	const packageManager = detectPackageManager();
-
-	switch (packageManager) {
-		case "pnpm":
-		case "npm":
-		case "bun":
-			return {
-				command: packageManager,
-				args: ["audit", ...(auditLevel ? [`--audit-level=${auditLevel}`] : [])],
-			};
-		case "yarn":
-			return {
-				command: "yarn",
-				args: ["npm", "audit", ...(auditLevel ? ["--severity", auditLevel] : [])],
-			};
-		default:
-			throw new Error(`Unsupported package manager: ${packageManager}`);
-	}
+	return packageAuditCommand({ auditLevel });
 }
 
 try {

@@ -1,0 +1,77 @@
+{
+  "id": "coding-agent-temp-workspace-rehearsal-extension-sandbox-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "claim": "A bounded coding-agent proposal can be rehearsed against a temporary workspace copy while repository promotion remains blocked on review.",
+  "claimStatus": "deterministic-temp-workspace-rehearsal",
+  "mode": "temporary-workspace-copy",
+  "input": {
+    "taskId": "task-extension-sandbox-poc",
+    "sourceSmoke": "coding-agent-smoke.json",
+    "intent": "Ask a local coding agent to prepare a bounded source change while the host controls capabilities and promotion.",
+    "proposedPatchId": "proposed-patch-001"
+  },
+  "workspace": {
+    "kind": "temporary-directory",
+    "root": "<os-tmp>/refarm-coding-agent-rehearsal",
+    "targetPath": "synthetic-workspace/allowed-module.ts",
+    "repositoryMutationAllowed": false,
+    "workspaceMutationAllowed": true
+  },
+  "fileState": {
+    "before": "export const policyMode = \"fail-fast\";\n",
+    "after": "export const policyMode = \"fail-fast\";\nexport const reviewRequired = true;\n",
+    "beforeHash": "6bc0b036b64bc5fc743cdaddd0822b5cf607fa8f49466006662852ca2574c2af",
+    "afterHash": "de8ea5c8eb981f88192c0d765b2f89a6fd143b000b7d340cfcf6c46e3b8bbeef"
+  },
+  "reviewPacket": {
+    "id": "temp-workspace-review-packet-001",
+    "status": "requires-operator-review",
+    "requiredBeforePromotion": [
+      "workspace:write",
+      "process:run"
+    ],
+    "primaryEvidence": [
+      "coding-agent-smoke.json",
+      "coding-agent-evidence.json",
+      "policy-decision.json",
+      "limits.md"
+    ]
+  },
+  "receipts": [
+    {
+      "id": "denied-capability-network-v1-001",
+      "capability": "network:v1",
+      "status": "denied",
+      "reason": "network access is not part of the default grant",
+      "evidence": [
+        "policy-decision.json",
+        "sandbox-report.json"
+      ]
+    },
+    {
+      "id": "repository-mutation-denied-001",
+      "capability": "repository:write",
+      "status": "denied",
+      "reason": "the rehearsal may write only to a temporary workspace copy until an operator promotes the reviewed patch",
+      "evidence": [
+        "coding-agent-smoke.json",
+        "limits.md"
+      ]
+    }
+  ],
+  "observedRepositoryWrites": [],
+  "protectedSurfaceTouches": [],
+  "checks": {
+    "tempWorkspaceUsed": true,
+    "repositoryMutationBlocked": true,
+    "reviewPacketPreserved": true,
+    "deniedCapabilityReceiptPreserved": true,
+    "protectedSurfacesUntouched": true,
+    "fileHashChangedOnlyInsideTempWorkspace": true
+  },
+  "promotionBoundary": {
+    "canSay": "The POC now rehearses the proposed coding-agent change against a temporary workspace copy and preserves the same review packet shape before promotion.",
+    "cannotSay": "The rehearsal executed a real model-driven coding agent, proved complete repository sandboxing, or promoted unattended writes."
+  },
+  "nextPromotion": "Replace the deterministic planner with a real model/tool harness that must emit the same temporary-workspace rehearsal packet before any repository write is considered."
+}

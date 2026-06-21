@@ -92,12 +92,12 @@ Do not run `pnpm run clean:light` after every small Rust slice. It saves disk bu
 also removes incremental caches; use it at session/checkpoint boundaries or when
 `pnpm run clean:rust:check` shows pressure.
 
-## CARGO_TARGET_DIR volume redirect (devcontainer)
+## CARGO_TARGET_DIR workspace cache (devcontainer)
 
-The devcontainer sets `CARGO_TARGET_DIR=/home/vscode/.cargo-target` and mounts that
-path as the named Docker volume `refarm-cargo-target`. All cargo builds — including
-`cargo component build` for pi-agent and `cargo build --release` for tractor — write
-to that volume instead of each package's own `target/` subdirectory.
+The devcontainer sets `CARGO_TARGET_DIR=/workspaces/refarm/.cache/cargo-target`.
+All cargo builds — including `cargo component build` for pi-agent and
+`cargo build --release` for tractor — write to that workspace cache instead of
+each package's own `target/` subdirectory.
 
 Consequences:
 
@@ -106,16 +106,15 @@ Consequences:
   Scripts read `CARGO_TARGET_DIR` and fall back to the workspace paths when the var
   is unset (local dev without the devcontainer).
 - **Host disk**: workspace `target/` dirs are stale once the redirect is active. Run
-  `pnpm run clean:heavy` once to remove them and reclaim host C:\ space (~2–3 GB).
-- **Volume disk**: `pnpm run clean:rust:check` now reports the volume size separately.
-  `pnpm run clean:rust:full` also purges the volume when `CARGO_TARGET_DIR` is set.
-- **Speed**: Docker volume I/O is faster than bind-mount WSL2 I/O, so incremental
-  rebuilds are noticeably quicker.
+  `pnpm run clean:heavy` once to remove them and reclaim duplicate space.
+- **Workspace cache**: `pnpm run clean:rust:check` reports this cache separately.
+  `pnpm run clean:rust:full` also purges it when `CARGO_TARGET_DIR` is set.
+- **Agent parity**: the cache lives under the writable workspace so human shells,
+  devcontainer hooks, and sandboxed agents resolve the same Rust artifacts.
 
 ## Docker Desktop / WSL note
 
 Deleting workspace artifacts inside the devcontainer (bind mount on C:\) reclaims
-space on the host immediately. Volume artifacts (`CARGO_TARGET_DIR`) live inside
-Docker's virtual disk — they do not appear on C:\ but still consume the VHD.
-When the VHD is bloated, shut down WSL and compact it:
+space on the host immediately. Docker volumes used for package-manager caches can
+still bloat the VHD; when that happens, shut down WSL and compact it:
 `wsl --shutdown` then prune unused Docker volumes with `docker volume prune`.

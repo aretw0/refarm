@@ -87,6 +87,7 @@ export function getAliases(root) {
     '@refarm.dev/storage-contract-v1': path.resolve(packagesDir, 'storage-contract-v1', getSuffix('@refarm.dev/storage-contract-v1')),
     '@refarm.dev/sync-contract-v1': path.resolve(packagesDir, 'sync-contract-v1', getSuffix('@refarm.dev/sync-contract-v1')),
     '@refarm.dev/identity-contract-v1': path.resolve(packagesDir, 'identity-contract-v1', getSuffix('@refarm.dev/identity-contract-v1')),
+    '@refarm.dev/config/plugin-identity': path.resolve(packagesDir, 'config', 'src/plugin-identity.js'),
     '@refarm.dev/config': path.resolve(packagesDir, 'config', getSuffix('@refarm.dev/config')),
     '@refarm.dev/vtconfig': path.resolve(packagesDir, 'vtconfig', getSuffix('@refarm.dev/vtconfig')),
     '@refarm.dev/toolbox': path.resolve(packagesDir, 'toolbox', getSuffix('@refarm.dev/toolbox')),

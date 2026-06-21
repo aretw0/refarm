@@ -13,8 +13,7 @@ fn session_node_has_required_fields() {
         "session node includes participants array"
     );
     assert_eq!(
-        node["participants"][0],
-        "urn:refarm:agent:runtime-agent",
+        node["participants"][0], "urn:refarm:agent:runtime-agent",
         "default session participant uses the operator-facing runtime agent identity"
     );
     assert!(

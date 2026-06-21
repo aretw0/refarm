@@ -9,7 +9,10 @@ const publicDir = path.resolve(process.cwd(), "public");
 function copyMatching(fromDir, matcher) {
 	for (const entry of fs.readdirSync(fromDir)) {
 		if (!matcher(entry)) continue;
-		fs.copyFileSync(path.join(fromDir, entry), path.join(publicDir, entry));
+		const from = path.join(fromDir, entry);
+		const to = path.join(publicDir, entry);
+		if (fs.existsSync(to) && fs.readFileSync(from).equals(fs.readFileSync(to))) continue;
+		fs.copyFileSync(from, to);
 	}
 }
 

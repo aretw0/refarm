@@ -5,8 +5,8 @@ import type {
 	EffortStatus,
 } from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { quoteCommandArgIfNeeded, refarmCommand } from "./command-handoff.js";
 import { observedEffortStatus } from "./task-observation.js";
 import { isFinalEffortStatus } from "./task-status.js";
@@ -280,7 +280,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 	private readonly sessionFilePath: string;
 
 	constructor(
-		baseDir = path.join(os.homedir(), ".refarm"),
+		baseDir = resolveRefarmHome(),
 		private readonly maxEfforts = DEFAULT_MAX_EFFORTS,
 	) {
 		this.sessionsDir = path.join(baseDir, "sessions");

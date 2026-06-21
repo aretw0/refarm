@@ -174,6 +174,28 @@ describe("refarm task run", () => {
 		spy.mockRestore();
 	});
 
+	it("accepts channel transport aliases in task run", async () => {
+		const adapter = createMockAdapter();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const session = createMockSessionRecorder();
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		await taskCommand.commands
+			.find((command) => command.name() === "run")!
+			.parseAsync(["my-plugin", "process", "--transport", "channel:matrix"], {
+				from: "user",
+			});
+
+		expect(resolver).toHaveBeenCalledWith("channel:matrix");
+		expect(session.rememberRun).toHaveBeenCalledWith(
+			expect.objectContaining({ transport: "channel:matrix" }),
+		);
+	});
+
 	it("dispatches effort as JSON", async () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
@@ -220,12 +242,17 @@ describe("refarm task run", () => {
 				transport: "file",
 				plugin: "my-plugin",
 				fn: "process",
-				nextCommand: "refarm task status effort-abc --transport file --watch --json",
+				nextCommand:
+					"refarm task status effort-abc --transport file --watch --json",
 			}),
 		);
 		expect(payload.nextActions).toEqual(payload.nextCommands);
-		expect(payload.nextCommands).toContain("refarm task status effort-abc --transport file --json");
-		expect(payload.nextCommands).toContain("refarm task logs effort-abc --transport file --json");
+		expect(payload.nextCommands).toContain(
+			"refarm task status effort-abc --transport file --json",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm task logs effort-abc --transport file --json",
+		);
 		expect(payload.effort.direction).toBe("Test effort");
 		expect(payload.effort.tasks[0]?.args).toEqual({ value: 1 });
 		expect(session.rememberRun).toHaveBeenCalledWith(
@@ -244,10 +271,9 @@ describe("refarm task run", () => {
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 		await taskCommand.commands
 			.find((command) => command.name() === "run")!
-			.parseAsync(
-				["runtime-agent", "respond", "--args", '{"query":"hello"}'],
-				{ from: "user" },
-			);
+			.parseAsync(["runtime-agent", "respond", "--args", '{"query":"hello"}'], {
+				from: "user",
+			});
 
 		expect(adapter.submit).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -309,7 +335,8 @@ describe("refarm task run", () => {
 				plugin: "p",
 				fn: "f",
 				transport: "file",
-				nextCommand: "refarm task run 'p' 'f' --args '{}' --transport file --json",
+				nextCommand:
+					"refarm task run 'p' 'f' --args '{}' --transport file --json",
 			}),
 		);
 		expect(resolver).not.toHaveBeenCalled();
@@ -337,8 +364,12 @@ describe("refarm task run", () => {
 		});
 
 		await expect(
-			runCommand.parseAsync(["p", "f", "--transport", "grpc"], { from: "user" }),
-		).rejects.toThrow('Invalid task transport "grpc". Use: file, http');
+			runCommand.parseAsync(["p", "f", "--transport", "grpc"], {
+				from: "user",
+			}),
+		).rejects.toThrow(
+			'Invalid task transport "grpc". Use: file, http, channel:<name>',
+		);
 
 		expect(resolver).not.toHaveBeenCalled();
 		expect(adapter.submit).not.toHaveBeenCalled();
@@ -431,6 +462,39 @@ describe("refarm task status", () => {
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("done"));
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("t1"));
 		spy.mockRestore();
+	});
+
+	it("accepts channel transport in status", async () => {
+		const result: EffortResult = {
+			effortId: "effort-abc",
+			status: "done",
+			results: [],
+			submittedAt: new Date().toISOString(),
+			completedAt: new Date().toISOString(),
+		};
+		const adapter = createMockAdapter({
+			query: vi.fn().mockResolvedValue(result),
+		});
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		await taskCommand.commands
+			.find((command) => command.name() === "status")!
+			.parseAsync(["effort-abc", "--transport", "channel:matrix"], {
+				from: "user",
+			});
+
+		expect(resolver).toHaveBeenCalledWith("channel:matrix");
+		expect(session.rememberStatus).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "channel:matrix",
+			result,
+		});
 	});
 
 	it("prints status transport in JSON output when found", async () => {
@@ -785,6 +849,69 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("accepts channel transport for list", async () => {
+		const adapter = createMockAdapter({
+			summary: vi.fn().mockResolvedValue({
+				total: 1,
+				pending: 1,
+				inProgress: 0,
+				done: 0,
+				partial: 0,
+				failed: 0,
+				timedOut: 0,
+				cancelled: 0,
+			} satisfies EffortSummary),
+			list: vi.fn().mockResolvedValue([
+				{
+					effortId: "effort-abc",
+					status: "pending",
+					results: [],
+				} satisfies EffortResult,
+			]),
+		});
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await taskCommand.commands
+			.find((command) => command.name() === "list")!
+			.parseAsync(["--transport", "channel:matrix", "--json"], {
+				from: "user",
+			});
+
+		expect(resolver).toHaveBeenCalledWith("channel:matrix");
+		expect(session.rememberList).toHaveBeenCalledWith(
+			expect.objectContaining({
+				transport: "channel:matrix",
+				efforts: [
+					expect.objectContaining({
+						effortId: "effort-abc",
+						status: "pending",
+					}),
+				],
+			}),
+		);
+
+		const payload = JSON.parse(String(spy.mock.calls[0]?.[0])) as {
+			transport: string;
+			nextCommands: string[];
+		};
+		expect(payload.transport).toBe("channel:matrix");
+		expect(payload.nextCommands).toContain(
+			"refarm task status effort-abc --transport channel:matrix --json",
+		);
+		expect(payload.nextCommands).toContain(
+			"refarm task logs effort-abc --transport channel:matrix --json",
+		);
+		spy.mockRestore();
+	});
+
 	it("list prints observed summary fields for legacy agent errors", async () => {
 		const adapter = createMockAdapter({
 			summary: vi.fn().mockResolvedValue({
@@ -966,6 +1093,42 @@ describe("refarm task list/logs/retry/cancel", () => {
 		spy.mockRestore();
 	});
 
+	it("accepts channel transport for logs", async () => {
+		const logs: EffortLogEntry[] = [
+			{
+				effortId: "effort-abc",
+				timestamp: new Date().toISOString(),
+				level: "info",
+				event: "submitted",
+				message: "Effort submitted",
+			},
+		];
+		const adapter = createMockAdapter({
+			logs: vi.fn().mockResolvedValue(logs),
+		});
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+
+		await taskCommand.commands
+			.find((command) => command.name() === "logs")!
+			.parseAsync(["effort-abc", "--transport", "channel:matrix"], {
+				from: "user",
+			});
+
+		expect(resolver).toHaveBeenCalledWith("channel:matrix");
+		expect(session.rememberLogs).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "channel:matrix",
+			logs,
+		});
+	});
+
 	it("logs prints empty JSON with status follow-up", async () => {
 		const adapter = createMockAdapter({
 			logs: vi.fn().mockResolvedValue([]),
@@ -1119,7 +1282,9 @@ describe("refarm task list/logs/retry/cancel", () => {
 		});
 
 		await expect(
-			logsCommand.parseAsync(["effort-abc", "--tail", "many"], { from: "user" }),
+			logsCommand.parseAsync(["effort-abc", "--tail", "many"], {
+				from: "user",
+			}),
 		).rejects.toThrow("--tail must be a positive integer.");
 
 		expect(resolver).not.toHaveBeenCalled();
@@ -1185,7 +1350,8 @@ describe("refarm task list/logs/retry/cancel", () => {
 			transport: "http",
 			action: "retry",
 			accepted: true,
-			nextCommand: "refarm task status effort-abc --transport http --watch --json",
+			nextCommand:
+				"refarm task status effort-abc --transport http --watch --json",
 		});
 		expect(payload.nextAction).toContain("--watch");
 		expect(session.rememberControl).toHaveBeenCalledWith({
@@ -1236,6 +1402,33 @@ describe("refarm task list/logs/retry/cancel", () => {
 		expect(process.exitCode).toBe(1);
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+
+	it("accepts channel transport for retry", async () => {
+		const adapter = createMockAdapter({
+			retry: vi.fn().mockResolvedValue(true),
+		});
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+
+		await taskCommand.commands
+			.find((command) => command.name() === "retry")!
+			.parseAsync(["effort-abc", "--transport", "channel:matrix", "--json"], {
+				from: "user",
+			});
+
+		expect(resolver).toHaveBeenCalledWith("channel:matrix");
+		expect(session.rememberControl).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "channel:matrix",
+			action: "retry",
+		});
 	});
 
 	it("retry prints adapter failures as JSON without stderr", async () => {
@@ -1308,6 +1501,33 @@ describe("refarm task list/logs/retry/cancel", () => {
 			expect.stringContaining("Cancel requested"),
 		);
 		spy.mockRestore();
+	});
+
+	it("accepts channel transport for cancel", async () => {
+		const adapter = createMockAdapter({
+			cancel: vi.fn().mockResolvedValue(true),
+		});
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+
+		await taskCommand.commands
+			.find((command) => command.name() === "cancel")!
+			.parseAsync(["effort-abc", "--transport", "channel:matrix", "--json"], {
+				from: "user",
+			});
+
+		expect(resolver).toHaveBeenCalledWith("channel:matrix");
+		expect(session.rememberControl).toHaveBeenCalledWith({
+			effortId: "effort-abc",
+			transport: "channel:matrix",
+			action: "cancel",
+		});
 	});
 
 	it("cancel prints accepted result as JSON", async () => {

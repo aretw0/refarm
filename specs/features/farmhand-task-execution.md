@@ -191,6 +191,5 @@ export const EFFORT_CAPABILITY = Symbol("EffortTransportAdapter");
 
 ## References
 
-- [Design doc](../../docs/superpowers/specs/2026-05-01-farmhand-task-execution-design.md)
 - [ADR-007](../ADRs/ADR-007-observability-primitives.md)
 - [ADR-018](../ADRs/ADR-018-capability-contracts-and-observability-gates.md)

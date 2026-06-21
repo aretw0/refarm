@@ -61,6 +61,7 @@ import {
 import { HttpSidecar } from "./transports/http.js";
 import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
+import { createControlSurfaceRouteHandler } from "./transports/channels.js";
 import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
@@ -129,7 +130,9 @@ async function handlePluginRoute(
 	const assignedTo = node["plugin:assignedTo"] as string | undefined;
 	if (assignedTo && assignedTo !== FARMHAND_ID) return; // not for this daemon
 
-	const manifest = node["plugin:manifest"] as Record<string, unknown> | undefined;
+	const manifest = node["plugin:manifest"] as
+		| Record<string, unknown>
+		| undefined;
 	if (!manifest?.id) {
 		console.warn("[farmhand] PluginRoute missing plugin:manifest — skipping");
 		return;
@@ -137,7 +140,8 @@ async function handlePluginRoute(
 
 	console.log(`[farmhand] PluginRoute: loading plugin "${manifest.id}"`);
 	try {
-		const pluginManifest = manifest as unknown as import("@refarm.dev/plugin-manifest").PluginManifest;
+		const pluginManifest =
+			manifest as unknown as import("@refarm.dev/plugin-manifest").PluginManifest;
 		await tractor.registry.register(pluginManifest);
 		await tractor.registry.trust(pluginManifest.id);
 		await tractor.plugins.load(pluginManifest);
@@ -202,24 +206,52 @@ const siloModelEnvInjector = createSiloModelEnvInjector({
 	refreshOAuthToken,
 });
 
-async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
+async function refreshOAuthToken(
+	oauthProvider: string,
+	creds: OAuthCreds,
+): Promise<OAuthCreds | null> {
 	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
 	const clientId = OAUTH_CLIENT_IDS[oauthProvider];
 	if (!tokenUrl || !clientId) return null;
 	try {
 		const isOpenAI = oauthProvider === "openai-codex";
 		const body = isOpenAI
-			? new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, refresh_token: creds.refresh })
-			: JSON.stringify({ grant_type: "refresh_token", client_id: clientId, refresh_token: creds.refresh });
+			? new URLSearchParams({
+					grant_type: "refresh_token",
+					client_id: clientId,
+					refresh_token: creds.refresh,
+				})
+			: JSON.stringify({
+					grant_type: "refresh_token",
+					client_id: clientId,
+					refresh_token: creds.refresh,
+				});
 		const headers = isOpenAI
 			? { "content-type": "application/x-www-form-urlencoded" }
 			: { "content-type": "application/json", accept: "application/json" };
-		const res = await fetch(tokenUrl, { method: "POST", headers, body, signal: AbortSignal.timeout(15_000) });
+		const res = await fetch(tokenUrl, {
+			method: "POST",
+			headers,
+			body,
+			signal: AbortSignal.timeout(15_000),
+		});
 		if (!res.ok) return null;
 		const d = isOpenAI
-			? (await res.json()) as { access_token: string; refresh_token: string; expires_in: number }
-			: JSON.parse(await res.text()) as { access_token: string; refresh_token: string; expires_in: number };
-		return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000 - 300_000 };
+			? ((await res.json()) as {
+					access_token: string;
+					refresh_token: string;
+					expires_in: number;
+				})
+			: (JSON.parse(await res.text()) as {
+					access_token: string;
+					refresh_token: string;
+					expires_in: number;
+				});
+		return {
+			access: d.access_token,
+			refresh: d.refresh_token,
+			expires: Date.now() + d.expires_in * 1000 - 300_000,
+		};
 	} catch {
 		return null;
 	}
@@ -252,11 +284,15 @@ async function main() {
 
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
-	const farmhandBaseDir = process.env.FARMHAND_DATA_DIR ?? path.join(os.homedir(), ".refarm");
+	const farmhandBaseDir =
+		process.env.FARMHAND_DATA_DIR ?? path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
 
 	const config = await loadConfigAsync().catch((err: unknown) => {
-		console.warn("[farmhand] Failed to load config, skipping auto-install:", err instanceof Error ? err.message : String(err));
+		console.warn(
+			"[farmhand] Failed to load config, skipping auto-install:",
+			err instanceof Error ? err.message : String(err),
+		);
 		return {};
 	});
 	const autoEntries: unknown[] = Array.isArray(config?.plugins?.autoInstall)
@@ -268,7 +304,10 @@ async function main() {
 
 	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
 	// Loaded first so project-local extensions can override bundled runtime-agent plugins.
-	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
+	const localExtRegistry = new LocalExtensionRegistry(
+		process.cwd(),
+		os.homedir(),
+	);
 	const localExtSummary = await localExtRegistry.load(runtime);
 	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
 		console.log(
@@ -288,9 +327,10 @@ async function main() {
 	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)
 		? (config.plugins.bundled as BundledEntry[])
 		: [];
-	const bundledEntries = process.env.FARMHAND_SKIP_BUNDLED_INSTALL === "1"
-		? []
-		: [...defaultBundled, ...configBundled];
+	const bundledEntries =
+		process.env.FARMHAND_SKIP_BUNDLED_INSTALL === "1"
+			? []
+			: [...defaultBundled, ...configBundled];
 	const bundledSummary = await bundleInstallPlugins(bundledEntries, pluginsDir);
 	console.log(
 		`[farmhand] Bundled install: installed=${bundledSummary.installed} cached=${bundledSummary.cached} failed=${bundledSummary.failed}`,
@@ -304,10 +344,7 @@ async function main() {
 		);
 	}
 
-	const loadSummary = await loadInstalledPlugins(
-		runtime,
-		farmhandBaseDir,
-	);
+	const loadSummary = await loadInstalledPlugins(runtime, farmhandBaseDir);
 	if (loadSummary.loaded > 0 || loadSummary.skipped > 0) {
 		console.log(
 			`[farmhand] Installed plugin scan complete: loaded=${loadSummary.loaded} skipped=${loadSummary.skipped}`,
@@ -362,7 +399,10 @@ async function main() {
 		await injectSiloModelEnv();
 		const tokens = await modelRouteResolver.refreshTokens();
 		const route = routeForScope(tokens, scope, {
-			env: routeResolutionEnv(process.env, siloModelEnvInjector.managedEnvKeys()),
+			env: routeResolutionEnv(
+				process.env,
+				siloModelEnvInjector.managedEnvKeys(),
+			),
 		});
 		await withModelRouteEnv(
 			route,
@@ -405,8 +445,9 @@ async function main() {
 		farmhandBaseDir,
 		taskExecutorFn,
 		{
-			onEffortStart: (effortId, pluginIds) => pluginTracker.registerEffort(effortId, pluginIds),
-			onEffortEnd:   (effortId)            => pluginTracker.releaseEffort(effortId),
+			onEffortStart: (effortId, pluginIds) =>
+				pluginTracker.registerEffort(effortId, pluginIds),
+			onEffortEnd: (effortId) => pluginTracker.releaseEffort(effortId),
 		},
 	);
 	const stopFileWatcher = fileTransport.watch();
@@ -415,7 +456,15 @@ async function main() {
 	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
 	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
-	httpSidecar.addRouteHandler(createPluginsRouteHandler(runtime, farmhandBaseDir, pluginTracker, localExtRegistry));
+	httpSidecar.addRouteHandler(createControlSurfaceRouteHandler(fileTransport));
+	httpSidecar.addRouteHandler(
+		createPluginsRouteHandler(
+			runtime,
+			farmhandBaseDir,
+			pluginTracker,
+			localExtRegistry,
+		),
+	);
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
 

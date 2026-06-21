@@ -32,7 +32,13 @@ function parseArgs(argv) {
 		json: false,
 		unknown: [],
 	};
-	for (const arg of argv) {
+
+	const normalizedArgv = [...argv];
+	while (normalizedArgv[0] === "--") {
+		normalizedArgv.shift();
+	}
+
+	for (const arg of normalizedArgv) {
 		switch (arg) {
 			case "--build":
 				options.forceBuild = true;

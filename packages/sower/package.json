@@ -32,6 +32,16 @@
 		"@refarm.dev/windmill": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",
+	"files": [
+		"README.md",
+		"ROADMAP.md",
+		"dist/core.js",
+		"dist/core.d.ts",
+		"dist/index.js",
+		"dist/index.d.ts",
+		"dist/index.browser.js",
+		"dist/index.browser.d.ts"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

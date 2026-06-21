@@ -8,3 +8,5 @@ export type {
 	TurboCacheServicePlan,
 	TurboCacheServicePlanInput,
 } from "./plan.js";
+export { parseTurboCacheRunSummary } from "./summary.js";
+export type { TurboCacheRunSummary } from "./summary.js";

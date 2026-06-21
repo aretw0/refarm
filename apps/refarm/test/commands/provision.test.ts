@@ -375,6 +375,7 @@ describe("provision command", () => {
 			operation: string;
 			input: { bucket: string; team: string };
 			plan: { resources: Array<{ name: string }> };
+			nextCommand: string;
 			nextCommands: string[];
 		};
 		expect(payload).toMatchObject({
@@ -386,6 +387,8 @@ describe("provision command", () => {
 		expect(payload.plan.resources[0]).toMatchObject({
 			name: "refarm-cache-test",
 		});
+		expect(payload.nextCommand).toBe("refarm sow --cloudflare --json");
+		expect(payload.nextCommands[0]).toBe(payload.nextCommand);
 		expect(payload.nextCommands).toContain(
 			"refarm provision cloudflare turbo-cache --github-secrets --json",
 		);

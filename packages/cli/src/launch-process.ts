@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { shellCommand } from "./command-handoff.js";
@@ -122,6 +122,22 @@ export function runLaunchProcess(
 			});
 		});
 	});
+}
+
+export function runLaunchProcessSync(
+	spec: LaunchProcessSpec,
+	options: LaunchProcessRunOptions = {},
+): LaunchProcessRunResult {
+	const result = spawnSync(spec.command, spec.args, {
+		cwd: spec.cwd ?? process.cwd(),
+		encoding: "utf-8",
+		env: options.env ?? process.env,
+		stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
+	});
+	return {
+		exitCode: result.status ?? (result.error ? 1 : 0),
+		...(options.capture ? { stdout: result.stdout ?? "", stderr: result.stderr ?? "" } : {}),
+	};
 }
 
 export async function launchProcess(spec: LaunchProcessSpec): Promise<number> {

@@ -35,6 +35,7 @@ jobs:
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
       run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
+      run_dispatch_surface_ci: ${{ steps.detect.outputs.run_dispatch_surface_ci }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
       run_deep: ${{ steps.detect.outputs.run_deep }}
       text_quality_changes: ${{ steps.detect.outputs.text_quality_changes }}
@@ -81,6 +82,7 @@ jobs:
               echo "run_build=false" >> "$GITHUB_OUTPUT"
               echo "run_e2e=false" >> "$GITHUB_OUTPUT"
               echo "run_task_smoke=false" >> "$GITHUB_OUTPUT"
+              echo "run_dispatch_surface_ci=false" >> "$GITHUB_OUTPUT"
               echo "run_audit=false" >> "$GITHUB_OUTPUT"
               echo "run_deep=false" >> "$GITHUB_OUTPUT"
               echo "text_quality_changes=false" >> "$GITHUB_OUTPUT"
@@ -120,6 +122,7 @@ jobs:
             echo "run_build=false" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
             echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
+            echo "run_dispatch_surface_ci=true" >> "$GITHUB_OUTPUT"
             echo "run_audit=true" >> "$GITHUB_OUTPUT"
             echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
             echo "text_quality_changes=true" >> "$GITHUB_OUTPUT"
@@ -170,6 +173,12 @@ jobs:
             run_task_smoke=true
           fi
 
+          dispatch_surface_change_check=$(bash scripts/ci/release-dispatch-surface-build.sh "$BASE_SHA" "$HEAD_SHA" --check)
+          run_dispatch_surface_ci=false
+          if echo "$dispatch_surface_change_check" | grep -q '^run_dispatch_surface_ci=true'; then
+            run_dispatch_surface_ci=true
+          fi
+
           run_audit=false
           if [ "$code_changes" = "true" ]; then
             run_audit=true
@@ -199,11 +208,12 @@ jobs:
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
           echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
+          echo "run_dispatch_surface_ci=$run_dispatch_surface_ci" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
           echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
           echo "text_quality_changes=$text_quality_changes" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates tractor_heavy_gates=$tractor_heavy_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep text_quality=$text_quality_changes filter=$turbo_filter"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates tractor_heavy_gates=$tractor_heavy_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke dispatch-surface-ci=$run_dispatch_surface_ci audit=$run_audit deep=$run_deep text_quality=$text_quality_changes filter=$turbo_filter"
 
       - name: Compute validation signatures
         id: signatures
@@ -325,7 +335,7 @@ jobs:
 
       - name: Setup
         id: setup
-        if: steps.quality_cache.outputs.cache-hit != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true')
+        if: steps.quality_cache.outputs.cache-hit != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true' || needs.changes.outputs.run_dispatch_surface_ci == 'true')
         uses: ./.github/actions/setup
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
@@ -345,6 +355,10 @@ jobs:
       - name: Security audit
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
         run: pnpm audit --audit-level=high
+
+      - name: Dispatch-surface parity CI
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_dispatch_surface_ci == 'true'
+        run: pnpm run dispatch-surface:ci
 
       - name: TSConfig preflight
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
@@ -456,30 +470,24 @@ jobs:
         id: benchmark
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true'
         run: |
-          # Capture current branch explicitly for detached HEAD states
-          CURRENT_BRANCH=$(git rev-parse HEAD)
           BENCH_BASELINE_COPY="$(mktemp)"
           BASELINE_READY=false
 
-          # Generate baseline from main (best-effort — skipped if main is on an
-          # older package-manager config that pnpm can't handle).
-          git fetch origin main || true
-          # Use -f to ensure we can switch branches even if npm ci modified tracked files
-          git checkout -f origin/main || git checkout -f main || true
-          if [ -f "pnpm-workspace.yaml" ]; then
-            pnpm install --frozen-lockfile
-            cd packages/tractor
-            pnpm run bench:save
-            cp benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+          # Prefer the checked-out branch baseline to allow intentional benchmark
+          # re-baselining in the same PR, avoiding non-deterministic branch
+          # switching behavior.
+          if [ -f "packages/tractor/benchmarks/baseline.json" ]; then
+            cp packages/tractor/benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+            echo "::notice::Using checked-out Tractor baseline for benchmark comparison."
             BASELINE_READY=true
-            cd ../..
+          elif git show "origin/main:packages/tractor/benchmarks/baseline.json" > "$BENCH_BASELINE_COPY" 2>/dev/null; then
+            echo "::notice::Falling back to committed Tractor baseline from main for benchmark comparison."
+            BASELINE_READY=true
           else
-            echo "::warning::Benchmark baseline skipped — main branch uses older package-manager config (no pnpm-workspace.yaml)"
+            echo "::warning::Could not read local or main baseline from git."
           fi
 
-          # Return to current commit and benchmark
-          git checkout -f $CURRENT_BRANCH
-          pnpm install --frozen-lockfile
+          pnpm install --ignore-scripts --frozen-lockfile
           cd packages/tractor
           if [ "$BASELINE_READY" = "true" ]; then
             cp "$BENCH_BASELINE_COPY" benchmarks/baseline.json
@@ -498,6 +506,7 @@ jobs:
 
       - name: Comment PR on Benchmark Increase
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        continue-on-error: true
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -567,6 +576,7 @@ jobs:
 
       - name: Comment PR on Coverage Increase
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        continue-on-error: true
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -690,6 +700,7 @@ jobs:
           trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
           is-pr: ${{ github.event_name == 'pull_request' }}
           pr-number: ${{ github.event.pull_request.number }}
+          env-safety-mode: strict
 
       - name: Check platform compatibility
         run: node scripts/ci/check-platform-compat.mjs
@@ -901,7 +912,16 @@ jobs:
 
   summary:
     if: always()
-    needs: [changes, quality, platform-compat, build, e2e, audit-moderate, deep-regression]
+    needs:
+      [
+        changes,
+        quality,
+        platform-compat,
+        build,
+        e2e,
+        audit-moderate,
+        deep-regression,
+      ]
     runs-on: ubuntu-latest
 
     steps:

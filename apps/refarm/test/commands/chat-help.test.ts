@@ -20,6 +20,7 @@ describe("chat command help", () => {
 		expect(help).toContain("/model base-url http://127.0.0.1:8000");
 		expect(help).toContain("/model fallback ollama/llama3.2");
 		expect(help).toContain("/login");
+		expect(help).toContain("/keys");
 		expect(help).toContain("Refarm runtime");
 	});
 });
