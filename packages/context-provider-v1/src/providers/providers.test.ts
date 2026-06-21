@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import * as child_process from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -52,7 +52,7 @@ describe("GitStatusContextProvider", () => {
 	});
 
 	it("reports affected workspace candidates from changed files", async () => {
-		execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		child_process.execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
 		const appDir = path.join(tempDir, "apps", "refarm");
 		mkdirSync(appDir, { recursive: true });
 		writeFileSync(path.join(appDir, "package.json"), JSON.stringify({ name: "refarm" }), "utf8");
@@ -77,7 +77,7 @@ describe("GitStatusContextProvider", () => {
 	});
 
 	it("reports affected workspaces relative to git root from package subdirs", async () => {
-		execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		child_process.execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
 		const appDir = path.join(tempDir, "apps", "refarm");
 		mkdirSync(appDir, { recursive: true });
 		writeFileSync(path.join(appDir, "package.json"), JSON.stringify({ name: "refarm" }), "utf8");
@@ -92,7 +92,7 @@ describe("GitStatusContextProvider", () => {
 	});
 
 	it("does not suggest root package validation for repository-level changes", async () => {
-		execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		child_process.execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
 		writeFileSync(path.join(tempDir, "package.json"), JSON.stringify({ name: "root" }), "utf8");
 		mkdirSync(path.join(tempDir, "docs"), { recursive: true });
 		writeFileSync(path.join(tempDir, "docs", "guide.md"), "# Guide\n", "utf8");
@@ -156,9 +156,15 @@ describe("OperatorStateProvider", () => {
 		});
 	});
 
-	it("returns empty array when refarm is unavailable", async () => {
+	it("returns empty array when refarm execution fails", async () => {
 		const provider = new OperatorStateProvider();
-		const entries = await provider.provide({ cwd: os.tmpdir() });
+		const entries = await provider.provide({ cwd: "/__does_not_exist__" });
+		expect(entries).toEqual([]);
+	});
+
+	it("returns parsed operator state entries when refarm output is available", async () => {
+		const provider = new OperatorStateProvider();
+		const entries = await provider.provide({ cwd: tempDir });
 		expect(Array.isArray(entries)).toBe(true);
 	});
 });
@@ -168,6 +174,22 @@ describe("PolicyFilesContextProvider", () => {
 		const provider = new PolicyFilesContextProvider();
 		const entries = await provider.provide({ cwd: os.tmpdir() });
 		expect(entries).toEqual([]);
+	});
+
+	it("returns empty when no policy files are present in repo root", async () => {
+		child_process.execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		const provider = new PolicyFilesContextProvider();
+		const entries = await provider.provide({ cwd: tempDir });
+		expect(entries).toEqual([]);
+	});
+
+	it("returns policy file context when known policy files exist", async () => {
+		child_process.execFileSync("git", ["init"], { cwd: tempDir, stdio: "ignore" });
+		writeFileSync(path.join(tempDir, "AGENTS.md"), "# Agent Rules\n", "utf8");
+		const provider = new PolicyFilesContextProvider();
+		const entries = await provider.provide({ cwd: tempDir });
+		expect(entries).toHaveLength(1);
+		expect(entries[0].label).toBe("policy_files");
 	});
 
 	it("returns empty when no known policy files exist at git root", () => {
@@ -222,6 +244,22 @@ describe("FilesContextProvider", () => {
 		expect(entries[0].label).toBe("file:small.txt");
 		expect(entries[0].content).toContain("hello world");
 		expect(entries[1].content).toContain("[truncated at 4 KB]");
+	});
+
+	it("returns empty when no files were configured", async () => {
+		const provider = new FilesContextProvider([]);
+		const entries = await provider.provide({ cwd: tempDir });
+		expect(entries).toEqual([]);
+	});
+
+	it("reads absolute file paths", async () => {
+		const absolutePath = path.join(tempDir, "absolute.txt");
+		writeFileSync(absolutePath, "absolute context", "utf8");
+		const provider = new FilesContextProvider([absolutePath]);
+		const entries = await provider.provide({ cwd: tempDir });
+		expect(entries).toHaveLength(1);
+		expect(entries[0].label).toBe(`file:${absolutePath}`);
+		expect(entries[0].content).toContain("absolute context");
 	});
 
 	it("skips missing files", async () => {
