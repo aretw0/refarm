@@ -6,6 +6,8 @@ import { runSessionRepl } from "../../src/commands/chat.js";
 
 const mockedCreateInterface = vi.hoisted(() => vi.fn());
 const mockedLaunchProcess = vi.hoisted(() => vi.fn());
+const mockedLoadChatHistory = vi.hoisted(() => vi.fn().mockReturnValue([]));
+const mockedSaveChatHistory = vi.hoisted(() => vi.fn());
 
 vi.mock("node:readline", () => ({
 	default: {
@@ -19,14 +21,14 @@ vi.mock("@refarm.dev/cli/launch-process", () => ({
 }));
 
 vi.mock("../../src/commands/chat-history.js", () => ({
-	loadChatHistory: vi.fn().mockReturnValue([]),
+	loadChatHistory: mockedLoadChatHistory,
 	rememberChatHistoryLine: vi
 		.fn()
 		.mockImplementation((history: string[], line: string) => [
 			...history,
 			line,
 		]),
-	saveChatHistory: vi.fn(),
+	saveChatHistory: mockedSaveChatHistory,
 	resolveChatHistoryPath: vi.fn(),
 }));
 
@@ -60,6 +62,7 @@ describe("runSessionRepl", () => {
 			lastInterface = createFakeReadline();
 			return lastInterface;
 		});
+		mockedLoadChatHistory.mockReturnValue([]);
 	});
 
 	afterEach(() => {
@@ -211,6 +214,57 @@ describe("runSessionRepl", () => {
 
 		consoleSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+
+	it("prints chat history on /history", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain("1. one");
+		expect(out).toContain("2. two");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("clears chat history on /history --clear", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/history --clear");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
 	});
 
 	it("forwards /sow credentials command to configure hook", async () => {

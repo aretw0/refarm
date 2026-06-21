@@ -31,7 +31,9 @@ export type ChatCommand =
 	| { kind: "session"; prefix: string }
 	| { kind: "exit" }
 	| { kind: "help" }
-	| { kind: "status" };
+	| { kind: "status" }
+	| { kind: "history"; action: "show" }
+	| { kind: "history"; action: "clear" };
 
 const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	new: { kind: "new" },
@@ -87,7 +89,21 @@ export function parseChatLine(line: string): ChatCommand {
 		return { kind: "login", args: rest.filter(Boolean) };
 	}
 
+	if (commandName === "history") {
+		return parseHistoryCommand(rest, trimmed);
+	}
+
 	return SLASH_COMMANDS[commandName] ?? { kind: "message", text: trimmed };
+}
+
+function parseHistoryCommand(args: string[], fallbackText: string): ChatCommand {
+	if (args.length === 0) {
+		return { kind: "history", action: "show" };
+	}
+	if (args.length === 1 && args[0] === "--clear") {
+		return { kind: "history", action: "clear" };
+	}
+	return { kind: "message", text: fallbackText };
 }
 
 function parseModelCommand(args: string[], fallbackText: string): ChatCommand {
@@ -203,6 +219,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /login [args...]  Configure credentials without leaving the session
   /sow [args...]    Alias for /login
   /keys             Reconfigure model/provider credentials inline
+  /history [--clear] Show persisted chat history and commands run in REPL
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /status           Show runtime / model / readiness status
