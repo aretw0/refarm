@@ -314,7 +314,35 @@ export async function autoStartFarmhand(
 	repoRoot: string,
 	deps: LaunchDeps,
 ): Promise<boolean> {
-	return autoStartRuntime(repoRoot, deps);
+	const shouldForceTypeScript = Boolean(deps.spawnFarmhand || deps.probeFarmhandUntilReady);
+
+	const farmhandDeps: LaunchDeps = {
+		...deps,
+		spawnRuntime: deps.spawnFarmhand ?? deps.spawnRuntime,
+		probeRuntimeUntilReady: deps.probeFarmhandUntilReady ?? deps.probeRuntimeUntilReady,
+		resolveRuntime: shouldForceTypeScript
+			? (repoRootArg) => {
+				const runtime = deps.resolveRuntime?.(repoRootArg);
+				if (runtime?.activeEngine === "ts") {
+					return {
+						...runtime,
+						reason: "configured-ts",
+					};
+				}
+				return {
+					configuredEngine: runtime?.configuredEngine ?? "auto",
+					activeEngine: "ts",
+					reason:
+						runtime?.activeEngine === "rust" || runtime?.reason === "configured-rust"
+							|| runtime?.reason === "auto-rust-available"
+						? "auto-ts-fallback"
+						: "configured-ts",
+				};
+			}
+			: deps.resolveRuntime,
+	};
+
+	return autoStartRuntime(repoRoot, farmhandDeps);
 }
 
 export async function autoStartRuntime(

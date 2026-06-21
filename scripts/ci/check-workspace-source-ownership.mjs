@@ -5,8 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listGitTrackedFiles } from "./check-derived-artifact-ownership.mjs";
 
-const root = path.resolve(new URL("../..", import.meta.url).pathname);
-const currentUid = typeof process.getuid === "function" ? process.getuid() : null;
+const root = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const currentUid =
+	typeof process.getuid === "function" ? process.getuid() : null;
 const currentUser = os.userInfo().username;
 
 export const defaultSourceOwnershipPatterns = [
@@ -54,26 +55,35 @@ export function findWorkspaceSourceOwnershipIssues(options = {}) {
 
 function main() {
 	if (currentUid === null) {
-		console.log("[workspace-source-ownership] skipped: current platform does not expose process.getuid()");
+		console.log(
+			"[workspace-source-ownership] skipped: current platform does not expose process.getuid()",
+		);
 		process.exit(0);
 	}
 
 	const issues = findWorkspaceSourceOwnershipIssues();
 	if (issues.length === 0) {
-		console.log(`[workspace-source-ownership] ok: tracked source files are owned by ${currentUser} (${currentUid})`);
+		console.log(
+			`[workspace-source-ownership] ok: tracked source files are owned by ${currentUser} (${currentUid})`,
+		);
 		process.exit(0);
 	}
 
 	console.error(
 		`[workspace-source-ownership] found tracked source files not owned by ${currentUser} (${currentUid}).`,
 	);
-	console.error("[workspace-source-ownership] repair checkout ownership before building or editing source.");
+	console.error(
+		"[workspace-source-ownership] repair checkout ownership before building or editing source.",
+	);
 	for (const issue of issues) {
 		console.error(`- ${issue.path} uid=${issue.uid} gid=${issue.gid}`);
 	}
 	process.exit(1);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+if (
+	process.argv[1] &&
+	fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
 	main();
 }

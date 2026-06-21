@@ -5,8 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(new URL("../..", import.meta.url).pathname);
-const currentUid = typeof process.getuid === "function" ? process.getuid() : null;
+const root = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const currentUid =
+	typeof process.getuid === "function" ? process.getuid() : null;
 const currentUser = os.userInfo().username;
 
 export const defaultArtifactRoots = [
@@ -40,9 +41,7 @@ function existingImmediateChildDistRoots(rootDir, workspaceDir) {
 	return entries
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => path.join(workspaceDir, entry.name, "dist"))
-		.filter((artifactRoot) =>
-			fs.existsSync(path.join(rootDir, artifactRoot)),
-		);
+		.filter((artifactRoot) => fs.existsSync(path.join(rootDir, artifactRoot)));
 }
 
 export function defaultOwnershipArtifactRoots(rootDir = root) {
@@ -56,7 +55,11 @@ export function defaultOwnershipArtifactRoots(rootDir = root) {
 }
 
 export function walkArtifacts(dir, issues, options = {}) {
-	const { rootDir = root, currentUid: expectedUid = currentUid, limit = 50 } = options;
+	const {
+		rootDir = root,
+		currentUid: expectedUid = currentUid,
+		limit = 50,
+	} = options;
 	if (issues.length >= limit) return;
 	let entries;
 	try {
@@ -82,17 +85,25 @@ export function walkArtifacts(dir, issues, options = {}) {
 }
 
 export function listGitTrackedFiles(rootDir = root) {
-	try {
-		return execFileSync("git", ["ls-files"], {
-			cwd: rootDir,
-			encoding: "utf8",
-			stdio: ["ignore", "pipe", "pipe"],
-		})
-			.split(/\r?\n/)
-			.filter(Boolean);
-	} catch (error) {
-		throw new Error(`failed to list git tracked files: ${error.message}`);
+	const candidates =
+		process.platform === "win32" ? ["git", "git.cmd"] : ["git"];
+	let lastError;
+
+	for (const gitCommand of candidates) {
+		try {
+			return execFileSync(gitCommand, ["ls-files"], {
+				cwd: rootDir,
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			})
+				.split(/\r?\n/)
+				.filter(Boolean);
+		} catch (error) {
+			lastError = error;
+		}
 	}
+
+	throw new Error(`failed to list git tracked files: ${lastError?.message}`);
 }
 
 export function findTrackedDerivedArtifactIssues(options = {}) {
@@ -129,8 +140,12 @@ export function findDerivedArtifactOwnershipIssues(options = {}) {
 function main() {
 	const trackedIssues = findTrackedDerivedArtifactIssues();
 	if (trackedIssues.length > 0) {
-		console.error("[derived-artifact-ownership] found generated artifacts tracked by git.");
-		console.error("[derived-artifact-ownership] keep generated validation assets ignored and created by setup scripts.");
+		console.error(
+			"[derived-artifact-ownership] found generated artifacts tracked by git.",
+		);
+		console.error(
+			"[derived-artifact-ownership] keep generated validation assets ignored and created by setup scripts.",
+		);
 		for (const issue of trackedIssues) {
 			console.error(`- ${issue.path}`);
 		}
@@ -138,26 +153,35 @@ function main() {
 	}
 
 	if (currentUid === null) {
-		console.log("[derived-artifact-ownership] skipped: current platform does not expose process.getuid()");
+		console.log(
+			"[derived-artifact-ownership] skipped: current platform does not expose process.getuid()",
+		);
 		process.exit(0);
 	}
 
 	const issues = findDerivedArtifactOwnershipIssues();
 	if (issues.length === 0) {
-		console.log(`[derived-artifact-ownership] ok: derived artifacts are owned by ${currentUser} (${currentUid})`);
+		console.log(
+			`[derived-artifact-ownership] ok: derived artifacts are owned by ${currentUser} (${currentUid})`,
+		);
 		process.exit(0);
 	}
 
 	console.error(
 		`[derived-artifact-ownership] found derived artifacts not owned by ${currentUser} (${currentUid}).`,
 	);
-	console.error("[derived-artifact-ownership] clean the affected ignored outputs in the environment that owns them.");
+	console.error(
+		"[derived-artifact-ownership] clean the affected ignored outputs in the environment that owns them.",
+	);
 	for (const issue of issues) {
 		console.error(`- ${issue.path} uid=${issue.uid} gid=${issue.gid}`);
 	}
 	process.exit(1);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+if (
+	process.argv[1] &&
+	fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
 	main();
 }

@@ -481,7 +481,7 @@ jobs:
           # Use -f to ensure we can switch branches even if npm ci modified tracked files
           git checkout -f origin/main || git checkout -f main || true
           if [ -f "pnpm-workspace.yaml" ]; then
-            pnpm install --frozen-lockfile
+            pnpm install --ignore-scripts --frozen-lockfile
             cd packages/tractor
             pnpm run bench:save
             cp benchmarks/baseline.json "$BENCH_BASELINE_COPY"
@@ -493,7 +493,7 @@ jobs:
 
           # Return to current commit and benchmark
           git checkout -f $CURRENT_BRANCH
-          pnpm install --frozen-lockfile
+          pnpm install --ignore-scripts --frozen-lockfile
           cd packages/tractor
           if [ "$BASELINE_READY" = "true" ]; then
             cp "$BENCH_BASELINE_COPY" benchmarks/baseline.json

@@ -15,7 +15,7 @@ import {
 } from "./runtime-recovery.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
-	autoStartRuntime,
+	autoStartFarmhand,
 	checkSessionReadiness,
 	defaultLaunchDeps,
 	findRepoRoot,
@@ -58,7 +58,12 @@ async function resolveTargetSession(
 		if (deps.resolveSessionIdPrefix) {
 			return deps.resolveSessionIdPrefix(explicitPrefix);
 		}
-		return explicitPrefix;
+
+		try {
+			return await _resolveSessionIdPrefixFromSidecar(explicitPrefix);
+		} catch {
+			return explicitPrefix;
+		}
 	}
 
 	return readActive() ?? newSessionId();
@@ -121,7 +126,7 @@ export async function runSessionLaunchFlow(
 	// Recovery pass 2: auto-start runtime when provider is now configured.
 	let runtimeRunning = isRuntimeRunning(readiness);
 	if (!runtimeRunning && readiness.providerConfigured) {
-		runtimeRunning = await autoStartRuntime(findRepoRoot(), launch);
+		runtimeRunning = await autoStartFarmhand(findRepoRoot(), launch);
 		if (!runtimeRunning) {
 			process.exitCode = 1;
 			return;

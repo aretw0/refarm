@@ -48,8 +48,8 @@ import {
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
-	type CurrentModelStatus,
 	resolveRuntimeModelRoute,
+	type CurrentModelStatus,
 } from "./model.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
@@ -57,14 +57,6 @@ import {
 	RUNTIME_AGENT_RELOAD_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
-import {
-	followStreamFile,
-	readEffortAndSessionFallback,
-	readEffortResultFile,
-	readLatestAgentEntryFromSession,
-	resolveRuntimeStreamsDir,
-	resolveRuntimeTaskResultsDir,
-} from "./runtime-stream.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePlugins,
@@ -81,9 +73,17 @@ import {
 	RUNTIME_START_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
+import {
+	followStreamFile,
+	readEffortAndSessionFallback,
+	readEffortResultFile,
+	readLatestAgentEntryFromSession,
+	resolveRuntimeStreamsDir,
+	resolveRuntimeTaskResultsDir,
+} from "./runtime-stream.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
-	autoStartRuntime,
+	autoStartFarmhand,
 	checkSessionReadiness,
 	defaultLaunchDeps,
 	findRepoRoot,
@@ -121,9 +121,9 @@ export {
 	readLatestAgentEntryFromSession,
 	resolveRuntimeStreamsDir,
 	resolveRuntimeTaskResultsDir,
-};
+	};
 
-export interface AskDeps {
+	export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
 	followStream(
 		effortId: string,
@@ -154,20 +154,20 @@ export interface AskDeps {
 		query: string;
 		files: string[];
 	}): Promise<string>;
-}
+	}
 
-interface SessionNode {
+	interface SessionNode {
 	"@id": string;
-}
+	}
 
-interface AskJsonResult {
+	interface AskJsonResult {
 	effortId: string;
 	sessionId: string;
 	content: string;
 	metadata?: Record<string, unknown>;
-}
+	}
 
-async function submitViaHttp(effort: Effort): Promise<string> {
+	async function submitViaHttp(effort: Effort): Promise<string> {
 	const response = await fetch(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -178,15 +178,15 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	}
 	const payload = (await response.json()) as { effortId: string };
 	return payload.effortId;
-}
+	}
 
-function newSessionId(): string {
+	function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
-}
+	}
 
-function sourceForAskScope(
+	function sourceForAskScope(
 	scope: ModelScope,
-): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
+	): "refarm-ask" | "refarm-ask:worker" | "refarm-ask:monitor" {
 	switch (scope) {
 		case "default":
 			return "refarm-ask";
@@ -195,13 +195,13 @@ function sourceForAskScope(
 		case "monitor":
 			return "refarm-ask:monitor";
 	}
-}
+	}
 
-async function collectDefaultSystemPrompt(request: {
+	async function collectDefaultSystemPrompt(request: {
 	cwd: string;
 	query: string;
 	files: string[];
-}): Promise<string> {
+	}): Promise<string> {
 	const providers: ContextProvider[] = [
 		new SessionDigestContextProvider(),
 		new CwdContextProvider(),
@@ -220,11 +220,11 @@ async function collectDefaultSystemPrompt(request: {
 		query: request.query,
 	});
 	return buildSystemPrompt(entries);
-}
+	}
 
-async function resolveSessionIdPrefixFromSidecar(
+	async function resolveSessionIdPrefixFromSidecar(
 	prefix: string,
-): Promise<string> {
+	): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
 	const response = await fetch(sidecarUrl("/sessions"));
@@ -233,9 +233,9 @@ async function resolveSessionIdPrefixFromSidecar(
 	}
 	const body = (await response.json()) as { sessions?: SessionNode[] };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
-}
+	}
 
-function defaultDeps(): AskDeps {
+	function defaultDeps(): AskDeps {
 	const streamsDir = resolveRuntimeStreamsDir();
 	const resultsDir = resolveRuntimeTaskResultsDir();
 	return {
@@ -257,20 +257,20 @@ function defaultDeps(): AskDeps {
 		readPluginState: readRuntimePluginState,
 		reloadPlugins: reloadRuntimePlugins,
 	};
-}
+	}
 
-const DEFAULT_HISTORY_TURNS = 10;
-const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
+	const DEFAULT_HISTORY_TURNS = 10;
+	const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 
-function usageLine(metadata: Record<string, unknown>): string {
+	function usageLine(metadata: Record<string, unknown>): string {
 	const model = metadata.model ?? "unknown";
 	const tokensIn = metadata.tokens_in ?? 0;
 	const tokensOut = metadata.tokens_out ?? 0;
 	const pricing = pricingDisplay(metadata);
 	return `model: ${model}  tokens: ${tokensIn} in / ${tokensOut} out  ${pricing}`;
-}
+	}
 
-function pricingDisplay(metadata: Record<string, unknown>): string {
+	function pricingDisplay(metadata: Record<string, unknown>): string {
 	if (
 		metadata.pricing_mode === "subscription" ||
 		metadata.provider === "openai-codex"
@@ -283,9 +283,9 @@ function pricingDisplay(metadata: Record<string, unknown>): string {
 	return metadata.estimated_usd != null
 		? `~$${Number(metadata.estimated_usd).toFixed(4)}`
 		: "";
-}
+	}
 
-function printAskError(message: string): void {
+	function printAskError(message: string): void {
 	const payload = buildAskErrorPayload(message);
 	if (payload.error === "agent-not-loaded") {
 		console.error(
@@ -328,15 +328,15 @@ function printAskError(message: string): void {
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}
-}
+	}
 
-function observedAskContentError(content: string): string | null {
+	function observedAskContentError(content: string): string | null {
 	const trimmed = content.trim();
 	if (trimmed.startsWith("[runtime-agent error]")) return trimmed;
 	return null;
-}
+	}
 
-function buildAskErrorPayload(message: string): {
+	function buildAskErrorPayload(message: string): {
 	action: "ask";
 	ok: false;
 	error: string;
@@ -346,7 +346,7 @@ function buildAskErrorPayload(message: string): {
 	nextActions: string[];
 	nextCommand?: string | null;
 	nextCommands?: string[];
-} {
+	} {
 	const isRuntimeAgentMissing =
 		message.includes(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`) ||
 		message.includes("pi-agent not loaded") ||
@@ -515,13 +515,13 @@ function buildAskErrorPayload(message: string): {
 		nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, MODEL_CURRENT_JSON_COMMAND],
 		extra: { action: "ask" },
 	});
-}
+	}
 
-function printAskErrorJson(message: string): void {
+	function printAskErrorJson(message: string): void {
 	printJson(buildAskErrorPayload(message));
-}
+	}
 
-function printAskSuccessJson(result: AskJsonResult): void {
+	function printAskSuccessJson(result: AskJsonResult): void {
 	const sessionShowTemplate = refarmCommand([
 		"sessions",
 		"show",
@@ -546,9 +546,9 @@ function printAskSuccessJson(result: AskJsonResult): void {
 			extra: result,
 		}),
 	);
-}
+	}
 
-function printMissingModelCredentials(json: boolean): void {
+	function printMissingModelCredentials(json: boolean): void {
 	if (json) {
 		printJson(
 			buildJsonErrorEnvelope({
@@ -595,11 +595,11 @@ function printMissingModelCredentials(json: boolean): void {
 	console.error(
 		chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"),
 	);
-}
+	}
 
-function subscriptionRuntimeUnsupportedCommands(
+	function subscriptionRuntimeUnsupportedCommands(
 	status: CurrentModelStatus,
-): string[] {
+	): string[] {
 	return [
 		MODEL_CURRENT_JSON_COMMAND,
 		SOW_JSON_COMMAND,
@@ -612,11 +612,11 @@ function subscriptionRuntimeUnsupportedCommands(
 		]),
 		LOCAL_MODEL_JSON_COMMAND,
 	];
-}
+	}
 
-function buildSubscriptionRuntimeUnsupportedEnvelope(
+	function buildSubscriptionRuntimeUnsupportedEnvelope(
 	status: CurrentModelStatus,
-) {
+	) {
 	const nextCommands = subscriptionRuntimeUnsupportedCommands(status);
 	return buildJsonErrorEnvelope({
 		command: "ask",
@@ -651,12 +651,12 @@ function buildSubscriptionRuntimeUnsupportedEnvelope(
 			},
 		},
 	});
-}
+	}
 
-function printSubscriptionRuntimeUnsupported(
+	function printSubscriptionRuntimeUnsupported(
 	status: CurrentModelStatus,
 	json: boolean,
-): void {
+	): void {
 	if (json) {
 		printJson(buildSubscriptionRuntimeUnsupportedEnvelope(status));
 		return;
@@ -685,9 +685,9 @@ function printSubscriptionRuntimeUnsupported(
 	console.error(
 		chalk.dim(`   Local no-key route:   ${LOCAL_MODEL_JSON_COMMAND}`),
 	);
-}
+	}
 
-async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStatus | null> {
+	async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStatus | null> {
 	const tokens = await defaultModelDeps().loadTokens();
 	const status = buildCurrentModelStatus(tokens);
 	const defaultCredential = status.routeCredentials.default;
@@ -700,12 +700,12 @@ async function currentSubscriptionRuntimeUnsupported(): Promise<CurrentModelStat
 		return null;
 	}
 	return status;
-}
+	}
 
-async function ensureAskRuntimeReady(
+	async function ensureAskRuntimeReady(
 	launch: LaunchDeps,
 	json = false,
-): Promise<boolean> {
+	): Promise<boolean> {
 	let readiness = await checkSessionReadiness();
 
 	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -720,19 +720,19 @@ async function ensureAskRuntimeReady(
 	}
 
 	if (!isRuntimeRunning(readiness)) {
-		return autoStartRuntime(findRepoRoot(), launch);
+		return autoStartFarmhand(findRepoRoot(), launch);
 	}
 
 	return true;
-}
+	}
 
-async function ensureAgentReady(
+	async function ensureAgentReady(
 	readPluginState: (() => Promise<RuntimePluginState | null>) | undefined,
 	reloadPlugins:
 		| ((pluginIds: string[]) => Promise<RuntimePluginReloadResult | null>)
 		| undefined,
 	json = false,
-): Promise<boolean> {
+	): Promise<boolean> {
 	if (!readPluginState) return true;
 	const state = await readPluginState();
 	if (!state) return true;
@@ -857,12 +857,12 @@ async function ensureAgentReady(
 		chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`),
 	);
 	return false;
-}
+	}
 
-export function createAskCommand(
+	export function createAskCommand(
 	deps?: AskDeps,
 	launchDeps?: LaunchDeps,
-): Command {
+	): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
 	const clearActiveSession =
@@ -882,14 +882,14 @@ export function createAskCommand(
 			"after",
 			`
 
-Examples:
+	Examples:
   $ refarm ask "hello"
   $ refarm ask "hello" --json
   $ refarm ask "hello" --scope worker
   $ refarm ask "explain this package" --files README.md,package.json
   $ refarm ask "start fresh" --new
 
-Runtime:
+	Runtime:
   refarm ask uses the Refarm runtime. If credentials are configured and the
   runtime is stopped, refarm can start it before submitting the question.
 
@@ -903,7 +903,7 @@ Runtime:
   Disable autostart:      ${RUNTIME_AUTOSTART_NEVER_COMMAND}
   Select runtime engine:  ${RUNTIME_ENGINE_AUTO_COMMAND}
   One-shot override:      ${RUNTIME_AUTOSTART_ENV_VAR}=always refarm ask "hello"
-`,
+	`,
 		)
 		.action(
 			async (
@@ -1215,6 +1215,6 @@ Runtime:
 				}
 			},
 		);
-}
+	}
 
-export const askCommand = createAskCommand();
+	export const askCommand = createAskCommand();

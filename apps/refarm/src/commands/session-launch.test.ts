@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	autoStartFarmhand,
 	autoStartRuntime,
 	checkSessionReadiness,
 	isFirstRun,
@@ -588,6 +589,40 @@ describe("autoStartRuntime — mode: never", () => {
 			.map((call) => String(call[0]))
 			.join("\n");
 		expect(output).toContain("Next action:      refarm doctor --next-action");
+	});
+});
+
+describe("autoStartFarmhand", () => {
+	it("prefers farmhand spawn and probe hooks when provided", async () => {
+		const spawnFarmhand = vi.fn();
+		const deps = makeLaunchDeps({
+			spawnFarmhand,
+			resolveRuntime: vi.fn().mockReturnValue({
+				configuredEngine: "rust",
+				activeEngine: "rust",
+				reason: "configured-rust",
+			}),
+			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		});
+		const result = await autoStartFarmhand("/fake/root", deps);
+
+		expect(result).toBe(true);
+		expect(spawnFarmhand).toHaveBeenCalledWith("/fake/root");
+		expect(deps.spawnRuntime).toHaveBeenCalledTimes(0);
+
+		const output = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(output).toContain("Starting TypeScript Farmhand");
+		expect(output).toContain("farmhand");
+		expect(output).not.toContain("Starting Rust Tractor");
+	});
+
+	it("falls back to runtime spawn and probe when no farmhand hooks are supplied", async () => {
+		const deps = makeLaunchDeps();
+		const result = await autoStartFarmhand("/fake/root", deps);
+		expect(result).toBe(true);
+		expect(deps.spawnRuntime).toHaveBeenCalledWith("/fake/root");
 	});
 });
 
