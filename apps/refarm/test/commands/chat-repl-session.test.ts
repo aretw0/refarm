@@ -66,6 +66,22 @@ describe("runSessionRepl", () => {
 		vi.clearAllMocks();
 	});
 
+	it("passes readline history size and terminal options", async () => {
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+
+		expect(mockedCreateInterface).toHaveBeenCalledTimes(1);
+		expect(mockedCreateInterface).toHaveBeenCalledWith(
+			expect.objectContaining({
+				historySize: 1000,
+				terminal: true,
+			}),
+		);
+	});
+
 	it("prints resume hints when the REPL closes without an explicit /exit", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi
