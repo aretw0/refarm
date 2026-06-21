@@ -219,10 +219,7 @@ describe("runSessionRepl", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		expect(configureCredentials).toHaveBeenCalledWith([
-			"--provider",
-			"openai",
-		]);
+		expect(configureCredentials).toHaveBeenCalledWith(["--provider", "openai"]);
 		const out = logs.join("\n");
 		expect(out).toContain(
 			"Refarm runtime reloads saved credentials before each task.",
