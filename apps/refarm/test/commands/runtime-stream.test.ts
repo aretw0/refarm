@@ -26,6 +26,26 @@ describe("runtime-stream", () => {
 		expect(readSessionFallback).not.toHaveBeenCalled();
 	});
 
+	it("returns effort error even when session fallback is available", async () => {
+		const readEffortResult = vi.fn().mockResolvedValue({
+			status: "error",
+			error: "effort failed hard",
+		});
+		const readSessionFallback = vi.fn().mockResolvedValue({
+			status: "ok",
+			content: "from session",
+		});
+
+		const fallback = await readEffortAndSessionFallback("eff-1", "session-1", {
+			readEffortResult,
+			readSessionFallback,
+		});
+
+		expect(fallback).toEqual({ status: "error", error: "effort failed hard" });
+		expect(readEffortResult).toHaveBeenCalledWith("eff-1");
+		expect(readSessionFallback).not.toHaveBeenCalled();
+	});
+
 	it("falls back to session only when effort fallback is absent", async () => {
 		const sessionFallback = {
 			status: "ok",
