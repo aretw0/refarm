@@ -1,5 +1,5 @@
 use crate::{
-    provider_config::{openai_compat_defaults, choose_model, ANTHROPIC_DEFAULT_MODEL},
+    provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL},
     refarm::plugin::model_bridge,
 };
 

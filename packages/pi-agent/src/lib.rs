@@ -89,6 +89,16 @@ pub(crate) use utils::{
     pricing_mode_for_provider,
 };
 
+#[cfg(test)]
+pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
+#[cfg(test)]
+pub(crate) use response_nodes::{
+    agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
+    UsageRecordPayload,
+};
+#[cfg(test)]
+pub(crate) use tools::{tools_anthropic, tools_openai};
+
 use exports::refarm::plugin::integration::{
     Guest as IntegrationGuest, PluginError, PluginMetadata,
 };

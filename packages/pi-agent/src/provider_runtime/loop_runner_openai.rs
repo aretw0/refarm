@@ -1,8 +1,6 @@
 use super::{
-    loop_plan_builders::openai_loop_plan,
-    loop_runner_common::provider_runner_common_config,
-    loop_runner_types::OpenAiRunnerConfig,
-    request_headers_openai::openai_compat_headers,
+    loop_plan_builders::openai_loop_plan, loop_runner_common::provider_runner_common_config,
+    loop_runner_types::OpenAiRunnerConfig, request_headers_openai::openai_compat_headers,
 };
 
 pub(crate) fn openai_runner_config<'a>(

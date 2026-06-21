@@ -22,12 +22,7 @@ pub(crate) fn openai_iteration_response(
 ) -> Result<serde_json::Value, String> {
     let stream = crate::streaming_config::provider_stream_request_enabled_from_env();
     let body = if provider == "openai-codex" {
-        build_openai_codex_responses_body_with_streaming(
-            model,
-            wire_msgs,
-            tools_openai(),
-            stream,
-        )
+        build_openai_codex_responses_body_with_streaming(model, wire_msgs, tools_openai(), stream)
     } else {
         build_openai_body_with_streaming(model, wire_msgs, tools_openai(), stream)
     };

@@ -107,6 +107,24 @@ pub(crate) use loop_runner_anthropic::anthropic_runner_config;
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use loop_runner_openai::openai_runner_config;
 
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use crate::provider_config::{
+    choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL,
+};
+#[cfg(test)]
+pub(crate) use request_headers_anthropic::anthropic_headers;
+#[cfg(test)]
+pub(crate) use request_headers_openai::openai_compat_headers;
+#[cfg(test)]
+pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
+#[cfg(test)]
+pub(crate) use usage_extract::response_usage;
+#[cfg(test)]
+pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
+#[cfg(test)]
+pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) use loop_runner_types::{AnthropicRunnerConfig, OpenAiRunnerConfig};
 
