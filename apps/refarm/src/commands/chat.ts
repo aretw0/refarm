@@ -488,6 +488,24 @@ export {
 					rl.prompt();
 					break;
 
+				case "history":
+					if (command.action === "clear") {
+						chatHistory = [];
+						saveChatHistory(chatHistory);
+						console.log(chalk.dim("✓ Chat history cleared."));
+					} else {
+						if (chatHistory.length === 0) {
+							console.log(chalk.dim("No chat history yet."));
+						} else {
+							for (let index = 0; index < chatHistory.length; index++) {
+								console.log(chalk.dim(`${index + 1}. ${chatHistory[index]}`));
+							}
+						}
+					}
+					console.log();
+					rl.prompt();
+					break;
+
 				case "status":
 					rl.pause();
 					void (async () => {
