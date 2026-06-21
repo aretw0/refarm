@@ -16,7 +16,10 @@ vi.mock("../../src/commands/chat-history.js", () => ({
 	loadChatHistory: vi.fn().mockReturnValue([]),
 	rememberChatHistoryLine: vi
 		.fn()
-		.mockImplementation((history: string[], line: string) => [...history, line]),
+		.mockImplementation((history: string[], line: string) => [
+			...history,
+			line,
+		]),
 	saveChatHistory: vi.fn(),
 	resolveChatHistoryPath: vi.fn(),
 }));
@@ -59,10 +62,12 @@ describe("runSessionRepl", () => {
 
 	it("prints resume hints when the REPL closes without an explicit /exit", async () => {
 		const logs: string[] = [];
-		const consoleSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
-			logs.push(String(args[0]));
-			return undefined;
-		});
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -89,10 +94,12 @@ describe("runSessionRepl", () => {
 
 	it("prints codex-style hints on SIGINT", async () => {
 		const logs: string[] = [];
-		const consoleSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
-			logs.push(String(args[0]));
-			return undefined;
-		});
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -119,10 +126,12 @@ describe("runSessionRepl", () => {
 
 	it("prints resume hints exactly once on /exit", async () => {
 		const logs: string[] = [];
-		const consoleSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
-			logs.push(String(args[0]));
-			return undefined;
-		});
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -145,6 +154,40 @@ describe("runSessionRepl", () => {
 		);
 		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
 		expect((out.match(/Session saved\./g) ?? []).length).toBe(1);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("uses updated session id in resume hints after /session", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const nextSessionId = "urn:refarm:session:v1:switched";
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			resolveSessionIdPrefix: vi.fn().mockResolvedValue(nextSessionId),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/session switched");
+		await Promise.resolve();
+		await Promise.resolve();
+		lastInterface.emit("line", "/exit");
+		await Promise.resolve();
+
+		expect(deps.resolveSessionIdPrefix).toHaveBeenCalledWith("switched");
+		const out = logs.join("\n");
+		expect(out).toContain(
+			`To continue this session, run: refarm session --session ${nextSessionId}`,
+		);
+		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
 
 		consoleSpy.mockRestore();
 	});
