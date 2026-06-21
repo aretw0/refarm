@@ -49,7 +49,7 @@ push namespace.
 
 ## Supply chain hardening (complementary)
 
-The workspace uses `pnpm` with `shamefully-hoist=false` and an `onlyBuiltDependencies` allowlist — only packages in the explicit list can run `postinstall`/`prepare` scripts. This closes the install-time code execution vector (a dependency running arbitrary code during `pnpm install`) independently of cache isolation.
+The workspace uses `pnpm` with `shamefullyHoist: false` and an `allowBuilds` allowlist in `pnpm-workspace.yaml` — only packages in the explicit list can run `postinstall`/`prepare` scripts. This closes the install-time code execution vector (a dependency running arbitrary code during `pnpm install`) independently of cache isolation.
 
 ## Maintenance
 

@@ -25,6 +25,15 @@ describe("@refarm.dev/vtconfig Deterministic Verifications", () => {
         expect(aliases["@refarm.dev/config"]).toContain("src/index.js");
     });
 
+    it("should resolve config plugin-identity through its source subpath", () => {
+        vi.mocked(fs.existsSync).mockReturnValue(false);
+
+        const aliases = getAliases("/root");
+        expect(aliases["@refarm.dev/config/plugin-identity"]).toBe(
+            path.resolve("/root", "packages/config/src/plugin-identity.js"),
+        );
+    });
+
     it("should resolve dist/index.js when VITEST_USE_DIST is true", () => {
         vi.stubEnv("VITEST_USE_DIST", "true");
         const aliases = getAliases("/root");

@@ -26,16 +26,19 @@ export type ChatCommand =
 	| { kind: "model"; action: "fallback"; ref: string }
 	| { kind: "model"; action: "base-url"; url: string }
 	| { kind: "login"; args: string[] }
+	| { kind: "keys"; action: "provider-keys" }
 	| { kind: "new" }
 	| { kind: "session"; prefix: string }
 	| { kind: "exit" }
-	| { kind: "help" };
+	| { kind: "help" }
+	| { kind: "status" };
 
 const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	new: { kind: "new" },
 	exit: { kind: "exit" },
 	quit: { kind: "exit" },
 	help: { kind: "help" },
+	status: { kind: "status" },
 };
 
 export function parseChatLine(line: string): ChatCommand {
@@ -63,14 +66,24 @@ export function parseChatLine(line: string): ChatCommand {
 	}
 
 	if (commandName === "reload") {
-		return { kind: "reload", pluginIds: rest.filter(Boolean).map(normalizePluginId) };
+		return {
+			kind: "reload",
+			pluginIds: rest.filter(Boolean).map(normalizePluginId),
+		};
 	}
 
 	if (commandName === "model" || commandName === "provider") {
 		return parseModelCommand(rest, trimmed);
 	}
 
-	if (commandName === "login" || commandName === "sow") {
+	if (
+		commandName === "login" ||
+		commandName === "sow" ||
+		commandName === "keys"
+	) {
+		if (commandName === "keys") {
+			return { kind: "keys", action: "provider-keys" };
+		}
 		return { kind: "login", args: rest.filter(Boolean) };
 	}
 
@@ -150,24 +163,31 @@ function parseModelSetArgs(args: string[], fallbackText: string): ChatCommand {
 		: { kind: "message", text: fallbackText };
 }
 
-function parseModelResetArgs(args: string[], fallbackText: string): ChatCommand {
+function parseModelResetArgs(
+	args: string[],
+	fallbackText: string,
+): ChatCommand {
 	let scope: ModelScope | null = null;
 
 	for (let index = 0; index < args.length; index++) {
 		const value = args[index];
 		if (value === "--scope") {
 			const parsedScope = parseModelScope(args[index + 1]);
-			if (!parsedScope || parsedScope === "default") return { kind: "message", text: fallbackText };
+			if (!parsedScope || parsedScope === "default")
+				return { kind: "message", text: fallbackText };
 			scope = parsedScope;
 			index++;
 			continue;
 		}
 		const parsedScope = parseModelScope(value);
-		if (!parsedScope || parsedScope === "default") return { kind: "message", text: fallbackText };
+		if (!parsedScope || parsedScope === "default")
+			return { kind: "message", text: fallbackText };
 		scope = parsedScope;
 	}
 
-	return scope ? { kind: "model", action: "reset", scope } : { kind: "message", text: fallbackText };
+	return scope
+		? { kind: "model", action: "reset", scope }
+		: { kind: "message", text: fallbackText };
 }
 
 export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload runtime-agent
@@ -181,8 +201,10 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /model base-url http://127.0.0.1:8000
   /model fallback ollama/llama3.2
   /login [args...]  Configure credentials without leaving the session
+  /keys             Reconfigure model/provider credentials inline
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
+  /status           Show runtime / model / readiness status
   /exit  or  /quit  Exit refarm chat
   /help             Show this message`;
 

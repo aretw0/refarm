@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://refarm.dev/schemas/release-policy.schema.json",
+  "title": "Refarm Release Engine Policy",
+  "type": "object",
+  "required": ["policyVersion", "mode", "providers", "phases"],
+  "additionalProperties": false,
+  "properties": {
+    "policyVersion": {
+      "type": "string",
+      "const": "2026-01"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["changeset", "tagged", "hybrid"]
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "supportsPublish", "supportsDryRun"],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "supportsPublish": { "const": true }
+              },
+              "required": ["supportsPublish"]
+            },
+            "then": {
+              "required": ["publishCommands"],
+              "properties": {
+                "publishCommands": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        ],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "minLength": 1},
+          "supportsPublish": {"type": "boolean"},
+          "supportsDryRun": {"type": "boolean"},
+          "publishCommands": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "publishDryRunCommands": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "publishRequiresManualApproval": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "defaultSelection": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "profileTags"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "description": {"type": "string"},
+          "profileTags": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "packageProfiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "risk"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "risk": {"enum": ["core", "app", "plugin", "shared"]},
+          "bump": {"enum": ["patch", "minor", "major"]},
+          "mustPassChecks": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "tags": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "commands", "required", "riskWeight"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "commands": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "required": {"type": "boolean"},
+          "riskWeight": {"type": "number", "minimum": 0, "maximum": 10}
+        }
+      }
+    }
+  }
+}

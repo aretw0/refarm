@@ -5,8 +5,9 @@ mod prompt_handler;
 #[cfg(target_arch = "wasm32")]
 mod prompt_persistence;
 mod react_loop;
-mod task_labels;
+pub(crate) mod streaming_metadata;
 pub(crate) mod streaming_sink;
+mod task_labels;
 mod types;
 #[cfg(target_arch = "wasm32")]
 mod wasm_flow;
@@ -18,6 +19,6 @@ pub(crate) use react_loop::react_with_prompt_ref;
 pub(crate) use types::ReactResult;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use prompt_handler::execute_prompt;
+pub(crate) use prompt_handler::execute_prompt_with_route;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use prompt_handler::handle_prompt;

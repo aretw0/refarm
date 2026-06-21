@@ -2,6 +2,17 @@ export const PI_AGENT_PLUGIN_ID = "@refarm/pi-agent";
 export const PI_AGENT_NPM_PACKAGE = "@refarm.dev/pi-agent";
 export const RUNTIME_AGENT_PLUGIN_ID = PI_AGENT_PLUGIN_ID;
 export const RUNTIME_AGENT_NPM_PACKAGE = PI_AGENT_NPM_PACKAGE;
+export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR = {
+	id: RUNTIME_AGENT_PLUGIN_ID,
+	npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
+	workspaceDir: "packages/pi-agent",
+	wasmFile: "dist/pi_agent.wasm",
+	manifestFile: "dist/plugin.json",
+	requiredProvides: ["agent:respond"],
+};
+export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS = [
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+];
 export const RUNTIME_AGENT_ERROR_PREFIXES = [
 	"[runtime-agent error]",
 	"[runtime-agent stub]",

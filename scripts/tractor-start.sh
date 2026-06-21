@@ -9,12 +9,11 @@
 #
 # Keys are loaded from .refarm/.env (gitignored).
 # Run `refarm sow` to configure them.
-# Run `<package-manager> run agent:stop` to stop a backgrounded daemon.
+# Run `refarm runtime stop` to stop a backgrounded daemon.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 MODEL_PROVIDER_HELPER="$ROOT/scripts/model-provider.sh"
 ENV_FILE="$ROOT/.refarm/.env"
 PID_FILE="$ROOT/.refarm/tractor.pid"
@@ -41,10 +40,12 @@ resolve_cargo_target() {
 
 _CARGO_TARGET="$(resolve_cargo_target)"
 TRACTOR="$_CARGO_TARGET/release/tractor"
-PI_AGENT="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
-INSTALLED_PI_AGENT="$HOME/.refarm/plugins/@refarm/pi-agent/plugin.wasm"
+AGENT_PLUGIN="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
 REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
-REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$HOME/.refarm/streams}"
+REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
+REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
+INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/pi-agent/plugin.wasm"
 REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
 
 if [ -z "$REFARM_HTTP_HOST" ]; then
@@ -55,14 +56,6 @@ if [ -z "$REFARM_HTTP_HOST" ]; then
   fi
 fi
 
-if [ ! -f "$PACKAGE_MANAGER_HELPER" ]; then
-  echo "❌  package manager helper not found: $PACKAGE_MANAGER_HELPER"
-  exit 1
-fi
-
-# shellcheck disable=SC1090
-source "$PACKAGE_MANAGER_HELPER"
-
 if [ ! -f "$MODEL_PROVIDER_HELPER" ]; then
   echo "❌  model provider helper not found: $MODEL_PROVIDER_HELPER"
   exit 1
@@ -70,13 +63,6 @@ fi
 
 # shellcheck disable=SC1090
 source "$MODEL_PROVIDER_HELPER"
-
-PACKAGE_MANAGER="$(resolve_package_manager "$ROOT")"
-
-script_command() {
-  local script="$1"
-  script_command_for_package_manager "$PACKAGE_MANAGER" "$script"
-}
 
 # ── parse --background flag (strip before forwarding to tractor) ──────────────
 
@@ -104,8 +90,7 @@ _port_pid() {
 _existing="$(_port_pid 42000)"
 if [ -n "$_existing" ]; then
   echo "❌  Port 42000 is already bound by PID $_existing."
-  echo "   If farmhand is running: $(script_command farmhand:stop)"
-  echo "   If another tractor is running: $(script_command agent:stop)"
+  echo "   If another runtime is running: refarm runtime stop"
   echo "   See: docs/PROCESS_PLAYBOOK.md"
   exit 1
 fi
@@ -118,18 +103,19 @@ if [ ! -f "$TRACTOR" ]; then
   exit 1
 fi
 
-if [ ! -f "$PI_AGENT" ]; then
-  echo "❌  pi_agent.wasm not found at $PI_AGENT"
-  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
-  exit 1
-fi
-
 if [ -f "$REFARM_CLI" ]; then
   node "$REFARM_CLI" plugin update --json >/dev/null 2>&1 || true
 fi
 
-if [ -f "$INSTALLED_PI_AGENT" ]; then
-  PI_AGENT="$INSTALLED_PI_AGENT"
+if [ -f "$INSTALLED_AGENT_PLUGIN" ]; then
+  AGENT_PLUGIN="$INSTALLED_AGENT_PLUGIN"
+fi
+
+if [ ! -f "$AGENT_PLUGIN" ]; then
+  echo "❌  agent plugin wasm not found at $AGENT_PLUGIN"
+  echo "   Install it with: refarm plugin update"
+  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
+  exit 1
 fi
 
 # ── load .refarm/.env ─────────────────────────────────────────────────────────
@@ -152,7 +138,7 @@ if [ -z "${MODEL_PROVIDER:-}" ]; then
 fi
 
 if [ -f "$REFARM_CLI" ]; then
-  _model_env_exports="$(node "$REFARM_CLI" model env --shell 2>/dev/null || true)"
+  _model_env_exports="$(node "$REFARM_CLI" model env --shell --include-secrets 2>/dev/null || true)"
   if [ -n "$_model_env_exports" ]; then
     eval "$_model_env_exports"
   fi
@@ -171,6 +157,7 @@ require_key() {
 
 case "$MODEL_PROVIDER" in
   anthropic)   require_key ANTHROPIC_API_KEY ;;
+  openai-codex) require_key OPENAI_CODEX_ACCESS_TOKEN ;;
   openai*)     require_key OPENAI_API_KEY ;;
   groq)        require_key GROQ_API_KEY ;;
   mistral)     require_key MISTRAL_API_KEY ;;
@@ -194,21 +181,24 @@ for arg in "$@"; do
   esac
 done
 
-TRACTOR_ARGS=(--plugin "$PI_AGENT")
+TRACTOR_ARGS=(--plugin "$AGENT_PLUGIN")
 if [ "$HAS_HTTP_HOST" = "0" ]; then
   TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
 fi
+TRACTOR_ARGS+=(--refarm-dir "$REFARM_HOME")
 TRACTOR_ARGS+=("$@")
 
 echo "   Starting tractor daemon"
 echo "   provider : $MODEL_PROVIDER"
-echo "   plugin   : $PI_AGENT"
+echo "   plugin   : $AGENT_PLUGIN"
 echo "   streams  : $REFARM_STREAMS_DIR"
 echo "   http bind: $REFARM_HTTP_HOST:42001"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
-mkdir -p "$(dirname "$PID_FILE")" "$REFARM_STREAMS_DIR"
+mkdir -p "$(dirname "$PID_FILE")" "$REFARM_HOME" "$REFARM_STREAMS_DIR" "$XDG_DATA_HOME"
+export REFARM_HOME
 export REFARM_STREAMS_DIR
+export XDG_DATA_HOME
 
 if [ "$BACKGROUND" = "1" ]; then
   # Kill any existing daemon from a previous run
@@ -227,8 +217,8 @@ if [ "$BACKGROUND" = "1" ]; then
   echo $! > "$PID_FILE"
   echo "   Started  : pid $(cat "$PID_FILE")"
   echo ""
-  echo "   Check status : $(script_command agent:status)"
-  echo "   Stop daemon  : $(script_command agent:stop)"
+  echo "   Check status : refarm runtime"
+  echo "   Stop runtime : refarm runtime stop"
   echo "   Follow log   : tail -f $LOG_FILE"
 else
   echo ""

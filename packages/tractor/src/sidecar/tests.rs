@@ -17,26 +17,35 @@ use super::*;
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
-    let tmp = std::env::temp_dir().join(format!(
-        "tractor-sidecar-test-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let tmp = std::env::temp_dir().join(format!("tractor-sidecar-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, ":memory:".to_string()).unwrap();
+    let state = SidecarState::new(
+        channels,
+        Arc::new(RwLock::new(None)),
+        &tmp,
+        ":memory:".to_string(),
+    )
+    .unwrap();
 
     // bind on :0 — OS assigns a free port
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let router = axum::Router::new()
-        .route("/efforts", axum::routing::post(post_efforts).get(get_efforts))
+        .route(
+            "/efforts",
+            axum::routing::post(post_efforts).get(get_efforts),
+        )
         .route("/efforts/summary", axum::routing::get(get_efforts_summary))
         .route("/efforts/:id", axum::routing::get(get_effort))
         .route("/efforts/:id/logs", axum::routing::get(get_effort_logs))
         .route("/efforts/:id/retry", axum::routing::post(post_effort_retry))
-        .route("/efforts/:id/cancel", axum::routing::post(post_effort_cancel))
+        .route(
+            "/efforts/:id/cancel",
+            axum::routing::post(post_effort_cancel),
+        )
         .route("/plugins", axum::routing::get(get_plugins))
         .route("/plugins/reload", axum::routing::post(post_plugins_reload))
         .with_state(state.clone());
@@ -90,7 +99,9 @@ fn sidecar_extract_task_args_accepts_prompt() {
         "prompt": "ping",
         "system": "sys",
         "session_id": "session-a",
-        "history_turns": 4
+        "history_turns": 4,
+        "provider": " openai-codex ",
+        "model": " gpt-5.3-codex-spark "
     })))
     .expect("prompt args must parse");
 
@@ -98,6 +109,8 @@ fn sidecar_extract_task_args_accepts_prompt() {
     assert_eq!(args.system.as_deref(), Some("sys"));
     assert_eq!(args.session_id.as_deref(), Some("session-a"));
     assert_eq!(args.history_turns, Some(4));
+    assert_eq!(args.provider.as_deref(), Some("openai-codex"));
+    assert_eq!(args.model.as_deref(), Some("gpt-5.3-codex-spark"));
 }
 
 #[test]
@@ -110,8 +123,8 @@ fn sidecar_extract_task_args_accepts_legacy_query() {
 
 #[test]
 fn sidecar_extract_task_args_rejects_missing_prompt() {
-    let error = extract_task_args(&test_task(serde_json::json!({})))
-        .expect_err("missing prompt must fail");
+    let error =
+        extract_task_args(&test_task(serde_json::json!({}))).expect_err("missing prompt must fail");
 
     assert!(error.contains("requires args.prompt"));
 }
@@ -167,11 +180,11 @@ async fn sidecar_get_efforts_lists_submitted() {
     assert_eq!(res.status(), 200);
     let list: serde_json::Value = res.json().await.unwrap();
     let arr = list.as_array().unwrap();
-    assert!(!arr.is_empty(), "effort list should contain the submitted effort");
-    let ids: Vec<&str> = arr
-        .iter()
-        .filter_map(|e| e["effortId"].as_str())
-        .collect();
+    assert!(
+        !arr.is_empty(),
+        "effort list should contain the submitted effort"
+    );
+    let ids: Vec<&str> = arr.iter().filter_map(|e| e["effortId"].as_str()).collect();
     assert!(ids.contains(&id.as_str()));
 }
 
@@ -306,7 +319,10 @@ async fn sidecar_summary_reflects_submitted_efforts() {
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
     let total = body["total"].as_u64().unwrap_or(0);
-    assert!(total >= 3, "summary total should include all submitted efforts");
+    assert!(
+        total >= 3,
+        "summary total should include all submitted efforts"
+    );
 }
 
 #[tokio::test]
@@ -389,11 +405,13 @@ async fn sidecar_no_plugin_writes_error_stream_chunk() {
                 return false;
             }
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            content.contains("\"is_final\":true")
-                && content.contains("refarm plugin status")
+            content.contains("\"is_final\":true") && content.contains("refarm plugin status")
         });
 
-    assert!(found, "sidecar must write an is_final stream chunk when plugin is not loaded");
+    assert!(
+        found,
+        "sidecar must write an is_final stream chunk when plugin is not loaded"
+    );
 }
 
 #[tokio::test]
@@ -479,15 +497,27 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, namespace.to_string()).unwrap();
+    let state = SidecarState::new(
+        channels,
+        Arc::new(RwLock::new(None)),
+        &tmp,
+        namespace.to_string(),
+    )
+    .unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let router = axum::Router::new()
-        .route("/sessions", axum::routing::post(post_session_new).get(get_sessions))
+        .route(
+            "/sessions",
+            axum::routing::post(post_session_new).get(get_sessions),
+        )
         .route("/sessions/:id/fork", axum::routing::post(post_session_fork))
-        .route("/sessions/:id/history", axum::routing::get(get_session_history))
+        .route(
+            "/sessions/:id/history",
+            axum::routing::get(get_session_history),
+        )
         .with_state(state.clone());
 
     tokio::spawn(async move {
@@ -506,7 +536,9 @@ fn write_session(ns: &str, id: &str, leaf_entry_id: Option<&str>) {
         "created_at_ns": 1_000_000_u64,
     })
     .to_string();
-    storage.store_node(id, "Session", None, &payload, None).unwrap();
+    storage
+        .store_node(id, "Session", None, &payload, None)
+        .unwrap();
 }
 
 fn write_entry(ns: &str, id: &str, kind: &str, content: &str, parent: Option<&str>, ts: u64) {
@@ -520,7 +552,9 @@ fn write_entry(ns: &str, id: &str, kind: &str, content: &str, parent: Option<&st
         "timestamp_ns": ts,
     })
     .to_string();
-    storage.store_node(id, "SessionEntry", None, &payload, None).unwrap();
+    storage
+        .store_node(id, "SessionEntry", None, &payload, None)
+        .unwrap();
 }
 
 #[tokio::test]
@@ -569,13 +603,12 @@ async fn sidecar_session_history_returns_entries_oldest_first() {
 
     let (_state, port) = start_history_sidecar(&ns).await;
 
-    let body: serde_json::Value =
-        reqwest::get(format!("{}/sessions/{}/history", base(port), sid))
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+    let body: serde_json::Value = reqwest::get(format!("{}/sessions/{}/history", base(port), sid))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
     assert_eq!(body["total"].as_u64().unwrap(), 2, "two entries");
     let entries = body["entries"].as_array().unwrap();
@@ -597,7 +630,11 @@ async fn sidecar_session_history_prefix_resolves_unique_session() {
         .await
         .unwrap();
 
-    assert_eq!(resp.status(), 200, "prefix should resolve to unique session");
+    assert_eq!(
+        resp.status(),
+        200,
+        "prefix should resolve to unique session"
+    );
 }
 
 #[tokio::test]
@@ -639,9 +676,16 @@ async fn sidecar_session_fork_creates_child_session() {
     let body: serde_json::Value = resp.json().await.unwrap();
     let fork = &body["session"];
     assert_eq!(fork["parent_session_id"].as_str().unwrap(), sid);
-    assert_eq!(fork["leaf_entry_id"].as_str().unwrap(), e1, "inherits leaf from parent");
+    assert_eq!(
+        fork["leaf_entry_id"].as_str().unwrap(),
+        e1,
+        "inherits leaf from parent"
+    );
     assert_eq!(fork["name"].as_str().unwrap(), "test-fork");
-    assert!(fork["@id"].as_str().unwrap().starts_with("urn:refarm:session:v1:"));
+    assert!(fork["@id"]
+        .as_str()
+        .unwrap()
+        .starts_with("urn:refarm:session:v1:"));
 }
 
 #[tokio::test]
@@ -705,7 +749,10 @@ async fn sidecar_post_session_creates_unnamed_session() {
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
     let session = &body["session"];
-    assert!(session["@id"].as_str().unwrap().starts_with("urn:refarm:session:v1:"));
+    assert!(session["@id"]
+        .as_str()
+        .unwrap()
+        .starts_with("urn:refarm:session:v1:"));
     assert!(session["leaf_entry_id"].is_null());
     assert!(session["parent_session_id"].is_null());
 }
@@ -768,7 +815,13 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, Arc::new(RwLock::new(None)), &tmp, namespace.to_string()).unwrap();
+    let state = SidecarState::new(
+        channels,
+        Arc::new(RwLock::new(None)),
+        &tmp,
+        namespace.to_string(),
+    )
+    .unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -797,7 +850,9 @@ fn write_task(ns: &str, id: &str, title: &str, status: &str, context_id: Option<
         "updated_at_ns": ts,
     })
     .to_string();
-    storage.store_node(id, "Task", None, &payload, None).unwrap();
+    storage
+        .store_node(id, "Task", None, &payload, None)
+        .unwrap();
 }
 
 fn write_task_event(ns: &str, id: &str, task_id: &str, event: &str) {
@@ -810,7 +865,9 @@ fn write_task_event(ns: &str, id: &str, task_id: &str, event: &str) {
         "timestamp_ns": 1_000u64,
     })
     .to_string();
-    storage.store_node(id, "TaskEvent", None, &payload, None).unwrap();
+    storage
+        .store_node(id, "TaskEvent", None, &payload, None)
+        .unwrap();
 }
 
 #[tokio::test]
@@ -845,7 +902,11 @@ async fn sidecar_tasks_returns_tasks_newest_first() {
 
     let tasks = body["tasks"].as_array().unwrap();
     assert_eq!(tasks.len(), 2);
-    assert_eq!(tasks[0]["@id"].as_str().unwrap(), "urn:task:t2", "newest first");
+    assert_eq!(
+        tasks[0]["@id"].as_str().unwrap(),
+        "urn:task:t2",
+        "newest first"
+    );
     assert_eq!(tasks[1]["@id"].as_str().unwrap(), "urn:task:t1");
 }
 
@@ -853,16 +914,22 @@ async fn sidecar_tasks_returns_tasks_newest_first() {
 async fn sidecar_tasks_status_filter() {
     let ns = storage_path();
     write_task(&ns, "urn:task:done1", "Done task", "done", None, 1_000);
-    write_task(&ns, "urn:task:active1", "Active task", "active", None, 2_000);
+    write_task(
+        &ns,
+        "urn:task:active1",
+        "Active task",
+        "active",
+        None,
+        2_000,
+    );
     let (_state, port) = start_tasks_sidecar(&ns).await;
 
-    let body: serde_json::Value =
-        reqwest::get(format!("{}/tasks?status=done", base(port)))
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+    let body: serde_json::Value = reqwest::get(format!("{}/tasks?status=done", base(port)))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
     let tasks = body["tasks"].as_array().unwrap();
     assert_eq!(tasks.len(), 1);
@@ -901,7 +968,10 @@ async fn sidecar_get_task_returns_task_with_events() {
     assert_eq!(body["task"]["title"].as_str().unwrap(), "Test task");
     let events = body["events"].as_array().unwrap();
     assert_eq!(events.len(), 2, "both task events must be returned");
-    let event_names: Vec<&str> = events.iter().map(|e| e["event"].as_str().unwrap()).collect();
+    let event_names: Vec<&str> = events
+        .iter()
+        .map(|e| e["event"].as_str().unwrap())
+        .collect();
     assert!(event_names.contains(&"created"));
     assert!(event_names.contains(&"status_changed"));
 }

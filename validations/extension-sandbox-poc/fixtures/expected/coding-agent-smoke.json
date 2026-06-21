@@ -1,0 +1,72 @@
+{
+  "id": "coding-agent-smoke-extension-sandbox-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "claim": "A bounded coding-agent smoke can produce a proposed patch, review packet, and denied-capability receipt without writing to protected files.",
+  "claimStatus": "deterministic-smoke",
+  "mode": "proposal-only",
+  "input": {
+    "taskId": "task-extension-sandbox-poc",
+    "intent": "Ask a local coding agent to prepare a bounded source change while the host controls capabilities and promotion.",
+    "grantedCapabilities": [
+      "storage:v1"
+    ],
+    "requestedCapabilities": [
+      "storage:v1",
+      "workspace:read",
+      "workspace:write",
+      "process:run",
+      "network:v1"
+    ]
+  },
+  "outputs": {
+    "proposedPatch": {
+      "id": "proposed-patch-001",
+      "format": "unified-diff",
+      "targetPath": "validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts",
+      "mutatesWorkspace": false,
+      "diff": "--- a/validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts\n+++ b/validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts\n@@ -1,3 +1,4 @@\n export const policyMode = \"fail-fast\";\n+export const reviewRequired = true;\n"
+    },
+    "reviewPacket": {
+      "id": "review-packet-001",
+      "status": "requires-operator-review",
+      "requiredBeforePromotion": [
+        "workspace:write",
+        "process:run"
+      ],
+      "primaryEvidence": [
+        "coding-agent-evidence.json",
+        "policy-decision.json",
+        "limits.md"
+      ]
+    },
+    "deniedCapabilityReceipt": {
+      "id": "denied-capability-network-v1-001",
+      "capability": "network:v1",
+      "status": "denied",
+      "reason": "network access is not part of the default grant",
+      "evidence": [
+        "policy-decision.json",
+        "sandbox-report.json"
+      ]
+    }
+  },
+  "protectedSurfaces": [
+    ".github/workflows/**",
+    ".project/**",
+    "packages/tractor/**",
+    "packages/plugin-manifest/**"
+  ],
+  "observedWrites": [],
+  "protectedSurfaceTouches": [],
+  "checks": {
+    "proposedPatchRecorded": true,
+    "deniedCapabilityReceiptRecorded": true,
+    "operatorReviewRequired": true,
+    "protectedSurfacesUntouched": true
+  },
+  "promotionBoundary": {
+    "canSay": "The smoke proves the evidence packet shape a governed coding-agent run must produce before promotion.",
+    "cannotSay": "The smoke executed a real model-driven coding agent or applied repository changes."
+  },
+  "nextPromotion": "Replace the deterministic proposed patch with an agent-produced patch in a temporary workspace, then compare the same receipt and review packet shape."
+}

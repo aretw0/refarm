@@ -11,15 +11,17 @@ pub(crate) fn list_tasks(input: &serde_json::Value) -> String {
         .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
         .filter(|v| status_filter.map_or(true, |s| v["status"].as_str() == Some(s)))
         .filter(|v| context_filter.map_or(true, |c| v["context_id"].as_str() == Some(c)))
-        .map(|v| serde_json::json!({
-            "id":            v["@id"],
-            "title":         v["title"],
-            "status":        v["status"],
-            "created_at_ns": v["created_at_ns"],
-            "updated_at_ns": v["updated_at_ns"],
-            "context_id":    v["context_id"],
-            "assigned_to":   v["assigned_to"],
-        }))
+        .map(|v| {
+            serde_json::json!({
+                "id":            v["@id"],
+                "title":         v["title"],
+                "status":        v["status"],
+                "created_at_ns": v["created_at_ns"],
+                "updated_at_ns": v["updated_at_ns"],
+                "context_id":    v["context_id"],
+                "assigned_to":   v["assigned_to"],
+            })
+        })
         .collect();
     serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into())
 }

@@ -19,6 +19,8 @@ vi.mock("@refarm.dev/config", () => ({
     provider: options.env?.MODEL_PROVIDER ?? tokens.modelProvider ?? "openai",
     modelId: options.env?.MODEL_PROVIDER === "gemini" ? "gemini-3-flash-preview" : "gpt-5.5",
   })),
+  isRuntimeSubscriptionModelProvider: vi.fn((provider: string | undefined) => provider === "openai-codex"),
+  isSubscriptionModelProvider: vi.fn((provider: string | undefined) => provider === "openai-codex" || provider === "github-copilot"),
   loadConfig: vi.fn().mockReturnValue({ brand: { name: "test-farm" } }),
   modelCredentialStatus: vi.fn(() => ({ state: "silo-api-key", envKey: "OPENAI_API_KEY" })),
 }));

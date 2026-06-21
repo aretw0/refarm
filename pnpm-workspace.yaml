@@ -9,10 +9,14 @@ catalog:
   # sync / storage
   isomorphic-git: "^1.37.5"
   # websocket
-  ws: "^8.20.0"
+  ws: "^8.21.0"
   "@types/ws": "^8.18.1"
   # node types
   "@types/node": "^25.6.0"
+
+shamefullyHoist: false
+strictPeerDependencies: false
+linkWorkspacePackages: true
 
 packages:
   - "packages/*"
@@ -23,14 +27,19 @@ packages:
   - "validations/*/hello-world"
   - "templates/*"
 allowBuilds:
+  "@loro-crdt/base": true
+  "@playwright/test": true
+  better-sqlite3: true
   esbuild: true
+  playwright: true
   puppeteer: true
   sharp: true
   unrs-resolver: true
   workerd: true
 overrides:
   esbuild: 0.28.1
-  ws: 8.20.1
+  undici: 7.28.0
+  ws: 8.21.0
 auditConfig:
   ignoreGhsas:
     - GHSA-48c2-rrv3-qjmp

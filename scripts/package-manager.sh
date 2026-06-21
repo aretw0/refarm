@@ -76,6 +76,31 @@ install_for_package_manager() {
   esac
 }
 
+audit_high_command_for_package_manager() {
+  package_manager="$1"
+
+  case "$package_manager" in
+    pnpm) printf "pnpm audit --audit-level=high --silent" ;;
+    npm) printf "npm audit --audit-level=high --silent" ;;
+    yarn) printf "yarn npm audit --severity high" ;;
+    bun) printf "bun audit" ;;
+    *) printf "%s audit" "$package_manager" ;;
+  esac
+}
+
+audit_high_for_package_manager() {
+  package_manager="$1"
+  shift
+
+  case "$package_manager" in
+    pnpm) pnpm audit --audit-level=high --silent "$@" ;;
+    npm) npm audit --audit-level=high --silent "$@" ;;
+    yarn) yarn npm audit --severity high "$@" ;;
+    bun) bun audit "$@" ;;
+    *) "$package_manager" audit "$@" ;;
+  esac
+}
+
 workspace_exec_command_for_package_manager() {
   package_manager="$1"
   workspace="$2"

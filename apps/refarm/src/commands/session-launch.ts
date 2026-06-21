@@ -14,7 +14,6 @@ import {
 } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -22,6 +21,7 @@ import {
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
 	MODEL_PROVIDER_ENV_VAR,
 } from "../model-routing.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	resolveAutostartMode,
 	resolveTractorEngineMode,
@@ -34,10 +34,7 @@ import {
 	runtimeStartHelpLines,
 	startRuntimeProcess,
 } from "./runtime-launcher.js";
-import {
-	probeRuntimeReady,
-	waitForRuntimeReady,
-} from "./runtime-readiness.js";
+import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -45,7 +42,10 @@ import {
 	RUNTIME_START_COMMAND,
 } from "./runtime-recovery.js";
 
-export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
+export type {
+	AutostartMode,
+	TractorEngineMode,
+} from "../utils/runtime-config.js";
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
@@ -58,7 +58,11 @@ export type LaunchRuntimeEngine = "rust" | "ts";
 export interface LaunchRuntimeSelection {
 	configuredEngine: TractorEngineMode;
 	activeEngine: LaunchRuntimeEngine;
-	reason: "configured-rust" | "configured-ts" | "auto-rust-available" | "auto-ts-fallback";
+	reason:
+		| "configured-rust"
+		| "configured-ts"
+		| "auto-rust-available"
+		| "auto-ts-fallback";
 }
 
 export interface LaunchDeps {
@@ -94,22 +98,25 @@ export function isFirstRun(): boolean {
 export async function checkSessionReadiness(): Promise<SessionReadiness> {
 	const providerConfigured = detectProvider();
 	const runtimeRunning = await probeRuntimeReady();
-	return { providerConfigured, runtimeRunning, farmhandRunning: runtimeRunning };
+	return {
+		providerConfigured,
+		runtimeRunning,
+		farmhandRunning: runtimeRunning,
+	};
 }
 
 // Exported for tests — returns dirs to search for .refarm config, home first.
 export function refarmSearchDirs(): string[] {
-	return [
-		path.join(os.homedir(), ".refarm"),
-		path.join(process.cwd(), ".refarm"),
-	];
+	return Array.from(
+		new Set([resolveRefarmHome(), path.join(process.cwd(), ".refarm")]),
+	);
 }
 
 function detectProvider(): boolean {
 	const envProvider =
 		stringValue(process.env[MODEL_PROVIDER_ENV_VAR]) ??
 		stringValue(process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
-	if (envProvider) return hasProviderCredential(envProvider, {});
+	if (envProvider && hasProviderCredential(envProvider, {})) return true;
 	if (hasProviderCredential(DEFAULT_MODEL_PROVIDER, {})) return true;
 
 	for (const base of refarmSearchDirs()) {
@@ -125,7 +132,9 @@ function detectProvider(): boolean {
 }
 
 function stringValue(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: undefined;
 }
 
 function hasProviderCredential(
@@ -213,7 +222,11 @@ function tractorBinaryPath(repoRoot: string): string {
 	const targetDir = process.env.CARGO_TARGET_DIR
 		? path.resolve(process.env.CARGO_TARGET_DIR)
 		: path.join(repoRoot, "packages", "tractor", "target");
-	return path.join(targetDir, "release", process.platform === "win32" ? "tractor.exe" : "tractor");
+	return path.join(
+		targetDir,
+		"release",
+		process.platform === "win32" ? "tractor.exe" : "tractor",
+	);
 }
 
 function tractorBuildCommand(repoRoot: string): string {
@@ -275,7 +288,10 @@ export function defaultLaunchDeps(): LaunchDeps {
 
 		spawnRuntime(repoRoot) {
 			const runtime = resolveLaunchRuntime(repoRoot);
-			const command = resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine);
+			const command = resolveRuntimeLaunchCommand(
+				repoRoot,
+				runtime.activeEngine,
+			);
 			startRuntimeProcess(command);
 		},
 		resolveRuntime: resolveLaunchRuntime,
@@ -285,12 +301,20 @@ export function defaultLaunchDeps(): LaunchDeps {
 		},
 
 		async recoverProvider() {
-			process.stderr.write(chalk.red("✗  No usable model credentials configured.\n\n"));
-			const go = await deps.operator.ask({ type: "confirm", question: "   Configure now?", default: true });
+			process.stderr.write(
+				chalk.red("✗  No usable model credentials configured.\n\n"),
+			);
+			const go = await deps.operator.ask({
+				type: "confirm",
+				question: "   Configure now?",
+				default: true,
+			});
 			if (!go) {
 				console.error(chalk.dim("   Run `refarm sow` when ready."));
 				console.error(chalk.dim("   Inspect route: `refarm model current`."));
-				console.error(chalk.dim("   List providers: `refarm model providers`."));
+				console.error(
+					chalk.dim("   List providers: `refarm model providers`."),
+				);
 				return false;
 			}
 			// Re-invoke the same CLI binary with the `sow` subcommand.
@@ -314,7 +338,39 @@ export async function autoStartFarmhand(
 	repoRoot: string,
 	deps: LaunchDeps,
 ): Promise<boolean> {
-	return autoStartRuntime(repoRoot, deps);
+	const shouldForceTypeScript = Boolean(
+		deps.spawnFarmhand || deps.probeFarmhandUntilReady,
+	);
+
+	const farmhandDeps: LaunchDeps = {
+		...deps,
+		spawnRuntime: deps.spawnFarmhand ?? deps.spawnRuntime,
+		probeRuntimeUntilReady:
+			deps.probeFarmhandUntilReady ?? deps.probeRuntimeUntilReady,
+		resolveRuntime: shouldForceTypeScript
+			? (repoRootArg) => {
+					const runtime = deps.resolveRuntime?.(repoRootArg);
+					if (runtime?.activeEngine === "ts") {
+						return {
+							...runtime,
+							reason: "configured-ts",
+						};
+					}
+					return {
+						configuredEngine: runtime?.configuredEngine ?? "auto",
+						activeEngine: "ts",
+						reason:
+							runtime?.activeEngine === "rust" ||
+							runtime?.reason === "configured-rust" ||
+							runtime?.reason === "auto-rust-available"
+								? "auto-ts-fallback"
+								: "configured-ts",
+					};
+				}
+			: deps.resolveRuntime,
+	};
+
+	return autoStartRuntime(repoRoot, farmhandDeps);
 }
 
 export async function autoStartRuntime(
@@ -325,7 +381,9 @@ export async function autoStartRuntime(
 
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
-		console.error(chalk.dim(`   Ensure runtime:   ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`));
+		console.error(
+			chalk.dim(`   Ensure runtime:   ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`),
+		);
 		console.error(chalk.dim(`   Start fallback:   ${RUNTIME_START_COMMAND}`));
 		for (const line of runtimeStartHelpLines(repoRoot)) {
 			console.error(chalk.dim(`   ${line}`));
@@ -340,9 +398,15 @@ export async function autoStartRuntime(
 	process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n\n"));
 
 	if (mode === "ask") {
-		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
+		const confirmed = await deps.operator.ask({
+			type: "confirm",
+			question: "   Start it now?",
+			default: true,
+		});
 		if (!confirmed) {
-			console.error(chalk.dim(`\n   Ensure later: ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`));
+			console.error(
+				chalk.dim(`\n   Ensure later: ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`),
+			);
 			console.error(chalk.dim(`   Start fallback: ${RUNTIME_START_COMMAND}`));
 			console.error(
 				chalk.dim(`   Next action:  ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
@@ -365,9 +429,7 @@ export async function autoStartRuntime(
 		process.stdout.write(chalk.dim(`   → Starting ${runtimeLabel}...`));
 		if (runtime?.reason === "auto-ts-fallback") {
 			process.stdout.write(
-				chalk.dim(
-					`\n   rust tractor: not built; using TypeScript fallback`,
-				),
+				chalk.dim(`\n   rust tractor: not built; using TypeScript fallback`),
 			);
 			process.stdout.write(
 				chalk.dim(`\n   build rust: ${tractorBuildCommand(repoRoot)}`),
@@ -396,7 +458,9 @@ export async function autoStartRuntime(
 	const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
 	if (ready) {
-		process.stdout.write("  " + chalk.green("✓ Ready") + chalk.dim(` (${elapsed}s)`) + "\n\n");
+		process.stdout.write(
+			"  " + chalk.green("✓ Ready") + chalk.dim(` (${elapsed}s)`) + "\n\n",
+		);
 		return true;
 	}
 
@@ -406,7 +470,9 @@ export async function autoStartRuntime(
 			`   Run \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\` for the next recovery action.`,
 		),
 	);
-	console.error(chalk.dim(`   Run \`${RUNTIME_DOCTOR_COMMAND}\` for diagnostics.`));
+	console.error(
+		chalk.dim(`   Run \`${RUNTIME_DOCTOR_COMMAND}\` for diagnostics.`),
+	);
 	for (const line of runtimeStartHelpLines(repoRoot)) {
 		console.error(chalk.dim(`   ${line.replace("start:", "fallback:")}`));
 	}
@@ -422,13 +488,16 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured && !isRuntimeRunning(r)) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
-			chalk.dim("   Configure model credentials:    ") + chalk.cyan("refarm sow"),
+			chalk.dim("   Configure model credentials:    ") +
+				chalk.cyan("refarm sow"),
 		);
 		console.error(
-			chalk.dim("   Inspect current model route:     ") + chalk.cyan("refarm model current"),
+			chalk.dim("   Inspect current model route:     ") +
+				chalk.cyan("refarm model current"),
 		);
 		console.error(
-			chalk.dim("   List provider defaults:         ") + chalk.cyan("refarm model providers"),
+			chalk.dim("   List provider defaults:         ") +
+				chalk.cyan("refarm model providers"),
 		);
 		return;
 	}
@@ -442,7 +511,8 @@ export function printSessionGuide(r: SessionReadiness): void {
 			chalk.dim("   Inspect route:      ") + chalk.cyan("refarm model current"),
 		);
 		console.error(
-			chalk.dim("   List providers:     ") + chalk.cyan("refarm model providers"),
+			chalk.dim("   List providers:     ") +
+				chalk.cyan("refarm model providers"),
 		);
 		console.error(
 			chalk.dim("   Use Ollama:         ") +
@@ -464,12 +534,20 @@ export function printOnboarding(): void {
 	console.log(chalk.bold("Welcome to refarm.") + "\n");
 	console.log(chalk.bold("To get started:\n"));
 	console.log(
-		"  " + chalk.cyan("1.") + "  Configure credentials:  " + chalk.cyan("refarm sow"),
+		"  " +
+			chalk.cyan("1.") +
+			"  Configure credentials:  " +
+			chalk.cyan("refarm sow"),
 	);
 	console.log(
-		"  " + chalk.cyan("2.") + "  Then run:               " + chalk.cyan("refarm"),
+		"  " +
+			chalk.cyan("2.") +
+			"  Then run:               " +
+			chalk.cyan("refarm"),
 	);
-	console.log(chalk.dim("\n  The Refarm runtime starts automatically on first use."));
+	console.log(
+		chalk.dim("\n  The Refarm runtime starts automatically on first use."),
+	);
 	console.log();
 	console.log(chalk.dim("Need help?  ") + chalk.cyan(RUNTIME_DOCTOR_COMMAND));
 }

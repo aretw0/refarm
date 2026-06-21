@@ -207,7 +207,6 @@ refarm ask "<query>" [--files <file1,file2,...>]
 
 ## References
 
-- [Design doc](../../docs/superpowers/specs/2026-05-02-context-provider-v1-design.md)
 - [stream-contract-v1 spec](./stream-contract-v1.md)
 - [Pi-Agent Effort Bridge spec](./pi-agent-effort-bridge.md)
 - [ADR-018: Capability Contracts and Observability Gates](../ADRs/ADR-018-capability-contracts-and-observability-gates.md)

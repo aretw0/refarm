@@ -2,6 +2,20 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Documentation Canonical Layering
+
+**Date**: 2026-06-17
+**Status**: Accepted
+**References**: [specs/features/dispatch-control-plane-contract.md](../specs/features/dispatch-control-plane-contract.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+
+**Decision**: Documentation for stable contracts and architectural decisions should use:
+
+- `specs/features/*.md` (feature contracts and implementation targets)
+- `specs/ADRs/*.md` (decisão de arquitetura de impacto)
+- `docs/ARCHITECTURE.md` / `docs/WORKFLOW.md` (operational and subsystem context)
+
+`docs/superpowers/**` remains a planning/experimental space and should not be treated as the canonical source of long-lived decisions.
+
 ---
 
 ## Daemon Runtime Role: Tractor Node is Canonical, Farmhand is Transitional

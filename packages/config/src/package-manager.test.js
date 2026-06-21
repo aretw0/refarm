@@ -7,6 +7,9 @@ import {
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
     detectPackageManager,
+    packageAddDevCommand,
+    packageAuditCommand,
+    packageAuditHighCommand,
     packageBinaryCommand,
     packageFrozenInstallCommand,
     packageInstallCommand,
@@ -15,6 +18,7 @@ import {
     packageManagerSpawnCommand,
     packagePublishDryRunCommand,
     packageScriptCommand,
+    packageWorkspacePublishDryRunCommand,
 } from "./package-manager.js";
 
 const pmCommand = (name) => packageManagerSpawnCommand(name).command;
@@ -56,7 +60,7 @@ describe("package manager config", () => {
         const root = mkdtempSync(join(tmpdir(), "refarm-config-pm-"));
         const app = join(root, "apps", "dev");
         mkdirSync(app, { recursive: true });
-        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.1.2 " }));
+        writeFileSync(join(root, "package.json"), JSON.stringify({ packageManager: " pnpm@11.7.0 " }));
         writeFileSync(join(app, "package.json"), JSON.stringify({ name: "dev" }));
 
         try {
@@ -255,9 +259,78 @@ describe("package manager config", () => {
         });
     });
 
+    it("formats dev dependency install commands for each supported manager", () => {
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["add", "-D", "-w", "turbo"]),
+            display: "pnpm add -D -w turbo",
+        });
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["install", "--save-dev", "turbo"]),
+            display: "npm install --save-dev turbo",
+        });
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["add", "-D", "-W", "turbo"]),
+            display: "yarn add -D -W turbo",
+        });
+        expect(packageAddDevCommand("turbo", { env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["add", "-d", "turbo"]),
+            display: "bun add -d turbo",
+        });
+    });
+
+    it("formats high severity audit commands for each supported manager", () => {
+        expect(packageAuditHighCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["audit", "--audit-level=high", "--silent"]),
+            display: "pnpm audit --audit-level=high --silent",
+        });
+        expect(packageAuditHighCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["audit", "--audit-level=high", "--silent"]),
+            display: "npm audit --audit-level=high --silent",
+        });
+        expect(packageAuditHighCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["npm", "audit", "--severity", "high"]),
+            display: "yarn npm audit --severity high",
+        });
+        expect(packageAuditHighCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["audit"]),
+            display: "bun audit",
+        });
+    });
+
+    it("formats audit commands with optional severity for each supported manager", () => {
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["audit"]),
+            display: "pnpm audit",
+        });
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" }, auditLevel: "moderate" })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["audit", "--audit-level=moderate"]),
+            display: "npm audit --audit-level=moderate",
+        });
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" }, auditLevel: "high" })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["npm", "audit", "--severity", "high"]),
+            display: "yarn npm audit --severity high",
+        });
+        expect(packageAuditCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" }, auditLevel: "critical" })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["audit", "--audit-level=critical"]),
+            display: "bun audit --audit-level=critical",
+        });
+    });
+
     it("formats publish dry-run commands for each supported manager", () => {
         expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
-            command: "pnpm publish --dry-run",
+            command: "pnpm publish --dry-run --no-git-checks",
         });
         expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
             command: "npm publish --dry-run",
@@ -267,6 +340,29 @@ describe("package manager config", () => {
         });
         expect(packagePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
             command: "bun publish --dry-run",
+        });
+    });
+
+    it("formats workspace publish dry-run commands for each supported manager", () => {
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "pnpm" } })).toMatchObject({
+            command: pmCommand("pnpm"),
+            args: pmArgs("pnpm", ["publish", "-r", "--dry-run", "--no-git-checks"]),
+            display: "pnpm publish -r --dry-run --no-git-checks",
+        });
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "npm" } })).toMatchObject({
+            command: pmCommand("npm"),
+            args: pmArgs("npm", ["publish", "--workspaces", "--dry-run"]),
+            display: "npm publish --workspaces --dry-run",
+        });
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "yarn" } })).toMatchObject({
+            command: pmCommand("yarn"),
+            args: pmArgs("yarn", ["workspaces", "foreach", "-A", "npm", "publish", "--dry-run"]),
+            display: "yarn workspaces foreach -A npm publish --dry-run",
+        });
+        expect(packageWorkspacePublishDryRunCommand({ env: { REFARM_PACKAGE_MANAGER: "bun" } })).toMatchObject({
+            command: pmCommand("bun"),
+            args: pmArgs("bun", ["publish", "--dry-run"]),
+            display: "bun publish --dry-run",
         });
     });
 });

@@ -104,6 +104,11 @@ This keeps the POC as a thread through the work instead of a late appendix. The
 reader should know that a POC exists early, but should only see the full
 evidence after the proposal has explained why the POC matters.
 
+Before promoting a POC result into prose, check the proposal evidence matrix in
+[POC Prize Readiness](POC_PRIZE_READINESS.md#proposal-evidence-matrix): every
+strong claim should have a problem, architectural decision, artifact, metric,
+and current limit.
+
 Avoid two failure modes:
 
 - theory-first text where the POC appears only at the end and feels bolted on;
@@ -136,6 +141,7 @@ prefer machine-readable evidence navigation.
 | Extension sandbox | A host can make extension capability decisions explicit and reviewable before promotion. | `policy-decision.json`, `sandbox-report.json`, `annex.md` | Production plugin governance is solved. |
 | Extension sandbox | Failure policy can be modeled as an operational choice, not hidden behavior. | `sandbox-report.md`, `scorecard.json`, `limits.md` | Real host performance or complete isolation is proven. |
 | Extension sandbox | Synthetic policy evidence is connected to a real WASM validation path. | `runtime-evidence.json`, `task-artifacts.json` | The synthetic report itself executed real WASM plugins. |
+| Extension sandbox | A coding-agent workflow can be framed with explicit capability review, provenance, and human promotion gates. | `coding-agent-evidence.json`, `coding-agent-smoke.json`, `coding-agent-temp-workspace.json`, `policy-decision.json`, `limits.md` | A production autonomous coding agent or safe unattended repository mutation is proven. |
 | Citizen data wallet | Purpose, scope, expiration, and selective disclosure can be represented as reviewable artifacts. | `service-request.json`, `authorization-receipt.json`, `selective-presentation.json` | Formal wallet interoperability is proven. |
 | Citizen data wallet | Tamper detection and revocation can be made visible to the operator and holder journey. | `audit-trail.md`, `revocation-event.json`, `consent-decision.json` | Legal compliance or production UX is ready. |
 | Citizen data wallet | The flow can be evaluated with pilot criteria before institutional adoption. | `scorecard.json`, `risk-and-standards-matrix.json`, `limits.md` | LGPD, W3C VC, OpenID4VP, or EUDI conformance is certified. |
@@ -167,6 +173,9 @@ Extension files:
 | `scorecard.json` | Support pilot continuation criteria. | The POC has weighted metrics, thresholds, gate, and limits. |
 | `risk-and-standards-matrix.json` | Support careful standards and risk discussion. | Alignment, controls, and gaps are explicit without claiming conformance. |
 | `runtime-evidence.json` | Support careful real-WASM discussion. | The synthetic sandbox is linked to a dedicated real WASM validation path. |
+| `coding-agent-evidence.json` | Support Theme 1 coding-agent framing. | Capability review, provenance, and human promotion gates can be described without claiming autonomous coding readiness. |
+| `coding-agent-smoke.json` | Support Theme 1 demonstration mechanics. | A proposed patch, review packet, denied-capability receipt, and untouched protected surfaces are recorded without claiming model-driven patch generation. |
+| `coding-agent-temp-workspace.json` | Support Theme 1 promotion mechanics. | The proposed patch can be rehearsed in a temporary workspace copy while repository promotion remains review-gated, without claiming complete sandboxing or unattended writes. |
 | `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
 | `task-artifacts.json` | Support provenance claims. | artifacts have hashes, media types, producer command, and review state. |
 
@@ -174,6 +183,10 @@ Extension non-claims:
 
 - real WebAssembly execution inside the synthetic sandbox report;
 - production plugin governance;
+- production autonomous coding-agent operation;
+- safe unattended repository mutation;
+- real model-driven patch generation;
+- complete repository sandboxing;
 - full security certification;
 - performance of a real plugin host.
 

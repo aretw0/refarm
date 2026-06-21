@@ -7,6 +7,7 @@ import {
 	buildAgentFinishRecord,
 	FileAgentFinishSessionRecorder,
 } from "../../src/commands/agent-finish-session.js";
+import { resolveRefarmHome } from "../../src/utils/refarm-home.js";
 
 const tempDirs: string[] = [];
 
@@ -94,5 +95,10 @@ describe("agent finish session", () => {
 			nextCommands: [],
 			remainingCommands: [],
 		});
+	});
+
+	it("resolves REFARM_HOME as the default writable state base", () => {
+		const baseDir = makeTempDir();
+		expect(resolveRefarmHome({ REFARM_HOME: ` ${baseDir} ` })).toBe(baseDir);
 	});
 });

@@ -21,7 +21,7 @@ import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_STATUS_COMMAND
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import {
 	observedEffortStatus,
@@ -129,7 +129,7 @@ Notes:
 		)
 		.option(
 			"--transport <type>",
-			"Transport adapter: file or http",
+			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
 			"file",
 		)
@@ -155,7 +155,12 @@ Notes:
 			async (
 				plugin: string,
 				fn: string,
-				opts: { args: string; direction: string; transport: TaskTransport; json?: boolean },
+				opts: {
+					args: string;
+					direction: string;
+					transport: TaskTransport;
+					json?: boolean;
+				},
 			) => {
 				let parsedArgs: unknown;
 				try {
@@ -224,9 +229,13 @@ Notes:
 						json: true,
 						watch: true,
 					});
-					const statusJsonCommand = buildTaskStatusCommand(effortId, transport, {
-						json: true,
-					});
+					const statusJsonCommand = buildTaskStatusCommand(
+						effortId,
+						transport,
+						{
+							json: true,
+						},
+					);
 					const logsCommand = buildTaskLogsCommand(effortId, transport, {
 						json: true,
 					});
@@ -254,7 +263,7 @@ Notes:
 		.description("Query the result of a dispatched effort")
 		.option(
 			"--transport <type>",
-			"Transport adapter: file or http",
+			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
 			"file",
 		)
@@ -303,10 +312,14 @@ Notes:
 					});
 					if (!result) {
 						if (opts.json) {
-							const statusCommand = buildTaskStatusCommand(effortId, transport, {
-								json: true,
-								watch: true,
-							});
+							const statusCommand = buildTaskStatusCommand(
+								effortId,
+								transport,
+								{
+									json: true,
+									watch: true,
+								},
+							);
 							printTaskJsonSuccess(
 								"status",
 								{ effortId, transport, status: "not-found" },
@@ -424,11 +437,9 @@ Notes:
 			const checkpoint = sessionRecorder.getCheckpoint();
 			if (!checkpoint) {
 				if (opts.json) {
-					printTaskJsonSuccess(
-						"resume",
-						{ status: "empty" },
-						["refarm task list --json"],
-					);
+					printTaskJsonSuccess("resume", { status: "empty" }, [
+						"refarm task list --json",
+					]);
 					return;
 				}
 				console.log(chalk.gray("No task session checkpoint yet."));
@@ -441,9 +452,10 @@ Notes:
 							(entry) => entry.effortId === checkpoint.activeEffortId,
 						)
 					: undefined;
-				const resumable = active && isResumableTaskSessionEffort(active)
-					? active
-					: checkpoint.efforts.find(isResumableTaskSessionEffort);
+				const resumable =
+					active && isResumableTaskSessionEffort(active)
+						? active
+						: checkpoint.efforts.find(isResumableTaskSessionEffort);
 				const effortCommands = taskSessionEffortCommands(checkpoint.efforts, {
 					json: true,
 				});
@@ -486,7 +498,9 @@ Notes:
 							`Active effort: ${active.effortId} (${active.transport})`,
 						),
 					);
-					console.log(chalk.gray(`  Resume watch: ${active.statusCommand} --watch`));
+					console.log(
+						chalk.gray(`  Resume watch: ${active.statusCommand} --watch`),
+					);
 				}
 			}
 
@@ -508,7 +522,7 @@ Notes:
 		.description("List known efforts and queue summary")
 		.option(
 			"--transport <type>",
-			"Transport adapter: file or http",
+			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
 			"file",
 		)
@@ -521,11 +535,13 @@ Examples:
   $ refarm task list
   $ refarm task list --json
   $ refarm task list --transport http --json
+  $ refarm task list --transport channel:matrix --json
   $ refarm task resume --json
 
 Notes:
   file transport reads local queue/result files under ~/.refarm.
   http transport queries the running Refarm runtime sidecar.
+  channel transport submits through channel-specific runtime control surface (example: channel:matrix).
   JSON output includes status/log nextCommands for the newest effort when one exists.
   JSON output also includes observedSummary/observedEfforts when stored results hide agent-level errors.
   Human output prints an Observed summary when it differs from the stored summary.
@@ -607,7 +623,9 @@ Notes:
 				const ageSeconds = formatAgeSeconds(effort.submittedAt);
 				const observedStatus = observedEffortStatus(effort);
 				const storedStatus =
-					observedStatus === effort.status ? "" : ` stored_status=${effort.status}`;
+					observedStatus === effort.status
+						? ""
+						: ` stored_status=${effort.status}`;
 				console.log(
 					`  ${effort.effortId}  status=${observedStatus}${storedStatus} tasks=${effort.results.length} attempts=${attempts} age=${ageSeconds}`,
 				);
@@ -619,7 +637,7 @@ Notes:
 		.description("Show execution logs for an effort")
 		.option(
 			"--transport <type>",
-			"Transport adapter: file or http",
+			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
 			"file",
 		)
@@ -704,174 +722,188 @@ Notes:
 		.description("Retry a finished effort (respects adapter policy)")
 		.option(
 			"--transport <type>",
-			"Transport adapter: file or http",
+			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
 			"file",
 		)
 		.option("--json", "Print machine-readable retry result")
-		.action(async (effortId: string, opts: { transport: TaskTransport; json?: boolean }) => {
-			const { transport, adapter } = resolveTaskAdapter(
-				opts.transport,
-				adapterResolver,
-			);
-			const statusCommand = buildTaskStatusCommand(effortId, transport, {
-				json: opts.json,
-			});
-			let accepted: boolean;
-			try {
-				accepted = await adapter.retry(effortId);
-			} catch (err) {
-				reportTaskControlError("retry", effortId, transport, err, {
+		.action(
+			async (
+				effortId: string,
+				opts: { transport: TaskTransport; json?: boolean },
+			) => {
+				const { transport, adapter } = resolveTaskAdapter(
+					opts.transport,
+					adapterResolver,
+				);
+				const statusCommand = buildTaskStatusCommand(effortId, transport, {
 					json: opts.json,
 				});
-				return;
-			}
-			if (!accepted) {
+				let accepted: boolean;
+				try {
+					accepted = await adapter.retry(effortId);
+				} catch (err) {
+					reportTaskControlError("retry", effortId, transport, err, {
+						json: opts.json,
+					});
+					return;
+				}
+				if (!accepted) {
+					if (opts.json) {
+						printJson(
+							buildJsonErrorEnvelope({
+								command: "task",
+								operation: "retry",
+								error: "task-retry-rejected",
+								message: `Retry rejected for effort ${effortId}.`,
+								nextAction: statusCommand,
+								nextActions: [statusCommand],
+								nextCommand: statusCommand,
+								nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
+								extra: {
+									effortId,
+									transport,
+									action: "retry",
+									accepted: false,
+								},
+							}),
+						);
+					} else {
+						console.error(chalk.red(`Retry rejected for effort ${effortId}`));
+					}
+					process.exitCode = 1;
+					return;
+				}
+				safeSessionRecord(() => {
+					sessionRecorder.rememberControl({
+						effortId,
+						transport,
+						action: "retry",
+					});
+				});
 				if (opts.json) {
+					const watchCommand = buildTaskStatusCommand(effortId, transport, {
+						json: true,
+						watch: true,
+					});
+					const logsCommand = buildTaskLogsCommand(effortId, transport, {
+						json: true,
+					});
 					printJson(
-						buildJsonErrorEnvelope({
+						buildJsonSuccessEnvelope({
 							command: "task",
 							operation: "retry",
-							error: "task-retry-rejected",
-							message: `Retry rejected for effort ${effortId}.`,
-							nextAction: statusCommand,
-							nextActions: [statusCommand],
-							nextCommand: statusCommand,
-							nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
+							nextAction: watchCommand,
+							nextActions: [watchCommand, logsCommand],
+							nextCommand: watchCommand,
+							nextCommands: [watchCommand, logsCommand],
 							extra: {
 								effortId,
 								transport,
 								action: "retry",
-								accepted: false,
+								accepted: true,
 							},
 						}),
 					);
-				} else {
-					console.error(chalk.red(`Retry rejected for effort ${effortId}`));
+					return;
 				}
-				process.exitCode = 1;
-				return;
-			}
-			safeSessionRecord(() => {
-				sessionRecorder.rememberControl({
-					effortId,
-					transport,
-					action: "retry",
-				});
-			});
-			if (opts.json) {
-				const watchCommand = buildTaskStatusCommand(effortId, transport, {
-					json: true,
-					watch: true,
-				});
-				const logsCommand = buildTaskLogsCommand(effortId, transport, {
-					json: true,
-				});
-				printJson(
-					buildJsonSuccessEnvelope({
-						command: "task",
-						operation: "retry",
-						nextAction: watchCommand,
-						nextActions: [watchCommand, logsCommand],
-						nextCommand: watchCommand,
-						nextCommands: [watchCommand, logsCommand],
-						extra: {
-							effortId,
-							transport,
-							action: "retry",
-							accepted: true,
-						},
-					}),
-				);
-				return;
-			}
-			console.log(chalk.green(`Retry requested for effort ${effortId}`));
-		});
+				console.log(chalk.green(`Retry requested for effort ${effortId}`));
+			},
+		);
 
 	taskCommand
 		.command("cancel <effortId>")
 		.description("Request cancellation for a pending or running effort")
 		.option(
 			"--transport <type>",
-			"Transport adapter: file or http",
+			"Transport adapter: file, http, or channel:<name>",
 			parseTaskTransport,
 			"file",
 		)
 		.option("--json", "Print machine-readable cancel result")
-		.action(async (effortId: string, opts: { transport: TaskTransport; json?: boolean }) => {
-			const { transport, adapter } = resolveTaskAdapter(
-				opts.transport,
-				adapterResolver,
-			);
-			const statusCommand = buildTaskStatusCommand(effortId, transport, {
-				json: opts.json,
-			});
-			let accepted: boolean;
-			try {
-				accepted = await adapter.cancel(effortId);
-			} catch (err) {
-				reportTaskControlError("cancel", effortId, transport, err, {
+		.action(
+			async (
+				effortId: string,
+				opts: { transport: TaskTransport; json?: boolean },
+			) => {
+				const { transport, adapter } = resolveTaskAdapter(
+					opts.transport,
+					adapterResolver,
+				);
+				const statusCommand = buildTaskStatusCommand(effortId, transport, {
 					json: opts.json,
 				});
-				return;
-			}
-			if (!accepted) {
+				let accepted: boolean;
+				try {
+					accepted = await adapter.cancel(effortId);
+				} catch (err) {
+					reportTaskControlError("cancel", effortId, transport, err, {
+						json: opts.json,
+					});
+					return;
+				}
+				if (!accepted) {
+					if (opts.json) {
+						printJson(
+							buildJsonErrorEnvelope({
+								command: "task",
+								operation: "cancel",
+								error: "task-cancel-rejected",
+								message: `Cancel rejected for effort ${effortId}.`,
+								nextAction: statusCommand,
+								nextActions: [statusCommand],
+								nextCommand: statusCommand,
+								nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
+								extra: {
+									effortId,
+									transport,
+									action: "cancel",
+									accepted: false,
+								},
+							}),
+						);
+					} else {
+						console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
+					}
+					process.exitCode = 1;
+					return;
+				}
+				safeSessionRecord(() => {
+					sessionRecorder.rememberControl({
+						effortId,
+						transport,
+						action: "cancel",
+					});
+				});
 				if (opts.json) {
+					const statusJsonCommand = buildTaskStatusCommand(
+						effortId,
+						transport,
+						{
+							json: true,
+						},
+					);
 					printJson(
-						buildJsonErrorEnvelope({
+						buildJsonSuccessEnvelope({
 							command: "task",
 							operation: "cancel",
-							error: "task-cancel-rejected",
-							message: `Cancel rejected for effort ${effortId}.`,
-							nextAction: statusCommand,
-							nextActions: [statusCommand],
-							nextCommand: statusCommand,
-							nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
+							nextAction: statusJsonCommand,
+							nextActions: [statusJsonCommand],
+							nextCommand: statusJsonCommand,
+							nextCommands: [statusJsonCommand],
 							extra: {
 								effortId,
 								transport,
 								action: "cancel",
-								accepted: false,
+								accepted: true,
 							},
 						}),
 					);
-				} else {
-					console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
+					return;
 				}
-				process.exitCode = 1;
-				return;
-			}
-			safeSessionRecord(() => {
-				sessionRecorder.rememberControl({
-					effortId,
-					transport,
-					action: "cancel",
-				});
-			});
-			if (opts.json) {
-				const statusJsonCommand = buildTaskStatusCommand(effortId, transport, {
-					json: true,
-				});
-				printJson(
-					buildJsonSuccessEnvelope({
-						command: "task",
-						operation: "cancel",
-						nextAction: statusJsonCommand,
-						nextActions: [statusJsonCommand],
-						nextCommand: statusJsonCommand,
-						nextCommands: [statusJsonCommand],
-						extra: {
-							effortId,
-							transport,
-							action: "cancel",
-							accepted: true,
-						},
-					}),
-				);
-				return;
-			}
-			console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
-		});
+				console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
+			},
+		);
 
 	return taskCommand;
 }

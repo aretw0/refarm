@@ -1,14 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockSaveTokens, mockLoadTokens, mockOperatorAsk, mockGithubCollect, mockCloudflareCollect, mockModelCollect } =
-	vi.hoisted(() => ({
-		mockSaveTokens: vi.fn().mockResolvedValue({}),
-		mockLoadTokens: vi.fn().mockResolvedValue({}),
-		mockOperatorAsk: vi.fn().mockResolvedValue("my-org"),
-		mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
-		mockCloudflareCollect: vi.fn().mockResolvedValue("cf_test_cloudflare"),
-		mockModelCollect: vi.fn().mockResolvedValue({ provider: "anthropic", apiKey: "sk-ant-test" }),
-	}));
+const {
+	mockSaveTokens,
+	mockLoadTokens,
+	mockOperatorAsk,
+	mockGithubCollect,
+	mockCloudflareCollect,
+	mockModelCollect,
+} = vi.hoisted(() => ({
+	mockSaveTokens: vi.fn().mockResolvedValue({}),
+	mockLoadTokens: vi.fn().mockResolvedValue({}),
+	mockOperatorAsk: vi.fn().mockResolvedValue("my-org"),
+	mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
+	mockCloudflareCollect: vi.fn().mockResolvedValue("cf_test_cloudflare"),
+	mockModelCollect: vi
+		.fn()
+		.mockResolvedValue({ provider: "anthropic", apiKey: "sk-ant-test" }),
+}));
 
 vi.mock("@refarm.dev/prompt-contract-v1", () => ({
 	OperatorPromptCancelledError: class OperatorPromptCancelledError extends Error {
@@ -57,7 +65,10 @@ describe("sowCommand — default (no flags)", () => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({});
-		mockModelCollect.mockResolvedValue({ provider: "anthropic", apiKey: "sk-ant-test" });
+		mockModelCollect.mockResolvedValue({
+			provider: "anthropic",
+			apiKey: "sk-ant-test",
+		});
 	});
 
 	it("prompts for model provider when not yet configured", async () => {
@@ -68,22 +79,61 @@ describe("sowCommand — default (no flags)", () => {
 	it("saves modelProvider and modelApiKey", async () => {
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(mockSaveTokens).toHaveBeenCalledWith(
-			expect.objectContaining({ modelProvider: "anthropic", modelApiKey: "sk-ant-test" }),
+			expect.objectContaining({
+				modelProvider: "anthropic",
+				modelApiKey: "sk-ant-test",
+			}),
+		);
+	});
+
+	it("keeps subscription OAuth providers separate from API key providers", async () => {
+		mockModelCollect.mockResolvedValue({
+			provider: "openai-codex",
+			apiKey: "oauth-access-test",
+			oauthCredentials: {
+				access: "oauth-access-test",
+				refresh: "oauth-refresh-test",
+				expires: Date.now() + 60_000,
+				accountId: "chatgpt-account-test",
+			},
+		});
+
+		await sowCommand.parseAsync([], { from: "user" });
+
+		expect(mockSaveTokens).toHaveBeenCalledWith(
+			expect.objectContaining({
+				modelProvider: "openai-codex",
+				oauthProvider: "openai-codex",
+				oauthCredentials: {
+					"openai-codex": expect.objectContaining({
+						access: "oauth-access-test",
+						refresh: "oauth-refresh-test",
+						accountId: "chatgpt-account-test",
+					}),
+				},
+			}),
 		);
 	});
 
 	it("sets provider/model without prompting when a full model ref is passed", async () => {
 		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
-		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], { from: "user" });
+		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], {
+			from: "user",
+		});
 		expect(mockModelCollect).not.toHaveBeenCalled();
-		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
 	});
 
 	it("prints a structured model route update with --json", async () => {
 		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await sowCommand.parseAsync(["--model", "openai/gpt-5.5", "--json"], { from: "user" });
+		await sowCommand.parseAsync(["--model", "openai/gpt-5.5", "--json"], {
+			from: "user",
+		});
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			command: string;
@@ -108,11 +158,17 @@ describe("sowCommand — default (no flags)", () => {
 		expect(payload.nextCommands).toContain("refarm model current --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(mockModelCollect).not.toHaveBeenCalled();
-		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
 	});
 
 	it("reports configured credential status as JSON without prompting", async () => {
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await sowCommand.parseAsync(["--json"], { from: "user" });
@@ -166,9 +222,9 @@ describe("sowCommand — default (no flags)", () => {
 			status: "interactive-required",
 			prompts: ["model"],
 			nextAction: "refarm sow",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextCommand: "refarm sow",
 		});
-		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm sow");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain(
 			"refarm config get operator.openExternalLinks --json",
@@ -219,8 +275,8 @@ describe("sowCommand — default (no flags)", () => {
 			operation: "credentials",
 			ok: false,
 			error: "empty-model",
-			nextAction: "refarm sow --model ollama/llama3.2",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 		});
 		expect(process.exitCode).toBe(1);
 		expect(mockModelCollect).not.toHaveBeenCalled();
@@ -249,8 +305,8 @@ describe("sowCommand — default (no flags)", () => {
 			operation: "credentials",
 			ok: false,
 			error: "model-provider-required",
-			nextAction: "refarm sow --model ollama/llama3.2",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 		});
 		expect(process.exitCode).toBe(1);
 		expect(mockModelCollect).not.toHaveBeenCalled();
@@ -266,7 +322,9 @@ describe("sowCommand — default (no flags)", () => {
 			oauthProvider: "anthropic",
 		});
 
-		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], { from: "user" });
+		await sowCommand.parseAsync(["--model", "openai/gpt-5.5"], {
+			from: "user",
+		});
 
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).toHaveBeenCalledWith({
@@ -278,21 +336,32 @@ describe("sowCommand — default (no flags)", () => {
 	});
 
 	it("sets provider/model without prompting even when no provider is configured", async () => {
-		await sowCommand.parseAsync(["--model", "ollama/llama3.2"], { from: "user" });
+		await sowCommand.parseAsync(["--model", "ollama/llama3.2"], {
+			from: "user",
+		});
 		expect(mockModelCollect).not.toHaveBeenCalled();
-		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "ollama", modelId: "llama3.2" });
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			modelProvider: "ollama",
+			modelId: "llama3.2",
+		});
 	});
 
 	it("uses the configured provider when --model receives only a model id", async () => {
 		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
 		await sowCommand.parseAsync(["--model", "gpt-5.5"], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();
-		expect(mockSaveTokens).toHaveBeenCalledWith({ modelProvider: "openai", modelId: "gpt-5.5" });
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
 	});
 
 	it("treats slash refs as provider/model even when another provider is configured", async () => {
 		mockLoadTokens.mockResolvedValue({ modelProvider: "openai" });
-		await sowCommand.parseAsync(["--model", "vllm/Qwen3-Coder-480B-A35B-Instruct"], { from: "user" });
+		await sowCommand.parseAsync(
+			["--model", "vllm/Qwen3-Coder-480B-A35B-Instruct"],
+			{ from: "user" },
+		);
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).toHaveBeenCalledWith({
 			modelProvider: "vllm",
@@ -307,21 +376,54 @@ describe("sowCommand — default (no flags)", () => {
 	});
 
 	it("skips model prompt and exits cleanly when already configured", async () => {
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(mockModelCollect).not.toHaveBeenCalled();
 		expect(mockSaveTokens).not.toHaveBeenCalled();
 	});
 
+	it("reconfigures model credentials when --reconfigure is explicit", async () => {
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-old",
+		});
+		mockModelCollect.mockResolvedValue({
+			provider: "anthropic",
+			apiKey: "sk-ant-new",
+		});
+
+		await sowCommand.parseAsync(["--reconfigure"], { from: "user" });
+
+		expect(mockModelCollect).toHaveBeenCalledOnce();
+		expect(mockSaveTokens).toHaveBeenCalledWith(
+			expect.objectContaining({
+				modelProvider: "anthropic",
+				modelApiKey: "sk-ant-new",
+			}),
+		);
+	});
+
 	it("prompts when provider is set but required credentials are missing", async () => {
-		mockLoadTokens.mockResolvedValue({ modelProvider: "openai", modelId: "gpt-5.5" });
-		mockModelCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "openai",
+			modelId: "gpt-5.5",
+		});
+		mockModelCollect.mockResolvedValue({
+			provider: "openai",
+			apiKey: "sk-openai-test",
+		});
 
 		await sowCommand.parseAsync([], { from: "user" });
 
 		expect(mockModelCollect).toHaveBeenCalledOnce();
 		expect(mockSaveTokens).toHaveBeenCalledWith(
-			expect.objectContaining({ modelProvider: "openai", modelApiKey: "sk-openai-test" }),
+			expect.objectContaining({
+				modelProvider: "openai",
+				modelApiKey: "sk-openai-test",
+			}),
 		);
 	});
 
@@ -329,6 +431,26 @@ describe("sowCommand — default (no flags)", () => {
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(mockGithubCollect).not.toHaveBeenCalled();
 		expect(mockCloudflareCollect).not.toHaveBeenCalled();
+	});
+
+	it("prints configured status as JSON when already configured and --reconfigure is absent", async () => {
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await sowCommand.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			status: string;
+			nextActions: string[];
+		};
+		expect(payload).toMatchObject({
+			ok: true,
+			status: "configured",
+		});
 	});
 
 	it("documents runtime credential reload behavior in help", () => {
@@ -345,8 +467,14 @@ describe("sowCommand — default (no flags)", () => {
 		expect(help).toContain("refarm sow --model openai/gpt-5.5");
 		expect(help).toContain("refarm sow --model openai/gpt-5.5 --json");
 		expect(help).toContain("--json is non-interactive");
-		expect(help).toContain("nextAction describes any manual login/configuration");
-		expect(help).toContain("nextCommand lists executable recovery or continuation commands");
+		expect(help).toContain(
+			"nextAction describes any manual login/configuration",
+		);
+		expect(help).toContain(
+			"nextCommand lists executable recovery or continuation commands",
+		);
+		expect(help).toContain("--reconfigure");
+		expect(help).toContain("run plain refarm sow to configure credentials");
 		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 	});
 });
@@ -357,11 +485,16 @@ describe("sowCommand — --all flag", () => {
 		process.exitCode = undefined;
 		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic" });
 		mockOperatorAsk.mockResolvedValue("my-org");
-		mockModelCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
+		mockModelCollect.mockResolvedValue({
+			provider: "openai",
+			apiKey: "sk-openai-test",
+		});
 	});
 
 	it("can also pin a provider/model ref without affecting credential collection", async () => {
-		await sowCommand.parseAsync(["--all", "--model", "openai/gpt-5.5"], { from: "user" });
+		await sowCommand.parseAsync(["--all", "--model", "openai/gpt-5.5"], {
+			from: "user",
+		});
 		expect(mockSaveTokens).toHaveBeenCalledWith(
 			expect.objectContaining({
 				modelProvider: "openai",
@@ -371,7 +504,9 @@ describe("sowCommand — --all flag", () => {
 	});
 
 	it("does not clear the newly collected credential when --model matches it", async () => {
-		await sowCommand.parseAsync(["--all", "--model", "openai/gpt-5.5"], { from: "user" });
+		await sowCommand.parseAsync(["--all", "--model", "openai/gpt-5.5"], {
+			from: "user",
+		});
 
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
 			modelProvider: "openai",
@@ -385,7 +520,9 @@ describe("sowCommand — --all flag", () => {
 	});
 
 	it("resolves a short --model id against the newly collected provider", async () => {
-		await sowCommand.parseAsync(["--all", "--model", "gpt-5.5"], { from: "user" });
+		await sowCommand.parseAsync(["--all", "--model", "gpt-5.5"], {
+			from: "user",
+		});
 
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
 			modelProvider: "openai",
@@ -405,7 +542,10 @@ describe("sowCommand — --all flag", () => {
 			oauthCredentials: { accessToken: "oauth-test" },
 		});
 
-		await sowCommand.parseAsync(["--all", "--model", "anthropic/claude-sonnet-4-6"], { from: "user" });
+		await sowCommand.parseAsync(
+			["--all", "--model", "anthropic/claude-sonnet-4-6"],
+			{ from: "user" },
+		);
 
 		expect(mockSaveTokens).toHaveBeenNthCalledWith(1, {
 			modelProvider: "anthropic",
@@ -425,7 +565,10 @@ describe("sowCommand — --github flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
 		mockOperatorAsk.mockResolvedValue("my-org");
 	});
 
@@ -442,7 +585,10 @@ describe("sowCommand — --github flag", () => {
 	it("saves githubToken and githubOwner", async () => {
 		await sowCommand.parseAsync(["--github"], { from: "user" });
 		expect(mockSaveTokens).toHaveBeenCalledWith(
-			expect.objectContaining({ githubToken: "gho_test_github", githubOwner: "my-org" }),
+			expect.objectContaining({
+				githubToken: "gho_test_github",
+				githubOwner: "my-org",
+			}),
 		);
 	});
 
@@ -463,9 +609,13 @@ describe("sowCommand — --github flag", () => {
 			nextCommands: string[];
 		};
 		expect(payload.nextAction).toBe("refarm sow --github");
-		expect(payload.nextCommand).toBe("refarm config get operator.openExternalLinks --json");
+		expect(payload.nextCommand).toBe(
+			"refarm config get operator.openExternalLinks --json",
+		);
 		expect(payload.nextCommands).not.toContain("refarm sow --github");
-		expect(payload.nextCommands).toContain("refarm config get operator.openExternalLinks --json");
+		expect(payload.nextCommands).toContain(
+			"refarm config get operator.openExternalLinks --json",
+		);
 		expect(payload.handoffs.localNoKeyModel).toBeUndefined();
 		expect(mockGithubCollect).not.toHaveBeenCalled();
 	});
@@ -475,7 +625,10 @@ describe("sowCommand — --cloudflare flag", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
 	});
 
 	it("prompts for Cloudflare when --cloudflare is passed", async () => {
@@ -485,7 +638,9 @@ describe("sowCommand — --cloudflare flag", () => {
 
 	it("saves cloudflareToken", async () => {
 		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
-		expect(mockSaveTokens).toHaveBeenCalledWith({ cloudflareToken: "cf_test_cloudflare" });
+		expect(mockSaveTokens).toHaveBeenCalledWith({
+			cloudflareToken: "cf_test_cloudflare",
+		});
 	});
 });
 
@@ -493,9 +648,15 @@ describe("sowCommand — --all credentials", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
-		mockLoadTokens.mockResolvedValue({ modelProvider: "anthropic", modelApiKey: "sk-ant-existing" });
+		mockLoadTokens.mockResolvedValue({
+			modelProvider: "anthropic",
+			modelApiKey: "sk-ant-existing",
+		});
 		mockOperatorAsk.mockResolvedValue("my-org");
-		mockModelCollect.mockResolvedValue({ provider: "groq", apiKey: "gsk-test" });
+		mockModelCollect.mockResolvedValue({
+			provider: "groq",
+			apiKey: "gsk-test",
+		});
 	});
 
 	it("reconfigures model even if already set", async () => {
@@ -519,6 +680,6 @@ describe("sowCommand — SIGINT handling", () => {
 		error.name = "ExitPromptError";
 		mockModelCollect.mockRejectedValueOnce(error);
 		await sowCommand.parseAsync([], { from: "user" });
-		expect(process.exitCode).toBeUndefined();
+		expect(process.exitCode).toBe(130);
 	});
 });

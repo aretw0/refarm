@@ -3,6 +3,9 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+	buildCodingAgentEvidence,
+	buildCodingAgentSmoke,
+	buildCodingAgentTempWorkspaceRehearsal,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
@@ -124,6 +127,67 @@ describe("extension sandbox poc", () => {
 		assert.match(evidence.promotionBoundary.cannotSay, /synthetic sandbox report/);
 	});
 
+	it("publishes coding-agent governance evidence without claiming autonomy", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildCodingAgentEvidence(report);
+
+		assert.deepEqual(readFixture("coding-agent-evidence.json"), evidence);
+		assert.equal(evidence.claimStatus, "synthetic-governance-poc");
+		assert.deepEqual(evidence.capabilityModel.autoAllowed, ["storage:v1"]);
+		assert.ok(evidence.capabilityModel.blockedByDefault.includes("network:v1"));
+		assert.ok(evidence.capabilityModel.requiresReview.includes("workspace:write"));
+		assert.ok(
+			evidence.controlledRun.packets.some(
+				(packet) =>
+					packet.step === "capability-review" &&
+					packet.outcome === "network-blocked",
+			),
+		);
+		assert.match(evidence.promotionBoundary.canSay, /coding-agent workflow/);
+		assert.match(evidence.promotionBoundary.cannotSay, /production autonomous/);
+	});
+
+	it("publishes a proposal-only coding-agent smoke packet", () => {
+		const report = runExtensionSandboxPoc();
+		const smoke = buildCodingAgentSmoke(report);
+
+		assert.deepEqual(readFixture("coding-agent-smoke.json"), smoke);
+		assert.equal(smoke.claimStatus, "deterministic-smoke");
+		assert.equal(smoke.mode, "proposal-only");
+		assert.equal(smoke.outputs.proposedPatch.mutatesWorkspace, false);
+		assert.equal(smoke.outputs.deniedCapabilityReceipt.capability, "network:v1");
+		assert.equal(smoke.outputs.deniedCapabilityReceipt.status, "denied");
+		assert.deepEqual(smoke.observedWrites, []);
+		assert.deepEqual(smoke.protectedSurfaceTouches, []);
+		assert.equal(smoke.checks.proposedPatchRecorded, true);
+		assert.equal(smoke.checks.deniedCapabilityReceiptRecorded, true);
+		assert.equal(smoke.checks.operatorReviewRequired, true);
+		assert.equal(smoke.checks.protectedSurfacesUntouched, true);
+		assert.match(smoke.promotionBoundary.cannotSay, /real model-driven coding agent/);
+	});
+
+	it("publishes a temporary-workspace coding-agent rehearsal packet", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildCodingAgentEvidence(report);
+		const smoke = buildCodingAgentSmoke(report, evidence);
+		const rehearsal = buildCodingAgentTempWorkspaceRehearsal(report, evidence, smoke);
+
+		assert.deepEqual(readFixture("coding-agent-temp-workspace.json"), rehearsal);
+		assert.equal(rehearsal.claimStatus, "deterministic-temp-workspace-rehearsal");
+		assert.equal(rehearsal.mode, "temporary-workspace-copy");
+		assert.equal(rehearsal.workspace.repositoryMutationAllowed, false);
+		assert.equal(rehearsal.workspace.workspaceMutationAllowed, true);
+		assert.notEqual(rehearsal.fileState.beforeHash, rehearsal.fileState.afterHash);
+		assert.deepEqual(rehearsal.observedRepositoryWrites, []);
+		assert.deepEqual(rehearsal.protectedSurfaceTouches, []);
+		assert.equal(rehearsal.checks.tempWorkspaceUsed, true);
+		assert.equal(rehearsal.checks.repositoryMutationBlocked, true);
+		assert.equal(rehearsal.checks.reviewPacketPreserved, true);
+		assert.equal(rehearsal.checks.deniedCapabilityReceiptPreserved, true);
+		assert.equal(rehearsal.checks.protectedSurfacesUntouched, true);
+		assert.match(rehearsal.promotionBoundary.cannotSay, /real model-driven coding agent/);
+	});
+
 	it("keeps runtime evidence commands and linked files resolvable", () => {
 		const report = runExtensionSandboxPoc();
 		const evidence = buildRuntimeEvidence(report);
@@ -206,6 +270,9 @@ describe("extension sandbox poc", () => {
 				"scorecard.json",
 				"risk-and-standards-matrix.json",
 				"runtime-evidence.json",
+				"coding-agent-evidence.json",
+				"coding-agent-smoke.json",
+				"coding-agent-temp-workspace.json",
 				"scenario.md",
 				"annex.md",
 				"limits.md",

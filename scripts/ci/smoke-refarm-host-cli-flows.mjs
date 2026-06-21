@@ -923,7 +923,7 @@ async function main() {
 		);
 		await assertCommandFailsWith(
 			["telemetry", "--json", "--strict"],
-			"Refarm runtime is not running",
+			"runtime-request-failed",
 		);
 
 		console.log(

@@ -15,6 +15,12 @@
 		"isomorphic-git": "catalog:"
 	},
 	"license": "AGPL-3.0-only",
+	"files": [
+		"README.md",
+		"ROADMAP.md",
+		"dist/index.js",
+		"dist/index.d.ts"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

@@ -1,8 +1,8 @@
-import type { OperatorResumeFinishRecord } from "@refarm.dev/cli/operator-resume";
 import type { CommandPlanRunResult } from "@refarm.dev/cli/command-plan";
+import type { OperatorResumeFinishRecord } from "@refarm.dev/cli/operator-resume";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 
 const AGENT_FINISH_SESSION_VERSION = 1 as const;
 
@@ -47,7 +47,7 @@ export class FileAgentFinishSessionRecorder
 	private readonly sessionsDir: string;
 	private readonly sessionFilePath: string;
 
-	constructor(baseDir = path.join(os.homedir(), ".refarm")) {
+	constructor(baseDir = resolveRefarmHome()) {
 		this.sessionsDir = path.join(baseDir, "sessions");
 		this.sessionFilePath = path.join(
 			this.sessionsDir,

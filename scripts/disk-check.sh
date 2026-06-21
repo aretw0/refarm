@@ -141,7 +141,7 @@ print_class .cache
 
 if [ -n "${CARGO_TARGET_DIR:-}" ] && [ -d "$CARGO_TARGET_DIR" ]; then
 	VOL_MB="$(du -sm "$CARGO_TARGET_DIR" 2>/dev/null | cut -f1 || echo 0)"
-	printf "\n  %-14s %8s  ← CARGO_TARGET_DIR (Docker volume, off-host)\n" "cargo-volume" "$(human_mb "$VOL_MB")"
+	printf "\n  %-14s %8s  ← CARGO_TARGET_DIR (workspace cache)\n" "cargo-cache" "$(human_mb "$VOL_MB")"
 fi
 print_path_if_present "pnpm-store" "$REPO_ROOT/.pnpm-store"
 print_path_if_present "tmp-ci-target" "/tmp/refarm-ci-target"

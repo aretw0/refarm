@@ -6,6 +6,7 @@ import { createPackageScriptCommand } from "../../packages/config/src/package-ma
 const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/root",
 	"packages/effort-contract-v1",
+	"packages/dispatch-surface",
 	"packages/artifact-contract-v1",
 	"packages/automation-contract-v1",
 	"packages/identity-contract-v1",
@@ -32,6 +33,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/ds",
 	"packages/homestead",
 	"packages/cli",
+	"packages/barn",
 	"packages/prompt-contract-v1",
 	"packages/infra-contract-v1",
 	"packages/policy-contract-v1",
@@ -161,7 +163,9 @@ export async function ensureWorkspaceTypeDependencyBuilds(
 ) {
 	const workspaceDirs = await workspaceTypeDependencyBuildDirs(workspaceDir);
 	if (workspaceDirs.length === 0) {
-		console.log(`${loggerPrefix} no TypeScript workspace dependencies to build.`);
+		console.log(
+			`${loggerPrefix} no TypeScript workspace dependencies to build.`,
+		);
 		return;
 	}
 	console.log(
@@ -317,7 +321,13 @@ export function runSubprocess(command, commandArgs, options = {}) {
 			});
 		}
 
-		child.on("error", reject);
+		child.on("error", (error) => {
+			error.command = command;
+			error.args = commandArgs;
+			error.stdout = stdout;
+			error.stderr = stderr;
+			reject(error);
+		});
 		child.on("exit", (code) => {
 			if (code === 0) {
 				resolve({ stdout, stderr });
@@ -327,7 +337,13 @@ export function runSubprocess(command, commandArgs, options = {}) {
 			const details = options.captureOutput
 				? `${stderr || stdout || "unknown error"}`
 				: `${command} exited with code ${code}`;
-			reject(new Error(details.trim()));
+			const error = new Error(details.trim());
+			error.exitCode = code;
+			error.command = command;
+			error.args = commandArgs;
+			error.stdout = stdout;
+			error.stderr = stderr;
+			reject(error);
 		});
 	});
 }

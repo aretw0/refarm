@@ -200,7 +200,7 @@ export function runTaskV1Conformance(
 
 - [x] Design `Task` / `TaskEvent` / `TaskContractAdapter` TypeScript interfaces
 - [x] Design `runTaskV1Conformance` test harness
-- [x] Write design doc (`docs/superpowers/specs/2026-05-03-task-session-contracts-design.md`)
+- [x] Write design doc (this feature spec)
 - [x] Write ADR-057 (`specs/ADRs/ADR-057-task-session-contracts.md`)
 - [x] Write feature spec (this document)
 
@@ -223,7 +223,6 @@ export function runTaskV1Conformance(
 
 ## References
 
-- [Design doc](../../docs/superpowers/specs/2026-05-03-task-session-contracts-design.md)
 - [ADR-057: task-contract-v1 + session-contract-v1](../ADRs/ADR-057-task-session-contracts.md)
 - [ADR-052: CRDT-native agent rendezvous](../ADRs/ADR-052-crdt-native-agent-rendezvous.md)
 - [ADR-046: Composition model](../ADRs/ADR-046-composition-model.md)

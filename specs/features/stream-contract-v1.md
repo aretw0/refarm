@@ -221,7 +221,6 @@ export class StreamRegistry {
 
 ## References
 
-- [Design doc](../../docs/superpowers/specs/2026-05-02-stream-contract-v1-design.md)
 - [ADR-054: Generic Stream Observations](../ADRs/ADR-054-generic-stream-observations.md)
 - [ADR-053: Host-Proxied Model Streaming](../ADRs/ADR-053-host-proxied-model-streaming.md)
 - [ADR-018: Capability Contracts and Observability Gates](../ADRs/ADR-018-capability-contracts-and-observability-gates.md)

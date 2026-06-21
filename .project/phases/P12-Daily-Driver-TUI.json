@@ -13,7 +13,7 @@
     {
       "criterion": "refarm chat abre REPL interativo com streaming output do farmhand",
       "verify_method": "manual",
-      "status": "implemented — aguardando teste end-to-end com farmhand rodando"
+      "status": "implementado — verificação de smoke de host/CLI concluída; aguarda teste real end-to-end com farmhand/LLM ativo"
     },
     {
       "criterion": "Comando /reload dentro do chat recarrega plugins sem reiniciar daemon",
@@ -38,7 +38,8 @@
     "apps/refarm/src/commands/session-launch.ts — política de readiness (pure, testable)",
     "apps/refarm/src/commands/chat.ts — runSessionRepl() extraído e exportado",
     "apps/refarm/src/commands/session.ts — runSessionLaunchFlow() convergência dos caminhos",
-    "apps/refarm/src/program.ts — refarm (bare) + refarm session + refarm chat registrados"
+    "apps/refarm/src/program.ts — refarm (bare) + refarm session + refarm chat registrados",
+    "scripts/ci/smoke-refarm-host-cli-flows.mjs — ajuste agnóstico de mensagem de falha de telemetry"
   ],
   "architecture": {
     "dec_036": "DECIDED — Option B: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand. ChatDeps interface análoga a AskDeps.",

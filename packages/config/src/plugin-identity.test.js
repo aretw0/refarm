@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
 	PI_AGENT_NPM_PACKAGE,
 	PI_AGENT_PLUGIN_ID,
+	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	RUNTIME_AGENT_PLUGIN_ID,
 	canonicalRuntimeAgentContent,
 	isRuntimeAgentErrorContent,
@@ -42,6 +44,20 @@ describe("plugin identity", () => {
 		expect(isRuntimeAgentPluginId("pi-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("runtime-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("@local/tool")).toBe(false);
+	});
+
+	it("exposes the runtime agent as an official bundled plugin descriptor", () => {
+		expect(RUNTIME_AGENT_PLUGIN_DESCRIPTOR).toEqual({
+			id: RUNTIME_AGENT_PLUGIN_ID,
+			npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
+			workspaceDir: "packages/pi-agent",
+			wasmFile: "dist/pi_agent.wasm",
+			manifestFile: "dist/plugin.json",
+			requiredProvides: ["agent:respond"],
+		});
+		expect(REFARM_BUNDLED_PLUGIN_DESCRIPTORS).toEqual([
+			RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+		]);
 	});
 
 	it("detects runtime agent error-like content, including legacy prefixes", () => {

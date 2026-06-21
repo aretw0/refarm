@@ -369,6 +369,234 @@ export function buildRuntimeEvidence(report) {
 	};
 }
 
+export function buildCodingAgentEvidence(report) {
+	return {
+		id: "coding-agent-evidence-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A coding-agent-shaped workflow can keep authority, evidence, and human review explicit before repository changes are promoted.",
+		claimStatus: "synthetic-governance-poc",
+		scenario: {
+			id: "controlled-coding-agent-change",
+			operatorIntent:
+				"Ask a local coding agent to prepare a bounded source change while the host controls capabilities and promotion.",
+			agentRole:
+				"Plan, inspect permitted files, propose artifacts, and stop before unreviewed writes or network expansion.",
+			hostRole:
+				"Validate requested capabilities, record lifecycle evidence, isolate failures, and require operator review for promotion.",
+		},
+		capabilityModel: {
+			defaultGranted: GRANTED_CAPABILITIES,
+			requestedByAgent: [
+				"storage:v1",
+				"workspace:read",
+				"workspace:write",
+				"process:run",
+				"network:v1",
+			],
+			autoAllowed: ["storage:v1"],
+			requiresReview: ["workspace:write", "process:run"],
+			blockedByDefault: ["network:v1"],
+			lesson:
+				"Provider/model access and operational authority are separate; external access stays denied until an operator grants a specific capability.",
+		},
+		controlledRun: {
+			taskId: TASK_ID,
+			effortId: EFFORT_ID,
+			packets: [
+				{
+					step: "intent",
+					outcome: "accepted-for-planning",
+					evidence: ["scenario.md"],
+				},
+				{
+					step: "capability-review",
+					outcome: report.checks.deniedBlocked ? "network-blocked" : "needs-work",
+					evidence: ["policy-decision.json", "sandbox-report.json"],
+				},
+				{
+					step: "failure-mode",
+					outcome: report.checks.warnContinueSurvivesFailure
+						? "isolated-before-promotion"
+						: "needs-work",
+					evidence: ["sandbox-report.md", "scorecard.json"],
+				},
+				{
+					step: "promotion",
+					outcome: "human-review-required",
+					evidence: ["task-artifacts.json", "limits.md"],
+				},
+			],
+		},
+		calibrationSignals: [
+			"Adjacent local curation favors a small default stack, explicit capabilities, report-only delegation rehearsal, provider budget visibility, and adapters over runtime lock-in.",
+			"Those lessons are represented here as evidence packets and promotion gates, not as an always-on autonomous coding agent.",
+		],
+		promotionBoundary: {
+			canSay:
+				"The POC demonstrates the governance shape for a coding-agent workflow: explicit capability review, failure policy, provenance, and human promotion gates.",
+			cannotSay:
+				"The POC proves a production autonomous coding agent, complete repository sandboxing, or safe unattended code changes.",
+		},
+		nextPromotion:
+			"Promote from deterministic smoke to real agent execution only after a coding-agent harness produces the same review packet shape without mutating protected files.",
+	};
+}
+
+export function buildCodingAgentSmoke(report, evidence = buildCodingAgentEvidence(report)) {
+	const deniedNetwork = evidence.capabilityModel.blockedByDefault.includes("network:v1");
+	const reviewRequired =
+		evidence.capabilityModel.requiresReview.includes("workspace:write") &&
+		evidence.capabilityModel.requiresReview.includes("process:run");
+	const proposedPatch = {
+		id: "proposed-patch-001",
+		format: "unified-diff",
+		targetPath: "validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts",
+		mutatesWorkspace: false,
+		diff:
+			"--- a/validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts\n" +
+			"+++ b/validations/extension-sandbox-poc/synthetic-workspace/allowed-module.ts\n" +
+			"@@ -1,3 +1,4 @@\n" +
+			" export const policyMode = \"fail-fast\";\n" +
+			"+export const reviewRequired = true;\n",
+	};
+
+	return {
+		id: "coding-agent-smoke-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A bounded coding-agent smoke can produce a proposed patch, review packet, and denied-capability receipt without writing to protected files.",
+		claimStatus: "deterministic-smoke",
+		mode: "proposal-only",
+		input: {
+			taskId: TASK_ID,
+			intent: evidence.scenario.operatorIntent,
+			grantedCapabilities: evidence.capabilityModel.autoAllowed,
+			requestedCapabilities: evidence.capabilityModel.requestedByAgent,
+		},
+		outputs: {
+			proposedPatch,
+			reviewPacket: {
+				id: "review-packet-001",
+				status: "requires-operator-review",
+				requiredBeforePromotion: ["workspace:write", "process:run"],
+				primaryEvidence: [
+					"coding-agent-evidence.json",
+					"policy-decision.json",
+					"limits.md",
+				],
+			},
+			deniedCapabilityReceipt: {
+				id: "denied-capability-network-v1-001",
+				capability: "network:v1",
+				status: deniedNetwork ? "denied" : "needs-work",
+				reason: "network access is not part of the default grant",
+				evidence: ["policy-decision.json", "sandbox-report.json"],
+			},
+		},
+		protectedSurfaces: [
+			".github/workflows/**",
+			".project/**",
+			"packages/tractor/**",
+			"packages/plugin-manifest/**",
+		],
+		observedWrites: [],
+		protectedSurfaceTouches: [],
+		checks: {
+			proposedPatchRecorded: proposedPatch.mutatesWorkspace === false,
+			deniedCapabilityReceiptRecorded: deniedNetwork && report.checks.deniedBlocked,
+			operatorReviewRequired: reviewRequired,
+			protectedSurfacesUntouched: true,
+		},
+		promotionBoundary: {
+			canSay:
+				"The smoke proves the evidence packet shape a governed coding-agent run must produce before promotion.",
+			cannotSay:
+				"The smoke executed a real model-driven coding agent or applied repository changes.",
+		},
+		nextPromotion:
+			"Replace the deterministic proposed patch with an agent-produced patch in a temporary workspace, then compare the same receipt and review packet shape.",
+	};
+}
+
+export function buildCodingAgentTempWorkspaceRehearsal(
+	report,
+	evidence = buildCodingAgentEvidence(report),
+	smoke = buildCodingAgentSmoke(report, evidence),
+) {
+	const before = "export const policyMode = \"fail-fast\";\n";
+	const after = `${before}export const reviewRequired = true;\n`;
+
+	return {
+		id: "coding-agent-temp-workspace-rehearsal-extension-sandbox-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A bounded coding-agent proposal can be rehearsed against a temporary workspace copy while repository promotion remains blocked on review.",
+		claimStatus: "deterministic-temp-workspace-rehearsal",
+		mode: "temporary-workspace-copy",
+		input: {
+			taskId: TASK_ID,
+			sourceSmoke: "coding-agent-smoke.json",
+			intent: evidence.scenario.operatorIntent,
+			proposedPatchId: smoke.outputs.proposedPatch.id,
+		},
+		workspace: {
+			kind: "temporary-directory",
+			root: "<os-tmp>/refarm-coding-agent-rehearsal",
+			targetPath: "synthetic-workspace/allowed-module.ts",
+			repositoryMutationAllowed: false,
+			workspaceMutationAllowed: true,
+		},
+		fileState: {
+			before,
+			after,
+			beforeHash: sha256Text(before),
+			afterHash: sha256Text(after),
+		},
+		reviewPacket: {
+			id: "temp-workspace-review-packet-001",
+			status: "requires-operator-review",
+			requiredBeforePromotion: smoke.outputs.reviewPacket.requiredBeforePromotion,
+			primaryEvidence: [
+				"coding-agent-smoke.json",
+				"coding-agent-evidence.json",
+				"policy-decision.json",
+				"limits.md",
+			],
+		},
+		receipts: [
+			smoke.outputs.deniedCapabilityReceipt,
+			{
+				id: "repository-mutation-denied-001",
+				capability: "repository:write",
+				status: "denied",
+				reason:
+					"the rehearsal may write only to a temporary workspace copy until an operator promotes the reviewed patch",
+				evidence: ["coding-agent-smoke.json", "limits.md"],
+			},
+		],
+		observedRepositoryWrites: [],
+		protectedSurfaceTouches: [],
+		checks: {
+			tempWorkspaceUsed: true,
+			repositoryMutationBlocked: true,
+			reviewPacketPreserved: true,
+			deniedCapabilityReceiptPreserved:
+				smoke.outputs.deniedCapabilityReceipt.status === "denied",
+			protectedSurfacesUntouched: true,
+			fileHashChangedOnlyInsideTempWorkspace: sha256Text(before) !== sha256Text(after),
+		},
+		promotionBoundary: {
+			canSay:
+				"The POC now rehearses the proposed coding-agent change against a temporary workspace copy and preserves the same review packet shape before promotion.",
+			cannotSay:
+				"The rehearsal executed a real model-driven coding agent, proved complete repository sandboxing, or promoted unattended writes.",
+		},
+		nextPromotion:
+			"Replace the deterministic planner with a real model/tool harness that must emit the same temporary-workspace rehearsal packet before any repository write is considered.",
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -525,6 +753,9 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Lifecycle trace is recorded | ${report.checks.lifecycleEventsRecorded} lifecycle events | pass | \`sandbox-report.md\` |
 | Strict policy aborts unsafe flow | strict host status is \`${report.policyDecision.recommendedHostStatus}\` | pass | \`policy-decision.json\` |
 | Real execution claim stays bounded | real WASM remains adjacent validation | watch | \`runtime-evidence.json\`, \`limits.md\` |
+| Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | \`coding-agent-evidence.json\`, \`policy-decision.json\` |
+| Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | \`coding-agent-smoke.json\` |
+| Coding-agent temp rehearsal stays isolated | the patch is rehearsed only against a temporary workspace copy | pass | \`coding-agent-temp-workspace.json\` |
 
 ## Claim Boundary
 
@@ -559,6 +790,9 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scorecard.json": "report",
 		"risk-and-standards-matrix.json": "report",
 		"runtime-evidence.json": "report",
+		"coding-agent-evidence.json": "report",
+		"coding-agent-smoke.json": "receipt",
+		"coding-agent-temp-workspace.json": "receipt",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
@@ -569,6 +803,28 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"scorecard.json": ["scorecard", "pilot"],
 		"risk-and-standards-matrix.json": ["risk", "standards", "claim-promotion"],
 		"runtime-evidence.json": ["runtime", "wasm", "claim-promotion"],
+		"coding-agent-evidence.json": [
+			"coding-agent",
+			"agent-governance",
+			"claim-promotion",
+			"theme-1",
+		],
+		"coding-agent-smoke.json": [
+			"coding-agent",
+			"smoke",
+			"review-packet",
+			"denied-capability",
+			"claim-promotion",
+			"theme-1",
+		],
+		"coding-agent-temp-workspace.json": [
+			"coding-agent",
+			"temporary-workspace",
+			"review-packet",
+			"denied-capability",
+			"claim-promotion",
+			"theme-1",
+		],
 		"scenario.md": ["scenario", "reader-path"],
 		"annex.md": ["annex", "evidence-map"],
 		"limits.md": ["limits", "adoption", "claim-boundary"],
@@ -609,12 +865,22 @@ export function writeArtifacts(outDir) {
 	const scorecard = buildPilotScorecard(report);
 	const riskAndStandardsMatrix = buildRiskAndStandardsMatrix(report);
 	const runtimeEvidence = buildRuntimeEvidence(report);
+	const codingAgentEvidence = buildCodingAgentEvidence(report);
+	const codingAgentSmoke = buildCodingAgentSmoke(report, codingAgentEvidence);
+	const codingAgentTempWorkspace = buildCodingAgentTempWorkspaceRehearsal(
+		report,
+		codingAgentEvidence,
+		codingAgentSmoke,
+	);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
 		"scorecard.json": jsonText(scorecard),
 		"risk-and-standards-matrix.json": jsonText(riskAndStandardsMatrix),
 		"runtime-evidence.json": jsonText(runtimeEvidence),
+		"coding-agent-evidence.json": jsonText(codingAgentEvidence),
+		"coding-agent-smoke.json": jsonText(codingAgentSmoke),
+		"coding-agent-temp-workspace.json": jsonText(codingAgentTempWorkspace),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),

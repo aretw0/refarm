@@ -67,8 +67,45 @@ export type {
 	GitHubActionsSecretOptions,
 } from "./github-actions.js";
 export {
+	buildWorkspaceExecutionStatus,
+	workspaceCanUseTurboAdapter,
+} from "./workspace-execution.js";
+export type {
+	WorkspaceExecutionPackageManager,
+	WorkspaceExecutionStatus,
+} from "./workspace-execution.js";
+export {
+	buildWorkspaceSourceCachePlan,
+	buildWorkspaceSweepPayload,
+	missingWorkspacePathMessage,
+	observeDeclaredWorkspacesExecution,
+	observeDeclaredWorkspaceExecution,
+	resolveDeclaredWorkspacePath,
+	summarizeWorkspaceExecutionObservations,
+	workspaceExecutionRecommendations,
+	workspaceSweepRecommendationNextCommands,
+} from "./workspace-sweep.js";
+export type {
+	WorkspacePathCandidate,
+	WorkspacePathResolution,
+	WorkspaceSourceCachePlan,
+	WorkspaceSourceCachePlanItem,
+	WorkspaceSourceCacheState,
+	WorkspaceSweepBridge,
+	WorkspaceSweepBuildStatus,
+	WorkspaceSweepBuildStatusOptions,
+	WorkspaceSweepDeclaredWorkspace,
+	WorkspaceSweepRepository,
+	WorkspaceSweepObservation,
+	WorkspaceSweepOptions,
+	WorkspaceSweepPayload,
+	WorkspaceSweepRecommendation,
+	WorkspaceSweepSummary,
+} from "./workspace-sweep.js";
+export {
 	buildCommandPlanEnvelope,
 	buildCommandPlanRunEnvelope,
+	commandPlanCacheObservations,
 	commandPlanEffects,
 	commandPlanStepCommands,
 	commandPlanStepProcesses,
@@ -80,6 +117,7 @@ export {
 } from "./command-plan.js";
 export type {
 	CommandPlanCliStepRunOptions,
+	CommandPlanCacheObservation,
 	CommandPlanCommandRunOptions,
 	CommandPlanEffect,
 	CommandPlanEnvelope,
@@ -89,6 +127,7 @@ export type {
 	CommandPlanRunEnvelope,
 	CommandPlanRunResult,
 	CommandPlanStep,
+	CommandPlanStepCacheObservation,
 	CommandPlanStepRunResult,
 	CommandPlanStepSummary,
 } from "./command-plan.js";

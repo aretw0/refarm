@@ -107,6 +107,24 @@ pub(crate) use loop_runner_anthropic::anthropic_runner_config;
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use loop_runner_openai::openai_runner_config;
 
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use crate::provider_config::{
+    choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL,
+};
+#[cfg(test)]
+pub(crate) use request_headers_anthropic::anthropic_headers;
+#[cfg(test)]
+pub(crate) use request_headers_openai::openai_compat_headers;
+#[cfg(test)]
+pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
+#[cfg(test)]
+pub(crate) use usage_extract::response_usage;
+#[cfg(test)]
+pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
+#[cfg(test)]
+pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) use loop_runner_types::{AnthropicRunnerConfig, OpenAiRunnerConfig};
 
@@ -150,7 +168,8 @@ pub(crate) use anthropic_text::{anthropic_text_content, require_anthropic_text_c
 pub(crate) use anthropic_tool_uses::{anthropic_content_array, parse_anthropic_tool_uses};
 #[cfg(test)]
 pub(crate) use openai_message::{
-    openai_choice_message, openai_message_content, require_openai_message_content,
+    normalize_openai_codex_response, openai_choice_message, openai_message_content,
+    require_openai_message_content,
 };
 #[cfg(test)]
 pub(crate) use openai_phase::openai_has_tool_calls;
@@ -165,8 +184,6 @@ pub(crate) use phase_common::{
 pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_with;
 #[cfg(test)]
 pub(crate) use openai_tool_phase::advance_openai_tool_phase_with;
-pub(crate) use request_headers_anthropic::anthropic_headers;
-pub(crate) use request_headers_openai::openai_compat_headers;
 #[cfg(test)]
 pub(crate) use tool_execution::{
     execute_anthropic_tools_with, execute_openai_tools_with, execute_tools_with,
@@ -183,14 +200,16 @@ pub(crate) use tool_wire::{
     append_anthropic_tool_results_message, append_openai_assistant_message,
     append_openai_tool_message, append_openai_tool_messages, OpenAiToolMessage,
 };
-pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
 pub(crate) use request_body_anthropic::{
     build_anthropic_body, build_anthropic_body_with_streaming,
 };
 #[cfg(test)]
-pub(crate) use request_body_openai::{build_openai_body, build_openai_body_with_streaming};
+pub(crate) use request_body_openai::{
+    build_openai_body, build_openai_body_with_streaming,
+    build_openai_codex_responses_body_with_streaming,
+};
 #[cfg(test)]
 pub(crate) use request_iteration::iteration_response_and_phase_with;
 #[cfg(test)]
@@ -201,8 +220,8 @@ pub(crate) use request_path::openai_compat_path;
 pub(crate) use stream_events::emit_stream_response_chunk_drafts_from_sse;
 #[cfg(test)]
 pub(crate) use stream_events::{
-    emit_stream_response_chunk_drafts_from_sse, parse_sse_data_events,
-    parse_stream_response_chunk_drafts_from_sse, parse_stream_text_deltas,
+    emit_stream_response_chunk_drafts_from_sse, parse_openai_codex_response_from_sse,
+    parse_sse_data_events, parse_stream_response_chunk_drafts_from_sse, parse_stream_text_deltas,
     parse_stream_text_deltas_from_sse,
 };
 
@@ -216,9 +235,6 @@ pub(crate) use loop_dispatch_tests::{
     run_completion_loop_from_common_config_with_dispatch,
     run_completion_loop_from_plan_with_dispatch,
 };
-pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
-pub(crate) use usage_extract::response_usage;
-pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
 pub(crate) use usage_totals::UsageTotals;
 
 #[cfg(test)]

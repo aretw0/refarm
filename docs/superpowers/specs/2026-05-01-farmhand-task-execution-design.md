@@ -151,6 +151,16 @@ Minimal `http.createServer` (no Express) on port 42001:
 
 - `POST /efforts` — body: `Effort` JSON → enqueues for execution → `{ effortId: string }`
 - `GET /efforts/:id` — reads `EffortResult` from file store → `EffortResult | 404`
+- `POST /channels/:channel/efforts` — same payload contract as `/efforts`, with source/context enrichment
+  - `source` defaults to `channel:<name>` when absent
+  - `context` is enriched with `channel` and carries optional `replyTo` + `traceIds` when supplied in the submission payload
+- `GET /channels/:channel/efforts/:id` — legacy status lookup (alias to `/efforts/:id`)
+- `GET /channels/:channel/efforts/:id/status` — explicit status lookup in channel control surfaces
+- `GET /channels/:channel/efforts/:id/logs` — evidence/log lookup (alias to `/efforts/:id/logs`)
+- `GET /channels/:channel/efforts/:id/stream` — stream/evidence alias (`/channels/:channel/efforts/:id/logs`)
+- `GET /channels/:channel/efforts/:id/evidence` — evidence alias (`/channels/:channel/efforts/:id/logs`)
+- `POST /channels/:channel/efforts/:id/retry` — retry control
+- `POST /channels/:channel/efforts/:id/cancel` — cancel control
 
 The sidecar is optional: Farmhand boots cleanly without it. File transport is always active.
 
@@ -165,6 +175,7 @@ refarm task run <plugin> <fn> \
   --args '{"input": "hello"}' \
   --direction "Process user input" \
   --transport file   # or: http
+  # or: channel:<name>
 ```
 
 - Builds an `Effort` with a single `Task` and a generated UUID
@@ -176,6 +187,7 @@ refarm task run <plugin> <fn> \
 ```bash
 refarm task status <effort-id> \
   --transport file   # or: http
+  # or: channel:<name>
   --watch            # poll every 2s until done/failed
 ```
 
@@ -185,14 +197,18 @@ refarm task status <effort-id> \
 ### Transport resolution
 
 ```typescript
-function resolveAdapter(transport: "file" | "http"): EffortTransportAdapter {
+function resolveAdapter(transport: "file" | "http" | `channel:${string}`): EffortTransportAdapter {
   if (transport === "http") return new HttpTransportAdapter("http://localhost:42001");
+  if (transport.startsWith("channel:")) {
+    const channel = transport.slice("channel:".length);
+    return new HttpChannelTransportAdapter("http://localhost:42001", channel);
+  }
   return new FileTransportAdapter(path.join(os.homedir(), ".refarm"));
 }
 ```
 
 Default: `file` — works without Farmhand running.
-`http`: requires Farmhand active on port 42001.
+`http` or `channel:*`: requires farmhand active on port 42001.
 
 ---
 

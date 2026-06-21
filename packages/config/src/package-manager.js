@@ -230,11 +230,145 @@ export function packageFrozenInstallCommand({ cwd = process.cwd(), env = process
     }
 }
 
+export function packageAddDevCommand(dependencyName, { cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["add", "-D", "-w", dependencyName]);
+            return {
+                packageManager,
+                command: pnpm.command,
+                args: pnpm.args,
+                display: `pnpm add -D -w ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["install", "--save-dev", dependencyName]);
+            return {
+                packageManager,
+                command: npm.command,
+                args: npm.args,
+                display: `npm install --save-dev ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["add", "-D", "-W", dependencyName]);
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: `yarn add -D -W ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["add", "-d", dependencyName]);
+            return {
+                packageManager,
+                command: bun.command,
+                args: bun.args,
+                display: `bun add -d ${quoteDisplayArgIfNeeded(dependencyName)}`,
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
+export function packageAuditCommand({
+    cwd = process.cwd(),
+    env = process.env,
+    auditLevel = null,
+} = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm":
+        case "npm":
+        case "bun": {
+            const command = packageManagerSpawnCommand(
+                packageManager,
+                ["audit", ...(auditLevel ? [`--audit-level=${auditLevel}`] : [])],
+            );
+            return {
+                packageManager,
+                command: command.command,
+                args: command.args,
+                display: `${packageManager} audit${auditLevel ? ` --audit-level=${auditLevel}` : ""}`,
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(
+                packageManager,
+                ["npm", "audit", ...(auditLevel ? ["--severity", auditLevel] : [])],
+            );
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: `yarn npm audit${auditLevel ? ` --severity ${auditLevel}` : ""}`,
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
+export function packageAuditHighCommand({ cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["audit", "--audit-level=high", "--silent"]);
+            return {
+                packageManager,
+                command: pnpm.command,
+                args: pnpm.args,
+                display: "pnpm audit --audit-level=high --silent",
+            };
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["audit", "--audit-level=high", "--silent"]);
+            return {
+                packageManager,
+                command: npm.command,
+                args: npm.args,
+                display: "npm audit --audit-level=high --silent",
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["npm", "audit", "--severity", "high"]);
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: "yarn npm audit --severity high",
+            };
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["audit"]);
+            return {
+                packageManager,
+                command: bun.command,
+                args: bun.args,
+                display: "bun audit",
+            };
+        }
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
 export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
     const packageManager = detectPackageManager({ cwd, env });
 
     switch (packageManager) {
         case "pnpm":
+            return {
+                packageManager,
+                command: "pnpm publish --dry-run --no-git-checks",
+                display: "pnpm publish --dry-run --no-git-checks",
+            };
         case "npm":
             return {
                 packageManager,
@@ -253,6 +387,51 @@ export function packagePublishDryRunCommand({ cwd = process.cwd(), env = process
                 command: "bun publish --dry-run",
                 display: "bun publish --dry-run",
             };
+        default:
+            throw new Error(`Unsupported package manager: ${packageManager}`);
+    }
+}
+
+export function packageWorkspacePublishDryRunCommand({ cwd = process.cwd(), env = process.env } = {}) {
+    const packageManager = detectPackageManager({ cwd, env });
+
+    switch (packageManager) {
+        case "pnpm": {
+            const pnpm = packageManagerSpawnCommand(packageManager, ["publish", "-r", "--dry-run", "--no-git-checks"]);
+            return {
+                packageManager,
+                command: pnpm.command,
+                args: pnpm.args,
+                display: "pnpm publish -r --dry-run --no-git-checks",
+            };
+        }
+        case "npm": {
+            const npm = packageManagerSpawnCommand(packageManager, ["publish", "--workspaces", "--dry-run"]);
+            return {
+                packageManager,
+                command: npm.command,
+                args: npm.args,
+                display: "npm publish --workspaces --dry-run",
+            };
+        }
+        case "yarn": {
+            const yarn = packageManagerSpawnCommand(packageManager, ["workspaces", "foreach", "-A", "npm", "publish", "--dry-run"]);
+            return {
+                packageManager,
+                command: yarn.command,
+                args: yarn.args,
+                display: "yarn workspaces foreach -A npm publish --dry-run",
+            };
+        }
+        case "bun": {
+            const bun = packageManagerSpawnCommand(packageManager, ["publish", "--dry-run"]);
+            return {
+                packageManager,
+                command: bun.command,
+                args: bun.args,
+                display: "bun publish --dry-run",
+            };
+        }
         default:
             throw new Error(`Unsupported package manager: ${packageManager}`);
     }

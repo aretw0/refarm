@@ -150,6 +150,7 @@ function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
 		TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
 	];
 	const nextCommands = [
+		SOW_CLOUDFLARE_JSON_COMMAND,
 		TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
 	];
 	return {

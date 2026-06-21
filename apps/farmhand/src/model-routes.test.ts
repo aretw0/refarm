@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	createModelRouteResolver,
-	routeResolutionEnv,
 	routeForScope,
+	routeResolutionEnv,
 	scopeForEffortSource,
 	withModelRouteEnv,
 } from "./model-routes.js";
@@ -66,9 +66,13 @@ describe("model routes", () => {
 
 	it("maps effort sources to model route scopes", () => {
 		expect(scopeForEffortSource("refarm-ask")).toBe("default");
+		expect(scopeForEffortSource("refarm-ask:worker")).toBe("worker");
+		expect(scopeForEffortSource("refarm-ask:monitor")).toBe("monitor");
 		expect(scopeForEffortSource("refarm-chat")).toBe("default");
 		expect(scopeForEffortSource("refarm-monitor")).toBe("monitor");
 		expect(scopeForEffortSource("refarm-task")).toBe("worker");
+		expect(scopeForEffortSource("channel:telegram")).toBe("worker");
+		expect(scopeForEffortSource("channel:matrix")).toBe("worker");
 		expect(scopeForEffortSource(undefined)).toBe("worker");
 	});
 
@@ -134,20 +138,18 @@ describe("model routes", () => {
 		};
 
 		expect(
-			routeForScope(
-				tokens,
-				"worker",
-				{
-					env: routeResolutionEnv(
-						{
-							MODEL_PROVIDER: "openai",
-							MODEL_ID: "gpt-5.5",
-							OPENAI_API_KEY: "sk-managed",
-						},
-						["MODEL_PROVIDER", "MODEL_ID", "OPENAI_API_KEY"],
-					),
-				},
-			),
+			routeForScope(tokens, "worker", {
+				env: routeResolutionEnv(
+					{
+						MODEL_PROVIDER: "openai",
+						MODEL_ID: "gpt-5.5",
+						OPENAI_API_KEY: "sk-managed",
+						REFARM_MANAGED_MODEL_ENV_KEYS:
+							"MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY",
+					},
+					[],
+				),
+			}),
 		).toEqual({
 			provider: "anthropic",
 			modelId: "claude-sonnet-4-6",

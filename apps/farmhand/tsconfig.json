@@ -18,6 +18,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
+      "@refarm.dev/dispatch-surface": ["../../packages/dispatch-surface/dist/index.d.ts"],
       "@refarm.dev/file-stream-transport": ["../../packages/file-stream-transport/dist/index.d.ts"],
       "@refarm.dev/sse-stream-transport": ["../../packages/sse-stream-transport/dist/index.d.ts"],
       "@refarm.dev/ws-stream-transport": ["../../packages/ws-stream-transport/dist/index.d.ts"],

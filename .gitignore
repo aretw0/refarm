@@ -39,6 +39,10 @@ pkg/
 wasm-pack.log
 Cargo.lock          # Only for libraries (apps should keep their own)
 
+# dispatch-surface-rs generated build artifacts
+/packages/dispatch-surface-rs/dist/
+/packages/dispatch-surface-rs/pkg/
+
 # Compiled WASM outputs (keep .wat source, ignore compiled binary)
 *.wasm
 # Exception: checked-in WASM fixtures used in tests

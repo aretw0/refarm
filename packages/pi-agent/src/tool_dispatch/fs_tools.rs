@@ -27,7 +27,10 @@ pub(crate) fn read_file(input: &serde_json::Value) -> String {
             "[truncated: {total} lines → showing {start}..{next_offset}; use read_file with offset={next_offset} to continue]\n{body}"
         )
     } else if offset > 0 {
-        format!("[showing lines {start}..{} of {total}]\n{body}", start + shown.len())
+        format!(
+            "[showing lines {start}..{} of {total}]\n{body}",
+            start + shown.len()
+        )
     } else {
         body
     }

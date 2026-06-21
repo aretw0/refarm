@@ -451,8 +451,8 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     // ── Scarecrow audit subscriber ────────────────────────────────────────────
     let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
-    tractor::observer::spawn_audit_subscriber(tractor.telemetry.clone(), scarecrow_base, tractor.observer_channels.clone());
-    tracing::info!("Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson", dirs_refarm_base().display());
+    tractor::observer::spawn_audit_subscriber(tractor.telemetry.clone(), scarecrow_base.clone(), tractor.observer_channels.clone());
+    tracing::info!("Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson", scarecrow_base.display());
 
     daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
@@ -468,6 +468,13 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 }
 
 fn dirs_refarm_base() -> std::path::PathBuf {
+    if let Ok(path) = std::env::var("REFARM_HOME") {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            return std::path::PathBuf::from(trimmed);
+        }
+    }
+
     dirs::home_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
         .join(".refarm")

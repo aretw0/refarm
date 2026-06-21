@@ -34,8 +34,21 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.ok(Array.isArray(output.nextCommands));
 	assert.equal(typeof output.substrate.node.ok, "boolean");
 	assert.equal(typeof output.substrate.rust.ok, "boolean");
+	assert.ok(Array.isArray(output.substrate.networkDiagnostics));
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
+	assert.ok(output.checks.some((check) =>
+		check.id === "workspace_source_ownership" &&
+		check.kind === "workspace-source" &&
+		check.required === true &&
+		check.command === "pnpm run workspace:source:ownership",
+	));
+	assert.ok(output.checks.some((check) =>
+		check.id === "derived_artifact_ownership" &&
+		check.kind === "workspace-artifacts" &&
+		check.required === true &&
+		check.command === "pnpm run workspace:artifacts:ownership",
+	));
 	assert.ok(output.checks.some((check) => check.id === "tool_node" && check.required === true));
 	assert.ok(output.checks.some((check) =>
 		check.id === "tool_pnpm" &&
@@ -44,7 +57,17 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 		check.attempts.some((attempt) => attempt.command === "corepack"),
 	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_wasm_tools" && check.required === false));
+	assert.ok(output.checks.some((check) =>
+		check.id === "diagnostic_rustup_version" &&
+		check.required === false,
+	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_jq" && check.required === false));
+	assert.ok(output.checks.some((check) =>
+		check.id === "diagnostic_network_registry_dns" &&
+		check.kind === "network-dns" &&
+		check.required === false &&
+		check.hostname === "registry.npmjs.org",
+	));
 });
 
 test("environment substrate check keeps optional diagnostics non-blocking", () => {
@@ -56,6 +79,14 @@ test("environment substrate check keeps optional diagnostics non-blocking", () =
 	}
 	assert.equal(
 		output.failedChecks.some((check) => check.required === false),
+		false,
+	);
+	assert.equal(
+		output.failedChecks.some((check) => check.id === "diagnostic_rustup_version"),
+		false,
+	);
+	assert.equal(
+		output.failedChecks.some((check) => check.id === "diagnostic_network_registry_dns"),
 		false,
 	);
 	assert.equal(

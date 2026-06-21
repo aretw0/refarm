@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
+	finishCacheObservations,
 	finishRunResumeCommand,
 	finishSelectionFromLane,
 	finishSelectionMetadata,
@@ -82,6 +83,8 @@ Agent usage:
   $ refarm resume              Show runtime and worker resume hints
   $ refarm tidy imports --check Check import organization before committing
   $ refarm tidy imports         Organize imports after an editing slice
+  $ refarm workspace execution  Inspect workspace executor/cache readiness
+  $ refarm workspace execution --all Inspect declared workspace/bridge readiness
   $ refarm sow                  Configure credentials without editing files
   $ refarm sow --json           Print credential handoffs for non-interactive agents
   $ refarm model current        Inspect provider/model routing
@@ -168,6 +171,8 @@ Notes:
 						MODEL_CURRENT_JSON_COMMAND,
 						MODEL_DOCTOR_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
+						agentRuntimePlan.environment.workspaceExecution,
+						agentRuntimePlan.environment.workspaceSweep,
 						agentRuntimePlan.environment.codingProfile,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						agentRuntimePlan.plugins.list,
@@ -199,6 +204,8 @@ Notes:
 						MODEL_DOCTOR_JSON_COMMAND,
 						MODEL_PROVIDERS_JSON_COMMAND,
 						agentRuntimePlan.environment.packageManager,
+						agentRuntimePlan.environment.workspaceExecution,
+						agentRuntimePlan.environment.workspaceSweep,
 						agentRuntimePlan.environment.codingProfile,
 						agentRuntimePlan.plugins.list,
 						agentRuntimePlan.workers.resume,
@@ -428,12 +435,16 @@ Notes:
 						command: "agent",
 						operation: "finish",
 					}, result);
+					const cacheObservations = finishCacheObservations(result);
 					printJson({
 						...envelope,
 						...(result.ok ? {
 							nextCommand: RESUME_JSON_COMMAND,
 							nextCommands: [RESUME_JSON_COMMAND],
 						} : {}),
+						...(cacheObservations.length > 0
+							? { cache: { steps: cacheObservations } }
+							: {}),
 						selection: selectionMetadata,
 					});
 				} else if (options.nextCommand) {

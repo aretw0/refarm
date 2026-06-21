@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn task_context_skips_tasks_without_title() {
         let tasks = vec![
-            serde_json::json!({ "status": "done" }),          // no title — skip
+            serde_json::json!({ "status": "done" }), // no title — skip
             serde_json::json!({ "title": "valid", "status": "active" }),
         ];
         let ctx = format_task_context(&tasks, 5).unwrap();

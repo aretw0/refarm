@@ -574,6 +574,54 @@
     }
 
     #[test]
+    fn bearer_key_for_openai_codex_reads_subscription_token_without_api_key_fallback() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev_codex = std::env::var("OPENAI_CODEX_ACCESS_TOKEN").ok();
+        let prev_openai = std::env::var("OPENAI_API_KEY").ok();
+
+        std::env::remove_var("OPENAI_CODEX_ACCESS_TOKEN");
+        std::env::set_var("OPENAI_API_KEY", "platform-key");
+        assert_eq!(bearer_key_for_provider("openai-codex").unwrap(), None);
+
+        std::env::set_var("OPENAI_CODEX_ACCESS_TOKEN", " codex-token ");
+        let err = bearer_key_for_provider("openai-codex").unwrap_err();
+        assert!(err.contains("invalid OPENAI_CODEX_ACCESS_TOKEN"));
+
+        std::env::set_var("OPENAI_CODEX_ACCESS_TOKEN", "codex-token");
+        assert_eq!(
+            bearer_key_for_provider("openai-codex").unwrap(),
+            Some("Bearer codex-token".to_string())
+        );
+
+        if let Some(k) = prev_codex { std::env::set_var("OPENAI_CODEX_ACCESS_TOKEN", k); } else { std::env::remove_var("OPENAI_CODEX_ACCESS_TOKEN"); }
+        if let Some(k) = prev_openai { std::env::set_var("OPENAI_API_KEY", k); } else { std::env::remove_var("OPENAI_API_KEY"); }
+    }
+
+    #[test]
+    fn openai_codex_account_id_comes_from_env_or_jwt_claim() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev_token = std::env::var("OPENAI_CODEX_ACCESS_TOKEN").ok();
+        let prev_account = std::env::var("OPENAI_CODEX_ACCOUNT_ID").ok();
+
+        std::env::set_var("OPENAI_CODEX_ACCOUNT_ID", "acct-env");
+        assert_eq!(openai_codex_account_id_from_env().unwrap(), "acct-env");
+
+        std::env::remove_var("OPENAI_CODEX_ACCOUNT_ID");
+        std::env::set_var(
+            "OPENAI_CODEX_ACCESS_TOKEN",
+            "eyJhbGciOiJub25lIn0.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjdC1qd3QifX0.sig",
+        );
+        assert_eq!(openai_codex_account_id_from_env().unwrap(), "acct-jwt");
+
+        std::env::set_var("OPENAI_CODEX_ACCESS_TOKEN", "not-a-jwt");
+        let err = openai_codex_account_id_from_env().unwrap_err();
+        assert!(err.contains("account claim"));
+
+        if let Some(k) = prev_token { std::env::set_var("OPENAI_CODEX_ACCESS_TOKEN", k); } else { std::env::remove_var("OPENAI_CODEX_ACCESS_TOKEN"); }
+        if let Some(k) = prev_account { std::env::set_var("OPENAI_CODEX_ACCOUNT_ID", k); } else { std::env::remove_var("OPENAI_CODEX_ACCOUNT_ID"); }
+    }
+
+    #[test]
     fn bearer_key_for_groq_uses_groq_key_then_falls_back_to_openai() {
         let _guard = ENV_LOCK.lock().unwrap();
         let prev_groq = std::env::var("GROQ_API_KEY").ok();

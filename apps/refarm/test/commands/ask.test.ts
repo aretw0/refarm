@@ -53,8 +53,12 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 describe("refarm ask", () => {
 	const originalProvider = process.env.MODEL_PROVIDER;
 	const originalDefaultProvider = process.env.MODEL_DEFAULT_PROVIDER;
+	const originalModelId = process.env.MODEL_ID;
 	const originalBaseUrl = process.env.MODEL_BASE_URL;
 	const originalOpenAiKey = process.env.OPENAI_API_KEY;
+	const originalOpenAiCodexToken = process.env.OPENAI_CODEX_ACCESS_TOKEN;
+	const originalGithubCopilotToken = process.env.GITHUB_COPILOT_ACCESS_TOKEN;
+	const originalRefarmHome = process.env.REFARM_HOME;
 	const originalHome = process.env.HOME;
 	const originalStreamsDir = process.env.REFARM_STREAMS_DIR;
 	const originalTaskResultsDir = process.env.REFARM_TASK_RESULTS_DIR;
@@ -65,8 +69,12 @@ describe("refarm ask", () => {
 		process.exitCode = undefined;
 		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ask-home-"));
 		process.env.HOME = tempHome;
+		delete process.env.MODEL_ID;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
+		delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
+		delete process.env.GITHUB_COPILOT_ACCESS_TOKEN;
+		delete process.env.REFARM_HOME;
 		delete process.env.REFARM_STREAMS_DIR;
 		delete process.env.REFARM_TASK_RESULTS_DIR;
 	});
@@ -82,6 +90,11 @@ describe("refarm ask", () => {
 		} else {
 			process.env.MODEL_DEFAULT_PROVIDER = originalDefaultProvider;
 		}
+		if (originalModelId === undefined) {
+			delete process.env.MODEL_ID;
+		} else {
+			process.env.MODEL_ID = originalModelId;
+		}
 		if (originalBaseUrl === undefined) {
 			delete process.env.MODEL_BASE_URL;
 		} else {
@@ -91,6 +104,21 @@ describe("refarm ask", () => {
 			delete process.env.OPENAI_API_KEY;
 		} else {
 			process.env.OPENAI_API_KEY = originalOpenAiKey;
+		}
+		if (originalOpenAiCodexToken === undefined) {
+			delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
+		} else {
+			process.env.OPENAI_CODEX_ACCESS_TOKEN = originalOpenAiCodexToken;
+		}
+		if (originalGithubCopilotToken === undefined) {
+			delete process.env.GITHUB_COPILOT_ACCESS_TOKEN;
+		} else {
+			process.env.GITHUB_COPILOT_ACCESS_TOKEN = originalGithubCopilotToken;
+		}
+		if (originalRefarmHome === undefined) {
+			delete process.env.REFARM_HOME;
+		} else {
+			process.env.REFARM_HOME = originalRefarmHome;
 		}
 		if (originalStreamsDir === undefined) {
 			delete process.env.REFARM_STREAMS_DIR;
@@ -128,6 +156,7 @@ describe("refarm ask", () => {
 
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model providers");
+		expect(help).toContain('refarm ask "hello" --scope worker');
 		expect(help).toContain("refarm model openai/gpt-5.5");
 	});
 
@@ -175,6 +204,64 @@ describe("refarm ask", () => {
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 	}, 30_000);
+
+	it("submits ask worker scope as an explicit worker-routed ask source", async () => {
+		process.env.MODEL_PROVIDER = "openai-codex";
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--scope", "worker"], { from: "user" });
+
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				source: "refarm-ask:worker",
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							prompt: "hello",
+							provider: "openai-codex",
+							model: "gpt-5.3-codex-spark",
+						}),
+					}),
+				],
+			}),
+		);
+		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(allLogs).toContain("runtime agent (worker)");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("rejects invalid ask model scopes as JSON", async () => {
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--scope", "fast", "--json"], {
+			from: "user",
+		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(payload).toMatchObject({
+			ok: false,
+			command: "ask",
+			operation: "options",
+			error: "invalid-model-scope",
+			nextAction: "refarm ask 'hello' --scope worker --json",
+			nextCommand: "refarm ask 'hello' --scope worker --json",
+			allowedScopes: ["default", "worker", "monitor"],
+		});
+		expect(payload.nextCommands).toContain("refarm model current --json");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
 
 	it("falls back to production active-session helpers when deps omit pointer hooks", async () => {
 		const deps: AskDeps = {
@@ -237,6 +324,42 @@ describe("refarm ask", () => {
 		expect(allLogs).toContain("model:");
 		expect(allLogs).toContain("claude-sonnet-4-6");
 		expect(allLogs).toContain("50 in / 100 out");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("prints subscription pricing mode instead of api cost for subscription providers", async () => {
+		const deps = makeDeps({
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(makeChunk("ok", 0, true, {
+							model: "gpt-5.5",
+							provider: "openai-codex",
+							tokens_in: 50,
+							tokens_out: 2,
+							pricing_mode: "subscription",
+							estimated_usd: 0,
+						}));
+					},
+				),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(allLogs).toContain("model:");
+		expect(allLogs).toContain("gpt-5.5");
+		expect(allLogs).toContain("50 in / 2 out");
+		expect(allLogs).toContain("subscription");
+		expect(allLogs).not.toContain("~$");
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
@@ -434,8 +557,8 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "model-credentials-missing",
-			nextAction: "refarm sow --model ollama/llama3.2 --json",
-			nextCommand: "refarm sow --model ollama/llama3.2 --json",
+			nextAction: "refarm sow",
+			nextCommand: "refarm sow",
 			handoffs: {
 				interactive: "refarm sow",
 				inspectCurrent: "refarm model current --json",
@@ -444,19 +567,106 @@ describe("refarm ask", () => {
 				openExternalLinks: "refarm config get operator.openExternalLinks --json",
 			},
 		});
-		expect(payload.nextActions).toContain(
-			"refarm sow --model ollama/llama3.2 --json",
-		);
+		expect(payload.nextActions).toContain("refarm sow");
 		expect(payload.nextActions).toContain("refarm sow --json");
 		expect(payload.nextActions).toContain("refarm model current --json");
-		expect(payload.nextActions).not.toContain("refarm sow");
-		expect(payload.nextCommands).not.toContain("refarm sow");
+		expect(payload.nextCommands).toContain("refarm sow");
 		expect(payload.nextCommands).toContain(
 			"refarm sow --model ollama/llama3.2 --json",
 		);
 		expect(payload.nextCommands).toContain("refarm sow --json");
 		expect(payload.nextCommands).toContain("refarm model providers --json");
 		expect(payload.nextCommands).toContain("refarm model current --json");
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("submits when openai-codex has subscription OAuth credentials", async () => {
+		process.env.REFARM_HOME = tempHome ?? "";
+		process.env.MODEL_PROVIDER = "openai-codex";
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.MODEL_BASE_URL;
+		delete process.env.OPENAI_API_KEY;
+		fs.mkdirSync(path.join(process.env.REFARM_HOME, ""), { recursive: true });
+		fs.writeFileSync(
+			path.join(process.env.REFARM_HOME, "identity.json"),
+			JSON.stringify({
+				tokens: {
+					modelProvider: "openai-codex",
+					modelId: "gpt-5.5",
+					oauthProvider: "openai-codex",
+					oauthCredentials: {
+						"openai-codex": { access: "oauth-access-test" },
+					},
+				},
+			}),
+		);
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(payload).toMatchObject({
+			ok: true,
+			content: "hello world",
+		});
+		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("fails before submitting when an unsupported subscription provider token comes from env", async () => {
+		process.env.REFARM_HOME = tempHome ?? "";
+		process.env.MODEL_PROVIDER = "github-copilot";
+		process.env.MODEL_ID = "gpt-4o";
+		process.env.GITHUB_COPILOT_ACCESS_TOKEN = "copilot-access-test";
+		delete process.env.MODEL_DEFAULT_PROVIDER;
+		delete process.env.OPENAI_API_KEY;
+		delete process.env.OPENAI_CODEX_ACCESS_TOKEN;
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			ok: boolean;
+			error: string;
+			credential: { state: string; envKey: string };
+		};
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "model-subscription-runtime-unsupported",
+			credential: {
+				state: "env",
+				envKey: "GITHUB_COPILOT_ACCESS_TOKEN",
+			},
+		});
 		expect(deps.submitEffort).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 
@@ -969,6 +1179,54 @@ describe("refarm ask", () => {
 				"refarm model openai/gpt-5.5 --json",
 			],
 		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("reports runtime-agent final provider errors as JSON recovery handoffs", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:providerdown"),
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(
+							makeChunk(
+								"[runtime-agent error] http error: http://localhost:11434/v1/chat/completions: Connection Failed: Connect error: Connection refused (os error 111)",
+								0,
+								true,
+								{ model: "llama3.2" },
+							),
+						);
+					},
+				),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "model-provider-unavailable",
+			provider: "ollama",
+			nextAction: "refarm model doctor --json",
+			nextCommand: "refarm model doctor --json",
+			nextCommands: [
+				"refarm model doctor --json",
+				"ollama serve",
+				"refarm model base-url http://host.docker.internal:11434 --json",
+				"refarm model current --json",
+				"refarm model providers --json",
+			],
+		});
+		expect(deps.persistActiveSessionId).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();

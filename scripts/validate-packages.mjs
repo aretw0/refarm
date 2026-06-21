@@ -114,6 +114,35 @@ function validateTestScriptRequiresTests(pkg) {
   return violations;
 }
 
+export function validatePublishSurface(pkg) {
+  const violations = [];
+  if (pkg?.private === true || pkg?.publishConfig?.access !== "public") {
+    return violations;
+  }
+
+  if (!Array.isArray(pkg.files) || pkg.files.length === 0) {
+    return ["public packages must declare a non-empty files allowlist"];
+  }
+
+  for (const entry of pkg.files) {
+    if (typeof entry !== "string") {
+      violations.push("files entries must be strings");
+      continue;
+    }
+    if (entry === "" || entry === ".") {
+      violations.push('files must not include "." or empty entries');
+    }
+    if (entry.includes(".turbo") || entry.includes(".pi-lens") || entry.includes("node_modules")) {
+      violations.push(`files entry "${entry}" must not include local cache/runtime state`);
+    }
+    if (entry.includes("tsbuildinfo")) {
+      violations.push(`files entry "${entry}" must not include TypeScript incremental state`);
+    }
+  }
+
+  return violations;
+}
+
 function noRawVitestDep(pkg) {
   const devDeps = pkg.devDependencies ?? {};
   return !("vitest" in devDeps);
@@ -362,109 +391,119 @@ function validateApp(pkgDir, pkg) {
   return violations;
 }
 
-function validateRootPackageManagerConfig() {
+export function validatePackageManagerConfig(rootPkg) {
   const violations = [];
-  const rootPkg = readJson(join(ROOT, "package.json"));
-  if (rootPkg?.pnpm?.overrides && Object.keys(rootPkg.pnpm.overrides).length > 0) {
-    violations.push("package.json must not declare pnpm.overrides; use pnpm-workspace.yaml overrides so pnpm-lock.yaml reflects the effective workspace policy");
+  if (rootPkg?.pnpm && Object.keys(rootPkg.pnpm).length > 0) {
+    violations.push("package.json must not declare pnpm settings; use pnpm-workspace.yaml so pnpm 11 reads the effective workspace policy");
   }
   return violations;
 }
 
-const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
-  .filter((d) => d.isDirectory())
-  .map((d) => join(PACKAGES_DIR, d.name));
-
-const appDirs = existsSync(APPS_DIR)
-  ? readdirSync(APPS_DIR, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => join(APPS_DIR, d.name))
-  : [];
-
-let violations = 0;
-let exemptions = 0;
-
-console.log(`Validating ${packageDirs.length} packages, ${appDirs.length} apps...\n`);
-
-const rootPackageManagerViolations = validateRootPackageManagerConfig();
-if (rootPackageManagerViolations.length === 0) {
-  console.log("  ✓ root package manager config");
-} else {
-  for (const v of rootPackageManagerViolations) {
-    console.log(`  ✗ root package manager config — ${v}`);
-    violations++;
-  }
+function validateRootPackageManagerConfig() {
+  return validatePackageManagerConfig(readJson(join(ROOT, "package.json")));
 }
 
-for (const pkgDir of packageDirs) {
-  const name = pkgDir.split("/").at(-1);
-  const { type, pkg, reason } = classifyPackage(pkgDir);
+function main() {
+  const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => join(PACKAGES_DIR, d.name));
 
-  if (type === "exempt") {
-    console.log(`  ~ ${name.padEnd(30)} exempt — ${reason}`);
-    exemptions++;
-    continue;
-  }
-  if (type === "rust-only" || type === "no-package-json") {
-    continue;
-  }
-  if (type === "unknown") {
-    console.log(`  ? ${name.padEnd(30)} unknown type — cannot classify`);
-    violations++;
-    continue;
-  }
+  const appDirs = existsSync(APPS_DIR)
+    ? readdirSync(APPS_DIR, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => join(APPS_DIR, d.name))
+    : [];
 
-  let pkgViolations = [];
-  if (type === "contract-v1") pkgViolations = validateContractV1(pkgDir, pkg);
-  else if (type === "structural-contract-v1") pkgViolations = validateStructuralContractV1(pkgDir, pkg);
-  else if (type === "buildable" || type === "ui-library") pkgViolations = validateBuildable(pkgDir, pkg);
-  else if (type === "source-only") pkgViolations = validateSourceOnly(pkgDir, pkg);
-  else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
-  else if (type === "wasm-jco-component") pkgViolations = validateWasmJcoComponent(pkgDir, pkg);
-  else if (type === "hybrid-bindings-package") pkgViolations = validateHybridBindingsPackage(pkgDir, pkg);
-  else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
-  else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
-  pkgViolations.push(...validateTestScriptRequiresTests(pkg));
+  let violations = 0;
+  let exemptions = 0;
 
-  if (pkgViolations.length === 0) {
-    console.log(`  ✓ ${name.padEnd(30)} ${type}`);
+  console.log(`Validating ${packageDirs.length} packages, ${appDirs.length} apps...\n`);
+
+  const rootPackageManagerViolations = validateRootPackageManagerConfig();
+  if (rootPackageManagerViolations.length === 0) {
+    console.log("  ✓ root package manager config");
   } else {
-    for (const v of pkgViolations) {
-      console.log(`  ✗ ${name.padEnd(30)} ${type} — ${v}`);
+    for (const v of rootPackageManagerViolations) {
+      console.log(`  ✗ root package manager config — ${v}`);
       violations++;
     }
   }
-}
 
-for (const appDir of appDirs) {
-  const name = "apps/" + appDir.split("/").at(-1);
-  const pkg = readJson(join(appDir, "package.json"));
-  if (!pkg) continue;
-  if (pkg.scaffold?.type === "exempt") {
-    console.log(`  ~ ${name.padEnd(30)} exempt — ${pkg.scaffold.reason ?? "(no reason given)"}`);
-    exemptions++;
-    continue;
-  }
-  const appViolations = [
-    ...validateApp(appDir, pkg),
-    ...validateTestScriptRequiresTests(pkg),
-  ];
-  if (appViolations.length === 0) {
-    console.log(`  ✓ ${name.padEnd(30)} app`);
-  } else {
-    for (const v of appViolations) {
-      console.log(`  ✗ ${name.padEnd(30)} app — ${v}`);
+  for (const pkgDir of packageDirs) {
+    const name = pkgDir.split("/").at(-1);
+    const { type, pkg, reason } = classifyPackage(pkgDir);
+
+    if (type === "exempt") {
+      console.log(`  ~ ${name.padEnd(30)} exempt — ${reason}`);
+      exemptions++;
+      continue;
+    }
+    if (type === "rust-only" || type === "no-package-json") {
+      continue;
+    }
+    if (type === "unknown") {
+      console.log(`  ? ${name.padEnd(30)} unknown type — cannot classify`);
       violations++;
+      continue;
+    }
+
+    let pkgViolations = [];
+    if (type === "contract-v1") pkgViolations = validateContractV1(pkgDir, pkg);
+    else if (type === "structural-contract-v1") pkgViolations = validateStructuralContractV1(pkgDir, pkg);
+    else if (type === "buildable" || type === "ui-library") pkgViolations = validateBuildable(pkgDir, pkg);
+    else if (type === "source-only") pkgViolations = validateSourceOnly(pkgDir, pkg);
+    else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
+    else if (type === "wasm-jco-component") pkgViolations = validateWasmJcoComponent(pkgDir, pkg);
+    else if (type === "hybrid-bindings-package") pkgViolations = validateHybridBindingsPackage(pkgDir, pkg);
+    else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
+    else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
+    pkgViolations.push(...validateTestScriptRequiresTests(pkg));
+    pkgViolations.push(...validatePublishSurface(pkg));
+
+    if (pkgViolations.length === 0) {
+      console.log(`  ✓ ${name.padEnd(30)} ${type}`);
+    } else {
+      for (const v of pkgViolations) {
+        console.log(`  ✗ ${name.padEnd(30)} ${type} — ${v}`);
+        violations++;
+      }
     }
   }
+
+  for (const appDir of appDirs) {
+    const name = "apps/" + appDir.split("/").at(-1);
+    const pkg = readJson(join(appDir, "package.json"));
+    if (!pkg) continue;
+    if (pkg.scaffold?.type === "exempt") {
+      console.log(`  ~ ${name.padEnd(30)} exempt — ${pkg.scaffold.reason ?? "(no reason given)"}`);
+      exemptions++;
+      continue;
+    }
+    const appViolations = [
+      ...validateApp(appDir, pkg),
+      ...validateTestScriptRequiresTests(pkg),
+    ];
+    if (appViolations.length === 0) {
+      console.log(`  ✓ ${name.padEnd(30)} app`);
+    } else {
+      for (const v of appViolations) {
+        console.log(`  ✗ ${name.padEnd(30)} app — ${v}`);
+        violations++;
+      }
+    }
+  }
+
+  console.log();
+  if (violations > 0) {
+    console.log(`${violations} violation(s) found.`);
+    const scaffold = packageBinaryCommand("turbo", ["gen", "package"], { cwd: ROOT });
+    console.log(`Run \`${scaffold.display}\` to scaffold new packages correctly.`);
+    process.exit(1);
+  } else {
+    console.log(`All packages conform to their scaffold type. ${exemptions > 0 ? `(${exemptions} exempt)` : ""}`);
+  }
 }
 
-console.log();
-if (violations > 0) {
-  console.log(`${violations} violation(s) found.`);
-  const scaffold = packageBinaryCommand("turbo", ["gen", "package"], { cwd: ROOT });
-  console.log(`Run \`${scaffold.display}\` to scaffold new packages correctly.`);
-  process.exit(1);
-} else {
-  console.log(`All packages conform to their scaffold type. ${exemptions > 0 ? `(${exemptions} exempt)` : ""}`);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
 }

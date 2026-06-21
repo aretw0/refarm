@@ -52,4 +52,12 @@ CLIs such as vault cockpits: their commands stay local, while Refarm can later
 record richer handoffs, provenance, and task artifacts around the same process
 boundary.
 
+Structured process handoffs should identify the producing executor through
+`process.tool`, not by parsing `display` or argv strings. Use labels such as
+`package-script` and `turbo` today; future adapters can add labels such as `nx`,
+`make`, or `cargo` without changing command-plan consumers. Cache reporting uses
+the generic `CommandPlanCacheObservation` shape. Tool-specific packages may parse
+runner output, but command-plan JSON should expose normalized `cache` fields and
+aggregate `cache.steps[]` data.
+
 See [ROADMAP.md](./ROADMAP.md) for the strategic evolution of the CLI.

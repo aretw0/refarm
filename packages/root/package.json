@@ -16,6 +16,10 @@
 		"lint": "eslint src"
 	},
 	"license": "AGPL-3.0-only",
+	"files": [
+		"dist/index.js",
+		"dist/index.d.ts"
+	],
 	"publishConfig": {
 		"access": "public"
 	},

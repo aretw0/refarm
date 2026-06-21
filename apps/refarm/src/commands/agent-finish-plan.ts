@@ -5,6 +5,7 @@ import {
 	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
+import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,6 +20,7 @@ import {
 import { refarmCommand } from "./command-handoff.js";
 import {
 	buildCommandPlanEnvelope,
+	commandPlanCacheObservations,
 	commandPlanStepCommands,
 	runCommandPlan,
 	runCommandPlanCliStep,
@@ -28,7 +30,11 @@ import {
 	type CommandPlanStepRunResult,
 } from "./command-plan.js";
 import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
-import { createPackageScriptCommand } from "./package-manager.js";
+import {
+	createPackageBinaryCommand,
+	createPackageScriptCommand,
+} from "./package-manager.js";
+import { workspaceCanUseTurboAdapter } from "./workspace-execution.js";
 
 export interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
@@ -136,6 +142,7 @@ function packageScriptStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			tool: "package-script",
 		},
 	};
 }
@@ -258,14 +265,55 @@ function packageFinishStepsForWorkspace(
 		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
 		["build", "Build the package after source changes."],
 	] as const;
-	return candidates
-		.filter(([script]) => typeof scripts[script] === "string")
+	const availableCandidates = candidates
+		.filter(([script]) => typeof scripts[script] === "string");
+	if (availableCandidates.length === 0) return [];
+	if (workspaceCanUseTurboAdapter(findWorkspaceRoot()) && workspace !== ".") {
+		return [turboPackageValidationStep(
+			workspace,
+			availableCandidates.map(([script]) => script),
+			availableCandidates.map(([, description]) => description),
+			idPrefix,
+		)];
+	}
+	return availableCandidates
 		.map(([script, description]) => packageScriptStep(
 			workspace,
 			script,
 			description,
 			idPrefix,
 		));
+}
+
+function turboPackageValidationStep(
+	workspace: string,
+	scripts: readonly string[],
+	descriptions: readonly string[],
+	idPrefix = "package",
+): CommandPlanStep {
+	const repoRoot = findWorkspaceRoot();
+	const command = createPackageBinaryCommand("turbo", [
+		"run",
+		...scripts,
+		`--filter=./${workspace}`,
+		"--output-logs=errors-only",
+		"--ui=stream",
+	], { cwd: repoRoot });
+	return {
+		id: `${idPrefix}-validation`,
+		command: command.display,
+		args: [command.command, ...command.args],
+		description: `Run package validation via the selected workspace executor: ${descriptions.join(" ")}`,
+		effect: "verify",
+		process: {
+			command: command.command,
+			args: command.args,
+			cwd: repoRoot,
+			display: command.display,
+			packageManager: command.packageManager,
+			tool: "turbo",
+		},
+	};
 }
 
 function affectedPackageFinishSteps(
@@ -281,15 +329,24 @@ function affectedPackageFinishSteps(
 	);
 }
 
-function affectedWorkspacesFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
+function affectedWorkspacesFromGit(options: {
+	includeWorkingTree?: boolean;
+	repoRoot?: string;
+	since?: string;
+} = {}): string[] {
 	return affectedWorkspacePackagesFromChangedPaths(
 		options.repoRoot ?? findWorkspaceRoot(),
 		changedPathsFromGit(options),
 	);
 }
 
-function changedPathsFromGit(options: { repoRoot?: string; since?: string } = {}): string[] {
+function changedPathsFromGit(options: {
+	includeWorkingTree?: boolean;
+	repoRoot?: string;
+	since?: string;
+} = {}): string[] {
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
+	const includeWorkingTree = options.includeWorkingTree ?? true;
 	try {
 		const status = readGitCommand(
 			["status", "--short", "--untracked-files=all"],
@@ -298,13 +355,13 @@ function changedPathsFromGit(options: { repoRoot?: string; since?: string } = {}
 		if (!options.since) {
 			return changedFilePathsFromGitStatus(status);
 		}
-		const diff = readGitCommand(
-			["diff", "--name-only", options.since, "--"],
-			{ cwd: repoRoot },
-		);
+		const diffArgs = includeWorkingTree
+			? ["diff", "--name-only", options.since, "--"]
+			: ["diff", "--name-only", options.since, "HEAD", "--"];
+		const diff = readGitCommand(diffArgs, { cwd: repoRoot });
 		return [
 			...changedFilePathsFromGitNameOnly(diff),
-			...changedFilePathsFromGitStatus(status),
+			...(includeWorkingTree ? changedFilePathsFromGitStatus(status) : []),
 		];
 	} catch {
 		if (options.since) {
@@ -516,8 +573,23 @@ export function runAgentFinishPlan(
 	} = {},
 ): CommandPlanRunResult {
 	return runCommandPlan(selectedFinishSteps(options), (step) =>
-		step.process ? deps.runProcess(step) : deps.runRefarm(step.args),
+		step.process
+			? enrichFinishStepResult(step, deps.runProcess(step))
+			: deps.runRefarm(step.args),
 	);
+}
+
+function enrichFinishStepResult(
+	step: CommandPlanStep,
+	result: CommandPlanStepRunResult,
+): CommandPlanStepRunResult {
+	if (!isTurboPackageValidationStep(step)) return result;
+	const cache = parseTurboCacheRunSummary(`${result.stdout}\n${result.stderr}`);
+	return cache ? { ...result, cache } : result;
+}
+
+function isTurboPackageValidationStep(step: CommandPlanStep): boolean {
+	return step.process?.tool === "turbo";
 }
 
 export function buildAgentFinishPlanEnvelope(
@@ -596,7 +668,11 @@ export function resolveFinishSelectionContext(
 	if (selection.profile !== "affected") return {};
 	const repoRoot = findWorkspaceRoot();
 	const sinceRef = selection.since ? resolveSinceRef(repoRoot, selection.since) : undefined;
-	const changedPaths = changedPathsFromGit({ repoRoot, since: sinceRef });
+	const changedPaths = changedPathsFromGit({
+		includeWorkingTree: selection.lane !== "after-commit",
+		repoRoot,
+		since: sinceRef,
+	});
 	return {
 		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths),
 		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
@@ -611,7 +687,9 @@ export function printAgentFinishRunHuman(
 	console.log("Refarm agent finish");
 	if (selection) console.log(`Selection: ${formatFinishSelection(selection)}`);
 	for (const step of result.steps) {
-		console.log(`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}`);
+		console.log(
+			`${step.ok ? "PASS" : "FAIL"} ${step.id}: ${step.command}${formatStepCacheSuffix(step)}`,
+		);
 	}
 	if (result.ok) {
 		console.log("Finish checks passed.");
@@ -627,6 +705,19 @@ export function printAgentFinishRunHuman(
 			console.log(`  ${command}`);
 		}
 	}
+}
+
+function formatStepCacheSuffix(step: CommandPlanStepRunResult): string {
+	const cache = step.cache;
+	if (!cache) return "";
+	const percent = Math.round(cache.hitRate * 100);
+	return ` (cache: ${cache.cached}/${cache.total}, ${percent}%, ${cache.status})`;
+}
+
+export function finishCacheObservations(
+	result: CommandPlanRunResult,
+): ReturnType<typeof commandPlanCacheObservations> {
+	return commandPlanCacheObservations(result);
 }
 
 function formatFinishSelection(selection: AgentFinishSelectionMetadata): string {

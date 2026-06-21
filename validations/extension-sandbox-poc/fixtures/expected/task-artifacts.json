@@ -149,6 +149,106 @@
       ]
     },
     {
+      "id": "coding-agent-evidence-json",
+      "uri": "coding-agent-evidence.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "bd26b7096041a2a8decd3491e5ddce684578aacf6945dbd061304a9b61648a83"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "coding-agent",
+        "agent-governance",
+        "claim-promotion",
+        "theme-1"
+      ]
+    },
+    {
+      "id": "coding-agent-smoke-json",
+      "uri": "coding-agent-smoke.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "dce86936004ac6a78e21831ca3e47dde2c9488f8d268da8820c190cbc36910e5"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "coding-agent",
+        "smoke",
+        "review-packet",
+        "denied-capability",
+        "claim-promotion",
+        "theme-1"
+      ]
+    },
+    {
+      "id": "coding-agent-temp-workspace-json",
+      "uri": "coding-agent-temp-workspace.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "56b390307bfa2dcc45b0f12aac94567a4d3b71fb468f95e49ef1fb891e6cd099"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "coding-agent",
+        "temporary-workspace",
+        "review-packet",
+        "denied-capability",
+        "claim-promotion",
+        "theme-1"
+      ]
+    },
+    {
       "id": "scenario-md",
       "uri": "scenario.md",
       "mediaType": "text/markdown",
@@ -246,7 +346,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "d578410812e567e6a953be7b3cb22c69875eeeb63d2637bae261c74f5c019997"
+        "value": "80fc95a20f2b4fda54aaeffe64c74d1fddb11b4a8176dbbcb704b10ea851d773"
       },
       "reviewState": "accepted",
       "provenance": {

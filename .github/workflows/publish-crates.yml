@@ -25,6 +25,10 @@ jobs:
           cache-mode: "off"
           rust-target: "" # Default host target is enough for publish
 
+      - name: Strict dispatch-surface native artifact build (release mode)
+        run: |
+          bash scripts/ci/release-dispatch-surface-build.sh "${{ github.sha }}~1" "${{ github.sha }}"
+
       - name: Extract crate info from tag
         id: pkg
         run: |
