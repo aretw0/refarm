@@ -57,6 +57,7 @@ export interface RawChannelEffortPayload extends Partial<Effort> {
 	tasks: Effort["tasks"];
 	replyTo?: unknown;
 	traceIds?: unknown;
+	tags?: string[];
 }
 
 function isString(value: unknown): value is string {
