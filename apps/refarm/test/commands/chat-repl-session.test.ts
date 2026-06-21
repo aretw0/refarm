@@ -163,7 +163,9 @@ describe("runSessionRepl", () => {
 
 	it("prints status failure path and continues", async () => {
 		const logs: string[] = [];
-		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation(() => undefined);
 		const errorSpy = vi
 			.spyOn(console, "error")
 			.mockImplementation((...args) => {
@@ -196,7 +198,9 @@ describe("runSessionRepl", () => {
 
 	it("prints status command exception and continues", async () => {
 		const logs: string[] = [];
-		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation(() => undefined);
 		const errorSpy = vi
 			.spyOn(console, "error")
 			.mockImplementation((...args) => {
