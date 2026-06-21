@@ -475,20 +475,17 @@ jobs:
           BENCH_BASELINE_COPY="$(mktemp)"
           BASELINE_READY=false
 
-          # Generate baseline from main (best-effort — skipped if main is on an
-          # older package-manager config that pnpm can't handle).
-          git fetch origin main || true
-          # Use -f to ensure we can switch branches even if npm ci modified tracked files
-          git checkout -f origin/main || git checkout -f main || true
-          if [ -f "pnpm-workspace.yaml" ]; then
-            pnpm install --ignore-scripts --frozen-lockfile
-            cd packages/tractor
-            pnpm run bench:save
-            cp benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+          # Prefer committed baseline from main to avoid mutating checkout state or
+          # re-resolving the dependency graph on another branch.
+          if git show "origin/main:packages/tractor/benchmarks/baseline.json" > "$BENCH_BASELINE_COPY" 2>/dev/null; then
+            echo "::notice::Using committed Tractor baseline from main for benchmark comparison."
             BASELINE_READY=true
-            cd ../..
           else
-            echo "::warning::Benchmark baseline skipped — main branch uses older package-manager config (no pnpm-workspace.yaml)"
+            echo "::warning::Could not read main baseline from git; falling back to local branch baseline copy."
+            if [ -f "packages/tractor/benchmarks/baseline.json" ]; then
+              cp packages/tractor/benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+              BASELINE_READY=true
+            fi
           fi
 
           # Return to current commit and benchmark
