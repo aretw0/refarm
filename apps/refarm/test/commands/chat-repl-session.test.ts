@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import type { ChatDeps } from "../../src/commands/chat.js";
 import { runSessionRepl } from "../../src/commands/chat.js";
+import { CHAT_HELP_TEXT } from "../../src/commands/chat-repl.js";
 
 const mockedCreateInterface = vi.hoisted(() => vi.fn());
 const mockedLaunchProcess = vi.hoisted(() => vi.fn());
@@ -229,6 +230,33 @@ describe("runSessionRepl", () => {
 
 		consoleSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+
+	it("prints help text and does not emit session resume hints", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/help");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(CHAT_HELP_TEXT);
+		expect(out).not.toContain("To continue this session");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
 	});
 
 	it("prints resume hints exactly once on /exit", async () => {
