@@ -242,6 +242,36 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("includes slash commands in /history output", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/new");
+		await Promise.resolve();
+		lastInterface.emit("line", "message line");
+		await Promise.resolve();
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain("1. message line");
+		expect(out).toContain("2. /new");
+		expect(out).toContain("3. one");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("clears chat history on /history --clear", async () => {
 		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
 		const logs: string[] = [];

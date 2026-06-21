@@ -219,7 +219,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /login [args...]  Configure credentials without leaving the session
   /sow [args...]    Alias for /login
   /keys             Reconfigure model/provider credentials inline
-  /history [--clear] Show persisted chat history and commands run in REPL
+  /history [--clear] Show recent chat history and commands run in REPL
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /status           Show runtime / model / readiness status

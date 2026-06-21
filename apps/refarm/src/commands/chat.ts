@@ -457,6 +457,7 @@ export {
 
 	return new Promise((resolve) => {
 		let chatHistory = loadChatHistory();
+		let commandHistory: string[] = [];
 		const rl = readline.createInterface({
 			input: process.stdin,
 			output: process.stdout,
@@ -475,6 +476,11 @@ export {
 		rl.on("line", (line) => {
 			const command = parseChatLine(line);
 
+			const trimmedLine = line.trim();
+			if (trimmedLine && command.kind !== "history") {
+				commandHistory = [trimmedLine, ...commandHistory];
+			}
+
 			switch (command.kind) {
 				case "exit":
 					console.log(chalk.dim("Goodbye."));
@@ -491,14 +497,16 @@ export {
 				case "history":
 					if (command.action === "clear") {
 						chatHistory = [];
+						commandHistory = [];
 						saveChatHistory(chatHistory);
 						console.log(chalk.dim("✓ Chat history cleared."));
 					} else {
-						if (chatHistory.length === 0) {
+						const allHistory = [...commandHistory, ...chatHistory];
+						if (allHistory.length === 0) {
 							console.log(chalk.dim("No chat history yet."));
 						} else {
-							for (let index = 0; index < chatHistory.length; index++) {
-								console.log(chalk.dim(`${index + 1}. ${chatHistory[index]}`));
+							for (let index = 0; index < allHistory.length; index++) {
+								console.log(chalk.dim(`${index + 1}. ${allHistory[index]}`));
 							}
 						}
 					}
