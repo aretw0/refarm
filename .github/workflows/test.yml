@@ -506,6 +506,7 @@ jobs:
 
       - name: Comment PR on Benchmark Increase
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        continue-on-error: true
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -575,6 +576,7 @@ jobs:
 
       - name: Comment PR on Coverage Increase
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        continue-on-error: true
         uses: ./.github/actions/github-script
         with:
           script: |
