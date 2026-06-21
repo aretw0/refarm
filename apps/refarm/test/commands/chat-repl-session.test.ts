@@ -191,4 +191,47 @@ describe("runSessionRepl", () => {
 
 		consoleSpy.mockRestore();
 	});
+
+	it("restarts session on /new and uses new session in resume hints", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const generatedSession =
+			"urn:refarm:session:v1:".concat("11111111-2222-3333-4444-555555555555".replace(/-/g, ""));
+		const randomUUIDSpy = vi
+			.spyOn(crypto, "randomUUID")
+			.mockReturnValue("11111111-2222-3333-4444-555555555555");
+		const clearActiveSessionId = vi.fn();
+		const persistActiveSessionId = vi.fn();
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			clearActiveSessionId,
+			persistActiveSessionId,
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/new");
+		await Promise.resolve();
+		await Promise.resolve();
+		lastInterface.emit("line", "/exit");
+		await Promise.resolve();
+
+		expect(clearActiveSessionId).toHaveBeenCalledOnce();
+		expect(persistActiveSessionId).toHaveBeenCalledWith(generatedSession);
+		const out = logs.join("\n");
+		expect(out).toContain(
+			`To continue this session, run: refarm session --session ${generatedSession}`,
+		);
+		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
+
+		randomUUIDSpy.mockRestore();
+		consoleSpy.mockRestore();
+	});
 });
