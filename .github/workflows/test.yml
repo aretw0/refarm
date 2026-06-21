@@ -470,26 +470,23 @@ jobs:
         id: benchmark
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit != 'true'
         run: |
-          # Capture current branch explicitly for detached HEAD states
-          CURRENT_BRANCH=$(git rev-parse HEAD)
           BENCH_BASELINE_COPY="$(mktemp)"
           BASELINE_READY=false
 
-          # Prefer committed baseline from main to avoid mutating checkout state or
-          # re-resolving the dependency graph on another branch.
-          if git show "origin/main:packages/tractor/benchmarks/baseline.json" > "$BENCH_BASELINE_COPY" 2>/dev/null; then
-            echo "::notice::Using committed Tractor baseline from main for benchmark comparison."
+          # Prefer the checked-out branch baseline to allow intentional benchmark
+          # re-baselining in the same PR, avoiding non-deterministic branch
+          # switching behavior.
+          if [ -f "packages/tractor/benchmarks/baseline.json" ]; then
+            cp packages/tractor/benchmarks/baseline.json "$BENCH_BASELINE_COPY"
+            echo "::notice::Using checked-out Tractor baseline for benchmark comparison."
+            BASELINE_READY=true
+          elif git show "origin/main:packages/tractor/benchmarks/baseline.json" > "$BENCH_BASELINE_COPY" 2>/dev/null; then
+            echo "::notice::Falling back to committed Tractor baseline from main for benchmark comparison."
             BASELINE_READY=true
           else
-            echo "::warning::Could not read main baseline from git; falling back to local branch baseline copy."
-            if [ -f "packages/tractor/benchmarks/baseline.json" ]; then
-              cp packages/tractor/benchmarks/baseline.json "$BENCH_BASELINE_COPY"
-              BASELINE_READY=true
-            fi
+            echo "::warning::Could not read local or main baseline from git."
           fi
 
-          # Return to current commit and benchmark
-          git checkout -f $CURRENT_BRANCH
           pnpm install --ignore-scripts --frozen-lockfile
           cd packages/tractor
           if [ "$BASELINE_READY" = "true" ]; then
