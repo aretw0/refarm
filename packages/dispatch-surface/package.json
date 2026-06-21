@@ -22,7 +22,7 @@
     "pretest": "pnpm run build",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:parity": "vitest run parity.test.ts",
+    "test:parity": "pnpm run build && vitest run parity.test.ts",
     "clean": "rm -rf dist"
   },
   "keywords": [
