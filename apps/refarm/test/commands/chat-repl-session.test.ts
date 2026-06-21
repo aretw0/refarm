@@ -158,6 +158,40 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("treats /quit as /exit", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		const sessionId = "urn:refarm:session:v1:test";
+		runSessionRepl(sessionId, deps);
+		lastInterface.emit("line", "/quit");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain("Goodbye.");
+		expect(out).toContain(
+			`To continue this session, run: refarm session --session ${sessionId}`,
+		);
+		expect(out).toContain(
+			"To inspect next operator action, run: refarm resume --next-action",
+		);
+		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
+		expect((out.match(/Session saved\./g) ?? []).length).toBe(1);
+
+		consoleSpy.mockRestore();
+	});
+
 	it("uses updated session id in resume hints after /session", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi
