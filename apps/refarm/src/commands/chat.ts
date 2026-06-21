@@ -15,6 +15,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import readline from "node:readline";
 import {
+	MAX_CHAT_HISTORY_LINES,
 	loadChatHistory,
 	rememberChatHistoryLine,
 	saveChatHistory,
@@ -478,9 +479,11 @@ export {
 
 			const trimmedLine = line.trim();
 			if (trimmedLine && command.kind !== "history") {
-				commandHistory = [trimmedLine, ...commandHistory];
+				commandHistory = [trimmedLine, ...commandHistory].slice(
+					0,
+					MAX_CHAT_HISTORY_LINES,
+				);
 			}
-
 			switch (command.kind) {
 				case "exit":
 					console.log(chalk.dim("Goodbye."));

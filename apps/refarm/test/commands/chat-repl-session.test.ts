@@ -1,6 +1,9 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHAT_HELP_TEXT } from "../../src/commands/chat-repl.js";
+
+const MAX_CHAT_HISTORY_LINES = 500;
+
 import type { ChatDeps } from "../../src/commands/chat.js";
 import { runSessionRepl } from "../../src/commands/chat.js";
 
@@ -21,6 +24,7 @@ vi.mock("@refarm.dev/cli/launch-process", () => ({
 }));
 
 vi.mock("../../src/commands/chat-history.js", () => ({
+	MAX_CHAT_HISTORY_LINES: 500,
 	loadChatHistory: mockedLoadChatHistory,
 	rememberChatHistoryLine: vi
 		.fn()
@@ -268,6 +272,39 @@ describe("runSessionRepl", () => {
 		expect(out).toContain("1. message line");
 		expect(out).toContain("2. /new");
 		expect(out).toContain("3. one");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("caps in-session command history to MAX_CHAT_HISTORY_LINES", async () => {
+		mockedLoadChatHistory.mockReturnValue([]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		for (let index = 0; index < MAX_CHAT_HISTORY_LINES + 5; index++) {
+			lastInterface.emit("line", `message-${index}`);
+			await Promise.resolve();
+		}
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(`1. message-${MAX_CHAT_HISTORY_LINES + 4}`);
+		expect(out).toContain(
+			`${MAX_CHAT_HISTORY_LINES}. message-${MAX_CHAT_HISTORY_LINES + 5 - MAX_CHAT_HISTORY_LINES}`,
+		);
+		expect(out).not.toContain("message-0");
+		expect(out).not.toContain("message-4");
 
 		consoleSpy.mockRestore();
 	});
