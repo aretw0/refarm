@@ -9,13 +9,13 @@ import {
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
-import { execFile } from "node:child_process";
+import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
+
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -53,7 +53,6 @@ const NODE_SUBSTRATE_ENVIRONMENT_COMMAND = "Run validation inside the environmen
 const NODE_SUBSTRATE_INSTALL_COMMAND = "Run the package-manager install command for this environment, then retry `refarm check --next-action --json`.";
 const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND = "Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
 const NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND = "Use an environment-owned checkout or fix tracked source ownership for the current operator, then retry `refarm check --next-action --json`.";
-const execFileAsync = promisify(execFile);
 
 export interface NodeSubstrateCheck {
 	command: "node-substrate";
@@ -754,14 +753,18 @@ function isSourceOwnershipCandidate(relativePath: string): boolean {
 
 async function readGitTrackedFiles(root: string): Promise<string[]> {
 	try {
-		const { stdout } = await execFileAsync("git", ["ls-files", "-z"], {
-			cwd: root,
-			encoding: "utf8",
-			maxBuffer: 20 * 1024 * 1024,
-		});
-		return stdout
+		const { stdout } = await runLaunchProcess(
+			{
+				command: "git",
+				args: ["ls-files", "-z"],
+				display: "git ls-files -z",
+				cwd: root,
+			},
+			{ capture: true },
+		);
+		return (stdout ?? "")
 			.split("\0")
-			.map((file) => file.trim())
+			.map((file: string) => file.trim())
 			.filter(Boolean);
 	} catch {
 		return [];
