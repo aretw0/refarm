@@ -632,15 +632,29 @@ function printCiLoopSignal(sessions) {
 	return summary;
 }
 
-function buildJsonSummary(sessions) {
-	const totalMs = sessions.reduce((acc, row) => acc + row.durationMs, 0);
-	const sorted = [...sessions].sort((a, b) => b.durationMs - a.durationMs);
-	const top = sorted.slice(0, args.count);
-	const patterns = ['gh run', 'gh pr', 'pnpm', 'refarm', 'git push', 'test'];
-	const patternSummary = [];
-	const ciLoopSummary = summarizeCiWatchLoops(sessions);
-	const tooMuchLoops = ciLoopSummary.count > args.ciLoopMaxCount;
-	const tooLongLoops = ciLoopSummary.totalWallTimeMs > args.ciLoopMaxMs;
+	function summarizeSessionSource(sessionInfo) {
+		return {
+			sessionSource: args.sessionSource,
+			allowLegacyPiRoots: args.allowLegacyPiRoots,
+			sessionMode: sessionInfo?.mode || "unknown",
+			sessionPath: sessionInfo?.path || null,
+			sessionTag: sessionInfo?.tag || null,
+			searchedRoots: sessionInfo?.searchedRoots || [],
+			legacySource: args.sessionSource === "pi",
+			legacySourceAllowed: args.sessionSource === "pi" || args.allowLegacyPiRoots,
+			legacyWarningsSuppressed: args.suppressSourceWarnings,
+		};
+	}
+
+	function buildJsonSummary(sessions, sessionInfo) {
+		const totalMs = sessions.reduce((acc, row) => acc + row.durationMs, 0);
+		const sorted = [...sessions].sort((a, b) => b.durationMs - a.durationMs);
+		const top = sorted.slice(0, args.count);
+		const patterns = ['gh run', 'gh pr', 'pnpm', 'refarm', 'git push', 'test'];
+		const patternSummary = [];
+		const ciLoopSummary = summarizeCiWatchLoops(sessions);
+		const tooMuchLoops = ciLoopSummary.count > args.ciLoopMaxCount;
+		const tooLongLoops = ciLoopSummary.totalWallTimeMs > args.ciLoopMaxMs;
 
 	for (const pattern of patterns) {
 		const hits = sessions.filter((row) => row.command.includes(pattern));
@@ -657,14 +671,15 @@ function buildJsonSummary(sessions) {
 		});
 	}
 
-	return {
-		totalCalls: sessions.length,
-		totalWallTimeMs: totalMs,
-		top: top.map((row) => ({
-			command: row.command,
-			durationMs: row.durationMs,
-			role: row.role,
-			provider: row.provider,
+		return {
+			totalCalls: sessions.length,
+			totalWallTimeMs: totalMs,
+			sessionSource: summarizeSessionSource(sessionInfo),
+			top: top.map((row) => ({
+				command: row.command,
+				durationMs: row.durationMs,
+				role: row.role,
+				provider: row.provider,
 			model: row.model,
 		})),
 		patterns: patternSummary,
@@ -690,13 +705,13 @@ function buildJsonSummary(sessions) {
 			maxCount: args.ciLoopMaxCount,
 		},
 		commandRepeats: summarizeCommandRepetitions(sessions),
-		repeatSignal: {
-			enabled: args.repeatSignal,
-			ok: !summarizeCommandRepetitions(sessions).some((entry) => entry.count > args.repeatMaxCount),
-			threshold: args.repeatMaxCount,
-		},
-	};
-}
+			repeatSignal: {
+				enabled: args.repeatSignal,
+				ok: !summarizeCommandRepetitions(sessions).some((entry) => entry.count > args.repeatMaxCount),
+				threshold: args.repeatMaxCount,
+			},
+		};
+	}
 
 function normalizeCommand(command) {
 	return String(command)
@@ -802,8 +817,8 @@ for (const file of sessionFiles) {
 	}
 }
 
-if (args.json) {
-	console.log(JSON.stringify(buildJsonSummary(calls), null, 2));
+	if (args.json) {
+		console.log(JSON.stringify(buildJsonSummary(calls, sessionInfo), null, 2));
 	if (args.ciLoopSignal) {
 		const ciSummary = summarizeCiWatchLoops(calls);
 		const tooMuchLoops = ciSummary.count > args.ciLoopMaxCount;

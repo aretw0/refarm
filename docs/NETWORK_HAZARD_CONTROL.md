@@ -53,6 +53,7 @@ For focused root-cause checks after long sessions:
 ```bash
 node scripts/session-heavy.mjs --json --session-sources
 node scripts/session-heavy.mjs --json --session-source pi --allow-legacy-pi-roots --filter "gh run view"
+node scripts/session-heavy.mjs --json --session-source refarm --filter "gh run view"
 ```
 
 Recommended hard rule:
