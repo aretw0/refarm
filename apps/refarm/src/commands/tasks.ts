@@ -15,6 +15,7 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { reportSidecarError } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 function parsePositiveIntOption(value: string, label: string): number {
@@ -111,36 +112,6 @@ function tasksShowJsonCommand(prefix: string): string {
 	return refarmCommand(["tasks", "show", quoteCommandArg(prefix), "--json"]);
 }
 
-const REFARM_SIDE_REQUEST_TIMEOUT_MS = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
-const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
-
-function resolveSidecarRequestTimeoutMs(
-	env: NodeJS.ProcessEnv = process.env,
-): number {
-	const raw = env[REFARM_SIDE_REQUEST_TIMEOUT_MS];
-	const parsed = Number.parseInt(raw ?? "", 10);
-	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_SIDE_REQUEST_TIMEOUT_MS;
-	return parsed;
-}
-
-async function fetchSidecarWithTimeout(
-	url: string | URL,
-	init: RequestInit = {},
-): Promise<Response> {
-	const timeoutMs = resolveSidecarRequestTimeoutMs(process.env);
-	const controller = new AbortController();
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		timer = setTimeout(() => controller.abort(), timeoutMs);
-		return await fetch(url, {
-			...init,
-			signal: controller.signal,
-		});
-	} finally {
-		if (timer) clearTimeout(timer);
-	}
-}
-
 async function fetchTasks(
 	params: { status?: string; session_id?: string; limit?: number } = {},
 ): Promise<Task[]> {
@@ -229,7 +200,7 @@ async function listTasks(opts: {
 async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<void> {
 	let body: { task: Task; events: TaskEvent[] };
 	try {
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			sidecarUrl(`/tasks/${encodeURIComponent(prefix)}`),
 		);
 		const parsed = (await response.json()) as typeof body & {
