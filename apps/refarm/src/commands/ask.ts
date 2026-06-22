@@ -347,10 +347,17 @@ export {
 	nextCommand?: string | null;
 	nextCommands?: string[];
 	} {
+	const runtimeAgentShortId = RUNTIME_AGENT_PLUGIN_ID.split("/").at(-1) ?? "";
+	const runtimeAgentShortIdText = runtimeAgentShortId.toLowerCase();
 	const isRuntimeAgentMissing =
-		message.includes(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`) ||
-		message.includes("pi-agent not loaded") ||
-		message.includes(`Plugin "${RUNTIME_AGENT_PLUGIN_ID}" is not loaded`);
+		message.toLowerCase().includes(
+			`${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()} not loaded`,
+		) ||
+		message.toLowerCase().includes(
+			`plugin "${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()}" is not loaded`,
+		) ||
+		(runtimeAgentShortIdText.length > 0 &&
+			message.toLowerCase().includes(`${runtimeAgentShortIdText} not loaded`));
 
 	const isProviderError =
 		message.includes("model-bridge request failed") ||
