@@ -501,9 +501,12 @@ export {
 
 				case "history":
 					if (command.action === "clear") {
+						const hadPersistableHistory = chatHistory.length > 0;
 						chatHistory = [];
 						commandHistory = [];
-						hasHistoryChanges = true;
+						if (hadPersistableHistory) {
+							hasHistoryChanges = true;
+						}
 						console.log(chalk.dim("✓ Chat history cleared."));
 					} else {
 						const allHistory = [...commandHistory, ...chatHistory];
