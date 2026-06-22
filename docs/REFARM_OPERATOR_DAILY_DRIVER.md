@@ -106,6 +106,7 @@ protective without stopping momentum:
   - `pnpm -C apps/refarm run test:chat-batch`
   - `pnpm run session:heavy -- --count 40` (trace the most recent agent session before changing scope)
   - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
+  - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
 - quick safe slices for adjacent areas:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
@@ -120,6 +121,14 @@ protective without stopping momentum:
   - switch to narrower commands (single test path, filtered harness, explicit timeout),
   - keep budget checks enabled via `refarm:safety` profiles,
   - reopen at normal lane only after 3 stable slices.
+
+For test-lane triage, `test/commands/chat-repl-session.test.ts` is a fast, unit-style file (mock-heavy, no network/file side effects). If it still appears as a repeated heavy command, treat it as a signaling symptom:
+
+- run isolated:
+  - `pnpm -C apps/refarm run test:chat-session`
+  - `pnpm -C apps/refarm run test:chat-session -- --clearCache`
+- inspect loop origin with:
+  - `pnpm run session:heavy:repeat -- --filter \"pnpm -C apps/refarm run test:chat-session\" --repeat-max-count 3`
 - quick CI-loop triage before/after CI-heavy work:
   - `pnpm run session:heavy:ci-watch`
   - if this returns non-zero, it means likely CI-watch/polling loops exceeded a
@@ -179,6 +188,7 @@ If `chat-repl-session.test.ts` (or any command family) is being re-run too many 
 
 ```bash
 pnpm run session:heavy:repeat -- --repeat-max-count 6
+pnpm run session:heavy:repeat:chat-session
 ```
 
 This gate fails when a single normalized command appears more than `repeat-max-count`
@@ -262,12 +272,37 @@ refarm sessions show <id-prefix>
 refarm sessions use <id-prefix>
 ```
 
-By default, workspace-tagged session lookup checks these roots in order:
+By default, workspace-tagged session lookup uses the `refarm` source:
 
 - `~/.refarm/agent-sessions`
 - `~/.refarm/sessions`
 - `~/.config/refarm/sessions`
-- `~/.pi/agent/sessions` (legacy compatibility)
+
+To inspect legacy `pi` agent logs, use source selection:
+
+```bash
+node scripts/session-heavy.mjs --session-source pi --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_SOURCE=pi node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 1 --count 20
+```
+
+To probe both sources explicitly (legacy fallback enabled), pass either:
+
+```bash
+node scripts/session-heavy.mjs --session-source auto --allow-legacy-pi-roots --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_SOURCE=auto REFARM_ALLOW_LEGACY_PI_ROOTS=1 node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 1 --count 20
+```
+
+`~/.pi/agent/sessions` is intentionally excluded from the default `refarm` source and only
+used through explicit source selection for migration clarity.
+
+If you need to migrate legacy `.pi` sessions into the refarm namespace, use the
+existing migration script once and then inspect by explicit source during validation:
+
+```bash
+pnpm run session:migrate:pi-agent -- --input ~/.pi/agent/sessions --output ~/.refarm/agent-sessions --dry-run
+pnpm run session:migrate:pi-agent -- --input ~/.pi/agent/sessions --output ~/.refarm/agent-sessions
+pnpm run session:heavy:ci-watch -- --session-source refarm --recent 2 --count 20
+```
 
 For this repo, a representative default path is:
 

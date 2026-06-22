@@ -4,10 +4,33 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 function parseArgs(argv) {
+	const normalizeSessionSource = (value) => {
+		switch ((value || '').toLowerCase()) {
+			case "pi":
+			case "legacy-pi":
+			case "agent-pi":
+			case "pi-agent":
+				return "pi";
+			case "auto":
+				return "auto";
+			case "refarm":
+			case "native":
+			case "neutral":
+			default:
+				return "refarm";
+		}
+	};
+
+	const parseBoolean = (value) => /^(1|true|yes|on)$/i.test(value || "");
+
 	const args = {
 		workspaceDir: process.cwd(),
 		sessionDir: null,
 		sessionRoot: process.env.REFARM_SESSION_ROOT || null,
+		sessionSource: normalizeSessionSource(process.env.REFARM_SESSION_SOURCE),
+		allowLegacyPiRoots:
+			parseBoolean(process.env.REFARM_ALLOW_LEGACY_PI_ROOTS) ||
+			parseBoolean(process.env.REFARM_SESSION_ALLOW_LEGACY),
 		recent: 1,
 		count: 20,
 		json: false,
@@ -45,6 +68,18 @@ function parseArgs(argv) {
 			case "--session-root":
 				args.sessionRoot = argv[i + 1] || null;
 				i += 1;
+				break;
+			case "--session-source": {
+				const next = argv[i + 1] || null;
+				args.sessionSource = normalizeSessionSource(next);
+				i += 1;
+				break;
+			}
+			case "--allow-legacy-pi-roots":
+				args.allowLegacyPiRoots = true;
+				break;
+			case "--no-allow-legacy-pi-roots":
+				args.allowLegacyPiRoots = false;
 				break;
 			case "--recent": {
 				const value = Number.parseInt(argv[i + 1], 10);
@@ -126,6 +161,11 @@ function usage() {
 	console.log("  --workspace-dir: project dir used to locate workspace-tagged session folder");
 	console.log("  --session-dir:   direct session log directory override (optional)");
 	console.log("  --session-root:  direct root session folder override, e.g. --session-root /path/to/agent/sessions");
+	console.log(
+		"  --session-source: source strategy for workspace-tagged lookup (refarm|pi|auto) (default: refarm)",
+	);
+	console.log("  --allow-legacy-pi-roots: include legacy ~/.pi roots in source resolution");
+	console.log("  --no-allow-legacy-pi-roots: exclude legacy ~/.pi roots");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
 	console.log("  --count:         top commands to print (default: 20)");
 	console.log("  --session-file-prefix: include only session filenames containing this substring");
@@ -141,9 +181,11 @@ function usage() {
 	console.log("  --repeat-max-count: max per-command count before repeat signal trips (default: 5)");
 	console.log("  CI_LOOP_MAX_MS / CI_LOOP_MAX_COUNT env vars: override default signal limits");
 	console.log("  REFARM_SESSION_ROOT env var: override derived session root when --session-root is not passed");
+	console.log("  REFARM_SESSION_SOURCE env var: refarm|pi|auto");
+	console.log("  REFARM_ALLOW_LEGACY_PI_ROOTS env var: set to 1 to include legacy ~/.pi roots when using source=auto");
 }
 
-function resolveSessionRootCandidates(sessionRootOverride) {
+function resolveSessionRootCandidates(sessionRootOverride, sessionSource, allowLegacyPiRoots) {
 	const home = process.env.HOME || process.env.USERPROFILE || "";
 	const roots = [];
 	const seen = new Set();
@@ -160,15 +202,23 @@ function resolveSessionRootCandidates(sessionRootOverride) {
 	if (process.env.REFARM_SESSION_ROOT) addRoot(process.env.REFARM_SESSION_ROOT);
 
 	if (home) {
-		addRoot(path.join(home, ".refarm", "agent-sessions"));
-		addRoot(path.join(home, ".refarm", "sessions"));
-		addRoot(path.join(home, ".config", "refarm", "sessions"));
-		addRoot(path.join(home, ".pi", "agent", "sessions"));
+		if (sessionSource === "refarm" || sessionSource === "auto") {
+			addRoot(path.join(home, ".refarm", "agent-sessions"));
+			addRoot(path.join(home, ".refarm", "sessions"));
+			addRoot(path.join(home, ".config", "refarm", "sessions"));
+		}
+		if (sessionSource === "pi" || (sessionSource === "auto" && allowLegacyPiRoots)) {
+			addRoot(path.join(home, ".pi", "agent", "sessions"));
+		}
 	} else {
-		addRoot(".refarm/agent-sessions");
-		addRoot(".refarm/sessions");
-		addRoot(".config/refarm/sessions");
-		addRoot(".pi/agent/sessions");
+		if (sessionSource === "refarm" || sessionSource === "auto") {
+			addRoot(".refarm/agent-sessions");
+			addRoot(".refarm/sessions");
+			addRoot(".config/refarm/sessions");
+		}
+		if (sessionSource === "pi" || (sessionSource === "auto" && allowLegacyPiRoots)) {
+			addRoot(".pi/agent/sessions");
+		}
 	}
 
 	return roots;
@@ -186,7 +236,7 @@ function resolveSessionDir(workspaceDir, sessionDirOverride, sessionRootOverride
 
 	const normalized = path.resolve(workspaceDir);
 	const tag = `--${normalized.replace(/^\/+/, "").replace(/\//g, "-") }--`;
-	const roots = resolveSessionRootCandidates(sessionRootOverride);
+	const roots = resolveSessionRootCandidates(sessionRootOverride, args.sessionSource, args.allowLegacyPiRoots);
 	for (const root of roots) {
 		const candidate = path.join(root, tag);
 		if (fs.existsSync(candidate)) {
@@ -201,7 +251,13 @@ function resolveSessionDir(workspaceDir, sessionDirOverride, sessionRootOverride
 	return {
 		mode: "tagged",
 		tag,
-		path: path.join(roots[0] || path.resolve(".refarm", "agent-sessions"), tag),
+		path: path.join(
+			roots[0] ||
+				(args.sessionSource === "pi"
+					? path.resolve(".pi", "agent", "sessions")
+					: path.resolve(".refarm", "agent-sessions")),
+			tag,
+		),
 		searchedRoots: roots,
 	};
 }
