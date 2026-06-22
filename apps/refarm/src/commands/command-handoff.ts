@@ -1,10 +1,24 @@
+/**
+ * Compatibility shim.
+ *
+ * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
+ */
 import {
-	type ApplicationProcessSpec
+	type ApplicationProcessSpec,
 } from "@refarm.dev/cli/command-handoff";
 
+/**
+ * Compatibility shim.
+ *
+ * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
+ */
 export type { ApplicationProcessSpec };
 
-// Deprecated compatibility shim. Prefer importing directly from @refarm.dev/cli/command-handoff.
+/**
+ * Compatibility shim.
+ *
+ * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
+ */
 export {
 	applicationCommand,
 	applicationProcess,
