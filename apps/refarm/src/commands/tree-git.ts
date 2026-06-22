@@ -4,7 +4,7 @@ import {
 } from "@refarm.dev/cli/git-command";
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,

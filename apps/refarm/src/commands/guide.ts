@@ -10,7 +10,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { writeFileSync } from "node:fs";
 import { refarmCommand } from "./command-handoff.js";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 
 interface GuideOptions {
   json?: boolean;

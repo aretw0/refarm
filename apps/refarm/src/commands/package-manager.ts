@@ -16,7 +16,7 @@ import {
 	refarmProcess,
 	type ApplicationProcessSpec,
 } from "./command-handoff.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,

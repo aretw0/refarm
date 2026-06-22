@@ -9,7 +9,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 	type JsonSuccessEnvelope,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
 const EXTENSION_LIST_JSON_COMMAND = refarmCommand([

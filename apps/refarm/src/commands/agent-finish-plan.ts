@@ -29,7 +29,7 @@ import {
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
 } from "./command-plan.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,

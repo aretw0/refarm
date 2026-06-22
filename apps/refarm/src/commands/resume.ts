@@ -15,7 +15,7 @@ import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { printJson, buildJsonSuccessEnvelope } from "./json-output.js";
+import { printJson, buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,

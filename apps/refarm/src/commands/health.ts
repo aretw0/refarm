@@ -19,7 +19,7 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 

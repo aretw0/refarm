@@ -7,7 +7,7 @@ import {
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import { refarmCommand } from "./command-handoff.js";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
