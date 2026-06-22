@@ -9,7 +9,7 @@ import {
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 	RUNTIME_AGENT_PLUGIN_ID,
-	PI_AGENT_NPM_PACKAGE,
+	PI_AGENT_NPM_PACKAGE as RUNTIME_AGENT_NPM_PACKAGE,
 } from "@refarm.dev/config/plugin-identity";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
@@ -895,7 +895,7 @@ pluginCommand
 			"  $ refarm plugin install --force",
 			"",
 			"Notes:",
-			`  If the bundled runtime agent WASM is missing, build ${PI_AGENT_NPM_PACKAGE} first with the command printed by the error.`,
+			`  If the bundled runtime agent WASM is missing, build ${RUNTIME_AGENT_NPM_PACKAGE} first with the command printed by the error.`,
 			"  After install, start or restart the runtime, then run refarm plugin reload agent --json.",
 			"  In refarm chat, /reload agent is the interactive equivalent.",
 			"  Run refarm plugin status to confirm runtime load state.",
