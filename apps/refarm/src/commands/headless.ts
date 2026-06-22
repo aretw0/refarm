@@ -2,7 +2,7 @@ import { Command } from "commander";
 import {
 	formatSurfaceActionSelectionChoices,
 	resolveSurfaceActionAffordanceSelection,
-} from "./action-affordances.js";
+} from "@refarm.dev/cli/action-affordances";
 import {
 	createHeadlessStatusSurfaceActionBlockedDryRunEnvelope,
 	createHeadlessStatusSurfaceActionDryRunEnvelope,

@@ -15,7 +15,7 @@ import {
 	getStatusAvailableSurfaceActions,
 	resolveSurfaceActionAffordanceSelection,
 	type SurfaceActionAffordanceSelectionMetadata,
-} from "./action-affordances.js";
+} from "@refarm.dev/cli/action-affordances";
 import {
 	createRefarmStatusHostSurfaceState,
 	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,

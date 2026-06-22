@@ -12,7 +12,7 @@ import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
 import {
 	getStatusAvailableSurfaceActions,
 	type SurfaceActionAffordanceSelectionMetadata,
-} from "./action-affordances.js";
+} from "@refarm.dev/cli/action-affordances";
 import {
 	formatExecutionPlanReadinessLine,
 	type ExecutionPlanReadinessLine,
