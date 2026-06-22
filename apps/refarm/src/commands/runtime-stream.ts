@@ -5,6 +5,7 @@ import path from "node:path";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { observedTaskResultError } from "./task-observation.js";
 import { resolveRequestTimeoutMs } from "./fetch-with-timeout.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
@@ -309,7 +310,7 @@ export async function readLatestAgentEntryFromSession(
 	metadata?: Record<string, unknown>;
 } | null> {
 	try {
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			sidecarUrl(`/sessions/${encodeURIComponent(sessionId)}/history`),
 		);
 		if (!response.ok) return null;
