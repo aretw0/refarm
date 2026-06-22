@@ -263,7 +263,10 @@ const RemoteSource = {
 
         try {
             console.log(`📡 [refarm/config] Fetching remote config from ${endpoint}...`);
-            const res = await fetch(endpoint, { headers });
+            const res = await fetch(endpoint, {
+                headers,
+                signal: AbortSignal.timeout(15_000),
+            });
 
             if (!res.ok) {
                 console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);

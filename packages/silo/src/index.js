@@ -62,7 +62,9 @@ export class SiloCore {
     async loadRemoteConfig(url) {
         console.log(`📡 [Silo] Fetching remote configuration from ${url}...`);
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, {
+                signal: AbortSignal.timeout(15_000),
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             
