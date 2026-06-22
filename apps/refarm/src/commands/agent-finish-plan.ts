@@ -28,7 +28,7 @@ import {
 	type CommandPlanRunResult,
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
-} from "./command-plan.js";
+} from "@refarm.dev/cli/command-plan";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	createPackageBinaryCommand,

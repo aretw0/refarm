@@ -16,7 +16,7 @@ import {
 import {
 	formatExecutionPlanReadinessLine,
 	type ExecutionPlanReadinessLine,
-} from "./execution-plan.js";
+} from "@refarm.dev/cli/execution-plan";
 
 export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"
