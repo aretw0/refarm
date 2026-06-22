@@ -993,6 +993,48 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		errSpy.mockRestore();
 	});
 
+	it("classifies sidecar-style agent-not-loaded payloads as agent-not-loaded", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				loaded: [],
+				known: [RUNTIME_AGENT_PLUGIN_ID],
+			}),
+			submitEffort: vi.fn().mockRejectedValue(
+				new Error(
+					`[agent not loaded (${RUNTIME_AGENT_PLUGIN_ID}) - run refarm plugin status, then refarm plugin install or reload]`,
+				),
+			),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "agent-not-loaded",
+			nextActions: expect.arrayContaining([
+				"refarm plugin reload runtime-agent --json",
+			]),
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("reloads the installed runtime agent before submitting when it is not loaded", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
