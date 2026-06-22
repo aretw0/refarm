@@ -572,12 +572,12 @@ else
     done
 
     if [ -n "$PREPUSH_TEST_FILTERS" ]; then
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:prepush --concurrency=1 $PREPUSH_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout 240 env CI=1 $PACKAGE_EXEC turbo run test:prepush --concurrency=1 $PREPUSH_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Turbo test:prepush passed"
       else
         UNIT_STATUS=$?
         if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Turbo test:prepush timed out after 300s (non-blocking local warning)"
+          echo "   ⚠️  Turbo test:prepush timed out after 240s (non-blocking local warning)"
         else
           echo "   ⚠️  Turbo test:prepush failed (non-blocking local warning)"
           tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
@@ -588,12 +588,12 @@ else
     fi
 
     if [ -n "$UNIT_TEST_FILTERS" ] && [ $UNIT_WARN -eq 0 ]; then
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:unit --concurrency=1 $UNIT_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout 240 env CI=1 $PACKAGE_EXEC turbo run test:unit --concurrency=1 $UNIT_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Turbo test:unit passed"
       else
         UNIT_STATUS=$?
         if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Turbo test:unit timed out after 300s (non-blocking local warning)"
+          echo "   ⚠️  Turbo test:unit timed out after 240s (non-blocking local warning)"
         else
           echo "   ⚠️  Turbo test:unit failed (non-blocking local warning)"
           tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
@@ -604,12 +604,12 @@ else
     fi
 
     if [ -n "$TEST_FILTERS" ] && [ $UNIT_WARN -eq 0 ]; then
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=1 $TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout 240 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=1 $TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Turbo tests passed"
       else
         UNIT_STATUS=$?
         if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Turbo tests timed out after 300s (non-blocking local warning)"
+          echo "   ⚠️  Turbo tests timed out after 240s (non-blocking local warning)"
         else
           echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
           tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
@@ -628,7 +628,7 @@ else
       UNIT_WARN=1
     fi
   else
-    if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=1 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 240 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=1 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Global Turbo tests passed"
       mark_lane_validated "test"
     else
