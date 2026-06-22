@@ -418,8 +418,9 @@ work in this order:
    shared packages only after repeated use proves the boundary.
 4. Exercise one non-Refarm task through the same primitives to prove Refarm is a
    daily-driver tool, not only a self-maintenance loop.
-5. Keep `runtime-agent` as the operator concept and `@refarm/pi-agent` as the
-   compatibility identity until a package rename is worth the migration cost.
+5. Keep `runtime-agent` as the compatibility identity and `@refarm/pi-agent` as
+   the canonical storage identity until a package rename is worth the migration
+   cost.
 
 ## Cut Discipline
 
