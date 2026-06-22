@@ -349,15 +349,22 @@ export {
 	} {
 	const runtimeAgentShortId = RUNTIME_AGENT_PLUGIN_ID.split("/").at(-1) ?? "";
 	const runtimeAgentShortIdText = runtimeAgentShortId.toLowerCase();
+	const normalizedMessage = message.toLowerCase();
+	const runtimeAgentMentioned =
+		normalizedMessage.includes(RUNTIME_AGENT_PLUGIN_ID.toLowerCase()) ||
+		(runtimeAgentShortIdText.length > 0 &&
+			normalizedMessage.includes(runtimeAgentShortIdText));
 	const isRuntimeAgentMissing =
-		message.toLowerCase().includes(
+		normalizedMessage.includes(
 			`${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()} not loaded`,
 		) ||
-		message.toLowerCase().includes(
+		normalizedMessage.includes(
 			`plugin "${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()}" is not loaded`,
 		) ||
+		(normalizedMessage.includes("agent not loaded") &&
+			runtimeAgentMentioned) ||
 		(runtimeAgentShortIdText.length > 0 &&
-			message.toLowerCase().includes(`${runtimeAgentShortIdText} not loaded`));
+			normalizedMessage.includes(`${runtimeAgentShortIdText} not loaded`));
 
 	const isProviderError =
 		message.includes("model-bridge request failed") ||
@@ -367,7 +374,6 @@ export {
 		message.includes("Connection refused") ||
 		message.includes("ECONNREFUSED") ||
 		message.includes("/v1/chat/completions");
-	const normalizedMessage = message.toLowerCase();
 	const isQuotaError =
 		normalizedMessage.includes("current quota") ||
 		normalizedMessage.includes("quota exceeded") ||
