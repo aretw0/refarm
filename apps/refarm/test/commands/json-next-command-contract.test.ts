@@ -1,4 +1,8 @@
 import {
+	commandTemplateParameters,
+	instantiateCommandTemplate,
+} from "@refarm.dev/cli/command-handoff";
+import {
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
@@ -13,10 +17,6 @@ import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 import { createCheckCommand } from "../../src/commands/check.js";
-import {
-	commandTemplateParameters,
-	instantiateCommandTemplate,
-} from "../../src/commands/command-handoff.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";

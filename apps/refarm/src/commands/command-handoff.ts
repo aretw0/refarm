@@ -1,11 +1,10 @@
 import {
-	applicationCommand,
-	applicationProcess,
-	type ApplicationProcessSpec,
+	type ApplicationProcessSpec
 } from "@refarm.dev/cli/command-handoff";
 
 export type { ApplicationProcessSpec };
 
+// Deprecated compatibility shim. Prefer importing directly from @refarm.dev/cli/command-handoff.
 export {
 	applicationCommand,
 	applicationProcess,
