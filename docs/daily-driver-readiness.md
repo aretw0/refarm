@@ -70,8 +70,8 @@ What is already solid:
 - Public JSON contract tests cover all major commands including `ask` error
   paths, confirming `nextActions`, `nextCommands`, and template metadata.
 - `refarm:agent:e2e:mock` exercises runtime start, the runtime agent,
-  `plugin reload runtime-agent --json`,
-  `ask --json`, `task run runtime-agent respond --transport http --json`,
+  `plugin reload agent --json`,
+  `ask --json`, `task run agent respond --transport http --json`,
   `task resume --json`, top-level `resume --json`, stream-file creation,
   executable task status/log handoffs, and OpenAI-compatible request capture
   against `@refarm.dev/model-mock` without Ollama or paid model tokens.
