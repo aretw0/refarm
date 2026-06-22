@@ -164,6 +164,7 @@ function usage() {
 	console.log(
 		"  --session-source: source strategy for workspace-tagged lookup (refarm|pi|auto) (default: refarm)",
 	);
+	console.log("  --session-source pi: legacy .pi namespace, for migration/forensics only");
 	console.log("  --allow-legacy-pi-roots: include legacy ~/.pi roots in source resolution");
 	console.log("  --no-allow-legacy-pi-roots: exclude legacy ~/.pi roots");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
