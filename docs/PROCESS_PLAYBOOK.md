@@ -166,6 +166,8 @@ pnpm run farm:status
 
 # Direct HTTP probe:
 curl -s http://127.0.0.1:42001/efforts/summary | node -e "process.stdin|>JSON.parse|>console.log"
+# Runtime-readiness check also validates:
+curl -s http://127.0.0.1:42001/sessions | node -e "process.stdin|>JSON.parse|>console.log"
 ```
 
 ---
@@ -208,6 +210,8 @@ curl -X POST http://127.0.0.1:42001/efforts -H 'Content-Type: application/json' 
   -d '{"task": {...}, "effort": {...}}'
 # Check queue:
 curl -s http://127.0.0.1:42001/efforts/summary
+# Check session catalog readiness:
+curl -s http://127.0.0.1:42001/sessions | node -e "process.stdin|>JSON.parse|>console.log"
 # Check rolling pressure window:
 curl -s 'http://127.0.0.1:42001/telemetry/window?minutes=30'
 pnpm run farm:status
