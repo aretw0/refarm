@@ -360,6 +360,59 @@
             "id": "workspace-resolution",
             "command": ["node", "packages/toolbox/src/cli.mjs", "reso", "status"],
             "timeoutMs": 15000
+          },
+          {
+            "id": "ci-loop-signal",
+            "command": [
+              "node",
+              "scripts/pi-session-heavy.mjs",
+              "--recent",
+              "1",
+              "--count",
+              "20",
+              "--filter",
+              "gh ",
+              "--ci-loop-signal",
+              "--ci-loop-max-count",
+              "6",
+              "--ci-loop-max-ms",
+              "360000"
+            ],
+            "timeoutMs": 120000,
+            "required": false
+          }
+        ],
+        "micro-safe-baseline": [
+          {
+            "id": "env-safety",
+            "command": ["bash", "scripts/env-safety-check.sh", "--warn"],
+            "timeoutMs": 60000,
+            "required": false
+          },
+          {
+            "id": "workspace-resolution",
+            "command": ["node", "packages/toolbox/src/cli.mjs", "reso", "status"],
+            "timeoutMs": 15000,
+            "required": false
+          },
+          {
+            "id": "ci-loop-baseline",
+            "command": [
+              "node",
+              "scripts/pi-session-heavy.mjs",
+              "--recent",
+              "5",
+              "--count",
+              "30",
+              "--filter",
+              "gh ",
+              "--ci-loop-max-count",
+              "12",
+              "--ci-loop-max-ms",
+              "900000"
+            ],
+            "timeoutMs": 120000,
+            "required": false
           }
         ],
         "micro": [

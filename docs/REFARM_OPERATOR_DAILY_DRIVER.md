@@ -119,6 +119,63 @@ protective without stopping momentum:
   - switch to narrower commands (single test path, filtered harness, explicit timeout),
   - keep budget checks enabled via `refarm:safety` profiles,
   - reopen at normal lane only after 3 stable slices.
+- quick CI-loop triage before/after CI-heavy work:
+  - `pnpm run pi:session:heavy:ci-watch`
+  - if this returns non-zero, it means likely CI-watch/polling loops exceeded a
+    conservative threshold and should be reviewed before continuing CI-heavy
+    commands.
+  - this is the fast lane check for immediate gating.
+
+- periodic baseline safety check before heavier refactor blocks:
+  - `pnpm run refarm:safety:micro-safe:baseline`
+
+The script is generic enough for cross-workspace inspection with:
+
+```bash
+node scripts/pi-session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
+```
+
+To keep `.pi` history boundaries clear when different coding agents touch the same
+workspace tag, you can isolate by agent-level metadata (when present):
+
+```bash
+node scripts/pi-session-heavy.mjs \
+  --recent 3 --count 50 \
+  --agent-role assistant \
+  --agent-provider openai-codex \
+  --agent-model gpt-5.5
+
+You can query more than one provider/model in one pass:
+
+```bash
+node scripts/pi-session-heavy.mjs \
+  --recent 6 --count 50 \
+  --agent-role assistant \
+  --agent-provider openai-codex,claude-code \
+  --agent-model gpt-5.3-codex-spark,gpt-4.1
+```
+```
+
+Or isolate by session filename (the workspace folder usually accumulates sessions from
+multiple agents):
+
+```bash
+node scripts/pi-session-heavy.mjs --session-file-prefix "2026-06-20T20-24-39-577Z_"
+```
+
+You can also raise/lower limits per run with env vars:
+
+```bash
+CI_LOOP_MAX_MS=600000 CI_LOOP_MAX_COUNT=12 pnpm run pi:session:heavy:ci-watch
+```
+
+For broader baseline visibility (5 sessions) during heavier slices:
+
+```bash
+pnpm run pi:session:heavy:ci-watch:baseline
+```
+
+`pi:session:heavy:ci-watch:baseline` is a broad-view command (no strict loop gate by default).
 
 ## Configurações locais vs ações de sincronização
 
@@ -188,6 +245,31 @@ refarm resume --json
 refarm sessions list --json
 refarm sessions show <id-prefix>
 refarm sessions use <id-prefix>
+```
+
+PI agent session logs are stored under `~/.pi/agent/sessions` with one subfolder per
+workspace. For this repo, the folder is typically:
+
+```bash
+ls -la ~/.pi/agent/sessions/--workspaces-refarm--/
+```
+
+If you ever move the workspace path, pass `--workspace-dir <path>` to
+`scripts/pi-session-heavy.mjs` to force the session lookup:
+
+```bash
+node scripts/pi-session-heavy.mjs --workspace-dir /new/path --help
+```
+
+If two agents write the same workspace tag frequently, you can additionally pin the
+analysis to a narrower session set:
+
+```bash
+node scripts/pi-session-heavy.mjs \
+  --workspace-dir /path \
+  --session-file-prefix "2026-06-" \
+  --recent 1 \
+  --count 20
 ```
 
 Use session prefixes only when they are unique. If a prefix is ambiguous, list
