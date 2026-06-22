@@ -1,6 +1,7 @@
 import {
 	defaultRefarmConfigPath,
 	findRefarmConfigPath,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
@@ -149,7 +150,7 @@ interface RefarmConfig {
 
 const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
   "**/*.d.ts",
-  "packages/pi-agent/src/bindings.rs",
+  `${RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir}/src/bindings.rs`,
 ];
 const HEALTH_HELP_COMMAND = "refarm health --help";
 const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
