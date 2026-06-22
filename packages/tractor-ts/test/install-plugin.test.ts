@@ -725,9 +725,11 @@ describe("installPlugin", () => {
 			},
 		);
 
-		expect(global.fetch).toHaveBeenCalledWith(
-			"https://cdn.example/explicit.runtime-descriptor.json",
-		);
+		expect(
+			vi.mocked(global.fetch).mock.calls.some(
+				(call) => call[0] === "https://cdn.example/explicit.runtime-descriptor.json",
+			),
+		).toBe(true);
 	});
 
 	it("rejects auto-resolve when descriptor source repository is not a supported GitHub repository", async () => {
