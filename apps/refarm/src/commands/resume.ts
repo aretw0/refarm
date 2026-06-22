@@ -10,7 +10,7 @@ import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
-import { loadChatHistory } from "./chat-history.js";
+import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,

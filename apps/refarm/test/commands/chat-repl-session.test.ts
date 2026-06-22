@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHAT_HELP_TEXT } from "../../src/commands/chat-repl.js";
+import { CHAT_HELP_TEXT } from "@refarm.dev/cli/chat-repl";
 
 const MAX_CHAT_HISTORY_LINES = 500;
 
@@ -23,7 +23,7 @@ vi.mock("@refarm.dev/cli/launch-process", () => ({
 	launchProcess: mockedLaunchProcess,
 }));
 
-vi.mock("../../src/commands/chat-history.js", () => ({
+vi.mock("@refarm.dev/cli/chat-history", () => ({
 	MAX_CHAT_HISTORY_LINES: 500,
 	loadChatHistory: mockedLoadChatHistory,
 	rememberChatHistoryLine: vi

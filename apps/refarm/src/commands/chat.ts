@@ -19,12 +19,12 @@ import {
 	MAX_CHAT_HISTORY_LINES,
 	rememberChatHistoryLine,
 	saveChatHistory,
-} from "./chat-history.js";
+} from "@refarm.dev/cli/chat-history";
 import {
 	CHAT_HELP_TEXT,
 	CHAT_RUNTIME_COMMANDS_HELP,
 	parseChatLine,
-} from "./chat-repl.js";
+} from "@refarm.dev/cli/chat-repl";
 import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	buildCurrentModelStatus,
@@ -74,7 +74,7 @@ export {
 	rememberChatHistoryLine,
 	resolveChatHistoryPath,
 	saveChatHistory,
-} from "./chat-history.js";
+} from "@refarm.dev/cli/chat-history";
 
 export {
 	followStreamFile,
