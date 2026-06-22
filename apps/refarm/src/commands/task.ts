@@ -66,6 +66,7 @@ import {
 
 export { resolveAdapter } from "./task-support.js";
 const DEFAULT_TASK_STATUS_WATCH_LIMIT = 120;
+const REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR = "REFARM_TASK_STATUS_WATCH_LIMIT";
 const TASK_STATUS_WATCH_INTERVAL_MS = 2_000;
 
 export function normalizeTaskArgs(
@@ -272,7 +273,7 @@ Notes:
 		.option("--watch", "Poll every 2s until final state")
 		.option(
 			"--watch-limit <count>",
-			`Maximum number of polls while watching before stopping (default ${DEFAULT_TASK_STATUS_WATCH_LIMIT})`,
+			`Maximum number of polls while watching before stopping (default from ${REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR} or ${DEFAULT_TASK_STATUS_WATCH_LIMIT})`,
 			(value) => parsePositiveIntOption(value, "--watch-limit"),
 		)
 		.option("--json", "Print machine-readable status JSON")
@@ -306,7 +307,7 @@ Notes:
 					adapterResolver,
 				);
 				const effectiveWatchLimit = opts.watch
-					? opts.watchLimit ?? DEFAULT_TASK_STATUS_WATCH_LIMIT
+					? opts.watchLimit ?? resolveTaskStatusWatchLimit(process.env)
 					: opts.watchLimit;
 				const buildWatchNextCommands = (isFinalEffort: boolean): string[] => {
 					return isFinalEffort
@@ -1017,6 +1018,15 @@ Notes:
 				console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
 			},
 		);
+
+function resolveTaskStatusWatchLimit(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_TASK_STATUS_WATCH_LIMIT;
+	return parsed;
+}
 
 	return taskCommand;
 }
