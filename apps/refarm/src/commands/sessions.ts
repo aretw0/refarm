@@ -160,7 +160,7 @@ function resolveSessionsCommandServices(
 ): SessionsCommandServices {
 	return {
 		clearActiveSessionId: deps.clearActiveSessionId ?? clearActiveSessionId,
-		fetch: deps.fetch ?? ((input, init) => fetch(input, init)),
+		fetch: deps.fetch ?? ((input, init) => fetchSidecarWithTimeout(input, init)),
 		readActiveSessionId: deps.readActiveSessionId ?? readActiveSessionId,
 		sidecarUrl: deps.sidecarUrl ?? sidecarUrl,
 		writeActiveSessionIdAndVerify:
