@@ -39,6 +39,26 @@ rg -n --glob '!**/*.md' --glob '!**/*.test.ts' \
 
 This helps spot `fetch` callsites before refactors.
 
+Session/CI loop hygiene:
+
+```bash
+pnpm run session:heavy:ci-watch         # non-blocking CI loop observability
+pnpm run session:heavy:ci-watch:guard    # blocks if CI-loop pressure is above guardrails
+pnpm run session:heavy:repeat            # repeat-command pressure for current sessions
+```
+
+For focused root-cause checks after long sessions:
+
+```bash
+node scripts/session-heavy.mjs --json --session-sources
+node scripts/session-heavy.mjs --json --session-source pi --allow-legacy-pi-roots --filter "gh run view"
+```
+
+Recommended hard rule:
+
+- avoid manual polling patterns like `for ...; do gh run view ...; sleep ...; done`
+- prefer `gh run watch <run-id> --exit-status` or `gh run watch <run-id>`
+
 ## Commit lineage
 
 - `a00e1f7f` — timeout guard in WASI HTTP outgoing handler

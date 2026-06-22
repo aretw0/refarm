@@ -124,6 +124,7 @@
 		"session:heavy:repeat": "node scripts/session-heavy.mjs --recent 6 --count 40 --filter \"pnpm\" --repeat-signal --repeat-max-count 4",
 		"session:heavy:repeat:chat-session": "node scripts/session-heavy.mjs --recent 10 --count 80 --filter \"chat-repl-session.test.ts\" --repeat-signal --repeat-max-count 3",
 		"session:heavy:ci-watch": "node scripts/session-heavy.mjs --recent 2 --count 20 --filter \"gh \" --ci-loop-signal --ci-loop-max-count 6 --ci-loop-max-ms 360000",
+		"session:heavy:ci-watch:guard": "node scripts/session-heavy.mjs --recent 5 --count 30 --filter \"gh \" --ci-loop-signal --repeat-signal --ci-loop-max-count 4 --repeat-max-count 2 --ci-loop-max-ms 240000",
 		"session:heavy:ci-watch:baseline": "node scripts/session-heavy.mjs --recent 5 --count 30 --filter \"gh \" --ci-loop-max-count 12 --ci-loop-max-ms 900000",
 		"session:heavy:sources": "node scripts/session-heavy.mjs --print-session-sources",
 		"session:heavy:sources:refarm": "node scripts/session-heavy.mjs --print-session-sources --session-source refarm",
