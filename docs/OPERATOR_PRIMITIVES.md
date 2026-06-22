@@ -150,6 +150,9 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   converge and the startup log has no actionable output, the recovery handoff
   should point to `refarm runtime start --dry-run --json` before retrying
   `ensure`.
+- Streaming waits in `runtime stream --follow` are bounded by
+  `REFARM_STREAM_FOLLOW_TIMEOUT_MS` (default `45000` ms). Set it to `0` to
+  avoid blocking and return immediately when no stream chunks arrive.
 - `check --next-action --json` is the composite readiness gate.
 - `check --json` should include the local model provider doctor as a warning
   signal. `check --next-action --json` remains blocking-only: `ok: true` means
