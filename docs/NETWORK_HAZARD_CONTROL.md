@@ -54,7 +54,12 @@ For focused root-cause checks after long sessions:
 node scripts/session-heavy.mjs --json --session-sources
 node scripts/session-heavy.mjs --json --session-source pi --allow-legacy-pi-roots --filter "gh run view"
 node scripts/session-heavy.mjs --json --session-source refarm --filter "gh run view"
+node scripts/session-heavy.mjs --json --session-source refarm --filter "gh run view" | jq '.sessionSource,.top[0],.ciWatchLoops.top[0]'
 ```
+
+Output de JSON desse scanner agora inclui `sessionSource` e `sessionFile`:
+- `sessionSource`: origem da busca (refarm/pi), caminho/etag do diretório e modo de resolução.
+- `sessionFile`: arquivo onde o comando foi encontrado em cada item de `top` e de `ciWatchLoops.top`.
 
 Recommended hard rule:
 
