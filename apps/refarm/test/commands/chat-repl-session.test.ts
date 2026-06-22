@@ -246,6 +246,54 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("does not persist history when chat history does not change", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).not.toHaveBeenCalled();
+		expect(logs.join("\n")).toContain("Session saved.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("persists history when message input is added", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "first message");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledTimes(1);
+		expect(logs.join("\n")).toContain("Session saved.");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("includes slash commands in /history output", async () => {
 		mockedLoadChatHistory.mockReturnValue(["one"]);
 		const logs: string[] = [];
