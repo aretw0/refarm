@@ -534,7 +534,7 @@ describe("plugin status", () => {
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
 		expect(output).toContain("Runtime agent plugin is not loaded");
 		expect(output).toContain("refarm plugin install");
-		expect(output).toContain("refarm plugin reload runtime-agent --json");
+		expect(output).toContain("refarm plugin reload agent --json");
 		expect(output).toContain("refarm ask hello");
 		consoleSpy.mockRestore();
 	});
@@ -590,14 +590,14 @@ describe("plugin status", () => {
 				local: true,
 			},
 		]);
-		expect(payload.nextAction).toBe("refarm plugin reload runtime-agent --json");
+		expect(payload.nextAction).toBe("refarm plugin reload agent --json");
 		expect(payload.nextActions).toEqual([
-			"refarm plugin reload runtime-agent --json",
+			"refarm plugin reload agent --json",
 			"refarm plugin status --json",
 		]);
-		expect(payload.nextCommand).toBe("refarm plugin reload runtime-agent --json");
+		expect(payload.nextCommand).toBe("refarm plugin reload agent --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm plugin reload runtime-agent --json",
+			"refarm plugin reload agent --json",
 			"refarm plugin status --json",
 		]);
 		expect(process.exitCode).toBe(1);

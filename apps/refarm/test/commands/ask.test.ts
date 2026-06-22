@@ -748,10 +748,10 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "agent-not-loaded",
-			nextAction: "refarm plugin reload runtime-agent --json",
-			nextCommand: "refarm plugin reload runtime-agent --json",
+			nextAction: "refarm plugin reload agent --json",
+			nextCommand: "refarm plugin reload agent --json",
 		});
-		expect(payload.nextActions).toContain("refarm plugin reload runtime-agent --json");
+		expect(payload.nextActions).toContain("refarm plugin reload agent --json");
 		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
 		expect(payload.nextActions).toContain("refarm runtime start");
 		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
@@ -760,7 +760,7 @@ describe("refarm ask", () => {
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({
 				diagnostic: "agent-not-loaded",
-				command: "refarm plugin reload runtime-agent --json",
+				command: "refarm plugin reload agent --json",
 			}),
 		]);
 		expect(deps.submitEffort).not.toHaveBeenCalled();
@@ -946,7 +946,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			ok: false,
 			error: "agent-not-loaded",
 			nextActions: expect.arrayContaining([
-				"refarm plugin reload runtime-agent --json",
+				"refarm plugin reload agent --json",
 			]),
 		});
 		expect(process.exitCode).toBe(1);
@@ -987,7 +987,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			ok: false,
 			error: "agent-not-loaded",
 			nextActions: expect.arrayContaining([
-				"refarm plugin reload runtime-agent --json",
+				"refarm plugin reload agent --json",
 			]),
 		});
 		expect(process.exitCode).toBe(1);
@@ -1029,7 +1029,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			ok: false,
 			error: "agent-not-loaded",
 			nextActions: expect.arrayContaining([
-				"refarm plugin reload runtime-agent --json",
+				"refarm plugin reload agent --json",
 			]),
 		});
 		expect(process.exitCode).toBe(1);
@@ -1121,17 +1121,17 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			reloaded: [],
 			deferred: [],
 			skipped: ["@refarm/pi-agent"],
-			nextAction: "refarm plugin reload runtime-agent --json",
-			nextCommand: "refarm plugin reload runtime-agent --json",
+			nextAction: "refarm plugin reload agent --json",
+			nextCommand: "refarm plugin reload agent --json",
 			nextCommands: [
-				"refarm plugin reload runtime-agent --json",
+				"refarm plugin reload agent --json",
 				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 			recommendations: [
 				expect.objectContaining({
 					diagnostic: "agent-reload-failed",
-					command: "refarm plugin reload runtime-agent --json",
+					command: "refarm plugin reload agent --json",
 				}),
 			],
 		});
