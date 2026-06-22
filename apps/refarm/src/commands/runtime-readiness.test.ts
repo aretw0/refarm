@@ -43,6 +43,19 @@ describe("runtime readiness", () => {
 		await expect(probeRuntimeReady()).resolves.toBe(false);
 	});
 
+	it("checks /sessions as an additional readiness requirement", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValueOnce(response(true)).mockResolvedValueOnce(response(false, 503)),
+		);
+
+		await expect(probeRuntimeReadiness()).resolves.toEqual({
+			url: "http://127.0.0.1:42001/sessions",
+			ready: false,
+			status: 503,
+		});
+	});
+
 	it("returns readiness probe transport errors", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 
@@ -71,9 +84,7 @@ describe("runtime readiness", () => {
 	it("waits until a probe succeeds", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi.fn()
-				.mockResolvedValueOnce(response(false))
-				.mockResolvedValueOnce(response(true)),
+			vi.fn().mockResolvedValueOnce(response(false)).mockResolvedValue(response(true)),
 		);
 
 		await expect(
