@@ -8,6 +8,7 @@
 const token = process.env.GITHUB_TOKEN;
 const payloadStr = process.env.ISSUE_PAYLOAD;
 const repository = process.env.REPOSITORY; // format: "owner/repo"
+const REQUEST_TIMEOUT_MS = 10_000;
 
 if (!token || !payloadStr || !repository) {
     console.error("Missing required environment variables (GITHUB_TOKEN, ISSUE_PAYLOAD, REPOSITORY).");
@@ -84,6 +85,7 @@ async function run() {
             'Content-Type': 'application/json',
             'User-Agent': 'Refarm-Triage-Bot'
         },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         body: JSON.stringify({
             labels: newLabels
         })
