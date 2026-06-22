@@ -9,8 +9,23 @@ function parseArgs(argv) {
 		recent: 1,
 		count: 20,
 		json: false,
+		sessionFilePrefix: null,
+		agentRoles: [],
+		agentProviders: [],
+		agentModels: [],
 		filter: null,
+		ciLoopSignal: false,
+		ciLoopMaxMs: 120_000,
+		ciLoopMaxCount: 8,
 	};
+
+	const splitCsv = (value) =>
+		typeof value === 'string'
+			? value
+					.split(',')
+					.map((item) => item.trim())
+					.filter(Boolean)
+			: [];
 
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];
@@ -28,6 +43,37 @@ function parseArgs(argv) {
 			case "--count": {
 				const value = Number.parseInt(argv[i + 1], 10);
 				if (Number.isInteger(value) && value > 0) args.count = value;
+				i += 1;
+				break;
+			}
+			case "--session-file-prefix":
+				args.sessionFilePrefix = argv[i + 1] || null;
+				i += 1;
+				break;
+			case "--agent-role":
+				args.agentRoles = [...args.agentRoles, ...splitCsv(argv[i + 1])];
+				i += 1;
+				break;
+			case "--agent-provider":
+				args.agentProviders = [...args.agentProviders, ...splitCsv(argv[i + 1])];
+				i += 1;
+				break;
+			case "--agent-model":
+				args.agentModels = [...args.agentModels, ...splitCsv(argv[i + 1])];
+				i += 1;
+				break;
+			case "--ci-loop-signal":
+				args.ciLoopSignal = true;
+				break;
+			case "--ci-loop-max-ms": {
+				const value = Number.parseInt(argv[i + 1], 10);
+				if (Number.isInteger(value) && value > 0) args.ciLoopMaxMs = value;
+				i += 1;
+				break;
+			}
+			case "--ci-loop-max-count": {
+				const value = Number.parseInt(argv[i + 1], 10);
+				if (Number.isInteger(value) && value > 0) args.ciLoopMaxCount = value;
 				i += 1;
 				break;
 			}
@@ -49,6 +95,9 @@ function parseArgs(argv) {
 	return args;
 }
 
+const envCiLoopMaxMs = Number.parseInt(process.env.CI_LOOP_MAX_MS, 10);
+const envCiLoopMaxCount = Number.parseInt(process.env.CI_LOOP_MAX_COUNT, 10);
+
 function usage() {
 	console.log(
 		["Usage:", "  node scripts/pi-session-heavy.mjs [--workspace-dir <dir>] [--recent <n>] [--count <n>]"].join("\n"),
@@ -56,8 +105,16 @@ function usage() {
 	console.log("  --workspace-dir: project dir used to locate .pi session folder");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
 	console.log("  --count:         top commands to print (default: 20)");
+	console.log("  --session-file-prefix: include only session filenames containing this substring");
+	console.log("  --agent-role:    match tool-call entries with these roles (example: assistant or assistant,system)");
+	console.log("  --agent-provider: match tool-call entries with this metadata provider(s), comma-separated");
+	console.log("  --agent-model:   match tool-call entries with this metadata model(s), comma-separated");
 	console.log("  --filter:        only include commands containing this substring");
 	console.log("  --json:          output machine-readable summary JSON");
+	console.log("  --ci-loop-signal: run CI loop risk check and set exit code on threshold breach");
+	console.log("  --ci-loop-max-ms: max total CI loop wall-time in ms for signal mode (default: 120000)");
+	console.log("  --ci-loop-max-count: max CI loop command count for signal mode (default: 8)");
+	console.log("  CI_LOOP_MAX_MS / CI_LOOP_MAX_COUNT env vars: override default signal limits");
 }
 
 function workspaceSessionDir(workspaceDir) {
@@ -70,11 +127,15 @@ function workspaceSessionDir(workspaceDir) {
 	};
 }
 
-function listSessionFiles(dir) {
+function listSessionFiles(dir, sessionFilePrefix) {
 	if (!fs.existsSync(dir)) return [];
 	return fs
 		.readdirSync(dir)
 		.filter((name) => name.endsWith('.jsonl'))
+		.filter((name) => {
+			if (!sessionFilePrefix) return true;
+			return name.includes(sessionFilePrefix);
+		})
 		.map((name) => ({
 			name,
 			path: path.join(dir, name),
@@ -105,6 +166,16 @@ function parseSession(filePath) {
 						command: String(item.arguments.command),
 						durationMs: 0,
 						timestamp: entry.timestamp || null,
+						role: message.role || null,
+						provider:
+							message.provider || item.provider || entry.provider || null,
+						model:
+							message.model ||
+							item.model ||
+							item.modelId ||
+							entry.model ||
+							entry.modelId ||
+							null,
 					});
 				}
 			}
@@ -116,50 +187,40 @@ function parseSession(filePath) {
 		const call = calls.get(toolCallId);
 		if (call) {
 			call.durationMs = durationMs;
+			if (call.provider === null) call.provider = message.provider || itemFromResultProvider(entry) || null;
+			if (call.model === null) call.model = message.model || itemFromResultModel(entry) || null;
+			if (call.role === null && message.role) call.role = message.role;
 		}
 	}
 
 	return [...calls.values()].filter((call) => call.durationMs > 0);
 }
 
-function printJsonSummary(sessions) {
-	const totalMs = sessions.reduce((acc, row) => acc + row.durationMs, 0);
-	const sorted = [...sessions].sort((a, b) => b.durationMs - a.durationMs);
-	const top = sorted.slice(0, args.count);
-	const patterns = ['gh run', 'gh pr', 'pnpm', 'refarm', 'git push', 'test'];
-	const patternSummary = [];
+function itemFromResultProvider(entry) {
+	return (
+		entry?.provider ||
+		entry?.toolCall?.provider ||
+		entry?.toolResult?.provider ||
+		entry?.result?.provider ||
+		null
+	);
+}
 
-	for (const pattern of patterns) {
-		const hits = sessions.filter((row) => row.command.includes(pattern));
-		if (hits.length === 0) continue;
-		const total = hits.reduce((acc, row) => acc + row.durationMs, 0);
-		const max = Math.max(...hits.map((row) => row.durationMs));
-		const avg = total / hits.length;
-		patternSummary.push({
-			pattern,
-			count: hits.length,
-			totalWallTimeMs: total,
-			avgWallTimeMs: Math.round(avg),
-			maxWallTimeMs: max,
-		});
-	}
-
-	console.log(JSON.stringify({
-		totalCalls: sessions.length,
-		totalWallTimeMs: totalMs,
-		top: top.map((row) => ({
-			command: row.command,
-			durationMs: row.durationMs,
-		})),
-		patterns: patternSummary,
-	}, null, 2));
+function itemFromResultModel(entry) {
+	return (
+		entry?.model ||
+		entry?.modelId ||
+		entry?.toolCall?.model ||
+		entry?.toolCall?.modelId ||
+		entry?.toolResult?.model ||
+		entry?.toolResult?.modelId ||
+		entry?.result?.model ||
+		entry?.result?.modelId ||
+		null
+	);
 }
 
 function printSummary(sessions) {
-	if (args.json) {
-		printJsonSummary(sessions);
-		return;
-	}
 	if (sessions.length === 0) {
 		console.log('No timed bash tool calls found.');
 		return;
@@ -191,11 +252,129 @@ function printSummary(sessions) {
 	}
 }
 
+function isLikelyCiWatchLoop(command) {
+	const normalized = command.toLowerCase();
+	const isGhTarget = normalized.includes("gh run") || normalized.includes("gh pr");
+	if (!isGhTarget) return false;
+
+	const hasPollingShape =
+		normalized.includes("while true") ||
+		(normalized.includes("for ") && normalized.includes("sleep")) ||
+		normalized.includes("--watch") ||
+		normalized.includes("sleep");
+	const hasRunViewOrChecks =
+		normalized.includes("gh run view") ||
+		normalized.includes("gh pr checks") ||
+		normalized.includes("gh run watch");
+
+	return hasPollingShape && hasRunViewOrChecks;
+}
+
+function summarizeCiWatchLoops(sessions) {
+	const loops = sessions.filter((call) => isLikelyCiWatchLoop(call.command));
+	const totalMs = loops.reduce((acc, call) => acc + call.durationMs, 0);
+	const maxMs = loops.length > 0 ? Math.max(...loops.map((call) => call.durationMs)) : 0;
+
+	return {
+		count: loops.length,
+		totalWallTimeMs: totalMs,
+		maxWallTimeMs: maxMs,
+		top: [...loops]
+			.sort((a, b) => b.durationMs - a.durationMs)
+			.map((call) => ({ command: call.command, durationMs: call.durationMs })),
+	};
+}
+
+function printCiLoopSignal(sessions) {
+	const summary = summarizeCiWatchLoops(sessions);
+	if (summary.count === 0) {
+		console.log("\nCI loop risk: no obvious polling loops detected.");
+		return summary;
+	}
+
+	console.log(
+		`\nCI loop risk: ${summary.count} candidate(s), total ${(summary.totalWallTimeMs / 1000).toFixed(1)}s (max ${(summary.maxWallTimeMs / 1000).toFixed(1)}s).`,
+	);
+	for (const row of summary.top.slice(0, 5)) {
+		console.log(`- ${String(row.durationMs).padStart(6)} ms | ${row.command}`);
+	}
+	return summary;
+}
+
+function buildJsonSummary(sessions) {
+	const totalMs = sessions.reduce((acc, row) => acc + row.durationMs, 0);
+	const sorted = [...sessions].sort((a, b) => b.durationMs - a.durationMs);
+	const top = sorted.slice(0, args.count);
+	const patterns = ['gh run', 'gh pr', 'pnpm', 'refarm', 'git push', 'test'];
+	const patternSummary = [];
+	const ciLoopSummary = summarizeCiWatchLoops(sessions);
+	const tooMuchLoops = ciLoopSummary.count > args.ciLoopMaxCount;
+	const tooLongLoops = ciLoopSummary.totalWallTimeMs > args.ciLoopMaxMs;
+
+	for (const pattern of patterns) {
+		const hits = sessions.filter((row) => row.command.includes(pattern));
+		if (hits.length === 0) continue;
+		const total = hits.reduce((acc, row) => acc + row.durationMs, 0);
+		const max = Math.max(...hits.map((row) => row.durationMs));
+		const avg = total / hits.length;
+		patternSummary.push({
+			pattern,
+			count: hits.length,
+			totalWallTimeMs: total,
+			avgWallTimeMs: Math.round(avg),
+			maxWallTimeMs: max,
+		});
+	}
+
+	return {
+		totalCalls: sessions.length,
+		totalWallTimeMs: totalMs,
+		top: top.map((row) => ({
+			command: row.command,
+			durationMs: row.durationMs,
+			role: row.role,
+			provider: row.provider,
+			model: row.model,
+		})),
+		patterns: patternSummary,
+		ciWatchLoops: {
+			count: ciLoopSummary.count,
+			totalWallTimeMs: ciLoopSummary.totalWallTimeMs,
+			maxWallTimeMs: ciLoopSummary.maxWallTimeMs,
+			top: ciLoopSummary.top.slice(0, args.count),
+		},
+		ciLoopSignal: {
+			enabled: args.ciLoopSignal,
+			ok: !tooMuchLoops && !tooLongLoops,
+			violations: {
+				maxCountExceeded: tooMuchLoops,
+				maxWallTimeExceeded: tooLongLoops,
+			},
+			limits: {
+				maxWallTimeMs: args.ciLoopMaxMs,
+				maxCount: args.ciLoopMaxCount,
+			},
+			maxWallTimeMs: args.ciLoopMaxMs,
+			maxCount: args.ciLoopMaxCount,
+		},
+	};
+}
+
+function matchesAgentFilters(call, args) {
+	if (args.agentRoles.length > 0 && !args.agentRoles.includes(call.role)) return false;
+	if (args.agentProviders.length > 0 && !args.agentProviders.includes(call.provider)) return false;
+	if (args.agentModels.length > 0 && !args.agentModels.includes(call.model)) return false;
+	return true;
+}
+
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {
 	usage();
 	process.exit(0);
 }
+
+if (Number.isInteger(envCiLoopMaxMs) && envCiLoopMaxMs > 0) args.ciLoopMaxMs = envCiLoopMaxMs;
+if (Number.isInteger(envCiLoopMaxCount) && envCiLoopMaxCount > 0) args.ciLoopMaxCount = envCiLoopMaxCount;
 
 const sessionInfo = workspaceSessionDir(args.workspaceDir);
 if (!fs.existsSync(sessionInfo.path)) {
@@ -205,7 +384,7 @@ if (!fs.existsSync(sessionInfo.path)) {
 	process.exit(1);
 }
 
-const sessionFiles = listSessionFiles(sessionInfo.path).slice(0, args.recent);
+const sessionFiles = listSessionFiles(sessionInfo.path, args.sessionFilePrefix).slice(0, args.recent);
 if (sessionFiles.length === 0) {
 	console.log(`No session files in: ${sessionInfo.path}`);
 	process.exit(0);
@@ -215,9 +394,31 @@ let calls = [];
 for (const file of sessionFiles) {
 	const parsed = parseSession(file.path);
 	for (const item of parsed) {
+		if (!matchesAgentFilters(item, args)) continue;
 		if (args.filter && !item.command.includes(args.filter)) continue;
 		calls.push(item);
 	}
 }
 
-printSummary(calls);
+if (args.json) {
+	console.log(JSON.stringify(buildJsonSummary(calls), null, 2));
+	if (args.ciLoopSignal) {
+		const ciSummary = summarizeCiWatchLoops(calls);
+		const tooMuchLoops = ciSummary.count > args.ciLoopMaxCount;
+		const tooLongLoops = ciSummary.totalWallTimeMs > args.ciLoopMaxMs;
+		if (tooMuchLoops || tooLongLoops) process.exitCode = 1;
+	}
+} else {
+	printSummary(calls);
+	const ciSummary = printCiLoopSignal(calls);
+	if (args.ciLoopSignal) {
+		const tooMuchLoops = ciSummary.count > args.ciLoopMaxCount;
+		const tooLongLoops = ciSummary.totalWallTimeMs > args.ciLoopMaxMs;
+		if (tooMuchLoops || tooLongLoops) {
+			console.log(
+				`CI loop signal blocked: maxCountExceeded=${tooMuchLoops} maxWallTimeExceeded=${tooLongLoops}`,
+			);
+			process.exitCode = 1;
+		}
+	}
+}
