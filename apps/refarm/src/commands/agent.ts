@@ -48,7 +48,7 @@ import {
 	RESUME_JSON_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 
 export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	const resolvedDeps: AgentCommandDeps = {

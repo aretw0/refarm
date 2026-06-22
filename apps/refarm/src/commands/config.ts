@@ -28,7 +28,7 @@ import {
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
 import { refarmCommand } from "./command-handoff.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,

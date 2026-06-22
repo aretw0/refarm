@@ -11,7 +11,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeReady } from "./runtime-readiness.js";
 import {

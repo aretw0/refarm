@@ -11,7 +11,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 
 interface MigrateConfig {
 	brand?: { slug?: string; urls?: { repository?: string } };

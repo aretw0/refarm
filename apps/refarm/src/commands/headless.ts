@@ -8,7 +8,7 @@ import {
 	createHeadlessStatusSurfaceActionDryRunEnvelope,
 	resolveHeadlessStatusSurfaceActionRequest,
 } from "./headless-action.js";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 import { resolveStatusOutputMode } from "./status-output.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";

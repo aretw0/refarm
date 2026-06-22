@@ -26,7 +26,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,

@@ -12,7 +12,7 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope } from "./json-output.js";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,

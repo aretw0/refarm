@@ -5,7 +5,7 @@ import type {
 } from "@refarm.dev/release-engine";
 import chalk from "chalk";
 import { Command } from "commander";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 
 export interface ReleaseCommandDeps {
 	cwd?: () => string;

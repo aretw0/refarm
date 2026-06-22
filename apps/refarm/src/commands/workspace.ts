@@ -32,7 +32,7 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "./command-handoff.js";
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,

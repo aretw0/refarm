@@ -45,7 +45,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import { fetchWithTimeout } from "./fetch-with-timeout.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");

@@ -22,7 +22,7 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	resolveRuntimeLaunchCommand,
 	startRuntimeProcess,

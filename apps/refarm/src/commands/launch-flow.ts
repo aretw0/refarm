@@ -3,7 +3,7 @@ import {
 	printRefarmLaunchBanner,
 	type RefarmLaunchExperience,
 } from "./brand.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { launchDryRunMessage, launchStartMessage } from "./launch-feedback.js";
 import {
 	assertLaunchAllowed,

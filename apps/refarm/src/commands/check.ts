@@ -24,7 +24,7 @@ import {
 } from "./diagnostic-recommendations.js";
 import { buildRefarmDoctorReport, type RefarmDoctorReport } from "./doctor.js";
 import { runHealthAudit, type HealthReport } from "./health.js";
-import { printJson } from "./json-output.js";
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildModelDoctorStatus,
 	defaultModelDeps,
