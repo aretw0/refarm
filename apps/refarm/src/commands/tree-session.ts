@@ -15,6 +15,9 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { reportSidecarError } from "./sidecar-error.js";
+import {
+	fetchSidecarWithTimeout,
+} from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
@@ -143,22 +146,19 @@ function buildSessionTimelineNodes(
 
 async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	const suffix = typeof limit === "number" ? `?limit=${limit}` : "";
-	const timeoutMs = resolveTreeSessionRequestTimeoutMs(process.env);
-	const controller = new AbortController();
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		timer = setTimeout(() => controller.abort(), timeoutMs);
-		const response = await fetch(sidecarUrl(`/sessions${suffix}`), {
-			signal: controller.signal,
-		});
-		if (!response.ok) {
-			throw new Error(`sidecar HTTP ${response.status}`);
-		}
-		const body = (await response.json()) as { sessions?: SessionNode[] };
-		return body.sessions ?? [];
-	} finally {
-		if (timer) clearTimeout(timer);
+	const response = await fetchSidecarWithTimeout(
+		sidecarUrl(`/sessions${suffix}`),
+		{},
+		{
+			timeoutEnvVar: REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS,
+			defaultTimeoutMs: DEFAULT_TREE_SESSION_REQUEST_TIMEOUT_MS,
+		},
+	);
+	if (!response.ok) {
+		throw new Error(`sidecar HTTP ${response.status}`);
 	}
+	const body = (await response.json()) as { sessions?: SessionNode[] };
+	return body.sessions ?? [];
 }
 
 async function fetchSessionHistory(
@@ -167,90 +167,75 @@ async function fetchSessionHistory(
 		operation: "show",
 	},
 ): Promise<SessionHistory | null> {
-	const timeoutMs = resolveTreeSessionRequestTimeoutMs(process.env);
-	const controller = new AbortController();
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		timer = setTimeout(() => controller.abort(), timeoutMs);
-		const response = await fetch(
-			sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
-			{
-				signal: controller.signal,
-			},
-		);
-		const body = (await response.json()) as SessionHistory & {
-			error?: string;
-			matches?: string[];
-		};
-		if (response.status === 404) {
-			if (opts.json) {
-				printSessionTreeErrorJson({
-					operation: opts.operation,
-					error: "session-tree-node-not-found",
-					message: `No timeline node matching "${prefix}".`,
-					prefix,
-				});
-				return null;
-			}
-			console.error(chalk.red(`✗  No timeline node matching "${prefix}"`));
-			process.exitCode = 1;
+	const response = await fetchSidecarWithTimeout(
+		sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
+		{},
+		{
+			timeoutEnvVar: REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS,
+			defaultTimeoutMs: DEFAULT_TREE_SESSION_REQUEST_TIMEOUT_MS,
+		},
+	);
+	const body = (await response.json()) as SessionHistory & {
+		error?: string;
+		matches?: string[];
+	};
+	if (response.status === 404) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "session-tree-node-not-found",
+				message: `No timeline node matching "${prefix}".`,
+				prefix,
+			});
 			return null;
 		}
-		if (response.status === 409) {
-			if (opts.json) {
-				printSessionTreeErrorJson({
-					operation: opts.operation,
-					error: "ambiguous-session-tree-node",
-					message: body.error ?? `Ambiguous timeline node "${prefix}".`,
-					prefix,
-					matches: body.matches ?? [],
-				});
-				return null;
-			}
-			console.error(
-				chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`),
-			);
-			for (const match of body.matches ?? [])
-				console.error(chalk.dim(`   ${match}`));
-			process.exitCode = 1;
-			return null;
-		}
-		if (!response.ok) {
-			if (opts.json) {
-				printSessionTreeErrorJson({
-					operation: opts.operation,
-					error: "session-tree-history-failed",
-					message: body.error ?? `HTTP ${response.status}`,
-					prefix,
-					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-					nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-					nextCommands: [
-						RUNTIME_DOCTOR_NEXT_COMMAND,
-						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-					],
-					extra: {
-						statusCommand: RUNTIME_STATUS_COMMAND,
-					},
-				});
-				return null;
-			}
-			console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
-			process.exitCode = 1;
-			return null;
-		}
-		return body;
-	} finally {
-		if (timer) clearTimeout(timer);
+		console.error(chalk.red(`✗  No timeline node matching "${prefix}"`));
+		process.exitCode = 1;
+		return null;
 	}
-}
-
-function resolveTreeSessionRequestTimeoutMs(
-	env: NodeJS.ProcessEnv = process.env,
-): number {
-	const raw = env[REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS];
-	const parsed = Number.parseInt(raw ?? "", 10);
-	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_TREE_SESSION_REQUEST_TIMEOUT_MS;
-	return parsed;
+	if (response.status === 409) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "ambiguous-session-tree-node",
+				message: body.error ?? `Ambiguous timeline node "${prefix}".`,
+				prefix,
+				matches: body.matches ?? [],
+			});
+			return null;
+		}
+		console.error(
+			chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`),
+		);
+		for (const match of body.matches ?? [])
+			console.error(chalk.dim(`   ${match}`));
+		process.exitCode = 1;
+		return null;
+	}
+	if (!response.ok) {
+		if (opts.json) {
+			printSessionTreeErrorJson({
+				operation: opts.operation,
+				error: "session-tree-history-failed",
+				message: body.error ?? `HTTP ${response.status}`,
+				prefix,
+				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
+				nextCommands: [
+					RUNTIME_DOCTOR_NEXT_COMMAND,
+					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+				],
+				extra: {
+					statusCommand: RUNTIME_STATUS_COMMAND,
+				},
+			});
+			return null;
+		}
+		console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
+		process.exitCode = 1;
+		return null;
+	}
+	return body;
 }
 
 export async function getSessionTimelineNodes(

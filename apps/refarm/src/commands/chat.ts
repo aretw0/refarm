@@ -67,36 +67,8 @@ import {
 	isSidecarUnavailable,
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
-const REFARM_SIDE_REQUEST_TIMEOUT_MS = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
-const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
-
-function resolveSidecarRequestTimeoutMs(
-	env: NodeJS.ProcessEnv = process.env,
-): number {
-	const raw = env[REFARM_SIDE_REQUEST_TIMEOUT_MS];
-	const parsed = Number.parseInt(raw ?? "", 10);
-	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_SIDE_REQUEST_TIMEOUT_MS;
-	return parsed;
-}
-
-async function fetchSidecarWithTimeout(
-	url: string | URL,
-	init: RequestInit = {},
-): Promise<Response> {
-	const timeoutMs = resolveSidecarRequestTimeoutMs(process.env);
-	const controller = new AbortController();
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		timer = setTimeout(() => controller.abort(), timeoutMs);
-		return await fetch(url, {
-			...init,
-			signal: controller.signal,
-		});
-	} finally {
-		if (timer) clearTimeout(timer);
-	}
-}
 export {
 	loadChatHistory,
 	rememberChatHistoryLine,
