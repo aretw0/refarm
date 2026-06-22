@@ -77,6 +77,10 @@
 		"./workspace-sweep": {
 			"types": "./dist/workspace-sweep.d.ts",
 			"import": "./dist/workspace-sweep.js"
+		},
+		"./chat-repl": {
+			"types": "./dist/chat-repl.d.ts",
+			"import": "./dist/chat-repl.js"
 		}
 	},
 	"scripts": {
@@ -124,7 +128,9 @@
 		"dist/workspace-execution.d.ts",
 		"dist/workspace-execution.js",
 		"dist/workspace-sweep.d.ts",
-		"dist/workspace-sweep.js"
+		"dist/workspace-sweep.js",
+		"dist/chat-repl.d.ts",
+		"dist/chat-repl.js"
 	],
 	"dependencies": {
 		"@refarm.dev/config": "workspace:*",

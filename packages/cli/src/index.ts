@@ -250,3 +250,11 @@ export type {
 	LaunchReadiness,
 	RefarmLaunchReadiness,
 } from "./launch-policy.js";
+export {
+	parseChatLine,
+	CHAT_HELP_TEXT,
+	CHAT_RUNTIME_COMMANDS_HELP,
+} from "./chat-repl.js";
+export type {
+	ChatCommand,
+} from "./chat-repl.js";
