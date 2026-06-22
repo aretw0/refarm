@@ -172,7 +172,9 @@ export class PluginHost {
 			const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
 			return this.normalizeJavaScriptModule(moduleNamespace);
 		} catch {
-			const response = await fetch(entryUrl);
+			const response = await fetch(entryUrl, {
+				signal: AbortSignal.timeout(30_000),
+			});
 			if (!response.ok) {
 				throw new Error(
 					`[tractor] Failed to fetch browser plugin module: ${response.statusText}`,
