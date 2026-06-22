@@ -391,7 +391,6 @@ function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
 function isAgentRuntimeE2ePath(file: string): boolean {
 	return (
 		file === "apps/refarm/src/commands/ask.ts" ||
-		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
 		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
