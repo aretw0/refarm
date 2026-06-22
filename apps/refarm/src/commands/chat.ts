@@ -508,11 +508,14 @@ export {
 							hasHistoryChanges = true;
 						}
 						console.log(chalk.dim("✓ Chat history cleared."));
-					} else {
-						const allHistory = [...commandHistory, ...chatHistory];
-						if (allHistory.length === 0) {
-							console.log(chalk.dim("No chat history yet."));
 						} else {
+							const allHistory = [...commandHistory, ...chatHistory].slice(
+								0,
+								MAX_CHAT_HISTORY_LINES,
+							);
+							if (allHistory.length === 0) {
+								console.log(chalk.dim("No chat history yet."));
+							} else {
 							for (let index = 0; index < allHistory.length; index++) {
 								console.log(chalk.dim(`${index + 1}. ${allHistory[index]}`));
 							}
