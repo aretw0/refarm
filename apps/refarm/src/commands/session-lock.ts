@@ -38,9 +38,9 @@ function readWithFallback<T>(
 		try {
 			const value = read(sessionLockPath);
 			return value;
-		} catch (error) {
-			continue;
-		}
+			} catch {
+				continue;
+			}
 	}
 	return undefined;
 }
