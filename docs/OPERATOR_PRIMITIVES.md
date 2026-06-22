@@ -180,6 +180,9 @@ refarm plugin reload agent --json
 - Plugin status may expose `@refarm/pi-agent` as installed/loaded identity
   because that is the manifest id.
 - Reload outcomes must distinguish `reloaded`, `skipped`, and `deferred`.
+- Runtime deferred reload waits are bounded by `REFARM_PLUGIN_RELOAD_MAX_WAIT_MS`
+  (default `120000` ms). Set it to `0` to skip waiting immediately and return
+  deferred plugins in `skipped`.
 - The no-token `refarm:agent:e2e:mock` gate exercises
   `plugin reload agent --json` against the isolated runtime and follows
   the returned `plugin status --json` handoff. A loaded plugin may report
