@@ -105,6 +105,7 @@ export function createTaskCommand(
 		`
 
 Examples:
+  $ refarm task run agent respond --args '{"prompt":"hello"}'
   $ refarm task run runtime-agent respond --args '{"prompt":"hello"}'
   $ refarm task run runtime-agent respond --transport http
   $ refarm task status <effort-id>
@@ -141,7 +142,9 @@ Notes:
 			`
 
 Examples:
+  $ refarm task run agent respond --args '{"prompt":"hello"}'
   $ refarm task run runtime-agent respond --args '{"prompt":"hello"}'
+  $ refarm task run agent respond --args '{"query":"hello"}'
   $ refarm task run runtime-agent respond --args '{"query":"hello"}'
   $ refarm task run runtime-agent respond --transport http
   $ refarm task run my-plugin process --direction "Review local change"
