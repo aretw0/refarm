@@ -104,6 +104,9 @@ Task Rules:
 - Terminal or failed old efforts must not produce misleading resume handoffs.
 - `task status --json` should distinguish active, done, failed, and unknown
   states with log and resume handoffs.
+- `task status --watch --json` watch polling is bounded by
+  `REFARM_TASK_STATUS_WATCH_LIMIT` (default `120`). Set to `0` to avoid
+  additional polling and return immediately after the initial status read.
 - `task logs --json` should be inspectable after terminal states.
 - Operator-facing agent dispatch uses:
 
