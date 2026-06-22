@@ -2,6 +2,7 @@ import type { OperatorResumeSessionRecord } from "@refarm.dev/cli/operator-resum
 import { refarmCommand } from "./command-handoff.js";
 import { formatSessionId } from "./session-ids.js";
 import { sessionParticipantFields } from "./session-participants.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface RuntimeSessionNode {
@@ -20,30 +21,18 @@ export async function loadRecentRuntimeSessions(options: {
 	timeoutMs?: number;
 } = {}): Promise<OperatorResumeSessionRecord[]> {
 	const limit = options.limit ?? 5;
-	const timeoutMs =
-		options.timeoutMs ?? resolveRecentSessionTimeoutMs(process.env);
-	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
-		const controller = new AbortController();
-		timer = setTimeout(() => controller.abort(), timeoutMs);
-		const response = await fetch(sidecarUrl("/sessions"), {
-			signal: controller.signal,
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"), {}, {
+			timeoutEnvVar: REFARM_RECENT_SESSION_TIMEOUT_MS,
+			defaultTimeoutMs: RECENT_SESSION_TIMEOUT_MS,
+			timeoutMs: options.timeoutMs,
 		});
 		if (!response.ok) return [];
 		const body = (await response.json()) as { sessions?: RuntimeSessionNode[] };
 		return normalizeRuntimeSessions(body.sessions ?? []).slice(0, limit);
 	} catch {
 		return [];
-	} finally {
-		if (timer) clearTimeout(timer);
 	}
-}
-
-function resolveRecentSessionTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
-	const raw = env[REFARM_RECENT_SESSION_TIMEOUT_MS];
-	const parsed = Number.parseInt(raw ?? "", 10);
-	if (Number.isNaN(parsed) || parsed < 0) return RECENT_SESSION_TIMEOUT_MS;
-	return parsed;
 }
 
 function normalizeRuntimeSessions(

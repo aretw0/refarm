@@ -1,4 +1,5 @@
 import { sidecarUrl } from "./sidecar-url.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 
 export interface RuntimeReadinessProbe {
 	url: string;
@@ -44,14 +45,9 @@ function readinessError(error: unknown): { error: string; timedOut?: boolean } {
 export async function probeRuntimeReadiness(
 	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
 ): Promise<RuntimeReadinessProbe> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
 	const url = sidecarUrl("/efforts/summary");
 	try {
-		const controller = new AbortController();
-		timer = setTimeout(() => controller.abort(), probeTimeoutMs);
-		const response = await fetch(url, {
-			signal: controller.signal,
-		});
+		const response = await fetchSidecarWithTimeout(url, {}, { timeoutMs: probeTimeoutMs });
 		return {
 			url,
 			ready: response.ok,
@@ -63,8 +59,6 @@ export async function probeRuntimeReadiness(
 			ready: false,
 			...readinessError(error),
 		};
-	} finally {
-		if (timer) clearTimeout(timer);
 	}
 }
 
