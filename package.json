@@ -118,6 +118,8 @@
 		"refarm:safety:test:tree": "pnpm run refarm:safety:micro-safe && pnpm -C apps/refarm run test:tree-safety",
 		"refarm:safety:test:actions": "pnpm run refarm:safety:micro-safe && pnpm -C apps/refarm run test:actions-safety",
 		"session:heavy": "node scripts/session-heavy.mjs",
+		"session:heavy:refarm": "node scripts/session-heavy.mjs --session-source refarm",
+		"session:heavy:pi": "node scripts/session-heavy.mjs --session-source pi",
 		"session:heavy:repeat": "node scripts/session-heavy.mjs --recent 6 --count 40 --filter \"pnpm\" --repeat-signal --repeat-max-count 4",
 		"session:heavy:repeat:chat-session": "node scripts/session-heavy.mjs --recent 10 --count 80 --filter \"chat-repl-session.test.ts\" --repeat-signal --repeat-max-count 3",
 		"session:heavy:ci-watch": "node scripts/session-heavy.mjs --recent 2 --count 20 --filter \"gh \" --ci-loop-signal --ci-loop-max-count 6 --ci-loop-max-ms 360000",

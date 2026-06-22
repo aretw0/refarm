@@ -107,6 +107,8 @@ protective without stopping momentum:
   - `pnpm run session:heavy -- --count 40` (trace the most recent agent session before changing scope)
   - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
   - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
+  - `pnpm run session:heavy:refarm` (default, refarm-owned source: ~/.refarm/agent-sessions)
+  - `pnpm run session:heavy:pi` (legacy .pi sessions: ~/.pi/agent/sessions)
 - quick safe slices for adjacent areas:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
