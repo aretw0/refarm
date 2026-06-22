@@ -34,6 +34,7 @@ function parseArgs(argv) {
 		recent: 1,
 		count: 20,
 		json: false,
+		printSessionSources: false,
 		sessionFilePrefix: null,
 		agentRoles: [],
 		agentProviders: [],
@@ -143,6 +144,10 @@ function parseArgs(argv) {
 			case "--json":
 				args.json = true;
 				break;
+			case "--print-session-sources":
+			case "--session-sources":
+				args.printSessionSources = true;
+				break;
 			default:
 				break;
 		}
@@ -165,6 +170,7 @@ function usage() {
 		"  --session-source: source strategy for workspace-tagged lookup (refarm|pi|auto) (default: refarm)",
 	);
 	console.log("  --session-source pi: legacy .pi namespace, for migration/forensics only");
+	console.log("  --session-sources/--print-session-sources: list candidate session roots and exit");
 	console.log("  --allow-legacy-pi-roots: include legacy ~/.pi roots in source resolution");
 	console.log("  --no-allow-legacy-pi-roots: exclude legacy ~/.pi roots");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
@@ -261,6 +267,43 @@ function resolveSessionDir(workspaceDir, sessionDirOverride, sessionRootOverride
 		),
 		searchedRoots: roots,
 	};
+}
+
+function printSessionSources() {
+	const roots = resolveSessionRootCandidates(args.sessionRoot, args.sessionSource, args.allowLegacyPiRoots);
+	const workspaceDir = path.resolve(args.workspaceDir);
+	const tag = `--${workspaceDir.replace(/^\/+/, "").replace(/\//g, "-")}--`;
+
+	if (args.json) {
+		console.log(
+			JSON.stringify(
+				{
+					workspaceDir,
+					tag,
+					sessionSource: args.sessionSource,
+					allowLegacyPiRoots: args.allowLegacyPiRoots,
+					roots,
+					agentSources: [
+						...(roots.map((value) => ({
+							root: value,
+							mode: "candidate",
+						}))),
+					],
+				},
+				null,
+				2,
+			),
+		);
+		return;
+	}
+
+	console.log(`Session source lookup for workspace: ${workspaceDir}`);
+	console.log(`Tag: ${tag}`);
+	console.log(`sessionSource=${args.sessionSource}, allowLegacyPiRoots=${args.allowLegacyPiRoots}`);
+	console.log('Candidate session roots:');
+	for (const root of roots) console.log(`- ${root}`);
+	console.log('Resolved tag directories:');
+	for (const root of roots) console.log(`- ${path.join(root, tag)}`);
 }
 
 function listSessionFiles(dir, sessionFilePrefix) {
@@ -557,6 +600,11 @@ function matchesAgentFilters(call, args) {
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {
 	usage();
+	process.exit(0);
+}
+
+if (args.printSessionSources) {
+	printSessionSources();
 	process.exit(0);
 }
 
