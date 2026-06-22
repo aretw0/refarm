@@ -115,6 +115,7 @@ describe("runtime plugin client", () => {
 		).resolves.toEqual({
 			reloaded: ["@refarm/pi-agent"],
 			skipped: [],
+			timedOut: false,
 		});
 		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
 		expect(fetchSpy).toHaveBeenNthCalledWith(
@@ -147,6 +148,7 @@ describe("runtime plugin client", () => {
 		).resolves.toEqual({
 			reloaded: [],
 			skipped: ["@refarm/pi-agent"],
+			timedOut: true,
 		});
 		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
 		expect(fetchSpy).toHaveBeenCalledTimes(1);

@@ -736,6 +736,9 @@ async function reloadRuntimePluginCommand(
 	if (options.json) {
 		if (result.skipped.length > 0) {
 			const restartCommand = pluginReloadRestartCommand(pluginIds, true);
+			const timedOutMessage = result.timedOut
+				? "timed out before completing (consider retry or increase timeout)"
+				: "require runtime restart to reload";
 			if (options.restartIfNeeded) {
 				const restart = await restartRuntimeForPluginReload(options.wait === true);
 				if (!restart.ok) {
@@ -744,7 +747,7 @@ async function reloadRuntimePluginCommand(
 							command: "plugin",
 							operation: "reload",
 							error: "runtime-plugin-restart-failed",
-							message: "Runtime restart failed after one or more plugins required restart to reload.",
+							message: `Runtime restart failed after one or more plugins ${result.timedOut ? "timed out" : "required restart"} before reload completion.`,
 							nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
 							nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
 							nextCommands: [
@@ -758,6 +761,7 @@ async function reloadRuntimePluginCommand(
 								skipped: result.skipped,
 								restarted: false,
 								restart,
+								timedOut: result.timedOut,
 							},
 						}),
 					);
@@ -774,6 +778,7 @@ async function reloadRuntimePluginCommand(
 							requested: pluginIds,
 							reloaded: result.reloaded,
 							skipped: result.skipped,
+							timedOut: result.timedOut,
 							restarted: true,
 							restart,
 						},
@@ -786,7 +791,7 @@ async function reloadRuntimePluginCommand(
 					command: "plugin",
 					operation: "reload",
 					error: "runtime-plugin-reload-partial",
-					message: "One or more runtime plugins require a runtime restart to reload.",
+					message: `One or more runtime plugins ${timedOutMessage}.`,
 					nextAction: restartCommand,
 					nextCommand: restartCommand,
 					nextCommands: [
@@ -798,6 +803,7 @@ async function reloadRuntimePluginCommand(
 						requested: pluginIds,
 						reloaded: result.reloaded,
 						skipped: result.skipped,
+						timedOut: result.timedOut,
 					},
 				}),
 			);
@@ -814,6 +820,7 @@ async function reloadRuntimePluginCommand(
 					requested: pluginIds,
 					reloaded: result.reloaded,
 					skipped: result.skipped,
+					timedOut: result.timedOut,
 				},
 			}),
 		);
@@ -824,7 +831,10 @@ async function reloadRuntimePluginCommand(
 		console.log(`  ✓ ${pluginId} reloaded`);
 	}
 	for (const pluginId of result.skipped) {
-		console.error(`  ✗ ${pluginId} requires runtime restart to reload`);
+		const status = result.timedOut
+			? "timed out before reload completion"
+			: "requires runtime restart to reload";
+		console.error(`  ✗ ${pluginId} ${status}`);
 	}
 	if (result.skipped.length > 0) {
 		if (options.restartIfNeeded) {
@@ -961,6 +971,7 @@ pluginCommand
 			"Notes:",
 			"  This is the non-interactive equivalent of /reload in refarm chat.",
 			"  Hot reload is attempted first; runtime restart only happens with --restart-if-needed.",
+			"  Polling timeout is controlled by REFARM_PLUGIN_RELOAD_MAX_WAIT_MS (default 120000ms).",
 			`  Use ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if the runtime is not running.`,
 		].join("\n"),
 	)
