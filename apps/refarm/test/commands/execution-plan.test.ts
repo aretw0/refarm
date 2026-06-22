@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	createExecutionPlanHandoff,
 	formatExecutionPlanReadinessLine,
-} from "../../src/commands/execution-plan.js";
+} from "@refarm.dev/cli/execution-plan";
 
 describe("execution plan readiness", () => {
 	it("formats blocked plans with their deterministic reason", () => {
