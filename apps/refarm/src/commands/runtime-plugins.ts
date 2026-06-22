@@ -1,4 +1,5 @@
 import { normalizePluginId } from "@refarm.dev/config";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface RuntimePluginState {
@@ -49,7 +50,7 @@ function reloadBody(pluginIds?: string[]): string | undefined {
 
 export async function readRuntimePluginState(): Promise<RuntimePluginState | null> {
 	try {
-		const response = await fetch(sidecarUrl("/plugins"));
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/plugins"));
 		if (!response.ok) return null;
 		const payload = (await response.json()) as Partial<RuntimePluginState>;
 		const raw = payload as Record<string, unknown>;
@@ -72,7 +73,7 @@ export async function reloadRuntimePlugins(
 	pluginIds?: string[],
 ): Promise<RuntimePluginReloadResult | null> {
 	try {
-		const response = await fetch(sidecarUrl("/plugins/reload"), {
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/plugins/reload"), {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: reloadBody(pluginIds),
@@ -131,7 +132,7 @@ export async function reloadRuntimePluginsAndWait(
 
 		await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
 
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			sidecarUrl(`/plugins/reload/status/${initial.reloadId}`),
 		);
 		if (!response.ok) {

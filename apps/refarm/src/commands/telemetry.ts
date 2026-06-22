@@ -20,6 +20,7 @@ import {
 	printSidecarUnavailable,
 	reportSidecarError,
 } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -140,7 +141,7 @@ function parseThresholdProfile(value: string): ThresholdProfileName {
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
-	const response = await fetch(sidecarUrl("/telemetry"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/telemetry"));
 	if (!response.ok) {
 		if (response.status === 404) {
 			throw new Error("telemetry endpoint not available");
@@ -153,7 +154,7 @@ async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
 async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
 ): Promise<RuntimeTelemetryWindow | null> {
-	const response = await fetch(
+	const response = await fetchSidecarWithTimeout(
 		sidecarUrl(`/telemetry/window?minutes=${minutes}`),
 	);
 	if (!response.ok) {
