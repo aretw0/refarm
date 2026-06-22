@@ -46,6 +46,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "./json-output.js";
+import { fetchWithTimeout } from "./fetch-with-timeout.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
@@ -454,16 +455,13 @@ async function probeOllamaProvider(
 	deps: Pick<ModelCommandDeps, "fetch">,
 ): Promise<ModelDoctorStatus["providerProbe"]> {
 	const fetchImpl = deps.fetch ?? globalThis.fetch;
-	const controller = new AbortController();
-	const timeout = setTimeout(
-		() => controller.abort(),
-		MODEL_PROVIDER_PROBE_TIMEOUT_MS,
-	);
 	const url = `${trimTrailingSlash(baseUrl)}/api/tags`;
 	try {
-		const response = await fetchImpl(url, {
+		const response = await fetchWithTimeout(url, {
 			method: "GET",
-			signal: controller.signal,
+		}, {
+			timeoutMs: MODEL_PROVIDER_PROBE_TIMEOUT_MS,
+			fetch: fetchImpl,
 		});
 		return {
 			provider: "ollama",
@@ -490,8 +488,6 @@ async function probeOllamaProvider(
 			error: causeCode ? `${message}: ${causeCode}` : message,
 			timedOut: name === "AbortError",
 		};
-	} finally {
-		clearTimeout(timeout);
 	}
 }
 
