@@ -1,3 +1,4 @@
+import { refarmCommand } from "./command-handoff.js";
 import { defaultRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
@@ -7,10 +8,7 @@ import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import {
-	quoteCommandArg,
-	refarmCommand,
-	workspaceCommand,
-} from "./command-handoff.js";
+	quoteCommandArg, workspaceCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,

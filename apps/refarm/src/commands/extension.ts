@@ -1,9 +1,10 @@
+import { refarmCommand } from "./command-handoff.js";
 import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,

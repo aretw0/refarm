@@ -1,11 +1,7 @@
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
-	buildDiagnosticNextActionPayload,
-	diagnosticNextActions,
-	diagnosticNextCommands,
-	type DiagnosticRecommendation,
-} from "./diagnostic-recommendations.js";
+	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation, } from "./diagnostic-recommendations.js";
 import { refarmCommand } from "./command-handoff.js";
 import { printJson } from "@refarm.dev/cli/json-output";
 import {

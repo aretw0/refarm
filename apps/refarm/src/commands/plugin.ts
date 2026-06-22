@@ -1,16 +1,8 @@
-import {
-	resolvePluginPackage,
-	type PluginPackageSource,
-} from "@refarm.dev/barn";
+import { refarmCommand, refarmProcess } from "./command-handoff.js";
+import { resolvePluginPackage, type PluginPackageSource, } from "@refarm.dev/barn";
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
-	isRuntimeAgentPluginId,
-	normalizePluginId,
-	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
-	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
-	RUNTIME_AGENT_PLUGIN_ID,
-	RUNTIME_AGENT_NPM_PACKAGE,
-} from "@refarm.dev/config/plugin-identity";
+	isRuntimeAgentPluginId, normalizePluginId, RUNTIME_AGENT_PLUGIN_DESCRIPTOR, REFARM_BUNDLED_PLUGIN_DESCRIPTORS, RUNTIME_AGENT_PLUGIN_ID, RUNTIME_AGENT_NPM_PACKAGE, } from "@refarm.dev/config/plugin-identity";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
@@ -18,11 +10,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path, { basename, extname } from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
-	quoteCommandArg,
-	refarmCommand,
-	refarmProcess,
-	shellCommand,
-} from "./command-handoff.js";
+	quoteCommandArg, shellCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,

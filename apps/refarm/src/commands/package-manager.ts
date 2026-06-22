@@ -1,21 +1,8 @@
 import type { LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
-import {
-	PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
-	PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS,
-	packageBinaryCommand as createSharedPackageBinaryCommand,
-	createPackageScriptCommand as createSharedPackageScriptCommand,
-	detectPackageManager as detectSharedPackageManager,
-	packageManagerOverrideDiagnostic,
-	type PackageManagerName,
-	type PackageScriptCommandOptions,
-} from "@refarm.dev/config";
+import { refarmCommand, refarmProcess, type ApplicationProcessSpec } from "./command-handoff.js";
+import { PACKAGE_MANAGER_OVERRIDE_ENV_VAR, PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS, packageBinaryCommand as createSharedPackageBinaryCommand, createPackageScriptCommand as createSharedPackageScriptCommand, detectPackageManager as detectSharedPackageManager, packageManagerOverrideDiagnostic, type PackageManagerName, type PackageScriptCommandOptions, } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
-import {
-	refarmCommand,
-	refarmProcess,
-	type ApplicationProcessSpec,
-} from "./command-handoff.js";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildWorkspaceExecutionStatus,

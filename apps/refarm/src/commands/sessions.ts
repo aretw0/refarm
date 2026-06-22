@@ -1,8 +1,9 @@
+import { refarmCommand } from "./command-handoff.js";
 import { canonicalRuntimeAgentContent } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
