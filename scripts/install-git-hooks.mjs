@@ -350,23 +350,71 @@ else
 
   if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
     echo "   🔎 Turbo scoped lint for changed workspaces"
-    if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-      echo "   ✅ Turbo lint passed"
-      mark_lane_validated "lint"
-    else
-      LINT_STATUS=$?
-      if [ "$LINT_STATUS" -eq 124 ]; then
-        echo "   ⏱️  Turbo lint timed out after 360s (non-blocking local warning; CI enforces full lint)"
-        WARNINGS=1
-      elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-        echo "   ❌ Turbo lint failed (blocking in strict mode)"
-        tail -n 60 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
-        tail -n 60 /tmp/prepush-lint.out 2>/dev/null | filter_vite_warning || true
-        LINT_FAILED=1
+
+    PREPUSH_LINT_FILTERS=""
+    STANDARD_LINT_FILTERS=""
+    for ws in $CHANGED_WORKSPACES; do
+      [ -z "$ws" ] && continue
+      ws_lint_script="$(pick_lint_script "$ws" || true)"
+      [ -z "$ws_lint_script" ] && continue
+
+      case "$ws_lint_script" in
+        lint:prepush)
+          PREPUSH_LINT_FILTERS="$PREPUSH_LINT_FILTERS --filter=./$ws"
+          ;;
+        *)
+          STANDARD_LINT_FILTERS="$STANDARD_LINT_FILTERS --filter=./$ws"
+          ;;
+      esac
+    done
+
+    if [ -n "$PREPUSH_LINT_FILTERS" ]; then
+      if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint:prepush $PREPUSH_LINT_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+        echo "   ✅ Turbo lint:prepush passed"
       else
-        echo "   ⚠️  Turbo lint failed (warning in permissive mode)"
-        WARNINGS=1
+        LINT_STATUS=$?
+        if [ "$LINT_STATUS" -eq 124 ]; then
+          echo "   ⏱️  Turbo lint:prepush timed out after 360s (non-blocking local warning; CI enforces full lint)"
+          WARNINGS=1
+        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+          echo "   ❌ Turbo lint:prepush failed (blocking in strict mode)"
+          tail -n 60 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-lint.out 2>/dev/null | filter_vite_warning || true
+          LINT_FAILED=1
+        else
+          echo "   ⚠️  Turbo lint:prepush failed (warning in permissive mode)"
+          WARNINGS=1
+        fi
       fi
+    fi
+
+    if [ -n "$STANDARD_LINT_FILTERS" ] && [ $LINT_FAILED -eq 0 ]; then
+      if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint $STANDARD_LINT_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+        echo "   ✅ Turbo lint passed"
+      else
+        LINT_STATUS=$?
+        if [ "$LINT_STATUS" -eq 124 ]; then
+          echo "   ⏱️  Turbo lint timed out after 360s (non-blocking local warning; CI enforces full lint)"
+          WARNINGS=1
+        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+          echo "   ❌ Turbo lint failed (blocking in strict mode)"
+          tail -n 60 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-lint.out 2>/dev/null | filter_vite_warning || true
+          LINT_FAILED=1
+        else
+          echo "   ⚠️  Turbo lint failed (warning in permissive mode)"
+          WARNINGS=1
+        fi
+      fi
+    fi
+
+    if [ $LINT_FAILED -eq 0 ] && [ -n "$PREPUSH_LINT_FILTERS$STANDARD_LINT_FILTERS" ]; then
+      mark_lane_validated "lint"
+    fi
+
+    if [ $LINT_FAILED -eq 0 ] && [ -z "$PREPUSH_LINT_FILTERS" ] && [ -z "$STANDARD_LINT_FILTERS" ]; then
+      echo "   ⚠️  Lint skipped (no lint-capable changed workspaces detected)"
+      WARNINGS=1
     fi
   else
     if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
@@ -501,18 +549,82 @@ else
 
   if [ -n "$CHANGED_WORKSPACES" ]; then
     echo "   🔎 Turbo scoped tests for changed workspaces"
-    if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=4 $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-      echo "   ✅ Turbo tests passed"
-      mark_lane_validated "test"
-    else
-      UNIT_STATUS=$?
-      if [ "$UNIT_STATUS" -eq 124 ]; then
-        echo "   ⚠️  Turbo tests timed out after 300s (non-blocking local warning)"
+    PREPUSH_TEST_FILTERS=""
+    UNIT_TEST_FILTERS=""
+    TEST_FILTERS=""
+
+    for ws in $CHANGED_WORKSPACES; do
+      [ -z "$ws" ] && continue
+      ws_test_script="$(pick_test_script "$ws" || true)"
+      [ -z "$ws_test_script" ] && continue
+
+      case "$ws_test_script" in
+        test:prepush)
+          PREPUSH_TEST_FILTERS="$PREPUSH_TEST_FILTERS --filter=./$ws"
+          ;;
+        test:unit)
+          UNIT_TEST_FILTERS="$UNIT_TEST_FILTERS --filter=./$ws"
+          ;;
+        *)
+          TEST_FILTERS="$TEST_FILTERS --filter=./$ws"
+          ;;
+      esac
+    done
+
+    if [ -n "$PREPUSH_TEST_FILTERS" ]; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:prepush --concurrency=4 $PREPUSH_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+        echo "   ✅ Turbo test:prepush passed"
       else
-        echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
-        tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
-        tail -n 60 /tmp/prepush-unit.out 2>/dev/null | filter_vite_warning || true
+        UNIT_STATUS=$?
+        if [ "$UNIT_STATUS" -eq 124 ]; then
+          echo "   ⚠️  Turbo test:prepush timed out after 300s (non-blocking local warning)"
+        else
+          echo "   ⚠️  Turbo test:prepush failed (non-blocking local warning)"
+          tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-unit.out 2>/dev/null | filter_vite_warning || true
+        fi
+        UNIT_WARN=1
       fi
+    fi
+
+    if [ -n "$UNIT_TEST_FILTERS" ] && [ $UNIT_WARN -eq 0 ]; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:unit --concurrency=4 $UNIT_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+        echo "   ✅ Turbo test:unit passed"
+      else
+        UNIT_STATUS=$?
+        if [ "$UNIT_STATUS" -eq 124 ]; then
+          echo "   ⚠️  Turbo test:unit timed out after 300s (non-blocking local warning)"
+        else
+          echo "   ⚠️  Turbo test:unit failed (non-blocking local warning)"
+          tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-unit.out 2>/dev/null | filter_vite_warning || true
+        fi
+        UNIT_WARN=1
+      fi
+    fi
+
+    if [ -n "$TEST_FILTERS" ] && [ $UNIT_WARN -eq 0 ]; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=4 $TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+        echo "   ✅ Turbo tests passed"
+      else
+        UNIT_STATUS=$?
+        if [ "$UNIT_STATUS" -eq 124 ]; then
+          echo "   ⚠️  Turbo tests timed out after 300s (non-blocking local warning)"
+        else
+          echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
+          tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-unit.out 2>/dev/null | filter_vite_warning || true
+        fi
+        UNIT_WARN=1
+      fi
+    fi
+
+    if [ $UNIT_WARN -eq 0 ] && [ -n "$PREPUSH_TEST_FILTERS$UNIT_TEST_FILTERS$TEST_FILTERS" ]; then
+      mark_lane_validated "test"
+    fi
+
+    if [ $UNIT_WARN -eq 0 ] && [ -z "$PREPUSH_TEST_FILTERS" ] && [ -z "$UNIT_TEST_FILTERS" ] && [ -z "$TEST_FILTERS" ]; then
+      echo "   ⚠️  Unit tests skipped (no test-capable changed workspaces detected)"
       UNIT_WARN=1
     fi
   else
