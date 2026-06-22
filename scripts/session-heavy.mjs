@@ -164,6 +164,14 @@ function parseArgs(argv) {
 const envCiLoopMaxMs = Number.parseInt(process.env.CI_LOOP_MAX_MS, 10);
 const envCiLoopMaxCount = Number.parseInt(process.env.CI_LOOP_MAX_COUNT, 10);
 
+function isSessionFile(filename) {
+	return (
+		filename.endsWith('.jsonl') ||
+		filename.endsWith('.v1.json') ||
+		filename.endsWith('.session.json')
+	);
+}
+
 function usage() {
 	console.log(
 		["Usage:", "  node scripts/session-heavy.mjs [--workspace-dir <dir>] [--recent <n>] [--count <n>]"].join("\n"),
@@ -262,6 +270,19 @@ function resolveSessionDir(workspaceDir, sessionDirOverride, sessionRootOverride
 			};
 		}
 	}
+
+	for (const root of roots) {
+		if (!fs.existsSync(root)) continue;
+		if (listSessionFiles(root, args.sessionFilePrefix).length > 0) {
+			return {
+				mode: "root",
+				tag,
+				path: root,
+				searchedRoots: roots,
+			};
+		}
+	}
+
 	return {
 		mode: "tagged",
 		tag,
@@ -325,7 +346,7 @@ function listSessionFiles(dir, sessionFilePrefix) {
 	if (!fs.existsSync(dir)) return [];
 	return fs
 		.readdirSync(dir)
-		.filter((name) => name.endsWith('.jsonl'))
+		.filter(isSessionFile)
 		.filter((name) => {
 			if (!sessionFilePrefix) return true;
 			return name.includes(sessionFilePrefix);
@@ -338,7 +359,38 @@ function listSessionFiles(dir, sessionFilePrefix) {
 		.sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
+function parseSessionV1(filePath) {
+	let payload;
+	try {
+		payload = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+	} catch {
+		return [];
+	}
+
+	const result = [];
+	const latest = payload?.latest;
+	const command = typeof latest?.command === 'string' ? latest.command.trim() : '';
+	if (command) {
+		result.push({
+			command,
+			durationMs: 0,
+			timestamp: latest.updatedAt || latest.createdAt || null,
+			role: payload.participant || null,
+			provider: null,
+			model: null,
+			source: 'session-v1',
+		});
+	}
+
+	return result;
+}
+
 function parseSession(filePath) {
+	const filename = filePath.toLowerCase();
+	if (filename.endsWith('.v1.json') || filename.endsWith('.session.json')) {
+		return parseSessionV1(filePath);
+	}
+
 	const calls = new Map();
 	const rows = fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean);
 
