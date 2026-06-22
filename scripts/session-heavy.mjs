@@ -31,6 +31,7 @@ function parseArgs(argv) {
 		allowLegacyPiRoots:
 			parseBoolean(process.env.REFARM_ALLOW_LEGACY_PI_ROOTS) ||
 			parseBoolean(process.env.REFARM_SESSION_ALLOW_LEGACY),
+		suppressSourceWarnings: parseBoolean(process.env.REFARM_SUPPRESS_LEGACY_SOURCE_WARNING),
 		recent: 1,
 		count: 20,
 		json: false,
@@ -194,6 +195,7 @@ function usage() {
 	console.log("  CI_LOOP_MAX_MS / CI_LOOP_MAX_COUNT env vars: override default signal limits");
 	console.log("  REFARM_SESSION_ROOT env var: override derived session root when --session-root is not passed");
 	console.log("  REFARM_SESSION_SOURCE env var: refarm|pi|auto");
+	console.log("  REFARM_SUPPRESS_LEGACY_SOURCE_WARNING env var: set to 1 to suppress legacy source warning");
 	console.log("  REFARM_ALLOW_LEGACY_PI_ROOTS env var: set to 1 to include legacy ~/.pi roots when using source=auto");
 }
 
