@@ -14,7 +14,7 @@ export const PLUGIN_STATUS_JSON_COMMAND = refarmCommand([
 export const RUNTIME_AGENT_RELOAD_JSON_COMMAND = refarmCommand([
 	"plugin",
 	"reload",
-	"runtime-agent",
+	"agent",
 	"--json",
 ]);
 export const PI_AGENT_RELOAD_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
