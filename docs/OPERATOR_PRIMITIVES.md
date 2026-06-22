@@ -79,7 +79,16 @@ Purpose: preserve the operator timeline and make agent output inspectable.
 Session Rules:
 
 - `sessions show <id> --json` is terminal when the session is already active.
-- `sessions list --json` should not suggest stale active-session recovery.
+- `sessions list --json` must emit explicit stale-pointer recovery guidance when
+  the active pointer references a non-existent session.
+- `sessions show --json` must include the same stale-pointer recovery guidance when
+  continuing from a stale active pointer.
+- Human-facing `sessions show` should also surface stale-pointer recovery hints when
+  continuing from a stale active session so operators get the same guidance without
+  JSON mode.
+- Session recovery and lookup are source-scoped by design: default operator flows are
+  `refarm` session roots only; legacy `~/.pi` sources must be explicitly selected
+  only for migration or forensics.
 - New runtime-agent sessions should identify the participant as
   `urn:refarm:agent:runtime-agent`.
 - Historical `urn:refarm:agent:pi-agent` participants and `[pi-agent ...]`
