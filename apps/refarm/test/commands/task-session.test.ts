@@ -47,6 +47,15 @@ describe("task session commands", () => {
 				watch: true,
 			}),
 		).toBe("refarm task status effort-1 --transport http --watch --json");
+		expect(
+			buildTaskStatusCommand("effort-1", "http", {
+				json: true,
+				watch: true,
+				watchLimit: 30,
+			}),
+		).toBe(
+			"refarm task status effort-1 --transport http --watch --watch-limit 30 --json",
+		);
 		expect(buildTaskLogsCommand("effort-1", "http")).toBe(
 			"refarm task logs effort-1 --transport http",
 		);

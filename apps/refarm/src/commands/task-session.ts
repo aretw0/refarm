@@ -79,7 +79,11 @@ function nowIso(): string {
 export function buildTaskStatusCommand(
 	effortId: string,
 	transport: string,
-	options: { json?: boolean; watch?: boolean } = {},
+	options: {
+		json?: boolean;
+		watch?: boolean;
+		watchLimit?: number;
+	} = {},
 ): string {
 	return refarmCommand([
 		"task",
@@ -88,6 +92,9 @@ export function buildTaskStatusCommand(
 		"--transport",
 		quoteCommandArgIfNeeded(transport),
 		...(options.watch ? ["--watch"] : []),
+		...(typeof options.watchLimit === "number"
+			? ["--watch-limit", String(options.watchLimit)]
+			: []),
 		...(options.json ? ["--json"] : []),
 	]);
 }
