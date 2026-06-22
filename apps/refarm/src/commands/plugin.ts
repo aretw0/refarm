@@ -856,7 +856,6 @@ export const pluginCommand = new Command("plugin").description(
 		"  $ refarm plugin status",
 		"  $ refarm plugin status --json",
 		"  $ refarm plugin reload agent --json",
-		"  $ refarm plugin reload runtime-agent --json  (legacy alias)",
 		"  $ refarm plugin install",
 		"  $ refarm plugin list",
 		"  $ refarm plugin list --json",
@@ -870,7 +869,6 @@ export const pluginCommand = new Command("plugin").description(
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 	"  refarm ask preflights the runtime agent plugin and asks the runtime to reload it when installed but not loaded.",
 	"  In refarm chat, /reload agent is the interactive equivalent.",
-	"  (legacy alias: /reload runtime-agent)",
 	].join("\n"),
 );
 
@@ -889,9 +887,7 @@ pluginCommand
 			"Notes:",
 			`  If the bundled runtime agent WASM is missing, build ${PI_AGENT_NPM_PACKAGE} first with the command printed by the error.`,
 			"  After install, start or restart the runtime, then run refarm plugin reload agent --json.",
-			"  (legacy: refarm plugin reload runtime-agent --json)",
 			"  In refarm chat, /reload agent is the interactive equivalent.",
-			"  (legacy alias: /reload runtime-agent)",
 			"  Run refarm plugin status to confirm runtime load state.",
 		].join("\n"),
 	)
@@ -934,7 +930,6 @@ pluginCommand
 			"  $ refarm plugin status",
 			"  $ refarm plugin status --json",
 			"  $ refarm plugin reload agent --json",
-			"  $ refarm plugin reload runtime-agent --json  (legacy alias)",
 			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
 			"",
@@ -945,7 +940,6 @@ pluginCommand
 			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 			"  In refarm chat, /reload agent is the interactive equivalent.",
-			"  (legacy alias: /reload runtime-agent)",
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable runtime plugin state")
@@ -961,9 +955,7 @@ pluginCommand
 			"Examples:",
 			"  $ refarm plugin reload",
 			"  $ refarm plugin reload agent",
-			"  $ refarm plugin reload runtime-agent  (legacy alias)",
 			"  $ refarm plugin reload agent --json",
-			"  $ refarm plugin reload runtime-agent --json  (legacy alias)",
 			`  $ ${PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND}`,
 			"",
 			"Notes:",

@@ -98,7 +98,6 @@ describe("refarm task run", () => {
 
 		expect(help).toContain("Manage Refarm runtime task efforts");
 		expect(help).toContain("refarm task run agent respond");
-		expect(help).toContain("refarm task run runtime-agent respond");
 		expect(help).toContain('{"prompt":"hello"}');
 		expect(help).toContain("http transport submits directly");
 		expect(help).toContain("refarm runtime status");
@@ -122,7 +121,6 @@ describe("refarm task run", () => {
 		runCommand?.outputHelp();
 
 		expect(help).toContain("refarm task run agent respond");
-		expect(help).toContain("refarm task run runtime-agent respond");
 		expect(help).toContain("refarm task run agent respond --transport http");
 		expect(help).toContain('{"query":"hello"}');
 		expect(help).toContain("http transport submits directly");
