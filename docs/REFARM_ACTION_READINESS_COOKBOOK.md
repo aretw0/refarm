@@ -108,9 +108,8 @@ commands an operator agent can execute directly:
 
 When adding or changing JSON output in `apps/refarm`, prefer the shared helpers
 in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
-`apps/refarm/src/commands/command-handoff.ts`. Tests should assert both the
-human-facing intent and the executable command when a flow is meant to be
-agent-driven.
+`@refarm.dev/cli/command-handoff`. Tests should assert both the human-facing
+intent and the executable command when a flow is meant to be agent-driven.
 
 Run the contract test when touching public JSON handoffs:
 
@@ -128,9 +127,11 @@ plugin, provision, renderer, package manager, tree, check, doctor, guide,
 headless, health, init, resume, runtime, sessions, sow, task, telemetry, and
 tidy commands.
 
-Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
-filtering, and deduplication for handoff lists. JSON emitters and command-result
-readers should reuse that helper instead of open-coding their own list cleanup.
+Keep normalization centralized. `@refarm.dev/cli/command-handoff` owns trimming,
+empty-value filtering, and deduplication for handoff lists. JSON emitters and
+command-result readers should reuse that helper instead of open-coding their own
+list cleanup. `apps/refarm/src/commands/command-handoff.ts` remains only as a
+deprecated compatibility shim.
 
 Command runners that consume Refarm JSON should parse through
 `apps/refarm/src/commands/command-result.ts`. The parser accepts pure JSON first
