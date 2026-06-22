@@ -135,9 +135,10 @@ The command is generic enough for cross-workspace inspection with:
 ```bash
 node scripts/pi-session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
 node scripts/pi-session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/pi-session-heavy.mjs --session-root /path/to/agent/sessions/root --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
 ```
 
-To keep `.pi` history boundaries clear when different coding agents touch the same
+To keep session boundaries clear when different coding agents touch the same
 workspace tag, you can isolate by agent-level metadata (when present):
 
 ```bash
@@ -259,11 +260,17 @@ refarm sessions show <id-prefix>
 refarm sessions use <id-prefix>
 ```
 
-Default agent session logs are stored under `~/.pi/agent/sessions` with one subfolder
-per workspace. For this repo, the folder is typically:
+By default, workspace-tagged session lookup checks these roots in order:
+
+- `~/.refarm/agent-sessions`
+- `~/.refarm/sessions`
+- `~/.config/refarm/sessions`
+- `~/.pi/agent/sessions` (legacy compatibility)
+
+For this repo, a representative default path is:
 
 ```bash
-ls -la ~/.pi/agent/sessions/--workspaces-refarm--/
+ls -la ~/.refarm/agent-sessions/--workspaces-refarm--/
 ```
 
 If you ever move the workspace path, pass `--workspace-dir <path>` to
@@ -277,6 +284,14 @@ If your agent writes logs elsewhere, replace workspace lookup with direct direct
 
 ```bash
 node scripts/pi-session-heavy.mjs --session-dir /path/to/your/agent/sessions --help
+```
+
+If you want to keep lookup workspace-scoped but under a custom root (or a different
+agent platform), set `--session-root` or `REFARM_SESSION_ROOT`:
+
+```bash
+node scripts/pi-session-heavy.mjs --session-root /path/to/agent/session-root --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_ROOT=/path/to/agent/session-root pnpm run session:heavy
 ```
 
 If two agents write the same workspace tag frequently, you can additionally pin the
