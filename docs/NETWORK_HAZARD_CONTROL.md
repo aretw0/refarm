@@ -1,0 +1,53 @@
+# Network Hazard Control
+
+This note captures the operational policy for network calls in Refarm to avoid
+long-hanging requests, resource starvation, and accidental “zombie” runtime behavior.
+
+## Policy
+
+- Every production `fetch(...)` should use an explicit timeout (or go through a timeout wrapper).
+- Timeout should prefer `AbortSignal.timeout(...)` when available.
+- CI bootstrap/smoke scripts that poll local endpoints should also set short
+  per-poll timeouts and keep an outer deadline loop.
+- Internal control-plane calls should use `fetchSidecarWithTimeout(...)` in app
+  command paths.
+
+## Default timeouts in current code
+
+- CLI OAuth and token exchange: fixed 15s–30s.
+- Session/sidecar calls:
+  - Default sidecar request timeout: 500ms by default via `sidecar-fetch.ts`
+  - Environment override: `REFARM_SIDE_REQUEST_TIMEOUT_MS`
+- Runtime/plugin fetch gates:
+  - `@refarm.dev/tractor-ts` plugin loaders and WASI passthrough:
+    15s–30s in current handlers.
+- CI scripts:
+  - GitHub API calls in CI helpers/scripts use 10s–15s guards.
+  - Local sidecar readiness polls use short 2s per-poll windows with outer 20s+ budgets.
+
+## Operational commands (for on-demand verification)
+
+Use a local scanner when touching networked paths:
+
+```bash
+rg -n --glob '!**/*.md' --glob '!**/*.test.ts' \
+  --glob '!**/*.test.tsx' --glob '!**/*.spec.ts' --glob '!**/*.spec.tsx' \
+  --glob '!**/test/**' --glob '!**/tests/**' --glob '!**/fixtures/**' \
+  --glob '!**/*.d.ts' \
+  "fetch\\(" apps packages scripts
+```
+
+This helps spot `fetch` callsites before refactors.
+
+## Commit lineage
+
+- `a00e1f7f` — timeout guard in WASI HTTP outgoing handler
+- `340379e8` — remote loader timeout hardening
+- `195999b8` — runtime descriptor revocation fetch timeout
+- `3df9553f` — CI scripts timeout hardening
+
+## Why this exists
+
+This is intentionally a narrow production resilience layer: it reduces blast radius
+from slow network hangs while preserving behavior and compatibility of existing
+calling contracts.
