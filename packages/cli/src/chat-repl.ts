@@ -39,7 +39,9 @@ const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	new: { kind: "new" },
 	exit: { kind: "exit" },
 	quit: { kind: "exit" },
+	q: { kind: "exit" },
 	help: { kind: "help" },
+	h: { kind: "help" },
 	status: { kind: "status" },
 };
 
@@ -223,7 +225,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /status           Show runtime / model / readiness status
-  /exit  or  /quit  Exit refarm chat
+  /exit, /quit or /q Exit refarm chat
   /help             Show this message`;
 
 export const CHAT_HELP_TEXT = `Available commands:
