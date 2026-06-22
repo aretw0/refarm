@@ -282,11 +282,12 @@ By default, workspace-tagged session lookup uses the `refarm` source:
 - `~/.refarm/sessions`
 - `~/.config/refarm/sessions`
 
-To inspect legacy `pi` agent logs, use source selection:
+To inspect legacy `pi` agent logs (migration/forensics only), use explicit legacy source selection:
 
 ```bash
-node scripts/session-heavy.mjs --session-source pi --workspace-dir /path/to/workspace --recent 1 --count 20
-REFARM_SESSION_SOURCE=pi node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 1 --count 20
+pnpm run session:heavy:legacy-pi -- --workspace-dir /path/to/workspace --recent 1 --count 20
+pnpm run session:heavy:pi -- --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_SOURCE=pi pnpm run session:heavy:pi -- --workspace-dir /path/to/workspace --recent 1 --count 20
 ```
 
 To probe both sources explicitly (legacy fallback enabled), pass either:
