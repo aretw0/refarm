@@ -61,7 +61,7 @@ const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMA
 const PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND = refarmCommand([
 	"plugin",
 	"reload",
-	"runtime-agent",
+	"agent",
 	"--restart-if-needed",
 	"--wait",
 	"--json",
