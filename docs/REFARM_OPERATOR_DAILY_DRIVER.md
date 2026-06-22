@@ -104,8 +104,8 @@ protective without stopping momentum:
   - `pnpm run refarm:safety:test:chat-batch`
   - `pnpm -C apps/refarm run test:chat-session`
   - `pnpm -C apps/refarm run test:chat-batch`
-  - `pnpm run pi:session:heavy -- --count 40` (trace the most recent PI session before changing scope)
-  - `pnpm run pi:session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
+  - `pnpm run session:heavy -- --count 40` (trace the most recent agent session before changing scope)
+  - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
 - quick safe slices for adjacent areas:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
@@ -121,7 +121,7 @@ protective without stopping momentum:
   - keep budget checks enabled via `refarm:safety` profiles,
   - reopen at normal lane only after 3 stable slices.
 - quick CI-loop triage before/after CI-heavy work:
-  - `pnpm run pi:session:heavy:ci-watch`
+  - `pnpm run session:heavy:ci-watch`
   - if this returns non-zero, it means likely CI-watch/polling loops exceeded a
     conservative threshold and should be reviewed before continuing CI-heavy
     commands.
@@ -130,10 +130,11 @@ protective without stopping momentum:
 - periodic baseline safety check before heavier refactor blocks:
   - `pnpm run refarm:safety:micro-safe:baseline`
 
-The script is generic enough for cross-workspace inspection with:
+The command is generic enough for cross-workspace inspection with:
 
 ```bash
 node scripts/pi-session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/pi-session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
 ```
 
 To keep `.pi` history boundaries clear when different coding agents touch the same
@@ -145,6 +146,7 @@ node scripts/pi-session-heavy.mjs \
   --agent-role assistant \
   --agent-provider openai-codex \
   --agent-model gpt-5.5
+```
 
 You can query more than one provider/model in one pass:
 
@@ -167,13 +169,13 @@ node scripts/pi-session-heavy.mjs --session-file-prefix "2026-06-20T20-24-39-577
 You can also raise/lower limits per run with env vars:
 
 ```bash
-CI_LOOP_MAX_MS=600000 CI_LOOP_MAX_COUNT=12 pnpm run pi:session:heavy:ci-watch
+CI_LOOP_MAX_MS=600000 CI_LOOP_MAX_COUNT=12 pnpm run session:heavy:ci-watch
 ```
 
 If `chat-repl-session.test.ts` (or any command family) is being re-run too many times, use:
 
 ```bash
-pnpm run pi:session:heavy:repeat -- --repeat-max-count 6
+pnpm run session:heavy:repeat -- --repeat-max-count 6
 ```
 
 This gate fails when a single normalized command appears more than `repeat-max-count`
@@ -182,10 +184,10 @@ times in the sampled sessions (current default is 4 over the last 6 sessions).
 For broader baseline visibility (5 sessions) during heavier slices:
 
 ```bash
-pnpm run pi:session:heavy:ci-watch:baseline
+pnpm run session:heavy:ci-watch:baseline
 ```
 
-`pi:session:heavy:ci-watch:baseline` is a broad-view command (no strict loop gate by default).
+`session:heavy:ci-watch:baseline` is a broad-view command (no strict loop gate by default).
 
 ## Configurações locais vs ações de sincronização
 
@@ -257,8 +259,8 @@ refarm sessions show <id-prefix>
 refarm sessions use <id-prefix>
 ```
 
-PI agent session logs are stored under `~/.pi/agent/sessions` with one subfolder per
-workspace. For this repo, the folder is typically:
+Default agent session logs are stored under `~/.pi/agent/sessions` with one subfolder
+per workspace. For this repo, the folder is typically:
 
 ```bash
 ls -la ~/.pi/agent/sessions/--workspaces-refarm--/
@@ -269,6 +271,12 @@ If you ever move the workspace path, pass `--workspace-dir <path>` to
 
 ```bash
 node scripts/pi-session-heavy.mjs --workspace-dir /new/path --help
+```
+
+If your agent writes logs elsewhere, replace workspace lookup with direct directory mode:
+
+```bash
+node scripts/pi-session-heavy.mjs --session-dir /path/to/your/agent/sessions --help
 ```
 
 If two agents write the same workspace tag frequently, you can additionally pin the
