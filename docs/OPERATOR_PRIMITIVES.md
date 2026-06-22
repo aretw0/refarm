@@ -86,6 +86,9 @@ Session Rules:
 - `resume` session-history read (`/sessions`) is bounded by
   `REFARM_RECENT_SESSION_TIMEOUT_MS` (default `300` ms) to keep operator
   output responsive when sidecar session access is slow.
+- `sessions list/use` runtime session fetches are bounded by
+  `REFARM_SESSIONS_REQUEST_TIMEOUT_MS` (default `500` ms) to keep interactive
+  flow responsive when `/sessions` stalls.
 - Human-facing `sessions show` should also surface stale-pointer recovery hints when
   continuing from a stale active session so operators get the same guidance without
   JSON mode.

@@ -104,6 +104,8 @@ const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"])
 const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
 const SESSIONS_CLEAR_COMMAND = refarmCommand(["sessions", "clear"]);
 const SESSIONS_CLEAR_JSON_COMMAND = refarmCommand(["sessions", "clear", "--json"]);
+const REFARM_SESSIONS_REQUEST_TIMEOUT_MS = "REFARM_SESSIONS_REQUEST_TIMEOUT_MS";
+const DEFAULT_SESSIONS_REQUEST_TIMEOUT_MS = 500;
 
 const STALE_ACTIVE_SESSION_RECOMMENDATION: SessionListRecommendation = {
 	diagnostic: "session:active-stale",
@@ -380,12 +382,30 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 }
 
 async function fetchSessions(services: SessionsCommandServices): Promise<SessionNode[]> {
-	const response = await services.fetch(services.sidecarUrl("/sessions"));
-	if (!response.ok) {
-		throw new Error(`sidecar HTTP ${response.status}`);
+	const timeoutMs = resolveSessionsRequestTimeoutMs(process.env);
+	const controller = new AbortController();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+
+	try {
+		timer = setTimeout(() => controller.abort(), timeoutMs);
+		const response = await services.fetch(services.sidecarUrl("/sessions"), {
+			signal: controller.signal,
+		});
+		if (!response.ok) {
+			throw new Error(`sidecar HTTP ${response.status}`);
+		}
+		const body = (await response.json()) as { sessions: SessionNode[] };
+		return body.sessions ?? [];
+	} finally {
+		if (timer) clearTimeout(timer);
 	}
-	const body = (await response.json()) as { sessions: SessionNode[] };
-	return body.sessions ?? [];
+}
+
+function resolveSessionsRequestTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
+	const raw = env[REFARM_SESSIONS_REQUEST_TIMEOUT_MS];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_SESSIONS_REQUEST_TIMEOUT_MS;
+	return parsed;
 }
 
 async function listSessions(
