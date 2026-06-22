@@ -374,6 +374,8 @@ describe("runSessionRepl", () => {
 		});
 		lastInterface.emit("line", "/history --clear");
 		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
 
 		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
 		expect(logs.join("\n")).toContain("Chat history cleared");

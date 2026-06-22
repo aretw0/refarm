@@ -503,8 +503,7 @@ export {
 					if (command.action === "clear") {
 						chatHistory = [];
 						commandHistory = [];
-						saveChatHistory(chatHistory);
-						hasHistoryChanges = false;
+						hasHistoryChanges = true;
 						console.log(chalk.dim("✓ Chat history cleared."));
 					} else {
 						const allHistory = [...commandHistory, ...chatHistory];
