@@ -360,6 +360,7 @@ function listSessionFiles(dir, sessionFilePrefix) {
 }
 
 function parseSessionV1(filePath) {
+	const sessionFile = path.basename(filePath);
 	let payload;
 	try {
 		payload = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -372,6 +373,7 @@ function parseSessionV1(filePath) {
 	const command = typeof latest?.command === 'string' ? latest.command.trim() : '';
 	if (command) {
 		result.push({
+			sessionFile,
 			command,
 			durationMs: 0,
 			timestamp: latest.updatedAt || latest.createdAt || null,
@@ -385,7 +387,8 @@ function parseSessionV1(filePath) {
 	return result;
 }
 
-function parseSession(filePath) {
+function parseSession(filePath, sessionFileName) {
+	const resolvedSessionFile = sessionFileName || path.basename(filePath);
 	const filename = filePath.toLowerCase();
 	if (filename.endsWith('.v1.json') || filename.endsWith('.session.json')) {
 		return parseSessionV1(filePath);
@@ -409,6 +412,7 @@ function parseSession(filePath) {
 			for (const item of message.content) {
 				if (item?.type === 'toolCall' && item?.name === 'bash' && item?.id && item.arguments?.command) {
 					calls.set(item.id, {
+						sessionFile: resolvedSessionFile,
 						command: String(item.arguments.command),
 						durationMs: 0,
 						timestamp: entry.timestamp || null,
@@ -483,7 +487,8 @@ function printSummary(sessions) {
 	console.log(`Top ${top.length} commands:`);
 
 	for (const row of top) {
-		console.log(`${String(row.durationMs).padStart(6)} ms | ${row.command}`);
+		const origin = row.sessionFile ? ` (${row.sessionFile})` : '';
+		console.log(`${String(row.durationMs).padStart(6)} ms | ${row.command}${origin}`);
 	}
 
 	console.log('\nTop by pattern');
@@ -576,6 +581,7 @@ function summarizeCiWatchLoops(sessions) {
 		if (signals.length === 0) continue;
 
 		loops.push({
+			sessionFile: call.sessionFile || null,
 			command: call.command,
 			durationMs: call.durationMs,
 			signals,
@@ -598,6 +604,7 @@ function summarizeCiWatchLoops(sessions) {
 		totalWallTimeMs: totalMs,
 		maxWallTimeMs: maxMs,
 		top: loops.sort((a, b) => b.durationMs - a.durationMs).map((call) => ({
+			sessionFile: call.sessionFile || null,
 			command: call.command,
 			durationMs: call.durationMs,
 			signals: call.signals,
@@ -617,7 +624,8 @@ function printCiLoopSignal(sessions) {
 		`\nCI loop risk: ${summary.count} candidate(s), total ${(summary.totalWallTimeMs / 1000).toFixed(1)}s (max ${(summary.maxWallTimeMs / 1000).toFixed(1)}s).`,
 	);
 	for (const row of summary.top.slice(0, 5)) {
-		console.log(`- ${String(row.durationMs).padStart(6)} ms | ${row.command}`);
+		const origin = row.sessionFile ? ` (${row.sessionFile})` : '';
+		console.log(`- ${String(row.durationMs).padStart(6)} ms | ${row.command}${origin}`);
 		for (const signal of row.signals.slice(0, 2)) {
 			console.log(`  - ${signal.name}: ${signal.fix}`);
 		}
@@ -680,8 +688,9 @@ function printCiLoopSignal(sessions) {
 				durationMs: row.durationMs,
 				role: row.role,
 				provider: row.provider,
-			model: row.model,
-		})),
+				model: row.model,
+				sessionFile: row.sessionFile || null,
+			})),
 		patterns: patternSummary,
 		ciWatchLoops: {
 			count: ciLoopSummary.count,
@@ -809,7 +818,7 @@ if (sessionFiles.length === 0) {
 
 let calls = [];
 for (const file of sessionFiles) {
-	const parsed = parseSession(file.path);
+	const parsed = parseSession(file.path, file.name);
 	for (const item of parsed) {
 		if (!matchesAgentFilters(item, args)) continue;
 		if (args.filter && !item.command.includes(args.filter)) continue;
