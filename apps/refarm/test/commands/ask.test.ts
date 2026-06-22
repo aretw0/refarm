@@ -914,7 +914,7 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
-	it("classifies runtime submit errors for configured runtime agent id as agent-not-loaded", async () => {
+it("classifies runtime submit errors for configured runtime agent id as agent-not-loaded", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
@@ -925,6 +925,47 @@ describe("refarm ask", () => {
 				known: [RUNTIME_AGENT_PLUGIN_ID],
 			}),
 			submitEffort: vi.fn().mockRejectedValue(new Error(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`)),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "agent-not-loaded",
+			nextActions: expect.arrayContaining([
+				"refarm plugin reload runtime-agent --json",
+			]),
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("classifies runtime submit errors using short agent id as agent-not-loaded", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const runtimeAgentShortId = RUNTIME_AGENT_PLUGIN_ID.split("/").at(-1) ?? "";
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				loaded: [],
+				known: [RUNTIME_AGENT_PLUGIN_ID],
+			}),
+			submitEffort: vi
+				.fn()
+				.mockRejectedValue(new Error(`${runtimeAgentShortId} not loaded`)),
 		});
 		const launchDeps: LaunchDeps = {
 			autostartMode: "always",
