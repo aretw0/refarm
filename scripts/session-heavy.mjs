@@ -273,6 +273,15 @@ function printSessionSources() {
 	const roots = resolveSessionRootCandidates(args.sessionRoot, args.sessionSource, args.allowLegacyPiRoots);
 	const workspaceDir = path.resolve(args.workspaceDir);
 	const tag = `--${workspaceDir.replace(/^\/+/, "").replace(/\//g, "-")}--`;
+	const sources = roots.map((root) => {
+		const tagDir = path.join(root, tag);
+		return {
+			root,
+			rootExists: fs.existsSync(root),
+			tagDir,
+			tagDirExists: fs.existsSync(tagDir),
+		};
+	});
 
 	if (args.json) {
 		console.log(
@@ -282,13 +291,9 @@ function printSessionSources() {
 					tag,
 					sessionSource: args.sessionSource,
 					allowLegacyPiRoots: args.allowLegacyPiRoots,
-					roots,
-					agentSources: [
-						...(roots.map((value) => ({
-							root: value,
-							mode: "candidate",
-						}))),
-					],
+					sessionDirOverride: args.sessionDir,
+					sessionRootOverride: args.sessionRoot,
+					sources,
 				},
 				null,
 				2,
@@ -301,9 +306,12 @@ function printSessionSources() {
 	console.log(`Tag: ${tag}`);
 	console.log(`sessionSource=${args.sessionSource}, allowLegacyPiRoots=${args.allowLegacyPiRoots}`);
 	console.log('Candidate session roots:');
-	for (const root of roots) console.log(`- ${root}`);
-	console.log('Resolved tag directories:');
-	for (const root of roots) console.log(`- ${path.join(root, tag)}`);
+	for (const source of sources) {
+		const existsGlyph = source.rootExists ? ' [exists]' : ' [missing]';
+		const tagGlyph = source.tagDirExists ? ' [tag exists]' : ' [tag missing]';
+		console.log(`- root: ${source.root}${existsGlyph}`);
+		console.log(`  tag: ${source.tagDir}${tagGlyph}`);
+	}
 }
 
 function listSessionFiles(dir, sessionFilePrefix) {
