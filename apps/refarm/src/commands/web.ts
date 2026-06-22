@@ -5,7 +5,7 @@ import {
 import { launchProcess, type LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatSurfaceActionReadinessOutput } from "./action-affordances.js";
+import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
 import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
