@@ -213,7 +213,7 @@ npm run refarm:tree:verify
   the `text-quality` profile for the scorer implementation, its tests, or those
   calibrated docs instead of running a host smoke lane.
 - `refarm:host:smoke:auto:agent-e2e-mock` runs
-  `refarm:agent:e2e:mock`, the no-token runtime-agent/ask smoke against
+  `refarm:agent:e2e:mock`, the no-token agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
   WASI LLM routing deltas before spending live provider tokens. The script
   rebuilds `packages/pi-agent` WASM before installing the temporary bundled

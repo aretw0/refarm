@@ -105,14 +105,14 @@ Task Rules:
 - `task status --json` should distinguish active, done, failed, and unknown
   states with log and resume handoffs.
 - `task logs --json` should be inspectable after terminal states.
-- Operator-facing runtime-agent dispatch uses:
+- Operator-facing agent dispatch uses:
 
 ```bash
-refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
+refarm task run agent respond --args '{"prompt":"hello"}' --json
 ```
 
 The physical plugin id may still be `@refarm/pi-agent` in stored task metadata.
-The no-token `refarm:agent:e2e:mock` gate exercises this alias through HTTP
+The no-token `refarm:agent:e2e:mock` gate exercises this command shape through HTTP
 task dispatch against the model mock and follows the returned status/log
 handoffs. It also checks `task resume --json` before and after the effort
 reaches `done`, so active continuations stay visible and terminal efforts do
@@ -174,14 +174,14 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
 - Plugin recovery should prefer the operator alias:
 
 ```bash
-refarm plugin reload runtime-agent --json
+refarm plugin reload agent --json
 ```
 
 - Plugin status may expose `@refarm/pi-agent` as installed/loaded identity
   because that is the manifest id.
 - Reload outcomes must distinguish `reloaded`, `skipped`, and `deferred`.
 - The no-token `refarm:agent:e2e:mock` gate exercises
-  `plugin reload runtime-agent --json` against the isolated runtime and follows
+  `plugin reload agent --json` against the isolated runtime and follows
   the returned `plugin status --json` handoff. A loaded plugin may report
   `skipped`; the contract is that the public alias normalizes to
   `@refarm/pi-agent` and status remains inspectable.

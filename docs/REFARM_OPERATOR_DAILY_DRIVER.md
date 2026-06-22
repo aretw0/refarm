@@ -229,16 +229,15 @@ When running in agentic JSON mode, commands are self-guiding:
 - `tidy imports --json` success → `nextCommands`: resume; `--check` success is terminal
 - `sow --json` configured → `nextCommands`: check, model current
 
-Runtime-agent operator aliases:
+Agent operator aliases:
 
 ```bash
-refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
-refarm plugin reload runtime-agent --json
+refarm task run agent respond --args '{"prompt":"hello"}' --json
+refarm plugin reload agent --json
 ```
 
-`runtime-agent` is the operator-facing alias. JSON payloads and plugin status may
-still expose the physical bundled plugin id, `@refarm/pi-agent`, for compatibility
-with installed plugin manifests and existing task history.
+The canonical runtime plugin identity remains `runtime-agent` in payloads and
+status, while the operator UX uses `agent` as the public alias.
 
 ## Model And Credentials
 
