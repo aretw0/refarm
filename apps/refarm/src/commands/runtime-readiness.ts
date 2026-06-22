@@ -42,10 +42,19 @@ function readinessError(error: unknown): { error: string; timedOut?: boolean } {
 	return { error: String(error) };
 }
 
-export async function probeRuntimeReadiness(
-	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
-): Promise<RuntimeReadinessProbe> {
-	const url = sidecarUrl("/efforts/summary");
+type RuntimeProbeResult = {
+	url: string;
+	ready: boolean;
+	status?: number;
+	error?: string;
+	timedOut?: boolean;
+};
+
+async function probeRuntimeEndpoint(
+	path: string,
+	probeTimeoutMs: number,
+): Promise<RuntimeProbeResult> {
+	const url = sidecarUrl(path);
 	try {
 		const response = await fetchSidecarWithTimeout(url, {}, { timeoutMs: probeTimeoutMs });
 		return {
@@ -60,6 +69,21 @@ export async function probeRuntimeReadiness(
 			...readinessError(error),
 		};
 	}
+}
+
+export async function probeRuntimeReadiness(
+	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
+): Promise<RuntimeReadinessProbe> {
+	const effortsProbe = await probeRuntimeEndpoint("/efforts/summary", probeTimeoutMs);
+	if (!effortsProbe.ready) return effortsProbe;
+
+	const sessionsProbe = await probeRuntimeEndpoint("/sessions", probeTimeoutMs);
+	if (!sessionsProbe.ready) return sessionsProbe;
+
+	return {
+		...effortsProbe,
+		status: sessionsProbe.status,
+	};
 }
 
 export async function probeRuntimeReady(
