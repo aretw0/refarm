@@ -357,6 +357,43 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("caps combined history output to MAX_CHAT_HISTORY_LINES", async () => {
+		mockedLoadChatHistory.mockReturnValue(
+			Array.from({ length: MAX_CHAT_HISTORY_LINES }, (_, i) => `history-${i}`),
+		);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		for (let index = 0; index < 10; index++) {
+			lastInterface.emit("line", `message-${index}`);
+			await Promise.resolve();
+		}
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		const lines = out
+			.split("\n")
+			.filter((line) => /^\d+\. /.test(line.trim()))
+			.length;
+		expect(lines).toBe(MAX_CHAT_HISTORY_LINES);
+		expect(out).not.toContain("history-499");
+		expect(out).toContain("1. message-9");
+		expect(out).toContain(`500. history-489`);
+
+		consoleSpy.mockRestore();
+	});
+
 	it("clears chat history on /history --clear", async () => {
 		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
 		const logs: string[] = [];
