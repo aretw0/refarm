@@ -10,6 +10,7 @@ const CALLBACK_PATH = "/auth/callback";
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}${CALLBACK_PATH}`;
 const SCOPE = "openid profile email offline_access";
 const JWT_CLAIM = "https://api.openai.com/auth";
+const OAUTH_HTTP_TIMEOUT_MS = 30_000;
 
 async function waitForCallback(
 	server: { waitForCode(): Promise<{ code: string; state: string } | null>; cancelWait(): void },
@@ -61,6 +62,7 @@ async function exchangeCode(code: string, verifier: string): Promise<OAuthCreden
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({ grant_type: "authorization_code", client_id: CLIENT_ID, code, code_verifier: verifier, redirect_uri: REDIRECT_URI }),
+		signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 	});
 	if (!res.ok) throw new Error(`OpenAI token exchange failed (${res.status}): ${await res.text()}`);
 	const d = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number };
@@ -72,6 +74,7 @@ async function refreshCodexToken(refreshToken: string): Promise<OAuthCredentials
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({ grant_type: "refresh_token", client_id: CLIENT_ID, refresh_token: refreshToken }),
+		signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 	});
 	if (!res.ok) throw new Error(`OpenAI token refresh failed (${res.status}): ${await res.text()}`);
 	const d = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number };

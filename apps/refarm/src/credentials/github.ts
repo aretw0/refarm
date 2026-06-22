@@ -27,6 +27,8 @@ interface TokenResponse {
 	error?: string;
 }
 
+const OAUTH_HTTP_TIMEOUT_MS = 30_000;
+
 async function requestDeviceCode(
 	clientId: string,
 	scopes: string,
@@ -35,6 +37,7 @@ async function requestDeviceCode(
 		method: "POST",
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
 		body: JSON.stringify({ client_id: clientId, scope: scopes }),
+		signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 	});
 	return res.json() as Promise<DeviceCodeResponse>;
 }
@@ -55,6 +58,7 @@ async function pollForToken(
 				device_code: deviceCode,
 				grant_type: GRANT_TYPE,
 			}),
+			signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 		});
 		const data = (await res.json()) as TokenResponse;
 		if (data.access_token) return data.access_token;
@@ -70,6 +74,7 @@ async function pollForToken(
 async function resolveUsername(token: string): Promise<string> {
 	const res = await fetch("https://api.github.com/user", {
 		headers: { Authorization: `Bearer ${token}`, "User-Agent": "refarm-cli" },
+		signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 	});
 	if (!res.ok) return "unknown";
 	const data = (await res.json()) as { login?: string };
