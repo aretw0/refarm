@@ -21,6 +21,10 @@ export function isSidecarUnavailable(message: string): boolean {
 	);
 }
 
+function isSidecarPermissionError(message: string): boolean {
+	return message.includes("Operation not permitted") || message.includes("EPERM");
+}
+
 export function printSidecarUnavailable(): void {
 	console.error(chalk.red("✗  Refarm runtime is not running."));
 	console.error(chalk.dim(`   Status:     ${RUNTIME_STATUS_COMMAND}`));
@@ -73,7 +77,16 @@ export function buildSidecarErrorPayload(
 				RUNTIME_DOCTOR_NEXT_COMMAND,
 			],
 			extra: {
-				recommendations: [buildRuntimeUnavailableRecommendation()],
+				recommendations: [
+					buildRuntimeUnavailableRecommendation(
+						isSidecarPermissionError(message)
+							? {
+									summary:
+										"Runtime sidecar could not bind a local HTTP socket. Check local runtime/network permissions.",
+								}
+							: {},
+					),
+				],
 			},
 		});
 	}
