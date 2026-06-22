@@ -3,6 +3,7 @@ import {
 	affectedWorkspacePackagesFromChangedPaths,
 	changedFilePathsFromGitNameOnly,
 	changedFilePathsFromGitStatus,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 } from "@refarm.dev/config";
 import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
@@ -389,12 +390,14 @@ function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
 }
 
 function isAgentRuntimeE2ePath(file: string): boolean {
+	const runtimeAgentWorkspaceDir = `${RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir}/`;
 	return (
 		file === "apps/refarm/src/commands/ask.ts" ||
 		file === "apps/refarm/src/commands/runtime-agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
 		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
-		file.startsWith("packages/pi-agent/") ||
+		file === RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir ||
+		file.startsWith(runtimeAgentWorkspaceDir) ||
 		file.startsWith("packages/model-mock/") ||
 		file.startsWith("packages/tractor/src/host/wasi_bridge/")
 	);
