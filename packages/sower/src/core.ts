@@ -200,12 +200,14 @@ export class SowerCore {
 	 * Hydrates a configuration from a remote graph node.
 	 */
 	async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<unknown> {
+		const timeoutMs = 20_000;
 		console.log(
 			`[sower-core] Hydrating from remote graph node: ${nodeId} via ${gatewayUrl}`,
 		);
 		try {
 			const response = await fetch(
 				`${gatewayUrl}/nodes/${encodeURIComponent(nodeId)}`,
+				{ signal: AbortSignal.timeout(timeoutMs) },
 			);
 			if (!response.ok) {
 				throw new Error(`Failed to fetch graph node: ${response.statusText}`);

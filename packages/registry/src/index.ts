@@ -98,8 +98,11 @@ export class SovereignRegistry {
      * In Phase 6, this supports HTTP/JSON resolution.
      */
     async resolveRemote(id: string, sourceUrl: string): Promise<RegistryEntry> {
+        const timeoutMs = 30_000;
         try {
-            const response = await fetch(sourceUrl);
+            const response = await fetch(sourceUrl, {
+                signal: AbortSignal.timeout(timeoutMs),
+            });
             if (!response.ok) {
                 throw new Error(`Failed to fetch manifest from ${sourceUrl}: ${response.statusText}`);
             }

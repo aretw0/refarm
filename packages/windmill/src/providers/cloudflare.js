@@ -83,12 +83,14 @@ export class CloudflareProvider {
 
     async apiCall(method, path, body = null) {
         const url = `${this.baseUrl}${path}`;
+        const timeoutMs = 30_000;
         const options = {
             method,
             headers: {
                 "Authorization": `Bearer ${this.apiToken}`,
                 "Content-Type": "application/json"
-            }
+            },
+            signal: AbortSignal.timeout(timeoutMs),
         };
 
         if (body) options.body = JSON.stringify(body);
