@@ -7,6 +7,7 @@ function parseArgs(argv) {
 	const args = {
 		workspaceDir: process.cwd(),
 		sessionDir: null,
+		sessionRoot: process.env.REFARM_SESSION_ROOT || null,
 		recent: 1,
 		count: 20,
 		json: false,
@@ -39,6 +40,10 @@ function parseArgs(argv) {
 				break;
 			case "--session-dir":
 				args.sessionDir = argv[i + 1] || null;
+				i += 1;
+				break;
+			case "--session-root":
+				args.sessionRoot = argv[i + 1] || null;
 				i += 1;
 				break;
 			case "--recent": {
@@ -118,8 +123,9 @@ function usage() {
 	console.log(
 		["Usage:", "  node scripts/pi-session-heavy.mjs [--workspace-dir <dir>] [--recent <n>] [--count <n>]"].join("\n"),
 	);
-	console.log("  --workspace-dir: project dir used to locate .pi session folder");
+	console.log("  --workspace-dir: project dir used to locate workspace-tagged session folder");
 	console.log("  --session-dir:   direct session log directory override (optional)");
+	console.log("  --session-root:  direct root session folder override, e.g. --session-root /path/to/agent/sessions");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
 	console.log("  --count:         top commands to print (default: 20)");
 	console.log("  --session-file-prefix: include only session filenames containing this substring");
@@ -134,22 +140,69 @@ function usage() {
 	console.log("  --repeat-signal: run repeated-command risk check and set exit code on threshold breach");
 	console.log("  --repeat-max-count: max per-command count before repeat signal trips (default: 5)");
 	console.log("  CI_LOOP_MAX_MS / CI_LOOP_MAX_COUNT env vars: override default signal limits");
+	console.log("  REFARM_SESSION_ROOT env var: override derived session root when --session-root is not passed");
 }
 
-function resolveSessionDir(workspaceDir, sessionDirOverride) {
+function resolveSessionRootCandidates(sessionRootOverride) {
+	const home = process.env.HOME || process.env.USERPROFILE || "";
+	const roots = [];
+	const seen = new Set();
+
+	const addRoot = (value) => {
+		if (!value) return;
+		const normalized = path.resolve(value);
+		if (seen.has(normalized)) return;
+		seen.add(normalized);
+		roots.push(normalized);
+	};
+
+	if (sessionRootOverride) addRoot(sessionRootOverride);
+	if (process.env.REFARM_SESSION_ROOT) addRoot(process.env.REFARM_SESSION_ROOT);
+
+	if (home) {
+		addRoot(path.join(home, ".refarm", "agent-sessions"));
+		addRoot(path.join(home, ".refarm", "sessions"));
+		addRoot(path.join(home, ".config", "refarm", "sessions"));
+		addRoot(path.join(home, ".pi", "agent", "sessions"));
+	} else {
+		addRoot(".refarm/agent-sessions");
+		addRoot(".refarm/sessions");
+		addRoot(".config/refarm/sessions");
+		addRoot(".pi/agent/sessions");
+	}
+
+	return roots;
+}
+
+function resolveSessionDir(workspaceDir, sessionDirOverride, sessionRootOverride) {
 	if (sessionDirOverride) {
 		return {
+			mode: "direct",
 			tag: "<direct>",
 			path: path.resolve(sessionDirOverride),
+			searchedRoots: [],
 		};
 	}
 
 	const normalized = path.resolve(workspaceDir);
 	const tag = `--${normalized.replace(/^\/+/, "").replace(/\//g, "-") }--`;
-	const home = process.env.HOME || process.env.USERPROFILE || "";
+	const roots = resolveSessionRootCandidates(sessionRootOverride);
+	for (const root of roots) {
+		const candidate = path.join(root, tag);
+		if (fs.existsSync(candidate)) {
+			return {
+				mode: "tagged",
+				tag,
+				path: candidate,
+				searchedRoots: roots,
+			};
+		}
+	}
 	return {
+		mode: "tagged",
 		tag,
-		path: path.join(home, ".pi", "agent", "sessions", tag),
+		path: path.join(roots[0] || path.resolve(".refarm", "agent-sessions"), tag),
+		searchedRoots: roots,
 	};
 }
 
@@ -453,14 +506,20 @@ if (args.help) {
 if (Number.isInteger(envCiLoopMaxMs) && envCiLoopMaxMs > 0) args.ciLoopMaxMs = envCiLoopMaxMs;
 if (Number.isInteger(envCiLoopMaxCount) && envCiLoopMaxCount > 0) args.ciLoopMaxCount = envCiLoopMaxCount;
 
-const sessionInfo = resolveSessionDir(args.workspaceDir, args.sessionDir);
+const sessionInfo = resolveSessionDir(args.workspaceDir, args.sessionDir, args.sessionRoot);
 if (!fs.existsSync(sessionInfo.path)) {
 	console.error(`Session directory not found: ${sessionInfo.path}`);
-	if (sessionInfo.tag === "<direct>") {
+	if (sessionInfo.mode === "direct") {
 		console.log('Hint: verify --session-dir points to a valid sessions directory.');
 	} else {
 		console.log(`Looked up by workspace tag: ${sessionInfo.tag}`);
-		console.log('Tip: run from the target workspace root or pass --workspace-dir <path>.');
+		if (sessionInfo.searchedRoots.length > 0) {
+			console.log("Candidate roots checked:");
+			for (const root of sessionInfo.searchedRoots) {
+				console.log(`  - ${root}`);
+			}
+		}
+		console.log("Tip: pass --session-root <path> for custom session storage or --session-dir <path> for direct mode.");
 	}
 	process.exit(1);
 }
