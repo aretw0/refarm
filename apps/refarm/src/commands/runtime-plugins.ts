@@ -20,6 +20,7 @@ export interface RuntimePluginReloadResult {
 export interface RuntimePluginReloadWaitOptions {
 	onDeferred?(pluginId: string): void;
 	pollIntervalMs?: number;
+	maxWaitMs?: number;
 }
 
 function stringArray(value: unknown): string[] {
@@ -88,6 +89,16 @@ export async function reloadRuntimePluginsAndWait(
 	const initial = await reloadRuntimePlugins(pluginIds);
 	if (!initial) return null;
 
+	const configuredMaxWaitMs = Number.parseInt(
+		options.maxWaitMs?.toString() ??
+			process.env.REFARM_PLUGIN_RELOAD_MAX_WAIT_MS ??
+			"120000",
+		10,
+	);
+	const maxWaitMs = Number.isNaN(configuredMaxWaitMs) ? 120000 : configuredMaxWaitMs;
+	const deadlineMs = maxWaitMs > 0 ? Date.now() + maxWaitMs : Date.now();
+	const pollIntervalMs = options.pollIntervalMs ?? 500;
+
 	const pending = new Set(initial.deferred);
 	const completed = new Set(initial.reloaded);
 	const failed = new Set(initial.skipped);
@@ -99,14 +110,23 @@ export async function reloadRuntimePluginsAndWait(
 		options.onDeferred?.(pluginId);
 	}
 
-	const pollIntervalMs = options.pollIntervalMs ?? 500;
 	while (pending.size > 0) {
+		if (Date.now() >= deadlineMs) {
+			for (const pluginId of pending) failed.add(pluginId);
+			pending.clear();
+			break;
+		}
+
 		await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
 
 		const response = await fetch(
 			sidecarUrl(`/plugins/reload/status/${initial.reloadId}`),
 		);
-		if (!response.ok) break;
+		if (!response.ok) {
+			for (const pluginId of pending) failed.add(pluginId);
+			pending.clear();
+			break;
+		}
 
 		const status = (await response.json()) as {
 			pending?: unknown;
