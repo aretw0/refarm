@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { modelCredentialEnvKey, modelCredentialStatus as resolveModelCredentialStatus, } from "@refarm.dev/config";
 import { isContainer as detectContainerRuntime } from "@refarm.dev/root";
 import { SiloCore } from "@refarm.dev/silo";

@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";

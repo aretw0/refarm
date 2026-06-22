@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
 import {
 	CloudflareProvider, CloudflareTurboCacheProvisioner, createCloudflareTurboCacheProvisionPlan, enrichCloudflareError, } from "@refarm.dev/infra-cloudflare";

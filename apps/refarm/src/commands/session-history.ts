@@ -1,5 +1,5 @@
 import type { OperatorResumeSessionRecord } from "@refarm.dev/cli/operator-resume";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { formatSessionId } from "./session-ids.js";
 import { sessionParticipantFields } from "./session-participants.js";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";

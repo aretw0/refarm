@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { openHostBrowserUrl, resolveBrowserOpenCandidates, type BrowserOpenResult, } from "@refarm.dev/cli/browser-open";
 import { Command } from "commander";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";

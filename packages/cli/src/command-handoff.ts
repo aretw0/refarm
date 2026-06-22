@@ -159,6 +159,14 @@ export function applicationProcess(
 	};
 }
 
+export function refarmCommand(args: string[]): string {
+	return applicationCommand("refarm", args);
+}
+
+export function refarmProcess(args: string[]): ApplicationProcessSpec {
+	return applicationProcess("refarm", args);
+}
+
 export function workspaceCommand(cwd: string, command: string): string {
 	return joinCommand(["cd", quoteCommandArg(cwd), "&&", command]);
 }

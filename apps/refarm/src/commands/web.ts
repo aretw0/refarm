@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { openHostBrowserUrl, resolveBrowserOpenSpec, } from "@refarm.dev/cli/browser-open";
 import { launchProcess, type LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";

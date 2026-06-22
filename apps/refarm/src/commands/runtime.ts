@@ -7,7 +7,7 @@ import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import {
 	resolveRuntimeSidecarUrl, TRACTOR_ENGINE_ENV_VAR, } from "../utils/runtime-config.js";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,

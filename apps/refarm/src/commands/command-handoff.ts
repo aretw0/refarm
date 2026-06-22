@@ -6,10 +6,22 @@ import {
 
 export type { ApplicationProcessSpec };
 
-export function refarmCommand(args: string[]): string {
-	return applicationCommand("refarm", args);
-}
-
-export function refarmProcess(args: string[]): ApplicationProcessSpec {
-	return applicationProcess("refarm", args);
-}
+export {
+	applicationCommand,
+	applicationProcess,
+	binaryCommand,
+	commandTemplateParameters,
+	instantiateCommandTemplate,
+	instantiateCommandTemplateById,
+	instantiateProcessTemplate,
+	joinCommand,
+	normalizeHandoffValues,
+	quoteCommandArg,
+	quoteCommandArgIfNeeded,
+	shellCommand,
+	substituteCommandTemplateValue,
+	substituteCommandTemplateValues,
+	workspaceCommand,
+	refarmCommand,
+	refarmProcess,
+} from "@refarm.dev/cli/command-handoff";

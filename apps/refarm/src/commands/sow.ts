@@ -9,7 +9,7 @@ import {
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,

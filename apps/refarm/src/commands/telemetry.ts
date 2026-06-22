@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
 	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation, } from "./diagnostic-recommendations.js";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,

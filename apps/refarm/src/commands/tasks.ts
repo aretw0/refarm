@@ -1,6 +1,6 @@
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { Command, InvalidArgumentError } from "commander";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {

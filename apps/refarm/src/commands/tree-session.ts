@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import { formatExecutionPlanReadinessLine } from "@refarm.dev/cli/execution-plan";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";

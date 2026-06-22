@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { findRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";

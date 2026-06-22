@@ -1,4 +1,4 @@
-import { refarmCommand, refarmProcess } from "./command-handoff.js";
+import { refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
 import { resolvePluginPackage, type PluginPackageSource, } from "@refarm.dev/barn";
 import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {

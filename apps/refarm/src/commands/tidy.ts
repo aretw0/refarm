@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { runLaunchProcess, type LaunchProcessRunOptions, type LaunchProcessRunResult, type LaunchProcessSpec, } from "@refarm.dev/cli/launch-process";
 import { findWorkspaceRoot } from "@refarm.dev/config";
 import { Command } from "commander";
