@@ -15,8 +15,8 @@ import chalk from "chalk";
 import { Command } from "commander";
 import readline from "node:readline";
 import {
-	MAX_CHAT_HISTORY_LINES,
 	loadChatHistory,
+	MAX_CHAT_HISTORY_LINES,
 	rememberChatHistoryLine,
 	saveChatHistory,
 } from "./chat-history.js";
@@ -68,6 +68,35 @@ import {
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
+const REFARM_SIDE_REQUEST_TIMEOUT_MS = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
+const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
+
+function resolveSidecarRequestTimeoutMs(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[REFARM_SIDE_REQUEST_TIMEOUT_MS];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_SIDE_REQUEST_TIMEOUT_MS;
+	return parsed;
+}
+
+async function fetchSidecarWithTimeout(
+	url: string | URL,
+	init: RequestInit = {},
+): Promise<Response> {
+	const timeoutMs = resolveSidecarRequestTimeoutMs(process.env);
+	const controller = new AbortController();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		timer = setTimeout(() => controller.abort(), timeoutMs);
+		return await fetch(url, {
+			...init,
+			signal: controller.signal,
+		});
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
+}
 export {
 	loadChatHistory,
 	rememberChatHistoryLine,
@@ -132,7 +161,7 @@ export {
 	}
 
 	async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch(sidecarUrl("/efforts"), {
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -148,7 +177,7 @@ export {
 	prefix: string,
 	): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
-	const response = await fetch(sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as {
 		sessions?: Array<{ "@id": string }>;

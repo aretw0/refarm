@@ -29,6 +29,36 @@ import {
 } from "./session-lock.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
+const REFARM_SIDE_REQUEST_TIMEOUT_MS = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
+const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
+
+function resolveSidecarRequestTimeoutMs(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[REFARM_SIDE_REQUEST_TIMEOUT_MS];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_SIDE_REQUEST_TIMEOUT_MS;
+	return parsed;
+}
+
+async function fetchSidecarWithTimeout(
+	url: string | URL,
+	init: RequestInit = {},
+): Promise<Response> {
+	const timeoutMs = resolveSidecarRequestTimeoutMs(process.env);
+	const controller = new AbortController();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		timer = setTimeout(() => controller.abort(), timeoutMs);
+		return await fetch(url, {
+			...init,
+			signal: controller.signal,
+		});
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
+}
+
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
@@ -69,7 +99,7 @@ async function _resolveSessionIdPrefixFromSidecar(
 	prefix: string,
 ): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
-	const response = await fetch(sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as {
 		sessions?: Array<{ "@id": string }>;

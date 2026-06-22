@@ -111,6 +111,36 @@ function tasksShowJsonCommand(prefix: string): string {
 	return refarmCommand(["tasks", "show", quoteCommandArg(prefix), "--json"]);
 }
 
+const REFARM_SIDE_REQUEST_TIMEOUT_MS = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
+const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
+
+function resolveSidecarRequestTimeoutMs(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[REFARM_SIDE_REQUEST_TIMEOUT_MS];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_SIDE_REQUEST_TIMEOUT_MS;
+	return parsed;
+}
+
+async function fetchSidecarWithTimeout(
+	url: string | URL,
+	init: RequestInit = {},
+): Promise<Response> {
+	const timeoutMs = resolveSidecarRequestTimeoutMs(process.env);
+	const controller = new AbortController();
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		timer = setTimeout(() => controller.abort(), timeoutMs);
+		return await fetch(url, {
+			...init,
+			signal: controller.signal,
+		});
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
+}
+
 async function fetchTasks(
 	params: { status?: string; session_id?: string; limit?: number } = {},
 ): Promise<Task[]> {
@@ -119,7 +149,7 @@ async function fetchTasks(
 	if (params.session_id) query.set("session_id", params.session_id);
 	if (params.limit) query.set("limit", String(params.limit));
 	const qs = query.toString() ? `?${query}` : "";
-	const response = await fetch(sidecarUrl(`/tasks${qs}`));
+	const response = await fetchSidecarWithTimeout(sidecarUrl(`/tasks${qs}`));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as { tasks: Task[] };
 	return body.tasks ?? [];
