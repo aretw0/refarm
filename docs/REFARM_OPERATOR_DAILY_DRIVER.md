@@ -109,6 +109,7 @@ protective without stopping momentum:
   - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
   - `pnpm run session:heavy:refarm` (default, refarm-owned source: ~/.refarm/agent-sessions)
   - `pnpm run session:heavy:legacy-pi` (legacy .pi sessions: ~/.pi/agent/sessions, explicit migration/forensics path)
+  - `pnpm run session:heavy:pi` (compatibility alias; prefer explicit `legacy-pi` path)
 - quick safe slices for adjacent areas:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
