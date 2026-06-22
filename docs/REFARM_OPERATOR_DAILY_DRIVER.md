@@ -322,11 +322,15 @@ pnpm run session:migrate:pi-agent -- --input /path/to/.pi/session.jsonl --output
 pnpm run session:heavy:ci-watch -- --session-source refarm --recent 2 --count 20
 ```
 
-For this repo, a representative default path is:
+For this repo, representative default paths are:
 
 ```bash
-ls -la ~/.refarm/agent-sessions/--workspaces-refarm--/
+ls -la ~/.refarm/agent-sessions/--workspaces-refarm--/    # tag-style layout (legacy/alt)
+ls -la ~/.refarm/sessions/                               # root-style v1 layout (current default in this workspace)
 ```
+
+`session-heavy` now consumes both `*.jsonl` and `*.v1.json` session files in these
+paths, with best-effort parsing for the v1 format.
 
 If you ever move the workspace path, pass `--workspace-dir <path>` to
 `scripts/session-heavy.mjs` to force the session lookup:
