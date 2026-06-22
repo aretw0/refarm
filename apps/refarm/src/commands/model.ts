@@ -1,36 +1,12 @@
-import {
-	modelCredentialEnvKey,
-	modelCredentialStatus as resolveModelCredentialStatus,
-} from "@refarm.dev/config";
+import { refarmCommand } from "./command-handoff.js";
+import { modelCredentialEnvKey, modelCredentialStatus as resolveModelCredentialStatus, } from "@refarm.dev/config";
 import { isContainer as detectContainerRuntime } from "@refarm.dev/root";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
-	DEFAULT_MODEL_PROVIDER,
-	defaultModelForProvider,
-	defaultModelForScope,
-	defaultProviderModelRef,
-	defaultScopedModelRef,
-	effectiveModelRouteForScope,
-	formatModelRef,
-	isRuntimeSubscriptionModelProvider,
-	isSubscriptionModelProvider,
-	MODEL_BASE_URL_ENV_VAR,
-	MODEL_DEFAULT_PROVIDER_ENV_VAR,
-	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
-	MODEL_FALLBACK_PROVIDER_ENV_VAR,
-	MODEL_ID_ENV_VAR,
-	MODEL_PROVIDER_ENV_VAR,
-	MODEL_PROVIDERS,
-	MODEL_RUNTIME_ENV_VARS,
-	MODEL_SCOPES,
-	modelRouteTokenUpdate,
-	parseModelRef,
-	parseModelScope,
-	type ModelScope,
-} from "../model-routing.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+	DEFAULT_MODEL_PROVIDER, defaultModelForProvider, defaultModelForScope, defaultProviderModelRef, defaultScopedModelRef, effectiveModelRouteForScope, formatModelRef, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, MODEL_BASE_URL_ENV_VAR, MODEL_DEFAULT_PROVIDER_ENV_VAR, MODEL_FALLBACK_MODEL_ID_ENV_VAR, MODEL_FALLBACK_PROVIDER_ENV_VAR, MODEL_ID_ENV_VAR, MODEL_PROVIDER_ENV_VAR, MODEL_PROVIDERS, MODEL_RUNTIME_ENV_VARS, MODEL_SCOPES, modelRouteTokenUpdate, parseModelRef, parseModelScope, type ModelScope, } from "../model-routing.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,

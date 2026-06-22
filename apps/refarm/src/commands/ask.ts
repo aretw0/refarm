@@ -1,32 +1,15 @@
+import { refarmCommand } from "./command-handoff.js";
+import { isRuntimeAgentPluginId, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, RUNTIME_AGENT_PLUGIN_ID, } from "@refarm.dev/config";
 import {
-	isRuntimeAgentPluginId,
-	isRuntimeSubscriptionModelProvider,
-	isSubscriptionModelProvider,
-	RUNTIME_AGENT_PLUGIN_ID,
-} from "@refarm.dev/config";
-import {
-	buildSystemPrompt,
-	ContextRegistry,
-	CwdContextProvider,
-	DateContextProvider,
-	FilesContextProvider,
-	GitStatusContextProvider,
-	OperatorStateProvider,
-	PolicyFilesContextProvider,
-	SessionDigestContextProvider,
-	type ContextProvider,
-} from "@refarm.dev/context-provider-v1";
+	buildSystemPrompt, ContextRegistry, CwdContextProvider, DateContextProvider, FilesContextProvider, GitStatusContextProvider, OperatorStateProvider, PolicyFilesContextProvider, SessionDigestContextProvider, type ContextProvider, } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
-	MODEL_SCOPES,
-	parseModelScope,
-	type ModelScope,
-} from "../model-routing.js";
+	MODEL_SCOPES, parseModelScope, type ModelScope, } from "../model-routing.js";
 import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
 	LOCAL_MODEL_JSON_COMMAND,

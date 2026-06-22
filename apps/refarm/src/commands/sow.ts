@@ -1,16 +1,11 @@
 import { hasUsableModelCredential } from "@refarm.dev/config";
 import {
-	OperatorPromptCancelledError,
-	createStdioOperatorChannel,
-} from "@refarm.dev/prompt-contract-v1";
+	OperatorPromptCancelledError, createStdioOperatorChannel, } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
-	cloudflareCredentialProvider,
-	githubCredentialProvider,
-	modelCredentialProvider,
-} from "../credentials/index.js";
+	cloudflareCredentialProvider, githubCredentialProvider, modelCredentialProvider, } from "../credentials/index.js";
 import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 import { modelRouteTokenUpdate, parseModelRef } from "../model-routing.js";
 import { tryOpenUrl } from "../utils/open-url.js";

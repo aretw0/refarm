@@ -1,10 +1,4 @@
-import {
-	DEFAULT_MODEL_PROVIDER,
-	defaultProviderModelRef,
-	effectiveModelRouteForScope,
-	loadConfig,
-	modelCredentialStatus,
-} from "@refarm.dev/config";
+import { DEFAULT_MODEL_PROVIDER, defaultProviderModelRef, effectiveModelRouteForScope, loadConfig, modelCredentialStatus, } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";

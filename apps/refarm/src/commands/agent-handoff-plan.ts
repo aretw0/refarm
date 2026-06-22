@@ -1,4 +1,5 @@
-import { quoteCommandArg, refarmCommand, refarmProcess } from "./command-handoff.js";
+import { refarmCommand, refarmProcess } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,

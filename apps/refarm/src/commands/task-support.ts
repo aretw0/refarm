@@ -1,25 +1,15 @@
+import { refarmCommand } from "./command-handoff.js";
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import {
-	assertChannelControlCapability,
-	parseTaskTransport as parseDispatchTransport,
-	resolveChannelControlSurfaceAdapter,
-	resolveChannelFromTransport,
-	type ChannelControlSurfaceAdapter,
-	type DispatchTransport,
-} from "@refarm.dev/dispatch-surface";
+	assertChannelControlCapability, parseTaskTransport as parseDispatchTransport, resolveChannelControlSurfaceAdapter, resolveChannelFromTransport, type ChannelControlSurfaceAdapter, type DispatchTransport, } from "@refarm.dev/dispatch-surface";
 import type {
-	Effort,
-	EffortLogEntry,
-	EffortResult,
-	EffortSummary,
-	EffortTransportAdapter,
-} from "@refarm.dev/effort-contract-v1";
+	Effort, EffortLogEntry, EffortResult, EffortSummary, EffortTransportAdapter, } from "@refarm.dev/effort-contract-v1";
 import chalk from "chalk";
 import { InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import {
 	buildJsonErrorEnvelope,
