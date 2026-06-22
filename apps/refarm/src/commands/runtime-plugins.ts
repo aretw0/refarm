@@ -23,6 +23,14 @@ export interface RuntimePluginReloadWaitOptions {
 	maxWaitMs?: number;
 }
 
+export interface RuntimePluginReloadWaitResult {
+	reloaded: string[];
+	skipped: string[];
+	timedOut: boolean;
+}
+
+const DEFAULT_PLUGIN_RELOAD_MAX_WAIT_MS = 120000;
+
 function stringArray(value: unknown): string[] {
 	return Array.isArray(value)
 		? value.filter((item): item is string => typeof item === "string")
@@ -85,25 +93,28 @@ export async function reloadRuntimePlugins(
 export async function reloadRuntimePluginsAndWait(
 	pluginIds?: string[],
 	options: RuntimePluginReloadWaitOptions = {},
-): Promise<{ reloaded: string[]; skipped: string[] } | null> {
+): Promise<RuntimePluginReloadWaitResult | null> {
 	const initial = await reloadRuntimePlugins(pluginIds);
 	if (!initial) return null;
 
 	const configuredMaxWaitMs = Number.parseInt(
 		options.maxWaitMs?.toString() ??
 			process.env.REFARM_PLUGIN_RELOAD_MAX_WAIT_MS ??
-			"120000",
+			String(DEFAULT_PLUGIN_RELOAD_MAX_WAIT_MS),
 		10,
 	);
-	const maxWaitMs = Number.isNaN(configuredMaxWaitMs) ? 120000 : configuredMaxWaitMs;
+	const maxWaitMs = Number.isNaN(configuredMaxWaitMs)
+		? DEFAULT_PLUGIN_RELOAD_MAX_WAIT_MS
+		: configuredMaxWaitMs;
 	const deadlineMs = maxWaitMs > 0 ? Date.now() + maxWaitMs : Date.now();
 	const pollIntervalMs = options.pollIntervalMs ?? 500;
+	let timedOut = false;
 
 	const pending = new Set(initial.deferred);
 	const completed = new Set(initial.reloaded);
 	const failed = new Set(initial.skipped);
 	if (!initial.reloadId || pending.size === 0) {
-		return { reloaded: [...completed], skipped: [...failed] };
+		return { reloaded: [...completed], skipped: [...failed], timedOut: false };
 	}
 
 	for (const pluginId of pending) {
@@ -112,6 +123,7 @@ export async function reloadRuntimePluginsAndWait(
 
 	while (pending.size > 0) {
 		if (Date.now() >= deadlineMs) {
+			timedOut = true;
 			for (const pluginId of pending) failed.add(pluginId);
 			pending.clear();
 			break;
@@ -123,6 +135,7 @@ export async function reloadRuntimePluginsAndWait(
 			sidecarUrl(`/plugins/reload/status/${initial.reloadId}`),
 		);
 		if (!response.ok) {
+			timedOut = true;
 			for (const pluginId of pending) failed.add(pluginId);
 			pending.clear();
 			break;
@@ -148,5 +161,5 @@ export async function reloadRuntimePluginsAndWait(
 		}
 	}
 
-	return { reloaded: [...completed], skipped: [...failed] };
+	return { reloaded: [...completed], skipped: [...failed], timedOut };
 }
