@@ -123,6 +123,36 @@ describe("runtime plugin client", () => {
 		);
 	});
 
+	it("times out and reports pending deferred plugins as skipped", async () => {
+		const fetchSpy = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					reloadId: "reload-timeout",
+					reloaded: [],
+					deferred: ["pi-agent"],
+					skipped: [],
+				}),
+			});
+		const onDeferred = vi.fn();
+		vi.stubGlobal("fetch", fetchSpy);
+
+		await expect(
+			reloadRuntimePluginsAndWait(["pi-agent"], {
+				onDeferred,
+				pollIntervalMs: 1,
+				maxWaitMs: 0,
+			}),
+		).resolves.toEqual({
+			reloaded: [],
+			skipped: ["@refarm/pi-agent"],
+		});
+		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/plugins/reload"));
+	});
+
 	it("returns null when the runtime endpoint is unavailable", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 
