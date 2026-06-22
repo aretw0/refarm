@@ -10,7 +10,7 @@
 		"lint:prepush": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs clippy --lib -- -D warnings",
 		"test:unit": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib",
 		"test:sidecar": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib sidecar_ --quiet",
-		"test:prepush": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib --quiet",
+    "test:prepush": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib --quiet -- --test-threads=1",
 		"test:smoke:ws": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
 		"test:smoke:health": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --bin tractor runtime_boot_probe_succeeds_in_memory_namespace -- --nocapture && node ../../scripts/ci/cargo-run.mjs test --bin tractor ws_probe_succeeds_when_daemon_is_listening -- --nocapture",
 		"test:integration": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
