@@ -44,6 +44,7 @@ Session/CI loop hygiene:
 ```bash
 pnpm run session:heavy:ci-watch         # non-blocking CI loop observability
 pnpm run session:heavy:ci-watch:guard    # blocks if CI-loop pressure is above guardrails
+pnpm run session:heavy:ci-watch:legacy   # same guardrail, explicitly on legacy .pi sessions
 pnpm run session:heavy:repeat            # repeat-command pressure for current sessions
 ```
 
