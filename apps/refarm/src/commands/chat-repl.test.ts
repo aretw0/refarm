@@ -245,6 +245,10 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("/h")).toEqual({ kind: "help" });
 	});
 
+	it("parses /? as help", () => {
+		expect(parseChatLine("/?")).toEqual({ kind: "help" });
+	});
+
 	it("parses /history", () => {
 		expect(parseChatLine("/history")).toEqual({ kind: "history", action: "show" });
 		expect(parseChatLine("/history --clear")).toEqual({
@@ -313,5 +317,6 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/history [--clear|clear]");
 		expect(CHAT_HELP_TEXT).toContain("/q");
 		expect(CHAT_HELP_TEXT).toContain("/h");
+		expect(CHAT_HELP_TEXT).toContain("/?");
 	});
 });
