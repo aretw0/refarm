@@ -100,7 +100,7 @@ function parseHistoryCommand(args: string[], fallbackText: string): ChatCommand 
 	if (args.length === 0) {
 		return { kind: "history", action: "show" };
 	}
-	if (args.length === 1 && args[0] === "--clear") {
+	if (args.length === 1 && (args[0] === "--clear" || args[0] === "clear")) {
 		return { kind: "history", action: "clear" };
 	}
 	return { kind: "message", text: fallbackText };
@@ -219,7 +219,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /login [args...]  Configure credentials without leaving the session
   /sow [args...]    Alias for /login
   /keys             Reconfigure model/provider credentials inline
-  /history [--clear] Show recent chat history and commands run in REPL
+  /history [--clear|clear] Show recent chat history and commands run in REPL
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /status           Show runtime / model / readiness status

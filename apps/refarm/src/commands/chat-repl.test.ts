@@ -243,6 +243,10 @@ describe("parseChatLine", () => {
 			kind: "history",
 			action: "clear",
 		});
+		expect(parseChatLine("/history clear")).toEqual({
+			kind: "history",
+			action: "clear",
+		});
 	});
 
 	it("parses /status", () => {
@@ -298,6 +302,6 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/sow [args...]");
 		expect(CHAT_HELP_TEXT).toContain("/keys");
 		expect(CHAT_HELP_TEXT).toContain("/status");
-		expect(CHAT_HELP_TEXT).toContain("/history [--clear]");
+		expect(CHAT_HELP_TEXT).toContain("/history [--clear|clear]");
 	});
 });
