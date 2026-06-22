@@ -61,6 +61,20 @@ Output de JSON desse scanner agora inclui `sessionSource` e `sessionFile`:
 - `sessionSource`: origem da busca (refarm/pi), caminho/etag do diretório e modo de resolução.
 - `sessionFile`: arquivo onde o comando foi encontrado em cada item de `top` e de `ciWatchLoops.top`.
 
+### Ponta da sessão suspeita (modo diagnóstico)
+
+Use este fluxo para encontrar rapidamente a sessão que gerou o gargalo:
+
+```bash
+node scripts/session-heavy.mjs --json --session-source auto --filter "gh run view" --recent 6 --count 20 --ci-loop-signal
+```
+
+Critério:
+
+- `sessionSource.legacySource === true` indica origem `.pi` (legacy); priorize correção fora do fluxo diário do refarm.
+- `ciWatchLoops.count > 0` e `ciWatchLoops.top[0].sessionFile` apontam o arquivo exato de origem.
+- Em caso de bloqueio, rode o mesmo comando com `--session-source refarm` para isolar o que é operacional de projeto.
+
 Recommended hard rule:
 
 - avoid manual polling patterns like `for ...; do gh run view ...; sleep ...; done`
