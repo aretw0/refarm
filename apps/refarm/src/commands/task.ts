@@ -473,12 +473,34 @@ Notes:
 					...(typeof watchLimit === "number" ? { watchLimit } : {}),
 				});
 				if (opts.json) {
-					const watched = lastResult
-						? {
-								...observedEffortFields(lastResult),
-								status: lastResult.status,
-							}
-						: { status: "not-found", observedStatus: "not-found" };
+					if (lastResult) {
+						const resolvedLastResult = lastResult as EffortResult;
+						const watched = {
+							...observedEffortFields(lastResult),
+							status: resolvedLastResult.status,
+						};
+						printTaskJsonSuccess(
+							"status",
+							{
+								effortId,
+								transport,
+								...watched,
+								attempts: lastAttempts,
+								ageSeconds: lastAgeSeconds,
+								watchLimitReached: true,
+								watchLimit,
+								result: lastResult,
+							},
+							[
+								watchCommand,
+								statusCommand,
+								buildTaskLogsCommand(effortId, transport, { json: true }),
+							],
+						);
+						return;
+					}
+
+					const watched = { status: "not-found", observedStatus: "not-found" as const };
 					printTaskJsonSuccess(
 						"status",
 						{
