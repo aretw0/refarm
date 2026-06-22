@@ -284,6 +284,7 @@ describe("parseChatLine", () => {
 
 	it("documents runtime-oriented slash commands", () => {
 		expect(CHAT_HELP_TEXT).toContain("Refarm runtime");
+		expect(CHAT_HELP_TEXT).toContain("/reload agent");
 		expect(CHAT_HELP_TEXT).toContain("/reload runtime-agent");
 		expect(CHAT_HELP_TEXT).toContain("/model providers");
 		expect(CHAT_HELP_TEXT).toContain("/provider openai/gpt-5.5");
