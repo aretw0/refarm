@@ -432,6 +432,16 @@ async function listSessions(
 	// Sort newest first by created_at_ns
 	sessions = report.sessions;
 
+	if (report.activeSessionStatus === "stale") {
+		console.log(
+			chalk.yellow(
+				`⚠  Active session pointer is stale: ${chalk.cyan(formatSessionId(activeId!))}`,
+			),
+		);
+		console.log(chalk.dim(`   Clear it with: ${SESSIONS_CLEAR_COMMAND}`));
+		console.log();
+	}
+
 	console.log(chalk.bold(`\n  Sessions  (${sessions.length} total)\n`));
 
 	for (const session of sessions) {
