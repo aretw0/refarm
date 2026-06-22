@@ -105,6 +105,7 @@ protective without stopping momentum:
   - `pnpm -C apps/refarm run test:chat-session`
   - `pnpm -C apps/refarm run test:chat-batch`
   - `pnpm run pi:session:heavy -- --count 40` (trace the most recent PI session before changing scope)
+  - `pnpm run pi:session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
 - quick safe slices for adjacent areas:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
@@ -168,6 +169,15 @@ You can also raise/lower limits per run with env vars:
 ```bash
 CI_LOOP_MAX_MS=600000 CI_LOOP_MAX_COUNT=12 pnpm run pi:session:heavy:ci-watch
 ```
+
+If `chat-repl-session.test.ts` (or any command family) is being re-run too many times, use:
+
+```bash
+pnpm run pi:session:heavy:repeat -- --repeat-max-count 6
+```
+
+This gate fails when a single normalized command appears more than `repeat-max-count`
+times in the sampled sessions (current default is 4 over the last 6 sessions).
 
 For broader baseline visibility (5 sessions) during heavier slices:
 

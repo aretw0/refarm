@@ -17,6 +17,8 @@ function parseArgs(argv) {
 		ciLoopSignal: false,
 		ciLoopMaxMs: 120_000,
 		ciLoopMaxCount: 8,
+		repeatSignal: false,
+		repeatMaxCount: 5,
 	};
 
 	const splitCsv = (value) =>
@@ -77,6 +79,15 @@ function parseArgs(argv) {
 				i += 1;
 				break;
 			}
+			case "--repeat-signal":
+				args.repeatSignal = true;
+				break;
+			case "--repeat-max-count": {
+				const value = Number.parseInt(argv[i + 1], 10);
+				if (Number.isInteger(value) && value > 0) args.repeatMaxCount = value;
+				i += 1;
+				break;
+			}
 			case "--filter":
 				args.filter = argv[i + 1] || null;
 				i += 1;
@@ -114,6 +125,8 @@ function usage() {
 	console.log("  --ci-loop-signal: run CI loop risk check and set exit code on threshold breach");
 	console.log("  --ci-loop-max-ms: max total CI loop wall-time in ms for signal mode (default: 120000)");
 	console.log("  --ci-loop-max-count: max CI loop command count for signal mode (default: 8)");
+	console.log("  --repeat-signal: run repeated-command risk check and set exit code on threshold breach");
+	console.log("  --repeat-max-count: max per-command count before repeat signal trips (default: 5)");
 	console.log("  CI_LOOP_MAX_MS / CI_LOOP_MAX_COUNT env vars: override default signal limits");
 }
 
@@ -250,6 +263,17 @@ function printSummary(sessions) {
 		const avg = total / hits.length;
 		console.log(`${pattern.padEnd(18)} count=${String(hits.length).padStart(3)} total=${(total / 1000).toFixed(1)}s avg=${(avg / 1000).toFixed(2)}s max=${(max / 1000).toFixed(1)}s`);
 	}
+
+	console.log('\nTop repeated commands');
+	const repeated = summarizeCommandRepetitions(sessions).slice(0, 5);
+	if (repeated.length === 0) {
+		console.log('No repeated commands.');
+		return;
+	}
+
+	for (const row of repeated) {
+		console.log(`${String(row.count).padStart(2)}x | ${String(row.totalWallTimeMs).padStart(6)} ms total | ${row.command}`);
+	}
 }
 
 function isLikelyCiWatchLoop(command) {
@@ -357,7 +381,47 @@ function buildJsonSummary(sessions) {
 			maxWallTimeMs: args.ciLoopMaxMs,
 			maxCount: args.ciLoopMaxCount,
 		},
+		commandRepeats: summarizeCommandRepetitions(sessions),
+		repeatSignal: {
+			enabled: args.repeatSignal,
+			ok: !summarizeCommandRepetitions(sessions).some((entry) => entry.count > args.repeatMaxCount),
+			threshold: args.repeatMaxCount,
+		},
 	};
+}
+
+function normalizeCommand(command) {
+	return String(command)
+		.trim()
+		.replace(/\s+/g, ' ');
+}
+
+function summarizeCommandRepetitions(sessions) {
+	const byCommand = new Map();
+
+	for (const row of sessions) {
+		const key = normalizeCommand(row.command);
+		const existing = byCommand.get(key);
+		const totalWallTimeMs = row.durationMs;
+		if (existing) {
+			existing.count += 1;
+			existing.totalWallTimeMs += totalWallTimeMs;
+			existing.maxWallTimeMs = Math.max(existing.maxWallTimeMs, totalWallTimeMs);
+			existing.avgWallTimeMs = Math.round(existing.totalWallTimeMs / existing.count);
+		} else {
+			byCommand.set(key, {
+				command: row.command,
+				count: 1,
+				totalWallTimeMs,
+				avgWallTimeMs: row.durationMs,
+				maxWallTimeMs: row.durationMs,
+			});
+		}
+	}
+
+	return [...byCommand.values()]
+		.filter((entry) => entry.count > 1)
+		.sort((a, b) => b.count - a.count || b.totalWallTimeMs - a.totalWallTimeMs);
 }
 
 function matchesAgentFilters(call, args) {
@@ -408,6 +472,11 @@ if (args.json) {
 		const tooLongLoops = ciSummary.totalWallTimeMs > args.ciLoopMaxMs;
 		if (tooMuchLoops || tooLongLoops) process.exitCode = 1;
 	}
+	if (args.repeatSignal) {
+		const repeated = summarizeCommandRepetitions(calls);
+		const hasExcessiveRepeats = repeated.some((entry) => entry.count > args.repeatMaxCount);
+		if (hasExcessiveRepeats) process.exitCode = 1;
+	}
 } else {
 	printSummary(calls);
 	const ciSummary = printCiLoopSignal(calls);
@@ -417,6 +486,17 @@ if (args.json) {
 		if (tooMuchLoops || tooLongLoops) {
 			console.log(
 				`CI loop signal blocked: maxCountExceeded=${tooMuchLoops} maxWallTimeExceeded=${tooLongLoops}`,
+			);
+			process.exitCode = 1;
+		}
+	}
+	if (args.repeatSignal) {
+		const repeated = summarizeCommandRepetitions(calls);
+		const topRepeated = repeated.slice(0, 3);
+		const blockedByRepeat = repeated.some((entry) => entry.count > args.repeatMaxCount);
+		if (blockedByRepeat) {
+			console.log(
+				`Repeat signal blocked: command repeated more than ${args.repeatMaxCount}x (count=${topRepeated[0]?.count ?? 0}).`,
 			);
 			process.exitCode = 1;
 		}
