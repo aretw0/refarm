@@ -575,11 +575,21 @@ function normalizeCommand(command) {
 		.replace(/\s+/g, ' ');
 }
 
+function normalizeCommandForRepeat(command) {
+	return normalizeCommand(command)
+		.replace(/\b--workspace-dir\s+(?:\S+)/g, '--workspace-dir <path>')
+		.replace(/\b--session-dir\s+(?:\S+)/g, '--session-dir <path>')
+		.replace(/\b--session-root\s+(?:\S+)/g, '--session-root <path>')
+		.replace(/(?:~|\$HOME)\/\S+/g, '<path>')
+		.replace(/[A-Za-z]:\\[^\s'\"]+/g, '<path>')
+		.replace(/\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)+/g, '<path>');
+}
+
 function summarizeCommandRepetitions(sessions) {
 	const byCommand = new Map();
 
 	for (const row of sessions) {
-		const key = normalizeCommand(row.command);
+		const key = normalizeCommandForRepeat(row.command);
 		const existing = byCommand.get(key);
 		const totalWallTimeMs = row.durationMs;
 		if (existing) {
