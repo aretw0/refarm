@@ -298,9 +298,6 @@ export {
 			chalk.dim("   Reload runtime plugins:   /reload agent"),
 		);
 		console.error(
-			chalk.dim("                             (legacy alias: /reload runtime-agent)"),
-		);
-		console.error(
 			chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`),
 		);
 		console.error(
