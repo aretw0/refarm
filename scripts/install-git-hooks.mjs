@@ -572,7 +572,7 @@ else
     done
 
     if [ -n "$PREPUSH_TEST_FILTERS" ]; then
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:prepush --concurrency=4 $PREPUSH_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:prepush --concurrency=1 $PREPUSH_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Turbo test:prepush passed"
       else
         UNIT_STATUS=$?
@@ -588,7 +588,7 @@ else
     fi
 
     if [ -n "$UNIT_TEST_FILTERS" ] && [ $UNIT_WARN -eq 0 ]; then
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:unit --concurrency=4 $UNIT_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test:unit --concurrency=1 $UNIT_TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Turbo test:unit passed"
       else
         UNIT_STATUS=$?
@@ -604,7 +604,7 @@ else
     fi
 
     if [ -n "$TEST_FILTERS" ] && [ $UNIT_WARN -eq 0 ]; then
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=4 $TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=1 $TEST_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Turbo tests passed"
       else
         UNIT_STATUS=$?
@@ -628,7 +628,7 @@ else
       UNIT_WARN=1
     fi
   else
-    if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=4 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 300 env CI=1 $PACKAGE_EXEC turbo run test --concurrency=1 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Global Turbo tests passed"
       mark_lane_validated "test"
     else
