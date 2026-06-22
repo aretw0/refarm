@@ -107,6 +107,7 @@ protective without stopping momentum:
   - `pnpm run session:heavy -- --count 40` (trace the most recent agent session before changing scope)
   - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
   - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
+  - `pnpm run session:heavy:sources` (print resolved session roots for current workspace)
   - `pnpm run session:heavy:refarm` (default, refarm-owned source: ~/.refarm/agent-sessions)
   - `pnpm run session:heavy:legacy-pi` (legacy .pi sessions: ~/.pi/agent/sessions, explicit migration/forensics path)
   - `pnpm run session:heavy:pi` (compatibility alias; prefer explicit `legacy-pi` path)
@@ -149,6 +150,7 @@ The command is generic enough for cross-workspace inspection with:
 `scripts/session-heavy.mjs` is the canonical entrypoint. `scripts/pi-session-heavy.mjs` is kept as a compatibility shim (`session:heavy:pi`) for historical `.pi` workflows and keeps `session:heavy:legacy-pi` as the explicit path. Prefer `session:heavy:refarm` for ongoing operator work.
 
 ```bash
+pnpm run session:heavy:sources
 node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
 node scripts/session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
 node scripts/session-heavy.mjs --session-root /path/to/agent/sessions/root --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
