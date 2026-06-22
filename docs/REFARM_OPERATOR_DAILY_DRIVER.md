@@ -296,11 +296,14 @@ REFARM_SESSION_SOURCE=auto REFARM_ALLOW_LEGACY_PI_ROOTS=1 node scripts/session-h
 used through explicit source selection for migration clarity.
 
 If you need to migrate legacy `.pi` sessions into the refarm namespace, use the
-existing migration script once and then inspect by explicit source during validation:
+existing migration script on each session file and then inspect by explicit source
+during validation:
 
 ```bash
-pnpm run session:migrate:pi-agent -- --input ~/.pi/agent/sessions --output ~/.refarm/agent-sessions --dry-run
-pnpm run session:migrate:pi-agent -- --input ~/.pi/agent/sessions --output ~/.refarm/agent-sessions
+pnpm run session:migrate:pi-agent -- --check --input /path/to/.pi/session.jsonl
+pnpm run session:migrate:pi-agent -- --in-place --input /path/to/.pi/session.jsonl
+# or emit a migrated copy:
+pnpm run session:migrate:pi-agent -- --input /path/to/.pi/session.jsonl --output /path/to/refarm/session.jsonl
 pnpm run session:heavy:ci-watch -- --session-source refarm --recent 2 --count 20
 ```
 
