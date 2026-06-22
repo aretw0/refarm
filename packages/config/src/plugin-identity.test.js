@@ -36,11 +36,14 @@ describe("plugin identity", () => {
 	it("exposes runtime-agent aliases for new call sites", () => {
 		expect(RUNTIME_AGENT_PLUGIN_ID).toBe(PI_AGENT_PLUGIN_ID);
 		expect(RUNTIME_AGENT_NPM_PACKAGE).toBe(PI_AGENT_NPM_PACKAGE);
+		expect(normalizePluginId("agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
+		expect(normalizePluginId("refarm/agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime-agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime_agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("refarm/runtime-agent")).toBe(
 			RUNTIME_AGENT_PLUGIN_ID,
 		);
+		expect(isRuntimeAgentPluginId("agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("pi-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("runtime-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("@local/tool")).toBe(false);
