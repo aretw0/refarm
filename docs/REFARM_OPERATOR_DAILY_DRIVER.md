@@ -132,6 +132,8 @@ protective without stopping momentum:
 
 The command is generic enough for cross-workspace inspection with:
 
+`scripts/session-heavy.mjs` is the canonical entrypoint; `scripts/pi-session-heavy.mjs` is kept only as a compatibility shim.
+
 ```bash
 node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
 node scripts/session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
