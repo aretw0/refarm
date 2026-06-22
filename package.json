@@ -126,6 +126,7 @@
 		"session:heavy:ci-watch": "node scripts/session-heavy.mjs --recent 2 --count 20 --filter \"gh \" --ci-loop-signal --ci-loop-max-count 6 --ci-loop-max-ms 360000",
 		"session:heavy:ci-watch:baseline": "node scripts/session-heavy.mjs --recent 5 --count 30 --filter \"gh \" --ci-loop-max-count 12 --ci-loop-max-ms 900000",
 		"session:heavy:sources": "node scripts/session-heavy.mjs --print-session-sources",
+		"session:heavy:sources:refarm": "node scripts/session-heavy.mjs --print-session-sources --session-source refarm",
 		"session:heavy:sources:legacy": "node scripts/session-heavy.mjs --print-session-sources --session-source pi --allow-legacy-pi-roots",
 		"refarm:host:smoke:quick": "node scripts/ci/smoke-refarm-host-spine.mjs --quick",
 		"refarm:host:smoke:dev": "node scripts/ci/smoke-refarm-host-spine.mjs --skip-type-check",
