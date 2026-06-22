@@ -7,7 +7,7 @@ import {
 	rememberChatHistoryLine,
 	resolveChatHistoryPath,
 	saveChatHistory,
-} from "../../src/commands/chat.js";
+} from "./chat-history.js";
 
 let rootDir: string;
 
