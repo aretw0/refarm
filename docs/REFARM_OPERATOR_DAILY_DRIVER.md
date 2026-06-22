@@ -133,16 +133,16 @@ protective without stopping momentum:
 The command is generic enough for cross-workspace inspection with:
 
 ```bash
-node scripts/pi-session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
-node scripts/pi-session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
-node scripts/pi-session-heavy.mjs --session-root /path/to/agent/sessions/root --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/session-heavy.mjs --session-root /path/to/agent/sessions/root --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
 ```
 
 To keep session boundaries clear when different coding agents touch the same
 workspace tag, you can isolate by agent-level metadata (when present):
 
 ```bash
-node scripts/pi-session-heavy.mjs \
+node scripts/session-heavy.mjs \
   --recent 3 --count 50 \
   --agent-role assistant \
   --agent-provider openai-codex \
@@ -152,7 +152,7 @@ node scripts/pi-session-heavy.mjs \
 You can query more than one provider/model in one pass:
 
 ```bash
-node scripts/pi-session-heavy.mjs \
+node scripts/session-heavy.mjs \
   --recent 6 --count 50 \
   --agent-role assistant \
   --agent-provider openai-codex,claude-code \
@@ -164,7 +164,7 @@ Or isolate by session filename (the workspace folder usually accumulates session
 multiple agents):
 
 ```bash
-node scripts/pi-session-heavy.mjs --session-file-prefix "2026-06-20T20-24-39-577Z_"
+node scripts/session-heavy.mjs --session-file-prefix "2026-06-20T20-24-39-577Z_"
 ```
 
 You can also raise/lower limits per run with env vars:
@@ -274,23 +274,23 @@ ls -la ~/.refarm/agent-sessions/--workspaces-refarm--/
 ```
 
 If you ever move the workspace path, pass `--workspace-dir <path>` to
-`scripts/pi-session-heavy.mjs` to force the session lookup:
+`scripts/session-heavy.mjs` to force the session lookup:
 
 ```bash
-node scripts/pi-session-heavy.mjs --workspace-dir /new/path --help
+node scripts/session-heavy.mjs --workspace-dir /new/path --help
 ```
 
 If your agent writes logs elsewhere, replace workspace lookup with direct directory mode:
 
 ```bash
-node scripts/pi-session-heavy.mjs --session-dir /path/to/your/agent/sessions --help
+node scripts/session-heavy.mjs --session-dir /path/to/your/agent/sessions --help
 ```
 
 If you want to keep lookup workspace-scoped but under a custom root (or a different
 agent platform), set `--session-root` or `REFARM_SESSION_ROOT`:
 
 ```bash
-node scripts/pi-session-heavy.mjs --session-root /path/to/agent/session-root --workspace-dir /path/to/workspace --recent 1 --count 20
+node scripts/session-heavy.mjs --session-root /path/to/agent/session-root --workspace-dir /path/to/workspace --recent 1 --count 20
 REFARM_SESSION_ROOT=/path/to/agent/session-root pnpm run session:heavy
 ```
 
@@ -298,7 +298,7 @@ If two agents write the same workspace tag frequently, you can additionally pin 
 analysis to a narrower session set:
 
 ```bash
-node scripts/pi-session-heavy.mjs \
+node scripts/session-heavy.mjs \
   --workspace-dir /path \
   --session-file-prefix "2026-06-" \
   --recent 1 \

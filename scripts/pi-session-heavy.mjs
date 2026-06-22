@@ -121,7 +121,7 @@ const envCiLoopMaxCount = Number.parseInt(process.env.CI_LOOP_MAX_COUNT, 10);
 
 function usage() {
 	console.log(
-		["Usage:", "  node scripts/pi-session-heavy.mjs [--workspace-dir <dir>] [--recent <n>] [--count <n>]"].join("\n"),
+		["Usage:", "  node scripts/session-heavy.mjs [--workspace-dir <dir>] [--recent <n>] [--count <n>]"].join("\n"),
 	);
 	console.log("  --workspace-dir: project dir used to locate workspace-tagged session folder");
 	console.log("  --session-dir:   direct session log directory override (optional)");
