@@ -332,6 +332,10 @@ ls -la ~/.refarm/sessions/                               # root-style v1 layout 
 `session-heavy` now consumes both `*.jsonl` and `*.v1.json` session files in these
 paths, with best-effort parsing for the v1 format.
 
+`session:heavy:ci-watch -- --ci-loop-signal` now prints a signal breakdown by
+CI polling pattern (`gh run view`, `gh pr checks`, `gh run watch`) and a concrete
+suggestion to switch away from manual client-side loops when available.
+
 If you ever move the workspace path, pass `--workspace-dir <path>` to
 `scripts/session-heavy.mjs` to force the session lookup:
 

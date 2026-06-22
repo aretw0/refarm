@@ -511,34 +511,98 @@ function printSummary(sessions) {
 
 function isLikelyCiWatchLoop(command) {
 	const normalized = command.toLowerCase();
-	const isGhTarget = normalized.includes("gh run") || normalized.includes("gh pr");
-	if (!isGhTarget) return false;
+	const signals = collectCiLoopSignals(normalized);
+	return signals.length > 0;
+}
 
-	const hasPollingShape =
-		normalized.includes("while true") ||
-		(normalized.includes("for ") && normalized.includes("sleep")) ||
-		normalized.includes("--watch") ||
-		normalized.includes("sleep");
+function collectCiLoopSignals(command) {
+	const normalized = command.toLowerCase();
+	const isGhTarget = normalized.includes("gh run") || normalized.includes("gh pr");
+	if (!isGhTarget) return [];
+
+	const hasLoopConstruct =
+		/\bwhile\b/.test(normalized) ||
+		/\buntil\b/.test(normalized) ||
+		/\bfor\b/.test(normalized) ||
+		/\brepeat\b/.test(normalized);
+	const hasPollingShape = hasLoopConstruct || normalized.includes("sleep");
 	const hasRunViewOrChecks =
 		normalized.includes("gh run view") ||
 		normalized.includes("gh pr checks") ||
 		normalized.includes("gh run watch");
+	const isLikelyScript = /\bdo\b/.test(normalized) || normalized.includes("&&") || normalized.includes(";");
 
-	return hasPollingShape && hasRunViewOrChecks;
+	if (!hasRunViewOrChecks || !hasPollingShape || !isLikelyScript) return [];
+
+	const signals = [];
+
+	if (normalized.includes("gh run view")) {
+		signals.push({
+			name: "gh run view polling",
+			why:
+				"Command contains explicit polling (`while/until/for/sleep`) around `gh run view`; this is expensive and usually avoidable.",
+			fix: "Use `gh run watch <run-id>` (or `gh run watch <run-id> --exit-status`) for server-side observation.",
+		});
+	}
+
+	if (normalized.includes("gh pr checks")) {
+		signals.push({
+			name: "gh pr checks polling",
+			why:
+				"Command contains explicit polling over PR checks; this pattern can saturate API calls and CPU when run in tight loops.",
+			fix: "Prefer `gh pr checks <pr> --watch` and keep one long-poll operation instead of manual polling.",
+		});
+	}
+
+	if (normalized.includes("gh run watch")) {
+		signals.push({
+			name: "gh run watch loop",
+			why:
+				"Nested shell-level loops wrapping `gh run watch` usually duplicate wait behavior and add extra client-side polling.",
+			fix: "Call `gh run watch ...` directly without additional while/until wrapping.",
+		});
+	}
+
+	return signals;
 }
 
 function summarizeCiWatchLoops(sessions) {
-	const loops = sessions.filter((call) => isLikelyCiWatchLoop(call.command));
+	const loops = [];
+	const bySignal = new Map();
+	const bySuggestion = new Map();
+
+	for (const call of sessions) {
+		const signals = collectCiLoopSignals(call.command);
+		if (signals.length === 0) continue;
+
+		loops.push({
+			command: call.command,
+			durationMs: call.durationMs,
+			signals,
+		});
+
+		for (const signal of signals) {
+			bySignal.set(signal.name, (bySignal.get(signal.name) || 0) + 1);
+			bySuggestion.set(signal.name, signal.fix);
+		}
+	}
+
 	const totalMs = loops.reduce((acc, call) => acc + call.durationMs, 0);
 	const maxMs = loops.length > 0 ? Math.max(...loops.map((call) => call.durationMs)) : 0;
+	const topSignals = [...bySignal.entries()]
+		.map(([name, count]) => ({ name, count, fix: bySuggestion.get(name) || "" }))
+		.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
 	return {
 		count: loops.length,
 		totalWallTimeMs: totalMs,
 		maxWallTimeMs: maxMs,
-		top: [...loops]
-			.sort((a, b) => b.durationMs - a.durationMs)
-			.map((call) => ({ command: call.command, durationMs: call.durationMs })),
+		top: loops.sort((a, b) => b.durationMs - a.durationMs).map((call) => ({
+			command: call.command,
+			durationMs: call.durationMs,
+			signals: call.signals,
+		})),
+		signals: topSignals,
 	};
 }
 
@@ -554,6 +618,16 @@ function printCiLoopSignal(sessions) {
 	);
 	for (const row of summary.top.slice(0, 5)) {
 		console.log(`- ${String(row.durationMs).padStart(6)} ms | ${row.command}`);
+		for (const signal of row.signals.slice(0, 2)) {
+			console.log(`  - ${signal.name}: ${signal.fix}`);
+		}
+	}
+
+	if (summary.signals.length > 0) {
+		console.log("\nCI loop pattern frequency:");
+		for (const signal of summary.signals.slice(0, 4)) {
+			console.log(`- ${signal.name}: ${String(signal.count).padStart(2)}x`);
+		}
 	}
 	return summary;
 }
@@ -599,6 +673,7 @@ function buildJsonSummary(sessions) {
 			totalWallTimeMs: ciLoopSummary.totalWallTimeMs,
 			maxWallTimeMs: ciLoopSummary.maxWallTimeMs,
 			top: ciLoopSummary.top.slice(0, args.count),
+			signals: ciLoopSummary.signals,
 		},
 		ciLoopSignal: {
 			enabled: args.ciLoopSignal,
