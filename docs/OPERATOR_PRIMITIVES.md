@@ -83,6 +83,9 @@ Session Rules:
   the active pointer references a non-existent session.
 - `sessions show --json` must include the same stale-pointer recovery guidance when
   continuing from a stale active pointer.
+- `resume` session-history read (`/sessions`) is bounded by
+  `REFARM_RECENT_SESSION_TIMEOUT_MS` (default `300` ms) to keep operator
+  output responsive when sidecar session access is slow.
 - Human-facing `sessions show` should also surface stale-pointer recovery hints when
   continuing from a stale active session so operators get the same guidance without
   JSON mode.

@@ -13,13 +13,15 @@ interface RuntimeSessionNode {
 }
 
 const RECENT_SESSION_TIMEOUT_MS = 300;
+const REFARM_RECENT_SESSION_TIMEOUT_MS = "REFARM_RECENT_SESSION_TIMEOUT_MS";
 
 export async function loadRecentRuntimeSessions(options: {
 	limit?: number;
 	timeoutMs?: number;
 } = {}): Promise<OperatorResumeSessionRecord[]> {
 	const limit = options.limit ?? 5;
-	const timeoutMs = options.timeoutMs ?? RECENT_SESSION_TIMEOUT_MS;
+	const timeoutMs =
+		options.timeoutMs ?? resolveRecentSessionTimeoutMs(process.env);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
 		const controller = new AbortController();
@@ -35,6 +37,13 @@ export async function loadRecentRuntimeSessions(options: {
 	} finally {
 		if (timer) clearTimeout(timer);
 	}
+}
+
+function resolveRecentSessionTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
+	const raw = env[REFARM_RECENT_SESSION_TIMEOUT_MS];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return RECENT_SESSION_TIMEOUT_MS;
+	return parsed;
 }
 
 function normalizeRuntimeSessions(
