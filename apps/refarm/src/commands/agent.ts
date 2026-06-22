@@ -38,7 +38,7 @@ import {
 } from "./agent-handoff-plan.js";
 import {
 	buildCommandPlanRunEnvelope,
-} from "./command-plan.js";
+} from "@refarm.dev/cli/command-plan";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
