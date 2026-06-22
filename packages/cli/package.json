@@ -81,6 +81,10 @@
 		"./chat-repl": {
 			"types": "./dist/chat-repl.d.ts",
 			"import": "./dist/chat-repl.js"
+		},
+		"./chat-history": {
+			"types": "./dist/chat-history.d.ts",
+			"import": "./dist/chat-history.js"
 		}
 	},
 	"scripts": {
@@ -130,7 +134,9 @@
 		"dist/workspace-sweep.d.ts",
 		"dist/workspace-sweep.js",
 		"dist/chat-repl.d.ts",
-		"dist/chat-repl.js"
+		"dist/chat-repl.js",
+		"dist/chat-history.d.ts",
+		"dist/chat-history.js"
 	],
 	"dependencies": {
 		"@refarm.dev/config": "workspace:*",

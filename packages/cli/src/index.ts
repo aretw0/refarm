@@ -258,3 +258,10 @@ export {
 export type {
 	ChatCommand,
 } from "./chat-repl.js";
+export {
+	loadChatHistory,
+	MAX_CHAT_HISTORY_LINES,
+	rememberChatHistoryLine,
+	saveChatHistory,
+	resolveChatHistoryPath,
+} from "./chat-history.js";
