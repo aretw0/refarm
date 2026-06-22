@@ -17,4 +17,3 @@ export const RUNTIME_AGENT_RELOAD_JSON_COMMAND = refarmCommand([
 	"agent",
 	"--json",
 ]);
-export const PI_AGENT_RELOAD_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
