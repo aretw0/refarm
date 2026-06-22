@@ -90,6 +90,36 @@ Prefer commands that emit JSON when another agent or script will consume the
 result. Public JSON commands expose `ok`, `nextCommand`, `nextCommands`, and
 enough context to recover without hidden session knowledge.
 
+## Cadence and Resource Safety
+
+When the environment feels healthy, keep execution fast. When it becomes noisy, go
+protective without stopping momentum:
+
+- **Fast lane (default):**
+  - use `pnpm run refarm:safety:micro-safe` before local work loops.
+  - keep commands focused and single-purpose.
+  - proceed normally while commands stay under ~60–90s and no visible contention.
+- quick safe slices for chat work:
+  - `pnpm run refarm:safety:test:chat-session`
+  - `pnpm run refarm:safety:test:chat-batch`
+  - `pnpm -C apps/refarm run test:chat-session`
+  - `pnpm -C apps/refarm run test:chat-batch`
+  - `pnpm run pi:session:heavy -- --count 40` (trace the most recent PI session before changing scope)
+- quick safe slices for adjacent areas:
+  - `pnpm run refarm:safety:test:tree`
+  - `pnpm run refarm:safety:test:actions`
+- direct package slices:
+  - `pnpm -C apps/refarm run test:tree-safety`
+  - `pnpm -C apps/refarm run test:actions-safety`
+- **Protective lane trigger:**
+  - command re-runs due to repeated `--filter ... test` slices,
+  - observed flakiness/timeouts under load,
+  - CPU/memory pressure or shell slowdown.
+- **Protective lane response:**
+  - switch to narrower commands (single test path, filtered harness, explicit timeout),
+  - keep budget checks enabled via `refarm:safety` profiles,
+  - reopen at normal lane only after 3 stable slices.
+
 ## Configurações locais vs ações de sincronização
 
 - `refarm config` modifica **configuração local persistida do CLI** (ex.:
