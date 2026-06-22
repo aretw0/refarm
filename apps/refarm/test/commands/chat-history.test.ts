@@ -45,6 +45,20 @@ describe("chat history persistence", () => {
 		expect(history).toEqual(["old prompt", "new prompt"]);
 	});
 
+	it("deduplicates duplicate prompts while preserving recency", () => {
+		let history = ["third", "second", "first"];
+		history = rememberChatHistoryLine(history, "second");
+		expect(history).toEqual(["second", "third", "first"]);
+	});
+
+	it("does not mutate history for consecutive duplicate prompts", () => {
+		const history = ["latest", "older"];
+		const next = rememberChatHistoryLine(history, "latest");
+
+		expect(next).toBe(history);
+		expect(next).toEqual(["latest", "older"]);
+	});
+
 	it("keeps at most 500 history entries", () => {
 		let history: string[] = [];
 		for (let index = 0; index < 505; index++) {

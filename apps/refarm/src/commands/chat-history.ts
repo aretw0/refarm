@@ -24,10 +24,19 @@ export function rememberChatHistoryLine(
 ): string[] {
 	const trimmed = line.trim();
 	if (!trimmed || trimmed.startsWith("/")) return history;
-	return [
-		trimmed,
-		...history.filter((entry) => entry !== trimmed),
-	].slice(0, MAX_CHAT_HISTORY_LINES);
+
+	if (history.length === 0) return [trimmed];
+	if (history[0] === trimmed) return history;
+
+	const existingIndex = history.indexOf(trimmed);
+	if (existingIndex === -1) {
+		return [trimmed, ...history].slice(0, MAX_CHAT_HISTORY_LINES);
+	}
+
+	const next = history.slice();
+	next.splice(existingIndex, 1);
+	next.unshift(trimmed);
+	return next.slice(0, MAX_CHAT_HISTORY_LINES);
 }
 
 export function saveChatHistory(
