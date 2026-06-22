@@ -45,6 +45,7 @@ function parseArgs(argv) {
 		ciLoopMaxCount: 8,
 		repeatSignal: false,
 		repeatMaxCount: 5,
+		suppressSourceWarnings: false,
 	};
 
 	const splitCsv = (value) =>
@@ -144,6 +145,9 @@ function parseArgs(argv) {
 			case "--json":
 				args.json = true;
 				break;
+			case "--suppress-legacy-source-warning":
+				args.suppressSourceWarnings = true;
+				break;
 			case "--print-session-sources":
 			case "--session-sources":
 				args.printSessionSources = true;
@@ -171,6 +175,7 @@ function usage() {
 	);
 	console.log("  --session-source pi: legacy .pi namespace, for migration/forensics only");
 	console.log("  --session-sources/--print-session-sources: list candidate session roots and exit");
+	console.log("  --suppress-legacy-source-warning: skip warning on explicit pi source use");
 	console.log("  --allow-legacy-pi-roots: include legacy ~/.pi roots in source resolution");
 	console.log("  --no-allow-legacy-pi-roots: exclude legacy ~/.pi roots");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
@@ -609,6 +614,11 @@ const args = parseArgs(process.argv.slice(2));
 if (args.help) {
 	usage();
 	process.exit(0);
+}
+
+if (!args.json && !args.suppressSourceWarnings && args.sessionSource === 'pi') {
+	console.warn('[legacy] session source is explicitly set to pi. Use this only for migration/forensics.');
+	console.warn('[legacy] Prefer `--session-source refarm` / `session:heavy:refarm` for ongoing operator work.');
 }
 
 if (args.printSessionSources) {
