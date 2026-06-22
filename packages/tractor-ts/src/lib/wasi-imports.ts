@@ -410,7 +410,7 @@ export class WasiImports {
 					if (typeof Request !== "undefined" && request instanceof Request) {
 						const requestSignal = request.signal;
 						const timeoutSignal = AbortSignal.timeout(timeoutMs);
-						const anySignal = (AbortSignal as {
+						const anySignal = (AbortSignal as unknown as {
 							any?: (signals: Iterable<AbortSignal>) => AbortSignal;
 						}).any;
 						const signal = anySignal

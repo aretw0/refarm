@@ -12,6 +12,7 @@
     "clean": "rm -rf dist",
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
+    "test:prepush": "vitest run test/commands/chat-repl-session.test.ts",
     "test:chat-session": "vitest run test/commands/chat-repl-session.test.ts",
     "test:chat-batch": "vitest run test/commands/chat-repl-session.test.ts test/commands/chat.test.ts test/commands/chat-repl.test.ts --pool=threads",
     "test:tree-safety": "vitest run test/commands/tree.list.test.ts test/commands/tree.show.test.ts test/commands/tree.preview.test.ts",
