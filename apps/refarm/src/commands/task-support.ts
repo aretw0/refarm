@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import {
 	assertChannelControlCapability, parseTaskTransport as parseDispatchTransport, resolveChannelControlSurfaceAdapter, resolveChannelFromTransport, type ChannelControlSurfaceAdapter, type DispatchTransport, } from "@refarm.dev/dispatch-surface";

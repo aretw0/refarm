@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { isRuntimeAgentPluginId, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, RUNTIME_AGENT_PLUGIN_ID, } from "@refarm.dev/config";
 import {
 	buildSystemPrompt, ContextRegistry, CwdContextProvider, DateContextProvider, FilesContextProvider, GitStatusContextProvider, OperatorStateProvider, PolicyFilesContextProvider, SessionDigestContextProvider, type ContextProvider, } from "@refarm.dev/context-provider-v1";

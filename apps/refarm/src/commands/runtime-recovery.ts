@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	RUNTIME_STATUS_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,

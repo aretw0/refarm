@@ -8,7 +8,7 @@ import path from "node:path";
 import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
 import {
 	AGENT_FINISH_LANE_HELP, agentFinishCommand, agentFinishLaneCatalog, type AgentFinishLane, type AgentFinishLaneValidationScope, } from "./agent-handoff-plan.js";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildCommandPlanEnvelope,
 	commandPlanCacheObservations,

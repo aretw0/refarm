@@ -8,7 +8,7 @@ import {
 	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode, } from "../utils/open-external-links.js";
 import {
 	LEGACY_FARMHAND_AUTOSTART_ENV_VAR, parseRuntimeSidecarUrl, parseTractorEngineMode, resolveAutostartMode as resolveRuntimeAutostartMode, resolveRuntimeSidecarUrl, resolveTractorEngineMode as resolveRuntimeTractorEngineMode, RUNTIME_AUTOSTART_ENV_VAR, RUNTIME_SIDECAR_URL_ENV_VAR, TRACTOR_ENGINE_ENV_VAR, type AutostartMode, type TractorEngineMode, } from "../utils/runtime-config.js";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,

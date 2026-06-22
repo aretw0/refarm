@@ -6,7 +6,7 @@ import type {
 } from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import path from "node:path";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { observedEffortStatus } from "./task-observation.js";

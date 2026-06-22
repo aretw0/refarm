@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { createLaunchProcessSpec, launchProcess, type LaunchProcessSpec, } from "@refarm.dev/cli/launch-process";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
