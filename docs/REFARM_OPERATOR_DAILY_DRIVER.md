@@ -108,7 +108,7 @@ protective without stopping momentum:
   - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
   - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
   - `pnpm run session:heavy:refarm` (default, refarm-owned source: ~/.refarm/agent-sessions)
-  - `pnpm run session:heavy:legacy-pi` (legacy .pi sessions: ~/.pi/agent/sessions)
+  - `pnpm run session:heavy:legacy-pi` (legacy .pi sessions: ~/.pi/agent/sessions, explicit migration/forensics path)
 - quick safe slices for adjacent areas:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
@@ -145,7 +145,7 @@ For test-lane triage, `test/commands/chat-repl-session.test.ts` is a fast, unit-
 
 The command is generic enough for cross-workspace inspection with:
 
-`scripts/session-heavy.mjs` is the canonical entrypoint; `scripts/pi-session-heavy.mjs` is kept only as a compatibility shim for legacy `.pi` workflows. Prefer `session:heavy:refarm` for ongoing operator work.
+`scripts/session-heavy.mjs` is the canonical entrypoint. `scripts/pi-session-heavy.mjs` is kept as a compatibility shim (`session:heavy:pi`) for historical `.pi` workflows and keeps `session:heavy:legacy-pi` as the explicit path. Prefer `session:heavy:refarm` for ongoing operator work.
 
 ```bash
 node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
