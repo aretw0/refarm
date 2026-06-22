@@ -119,6 +119,7 @@
 		"refarm:safety:test:actions": "pnpm run refarm:safety:micro-safe && pnpm -C apps/refarm run test:actions-safety",
 		"session:heavy": "node scripts/session-heavy.mjs",
 		"session:heavy:repeat": "node scripts/session-heavy.mjs --recent 6 --count 40 --filter \"pnpm\" --repeat-signal --repeat-max-count 4",
+		"session:heavy:repeat:chat-session": "node scripts/session-heavy.mjs --recent 6 --count 40 --filter \"pnpm -C apps/refarm run test:chat-session\" --repeat-signal --repeat-max-count 3",
 		"session:heavy:ci-watch": "node scripts/session-heavy.mjs --recent 2 --count 20 --filter \"gh \" --ci-loop-signal --ci-loop-max-count 6 --ci-loop-max-ms 360000",
 		"session:heavy:ci-watch:baseline": "node scripts/session-heavy.mjs --recent 5 --count 30 --filter \"gh \" --ci-loop-max-count 12 --ci-loop-max-ms 900000",
 		"refarm:host:smoke:quick": "node scripts/ci/smoke-refarm-host-spine.mjs --quick",
