@@ -338,5 +338,159 @@
       "validations/sqlite-benchmark/browser/public/sqlite3-opfs-async-proxy.js",
       "validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs"
     ]
+  },
+  "automation": {
+    "safety": {
+      "defaultProfile": "micro-safe",
+      "maxDurationMs": 65000,
+      "maxDurationMsByProfile": {
+        "micro-safe": 65000,
+        "micro": 90000,
+        "normal": 240000,
+        "full": 420000
+      },
+      "profiles": {
+        "micro-safe": [
+          {
+            "id": "env-safety",
+            "command": ["bash", "scripts/env-safety-check.sh", "--warn"],
+            "timeoutMs": 30000
+          },
+          {
+            "id": "workspace-resolution",
+            "command": ["node", "packages/toolbox/src/cli.mjs", "reso", "status"],
+            "timeoutMs": 15000
+          }
+        ],
+        "micro": [
+          {
+            "id": "env-safety",
+            "command": ["bash", "scripts/env-safety-check.sh", "--warn"],
+            "timeoutMs": 30000
+          },
+          {
+            "id": "workspace-resolution",
+            "command": ["node", "packages/toolbox/src/cli.mjs", "reso", "status"],
+            "timeoutMs": 15000
+          },
+          {
+            "id": "operator-resume",
+            "command": ["refarm", "resume", "--json"],
+            "timeoutMs": 60000,
+            "required": false
+          },
+          {
+            "id": "operator-next-action",
+            "command": ["refarm", "check", "--next-action", "--json"],
+            "timeoutMs": 60000,
+            "required": false
+          }
+        ],
+        "normal": [
+          {
+            "id": "workspace-resolution",
+            "command": ["node", "packages/toolbox/src/cli.mjs", "reso", "status"],
+            "timeoutMs": 15000
+          },
+          {
+            "id": "env-safety-strict",
+            "command": ["bash", "scripts/env-safety-check.sh", "--strict"],
+            "timeoutMs": 30000
+          },
+          {
+            "id": "refarm-target-type-check",
+            "command": [
+              "node",
+              "scripts/ci/run-package-binary.mjs",
+              "pnpm",
+              "exec",
+              "turbo",
+              "run",
+              "type-check",
+              "--filter=./apps/refarm",
+              "--cache-dir=.turbo"
+            ],
+            "timeoutMs": 180000
+          },
+          {
+            "id": "refarm-target-unit-tests",
+            "command": [
+              "node",
+              "scripts/ci/run-package-binary.mjs",
+              "pnpm",
+              "exec",
+              "turbo",
+              "run",
+              "test:unit",
+              "--filter=./apps/refarm",
+              "--cache-dir=.turbo"
+            ],
+            "timeoutMs": 240000
+          }
+        ],
+        "full": [
+          {
+            "id": "workspace-resolution",
+            "command": ["node", "packages/toolbox/src/cli.mjs", "reso", "status"],
+            "timeoutMs": 15000
+          },
+          {
+            "id": "env-safety-strict",
+            "command": ["bash", "scripts/env-safety-check.sh", "--strict"],
+            "timeoutMs": 30000
+          },
+          {
+            "id": "operator-check-gate",
+            "command": ["node", "scripts/ci/refarm-check-gate.mjs", "check"],
+            "timeoutMs": 480000
+          },
+          {
+            "id": "refarm-target-lint",
+            "command": [
+              "node",
+              "scripts/ci/run-package-binary.mjs",
+              "pnpm",
+              "exec",
+              "turbo",
+              "run",
+              "lint",
+              "--filter=./apps/refarm",
+              "--cache-dir=.turbo"
+            ],
+            "timeoutMs": 240000
+          },
+          {
+            "id": "refarm-target-type-check",
+            "command": [
+              "node",
+              "scripts/ci/run-package-binary.mjs",
+              "pnpm",
+              "exec",
+              "turbo",
+              "run",
+              "type-check",
+              "--filter=./apps/refarm",
+              "--cache-dir=.turbo"
+            ],
+            "timeoutMs": 240000
+          },
+          {
+            "id": "refarm-target-integration-tests",
+            "command": [
+              "node",
+              "scripts/ci/run-package-binary.mjs",
+              "pnpm",
+              "exec",
+              "turbo",
+              "run",
+              "test:integration",
+              "--filter=./apps/refarm",
+              "--cache-dir=.turbo"
+            ],
+            "timeoutMs": 360000
+          }
+        ]
+      }
+    }
   }
 }
