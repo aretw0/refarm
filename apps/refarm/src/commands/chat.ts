@@ -460,6 +460,7 @@ export {
 	return new Promise((resolve) => {
 		let chatHistory = loadChatHistory();
 		let commandHistory: string[] = [];
+		let hasHistoryChanges = false;
 		const rl = readline.createInterface({
 			input: process.stdin,
 			output: process.stdout,
@@ -503,6 +504,7 @@ export {
 						chatHistory = [];
 						commandHistory = [];
 						saveChatHistory(chatHistory);
+						hasHistoryChanges = false;
 						console.log(chalk.dim("✓ Chat history cleared."));
 					} else {
 						const allHistory = [...commandHistory, ...chatHistory];
@@ -656,7 +658,11 @@ export {
 						rl.prompt();
 						break;
 					}
-					chatHistory = rememberChatHistoryLine(chatHistory, command.text);
+					const nextHistory = rememberChatHistoryLine(chatHistory, command.text);
+					if (nextHistory !== chatHistory) {
+						chatHistory = nextHistory;
+						hasHistoryChanges = true;
+					}
 					rl.pause();
 					void (async () => {
 						try {
@@ -683,7 +689,9 @@ export {
 		});
 
 		rl.on("close", () => {
-			saveChatHistory(chatHistory);
+			if (hasHistoryChanges) {
+				saveChatHistory(chatHistory);
+			}
 			console.log(chalk.dim("\nSession saved."));
 			if (!hasPrintedResumeHint) {
 				printResumeHints();
