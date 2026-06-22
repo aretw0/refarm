@@ -61,7 +61,7 @@
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
 		"@refarm.dev/tractor": "workspace:*",
-		"astro": "^6.4.8"
+		"astro": "^7.0.0"
 	},
 	"devDependencies": {
 		"@refarm.dev/config": "workspace:*",
