@@ -31,6 +31,13 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("accepts the short `agent` alias for /reload", () => {
+		expect(parseChatLine("/reload agent")).toEqual({
+			kind: "reload",
+			pluginIds: ["@refarm/pi-agent"],
+		});
+	});
+
 	it("parses /reload with multiple plugin ids", () => {
 		expect(parseChatLine("/reload runtime-agent other-plugin")).toEqual({
 			kind: "reload",

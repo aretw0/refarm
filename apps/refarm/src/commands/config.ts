@@ -715,7 +715,7 @@ Examples:
   $ refarm config profile coding --local --json
 
 Profiles:
-  coding  Enables runtime-agent coding defaults for this scope:
+  coding  Enables agent coding defaults for this scope:
           MODEL_HISTORY_TURNS=20
           MODEL_TOOL_CALL_MAX_ITER=20
           MODEL_STREAM_RESPONSES=1

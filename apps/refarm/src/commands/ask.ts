@@ -295,7 +295,10 @@ export {
 			chalk.dim("   Install bundled plugins:  refarm plugin install"),
 		);
 		console.error(
-			chalk.dim("   Reload runtime plugins:   /reload runtime-agent"),
+			chalk.dim("   Reload runtime plugins:   /reload agent"),
+		);
+		console.error(
+			chalk.dim("                             (legacy alias: /reload runtime-agent)"),
 		);
 		console.error(
 			chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`),
