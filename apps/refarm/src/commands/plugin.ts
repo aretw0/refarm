@@ -6,6 +6,7 @@ import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
 import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 	RUNTIME_AGENT_PLUGIN_ID,
 	PI_AGENT_NPM_PACKAGE,
@@ -201,8 +202,9 @@ interface PluginInstallReport {
 }
 
 function localRuntimeAgentBuildCommand(): string {
+	const runtimeAgentWorkspaceDir = RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir;
 	return createPackageScriptCommand({
-		cwd: "packages/pi-agent",
+		cwd: runtimeAgentWorkspaceDir,
 		script: "build",
 	}).display;
 }
