@@ -4,6 +4,7 @@ import path from "node:path";
 
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { observedTaskResultError } from "./task-observation.js";
+import { resolveRequestTimeoutMs } from "./fetch-with-timeout.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
@@ -93,10 +94,13 @@ export function followStreamFile(
 	options?: FollowStreamOptions,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const submittedAtMs = options?.submittedAtMs ?? Date.now();
-		const timeoutMs = options?.timeoutMs ??
-			resolveStreamFollowTimeoutMs(process.env);
-		const deadline = Date.now() + timeoutMs;
+	const submittedAtMs = options?.submittedAtMs ?? Date.now();
+	const timeoutMs = options?.timeoutMs ??
+			resolveRequestTimeoutMs(process.env, {
+				timeoutEnvVar: REFARM_STREAM_FOLLOW_TIMEOUT_MS,
+				defaultTimeoutMs: DEFAULT_STREAM_FOLLOW_TIMEOUT_MS,
+			});
+	const deadline = Date.now() + timeoutMs;
 
 		const resolveStreamFilePath = (): string | null => {
 			const exactPath = path.join(streamsDir, `${effortId}.ndjson`);
@@ -206,15 +210,6 @@ export function followStreamFile(
 		}, 100);
 		void readNew();
 	});
-}
-
-function resolveStreamFollowTimeoutMs(
-	env: NodeJS.ProcessEnv = process.env,
-): number {
-	const raw = env[REFARM_STREAM_FOLLOW_TIMEOUT_MS];
-	const parsed = Number.parseInt(raw ?? "", 10);
-	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_STREAM_FOLLOW_TIMEOUT_MS;
-	return parsed;
 }
 
 function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
