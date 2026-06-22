@@ -167,6 +167,82 @@ describe("resume command", () => {
 		spy.mockRestore();
 	});
 
+	it("prioritizes stale session cleanup in plain resume output", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:refarm:session:v1:stale987654"),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([
+				{
+					sessionId: "urn:refarm:session:v1:other123456",
+					shortId: "other123",
+					name: "other",
+					hasHistory: true,
+					showCommand: "refarm sessions show other123 --json",
+					useCommand: "refarm sessions use other123 --json",
+				},
+			]),
+			loadChatHistory: vi.fn().mockReturnValue(["ship it"]),
+		});
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync([], { from: "user" });
+
+		const output = spy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Session: stale");
+		expect(output).toContain("show: unavailable; clear or inspect sessions list");
+		expect(output).toContain("Next commands:");
+		const clearIndex = output.indexOf("refarm sessions clear --json");
+		const listIndex = output.indexOf("refarm sessions list --json");
+		expect(clearIndex).toBeGreaterThan(-1);
+		expect(listIndex).toBeGreaterThan(clearIndex);
+		spy.mockRestore();
+	});
+
+	it("prioritizes stale session cleanup in JSON resume handoff", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:refarm:session:v1:stale987654"),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([
+				{
+					sessionId: "urn:refarm:session:v1:other123456",
+					shortId: "other123",
+					name: "other",
+					hasHistory: true,
+					showCommand: "refarm sessions show other123 --json",
+					useCommand: "refarm sessions use other123 --json",
+				},
+			]),
+			loadChatHistory: vi.fn().mockReturnValue(["ship it"]),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			session: { status: "active" | "stale" | "none" };
+			nextCommands?: string[];
+		};
+		expect(payload.session.status).toBe("stale");
+		expect(payload.nextCommands?.[0]).toBe("refarm sessions clear --json");
+		expect(payload.nextCommands).toContain("refarm sessions list --json");
+		spy.mockRestore();
+	});
+
 	it("prints only the next command in plain text", async () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),

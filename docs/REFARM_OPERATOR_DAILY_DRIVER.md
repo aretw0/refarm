@@ -280,6 +280,12 @@ refarm sessions list --json
 refarm sessions show <id-prefix>
 refarm sessions use <id-prefix>
 ```
+When `sessions list --json` reports `activeSessionStatus: "stale"`, treat
+`refarm sessions clear --json` as the highest-priority next command before
+continuing with `sessions show`/`sessions use`.
+The same stale-pointer recovery applies to `sessions show` human output: if
+`show` is continuing from a stale active pointer, surface the same clear hint before
+other follow-ups.
 
 By default, workspace-tagged session lookup uses the `refarm` source:
 

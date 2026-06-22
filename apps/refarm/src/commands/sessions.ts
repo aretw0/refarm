@@ -59,6 +59,14 @@ interface SessionListReport {
 	sessions: SessionNode[];
 }
 
+interface SessionListRecommendation {
+	diagnostic: string;
+	summary: string;
+	action: string;
+	command: string;
+	severity: "warning" | "info" | "error";
+}
+
 interface ActiveSessionReport {
 	action: "created" | "switched" | "cleared";
 	activeSessionId: string | null;
@@ -96,6 +104,15 @@ const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"])
 const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
 const SESSIONS_CLEAR_COMMAND = refarmCommand(["sessions", "clear"]);
 const SESSIONS_CLEAR_JSON_COMMAND = refarmCommand(["sessions", "clear", "--json"]);
+
+const STALE_ACTIVE_SESSION_RECOMMENDATION: SessionListRecommendation = {
+	diagnostic: "session:active-stale",
+	summary: "Active session pointer references a session that no longer exists.",
+	action: "Clear the stale active session pointer.",
+	command: SESSIONS_CLEAR_JSON_COMMAND,
+	severity: "warning",
+};
+
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
 }
@@ -109,6 +126,14 @@ function enrichSessionHistory(history: SessionHistory): SessionHistory {
 		...history,
 		...sessionParticipantFields(history.session.participants),
 	};
+}
+
+function sessionActiveStaleRecommendation(
+	activeSessionStatus: SessionListReport["activeSessionStatus"],
+): SessionListRecommendation[] {
+	return activeSessionStatus === "stale"
+		? [STALE_ACTIVE_SESSION_RECOMMENDATION]
+		: [];
 }
 
 function printSessionJsonSuccess<TExtra extends object>(
@@ -397,15 +422,28 @@ async function listSessions(
 			? report.sessions.find((session) => session["@id"] === report.activeSessionId)
 			: undefined;
 		const nextSessionId = activeSession?.["@id"] ?? report.sessions[0]?.["@id"];
-		const nextCommands = nextSessionId
-			? [
-					sessionShowJsonCommand(nextSessionId),
-					sessionUseJsonCommand(nextSessionId),
-				]
-			: report.activeSessionStatus === "stale"
-				? [SESSIONS_CLEAR_JSON_COMMAND, SESSIONS_NEW_JSON_COMMAND]
-				: [SESSIONS_NEW_JSON_COMMAND];
-		printSessionJsonSuccess("list", report, nextCommands);
+		const nextCommands: string[] = [];
+		if (report.activeSessionStatus === "stale") {
+			nextCommands.push(SESSIONS_CLEAR_JSON_COMMAND);
+		}
+		if (nextSessionId) {
+			nextCommands.push(
+				sessionShowJsonCommand(nextSessionId),
+				sessionUseJsonCommand(nextSessionId),
+			);
+		} else {
+			nextCommands.push(SESSIONS_NEW_JSON_COMMAND);
+		}
+		const recommendations = sessionActiveStaleRecommendation(
+			report.activeSessionStatus,
+		);
+		const payload: SessionListReport & {
+			recommendations?: SessionListRecommendation[];
+		} = { ...report };
+		if (recommendations.length > 0) {
+			payload.recommendations = recommendations;
+		}
+		printSessionJsonSuccess("list", payload, nextCommands);
 		return;
 	}
 
@@ -812,15 +850,66 @@ async function showSession(
 
 	if (opts.json) {
 		const activeSessionId = services.readActiveSessionId();
-		const nextCommands =
-			activeSessionId === history.session["@id"]
-				? []
-				: [sessionUseJsonCommand(history.session["@id"]), SESSIONS_LIST_JSON_COMMAND];
-		printSessionJsonSuccess("show", history, nextCommands);
+		let recommendations: SessionListRecommendation[] = [];
+		const nextCommands: string[] = [];
+		if (
+			activeSessionId &&
+			activeSessionId !== history.session["@id"]
+		) {
+			try {
+				const sessions = await fetchSessions(services);
+				const activeSessionStatus = activeSessionId
+					? sessions.some((session) => session["@id"] === activeSessionId)
+						? "active"
+						: "stale"
+					: "none";
+				recommendations = sessionActiveStaleRecommendation(activeSessionStatus);
+				if (activeSessionStatus === "stale") {
+					nextCommands.push(SESSIONS_CLEAR_JSON_COMMAND);
+				}
+			} catch {
+				// best effort recommendations; keep show payload stable
+			}
+		}
+		if (activeSessionId !== history.session["@id"]) {
+			nextCommands.push(sessionUseJsonCommand(history.session["@id"]));
+			nextCommands.push(SESSIONS_LIST_JSON_COMMAND);
+		}
+		const payload: SessionHistory & {
+			recommendations?: SessionListRecommendation[];
+		} = {
+			...history,
+		};
+		if (recommendations.length > 0) {
+			payload.recommendations = recommendations;
+		}
+		printSessionJsonSuccess("show", payload, nextCommands);
 		return;
 	}
 
 	const session = history.session;
+	const activeSessionId = services.readActiveSessionId();
+	if (activeSessionId && activeSessionId !== session["@id"]) {
+		try {
+			const sessions = await fetchSessions(services);
+			const activeSessionStatus = sessions.some(
+				(sessionId) => sessionId["@id"] === activeSessionId,
+			)
+				? "active"
+				: "stale";
+			if (activeSessionStatus === "stale") {
+				console.log(
+					chalk.yellow(
+						`⚠  Active session pointer is stale: ${chalk.cyan(formatSessionId(activeSessionId))}`,
+					),
+				);
+				console.log(chalk.dim(`   Clear it with: ${SESSIONS_CLEAR_COMMAND}`));
+				console.log();
+			}
+		} catch {
+			// Best effort: keep show output stable even if session recovery check fails.
+		}
+	}
 	const short = formatSessionId(session["@id"]);
 	const name = session.name ? chalk.white(session.name) : chalk.dim("unnamed");
 	console.log(chalk.bold(`\n  Session ${chalk.cyan(short)}  ${name}`));
