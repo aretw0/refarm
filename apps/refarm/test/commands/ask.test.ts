@@ -704,6 +704,9 @@ describe("refarm ask", () => {
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Reload runtime plugins"),
 		);
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/reload agent"),
+		);
 		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();

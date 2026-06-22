@@ -98,7 +98,9 @@ describe("plugin install", () => {
 
 		expect(help).toContain("refarm plugin status");
 		expect(help).toContain("refarm plugin reload runtime-agent --json");
+		expect(help).toContain("refarm plugin reload agent --json");
 		expect(help).toContain("/reload runtime-agent");
+		expect(help).toContain("/reload agent");
 		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor");
@@ -120,7 +122,9 @@ describe("plugin install", () => {
 
 		expect(help).toContain("start or restart the runtime");
 		expect(help).toContain("refarm plugin reload runtime-agent --json");
+		expect(help).toContain("refarm plugin reload agent --json");
 		expect(help).toContain("/reload runtime-agent");
+		expect(help).toContain("/reload agent");
 		expect(help).toContain("refarm plugin status");
 	});
 
