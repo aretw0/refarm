@@ -6,6 +6,7 @@ import path from 'node:path';
 function parseArgs(argv) {
 	const args = {
 		workspaceDir: process.cwd(),
+		sessionDir: null,
 		recent: 1,
 		count: 20,
 		json: false,
@@ -34,6 +35,10 @@ function parseArgs(argv) {
 		switch (arg) {
 			case "--workspace-dir":
 				args.workspaceDir = argv[i + 1] || args.workspaceDir;
+				i += 1;
+				break;
+			case "--session-dir":
+				args.sessionDir = argv[i + 1] || null;
 				i += 1;
 				break;
 			case "--recent": {
@@ -114,6 +119,7 @@ function usage() {
 		["Usage:", "  node scripts/pi-session-heavy.mjs [--workspace-dir <dir>] [--recent <n>] [--count <n>]"].join("\n"),
 	);
 	console.log("  --workspace-dir: project dir used to locate .pi session folder");
+	console.log("  --session-dir:   direct session log directory override (optional)");
 	console.log("  --recent:        how many latest sessions to inspect (default: 1)");
 	console.log("  --count:         top commands to print (default: 20)");
 	console.log("  --session-file-prefix: include only session filenames containing this substring");
@@ -130,7 +136,14 @@ function usage() {
 	console.log("  CI_LOOP_MAX_MS / CI_LOOP_MAX_COUNT env vars: override default signal limits");
 }
 
-function workspaceSessionDir(workspaceDir) {
+function resolveSessionDir(workspaceDir, sessionDirOverride) {
+	if (sessionDirOverride) {
+		return {
+			tag: "<direct>",
+			path: path.resolve(sessionDirOverride),
+		};
+	}
+
 	const normalized = path.resolve(workspaceDir);
 	const tag = `--${normalized.replace(/^\/+/, "").replace(/\//g, "-") }--`;
 	const home = process.env.HOME || process.env.USERPROFILE || "";
@@ -440,11 +453,15 @@ if (args.help) {
 if (Number.isInteger(envCiLoopMaxMs) && envCiLoopMaxMs > 0) args.ciLoopMaxMs = envCiLoopMaxMs;
 if (Number.isInteger(envCiLoopMaxCount) && envCiLoopMaxCount > 0) args.ciLoopMaxCount = envCiLoopMaxCount;
 
-const sessionInfo = workspaceSessionDir(args.workspaceDir);
+const sessionInfo = resolveSessionDir(args.workspaceDir, args.sessionDir);
 if (!fs.existsSync(sessionInfo.path)) {
 	console.error(`Session directory not found: ${sessionInfo.path}`);
-	console.log(`Looked up as workspace tag: ${sessionInfo.tag}`);
-	console.log('Tip: run from the target workspace root or pass --workspace-dir <path>');
+	if (sessionInfo.tag === "<direct>") {
+		console.log('Hint: verify --session-dir points to a valid sessions directory.');
+	} else {
+		console.log(`Looked up by workspace tag: ${sessionInfo.tag}`);
+		console.log('Tip: run from the target workspace root or pass --workspace-dir <path>.');
+	}
 	process.exit(1);
 }
 
