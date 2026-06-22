@@ -129,6 +129,8 @@ For test-lane triage, `test/commands/chat-repl-session.test.ts` is a fast, unit-
   - `pnpm -C apps/refarm run test:chat-session -- --clearCache`
 - inspect loop origin with:
   - `pnpm run session:heavy:repeat -- --filter \"pnpm -C apps/refarm run test:chat-session\" --repeat-max-count 3`
+  - `pnpm run session:heavy:repeat:chat-session`
+  - `pnpm run session:heavy -- --filter \"chat-repl-session.test.ts\" --recent 6 --count 40`
 - quick CI-loop triage before/after CI-heavy work:
   - `pnpm run session:heavy:ci-watch`
   - if this returns non-zero, it means likely CI-watch/polling loops exceeded a
