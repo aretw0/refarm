@@ -8,6 +8,8 @@ import { sidecarUrl } from "./sidecar-url.js";
 
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
 const REFARM_TASK_RESULTS_DIR_ENV_VAR = "REFARM_TASK_RESULTS_DIR";
+const REFARM_STREAM_FOLLOW_TIMEOUT_MS = "REFARM_STREAM_FOLLOW_TIMEOUT_MS";
+const DEFAULT_STREAM_FOLLOW_TIMEOUT_MS = 45_000;
 
 export interface RuntimeEffortPollFallback {
 	status: "ok" | "error";
@@ -92,7 +94,8 @@ export function followStreamFile(
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const submittedAtMs = options?.submittedAtMs ?? Date.now();
-		const timeoutMs = options?.timeoutMs ?? 45_000;
+		const timeoutMs = options?.timeoutMs ??
+			resolveStreamFollowTimeoutMs(process.env);
 		const deadline = Date.now() + timeoutMs;
 
 		const resolveStreamFilePath = (): string | null => {
@@ -203,6 +206,15 @@ export function followStreamFile(
 		}, 100);
 		void readNew();
 	});
+}
+
+function resolveStreamFollowTimeoutMs(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[REFARM_STREAM_FOLLOW_TIMEOUT_MS];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_STREAM_FOLLOW_TIMEOUT_MS;
+	return parsed;
 }
 
 function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
