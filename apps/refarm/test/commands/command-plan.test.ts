@@ -9,7 +9,7 @@ import {
 	commandPlanWrites,
 	runCommandPlan,
 	type CommandPlanStep,
-} from "../../src/commands/command-plan.js";
+} from "@refarm.dev/cli/command-plan";
 
 const steps: CommandPlanStep[] = [
 	{
@@ -132,7 +132,7 @@ describe("command plan runner", () => {
 	});
 
 	it("builds run JSON envelopes from command plan results", () => {
-		const result = runCommandPlan([steps[0]!], (step) => ({
+		const result = runCommandPlan([steps[0]!], (step: CommandPlanStep) => ({
 			...step,
 			ok: false,
 			exitCode: 1,

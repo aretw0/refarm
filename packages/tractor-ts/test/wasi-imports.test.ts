@@ -50,7 +50,10 @@ describe("WasiImports — HTTP outgoing-handler", () => {
   it("strict profile, matching allowedOrigin: allows and calls fetch", async () => {
     const { imports } = makeImports("strict", ["https://example.com"]);
     await imports["wasi:http/outgoing-handler"]!.handle!("https://example.com/path");
-    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith("https://example.com/path");
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
+      "https://example.com/path",
+      expect.any(Object),
+    );
   });
 
   it("strict profile, non-matching origin: blocks and throws", async () => {
