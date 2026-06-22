@@ -406,7 +406,21 @@ export class WasiImports {
 						);
 						throw new Error("HTTP request not permitted by capabilities");
 					}
-					return fetch(request as RequestInfo | URL);
+					const timeoutMs = 30_000;
+					if (typeof Request !== "undefined" && request instanceof Request) {
+						const requestSignal = request.signal;
+						const timeoutSignal = AbortSignal.timeout(timeoutMs);
+						const anySignal = (AbortSignal as {
+							any?: (signals: Iterable<AbortSignal>) => AbortSignal;
+						}).any;
+						const signal = anySignal
+							? anySignal([requestSignal, timeoutSignal])
+							: requestSignal;
+						return fetch(new Request(request, { signal }));
+					}
+					return fetch(request as RequestInfo | URL, {
+						signal: AbortSignal.timeout(timeoutMs),
+					});
 				},
 			},
 			"refarm:plugin/tractor-bridge": tractorBridge,
