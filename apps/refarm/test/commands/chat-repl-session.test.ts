@@ -843,6 +843,30 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("prints active session on /session without args", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const sessionId = "urn:refarm:session:v1:test-session";
+		runSessionRepl(sessionId, {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/session");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(`✓ Active session: ${sessionId.slice(-8)}`);
+
+		consoleSpy.mockRestore();
+	});
+
 	it("keeps prior session id when /session fails", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi

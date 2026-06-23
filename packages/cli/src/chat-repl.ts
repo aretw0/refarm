@@ -241,7 +241,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /clear            Clear chat history
   /commands         Show this message
   /new              Start a fresh session
-  /session <prefix> Switch to session matching prefix
+  /session [prefix] Switch to session; no prefix prints the active session
   /status           Show runtime / model / readiness status
   /exit, /quit or /q Exit refarm chat
   /help, /h or /?    Show this message`;
