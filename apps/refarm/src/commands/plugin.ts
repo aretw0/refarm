@@ -866,7 +866,7 @@ export const pluginCommand = new Command("plugin").description(
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 	"  refarm ask preflights the runtime agent plugin and asks the runtime to reload it when installed but not loaded.",
-	"  In refarm chat, /reload agent is the interactive equivalent.",
+	"  In refarm chat, /reload agent or /r agent is the interactive equivalent.",
 	].join("\n"),
 );
 
@@ -885,7 +885,7 @@ pluginCommand
 			"Notes:",
 			`  If the bundled runtime agent WASM is missing, build ${RUNTIME_AGENT_NPM_PACKAGE} first with the command printed by the error.`,
 			"  After install, start or restart the runtime, then run refarm plugin reload agent --json.",
-			"  In refarm chat, /reload agent is the interactive equivalent.",
+		"  In refarm chat, /reload agent or /r agent is the interactive equivalent.",
 			"  Run refarm plugin status to confirm runtime load state.",
 		].join("\n"),
 	)
@@ -937,7 +937,7 @@ pluginCommand
 			`  Ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
 			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
-			"  In refarm chat, /reload agent is the interactive equivalent.",
+		"  In refarm chat, /reload agent or /r agent is the interactive equivalent.",
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable runtime plugin state")
@@ -957,7 +957,7 @@ pluginCommand
 			`  $ ${PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND}`,
 			"",
 			"Notes:",
-			"  This is the non-interactive equivalent of /reload in refarm chat.",
+		"  This is the non-interactive equivalent of /reload (or /r) in refarm chat.",
 			"  Hot reload is attempted first; runtime restart only happens with --restart-if-needed.",
 			"  Polling timeout is controlled by REFARM_PLUGIN_RELOAD_MAX_WAIT_MS (default 120000ms).",
 			`  Use ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if the runtime is not running.`,

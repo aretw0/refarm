@@ -411,7 +411,7 @@ Examples:
 Notes:
   Local extensions are loaded by the Refarm runtime. After editing one, run
   refarm plugin reload @local/<name> --json or restart the runtime.
-  Inside refarm chat, /reload @local/<name> is the interactive equivalent.
+  Inside refarm chat, /reload @local/<name> (or /r @local/<name>) is the interactive equivalent.
 `,
 );
 
