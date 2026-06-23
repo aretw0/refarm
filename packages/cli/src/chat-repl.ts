@@ -96,6 +96,9 @@ export function parseChatLine(line: string): ChatCommand {
 	if (commandName === "history") {
 		return parseHistoryCommand(rest, trimmed);
 	}
+	if (commandName === "hist") {
+		return parseHistoryCommand(rest, trimmed);
+	}
 	if (commandName === "clear") {
 		return { kind: "history", action: "clear" };
 	}
@@ -235,6 +238,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /sow [args...]    Alias for /login
   /keys             Reconfigure model/provider credentials inline
   /history [--clear|clear] Show recent chat history and commands run in REPL
+  /hist              Alias for /history
   /clear            Clear chat history
   /cls              Shortcut for /clear
   /commands         Show this message
