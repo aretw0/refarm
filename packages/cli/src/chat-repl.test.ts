@@ -241,6 +241,10 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("/help")).toEqual({ kind: "help" });
 	});
 
+	it("parses /commands as help", () => {
+		expect(parseChatLine("/commands")).toEqual({ kind: "help" });
+	});
+
 	it("parses /h as help", () => {
 		expect(parseChatLine("/h")).toEqual({ kind: "help" });
 	});
@@ -333,6 +337,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/cls");
 		expect(CHAT_HELP_TEXT).toContain("/q");
 		expect(CHAT_HELP_TEXT).toContain("/h");
+		expect(CHAT_HELP_TEXT).toContain("/commands");
 		expect(CHAT_HELP_TEXT).toContain("/?");
 	});
 });
