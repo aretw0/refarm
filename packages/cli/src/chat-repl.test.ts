@@ -381,6 +381,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/r");
 		expect(CHAT_HELP_TEXT).toContain("/history [--clear|clear]");
 		expect(CHAT_HELP_TEXT).toContain("/hist");
+		expect(CHAT_HELP_TEXT).toContain("/cls");
 		expect(CHAT_HELP_TEXT).toContain("/clear");
 		expect(CHAT_HELP_TEXT).toContain("/session [prefix]");
 		expect(CHAT_HELP_TEXT).toContain("/q");
