@@ -76,6 +76,12 @@ export function parseChatLine(line: string): ChatCommand {
 			pluginIds: rest.filter(Boolean).map(normalizePluginId),
 		};
 	}
+	if (commandName === "r") {
+		return {
+			kind: "reload",
+			pluginIds: rest.filter(Boolean).map(normalizePluginId),
+		};
+	}
 
 	if (commandName === "model" || commandName === "provider") {
 		return parseModelCommand(rest, trimmed);
@@ -222,6 +228,7 @@ function parseModelResetArgs(
 }
 
 export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugins in the Refarm runtime, e.g. /reload agent
+  /r                Alias for /reload
   /model            Show the active model route
   /model providers  List known provider defaults
   /model ${OPENAI_DEFAULT_REF}   Set the default model route

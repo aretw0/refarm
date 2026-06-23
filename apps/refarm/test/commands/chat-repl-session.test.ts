@@ -217,6 +217,40 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("executes /r as reload without plugin ids", async () => {
+		const reloadPlugins = vi
+			.fn()
+			.mockResolvedValue({ reloaded: [], skipped: [] });
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins,
+		});
+		lastInterface.emit("line", "/r");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(reloadPlugins).toHaveBeenCalledWith(undefined);
+	});
+
+	it("normalizes plugin aliases on /r", async () => {
+		const reloadPlugins = vi
+			.fn()
+			.mockResolvedValue({ reloaded: [], skipped: [] });
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins,
+		});
+		lastInterface.emit("line", "/r runtime-agent");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
+	});
+
 	it("prints status failure path and continues", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi
