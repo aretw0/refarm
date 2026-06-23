@@ -230,7 +230,7 @@ async function newExtension(
     nextActions: [
       reloadCommand,
       "restart the Refarm runtime",
-      `inside refarm chat, run /reload @local/${name}`,
+      `inside refarm chat, run /reload @local/${name} (or /r @local/${name})`,
     ],
     nextCommand: reloadCommand,
     nextCommands: [reloadCommand, EXTENSION_LIST_JSON_COMMAND],

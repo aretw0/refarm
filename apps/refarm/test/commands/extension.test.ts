@@ -91,7 +91,7 @@ describe("extension command", () => {
 				nextActions: [
 					"refarm plugin reload '@local/my-tool' --json",
 					"restart the Refarm runtime",
-					"inside refarm chat, run /reload @local/my-tool",
+					"inside refarm chat, run /reload @local/my-tool (or /r @local/my-tool)",
 				],
 				nextAction: "refarm plugin reload '@local/my-tool' --json",
 				nextCommand: "refarm plugin reload '@local/my-tool' --json",
