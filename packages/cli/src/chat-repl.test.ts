@@ -283,6 +283,20 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("/status")).toEqual({ kind: "status" });
 	});
 
+	it("parses /providers as provider listing", () => {
+		expect(parseChatLine("/providers")).toEqual({
+			kind: "model",
+			action: "providers",
+		});
+	});
+
+	it("parses /models as provider listing", () => {
+		expect(parseChatLine("/models")).toEqual({
+			kind: "model",
+			action: "providers",
+		});
+	});
+
 	it("parses /session with prefix", () => {
 		expect(parseChatLine("/session abc123")).toEqual({
 			kind: "session",
@@ -328,6 +342,8 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/model reset worker");
 		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");
 		expect(CHAT_HELP_TEXT).toContain("/model fallback ollama/llama3.2");
+		expect(CHAT_HELP_TEXT).toContain("/providers");
+		expect(CHAT_HELP_TEXT).toContain("/models");
 		expect(CHAT_HELP_TEXT).toContain("/login [args...]");
 		expect(CHAT_HELP_TEXT).toContain("/sow [args...]");
 		expect(CHAT_HELP_TEXT).toContain("/keys");
