@@ -652,6 +652,33 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("prints help text for /commands", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/commands");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(CHAT_HELP_TEXT);
+		expect(out).not.toContain("To continue this session");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("prints resume hints exactly once on /exit", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi

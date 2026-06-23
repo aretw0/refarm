@@ -43,6 +43,7 @@ const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	help: { kind: "help" },
 	"?": { kind: "help" },
 	h: { kind: "help" },
+	commands: { kind: "help" },
 	status: { kind: "status" },
 };
 
@@ -231,6 +232,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /history [--clear|clear] Show recent chat history and commands run in REPL
   /clear            Clear chat history
   /cls              Shortcut for /clear
+  /commands         Show this message
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /status           Show runtime / model / readiness status
