@@ -707,6 +707,9 @@ describe("refarm ask", () => {
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("/reload agent"),
 		);
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/r agent"),
+		);
 		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
