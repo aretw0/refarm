@@ -102,6 +102,9 @@ export function parseChatLine(line: string): ChatCommand {
 	if (commandName === "cls") {
 		return { kind: "history", action: "clear" };
 	}
+	if (commandName === "providers" || commandName === "models") {
+		return { kind: "model", action: "providers" };
+	}
 
 	return SLASH_COMMANDS[commandName] ?? { kind: "message", text: trimmed };
 }
@@ -226,6 +229,8 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /model reset worker
   /model base-url http://127.0.0.1:8000
   /model fallback ollama/llama3.2
+  /providers        Show known provider defaults
+  /models           Alias for /providers
   /login [args...]  Configure credentials without leaving the session
   /sow [args...]    Alias for /login
   /keys             Reconfigure model/provider credentials inline
