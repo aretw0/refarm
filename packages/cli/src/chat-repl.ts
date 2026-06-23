@@ -44,6 +44,7 @@ const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	"?": { kind: "help" },
 	h: { kind: "help" },
 	commands: { kind: "help" },
+	s: { kind: "status" },
 	status: { kind: "status" },
 };
 

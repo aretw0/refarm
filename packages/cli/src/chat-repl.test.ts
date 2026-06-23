@@ -298,6 +298,10 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("/status")).toEqual({ kind: "status" });
 	});
 
+	it("parses /s as status", () => {
+		expect(parseChatLine("/s")).toEqual({ kind: "status" });
+	});
+
 	it("parses /providers as provider listing", () => {
 		expect(parseChatLine("/providers")).toEqual({
 			kind: "model",
