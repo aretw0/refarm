@@ -66,9 +66,7 @@ export function parseChatLine(line: string): ChatCommand {
 
 	if (commandName === "session") {
 		const prefix = rest.join(" ").trim();
-		return prefix.length > 0
-			? { kind: "session", prefix }
-			: { kind: "message", text: trimmed };
+		return { kind: "session", prefix };
 	}
 
 	if (commandName === "reload") {

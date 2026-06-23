@@ -552,6 +552,14 @@ export {
 
 				case "session": {
 					const prefix = command.prefix;
+					if (!prefix) {
+						console.log(
+							chalk.dim(`✓ Active session: ${activeSessionId.slice(-8)}`),
+						);
+						console.log();
+						rl.prompt();
+						break;
+					}
 					rl.pause();
 					void (async () => {
 						try {
