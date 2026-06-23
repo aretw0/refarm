@@ -240,7 +240,6 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /history [--clear|clear] Show recent chat history and commands run in REPL
   /hist              Alias for /history
   /clear            Clear chat history
-  /cls              Shortcut for /clear
   /commands         Show this message
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
