@@ -696,6 +696,23 @@ pnpm run test:smoke:ws
 - **GO**: todos os checks do preflight rápido verdes; se houver mudança de boundary runtime, preflight completo verde.
 - **NO-GO**: qualquer falha em toolchain/targets/permissão/reso status → corrigir ambiente antes de abrir lote.
 
+### Sinais objetivos para migrar para melhoria funcional de produto
+
+Use esta regra de passagem quando a equipe estiver em ciclo de ajustes de pipeline/processo:
+
+- **Condição de estabilidade** (últimos 3 lotes):  
+  - Nenhum timeout de pre-push local crítico em `lint`/`type-check`/`test` (warnings locais aceitáveis, desde que documentados);  
+  - Sem falha bloqueante repetida de `prepush` após ajuste de mesma categoria;  
+  - `refarm check --next-action --json` sem bloqueios funcionais;  
+  - `pre-push` passou sem novos arquivos/patches com impacto direto sobre o fluxo básico (testes de regressão, `preflight` e CI alinhados).
+
+- **Condição de transição de trabalho**:  
+  - Abra explicitamente um novo ticket/objetivo funcional;  
+  - Mantenha o estado atual de validação como baseline (`git log` + evidência de checks);  
+  - A próxima entrega começa com um requisito/escopo de produto por vez (1 feature, 1 PR).
+
+- **Regra de segurança**: se após 1 ciclo funcional surgir novamente pressão de recursos (zumbi, travamentos, timeouts), retorne para o bloco de estabilização com objetivo único e timeout de execução explícito.
+
 ### Autorização explícita para escrita em lote
 
 Para evitar ambiguidade operacional, use confirmação textual explícita antes de ações de escrita em lote:
