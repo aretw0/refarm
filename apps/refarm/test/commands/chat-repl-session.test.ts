@@ -185,6 +185,38 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("executes /s as status shortcut", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		mockedLaunchProcess.mockResolvedValue(0);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/s");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(mockedLaunchProcess).toHaveBeenCalledWith({
+			command: process.argv[0],
+			args: [process.argv[1], "status"],
+			display: "refarm status",
+		});
+		expect(logs.join("\n")).not.toContain("Goodbye.");
+		expect(logs.join("\n")).not.toContain("To continue this session");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("prints status failure path and continues", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi
