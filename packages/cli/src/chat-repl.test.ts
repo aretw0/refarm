@@ -319,10 +319,10 @@ describe("parseChatLine", () => {
 		});
 	});
 
-	it("treats /session without prefix as plain message", () => {
+	it("parses /session without prefix as a session command", () => {
 		expect(parseChatLine("/session")).toEqual({
-			kind: "message",
-			text: "/session",
+			kind: "session",
+			prefix: "",
 		});
 	});
 
