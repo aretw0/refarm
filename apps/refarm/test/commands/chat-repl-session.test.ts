@@ -448,6 +448,33 @@ describe("runSessionRepl", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("clears chat history on /clear", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/clear");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("does not persist history for /history --clear when already empty", async () => {
 		mockedLoadChatHistory.mockReturnValue([]);
 		const logs: string[] = [];
