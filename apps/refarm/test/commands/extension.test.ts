@@ -23,6 +23,7 @@ describe("extension command", () => {
 		expect(help).toContain("refarm extension publish my-tool --json");
 		expect(help).toContain("refarm plugin reload @local/<name> --json");
 		expect(help).toContain("/reload @local/<name>");
+		expect(help).toContain("/r @local/<name>");
 	});
 
 	it("prints runtime activation guidance when scaffolding an extension", async () => {
