@@ -119,6 +119,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm model current");
 		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
 		expect(help).toContain("Inside the interactive session");
+		expect(help).toContain("/cls");
 	});
 
 	it("uses shared runtime metadata resolver for CLI version", () => {
