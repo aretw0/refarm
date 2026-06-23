@@ -38,6 +38,17 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("accepts `/r` as a short alias for /reload", () => {
+		expect(parseChatLine("/r")).toEqual({ kind: "reload", pluginIds: [] });
+	});
+
+	it("accepts `/r` with plugin aliases", () => {
+		expect(parseChatLine("/r runtime-agent")).toEqual({
+			kind: "reload",
+			pluginIds: ["@refarm/pi-agent"],
+		});
+	});
+
 	it("parses /reload with multiple plugin ids", () => {
 		expect(parseChatLine("/reload runtime-agent other-plugin")).toEqual({
 			kind: "reload",
@@ -367,6 +378,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/sow [args...]");
 		expect(CHAT_HELP_TEXT).toContain("/keys");
 		expect(CHAT_HELP_TEXT).toContain("/status");
+		expect(CHAT_HELP_TEXT).toContain("/r");
 		expect(CHAT_HELP_TEXT).toContain("/history [--clear|clear]");
 		expect(CHAT_HELP_TEXT).toContain("/hist");
 		expect(CHAT_HELP_TEXT).toContain("/clear");
