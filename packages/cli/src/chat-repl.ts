@@ -98,6 +98,9 @@ export function parseChatLine(line: string): ChatCommand {
 	if (commandName === "clear") {
 		return { kind: "history", action: "clear" };
 	}
+	if (commandName === "cls") {
+		return { kind: "history", action: "clear" };
+	}
 
 	return SLASH_COMMANDS[commandName] ?? { kind: "message", text: trimmed };
 }
@@ -227,6 +230,7 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /keys             Reconfigure model/provider credentials inline
   /history [--clear|clear] Show recent chat history and commands run in REPL
   /clear            Clear chat history
+  /cls              Shortcut for /clear
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /status           Show runtime / model / readiness status
