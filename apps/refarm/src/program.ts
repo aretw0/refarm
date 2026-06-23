@@ -127,7 +127,7 @@ program
 			`  $ refarm model ${OPENAI_DEFAULT_REF}`,
 			"  $ refarm model base-url http://127.0.0.1:8000",
 			"",
-			"Inside the interactive session, use /help for /model, /login, /reload, and session commands.",
+			"Inside the interactive session, use /help for /model, /login, /reload, /clear, and session commands.",
 		].join("\n"),
 	)
 	.action(async () => {
