@@ -4,12 +4,10 @@
  */
 
 import { splitCommandLine } from "@refarm.dev/cli/command-line";
-import { normalizePluginId } from "@refarm.dev/config";
 import {
 	defaultProviderModelRef,
-	defaultScopedModelRef,
-	parseModelScope,
-	type ModelScope,
+	defaultScopedModelRef, normalizePluginId, parseModelScope,
+	type ModelScope
 } from "@refarm.dev/config";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
@@ -245,7 +243,8 @@ export const CHAT_RUNTIME_COMMANDS_HELP = `  /reload [id...]   Hot-reload plugin
   /keys             Reconfigure model/provider credentials inline
   /history [--clear|clear] Show recent chat history and commands run in REPL
   /hist              Alias for /history
-  /clear            Clear chat history
+  /cls              Clear chat history
+  /clear            Alias for /cls
   /commands         Show this message
   /new              Start a fresh session
   /session [prefix] Switch to session; no prefix prints the active session
