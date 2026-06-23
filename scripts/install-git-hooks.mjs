@@ -696,12 +696,12 @@ echo "🔍 Checking Refarm Quality Gate..."
 if [ $NEEDS_QUALITY_GATE -eq 0 ]; then
   echo "   ⏭️  Quality Gate skipped (no source/spec/test deltas in push range)"
 else
-  if timeout 120 node packages/toolbox/src/quality-gate.mjs; then
+  if timeout 90 node packages/toolbox/src/quality-gate.mjs; then
     :
   else
     QG_STATUS=$?
     if [ "$QG_STATUS" -eq 124 ]; then
-      echo "⏱️  Quality Gate timed out after 120s"
+      echo "⏱️  Quality Gate timed out after 90s"
     fi
     if [ "$IS_PROTECTED_BRANCH" -eq 1 ]; then
       echo "❌ Quality Gate failed (blocking in strict mode)."
