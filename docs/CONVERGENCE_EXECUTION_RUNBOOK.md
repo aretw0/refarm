@@ -43,35 +43,40 @@ migration/checklist docs. **Review each `@aretw0` hit in context** — some legi
 
 ### 3. Item 4a — `ds` token contract
 Branch: `feat/ds-token-contract`. Spec: `specs/features/2026-06-25-ds-token-contract.md`.
-Invoke **`superpowers:writing-plans`** on the spec → bite-sized plan → execute.
+Plan: `docs/superpowers/plans/2026-06-25-ds-token-contract.md`.
 **Gate (spec §5):** `pnpm -C packages/ds run test` (all 4 themes conform; incomplete theme reports
 `missing`); scope-leak check (host `:root` unaffected); `vault-seed` consumer proof on a branch.
 
 ### 4. Item 4b — `homestead` build-free SSR tier (depends on 4a)
 Branch: `feat/homestead-ssr-tier`. Spec: `specs/features/2026-06-25-homestead-ssr-tier.md`.
-`writing-plans` → plan → execute.
+Plan: `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`.
 **Gate:** tier unit tests run under plain `node` (build-free); isolation check (no `./sdk` import);
 a11y check; `vault-seed` `serve.js` rebuilt on the tier, `docs/roteiro-teste-admin.md` passes.
 
 ### 5. Item 4c — silo collection contract
 Branch: `feat/silo-collection-contract`. Spec: `specs/features/2026-06-25-silo-collection-contract.md`.
-`writing-plans` → plan → execute.
+Plan: `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`.
 **Gate:** `collect.test` (namespaced, no collision); `apps/refarm` credential providers conform;
 acyclic `silo → prompt-contract-v1`; `pnpm -C packages/silo run lint && type-check && test`.
 
 ### 6. Item 5 — ADR-070 follow-ups
 - **Part B (commit):** reconcile ADR-049 wording to **native-first + WASM-fallback** for Tractor
   distribution (doc change; keep dual-runtime).
-- **Part C (speculative):** build `validations/astro-wasi-ssr/` POC (Astro SSR route →
-  `jco componentize` → run on Tractor `wasi:http`). Green → `writing-plans` for a Part C spec.
-  Red → drop Part C, record the blocker.
+- **Part C (speculative):** follow `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
+  Green → write a Part C feature spec. Red → drop Part C, record the blocker.
+
+### 7. Item 4d — dispatch-surface external API (not yet ready)
+Do not implement until a spec exists. `docs/CONVERGENCE_FACTORY_READINESS.md` lists the spec
+checklist and the consumer proof required to avoid stabilizing an accidental internal API.
 
 ## Deferred — do NOT start (gated)
 - **Item 6 skill contract** — wait for the "Refarm as engine" runtime (dogfooding gate). Taxonomy
-  is in `docs/GARDENING_SKILLS_TAXONOMY.md`.
+  is in `docs/GARDENING_SKILLS_TAXONOMY.md`; activation criteria are in
+  `docs/CONVERGENCE_FACTORY_READINESS.md`.
 - **Item 7** — `source-dispatch` adapter + `source-local` — when an agentic consumer/kernel needs them.
 - **Item 8** — consumer bridges (`vault-seed` `silo.js` → `@refarm.dev/silo`; `contacts` +
-  `rate-limiter`; `cli/launch-process`) — gated by a second consumer.
+  `rate-limiter`; `cli/launch-process`) — gated by a second consumer and split into one spec per
+  bridge in `docs/CONVERGENCE_FACTORY_READINESS.md`.
 
 ## Per-step discipline
 - TDD as written in each plan (red → green → commit).
