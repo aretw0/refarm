@@ -61,6 +61,9 @@ importers:
       '@refarm.dev/silo':
         specifier: workspace:*
         version: link:packages/silo
+      '@refarm.dev/source-git':
+        specifier: workspace:*
+        version: link:packages/source-git
       '@refarm.dev/thresher':
         specifier: workspace:*
         version: link:packages/thresher
@@ -954,6 +957,34 @@ importers:
       '@refarm.dev/deps':
         specifier: workspace:*
         version: link:../deps
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/source-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/source-git:
+    dependencies:
+      '@refarm.dev/source-contract-v1':
+        specifier: workspace:*
+        version: link:../source-contract-v1
+    devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config

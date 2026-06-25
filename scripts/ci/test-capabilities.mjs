@@ -22,6 +22,8 @@ const STEPS = [
 	["packages/sync-loro", "test:conformance"],
 	["packages/sync-crdt", "test:conformance"],
 	["packages/identity-nostr", "test:conformance"],
+	["packages/source-contract-v1", "test:unit"],
+	["packages/source-git", "test:conformance"],
 ];
 
 function commandForStep([workspaceDir, script]) {
