@@ -21,6 +21,10 @@ Not everything is planned to execution depth yet. The safe state is:
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator spec+plan | cross-file codemods still need specs |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 
+| Cross-cutting item | Factory state | What is closed | What still stops execution |
+|---|---|---|---|
+| npm scope docs sweep | ready to implement from plan | ADR-069 accepted; reviewed sweep rules | nothing after following the plan |
+
 ## Item 4 - UI and Surface Blocks
 
 Execution order:
@@ -82,6 +86,11 @@ Activation triggers:
 When a trigger appears, write a feature spec and plan for exactly one adapter. Do not bundle all
 three adapters into one implementation branch.
 
+Activation packet:
+
+- `specs/features/2026-06-25-source-adapter-activation.md`;
+- `docs/superpowers/plans/2026-06-25-source-adapter-activation.md`.
+
 ## Item 8 - Consumer Bridges
 
 Keep deferred, but split it so the next implementer does not have to rediscover the seams:
@@ -94,6 +103,11 @@ Keep deferred, but split it so the next implementer does not have to rediscover 
 
 Spec rule: each bridge gets its own feature spec and its own consumer proof. A bridge does not
 start because it is convenient; it starts because the second consumer exists.
+
+Activation packet:
+
+- `specs/features/2026-06-25-consumer-bridges-activation.md`;
+- `docs/superpowers/plans/2026-06-25-consumer-bridges-activation.md`.
 
 ## Codemod Discipline
 

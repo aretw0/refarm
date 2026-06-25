@@ -34,11 +34,8 @@ between). Inline execution via
 
 ### 2. ADR-069 npm-scope doc sweep — quick, mechanical, unblocks publishing
 Branch: `docs/npm-scope-canonicalization`.
-Per `specs/ADRs/ADR-069-npm-scope-canonicalization.md` §Migration, change `@aretw0` → `@refarm.dev`
-in the Refarm publish docs: `packages/DISTRIBUTION_STATUS.md` (the 3 contract targets + tag
-commands), `docs/v0.1.0-release-gate.md`, `docs/REFARM_PERSONAL_DAILY_DRIVER.md`, and the
-migration/checklist docs. **Review each `@aretw0` hit in context** — some legitimately describe
-`vault-seed`'s `dgk` products and must stay.
+Spec: `specs/features/2026-06-25-npm-scope-doc-sweep.md`.
+Plan: `docs/superpowers/plans/2026-06-25-npm-scope-doc-sweep.md`.
 **Gate:** no Refarm publish target names `@aretw0`; package manifests already correct (verified).
 
 ### 3. Item 4a — `ds` token contract
@@ -91,9 +88,11 @@ implementations produce identical output; benchmark evidence shows ROI or record
   is in `docs/GARDENING_SKILLS_TAXONOMY.md`; activation criteria are in
   `docs/CONVERGENCE_FACTORY_READINESS.md`.
 - **Item 7** — `source-dispatch` adapter + `source-local` — when an agentic consumer/kernel needs them.
+  Activation packet: `specs/features/2026-06-25-source-adapter-activation.md`.
 - **Item 8** — consumer bridges (`vault-seed` `silo.js` → `@refarm.dev/silo`; `contacts` +
   `rate-limiter`; `cli/launch-process`) — gated by a second consumer and split into one spec per
-  bridge in `docs/CONVERGENCE_FACTORY_READINESS.md`.
+  bridge in `docs/CONVERGENCE_FACTORY_READINESS.md`. Activation packet:
+  `specs/features/2026-06-25-consumer-bridges-activation.md`.
 
 ## Per-step discipline
 - TDD as written in each plan (red → green → commit).

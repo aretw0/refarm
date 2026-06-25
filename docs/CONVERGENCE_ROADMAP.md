@@ -21,12 +21,12 @@ each sub-project's own brainstorm.
 | 0 | UI boundary amendment | doctrine edit | — | — | ✅ done |
 | 1 | **Librarian** — `source:v1` + `source-git` | spec + plan | — | Refarm agent materializes vault-seed/agents-lab read-only | ✅ spec + plan |
 | 2 | **`apps/refarm` promotion audit** | audit ledger | 1 (read repos) | — (discovery) | ✅ done ([ledger](./APPS_REFARM_PROMOTION_LEDGER.md)) |
-| 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + migration plan | — | publish dry-run green under chosen scope | ✅ decided ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) — docs sweep pending |
+| 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + migration plan | — | publish dry-run green under chosen scope | ▶ decided ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)); docs sweep spec+plan ready |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; adapter gated by Refarm skill runtime |
-| 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred |
-| 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred |
+| 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred; activation spec+plan ready |
+| 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred; activation spec+plan ready |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; vault-seed generator spec+plan ready; cross-file codemods = future |
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 
@@ -54,6 +54,9 @@ librarian's spirit (read to learn) applied to Refarm's own app.
 governance ADR (decide the scope, the migration mechanics, and the personal→org timing) plus a
 mechanical rename/publish-config migration. No code dependency — can be decided early, in
 parallel with item 2.
+
+Execution packet: `specs/features/2026-06-25-npm-scope-doc-sweep.md` and
+`docs/superpowers/plans/2026-06-25-npm-scope-doc-sweep.md`.
 
 ### 4. UI/surface blocks supply — the one the consumer cares most about
 Grow `ds` (today: tokens + styles + one Button) and consolidate `homestead` (sdk/ui/styles) +
@@ -86,11 +89,17 @@ skill set. Map the overlap, define the superset, and provide a compatibility ada
 real `source-local` package (live local tree). Built when consumed — `source-dispatch` waits on
 item 4's dispatch work; `source-local` waits on a consumer wanting the live tree.
 
+Activation packet: `specs/features/2026-06-25-source-adapter-activation.md` and
+`docs/superpowers/plans/2026-06-25-source-adapter-activation.md`.
+
 ### 8. Consumer bridges (deferred)
 Promote `dgk`'s repeated needs into Refarm packages only when a second consumer needs the same
 primitive: `silo` (credentials), `contacts`+`rate-limiter` (channels), `cli/launch-process`
 (runner). Gated by the dogfood and by the convergence doc's "promote only when consumer-neutral"
 rule.
+
+Activation packet: `specs/features/2026-06-25-consumer-bridges-activation.md` and
+`docs/superpowers/plans/2026-06-25-consumer-bridges-activation.md`.
 
 ### 9. Executable specs (generators + codemods)
 Prose specs are right for **decisions** (ADRs) but low-leverage for **mechanical** work. Three
