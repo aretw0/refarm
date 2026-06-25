@@ -126,11 +126,19 @@ content.
 - Growing `ds` components beyond what the admin needs.
 - **4c** — `credentials/` ↔ `silo` reconciliation (separate decision).
 
-## 5. Open questions
+## 5. Decisions (resolved 2026-06-25 — no mid-build pauses)
 
-- Subpath name `/ssr` vs `/string` vs `/headless`? (Recommend `/ssr`.)
-- Plain semantic HTML now, or web-component-friendly markup for a smoother future bundled upgrade?
-  (Recommend plain semantic HTML now; the bundled tier is a separate consumer.)
-- Do `apps/refarm`'s own headless/string outputs (`headless.ts`, `status-output.ts`,
-  `doctor-output.ts`) become consumers of this same tier? (Likely yes — second consumer that
-  validates the tier; track under item 4 follow-up.)
+- **Subpath is `/ssr`** (`@refarm.dev/homestead/ssr`).
+- **Plain semantic HTML now** — the bundled `studio-host` tier is a separate consumer; do not
+  pre-shape for it.
+- **`apps/refarm`'s headless/string outputs become the second consumer** (`headless.ts`,
+  `status-output.ts`, `doctor-output.ts`) — not built here, tracked as the item-4 follow-up that
+  validates the tier beyond `vault-seed`.
+
+## 6. Integration
+
+- **Package acceptance:** `homestead` already exists — apply `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`
+  #2/#3 (register the `ssr` test under `test-capabilities.mjs` / `gate-smoke-contracts.mjs`) and #6
+  (changeset) when implementing.
+- **Consumer proof consumption:** `vault-seed`'s `serve.js` rebuild (§3) consumes the built tier via
+  the local-tarball path in `docs/DEV_CROSS_REPO_CONSUMPTION.md`.

@@ -111,10 +111,17 @@ export function collectAndStore(
 - OAuth/token flow internals (github URL dance, prompts) — stay app-local UX.
 - Storage/`key-manager` changes — unchanged; this spec adds a collection front door only.
 
-## 5. Open questions
+## 5. Decisions (resolved 2026-06-25 — no mid-build pauses)
 
-- Do the generic providers (e.g. model credential) **move into** `silo`, or only the contract?
-  (Recommend: contract in `silo` now; provider migration when a second consumer needs the same
-  provider.)
-- Namespace taxonomy: `silo` documents a small reserved set (`model`, `runtime`, `channel`,
-  `publishing`) and consumers extend? (Recommend yes.)
+- **Only the contract moves into `silo` now**; the concrete providers stay in `apps/refarm`.
+  Migrate a provider into `silo` only when a second consumer needs that same provider.
+- **`silo` documents a reserved namespace set** — `model`, `runtime`, `channel`, `publishing` —
+  and consumers may extend it.
+
+## 6. Integration
+
+- **Package acceptance:** `silo` already exists — apply `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`
+  #2/#3 (register the `collect` test) and #6 (changeset) when implementing; verify the new
+  `silo → prompt-contract-v1` dep keeps `task:build-order:check` green.
+- **Consumer adoption** of `silo` storage by `vault-seed`'s `silo.js` is **item 8** (deferred), via
+  the consumption path in `docs/DEV_CROSS_REPO_CONSUMPTION.md` when it lands.
