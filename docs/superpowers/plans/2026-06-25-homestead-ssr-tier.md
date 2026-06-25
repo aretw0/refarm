@@ -29,7 +29,7 @@
 **Interfaces:**
 - Produces: `escapeHtml`, `sectionHtml`, `gridHtml`, `cardHtml`, `tableHtml`, `fieldHtml`, `buttonHtml`, `feedbackHtml`, `footerHtml` (signatures per spec §1).
 
-- [ ] **Step 1: Write the failing test** — `src/ssr/render.test.ts`
+- [x] **Step 1: Write the failing test** — `src/ssr/render.test.ts`
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -86,12 +86,12 @@ describe("ssr render helpers", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm -C packages/homestead run test`
 Expected: FAIL — `./render.js` does not exist.
 
-- [ ] **Step 3: Create `src/ssr/render.ts`**
+- [x] **Step 3: Create `src/ssr/render.ts`**
 
 ```ts
 export function escapeHtml(value: unknown): string {
@@ -161,12 +161,12 @@ export function footerHtml(text: string): string {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `pnpm -C packages/homestead run test`
 Expected: PASS — all render-helper tests green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/homestead/src/ssr/render.ts packages/homestead/src/ssr/render.test.ts
@@ -185,7 +185,7 @@ git commit -m "feat(homestead): ssr leaf render helpers (build-free, ds-classed)
 **Interfaces:**
 - Produces: `ShellOptions`, `shellHtml(opts)` (shell.ts); `index.ts` re-exports render + shell.
 
-- [ ] **Step 1: Write the failing test** — `src/ssr/shell.test.ts`
+- [x] **Step 1: Write the failing test** — `src/ssr/shell.test.ts`
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -212,12 +212,12 @@ describe("shellHtml", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm -C packages/homestead run test`
 Expected: FAIL — `./shell.js` / `./index.js` not present.
 
-- [ ] **Step 3: Create `src/ssr/shell.ts`**
+- [x] **Step 3: Create `src/ssr/shell.ts`**
 
 ```ts
 import { escapeHtml } from "./render.js";
@@ -251,19 +251,19 @@ ${opts.bodyHtml}
 }
 ```
 
-- [ ] **Step 4: Create `src/ssr/index.ts`**
+- [x] **Step 4: Create `src/ssr/index.ts`**
 
 ```ts
 export * from "./render.js";
 export { shellHtml, type ShellOptions } from "./shell.js";
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `pnpm -C packages/homestead run test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/homestead/src/ssr/shell.ts packages/homestead/src/ssr/index.ts packages/homestead/src/ssr/shell.test.ts
@@ -277,7 +277,7 @@ git commit -m "feat(homestead): ssr page shell + tier index"
 **Files:**
 - Create: `packages/homestead/src/ssr/isolation.test.ts`
 
-- [ ] **Step 1: Write the test** — asserts no `ssr/*` source imports the runtime SDK
+- [x] **Step 1: Write the test** — asserts no `ssr/*` source imports the runtime SDK
 
 ```ts
 import { readFileSync, readdirSync } from "node:fs";
@@ -297,12 +297,12 @@ describe("ssr tier isolation", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it passes**
+- [x] **Step 2: Run to verify it passes**
 
 Run: `pnpm -C packages/homestead run test`
 Expected: PASS — render.ts/shell.ts/index.ts import nothing from `../sdk`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/homestead/src/ssr/isolation.test.ts
@@ -318,7 +318,7 @@ git commit -m "test(homestead): enforce ssr build-free isolation from sdk"
 - Modify: `scripts/ci/test-capabilities.mjs`, `scripts/ci/gate-smoke-contracts.mjs`
 - Create: `.changeset/homestead-ssr-tier.md`
 
-- [ ] **Step 1: Add the subpath export** to `packages/homestead/package.json` `exports`
+- [x] **Step 1: Add the subpath export** to `packages/homestead/package.json` `exports`
 
 ```jsonc
 "./ssr": {
@@ -327,17 +327,17 @@ git commit -m "test(homestead): enforce ssr build-free isolation from sdk"
 }
 ```
 
-- [ ] **Step 2: Build + verify the subpath resolves**
+- [x] **Step 2: Build + verify the subpath resolves**
 
 Run: `pnpm -C packages/homestead run build`
 Expected: PASS — `dist/ssr/index.js` + `.d.ts` produced.
 
-- [ ] **Step 3: Register in both gate lists** (per `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`)
+- [x] **Step 3: Register in both gate lists** (per `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`)
 
 `scripts/ci/test-capabilities.mjs` STEPS — add `["packages/homestead", "test"]` (confirm the script name in `packages/homestead/package.json`; match it).
 `scripts/ci/gate-smoke-contracts.mjs` STEPS — add `["packages/homestead", "build"]` and `["packages/homestead", "test"]` (skip any already present).
 
-- [ ] **Step 4: Add the changeset** — `.changeset/homestead-ssr-tier.md`
+- [x] **Step 4: Add the changeset** — `.changeset/homestead-ssr-tier.md`
 
 ```markdown
 ---
@@ -347,12 +347,12 @@ Expected: PASS — `dist/ssr/index.js` + `.d.ts` produced.
 Add the build-free `@refarm.dev/homestead/ssr` tier: string render helpers + page shell over ds tokens, isolated from the bundled studio-host.
 ```
 
-- [ ] **Step 5: Run the gates + final lint/type-check**
+- [x] **Step 5: Run the gates + final lint/type-check**
 
 Run: `pnpm -C packages/homestead run lint && pnpm -C packages/homestead run type-check && pnpm -C packages/homestead run test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/homestead/package.json scripts/ci/test-capabilities.mjs scripts/ci/gate-smoke-contracts.mjs .changeset/homestead-ssr-tier.md
@@ -365,16 +365,16 @@ git commit -m "feat(homestead): export ./ssr subpath and register acceptance gat
 
 **Files:** none in `refarm` (the consumer change lives in `vault-seed`).
 
-- [ ] **Step 1: Pack the tier**
+- [x] **Step 1: Pack the tier**
 
 Run: `pnpm -C packages/homestead pack`
 Expected: a `.tgz` containing `dist/ssr/`.
 
-- [ ] **Step 2: Record the consumer-proof steps** (executed on the `vault-seed` side)
+- [x] **Step 2: Record the consumer-proof steps** (executed on the `vault-seed` side)
 
 Per `vault-seed docs/convergencia-homestead-admin.md` + `docs/DEV_CROSS_REPO_CONSUMPTION.md`: install the tarball in a `vault-seed` branch; rebuild `serve.js`'s `ADMIN_HTML` and client re-render from the helpers; serve the `ds` CSS under `/_ds`; drop the inline palette + local `esc()`. **Gate:** `dgk serve` renders with no functional regression — `vault-seed docs/roteiro-teste-admin.md` passes; `serve.js` stays `node:http`-pure (no bundler).
 
-- [ ] **Step 3: Commit** (note only; no refarm files)
+- [x] **Step 3: Commit** (note only; no refarm files)
 
 ```bash
 git commit --allow-empty -m "docs(homestead): record vault-seed serve.js consumer-proof packet for ssr tier"
