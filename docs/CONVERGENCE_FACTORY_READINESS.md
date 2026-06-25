@@ -34,8 +34,13 @@ Two plan depths exist; do not confuse them:
   the librarian (`docs/superpowers/plans/2026-06-24-source-contract-v1.md`) and the whole **item-4
   family** — **4a `ds`**, **4b `homestead/ssr`**, **4c `silo` collect**, **4d `dispatch-surface`
   external API** (the `2026-06-25-*` plans). Open and execute step by step.
+- **Concrete first-artifact plans** (the contract/manifest is real; the runtime iterates or gates):
+  **9a** (manifest-first — the file classification is derived verbatim from
+  `vault-seed/.github/workflows/initialize.yml`) and **9b** (registry-first — the four candidate
+  entries seeded; codemod implementations gated per entry).
 - **Task-level plans** (task decomposition + gates, paired with a **code-rich spec** that carries
-  the interfaces): every other item. These are *not* line-by-line code.
+  the interfaces): the remaining gated/POC items (5, 6, 7, 8, 10, 11). These are *not* line-by-line
+  code — expand at pickup.
 
 Execution model for the task-level ones: **just-in-time expansion** — when you pick an item,
 invoke `superpowers:writing-plans` on its spec to generate the bite-sized plan, then execute. Do
