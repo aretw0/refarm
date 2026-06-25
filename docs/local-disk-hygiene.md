@@ -66,6 +66,11 @@ Use the smallest command that can falsify the change you just made. Bigger gates
 are still valuable, but they should be checkpoints, not reflexes after every
 edit.
 
+`refarm` operator lanes should stay lean by default. If `refarm agent finish` or
+another daily-driver command needs to do expensive work, that cost should be
+explainable as a checkpoint or cache miss, not hidden routine pressure on the
+devcontainer.
+
 | Situation                                  | Preferred local signal                                                                           | Avoid until checkpoint                        |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`                                                      | full `cargo test`                             |
