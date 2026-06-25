@@ -3,6 +3,10 @@
 	"version": "0.1.0",
 	"description": "Refarm Homestead — Shared Shell SDK and UI Primitives",
 	"type": "module",
+	"files": [
+		"dist",
+		"src"
+	],
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
