@@ -10,6 +10,24 @@ The Refarm Design System (DS) is the source of truth for all visual tokens, styl
 
 ## CSS primitives
 
+Import the scoped token contract and one theme before using DS primitives:
+
+```css
+@import "@refarm.dev/ds/tokens.css";
+@import "@refarm.dev/ds/themes/tractor-green.css";
+@import "@refarm.dev/ds/components.css";
+```
+
+Apply the theme on the consuming shell:
+
+```html
+<body data-refarm-theme="tractor-green">
+```
+
+Available themes are `tractor-green`, `oceano`, `terracota`, and `verde-jardim`.
+`tokens.css` never writes contract variables to bare `:root`; legacy `--refarm-*`
+aliases are scoped under `[data-refarm-theme]` for `styles.css` compatibility.
+
 Import `@refarm.dev/ds/styles/styles.css` once in a host shell to expose shared,
 framework-agnostic primitives:
 
