@@ -36,16 +36,6 @@ retry() {
   done
 }
 
-write_devcontainer_workspace_marker() {
-  mkdir -p "$REFARM_HOME"
-  cat > "$REFARM_HOME/devcontainer-workspace.env" <<EOF
-REFARM_DEVCONTAINER_ACTIVE=true
-REFARM_DEVCONTAINER_ROOT=$ROOT
-REFARM_DEVCONTAINER_UID=$(id -u)
-REFARM_DEVCONTAINER_GID=$(id -g)
-EOF
-}
-
 repair_owned_dir() {
   local dir="$1"
   mkdir -p "$dir" 2>/dev/null || {
@@ -60,51 +50,13 @@ repair_owned_dir() {
   fi
 }
 
-lock_workspace_host_writes() {
-  if [ "${REFARM_WORKSPACE_HOST_WRITE_LOCK:-1}" != "1" ]; then
-    return
+workspace_protect() {
+  local operation="$1"
+  if [ -f "$ROOT/scripts/workspace-protect.mjs" ]; then
+    node "$ROOT/scripts/workspace-protect.mjs" "$operation" || warn "workspace-protect $operation failed"
+  else
+    warn "scripts/workspace-protect.mjs is missing"
   fi
-  if [ ! -f /.dockerenv ]; then
-    warn "Skipping host-write lock outside a container runtime."
-    return
-  fi
-  if [[ "$ROOT" != /workspaces/* ]]; then
-    warn "Skipping host-write lock outside /workspaces/: $ROOT"
-    return
-  fi
-  if ! command -v sudo >/dev/null 2>&1; then
-    warn "Skipping host-write lock because sudo is unavailable."
-    return
-  fi
-
-  log "Locking workspace writes to devcontainer uid $(id -u):$(id -g)..."
-  local uid_gid
-  uid_gid="$(id -u):$(id -g)"
-  local roots=(
-    .cargo
-    .changeset
-    .devcontainer
-    .github
-    .git
-    .refarm
-    apps
-    docs
-    locales
-    packages
-    roadmaps
-    scripts
-    specs
-    validations
-    wit
-  )
-
-  for rel in "${roots[@]}"; do
-    local target="$ROOT/$rel"
-    [ -e "$target" ] || continue
-    sudo chown -R "$uid_gid" "$target" 2>/dev/null || true
-    find "$target" -type d -exec chmod u+rwx,go-w {} + 2>/dev/null || true
-    find "$target" -type f -exec chmod u+rw,go-w {} + 2>/dev/null || true
-  done
 }
 
 ensure_pnpm() {
@@ -175,7 +127,7 @@ fi
 cd "$ROOT"
 
 log "Starting post-create setup..."
-write_devcontainer_workspace_marker
+workspace_protect mark
 log "Marking workspace as a safe Git directory for the devcontainer user..."
 git config --global --add safe.directory "$ROOT" || true
 
@@ -316,7 +268,7 @@ wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi
 # 5) Finalize
 log "Installing refarm CLI shim..."
 run_script_for_package_manager "$PACKAGE_MANAGER" cli:install || warn "Could not install refarm CLI shim. Retry: $(script_command_for_package_manager "$PACKAGE_MANAGER" cli:install)"
-lock_workspace_host_writes
+workspace_protect apply
 
 log "Installing git hooks..."
 run_script_for_package_manager "$PACKAGE_MANAGER" hooks:install || warn "Could not install git hooks automatically"

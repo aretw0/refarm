@@ -38,61 +38,13 @@ repair_owned_dir() {
 	fi
 }
 
-write_devcontainer_workspace_marker() {
-	mkdir -p "$REFARM_HOME"
-	cat >"$REFARM_HOME/devcontainer-workspace.env" <<EOF
-REFARM_DEVCONTAINER_ACTIVE=true
-REFARM_DEVCONTAINER_ROOT=$ROOT
-REFARM_DEVCONTAINER_UID=$(id -u)
-REFARM_DEVCONTAINER_GID=$(id -g)
-EOF
-}
-
-lock_workspace_host_writes() {
-	if [ "${REFARM_WORKSPACE_HOST_WRITE_LOCK:-1}" != "1" ]; then
-		return
+workspace_protect() {
+	local operation="$1"
+	if [ -f "$ROOT/scripts/workspace-protect.mjs" ]; then
+		node "$ROOT/scripts/workspace-protect.mjs" "$operation" || echo "[refarm-devcontainer][warn] workspace-protect $operation failed"
+	else
+		echo "[refarm-devcontainer][warn] scripts/workspace-protect.mjs is missing"
 	fi
-	if [ ! -f /.dockerenv ]; then
-		echo "[refarm-devcontainer][warn] Skipping host-write lock outside a container runtime."
-		return
-	fi
-	if [[ "$ROOT" != /workspaces/* ]]; then
-		echo "[refarm-devcontainer][warn] Skipping host-write lock outside /workspaces/: $ROOT"
-		return
-	fi
-	if ! command -v sudo >/dev/null 2>&1; then
-		echo "[refarm-devcontainer][warn] Skipping host-write lock because sudo is unavailable."
-		return
-	fi
-
-	echo "[refarm-devcontainer] Locking workspace writes to devcontainer uid $(id -u):$(id -g)..."
-	local uid_gid
-	uid_gid="$(id -u):$(id -g)"
-	local roots=(
-		.cargo
-		.changeset
-		.devcontainer
-		.github
-		.git
-		.refarm
-		apps
-		docs
-		locales
-		packages
-		roadmaps
-		scripts
-		specs
-		validations
-		wit
-	)
-
-	for rel in "${roots[@]}"; do
-		local target="$ROOT/$rel"
-		[ -e "$target" ] || continue
-		sudo chown -R "$uid_gid" "$target" 2>/dev/null || true
-		find "$target" -type d -exec chmod u+rwx,go-w {} + 2>/dev/null || true
-		find "$target" -type f -exec chmod u+rw,go-w {} + 2>/dev/null || true
-	done
 }
 
 ensure_pnpm() {
@@ -261,7 +213,7 @@ check_coding_agent_tools() {
 }
 
 ensure_pnpm
-write_devcontainer_workspace_marker
+workspace_protect mark
 ensure_hooks
 ensure_refarm_cli
 ensure_git_transport
@@ -275,6 +227,6 @@ if [ -x "$ROOT/scripts/env-safety-check.sh" ]; then
 else
 	echo "[refarm-devcontainer][warn] scripts/env-safety-check.sh is missing"
 fi
-lock_workspace_host_writes
+workspace_protect apply
 
 echo "[refarm-devcontainer] Post-start sanity check complete."
