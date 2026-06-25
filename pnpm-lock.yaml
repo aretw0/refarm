@@ -960,6 +960,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/prompt-contract-v1':
+        specifier: workspace:*
+        version: link:../prompt-contract-v1
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
