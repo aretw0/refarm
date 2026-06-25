@@ -81,7 +81,7 @@ To ensure high-fidelity verification without bloating CI runners:
 - **WASM Tracking**: Specific test fixtures are explicitly allowed in git via `.gitignore` exceptions.
 - **`pkg/` as stable reference**: `packages/heartwood/pkg/` contains the JCO-transpiled artifacts committed to the repository. They are the source of truth for all consumers in standard CI runs.
 — `pkg/` is used as-is. If the binary is present, it re-runs `jco transpile` to refresh `pkg/`.
-- **Reusable rebuild workflow**: When Heartwood's Rust source changes and a full rebuild is required, use `.github/workflows/reusable-build-wasm-plugin.yml`. This workflow installs the Rust toolchain, compiles, transpiles, and uploads `pkg/` as an artifact. External plugin authors can call this workflow from their own repos via `uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main`.
+- **Reusable rebuild workflow**: When Heartwood's Rust source changes and a full rebuild is required, use `.github/workflows/reusable-build-wasm-plugin.yml`. This workflow installs the Rust toolchain, compiles, transpiles, and uploads `pkg/` as an artifact. External plugin authors can call this workflow from their own repos via `uses: aretw0/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main` while the repository remains under the current owner; update the owner segment if the Git remote later migrates.
 
 ### Toolchain Provisioning in CI
 

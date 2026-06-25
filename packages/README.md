@@ -11,14 +11,20 @@ This document catalogues the modular primitives and engines of the Refarm monore
 | [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | **Ready** |
 
 ## 🛡 Capability Contracts (v1)
-These packages define the interoperability layers between Refarm and its plugins.
+These packages define the foundational interoperability layers between Refarm and its plugins.
 
 | Package | Tests | Status | Publishing |
 |---|---|---|---|
 | [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ 6 Tests | 🟢 Ready | **Target v0.1.0** |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
 | [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
-| [`@refarm.dev/plugin-manifest`](./plugin-manifest) | ✅ Validation | 🟢 Ready | **Target v0.1.0** |
+
+## 🔖 Plugin Metadata
+This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.
+
+| Package | Tests | Status | Publishing |
+|---|---|---|---|
+| [`@refarm.dev/plugin-manifest`](./plugin-manifest) | ✅ Validation | 🟡 Deferred | v0.2.0+ candidate |
 
 ## 🔌 Storage & Identity Adapters
 

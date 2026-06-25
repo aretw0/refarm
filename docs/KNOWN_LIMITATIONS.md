@@ -428,7 +428,8 @@ if (plugin.memoryUsage > plugin.quota) {
 | Schema evolution (upcasting) | ✅ Design ready (ADR-010) | v0.2.0 |
 | CRDT conflict resolution | ✅ Working (Loro — ADR-045) | v0.1.0 |
 | Conformance tests (contracts) | ✅ Working (12 tests) | v0.1.0 |
-| Capability contracts | ✅ Working (4 packages) | v0.1.0 |
+| Capability contracts | ✅ Working (3 foundational packages) | v0.1.0 |
+| Plugin manifest publication | ⚠️ Deferred until Pi + multi-layer plugin architecture is proven | v0.2.0+ |
 | **Graph versioning** | ⚠️ Design only (ADR-020) | v0.2.0-0.3.0 |
 | **Self-healing** | ⚠️ Design only (ADR-021) | v0.3.0+ |
 | **Plugin citizenship** | ⚠️ Design only (ADR-021) | v0.3.0+ |
