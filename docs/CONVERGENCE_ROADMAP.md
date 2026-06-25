@@ -22,9 +22,9 @@ each sub-project's own brainstorm.
 | 1 | **Librarian** — `source:v1` + `source-git` | spec + plan | — | Refarm agent materializes vault-seed/agents-lab read-only | ✅ spec + plan |
 | 2 | **`apps/refarm` promotion audit** | audit ledger | 1 (read repos) | — (discovery) | ✅ done ([ledger](./APPS_REFARM_PROMOTION_LEDGER.md)) |
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + migration plan | — | publish dry-run green under chosen scope | ✅ decided ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) — docs sweep pending |
-| 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ✅ spec'd: 4a [ds tokens](../specs/features/2026-06-25-ds-token-contract.md), 4b [homestead ssr tier](../specs/features/2026-06-25-homestead-ssr-tier.md), 4c [silo collect](../specs/features/2026-06-25-silo-collection-contract.md) |
-| 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ✅ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) — Part A (contract + dependency-depth policy) + Part B (Tractor native-first + WASM-fallback) committed; Part C (Astro SSR on Tractor) POC-gated |
-| 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ✅ taxonomy ([ledger](./GARDENING_SKILLS_TAXONOMY.md)); skill contract deferred to "Refarm as engine" (dogfooding gate) |
+| 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c spec+plans ready; 4d dispatch external API still needs spec (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
+| 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
+| 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; adapter gated by Refarm skill runtime |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred |
 | 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen` | ▶ generator extended (gate auto-registration ✅); cross-file codemods = future |
@@ -142,6 +142,10 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
 4. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. First plan should be a thin `homestead`/`ds` demo surface with capability detection,
    fallback 2D rendering, and no commitment beyond WebXR/A-Frame-style interoperability.
+
+Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
+4, 5, 6, 7, or 8. It records which items are execution-ready, which are deliberately gated, and
+which exact spec/plan must be written next.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)
 — ordered steps, branches, and verification gates.
