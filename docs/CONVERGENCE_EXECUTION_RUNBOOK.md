@@ -11,6 +11,9 @@
   **Rebase** onto `develop` to integrate — never `merge --no-ff`.
 - Consumer-proof gates require the consumer checkout. If it is not visible from the current working
   environment, produce the package artifact and a handoff instead of weakening the gate.
+- For `vault-seed`-pulled blocks, do not wait for public npm publication. Use the candidate path
+  recorded in the plan: packed package, generated inventory, codemod dry-run, or explicit handoff.
+  The proof must keep `vault-seed` product behavior downstream-owned.
 - Read `docs/CONVERGENCE_ROADMAP.md` first; each step below points at its spec/plan and its
   verification gate (smoke + intermediate checks + final gate).
 
@@ -58,41 +61,56 @@ Plan: `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`.
 **Gate:** `collect.test` (namespaced, no collision); `apps/refarm` credential providers conform;
 acyclic `silo → prompt-contract-v1`; `pnpm -C packages/silo run lint && type-check && test`.
 
-### 6. Item 5 — ADR-070 follow-ups
+### 6. Consumer-pulled bridge proofs
+These are not broad bridge projects. They exist to stop `vault-seed` from maintaining local
+versions of Refarm-shaped blocks.
+
+- **8a after item 4c:** write the focused bridge spec for `vault-seed` `silo.js` ->
+  `@refarm.dev/silo`; prove namespaces remain `model`, `runtime`, `channel`, and `publishing`.
+- **8c candidate:** prove `dgk-runner` can delegate to or emit the same
+  `@refarm.dev/cli/launch-process` + artifact provenance envelope without importing `dgk`
+  vocabulary into Refarm.
+- Keep **8b contacts/rate-limiter** deferred until another consumer besides DGK needs the same
+  channel/rate-limit primitive.
+
+**Gate:** each activated bridge has its own spec, package/API decision, consumer proof, fallback,
+and rollback note.
+
+### 7. Item 5 — ADR-070 follow-ups
 - **Part B (commit):** reconcile ADR-049 wording to **native-first + WASM-fallback** for Tractor
   distribution (doc change; keep dual-runtime).
 - **Part C (speculative):** follow `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
   Green → write a Part C feature spec. Red → drop Part C, record the blocker.
 
-### 7. Item 4d — dispatch-surface external API
+### 8. Item 4d — dispatch-surface external API
 Branch: `feat/dispatch-surface-external-api`.
 Spec: `specs/features/2026-06-25-dispatch-surface-external-api.md`.
 Plan: `docs/superpowers/plans/2026-06-25-dispatch-surface-external-api.md`.
 **Gate:** package-root public API lock test; consumer-style fixture with no deep imports;
 `pnpm --filter @refarm.dev/dispatch-surface run test`; `test:parity`; `type-check`.
 
-### 8. Item 9a — generator-first vault-seed distribution
+### 9. Item 9a — generator-first vault-seed distribution
 Branch: `feat/vault-seed-generator-contract`.
 Spec: `specs/features/2026-06-25-vault-seed-generator-contract.md`.
 Plan: `docs/superpowers/plans/2026-06-25-vault-seed-generator-contract.md`.
 **Gate:** manifest distinguishes payload/dev-only files; generated output has inventory report;
 selected `vault-seed` generated-vault smoke passes.
 
-### 9. Item 9b — codemod registry contract
+### 10. Item 9b — codemod registry contract
 Branch: `feat/codemod-registry-contract`.
 Spec: `specs/features/2026-06-25-codemod-registry-contract.md`.
 Plan: `docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
 **Gate:** registry validates; ready entries have fixtures, dry-run command, verification gate, and
 rollback note.
 
-### 10. Item 10 — Linux async I/O (`io_uring`) substrate POC
+### 11. Item 10 — Linux async I/O (`io_uring`) substrate POC
 Branch: `research/io-uring-substrate`.
 Spec: `specs/features/2026-06-25-io-uring-substrate.md`.
 Plan: `docs/superpowers/plans/2026-06-25-io-uring-substrate.md`.
 **Gate:** capability probe reports availability/block/unsupported; baseline and `io_uring`
 implementations produce identical output; benchmark evidence shows ROI or records deferral.
 
-### 11. Item 11 — XR/WebXR surface POC
+### 12. Item 11 — XR/WebXR surface POC
 Branch: `research/xr-surface-poc`.
 Spec: `specs/features/2026-06-25-xr-surface-poc.md`.
 Plan: `docs/superpowers/plans/2026-06-25-xr-surface-poc.md`.
@@ -105,10 +123,8 @@ supported/unsupported/blocked; XR dependencies stay inside the POC.
   `specs/features/2026-06-25-skill-runtime-activation.md`.
 - **Item 7** — `source-dispatch` adapter + `source-local` — when an agentic consumer/kernel needs them.
   Activation packet: `specs/features/2026-06-25-source-adapter-activation.md`.
-- **Item 8** — consumer bridges (`vault-seed` `silo.js` → `@refarm.dev/silo`; `contacts` +
-  `rate-limiter`; `cli/launch-process`) — gated by a second consumer and split into one spec per
-  bridge in `docs/CONVERGENCE_FACTORY_READINESS.md`. Activation packet:
-  `specs/features/2026-06-25-consumer-bridges-activation.md`.
+- **Item 8b only** — `contacts` + `rate-limiter` stays deferred until a second non-DGK consumer
+  appears. 8a and 8c are handled in Step 6 when their prerequisites are met.
 
 ## Per-step discipline
 - TDD as written in each plan (red → green → commit).

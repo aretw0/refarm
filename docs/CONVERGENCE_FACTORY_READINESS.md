@@ -17,7 +17,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
-| 8 consumer bridges | correctly deferred | silo collect is specified | each bridge needs a second consumer and its own spec |
+| 8 consumer bridges | partially activated | `silo` collect and `cli/launch-process` seams are specified | 8a waits for 4c; 8c needs runner/provenance proof; 8b remains deferred |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator spec+plan; codemod registry spec+plan | first registry implementation still needed |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
@@ -25,6 +25,30 @@ Not everything is planned to execution depth yet. The safe state is:
 | Cross-cutting item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
+
+## v0.1 Consumer-Pulled Acceleration Rule
+
+`vault-seed` is now an active consumer proof for v0.1.0 blocks. Do not interpret
+"daily driver first" as "downstream keeps rebuilding local copies until Refarm is
+publicly released." For any block already needed by `vault-seed`, the factory
+sequence is:
+
+1. implement and test the Refarm block;
+2. prove Refarm consumes it or record a narrow consumer-pulled exception;
+3. expose a candidate consumption path: packed package, manifest generator, or
+   codemod dry-run;
+4. prove `vault-seed` can consume it while keeping product behavior downstream;
+5. promote only after the proof records command, fallback, rollback, and missing
+   semantics.
+
+This rule activates work that prevents migration churn:
+
+| Lane | Active proof | Stops when |
+|---|---|---|
+| UI blocks | `ds` -> `homestead/ssr` -> `vault-seed` Lab/admin adoption | token/SSR conformance or consumer proof fails |
+| Process/artifacts | `cli/launch-process` + `artifact-contract-v1` -> `dgk-runner`/Lab evidence | process vocabulary becomes DGK-specific |
+| Credentials | `silo` collect -> `vault-seed` `silo.js` bridge after 4c | namespaces collapse or app provider re-export is not stable |
+| Generator/codemod | manifest-first vault generation + codemod registry | smoke cannot distinguish template payload from dev-only files |
 
 ## Item 4 - UI and Surface Blocks
 
@@ -99,16 +123,17 @@ Activation packet:
 
 ## Item 8 - Consumer Bridges
 
-Keep deferred, but split it so the next implementer does not have to rediscover the seams:
+Split the bridges so activation is evidence-based rather than a general cleanup bucket:
 
 | Bridge | Trigger | First spec should prove |
 |---|---|---|
-| 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | `silo` collect exists and a second consumer needs the same storage/provision boundary | namespaces preserve model/runtime/channel/publishing separation |
-| 8b `contacts` + `rate-limiter` | another consumer needs publishing-channel identity/rate limits | channel concepts are consumer-neutral, not DGK-specific |
-| 8c `cli/launch-process` | another CLI needs the same process-launch lifecycle | process helper is not coupled to `dgk` command names |
+| 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Activated after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary | namespaces preserve model/runtime/channel/publishing separation |
+| 8b `contacts` + `rate-limiter` | Deferred until another consumer needs publishing-channel identity/rate limits | channel concepts are consumer-neutral, not DGK-specific |
+| 8c `cli/launch-process` + artifact provenance | **Candidate active**: `dgk-runner` and Refarm process handoffs share tokenized process evidence | process helper is not coupled to `dgk` command names |
 
 Spec rule: each bridge gets its own feature spec and its own consumer proof. A bridge does not
-start because it is convenient; it starts because the second consumer exists.
+start because it is convenient; it starts because the second consumer exists. `vault-seed` counts
+as that consumer only for the specific primitive it already duplicates.
 
 Activation packet:
 

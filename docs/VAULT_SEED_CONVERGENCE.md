@@ -341,5 +341,42 @@ surfaces (TS, Python) over one WASM distribution substrate. Refarm should learn 
 distribution from Marimo (Pyodide) and Astro 7 (Rust toolchain) and provide the shared
 substrate, without embedding either app.
 
+## 2026-06-25 Amendment — Consumer-Pulled v0.1.0 Acceleration
+
+The 2026-06-24 boundary still holds: Refarm supplies blocks, `vault-seed`
+composes product. The correction is scheduling. `vault-seed` cannot wait for a
+fully polished Refarm release if that means continuing to build local versions of
+the same blocks that will later be replaced. That duplication is now treated as
+v0.1.0 evidence, not as downstream cleanup.
+
+**Rule:** when `vault-seed` needs a Refarm-shaped block, the implementation lane
+must include a consumer proof before the block is considered release-ready:
+
+1. Refarm proves the block in its own package/app boundary.
+2. Refarm exposes a candidate consumption path: packed package, local workspace
+   artifact, generator manifest, or codemod dry-run.
+3. `vault-seed` consumes the candidate on a branch without surrendering product
+   ownership.
+4. The proof records command, fallback, rollback, and any missing Refarm
+   semantics.
+
+This makes the `vault-seed` need a force multiplier for v0.1.0:
+
+| Consumer need | Refarm block lane | Why it accelerates v0.1.0 |
+| --- | --- | --- |
+| Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/homestead/ssr` | Converts UI duplication into token/SSR conformance evidence. |
+| Vault ETL, Lab export, publish receipts | `@refarm.dev/cli/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
+| Credential collection without secret sprawl | `@refarm.dev/silo` collect + later bridge | Proves namespace separation across app and consumer. |
+| Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
+| Skill/agent compatibility | skill runtime activation + Pi/WASM/UI proof | Starts only when a real invocation surface exists, but is planned from consumer pressure. |
+
+The product boundary remains strict:
+
+- no Refarm dependency is required for an already-generated vault;
+- no vault content, route copy, notebook UX, or PARA convention moves upstream;
+- no package is promoted only because one consumer branch compiles;
+- every consumer-pulled exception must either add a Refarm dogfood follow-up or
+  stay marked as a candidate.
+
 See [`ECOSYSTEM_SUPPLY_MAP.md`](./ECOSYSTEM_SUPPLY_MAP.md) for the full supply map,
 readiness gate, and migration order.

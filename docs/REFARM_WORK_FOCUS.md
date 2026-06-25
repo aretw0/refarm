@@ -17,18 +17,25 @@ composition model: apps make product choices; packages provide primitives.
 ## 2026-06 release focus
 
 Treat `v0.1.0` as an earned reliability label, not as a calendar milestone. The
-useful cut is three lanes:
+useful cut is four lanes:
 
 | Lane | Purpose | Release posture |
 | --- | --- | --- |
 | Release Kernel | Small reusable contracts and SDK primitives: storage, sync, identity, artifacts, process handoffs, dispatch surfaces, provenance, health, and policy envelopes. | Publish only when conformance, docs, and consumer-neutral boundaries are clear. |
 | Daily Driver | The `refarm` command, runtime readiness, finish gates, sessions, plugin lifecycle, model credentials, logs, recovery, and local operator UX. | Gates public version confidence; must work for the creator before broad promises. |
-| Lab | POCs, benchmark harnesses, `vault-seed`, `agents-lab`, external workspaces, and prize-writing evidence pressure. | Feeds reusable primitives back into Refarm without making consumer UX part of core. |
+| Consumer Pull | `vault-seed` and adjacent consumers pulling candidate blocks before public release to avoid rebuilding future Refarm substrate locally. | Accelerates v0.1.0 when the proof uses packed packages, manifests, codemod dry-runs, and downstream-owned product behavior. |
+| Lab | POCs, benchmark harnesses, `agents-lab`, external workspaces, and prize-writing evidence pressure. | Feeds reusable primitives back into Refarm without making consumer UX part of core. |
 
 This keeps convergence productive: Refarm becomes the shared substrate, while
 consumer projects keep their vocabulary, publishing surface, and local workflow.
 Do not promote a lab pattern into the Release Kernel until a second consumer or
 the daily-driver loop needs the same primitive.
+
+`vault-seed` is the active exception to passive lab pressure: it already needs
+`ds`, `homestead/ssr`, process/artifact handoffs, `silo`, and generator/codemod
+support. When those needs match a Refarm block, the next slice should include a
+consumer proof instead of letting `vault-seed` keep building local stand-ins that
+will be migrated later.
 
 ### Current consolidation checkpoint
 
