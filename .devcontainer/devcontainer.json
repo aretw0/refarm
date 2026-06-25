@@ -42,6 +42,7 @@
     "NPM_CONFIG_PREFIX": "/home/vscode/.npm-global",
     "NPM_CONFIG_CACHE": "/workspaces/refarm/.cache/npm",
     "REFARM_DEVCONTAINER": "true",
+    "REFARM_WORKSPACE_HOST_WRITE_LOCK": "1",
     "REFARM_HOME": "/workspaces/refarm/.refarm",
     "XDG_DATA_HOME": "/workspaces/refarm/.refarm/data",
     "REFARM_STREAMS_DIR": "/workspaces/refarm/.refarm/streams",
