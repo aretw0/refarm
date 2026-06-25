@@ -1,7 +1,11 @@
-# Repository Migration Guide — `refarm` → `refarm-dev`
+# Repository Migration Guide — Optional Owner Migration
 
+> **Status**: parked. The operational repository owner is currently `aretw0/refarm`.
+> Use this playbook only if Refarm later needs to leave the personal GitHub profile, whether to
+> `refarm-dev/refarm`, Codeberg, or a self-hosted Git node.
+>
 > **Purpose**: Playbook completo para transferir o repositório e publicar os packages pela
-> primeira vez na organização `refarm-dev`.
+> primeira vez após uma migração de owner/host.
 >
 > **Pre-requisite**: [docs/PRE_MIGRATION_CLEANUP_CHECKLIST.md](PRE_MIGRATION_CLEANUP_CHECKLIST.md) completo.
 > **After transfer**: [docs/POST_TRANSFER_CHECKLIST.md](POST_TRANSFER_CHECKLIST.md) para ações imediatas.
@@ -26,9 +30,10 @@ Ver [docs/v0.1.0-release-gate.md](v0.1.0-release-gate.md) para detalhes de cada 
 
 ---
 
-## Step 1 — Create the `refarm-dev` Organization on GitHub
+## Step 1 — Choose the Target Git Host/Owner
 
-Se a organização ainda não existe:
+Se a migração for retomada, escolha primeiro o destino: GitHub org (`refarm-dev/refarm`), Codeberg
+ou nó Git próprio. Para o caminho GitHub org, se a organização ainda não existe:
 
 1. Acesse [github.com/organizations/new](https://github.com/organizations/new)
 2. Nome: `refarm-dev`
@@ -39,12 +44,12 @@ Se a organização ainda não existe:
 
 ## Step 2 — Transfer the Repository
 
-**No repositório atual** (`github.com/YOUR_USERNAME/refarm` ou `github.com/refarm/refarm`):
+**No repositório atual** (`github.com/aretw0/refarm`, salvo se já tiver migrado):
 
 1. Vá para **Settings → General → Danger Zone → Transfer ownership**
-2. Novo owner: `refarm-dev`
+2. Novo owner: `<target-owner>`
 3. Confirme digitando o nome do repositório
-4. O repositório passa a ser `github.com/refarm-dev/refarm`
+4. O repositório passa a ser `<target-owner>/refarm`
 
 > GitHub automaticamente configura redirects do URL antigo para o novo. Os clones existentes
 > continuarão funcionando temporariamente, mas atualize os remotes o quanto antes.
@@ -52,7 +57,7 @@ Se a organização ainda não existe:
 ### Atualizar remote local
 
 ```bash
-git remote set-url origin https://github.com/refarm-dev/refarm.git
+git remote set-url origin <new-git-url>
 git remote -v  # confirmar
 ```
 
@@ -66,7 +71,7 @@ Em cada `package.json` de package publicável, atualizar o campo `repository`:
 {
   "repository": {
     "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
+    "url": "<new-git-url>",
     "directory": "packages/PACKAGE_NAME"
   }
 }
@@ -75,14 +80,14 @@ Em cada `package.json` de package publicável, atualizar o campo `repository`:
 Script para verificar quais ainda usam o URL antigo:
 
 ```bash
-grep -r '"url".*github.com' packages/*/package.json | grep -v "refarm-dev"
+grep -r '"url".*github.com' packages/*/package.json | grep -v "<target-owner>"
 ```
 
 ---
 
 ## Step 4 — Configure GitHub Actions Secrets
 
-No novo org (`github.com/refarm-dev`), configurar os secrets necessários:
+No novo owner/host, configurar os secrets necessários:
 
 | Secret | Onde obter | Para quê |
 |--------|-----------|----------|
@@ -155,7 +160,7 @@ npm publish --access public
 
 ```bash
 # 1. Clone fresh no novo URL
-git clone https://github.com/refarm-dev/refarm.git /tmp/refarm-verify
+git clone <new-git-url> /tmp/refarm-verify
 cd /tmp/refarm-verify
 
 # 2. Build completo
