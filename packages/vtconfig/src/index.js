@@ -122,6 +122,14 @@ export const baseConfig = {
     exclude: ['node_modules/', '**/dist/**', '.idea', '.git', '.cache', 'validations/'],
     testTimeout: 15000,
     hookTimeout: 15000,
+    // OOM-freeze guard: bound the worker pool so no test run (even a broad filter) can
+    // exhaust the container's 4GB cap. Caps the count for whichever pool is active
+    // (default/forks or threads); ~4 workers ≈ 1GB + base ≈ 2GB, safely under 4GB.
+    // Tune up if the host gives the container more memory (see .devcontainer --memory).
+    poolOptions: {
+      forks: { maxForks: 4, minForks: 1 },
+      threads: { maxThreads: 4, minThreads: 1 },
+    },
     ...getCiVitestReporterOptions(),
   },
   resolve: {
