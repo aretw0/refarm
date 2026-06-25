@@ -14,6 +14,11 @@
 - For `vault-seed`-pulled blocks, do not wait for public npm publication. Use the candidate path
   recorded in the plan: packed package, generated inventory, codemod dry-run, or explicit handoff.
   The proof must keep `vault-seed` product behavior downstream-owned.
+- **Plan depth:** the **librarian** and **4a** have **bite-sized plans** — execute step by step.
+  Every other item has a **task-level plan + a code-rich spec**; at pickup, invoke
+  `superpowers:writing-plans` on its spec to expand the bite-sized plan, then execute. See
+  `docs/CONVERGENCE_FACTORY_READINESS.md` → "Plan depth". "Plan: …" below names the spec/task plan,
+  not a line-by-line file (except the two bite-sized ones).
 - Read `docs/CONVERGENCE_ROADMAP.md` first; each step below points at its spec/plan and its
   verification gate (smoke + intermediate checks + final gate).
 
