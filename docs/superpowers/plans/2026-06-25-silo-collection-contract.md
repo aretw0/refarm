@@ -294,7 +294,7 @@ export type { CredentialProvider, CollectContext } from "@refarm.dev/silo";
 
 - [ ] **Step 3: Verify existing credential tests pass**
 
-Run: `pnpm -C apps/refarm run test -- credentials`
+Run (focused files — **never** the broad `-- credentials` filter, which pulls too many suites and can OOM the container): `pnpm -C apps/refarm run test -- src/credentials/model.test.ts src/credentials/token-auth-error.test.ts`
 Expected: PASS — `credentials/model.test.ts`, `token-auth-error.test.ts`, and the type-check still pass with the re-homed contract.
 
 - [ ] **Step 4: Commit**
