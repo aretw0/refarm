@@ -5,7 +5,15 @@
 > loose end #2 (a new package was registered in only one of the required lists).
 
 A new package is **not done** when its tests pass — it is done when it is wired into Refarm's
-acceptance machinery. For each new package:
+acceptance machinery.
+
+> **Automated:** `turbo gen package` now does steps **2, 3, and 6** for you — pick a `gate`
+> (`test:unit` / `test:conformance`) at the prompt and it registers the package in **both**
+> `test-capabilities.mjs` and `gate-smoke-contracts.mjs` and emits a `.changeset/<name>.md`.
+> (Generator: `turbo/generators/config.ts`.) The list below is the **manual fallback** — for
+> packages not created via the generator, or existing packages gaining a new gated test entry.
+
+For each new package (manual fallback / verification):
 
 1. **Scaffold classification** — `scripts/validate-packages.mjs` auto-classifies every `packages/*`
    by convention; match a canonical type so no extra fields are needed:
