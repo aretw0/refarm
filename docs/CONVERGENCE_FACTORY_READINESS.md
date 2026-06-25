@@ -10,7 +10,7 @@ Not everything is planned to execution depth yet. The safe state is:
 
 | Item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
-| 4a `ds` tokens | ready to implement from plan | contract, scoping, themes, conformance, consumer proof | none after following the plan |
+| 4a `ds` tokens | **bite-sized plan ready** (turn-key) | contract, scoping, themes, conformance, consumer proof, TDD steps + code | none — execute the plan step by step |
 | 4b `homestead/ssr` | ready after 4a | subpath, helper API, build-free boundary, consumer proof | waits for 4a `ds` classes/tokens |
 | 4c `silo` collect | ready to implement independently | contract boundary, namespaces, app re-export strategy | storage adoption by `vault-seed` remains item 8 |
 | 4d `dispatch-surface` external API | ready to implement from plan | public API boundary, consumer proof, parity gate | waits for 4a/4b only if a UI consumer proof is chosen |
@@ -25,6 +25,23 @@ Not everything is planned to execution depth yet. The safe state is:
 | Cross-cutting item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
+
+## Plan depth — read before "ready to implement"
+
+Two plan depths exist; do not confuse them:
+
+- **Bite-sized executable plans** (TDD steps + complete code, per `superpowers:writing-plans`):
+  the librarian (`docs/superpowers/plans/2026-06-24-source-contract-v1.md`) and **4a `ds`**
+  (`docs/superpowers/plans/2026-06-25-ds-token-contract.md`). Open and execute step by step.
+- **Task-level plans** (task decomposition + gates, paired with a **code-rich spec** that carries
+  the interfaces): every other item. These are *not* line-by-line code.
+
+Execution model for the task-level ones: **just-in-time expansion** — when you pick an item,
+invoke `superpowers:writing-plans` on its spec to generate the bite-sized plan, then execute. Do
+**not** pre-expand all items (specs may still shift; pre-expanding deferred work is waste). In the
+tables below, "ready to implement from plan" for a task-level item means "spec + task plan are
+solid enough that `writing-plans` yields a clean bite-sized plan", **not** "type code from the
+plan file". The two bite-sized items are the exception: no expansion step needed.
 
 ## v0.1 Consumer-Pulled Acceleration Rule
 
