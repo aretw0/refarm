@@ -1,21 +1,21 @@
 @layer refarm.theme {
 	[data-refarm-theme="verde-jardim"] {
 		--background: #111310;
-		--foreground: #f7f5f0;
+		--foreground: #edf0ec;
 		--card: #1a1f18;
-		--card-foreground: #f7f5f0;
+		--card-foreground: #edf0ec;
 		--popover: #22281f;
-		--popover-foreground: #f7f5f0;
-		--muted: #283126;
-		--muted-foreground: #b7c4ad;
+		--popover-foreground: #edf0ec;
+		--muted: #1a1f18;
+		--muted-foreground: #c0c8be;
 		--primary: #95d5b2;
 		--primary-foreground: #111310;
 		--secondary: #74c69d;
 		--secondary-foreground: #111310;
-		--accent: #d8f3dc;
-		--accent-foreground: #111310;
-		--border: #3a4636;
-		--input: #3a4636;
+		--accent: #1a3327;
+		--accent-foreground: #c4edd8;
+		--border: #4a5048;
+		--input: #4a5048;
 		--ring: #95d5b2;
 		--error: #ef6351;
 		--warning: #ffd166;
