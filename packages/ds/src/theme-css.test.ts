@@ -21,4 +21,13 @@ describe("shipped theme CSS conformance", () => {
 		expect(result.missing).toEqual([]);
 		expect(result.pass).toBe(true);
 	});
+
+	it.each(["oceano", "terracota", "verde-jardim"])(
+		"%s defines every required token",
+		(name) => {
+			const result = runDsThemeConformance(tokensInThemeCss(`./themes/${name}.css`));
+			expect(result.missing).toEqual([]);
+			expect(result.pass).toBe(true);
+		},
+	);
 });
