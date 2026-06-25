@@ -21,6 +21,13 @@ blocks. The audit has been completed in [`APPS_REFARM_PROMOTION_LEDGER.md`](./AP
 the current work is not a broad extraction, but making existing blocks consumable and growing the
 small missing surfaces called out in the convergence roadmap.
 
+Consumer pull is also a readiness gate. If `vault-seed` is rebuilding a
+Refarm-shaped block locally, Refarm should not wait for a public release to prove
+the block. The right path is candidate consumption: Refarm dogfoods the block,
+packs or exposes it through a manifest/codemod path, then `vault-seed` proves it
+on a branch. The proof feeds v0.1.0 confidence without turning `vault-seed` into
+a Refarm distro or making Refarm a required dependency for generated vaults.
+
 ## Dual keystone
 
 1. **Librarian in Refarm** — a checkout/cache capability for remote repositories (today it
@@ -53,14 +60,21 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
 
 ## Migration order
 
-1. **Librarian in Refarm** (keystone) — unblocks absorbing the rest.
+1. **Librarian in Refarm** (keystone) — unblocks Refarm absorbing the rest without
+   depending on manual cross-checkout memory.
 2. **npm scope closed**: ADR-069 sets `@refarm.dev` as the canonical scope for Refarm blocks and
    contracts. `@aretw0/*` remains only for `vault-seed`/DGK products.
-3. `ds` / `homestead` / `dispatch-surface` as the official source of UI/surface blocks.
-4. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
+3. **Consumer-pulled block lane**: `ds`, `homestead/ssr`, `cli/launch-process`,
+   artifact provenance, and `silo` collect can advance in parallel with the
+   librarian when their plans include Refarm dogfood + `vault-seed` proof.
+4. `dispatch-surface` as the official multi-surface API once public imports and
+   consumer-style fixtures are locked.
+5. **Generator/codemod lane**: make `vault-seed` generation manifest-first and
+   codemod-backed so boilerplate reduction is tested instead of hand-maintained.
+6. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.
-5. `silo` → credentials; `contacts` + `rate-limiter` → `dgk-channels`;
+7. `silo` → credentials; `contacts` + `rate-limiter` → `dgk-channels`;
    `cli/launch-process` → `dgk-runner`. Promote only when the contract is consumer-neutral
    (existing doctrine rule).
 
