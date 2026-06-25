@@ -95,7 +95,7 @@ export function collectAndStore(
 **vault-seed (item 8, noted not built here):**
 - `serve.js` channel config implements a `CredentialProvider` with `namespace: "channel"`.
 
-## 3. Verification plan (runs in `cranky_bassi`)
+## 3. Verification plan
 
 1. **Collect unit test:** a fake `CredentialProvider` collects → `collectAndStore` persists under its
    `namespace`; two providers with different namespaces do not collide in storage.

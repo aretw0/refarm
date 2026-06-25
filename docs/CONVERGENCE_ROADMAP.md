@@ -1,7 +1,7 @@
 # Convergence Roadmap — Rolling Out the Carpet
 
 > Status: working roadmap (2026-06-24). Sequences every sub-project the convergence needs so
-> work can start in the `cranky_bassi` devcontainer without re-deciding direction. Governed by
+> work can start without re-deciding direction. Governed by
 > [`ECOSYSTEM_SUPPLY_MAP.md`](./ECOSYSTEM_SUPPLY_MAP.md) and the 2026-06-24 amendment in
 > [`VAULT_SEED_CONVERGENCE.md`](./VAULT_SEED_CONVERGENCE.md).
 
@@ -122,11 +122,10 @@ recurring, keep one-offs and decisions as prose.
 ## Working rule
 
 Each numbered item gets its own `brainstorm → spec → plan` before execution. Specs land in
-`specs/features/` or `specs/ADRs/`; plans in `docs/superpowers/plans/`. Execution runs in the
-`cranky_bassi` devcontainer.
+`specs/features/` or `specs/ADRs/`; plans in `docs/superpowers/plans/`.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)
-— ordered steps, branches, and verification gates for the `cranky_bassi` session.
+— ordered steps, branches, and verification gates.
 
 **Integration gates (so the factory does not stop mid-build):**
 - Every new package follows [`PACKAGE_ACCEPTANCE_CHECKLIST.md`](./PACKAGE_ACCEPTANCE_CHECKLIST.md)

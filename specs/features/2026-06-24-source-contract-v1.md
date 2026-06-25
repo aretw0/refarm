@@ -33,7 +33,7 @@ read-only templates."*
 | Abstração | `source provider` agnóstico de mecanismo | Dois kinds **reais hoje**: `git` (remoto) e `local` (path já em disco). Não é YAGNI. |
 | Kinds | `git` + `local` agora; `tarball` documentado, sem código | `local` é usado já (repos irmãos estão em disco); `tarball` (npm/crate) fica para quando houver consumo. |
 | Operação principal | `materialize` (não `checkout`) | Kind-agnóstico: "me dê uma cópia local estável", clonando (git) ou linkando (local). |
-| Implementação real | Package separado `@refarm.dev/source-git` | Espelha o split `storage-contract-v1` + `storage-sqlite`. O contrato roda sem rede; a impl git roda no devcontainer. |
+| Implementação real | Package separado `@refarm.dev/source-git` | Espelha o split `storage-contract-v1` + `storage-sqlite`. O contrato roda sem rede; a impl git precisa de `git` no PATH. |
 
 ### Primeiro consumidor é o Refarm
 
@@ -258,7 +258,7 @@ quer explicitamente a árvore viva.
 
 ## 8. Verification plan
 
-Roda no devcontainer `cranky_bassi` (não no Windows — apenas edição de arquivos é no host).
+A conformance roda sem rede; o smoke do `source-git` precisa de `git` no PATH.
 
 1. **Gate de contrato:** `npm run test:capabilities` inclui `source:v1`; conformance in-memory passa (7/7).
 2. **Check intermediário (offline):** `resolve("aretw0/agents-lab")` 2× → mesmo path, sem rede.

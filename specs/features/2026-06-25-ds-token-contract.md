@@ -165,7 +165,7 @@ export function runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConforman
 - `theme-runtime.css` (vault-seed's runtime theme switch) is the reference for the `data-mode` /
   `data-refarm-theme` toggling behavior; study it during implementation.
 
-## 5. Verification plan (runs in `cranky_bassi`)
+## 5. Verification plan
 
 1. **Contract gate:** `pnpm -C packages/ds run test` — all four shipped themes pass conformance;
    incomplete theme reports correct `missing`.

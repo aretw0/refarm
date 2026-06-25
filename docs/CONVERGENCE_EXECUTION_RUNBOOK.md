@@ -1,12 +1,13 @@
-# Convergence Execution Runbook (`cranky_bassi`)
+# Convergence Execution Runbook
 
-> Status: execution handoff (2026-06-25). Ordered steps to execute the convergence plan inside the
-> `cranky_bassi` devcontainer. Planning artifacts: `docs/CONVERGENCE_ROADMAP.md` (index),
+> Status: execution handoff (2026-06-25). Ordered steps to execute the convergence plan. Planning
+> artifacts: `docs/CONVERGENCE_ROADMAP.md` (index),
 > `docs/ECOSYSTEM_SUPPLY_MAP.md`, the `specs/` and `docs/superpowers/plans/` files below.
 
 ## Before you start
 
-- **All commands run in `cranky_bassi`.** Commits happen here (they were not made during planning).
+- Run `pnpm` / `turbo` / `git` as usual. Commits land on the working branch (the planning artifacts
+  were committed to `docs/convergence-planning`).
 - **Branching:** topic branch off `develop`, one per sub-project. **Conventional commits.**
   **Rebase** onto `develop` to integrate — never `merge --no-ff`.
 - Read `docs/CONVERGENCE_ROADMAP.md` first; each step below points at its spec/plan and its
@@ -23,8 +24,8 @@ Skim `docs/CONVERGENCE_ROADMAP.md` and `docs/ECOSYSTEM_SUPPLY_MAP.md`.
 ### 1. Librarian `source:v1` — keystone, has a bite-sized plan
 Branch: `feat/source-contract-v1`.
 Plan: `docs/superpowers/plans/2026-06-24-source-contract-v1.md` (5 tasks, TDD).
-Open a Claude session in the container and invoke **`superpowers:subagent-driven-development`**
-with that plan (fresh subagent per task, review between). Inline execution via
+Invoke **`superpowers:subagent-driven-development`** with that plan (fresh subagent per task, review
+between). Inline execution via
 `superpowers:executing-plans` is the alternative.
 **Gate:** `pnpm run test:capabilities` green (now includes `source-contract-v1` + `source-git`);
 `pnpm run source:librarian:smoke` prints OK.
@@ -76,3 +77,6 @@ acyclic `silo → prompt-contract-v1`; `pnpm -C packages/silo run lint && type-c
 - TDD as written in each plan (red → green → commit).
 - Verification gate **before** each commit; evidence before "done".
 - Topic branch, conventional commits, rebase onto `develop`.
+- **`pnpm run workspace:source:ownership`** must pass — tracked source under `packages/*/src`,
+  `apps/*/src`, `scripts/`, `validations/*/src` must be owned by the running user. (Docs under
+  `docs/` / `specs/` are exempt.)
