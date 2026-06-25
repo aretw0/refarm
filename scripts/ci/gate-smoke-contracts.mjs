@@ -33,6 +33,8 @@ const STEPS = [
 	["packages/homestead", "test"],
 	["packages/silo", "build"],
 	["packages/silo", "test"],
+	["packages/dispatch-surface", "build"],
+	["packages/dispatch-surface", "test"],
 	["packages/source-contract-v1", "build"],
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "build"],

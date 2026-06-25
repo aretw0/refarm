@@ -25,6 +25,7 @@ const STEPS = [
 	["packages/ds", "test"],
 	["packages/homestead", "test"],
 	["packages/silo", "test"],
+	["packages/dispatch-surface", "test"],
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "test:conformance"],
 ];
