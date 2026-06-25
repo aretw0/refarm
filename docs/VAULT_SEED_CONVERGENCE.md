@@ -371,6 +371,16 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
 | Skill/agent compatibility | skill runtime activation + Pi/WASM/UI proof | Starts only when a real invocation surface exists, but is planned from consumer pressure. |
 
+**2026-06-25 DS consumer packet:** `@refarm.dev/ds` now exposes the
+Lab-proven `verde-jardim` light mode and a new packed candidate was handed to
+`vault-seed/vendor/refarm.dev-ds-0.1.0.tgz`
+(`sha256 f7212e49fddc25f8b3bd3b7e1b11028da4875037f0f5d6f53954c2de6af7cf4e`).
+A scratch `vault-seed` checkout validated the intended adoption shape without
+committing it there: install the tarball as `@refarm.dev/ds`, embed the DS theme
+before `marimo-vault.css`, bridge the Lab theme selector to `data-mode`, and
+keep consumer-local semantic tokens only as raw-Marimo fallback. The official
+consumer checkout still needs to assimilate/review that packet.
+
 ### Additional Assimilation Matrix
 
 The downstream audit shows more Refarm-shaped work than the first block list. Use
