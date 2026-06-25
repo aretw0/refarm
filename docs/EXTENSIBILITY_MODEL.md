@@ -27,7 +27,7 @@ The manifest should remain a shared contract, not a runtime implementation. Addi
 
 ```json
 {
-  "id": "@aretw0/theme-hub",
+  "id": "@refarm.dev/theme-hub",
   "entry": "./dist/index.mjs",
   "extensions": {
     "surfaces": [

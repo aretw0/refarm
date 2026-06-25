@@ -271,7 +271,7 @@ A conformance roda sem rede; o smoke do `source-git` precisa de `git` no PATH.
 
 - **`tarball` kind** — inspeção de npm/crate publicado; só quando houver consumo.
 - **Consumo pelo `dgk`** — `dgk` importar `source:v1` para cachear repos de referência; depois do dogfood do Refarm.
-- **Escopo npm** — `@aretw0` (contratos) vs `@refarm.dev` (ds/homestead): inconsistência a fechar antes de publicar este contrato (ver `ECOSYSTEM_SUPPLY_MAP.md`, ordem de migração #2).
+- **Escopo npm** — fechado por ADR-069: contratos e blocos Refarm usam `@refarm.dev`; `@aretw0` fica reservado aos produtos DGK do `vault-seed`.
 - **Worktree/cópia mutável** — adapter para consumidores que precisam editar, não só ler.
 
 ## 10. Resolved decisions (2026-06-24)

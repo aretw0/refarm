@@ -53,7 +53,7 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 ## 3. npm Scope
 
 > **Decisão alvo**: GitHub org = `refarm-dev`, npm scope = `@refarm.dev`. Ver [ADR-019](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md).
-> **Operação atual**: release pode ocorrer no scope/profile ativo (ex.: `@aretw0`) até a migração.
+> **Operação atual**: blocos Refarm publicáveis usam o scope canônico `@refarm.dev`; `@aretw0` fica reservado aos produtos DGK do `vault-seed`.
 
 - [ ] Conta npm com acesso ao scope ativo está configurada
 - [ ] `NPM_TOKEN` do tipo "Automation" criado com permissão Read + Publish no scope ativo

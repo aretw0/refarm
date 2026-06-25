@@ -24,7 +24,7 @@ Not everything is planned to execution depth yet. The safe state is:
 
 | Cross-cutting item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
-| npm scope docs sweep | ready to implement from plan | ADR-069 accepted; reviewed sweep rules | nothing after following the plan |
+| npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 
 ## Item 4 - UI and Surface Blocks
 

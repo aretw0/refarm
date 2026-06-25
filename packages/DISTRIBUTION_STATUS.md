@@ -3,7 +3,7 @@
 **Status:** READY FOR v0.1.0 ALPHA DISTRIBUTION (3 Contracts)
 
 ✅ 3 foundational contracts complete and tested.
-✅ Repository configured for publication to @aretw0 scope (personal profile).
+✅ Repository configured for publication to @refarm.dev scope.
 ✅ CI/CD pipeline ready (Gate 1 completion pending in GitHub repo settings).
 
 See Also: [REFARM_PERSONAL_DAILY_DRIVER.md](../docs/REFARM_PERSONAL_DAILY_DRIVER.md) — Publishing strategy and why plugin-manifest is deferred to v0.2.0.
@@ -16,21 +16,21 @@ See Also: [REFARM_PERSONAL_DAILY_DRIVER.md](../docs/REFARM_PERSONAL_DAILY_DRIVER
 
 These packages define **what it means to be Refarm-compatible**. They are low-risk, high-value publications because they are *interfaces*, not *implementations*.
 
-#### 1. **@aretw0/storage-contract-v1** (0.1.0)
+#### 1. **@refarm.dev/storage-contract-v1** (0.1.0)
    - **Purpose**: Capability contract for any Refarm-compatible storage backend
    - **Conformance**: 6 validations
    - **Stability**: **Immutable** (breaking changes → storage-contract-v2)
    - **Use Case**: Third-party storage implementations (Firebase, DynamoDB, S3, etc.)
    - **Status**: Ready for publication
 
-#### 2. **@aretw0/sync-contract-v1** (0.1.0)
+#### 2. **@refarm.dev/sync-contract-v1** (0.1.0)
    - **Purpose**: CRDT delta format for interoperable sync
    - **Conformance**: 4 validations
    - **Stability**: **Immutable**
    - **Use Case**: Loro, Automerge, or any CRDT can implement this interface
    - **Status**: Ready for publication
 
-#### 3. **@aretw0/identity-contract-v1** (0.1.0)
+#### 3. **@refarm.dev/identity-contract-v1** (0.1.0)
    - **Purpose**: Capability contract for identity/signing
    - **Conformance**: 4 validations
    - **Stability**: **Immutable**
@@ -118,19 +118,19 @@ Publishing `plugin-manifest` now locks us into **WASM-only thinking**. Instead, 
 ### Phase A: Pre-Publish (This Week)
 - [ ] Set `RELEASE_AUTOMATION=true` in GitHub repository settings
 - [ ] Set `RELEASE_OWNER=aretw0`
-- [ ] Verify `NPM_TOKEN` has publish access to @aretw0 scope
+- [ ] Verify `NPM_TOKEN` has publish access to @refarm.dev scope
 - [ ] Run `npm publish --dry-run` for each contract (should pass)
 
 ### Phase B: Publish (Next Week)
 ```bash
-git tag @aretw0/storage-contract-v1@0.1.0 && git push origin @aretw0/storage-contract-v1@0.1.0
-git tag @aretw0/sync-contract-v1@0.1.0 && git push origin @aretw0/sync-contract-v1@0.1.0
-git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-contract-v1@0.1.0
+git tag @refarm.dev/storage-contract-v1@0.1.0 && git push origin @refarm.dev/storage-contract-v1@0.1.0
+git tag @refarm.dev/sync-contract-v1@0.1.0 && git push origin @refarm.dev/sync-contract-v1@0.1.0
+git tag @refarm.dev/identity-contract-v1@0.1.0 && git push origin @refarm.dev/identity-contract-v1@0.1.0
 ```
 - CI triggers: `publish-packages.yml` publishes all 3 to npm
 
 ### Phase C: Post-Publish (Verification)
-- [ ] Verify on npm: `npm info @aretw0/storage-contract-v1`
+- [ ] Verify on npm: `npm info @refarm.dev/storage-contract-v1`
 - [ ] Update this file with publish timestamps
 - [ ] Create GitHub Release for `v0.1.0-contracts`
 - [ ] Announce (optional)
@@ -148,5 +148,5 @@ git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-c
 
 - **Current version**: v0.0.1-dev
 - **Next version**: v0.1.0 (3 contracts only; core kernel stays v0.0.x)
-- **Scope**: @aretw0 (personal profile until org migration)
+- **Scope**: @refarm.dev (canonical Refarm block scope)
 - **Branch**: main (releases only); develop (daily development)

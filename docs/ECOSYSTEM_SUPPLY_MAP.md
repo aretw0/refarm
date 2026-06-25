@@ -51,8 +51,8 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
 ## Migration order
 
 1. **Librarian in Refarm** (keystone) — unblocks absorbing the rest.
-2. **Close the npm scope**: `@aretw0` (contracts in `DISTRIBUTION_STATUS`) vs `@refarm.dev`
-   (`ds`/`homestead`/...). Currently inconsistent; a precondition for any downstream import.
+2. **npm scope closed**: ADR-069 sets `@refarm.dev` as the canonical scope for Refarm blocks and
+   contracts. `@aretw0/*` remains only for `vault-seed`/DGK products.
 3. `ds` / `homestead` / `dispatch-surface` as the official source of UI/surface blocks.
 4. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding

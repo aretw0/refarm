@@ -136,7 +136,7 @@ npm view @refarm.dev/sync-contract-v1
 npm view @refarm.dev/plugin-manifest
 ```
 
-> Se o profile ativo de scope estiver em namespace pessoal, substitua os exemplos acima pelo scope correspondente (ex.: `@aretw0/...`).
+> Não publique blocos Refarm sob namespace pessoal. Configure o scope canônico `@refarm.dev` antes de publicar.
 
 Se a publicação automática via CI não funcionar, publicar manualmente:
 
