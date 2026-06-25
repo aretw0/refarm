@@ -70,7 +70,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 O transfer do repositório deve ter acionado o workflow de testes automaticamente. Verificar:
 
 ```bash
-# Via web: https://github.com/aretw0/refarm/actions
+# Via web: https://github.com/refarm-dev/refarm/actions
 # Workflow: CI / Test → deve estar verde ✅
 ```
 
@@ -149,7 +149,7 @@ npm info @refarm.dev/identity-contract-v1
 ### 7. Verificar GitHub Releases
 
 ```bash
-# Via web: https://github.com/aretw0/refarm/releases
+# Via web: https://github.com/refarm-dev/refarm/releases
 # Devem existir 3 releases (um por pacote)
 ```
 
@@ -234,8 +234,8 @@ Marcar conforme completar:
 - [ ] Variable RELEASE_AUTOMATION=true configurada
 - [ ] Workflows de teste passando (CI verde)
 - [ ] Primeira release executada (Changesets PR merged OU tags pushed)
-- [ ] 4 pacotes publicados no npm (validado via `npm info`)
-- [ ] 4 GitHub Releases criadas
+- [ ] 3 contratos publicados no npm (validado via `npm info`)
+- [ ] 3 GitHub Releases criadas
 - [ ] Teste de instalação externa passou
 
 ### Nice-to-Have (Documentação)

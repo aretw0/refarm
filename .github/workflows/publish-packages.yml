@@ -1,7 +1,7 @@
 name: Publish Packages
 
 # Triggered by pushing tags like:
-# @aretw0/storage-contract-v1@0.1.0
+# @refarm.dev/storage-contract-v1@0.1.0
 # @refarm.dev/sync-contract-v1@0.1.0
 # etc.
 
@@ -52,8 +52,8 @@ jobs:
           TAG="${{ github.ref_name }}"
 
           # Extract package name and version
-          # Example: @aretw0/storage-contract-v1@0.1.0
-          # → name=@aretw0/storage-contract-v1, version=0.1.0
+          # Example: @refarm.dev/storage-contract-v1@0.1.0
+          # → name=@refarm.dev/storage-contract-v1, version=0.1.0
           PKG_NAME=$(echo "$TAG" | sed 's/@\([^@]*\)$//')
           VERSION=$(echo "$TAG" | sed 's/.*@//')
 

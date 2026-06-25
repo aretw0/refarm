@@ -35,18 +35,17 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 - [ ] Cada package publicável tem `README.md` com exemplos de uso
 - [ ] Cada package publicável tem `CHANGELOG.md` (gerado via Changesets)
 - [ ] `"publishConfig": { "access": "public" }` está no `package.json` de todos os packages publicáveis
-- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (pós-transfer: `github.com/aretw0/refarm`)
+- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (pós-transfer: `github.com/refarm-dev/refarm`)
 - [ ] Packages com `"private": true` estão corretos (apps/, tooling interno)
 - [ ] Rodar `node scripts/verify-packages.mjs` sem erros:
   ```bash
   node scripts/verify-packages.mjs
   ```
 
-### 4 Contract Packages — critérios mínimos
+### 3 Contract Packages — critérios mínimos
 - [ ] `@refarm.dev/storage-contract-v1` — conformance suite passa
 - [ ] `@refarm.dev/identity-contract-v1` — conformance suite passa
 - [ ] `@refarm.dev/sync-contract-v1` — conformance suite passa
-- [ ] `@refarm.dev/plugin-manifest` — schema validation passa
 
 ---
 
