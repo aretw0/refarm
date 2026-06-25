@@ -11,9 +11,9 @@ Not everything is planned to execution depth yet. The safe state is:
 | Item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
 | 4a `ds` tokens | **bite-sized plan ready** (turn-key) | contract, scoping, themes, conformance, consumer proof, TDD steps + code | none — execute the plan step by step |
-| 4b `homestead/ssr` | ready after 4a | subpath, helper API, build-free boundary, consumer proof | waits for 4a `ds` classes/tokens |
-| 4c `silo` collect | ready to implement independently | contract boundary, namespaces, app re-export strategy | storage adoption by `vault-seed` remains item 8 |
-| 4d `dispatch-surface` external API | ready to implement from plan | public API boundary, consumer proof, parity gate | waits for 4a/4b only if a UI consumer proof is chosen |
+| 4b `homestead/ssr` | **bite-sized plan ready** (after 4a) | subpath, helper API, build-free boundary, consumer proof, TDD steps + code | waits for 4a `ds` classes/tokens |
+| 4c `silo` collect | **bite-sized plan ready** (independent) | contract boundary, namespaces, namespaced secret store, app re-export, TDD steps + code | storage adoption by `vault-seed` remains item 8 |
+| 4d `dispatch-surface` external API | **bite-sized plan ready** | public API lock test, headless consumer proof, parity gate | none — execute the plan |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
@@ -31,8 +31,9 @@ Not everything is planned to execution depth yet. The safe state is:
 Two plan depths exist; do not confuse them:
 
 - **Bite-sized executable plans** (TDD steps + complete code, per `superpowers:writing-plans`):
-  the librarian (`docs/superpowers/plans/2026-06-24-source-contract-v1.md`) and **4a `ds`**
-  (`docs/superpowers/plans/2026-06-25-ds-token-contract.md`). Open and execute step by step.
+  the librarian (`docs/superpowers/plans/2026-06-24-source-contract-v1.md`) and the whole **item-4
+  family** — **4a `ds`**, **4b `homestead/ssr`**, **4c `silo` collect**, **4d `dispatch-surface`
+  external API** (the `2026-06-25-*` plans). Open and execute step by step.
 - **Task-level plans** (task decomposition + gates, paired with a **code-rich spec** that carries
   the interfaces): every other item. These are *not* line-by-line code.
 
