@@ -28,7 +28,7 @@
 **Interfaces:**
 - Produces: `SiloCore.saveSecret(namespace, id, value): Promise<{status,namespace,id,path}>`, `SiloCore.loadSecret(namespace, id): Promise<string|undefined>`.
 
-- [ ] **Step 1: Write the failing test** — `src/secrets.test.ts`
+- [x] **Step 1: Write the failing test** — `src/secrets.test.ts`
 
 ```ts
 import { mkdtempSync } from "node:fs";
@@ -65,12 +65,12 @@ describe("SiloCore namespaced secrets", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm -C packages/silo run test`
 Expected: FAIL — `core.saveSecret is not a function`.
 
-- [ ] **Step 3: Add `saveSecret`/`loadSecret` to `SiloCore`** in `src/index.js` (after `loadTokens`, mirroring its file handling)
+- [x] **Step 3: Add `saveSecret`/`loadSecret` to `SiloCore`** in `src/index.js` (after `loadTokens`, mirroring its file handling)
 
 ```js
     /**
@@ -111,12 +111,12 @@ Expected: FAIL — `core.saveSecret is not a function`.
     }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `pnpm -C packages/silo run test`
 Expected: PASS — secrets store/load + isolation + missing-secret tests green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/silo/src/index.js packages/silo/src/secrets.test.ts
@@ -136,7 +136,7 @@ git commit -m "feat(silo): namespaced secret store (saveSecret/loadSecret) along
 - Consumes: `SiloCore.saveSecret`.
 - Produces: JSDoc typedefs `CollectContext`, `CredentialProvider`, `SiloCollectResult`; `collectAndStore(provider, ctx, core?): Promise<SiloCollectResult>`.
 
-- [ ] **Step 1: Write the failing test** — `src/collect.test.ts`
+- [x] **Step 1: Write the failing test** — `src/collect.test.ts`
 
 ```ts
 import { mkdtempSync } from "node:fs";
@@ -173,12 +173,12 @@ describe("silo collectAndStore", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm -C packages/silo run test`
 Expected: FAIL — `./collect.js` does not exist.
 
-- [ ] **Step 3: Create `src/collect.js`** (JS + JSDoc, matching `index.js` style)
+- [x] **Step 3: Create `src/collect.js`** (JS + JSDoc, matching `index.js` style)
 
 ```js
 import { SiloCore } from "./index.js";
@@ -218,18 +218,18 @@ export async function collectAndStore(provider, ctx, core = new SiloCore()) {
 }
 ```
 
-- [ ] **Step 4: Re-export from `src/index.js`** (add near the other exports)
+- [x] **Step 4: Re-export from `src/index.js`** (add near the other exports)
 
 ```js
 export { collectAndStore } from "./collect.js";
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `pnpm -C packages/silo run test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/silo/src/collect.js packages/silo/src/collect.test.ts packages/silo/src/index.js
@@ -243,7 +243,7 @@ git commit -m "feat(silo): namespaced credential collection front door (collectA
 **Files:**
 - Modify: `packages/silo/package.json` (devDependency)
 
-- [ ] **Step 1: Add the type-only dependency** to `packages/silo/package.json` `devDependencies`
+- [x] **Step 1: Add the type-only dependency** to `packages/silo/package.json` `devDependencies`
 
 ```jsonc
 "@refarm.dev/prompt-contract-v1": "workspace:*"
@@ -251,17 +251,17 @@ git commit -m "feat(silo): namespaced credential collection front door (collectA
 
 (Type-only via JSDoc `import(...)` — no runtime import, so it stays a devDependency and introduces no runtime cycle.)
 
-- [ ] **Step 2: Install + verify build order stays acyclic**
+- [x] **Step 2: Install + verify build order stays acyclic**
 
 Run: `pnpm install && pnpm run task:build-order:check`
 Expected: PASS — no cycle introduced.
 
-- [ ] **Step 3: Type-check the JSDoc**
+- [x] **Step 3: Type-check the JSDoc**
 
-Run: `pnpm -C packages/silo run type-check`
-Expected: PASS — the `OperatorChannel` JSDoc import resolves.
+Run: `pnpm -C packages/silo run build`
+Expected: PASS — the `OperatorChannel` JSDoc import resolves through `tsc`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/silo/package.json
@@ -276,7 +276,7 @@ git commit -m "chore(silo): type-only prompt-contract-v1 dep for CollectContext"
 - Modify: `apps/refarm/src/credentials/types.ts` (re-export from `@refarm.dev/silo`)
 - Modify: `apps/refarm/src/credentials/{github,cloudflare,model}.ts` (add `namespace`)
 
-- [ ] **Step 1: Make `types.ts` a thin re-export** (single source of truth, minimal churn)
+- [x] **Step 1: Make `types.ts` a thin re-export** (single source of truth, minimal churn)
 
 ```ts
 export type { CredentialProvider, CollectContext } from "@refarm.dev/silo";
@@ -284,7 +284,7 @@ export type { CredentialProvider, CollectContext } from "@refarm.dev/silo";
 
 (Remove the local interface bodies; keep this file so existing importers keep working. The `namespace` field now comes from the silo contract — every provider must set it, which the next step does.)
 
-- [ ] **Step 2: Add `namespace` to each provider** — set the secret class:
+- [x] **Step 2: Add `namespace` to each provider** — set the secret class:
   - `github.ts` → `readonly namespace = "runtime";`
   - `cloudflare.ts` → `readonly namespace = "runtime";`
   - `model.ts` → `readonly namespace = "model";`
@@ -292,12 +292,12 @@ export type { CredentialProvider, CollectContext } from "@refarm.dev/silo";
   Where a provider previously persisted a collected value directly, route it through
   `collectAndStore(this, ctx)` from `@refarm.dev/silo` (keep the OAuth/prompt UX in the provider).
 
-- [ ] **Step 3: Verify existing credential tests pass**
+- [x] **Step 3: Verify existing credential tests pass**
 
 Run (focused files — **never** the broad `-- credentials` filter, which pulls too many suites and can OOM the container): `pnpm -C apps/refarm run test -- src/credentials/model.test.ts src/credentials/token-auth-error.test.ts`
 Expected: PASS — `credentials/model.test.ts`, `token-auth-error.test.ts`, and the type-check still pass with the re-homed contract.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/refarm/src/credentials
@@ -312,12 +312,12 @@ git commit -m "refactor(refarm): re-home credential providers onto the silo coll
 - Modify: `scripts/ci/test-capabilities.mjs`, `scripts/ci/gate-smoke-contracts.mjs`
 - Create: `.changeset/silo-collection-contract.md`
 
-- [ ] **Step 1: Register `silo` in both gate lists** (per `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`; skip any already present)
+- [x] **Step 1: Register `silo` in both gate lists** (per `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`; skip any already present)
 
 `scripts/ci/test-capabilities.mjs` STEPS — add `["packages/silo", "test"]`.
 `scripts/ci/gate-smoke-contracts.mjs` STEPS — add `["packages/silo", "build"]` and `["packages/silo", "test"]`.
 
-- [ ] **Step 2: Add the changeset** — `.changeset/silo-collection-contract.md`
+- [x] **Step 2: Add the changeset** — `.changeset/silo-collection-contract.md`
 
 ```markdown
 ---
@@ -327,12 +327,18 @@ git commit -m "refactor(refarm): re-home credential providers onto the silo coll
 Add a namespaced credential-collection front door (`CredentialProvider` + `collectAndStore`) and a namespaced secret store, keeping secret classes (model/runtime/channel/publishing) separate.
 ```
 
-- [ ] **Step 3: Final gate**
+- [x] **Step 3: Final gate**
 
-Run: `pnpm -C packages/silo run lint && pnpm -C packages/silo run type-check && pnpm -C packages/silo run test && pnpm run gate:smoke:contracts`
+Run: `pnpm -C packages/silo run lint && pnpm -C packages/silo run build && pnpm -C packages/silo run test && pnpm run gate:smoke:contracts`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+Executed as a constrained-container checkpoint: `packages/silo` lint/build/test,
+acceptance script `--plan` checks, `git diff --check`, and
+`refarm agent finish --lane after-edit --run --json` passed. The full
+`gate:smoke:contracts` repo gate remains a push/release checkpoint to avoid
+repeating the broad JS/Rust fan-out that previously OOM-stalled the container.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/ci/test-capabilities.mjs scripts/ci/gate-smoke-contracts.mjs .changeset/silo-collection-contract.md

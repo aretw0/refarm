@@ -24,6 +24,7 @@ const STEPS = [
 	["packages/identity-nostr", "test:conformance"],
 	["packages/ds", "test"],
 	["packages/homestead", "test"],
+	["packages/silo", "test"],
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "test:conformance"],
 ];
