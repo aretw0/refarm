@@ -30,6 +30,7 @@ each sub-project's own brainstorm.
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; vault-seed generator + codemod registry spec+plans ready |
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 | 11 | **XR/WebXR surface POC** — immersive surface around Refarm | POC | 4, optional 5 | XR-capable browser renders the same Refarm data as 2D fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-xr-surface-poc.md)) |
+| 12 | **Vault-seed roadmap assimilation** — sources/ETL, multi-channel publishing, OKF, workspace publishing, Lab WASM helpers | classification + specs | 1, 5, 8, 9 | each future vault-seed slice either consumes a Refarm candidate block or stays explicitly product-local | ▶ classified; activate per lane |
 
 ## Detail & rationale
 
@@ -130,6 +131,25 @@ three.js isolated to the POC until evidence justifies a package.
 
 POC packet: `specs/features/2026-06-25-xr-surface-poc.md` and
 `docs/superpowers/plans/2026-06-25-xr-surface-poc.md`.
+
+### 12. Vault-seed roadmap assimilation — classified, activate per lane
+`vault-seed`'s future roadmap is now part of convergence planning:
+
+- v0.5 source IaC (`lab.sources.json`, `ExtractionProfile`, cache/staging, `target: "auto"`)
+  attaches to `source:v1`, artifact/provenance, retention policy, and model/task contracts.
+- v0.5/v0.6 publishing expansion (Telegram, Mastodon, Bluesky, Nostr, later Instagram/newsletter)
+  attaches to 8b channel policy and `silo` identity namespaces; provider adapters stay downstream.
+- v0.7 primitive adoption (`rate-limiter`, `contacts`, `silo`, skill metadata) is the item 8 bridge
+  lane with candidate packages, codemods, and compatibility wrappers.
+- `dgk publish workspace`, custom distributions, package provenance, and changelog-as-content
+  attach to item 9 generator/codemod work plus `release-engine`.
+- Lab WASM helpers, feed/OpenGraph readers, and refresh workflows attach to item 5 WASM substrate
+  and source/artifact contracts.
+- OKF, JSON-LD, semantic graph, and knowledge export are future content/knowledge manifest pressure;
+  keep vault-specific mapping downstream until another consumer proves the same envelope.
+
+This item is a guardrail, not a new mega-project. Each row activates only through the existing
+lane's spec/plan, with a consumer proof and a downstream rollback path.
 
 ## Sequence
 

@@ -108,8 +108,19 @@ rollback note.
 Before adding more `vault-seed`-local substrate, classify the change:
 
 - artifact/provenance or Lab manifest -> attach to artifact contract proof;
+- source IaC, extraction profiles, cache/staging, and data lifecycle -> attach to `source:v1`,
+  artifact/provenance, and storage/retention policy;
+- `target: "auto"` placement -> attach to a model/task classification contract with replayable
+  artifact evidence;
+- multi-channel publishing, including Mastodon, Bluesky, Instagram, newsletter, Telegram, and
+  Nostr -> attach to 8b channel policy plus `silo` identity namespaces;
 - generated-vault/template mechanics -> attach to item 9a/9b;
-- package release/readiness checks -> attach to `release-engine`/package acceptance;
+- package release/readiness checks, `dgk publish workspace`, custom distributions, and
+  changelog-as-content -> attach to `release-engine`/package acceptance;
+- Lab WASM helpers, feed/OpenGraph readers, and refresh jobs -> attach to item 5 WASM substrate
+  plus source HTTP readers and artifact snapshots;
+- OKF/JSON-LD/semantic graph export -> hold until a second consumer proves a neutral
+  content/knowledge manifest;
 - action pins/substrate/devcontainer/generated-output hygiene -> attach to health/environment;
 - text scoring -> attach to text-quality;
 - Astro/Obsidian/PARA UX -> keep downstream unless a second consumer repeats it.

@@ -158,6 +158,28 @@ to the existing lanes before `vault-seed` grows more local substrate:
 | Text scoring and prose quality reports | text-quality contract/config | Keep Refarm scoring generic; leave Portuguese/vault dashboards downstream. |
 | Astro wiki/callout/image transforms | future content-transform contract | Hold until a second non-vault consumer repeats the same transforms. |
 
+## Roadmap-Derived Assimilation Backlog
+
+The explicit `vault-seed` roadmap adds more supply pressure. These entries do
+not create new top-level items until a spec activates them, but they prevent the
+factory from stopping later to re-decide ownership.
+
+| Roadmap pressure | Attach to | Activation trigger |
+|---|---|---|
+| `lab.sources.json`, `ExtractionProfile`, cache/staging, data lifecycle | item 1/7 source adapters + artifact retention policy | second extractor or generated vault needs the same source/profile shape |
+| `target: "auto"` AI placement | model/task contract + artifact evidence | classifier decisions need replay, review, or provider swap |
+| Mastodon/Bluesky/Instagram/newsletter/Nostr parity | 8b channel policy + `silo` identity namespace | second provider proves the same destination/rate-limit/receipt/review envelope |
+| Nostr kind 30023 through Refarm identity | identity + channel-policy proof | signed delivery evidence can be expressed without vault article semantics |
+| `dgk publish workspace` and custom distributions | item 9 generator/codemod + release-engine | generated vault smoke needs package/workspace publication metadata |
+| OKF/JSON-LD/semantic graph export | future knowledge/content manifest contract | another consumer wants the same graph/content envelope |
+| changelog as publishable content | release-engine + channel policy | release notes can emit an outbox-ready artifact without editorial takeover |
+| Lab WASM HTTP/OpenGraph helpers and refresh workflows | item 5 WASM substrate + source HTTP readers + artifacts | Marimo/Astro need the same browser-safe data helper contract |
+| `vault-publish`, `vault-inbox`, `vault-changelog` skills | item 6 skill runtime activation | a skill can run through Refarm primitives without rewriting DGK SKILL.md |
+
+Keep the first implementation conservative: prefer one neutral envelope with conformance tests
+over splitting packages by wish list. Split only when the tests show independent versioning,
+runtime, or ownership.
+
 Activation packet:
 
 - `specs/features/2026-06-25-consumer-bridges-activation.md`;
