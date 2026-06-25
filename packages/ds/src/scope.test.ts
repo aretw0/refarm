@@ -22,4 +22,12 @@ describe("token scope discipline", () => {
 		expect(css).toContain(".ds-btn");
 		expect(/#[0-9a-fA-F]{3,8}\b/.test(css)).toBe(false);
 	});
+
+	it("tokens.css keeps legacy refarm aliases scoped", () => {
+		const css = read("./tokens.css");
+		expect(css).not.toMatch(/:root\s*\{/);
+		expect(css).toContain("[data-refarm-theme]");
+		expect(css).toContain("--refarm-bg-primary: var(--background);");
+		expect(css).toContain("--refarm-accent-primary: var(--primary);");
+	});
 });

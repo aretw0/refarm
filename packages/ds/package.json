@@ -14,10 +14,15 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		},
+		"./tokens.css": "./src/tokens.css",
+		"./components.css": "./src/components.css",
+		"./tailwind-bridge.css": "./src/tailwind-bridge.css",
+		"./themes/*": "./src/themes/*",
 		"./styles/*": "./src/*"
 	},
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build",

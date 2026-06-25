@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { runDsThemeConformance } from "./conformance.js";
 import { REQUIRED_TOKENS, type DsTheme } from "./contract.js";
+import { runDsThemeConformance } from "./theme-conformance.js";
 
 function completeTheme(): DsTheme {
 	return Object.fromEntries(REQUIRED_TOKENS.map((token) => [token, "x"])) as DsTheme;

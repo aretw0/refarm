@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { runDsThemeConformance } from "./conformance.js";
 import { REQUIRED_TOKENS, type DsTheme } from "./contract.js";
+import { runDsThemeConformance } from "./theme-conformance.js";
 
 function tokensInThemeCss(relPath: string): Partial<DsTheme> {
 	const css = readFileSync(fileURLToPath(new URL(relPath, import.meta.url)), "utf8");
