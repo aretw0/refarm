@@ -25,6 +25,32 @@
 
 ---
 
+## Generator-first (read before Task 1)
+
+Refarm already scaffolds packages — **do not hand-write the config files.** Tasks 1 and 3 should run
+the generator, then fill in `src/`:
+
+```bash
+# Task 1: contract package, auto-registered in the gates + changeset (gate prompt → test:unit)
+turbo gen package --args source-contract-v1 contract-v1 "Versioned source capability contract (source:v1) and conformance suite" false test:unit
+# Task 3: git adapter, gate prompt → test:conformance
+turbo gen package --args source-git buildable "Git implementation of the source:v1 capability — cached partial-clone checkouts" false test:conformance
+```
+
+The extended generator (`turbo/generators/config.ts`) **auto-registers** the package in **both**
+`test-capabilities.mjs` and `gate-smoke-contracts.mjs` and emits the changeset. Therefore:
+
+- The `package.json` / `tsconfig*.json` / `vitest` / `eslint` contents shown in Tasks 1 & 3 are the
+  **reference for what the generator produces and what to adjust** (description, keywords) — not
+  files to type by hand.
+- The manual gate-registration steps (**Task 2 Step 7**, **Task 4 Step 8**) and the changeset
+  (**Task 6 Step 1**) become **verification**, not authoring — confirm the generator did them; only
+  edit by hand if you scaffolded without choosing a `gate`.
+- Everything in `src/` (types, schema, conformance, in-memory, provider, parse, git) is still authored
+  per the tasks — the generator only scaffolds the skeleton.
+
+---
+
 ### Task 1: Scaffold `source-contract-v1` package + types
 
 **Files:**

@@ -27,6 +27,7 @@ each sub-project's own brainstorm.
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ✅ taxonomy ([ledger](./GARDENING_SKILLS_TAXONOMY.md)); skill contract deferred to "Refarm as engine" (dogfooding gate) |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred |
 | 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred |
+| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen` | ▶ generator extended (gate auto-registration ✅); cross-file codemods = future |
 
 ## Detail & rationale
 
@@ -89,6 +90,17 @@ Promote `dgk`'s repeated needs into Refarm packages only when a second consumer 
 primitive: `silo` (credentials), `contacts`+`rate-limiter` (channels), `cli/launch-process`
 (runner). Gated by the dogfood and by the convergence doc's "promote only when consumer-neutral"
 rule.
+
+### 9. Executable specs (generators + codemods)
+Prose specs are right for **decisions** (ADRs) but low-leverage for **mechanical** work. Three
+layers, three forms: greenfield → **generator** (Refarm already has `turbo gen package` with typed
+templates incl. `contract-v1`); recurring transform of existing code → **codemod** (the gate-list
+registration — done now by extending the generator's `modify` actions); one-off/cross-file AST
+transforms → lean on the ecosystem (`codemod.com` / `ast-grep` / `ts-morph`) when a change spans
+many files (e.g. the `credentials/` re-export migration). **Delivered:** the gate-registration +
+changeset are now emitted by `turbo gen package` (`turbo/generators/config.ts`), turning
+`PACKAGE_ACCEPTANCE_CHECKLIST.md` steps 2/3/6 from prose into code. **Discipline:** codemod-ify the
+recurring, keep one-offs and decisions as prose.
 
 ## Sequence
 
