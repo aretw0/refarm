@@ -1,0 +1,55 @@
+# Gardening Skills Taxonomy (Roadmap Item 6 — Discovery)
+
+> Status: taxonomy ledger (2026-06-25). Maps `vault-seed`'s `dgk-skills` to Refarm engines and to
+> `agents-lab` skills, to locate the "gardening skills" superset. The skill **contract/runtime** is
+> deferred (Refarm runs no skills yet — building it now would violate the dogfooding gate). This is
+> discovery only. Feeds `docs/CONVERGENCE_ROADMAP.md` item 6.
+
+## Where skills live today
+
+- **`vault-seed` `@aretw0/dgk-skills`** (Pi `SKILL.md`): `vault-admin`, `vault-context`,
+  `vault-create`, `vault-daily`, `vault-evaluate`, `vault-read`, `vault-search` — **vault-domain
+  (gardening) skills**.
+- **`agents-lab`**: `git-skills` (incl. `git-checkout-cache` = the librarian), `lab-skills`
+  (agentic ops), `pi-skills` (Pi authoring), `web-skills` (`source-research`, `web-browser`). The
+  Pi proving ground.
+- **`refarm`**: **no skill package.** It has *engines* — `sower` (scaffold/import), `thresher`
+  (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
+  (`context-provider-v1`, the in-progress `source:v1`). The skill runtime is the future
+  "Refarm as engine" milestone.
+
+## The key finding
+
+The convergence is **not** "move `dgk-skills` into Refarm." `dgk` vault-skills are thin **domain
+wrappers**; in the converged world they call Refarm **engines** instead of reimplementing logic.
+The taxonomy below is the mapping for when the skill contract lands (deferred).
+
+## Taxonomy — `dgk` vault-skill → Refarm engine/capability → `agents-lab` kin
+
+| `dgk` skill | What it does | Refarm engine/capability it would call | `agents-lab` kin |
+|---|---|---|---|
+| `vault-create` | scaffold notes/structure | `sower` (scaffold/import engine) | `pi-skills/create-pi-*`, `project-intake` |
+| `vault-read` / `vault-search` | read/find across the vault | **`source:v1`** (librarian, item 1) | `web-skills/source-research`, `git-checkout-cache` |
+| `vault-context` | assemble context for a task | **`context-provider-v1`** (contract exists) | `lab-skills/cross-stack-intake` |
+| `vault-evaluate` | quality/score notes | `thresher` (integrity audit) + Refarm text-quality scorer | `lab-skills/evaluate-extension`, `reality-check` |
+| `vault-daily` | daily routine/digest | a routine/schedule (`windmill` / cron) | `lab-skills/session-triage`, `control-plane-continuity` |
+| `vault-admin` | operate the vault | admin UI cockpit (`homestead` + `dgk serve`, item 4b) | `lab-skills/control-plane-ops` |
+
+## The "gardening skills" superset
+
+Skills for **tending a sovereign knowledge farm**, spanning: scaffold (`sower`), read/search
+(`source:v1`), context (`context-provider-v1`), evaluate (`thresher`/text-score), routine
+(`windmill`/schedule), admin (`homestead`). `dgk-skills` is the **vault-domain subset**;
+`agents-lab` provides the **agentic-ops subset**; Refarm provides the **engines** the skills call.
+
+Some engines already exist (`context-provider-v1`, `sower`, `thresher`; `source:v1` in progress);
+the **skill runtime** that would invoke them does not.
+
+## Deferred (not built now)
+
+- **Skill contract / adapter** (`SKILL.md` → Refarm manifest/runtime): the
+  `VAULT_SEED_CONVERGENCE.md` "skill compatibility" promotion candidate. Deferred until Refarm has
+  a skill runtime to consume it — otherwise it is supply-ahead-of-consumption, against the
+  dogfooding gate. Tracked under the "Refarm as engine" milestone.
+- **`dgk-skills` stays in `vault-seed`** (canonical to DGK); it conforms to the future contract,
+  it does not migrate.
