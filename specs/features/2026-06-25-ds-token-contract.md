@@ -156,9 +156,15 @@ export function runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConforman
 
 ## 4. Consumer re-consumption (`vault-seed`)
 
-- `vault-seed/.site/styles` migrates: import `@refarm.dev/ds/tokens.css` + the chosen theme,
-  drop the locally-defined contract variables, keep `oceano`/`terracota`/`verde-jardim` (now as
-  conforming `ds` themes — contributed upstream).
+- The shadcn-vocabulary surface in `vault-seed` is the **Marimo Lab** —
+  `.site/styles/marimo-vault.css` defines `--background`/`--primary`/`--card`/… + the `--gdg-*` grid
+  map, themed via `[data-vault-marimo-theme]`. It migrates: import `@refarm.dev/ds/tokens.css` + the
+  `verde-jardim` `ds` theme (authored from the Lab's current values — the dogfood loop), drop the
+  locally-defined contract variables, keep `--gdg-*` (it references them) and the Marimo-owned
+  Altair/shadow-DOM handling. Plan: `vault-seed docs/convergencia-ds-lab.md`.
+- The public **Starlight site** uses its own `--sl-color-*` vocabulary (`custom.css` + `themes/*`);
+  a `ds → --sl-color-*` bridge is **deferred**. `oceano`/`terracota` become `ds` themes when that
+  bridge lands.
 - The `dgk serve` admin UI (`packages/cli/src/commands/serve.js`, an inline `ADMIN_HTML` string)
   switches its `<style>` to the same tokens — this is the seam into item 4b (recompose the admin
   UI from `homestead` primitives, which already consume `ds`).
