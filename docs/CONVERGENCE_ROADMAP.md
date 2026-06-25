@@ -28,6 +28,7 @@ each sub-project's own brainstorm.
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred |
 | 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; vault-seed generator spec+plan ready; cross-file codemods = future |
+| 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 
 ## Detail & rationale
 
@@ -142,9 +143,12 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
 4. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. First plan should be a thin `homestead`/`ds` demo surface with capability detection,
    fallback 2D rendering, and no commitment beyond WebXR/A-Frame-style interoperability.
+5. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
+   source materialization, generated vault output, and agent artifact/log workloads. It must stay
+   capability-probed with fallback and cannot leak into TS public APIs.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
-4, 5, 6, 7, or 8. It records which items are execution-ready, which are deliberately gated, and
+4, 5, 6, 7, 8, 9, or 10. It records which items are execution-ready, which are deliberately gated, and
 which exact spec/plan must be written next.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)

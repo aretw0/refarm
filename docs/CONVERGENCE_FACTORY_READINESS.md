@@ -19,6 +19,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
 | 8 consumer bridges | correctly deferred | silo collect is specified | each bridge needs a second consumer and its own spec |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator spec+plan | cross-file codemods still need specs |
+| 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 
 ## Item 4 - UI and Surface Blocks
 
@@ -113,3 +114,16 @@ The generator-first direction now has a spec and plan:
 
 Start with manifest + inventory before copying files. The first proof is a generated vault that
 passes the selected `vault-seed` smoke gate, not a hand-authored duplicate of the template.
+
+## Item 10 - Linux Async I/O (`io_uring`)
+
+`io_uring` is worth tracking because Refarm has native Rust hot paths and agent workloads that can
+be file/socket heavy. It is not a cross-platform default and must not leak into TS public APIs.
+
+Spec and plan:
+
+- `specs/features/2026-06-25-io-uring-substrate.md`;
+- `docs/superpowers/plans/2026-06-25-io-uring-substrate.md`.
+
+Start only as a validation under `validations/io-uring-substrate/`. The first gate is not raw
+throughput; it is capability probe + fallback + a meaningful win on a Refarm-shaped workload.
