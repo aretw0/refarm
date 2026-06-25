@@ -124,6 +124,25 @@ recurring, keep one-offs and decisions as prose.
 Each numbered item gets its own `brainstorm → spec → plan` before execution. Specs land in
 `specs/features/` or `specs/ADRs/`; plans in `docs/superpowers/plans/`.
 
+## Planning frontier
+
+These are the next things worth deepening before writing broad code. They are deliberately phrased
+as codemod/generator work when a repeatable transform is cheaper and safer than manual edits.
+
+1. **Astro 7 / WASM substrate research (item 5):** current Astro is v7, so the next artifact should
+   be a POC plan, not a speculative ADR. Test one Astro SSR route against Tractor's
+   native-first/WASM-fallback substrate and decide whether Part C survives.
+2. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
+   that can materialize the template, run the generated-vault smoke suite, and keep template-only
+   files behind the `initialize.yml` boundary. Start with manifest + file inventory before any
+   cross-repo rewrite.
+3. **Codemod candidates:** only codemod recurring transforms: package gate registration,
+   `@aretw0` -> `@refarm.dev` publish-target sweeps, `CredentialProvider` import re-homing, and
+   `ds` token adoption. Keep ADR decisions and one-off prose as docs.
+4. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
+   dependency. First plan should be a thin `homestead`/`ds` demo surface with capability detection,
+   fallback 2D rendering, and no commitment beyond WebXR/A-Frame-style interoperability.
+
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)
 — ordered steps, branches, and verification gates.
 

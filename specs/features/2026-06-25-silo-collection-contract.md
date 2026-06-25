@@ -94,6 +94,8 @@ export function collectAndStore(
 
 **vault-seed (item 8, noted not built here):**
 - `serve.js` channel config implements a `CredentialProvider` with `namespace: "channel"`.
+- Consumer-side gated planning lives in `vault-seed docs/convergencia-homestead-admin.md` (4c note)
+  until the dedicated item-8 bridge spec is written.
 
 ## 3. Verification plan
 
