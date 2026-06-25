@@ -48,7 +48,7 @@ When heartwood's Rust source changes and a rebuild is required, use the reusable
 ```yaml
 jobs:
   build-heartwood:
-    uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
+    uses: aretw0/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
     with:
       component-name: heartwood
       workspace-path: packages/heartwood

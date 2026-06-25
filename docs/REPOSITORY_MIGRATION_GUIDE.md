@@ -101,7 +101,7 @@ Variables recomendadas (repository variables):
 | Variable | Valor sugerido | Para quê |
 |---|---|---|
 | `RELEASE_AUTOMATION` | `true` | Habilita jobs de publicação |
-| `RELEASE_OWNER` | `refarm-dev` | Lock opcional por owner (evita publish em forks) |
+| `RELEASE_OWNER` | `<target-owner>` | Lock opcional por owner (evita publish em forks) |
 
 ---
 

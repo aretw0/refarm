@@ -4,7 +4,7 @@
 #
 # This template standardises the test and build process for Refarm plugins.
 # It delegates the WASM compilation pipeline to the reusable workflow at
-# refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml
+# aretw0/refarm/.github/workflows/reusable-build-wasm-plugin.yml
 #
 # Replace MY_PLUGIN_NAME with your component name (lowercase-kebab).
 
@@ -36,7 +36,7 @@ jobs:
 
   build-wasm:
     needs: test
-    uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
+    uses: aretw0/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
     with:
       component-name: MY_PLUGIN_NAME
       workspace-path: .

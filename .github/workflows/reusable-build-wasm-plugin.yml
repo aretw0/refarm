@@ -13,7 +13,7 @@
 # Usage (from external plugin repos):
 #   jobs:
 #     build-wasm:
-#       uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
+#       uses: aretw0/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
 #       with:
 #         component-name: my-plugin
 #         workspace-path: .
