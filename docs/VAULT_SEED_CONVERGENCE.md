@@ -309,3 +309,37 @@ Local external drafts should continue to pressure Refarm indirectly:
 Because evidence vaults are read-only by default, evidence from those drafts
 should become Refarm docs, shared primitives, or explicitly scoped
 `vault-seed` changes, never silent writes into a mirror.
+
+## 2026-06-24 Amendment — Refarm Supplies UI / Surface / WASM Blocks
+
+This amendment narrows, not deletes, the earlier boundary. The prior text — especially
+"What Not To Do" (*"Do not move vault-seed Astro UI, Marimo notebooks into Refarm"*) and
+*"healthy duplication at the product edge"* — stays on record above to preserve history.
+What changes is the line between **product** and **block**.
+
+**New boundary:**
+
+- Refarm **supplies blocks**: `@refarm.dev/ds` (tokens/style), `@refarm.dev/homestead`
+  (shell SDK + UI primitives), `@refarm.dev/dispatch-surface` (cli/tui/web/rpc/http/a2a),
+  and the Tractor WASM substrate (ADR-049 / ADR-044) as the common distribution layer for
+  lab/site surfaces.
+- Consumers **compose product** from those blocks. What stays at the consumer edge is the
+  *product/content/config* (PARA vocabulary, onboarding copy, vault-specific dataset names,
+  editorial workflow) — not the UI capability itself.
+- Still forbidden: moving a consumer's **finished product** (the actual Astro site, the
+  actual notebooks) into Refarm. Supplying the blocks that *build* them is now explicitly
+  in scope. This resolves the standing inconsistency where the doctrine said "no UI supply"
+  while `ds`, `homestead`, and `dispatch-surface` already shipped as UI/surface SDKs.
+
+**Readiness gate (dogfooding):** Refarm is its own first consumer. A block is *supplyable*
+only after Refarm consumes it itself (`apps/me`, `apps/refarm`, `farmhand`, `tractor`). If
+`apps/refarm` accretes logic that should be a reusable block, that is misfocus — the apps
+should be thin consumers that prove the blocks.
+
+**Astro / Marimo convergence:** treat them not as two embedded apps but as two language
+surfaces (TS, Python) over one WASM distribution substrate. Refarm should learn WASM
+distribution from Marimo (Pyodide) and Astro 7 (Rust toolchain) and provide the shared
+substrate, without embedding either app.
+
+See [`ECOSYSTEM_SUPPLY_MAP.md`](./ECOSYSTEM_SUPPLY_MAP.md) for the full supply map,
+readiness gate, and migration order.
