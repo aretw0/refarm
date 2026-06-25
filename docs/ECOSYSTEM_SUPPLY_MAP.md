@@ -53,7 +53,7 @@ a Refarm distro or making Refarm a required dependency for generated vaults.
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
 | `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/cli/launch-process` ✅ (already the seam) | `dgk` delegates via runner adapter when Refarm is present. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
-| Channels | `dgk-channels` | `@refarm.dev/contacts` + `@refarm.dev/rate-limiter` (intent; doc-confirmed) | Bridge until the contract is consumer-neutral. |
+| Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
 
 What stays at the consumer edge is **product/content/config** (PARA vocabulary, onboarding
 copy, vault-specific dataset names, editorial workflow) — not the UI capability itself.
@@ -74,9 +74,8 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
 6. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.
-7. `silo` → credentials; `contacts` + `rate-limiter` → `dgk-channels`;
-   `cli/launch-process` → `dgk-runner`. Promote only when the contract is consumer-neutral
-   (existing doctrine rule).
+7. `silo` → credentials; channel policy → `dgk-channels`/Telegram outbox; `cli/launch-process` →
+   `dgk-runner`. Promote only when the contract is consumer-neutral (existing doctrine rule).
 
 ## Librarian follow-up
 
