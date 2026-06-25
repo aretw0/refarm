@@ -63,9 +63,9 @@ products and must stay. Files to review:
 (The convergence docs — `CONVERGENCE_ROADMAP.md`, `ECOSYSTEM_SUPPLY_MAP.md`, and the source-contract plan — reference `@aretw0` only to describe this very inconsistency; update them to point at this ADR rather than editing the description away.)
 
 ### Neutral / orthogonal
-- **GitHub org transfer** to `github.com/refarm-dev` is independent of the npm scope. At transfer,
-  update `repository.url`/`homepage` fields (currently `aretw0/refarm`). It does not block any
-  convergence item.
+- **Git owner migration** is independent of the npm scope and is currently parked. If Refarm later
+  leaves `aretw0/refarm` for `refarm-dev`, Codeberg, or a self-hosted Git node, update
+  `repository.url`/`homepage` fields at that time. It does not block any convergence item.
 - **Timing:** because `@refarm.dev` is already the code state, there is no rename and no conflict
   with the Prêmio Serpro window (no `vault-seed` rename is involved here).
 

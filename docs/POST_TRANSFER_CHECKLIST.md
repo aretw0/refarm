@@ -1,6 +1,10 @@
 # Post-Transfer Checklist
 
-Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após a transferência do repositório `aretw0/refarm` → `refarm-dev/refarm`.
+> **Status**: parked. The repository currently remains under `aretw0/refarm`. Use this checklist
+> only if an owner migration is resumed later.
+
+Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após uma
+transferência futura do repositório para outro owner/host.
 
 ---
 
@@ -52,7 +56,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 
 # Opcional (lock de owner)
 # Nome: RELEASE_OWNER
-# Valor: refarm-dev
+# Valor: <target-owner>
 # Scope: Repository variables
 ```
 
@@ -70,7 +74,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 O transfer do repositório deve ter acionado o workflow de testes automaticamente. Verificar:
 
 ```bash
-# Via web: https://github.com/refarm-dev/refarm/actions
+# Via web: <new-repo-url>/actions
 # Workflow: CI / Test → deve estar verde ✅
 ```
 
@@ -149,7 +153,7 @@ npm info @refarm.dev/identity-contract-v1
 ### 7. Verificar GitHub Releases
 
 ```bash
-# Via web: https://github.com/refarm-dev/refarm/releases
+# Via web: <new-repo-url>/releases
 # Devem existir 3 releases (um por pacote)
 ```
 
@@ -243,7 +247,7 @@ Marcar conforme completar:
 - [ ] REPOSITORY_MIGRATION_GUIDE.md deletado
 - [ ] Research consolidado em INDEX.md (opcional)
 - [ ] ESTADO_ATUAL.md consolidado em decision-log.md (opcional)
-- [ ] Encontrados e atualizados todas referências `aretw0` → `refarm-dev`
+- [ ] Encontradas e atualizadas referências ao owner antigo conforme o destino escolhido
 
 ---
 
@@ -268,7 +272,7 @@ git push origin @refarm.dev/storage-contract-v1@0.1.1
 
 Verificar:
 
-1. `github.repository_owner` está correto? (deve ser `refarm-dev`)
+1. `github.repository_owner` está correto? (deve ser o owner configurado em `RELEASE_OWNER`)
 2. `vars.RELEASE_AUTOMATION` está configurado como `true`?
 3. Branch protection está bloqueando? (verificar Settings → Branches)
 
