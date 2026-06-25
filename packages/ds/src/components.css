@@ -1,0 +1,78 @@
+@layer refarm.components {
+	.ds-section {
+		margin-block: 1.5rem;
+	}
+
+	.ds-card {
+		background: var(--card);
+		color: var(--card-foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-sm);
+		padding: 1rem;
+	}
+
+	.ds-btn {
+		background: var(--primary);
+		color: var(--primary-foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		padding: 0.4rem 0.9rem;
+		font-family: var(--font-sans);
+		cursor: pointer;
+	}
+
+	.ds-btn:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.ds-field label {
+		display: block;
+		color: var(--muted-foreground);
+		font-size: 0.8rem;
+	}
+
+	.ds-field input {
+		width: 100%;
+		background: var(--background);
+		color: var(--foreground);
+		border: 1px solid var(--input);
+		border-radius: var(--radius-sm);
+		padding: 0.35rem 0.6rem;
+	}
+
+	.ds-table {
+		width: 100%;
+		border-collapse: collapse;
+		color: var(--foreground);
+	}
+
+	.ds-table th,
+	.ds-table td {
+		border-bottom: 1px solid var(--border);
+		padding: 0.4rem 0.5rem;
+		text-align: left;
+	}
+
+	.ds-feedback {
+		border-radius: var(--radius-sm);
+		padding: 0.5rem 0.75rem;
+	}
+
+	.ds-feedback[data-kind="error"] {
+		color: var(--error);
+	}
+
+	.ds-feedback[data-kind="warning"] {
+		color: var(--warning);
+	}
+
+	.ds-feedback[data-kind="success"] {
+		color: var(--success);
+	}
+
+	.ds-feedback[data-kind="info"] {
+		color: var(--info);
+	}
+}
