@@ -3,7 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import { KeyManager } from "./key-manager.js";
 
-export { collectAndStore } from "./collect.js";
+export * from "./collect.js";
 
 /**
  * SiloCore: Context and Secret Provisioner.

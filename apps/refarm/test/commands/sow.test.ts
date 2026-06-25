@@ -32,16 +32,19 @@ vi.mock("../../src/credentials/index.js", () => ({
 	githubCredentialProvider: {
 		id: "github",
 		label: "GitHub",
+		namespace: "runtime",
 		collect: mockGithubCollect,
 	},
 	cloudflareCredentialProvider: {
 		id: "cloudflare",
 		label: "Cloudflare",
+		namespace: "runtime",
 		collect: mockCloudflareCollect,
 	},
 	modelCredentialProvider: {
 		id: "model",
 		label: "Model Provider",
+		namespace: "model",
 		collect: vi.fn(),
 		collectModel: mockModelCollect,
 	},

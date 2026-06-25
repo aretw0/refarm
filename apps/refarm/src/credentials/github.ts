@@ -84,6 +84,7 @@ async function resolveUsername(token: string): Promise<string> {
 export const githubCredentialProvider: CredentialProvider = {
 	id: "github",
 	label: "GitHub",
+	namespace: "runtime",
 
 	async collect(ctx: CollectContext): Promise<string> {
 		const cfg = loadConfig() as { providers?: { github?: { clientId?: string; scopes?: string } } };

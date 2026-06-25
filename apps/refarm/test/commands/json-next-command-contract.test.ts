@@ -958,17 +958,20 @@ function createContractSowCommand() {
 			model: {
 				id: "model",
 				label: "Model Provider",
+				namespace: "model",
 				collect: vi.fn(),
 				collectModel: vi.fn(),
 			},
 			github: {
 				id: "github",
 				label: "GitHub",
+				namespace: "runtime",
 				collect: vi.fn(),
 			},
 			cloudflare: {
 				id: "cloudflare",
 				label: "Cloudflare",
+				namespace: "runtime",
 				collect: vi.fn(),
 			},
 		},
