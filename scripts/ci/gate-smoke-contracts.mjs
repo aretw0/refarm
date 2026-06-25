@@ -27,6 +27,10 @@ const STEPS = [
 	["packages/storage-sqlite", "test:conformance"],
 	["packages/sync-loro", "build"],
 	["packages/sync-loro", "test:conformance"],
+	["packages/source-contract-v1", "build"],
+	["packages/source-contract-v1", "test:unit"],
+	["packages/source-git", "build"],
+	["packages/source-git", "test:conformance"],
 ];
 
 function commandForStep([workspaceDir, script]) {
