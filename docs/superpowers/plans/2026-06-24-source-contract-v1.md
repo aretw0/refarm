@@ -497,13 +497,22 @@ Expected: PASS — both tests green; first asserts `total === 7`, `pass === true
 Run: `pnpm -C packages/source-contract-v1 run type-check`
 Expected: PASS (no errors).
 
-- [ ] **Step 7: Register in the capabilities gate** — edit `scripts/ci/test-capabilities.mjs`
+- [ ] **Step 7: Register in BOTH gate lists** — edit `scripts/ci/test-capabilities.mjs` AND `scripts/ci/gate-smoke-contracts.mjs`
 
-Add this line to the `STEPS` array, immediately after the `["packages/session-contract-v1", "test:unit"],` entry:
+In `scripts/ci/test-capabilities.mjs`, add to the `STEPS` array after `["packages/session-contract-v1", "test:unit"],`:
 
 ```js
 	["packages/source-contract-v1", "test:unit"],
 ```
+
+In `scripts/ci/gate-smoke-contracts.mjs`, add to its `STEPS` array (a **separate** list — easy to miss) after the `["packages/session-contract-v1", "test:unit"],` entry:
+
+```js
+	["packages/source-contract-v1", "build"],
+	["packages/source-contract-v1", "test:unit"],
+```
+
+See `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md` — a new package must clear both lists or `gate:full:colony` fails.
 
 - [ ] **Step 8: Run the capabilities gate**
 
@@ -1017,11 +1026,18 @@ Expected: PASS — conformance passes against the local bare remote; clone-then-
 Run: `pnpm -C packages/source-git run type-check`
 Expected: PASS.
 
-- [ ] **Step 8: Register the git conformance in the capabilities gate** — edit `scripts/ci/test-capabilities.mjs`
+- [ ] **Step 8: Register source-git in BOTH gate lists** — edit `scripts/ci/test-capabilities.mjs` AND `scripts/ci/gate-smoke-contracts.mjs`
 
-Add to the `STEPS` array, after the existing `["packages/identity-nostr", "test:conformance"],` entry:
+In `scripts/ci/test-capabilities.mjs`, add to `STEPS` after `["packages/identity-nostr", "test:conformance"],`:
 
 ```js
+	["packages/source-git", "test:conformance"],
+```
+
+In `scripts/ci/gate-smoke-contracts.mjs`, add to its `STEPS` after the `sync-loro` entries:
+
+```js
+	["packages/source-git", "build"],
 	["packages/source-git", "test:conformance"],
 ```
 
@@ -1118,6 +1134,48 @@ Expected: PASS — all green.
 ```bash
 git add scripts/ci/smoke-source-git-librarian.mjs package.json
 git commit -m "feat(source-git): dogfood smoke — Refarm materializes and reads a real repo"
+```
+
+---
+
+### Task 6: Package acceptance — release entry + colony-subset gate
+
+**Files:**
+- Create: `.changeset/source-capability.md`
+- Verify only: `scripts/validate-packages.mjs`, `scripts/ci/gate-smoke-contracts.mjs` outputs
+
+**Interfaces:** none (integration/release wiring).
+
+- [ ] **Step 1: Add a changeset for the two publishable packages**
+
+Create `.changeset/source-capability.md` (model: `.changeset/initial-contracts-release.md`):
+
+```markdown
+---
+"@refarm.dev/source-contract-v1": minor
+"@refarm.dev/source-git": minor
+---
+
+Add the source:v1 capability (the librarian): contract + git provider for cached partial-clone checkouts.
+```
+
+- [ ] **Step 2: Validate package scaffolds**
+
+Run: `pnpm run validate-packages`
+Expected: PASS — `source-contract-v1` classifies as `contract-v1`, `source-git` as a buildable/adapter. If either is flagged, fix the `package.json` to match the canonical type (see `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`) or add `"scaffold": { "type": "exempt", "reason": "..." }`.
+
+- [ ] **Step 3: Run the colony-subset gates**
+
+Run: `pnpm run gate:smoke:contracts && pnpm run test:capabilities && pnpm run task:build-order:check && pnpm run workspace:source:ownership`
+Expected: PASS — all four; the two new packages appear in the contracts-smoke and capabilities output.
+
+- [ ] **Step 4: Commit**
+
+```bash
+# test-capabilities.mjs was already committed in Tasks 2 & 4; gate-smoke-contracts.mjs edits
+# (Task 2 Step 7, Task 4 Step 8) are still pending and land here with the changeset.
+git add .changeset/source-capability.md scripts/ci/gate-smoke-contracts.mjs
+git commit -m "chore(source): register source:v1 packages in release + acceptance gates"
 ```
 
 ---

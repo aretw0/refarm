@@ -183,10 +183,17 @@ export function runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConforman
 - Growing the component library (`Button` and beyond) past tokens — a later `ds` increment.
 - Publishing `@refarm.dev/ds` — gated by ADR-069 scope work and the first contract publish.
 
-## 7. Open questions
+## 7. Decisions (resolved 2026-06-25 — no mid-build pauses)
 
-- Are preset themes (`oceano`/...) shipped inside `@refarm.dev/ds`, or in a separate
-  `@refarm.dev/ds-themes` so the core stays brand-only? (Recommend: ship in `ds` now; split later
-  if the set grows.)
-- Tailwind bridge: a CSS file (`tailwind-bridge.css`) or a Tailwind v4 `@theme` preset export?
-  (Recommend: CSS file now; preset when a consumer needs the Tailwind plugin API.)
+- **Preset themes ship inside `@refarm.dev/ds`** (`src/themes/`). Split into a separate
+  `@refarm.dev/ds-themes` only if the set outgrows the core later.
+- **Tailwind bridge is a CSS file** (`src/tailwind-bridge.css`). Add a Tailwind v4 `@theme` preset
+  export only when a consumer needs the Tailwind plugin API.
+
+## 8. Integration
+
+- **Package acceptance:** `ds` already exists — apply `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md` #2/#3
+  (register the new theme-conformance `test` in `test-capabilities.mjs` and `gate-smoke-contracts.mjs`)
+  and #6 (changeset) when implementing.
+- **Consumer proof consumption:** the `vault-seed` adoption in §5 uses the local-tarball path in
+  `docs/DEV_CROSS_REPO_CONSUMPTION.md` (build → `pnpm pack` → `file:` tarball in `vault-seed`).
