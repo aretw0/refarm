@@ -106,7 +106,7 @@ content.
 - Rebuild `ADMIN_HTML` and the client re-render from these helpers; drop the inline `<style>`
   palette and local `esc()`. Keep `node:http`, the `/api/*` routes, and the `fetch` client intact.
 
-## 3. Verification plan (runs in `cranky_bassi`)
+## 3. Verification plan
 
 1. **Tier unit tests:** each helper returns the expected HTML, escapes interpolated content, and
    uses `ds` classes; run under plain `node` (no DOM) to prove build-free.

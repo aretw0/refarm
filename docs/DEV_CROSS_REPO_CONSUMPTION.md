@@ -9,14 +9,14 @@
 `vault-seed` is a **separate repo** — `grep refarm` in its `package.json` / `pnpm-workspace.yaml`
 is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" steps need
 `@refarm.dev/ds`, `/homestead`, `/silo` **inside `vault-seed`** before those packages are on npm.
-The two repos also run in **different devcontainers** (`cranky_bassi` vs `goofy_nightingale`) on a
-shared Windows host.
+`vault-seed` and `refarm` are separate repos — not one pnpm workspace — so `vault-seed` cannot
+`workspace:*`-link Refarm packages.
 
 ## Decision
 
 **Consumer-proof uses a local tarball — faithful to the published shape.**
 
-1. In Refarm (`cranky_bassi`): build and pack the package.
+1. In the Refarm working tree: build and pack the package.
    ```bash
    pnpm -C packages/<name> run build
    pnpm -C packages/<name> pack   # → refarm.dev-<name>-<version>.tgz

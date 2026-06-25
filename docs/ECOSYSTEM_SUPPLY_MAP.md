@@ -61,12 +61,6 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `cli/launch-process` → `dgk-runner`. Promote only when the contract is consumer-neutral
    (existing doctrine rule).
 
-## Workspace rule
-
-- **Editing files**: `vault-seed`, `refarm`, `agents-lab` — all editable from the Windows host.
-- **Running commands**: `vault-seed` on Windows; `refarm` / `agents-lab` only inside their
-  devcontainers (`cranky_bassi` / `goofy_nightingale`).
-
 ## Next sub-project: librarian spec (open questions)
 
 - **Form in Refarm**: a `checkout:v1` contract (third parties implement) vs an internal

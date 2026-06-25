@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **Run environment:** all commands run inside the `cranky_bassi` devcontainer, NOT the Windows host. Editing files happens on the host; running `git`/`pnpm`/`vitest` happens in the container.
+- **Commands:** `pnpm` / `git` / `vitest` run from the Refarm working tree (the `source-git` tests need `git` in PATH).
 - **Package manager:** `pnpm@11.7.0`. Per-package script: `pnpm -C packages/<name> run <script>`.
 - **Node:** `>=22`. **Module:** ESM-only (`"type": "module"`, `.js` import specifiers in TS).
 - **Scope:** package names use `@refarm.dev/*` (matches existing contracts; the `@aretw0` vs `@refarm.dev` publish-scope split is out of scope here).
@@ -1045,7 +1045,7 @@ export { parseSourceRef, cachePathFor, defaultCacheRoot, type ParsedRef } from "
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `pnpm -C packages/source-git run test:unit`
-Expected: PASS — conformance passes against the local bare remote; clone-then-reuse assertions green. (Requires `git` in PATH — present in the devcontainer.)
+Expected: PASS — conformance passes against the local bare remote; clone-then-reuse assertions green. (Requires `git` in PATH.)
 
 - [ ] **Step 7: Type-check**
 
