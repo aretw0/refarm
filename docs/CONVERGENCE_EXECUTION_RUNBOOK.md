@@ -70,8 +70,9 @@ versions of Refarm-shaped blocks.
 - **8c candidate:** prove `dgk-runner` can delegate to or emit the same
   `@refarm.dev/cli/launch-process` + artifact provenance envelope without importing `dgk`
   vocabulary into Refarm.
-- Keep **8b contacts/rate-limiter** deferred until another consumer besides DGK needs the same
-  channel/rate-limit primitive.
+- **8b candidate:** write the focused channel-policy bridge spec using `vault-seed` Telegram
+  outbox/inbox as a fixture and Refarm `dispatch-surface`/Farmhand channel-control as the second
+  consumer. Keep Telegram API calls, Markdown formatting, note filenames, and `dgk` UX downstream.
 
 **Gate:** each activated bridge has its own spec, package/API decision, consumer proof, fallback,
 and rollback note.
@@ -103,14 +104,27 @@ Plan: `docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
 **Gate:** registry validates; ready entries have fixtures, dry-run command, verification gate, and
 rollback note.
 
-### 11. Item 10 — Linux async I/O (`io_uring`) substrate POC
+### 11. Downstream assimilation review
+Before adding more `vault-seed`-local substrate, classify the change:
+
+- artifact/provenance or Lab manifest -> attach to artifact contract proof;
+- generated-vault/template mechanics -> attach to item 9a/9b;
+- package release/readiness checks -> attach to `release-engine`/package acceptance;
+- action pins/substrate/devcontainer/generated-output hygiene -> attach to health/environment;
+- text scoring -> attach to text-quality;
+- Astro/Obsidian/PARA UX -> keep downstream unless a second consumer repeats it.
+
+**Gate:** update `docs/CONVERGENCE_FACTORY_READINESS.md` rather than adding an untracked
+`vault-seed` responsibility.
+
+### 12. Item 10 — Linux async I/O (`io_uring`) substrate POC
 Branch: `research/io-uring-substrate`.
 Spec: `specs/features/2026-06-25-io-uring-substrate.md`.
 Plan: `docs/superpowers/plans/2026-06-25-io-uring-substrate.md`.
 **Gate:** capability probe reports availability/block/unsupported; baseline and `io_uring`
 implementations produce identical output; benchmark evidence shows ROI or records deferral.
 
-### 12. Item 11 — XR/WebXR surface POC
+### 13. Item 11 — XR/WebXR surface POC
 Branch: `research/xr-surface-poc`.
 Spec: `specs/features/2026-06-25-xr-surface-poc.md`.
 Plan: `docs/superpowers/plans/2026-06-25-xr-surface-poc.md`.
@@ -123,8 +137,8 @@ supported/unsupported/blocked; XR dependencies stay inside the POC.
   `specs/features/2026-06-25-skill-runtime-activation.md`.
 - **Item 7** — `source-dispatch` adapter + `source-local` — when an agentic consumer/kernel needs them.
   Activation packet: `specs/features/2026-06-25-source-adapter-activation.md`.
-- **Item 8b only** — `contacts` + `rate-limiter` stays deferred until a second non-DGK consumer
-  appears. 8a and 8c are handled in Step 6 when their prerequisites are met.
+- No broad Item 8 bridge remains deferred as a bucket. 8a, 8b, and 8c each require their own
+  focused spec and proof before code moves.
 
 ## Per-step discipline
 - TDD as written in each plan (red → green → commit).

@@ -37,6 +37,13 @@ support. When those needs match a Refarm block, the next slice should include a
 consumer proof instead of letting `vault-seed` keep building local stand-ins that
 will be migrated later.
 
+The same rule applies to new downstream substrate. Before expanding
+`vault-seed` scripts/packages, classify whether the repeated part belongs in
+Refarm as channel policy, artifact/provenance, release/package readiness,
+health/environment checks, text-quality, or generator/codemod machinery. Keep
+PARA, Obsidian, Astro rendering, notebook UX, Telegram adapter details, and
+publication copy downstream.
+
 ### Current consolidation checkpoint
 
 The active consolidation slice has enough surface area. Treat the current work

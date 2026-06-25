@@ -52,7 +52,7 @@ The useful convergence details are concrete:
 | `dgk etl` | Runs a fixed local pipeline: note index, feed sources, publication outbox, lab datasets. | Treat ETL stages as task processes with artifact/provenance outputs, not as vault-specific Refarm commands. |
 | `dgk outbox` / `dgk inbox` | Channel commands are product-local today and route Telegram through scripts. | Promote channel-independent contracts only: contacts, rate limits, receipts, dry-run reports, and review gates. |
 | `silo.js` | Stores publishing-channel credentials under `~/.dgk/silo.json` and explicitly says model/AI keys come from `refarm sow`. | Harden `@refarm.dev/silo` as the model/runtime credential owner; later expose a scoped publishing credential adapter instead of merging all secrets. |
-| `@aretw0/dgk-channels` | Temporary bridge for contact topology and platform-agnostic rate limiting. | Candidate for `@refarm.dev/contacts` and `@refarm.dev/rate-limiter` only after the contract is consumer-neutral. |
+| `@aretw0/dgk-channels` | Temporary bridge for contact topology and platform-agnostic rate limiting. | Candidate-active for a Refarm channel policy/evidence contract; split `contacts` and `rate-limiter` later only if the contract needs independent versioning. |
 | Astro config | Owns published reading UX, wiki links/images, callouts, sidebar intent routing, Lab links, Mermaid rendering, and attachment/vault JSON generation. | Refarm should provide publish preflight and artifact manifests; Astro rendering remains a consumer concern. |
 | Marimo manifest | Lists publishable notebooks with `title`, `source`, `output`, `description`, and `publish`. | Align with `@refarm.dev/artifact-contract-v1` task artifacts so labs can consume prepared snapshots without Refarm owning notebooks. |
 | Text scoring | `avaliar_textos.py` delegates to a deterministic `text_scorer` and emits JSON reports. | Continue maturing Refarm's dependency-free text-quality contract and leave vault profiles/rubrics in consumers. |
@@ -367,13 +367,32 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 | Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/homestead/ssr` | Converts UI duplication into token/SSR conformance evidence. |
 | Vault ETL, Lab export, publish receipts | `@refarm.dev/cli/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
 | Credential collection without secret sprawl | `@refarm.dev/silo` collect + later bridge | Proves namespace separation across app and consumer. |
+| Telegram outbox/inbox and channel state | channel policy contract: destinations, rate limits, receipts, dry-run, review gates | Lets `vault-seed` keep Telegram UX while Refarm gains reusable channel evidence for dispatch/farmhand surfaces. |
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
 | Skill/agent compatibility | skill runtime activation + Pi/WASM/UI proof | Starts only when a real invocation surface exists, but is planned from consumer pressure. |
+
+### Additional Assimilation Matrix
+
+The downstream audit shows more Refarm-shaped work than the first block list. Use
+this matrix before adding more `vault-seed`-local infrastructure:
+
+| `vault-seed` responsibility today | Refarm assimilation target | Posture |
+| --- | --- | --- |
+| `scripts/prepare_publication_outbox.mjs`, `.dgk/outbox-publicacao.json`, Lab outbox notebook | Artifact/provenance + channel policy evidence | Activate with 8b; vault-specific frontmatter stays downstream. |
+| `scripts/prepare_lab_datasets.mjs`, notebook export/check/pair helpers, Lab manifest | Artifact contract + WASM/lab distribution substrate | Candidate after artifact proof; Marimo UX stays downstream. |
+| `scripts/smoke_template.js`, initialize reset, generated-vault smoke | Vault generator + codemod registry | Active item 9a/9b. |
+| `release_package_smoke`, version/integrity/lockfile template checks | `@refarm.dev/release-engine` + package acceptance policy | Candidate block; DGK package names stay downstream. |
+| `actions:pins`, substrate/devcontainer/template contract checks | `@refarm.dev/health` / environment substrate checks | Candidate block when rules are consumer-neutral. |
+| text scoring and presentation quality scripts | Refarm text-quality contract/config | Already a Refarm lane; rubrics and dashboards stay downstream. |
+| wiki links, callouts, image/slug conventions | Content transform contract only if another consumer repeats it | Hold at product edge for now; Astro rendering remains `vault-seed`. |
+| Obsidian/VS Code launchers, PARA routes, note templates | Product-local vault UX | Keep downstream. |
 
 The product boundary remains strict:
 
 - no Refarm dependency is required for an already-generated vault;
 - no vault content, route copy, notebook UX, or PARA convention moves upstream;
+- no Telegram Bot API behavior, Markdown formatting, inbox filenames, or `dgk outbox/inbox` UX
+  moves upstream;
 - no package is promoted only because one consumer branch compiles;
 - every consumer-pulled exception must either add a Refarm dogfood follow-up or
   stay marked as a candidate.
