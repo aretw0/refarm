@@ -1,6 +1,6 @@
 # Spec: Refarm DS Token Contract (Roadmap Item 4a)
 
-**Status:** DRAFT — ready for implementation
+**Status:** IMPLEMENTED in Refarm — consumer proof in `vault-seed` remains external
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
 **Related:** `docs/CONVERGENCE_ROADMAP.md` (item 4), `docs/APPS_REFARM_PROMOTION_LEDGER.md`, `docs/ECOSYSTEM_SUPPLY_MAP.md`, `ADR-069` (npm scope)
@@ -91,7 +91,7 @@ export interface DsThemeConformanceResult {
 ```
 src/
   contract.ts            # REQUIRED_TOKENS, types (above)
-  conformance.ts         # runDsThemeConformance(theme: Partial<DsTheme>)
+  theme-conformance.ts   # runDsThemeConformance(theme: Partial<DsTheme>)
   conformance.test.ts
   tokens.css             # @layer refarm.tokens — variable declarations under [data-refarm-theme]
   themes/
@@ -107,10 +107,10 @@ src/
 ```css
 @layer refarm.tokens {
   [data-refarm-theme] {
-    /* contract variables — values come from the active theme file */
-    --background: var(--_bg);
-    --foreground: var(--_fg);
-    /* ...all REQUIRED_TOKENS... */
+    /* legacy aliases for styles.css; concrete semantic values come from the active theme file */
+    --refarm-bg-primary: var(--background);
+    --refarm-accent-primary: var(--primary);
+    /* ...scoped --refarm-* compatibility aliases... */
   }
 }
 ```
@@ -132,7 +132,7 @@ Themes set the concrete values under the same scope, e.g. `tractor-green.css`:
 }
 ```
 
-## 3. Conformance (`src/conformance.ts`)
+## 3. Conformance (`src/theme-conformance.ts`)
 
 ```ts
 import { REQUIRED_TOKENS, type DsToken, type DsTheme, type DsThemeConformanceResult } from "./contract.js";
