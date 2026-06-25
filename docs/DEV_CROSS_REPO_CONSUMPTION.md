@@ -21,7 +21,8 @@ is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" st
    pnpm -C packages/<name> run build
    pnpm -C packages/<name> pack   # → refarm.dev-<name>-<version>.tgz
    ```
-2. Copy the `.tgz` to `vault-seed` (shared host filesystem), e.g. into `vault-seed/vendor/`.
+2. Copy the `.tgz` to `vault-seed`, e.g. into the repo-root `vault-seed/vendor/`. This is a local
+   proof cache, not source; the consumer repo should ignore it.
 3. In `vault-seed`: add the dependency and install.
    ```jsonc
    // package.json
@@ -32,9 +33,28 @@ is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" st
    ```
 4. Run the surface (`dgk build` / `dgk serve` / the site test roteiro) — that is the proof.
 
+Before committing the consumer proof, confirm the packed artifact stayed out of source control:
+
+```bash
+git status --short -- vendor
+```
+
+Expected: no tracked `.tgz` additions. The proof branch may keep `package.json` / lockfile changes
+while it is active; the packed artifact itself stays local.
+
+If the consumer checkout is not available from the current working environment, stop after packing
+and hand off:
+
+- package name and version;
+- tarball path or checksum;
+- build/pack commands used;
+- expected consumer proof command.
+
+Do not replace the tarball gate with an unverified assertion.
+
 **Quick-iteration alternative:** a `file:` dep pointing at the built package directory
-(`"@refarm.dev/<name>": "file:../../refarm/packages/<name>"`). Faster, but requires path alignment
-across the container boundary. The **tarball is the gate** because it ships exactly the `files` /
+(`"@refarm.dev/<name>": "file:../../refarm/packages/<name>"`). Faster, but more environment-sensitive.
+The **tarball is the gate** because it ships exactly the `files` /
 `exports` whitelist npm would publish — catching packaging bugs the proof must catch.
 
 **Real consumption:** once `@refarm.dev` packages publish (ADR-069 scope settled + first release),

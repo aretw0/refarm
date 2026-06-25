@@ -10,6 +10,8 @@
   were committed to `docs/convergence-planning`).
 - **Branching:** topic branch off `develop`, one per sub-project. **Conventional commits.**
   **Rebase** onto `develop` to integrate — never `merge --no-ff`.
+- Consumer-proof gates require the consumer checkout. If it is not visible from the current working
+  environment, produce the package artifact and a handoff instead of weakening the gate.
 - Read `docs/CONVERGENCE_ROADMAP.md` first; each step below points at its spec/plan and its
   verification gate (smoke + intermediate checks + final gate).
 
