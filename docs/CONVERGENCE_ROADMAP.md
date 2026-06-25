@@ -22,12 +22,12 @@ each sub-project's own brainstorm.
 | 1 | **Librarian** — `source:v1` + `source-git` | spec + plan | — | Refarm agent materializes vault-seed/agents-lab read-only | ✅ spec + plan |
 | 2 | **`apps/refarm` promotion audit** | audit ledger | 1 (read repos) | — (discovery) | ✅ done ([ledger](./APPS_REFARM_PROMOTION_LEDGER.md)) |
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + migration plan | — | publish dry-run green under chosen scope | ✅ decided ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) — docs sweep pending |
-| 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c spec+plans ready; 4d dispatch external API still needs spec (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
+| 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; adapter gated by Refarm skill runtime |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred |
 | 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred |
-| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen` | ▶ generator extended (gate auto-registration ✅); cross-file codemods = future |
+| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; vault-seed generator spec+plan ready; cross-file codemods = future |
 
 ## Detail & rationale
 
@@ -134,8 +134,8 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    native-first/WASM-fallback substrate and decide whether Part C survives.
 2. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
    that can materialize the template, run the generated-vault smoke suite, and keep template-only
-   files behind the `initialize.yml` boundary. Start with manifest + file inventory before any
-   cross-repo rewrite.
+   files behind the `initialize.yml` boundary. Spec:
+   `specs/features/2026-06-25-vault-seed-generator-contract.md`.
 3. **Codemod candidates:** only codemod recurring transforms: package gate registration,
    `@aretw0` -> `@refarm.dev` publish-target sweeps, `CredentialProvider` import re-homing, and
    `ds` token adoption. Keep ADR decisions and one-off prose as docs.

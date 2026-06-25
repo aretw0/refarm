@@ -13,12 +13,12 @@ Not everything is planned to execution depth yet. The safe state is:
 | 4a `ds` tokens | ready to implement from plan | contract, scoping, themes, conformance, consumer proof | none after following the plan |
 | 4b `homestead/ssr` | ready after 4a | subpath, helper API, build-free boundary, consumer proof | waits for 4a `ds` classes/tokens |
 | 4c `silo` collect | ready to implement independently | contract boundary, namespaces, app re-export strategy | storage adoption by `vault-seed` remains item 8 |
-| 4d `dispatch-surface` external API | not ready | need is identified by audit | missing spec; do not implement yet |
+| 4d `dispatch-surface` external API | ready to implement from plan | public API boundary, consumer proof, parity gate | waits for 4a/4b only if a UI consumer proof is chosen |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | discovery-ready only | taxonomy | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
 | 8 consumer bridges | correctly deferred | silo collect is specified | each bridge needs a second consumer and its own spec |
-| 9 executable specs | partially automated | package gate registration generator | cross-file codemods still need specs |
+| 9 executable specs | partially automated | package gate registration generator; vault-seed generator spec+plan | cross-file codemods still need specs |
 
 ## Item 4 - UI and Surface Blocks
 
@@ -32,18 +32,8 @@ Execution order:
 3. 4c `silo` collect - follow
    `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`; can proceed independently of
    4a/4b if package build order stays green.
-4. 4d `dispatch-surface` external-consumer API - write a feature spec before code. The audit says
-   `dispatch-surface` is already a mature internal block, but no external API stabilization spec
-   exists yet.
-
-4d spec checklist:
-
-- inventory current `apps/refarm` consumers of `dispatch-surface` and `homestead` action/rendering
-  helpers;
-- decide the public import surface and which APIs stay internal;
-- identify one non-Refarm or headless Refarm consumer proof;
-- add tests that import only the public surface;
-- document package acceptance and changeset requirements.
+4. 4d `dispatch-surface` external-consumer API - follow
+   `docs/superpowers/plans/2026-06-25-dispatch-surface-external-api.md`.
 
 ## Item 5 - WASM Substrate
 
@@ -113,3 +103,13 @@ that manual editing is riskier:
 - next codemod candidates: ADR-069 publish-target scope sweep, `CredentialProvider` import
   re-homing, `ds` token adoption in consumer CSS, and generated-vault manifest/inventory wiring;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
+
+## Item 9a - Vault-Seed Generator
+
+The generator-first direction now has a spec and plan:
+
+- `specs/features/2026-06-25-vault-seed-generator-contract.md`;
+- `docs/superpowers/plans/2026-06-25-vault-seed-generator-contract.md`.
+
+Start with manifest + inventory before copying files. The first proof is a generated vault that
+passes the selected `vault-seed` smoke gate, not a hand-authored duplicate of the template.
