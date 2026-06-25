@@ -24,11 +24,12 @@ each sub-project's own brainstorm.
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + migration plan | — | publish dry-run green under chosen scope | ▶ decided ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)); docs sweep spec+plan ready |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
-| 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; adapter gated by Refarm skill runtime |
+| 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred; activation spec+plan ready |
 | 8 | **Consumer bridges** — `silo`, `contacts`+`rate-limiter`, `cli/launch-process` for `dgk` | specs | 3 + second consumer | a second consumer needs the same primitive | ◻ deferred; activation spec+plan ready |
-| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; vault-seed generator spec+plan ready; cross-file codemods = future |
+| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; vault-seed generator + codemod registry spec+plans ready |
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
+| 11 | **XR/WebXR surface POC** — immersive surface around Refarm | POC | 4, optional 5 | XR-capable browser renders the same Refarm data as 2D fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-xr-surface-poc.md)) |
 
 ## Detail & rationale
 
@@ -84,6 +85,9 @@ skill set. Map the overlap, define the superset, and provide a compatibility ada
 `dgk` skill can run under Refarm's skill surface without a one-shot rename (the convergence doc's
 "Skill/package compatibility" promotion candidate).
 
+Activation packet: `specs/features/2026-06-25-skill-runtime-activation.md` and
+`docs/superpowers/plans/2026-06-25-skill-runtime-activation.md`.
+
 ### 7. Librarian completion (deferred)
 `source-dispatch` adapter (wire `source:v1` into `dispatch-surface` for agentic/kernel use) and a
 real `source-local` package (live local tree). Built when consumed — `source-dispatch` waits on
@@ -111,6 +115,17 @@ many files (e.g. the `credentials/` re-export migration). **Delivered:** the gat
 changeset are now emitted by `turbo gen package` (`turbo/generators/config.ts`), turning
 `PACKAGE_ACCEPTANCE_CHECKLIST.md` steps 2/3/6 from prose into code. **Discipline:** codemod-ify the
 recurring, keep one-offs and decisions as prose.
+
+Codemod registry packet: `specs/features/2026-06-25-codemod-registry-contract.md` and
+`docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
+
+### 11. XR/WebXR surface POC (frontier)
+XR is a surface around Refarm, not a core dependency. The first work is a POC that renders the same
+Refarm data through a 2D `homestead` fallback and an XR-capable WebXR path. It must keep A-Frame or
+three.js isolated to the POC until evidence justifies a package.
+
+POC packet: `specs/features/2026-06-25-xr-surface-poc.md` and
+`docs/superpowers/plans/2026-06-25-xr-surface-poc.md`.
 
 ## Sequence
 
@@ -150,8 +165,7 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    `@aretw0` -> `@refarm.dev` publish-target sweeps, `CredentialProvider` import re-homing, and
    `ds` token adoption. Keep ADR decisions and one-off prose as docs.
 4. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
-   dependency. First plan should be a thin `homestead`/`ds` demo surface with capability detection,
-   fallback 2D rendering, and no commitment beyond WebXR/A-Frame-style interoperability.
+   dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.
 5. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
    source materialization, generated vault output, and agent artifact/log workloads. It must stay
    capability-probed with fallback and cannot leak into TS public APIs.

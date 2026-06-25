@@ -76,17 +76,31 @@ Plan: `docs/superpowers/plans/2026-06-25-vault-seed-generator-contract.md`.
 **Gate:** manifest distinguishes payload/dev-only files; generated output has inventory report;
 selected `vault-seed` generated-vault smoke passes.
 
-### 9. Item 10 — Linux async I/O (`io_uring`) substrate POC
+### 9. Item 9b — codemod registry contract
+Branch: `feat/codemod-registry-contract`.
+Spec: `specs/features/2026-06-25-codemod-registry-contract.md`.
+Plan: `docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
+**Gate:** registry validates; ready entries have fixtures, dry-run command, verification gate, and
+rollback note.
+
+### 10. Item 10 — Linux async I/O (`io_uring`) substrate POC
 Branch: `research/io-uring-substrate`.
 Spec: `specs/features/2026-06-25-io-uring-substrate.md`.
 Plan: `docs/superpowers/plans/2026-06-25-io-uring-substrate.md`.
 **Gate:** capability probe reports availability/block/unsupported; baseline and `io_uring`
 implementations produce identical output; benchmark evidence shows ROI or records deferral.
 
+### 11. Item 11 — XR/WebXR surface POC
+Branch: `research/xr-surface-poc`.
+Spec: `specs/features/2026-06-25-xr-surface-poc.md`.
+Plan: `docs/superpowers/plans/2026-06-25-xr-surface-poc.md`.
+**Gate:** 2D fallback and XR path consume the same JSON envelope; WebXR capability probe reports
+supported/unsupported/blocked; XR dependencies stay inside the POC.
+
 ## Deferred — do NOT start (gated)
 - **Item 6 skill contract** — wait for the "Refarm as engine" runtime (dogfooding gate). Taxonomy
-  is in `docs/GARDENING_SKILLS_TAXONOMY.md`; activation criteria are in
-  `docs/CONVERGENCE_FACTORY_READINESS.md`.
+  is in `docs/GARDENING_SKILLS_TAXONOMY.md`; activation packet:
+  `specs/features/2026-06-25-skill-runtime-activation.md`.
 - **Item 7** — `source-dispatch` adapter + `source-local` — when an agentic consumer/kernel needs them.
   Activation packet: `specs/features/2026-06-25-source-adapter-activation.md`.
 - **Item 8** — consumer bridges (`vault-seed` `silo.js` → `@refarm.dev/silo`; `contacts` +
