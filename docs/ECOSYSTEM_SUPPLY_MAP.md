@@ -17,8 +17,9 @@ implementation is proven, which is the pattern already recorded in
 Corollary (accepted critique): if effort flows into `apps/refarm` in a way that accretes
 logic that *should* be a reusable block (`ds`, `homestead`, `dispatch-surface`, contracts),
 that is misfocus. `apps/refarm` and `apps/me` should be **thin consumers** that *prove* the
-blocks. **[VERIFY: audit `apps/refarm` — does it concentrate promotable logic?]** This is
-flagged, not asserted; the internals have not been audited yet.
+blocks. The audit has been completed in [`APPS_REFARM_PROMOTION_LEDGER.md`](./APPS_REFARM_PROMOTION_LEDGER.md):
+the current work is not a broad extraction, but making existing blocks consumable and growing the
+small missing surfaces called out in the convergence roadmap.
 
 ## Dual keystone
 
@@ -26,7 +27,9 @@ flagged, not asserted; the internals have not been audited yet.
    lives only in `agents-lab` `git-skills/git-checkout-cache`). It unblocks Refarm
    inspecting `vault-seed` and `agents-lab` read-only to absorb their logic. Already aligned
    with the existing doctrine: *"Let Refarm inspect vault-seed as an external consumer
-   through read-only templates."* See open questions below.
+   through read-only templates."* The base contract is specified in
+   `specs/features/2026-06-24-source-contract-v1.md`; deferred adapters are activated through
+   `specs/features/2026-06-25-source-adapter-activation.md`.
 2. **UI boundary amendment** — see the 2026-06-24 amendment in `VAULT_SEED_CONVERGENCE.md`.
    It revokes "no UI supply" and establishes: *Refarm supplies UI / surface /
    WASM-distribution blocks; the consumer composes product.*
@@ -35,7 +38,7 @@ flagged, not asserted; the internals have not been audited yet.
 
 | Layer | What downstream re-implements | Refarm supplier (exists?) | Verdict / gate |
 | --- | --- | --- | --- |
-| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `agent-tools` / `toolbox` — **absent** | KEYSTONE. Build it. Doctrine already wants read-only consumer inspection. |
+| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `source:v1` + `source-git` specified | KEYSTONE. Execute the source contract plan, then activate adapters only when consumed. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ | Wire `ds` as the token/style source. |
 | Shell / admin UI | `dgk serve` | `@refarm.dev/homestead` ✅ + `apps/me` | Admin UI composed from `homestead`, not reinvented. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
@@ -61,11 +64,13 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `cli/launch-process` → `dgk-runner`. Promote only when the contract is consumer-neutral
    (existing doctrine rule).
 
-## Next sub-project: librarian spec (open questions)
+## Librarian follow-up
 
-- **Form in Refarm**: a `checkout:v1` contract (third parties implement) vs an internal
-  `agent-tool` / `toolbox` (only Refarm's own agent uses it)?
-- **Implementation**: port `checkout.sh` (bash), or grow it in Rust (`tractor`) / TS so it
-  runs cross-surface?
-- **Cache**: reuse `~/.cache/checkouts/<host>/<org>/<repo>` + partial clone
-  (`--filter=blob:none`) from the `agents-lab` version?
+The librarian question is no longer open-ended. The selected base path is:
+
+- `source:v1` contract + `source-git` provider: `specs/features/2026-06-24-source-contract-v1.md`;
+- execution plan: `docs/superpowers/plans/2026-06-24-source-contract-v1.md`;
+- deferred adapter activation: `specs/features/2026-06-25-source-adapter-activation.md`.
+
+Do not re-open the port-vs-toolbox decision during implementation. Build the base contract first;
+only add `source-dispatch`, `source-local`, or `source-tarball` when the activation trigger exists.
