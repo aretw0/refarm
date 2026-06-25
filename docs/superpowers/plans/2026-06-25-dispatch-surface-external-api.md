@@ -26,7 +26,7 @@
 
 **Interfaces:** asserts the runtime export set of the package root.
 
-- [ ] **Step 1: Write the lock test** — `src/public-api.test.ts`
+- [x] **Step 1: Write the lock test** — `src/public-api.test.ts`
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -63,12 +63,12 @@ describe("dispatch-surface public API", () => {
 });
 ```
 
-- [ ] **Step 2: Run and reconcile once**
+- [x] **Step 2: Run and reconcile once**
 
 Run: `pnpm --filter @refarm.dev/dispatch-surface run test -- public-api`
 Expected: if it FAILS, the diff shows an export the curated surface should add (intended) or hide (move internal). **Reconcile once**: either add the missing intended export to `index.ts`, narrow an accidental one, or update `LOCKED_RUNTIME_EXPORTS` to match the curated intent. After reconciliation it PASSES and the surface is locked — future drift fails this test.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/dispatch-surface/src/public-api.test.ts
@@ -84,7 +84,7 @@ git commit -m "test(dispatch-surface): lock the external public runtime API"
 
 **Interfaces:** consumes only `./index.js`. The functions live in `src/dispatch-surface.ts` — use their signatures from there (`parseTaskTransport` :129, `resolveChannelFromTransport` :151, `buildChannelEffortsPath` :301, `buildChannelEffortPath` :313, `assertChannelControlCapability` :367, `setChannelControlSurfaceAdapter` :424, `resolveChannelControlSurfaceAdapter` :459).
 
-- [ ] **Step 1: Write the consumer-proof test** — `src/consumer-proof.test.ts`
+- [x] **Step 1: Write the consumer-proof test** — `src/consumer-proof.test.ts`
 
 Import **only** from `./index.js` and prove the spec's four behaviors. Fill the exact call arguments from the function signatures in `src/dispatch-surface.ts` (referenced above); the assertions below are the contract:
 
@@ -138,12 +138,12 @@ describe("dispatch-surface external consumer proof", () => {
 > enum). Replace them with the real types when implementing — do not ship the markers. Everything
 > else is concrete.
 
-- [ ] **Step 2: Run to verify**
+- [x] **Step 2: Run to verify**
 
 Run: `pnpm --filter @refarm.dev/dispatch-surface run test -- consumer-proof`
 Expected: PASS once the two signature-bound spots are filled. The test imports only `./index.js` (no deep import).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/dispatch-surface/src/consumer-proof.test.ts
@@ -157,9 +157,9 @@ git commit -m "test(dispatch-surface): headless root-only consumer proof"
 **Files:**
 - Modify: `packages/dispatch-surface/README.md`
 
-- [ ] **Step 1: Add an "External consumer contract" section** with three runnable examples (parse `channel:<name>`; build submit/status/log paths; assert capability before dispatch), and a note that consumers import the **package root only** and that TS/Rust parity is an internal, transparent fallback.
+- [x] **Step 1: Add an "External consumer contract" section** with three runnable examples (parse `channel:<name>`; build submit/status/log paths; assert capability before dispatch), and a note that consumers import the **package root only** and that TS/Rust parity is an internal, transparent fallback.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add packages/dispatch-surface/README.md
@@ -174,16 +174,16 @@ git commit -m "docs(dispatch-surface): external consumer contract and examples"
 - Modify: `scripts/ci/test-capabilities.mjs` / `scripts/ci/gate-smoke-contracts.mjs` (only if not already registered)
 - Create: `.changeset/dispatch-surface-external-api.md`
 
-- [ ] **Step 1: Run the package gates**
+- [x] **Step 1: Run the package gates**
 
 Run: `pnpm --filter @refarm.dev/dispatch-surface run test && pnpm --filter @refarm.dev/dispatch-surface run test:parity && pnpm --filter @refarm.dev/dispatch-surface run type-check`
 Expected: PASS — lock test, consumer proof, parity, and types all green.
 
-- [ ] **Step 2: Ensure acceptance registration** (per `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`)
+- [x] **Step 2: Ensure acceptance registration** (per `docs/PACKAGE_ACCEPTANCE_CHECKLIST.md`)
 
 If `packages/dispatch-surface` is not already in `test-capabilities.mjs` / `gate-smoke-contracts.mjs`, add `["packages/dispatch-surface", "test"]` (and `"build"`). If already present, no change.
 
-- [ ] **Step 3: Add the changeset** — `.changeset/dispatch-surface-external-api.md`
+- [x] **Step 3: Add the changeset** — `.changeset/dispatch-surface-external-api.md`
 
 ```markdown
 ---
@@ -193,7 +193,7 @@ If `packages/dispatch-surface` is not already in `test-capabilities.mjs` / `gate
 Lock the external-consumer public API (root-only) with a public-API lock test, a headless consumer proof, and an external-consumer README contract. No behavior change.
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/ci/test-capabilities.mjs scripts/ci/gate-smoke-contracts.mjs .changeset/dispatch-surface-external-api.md
