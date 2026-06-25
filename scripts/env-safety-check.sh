@@ -10,6 +10,8 @@ Usage: scripts/env-safety-check.sh [--warn|--strict] [--repair]
 
 Performs a small environment sanity sweep to avoid cross-OS checkout contamination
 (e.g. host/Windows-linked node_modules inside a Linux devcontainer).
+If a checkout is marked as devcontainer-owned under .refarm/, host shells fail
+unless REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE=1 is set.
 
 Options:
   --warn      Convert all violations to warnings (exit code 0).
@@ -85,6 +87,21 @@ check_mount_and_location() {
 	fi
 }
 
+check_devcontainer_workspace_marker() {
+	local marker="$ROOT/.refarm/devcontainer-workspace.env"
+	if [ ! -f "$marker" ]; then
+		return
+	fi
+	if [ -f /.dockerenv ]; then
+		return
+	fi
+	if [ "${REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE:-}" = "1" ]; then
+		record_issue warn "Host shell is bypassing devcontainer workspace marker because REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE=1."
+		return
+	fi
+	record_issue error "Checkout is marked devcontainer-owned by $marker; enter through the devcontainer or farm before running agents/tools that write here."
+}
+
 is_cross_so_target() {
 	local path="$1"
 	case "$path" in
@@ -157,6 +174,7 @@ scan_node_modules() {
 }
 
 check_mount_and_location
+check_devcontainer_workspace_marker
 
 node_modules_dirs=()
 while IFS= read -r -d '' dir; do

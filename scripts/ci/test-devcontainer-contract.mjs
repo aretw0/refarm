@@ -138,6 +138,30 @@ test("devcontainer exposes refarm through the intentional farm user shell", () =
 	assert.match(farm, /exec su -s \/bin\/bash "\$TARGET_USER" -- -lc/);
 });
 
+test("devcontainer marks and locks host-write-sensitive workspace checkouts", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+	const envSafety = readFileSync("scripts/env-safety-check.sh", "utf8");
+
+	assert.equal(config.containerEnv.REFARM_WORKSPACE_HOST_WRITE_LOCK, "1");
+	assert.match(postCreate, /export REFARM_WORKSPACE_HOST_WRITE_LOCK="\$\{REFARM_WORKSPACE_HOST_WRITE_LOCK:-1\}"/);
+	assert.match(postStart, /export REFARM_WORKSPACE_HOST_WRITE_LOCK="\$\{REFARM_WORKSPACE_HOST_WRITE_LOCK:-1\}"/);
+	assert.match(farm, /export REFARM_WORKSPACE_HOST_WRITE_LOCK=1/);
+	assert.match(postCreate, /write_devcontainer_workspace_marker\(\)/);
+	assert.match(postStart, /write_devcontainer_workspace_marker\(\)/);
+	assert.match(postCreate, /devcontainer-workspace\.env/);
+	assert.match(postStart, /devcontainer-workspace\.env/);
+	assert.match(postCreate, /lock_workspace_host_writes\(\)/);
+	assert.match(postStart, /lock_workspace_host_writes\(\)/);
+	assert.match(postCreate, /chmod u\+rwx,go-w/);
+	assert.match(postStart, /chmod u\+rwx,go-w/);
+	assert.match(envSafety, /check_devcontainer_workspace_marker\(\)/);
+	assert.match(envSafety, /REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE/);
+	assert.match(envSafety, /Checkout is marked devcontainer-owned/);
+});
+
 test("devcontainer provides the baseline sandbox tools expected by agents", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
 	const dockerfile = readFileSync(".devcontainer/Dockerfile", "utf8");
