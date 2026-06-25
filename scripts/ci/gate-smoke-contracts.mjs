@@ -29,6 +29,8 @@ const STEPS = [
 	["packages/sync-loro", "test:conformance"],
 	["packages/ds", "build"],
 	["packages/ds", "test"],
+	["packages/homestead", "build"],
+	["packages/homestead", "test"],
 	["packages/source-contract-v1", "build"],
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "build"],
