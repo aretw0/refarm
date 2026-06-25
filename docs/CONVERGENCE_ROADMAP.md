@@ -115,3 +115,10 @@ Each numbered item gets its own `brainstorm → spec → plan` before execution.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)
 — ordered steps, branches, and verification gates for the `cranky_bassi` session.
+
+**Integration gates (so the factory does not stop mid-build):**
+- Every new package follows [`PACKAGE_ACCEPTANCE_CHECKLIST.md`](./PACKAGE_ACCEPTANCE_CHECKLIST.md)
+  — both gate lists (`test-capabilities` + `gate-smoke-contracts`), `validate-packages`,
+  build-order, ownership, and a changeset.
+- Cross-repo "consumer proof" steps use [`DEV_CROSS_REPO_CONSUMPTION.md`](./DEV_CROSS_REPO_CONSUMPTION.md)
+  — local tarball (`pnpm pack` → `file:`) until `@refarm.dev` packages publish.
