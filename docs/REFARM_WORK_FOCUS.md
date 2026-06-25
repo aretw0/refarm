@@ -44,6 +44,23 @@ health/environment checks, text-quality, or generator/codemod machinery. Keep
 PARA, Obsidian, Astro rendering, notebook UX, Telegram adapter details, and
 publication copy downstream.
 
+The rest of the `vault-seed` roadmap is now classified the same way:
+
+- source IaC, extraction profiles, cache/staging, and data lifecycle attach to
+  `source:v1`, artifact/provenance, and storage/retention policy;
+- `target: "auto"` placement attaches to a model/task classification contract,
+  while PARA rules and review UX stay downstream;
+- Mastodon, Bluesky, Telegram, Nostr, Instagram, newsletter, and future channel
+  work attach to channel policy plus `silo` identity namespaces; provider API
+  adapters stay downstream until two providers prove one adapter API;
+- `dgk publish workspace`, custom distributions, package provenance, and
+  changelog-as-content attach to generator/codemod work plus `release-engine`;
+- Lab WASM HTTP/feed/OpenGraph helpers attach to the WASM substrate plus
+  source/artifact contracts, with Marimo notebooks downstream;
+- OKF, JSON-LD, semantic graph, and knowledge export remain future
+  content/knowledge manifest pressure until a second consumer needs the same
+  envelope.
+
 ### Current consolidation checkpoint
 
 The active consolidation slice has enough surface area. Treat the current work

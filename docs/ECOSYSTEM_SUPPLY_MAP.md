@@ -54,6 +54,11 @@ a Refarm distro or making Refarm a required dependency for generated vaults.
 | `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/cli/launch-process` ✅ (already the seam) | `dgk` delegates via runner adapter when Refarm is present. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
 | Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
+| Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging` | `source:v1` adapters + source profile contract + artifact retention policy | Candidate: Python implementations and PARA target rules stay downstream. |
+| Lab runtime data helpers | WASM HTTP helpers, feed/OpenGraph readers, refresh jobs | WASM substrate + source HTTP readers + artifact snapshots | Candidate after item 5 proof; Marimo UX stays downstream. |
+| Workspace publishing / generated distributions | `dgk publish workspace`, initialize reset, package provenance | generator/codemod registry + `release-engine` + package acceptance policy | Candidate active through item 9; distribution identity stays downstream. |
+| Knowledge/content export | OKF mapping, JSON-LD graph, semantic graph, changelog-as-content | future knowledge/content manifest contract + release-note artifact envelope | Hold until a second consumer proves the same envelope. |
+| Data lifecycle beyond git | SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifacts | Candidate: backend choice and migration timing stay vault-owned. |
 
 What stays at the consumer edge is **product/content/config** (PARA vocabulary, onboarding
 copy, vault-specific dataset names, editorial workflow) — not the UI capability itself.
@@ -71,10 +76,14 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    consumer-style fixtures are locked.
 5. **Generator/codemod lane**: make `vault-seed` generation manifest-first and
    codemod-backed so boilerplate reduction is tested instead of hand-maintained.
-6. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
+6. **Roadmap assimilation lane**: before implementing future `vault-seed` roadmap
+   substrate, classify it as source/profile, channel policy, release/generator, WASM/lab,
+   storage/retention, or knowledge/content manifest pressure. Activate through the matching
+   spec, not through product-local stand-ins.
+7. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.
-7. `silo` → credentials; channel policy → `dgk-channels`/Telegram outbox; `cli/launch-process` →
+8. `silo` → credentials; channel policy → `dgk-channels`/Telegram outbox; `cli/launch-process` →
    `dgk-runner`. Promote only when the contract is consumer-neutral (existing doctrine rule).
 
 ## Librarian follow-up
