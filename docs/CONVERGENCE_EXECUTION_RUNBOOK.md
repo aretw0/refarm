@@ -6,8 +6,7 @@
 
 ## Before you start
 
-- Run `pnpm` / `turbo` / `git` as usual. Commits land on the working branch (the planning artifacts
-  were committed to `docs/convergence-planning`).
+- Run `pnpm` / `turbo` / `git` as usual. Commits land on the working branch.
 - **Branching:** topic branch off `develop`, one per sub-project. **Conventional commits.**
   **Rebase** onto `develop` to integrate — never `merge --no-ff`.
 - Consumer-proof gates require the consumer checkout. If it is not visible from the current working
@@ -34,11 +33,12 @@ between). Inline execution via
 **Why first:** after this, Refarm can materialize `vault-seed`/`agents-lab` read-only — the manual
 "cola" of the planning session becomes automated.
 
-### 2. ADR-069 npm-scope doc sweep — quick, mechanical, unblocks publishing
-Branch: `docs/npm-scope-canonicalization`.
+### 2. ADR-069 npm-scope doc sweep — done
 Spec: `specs/features/2026-06-25-npm-scope-doc-sweep.md`.
 Plan: `docs/superpowers/plans/2026-06-25-npm-scope-doc-sweep.md`.
 **Gate:** no Refarm publish target names `@aretw0`; package manifests already correct (verified).
+**Status:** complete. Remaining `@aretw0` references are historical context, ADR text, or
+`vault-seed`/DGK product scope references.
 
 ### 3. Item 4a — `ds` token contract
 Branch: `feat/ds-token-contract`. Spec: `specs/features/2026-06-25-ds-token-contract.md`.

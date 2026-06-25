@@ -49,26 +49,26 @@ These packages form the **substrate** that others can build on. They answer: "Wh
 
 **For npm**:
 
-1. **`@aretw0/storage-contract-v1`** — Interface for any system to speak "Refarm storage"
+1. **`@refarm.dev/storage-contract-v1`** — Interface for any system to speak "Refarm storage"
 
    - 6 conformance tests ✅
    - Ready for third-party implementations
    - Stability: **IMMUTABLE** (breaking changes → v2 contract)
 
-2. **`@aretw0/sync-contract-v1`** — CRDT delta format for interoperable sync
+2. **`@refarm.dev/sync-contract-v1`** — CRDT delta format for interoperable sync
 
    - 4 conformance tests ✅
    - Enables Loro, Automerge, or other CRDTs to plug in
    - Stability: **IMMUTABLE**
 
-3. **`@aretw0/identity-contract-v1`** — Keypair/signature interface
+3. **`@refarm.dev/identity-contract-v1`** — Keypair/signature interface
    - 4 conformance tests ✅
    - Nostr, OPAQUE, or custom identity stacks can implement
    - Stability: **IMMUTABLE**
 
 **Rationale**: These are **foundational contracts**, not implementations. They're small, stable, and let the ecosystem answer: "How can I build for Refarm?"
 
-> **Deferred: `@aretw0/plugin-manifest`** — See TIER 2 below. Publishing this now would lock us into WASM-only plugins, when the vision is cross-layer extensibility (Pi, Tractor, Frontend, Desktop, Automation). Defer to v0.2.0 after plugin architecture is proven.
+> **Deferred: `@refarm.dev/plugin-manifest`** — See TIER 2 below. Publishing this now would lock us into WASM-only plugins, when the vision is cross-layer extensibility (Pi, Tractor, Frontend, Desktop, Automation). Defer to v0.2.0 after plugin architecture is proven.
 
 ### TIER 2: Keep Private (Mature in Closed, Then Open-Source)
 
@@ -94,7 +94,7 @@ These are the **reference implementations** and personal tools. Publish after yo
 3. **`apps/me` (Homestead + Studio)** — Your personal distro
    - Gate 3 still in progress
    - Needs 6 months of daily use to stabilize UX
-   - **Publish later** as `@aretw0/refarm-personal` (reference implementation for solo users)
+   - **Publish later** as `@refarm.me/app` (reference implementation for solo users)
 
 ### Operating Model: dev-first, me-stable, social-later
 
@@ -114,7 +114,7 @@ This keeps velocity high in `dev` while protecting your daily-driver reliability
 
 #### Plugin Architecture — Critical Path for v0.2.0
 
-**`@aretw0/plugin-manifest` — DEFERRED to v0.2.0 (after Pi layer)**
+**`@refarm.dev/plugin-manifest` — DEFERRED to v0.2.0 (after Pi layer)**
 
 The current `plugin-manifest` is **WASM-only**. But Refarm's real power comes from **extensibility across every layer**:
 
@@ -140,17 +140,17 @@ If we publish `plugin-manifest` now, we lock the ecosystem into **WASM-only thin
 
 ```
 Daily-driver substrate:
-  @aretw0/storage-contract-v1
-  @aretw0/sync-contract-v1
-  @aretw0/identity-contract-v1
+  @refarm.dev/storage-contract-v1
+  @refarm.dev/sync-contract-v1
+  @refarm.dev/identity-contract-v1
 
 Daily-driver implementations and examples:
-  @aretw0/tractor (Rust daemon)
-  @aretw0/barn (Plugin lifecycle mgr)
-  @aretw0/plugin-manifest (generalized, multi-layer)
-  @aretw0/plugin-example-wasm
-  @aretw0/plugin-example-pi
-  @aretw0/plugin-example-frontend
+  @refarm.dev/tractor (Rust daemon)
+  @refarm.dev/barn (Plugin lifecycle mgr)
+  @refarm.dev/plugin-manifest (generalized, multi-layer)
+  @refarm.dev/plugin-example-wasm
+  @refarm.dev/plugin-example-pi
+  @refarm.dev/plugin-example-frontend
 ```
 
 **Target**: prove the complete plugin ecosystem in personal daily use before assigning release numbers.
@@ -247,7 +247,7 @@ Do not perform these steps during daily-driver stabilization unless explicitly o
 
 - [ ] **Gate 1**: Set `RELEASE_AUTOMATION=true` in GitHub repo settings
 - [ ] **Gate 1**: Set `RELEASE_OWNER=aretw0` to prevent accidental publishes
-- [ ] **Gate 1**: Ensure `NPM_TOKEN` has publish access to `@aretw0` scope
+- [ ] **Gate 1**: Ensure `NPM_TOKEN` has publish access to `@refarm.dev` scope
 - [ ] **Contracts**: Update **3 contract** `package.json` with `"version": "0.1.0"` (storage, sync, identity)
 - [ ] **Contracts**: Run local type-check + tests for each changed contract before CI confirmation
 - [ ] **Contracts**: Validate `npm publish --dry-run` for each
@@ -256,23 +256,23 @@ Do not perform these steps during daily-driver stabilization unless explicitly o
 
 ```bash
 # In order, publish the 3 foundational contracts
-git tag @aretw0/storage-contract-v1@0.1.0 && git push origin @aretw0/storage-contract-v1@0.1.0
-git tag @aretw0/sync-contract-v1@0.1.0 && git push origin @aretw0/sync-contract-v1@0.1.0
-git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-contract-v1@0.1.0
+git tag @refarm.dev/storage-contract-v1@0.1.0 && git push origin @refarm.dev/storage-contract-v1@0.1.0
+git tag @refarm.dev/sync-contract-v1@0.1.0 && git push origin @refarm.dev/sync-contract-v1@0.1.0
+git tag @refarm.dev/identity-contract-v1@0.1.0 && git push origin @refarm.dev/identity-contract-v1@0.1.0
 
 # CI runs: publish-packages.yml triggers, publishes all 3 to npm
 ```
 
 ### Post-Publish (Only after explicit publish)
 
-- [ ] Verify contracts appear on npm: `npm info @aretw0/storage-contract-v1`
+- [ ] Verify contracts appear on npm: `npm info @refarm.dev/storage-contract-v1`
 - [ ] Update [DISTRIBUTION_STATUS.md](./DISTRIBUTION_STATUS.md) with publish dates + npm links
 - [ ] Create GitHub Release for `v0.1.0-contracts` with changelog
 - [ ] Announce (optional): Twitter, Matrix, personal network
 
 ### Defer to v0.2.0 (Late 2026)
 
-- [ ] `@aretw0/plugin-manifest` — held until Pi + multi-layer plugin architecture proven
+- [ ] `@refarm.dev/plugin-manifest` — held until Pi + multi-layer plugin architecture proven
 - [ ] `tractor` (Rust) — publish only after 6+ weeks daily use
 - [ ] `apps/me` — publish as "example personal distro" reference, not mandatory
 - [ ] All infrastructure plugins — keep private until you need external contributions

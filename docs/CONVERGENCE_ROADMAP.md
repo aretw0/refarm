@@ -21,7 +21,7 @@ each sub-project's own brainstorm.
 | 0 | UI boundary amendment | doctrine edit | — | — | ✅ done |
 | 1 | **Librarian** — `source:v1` + `source-git` | spec + plan | — | Refarm agent materializes vault-seed/agents-lab read-only | ✅ spec + plan |
 | 2 | **`apps/refarm` promotion audit** | audit ledger | 1 (read repos) | — (discovery) | ✅ done ([ledger](./APPS_REFARM_PROMOTION_LEDGER.md)) |
-| 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + migration plan | — | publish dry-run green under chosen scope | ▶ decided ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)); docs sweep spec+plan ready |
+| 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + docs sweep | — | publish dry-run green under chosen scope | ✅ decided + docs sweep done ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
@@ -50,13 +50,12 @@ direct input to item 4. It is also the first real act of Refarm-absorbing-the-ec
 librarian's spirit (read to learn) applied to Refarm's own app.
 
 ### 3. npm scope decision
-`DISTRIBUTION_STATUS.md` publishes contracts as `@aretw0/*`; the live packages are named
-`@refarm.dev/*`. Downstream cannot `import { x } from "@…/…"` until the scope is fixed. This is a
-governance ADR (decide the scope, the migration mechanics, and the personal→org timing) plus a
-mechanical rename/publish-config migration. No code dependency — can be decided early, in
-parallel with item 2.
+Historical docs published contracts as `@aretw0/*`, while the live packages were already named
+`@refarm.dev/*`. ADR-069 fixes the rule: Refarm blocks/contracts publish under `@refarm.dev`;
+`@aretw0/*` remains for `vault-seed`/DGK products. The docs sweep has been applied so release docs
+no longer ask operators to publish Refarm blocks under the personal scope.
 
-Execution packet: `specs/features/2026-06-25-npm-scope-doc-sweep.md` and
+Execution packet retained for audit: `specs/features/2026-06-25-npm-scope-doc-sweep.md` and
 `docs/superpowers/plans/2026-06-25-npm-scope-doc-sweep.md`.
 
 ### 4. UI/surface blocks supply — the one the consumer cares most about
@@ -162,7 +161,7 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    files behind the `initialize.yml` boundary. Spec:
    `specs/features/2026-06-25-vault-seed-generator-contract.md`.
 3. **Codemod candidates:** only codemod recurring transforms: package gate registration,
-   `@aretw0` -> `@refarm.dev` publish-target sweeps, `CredentialProvider` import re-homing, and
+   future publish-target sweeps, `CredentialProvider` import re-homing, and
    `ds` token adoption. Keep ADR decisions and one-off prose as docs.
 4. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.

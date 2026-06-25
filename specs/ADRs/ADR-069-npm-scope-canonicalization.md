@@ -54,11 +54,11 @@ Correct every doc that names `@aretw0` as Refarm's publish scope to `@refarm.dev
 hit in context first — some `@aretw0` references legitimately describe `vault-seed`'s `dgk`
 products and must stay. Files to review:
 
-- [ ] `packages/DISTRIBUTION_STATUS.md` — change the three contract publish targets and tag commands from `@aretw0/*` to `@refarm.dev/*`.
-- [ ] `docs/v0.1.0-release-gate.md`
-- [ ] `docs/REFARM_PERSONAL_DAILY_DRIVER.md`
-- [ ] `docs/REPOSITORY_MIGRATION_GUIDE.md`, `docs/POST_TRANSFER_CHECKLIST.md`, `docs/PRE_MIGRATION_CLEANUP_CHECKLIST.md`
-- [ ] `docs/USER_STORY.md`, `docs/EXTENSIBILITY_MODEL.md`
+- [x] `packages/DISTRIBUTION_STATUS.md` — change the three contract publish targets and tag commands from `@aretw0/*` to `@refarm.dev/*`.
+- [x] `docs/v0.1.0-release-gate.md`
+- [x] `docs/REFARM_PERSONAL_DAILY_DRIVER.md`
+- [x] `docs/REPOSITORY_MIGRATION_GUIDE.md`, `docs/POST_TRANSFER_CHECKLIST.md`, `docs/PRE_MIGRATION_CLEANUP_CHECKLIST.md`
+- [x] `docs/USER_STORY.md`, `docs/EXTENSIBILITY_MODEL.md`
 
 (The convergence docs — `CONVERGENCE_ROADMAP.md`, `ECOSYSTEM_SUPPLY_MAP.md`, and the source-contract plan — reference `@aretw0` only to describe this very inconsistency; update them to point at this ADR rather than editing the description away.)
 
