@@ -116,7 +116,8 @@ content.
    assertions against the string output).
 4. **Consumer proof:** rebuild `vault-seed`'s `serve.js` on the tier; `dgk serve` renders with no
    functional regression — the existing `docs/roteiro-teste-admin.md` manual script passes; palette
-   now comes from a `ds` theme.
+   now comes from a `ds` theme. Consumer-side adoption plan:
+   `vault-seed docs/convergencia-homestead-admin.md`.
 5. **Final gate:** `pnpm -C packages/homestead run lint && type-check && test`.
 
 ## 4. Out of scope
