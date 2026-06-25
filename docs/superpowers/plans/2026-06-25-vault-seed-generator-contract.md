@@ -42,7 +42,8 @@
     { "source": "pnpm-lock.template.yaml", "target": "pnpm-lock.yaml", "class": "transform", "transforms": ["rename"] }
   ],
   "transforms": [
-    { "source": "00 - Entrada/Bem-vindo ao seu vault.md", "target": "00 - Entrada/Bem-vindo ao seu vault.md", "class": "transform", "transforms": ["status-draft-to-published"], "validation": "scripts/smoke_user_e2e.mjs" }
+    { "source": "00 - Entrada/Bem-vindo ao seu vault.md", "target": "00 - Entrada/Bem-vindo ao seu vault.md", "class": "transform", "transforms": ["status-draft-to-published"], "validation": "scripts/smoke_user_e2e.mjs" },
+    { "source": "vault.config.json", "target": "vault.config.json", "class": "transform", "transforms": ["drop-kudos", "set-license-holder"], "validation": "scripts/smoke_user_e2e.mjs" }
   ],
   "devOnly": [
     "docs", ".templates", "ROADMAP.md",
@@ -70,9 +71,10 @@
 > `derivedOrLocalState` is `payload`". The remaining payload includes the PARA folders,
 > `packages/{dgk-cli,dgk-astro-plugins,lab-runtime,astro-plugins}`, `.site/`, `astro.config.mjs`.
 >
-> **[CONFIRM AT PICKUP]** `initialize.yml` also runs a `delete cfg.kudos` edit on a config file
-> (lines ~28–33). Read that block, identify the file, and add it as a `transform` entry
-> (`transforms: ["drop-kudos"]`). It is the one boundary item not visible from the rename/remove lists.
+> The `vault.config.json` transform (`initialize.yml` step "Publish user welcome note and clear
+> vault-seed kudos", lines 25–39) does two edits: **`drop-kudos`** (`delete cfg.kudos`) and
+> **`set-license-holder`** (`cfg.license.holder = <repo owner>`, `holderUrl = https://github.com/<owner>`).
+> The owner comes from `GITHUB_REPOSITORY`; the generator takes it as a `--owner` input.
 
 - [ ] **Step 2: Write the boundary cross-check test** — `manifest.test.mjs`
 
@@ -139,8 +141,12 @@ git commit -m "feat(gen-vault-seed): manifest classifying the vault-seed templat
 
 ### Task 3: Transform hooks (idempotent)
 
-- [ ] **Step 1:** Implement two transforms: `rename` (already in Task 2) and `status-draft-to-published` (the `sed` on the welcome note) + (after the pickup-confirm) `drop-kudos`. Each is a pure `(content) => content` function keyed by transform ID.
-- [ ] **Step 2:** Idempotency test — running `status-draft-to-published` twice equals once; generating the whole vault twice yields byte-identical output.
+- [ ] **Step 1:** Implement the transforms, each keyed by ID:
+  - `rename` (Task 2) — copy `source` → `target`.
+  - `status-draft-to-published` — `(content) => content.replace(/^status: draft$/m, "status: published")` (the welcome note).
+  - `drop-kudos` — on `vault.config.json`: `delete cfg.kudos`.
+  - `set-license-holder` — on `vault.config.json`: `cfg.license = { ...cfg.license, holder: owner, holderUrl: "https://github.com/" + owner }` (owner from `--owner`).
+- [ ] **Step 2:** Idempotency test — each transform run twice equals once; generating the whole vault twice yields byte-identical output (given a fixed `--owner`).
 - [ ] **Step 3: Commit** — `feat(gen-vault-seed): idempotent content transforms`.
 
 ---
@@ -174,6 +180,6 @@ Do not migrate existing user vaults (separate migration contract). Do not replac
 
 **Spec coverage:** manifest-first (decision 1) → Task 1 (concrete, boundary-cross-checked); no bespoke fork (decision 2) → generator consumes source, Task 2; generated vault passes smoke (decision 3) → Task 4; codemods only for repeatable (decision 4) → Task 5; round-trip inventory (decision 5) → Task 5. ✓
 
-**Placeholder scan:** one explicit **[CONFIRM AT PICKUP]** for the `drop-kudos` config file — flagged with its `initialize.yml` line range, because that one transform target is not derivable from the rename/remove lists without reading the inline node script. Everything else in the manifest is verbatim from `initialize.yml`.
+**Placeholder scan:** none. The full boundary is resolved — `devOnly`/`renames` are verbatim from `initialize.yml`'s `files_to_remove`/`files_to_rename`, and the `vault.config.json` transforms (`drop-kudos`, `set-license-holder`) are read from the inline node script (lines 25–39). The only runtime input is `--owner`.
 
 **Type/consistency:** `devOnly` entries match `initialize.yml` `files_to_remove` verbatim (Task 1 test enforces this); `renames` match `files_to_rename`; the generator's classes (`payload`/`dev-only`/`transform`/`derived`) match the manifest fields.
