@@ -18,6 +18,7 @@
 - **Capability string:** exactly `"ds-tokens:v1"`. **Conformance total:** `REQUIRED_TOKENS.length` (30).
 - **Reference theme:** `tractor-green`. Dark via `[data-refarm-theme][data-mode="dark"]`.
 - The old `--refarm-*` `tokens.css` is replaced by the scoped semantic `tokens.css` (keep `styles.css` and the Button untouched unless a token rename breaks them — fix references if so).
+- `tokens.css` may keep scoped `--refarm-*` aliases under `[data-refarm-theme]` for legacy `styles.css`; contract tokens still stay semantic and never live on bare `:root`.
 
 ---
 
@@ -25,18 +26,18 @@
 
 **Files:**
 - Create: `packages/ds/src/contract.ts`
-- Create: `packages/ds/src/conformance.ts`
+- Create: `packages/ds/src/theme-conformance.ts`
 - Create: `packages/ds/src/conformance.test.ts`
 
 **Interfaces:**
-- Produces: `DS_TOKEN_CAPABILITY`, `REQUIRED_TOKENS`, `DsToken`, `DsTheme`, `DsThemeConformanceResult` (contract.ts); `runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConformanceResult` (conformance.ts).
+- Produces: `DS_TOKEN_CAPABILITY`, `REQUIRED_TOKENS`, `DsToken`, `DsTheme`, `DsThemeConformanceResult` (contract.ts); `runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConformanceResult` (theme-conformance.ts).
 
 - [ ] **Step 1: Write the failing test** — `src/conformance.test.ts`
 
 ```ts
 import { describe, expect, it } from "vitest";
 import { REQUIRED_TOKENS, type DsTheme } from "./contract.js";
-import { runDsThemeConformance } from "./conformance.js";
+import { runDsThemeConformance } from "./theme-conformance.js";
 
 function completeTheme(): DsTheme {
   return Object.fromEntries(REQUIRED_TOKENS.map((t) => [t, "x"])) as DsTheme;
@@ -66,7 +67,7 @@ describe("ds-tokens:v1 conformance", () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm -C packages/ds run test`
-Expected: FAIL — cannot resolve `./contract.js` / `./conformance.js`.
+Expected: FAIL — cannot resolve `./contract.js` / `./theme-conformance.js`.
 
 - [ ] **Step 3: Create `src/contract.ts`** (verbatim from spec §1)
 
@@ -100,7 +101,7 @@ export interface DsThemeConformanceResult {
 }
 ```
 
-- [ ] **Step 4: Create `src/conformance.ts`** (verbatim from spec §3)
+- [ ] **Step 4: Create `src/theme-conformance.ts`** (verbatim from spec §3)
 
 ```ts
 import { REQUIRED_TOKENS, type DsToken, type DsTheme, type DsThemeConformanceResult } from "./contract.js";
@@ -126,7 +127,7 @@ Expected: PASS — both conformance tests green.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/ds/src/contract.ts packages/ds/src/conformance.ts packages/ds/src/conformance.test.ts
+git add packages/ds/src/contract.ts packages/ds/src/theme-conformance.ts packages/ds/src/conformance.test.ts
 git commit -m "feat(ds): ds-tokens:v1 contract and theme conformance"
 ```
 
@@ -150,7 +151,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { REQUIRED_TOKENS, type DsTheme } from "./contract.js";
-import { runDsThemeConformance } from "./conformance.js";
+import { runDsThemeConformance } from "./theme-conformance.js";
 
 function tokensInThemeCss(relPath: string): Partial<DsTheme> {
   const css = readFileSync(fileURLToPath(new URL(relPath, import.meta.url)), "utf8");
@@ -415,7 +416,7 @@ git commit -m "feat(ds): scope-discipline test and headless component classes"
 - [ ] **Step 2: Update `src/index.ts`** to re-export the contract + conformance
 
 ```ts
-export { runDsThemeConformance } from "./conformance.js";
+export { runDsThemeConformance } from "./theme-conformance.js";
 export * from "./contract.js";
 // CSS entry points (consumers import directly):
 //   @refarm.dev/ds/tokens.css, /components.css, /tailwind-bridge.css, /themes/<name>.css
@@ -469,4 +470,4 @@ git commit -m "feat(ds): tailwind bridge, exports, and capability-gate registrat
 
 **Placeholder scan:** Task 3 Step 3 transcribes values from named existing files using the `tractor-green.css` template — concrete instruction, not "TBD"; the conformance test is the gate. No other placeholders.
 
-**Type consistency:** `runDsThemeConformance`, `REQUIRED_TOKENS`, `DsTheme` consistent across contract.ts, conformance.ts, and all three test files. CSS var names match `REQUIRED_TOKENS` (the CSS-parse test enforces this).
+**Type consistency:** `runDsThemeConformance`, `REQUIRED_TOKENS`, `DsTheme` consistent across contract.ts, theme-conformance.ts, and all three test files. CSS var names match `REQUIRED_TOKENS` (the CSS-parse test enforces this).

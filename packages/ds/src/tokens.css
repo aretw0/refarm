@@ -3,7 +3,28 @@
 @layer refarm.tokens, refarm.theme;
 
 @layer refarm.tokens {
-	/* The contract surface is declared by the active theme under [data-refarm-theme].
-	 * This file establishes cascade layer order so themes win predictably and
-	 * never leak onto a host :root. */
+	[data-refarm-theme] {
+		--refarm-bg-primary: var(--background);
+		--refarm-bg-secondary: var(--muted);
+		--refarm-bg-elevated: var(--card);
+		--refarm-border-default: var(--border);
+		--refarm-border-muted: var(--border);
+		--refarm-text-primary: var(--foreground);
+		--refarm-text-secondary: var(--muted-foreground);
+		--refarm-text-muted: var(--muted-foreground);
+		--refarm-accent-primary: var(--primary);
+		--refarm-accent-secondary: var(--accent);
+		--refarm-accent-muted: color-mix(in srgb, var(--primary) 22%, transparent);
+		--refarm-font-mono: var(--font-mono);
+		--refarm-font-sans: var(--font-sans);
+		--refarm-radius-sm: var(--radius-sm);
+		--refarm-radius-md: var(--radius-md);
+		--refarm-radius-lg: var(--radius-lg);
+		--refarm-shadow-sm: var(--shadow-sm);
+		--refarm-shadow-md: var(--shadow-md);
+		--refarm-shadow-lg: var(--shadow-lg);
+		--refarm-focus-ring: 0 0 0 2px var(--ring);
+		--refarm-glass-bg: color-mix(in srgb, var(--card) 80%, transparent);
+		--refarm-glass-blur: blur(16px);
+	}
 }
