@@ -55,6 +55,44 @@ export class SiloCore {
         }
     }
 
+    /**
+     * Save a secret under a namespace, separate from the flat token map.
+     * @param {string} namespace
+     * @param {string} id
+     * @param {string} value
+     */
+    async saveSecret(namespace, id, value) {
+        this._ensureStorage();
+        let current = {};
+        if (existsSync(this.storagePath)) {
+            current = JSON.parse(readFileSync(this.storagePath, "utf-8"));
+        }
+
+        current.secrets = current.secrets || {};
+        current.secrets[namespace] = current.secrets[namespace] || {};
+        current.secrets[namespace][id] = value;
+        current.updatedAt = new Date().toISOString();
+
+        writeFileSync(this.storagePath, JSON.stringify(current, null, 2));
+        return { status: "success", namespace, id, path: this.storagePath };
+    }
+
+    /**
+     * Load a namespaced secret.
+     * @param {string} namespace
+     * @param {string} id
+     * @returns {Promise<string|undefined>}
+     */
+    async loadSecret(namespace, id) {
+        if (!existsSync(this.storagePath)) return undefined;
+        try {
+            const data = JSON.parse(readFileSync(this.storagePath, "utf-8"));
+            return data.secrets?.[namespace]?.[id];
+        } catch (e) {
+            console.error(`[Silo] Failed to load secret: ${e.message}`);
+            return undefined;
+        }
+    }
 
     /**
      * Load configuration from a remote source (Sovereign Graph).
