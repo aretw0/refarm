@@ -108,7 +108,7 @@ Publishing `plugin-manifest` now locks us into **WASM-only thinking**. Instead, 
 
 ### CI/CD
 - `publish-packages.yml` workflow exists
-- Gate 1 (GitHub variables) pending: `RELEASE_AUTOMATION=true`, `RELEASE_OWNER=aretw0`
+- Gate 1 (GitHub variables) pending: `RELEASE_AUTOMATION=true`, `RELEASE_OWNER=<current repository owner>` (`aretw0` before transfer; `refarm-dev` after transfer)
 - NPM token provisioned in GitHub Secrets
 
 ---
@@ -117,7 +117,7 @@ Publishing `plugin-manifest` now locks us into **WASM-only thinking**. Instead, 
 
 ### Phase A: Pre-Publish (This Week)
 - [ ] Set `RELEASE_AUTOMATION=true` in GitHub repository settings
-- [ ] Set `RELEASE_OWNER=aretw0`
+- [ ] Set `RELEASE_OWNER` to the current GitHub repository owner (`aretw0` before transfer; `refarm-dev` after transfer)
 - [ ] Verify `NPM_TOKEN` has publish access to @refarm.dev scope
 - [ ] Run `npm publish --dry-run` for each contract (should pass)
 
