@@ -25,6 +25,9 @@ Apply the theme on the consuming shell:
 ```
 
 Available themes are `tractor-green`, `oceano`, `terracota`, and `verde-jardim`.
+`verde-jardim` also ships a Lab-proven light override; set `data-mode="light"`
+on the themed element or an ancestor to use it. The unqualified preset remains
+dark for backward compatibility.
 `tokens.css` never writes contract variables to bare `:root`; legacy `--refarm-*`
 aliases are scoped under `[data-refarm-theme]` for `styles.css` compatibility.
 

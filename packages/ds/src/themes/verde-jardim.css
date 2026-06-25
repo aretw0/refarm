@@ -30,4 +30,38 @@
 		--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
 		--font-mono: "Fira Code", "Cascadia Code", "Source Code Pro", monospace;
 	}
+
+	[data-refarm-theme="verde-jardim"][data-mode="light"],
+	[data-mode="light"] [data-refarm-theme="verde-jardim"] {
+		color-scheme: light;
+		--background: #f7f5f0;
+		--foreground: #12100e;
+		--card: #f7f5f0;
+		--card-foreground: #12100e;
+		--popover: #f7f5f0;
+		--popover-foreground: #12100e;
+		--muted: #ede9e2;
+		--muted-foreground: #6b6560;
+		--primary: #1b5e3b;
+		--primary-foreground: #f7f5f0;
+		--secondary: #e0dbd2;
+		--secondary-foreground: #12100e;
+		--accent: #d4ede0;
+		--accent-foreground: #0f3d26;
+		--border: #b8b2a7;
+		--input: #b8b2a7;
+		--ring: #1b5e3b;
+		--error: #b42318;
+		--warning: #8a5a00;
+		--success: #1b5e3b;
+		--info: #0b5cad;
+		--shadow-sm: 0 1px 0 rgba(18, 16, 14, 0.06);
+		--shadow-md: 0 4px 12px rgba(18, 16, 14, 0.14);
+		--shadow-lg: 0 24px 80px rgba(18, 16, 14, 0.18);
+	}
+
+	[data-refarm-theme="verde-jardim"][data-mode="dark"],
+	[data-mode="dark"] [data-refarm-theme="verde-jardim"] {
+		color-scheme: dark;
+	}
 }
