@@ -22,7 +22,7 @@
 - Create: `codemods/registry.json`
 - Create: `codemods/registry.test.mjs`
 
-- [ ] **Step 1: Author `codemods/registry.json`** (the four candidates from spec §"Initial candidates")
+- [x] **Step 1: Author `codemods/registry.json`** (the four candidates from spec §"Initial candidates")
 
 ```json
 {
@@ -76,7 +76,7 @@
 }
 ```
 
-- [ ] **Step 2: Write the validator test** — `codemods/registry.test.mjs`
+- [x] **Step 2: Write the validator test** — `codemods/registry.test.mjs`
 
 ```js
 import { readFileSync } from "node:fs";
@@ -108,12 +108,12 @@ test("ready entries carry fixtures and a dry-run command", () => {
 });
 ```
 
-- [ ] **Step 3: Run to verify**
+- [x] **Step 3: Run to verify**
 
 Run: `node --test codemods/registry.test.mjs`
 Expected: PASS — all four candidates well-formed; the `ready`-entry rule holds vacuously (none are `ready` yet).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add codemods/registry.json codemods/registry.test.mjs
@@ -127,9 +127,9 @@ git commit -m "feat(codemods): registry contract with seeded candidate entries"
 **Files:**
 - Create: `codemods/README.md`
 
-- [ ] **Step 1:** Write `codemods/README.md` — the entry schema, the promotion rule (`candidate → ready` needs fixtures + dry-run + rollback + verification), and which candidates stay **manual-reviewed** (`npm-scope-doc-sweep` — a reviewed replace list, not a blind owner-handle rewrite). State the non-goals (no hosted registry / package / MCP until ≥2 `ready`).
+- [x] **Step 1:** Write `codemods/README.md` — the entry schema, the promotion rule (`candidate → ready` needs fixtures + dry-run + rollback + verification), and which candidates stay **manual-reviewed** (`npm-scope-doc-sweep` — a reviewed replace list, not a blind owner-handle rewrite). State the non-goals (no hosted registry / package / MCP until ≥2 `ready`).
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add codemods/README.md
