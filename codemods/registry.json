@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "npm-scope-doc-sweep",
+      "status": "candidate",
+      "ownerSurface": "docs",
+      "tool": "manual-reviewed",
+      "inputs": ["docs that name @aretw0 as a refarm publish scope (ADR-069 Migration)"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "no refarm publish target names @aretw0",
+      "rollbackNote": "git revert the doc commit; reviewed replace list avoids blind owner-handle rewrites"
+    },
+    {
+      "id": "credential-provider-rehome",
+      "status": "candidate",
+      "ownerSurface": "package",
+      "tool": "ts-morph",
+      "inputs": ["apps/refarm/src/credentials/*.ts import of local types.ts"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "credentials providers import the contract from @refarm.dev/silo; existing credential tests pass",
+      "rollbackNote": "import boundary change is fixture-testable; revert the import-rewrite commit"
+    },
+    {
+      "id": "ds-token-adoption",
+      "status": "candidate",
+      "ownerSurface": "consumer repo",
+      "tool": "ast-grep",
+      "inputs": ["vault-seed/.site/styles/marimo-vault.css locally-defined contract vars"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "Lab CSS imports @refarm.dev/ds tokens + verde-jardim; no visual regression",
+      "rollbackNote": "CSS custom-property migration; revert the stylesheet commit"
+    },
+    {
+      "id": "vault-seed-manifest-inventory",
+      "status": "candidate",
+      "ownerSurface": "cross-repo",
+      "tool": "generator",
+      "inputs": ["generators/vault-seed/manifest.json (item 9a)"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "generated vault files map to manifest entries; generated-vault smoke passes",
+      "rollbackNote": "generator output is a fresh dir; delete and regenerate"
+    }
+  ]
+}
