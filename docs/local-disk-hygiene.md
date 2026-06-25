@@ -75,6 +75,26 @@ edit.
 | TS package edit                            | `pnpm --filter <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
 | Before push                                | reproduce likely failures locally with the closest scoped command, then CI as final confirmation | using GitHub Actions as the first test runner |
 
+## Container memory discipline for JS tests
+
+The devcontainer is a shared factory runtime, not an unlimited CI runner. Treat
+ambiguous JS test filters as high-risk: a command like `vitest run -- credentials`
+can match unrelated suites and fan out workers until the container stalls.
+
+For development slices, prefer explicit files and bounded workers:
+
+```bash
+pnpm -C apps/refarm exec vitest run \
+  src/credentials/model.test.ts \
+  src/credentials/token-auth-error.test.ts \
+  --pool=forks --maxWorkers=1
+```
+
+Use package or repo-wide JS gates only at checkpoints, after the focused signal
+has passed. If a Refarm finish lane expands to a large app validation, let that
+be a checkpoint cost and avoid stacking another broad Vitest or Turbo command
+in the same slice.
+
 For the current pi-agent streaming lane, prefer the wrapper scripts:
 
 ```bash
