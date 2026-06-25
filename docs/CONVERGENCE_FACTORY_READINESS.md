@@ -10,7 +10,7 @@ Not everything is planned to execution depth yet. The safe state is:
 
 | Item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
-| 4a `ds` tokens | **bite-sized plan ready** (turn-key) | contract, scoping, themes, conformance, consumer proof, TDD steps + code | none — execute the plan step by step |
+| 4a `ds` tokens | **implemented** (Tasks 1–5 committed in `packages/ds/src`) | contract, scoped tokens, 4 themes, theme-conformance, component classes, CSS exports | gate not yet re-verified by the steward (needs full env / `farm`); then pack → Lab consumer-proof |
 | 4b `homestead/ssr` | **bite-sized plan ready** (after 4a) | subpath, helper API, build-free boundary, consumer proof, TDD steps + code | waits for 4a `ds` classes/tokens |
 | 4c `silo` collect | **bite-sized plan ready** (independent) | contract boundary, namespaces, namespaced secret store, app re-export, TDD steps + code | storage adoption by `vault-seed` remains item 8 |
 | 4d `dispatch-surface` external API | **bite-sized plan ready** | public API lock test, headless consumer proof, parity gate | none — execute the plan |
