@@ -170,7 +170,7 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    capability-probed with fallback and cannot leak into TS public APIs.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
-4, 5, 6, 7, 8, 9, or 10. It records which items are execution-ready, which are deliberately gated, and
+4, 5, 6, 7, 8, 9, 10, or 11. It records which items are execution-ready, which are deliberately gated, and
 which exact spec/plan must be written next.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)
