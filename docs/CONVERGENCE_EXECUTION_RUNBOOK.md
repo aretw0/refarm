@@ -65,9 +65,19 @@ acyclic `silo → prompt-contract-v1`; `pnpm -C packages/silo run lint && type-c
 - **Part C (speculative):** follow `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
   Green → write a Part C feature spec. Red → drop Part C, record the blocker.
 
-### 7. Item 4d — dispatch-surface external API (not yet ready)
-Do not implement until a spec exists. `docs/CONVERGENCE_FACTORY_READINESS.md` lists the spec
-checklist and the consumer proof required to avoid stabilizing an accidental internal API.
+### 7. Item 4d — dispatch-surface external API
+Branch: `feat/dispatch-surface-external-api`.
+Spec: `specs/features/2026-06-25-dispatch-surface-external-api.md`.
+Plan: `docs/superpowers/plans/2026-06-25-dispatch-surface-external-api.md`.
+**Gate:** package-root public API lock test; consumer-style fixture with no deep imports;
+`pnpm --filter @refarm.dev/dispatch-surface run test`; `test:parity`; `type-check`.
+
+### 8. Item 9a — generator-first vault-seed distribution
+Branch: `feat/vault-seed-generator-contract`.
+Spec: `specs/features/2026-06-25-vault-seed-generator-contract.md`.
+Plan: `docs/superpowers/plans/2026-06-25-vault-seed-generator-contract.md`.
+**Gate:** manifest distinguishes payload/dev-only files; generated output has inventory report;
+selected `vault-seed` generated-vault smoke passes.
 
 ## Deferred — do NOT start (gated)
 - **Item 6 skill contract** — wait for the "Refarm as engine" runtime (dogfooding gate). Taxonomy
