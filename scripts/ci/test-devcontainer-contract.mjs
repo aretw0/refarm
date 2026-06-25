@@ -140,23 +140,35 @@ test("devcontainer exposes refarm through the intentional farm user shell", () =
 
 test("devcontainer marks and locks host-write-sensitive workspace checkouts", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
+	const refarmConfig = readJson("refarm.config.json");
 	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
 	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
 	const farm = readFileSync(".devcontainer/farm", "utf8");
 	const envSafety = readFileSync("scripts/env-safety-check.sh", "utf8");
+	const workspaceProtect = readFileSync("scripts/workspace-protect.mjs", "utf8");
 
 	assert.equal(config.containerEnv.REFARM_WORKSPACE_HOST_WRITE_LOCK, "1");
+	assert.equal(refarmConfig.workspaceProtection.hostWriteLock, true);
+	assert.equal(refarmConfig.workspaceProtection.marker, ".refarm/devcontainer-workspace.env");
+	assert.ok(refarmConfig.workspaceProtection.roots.includes(".git"));
+	assert.ok(refarmConfig.workspaceProtection.roots.includes(".refarm"));
+	assert.ok(refarmConfig.workspaceProtection.roots.includes("packages"));
+	assert.ok(refarmConfig.workspaceProtection.pruneDirNames.includes("node_modules"));
 	assert.match(postCreate, /export REFARM_WORKSPACE_HOST_WRITE_LOCK="\$\{REFARM_WORKSPACE_HOST_WRITE_LOCK:-1\}"/);
 	assert.match(postStart, /export REFARM_WORKSPACE_HOST_WRITE_LOCK="\$\{REFARM_WORKSPACE_HOST_WRITE_LOCK:-1\}"/);
 	assert.match(farm, /export REFARM_WORKSPACE_HOST_WRITE_LOCK=1/);
-	assert.match(postCreate, /write_devcontainer_workspace_marker\(\)/);
-	assert.match(postStart, /write_devcontainer_workspace_marker\(\)/);
-	assert.match(postCreate, /devcontainer-workspace\.env/);
-	assert.match(postStart, /devcontainer-workspace\.env/);
-	assert.match(postCreate, /lock_workspace_host_writes\(\)/);
-	assert.match(postStart, /lock_workspace_host_writes\(\)/);
-	assert.match(postCreate, /chmod u\+rwx,go-w/);
-	assert.match(postStart, /chmod u\+rwx,go-w/);
+	assert.match(postCreate, /workspace_protect mark/);
+	assert.match(postStart, /workspace_protect mark/);
+	assert.match(postCreate, /workspace_protect apply/);
+	assert.match(postStart, /workspace_protect apply/);
+	assert.match(postCreate, /scripts\/workspace-protect\.mjs/);
+	assert.match(postStart, /scripts\/workspace-protect\.mjs/);
+	assert.doesNotMatch(postCreate, /local roots=\(/);
+	assert.doesNotMatch(postStart, /local roots=\(/);
+	assert.match(workspaceProtect, /loadWorkspaceProtection/);
+	assert.match(workspaceProtect, /workspaceProtection/);
+	assert.match(workspaceProtect, /REFARM_DEVCONTAINER_ACTIVE=true/);
+	assert.match(workspaceProtect, /chmod", "u\+rwx,go-w"/);
 	assert.match(envSafety, /check_devcontainer_workspace_marker\(\)/);
 	assert.match(envSafety, /REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE/);
 	assert.match(envSafety, /Checkout is marked devcontainer-owned/);

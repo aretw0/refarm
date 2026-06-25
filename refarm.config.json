@@ -44,5 +44,28 @@
     ],
     "title": "Refarm Monorepo Health"
   },
+  "workspaceProtection": {
+    "enabled": true,
+    "hostWriteLock": true,
+    "marker": ".refarm/devcontainer-workspace.env",
+    "roots": [
+      ".cargo",
+      ".changeset",
+      ".devcontainer",
+      ".github",
+      ".git",
+      ".refarm",
+      "apps",
+      "docs",
+      "locales",
+      "packages",
+      "roadmaps",
+      "scripts",
+      "specs",
+      "validations",
+      "wit"
+    ],
+    "pruneDirNames": ["node_modules", ".cache", ".turbo", "dist", "build", "target"]
+  },
   "plugins": { "autoInstall": [] }
 }
