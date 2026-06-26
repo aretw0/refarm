@@ -411,6 +411,17 @@ The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `run(cmd, args, opts)` API and command UX local, then emit a task artifact
 manifest that references the tokenized process boundary.
 
+**2026-06-26 channel-policy packet:** `@refarm.dev/channel-policy-v1` now has a
+consumer-pulled handoff for Telegram/outbox evidence without moving provider API
+behavior, Markdown formatting, or `dgk outbox/inbox` UX upstream. Candidate
+tarball:
+`.refarm/handoff/vault-seed/2026-06-26/refarm.dev-channel-policy-v1-0.1.0.tgz`
+(`sha256 9daaa089560b558a145b0af78dc09a8b66cfd13decce362d205f7362d97f4ddf`).
+Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
+`LICENSE`. The official proof remains downstream: the `vault-seed` Telegram
+adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
+calls and user-facing command semantics local.
+
 ### Additional Assimilation Matrix
 
 The downstream audit shows more Refarm-shaped work than the first block list. Use

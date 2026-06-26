@@ -180,7 +180,9 @@ tests show the subdomains need independent versioning.
 8b focused activation packet:
 
 - `specs/features/2026-06-26-channel-policy-bridge.md`;
-- `docs/superpowers/plans/2026-06-26-channel-policy-bridge.md`.
+- `docs/superpowers/plans/2026-06-26-channel-policy-bridge.md`;
+- `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-channel-policy-v1-0.1.0.tgz`
+  (`sha256 9daaa089560b558a145b0af78dc09a8b66cfd13decce362d205f7362d97f4ddf`).
 
 8c focused activation packet:
 
