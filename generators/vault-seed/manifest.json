@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "source": "vault-seed",
+  "renames": [
+    {
+      "source": "README.template.md",
+      "target": "README.md",
+      "class": "transform",
+      "transforms": ["rename"]
+    },
+    {
+      "source": "CONTRIBUTING.template.md",
+      "target": "CONTRIBUTING.md",
+      "class": "transform",
+      "transforms": ["rename"]
+    },
+    {
+      "source": "AGENTS.template.md",
+      "target": "AGENTS.md",
+      "class": "transform",
+      "transforms": ["rename"]
+    },
+    {
+      "source": "package.template.json",
+      "target": "package.json",
+      "class": "transform",
+      "transforms": ["rename"]
+    },
+    {
+      "source": "pnpm-lock.template.yaml",
+      "target": "pnpm-lock.yaml",
+      "class": "transform",
+      "transforms": ["rename"]
+    }
+  ],
+  "transforms": [
+    {
+      "source": "00 - Entrada/Bem-vindo ao seu vault.md",
+      "target": "00 - Entrada/Bem-vindo ao seu vault.md",
+      "class": "transform",
+      "transforms": ["status-draft-to-published"],
+      "validation": "scripts/smoke_user_e2e.mjs"
+    },
+    {
+      "source": "vault.config.json",
+      "target": "vault.config.json",
+      "class": "transform",
+      "transforms": ["drop-kudos", "set-license-holder"],
+      "validation": "scripts/smoke_user_e2e.mjs"
+    }
+  ],
+  "devOnly": [
+    "docs",
+    ".templates",
+    "ROADMAP.md",
+    "AGENTS.template.md",
+    "README.template.md",
+    "CONTRIBUTING.template.md",
+    "packages/cli",
+    "packages/dgk-channels",
+    "packages/dgk-runner",
+    "packages/dgk-skills",
+    ".changeset",
+    "mdt.toml",
+    "CNAME",
+    ".github/workflows/template-ci.yml",
+    ".github/workflows/prepare-release-pr.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/security-audit.yml",
+    ".github/workflows/sync-develop-with-main.yml",
+    ".github/workflows/validate-mdt.yml",
+    ".github/workflows/publish-packages.yml",
+    ".github/workflows/publish-lab-runtime.yml",
+    ".github/workflows/refresh-lab-data.yml",
+    "scripts/audience_boundary.test.js",
+    "scripts/deploy_site_workflow.test.js",
+    "scripts/mermaid_render_contract.test.js",
+    "scripts/mermaid_toggle.test.js",
+    "scripts/release_package_smoke.test.js",
+    "scripts/release_package_smoke.mjs",
+    "scripts/release_version_contract.test.mjs",
+    "scripts/lab_runtime_version_contract.test.mjs",
+    "scripts/sync_lockfile_template.mjs",
+    "scripts/smoke_template.js",
+    "scripts/smoke_initialize_reset.mjs",
+    "scripts/smoke_user_vault.mjs",
+    "scripts/smoke_user_e2e.mjs"
+  ],
+  "payloadGlobs": ["**"],
+  "derivedOrLocalState": [
+    ".dgk",
+    "dist",
+    "node_modules",
+    ".astro",
+    ".sandbox",
+    ".site/dist"
+  ]
+}
