@@ -8,7 +8,7 @@
 
 ## v0.1.0 - Provisioning Foundation (DONE)
 **Scope**: Establish the core context provisioner and master key bootstrapping.  
-**Depends on**: `ed25519-dalek` (Rust) / `@noble/ed25519` (JS)
+**Depends on**: `@refarm.dev/heartwood` for JS/WASM key operations.
 
 ### SDD (Spec Driven) ✅
 - [x] Spec: `SiloCore` context and secret provisioner.
