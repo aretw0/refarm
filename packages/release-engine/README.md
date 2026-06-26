@@ -1,14 +1,14 @@
 # @refarm.dev/release-engine
 
-> Nota arquitetônica: este pacote é deliberadamente genérico. A política concreta de cada repositório fica no próprio `releasePolicy` da configuração estratégica (p.ex. `.refarm/config.json` no Refarm).
+> Nota arquitetônica: este pacote é deliberadamente genérico. A política concreta de cada repositório fica no próprio `releasePolicy` da configuração estratégica (p.ex. `refarm.config.json` no Refarm).
 
 Solução de propósito geral para **planejamento e policy de release** de projetos.
 
-Objetivo: materializar decisão de release como **política declarativa + grafo de gates**, sem fixar escolha de projeto no pacote. Cada repositório declara sua própria política via `releasePolicy` (por padrão em `.refarm/config.json`) e pode sobrescrever via `--policy` em cenários explícitos. Projetos como `refarm`, `vault-seed`, `agents-lab` podem compartilhar o mesmo engine e manter política própria.
+Objetivo: materializar decisão de release como **política declarativa + grafo de gates**, sem fixar escolha de projeto no pacote. Cada repositório declara sua própria política via `releasePolicy` (por padrão em `refarm.config.json`, com `.refarm/config.json` mantido como legado) e pode sobrescrever via `--policy` em cenários explícitos. Projetos como `refarm`, `vault-seed`, `agents-lab` podem compartilhar o mesmo engine e manter política própria.
 
 ## O que está aqui
 
-- Leitura de política de release (fonte padrão: `.refarm/config.json` no projeto)
+- Leitura de política de release (fonte padrão: `refarm.config.json` no projeto, com fallback legado)
 - Descoberta de candidatos via `changeset` ou lista explícita
 - Ordenação topológica por dependência entre pacotes
 - Geração de plano (status, bloqueadores, ordem, perfis/tags de pacote)
@@ -25,21 +25,49 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - **Changeset-aware**: sem mudançasets, o plano cai para fallback conservador.
 - **Não é um fluxo “publish instantâneo”**: o pacote prepara o plano e verifica ordem/gates; publicação final permanece sob controle do CI.
 
+## Contrato de provider e CI
+
+O provider é uma declaração de capacidade, não um adaptador carregado por nome.
+Nesta fase, `release-engine` usa o provider para decidir intenção de publicação e
+comandos de dry-run; o host/CI continua responsável por permissões, secrets e
+execução final.
+
+Campos mínimos:
+
+- `id`: identificador estável usado em `providers` do plano.
+- `type`: família operacional (`changesets`, `legacy-tag`, `npm`, `github-release`, etc.).
+- `supportsPublish`: se o provider participa de `publishIntents`.
+- `supportsDryRun`: se o provider declara comandos de validação sem publicação.
+- `publishCommands`: obrigatório quando `supportsPublish: true`.
+- `publishDryRunCommands`: opcional; se ausente, herda `publishCommands`.
+- `publishRequiresManualApproval`: opcional; quando ausente, `changeset` assume aprovação manual.
+
+Integração CI recomendada:
+
+1. Rodar `refarm release plan --selection default --json` para materializar a ordem.
+2. Rodar `refarm release check --selection default --dry-run --json` antes de tocar secrets.
+3. Validar `schemaVersion` contra `release-output.schema.json`.
+4. Executar publicação apenas no workflow/host que possui credenciais e aprovação.
+
+O pacote não deve acessar `NPM_TOKEN`, GitHub Releases, crates.io ou canais. Esses
+adaptadores pertencem ao control-plane (`apps/refarm`, workflows, ou consumidores
+futuros) e consomem a saída versionada do engine.
+
 ## Uso sem publicar (fase local)
 
 - O pacote foi criado para ser testado em outros projetos antes de publicação do npm:
   - mantenha o projeto consumidor com a dependência apontando para a fonte local do repositório Refarm (ex.: `workspace:*` em monorepo, ou `link:`/`file:` durante calibração),
-  - declare `releasePolicy` em `.refarm/config.json`,
+  - declare `releasePolicy` em `refarm.config.json`,
   - importe a API pública por package name (`@refarm.dev/release-engine`) ou use `refarm release` como control-plane.
 
-- `release-policy.json` continua suportado para compatibilidade e scripts legados.
+- `.refarm/config.json` e `release-policy.json` continuam suportados para compatibilidade e scripts legados. Um `release-policy.json` explícito preserva precedência quando existir.
 
 O `src/cli.mjs` é mantido para smoke local do pacote. Não o trate como entrypoint estável para consumidores; o entrypoint operacional é `refarm release`.
 
 ## Uso rápido
 
 ```bash
-# plano operacional via Refarm (usa .refarm/config.json por padrão)
+# plano operacional via Refarm (usa refarm.config.json por padrão)
 refarm release plan --json
 
 # plano por seleção declarada na política
@@ -100,10 +128,10 @@ Consumidores que validam a saída do CLI podem carregar
 - O `release-engine` permanece neutro; não conhece Telegram/Matrix/Cascade ou outro canal.
 - Um control-plane host (ex.: `apps/refarm`) escolhe quais repositórios/políticas executar e invoca a API pública do pacote.
 - `refarm release plan --cwd <repo> --selection default --json` é a superfície operacional inicial para aplicar a mesma política em outros workspaces sem acoplar o engine a um produto.
+- A integração em `apps/refarm` deve ser não bloqueante: se a seleção externa falhar, o host reporta blockers e `nextCommands`; não transforma ausência de policy downstream em publish local.
 - Dessa forma, a integração de canais futuros fica concentrada no host/entrada (bot/adaptador), mantendo o pacote reutilizável.
 
 ## Próximos passos
 
-- Cobrir contratos JSON Schema (incluindo validadores de runtime)
 - Exportar API de telemetria para rastreabilidade de decisão
 - Incluir providers de publicação reais com assinatura/attestation

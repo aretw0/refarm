@@ -32,7 +32,7 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [x] CLI e API em módulo próprio (`packages/release-engine`).
 - [x] Política padrão embutida via `.refarm/config.json` com fallback seguro.
 - [x] Compatibilidade de leitura com `release-policy.json` (override explícito) preservada.
-- [ ] Documentar contratos de provider e integração em CI.
+- [x] Documentar contratos de provider e integração em CI.
 - [ ] Publicar o pacote como `@refarm.dev/release-engine` quando cobertura de uso estabilizar.
 
 ## V0.x — Composição segura pré-publicação
@@ -59,7 +59,7 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
       público para consumidores de máquina.
 
 ### DDD (Domain Delivery)
-- [ ] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.
+- [x] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.
 - [ ] Adicionar `CHANGELOG` inicial (`0.0.1-dev` → `0.0.z`) com disciplina de semver.
 - [ ] Definir pacote de exemplo `release-provider` canônico (changesets) sem alterar engine principal.
 - [ ] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
