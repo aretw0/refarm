@@ -7,8 +7,8 @@ import assert from "node:assert/strict";
 export const DEFAULT_POLICY_VERSION = "2026-01";
 
 const DEFAULT_EMBEDDED_CONFIG_CANDIDATES = [
-  ".refarm/config.json",
   "refarm.config.json",
+  ".refarm/config.json",
 ];
 
 const DEFAULT_PHASES = [
