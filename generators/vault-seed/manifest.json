@@ -63,6 +63,7 @@
     ".changeset",
     "mdt.toml",
     "CNAME",
+    ".github/workflows/initialize.yml",
     ".github/workflows/template-ci.yml",
     ".github/workflows/prepare-release-pr.yml",
     ".github/workflows/release.yml",
