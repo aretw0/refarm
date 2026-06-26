@@ -73,9 +73,10 @@ versions of Refarm-shaped blocks.
 - **8c candidate:** prove `dgk-runner` can delegate to or emit the same
   `@refarm.dev/cli/launch-process` + artifact provenance envelope without importing `dgk`
   vocabulary into Refarm.
-- **8b candidate:** write the focused channel-policy bridge spec using `vault-seed` Telegram
-  outbox/inbox as a fixture and Refarm `dispatch-surface`/Farmhand channel-control as the second
-  consumer. Keep Telegram API calls, Markdown formatting, note filenames, and `dgk` UX downstream.
+- **8b active:** use `@refarm.dev/channel-policy-v1` as the focused Refarm-side package slice.
+  Its tests carry both the `vault-seed` Telegram fixture and Refarm channel-control fixture. The
+  official downstream proof still needs Telegram outbox/inbox to emit the neutral envelope while
+  keeping API calls, Markdown formatting, note filenames, and `dgk` UX downstream.
 
 **Gate:** each activated bridge has its own spec, package/API decision, consumer proof, fallback,
 and rollback note.

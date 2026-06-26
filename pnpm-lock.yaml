@@ -410,6 +410,18 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/channel-policy-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/cli:
     dependencies:
       '@refarm.dev/config':
