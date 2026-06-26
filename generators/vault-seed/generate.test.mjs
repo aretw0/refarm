@@ -154,6 +154,38 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 	assert.equal(existsSync(path.join(outDir, "README.template.md")), false);
 	assert.equal(existsSync(path.join(outDir, "docs/x.md")), false);
 	assert.equal(existsSync(path.join(outDir, ".dgk/state.json")), false);
+	assert.deepEqual(
+		JSON.parse(readFileSync(path.join(outDir, "inventory.json"), "utf8")),
+		{
+			"00 - Entrada/note.md": {
+				source: "00 - Entrada/note.md",
+				class: "transform",
+				transforms: ["status-draft-to-published"],
+				validation: "scripts/smoke_user_e2e.mjs",
+			},
+			"README.md": {
+				source: "README.template.md",
+				class: "transform",
+				transforms: ["rename"],
+			},
+			"package.json": {
+				source: "package.template.json",
+				class: "transform",
+				transforms: ["rename"],
+			},
+			"payload.md": {
+				source: "payload.md",
+				class: "payload",
+				transforms: [],
+			},
+			"vault.config.json": {
+				source: "vault.config.json",
+				class: "transform",
+				transforms: ["drop-kudos", "set-license-holder"],
+				validation: "scripts/smoke_user_e2e.mjs",
+			},
+		},
+	);
 
 	assert.deepEqual(result.written.sort(), [
 		"00 - Entrada/note.md",
@@ -260,6 +292,42 @@ test("generateVault content transforms are idempotent with a fixed owner", async
 	});
 
 	assert.deepEqual(readTree(secondSource), readTree(secondOut));
+});
+
+test("generateVault treats inventory.json as generator output during re-generation", async () => {
+	const root = makeTempRoot();
+	const sourceDir = path.join(root, "source");
+	const outDir = path.join(root, "out");
+	await mkdir(sourceDir, { recursive: true });
+	await writeFile(path.join(sourceDir, "payload.md"), "payload\n");
+	await writeFile(path.join(sourceDir, "inventory.json"), '{"stale":true}\n');
+
+	await generateVault({
+		manifest: {
+			version: 1,
+			source: "vault-seed",
+			renames: [],
+			transforms: [],
+			devOnly: [],
+			payloadGlobs: ["**"],
+			derivedOrLocalState: [],
+		},
+		sourceDir,
+		outDir,
+	});
+
+	const inventory = JSON.parse(
+		readFileSync(path.join(outDir, "inventory.json"), "utf8"),
+	);
+	assert.equal(existsSync(path.join(outDir, "payload.md")), true);
+	assert.deepEqual(inventory, {
+		"payload.md": {
+			source: "payload.md",
+			class: "payload",
+			transforms: [],
+		},
+	});
+	assert.equal("inventory.json" in inventory, false);
 });
 
 test("generateVault uses tracked files when sourceDir is a git checkout", async () => {

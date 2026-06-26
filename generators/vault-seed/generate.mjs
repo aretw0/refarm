@@ -9,6 +9,8 @@ import {
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
+const GENERATED_OUTPUTS = new Set(["inventory.json"]);
+
 function toRelativePath(root, filePath) {
 	return path.relative(root, filePath).split(path.sep).join("/");
 }
@@ -170,6 +172,19 @@ function inventoryFor(entry, fallback) {
 	return inventory;
 }
 
+function inventoryReport(inventory) {
+	const report = {};
+	for (const entry of inventory) {
+		report[entry.target] = {
+			source: entry.source,
+			class: entry.class,
+			transforms: entry.transforms,
+		};
+		if (entry.validation) report[entry.target].validation = entry.validation;
+	}
+	return report;
+}
+
 function comparePath(left, right) {
 	if (left < right) return -1;
 	if (left > right) return 1;
@@ -195,6 +210,11 @@ export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 	const inventory = [];
 
 	for (const source of files) {
+		if (GENERATED_OUTPUTS.has(source)) {
+			skipped.push(source);
+			continue;
+		}
+
 		if (renameTargets.has(source) && !renames.has(source)) {
 			skipped.push(source);
 			continue;
@@ -239,6 +259,11 @@ export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 	written.sort(comparePath);
 	inventory.sort((left, right) => comparePath(left.target, right.target));
 	skipped.sort(comparePath);
+
+	writeFileSync(
+		path.join(outDir, "inventory.json"),
+		formatJson(inventoryReport(inventory)),
+	);
 
 	return { written, skipped, inventory };
 }

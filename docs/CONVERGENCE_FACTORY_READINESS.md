@@ -218,6 +218,18 @@ that manual editing is riskier:
   re-homing, `ds` token adoption in consumer CSS, and generated-vault manifest/inventory wiring;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
+Vault-seed generator classification:
+
+- generator actions: payload copy, template-dev file exclusion, deterministic rename, generated
+  `inventory.json`, welcome-note status publication, and the current `vault.config.json` kudos
+  removal/license-holder fill. These are local, idempotent, and covered by the generated-vault
+  smoke boundary.
+- codemod candidates: repository identity/package metadata rewrites, package-name/workspace
+  adoption, and any future cross-file JSON/TS/CSS rewrite needed by more than one generated vault
+  or consumer checkout.
+- still not codemods: Markdown prose choices and ADR/spec content. Promote them only after a
+  repeatable structural rule exists.
+
 ## Item 9a - Vault-Seed Generator
 
 The generator-first direction now has a spec and plan:

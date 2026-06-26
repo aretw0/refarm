@@ -90,6 +90,22 @@ test("generated vault from vault-seed source satisfies the template boundary", a
 	assert.equal(config.license?.holder, "aretw0");
 	assert.equal(config.license?.holderUrl, "https://github.com/aretw0");
 
+	const inventory = JSON.parse(
+		readFileSync(path.join(outDir, "inventory.json"), "utf8"),
+	);
+	assert.deepEqual(inventory["README.md"], {
+		source: "README.template.md",
+		class: "transform",
+		transforms: ["rename"],
+	});
+	assert.deepEqual(inventory["vault.config.json"], {
+		source: "vault.config.json",
+		class: "transform",
+		transforms: ["drop-kudos", "set-license-holder"],
+		validation: "scripts/smoke_user_e2e.mjs",
+	});
+	assert.equal("inventory.json" in inventory, false);
+
 	const packageJson = JSON.parse(
 		readFileSync(path.join(outDir, "package.json"), "utf8"),
 	);
