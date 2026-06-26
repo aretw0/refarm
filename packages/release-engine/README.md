@@ -149,6 +149,8 @@ O pacote mantém `CHANGELOG.md` versionado mesmo antes da publicação. A linha
 Depois da publicação, remoções ou mudanças incompatíveis em exports, schemas,
 `schemaVersion`, `policyVersion`, códigos de erro ou formato JSON exigem major;
 campos opcionais/aditivos ficam em minor ou patch conforme risco.
+As superfícies críticas e a regra append-only estão listadas em `CONTRACTS.md`,
+que também é incluído no pacote publicado.
 
 ## Convergência futura (já pensada)
 

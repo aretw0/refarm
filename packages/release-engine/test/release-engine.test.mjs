@@ -211,6 +211,18 @@ test("exports the release policy schema as a public package subpath", () => {
   assert.equal(schema.properties.notes.items.type, "string");
 });
 
+test("ships the public contract manifest", () => {
+  const pkg = JSON.parse(fs.readFileSync(packageManifestPath, "utf8"));
+  const contractsPath = path.resolve(
+    new URL("../CONTRACTS.md", import.meta.url).pathname,
+  );
+  const contracts = fs.readFileSync(contractsPath, "utf8");
+
+  assert.ok(pkg.files.includes("CONTRACTS.md"));
+  assert.match(contracts, /Append-only rule/);
+  assert.match(contracts, /ReleasePolicyValidationError\.code/);
+});
+
 test("exports the release output schema as a public package subpath", () => {
   const pkg = JSON.parse(fs.readFileSync(packageManifestPath, "utf8"));
   const schemaPath = path.resolve(

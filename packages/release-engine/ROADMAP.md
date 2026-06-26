@@ -62,7 +62,7 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [x] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.
 - [x] Adicionar `CHANGELOG` inicial (`0.0.1-dev` → `0.1.0-dev`) com disciplina de semver.
 - [ ] Definir pacote de exemplo `release-provider` canônico (changesets) sem alterar engine principal.
-- [ ] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
+- [x] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
 - [ ] Publicar **primeiro minor** com base em critérios objetivos de estabilidade funcional e integração (não por pressa).
 
 ## V1 — Engine de Convergência (pós-primeira minor)

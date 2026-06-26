@@ -15,6 +15,7 @@ commit moves them under a newer version.
 - Provider validation exposes `ReleasePolicyValidationError.code` for machine consumers and accepts neutral/inactive provider contracts without generating publish intents.
 - Policy version compatibility now fails closed through `SUPPORTED_POLICY_VERSIONS` and `RELEASE_POLICY_VERSION_UNSUPPORTED`.
 - Blocked `plan`/`check` CLI JSON now preserves the versioned machine-output shape.
+- `CONTRACTS.md` defines append-only public contract surfaces and ships in the package.
 
 ### Semver discipline
 
