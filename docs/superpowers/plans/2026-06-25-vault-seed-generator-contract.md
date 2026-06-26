@@ -28,7 +28,7 @@
 - Create: `generators/vault-seed/manifest.json`
 - Create: `generators/vault-seed/manifest.test.mjs` (schema + boundary cross-check)
 
-- [ ] **Step 1: Author `manifest.json`** — entries derived directly from `initialize.yml`
+- [x] **Step 1: Author `manifest.json`** — entries derived directly from `initialize.yml`
 
 ```json
 {
@@ -76,7 +76,7 @@
 > **`set-license-holder`** (`cfg.license.holder = <repo owner>`, `holderUrl = https://github.com/<owner>`).
 > The owner comes from `GITHUB_REPOSITORY`; the generator takes it as a `--owner` input.
 
-- [ ] **Step 2: Write the boundary cross-check test** — `manifest.test.mjs`
+- [x] **Step 2: Write the boundary cross-check test** — `manifest.test.mjs`
 
 ```js
 import { readFileSync } from "node:fs";
@@ -107,12 +107,20 @@ test("every rename in initialize.yml is a transform entry", () => {
 });
 ```
 
-- [ ] **Step 3: Run the cross-check**
+- [x] **Step 3: Run the cross-check**
 
 Run: `node --test generators/vault-seed/manifest.test.mjs`
 Expected: PASS — the manifest matches `initialize.yml`'s boundary. (Adjust the relative path to `vault-seed` if the checkouts are not siblings; the test documents the dependency on a `vault-seed` source.)
 
-- [ ] **Step 4: Commit**
+Executed with a real checkout:
+
+```bash
+VAULT_SEED_SOURCE_DIR=/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed node --test generators/vault-seed/manifest.test.mjs
+```
+
+Without `VAULT_SEED_SOURCE_DIR`, the schema test still runs and the cross-repo checks are explicitly skipped so repo-local validation does not pretend a missing consumer checkout was inspected.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add generators/vault-seed/manifest.json generators/vault-seed/manifest.test.mjs
