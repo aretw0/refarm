@@ -371,15 +371,24 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
 | Skill/agent compatibility | skill runtime activation + Pi/WASM/UI proof | Starts only when a real invocation surface exists, but is planned from consumer pressure. |
 
-**2026-06-25 DS consumer packet:** `@refarm.dev/ds` now exposes the
-Lab-proven `verde-jardim` light mode and a new packed candidate was handed to
-`vault-seed/vendor/refarm.dev-ds-0.1.0.tgz`
-(`sha256 f7212e49fddc25f8b3bd3b7e1b11028da4875037f0f5d6f53954c2de6af7cf4e`).
-A scratch `vault-seed` checkout validated the intended adoption shape without
-committing it there: install the tarball as `@refarm.dev/ds`, embed the DS theme
-before `marimo-vault.css`, bridge the Lab theme selector to `data-mode`, and
-keep consumer-local semantic tokens only as raw-Marimo fallback. The official
-consumer checkout still needs to assimilate/review that packet.
+**2026-06-26 UI consumer packet:** `@refarm.dev/ds` now exposes the Lab-proven
+`verde-jardim` light mode, and `@refarm.dev/homestead-ssr` gives `vault-seed` a
+build-free SSR tier without pulling the full Homestead SDK dependency closure.
+The current handoff lives under `.refarm/handoff/vault-seed/2026-06-26/`:
+
+- `refarm.dev-ds-0.1.0.tgz`
+  (`sha256 a85f33b5eb78496581b22c72397a5a5ee770f36f34a5df44556985ecf3a31986`);
+- `refarm.dev-homestead-ssr-0.1.0.tgz`
+  (`sha256 bb466ef3f028e6d44cae070c85fd66beb97b8ba9feec0bcaf34bbd76daf62ada`).
+
+A scratch consumer proof validated the intended adoption shape without
+committing into `vault-seed`: install both tarballs, override the unpublished
+transitive `@refarm.dev/ds` dependency to the local tarball, import
+`@refarm.dev/homestead-ssr`, render a `verde-jardim` shell, confirm DS classes
+and theme CSS references, and confirm `@refarm.dev/homestead` is absent from
+`node_modules`. The official consumer checkout still needs to assimilate/review
+that packet. Consumer-local semantic tokens remain fallback-only for raw Marimo
+sessions.
 
 ### Additional Assimilation Matrix
 

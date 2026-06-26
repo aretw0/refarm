@@ -477,16 +477,17 @@ Expected: PASS — all green. `pnpm run validate-packages` and
 
 Per `docs/DEV_CROSS_REPO_CONSUMPTION.md`: `pnpm -C packages/ds pack` → install the tarball in a `vault-seed` branch → follow `vault-seed docs/convergencia-ds-lab.md` (Lab adopts `tokens.css` + `verde-jardim`). The consumer proof lives on the `vault-seed` side; this packet just records the command + the expected no-regression check.
 
-2026-06-25 packet:
-- Candidate tarball: `vault-seed/vendor/refarm.dev-ds-0.1.0.tgz`
-  (`sha256 f7212e49fddc25f8b3bd3b7e1b11028da4875037f0f5d6f53954c2de6af7cf4e`).
+2026-06-26 packet:
+- Candidate tarball: `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-ds-0.1.0.tgz`
+  (`sha256 a85f33b5eb78496581b22c72397a5a5ee770f36f34a5df44556985ecf3a31986`).
 - Refarm fix before consumer proof: `verde-jardim` now keeps the dark preset as
-  default and adds a Lab-proven `data-mode="light"` override.
-- Scratch consumer proof validated in the handoff checkout, not committed there:
-  `@refarm.dev/ds` installed from the tarball, exported Lab notebooks embed the
-  DS `verde-jardim` CSS before `marimo-vault.css`, the Lab selector bridges
-  `data-vault-marimo-theme` to `data-mode`, and local semantic token blocks are
-  fallback-only for raw Marimo sessions.
+  default and adds a Lab-proven `data-mode="light"` override. The publish
+  surface was then trimmed so tests/stories are not shipped in the `ds` tarball.
+- Scratch consumer proof validated from a temporary `/tmp` consumer, not
+  committed into `vault-seed`: `@refarm.dev/ds` installed from the tarball,
+  `@refarm.dev/homestead-ssr` consumed it through `pnpm.overrides`, the rendered
+  shell references `/_ds/themes/verde-jardim.css`, and local semantic token
+  blocks stay fallback-only for raw Marimo sessions.
 - Focused validation passed in the scratch checkout:
   `node --test scripts/refarm_ds_consumer_contract.test.mjs scripts/lab_shell_contract.test.mjs scripts/notebook_chart_contrast.test.mjs`,
   `pnpm run validate:theme`, `node --check scripts/export_notebooks.mjs`,
