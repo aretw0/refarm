@@ -401,10 +401,12 @@ its runner-style process specs can be embedded directly in
 `@refarm.dev/artifact-contract-v1` task artifact provenance without
 shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `@refarm.dev/cli/launch-process` stays as a compatibility re-export. The
-official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
-`@aretw0/dgk-cli` should import `@refarm.dev/launch-process` internally while
-keeping the exported `run(cmd, args, opts)` API and command UX local, then emit a
-task artifact manifest that references the tokenized process boundary.
+`vault-seed-ready` publish dry-run passes with this leaf included and the full
+CLI closure excluded. The official `vault-seed` proof remains downstream:
+`@aretw0/dgk-runner` or `@aretw0/dgk-cli` should import
+`@refarm.dev/launch-process` internally while keeping the exported
+`run(cmd, args, opts)` API and command UX local, then emit a task artifact
+manifest that references the tokenized process boundary.
 
 ### Additional Assimilation Matrix
 
