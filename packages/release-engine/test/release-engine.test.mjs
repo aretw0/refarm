@@ -162,6 +162,27 @@ test("exports the release policy schema as a public package subpath", () => {
   assert.ok(pkg.files.includes("release-policy.schema.json"));
 });
 
+test("exports the release output schema as a public package subpath", () => {
+  const pkg = JSON.parse(fs.readFileSync(packageManifestPath, "utf8"));
+  const schemaPath = path.resolve(
+    new URL("../release-output.schema.json", import.meta.url).pathname,
+  );
+  const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+
+  assert.equal(
+    pkg.exports["./release-output.schema.json"],
+    "./release-output.schema.json",
+  );
+  assert.ok(pkg.files.includes("release-output.schema.json"));
+  assert.equal(schema.$id, "https://refarm.dev/schemas/release-output.schema.json");
+  assert.equal(schema.$defs.summary.properties.schemaVersion.const, 1);
+  assert.deepEqual(schema.$defs.summary.properties.command.enum, [
+    "plan",
+    "check",
+    "gates",
+  ]);
+});
+
 test("cli plan json resolves the Refarm default release selection", () => {
   const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "default"]);
 
