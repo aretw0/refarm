@@ -31,6 +31,22 @@ is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" st
    ```bash
    pnpm install
    ```
+   If the candidate depends on another unpublished `@refarm.dev/*` package, pin the direct
+   dependency and the transitive dependency to the same local tarball with `pnpm.overrides` until
+   the packages are published:
+   ```jsonc
+   {
+     "dependencies": {
+       "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz",
+       "@refarm.dev/homestead-ssr": "file:./vendor/refarm.dev-homestead-ssr-0.1.0.tgz"
+     },
+     "pnpm": {
+       "overrides": {
+         "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz"
+       }
+     }
+   }
+   ```
 4. Run the surface (`dgk build` / `dgk serve` / the site test roteiro) — that is the proof.
 
 Before committing the consumer proof, confirm the packed artifact stayed out of source control:
@@ -49,6 +65,15 @@ and hand off:
 - tarball path or checksum;
 - build/pack commands used;
 - expected consumer proof command.
+
+For the current UI packet, the Refarm-side fallback proof is:
+
+```bash
+pnpm install --offline --store-dir /tmp/<proof>/.pnpm-store
+node --input-type=module -e "import { shellHtml, cardHtml, buttonHtml } from '@refarm.dev/homestead-ssr'; const bodyHtml = cardHtml({ title: 'Card', rows: ['<p>Ready</p>'], actionsHtml: buttonHtml({ label: 'Open' }) }); const html = shellHtml({ title: 'Proof', bodyHtml, theme: 'verde-jardim' }); if (!html.includes('data-refarm-theme=\"verde-jardim\"') || !html.includes('ds-card') || !html.includes('ds-btn') || !html.includes('/_ds/themes/verde-jardim.css')) throw new Error('consumer proof failed');"
+pnpm list --depth 1
+test ! -e node_modules/@refarm.dev/homestead
+```
 
 Do not replace the tarball gate with an unverified assertion.
 

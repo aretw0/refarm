@@ -10,6 +10,15 @@
 
 **Spec:** `specs/features/2026-06-25-homestead-ssr-tier.md`
 
+**Reconciled 2026-06-26:** The public consumer lane uses the leaf package
+`@refarm.dev/homestead-ssr` instead of publishing the full
+`@refarm.dev/homestead` package. The current candidate tarball is
+`.refarm/handoff/vault-seed/2026-06-26/refarm.dev-homestead-ssr-0.1.0.tgz`
+(`sha256 bb466ef3f028e6d44cae070c85fd66beb97b8ba9feec0bcaf34bbd76daf62ada`).
+The pre-publication consumer proof installs `@refarm.dev/ds` and
+`@refarm.dev/homestead-ssr` from local tarballs and uses `pnpm.overrides` for
+the unpublished transitive `@refarm.dev/ds` dependency.
+
 ## Global Constraints
 
 - **Depends on 4a:** the `ds` component classes (`.ds-card/.ds-btn/.ds-field/.ds-table/.ds-section/.ds-feedback`) and token contract must exist (`docs/superpowers/plans/2026-06-25-ds-token-contract.md`). The helpers emit those classes.
@@ -367,12 +376,12 @@ git commit -m "feat(homestead): export ./ssr subpath and register acceptance gat
 
 - [x] **Step 1: Pack the tier**
 
-Run: `pnpm -C packages/homestead pack`
-Expected: a `.tgz` containing `dist/ssr/`.
+Run: `pnpm --filter @refarm.dev/homestead-ssr pack --pack-destination .refarm/handoff/vault-seed/2026-06-26`
+Expected: a `.tgz` containing only `dist/`, package metadata, README, and LICENSE.
 
 - [x] **Step 2: Record the consumer-proof steps** (executed on the `vault-seed` side)
 
-Per `vault-seed docs/convergencia-homestead-admin.md` + `docs/DEV_CROSS_REPO_CONSUMPTION.md`: install the tarball in a `vault-seed` branch; rebuild `serve.js`'s `ADMIN_HTML` and client re-render from the helpers; serve the `ds` CSS under `/_ds`; drop the inline palette + local `esc()`. **Gate:** `dgk serve` renders with no functional regression — `vault-seed docs/roteiro-teste-admin.md` passes; `serve.js` stays `node:http`-pure (no bundler).
+Per `vault-seed docs/convergencia-homestead-admin.md` + `docs/DEV_CROSS_REPO_CONSUMPTION.md`: install the tarball in a `vault-seed` branch; install the matching `@refarm.dev/ds` tarball and override the unpublished transitive dependency; rebuild `serve.js`'s `ADMIN_HTML` and client re-render from the helpers; serve the `ds` CSS under `/_ds`; drop the inline palette + local `esc()`. **Gate:** `dgk serve` renders with no functional regression — `vault-seed docs/roteiro-teste-admin.md` passes; `serve.js` stays `node:http`-pure (no bundler).
 
 - [x] **Step 3: Commit** (note only; no refarm files)
 
