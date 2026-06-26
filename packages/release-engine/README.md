@@ -126,11 +126,17 @@ Consumidores que validam a saída do CLI podem carregar
 
 `validatePolicy` rejeita configuração ambígua antes de montar plano:
 
+- `policyVersion` deve estar em `SUPPORTED_POLICY_VERSIONS` (atualmente `2026-01`).
 - `providers` e `packageProfiles` devem usar IDs únicos.
 - providers com `supportsPublish: true` devem declarar `publishCommands` não vazios.
 - `defaultSelection`, quando declarado, deve apontar para uma entrada de `selections`.
 - cada seleção deve declarar `profileTags` com pelo menos uma tag não vazia.
 - `packageProfiles[].risk` e `packageProfiles[].bump`, quando declarados, devem usar os enums do schema.
+
+Quando a versão da policy é maior/desconhecida, `validatePolicy` falha fechado
+com `ReleasePolicyValidationError.code =
+RELEASE_POLICY_VERSION_UNSUPPORTED`. Consumidores devem tratar esse erro como
+pedido de upgrade do engine ou migração explícita da policy.
 
 ## Convergência futura (já pensada)
 

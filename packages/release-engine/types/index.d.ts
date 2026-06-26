@@ -138,6 +138,7 @@ export interface ReleasePlanSummary {
 }
 
 export declare const DEFAULT_POLICY_VERSION: string;
+export declare const SUPPORTED_POLICY_VERSIONS: readonly string[];
 export declare const RELEASE_ENGINE_JSON_SCHEMA_VERSION: 1;
 
 export function loadPolicy(policyPath?: string, cwd?: string): ReleasePolicy;

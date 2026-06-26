@@ -15,6 +15,11 @@ O primeiro motor foi introduzido em `packages/release-engine` e o Refarm já dec
 
 Esta camada de engine não embute política do Refarm; ela só fornece defaults neutros. As escolhas de gate, ordem e publicação ficam declaradas no bloco `releasePolicy` (ou políticas por projeto).
 
+Compatibilidade de policy é defensiva: o runtime só aceita versões em
+`SUPPORTED_POLICY_VERSIONS` (hoje `2026-01`). Versão maior ou desconhecida falha
+fechado com `RELEASE_POLICY_VERSION_UNSUPPORTED`, para evitar interpretar uma
+policy futura com semântica antiga.
+
 ## Como usar hoje
 
 - `@refarm.dev/release-engine` é a **primitiva/SDK**: projetos consumidores dependem do pacote e importam a API pública por package name.

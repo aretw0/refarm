@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 
 export const DEFAULT_POLICY_VERSION = "2026-01";
+export const SUPPORTED_POLICY_VERSIONS = [DEFAULT_POLICY_VERSION];
 export const RELEASE_ENGINE_JSON_SCHEMA_VERSION = 1;
 
 export class ReleasePolicyValidationError extends Error {
@@ -120,7 +121,21 @@ export function loadPolicy(policyPath = "release-policy.json", cwd = process.cwd
 }
 
 export function validatePolicy(policy) {
-  assert.equal(typeof policy.policyVersion, "string", "policyVersion must be a string");
+  assertPolicy(
+    typeof policy.policyVersion === "string",
+    "RELEASE_POLICY_VERSION_REQUIRED",
+    "policyVersion must be a string",
+    { policyVersion: policy.policyVersion ?? null },
+  );
+  assertPolicy(
+    SUPPORTED_POLICY_VERSIONS.includes(policy.policyVersion),
+    "RELEASE_POLICY_VERSION_UNSUPPORTED",
+    `policyVersion must be one of: ${SUPPORTED_POLICY_VERSIONS.join(", ")}`,
+    {
+      policyVersion: policy.policyVersion,
+      supportedPolicyVersions: SUPPORTED_POLICY_VERSIONS,
+    },
+  );
   const allowedModes = ["changeset", "tagged", "hybrid"];
   assert.ok(
     allowedModes.includes(policy.mode),
@@ -268,6 +283,12 @@ function providerPolicyError(code, message, provider) {
 }
 
 function assertProvider(condition, code, message, details) {
+  if (!condition) {
+    throw new ReleasePolicyValidationError(code, message, details);
+  }
+}
+
+function assertPolicy(condition, code, message, details) {
   if (!condition) {
     throw new ReleasePolicyValidationError(code, message, details);
   }
