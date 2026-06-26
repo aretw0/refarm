@@ -1,6 +1,6 @@
 # Spec: Vault-Seed Silo Bridge (Roadmap Item 8a)
 
-**Status:** DRAFT - ready for implementation
+**Status:** DRAFT - Refarm-side package proof complete; `vault-seed` adapter implementation pending
 **Authors:** Arthur Silva
 **Date:** 2026-06-26
 **Related:** `specs/features/2026-06-25-silo-collection-contract.md`,
@@ -96,6 +96,14 @@ pnpm -C packages/silo run lint
 pnpm -C packages/silo run build
 pnpm -C packages/silo run test
 ```
+
+2026-06-26 Refarm-side handoff: `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-silo-0.1.0.tgz`
+(`sha256 3335f225a6161769c1e44ff199007c3accf1f51aa69a4b5d0a1bd71be26189d5`) plus
+`.refarm/handoff/vault-seed/2026-06-26/refarm.dev-heartwood-0.1.0.tgz`
+(`sha256 0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf`) for the unpublished
+transitive dependency. The temporary consumer proof installed both from local tarballs, wrote
+Telegram credentials under namespace `publishing`, confirmed they did not enter the flat `tokens`
+map or `model` namespace, and kept the bridge adapter-only.
 
 ## Migration And Fallback
 
