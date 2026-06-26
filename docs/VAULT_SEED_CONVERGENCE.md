@@ -390,6 +390,13 @@ and theme CSS references, and confirm `@refarm.dev/homestead` is absent from
 that packet. Consumer-local semantic tokens remain fallback-only for raw Marimo
 sessions.
 
+**2026-06-26 process provenance packet:** `@refarm.dev/cli/launch-process` now
+proves its runner-style process specs can be embedded directly in
+`@refarm.dev/artifact-contract-v1` task artifact provenance without
+shell-splitting. The official `vault-seed` proof remains downstream: its
+`dgk-runner` should keep command UX local while emitting a task artifact
+manifest that references the tokenized process boundary.
+
 ### Additional Assimilation Matrix
 
 The downstream audit shows more Refarm-shaped work than the first block list. Use

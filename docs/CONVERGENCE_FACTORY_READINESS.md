@@ -18,7 +18,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
-| 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; `silo`, `cli/launch-process`, and channel-control seams are specified | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; 8c needs runner/provenance proof |
+| 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `launch-process` -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry; first ready codemod (`ds-token-adoption`) | first official consumer run of the ready codemod remains downstream |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
@@ -162,7 +162,7 @@ Split the bridges so activation is evidence-based rather than a general cleanup 
 |---|---|---|
 | 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Refarm handoff ready after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary; local tarball proof stayed adapter-only | namespaces preserve model/runtime/channel/publishing separation |
 | 8b channel policy (`contacts` + `rate-limiter` + receipts) | **Refarm-side package slice active**: `@refarm.dev/channel-policy-v1` covers destinations, rate-limit policy/evidence, delivery state, receipts, dry-run, and review semantics | official `vault-seed` Telegram adapter proof must emit the neutral envelope while keeping API/UX downstream |
-| 8c `cli/launch-process` + artifact provenance | **Candidate active**: `dgk-runner` and Refarm process handoffs share tokenized process evidence | process helper is not coupled to `dgk` command names |
+| 8c `cli/launch-process` + artifact provenance | **Refarm-side proof active**: `@refarm.dev/cli/launch-process` process specs validate as `artifact-contract-v1` provenance | official `dgk-runner` proof must emit manifests without leaking `dgk` command names upstream |
 
 Spec rule: each bridge gets its own feature spec and its own consumer proof. A bridge does not
 start because it is convenient; it starts because the second consumer exists. `vault-seed` counts
@@ -181,6 +181,11 @@ tests show the subdomains need independent versioning.
 
 - `specs/features/2026-06-26-channel-policy-bridge.md`;
 - `docs/superpowers/plans/2026-06-26-channel-policy-bridge.md`.
+
+8c focused activation packet:
+
+- `specs/features/2026-06-26-launch-process-provenance-bridge.md`;
+- `docs/superpowers/plans/2026-06-26-launch-process-provenance-bridge.md`.
 
 ## Additional Downstream Assimilation Backlog
 

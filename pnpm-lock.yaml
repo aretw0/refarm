@@ -437,6 +437,9 @@ importers:
         specifier: workspace:*
         version: link:../trust
     devDependencies:
+      '@refarm.dev/artifact-contract-v1':
+        specifier: workspace:*
+        version: link:../artifact-contract-v1
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
