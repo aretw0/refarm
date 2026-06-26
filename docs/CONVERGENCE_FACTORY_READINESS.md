@@ -27,7 +27,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-26; publish dry-run is scoped to the release-policy default selection | actual publication remains gated by daily-driver policy and repository/npm operator setup |
-| `vault-seed` release lane | policy-ready | `vault-seed-ready` selection lives in versioned `refarm.config.json`, has `pnpm run release:vault-seed:check`, and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
+| `vault-seed` release lane | dry-run validated | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
 
 ## Plan depth — read before "ready to implement"
 
