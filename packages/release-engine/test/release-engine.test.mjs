@@ -14,7 +14,13 @@ import {
   releasePlanPackageProfiles,
 } from "../src/index.mjs";
 
-function createWorkspace(root, pkgDefs, changesets = [], embeddedPolicy = null) {
+function createWorkspace(
+  root,
+  pkgDefs,
+  changesets = [],
+  embeddedPolicy = null,
+  options = {},
+) {
   const packagesDir = path.join(root, "packages");
   fs.mkdirSync(packagesDir, { recursive: true });
 
@@ -74,10 +80,11 @@ function createWorkspace(root, pkgDefs, changesets = [], embeddedPolicy = null) 
   );
 
   if (embeddedPolicy) {
-    const cfgDir = path.join(root, ".refarm");
+    const configPath = options.embeddedConfigPath || ".refarm/config.json";
+    const cfgDir = path.dirname(path.join(root, configPath));
     fs.mkdirSync(cfgDir, { recursive: true });
     fs.writeFileSync(
-      path.join(cfgDir, "config.json"),
+      path.join(root, configPath),
       JSON.stringify(
         {
           releasePolicy: embeddedPolicy,
@@ -856,6 +863,136 @@ test("loads embedded release policy from .refarm/config.json when no release-pol
     assert.equal(plan.ok, true);
     assert.equal(plan.publishIntents[0].provider, "embedded");
     assert.equal(plan.gates[0].id, "embedded-gate");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("loads embedded release policy from root refarm.config.json", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/alpha": {
+          dir: "alpha",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "root-config",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+          },
+        ],
+        packageProfiles: [],
+        phases: [
+          {
+            id: "root-config-gate",
+            name: "Root Config Gate",
+            commands: ["echo root-config"],
+            required: true,
+            riskWeight: 3,
+          },
+        ],
+      },
+      { embeddedConfigPath: "refarm.config.json" },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      packageNames: ["@refarm.dev/alpha"],
+    });
+
+    assert.equal(plan.ok, true);
+    assert.equal(plan.publishIntents[0].provider, "root-config");
+    assert.equal(plan.gates[0].id, "root-config-gate");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("explicit release-policy.json overrides embedded project policy", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/alpha": {
+          dir: "alpha",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "embedded",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+          },
+        ],
+        packageProfiles: [],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 3,
+          },
+        ],
+      },
+      { embeddedConfigPath: "refarm.config.json" },
+    );
+
+    fs.writeFileSync(
+      path.join(workspace, "release-policy.json"),
+      JSON.stringify(
+        validPolicy({
+          providers: [
+            {
+              id: "explicit",
+              type: "changesets",
+              supportsPublish: true,
+              supportsDryRun: true,
+              publishCommands: ["pnpm changeset publish"],
+            },
+          ],
+          phases: [
+            {
+              id: "explicit-gate",
+              name: "Explicit Gate",
+              commands: ["echo explicit"],
+              required: true,
+              riskWeight: 2,
+            },
+          ],
+        }),
+        null,
+        2,
+      ) + "\n",
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      packageNames: ["@refarm.dev/alpha"],
+    });
+
+    assert.equal(plan.ok, true);
+    assert.equal(plan.publishIntents[0].provider, "explicit");
+    assert.equal(plan.gates[0].id, "explicit-gate");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

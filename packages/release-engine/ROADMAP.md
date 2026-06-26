@@ -50,8 +50,10 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [ ] Registrar cenários de provider opcional: planos podem ter providers inativos/ausentes sem bloquear parsing.
 
 ### TDD (Test Driven)
-- [ ] Testes de contrato para compatibilidade com config embutida + arquivo legado.
-- [ ] Teste de “non-breaking migration”: política antiga carregada continua válida.
+- [x] Testes de contrato para compatibilidade com config embutida
+      (`refarm.config.json`) + arquivo legado (`.refarm/config.json`).
+- [x] Teste de “non-breaking migration”: política antiga carregada continua
+      válida, enquanto `release-policy.json` explícito preserva override legado.
 - [x] Testes de contrato JSON para retorno de `plan`/`check` com `schemaVersion: 1`
       e campos estáveis; `release-output.schema.json` é exportado como subpath
       público para consumidores de máquina.
