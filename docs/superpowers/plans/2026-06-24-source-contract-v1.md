@@ -10,6 +10,12 @@
 
 **Spec:** `specs/features/2026-06-24-source-contract-v1.md`
 
+**Reconciled 2026-06-26:** `@refarm.dev/source-contract-v1` and
+`@refarm.dev/source-git` are implemented. Focused conformance and build gates
+passed for both packages, `pnpm run test:capabilities` includes the two source
+packages and passed, and `pnpm run source:librarian:smoke` materialized
+`aretw0/agents-lab` successfully.
+
 ## Global Constraints
 
 - **Commands:** `pnpm` / `git` / `vitest` run from the Refarm working tree (the `source-git` tests need `git` in PATH).

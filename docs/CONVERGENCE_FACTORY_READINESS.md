@@ -10,6 +10,7 @@ Not everything is planned to execution depth yet. The safe state is:
 
 | Item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
+| 1 librarian `source:v1` | **implemented** | `@refarm.dev/source-contract-v1`, `@refarm.dev/source-git`, conformance, build, `test:capabilities`, and librarian smoke re-verified 2026-06-26 | downstream adapters remain item 7 and activate only when consumed |
 | 4a `ds` tokens | **implemented** (Tasks 1–5 committed in `packages/ds/src`) | contract, scoped tokens, 4 themes, theme-conformance, component classes, CSS exports; focused package gate re-verified 2026-06-26 | broad steward/push gate and official `vault-seed` assimilation remain pending |
 | 4b `homestead/ssr` | **implemented** | subpath, helper API, build-free boundary, consumer proof, package files constraint | downstream adoption proof remains consumer-side |
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring | storage adoption by `vault-seed` remains item 8a |

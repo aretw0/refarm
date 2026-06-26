@@ -30,12 +30,10 @@ git checkout develop && git pull --rebase
 ```
 Skim `docs/CONVERGENCE_ROADMAP.md` and `docs/ECOSYSTEM_SUPPLY_MAP.md`.
 
-### 1. Librarian `source:v1` — keystone, has a bite-sized plan
+### 1. Librarian `source:v1` — done
 Branch: `feat/source-contract-v1`.
 Plan: `docs/superpowers/plans/2026-06-24-source-contract-v1.md` (5 tasks, TDD).
-Invoke **`superpowers:subagent-driven-development`** with that plan (fresh subagent per task, review
-between). Inline execution via
-`superpowers:executing-plans` is the alternative.
+Status: implemented as `@refarm.dev/source-contract-v1` and `@refarm.dev/source-git`.
 **Gate:** `pnpm run test:capabilities` green (now includes `source-contract-v1` + `source-git`);
 `pnpm run source:librarian:smoke` prints OK.
 **Why first:** after this, Refarm can materialize `vault-seed`/`agents-lab` read-only — the manual

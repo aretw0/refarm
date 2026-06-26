@@ -45,7 +45,7 @@ a Refarm distro or making Refarm a required dependency for generated vaults.
 
 | Layer | What downstream re-implements | Refarm supplier (exists?) | Verdict / gate |
 | --- | --- | --- | --- |
-| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `source:v1` + `source-git` specified | KEYSTONE. Execute the source contract plan, then activate adapters only when consumed. |
+| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ | KEYSTONE implemented. Activate extra adapters only when consumed. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ | Wire `ds` as the token/style source. |
 | Shell / admin UI | `dgk serve` | `@refarm.dev/homestead-ssr` ✅ + `@refarm.dev/homestead/ssr` ✅ | Admin UI composes from the build-free SSR tier; bundled Homestead SDK remains separate. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
