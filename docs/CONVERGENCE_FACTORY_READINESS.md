@@ -27,7 +27,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-26; publish dry-run is scoped to the release-policy default selection | actual publication remains gated by daily-driver policy and repository/npm operator setup |
-| `vault-seed` release lane | dry-run validated | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
+| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages; `.refarm/handoff/vault-seed/2026-06-26/` now has matching tarballs for the full selection and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
 
 ## Plan depth — read before "ready to implement"
 
@@ -76,7 +76,7 @@ This rule activates work that prevents migration churn:
 | Channels/outbox | `dgk-channels` + Telegram outbox/inbox -> channel policy evidence over Refarm channel-control surfaces | Telegram API, note UX, or DGK command names leak into Refarm |
 | Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes; Refarm-side fixture and tarball packet ready | notebook UX or vault schema moves upstream |
 | Template/generation | generated-vault smoke + initialize reset -> vault generator/codemod registry | generator cannot distinguish payload from template-dev-only files |
-| Release/package checks | package smoke, version, lockfile/integrity checks -> release-engine/package acceptance policy | Refarm policy hardcodes DGK package names |
+| Release/package checks | package smoke, version, lockfile/integrity checks -> release-engine/package acceptance policy; release-engine tarball handoff ready | Refarm policy hardcodes DGK package names |
 | Health/substrate checks | action pins, substrate, generated-output, devcontainer contract checks -> health/environment substrate | project-local allowances become global rules |
 | Credentials | `silo` collect -> `vault-seed` `silo.js` bridge after 4c | namespaces collapse or app provider re-export is not stable |
 | Text quality | text scoring scripts -> text-quality contract/config | submission/vault rubric moves upstream |

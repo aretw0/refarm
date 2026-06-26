@@ -438,6 +438,28 @@ Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
 calls and user-facing command semantics local.
 
+**2026-06-26 full `vault-seed-ready` handoff:** the local handoff directory now
+contains a tarball for every package in the 10-package release-policy selection:
+
+| Package | Tarball | SHA256 |
+| --- | --- | --- |
+| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `75c6c0f746435ae6b91ff009178b2a5f367e020f616eda33a3e11f54dd1caa08` |
+| `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `9daaa089560b558a145b0af78dc09a8b66cfd13decce362d205f7362d97f4ddf` |
+| `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `ed3c6dc6fe5c2afa7751ef3732703023f3a3a177857dc44e8868dcad1be18c9a` |
+| `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `28b13b6e1dc8ab5cbdfbb6b671f73cf0ff849881957a6b81710044d95d43d466` |
+| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `6a483624b2a82bdc9128005873fa6733e589028da22dd769ceca035a0295612f` |
+| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `a85f33b5eb78496581b22c72397a5a5ee770f36f34a5df44556985ecf3a31986` |
+| `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf` |
+| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `577ce12c4b7aee853b4b58a984dbdd5f8cd953938d9b3e19ad2feb48e09d38a5` |
+| `@refarm.dev/homestead-ssr` | `refarm.dev-homestead-ssr-0.1.0.tgz` | `bb466ef3f028e6d44cae070c85fd66beb97b8ba9feec0bcaf34bbd76daf62ada` |
+| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `3335f225a6161769c1e44ff199007c3accf1f51aa69a4b5d0a1bd71be26189d5` |
+
+Pre-publication consumers should install these from the local handoff and
+override unpublished workspace dependencies to matching tarballs where needed;
+for example, `@refarm.dev/dispatch-surface` depends on
+`@refarm.dev/effort-contract-v1`, and `@refarm.dev/silo` depends on
+`@refarm.dev/heartwood`.
+
 ### Additional Assimilation Matrix
 
 The downstream audit shows more Refarm-shaped work than the first block list. Use
