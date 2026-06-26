@@ -36,14 +36,14 @@
     },
     {
       "id": "vault-seed-manifest-inventory",
-      "status": "candidate",
+      "status": "retired",
       "ownerSurface": "cross-repo",
       "tool": "generator",
       "inputs": ["generators/vault-seed/manifest.json (item 9a)"],
       "fixtures": [],
       "dryRunCommand": null,
-      "verificationGate": "generated vault files map to manifest entries; generated-vault smoke passes",
-      "rollbackNote": "generator output is a fresh dir; delete and regenerate"
+      "verificationGate": "landed as generator in 51e2a15e/bdd85184/ca978295; generated-vault smoke passed against the vault-seed checkout",
+      "rollbackNote": "retired from codemod promotion because item 9a fulfilled the manifest/inventory contract as generator-first work"
     }
   ]
 }

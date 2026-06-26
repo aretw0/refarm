@@ -220,9 +220,10 @@ that manual editing is riskier:
 
 - already automated: package gate registration and changeset creation in `turbo gen package`;
 - retired before codemod promotion: `CredentialProvider` import re-homing landed as a smaller
-  manual 4c change;
+  manual 4c change; generated-vault manifest/inventory wiring landed as item 9a generator-first
+  work;
 - next codemod candidates: ADR-069 publish-target scope sweep, `ds` token adoption in consumer CSS,
-  and generated-vault manifest/inventory wiring;
+  repository identity/package metadata rewrites, and package-name/workspace adoption;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
 Vault-seed generator classification:
