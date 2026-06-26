@@ -149,6 +149,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
+		"@refarm.dev/artifact-contract-v1": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"

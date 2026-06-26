@@ -5,6 +5,9 @@
 		"rootDir": "src",
 		"baseUrl": "../..",
 		"paths": {
+			"@refarm.dev/artifact-contract-v1": [
+				"packages/artifact-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/config": ["packages/config/index.d.ts"],
 			"@refarm.dev/silo": ["packages/silo/dist/index.d.ts"],
 			"@refarm.dev/windmill": ["packages/windmill/dist/index.d.ts"],
