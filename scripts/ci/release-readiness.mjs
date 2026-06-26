@@ -53,7 +53,7 @@ const RELEASE_READINESS_STEPS = [
 	{
 		id: "publish-dry-run",
 		script: "release:check",
-		reason: "Workspace package manifests must survive a publish dry-run.",
+		reason: "Release-policy package manifests must survive a publish dry-run.",
 	},
 ];
 

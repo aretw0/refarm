@@ -14,6 +14,7 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /node-substrate: .*node-substrate:check/);
 	assert.match(output, /rust-substrate: .*rust-substrate:check/);
 	assert.match(output, /environment-substrate: .*environment-substrate:check/);
+	assert.match(output, /source-ownership: .*workspace:source:ownership/);
 	assert.match(output, /derived-artifacts: .*workspace:artifacts:ownership/);
 	assert.match(output, /github-actions-pins: .*actions:pins/);
 	assert.match(output, /github-actions-contracts: .*actions:contracts/);
@@ -37,6 +38,7 @@ test("prints structured release readiness metadata", () => {
 			"node-substrate",
 			"rust-substrate",
 			"environment-substrate",
+			"source-ownership",
 			"derived-artifacts",
 			"github-actions-pins",
 			"github-actions-contracts",
