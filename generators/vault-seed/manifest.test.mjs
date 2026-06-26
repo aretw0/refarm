@@ -83,6 +83,18 @@ test("every rename in initialize.yml is a transform entry", (t) => {
 	}
 });
 
+test("initialize.yml self-destruct workflow is classified dev-only", (t) => {
+	const initYml = readInitializeYml(t);
+	if (!initYml) return;
+
+	const workflowLine = /workflow_filename:\s*"([^"]+)"/.exec(initYml);
+	assert.ok(workflowLine, "workflow_filename not found");
+	assert.ok(
+		manifest.devOnly.includes(workflowLine[1]),
+		`missing self-destruct workflow classification: ${workflowLine[1]}`,
+	);
+});
+
 test("initialize.yml content transforms are represented", (t) => {
 	const initYml = readInitializeYml(t);
 	if (!initYml) return;
