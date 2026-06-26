@@ -10,9 +10,6 @@
 	"main": "./pkg/heartwood.js",
 	"module": "./pkg/heartwood.js",
 	"types": "./pkg/heartwood.js",
-	"publishConfig": {
-		"access": "public"
-	},
 	"scripts": {
 		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_heartwood.wasm dist/refarm_heartwood.wasm component build --target wasm32-wasip1 --release",
 		"build:transpile": "jco transpile dist/refarm_heartwood.wasm -o pkg --name heartwood",
