@@ -182,6 +182,9 @@ export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 	mkdirSync(outDir, { recursive: true });
 
 	const renames = indexBySource(manifest.renames ?? []);
+	const renameTargets = new Set(
+		(manifest.renames ?? []).map((entry) => entry.target),
+	);
 	const transforms = indexBySource(manifest.transforms ?? []);
 	const skipEntries = [
 		...(manifest.devOnly ?? []),
@@ -192,6 +195,11 @@ export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 	const inventory = [];
 
 	for (const source of files) {
+		if (renameTargets.has(source) && !renames.has(source)) {
+			skipped.push(source);
+			continue;
+		}
+
 		const rename = renames.get(source);
 		const transform = transforms.get(source);
 		const entry =
