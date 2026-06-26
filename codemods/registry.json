@@ -14,14 +14,14 @@
     },
     {
       "id": "credential-provider-rehome",
-      "status": "candidate",
+      "status": "retired",
       "ownerSurface": "package",
       "tool": "ts-morph",
       "inputs": ["apps/refarm/src/credentials/*.ts import of local types.ts"],
       "fixtures": [],
       "dryRunCommand": null,
-      "verificationGate": "credentials providers import the contract from @refarm.dev/silo; existing credential tests pass",
-      "rollbackNote": "import boundary change is fixture-testable; revert the import-rewrite commit"
+      "verificationGate": "landed manually in 6ba34fce; providers import @refarm.dev/silo through types.ts and existing credential tests passed",
+      "rollbackNote": "retired before codemod promotion because the manual 4c change was smaller than fixture/tooling setup"
     },
     {
       "id": "ds-token-adoption",

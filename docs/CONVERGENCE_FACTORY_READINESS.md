@@ -167,6 +167,11 @@ For 8b, keep the first package boundary conservative: one channel-policy/evidenc
 preferable to prematurely splitting `contacts` and `rate-limiter`. Split only when conformance
 tests show the subdomains need independent versioning.
 
+8a focused activation packet:
+
+- `specs/features/2026-06-26-vault-seed-silo-bridge.md`;
+- `docs/superpowers/plans/2026-06-26-vault-seed-silo-bridge.md`.
+
 ## Additional Downstream Assimilation Backlog
 
 These are not new top-level roadmap items; they are pressure signals to attach
@@ -214,8 +219,10 @@ Codemod or generator work is warranted only when the transform is repeatable or 
 that manual editing is riskier:
 
 - already automated: package gate registration and changeset creation in `turbo gen package`;
-- next codemod candidates: ADR-069 publish-target scope sweep, `CredentialProvider` import
-  re-homing, `ds` token adoption in consumer CSS, and generated-vault manifest/inventory wiring;
+- retired before codemod promotion: `CredentialProvider` import re-homing landed as a smaller
+  manual 4c change;
+- next codemod candidates: ADR-069 publish-target scope sweep, `ds` token adoption in consumer CSS,
+  and generated-vault manifest/inventory wiring;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
 Vault-seed generator classification:

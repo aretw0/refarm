@@ -41,6 +41,10 @@ adds its safety rails:
 After the fixture test, dry-run output, target verification, and rollback proof
 pass, the entry can move from `ready` to `implemented`.
 
+Entries can move directly to `retired` when the underlying work is completed by a
+smaller manual change before codemod promotion, or when the transform is no
+longer needed.
+
 ## Manual-Reviewed Line
 
 `npm-scope-doc-sweep` stays `manual-reviewed` unless it becomes a recurring
