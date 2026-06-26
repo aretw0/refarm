@@ -17,7 +17,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
-| 8 consumer bridges | partially activated | 8a focused spec+plan; `silo`, `cli/launch-process`, and channel-control seams are specified | official `vault-seed` 8a proof; 8b needs channel-policy spec; 8c needs runner/provenance proof |
+| 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; `silo`, `cli/launch-process`, and channel-control seams are specified | official `vault-seed` 8a adapter proof; 8b needs channel-policy spec; 8c needs runner/provenance proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry | first ready codemod implementation still needed |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
@@ -159,7 +159,7 @@ Split the bridges so activation is evidence-based rather than a general cleanup 
 
 | Bridge | Trigger | First spec should prove |
 |---|---|---|
-| 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Activated after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary | namespaces preserve model/runtime/channel/publishing separation |
+| 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Refarm handoff ready after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary; local tarball proof stayed adapter-only | namespaces preserve model/runtime/channel/publishing separation |
 | 8b channel policy (`contacts` + `rate-limiter` + receipts) | **Candidate active**: `vault-seed` Telegram outbox/inbox and Refarm channel-control surfaces both need destination, rate-limit, delivery state, receipt, dry-run, and review semantics | channel concepts are consumer-neutral, not Telegram- or DGK-specific |
 | 8c `cli/launch-process` + artifact provenance | **Candidate active**: `dgk-runner` and Refarm process handoffs share tokenized process evidence | process helper is not coupled to `dgk` command names |
 

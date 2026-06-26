@@ -116,7 +116,9 @@ restricted container:
 
 - [x] **Step 1:** Document the exact `@refarm.dev/silo` tarball/path used by `vault-seed`.
 - [x] **Step 2:** Record whether the bridge stayed adapter-only or required Refarm helper APIs.
-- [ ] **Step 3:** Commit Refarm-side changes separately from downstream `vault-seed` changes.
+- [x] **Step 3:** Commit Refarm-side changes separately from downstream `vault-seed` changes.
+
+Refarm-side commit: `394ee1e2 fix(silo): trim unused ed25519 dependency`.
 
 ## Non-Goal
 
