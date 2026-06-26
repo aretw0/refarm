@@ -142,6 +142,14 @@ com `ReleasePolicyValidationError.code =
 RELEASE_POLICY_VERSION_UNSUPPORTED`. Consumidores devem tratar esse erro como
 pedido de upgrade do engine ou migração explícita da policy.
 
+## Changelog e semver
+
+O pacote mantém `CHANGELOG.md` versionado mesmo antes da publicação. A linha
+`0.1.0-dev` representa o contrato pretendido para o primeiro release público.
+Depois da publicação, remoções ou mudanças incompatíveis em exports, schemas,
+`schemaVersion`, `policyVersion`, códigos de erro ou formato JSON exigem major;
+campos opcionais/aditivos ficam em minor ou patch conforme risco.
+
 ## Convergência futura (já pensada)
 
 - Adaptadores de **PublishTarget** para npm, GitHub Release, crates.io, etc.
