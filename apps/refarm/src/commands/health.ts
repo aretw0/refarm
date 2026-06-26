@@ -1,3 +1,5 @@
+import { readGitCommand } from "@refarm.dev/cli/git-command";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	defaultRefarmConfigPath,
 	findRefarmConfigPath,
@@ -12,6 +14,7 @@ import {
 } from "@refarm.dev/health";
 import chalk from "chalk";
 import { Command } from "commander";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -20,7 +23,6 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
@@ -157,6 +159,45 @@ const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
 const HEALTH_NEXT_ACTION_COMMAND = "refarm health --next-action --json";
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 const HEALTH_POLICY_MODE_CONFLICT_MESSAGE = "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.";
+const HEALTH_AUDIT_CACHE_VERSION = 1;
+const HEALTH_AUDIT_CACHE_FILE = "health-audit.json";
+const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 30_000;
+const HEALTH_FINGERPRINT_EXTENSIONS = new Set([
+  ".cjs",
+  ".js",
+  ".jsx",
+  ".json",
+  ".md",
+  ".mjs",
+  ".rs",
+  ".toml",
+  ".ts",
+  ".tsx",
+  ".yaml",
+  ".yml",
+]);
+const HEALTH_FINGERPRINT_SKIP_DIRS = new Set([
+  ".git",
+  ".refarm",
+  ".turbo",
+  "benchmarks",
+  "build",
+  "coverage",
+  "dist",
+  "generated",
+  "node_modules",
+  "pkg",
+  "target",
+  "test-results",
+  "tmp",
+]);
+
+interface HealthAuditCacheEntry {
+  version: number;
+  fingerprint: string;
+  createdAt: string;
+  report: HealthReport;
+}
 
 function looksLikeRefarmMonorepo(rootDir: string): boolean {
   const manifestPath = path.join(rootDir, "apps", "refarm", "package.json");
@@ -528,7 +569,12 @@ function reportHealthOptionError(message: string, options: HealthOptions): void 
 }
 
 export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
-  const policy = resolveHealthPolicy(rootDir);
+  const policyReport = resolveHealthPolicyReport(rootDir);
+  const policy = policyReport.policy;
+  const fingerprint = buildHealthAuditFingerprint(rootDir, policyReport);
+  const cached = readHealthAuditCache(rootDir, fingerprint);
+  if (cached) return cached;
+
   const health = new HealthCore();
   health.register(new FileSystemAuditor({
     ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
@@ -549,7 +595,247 @@ export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthRep
 
   const results = await health.audit(null, null, { rootDir }) as HealthResults;
   const resolution = await health.checkResolutionStatus(rootDir) as ResolutionStatus[];
-  return buildHealthReport(results, resolution);
+  const report = buildHealthReport(results, resolution);
+  writeHealthAuditCache(rootDir, fingerprint, report);
+  return report;
+}
+
+export function buildHealthAuditFingerprint(
+  rootDir: string,
+  policyReport = resolveHealthPolicyReport(rootDir),
+): string {
+  const gitFingerprint = buildGitHealthAuditFingerprint(rootDir, policyReport);
+  if (gitFingerprint) return gitFingerprint;
+
+  const root = path.resolve(rootDir);
+  const hash = createHealthFingerprintHash(root, policyReport);
+
+  for (const relativePath of healthFingerprintFiles(root)) {
+    appendHealthFingerprintFile(hash, root, relativePath);
+  }
+
+  return hash.digest("hex");
+}
+
+function buildGitHealthAuditFingerprint(
+  rootDir: string,
+  policyReport: HealthPolicyReport,
+): string | null {
+  if (policyReport.policy.complexity?.enabled) return null;
+  const root = path.resolve(rootDir);
+  try {
+    const gitRoot = path.resolve(readGitCommand(["rev-parse", "--show-toplevel"], { cwd: root }));
+    if (gitRoot !== root) return null;
+    const hash = createHealthFingerprintHash(root, policyReport);
+    appendHealthFingerprintValue(hash, "git:head", readGitCommand(["rev-parse", "HEAD"], { cwd: root }));
+    appendHealthFingerprintValue(
+      hash,
+      "git:status",
+      readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root }),
+    );
+    appendHealthFingerprintValue(
+      hash,
+      "git:diff",
+      readGitCommand(["diff", "--no-ext-diff", "--binary", "--"], { cwd: root }),
+    );
+    appendHealthFingerprintValue(
+      hash,
+      "git:diff-cached",
+      readGitCommand(["diff", "--cached", "--no-ext-diff", "--binary", "--"], { cwd: root }),
+    );
+    appendGitPathMetadata(
+      hash,
+      root,
+      readGitCommand(["ls-files", "--others", "--exclude-standard", "-z"], { cwd: root }),
+    );
+    return hash.digest("hex");
+  } catch {
+    return null;
+  }
+}
+
+function createHealthFingerprintHash(
+  rootDir: string,
+  policyReport: HealthPolicyReport,
+): ReturnType<typeof createHash> {
+  const hash = createHash("sha256");
+  hash.update(JSON.stringify({
+    version: HEALTH_AUDIT_CACHE_VERSION,
+    configPath: path.relative(rootDir, policyReport.configPath),
+    configFound: policyReport.configFound,
+    source: policyReport.source,
+    policy: policyReport.policy,
+  }));
+  hash.update("\0");
+  return hash;
+}
+
+function appendHealthFingerprintValue(
+  hash: ReturnType<typeof createHash>,
+  label: string,
+  value: string,
+): void {
+  hash.update(label);
+  hash.update("\0");
+  hash.update(value);
+  hash.update("\0");
+}
+
+function appendGitPathMetadata(
+  hash: ReturnType<typeof createHash>,
+  rootDir: string,
+  rawPaths: string,
+): void {
+  for (const relativePath of rawPaths.split("\0").filter(Boolean).sort()) {
+    if (!isHealthFingerprintFile(relativePath)) continue;
+    appendHealthFingerprintFile(hash, rootDir, relativePath);
+  }
+}
+
+function healthAuditCachePath(rootDir: string): string {
+  return path.join(rootDir, ".refarm", "cache", HEALTH_AUDIT_CACHE_FILE);
+}
+
+function readHealthAuditCache(
+  rootDir: string,
+  fingerprint: string,
+): HealthReport | null {
+  try {
+    const raw = fs.readFileSync(healthAuditCachePath(rootDir), "utf-8");
+    const parsed = JSON.parse(raw) as HealthAuditCacheEntry;
+    if (parsed.version !== HEALTH_AUDIT_CACHE_VERSION) return null;
+    if (parsed.fingerprint !== fingerprint) return null;
+    if (!isFreshHealthAuditCacheEntry(parsed)) return null;
+    if (!isHealthReport(parsed.report)) return null;
+    if (!parsed.report.ok || parsed.report.issueCount !== 0) return null;
+    return parsed.report;
+  } catch {
+    return null;
+  }
+}
+
+function isFreshHealthAuditCacheEntry(entry: HealthAuditCacheEntry): boolean {
+  const createdAtMs = Date.parse(entry.createdAt);
+  return (
+    Number.isFinite(createdAtMs) &&
+    Date.now() - createdAtMs >= 0 &&
+    Date.now() - createdAtMs <= HEALTH_AUDIT_CACHE_MAX_AGE_MS
+  );
+}
+
+function writeHealthAuditCache(
+  rootDir: string,
+  fingerprint: string,
+  report: HealthReport,
+): void {
+  if (!report.ok || report.issueCount !== 0) return;
+  const cachePath = healthAuditCachePath(rootDir);
+  try {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    const tempPath = `${cachePath}.${process.pid}.tmp`;
+    const entry: HealthAuditCacheEntry = {
+      version: HEALTH_AUDIT_CACHE_VERSION,
+      fingerprint,
+      createdAt: new Date().toISOString(),
+      report,
+    };
+    fs.writeFileSync(tempPath, `${JSON.stringify(entry, null, 2)}\n`, "utf-8");
+    fs.renameSync(tempPath, cachePath);
+  } catch {
+    // Health cache is an optimization only; diagnostics must still work without it.
+  }
+}
+
+function isHealthReport(value: unknown): value is HealthReport {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as HealthReport).command === "health" &&
+      (value as HealthReport).operation === "audit" &&
+      typeof (value as HealthReport).ok === "boolean" &&
+      typeof (value as HealthReport).issueCount === "number",
+  );
+}
+
+function healthFingerprintFiles(rootDir: string): string[] {
+  const files: string[] = [];
+  collectHealthFingerprintFiles(rootDir, rootDir, files);
+  return files.sort();
+}
+
+function collectHealthFingerprintFiles(
+  rootDir: string,
+  currentPath: string,
+  files: string[],
+): void {
+  let stats: fs.Stats;
+  try {
+    stats = fs.lstatSync(currentPath);
+  } catch {
+    return;
+  }
+
+  const relativePath = normalizeHealthFingerprintPath(
+    path.relative(rootDir, currentPath),
+  );
+  if (stats.isDirectory()) {
+    const directoryName = path.basename(currentPath);
+    if (
+      relativePath &&
+      (directoryName.startsWith(".") ||
+        HEALTH_FINGERPRINT_SKIP_DIRS.has(directoryName))
+    ) {
+      return;
+    }
+    let entries: string[];
+    try {
+      entries = fs.readdirSync(currentPath);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      collectHealthFingerprintFiles(rootDir, path.join(currentPath, entry), files);
+    }
+    return;
+  }
+
+  if (!relativePath) return;
+  if (isHealthFingerprintFile(relativePath)) files.push(relativePath);
+}
+
+function isHealthFingerprintFile(relativePath: string): boolean {
+  return (
+    path.basename(relativePath) === ".gitignore" ||
+    HEALTH_FINGERPRINT_EXTENSIONS.has(path.extname(relativePath))
+  );
+}
+
+function appendHealthFingerprintFile(
+  hash: ReturnType<typeof createHash>,
+  rootDir: string,
+  relativePath: string,
+): void {
+  const absolutePath = path.join(rootDir, relativePath);
+  try {
+    const stats = fs.lstatSync(absolutePath);
+    hash.update(JSON.stringify({
+      path: relativePath,
+      type: stats.isSymbolicLink() ? "symlink" : stats.isDirectory() ? "dir" : "file",
+      size: stats.size,
+      mode: stats.mode,
+      mtimeMs: stats.mtimeMs,
+      ctimeMs: stats.ctimeMs,
+      link: stats.isSymbolicLink() ? fs.readlinkSync(absolutePath) : null,
+    }));
+    hash.update("\0");
+  } catch {
+    hash.update(JSON.stringify({ path: relativePath, missing: true }));
+    hash.update("\0");
+  }
+}
+
+function normalizeHealthFingerprintPath(value: string): string {
+  return value.split(path.sep).join("/");
 }
 
 export async function runHealthPolicySuggestion(rootDir = process.cwd()): Promise<HealthPolicySuggestionReport> {

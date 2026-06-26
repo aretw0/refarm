@@ -346,8 +346,11 @@ describe("healthCommand", () => {
 
     await healthCommand.parseAsync(["--apply-suggested-policy", "--json"], { from: "user" });
 
-    expect(mockWriteFileSync).toHaveBeenCalledOnce();
-    const [configPath, content, encoding] = mockWriteFileSync.mock.calls[0]!;
+    const configWrite = mockWriteFileSync.mock.calls.find(([filePath]) =>
+      String(filePath).replaceAll("\\", "/").endsWith(".refarm/config.json")
+    );
+    expect(configWrite).toBeDefined();
+    const [configPath, content, encoding] = configWrite!;
     expect(String(configPath).replaceAll("\\", "/")).toContain(".refarm/config.json");
     expect(encoding).toBe("utf-8");
     expect(JSON.parse(String(content))).toEqual({
