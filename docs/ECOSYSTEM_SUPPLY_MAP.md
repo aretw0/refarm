@@ -21,12 +21,34 @@ blocks. The audit has been completed in [`APPS_REFARM_PROMOTION_LEDGER.md`](./AP
 the current work is not a broad extraction, but making existing blocks consumable and growing the
 small missing surfaces called out in the convergence roadmap.
 
+## Principle: Refarm is the default supplier
+
+When `vault-seed`, `agents-lab`, or an adjacent project carries substrate that
+could be a Refarm SDK block, engine primitive, package, crate, codemod, or
+generator, the default target is to supply it from Refarm. Downstream projects
+should keep audience, product vocabulary, local adapters, editorial choices, and
+workflow composition; they should not keep private reimplementations of process
+execution, artifact evidence, release policy, source materialization, dispatch
+surfaces, credentials, health checks, package acceptance, or skill/runtime
+contracts once a Refarm block can serve the job.
+
+This is a powered-by posture, not a brand takeover, and it does not remove
+Refarm's own products. Refarm remains its own first consumer through the
+`refarm` CLI, apps, runtime-agent, Farmhand, Tractor, and operator workflows.
+A user can enter through `vault-seed` and use `dgk` as a vault product that
+imports Refarm blocks internally, while another user can enter through the
+Refarm CLI directly. The technical standard is still strict: if the capability
+is reusable, Refarm owns and publishes it; if the capability is product-specific,
+the consumer composes it and fills its own labels, metadata, commands, and UX.
+
 Consumer pull is also a readiness gate. If `vault-seed` is rebuilding a
 Refarm-shaped block locally, Refarm should not wait for a public release to prove
 the block. The right path is candidate consumption: Refarm dogfoods the block,
 packs or exposes it through a manifest/codemod path, then `vault-seed` proves it
 on a branch. The proof feeds v0.1.0 confidence without turning `vault-seed` into
-a Refarm distro or making Refarm a required dependency for generated vaults.
+a Refarm-branded distro or making Refarm a required dependency for already
+generated vaults. New or maintained product packages may still be powered by
+Refarm internally when that reduces duplicated substrate.
 
 ## Dual keystone
 
@@ -51,7 +73,7 @@ a Refarm distro or making Refarm a required dependency for generated vaults.
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
 | WASM distribution (lab/site) | Marimo (Pyodide) + Astro isolated | Tractor WASM (ADR-049 / ADR-044) ✅ substrate | Refarm learns from Marimo / Astro 7 and becomes the shared substrate. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
-| `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/launch-process` ✅ (`@refarm.dev/cli/launch-process` re-exports it for compatibility) | `dgk` imports Refarm SDK primitives internally while keeping its package, binary, and command UX. |
+| `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/launch-process` ✅ (`@refarm.dev/cli/launch-process` re-exports it for compatibility), artifact/channel/release/source primitives next | `dgk` is powered by Refarm where practical: imports Refarm SDK primitives internally while keeping its package, binary, command UX, audience, and product labels. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
 | Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
 | Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging` | `source:v1` adapters + source profile contract + artifact retention policy | Candidate: Python implementations and PARA target rules stay downstream. |
@@ -84,8 +106,9 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.
 8. `silo` → credentials; channel policy → `dgk-channels`/Telegram outbox; `launch-process` →
-   `dgk-runner`/`dgk-cli` internals. Promote only when the contract is consumer-neutral and
-   the `dgk` public surface remains product-owned.
+   `dgk-runner`/`dgk-cli` internals; release/source/artifact primitives → `dgk` operations.
+   Promote whenever the duplicated substrate can be consumer-neutral and the `dgk` public
+   surface remains product-owned.
 
 ## Librarian follow-up
 

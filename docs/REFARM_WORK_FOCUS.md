@@ -10,6 +10,15 @@ Refarm is moving toward a unified `refarm` host experience: one product command
 and runtime posture that can expose Web, headless, and later TUI renderers over
 the same plugin/surface/action/telemetry contracts.
 
+Refarm is also the ecosystem supplier. That expands rather than replaces the
+native Refarm product path: the `refarm` CLI, apps, runtime-agent, Farmhand,
+Tractor, and operator loop remain first-class consumers of the same blocks.
+`vault-seed` and `agents-lab` should not carry local copies of substrate that
+Refarm can supply as SDK blocks, engines, npm packages, crates, generators,
+codemods, or policy contracts. Their product surfaces remain their own; their
+reusable machinery should become Refarm-owned when it can serve more than the
+single downstream context.
+
 The CLI product should be named `refarm` and live as a distro under
 `apps/refarm`. Packages remain reusable blocks. This preserves Refarm's
 composition model: apps make product choices; packages provide primitives.
@@ -31,6 +40,15 @@ consumer projects keep their vocabulary, publishing surface, and local workflow.
 Do not promote a lab pattern into the Release Kernel until a second consumer or
 the daily-driver loop needs the same primitive.
 
+The supply posture is powered-by for downstream products and native for Refarm
+itself. `dgk` can keep being the vault-facing command surface while importing
+Refarm internals for process execution, artifacts, channels, credentials,
+release policy, source handling, health checks, and skills. `dgk` fills its own
+labels, package names, commands, and user-facing semantics around those blocks.
+The Refarm CLI and apps expose the same capabilities directly for users who
+choose Refarm as the product. Users should experience a better `vault-seed`, not
+a forced Refarm rebrand.
+
 `vault-seed` is the active exception to passive lab pressure: it already needs
 `ds`, `homestead/ssr`, process/artifact handoffs, `silo`, and generator/codemod
 support. When those needs match a Refarm block, the next slice should include a
@@ -43,6 +61,11 @@ Refarm as channel policy, artifact/provenance, release/package readiness,
 health/environment checks, text-quality, or generator/codemod machinery. Keep
 PARA, Obsidian, Astro rendering, notebook UX, Telegram adapter details, and
 publication copy downstream.
+
+When the classification is "belongs in Refarm", prefer building or hardening the
+Refarm block first, then let `vault-seed` or `agents-lab` consume it. Do not
+create more downstream local substrate as a placeholder unless there is a clear
+rollback path and an explicit Refarm follow-up.
 
 The rest of the `vault-seed` roadmap is now classified the same way:
 
