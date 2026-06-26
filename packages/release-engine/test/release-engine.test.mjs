@@ -166,6 +166,7 @@ test("cli plan json resolves the Refarm default release selection", () => {
   const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "default"]);
 
   assert.equal(payload.command, "plan");
+  assert.equal(payload.schemaVersion, 1);
   assert.equal(payload.ok, true);
   assert.equal(payload.status, "ready");
   assert.equal(payload.selection.id, "kernel-candidates");
@@ -192,6 +193,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "vault-seed-ready"]);
 
   assert.equal(payload.command, "plan");
+  assert.equal(payload.schemaVersion, 1);
   assert.equal(payload.ok, true);
   assert.equal(payload.selection.id, "vault-seed-ready");
   assert.deepEqual(payload.profileTags, ["vault-seed-ready"]);
@@ -215,6 +217,32 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   );
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
+});
+
+test("cli check json uses the versioned machine-output contract", () => {
+  const payload = runCliJson([
+    "check",
+    "--cwd",
+    repoRoot,
+    "--selection",
+    "default",
+    "--only-required",
+  ]);
+
+  assert.equal(payload.command, "check");
+  assert.equal(payload.schemaVersion, 1);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.commandNote, "Dry-run gate check complete.");
+  assert.equal(payload.gateResult.ok, true);
+  assert.equal(payload.gateResult.dryRun, true);
+  assert.deepEqual(
+    payload.gateResult.results.map((result) => result.status),
+    ["skipped", "skipped", "skipped", "skipped", "skipped"],
+  );
+  assert.deepEqual(
+    payload.gateResult.results.map((result) => result.phase),
+    ["preflight", "quality", "quality", "contracts", "runtime-descriptor"],
+  );
 });
 
 test("validates package profile bump policy", () => {

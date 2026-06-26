@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import process from "node:process";
 import path from "node:path";
-import { buildReleasePlan, runReleaseGates, formatPlan, summarizePlan } from "./index.mjs";
+import {
+  RELEASE_ENGINE_JSON_SCHEMA_VERSION,
+  buildReleasePlan,
+  runReleaseGates,
+  formatPlan,
+  summarizePlan,
+} from "./index.mjs";
 
 const args = process.argv.slice(2);
 
@@ -114,6 +120,7 @@ async function main() {
     if (!basePlan.ok) {
       if (parsed.json) {
         console.log(JSON.stringify({
+          schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
           ...summarizePlan(basePlan),
           command: "gates",
           gateResult: {
@@ -136,6 +143,7 @@ async function main() {
     });
 
     const summary = {
+      schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
       ...summarizePlan(basePlan),
       gateResult,
       command: "gates",
@@ -160,6 +168,7 @@ async function main() {
     if (!basePlan.ok) {
       if (parsed.json) {
         console.log(JSON.stringify({
+          schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
           ...summarizePlan(basePlan),
           gateResult: {
             ok: false,
@@ -183,6 +192,7 @@ async function main() {
     });
 
     const payload = {
+      schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
       ...summarizePlan(basePlan),
       gateResult,
       command: "check",
@@ -204,6 +214,7 @@ async function main() {
 
     if (parsed.json) {
       const payload = {
+        schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
         ...summary,
         gates: basePlan.gates,
         blockers: basePlan.blockers,
