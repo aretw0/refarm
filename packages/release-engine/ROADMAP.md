@@ -40,14 +40,14 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 **Objetivo:** dar base para uso por outros projetos, com qualidade suficiente para chegar ao primeiro minor de forma saudável.
 
 ### SDD (Spec Driven)
-- [ ] Definir contrato formal de provider (interface mínima, campos obrigatórios/ opcionais, códigos de erro estruturados).
+- [x] Definir contrato formal de provider (interface mínima, campos obrigatórios/ opcionais, códigos de erro estruturados).
 - [ ] Definir política de compatibilidade por versão do `release-policy` (incluindo fallback defensivo para mudanças no schema).
 - [ ] Especificar formato de saída de `plan`/`check` estável para consumidores de máquina.
 
 ### BDD (Behaviour Driven)
 - [ ] Registrar cenário de fallback: política local ausente usa default neutro, sem mudar side-effects.
 - [ ] Registrar cenários com `--policy` explícito preservando comportamento atual.
-- [ ] Registrar cenários de provider opcional: planos podem ter providers inativos/ausentes sem bloquear parsing.
+- [x] Registrar cenários de provider opcional: planos podem ter providers inativos/ausentes sem bloquear parsing.
 
 ### TDD (Test Driven)
 - [x] Testes de contrato para compatibilidade com config embutida

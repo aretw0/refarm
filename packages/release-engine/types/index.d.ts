@@ -35,6 +35,13 @@ export interface ReleasePolicy {
 	notes?: string[];
 }
 
+export declare class ReleasePolicyValidationError extends Error {
+	name: "ReleasePolicyValidationError";
+	code: string;
+	details: Record<string, unknown>;
+	constructor(code: string, message: string, details?: Record<string, unknown>);
+}
+
 export interface ReleasePolicySelection {
 	id: string;
 	description?: string;

@@ -7,6 +7,7 @@
 - `@refarm.dev/release-engine` exposes the release policy SDK used by `refarm release`; the package-local CLI remains only a smoke surface.
 - Policy selections can drive release candidates through `releasePolicy.defaultSelection`/`selections`, and missing explicit selections fail closed.
 - Release policy validation now rejects ambiguous provider contracts, including publish-capable providers without `publishCommands`.
+- Provider validation exposes `ReleasePolicyValidationError.code` for machine consumers and accepts neutral/inactive provider contracts without generating publish intents.
 
 ## 0.0.x-dev
 

@@ -7,6 +7,15 @@ import assert from "node:assert/strict";
 export const DEFAULT_POLICY_VERSION = "2026-01";
 export const RELEASE_ENGINE_JSON_SCHEMA_VERSION = 1;
 
+export class ReleasePolicyValidationError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = "ReleasePolicyValidationError";
+    this.code = code;
+    this.details = details;
+  }
+}
+
 const DEFAULT_EMBEDDED_CONFIG_CANDIDATES = [
   "refarm.config.json",
   ".refarm/config.json",
@@ -138,20 +147,58 @@ export function validatePolicy(policy) {
 
   const providerIds = new Set();
   for (const provider of policy.providers) {
-    assert.ok(provider.id, `provider id is required: ${JSON.stringify(provider)}`);
+    assertProvider(
+      provider.id,
+      "RELEASE_POLICY_PROVIDER_ID_REQUIRED",
+      `provider id is required: ${JSON.stringify(provider)}`,
+      { provider },
+    );
     if (providerIds.has(provider.id)) {
-      throw new Error(`Duplicate provider id: ${provider.id}`);
+      throw providerPolicyError(
+        "RELEASE_POLICY_PROVIDER_DUPLICATE_ID",
+        `Duplicate provider id: ${provider.id}`,
+        provider,
+      );
     }
     providerIds.add(provider.id);
 
-    assert.equal(typeof provider.type, "string", `provider.type must be string for ${provider.id}`);
-    assert.equal(typeof provider.supportsPublish, "boolean", `provider.supportsPublish must be boolean for ${provider.id}`);
-    assert.equal(typeof provider.supportsDryRun, "boolean", `provider.supportsDryRun must be boolean for ${provider.id}`);
-    validateCommandList(provider.publishCommands, `provider.publishCommands for ${provider.id}`);
-    validateCommandList(provider.publishDryRunCommands, `provider.publishDryRunCommands for ${provider.id}`);
+    assertProvider(
+      typeof provider.type === "string",
+      "RELEASE_POLICY_PROVIDER_TYPE_INVALID",
+      `provider.type must be string for ${provider.id}`,
+      { providerId: provider.id },
+    );
+    assertProvider(
+      typeof provider.supportsPublish === "boolean",
+      "RELEASE_POLICY_PROVIDER_SUPPORTS_PUBLISH_INVALID",
+      `provider.supportsPublish must be boolean for ${provider.id}`,
+      { providerId: provider.id },
+    );
+    assertProvider(
+      typeof provider.supportsDryRun === "boolean",
+      "RELEASE_POLICY_PROVIDER_SUPPORTS_DRY_RUN_INVALID",
+      `provider.supportsDryRun must be boolean for ${provider.id}`,
+      { providerId: provider.id },
+    );
+    validateCommandList(
+      provider.publishCommands,
+      `provider.publishCommands for ${provider.id}`,
+      "RELEASE_POLICY_PROVIDER_COMMANDS_INVALID",
+      provider.id,
+    );
+    validateCommandList(
+      provider.publishDryRunCommands,
+      `provider.publishDryRunCommands for ${provider.id}`,
+      "RELEASE_POLICY_PROVIDER_DRY_RUN_COMMANDS_INVALID",
+      provider.id,
+    );
 
     if (provider.supportsPublish && (!Array.isArray(provider.publishCommands) || provider.publishCommands.length === 0)) {
-      throw new Error(`provider publishCommands must be a non-empty array when supportsPublish is true for ${provider.id}`);
+      throw providerPolicyError(
+        "RELEASE_POLICY_PROVIDER_PUBLISH_COMMANDS_REQUIRED",
+        `provider publishCommands must be a non-empty array when supportsPublish is true for ${provider.id}`,
+        provider,
+      );
     }
   }
 
@@ -213,15 +260,32 @@ export function validatePolicy(policy) {
   return true;
 }
 
-function validateCommandList(commands, label) {
+function providerPolicyError(code, message, provider) {
+  return new ReleasePolicyValidationError(code, message, {
+    providerId: provider?.id ?? null,
+    providerType: provider?.type ?? null,
+  });
+}
+
+function assertProvider(condition, code, message, details) {
+  if (!condition) {
+    throw new ReleasePolicyValidationError(code, message, details);
+  }
+}
+
+function validateCommandList(commands, label, code, providerId) {
   if (commands === undefined) return;
   if (!Array.isArray(commands)) {
-    throw new Error(`${label} must be an array`);
+    throw new ReleasePolicyValidationError(code, `${label} must be an array`, {
+      providerId,
+    });
   }
 
   for (const command of commands) {
     if (typeof command !== "string" || command.length === 0) {
-      throw new Error(`${label} must contain non-empty strings`);
+      throw new ReleasePolicyValidationError(code, `${label} must contain non-empty strings`, {
+        providerId,
+      });
     }
   }
 }
