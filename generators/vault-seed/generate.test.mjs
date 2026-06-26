@@ -35,6 +35,8 @@ async function writeFixture(sourceDir) {
 	await mkdir(path.join(sourceDir, "00 - Entrada"), { recursive: true });
 	await mkdir(path.join(sourceDir, ".dgk"), { recursive: true });
 	await writeFile(path.join(sourceDir, "README.template.md"), "# Template\n");
+	await writeFile(path.join(sourceDir, "package.template.json"), '{"template":true}\n');
+	await writeFile(path.join(sourceDir, "package.json"), '{"dev":true}\n');
 	await writeFile(path.join(sourceDir, "docs/x.md"), "dev docs\n");
 	await writeFile(
 		path.join(sourceDir, "00 - Entrada/note.md"),
@@ -94,6 +96,12 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 				class: "transform",
 				transforms: ["rename"],
 			},
+			{
+				source: "package.template.json",
+				target: "package.json",
+				class: "transform",
+				transforms: ["rename"],
+			},
 		],
 		transforms: [
 			{
@@ -111,7 +119,7 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 				validation: "scripts/smoke_user_e2e.mjs",
 			},
 		],
-		devOnly: ["docs", "README.template.md"],
+		devOnly: ["docs", "README.template.md", "package.template.json"],
 		payloadGlobs: ["**"],
 		derivedOrLocalState: [".dgk"],
 	};
@@ -124,6 +132,10 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 	});
 
 	assert.equal(readFileSync(path.join(outDir, "README.md"), "utf8"), "# Template\n");
+	assert.equal(
+		readFileSync(path.join(outDir, "package.json"), "utf8"),
+		'{"template":true}\n',
+	);
 	assert.equal(
 		readFileSync(path.join(outDir, "00 - Entrada/note.md"), "utf8"),
 		"status: published\n",
@@ -146,6 +158,7 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 	assert.deepEqual(result.written.sort(), [
 		"00 - Entrada/note.md",
 		"README.md",
+		"package.json",
 		"payload.md",
 		"vault.config.json",
 	]);
@@ -162,6 +175,12 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 		{
 			source: "README.template.md",
 			target: "README.md",
+			class: "transform",
+			transforms: ["rename"],
+		},
+		{
+			source: "package.template.json",
+			target: "package.json",
 			class: "transform",
 			transforms: ["rename"],
 		},
