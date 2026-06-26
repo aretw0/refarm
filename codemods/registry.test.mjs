@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const registry = JSON.parse(
@@ -53,5 +53,8 @@ test("ready entries carry fixtures and a dry-run command", () => {
 	)) {
 		assert.ok(entry.fixtures.length > 0, `${entry.id} ready but no fixtures`);
 		assert.ok(entry.dryRunCommand, `${entry.id} ready but no dryRunCommand`);
+		for (const fixture of entry.fixtures) {
+			assert.ok(existsSync(fixture), `${entry.id} fixture missing: ${fixture}`);
+		}
 	}
 });
