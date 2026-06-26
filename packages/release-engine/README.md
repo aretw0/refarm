@@ -15,6 +15,7 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - Execução padronizada de gates de qualidade/release
 - API pública para hosts como `refarm release`
 - JSON Schema importável em `@refarm.dev/release-engine/release-policy.schema.json`
+- JSON Schema importável em `@refarm.dev/release-engine/release-output.schema.json`
 - CLI local minimal para smoke do próprio pacote (`node packages/release-engine/src/cli.mjs`): `plan`, `check`, `gates`
 
 ## Arquitetura inicial
@@ -74,6 +75,8 @@ para evitar que erro de configuração vire plano por changesets acidentalmente.
 Consumidores que validam configuração antes de chamar o engine podem carregar o
 schema publicado em
 `@refarm.dev/release-engine/release-policy.schema.json`.
+Consumidores que validam a saída do CLI podem carregar
+`@refarm.dev/release-engine/release-output.schema.json`.
 
 ## Invariantes de policy
 

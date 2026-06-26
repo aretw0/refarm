@@ -53,7 +53,8 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [ ] Testes de contrato para compatibilidade com config embutida + arquivo legado.
 - [ ] Teste de “non-breaking migration”: política antiga carregada continua válida.
 - [x] Testes de contrato JSON para retorno de `plan`/`check` com `schemaVersion: 1`
-      e campos estáveis. JSON Schema formal ainda fica como próximo endurecimento.
+      e campos estáveis; `release-output.schema.json` é exportado como subpath
+      público para consumidores de máquina.
 
 ### DDD (Domain Delivery)
 - [ ] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.

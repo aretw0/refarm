@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://refarm.dev/schemas/release-output.schema.json",
+  "title": "Refarm Release Engine CLI JSON Output",
+  "oneOf": [
+    { "$ref": "#/$defs/planOutput" },
+    { "$ref": "#/$defs/checkOutput" },
+    { "$ref": "#/$defs/gatesOutput" }
+  ],
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "status",
+        "packageCount",
+        "packages",
+        "blockers",
+        "packageProfiles",
+        "requiredGates",
+        "providers",
+        "profileTags",
+        "selection",
+        "ok",
+        "dryRun",
+        "command"
+      ],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "status": { "type": "string" },
+        "packageCount": { "type": "integer", "minimum": 0 },
+        "packages": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "packageProfiles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/packageProfileSummary" }
+        },
+        "requiredGates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "providers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "profileTags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "selection": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["id", "description"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "description": {
+                  "anyOf": [
+                    { "type": "string" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            { "type": "null" }
+          ]
+        },
+        "ok": { "type": "boolean" },
+        "dryRun": { "type": "boolean" },
+        "command": { "enum": ["plan", "check", "gates"] }
+      }
+    },
+    "packageProfileSummary": {
+      "type": "object",
+      "required": ["id", "risk", "tags", "mustPassChecks"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "risk": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "mustPassChecks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "gateResult": {
+      "type": "object",
+      "required": ["ok", "results", "policy", "dryRun"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/gateCommandResult" }
+        },
+        "policy": { "type": "object" },
+        "dryRun": { "type": "boolean" },
+        "blockedBy": { "type": "object" },
+        "phase": { "type": "string" },
+        "command": { "type": "string" },
+        "reason": { "type": "string" },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "gateCommandResult": {
+      "type": "object",
+      "required": ["phase", "phaseName", "command", "status", "stdout", "stderr", "code"],
+      "properties": {
+        "phase": { "type": "string", "minLength": 1 },
+        "phaseName": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["passed", "failed", "skipped"] },
+        "stdout": { "type": "string" },
+        "stderr": { "type": "string" },
+        "code": { "type": "integer" },
+        "signal": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "dryRun": { "type": "boolean" }
+      }
+    },
+    "planOutput": {
+      "allOf": [
+        { "$ref": "#/$defs/summary" },
+        {
+          "type": "object",
+          "required": ["gates", "publishIntents"],
+          "properties": {
+            "command": { "const": "plan" },
+            "gates": {
+              "type": "array",
+              "items": { "type": "object" }
+            },
+            "publishIntents": {
+              "type": "array",
+              "items": { "type": "object" }
+            }
+          }
+        }
+      ]
+    },
+    "checkOutput": {
+      "allOf": [
+        { "$ref": "#/$defs/summary" },
+        {
+          "type": "object",
+          "required": ["gateResult", "commandNote"],
+          "properties": {
+            "command": { "const": "check" },
+            "gateResult": { "$ref": "#/$defs/gateResult" },
+            "commandNote": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "gatesOutput": {
+      "allOf": [
+        { "$ref": "#/$defs/summary" },
+        {
+          "type": "object",
+          "required": ["gateResult"],
+          "properties": {
+            "command": { "const": "gates" },
+            "gateResult": { "$ref": "#/$defs/gateResult" }
+          }
+        }
+      ]
+    }
+  }
+}
