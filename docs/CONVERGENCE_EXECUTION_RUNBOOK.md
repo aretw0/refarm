@@ -70,10 +70,11 @@ versions of Refarm-shaped blocks.
 
 - **8a after item 4c:** write the focused bridge spec for `vault-seed` `silo.js` ->
   `@refarm.dev/silo`; prove namespaces remain `model`, `runtime`, `channel`, and `publishing`.
-- **8c active:** `@refarm.dev/cli/launch-process` now has a Refarm-side proof that runner
-  process specs validate as `@refarm.dev/artifact-contract-v1` provenance. The official
-  downstream proof still needs `dgk-runner` to emit manifests without importing `dgk`
-  vocabulary into Refarm.
+- **8c active:** `@refarm.dev/launch-process` now has a Refarm-side proof that runner
+  process specs validate as `@refarm.dev/artifact-contract-v1` provenance. The
+  `@refarm.dev/cli/launch-process` subpath remains a compatibility re-export. The
+  official downstream proof still needs `dgk-runner` to emit manifests without importing
+  `dgk` vocabulary into Refarm.
 - **8b active:** use `@refarm.dev/channel-policy-v1` as the focused Refarm-side package slice.
   Its tests carry both the `vault-seed` Telegram fixture and Refarm channel-control fixture. The
   official downstream proof still needs Telegram outbox/inbox to emit the neutral envelope while

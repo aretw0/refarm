@@ -430,6 +430,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../homestead
+      '@refarm.dev/launch-process':
+        specifier: workspace:*
+        version: link:../launch-process
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -437,9 +440,6 @@ importers:
         specifier: workspace:*
         version: link:../trust
     devDependencies:
-      '@refarm.dev/artifact-contract-v1':
-        specifier: workspace:*
-        version: link:../artifact-contract-v1
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -785,6 +785,21 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  packages/launch-process:
+    devDependencies:
+      '@refarm.dev/artifact-contract-v1':
+        specifier: workspace:*
+        version: link:../artifact-contract-v1
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/model-mock:
     devDependencies:

@@ -14,12 +14,17 @@
 
 ## Task 2 - Package Boundary
 
-- Keep the proof in `@refarm.dev/cli`; do not make
-  `artifact-contract-v1` depend on `@refarm.dev/cli`.
-- Add `@refarm.dev/artifact-contract-v1` as a CLI test/dev dependency only.
+- Keep the proof in `@refarm.dev/launch-process`; do not make
+  `artifact-contract-v1` depend on `@refarm.dev/launch-process`.
+- Keep `@refarm.dev/cli/launch-process` as a compatibility re-export so existing
+  Refarm callers keep working.
+- Add `@refarm.dev/artifact-contract-v1` as a launch-process test/dev
+  dependency only.
 
 ## Task 3 - Documentation Handoff
 
 - Mark 8c as Refarm-side proof ready.
+- Mark `@refarm.dev/launch-process` as the `vault-seed-ready` leaf instead of
+  selecting the full CLI dependency closure.
 - Keep official `dgk-runner` adoption downstream until the outside
   `vault-seed` checkout emits manifests from its runner.

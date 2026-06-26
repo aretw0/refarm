@@ -26,7 +26,7 @@ each sub-project's own brainstorm.
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred; activation spec+plan ready |
-| 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `cli/launch-process` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
+| 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `launch-process` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; registry has first ready codemod (`ds-token-adoption`) |
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 | 11 | **XR/WebXR surface POC** — immersive surface around Refarm | POC | 4, optional 5 | XR-capable browser renders the same Refarm data as 2D fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-xr-surface-poc.md)) |
@@ -110,7 +110,7 @@ Activation packet: `specs/features/2026-06-25-source-adapter-activation.md` and
 ### 8. Consumer bridges (partially active)
 Promote `dgk`'s repeated needs into Refarm packages only when a second consumer or an existing
 Refarm control surface needs the same primitive: `silo` (credentials), channel policy
-(`contacts`, rate limits, receipts, dry-run/review gates), and `cli/launch-process` (runner).
+(`contacts`, rate limits, receipts, dry-run/review gates), and `launch-process` (runner).
 Gated by dogfood and by the convergence doc's "promote only when consumer-neutral" rule.
 
 Telegram is the fixture, not the upstream product. `vault-seed` keeps Telegram API calls,

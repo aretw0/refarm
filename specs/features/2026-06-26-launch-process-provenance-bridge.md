@@ -8,22 +8,26 @@
 ## Context
 
 `dgk-runner` already exposes the useful seam: product commands accept an
-injectable `(command, args, options) => Promise<void>` runner. Refarm already
-ships `@refarm.dev/cli/launch-process`, which converts that shape into a
-tokenized `LaunchProcessSpec`, and `@refarm.dev/artifact-contract-v1`, which
-stores tokenized process evidence under `ArtifactProvenance.process`.
+injectable `(command, args, options) => Promise<void>` runner. Refarm now ships
+`@refarm.dev/launch-process`, which converts that shape into a tokenized
+`LaunchProcessSpec`, and `@refarm.dev/artifact-contract-v1`, which stores
+tokenized process evidence under `ArtifactProvenance.process`.
+`@refarm.dev/cli/launch-process` remains a compatibility re-export for existing
+Refarm callers.
 
 ## Decision
 
-Do not create a new runner package for 8c. The bridge is the compatibility
-between:
+Create a leaf runner package for 8c so consumer projects can adopt the process
+boundary without pulling the full CLI dependency closure. The bridge is the
+compatibility between:
 
 - `createLaunchProcessSpecFromRunner` / `createLaunchProcessRunner` in
-  `@refarm.dev/cli/launch-process`;
+  `@refarm.dev/launch-process`;
+- the compatibility subpath `@refarm.dev/cli/launch-process`;
 - `ArtifactProcessReference` in `@refarm.dev/artifact-contract-v1`;
 - downstream product runners such as `dgk-runner`.
 
-The first Refarm-side proof is a CLI package test that builds a runner process
+The first Refarm-side proof is a leaf package test that builds a runner process
 spec and validates a `TaskArtifactManifest` carrying that exact process object
 as provenance.
 
@@ -43,10 +47,12 @@ Downstream owns:
 
 ## Verification
 
-- `packages/cli/src/launch-process-provenance.test.ts` proves a runner-style process spec
+- `packages/launch-process/src/index.test.ts` proves a runner-style process spec
   validates as artifact provenance without shell-splitting.
-- `@refarm.dev/cli` stays the process adapter package.
-- `@refarm.dev/artifact-contract-v1` remains independent of the CLI package.
+- `@refarm.dev/launch-process` is the process adapter package selected by
+  `vault-seed-ready`.
+- `@refarm.dev/cli/launch-process` stays as a compatibility re-export.
+- `@refarm.dev/artifact-contract-v1` remains independent of the process package.
 
 ## Rollback
 
