@@ -6,6 +6,7 @@ import {
 	statSync,
 	writeFileSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 function toRelativePath(root, filePath) {
@@ -59,6 +60,34 @@ function walkFiles(root, options = {}) {
 
 	visit(root);
 	return { files, skipped };
+}
+
+function gitTrackedFiles(root) {
+	if (!existsSync(path.join(root, ".git"))) return null;
+	try {
+		return execFileSync("git", ["ls-files", "-z"], {
+			cwd: root,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		})
+			.split("\0")
+			.filter(Boolean)
+			.sort(comparePath);
+	} catch {
+		return null;
+	}
+}
+
+function listSourceFiles(root, skipEntries) {
+	const tracked = gitTrackedFiles(root);
+	if (!tracked) return walkFiles(root, { skipEntries });
+
+	return {
+		files: tracked,
+		skipped: skipEntries.filter((entry) =>
+			existsSync(path.join(root, ...entry.split("/"))),
+		),
+	};
 }
 
 function ownerFromOptions(owner) {
@@ -158,7 +187,7 @@ export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 		...(manifest.devOnly ?? []),
 		...(manifest.derivedOrLocalState ?? []),
 	];
-	const { files, skipped } = walkFiles(sourceDir, { skipEntries });
+	const { files, skipped } = listSourceFiles(sourceDir, skipEntries);
 	const written = [];
 	const inventory = [];
 

@@ -12,6 +12,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
+import { execFileSync } from "node:child_process";
 
 import { generateVault } from "./generate.mjs";
 
@@ -240,6 +241,34 @@ test("generateVault content transforms are idempotent with a fixed owner", async
 	});
 
 	assert.deepEqual(readTree(secondSource), readTree(secondOut));
+});
+
+test("generateVault uses tracked files when sourceDir is a git checkout", async () => {
+	const root = makeTempRoot();
+	const sourceDir = path.join(root, "source");
+	const outDir = path.join(root, "out");
+	await mkdir(sourceDir, { recursive: true });
+	await writeFile(path.join(sourceDir, "tracked.md"), "tracked\n");
+	await writeFile(path.join(sourceDir, "untracked.md"), "untracked\n");
+	execFileSync("git", ["init"], { cwd: sourceDir, stdio: "ignore" });
+	execFileSync("git", ["add", "tracked.md"], { cwd: sourceDir, stdio: "ignore" });
+
+	await generateVault({
+		manifest: {
+			version: 1,
+			source: "vault-seed",
+			renames: [],
+			transforms: [],
+			devOnly: [],
+			payloadGlobs: ["**"],
+			derivedOrLocalState: [],
+		},
+		sourceDir,
+		outDir,
+	});
+
+	assert.equal(existsSync(path.join(outDir, "tracked.md")), true);
+	assert.equal(existsSync(path.join(outDir, "untracked.md")), false);
 });
 
 test("generateVault rejects a missing source directory", async () => {
