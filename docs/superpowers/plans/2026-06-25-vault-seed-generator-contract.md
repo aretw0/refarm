@@ -137,13 +137,13 @@ git commit -m "feat(gen-vault-seed): manifest classifying the vault-seed templat
 
 **Interfaces:** `generateVault({ manifest, sourceDir, outDir }): { written: string[], skipped: string[], inventory: InventoryEntry[] }`.
 
-- [ ] **Step 1: Write the failing test** against a tiny fixture source tree (created in the test) — assert payload copied, dev-only skipped, renames applied. (Mirror the manifest classes; use a temp `sourceDir` with `README.template.md`, `docs/x.md`, `00 - Entrada/note.md`.)
+- [x] **Step 1: Write the failing test** against a tiny fixture source tree (created in the test) — assert payload copied, dev-only skipped, renames applied. (Mirror the manifest classes; use a temp `sourceDir` with `README.template.md`, `docs/x.md`, `00 - Entrada/note.md`.)
 
-- [ ] **Step 2: Implement `generate.mjs`** — walk `sourceDir`; for each path: skip `devOnly`/`derivedOrLocalState`; apply `renames` (copy to target); apply `transforms` (rename + content edit hooks); copy the rest as `payload`. Record an inventory entry `{ source, target, class, transforms, validation }` per output file.
+- [x] **Step 2: Implement `generate.mjs`** — walk `sourceDir`; for each path: skip `devOnly`/`derivedOrLocalState`; apply `renames` (copy to target); apply `transforms` (rename + content edit hooks); copy the rest as `payload`. Record an inventory entry `{ source, target, class, transforms, validation }` per output file.
 
-- [ ] **Step 3: Run to verify it passes** — `node --test generators/vault-seed/generate.test.mjs`.
+- [x] **Step 3: Run to verify it passes** — `node --test generators/vault-seed/generate.test.mjs`.
 
-- [ ] **Step 4: Commit** — `feat(gen-vault-seed): manifest-driven generator with inventory`.
+- [x] **Step 4: Commit** — `feat(gen-vault-seed): manifest-driven generator with inventory`.
 
 ---
 
