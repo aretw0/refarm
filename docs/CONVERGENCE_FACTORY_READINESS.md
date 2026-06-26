@@ -25,6 +25,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | Cross-cutting item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
+| release readiness | validated | `pnpm run release:readiness` passed on 2026-06-26; publish dry-run is scoped to the release-policy default selection | actual publication remains gated by daily-driver policy and repository/npm operator setup |
 
 ## Plan depth — read before "ready to implement"
 
