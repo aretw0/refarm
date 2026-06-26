@@ -51,7 +51,7 @@ a Refarm distro or making Refarm a required dependency for generated vaults.
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
 | WASM distribution (lab/site) | Marimo (Pyodide) + Astro isolated | Tractor WASM (ADR-049 / ADR-044) ✅ substrate | Refarm learns from Marimo / Astro 7 and becomes the shared substrate. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
-| `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/launch-process` ✅ (`@refarm.dev/cli/launch-process` re-exports it for compatibility) | `dgk` delegates via runner adapter when Refarm is present. |
+| `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/launch-process` ✅ (`@refarm.dev/cli/launch-process` re-exports it for compatibility) | `dgk` imports Refarm SDK primitives internally while keeping its package, binary, and command UX. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
 | Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
 | Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging` | `source:v1` adapters + source profile contract + artifact retention policy | Candidate: Python implementations and PARA target rules stay downstream. |
@@ -84,7 +84,8 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.
 8. `silo` → credentials; channel policy → `dgk-channels`/Telegram outbox; `launch-process` →
-   `dgk-runner`. Promote only when the contract is consumer-neutral (existing doctrine rule).
+   `dgk-runner`/`dgk-cli` internals. Promote only when the contract is consumer-neutral and
+   the `dgk` public surface remains product-owned.
 
 ## Librarian follow-up
 

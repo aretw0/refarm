@@ -27,4 +27,5 @@
 - Mark `@refarm.dev/launch-process` as the `vault-seed-ready` leaf instead of
   selecting the full CLI dependency closure.
 - Keep official `dgk-runner` adoption downstream until the outside
-  `vault-seed` checkout emits manifests from its runner.
+  `vault-seed` checkout imports the SDK internally, preserves the exported
+  `run(cmd, args, opts)` API and `dgk` UX, and emits manifests from its runner.
