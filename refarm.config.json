@@ -185,6 +185,21 @@
         ]
       },
       {
+        "id": "@refarm.dev/channel-policy-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "candidate"
+        ]
+      },
+      {
         "id": "@refarm.dev/automation-contract-v1",
         "risk": "core",
         "mustPassChecks": [

@@ -18,6 +18,7 @@ These packages define the foundational interoperability layers between Refarm an
 | [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ 6 Tests | 🟢 Ready | **Target v0.1.0** |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
 | [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
+| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | **vault-seed-ready candidate** |
 
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.

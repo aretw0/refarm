@@ -367,7 +367,7 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 | Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/homestead/ssr` | Converts UI duplication into token/SSR conformance evidence. |
 | Vault ETL, Lab export, publish receipts | `@refarm.dev/cli/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
 | Credential collection without secret sprawl | `@refarm.dev/silo` collect + later bridge | Proves namespace separation across app and consumer. |
-| Telegram outbox/inbox and channel state | channel policy contract: destinations, rate limits, receipts, dry-run, review gates | Lets `vault-seed` keep Telegram UX while Refarm gains reusable channel evidence for dispatch/farmhand surfaces. |
+| Telegram outbox/inbox and channel state | `@refarm.dev/channel-policy-v1`: destinations, rate limits, receipts, dry-run, review gates | Lets `vault-seed` keep Telegram UX while Refarm gains reusable channel evidence for dispatch/farmhand surfaces. |
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
 | Skill/agent compatibility | skill runtime activation + Pi/WASM/UI proof | Starts only when a real invocation surface exists, but is planned from consumer pressure. |
 
