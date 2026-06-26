@@ -16,6 +16,7 @@ commit moves them under a newer version.
 - Policy version compatibility now fails closed through `SUPPORTED_POLICY_VERSIONS` and `RELEASE_POLICY_VERSION_UNSUPPORTED`.
 - Blocked `plan`/`check` CLI JSON now preserves the versioned machine-output shape.
 - `CONTRACTS.md` defines append-only public contract surfaces and ships in the package.
+- `examples/release-provider-changesets` provides the canonical changesets provider/policy helper without coupling providers into the engine.
 
 ### Semver discipline
 

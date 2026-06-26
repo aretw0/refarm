@@ -19,6 +19,7 @@
   "files": [
     "src",
     "types",
+    "examples",
     "README.md",
     "ROADMAP.md",
     "CHANGELOG.md",

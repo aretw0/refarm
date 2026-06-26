@@ -1,0 +1,12 @@
+{
+  "name": "@refarm.dev/example-release-provider-changesets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Canonical changesets release-provider example for @refarm.dev/release-engine policies.",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "files": [
+    "README.md",
+    "src"
+  ]
+}

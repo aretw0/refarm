@@ -69,6 +69,11 @@ O pacote não deve acessar `NPM_TOKEN`, GitHub Releases, crates.io ou canais. Es
 adaptadores pertencem ao control-plane (`apps/refarm`, workflows, ou consumidores
 futuros) e consomem a saída versionada do engine.
 
+O exemplo canônico de provider changesets fica em
+`examples/release-provider-changesets`. Ele é um pacote-modelo privado para
+copiar/adaptar a declaração de provider e um helper de policy; não altera o
+engine principal nem executa publicação.
+
 ## Uso sem publicar (fase local)
 
 - O pacote foi criado para ser testado em outros projetos antes de publicação do npm:
