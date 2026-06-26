@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -109,6 +109,16 @@ function runCliJson(args) {
     encoding: "utf8",
   });
   return JSON.parse(output);
+}
+
+function runCliJsonFailure(args) {
+  const result = spawnSync(process.execPath, [cliPath, ...args, "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stderr, "");
+  return JSON.parse(result.stdout);
 }
 
 function validPolicy(overrides = {}) {
@@ -303,6 +313,46 @@ test("cli check json uses the versioned machine-output contract", () => {
     payload.gateResult.results.map((result) => result.phase),
     ["preflight", "quality", "quality", "contracts", "runtime-descriptor"],
   );
+});
+
+test("cli blocked plan json preserves the versioned output shape", () => {
+  const payload = runCliJsonFailure([
+    "plan",
+    "--cwd",
+    repoRoot,
+    "@refarm.dev/not-a-workspace-package",
+  ]);
+
+  assert.equal(payload.command, "plan");
+  assert.equal(payload.schemaVersion, 1);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.status, "blocked");
+  assert.deepEqual(payload.packages, []);
+  assert.equal(payload.blockers[0].status, "missing");
+  assert.deepEqual(payload.publishIntents, []);
+  assert.deepEqual(payload.profileTags, []);
+  assert.equal(payload.selection, null);
+});
+
+test("cli blocked check json preserves the gate-result contract", () => {
+  const payload = runCliJsonFailure([
+    "check",
+    "--cwd",
+    repoRoot,
+    "@refarm.dev/not-a-workspace-package",
+  ]);
+
+  assert.equal(payload.command, "check");
+  assert.equal(payload.schemaVersion, 1);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.status, "blocked");
+  assert.equal(payload.commandNote, "Plan is blocked before gate execution.");
+  assert.equal(payload.gateResult.ok, false);
+  assert.equal(payload.gateResult.reason, "Plan blocked");
+  assert.deepEqual(payload.gateResult.results, []);
+  assert.equal(payload.gateResult.policy.policyVersion, "2026-01");
+  assert.equal(payload.gateResult.dryRun, true);
+  assert.equal(payload.gateResult.blockers[0].status, "missing");
 });
 
 test("validates package profile bump policy", () => {

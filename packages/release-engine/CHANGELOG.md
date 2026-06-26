@@ -9,6 +9,7 @@
 - Release policy validation now rejects ambiguous provider contracts, including publish-capable providers without `publishCommands`.
 - Provider validation exposes `ReleasePolicyValidationError.code` for machine consumers and accepts neutral/inactive provider contracts without generating publish intents.
 - Policy version compatibility now fails closed through `SUPPORTED_POLICY_VERSIONS` and `RELEASE_POLICY_VERSION_UNSUPPORTED`.
+- Blocked `plan`/`check` CLI JSON now preserves the versioned machine-output shape.
 
 ## 0.0.x-dev
 

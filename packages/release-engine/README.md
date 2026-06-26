@@ -109,6 +109,10 @@ tags de postura sem acoplar essas categorias ao engine.
 Todo payload JSON emitido pelo CLI do pacote carrega `schemaVersion: 1`; campos
 novos devem ser adicionados de forma compatível. Consumidores de máquina devem
 falhar fechado quando receberem uma versão maior que a suportada.
+O contrato de saída também vale para planos bloqueados: `plan` sempre emite
+`publishIntents`, e `check`/`gates` sempre emitem `gateResult.results`,
+`gateResult.policy` e `gateResult.dryRun`, mesmo quando a execução para antes
+dos gates.
 
 `--tag` pode ser repetido e usa filtro AND: `--tag kernel --tag candidate`
 seleciona apenas perfis que tenham ambas as tags. Prefira `--selection <id>`

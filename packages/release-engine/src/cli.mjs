@@ -103,6 +103,17 @@ function parseArgsRobust(rawArgs) {
   return parsed;
 }
 
+function blockedGateResult(plan, dryRun) {
+  return {
+    ok: false,
+    results: [],
+    policy: plan.policy,
+    dryRun,
+    reason: "Plan blocked",
+    blockers: plan.blockers,
+  };
+}
+
 async function main() {
   const parsed = parseArgsRobust(args);
   if (!parsed.command) usage();
@@ -123,11 +134,7 @@ async function main() {
           schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
           ...summarizePlan(basePlan),
           command: "gates",
-          gateResult: {
-            ok: false,
-            reason: "Plan blocked",
-            blockers: basePlan.blockers,
-          },
+          gateResult: blockedGateResult(basePlan, parsed.dryRun),
         }, null, 2));
       } else {
         console.error(formatPlan(basePlan));
@@ -170,11 +177,7 @@ async function main() {
         console.log(JSON.stringify({
           schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
           ...summarizePlan(basePlan),
-          gateResult: {
-            ok: false,
-            reason: "Plan blocked",
-            blockers: basePlan.blockers,
-          },
+          gateResult: blockedGateResult(basePlan, true),
           command: "check",
           commandNote: "Plan is blocked before gate execution.",
         }, null, 2));
@@ -218,7 +221,7 @@ async function main() {
         ...summary,
         gates: basePlan.gates,
         blockers: basePlan.blockers,
-        publishIntents: basePlan.publishIntents,
+        publishIntents: basePlan.publishIntents || [],
         command: "plan",
       };
 

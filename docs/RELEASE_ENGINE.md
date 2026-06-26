@@ -105,6 +105,9 @@ A intenção aqui é manter `release-engine` neutro e permitir que o control-pla
 - `node --test scripts/ci/test-smoke-refarm-host-cli-flows.mjs`
 - `git diff` limpo e saída de `check` não precisa bloquear fluxos legados em execução já existente.
 - `releasePolicy` no `refarm` validado em `refarm.config.json` (fallback neutro confirmado).
+- Payloads bloqueados também preservam o contrato JSON: `plan` inclui
+  `publishIntents: []`, e `check`/`gates` incluem `gateResult.results`,
+  `gateResult.policy` e `gateResult.dryRun`.
 
 ## Próximo movimento de convergência
 
