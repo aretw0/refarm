@@ -11,14 +11,14 @@ Not everything is planned to execution depth yet. The safe state is:
 | Item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
 | 4a `ds` tokens | **implemented** (Tasks 1–5 committed in `packages/ds/src`) | contract, scoped tokens, 4 themes, theme-conformance, component classes, CSS exports; focused package gate re-verified 2026-06-26 | broad steward/push gate and official `vault-seed` assimilation remain pending |
-| 4b `homestead/ssr` | **bite-sized plan ready** (after 4a) | subpath, helper API, build-free boundary, consumer proof, TDD steps + code | waits for 4a `ds` classes/tokens |
-| 4c `silo` collect | **bite-sized plan ready** (independent) | contract boundary, namespaces, namespaced secret store, app re-export, TDD steps + code | storage adoption by `vault-seed` remains item 8 |
-| 4d `dispatch-surface` external API | **bite-sized plan ready** | public API lock test, headless consumer proof, parity gate | none — execute the plan |
+| 4b `homestead/ssr` | **implemented** | subpath, helper API, build-free boundary, consumer proof, package files constraint | downstream adoption proof remains consumer-side |
+| 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring | storage adoption by `vault-seed` remains item 8a |
+| 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
-| 8 consumer bridges | partially activated | `silo`, `cli/launch-process`, and channel-control seams are specified | 8a waits for 4c; 8b needs channel-policy spec; 8c needs runner/provenance proof |
-| 9 executable specs | partially automated | package gate registration generator; vault-seed generator spec+plan; codemod registry spec+plan | first registry implementation still needed |
+| 8 consumer bridges | partially activated | 8a focused spec+plan; `silo`, `cli/launch-process`, and channel-control seams are specified | official `vault-seed` 8a proof; 8b needs channel-policy spec; 8c needs runner/provenance proof |
+| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry | first ready codemod implementation still needed |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
 
@@ -80,18 +80,18 @@ This rule activates work that prevents migration churn:
 
 ## Item 4 - UI and Surface Blocks
 
-Execution order:
+Execution record:
 
-1. 4a `ds` token contract - follow
+1. 4a `ds` token contract - implemented via
    `docs/superpowers/plans/2026-06-25-ds-token-contract.md`.
-2. 4b `homestead/ssr` - follow
-   `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`; do not start before 4a has the
-   token contract and component classes.
-3. 4c `silo` collect - follow
-   `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`; can proceed independently of
-   4a/4b if package build order stays green.
-4. 4d `dispatch-surface` external-consumer API - follow
+2. 4b `homestead/ssr` - implemented via
+   `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`.
+3. 4c `silo` collect - implemented via
+   `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`.
+4. 4d `dispatch-surface` external-consumer API - implemented via
    `docs/superpowers/plans/2026-06-25-dispatch-surface-external-api.md`.
+
+Remaining item-4 work is downstream adoption/proof, not block construction.
 
 ## Item 5 - WASM Substrate
 
