@@ -29,3 +29,12 @@
 - Keep official `dgk-runner` adoption downstream until the outside
   `vault-seed` checkout imports the SDK internally, preserves the exported
   `run(cmd, args, opts)` API and `dgk` UX, and emits manifests from its runner.
+
+2026-06-26 packet:
+- Candidate tarball:
+  `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-launch-process-0.1.0.tgz`
+  (`sha256 28b13b6e1dc8ab5cbdfbb6b671f73cf0ff849881957a6b81710044d95d43d466`).
+- Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
+  `LICENSE`.
+- `pnpm run release:vault-seed:check` passes with `@refarm.dev/launch-process`
+  included and the full `@refarm.dev/cli` dependency closure excluded.
