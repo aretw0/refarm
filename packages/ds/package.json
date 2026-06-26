@@ -6,8 +6,20 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
-		"dist",
-		"src"
+		"dist/index.js",
+		"dist/index.js.map",
+		"dist/index.d.ts",
+		"dist/index.d.ts.map",
+		"dist/contract.js",
+		"dist/contract.js.map",
+		"dist/contract.d.ts",
+		"dist/contract.d.ts.map",
+		"dist/theme-conformance.js",
+		"dist/theme-conformance.js.map",
+		"dist/theme-conformance.d.ts",
+		"dist/theme-conformance.d.ts.map",
+		"src/*.css",
+		"src/themes/*.css"
 	],
 	"exports": {
 		".": {
