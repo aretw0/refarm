@@ -22,6 +22,7 @@ test("plans publish dry-runs only for default release policy packages", () => {
 		"@refarm.dev/storage-contract-v1",
 		"@refarm.dev/sync-contract-v1",
 		"@refarm.dev/identity-contract-v1",
+		"@refarm.dev/channel-policy-v1",
 	]);
 	assert.deepEqual(
 		check.commands.map((command) => command.packageName),
@@ -68,19 +69,21 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 	assert.equal(check.ok, true);
 	assert.deepEqual(check.plan.orderedNames, [
 		"@refarm.dev/artifact-contract-v1",
+		"@refarm.dev/channel-policy-v1",
 		"@refarm.dev/effort-contract-v1",
-		"@refarm.dev/config",
+		"@refarm.dev/launch-process",
 		"@refarm.dev/release-engine",
 		"@refarm.dev/ds",
 		"@refarm.dev/heartwood",
-		"@refarm.dev/trust",
 		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/homestead-ssr",
 		"@refarm.dev/silo",
-		"@refarm.dev/cli",
 	]);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead-ssr"), true);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead"), false);
+	assert.equal(check.plan.orderedNames.includes("@refarm.dev/config"), false);
+	assert.equal(check.plan.orderedNames.includes("@refarm.dev/trust"), false);
+	assert.equal(check.plan.orderedNames.includes("@refarm.dev/cli"), false);
 
 	for (const command of check.commands) {
 		assert.equal(command.display, "pnpm publish --dry-run --no-git-checks");
