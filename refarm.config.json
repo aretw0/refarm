@@ -380,6 +380,23 @@
         ]
       },
       {
+        "id": "@refarm.dev/homestead-ssr",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/homestead-ssr run lint",
+          "pnpm --filter @refarm.dev/homestead-ssr run type-check",
+          "pnpm --filter @refarm.dev/homestead-ssr run test",
+          "pnpm --filter @refarm.dev/homestead-ssr run build"
+        ],
+        "tags": [
+          "ui",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "candidate",
+          "build-free"
+        ]
+      },
+      {
         "id": "@refarm.dev/homestead",
         "risk": "shared",
         "mustPassChecks": [

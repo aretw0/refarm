@@ -47,7 +47,7 @@ a Refarm distro or making Refarm a required dependency for generated vaults.
 | --- | --- | --- | --- |
 | **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `source:v1` + `source-git` specified | KEYSTONE. Execute the source contract plan, then activate adapters only when consumed. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ | Wire `ds` as the token/style source. |
-| Shell / admin UI | `dgk serve` | `@refarm.dev/homestead` ✅ + `apps/me` | Admin UI composed from `homestead`, not reinvented. |
+| Shell / admin UI | `dgk serve` | `@refarm.dev/homestead-ssr` ✅ + `@refarm.dev/homestead/ssr` ✅ | Admin UI composes from the build-free SSR tier; bundled Homestead SDK remains separate. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
 | WASM distribution (lab/site) | Marimo (Pyodide) + Astro isolated | Tractor WASM (ADR-049 / ADR-044) ✅ substrate | Refarm learns from Marimo / Astro 7 and becomes the shared substrate. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
@@ -69,7 +69,7 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    depending on manual cross-checkout memory.
 2. **npm scope closed**: ADR-069 sets `@refarm.dev` as the canonical scope for Refarm blocks and
    contracts. `@aretw0/*` remains only for `vault-seed`/DGK products.
-3. **Consumer-pulled block lane**: `ds`, `homestead/ssr`, `cli/launch-process`,
+3. **Consumer-pulled block lane**: `ds`, `homestead-ssr`/`homestead/ssr`, `cli/launch-process`,
    artifact provenance, and `silo` collect can advance in parallel with the
    librarian when their plans include Refarm dogfood + `vault-seed` proof.
 4. `dispatch-surface` as the official multi-surface API once public imports and

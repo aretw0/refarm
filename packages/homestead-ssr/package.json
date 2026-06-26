@@ -1,0 +1,41 @@
+{
+	"name": "@refarm.dev/homestead-ssr",
+	"version": "0.1.0",
+	"description": "Build-free Homestead SSR helpers for server-rendered Refarm surfaces.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"keywords": [
+		"refarm",
+		"homestead",
+		"ssr",
+		"design-system"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"license": "MIT"
+}

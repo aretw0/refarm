@@ -87,7 +87,9 @@ Execution record:
 1. 4a `ds` token contract - implemented via
    `docs/superpowers/plans/2026-06-25-ds-token-contract.md`.
 2. 4b `homestead/ssr` - implemented via
-   `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`.
+   `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`; public consumer lane uses
+   the leaf package `@refarm.dev/homestead-ssr` so `vault-seed` can adopt the build-free
+   helpers without installing the bundled Homestead SDK closure.
 3. 4c `silo` collect - implemented via
    `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`.
 4. 4d `dispatch-surface` external-consumer API - implemented via
