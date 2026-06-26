@@ -149,13 +149,13 @@ git commit -m "feat(gen-vault-seed): manifest classifying the vault-seed templat
 
 ### Task 3: Transform hooks (idempotent)
 
-- [ ] **Step 1:** Implement the transforms, each keyed by ID:
+- [x] **Step 1:** Implement the transforms, each keyed by ID:
   - `rename` (Task 2) — copy `source` → `target`.
   - `status-draft-to-published` — `(content) => content.replace(/^status: draft$/m, "status: published")` (the welcome note).
   - `drop-kudos` — on `vault.config.json`: `delete cfg.kudos`.
   - `set-license-holder` — on `vault.config.json`: `cfg.license = { ...cfg.license, holder: owner, holderUrl: "https://github.com/" + owner }` (owner from `--owner`).
-- [ ] **Step 2:** Idempotency test — each transform run twice equals once; generating the whole vault twice yields byte-identical output (given a fixed `--owner`).
-- [ ] **Step 3: Commit** — `feat(gen-vault-seed): idempotent content transforms`.
+- [x] **Step 2:** Idempotency test — each transform run twice equals once; generating the whole vault twice yields byte-identical output (given a fixed `--owner`).
+- [x] **Step 3: Commit** — `feat(gen-vault-seed): idempotent content transforms`.
 
 ---
 
