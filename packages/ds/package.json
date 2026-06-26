@@ -38,8 +38,5 @@
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"
 	},
-	"license": "MIT",
-	"publishConfig": {
-		"access": "public"
-	}
+	"license": "MIT"
 }

@@ -97,13 +97,6 @@
         "profileTags": [
           "kernel-contract"
         ]
-      },
-      {
-        "id": "vault-seed-ready",
-        "description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
-        "profileTags": [
-          "vault-seed-ready"
-        ]
       }
     ],
     "packageProfiles": [
@@ -156,7 +149,6 @@
           "contract",
           "kernel",
           "kernel-contract",
-          "vault-seed-ready",
           "review"
         ]
       },
@@ -183,7 +175,6 @@
           "contract",
           "kernel",
           "kernel-contract",
-          "vault-seed-ready",
           "review"
         ]
       },
@@ -249,7 +240,6 @@
         "tags": [
           "kernel",
           "kernel-primitive",
-          "vault-seed-ready",
           "boundary-review"
         ]
       },
@@ -262,7 +252,6 @@
         "tags": [
           "kernel",
           "kernel-primitive",
-          "vault-seed-ready",
           "boundary-review"
         ]
       },
@@ -275,100 +264,7 @@
         "tags": [
           "kernel",
           "kernel-primitive",
-          "vault-seed-ready",
           "dogfood"
-        ]
-      },
-      {
-        "id": "@refarm.dev/ds",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/ds run lint",
-          "pnpm --filter @refarm.dev/ds run type-check",
-          "pnpm --filter @refarm.dev/ds run test",
-          "pnpm --filter @refarm.dev/ds run build"
-        ],
-        "tags": [
-          "ui",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/dispatch-surface",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/dispatch-surface run lint",
-          "pnpm --filter @refarm.dev/dispatch-surface run type-check",
-          "pnpm --filter @refarm.dev/dispatch-surface run test",
-          "pnpm --filter @refarm.dev/dispatch-surface run test:parity"
-        ],
-        "tags": [
-          "dispatch",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/heartwood",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/heartwood run test"
-        ],
-        "tags": [
-          "crypto",
-          "silo-dependency",
-          "vault-seed-ready",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/silo",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/silo run lint",
-          "pnpm --filter @refarm.dev/silo run test",
-          "pnpm --filter @refarm.dev/silo run build"
-        ],
-        "tags": [
-          "credentials",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/trust",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/trust run lint",
-          "pnpm --filter @refarm.dev/trust run type-check",
-          "pnpm --filter @refarm.dev/trust run test",
-          "pnpm --filter @refarm.dev/trust run build"
-        ],
-        "tags": [
-          "trust",
-          "cli-dependency",
-          "vault-seed-ready",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/homestead",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/homestead run lint",
-          "pnpm --filter @refarm.dev/homestead run type-check",
-          "pnpm --filter @refarm.dev/homestead run test",
-          "pnpm --filter @refarm.dev/homestead run build"
-        ],
-        "tags": [
-          "ui",
-          "consumer-pulled",
-          "vault-seed-blocked",
-          "dependency-closure-hold"
         ]
       },
       {
