@@ -215,7 +215,7 @@ describe("operator resume", () => {
 		expect(operatorResumeNextCommands(summary)).toEqual([]);
 	});
 
-	it("falls back to the latest recent session when the active session is stale", () => {
+	it("keeps recent sessions contextual when the active session is stale", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
 			status: readyStatus,
@@ -232,9 +232,48 @@ describe("operator resume", () => {
 		expect(summary.session.status).toBe("stale");
 		expect(summary.session.showCommand).toBeUndefined();
 		expect(operatorResumeNextCommands(summary)).toEqual([
-			"refarm sessions show ef1234567890 --json",
+			"refarm sessions clear --json",
+			"refarm sessions list --json",
 			"refarm task list --json",
 		]);
+	});
+
+	it("does not suggest recent session handoffs when no session is active", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			recentSessions: [
+				{
+					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					shortId: "ef1234567890",
+					canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+					hasHistory: true,
+					showCommand: "refarm sessions show ef1234567890 --json",
+					useCommand: "refarm sessions use ef1234567890 --json",
+				},
+			],
+		});
+
+		expect(envelope).toMatchObject({
+			session: {
+				status: "none",
+				recentSessions: [
+					{
+						shortId: "ef1234567890",
+						showCommand: "refarm sessions show ef1234567890 --json",
+					},
+				],
+			},
+			nextCommand: "refarm task list --json",
+			nextCommands: ["refarm task list --json"],
+			nextProcesses: [
+				{
+					command: "refarm",
+					args: ["task", "list", "--json"],
+					display: "refarm task list --json",
+				},
+			],
+		});
 	});
 
 	it("does not invent a session show handoff when the active session is orphaned", () => {

@@ -390,10 +390,8 @@ export function operatorResumeNextCommands(
 		nextCommands.push(...summary.finish.nextCommands);
 	}
 
-	// Context: show the active or most recent session.
-	const sessionCommand = summary.session.showCommand
-		?? summary.session.recentSessions[0]?.showCommand;
-	if (sessionCommand) nextCommands.push(sessionCommand);
+	// Context: only active sessions are actionable; recent sessions stay contextual.
+	if (summary.session.showCommand) nextCommands.push(summary.session.showCommand);
 	else if (summary.session.status === "stale") {
 		nextCommands.push(resolved.sessionClear);
 		nextCommands.push(resolved.sessionList);
