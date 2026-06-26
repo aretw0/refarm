@@ -18,6 +18,7 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /derived-artifacts: .*workspace:artifacts:ownership/);
 	assert.match(output, /github-actions-pins: .*actions:pins/);
 	assert.match(output, /github-actions-contracts: .*actions:contracts/);
+	assert.match(output, /codemod-registry: .*codemods:check/);
 	assert.match(output, /publish-dry-run: .*release:check/);
 });
 
@@ -42,6 +43,7 @@ test("prints structured release readiness metadata", () => {
 			"derived-artifacts",
 			"github-actions-pins",
 			"github-actions-contracts",
+			"codemod-registry",
 			"publish-dry-run",
 		],
 	);
@@ -60,4 +62,5 @@ test("accepts package-manager argument separators before json flags", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.mode, "plan");
 	assert.equal(payload.steps.at(-1).id, "publish-dry-run");
+	assert.equal(payload.steps.at(-2).id, "codemod-registry");
 });

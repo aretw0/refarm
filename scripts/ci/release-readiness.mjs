@@ -51,6 +51,12 @@ const RELEASE_READINESS_STEPS = [
 		reason: "Reusable workflow and publish contracts must remain valid.",
 	},
 	{
+		id: "codemod-registry",
+		script: "codemods:check",
+		reason:
+			"Consumer-pulled mechanical adoption paths must keep fixtures, dry-run commands, and rollback notes.",
+	},
+	{
 		id: "publish-dry-run",
 		script: "release:check",
 		reason: "Release-policy package manifests must survive a publish dry-run.",
