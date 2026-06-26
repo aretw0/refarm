@@ -101,6 +101,9 @@ function createWorkspace(
 const fixturePolicy = path.join(process.cwd(), "packages/release-engine/test/fixtures/policy.json");
 const packageManifestPath = path.resolve(new URL("../package.json", import.meta.url).pathname);
 const cliPath = path.resolve(new URL("../src/cli.mjs", import.meta.url).pathname);
+const changesetsProviderExamplePath = path.resolve(
+  new URL("../examples/release-provider-changesets/src/index.mjs", import.meta.url).pathname,
+);
 const repoRoot = path.resolve(new URL("../../..", import.meta.url).pathname);
 
 function runCliJson(args) {
@@ -221,6 +224,29 @@ test("ships the public contract manifest", () => {
   assert.ok(pkg.files.includes("CONTRACTS.md"));
   assert.match(contracts, /Append-only rule/);
   assert.match(contracts, /ReleasePolicyValidationError\.code/);
+});
+
+test("ships and validates the canonical changesets release-provider example", async () => {
+  const pkg = JSON.parse(fs.readFileSync(packageManifestPath, "utf8"));
+  const example = await import(changesetsProviderExamplePath);
+  const provider = example.createChangesetsReleaseProvider();
+  const policy = example.createChangesetsReleasePolicy({
+    phases: [
+      {
+        id: "quality",
+        name: "Quality",
+        commands: ["pnpm test"],
+        required: true,
+        riskWeight: 3,
+      },
+    ],
+  });
+
+  assert.ok(pkg.files.includes("examples"));
+  assert.deepEqual(provider.publishCommands, ["pnpm changeset publish"]);
+  assert.deepEqual(provider.publishDryRunCommands, ["pnpm changeset version"]);
+  assert.equal(provider.publishRequiresManualApproval, true);
+  assert.equal(validatePolicy(policy), true);
 });
 
 test("exports the release output schema as a public package subpath", () => {
