@@ -211,6 +211,7 @@
 		"release:readiness:plan": "node scripts/ci/release-readiness.mjs --plan",
 		"release:readiness:test": "node --test scripts/ci/test-release-check.mjs scripts/ci/test-release-readiness.mjs scripts/ci/test-subprocess-utils.mjs",
 		"release:check": "node scripts/release-check.mjs",
+		"release:vault-seed:check": "node scripts/release-check.mjs --selection vault-seed-ready",
 		"i18n:check": "node scripts/check-locales.mjs",
 		"i18n:check:test": "node --test scripts/ci/test-check-locales-lib.mjs",
 		"diagrams:generate": "node scripts/ci/generate-diagrams.mjs",

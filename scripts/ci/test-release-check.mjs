@@ -55,3 +55,33 @@ test("parses release check package overrides", () => {
 		},
 	);
 });
+
+test("plans vault-seed consumer-pulled publish dry-runs", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "vault-seed-ready",
+	});
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/artifact-contract-v1",
+		"@refarm.dev/effort-contract-v1",
+		"@refarm.dev/config",
+		"@refarm.dev/release-engine",
+		"@refarm.dev/ds",
+		"@refarm.dev/heartwood",
+		"@refarm.dev/trust",
+		"@refarm.dev/dispatch-surface",
+		"@refarm.dev/silo",
+		"@refarm.dev/cli",
+	]);
+	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead"), false);
+
+	for (const command of check.commands) {
+		assert.equal(command.display, "pnpm publish --dry-run --no-git-checks");
+		assert.equal(command.command.includes(" -r "), false);
+	}
+});
