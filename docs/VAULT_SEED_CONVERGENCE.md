@@ -4,6 +4,12 @@ Status: calibration note for keeping Refarm and `vault-seed` complementary.
 
 This document records what the `vault-seed` consumer is proving and where Refarm
 should harden shared primitives instead of absorbing the product workflow.
+The direction is stronger than "integration": `vault-seed` is a product that can
+be powered by Refarm capabilities. This complements the native Refarm product
+path: Refarm also has its own CLI, apps, runtime-agent, and operator workflows.
+Users should see a coherent knowledge-vault product when they enter through
+`vault-seed`; `dgk` should import reusable Refarm blocks underneath and fill its
+own labels, commands, package names, and vault semantics.
 
 ## Current Read
 
@@ -17,8 +23,10 @@ local-first knowledge operating kit with three clear surfaces:
 | `dgk` CLI/scripts | `vault-seed` | Vault-local operation: validation, lab ETL/export, Obsidian launch, note bridge, and package scaffolding. |
 
 The important product signal is that `vault-seed` is the interface for people
-who want a sovereign knowledge vault. It should not become a Refarm runtime
-distribution, and Refarm should not reimplement its vault UX.
+who want a sovereign knowledge vault. It should not become a Refarm-branded
+runtime distribution, and Refarm should not reimplement its vault UX. But
+`vault-seed` should give up duplicated substrate when Refarm can supply it as
+SDK, package, crate, generator, codemod, or runtime primitive.
 
 ## Observed Consumer Shape
 
@@ -33,9 +41,10 @@ template. It has separable packages for:
 | `dgk-lab-runtime` | Python helpers for local-vs-packaged notebook boundaries. | Local ETL and published analysis need an explicit runtime boundary. |
 | `dgk-skills` | Vault-oriented skills such as read, search, create, context, daily. | Skill compatibility should be additive and adapter-based, not a one-shot rename. |
 
-This is healthy duplication at the product edge. The risk would be duplicating
-runtime contracts, process handoffs, provenance envelopes, package integrity, or
-workspace health rules in ways that drift from Refarm.
+This is healthy specialization at the product edge. The risk is letting
+runtime contracts, process handoffs, provenance envelopes, package integrity,
+source materialization, release policy, workspace health rules, skills, or
+agent/runtime loops drift as `vault-seed`-local infrastructure.
 
 ## 2026-06-12 Active Consumer Read
 
@@ -63,11 +72,12 @@ This confirms the layering target:
 dgk command -> dgk runner API -> Refarm SDK primitive -> artifacts/evidence
 ```
 
-The first integration should be internal and optional. A vault without Refarm
-SDK packages should still work through the local implementation, while a vault
-with Refarm packages installed can have the same `dgk` runner API emit richer
-process metadata and artifacts. This is "powered by Refarm", not a replacement
-of `dgk` by the Refarm CLI.
+The first integrations should be internal and optional where compatibility
+requires it. A vault without Refarm SDK packages should keep working through
+the local implementation, while maintained `dgk` packages should increasingly
+import Refarm primitives by default and emit richer process metadata,
+artifacts, channel evidence, release evidence, and health signals. This is
+"powered by Refarm", not a replacement of `dgk` by the Refarm CLI.
 
 Refarm now exposes the first generic building block for that path:
 `@refarm.dev/launch-process` provides `createLaunchProcessSpecFromRunner` and
