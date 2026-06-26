@@ -45,6 +45,24 @@ Entries can move directly to `retired` when the underlying work is completed by 
 smaller manual change or generator-first lane before codemod promotion, or when
 the transform is no longer needed.
 
+## Ready Entries
+
+`ds-token-adoption` is the first `ready` entry. It is intentionally narrow:
+
+- prepends the Refarm DS token/theme/component CSS imports when absent;
+- removes only semantic `ds-tokens:v1` custom-property declarations from
+  `:root` / `[data-vault-marimo-theme]` blocks;
+- preserves consumer-local non-semantic variables such as `--gdg-*` as fallback
+  surface state;
+- prints transformed CSS by default, so a consumer can review the dry run before
+  applying it with `--write`.
+
+Dry run:
+
+```bash
+node codemods/ds-token-adoption.mjs --input vault-seed/.site/styles/marimo-vault.css
+```
+
 ## Manual-Reviewed Line
 
 `npm-scope-doc-sweep` stays `manual-reviewed` unless it becomes a recurring

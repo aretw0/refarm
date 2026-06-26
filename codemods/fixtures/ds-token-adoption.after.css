@@ -1,0 +1,17 @@
+@import "@refarm.dev/ds/tokens.css";
+@import "@refarm.dev/ds/themes/verde-jardim.css";
+@import "@refarm.dev/ds/components.css";
+
+:root,
+[data-vault-marimo-theme="light"] {
+	--gdg-grid-line: color-mix(in srgb, var(--border) 56%, transparent);
+}
+
+[data-vault-marimo-theme="dark"] {
+	--gdg-grid-line: color-mix(in srgb, var(--border) 64%, transparent);
+}
+
+.vault-lab-panel {
+	background: var(--card);
+	color: var(--card-foreground);
+}

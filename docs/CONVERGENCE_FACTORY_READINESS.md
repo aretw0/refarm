@@ -19,7 +19,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; `silo`, `cli/launch-process`, and channel-control seams are specified | official `vault-seed` 8a adapter proof; 8b needs channel-policy spec; 8c needs runner/provenance proof |
-| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry | first ready codemod implementation still needed |
+| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry; first ready codemod (`ds-token-adoption`) | first official consumer run of the ready codemod remains downstream |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
 

@@ -25,14 +25,17 @@
     },
     {
       "id": "ds-token-adoption",
-      "status": "candidate",
+      "status": "ready",
       "ownerSurface": "consumer repo",
-      "tool": "ast-grep",
+      "tool": "codemod",
       "inputs": ["vault-seed/.site/styles/marimo-vault.css locally-defined contract vars"],
-      "fixtures": [],
-      "dryRunCommand": null,
-      "verificationGate": "Lab CSS imports @refarm.dev/ds tokens + verde-jardim; no visual regression",
-      "rollbackNote": "CSS custom-property migration; revert the stylesheet commit"
+      "fixtures": [
+        "codemods/fixtures/ds-token-adoption.before.css",
+        "codemods/fixtures/ds-token-adoption.after.css"
+      ],
+      "dryRunCommand": "node codemods/ds-token-adoption.mjs --input vault-seed/.site/styles/marimo-vault.css",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/ds-token-adoption.test.mjs; Lab CSS imports @refarm.dev/ds tokens + verde-jardim; no visual regression",
+      "rollbackNote": "CSS custom-property migration; rerun without --write for review, and revert the stylesheet commit if adoption regresses"
     },
     {
       "id": "vault-seed-manifest-inventory",
