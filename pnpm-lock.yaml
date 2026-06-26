@@ -963,9 +963,6 @@ importers:
 
   packages/silo:
     dependencies:
-      '@noble/ed25519':
-        specifier: 'catalog:'
-        version: 3.1.0
       '@refarm.dev/heartwood':
         specifier: workspace:*
         version: link:../heartwood

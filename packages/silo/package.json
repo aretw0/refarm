@@ -20,7 +20,6 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
-		"@noble/ed25519": "catalog:",
 		"@refarm.dev/heartwood": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",

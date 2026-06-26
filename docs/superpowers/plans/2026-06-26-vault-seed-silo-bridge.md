@@ -13,6 +13,22 @@ helpers if the consumer proof shows unavoidable repeated logic.
 
 **Spec:** `specs/features/2026-06-26-vault-seed-silo-bridge.md`
 
+**Reconciled 2026-06-26:** The Refarm-side package proof stayed adapter-only;
+no new `@refarm.dev/silo` helper API was needed. The current handoff tarballs are:
+
+- `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-silo-0.1.0.tgz`
+  (`sha256 3335f225a6161769c1e44ff199007c3accf1f51aa69a4b5d0a1bd71be26189d5`);
+- `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-heartwood-0.1.0.tgz`
+  (`sha256 0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf`).
+
+Pre-publication consumers should install `@refarm.dev/silo` from the local
+tarball and override the unpublished transitive `@refarm.dev/heartwood` package
+to the matching local tarball. The temporary consumer proof saved
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and a collected dry-run value under
+namespace `publishing`, verified they did not enter the flat `tokens` map or the
+`model` namespace, and confirmed the installed dependency tree was only
+`@refarm.dev/silo -> @refarm.dev/heartwood`.
+
 ## Global Constraints
 
 - One bridge only: 8a `vault-seed` `silo.js` -> `@refarm.dev/silo`.
@@ -70,9 +86,9 @@ node --test scripts/publish_to_telegram.test.mjs scripts/inbox_from_telegram.tes
 **Files in `refarm`:**
 - Modify only if the consumer proof shows `@refarm.dev/silo` needs small namespace helper APIs.
 
-- [ ] **Step 1:** If helper APIs are needed, add them to `packages/silo/src/collect.js` or
-  `packages/silo/src/index.js` with focused tests.
-- [ ] **Step 2:** Run:
+- [x] **Step 1:** Determine whether helper APIs are needed; if so, add them to
+  `packages/silo/src/collect.js` or `packages/silo/src/index.js` with focused tests.
+- [x] **Step 2:** Run:
 
 ```bash
 pnpm -C packages/silo run lint
@@ -80,15 +96,26 @@ pnpm -C packages/silo run build
 pnpm -C packages/silo run test
 ```
 
-- [ ] **Step 3:** Add a changeset only if `@refarm.dev/silo` public API changes.
-- [ ] **Step 4:** Run `refarm agent finish --lane after-edit --run --json` before committing.
+- [x] **Step 3:** Add a changeset if `@refarm.dev/silo` public API or published dependency
+  metadata changes.
+- [x] **Step 4:** Run `refarm agent finish --lane after-edit --run --json` before committing.
+
+No helper API was required. Validation was run with direct local binaries after
+the lockfile changed, to avoid `pnpm run` triggering a broad install in the
+restricted container:
+
+```bash
+./node_modules/.bin/eslint packages/silo/src
+./node_modules/.bin/tsc --project packages/silo/tsconfig.build.json
+../../node_modules/.bin/vitest run src/index.test.ts src/collect.test.ts src/secrets.test.ts
+```
 
 ---
 
 ### Task 4: Consumer proof handoff
 
-- [ ] **Step 1:** Document the exact `@refarm.dev/silo` tarball/path used by `vault-seed`.
-- [ ] **Step 2:** Record whether the bridge stayed adapter-only or required Refarm helper APIs.
+- [x] **Step 1:** Document the exact `@refarm.dev/silo` tarball/path used by `vault-seed`.
+- [x] **Step 2:** Record whether the bridge stayed adapter-only or required Refarm helper APIs.
 - [ ] **Step 3:** Commit Refarm-side changes separately from downstream `vault-seed` changes.
 
 ## Non-Goal
