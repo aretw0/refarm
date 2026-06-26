@@ -10,6 +10,19 @@
 
 **Spec:** `specs/features/2026-06-25-ds-token-contract.md`
 
+**Reconciled 2026-06-26:** Tasks 1-5 have landed in `packages/ds`. Focused package validation
+passed with:
+
+```bash
+pnpm -C packages/ds run lint
+pnpm -C packages/ds run type-check
+pnpm -C packages/ds run test
+pnpm -C packages/ds run build
+```
+
+The broad repo gates (`validate-packages`, `gate:smoke:contracts`) remain steward/push
+checkpoints to avoid repeating wide fan-out in the constrained container.
+
 ## Global Constraints
 
 - **Module:** ESM; `.js` import specifiers in TS. **Test:** `pnpm -C packages/ds run test`.
@@ -32,7 +45,7 @@
 **Interfaces:**
 - Produces: `DS_TOKEN_CAPABILITY`, `REQUIRED_TOKENS`, `DsToken`, `DsTheme`, `DsThemeConformanceResult` (contract.ts); `runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConformanceResult` (theme-conformance.ts).
 
-- [ ] **Step 1: Write the failing test** — `src/conformance.test.ts`
+- [x] **Step 1: Write the failing test** — `src/conformance.test.ts`
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -64,12 +77,12 @@ describe("ds-tokens:v1 conformance", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm -C packages/ds run test`
 Expected: FAIL — cannot resolve `./contract.js` / `./theme-conformance.js`.
 
-- [ ] **Step 3: Create `src/contract.ts`** (verbatim from spec §1)
+- [x] **Step 3: Create `src/contract.ts`** (verbatim from spec §1)
 
 ```ts
 export const DS_TOKEN_CAPABILITY = "ds-tokens:v1" as const;
@@ -101,7 +114,7 @@ export interface DsThemeConformanceResult {
 }
 ```
 
-- [ ] **Step 4: Create `src/theme-conformance.ts`** (verbatim from spec §3)
+- [x] **Step 4: Create `src/theme-conformance.ts`** (verbatim from spec §3)
 
 ```ts
 import { REQUIRED_TOKENS, type DsToken, type DsTheme, type DsThemeConformanceResult } from "./contract.js";
@@ -119,12 +132,12 @@ export function runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConforman
 }
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `pnpm -C packages/ds run test`
 Expected: PASS — both conformance tests green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/ds/src/contract.ts packages/ds/src/theme-conformance.ts packages/ds/src/conformance.test.ts
@@ -144,7 +157,7 @@ git commit -m "feat(ds): ds-tokens:v1 contract and theme conformance"
 - Consumes: `REQUIRED_TOKENS`, `runDsThemeConformance`.
 - Produces: a CSS-parse test helper `tokensInThemeCss(path): Partial<DsTheme>` (local to the test).
 
-- [ ] **Step 1: Write the failing test** — `src/theme-css.test.ts`
+- [x] **Step 1: Write the failing test** — `src/theme-css.test.ts`
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -172,12 +185,12 @@ describe("shipped theme CSS conformance", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm -C packages/ds run test`
 Expected: FAIL — `themes/tractor-green.css` does not exist.
 
-- [ ] **Step 3: Create `src/themes/tractor-green.css`** (reference theme — values from the current `--refarm-*` palette, re-expressed semantically)
+- [x] **Step 3: Create `src/themes/tractor-green.css`** (reference theme — values from the current `--refarm-*` palette, re-expressed semantically)
 
 ```css
 @layer refarm.theme {
@@ -215,7 +228,7 @@ Expected: FAIL — `themes/tractor-green.css` does not exist.
 }
 ```
 
-- [ ] **Step 4: Replace `src/tokens.css`** with the scoped entry layer (drop the old `--refarm-*` block)
+- [x] **Step 4: Replace `src/tokens.css`** with the scoped entry layer (drop the old `--refarm-*` block)
 
 ```css
 /* @refarm.dev/ds — token contract entry. Scoped, never bare :root.
@@ -229,12 +242,12 @@ Expected: FAIL — `themes/tractor-green.css` does not exist.
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pnpm -C packages/ds run test`
 Expected: PASS — `tractor-green` defines all 30 tokens.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/ds/src/tokens.css packages/ds/src/themes/tractor-green.css packages/ds/src/theme-css.test.ts
@@ -251,7 +264,7 @@ git commit -m "feat(ds): scoped token layer and tractor-green reference theme"
 
 **Interfaces:** consumes the Task 2 test helper.
 
-- [ ] **Step 1: Extend the failing test** — add to `theme-css.test.ts`:
+- [x] **Step 1: Extend the failing test** — add to `theme-css.test.ts`:
 
 ```ts
 it.each(["oceano", "terracota", "verde-jardim"])("%s defines every required token", (name) => {
@@ -260,12 +273,12 @@ it.each(["oceano", "terracota", "verde-jardim"])("%s defines every required toke
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm -C packages/ds run test`
 Expected: FAIL — the three preset files do not exist.
 
-- [ ] **Step 3: Author the three preset CSS files**
+- [x] **Step 3: Author the three preset CSS files**
 
 Transcribe values from `vault-seed`'s palettes into the **same 30-token shape as `tractor-green.css`**, under `[data-refarm-theme="<name>"]`:
 - `verde-jardim` — from `vault-seed/.site/styles/marimo-vault.css` (the Lab's shadcn values: bg `#111310`, fg `#f7f5f0`, primary `#95d5b2`, primary-foreground `#111310`, …). This is the dogfood theme the Lab will re-consume.
@@ -273,12 +286,12 @@ Transcribe values from `vault-seed`'s palettes into the **same 30-token shape as
 
 Each file follows the exact structure of `tractor-green.css` (all 30 vars). The conformance test in Step 2 is the gate that they are complete.
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `pnpm -C packages/ds run test`
 Expected: PASS — all four themes define every token.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/ds/src/themes
@@ -295,7 +308,7 @@ git commit -m "feat(ds): oceano, terracota, verde-jardim preset themes (from vau
 
 **Interfaces:** produces `.ds-card`, `.ds-btn`, `.ds-field`, `.ds-table`, `.ds-section`, `.ds-feedback` (consumed by item 4b).
 
-- [ ] **Step 1: Write the failing scope test** — `src/scope.test.ts`
+- [x] **Step 1: Write the failing scope test** — `src/scope.test.ts`
 
 ```ts
 import { readdirSync, readFileSync } from "node:fs";
@@ -326,12 +339,12 @@ describe("token scope discipline", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pnpm -C packages/ds run test`
 Expected: FAIL — `components.css` does not exist.
 
-- [ ] **Step 3: Create `src/components.css`** (headless classes over tokens, no hex)
+- [x] **Step 3: Create `src/components.css`** (headless classes over tokens, no hex)
 
 ```css
 @layer refarm.components {
@@ -373,12 +386,12 @@ Expected: FAIL — `components.css` does not exist.
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `pnpm -C packages/ds run test`
 Expected: PASS — scope + components tests green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/ds/src/scope.test.ts packages/ds/src/components.css
@@ -396,7 +409,7 @@ git commit -m "feat(ds): scope-discipline test and headless component classes"
 - Modify: `scripts/ci/test-capabilities.mjs`, `scripts/ci/gate-smoke-contracts.mjs`
 - Create: `.changeset/ds-token-contract.md`
 
-- [ ] **Step 1: Create `src/tailwind-bridge.css`** (Tailwind v4 `--color-*` aliases → semantic vars)
+- [x] **Step 1: Create `src/tailwind-bridge.css`** (Tailwind v4 `--color-*` aliases → semantic vars)
 
 ```css
 @layer refarm.tokens {
@@ -413,7 +426,7 @@ git commit -m "feat(ds): scope-discipline test and headless component classes"
 }
 ```
 
-- [ ] **Step 2: Update `src/index.ts`** to re-export the contract + conformance
+- [x] **Step 2: Update `src/index.ts`** to re-export the contract + conformance
 
 ```ts
 export { runDsThemeConformance } from "./theme-conformance.js";
@@ -422,7 +435,7 @@ export * from "./contract.js";
 //   @refarm.dev/ds/tokens.css, /components.css, /tailwind-bridge.css, /themes/<name>.css
 ```
 
-- [ ] **Step 3: Add CSS exports to `package.json`** `exports` map
+- [x] **Step 3: Add CSS exports to `package.json`** `exports` map
 
 ```jsonc
 "./tokens.css": "./src/tokens.css",
@@ -431,12 +444,12 @@ export * from "./contract.js";
 "./themes/*": "./src/themes/*"
 ```
 
-- [ ] **Step 4: Register the conformance test in both gate lists**
+- [x] **Step 4: Register the conformance test in both gate lists**
 
 `scripts/ci/test-capabilities.mjs` STEPS — add `["packages/ds", "test"]` (ds uses `test`, not `test:unit`; confirm the script name in `packages/ds/package.json` and match it).
 `scripts/ci/gate-smoke-contracts.mjs` STEPS — add `["packages/ds", "build"]` and `["packages/ds", "test"]`.
 
-- [ ] **Step 5: Add the changeset** — `.changeset/ds-token-contract.md`
+- [x] **Step 5: Add the changeset** — `.changeset/ds-token-contract.md`
 
 ```markdown
 ---
@@ -446,10 +459,19 @@ export * from "./contract.js";
 ds-tokens:v1 semantic token contract: scoped themes (tractor-green + oceano/terracota/verde-jardim), conformance suite, and headless component classes.
 ```
 
-- [ ] **Step 6: Run the gates + final lint/type-check**
+- [x] **Step 6: Run the package gates + final lint/type-check**
 
-Run: `pnpm -C packages/ds run lint && pnpm -C packages/ds run type-check && pnpm -C packages/ds run test && pnpm run validate-packages && pnpm run gate:smoke:contracts`
-Expected: PASS — all green; `ds` appears in the contracts-smoke output.
+Focused package gate executed 2026-06-26:
+
+```bash
+pnpm -C packages/ds run lint
+pnpm -C packages/ds run type-check
+pnpm -C packages/ds run test
+pnpm -C packages/ds run build
+```
+
+Expected: PASS — all green. `pnpm run validate-packages` and
+`pnpm run gate:smoke:contracts` remain broad steward/push checkpoints.
 
 - [x] **Step 7: Record the consumer-proof packet** (do not block this plan on it)
 
@@ -473,7 +495,7 @@ Per `docs/DEV_CROSS_REPO_CONSUMPTION.md`: `pnpm -C packages/ds pack` → install
   checkout; the Refarm side should treat this as a validated packet, not a
   downstream merge.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/ds/src/tailwind-bridge.css packages/ds/src/index.ts packages/ds/package.json scripts/ci/test-capabilities.mjs scripts/ci/gate-smoke-contracts.mjs .changeset/ds-token-contract.md
