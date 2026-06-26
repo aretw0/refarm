@@ -84,6 +84,12 @@ produced them. The process points to consumer-owned scripts or binaries; Refarm
 does not distribute vault ETL, Astro, Marimo, or publication scripts through the
 artifact contract.
 
+The Lab/outbox mapping should stay generic: Lab datasets use role `dataset` with
+labels such as `lab`, publication outbox files use role `manifest` with labels
+such as `publication` and `outbox`, and notebook exports use role `report` with
+labels such as `lab`, `notebook`, and `snapshot`. The labels carry consumer
+semantics while Refarm validates the common evidence shape.
+
 ## 2026-06-11 Read-Only Calibration
 
 The latest read-only pass over the adjacent writing vault and `vault-seed`
@@ -410,6 +416,16 @@ The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `@refarm.dev/launch-process` internally while keeping the exported
 `run(cmd, args, opts)` API and command UX local, then emit a task artifact
 manifest that references the tokenized process boundary.
+
+**2026-06-26 artifact/Lab evidence packet:** `@refarm.dev/artifact-contract-v1`
+now includes a Refarm-side fixture for `vault-seed` Lab datasets, publication
+outbox manifests, and notebook snapshots using generic roles plus labels instead
+of upstreaming notebook UX or vault schema. Candidate tarball:
+`.refarm/handoff/vault-seed/2026-06-26/refarm.dev-artifact-contract-v1-0.1.0.tgz`
+(`sha256 75c6c0f746435ae6b91ff009178b2a5f367e020f616eda33a3e11f54dd1caa08`).
+Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
+`LICENSE`. The official proof remains downstream: `vault-seed` should emit
+`refarm.task-artifacts.v1` manifests from its Lab/outbox/notebook producers.
 
 **2026-06-26 channel-policy packet:** `@refarm.dev/channel-policy-v1` now has a
 consumer-pulled handoff for Telegram/outbox evidence without moving provider API
