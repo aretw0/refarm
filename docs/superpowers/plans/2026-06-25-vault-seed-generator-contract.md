@@ -161,13 +161,23 @@ git commit -m "feat(gen-vault-seed): manifest classifying the vault-seed templat
 
 ### Task 4: Smoke harness against the generated vault
 
-- [ ] **Step 1:** Generate a vault into a temp dir from a pinned `vault-seed` source.
-- [ ] **Step 2:** Run the `vault-seed` generated-vault smoke against the output. The existing
+- [x] **Step 1:** Generate a vault into a temp dir from a pinned `vault-seed` source.
+- [x] **Step 2:** Run the `vault-seed` generated-vault smoke against the output. The existing
   `vault-seed/scripts/smoke_user_e2e.mjs` already simulates init then runs `notebooks:etl:demo` +
   `site:build` and checks `dist/index.html`; the prototype gate is the lighter
   `smoke_user_vault.mjs` if e2e is too slow.
-- [ ] **Step 3:** Assert no `devOnly` path exists in the generated output.
-- [ ] **Step 4: Commit** — `test(gen-vault-seed): smoke the generated vault`.
+- [x] **Step 3:** Assert no `devOnly` path exists in the generated output.
+- [x] **Step 4: Commit** — `test(gen-vault-seed): smoke the generated vault`.
+
+Executed lightweight generated-vault smoke:
+
+```bash
+VAULT_SEED_SOURCE_DIR=/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed node --test generators/vault-seed/*.test.mjs
+```
+
+The smoke harness generates a temp vault from the cached checkout, validates renames, absence of
+`devOnly`/derived/local-state paths, welcome/config transforms, package-template preference, and
+that untracked cache files such as `vendor/` do not leak.
 
 ---
 
