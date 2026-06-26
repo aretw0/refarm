@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -90,6 +91,16 @@ function createWorkspace(root, pkgDefs, changesets = [], embeddedPolicy = null) 
 
 const fixturePolicy = path.join(process.cwd(), "packages/release-engine/test/fixtures/policy.json");
 const packageManifestPath = path.resolve(new URL("../package.json", import.meta.url).pathname);
+const cliPath = path.resolve(new URL("../src/cli.mjs", import.meta.url).pathname);
+const repoRoot = path.resolve(new URL("../../..", import.meta.url).pathname);
+
+function runCliJson(args) {
+  const output = execFileSync(process.execPath, [cliPath, ...args, "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  return JSON.parse(output);
+}
 
 function validPolicy(overrides = {}) {
   return {
@@ -149,6 +160,61 @@ test("exports the release policy schema as a public package subpath", () => {
     "./release-policy.schema.json",
   );
   assert.ok(pkg.files.includes("release-policy.schema.json"));
+});
+
+test("cli plan json resolves the Refarm default release selection", () => {
+  const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "default"]);
+
+  assert.equal(payload.command, "plan");
+  assert.equal(payload.ok, true);
+  assert.equal(payload.status, "ready");
+  assert.equal(payload.selection.id, "kernel-candidates");
+  assert.deepEqual(payload.profileTags, ["kernel", "candidate"]);
+  assert.deepEqual(payload.packages, [
+    "@refarm.dev/storage-contract-v1",
+    "@refarm.dev/sync-contract-v1",
+    "@refarm.dev/identity-contract-v1",
+    "@refarm.dev/channel-policy-v1",
+  ]);
+  assert.deepEqual(payload.requiredGates, [
+    "preflight",
+    "quality",
+    "contracts",
+    "runtime-descriptor",
+  ]);
+  assert.deepEqual(payload.providers, ["changesets"]);
+  assert.equal(payload.gates.length, 5);
+  assert.equal(payload.publishIntents[0].provider, "changesets");
+  assert.equal(payload.publishIntents[0].plan.requiresManualApproval, true);
+});
+
+test("cli plan json resolves the Refarm vault-seed-ready release selection", () => {
+  const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "vault-seed-ready"]);
+
+  assert.equal(payload.command, "plan");
+  assert.equal(payload.ok, true);
+  assert.equal(payload.selection.id, "vault-seed-ready");
+  assert.deepEqual(payload.profileTags, ["vault-seed-ready"]);
+  assert.deepEqual(payload.packages, [
+    "@refarm.dev/artifact-contract-v1",
+    "@refarm.dev/channel-policy-v1",
+    "@refarm.dev/effort-contract-v1",
+    "@refarm.dev/launch-process",
+    "@refarm.dev/release-engine",
+    "@refarm.dev/ds",
+    "@refarm.dev/heartwood",
+    "@refarm.dev/dispatch-surface",
+    "@refarm.dev/homestead-ssr",
+    "@refarm.dev/silo",
+  ]);
+  assert.equal(
+    payload.packageProfiles.every((profile) =>
+      profile.tags.includes("vault-seed-ready")
+    ),
+    true,
+  );
+  assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
+  assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
 });
 
 test("validates package profile bump policy", () => {

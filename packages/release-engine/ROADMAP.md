@@ -24,7 +24,9 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 ### TDD (Test Driven)
 - [x] Testes unitários de parsing de policy.
 - [x] Testes de ordenação topológica de dependências.
-- [ ] Testes de integração com policy por projeto (refarm/vault-seed/agents-lab).
+- [x] Testes de integração com policy do Refarm e seleção `vault-seed-ready`
+      via CLI JSON. Policies de `vault-seed`/`agents-lab` ficam para quando
+      esses projetos consumirem o pacote publicado ou um fixture próprio.
 
 ### DDD (Domain Delivery)
 - [x] CLI e API em módulo próprio (`packages/release-engine`).
