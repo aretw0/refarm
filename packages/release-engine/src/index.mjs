@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 
 export const DEFAULT_POLICY_VERSION = "2026-01";
+export const RELEASE_ENGINE_JSON_SCHEMA_VERSION = 1;
 
 const DEFAULT_EMBEDDED_CONFIG_CANDIDATES = [
   "refarm.config.json",

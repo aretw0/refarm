@@ -61,6 +61,9 @@ O payload JSON de `plan` inclui `packageProfiles` para os pacotes selecionados,
 derivado da política ativa. Isso permite que um control plane diferencie
 `kernel-contract`, `kernel-primitive`, `reference-hold`, `internal-lab` ou outras
 tags de postura sem acoplar essas categorias ao engine.
+Todo payload JSON emitido pelo CLI do pacote carrega `schemaVersion: 1`; campos
+novos devem ser adicionados de forma compatível. Consumidores de máquina devem
+falhar fechado quando receberem uma versão maior que a suportada.
 
 `--tag` pode ser repetido e usa filtro AND: `--tag kernel --tag candidate`
 seleciona apenas perfis que tenham ambas as tags. Prefira `--selection <id>`

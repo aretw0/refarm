@@ -52,7 +52,8 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 ### TDD (Test Driven)
 - [ ] Testes de contrato para compatibilidade com config embutida + arquivo legado.
 - [ ] Teste de “non-breaking migration”: política antiga carregada continua válida.
-- [ ] Testes de contrato JSON Schema para retorno de `plan`/`check` (campos estáveis, sem surpresa).
+- [x] Testes de contrato JSON para retorno de `plan`/`check` com `schemaVersion: 1`
+      e campos estáveis. JSON Schema formal ainda fica como próximo endurecimento.
 
 ### DDD (Domain Delivery)
 - [ ] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.
