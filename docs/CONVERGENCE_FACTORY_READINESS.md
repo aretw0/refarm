@@ -74,7 +74,7 @@ This rule activates work that prevents migration churn:
 | UI blocks | `ds` -> `homestead/ssr` -> `vault-seed` Lab/admin adoption | token/SSR conformance or consumer proof fails |
 | Process/artifacts | `launch-process` + `artifact-contract-v1` -> `dgk-runner`/Lab evidence | process vocabulary becomes DGK-specific |
 | Channels/outbox | `dgk-channels` + Telegram outbox/inbox -> channel policy evidence over Refarm channel-control surfaces | Telegram API, note UX, or DGK command names leak into Refarm |
-| Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes | notebook UX or vault schema moves upstream |
+| Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes; Refarm-side fixture and tarball packet ready | notebook UX or vault schema moves upstream |
 | Template/generation | generated-vault smoke + initialize reset -> vault generator/codemod registry | generator cannot distinguish payload from template-dev-only files |
 | Release/package checks | package smoke, version, lockfile/integrity checks -> release-engine/package acceptance policy | Refarm policy hardcodes DGK package names |
 | Health/substrate checks | action pins, substrate, generated-output, devcontainer contract checks -> health/environment substrate | project-local allowances become global rules |
@@ -196,7 +196,7 @@ to the existing lanes before `vault-seed` grows more local substrate:
 
 | Pressure | Attach to | Next planning move |
 |---|---|---|
-| Lab dataset/outbox/notebook manifests | `artifact-contract-v1`, WASM substrate | Add consumer proof requirements to item 9a or the next artifact-contract review. |
+| Lab dataset/outbox/notebook manifests | `artifact-contract-v1`, WASM substrate | Official `vault-seed` proof emits `refarm.task-artifacts.v1` manifests from Lab/outbox/notebook producers. |
 | Generated-vault smoke/reset/template inventory | vault generator + codemod registry | Keep active; this is the boilerplate-killing lane. |
 | Release package smoke, lockfile template sync, version contracts | `release-engine`, package acceptance checklist | Plan a release-policy consumer proof after generator inventory exists. |
 | Action pinning, substrate/devcontainer checks, generated-output hygiene | `health` / environment substrate | Extract only rules that can be expressed as consumer policy. |
