@@ -10,6 +10,7 @@ import {
   formatPlan,
   loadPolicy,
   ReleasePolicyValidationError,
+  SUPPORTED_POLICY_VERSIONS,
   validatePolicy,
   summarizePlan,
   releasePlanPackageProfiles,
@@ -159,6 +160,25 @@ test("validates explicit policy", () => {
   const policy = loadPolicy("packages/release-engine/test/fixtures/policy.json", process.cwd());
   assert.equal(policy.mode, "changeset");
   assert.equal(validatePolicy(policy), true);
+});
+
+test("exposes supported release policy versions", () => {
+  assert.deepEqual(SUPPORTED_POLICY_VERSIONS, ["2026-01"]);
+});
+
+test("rejects unsupported release policy versions with a structured error", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      policyVersion: "2027-01",
+    })),
+    (error) => {
+      assert.equal(error instanceof ReleasePolicyValidationError, true);
+      assert.equal(error.code, "RELEASE_POLICY_VERSION_UNSUPPORTED");
+      assert.equal(error.details.policyVersion, "2027-01");
+      assert.deepEqual(error.details.supportedPolicyVersions, ["2026-01"]);
+      return true;
+    },
+  );
 });
 
 test("exports the release policy schema as a public package subpath", () => {
