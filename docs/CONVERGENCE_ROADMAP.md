@@ -19,7 +19,7 @@ each sub-project's own brainstorm.
 | # | Sub-project | Artifact | Depends on | Readiness gate | Status |
 |---|---|---|---|---|---|
 | 0 | UI boundary amendment | doctrine edit | — | — | ✅ done |
-| 1 | **Librarian** — `source:v1` + `source-git` | spec + plan | — | Refarm agent materializes vault-seed/agents-lab read-only | ✅ spec + plan |
+| 1 | **Librarian** — `source:v1` + `source-git` | packages + smoke | — | Refarm agent materializes vault-seed/agents-lab read-only | ✅ implemented + smoke green |
 | 2 | **`apps/refarm` promotion audit** | audit ledger | 1 (read repos) | — (discovery) | ✅ done ([ledger](./APPS_REFARM_PROMOTION_LEDGER.md)) |
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + docs sweep | — | publish dry-run green under chosen scope | ✅ decided + docs sweep done ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
@@ -34,10 +34,21 @@ each sub-project's own brainstorm.
 
 ## Detail & rationale
 
-### 1. Librarian (done — spec + plan)
+### 1. Librarian (done — implemented + smoke green)
 `source:v1` contract + `source-git` impl. Unblocks everything: once Refarm can materialize a
 clean read-only copy of any repo, it can absorb logic from the ecosystem instead of guessing.
 Deferred pieces (`source-dispatch`, `source-local`, `tarball`) tracked in item 7.
+
+Re-verified 2026-06-26:
+
+```bash
+pnpm --filter @refarm.dev/source-contract-v1 run test:conformance
+pnpm --filter @refarm.dev/source-git run test:conformance
+pnpm --filter @refarm.dev/source-contract-v1 run build
+pnpm --filter @refarm.dev/source-git run build
+pnpm run test:capabilities
+pnpm run source:librarian:smoke
+```
 
 ### 2. `apps/refarm` promotion audit — recommended next
 The accepted critique: `apps/refarm` (1.2M) may concentrate logic that should be reusable blocks.
