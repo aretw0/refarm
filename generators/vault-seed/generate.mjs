@@ -61,11 +61,73 @@ function walkFiles(root, options = {}) {
 	return { files, skipped };
 }
 
-function writeFileFromSource({ sourceDir, outDir, source, target }) {
+function ownerFromOptions(owner) {
+	if (owner) return owner;
+	return (process.env.GITHUB_REPOSITORY ?? "/").split("/")[0] || undefined;
+}
+
+function formatJson(value) {
+	return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function applyTransform(content, transform, options) {
+	switch (transform) {
+		case "rename":
+			return content;
+		case "status-draft-to-published":
+			return content.replace(/^status: draft$/m, "status: published");
+		case "drop-kudos": {
+			const config = JSON.parse(content);
+			delete config.kudos;
+			return formatJson(config);
+		}
+		case "set-license-holder": {
+			const owner = ownerFromOptions(options.owner);
+			if (!owner) return content;
+			const config = JSON.parse(content);
+			config.license = {
+				...(config.license ?? {}),
+				holder: owner,
+				holderUrl: `https://github.com/${owner}`,
+			};
+			return formatJson(config);
+		}
+		default:
+			throw new Error(`Unsupported vault-seed transform: ${transform}`);
+	}
+}
+
+function transformContent(content, transforms, options) {
+	return transforms.reduce(
+		(nextContent, transform) =>
+			applyTransform(nextContent, transform, options),
+		content,
+	);
+}
+
+function writeFileFromSource({
+	sourceDir,
+	outDir,
+	source,
+	target,
+	transforms,
+	owner,
+}) {
 	const sourcePath = path.join(sourceDir, ...source.split("/"));
 	const targetPath = path.join(outDir, ...target.split("/"));
 	mkdirSync(path.dirname(targetPath), { recursive: true });
-	writeFileSync(targetPath, readFileSync(sourcePath));
+	const buffer = readFileSync(sourcePath);
+	const contentTransforms = (transforms ?? []).filter(
+		(transform) => transform !== "rename",
+	);
+	if (contentTransforms.length === 0) {
+		writeFileSync(targetPath, buffer);
+		return;
+	}
+	writeFileSync(
+		targetPath,
+		transformContent(buffer.toString("utf8"), contentTransforms, { owner }),
+	);
 }
 
 function inventoryFor(entry, fallback) {
@@ -85,7 +147,7 @@ function comparePath(left, right) {
 	return 0;
 }
 
-export async function generateVault({ manifest, sourceDir, outDir }) {
+export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 	assertValidInputs({ manifest, sourceDir, outDir });
 
 	mkdirSync(outDir, { recursive: true });
@@ -125,6 +187,8 @@ export async function generateVault({ manifest, sourceDir, outDir }) {
 			outDir,
 			source,
 			target: entry.target,
+			transforms: entry.transforms ?? [],
+			owner,
 		});
 		written.push(entry.target);
 		inventory.push(
