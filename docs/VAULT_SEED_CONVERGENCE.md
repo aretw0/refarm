@@ -28,7 +28,7 @@ template. It has separable packages for:
 | Package/surface | Current signal | Refarm lesson |
 | --- | --- | --- |
 | `@aretw0/dgk-cli` | Vault-local commands for validate, lint, setup, check, lab, publish. | Product CLIs need a small cockpit, not a forced Refarm command vocabulary. |
-| `@aretw0/dgk-runner` | Commands receive an injectable `(cmd, args) => Promise<void>` runner. | Refarm can compose later through a runner adapter instead of replacing `dgk`. |
+| `@aretw0/dgk-runner` | Commands receive an injectable `(cmd, args) => Promise<void>` runner. | `dgk` should become powered by Refarm SDK primitives internally while keeping its own package, binary, and command vocabulary. |
 | `@aretw0/dgk-astro-plugins` | Remark plugins for wiki links, images, callouts, and slug behavior. | Rendering conventions are consumer UX; reusable policy is limited to contracts and checks. |
 | `dgk-lab-runtime` | Python helpers for local-vs-packaged notebook boundaries. | Local ETL and published analysis need an explicit runtime boundary. |
 | `dgk-skills` | Vault-oriented skills such as read, search, create, context, daily. | Skill compatibility should be additive and adapter-based, not a one-shot rename. |
@@ -48,7 +48,7 @@ The useful convergence details are concrete:
 
 | Surface | Observed signal | Refarm action |
 | --- | --- | --- |
-| `dgk-runner` | Exposes a tiny `(cmd, args, opts) => Promise<void>` spawn contract, and `dgk` commands accept an injected runner. | Keep Refarm process specs JSON-first and adapter-friendly, so `dgk` can later delegate without changing command code. |
+| `dgk-runner` | Exposes a tiny `(cmd, args, opts) => Promise<void>` spawn contract, and `dgk` commands accept an injected runner. | Keep Refarm process specs JSON-first and SDK-friendly, so `dgk` can import the primitive internally without changing command code or product identity. |
 | `dgk etl` | Runs a fixed local pipeline: note index, feed sources, publication outbox, lab datasets. | Treat ETL stages as task processes with artifact/provenance outputs, not as vault-specific Refarm commands. |
 | `dgk outbox` / `dgk inbox` | Channel commands are product-local today and route Telegram through scripts. | Promote channel-independent contracts only: contacts, rate limits, receipts, dry-run reports, and review gates. |
 | `silo.js` | Stores publishing-channel credentials under `~/.dgk/silo.json` and explicitly says model/AI keys come from `refarm sow`. | Harden `@refarm.dev/silo` as the model/runtime credential owner; later expose a scoped publishing credential adapter instead of merging all secrets. |
@@ -60,12 +60,14 @@ The useful convergence details are concrete:
 This confirms the layering target:
 
 ```text
-dgk command -> dgk-runner adapter -> Refarm process/task handoff -> artifacts
+dgk command -> dgk runner API -> Refarm SDK primitive -> artifacts/evidence
 ```
 
-The first integration should be optional. A vault without Refarm should still
-work, while a vault with Refarm installed can ask Refarm to execute, record, and
-handoff richer process metadata.
+The first integration should be internal and optional. A vault without Refarm
+SDK packages should still work through the local implementation, while a vault
+with Refarm packages installed can have the same `dgk` runner API emit richer
+process metadata and artifacts. This is "powered by Refarm", not a replacement
+of `dgk` by the Refarm CLI.
 
 Refarm now exposes the first generic building block for that path:
 `@refarm.dev/launch-process` provides `createLaunchProcessSpecFromRunner` and
@@ -143,8 +145,8 @@ dgk CLI = product-local cockpit for vault users
 Refarm = shared runtime, handoff, validation, model/task, and plugin substrate
 ```
 
-`dgk` can eventually call Refarm primitives when present, while remaining useful
-without Refarm installed.
+`dgk` can eventually import Refarm SDK primitives internally when present, while
+remaining useful without Refarm installed.
 
 ## Second And Third Consumers
 
@@ -198,11 +200,11 @@ consumer CLI directly to Refarm internals:
    - Product CLIs such as `dgk` should be able to expose commands as structured
      process specs instead of ad hoc shell strings.
    - Refarm should keep the reusable representation in
-     `@refarm.dev/launch-process`; `dgk` may later adapt to that shape.
+     `@refarm.dev/launch-process`; `dgk` may later import that SDK primitive
+     behind its existing runner API.
    - The existing `dgk-runner` injection point is the likely composition seam:
-     keep `dgk` commands product-local, but allow a future runner adapter to
-     execute through Refarm process specs and JSON handoffs when Refarm is
-     installed.
+     keep `dgk` commands product-local, but allow the runner implementation to
+     emit Refarm process specs and JSON handoffs when the SDK is installed.
    - The first reusable adapter is
      `createLaunchProcessRunner`/`createLaunchProcessSpecFromRunner` in
      `@refarm.dev/launch-process`; deeper task recording can wrap the same
@@ -270,8 +272,9 @@ The pragmatic migration path is additive:
    review, not in read-only mirrors.
 4. Promote repeated `dgk` needs into Refarm shared packages only when a second
    consumer or repeated Refarm command needs the same primitive.
-5. Later, let `dgk` detect Refarm and delegate advanced flows such as runtime
-   tasks, model-backed curation, plugin/package verification, and finish gates.
+5. Later, let `dgk` detect installed Refarm SDK blocks and use them internally
+   for advanced flows such as runtime tasks, model-backed curation,
+   plugin/package verification, and finish gates.
 
 This keeps `vault-seed` sovereign for its users and lets Refarm become the
 daily-driver substrate without centralizing every workflow in `apps/refarm`.
@@ -398,9 +401,10 @@ its runner-style process specs can be embedded directly in
 `@refarm.dev/artifact-contract-v1` task artifact provenance without
 shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `@refarm.dev/cli/launch-process` stays as a compatibility re-export. The
-official `vault-seed` proof remains downstream: its `dgk-runner` should keep
-command UX local while emitting a task artifact manifest that references the
-tokenized process boundary.
+official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
+`@aretw0/dgk-cli` should import `@refarm.dev/launch-process` internally while
+keeping the exported `run(cmd, args, opts)` API and command UX local, then emit a
+task artifact manifest that references the tokenized process boundary.
 
 ### Additional Assimilation Matrix
 

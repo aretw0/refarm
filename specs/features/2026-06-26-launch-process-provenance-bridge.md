@@ -15,6 +15,10 @@ tokenized process evidence under `ArtifactProvenance.process`.
 `@refarm.dev/cli/launch-process` remains a compatibility re-export for existing
 Refarm callers.
 
+The downstream direction is SDK absorption, not CLI replacement: `dgk` keeps its
+package names, binary, command vocabulary, paths, and user experience while
+using Refarm primitives internally where they remove duplicated machinery.
+
 ## Decision
 
 Create a leaf runner package for 8c so consumer projects can adopt the process
@@ -25,7 +29,7 @@ compatibility between:
   `@refarm.dev/launch-process`;
 - the compatibility subpath `@refarm.dev/cli/launch-process`;
 - `ArtifactProcessReference` in `@refarm.dev/artifact-contract-v1`;
-- downstream product runners such as `dgk-runner`.
+- downstream product runners such as `@aretw0/dgk-runner`.
 
 The first Refarm-side proof is a leaf package test that builds a runner process
 spec and validates a `TaskArtifactManifest` carrying that exact process object
@@ -42,6 +46,7 @@ Refarm owns:
 Downstream owns:
 
 - command names such as `dgk lab` or `dgk publish`;
+- the exported `run(cmd, args, opts)` runner API and package identity;
 - vault paths, notebooks, and ETL semantics;
 - process output parsing beyond generic artifact/provenance evidence.
 
@@ -57,4 +62,5 @@ Downstream owns:
 ## Rollback
 
 Downstream CLIs can continue using their injected runner unchanged. The Refarm
-bridge is additive until the downstream runner elects to emit artifact manifests.
+bridge is additive until the downstream runner elects to import the SDK
+internally and emit artifact manifests.

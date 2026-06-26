@@ -162,7 +162,7 @@ Split the bridges so activation is evidence-based rather than a general cleanup 
 |---|---|---|
 | 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Refarm handoff ready after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary; local tarball proof stayed adapter-only | namespaces preserve model/runtime/channel/publishing separation |
 | 8b channel policy (`contacts` + `rate-limiter` + receipts) | **Refarm-side package slice active**: `@refarm.dev/channel-policy-v1` covers destinations, rate-limit policy/evidence, delivery state, receipts, dry-run, and review semantics | official `vault-seed` Telegram adapter proof must emit the neutral envelope while keeping API/UX downstream |
-| 8c `launch-process` + artifact provenance | **Refarm-side proof active**: `@refarm.dev/launch-process` process specs validate as `artifact-contract-v1` provenance; `@refarm.dev/cli/launch-process` remains a compatibility re-export | official `dgk-runner` proof must emit manifests without leaking `dgk` command names upstream |
+| 8c `launch-process` + artifact provenance | **Refarm-side proof active**: `@refarm.dev/launch-process` process specs validate as `artifact-contract-v1` provenance; `@refarm.dev/cli/launch-process` remains a compatibility re-export | official `dgk-runner`/`dgk-cli` proof must import the SDK internally, preserve `dgk` UX, and emit manifests without leaking `dgk` command names upstream |
 
 Spec rule: each bridge gets its own feature spec and its own consumer proof. A bridge does not
 start because it is convenient; it starts because the second consumer exists. `vault-seed` counts
