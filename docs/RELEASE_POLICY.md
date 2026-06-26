@@ -68,7 +68,7 @@ This gate composes existing checks instead of minting a second release policy.
 1. It blocks execution if the git working tree is dirty.
 2. It bumps the version locally.
 3. It runs `type-check`, `build`, and `test:capabilities` (checking backwards compatibility).
-4. It runs `pnpm publish --dry-run` to ensure the package configuration is valid.
+4. It runs `pnpm publish --dry-run` in the selected package directory to ensure the package configuration is valid.
 5. If anything fails, it automatically rolls back the `package.json`.
 6. If successful, it commits and tags the code, instructing the developer to `git push origin <tag>`.
 
