@@ -33,6 +33,9 @@
     "task",
     "channel"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@refarm.dev/effort-contract-v1": "workspace:*"
   },

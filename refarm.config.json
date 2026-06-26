@@ -32,7 +32,10 @@
   "mode": "persistent",
   "storage": "opfs",
   "health": {
-    "workspaceRoots": ["packages", "apps"],
+    "workspaceRoots": [
+      "packages",
+      "apps"
+    ],
     "exemptPackageIds": [
       "packages/deps",
       "packages/heartwood",
@@ -65,7 +68,394 @@
       "validations",
       "wit"
     ],
-    "pruneDirNames": ["node_modules", ".cache", ".turbo", "dist", "build", "target"]
+    "pruneDirNames": [
+      "node_modules",
+      ".cache",
+      ".turbo",
+      "dist",
+      "build",
+      "target"
+    ]
   },
-  "plugins": { "autoInstall": [] }
+  "plugins": {
+    "autoInstall": []
+  },
+  "releasePolicy": {
+    "policyVersion": "2026-01",
+    "mode": "changeset",
+    "providers": [
+      {
+        "id": "changesets",
+        "type": "changesets",
+        "supportsPublish": true,
+        "supportsDryRun": true,
+        "publishCommands": [
+          "pnpm changeset version",
+          "pnpm changeset publish"
+        ],
+        "publishDryRunCommands": [
+          "pnpm changeset version"
+        ],
+        "publishRequiresManualApproval": true
+      },
+      {
+        "id": "legacy-tags",
+        "type": "legacy-tag",
+        "supportsPublish": false,
+        "supportsDryRun": false
+      }
+    ],
+    "defaultSelection": "kernel-candidates",
+    "selections": [
+      {
+        "id": "kernel-candidates",
+        "description": "First-release kernel candidates for daily-driver planning.",
+        "profileTags": [
+          "kernel",
+          "candidate"
+        ]
+      },
+      {
+        "id": "kernel-contracts",
+        "description": "All kernel contract packages tracked by release policy.",
+        "profileTags": [
+          "kernel-contract"
+        ]
+      },
+      {
+        "id": "vault-seed-ready",
+        "description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
+        "profileTags": [
+          "vault-seed-ready"
+        ]
+      }
+    ],
+    "packageProfiles": [
+      {
+        "id": "@refarm.dev/storage-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/sync-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/identity-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/artifact-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "vault-seed-ready",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/automation-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/effort-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "vault-seed-ready",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/session-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "integration-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/task-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "integration-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/stream-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/context-provider-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "tags": [
+          "contract",
+          "kernel",
+          "kernel-contract",
+          "review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/cli",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/cli run build",
+          "pnpm --filter @refarm.dev/cli exec vitest run"
+        ],
+        "tags": [
+          "kernel",
+          "kernel-primitive",
+          "vault-seed-ready",
+          "boundary-review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/config",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/config exec vitest run"
+        ],
+        "tags": [
+          "kernel",
+          "kernel-primitive",
+          "vault-seed-ready",
+          "boundary-review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/release-engine",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/release-engine run test"
+        ],
+        "tags": [
+          "kernel",
+          "kernel-primitive",
+          "vault-seed-ready",
+          "dogfood"
+        ]
+      },
+      {
+        "id": "@refarm.dev/ds",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/ds run lint",
+          "pnpm --filter @refarm.dev/ds run type-check",
+          "pnpm --filter @refarm.dev/ds run test",
+          "pnpm --filter @refarm.dev/ds run build"
+        ],
+        "tags": [
+          "ui",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/dispatch-surface",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/dispatch-surface run lint",
+          "pnpm --filter @refarm.dev/dispatch-surface run type-check",
+          "pnpm --filter @refarm.dev/dispatch-surface run test",
+          "pnpm --filter @refarm.dev/dispatch-surface run test:parity"
+        ],
+        "tags": [
+          "dispatch",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/heartwood",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/heartwood run test"
+        ],
+        "tags": [
+          "crypto",
+          "silo-dependency",
+          "vault-seed-ready",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/silo",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/silo run lint",
+          "pnpm --filter @refarm.dev/silo run test",
+          "pnpm --filter @refarm.dev/silo run build"
+        ],
+        "tags": [
+          "credentials",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/trust",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/trust run lint",
+          "pnpm --filter @refarm.dev/trust run type-check",
+          "pnpm --filter @refarm.dev/trust run test",
+          "pnpm --filter @refarm.dev/trust run build"
+        ],
+        "tags": [
+          "trust",
+          "cli-dependency",
+          "vault-seed-ready",
+          "candidate"
+        ]
+      },
+      {
+        "id": "@refarm.dev/homestead",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/homestead run lint",
+          "pnpm --filter @refarm.dev/homestead run type-check",
+          "pnpm --filter @refarm.dev/homestead run test",
+          "pnpm --filter @refarm.dev/homestead run build"
+        ],
+        "tags": [
+          "ui",
+          "consumer-pulled",
+          "vault-seed-blocked",
+          "dependency-closure-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/plugin-manifest",
+        "risk": "plugin",
+        "mustPassChecks": [
+          "pnpm run type-check",
+          "pnpm run test:unit"
+        ],
+        "tags": [
+          "plugin-contract",
+          "reference-hold",
+          "multi-layer-plugin-hold"
+        ]
+      }
+    ],
+    "phases": [
+      {
+        "id": "preflight",
+        "name": "Preflight",
+        "commands": [
+          "git status --porcelain"
+        ],
+        "required": true,
+        "riskWeight": 1
+      },
+      {
+        "id": "quality",
+        "name": "Quality Gates",
+        "commands": [
+          "pnpm run lint",
+          "pnpm run type-check"
+        ],
+        "required": true,
+        "riskWeight": 5
+      },
+      {
+        "id": "contracts",
+        "name": "Contract Smoke",
+        "commands": [
+          "pnpm run gate:smoke:contracts"
+        ],
+        "required": true,
+        "riskWeight": 6
+      },
+      {
+        "id": "runtime-descriptor",
+        "name": "Runtime Descriptor Release Smoke",
+        "commands": [
+          "pnpm run runtime-descriptor:release-smoke -- --sha local"
+        ],
+        "required": true,
+        "riskWeight": 4
+      },
+      {
+        "id": "telemetry",
+        "name": "Telemetry gate",
+        "commands": [
+          "pnpm run refarm:telemetry:gate:ci -- --out .artifacts/release-engine/telemetry-gate.json --timeout-ms 20000"
+        ],
+        "required": false,
+        "riskWeight": 2
+      }
+    ]
+  }
 }
