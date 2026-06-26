@@ -183,10 +183,21 @@ that untracked cache files such as `vendor/` do not leak.
 
 ### Task 5: Inventory report + codemod decision
 
-- [ ] **Step 1:** Emit `inventory.json` mapping every generated file → `{ source, transforms, validation }` (round-trip contract, spec decision 5).
-- [ ] **Step 2:** Record which transforms warrant a codemod (`ast-grep`/`ts-morph`) vs a direct generator action (per `docs/CONVERGENCE_FACTORY_READINESS.md` "Codemod Discipline"): repository identity + package metadata = codemod candidates; Markdown prose edits stay direct unless mechanical/repeated.
-- [ ] **Step 3:** Add a changeset only if a publishable package changed (the generator under `generators/` may be repo-internal tooling — confirm with `validate-packages`).
-- [ ] **Step 4: Commit** — `feat(gen-vault-seed): inventory report + codemod classification`.
+- [x] **Step 1:** Emit `inventory.json` mapping every generated file → `{ source, transforms, validation }` (round-trip contract, spec decision 5).
+- [x] **Step 2:** Record which transforms warrant a codemod (`ast-grep`/`ts-morph`) vs a direct generator action (per `docs/CONVERGENCE_FACTORY_READINESS.md` "Codemod Discipline"): repository identity + package metadata = codemod candidates; Markdown prose edits stay direct unless mechanical/repeated.
+- [x] **Step 3:** Add a changeset only if a publishable package changed (the generator under `generators/` may be repo-internal tooling — confirm with `validate-packages`).
+- [x] **Step 4: Commit** — `feat(gen-vault-seed): inventory report + codemod classification`.
+
+Executed lightweight gates:
+
+```bash
+node --test generators/vault-seed/generate.test.mjs
+node --test generators/vault-seed/smoke.test.mjs
+VAULT_SEED_SOURCE_DIR=/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed node --test generators/vault-seed/*.test.mjs
+```
+
+No changeset was added: this slice changes repo-internal generator/docs surfaces only, not a
+publishable package.
 
 ---
 
