@@ -402,8 +402,11 @@ its runner-style process specs can be embedded directly in
 shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `@refarm.dev/cli/launch-process` stays as a compatibility re-export. The
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
-CLI closure excluded. The official `vault-seed` proof remains downstream:
-`@aretw0/dgk-runner` or `@aretw0/dgk-cli` should import
+CLI closure excluded. Candidate tarball:
+`.refarm/handoff/vault-seed/2026-06-26/refarm.dev-launch-process-0.1.0.tgz`
+(`sha256 28b13b6e1dc8ab5cbdfbb6b671f73cf0ff849881957a6b81710044d95d43d466`).
+The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
+`@aretw0/dgk-cli` should import
 `@refarm.dev/launch-process` internally while keeping the exported
 `run(cmd, args, opts)` API and command UX local, then emit a task artifact
 manifest that references the tokenized process boundary.
