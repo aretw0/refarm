@@ -36,6 +36,10 @@ executar publicação real.
 - `publishRequiresManualApproval` permite que o host mostre uma barreira humana.
 - `supportsPublish: false` permite providers de contexto ou legado sem bloquear
   parsing.
+- `providers: []` é aceito como contrato neutro quando o consumidor ainda não
+  declarou publicação real.
+- Erros de provider saem como `ReleasePolicyValidationError` com `code` estável
+  e `details.providerId` quando aplicável.
 
 Fluxo CI recomendado:
 

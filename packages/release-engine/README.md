@@ -42,6 +42,22 @@ Campos mínimos:
 - `publishDryRunCommands`: opcional; se ausente, herda `publishCommands`.
 - `publishRequiresManualApproval`: opcional; quando ausente, `changeset` assume aprovação manual.
 
+Providers inativos são válidos: `supportsPublish: false` não gera
+`publishIntents`. Uma lista vazia de providers também é aceita como contrato
+neutro para consumidores que ainda só querem plano/gates.
+
+Códigos de erro estruturados de provider expostos por
+`ReleasePolicyValidationError`:
+
+- `RELEASE_POLICY_PROVIDER_ID_REQUIRED`
+- `RELEASE_POLICY_PROVIDER_DUPLICATE_ID`
+- `RELEASE_POLICY_PROVIDER_TYPE_INVALID`
+- `RELEASE_POLICY_PROVIDER_SUPPORTS_PUBLISH_INVALID`
+- `RELEASE_POLICY_PROVIDER_SUPPORTS_DRY_RUN_INVALID`
+- `RELEASE_POLICY_PROVIDER_COMMANDS_INVALID`
+- `RELEASE_POLICY_PROVIDER_DRY_RUN_COMMANDS_INVALID`
+- `RELEASE_POLICY_PROVIDER_PUBLISH_COMMANDS_REQUIRED`
+
 Integração CI recomendada:
 
 1. Rodar `refarm release plan --selection default --json` para materializar a ordem.

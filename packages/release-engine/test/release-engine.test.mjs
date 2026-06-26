@@ -9,6 +9,7 @@ import {
   buildReleasePlan,
   formatPlan,
   loadPolicy,
+  ReleasePolicyValidationError,
   validatePolicy,
   summarizePlan,
   releasePlanPackageProfiles,
@@ -162,11 +163,22 @@ test("validates explicit policy", () => {
 
 test("exports the release policy schema as a public package subpath", () => {
   const pkg = JSON.parse(fs.readFileSync(packageManifestPath, "utf8"));
+  const schemaPath = path.resolve(
+    new URL("../release-policy.schema.json", import.meta.url).pathname,
+  );
+  const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+
   assert.equal(
     pkg.exports["./release-policy.schema.json"],
     "./release-policy.schema.json",
   );
   assert.ok(pkg.files.includes("release-policy.schema.json"));
+  assert.equal(schema.$defs.provider.required.includes("id"), true);
+  assert.equal(schema.$defs.provider.required.includes("type"), true);
+  assert.equal(schema.$defs.provider.required.includes("supportsPublish"), true);
+  assert.equal(schema.$defs.provider.required.includes("supportsDryRun"), true);
+  assert.equal(schema.properties.providers.items.$ref, "#/$defs/provider");
+  assert.equal(schema.properties.notes.items.type, "string");
 });
 
 test("exports the release output schema as a public package subpath", () => {
@@ -374,6 +386,35 @@ test("rejects duplicate release policy provider ids", () => {
   );
 });
 
+test("provider validation errors expose stable machine-readable codes", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      providers: [
+        {
+          id: "changesets",
+          type: "changesets",
+          supportsPublish: true,
+          supportsDryRun: true,
+          publishCommands: ["pnpm changeset publish"],
+        },
+        {
+          id: "changesets",
+          type: "npm",
+          supportsPublish: true,
+          supportsDryRun: true,
+          publishCommands: ["pnpm publish"],
+        },
+      ],
+    })),
+    (error) => {
+      assert.equal(error instanceof ReleasePolicyValidationError, true);
+      assert.equal(error.code, "RELEASE_POLICY_PROVIDER_DUPLICATE_ID");
+      assert.equal(error.details.providerId, "changesets");
+      return true;
+    },
+  );
+});
+
 test("rejects duplicate release package profile ids", () => {
   assert.throws(
     () => validatePolicy(validPolicy({
@@ -408,6 +449,28 @@ test("rejects publish-capable providers without publish commands", () => {
   );
 });
 
+test("publish-capable provider command errors include provider code details", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      providers: [
+        {
+          id: "changesets",
+          type: "changesets",
+          supportsPublish: true,
+          supportsDryRun: true,
+        },
+      ],
+    })),
+    (error) => {
+      assert.equal(error instanceof ReleasePolicyValidationError, true);
+      assert.equal(error.code, "RELEASE_POLICY_PROVIDER_PUBLISH_COMMANDS_REQUIRED");
+      assert.equal(error.details.providerId, "changesets");
+      assert.equal(error.details.providerType, "changesets");
+      return true;
+    },
+  );
+});
+
 test("rejects empty provider publish commands", () => {
   assert.throws(
     () => validatePolicy(validPolicy({
@@ -423,6 +486,80 @@ test("rejects empty provider publish commands", () => {
     })),
     /provider\.publishCommands for changesets must contain non-empty strings/,
   );
+});
+
+test("allows policy with no active publish providers", () => {
+  assert.equal(
+    validatePolicy(validPolicy({
+      providers: [
+        {
+          id: "legacy-tags",
+          type: "legacy-tag",
+          supportsPublish: false,
+          supportsDryRun: false,
+        },
+      ],
+    })),
+    true,
+  );
+});
+
+test("allows policy with an empty provider list as a neutral contract", () => {
+  assert.equal(
+    validatePolicy(validPolicy({
+      providers: [],
+    })),
+    true,
+  );
+});
+
+test("inactive providers do not create publish intents", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/alpha": {
+          dir: "alpha",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "legacy-tags",
+            type: "legacy-tag",
+            supportsPublish: false,
+            supportsDryRun: false,
+          },
+        ],
+        packageProfiles: [],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 7,
+          },
+        ],
+      },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      packageNames: ["@refarm.dev/alpha"],
+    });
+
+    assert.equal(plan.ok, true);
+    assert.deepEqual(plan.publishIntents, []);
+    assert.deepEqual(summarizePlan(plan).providers, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("rejects invalid release package profile risk", () => {
