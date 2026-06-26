@@ -1,0 +1,17 @@
+{
+	"extends": [
+		"../../tsconfig.json",
+		"@refarm.dev/tsconfig/buildable.json"
+	],
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/artifact-contract-v1": [
+				"packages/artifact-contract-v1/dist/index.d.ts"
+			]
+		}
+	},
+	"include": ["src/**/*"]
+}

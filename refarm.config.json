@@ -288,8 +288,24 @@
         "tags": [
           "kernel",
           "kernel-primitive",
-          "vault-seed-ready",
           "boundary-review"
+        ]
+      },
+      {
+        "id": "@refarm.dev/launch-process",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/launch-process run lint",
+          "pnpm --filter @refarm.dev/launch-process run type-check",
+          "pnpm --filter @refarm.dev/launch-process run test",
+          "pnpm --filter @refarm.dev/launch-process run build"
+        ],
+        "tags": [
+          "process",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "candidate",
+          "build-free"
         ]
       },
       {
@@ -301,7 +317,6 @@
         "tags": [
           "kernel",
           "kernel-primitive",
-          "vault-seed-ready",
           "boundary-review"
         ]
       },
@@ -390,7 +405,6 @@
         "tags": [
           "trust",
           "cli-dependency",
-          "vault-seed-ready",
           "candidate"
         ]
       },

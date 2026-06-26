@@ -1,0 +1,40 @@
+{
+	"name": "@refarm.dev/launch-process",
+	"version": "0.1.0",
+	"description": "Build-free tokenized process launch helpers for Refarm and consumer CLIs.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"README.md",
+		"dist"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"keywords": [
+		"refarm",
+		"process",
+		"runner",
+		"provenance"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/artifact-contract-v1": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"license": "MIT"
+}

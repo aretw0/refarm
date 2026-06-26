@@ -42,6 +42,8 @@ This layer waits for the Pi and multi-layer plugin architecture proofs before en
 - **[`@refarm.dev/fence`](./fence)**: Scope & Boundary Auditing.
 - **[`@refarm.dev/thresher`](./thresher)**: Data Ingestion & Transformation.
 - **[`@refarm.dev/heartwood`](./heartwood)**: Cryptographic Core (WASM).
+- **[`@refarm.dev/launch-process`](./launch-process)**: Build-free tokenized
+  process launch helpers and provenance-ready runner adapters.
 - **[`@refarm.dev/cli`](./cli)**: Shared CLI primitives, process adapters, JSON
   envelopes, and compatibility Refarm contracts. The executable Refarm app lives
   in `apps/refarm`.

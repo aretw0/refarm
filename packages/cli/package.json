@@ -141,6 +141,7 @@
 	"dependencies": {
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/launch-process": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/trust": "workspace:*"
 	},
@@ -149,7 +150,6 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@refarm.dev/artifact-contract-v1": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"

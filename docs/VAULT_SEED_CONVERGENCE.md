@@ -68,10 +68,13 @@ work, while a vault with Refarm installed can ask Refarm to execute, record, and
 handoff richer process metadata.
 
 Refarm now exposes the first generic building block for that path:
-`@refarm.dev/cli/launch-process` provides `createLaunchProcessSpecFromRunner`
-and `createLaunchProcessRunner`. These helpers accept the same runner-shaped
-inputs that `dgk` already uses, keep execution shell-free, and preserve optional
-`cwd`, `display`, and package-manager metadata for later handoffs.
+`@refarm.dev/launch-process` provides `createLaunchProcessSpecFromRunner` and
+`createLaunchProcessRunner`. These helpers accept the same runner-shaped inputs
+that `dgk` already uses, keep execution shell-free, and preserve optional `cwd`,
+`display`, and package-manager metadata for later handoffs.
+`@refarm.dev/cli/launch-process` remains a compatibility re-export for existing
+Refarm callers, but consumers should use the leaf package to avoid the full CLI
+dependency closure.
 `@refarm.dev/artifact-contract-v1` also accepts the same tokenized process shape
 inside `ArtifactProvenance.process`, so datasets, reports, notebook snapshots,
 and publication receipts can point back to the exact process boundary that
@@ -194,15 +197,15 @@ consumer CLI directly to Refarm internals:
 2. **Command/process handoff**
    - Product CLIs such as `dgk` should be able to expose commands as structured
      process specs instead of ad hoc shell strings.
-   - Refarm should keep the reusable representation in `@refarm.dev/cli`; `dgk`
-     may later adapt to that shape.
+   - Refarm should keep the reusable representation in
+     `@refarm.dev/launch-process`; `dgk` may later adapt to that shape.
    - The existing `dgk-runner` injection point is the likely composition seam:
      keep `dgk` commands product-local, but allow a future runner adapter to
      execute through Refarm process specs and JSON handoffs when Refarm is
      installed.
    - The first reusable adapter is
      `createLaunchProcessRunner`/`createLaunchProcessSpecFromRunner` in
-     `@refarm.dev/cli/launch-process`; deeper task recording can wrap the same
+     `@refarm.dev/launch-process`; deeper task recording can wrap the same
      process boundary later.
 
 3. **Vault/source provenance**
@@ -365,7 +368,7 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 | Consumer need | Refarm block lane | Why it accelerates v0.1.0 |
 | --- | --- | --- |
 | Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/homestead/ssr` | Converts UI duplication into token/SSR conformance evidence. |
-| Vault ETL, Lab export, publish receipts | `@refarm.dev/cli/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
+| Vault ETL, Lab export, publish receipts | `@refarm.dev/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
 | Credential collection without secret sprawl | `@refarm.dev/silo` collect + later bridge | Proves namespace separation across app and consumer. |
 | Telegram outbox/inbox and channel state | `@refarm.dev/channel-policy-v1`: destinations, rate limits, receipts, dry-run, review gates | Lets `vault-seed` keep Telegram UX while Refarm gains reusable channel evidence for dispatch/farmhand surfaces. |
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
@@ -390,12 +393,14 @@ and theme CSS references, and confirm `@refarm.dev/homestead` is absent from
 that packet. Consumer-local semantic tokens remain fallback-only for raw Marimo
 sessions.
 
-**2026-06-26 process provenance packet:** `@refarm.dev/cli/launch-process` now
-proves its runner-style process specs can be embedded directly in
+**2026-06-26 process provenance packet:** `@refarm.dev/launch-process` now proves
+its runner-style process specs can be embedded directly in
 `@refarm.dev/artifact-contract-v1` task artifact provenance without
-shell-splitting. The official `vault-seed` proof remains downstream: its
-`dgk-runner` should keep command UX local while emitting a task artifact
-manifest that references the tokenized process boundary.
+shell-splitting. The package is the build-free `vault-seed-ready` leaf;
+`@refarm.dev/cli/launch-process` stays as a compatibility re-export. The
+official `vault-seed` proof remains downstream: its `dgk-runner` should keep
+command UX local while emitting a task artifact manifest that references the
+tokenized process boundary.
 
 ### Additional Assimilation Matrix
 
