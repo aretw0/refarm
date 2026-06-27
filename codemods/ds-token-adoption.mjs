@@ -63,15 +63,19 @@ function ensureImports(css) {
 }
 
 function stripSemanticDeclarations(css) {
-	return css.replace(/([^{}]+)\{([^{}]*)\}/g, (match, selector, body) => {
-		const scopedSelector = selector.trim();
-		if (
-			!scopedSelector.includes(":root") &&
-			!scopedSelector.includes("data-vault-marimo-theme")
-		) {
-			return match;
+	let output = "";
+	let cursor = 0;
+
+	for (const block of topLevelBlocks(css)) {
+		output += css.slice(cursor, block.start);
+		const selector = css.slice(block.start, block.open).trim();
+		if (!isSemanticTokenSelector(selector)) {
+			output += css.slice(block.start, block.end + 1);
+			cursor = block.end + 1;
+			continue;
 		}
 
+		const body = css.slice(block.open + 1, block.end);
 		const kept = body
 			.split("\n")
 			.filter((line) => {
@@ -82,9 +86,53 @@ function stripSemanticDeclarations(css) {
 			.replace(/\n{3,}/g, "\n\n")
 			.trimEnd();
 
-		if (kept.trim().length === 0) return "";
-		return `${selector}{${kept}\n}`;
-	});
+		if (kept.trim().length > 0) {
+			output += `${css.slice(block.start, block.open + 1)}${kept}\n}`;
+		}
+		cursor = block.end + 1;
+	}
+
+	return output + css.slice(cursor);
+}
+
+function isSemanticTokenSelector(selector) {
+	return (
+		selector.includes(":root") ||
+		selector.includes("data-vault-marimo-theme")
+	);
+}
+
+function topLevelBlocks(css) {
+	const blocks = [];
+	let depth = 0;
+	let start = 0;
+	let open = -1;
+
+	for (let index = 0; index < css.length; index += 1) {
+		const char = css[index];
+		if (char === "{") {
+			if (depth === 0) {
+				open = index;
+				start = previousRuleBoundary(css, index);
+			}
+			depth += 1;
+			continue;
+		}
+		if (char !== "}") continue;
+
+		depth -= 1;
+		if (depth === 0 && open >= 0) {
+			blocks.push({ start, open, end: index });
+			open = -1;
+		}
+	}
+
+	return blocks;
+}
+
+function previousRuleBoundary(css, openIndex) {
+	const boundary = css.lastIndexOf("}", openIndex);
+	return boundary === -1 ? 0 : boundary + 1;
 }
 
 export function transformDsTokenAdoption(css) {
