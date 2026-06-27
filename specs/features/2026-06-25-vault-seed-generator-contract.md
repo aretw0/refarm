@@ -1,6 +1,6 @@
 # Spec: Generator-First Vault-Seed Distribution (Roadmap Item 9a)
 
-**Status:** DRAFT — ready for planning/prototype
+**Status:** Implemented prototype — manifest, generator, inventory, and smoke harness landed
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
 **Related:** `docs/CONVERGENCE_ROADMAP.md` item 9, `docs/CONVERGENCE_FACTORY_READINESS.md`,

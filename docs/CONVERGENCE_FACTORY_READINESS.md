@@ -39,8 +39,8 @@ Two plan depths exist; do not confuse them:
   external API** (the `2026-06-25-*` plans). Open and execute step by step.
 - **Concrete first-artifact plans** (the contract/manifest is real; the runtime iterates or gates):
   **9a** (manifest-first — the file classification is derived verbatim from
-  `vault-seed/.github/workflows/initialize.yml`) and **9b** (registry-first — the four candidate
-  entries seeded; codemod implementations gated per entry).
+  `vault-seed/.github/workflows/initialize.yml`) and **9b** (registry-first — two ready codemods;
+  entries that were cheaper as manual/generator work are retired).
 - **Task-level plans** (task decomposition + gates, paired with a **code-rich spec** that carries
   the interfaces): the remaining gated/POC items (5, 6, 7, 8, 10, 11). These are *not* line-by-line
   code — expand at pickup.
@@ -249,7 +249,7 @@ that manual editing is riskier:
   generated-vault materialization;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
-`ds-token-adoption` is now the first ready codemod entry. It has before/after
+`ds-token-adoption` is a ready codemod entry. It has before/after
 fixtures, preserves nested CSS at-rules, is idempotent, and exposes a JSON
 dry-run report. A cache-only proof against
 `/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed/.site/styles/marimo-vault.css`
@@ -284,23 +284,30 @@ Vault-seed generator classification:
 
 ## Item 9a - Vault-Seed Generator
 
-The generator-first direction now has a spec and plan:
+The generator-first direction is implemented as a prototype:
 
 - `specs/features/2026-06-25-vault-seed-generator-contract.md`;
 - `docs/superpowers/plans/2026-06-25-vault-seed-generator-contract.md`.
+- `generators/vault-seed/manifest.json`;
+- `generators/vault-seed/generate.mjs`.
 
-Start with manifest + inventory before copying files. The first proof is a generated vault that
-passes the selected `vault-seed` smoke gate, not a hand-authored duplicate of the template.
+The proof is manifest + inventory driven and passes the selected generated-vault smoke gate against
+the cached `vault-seed` checkout when available. Official downstream adoption remains outside this
+checkout.
 
 ## Item 9b - Codemod Registry
 
-The codemod-first direction now has a registry contract before any new platform work:
+The codemod-first direction has a registry contract and two ready entries before any new platform
+work:
 
 - `specs/features/2026-06-25-codemod-registry-contract.md`;
 - `docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
+- `codemods/registry.json`;
+- `codemods/ds-token-adoption.mjs`;
+- `codemods/package-workspace-adoption.mjs`.
 
-Start with metadata, fixtures, dry-run command, and rollback note. Do not create a hosted registry
-or MCP integration until at least two entries prove repeatable value.
+Continue with metadata, fixtures, dry-run command, and rollback note. Do not create a hosted
+registry or MCP integration without a separate product reason.
 
 ## Item 10 - Linux Async I/O (`io_uring`)
 

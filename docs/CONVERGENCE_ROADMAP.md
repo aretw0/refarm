@@ -27,7 +27,7 @@ each sub-project's own brainstorm.
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred; activation spec+plan ready |
 | 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `launch-process` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
-| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ▶ gate generator done; registry has first ready codemod (`ds-token-adoption`) |
+| 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ✅ vault generator implemented; registry has two ready codemods |
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 | 11 | **XR/WebXR surface POC** — immersive surface around Refarm | POC | 4, optional 5 | XR-capable browser renders the same Refarm data as 2D fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-xr-surface-poc.md)) |
 | 12 | **Vault-seed roadmap assimilation** — sources/ETL, multi-channel publishing, OKF, workspace publishing, Lab WASM helpers | classification + specs | 1, 5, 8, 9 | each future vault-seed slice either consumes a Refarm candidate block or stays explicitly product-local | ▶ classified; activate per lane |
@@ -142,7 +142,8 @@ changeset are now emitted by `turbo gen package` (`turbo/generators/config.ts`),
 recurring, keep one-offs and decisions as prose.
 
 Codemod registry packet: `specs/features/2026-06-25-codemod-registry-contract.md` and
-`docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
+`docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`. The registry now has two ready
+entries: `ds-token-adoption` and `package-workspace-adoption`.
 
 ### 11. XR/WebXR surface POC (frontier)
 XR is a surface around Refarm, not a core dependency. The first work is a POC that renders the same
@@ -198,13 +199,12 @@ Each numbered item gets its own `brainstorm → spec → plan` before execution.
 These are the next things worth deepening before writing broad code. They are deliberately phrased
 as codemod/generator work when a repeatable transform is cheaper and safer than manual edits.
 
-1. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
-   that can materialize the template, run the generated-vault smoke suite, and keep template-only
-   files behind the `initialize.yml` boundary. Spec:
-   `specs/features/2026-06-25-vault-seed-generator-contract.md`.
-2. **Codemod candidates:** only codemod recurring transforms: package gate registration,
-   future publish-target sweeps, `CredentialProvider` import re-homing, and
-   `ds` token adoption. Keep ADR decisions and one-off prose as docs.
+1. **Release-policy consumer proof after generator inventory:** connect the generated-vault
+   inventory/codemod lane to `release-engine` so `dgk publish workspace` and custom distributions
+   do not grow as `vault-seed`-local substrate.
+2. **Codemod candidates:** only codemod recurring transforms. The current ready entries are
+   `ds-token-adoption` and `package-workspace-adoption`; keep ADR decisions and one-off prose as
+   docs.
 3. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.
 4. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
