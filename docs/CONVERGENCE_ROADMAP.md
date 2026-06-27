@@ -23,7 +23,7 @@ each sub-project's own brainstorm.
 | 2 | **`apps/refarm` promotion audit** | audit ledger | 1 (read repos) | — (discovery) | ✅ done ([ledger](./APPS_REFARM_PROMOTION_LEDGER.md)) |
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + docs sweep | — | publish dry-run green under chosen scope | ✅ decided + docs sweep done ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
-| 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ▶ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B decided; Part C has a POC plan |
+| 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ✅ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B accepted; Part C POC red |
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred; activation spec+plan ready |
 | 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `launch-process` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
@@ -198,24 +198,21 @@ Each numbered item gets its own `brainstorm → spec → plan` before execution.
 These are the next things worth deepening before writing broad code. They are deliberately phrased
 as codemod/generator work when a repeatable transform is cheaper and safer than manual edits.
 
-1. **Astro 7 / WASM substrate research (item 5):** Task 1 is green with `astro@7.0.3`; Task 2 now
-   has structured evidence that WIT resolution is green after vendoring the minimal official WASI
-   v0.2.3 graph. Componentization is bounded and now fails while evaluating the generated Astro
-   server bundle on `node:module`; static inspection also shows `process`, `Buffer`, and `sharp`.
-   The next decision is whether Part C deserves a custom Astro WASI adapter/bundle profile or should
-   be recorded red while Parts A/B remain accepted.
-2. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
+1. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
    that can materialize the template, run the generated-vault smoke suite, and keep template-only
    files behind the `initialize.yml` boundary. Spec:
    `specs/features/2026-06-25-vault-seed-generator-contract.md`.
-3. **Codemod candidates:** only codemod recurring transforms: package gate registration,
+2. **Codemod candidates:** only codemod recurring transforms: package gate registration,
    future publish-target sweeps, `CredentialProvider` import re-homing, and
    `ds` token adoption. Keep ADR decisions and one-off prose as docs.
-4. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
+3. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.
-5. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
+4. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
    source materialization, generated vault output, and agent artifact/log workloads. It must stay
    capability-probed with fallback and cannot leak into TS public APIs.
+
+Item 5 note: Astro 7/WASI Part C is closed red for now. The evidence remains under
+`validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain active.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
 4, 5, 6, 7, 8, 9, 10, or 11. It records which items are execution-ready, which are deliberately gated, and
