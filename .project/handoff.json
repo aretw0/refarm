@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Refarm project automations agora tem ciclo operador minimo: add/validate/list/set-status governados, health/check/resume seguem verdes e daily-handoff permanece ativo como scheduledWork no-token.",
-  "timestamp": "2026-06-27T17:02:14.635Z",
+  "context": "Checkpoint 2026-06-27. Pesquisa de reference drivers foi assimilada no capability index: refarm capabilities --tag reference-driver --json agora mostra session-tree, structured-io e code-ops do runtime-agent como primitivas compactas.",
+  "timestamp": "2026-06-27T17:15:37.367Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver loop: resume/check/finish lanes seguem limpos com affected scope, concorrencia limitada e cache alto.",
-    "Refarm como fornecedor: @refarm.dev/cli/project-automations agora exporta updateProjectAutomationStatus/requireProjectAutomationId alem de add/validate.",
-    "Automacoes governadas: CLI prova list e set-status dry-run pelo binario real sem editar .project/automations.json manualmente."
+    "Daily-driver loop segue verde com resume/check/finish e scheduledWork dogfood ativo.",
+    "Reference-driver parity: runtime-agent session tree, structured I/O e code-ops estao descobriveis pelo SDK/CLI sem depender de prompt memory.",
+    "Refarm como fornecedor: capability index continua o ponto barato para downstream/dgk descobrir primitivas em vez de reimplementar."
   ],
   "blockers": [],
   "next_actions": [
-    "Avaliar proxima fatia daily-driver: mostrar scheduledWork em apps/me/UI ou melhorar UX textual de resume/automations sem aumentar custo.",
-    "Planejar promocao futura de .project/automations.json para storage-contract/sqlite com export/import, sem bloquear o ciclo atual.",
-    "Preparar blocos publicaveis npm/crates mantendo validacao focada, cache e concorrencia baixa."
+    "Avaliar se a proxima fatia deve levar scheduledWork/reference-driver para apps/me UI ou endurecer persistencia/export de .project/automations.json.",
+    "Preparar blocos publicaveis npm/crates mantendo capacidade embeddable e validacoes focadas.",
+    "Manter runtime-agent single-loop primeiro; workers/subagentes so avancam quando profile/governanca tiver proof local barato."
   ],
   "open_questions": [
-    "A proxima melhoria deve levar scheduledWork para UI/apps/me ou consolidar persistencia/export antes da publicacao?"
+    "A proxima melhoria deve ser visibilidade UI no apps/me ou proof local de uma dessas primitivas reference-driver pelo runtime-agent?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
