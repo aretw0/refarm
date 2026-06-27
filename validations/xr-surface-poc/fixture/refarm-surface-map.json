@@ -1,0 +1,60 @@
+{
+  "schema": "refarm.xr_surface_fixture.v1",
+  "title": "Refarm Surface Map",
+  "generatedAt": "2026-06-27T00:00:00.000Z",
+  "nodes": [
+    {
+      "id": "ds",
+      "label": "Design System",
+      "kind": "ui-block",
+      "summary": "Scoped tokens, themes, and component classes."
+    },
+    {
+      "id": "homestead-ssr",
+      "label": "Homestead SSR",
+      "kind": "surface",
+      "summary": "Build-free server-rendered surface helpers."
+    },
+    {
+      "id": "dispatch-surface",
+      "label": "Dispatch Surface",
+      "kind": "control-plane",
+      "summary": "Consumer-facing action and channel control API."
+    },
+    {
+      "id": "release-engine",
+      "label": "Release Engine",
+      "kind": "policy",
+      "summary": "Release policy, package selection, and acceptance summaries."
+    }
+  ],
+  "links": [
+    {
+      "from": "ds",
+      "to": "homestead-ssr",
+      "relation": "styles"
+    },
+    {
+      "from": "dispatch-surface",
+      "to": "homestead-ssr",
+      "relation": "actions"
+    },
+    {
+      "from": "release-engine",
+      "to": "dispatch-surface",
+      "relation": "handoff"
+    }
+  ],
+  "actions": [
+    {
+      "id": "inspect-surface",
+      "label": "Inspect Surface",
+      "targetNodeId": "homestead-ssr"
+    },
+    {
+      "id": "open-release-plan",
+      "label": "Open Release Plan",
+      "targetNodeId": "release-engine"
+    }
+  ]
+}
