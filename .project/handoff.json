@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Refarm driver nucleus agora tem scheduled-work de leitura e escrita: resume carrega .project/automations.json, health valida o manifesto e project automations add/validate escreve a fonte governada sem daemon.",
-  "timestamp": "2026-06-27T16:41:33.246Z",
+  "context": "Checkpoint 2026-06-27. Refarm driver nucleus fechou o ciclo minimo de automacoes: writer governado criou .project/automations.json, health valida e resume exibe daily-handoff como scheduledWork no-token sem executar jobs.",
+  "timestamp": "2026-06-27T16:48:06.220Z",
   "current_phase": "12",
   "current_tasks": [
     "Daily-driver loop: resume/check/finish lanes seguem limpos; after-edit/after-commit usam affected scope, concorrencia limitada e cache.",
-    "Refarm como fornecedor: @refarm.dev/cli/project-automations foi publicado como primitiva SDK e capability project-automations.governed entrou no capability index.",
+    "Refarm como fornecedor: @refarm.dev/cli/project-automations e capability project-automations.governed estao disponiveis; .project/automations.json agora tem dogfood real.",
     "Scheduler esta em ciclo minimo completo: CLI escreve automacoes, health valida JSON/status/triggers, resume materializa once/cron ativos no-token via @refarm.dev/windmill/local-scheduler."
   ],
   "blockers": [],
   "next_actions": [
-    "Dogfoodar uma automacao real pequena via refarm project automations add --status active e confirmar resume scheduledWork sem executar jobs.",
+    "Avaliar proxima fatia daily-driver: mostrar scheduledWork em apps/me/UI ou melhorar comando resume/automations para operar a automacao dogfood com menor friccao.",
     "Decidir quando promover persistencia de .project/automations.json para storage-contract/sqlite com export/import, sem bloquear o daily-driver.",
-    "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza friccao real de uso."
+    "Preparar blocos publicaveis npm/crates mantendo validacao focada e evitando comandos globais pesados."
   ],
   "open_questions": [
-    "Qual automacao real deve ser o primeiro dogfood: handoff diario, cache/health check, ou lembrete de publish readiness?"
+    "A proxima melhoria deve ser UI/visibilidade do scheduledWork ou writer lifecycle adicional como deactivate/archive/list?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
