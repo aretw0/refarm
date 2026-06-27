@@ -1,5 +1,5 @@
-import { refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArg, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -13,7 +13,6 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -183,6 +182,16 @@ function agentFinishTemplates() {
 			parameters: ["dir"],
 			cwdParameter: "dir",
 			useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
+		},
+		{
+			id: "external-consumer-project-handoff-validate-json",
+			command: refarmCommand(["project", "handoff", "validate", "--json"]),
+			process: refarmProcess(["project", "handoff", "validate", "--json"]),
+			effects: ["observe"],
+			writes: false,
+			parameters: ["dir"],
+			cwdParameter: "dir",
+			useWhen: "Validate governed project handoff state in a non-Refarm consumer workspace without writing .project/handoff.json.",
 		},
 		{
 			id: "package-workspace-plan",

@@ -3,6 +3,7 @@ import {
 	instantiateCommandTemplate,
 } from "@refarm.dev/cli/command-handoff";
 import {
+	mkdirSync,
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
@@ -30,6 +31,7 @@ import { createModelCommand } from "../../src/commands/model.js";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
+import { createProjectCommand } from "../../src/commands/project.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
@@ -587,6 +589,28 @@ function createTempConfigCommand() {
 		command: createConfigCommand({
 			cwd: () => cwd,
 			home: () => home,
+		}),
+	};
+}
+
+function createTempProjectCommand() {
+	const cwd = mkdtempSync(join(tmpdir(), "refarm-project-contract-"));
+	const projectDir = join(cwd, ".project");
+	mkdirSync(projectDir, { recursive: true });
+	writeFileSync(
+		join(projectDir, "handoff.json"),
+		`${JSON.stringify({
+			context: "contract handoff",
+			timestamp: "2026-05-01T00:00:00.000Z",
+			current_phase: 12,
+			next_actions: ["continue"],
+		}, null, 2)}\n`,
+	);
+	return {
+		cleanup: () => rmSync(cwd, { recursive: true, force: true }),
+		command: createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-05-01T00:00:00.000Z"),
 		}),
 	};
 }
@@ -1191,6 +1215,7 @@ describe("JSON next command contract", () => {
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
 		const init = createContractInitCommand();
+		const project = createTempProjectCommand();
 		const status = createTempStatusFile(["runtime:not-ready"]);
 		try {
 			vi.stubGlobal("fetch", makeContractFetch());
@@ -1421,6 +1446,23 @@ describe("JSON next command contract", () => {
 					id: "provision-cloudflare-turbo-cache",
 					command: provisionCommand,
 					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
+				},
+				{
+					id: "project-handoff-validate",
+					command: project.command,
+					args: ["handoff", "validate", "--json"],
+				},
+				{
+					id: "project-handoff-write-dry-run",
+					command: project.command,
+					args: [
+						"handoff",
+						"write",
+						"--context",
+						"contract handoff update",
+						"--dry-run",
+						"--json",
+					],
 				},
 				{
 					id: "resume-with-passed-finish",
@@ -1760,6 +1802,7 @@ describe("JSON next command contract", () => {
 			status.cleanup();
 			init.cleanup();
 			config.cleanup();
+			project.cleanup();
 		}
 	}, 45_000);
 
