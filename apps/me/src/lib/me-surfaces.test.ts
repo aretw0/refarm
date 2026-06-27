@@ -128,6 +128,25 @@ describe("refarm.me Homestead surface", () => {
 		});
 	});
 
+	it("creates host context from configurable product state", async () => {
+		const provider = createRefarmMeSurfaceContextProvider({
+			profileName: "Local steward",
+			identityStatus: "authenticated",
+			storageScope: "local-main",
+			syncScope: "solo",
+		});
+
+		expect(provider(createRefarmMePersonalSurfaceRenderRequest())).toMatchObject({
+			hostId: "apps/me",
+			data: {
+				profileName: "Local steward",
+				identityStatus: "authenticated",
+				storageScope: "local-main",
+				syncScope: "solo",
+			},
+		});
+	});
+
 	it("resolves personal surface action requests through Homestead envelope helpers", async () => {
 		await expect(
 			resolveRefarmMePersonalSurfaceActionRequest(

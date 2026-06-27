@@ -1,18 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
 import type { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
-import type { createRefarmMeSurfacePlugins } from "./me-surfaces";
-import {
-	REFARM_ME_OPEN_VAULT_ACTION_ID,
-	REFARM_ME_PERSONAL_SURFACE_ID,
-	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
-} from "./me-surfaces";
+import { describe, expect, it, vi } from "vitest";
 import {
 	bootRefarmMeWorkbench,
 	REFARM_ME_LOADING_ID,
 	REFARM_ME_RENDERER,
 	renderRefarmMeBootFailure,
 } from "./me-runtime";
+import type { createRefarmMeSurfacePlugins } from "./me-surfaces";
+import {
+	REFARM_ME_IDENTITY_STATUS,
+	REFARM_ME_OPEN_VAULT_ACTION_ID,
+	REFARM_ME_PERSONAL_SURFACE_ID,
+	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+} from "./me-surfaces";
 
 describe("refarm.me runtime", () => {
 	it("boots the personal workbench behind the Astro page boundary", async () => {
@@ -67,6 +68,7 @@ describe("refarm.me runtime", () => {
 			}),
 		);
 		expect(pluginConstructors.herald.announce).toHaveBeenCalled();
+		expect(pluginConstructors.firefly.constructed).toHaveBeenCalled();
 		expect(doc.getElementById(REFARM_ME_LOADING_ID)).toBeNull();
 		expect(workbench).toEqual({
 			tractor,
@@ -92,7 +94,10 @@ describe("refarm.me runtime", () => {
 			locale: "en",
 		};
 		const host = await shellOptions.surfaceContext(request);
-		expect(host).toMatchObject({ hostId: "apps/me" });
+		expect(host).toMatchObject({
+			hostId: "apps/me",
+			data: { identityStatus: REFARM_ME_IDENTITY_STATUS },
+		});
 
 		await expect(
 			shellOptions.surfaceAction({
@@ -229,11 +234,16 @@ function createTractorFixture() {
 
 function createPluginConstructors() {
 	const herald = { announce: vi.fn() };
+	const firefly = { constructed: vi.fn() };
 	class HeraldPlugin {
 		announce = herald.announce;
 	}
-	class FireflyPlugin {}
-	return { HeraldPlugin, FireflyPlugin, herald };
+	class FireflyPlugin {
+		constructor() {
+			firefly.constructed();
+		}
+	}
+	return { HeraldPlugin, FireflyPlugin, herald, firefly };
 }
 
 function createPluginFixture(id: string) {

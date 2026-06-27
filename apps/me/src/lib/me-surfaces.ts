@@ -34,6 +34,13 @@ export interface RefarmMePersonalSurfaceActionResolution {
 	reason: "available" | "missing-action";
 }
 
+export interface RefarmMeSurfaceContextOptions {
+	identityStatus?: string;
+	profileName?: string;
+	storageScope?: string;
+	syncScope?: string;
+}
+
 export function createRefarmMeSurfacePlugins(
 	emitTelemetry: RefarmMeSurfaceTelemetry = () => {},
 ): RuntimePluginHandle[] {
@@ -93,7 +100,9 @@ export function renderRefarmMePersonalSurface(
 	};
 }
 
-export function createRefarmMeSurfaceContextProvider(): HomesteadSurfaceRenderContextProvider {
+export function createRefarmMeSurfaceContextProvider(
+	options: RefarmMeSurfaceContextOptions = {},
+): HomesteadSurfaceRenderContextProvider {
 	return createScopedHomesteadSurfaceContextProvider(
 		{
 			pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
@@ -102,10 +111,10 @@ export function createRefarmMeSurfaceContextProvider(): HomesteadSurfaceRenderCo
 		() => ({
 			hostId: "apps/me",
 			data: {
-				profileName: "My Sovereign Space",
-				identityStatus: REFARM_ME_IDENTITY_STATUS,
-				storageScope: "refarm-me-main",
-				syncScope: "citizen",
+				profileName: options.profileName ?? "My Sovereign Space",
+				identityStatus: options.identityStatus ?? REFARM_ME_IDENTITY_STATUS,
+				storageScope: options.storageScope ?? "refarm-me-main",
+				syncScope: options.syncScope ?? "citizen",
 			},
 			actions: [
 				{
