@@ -120,6 +120,37 @@ describe("release command", () => {
 		});
 	});
 
+	it("can include a release plan audit record in JSON output", async () => {
+		const root = createReleaseWorkspace();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createReleaseCommand({ cwd: () => root }).parseAsync(
+			["plan", "--selection", "default", "--json", "--audit"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(payload).toMatchObject({
+			command: "release",
+			operation: "plan",
+			ok: true,
+			auditRecord: {
+				schemaVersion: 1,
+				digest: {
+					algorithm: "sha256",
+				},
+				payload: {
+					releaseOutputSchemaVersion: 1,
+					selection: {
+						id: "kernel-candidates",
+					},
+					packages: ["@refarm.dev/storage-contract-v1"],
+				},
+			},
+		});
+		expect(payload.auditRecord.digest.value).toMatch(/^[a-f0-9]{64}$/);
+	});
+
 	it.each(["plan", "check", "gates"])(
 		"prints structured JSON when release policy selection is missing for %s",
 		async (operation) => {
