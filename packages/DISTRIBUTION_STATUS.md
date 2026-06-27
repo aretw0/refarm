@@ -91,6 +91,8 @@ packages are ready:
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/launch-process` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
+| `refarm-plugin-wit` | internal canonical WIT crate | `publish = false`; the supply surface is `refarm:plugin@0.1.0` WIT, not crates.io/npm yet |
+| `refarm:agent-tools@0.1.0` | internal WIT component boundary | guarded by build-free `validate-packages` preflight before any component packaging promotion |
 | Tractor/runtime reference implementation | daily-driver hold | must be reliable for real operator work before public release positioning |
 
 ---
