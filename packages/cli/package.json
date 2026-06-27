@@ -34,6 +34,10 @@
 			"types": "./dist/command-result.d.ts",
 			"import": "./dist/command-result.js"
 		},
+		"./capability-index": {
+			"types": "./dist/capability-index.d.ts",
+			"import": "./dist/capability-index.js"
+		},
 		"./command-plan": {
 			"types": "./dist/command-plan.d.ts",
 			"import": "./dist/command-plan.js"
@@ -105,6 +109,8 @@
 		"dist/action-affordances.js",
 		"dist/browser-open.d.ts",
 		"dist/browser-open.js",
+		"dist/capability-index.d.ts",
+		"dist/capability-index.js",
 		"dist/command-handoff.d.ts",
 		"dist/command-handoff.js",
 		"dist/command-line.d.ts",

@@ -230,6 +230,20 @@ export type {
 	ProjectHandoffValidationResult,
 } from "./project-handoff.js";
 export {
+	buildRefarmCapabilityIndex,
+	getRefarmCapabilityDescriptors,
+	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+} from "./capability-index.js";
+export type {
+	RefarmCapabilityActivation,
+	RefarmCapabilityDescriptor,
+	RefarmCapabilityIndex,
+	RefarmCapabilityPolicy,
+	RefarmCapabilityPolicyState,
+	RefarmCapabilityProvider,
+	RefarmCapabilityProviderKind,
+} from "./capability-index.js";
+export {
 	createLaunchProcessRunner,
 	createLaunchProcessSpec,
 	createLaunchProcessSpecFromRunner,

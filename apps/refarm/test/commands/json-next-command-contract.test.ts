@@ -17,6 +17,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createAskCommand } from "../../src/commands/ask.js";
+import { createCapabilitiesCommand } from "../../src/commands/capabilities.js";
 import { createCheckCommand } from "../../src/commands/check.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
@@ -1277,6 +1278,11 @@ describe("JSON next command contract", () => {
 					id: "ask-session-not-found",
 					command: createContractAskCommand(),
 					args: ["hello", "--session", "abc123", "--json"],
+				},
+				{
+					id: "capabilities",
+					command: createCapabilitiesCommand(),
+					args: ["--json"],
 				},
 				{
 					id: "config-set-local",
