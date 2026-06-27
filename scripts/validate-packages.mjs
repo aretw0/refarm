@@ -143,6 +143,48 @@ export function validatePublishSurface(pkg) {
   return violations;
 }
 
+export function validateRuntimeAgentPluginPackage(pkg) {
+  const violations = [];
+  if (pkg?.name !== "@refarm.dev/pi-agent") return violations;
+
+  const files = Array.isArray(pkg.files) ? pkg.files : [];
+  const requiredFiles = [
+    "dist/pi_agent.wasm",
+    "dist/plugin.json",
+    "dist/jco",
+  ];
+  for (const entry of requiredFiles) {
+    if (!files.includes(entry)) {
+      violations.push(`runtime-agent plugin package files must include "${entry}"`);
+    }
+  }
+
+  if (pkg.private !== true && pkg.publishConfig?.access !== "public") {
+    violations.push("runtime-agent plugin package must declare publishConfig.access=\"public\" before publication");
+  }
+
+  const buildWasm = pkg.scripts?.["build:wasm"] ?? "";
+  if (!buildWasm.includes("check:wit")) {
+    violations.push('runtime-agent plugin build:wasm must run "check:wit" before building artifacts');
+  }
+  if (!buildWasm.includes("dist/pi_agent.wasm")) {
+    violations.push('runtime-agent plugin build:wasm must write "dist/pi_agent.wasm"');
+  }
+  if (!buildWasm.includes("dist/plugin.json")) {
+    violations.push('runtime-agent plugin build:wasm must write "dist/plugin.json"');
+  }
+
+  const buildJco = pkg.scripts?.["build:jco"] ?? "";
+  if (!buildJco.includes("dist/pi_agent.wasm")) {
+    violations.push('runtime-agent plugin build:jco must read "dist/pi_agent.wasm"');
+  }
+  if (!buildJco.includes("dist/jco")) {
+    violations.push('runtime-agent plugin build:jco must write "dist/jco"');
+  }
+
+  return violations;
+}
+
 function noRawVitestDep(pkg) {
   const devDeps = pkg.devDependencies ?? {};
   return !("vitest" in devDeps);
@@ -459,6 +501,7 @@ function main() {
     else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
     pkgViolations.push(...validateTestScriptRequiresTests(pkg));
     pkgViolations.push(...validatePublishSurface(pkg));
+    pkgViolations.push(...validateRuntimeAgentPluginPackage(pkg));
 
     if (pkgViolations.length === 0) {
       console.log(`  ✓ ${name.padEnd(30)} ${type}`);
