@@ -1,8 +1,12 @@
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	addProjectAutomationRecord,
+	normalizeProjectAutomationsDocument,
 	PROJECT_AUTOMATIONS_RELATIVE_PATH,
+	requireProjectAutomationId,
+	updateProjectAutomationStatus,
 	validateProjectAutomationsDocument,
+	type ProjectAutomationRecord,
 	type ProjectAutomationsDocument,
 	type ProjectAutomationStatus,
 	type ProjectAutomationsValidationResult,
@@ -58,6 +62,16 @@ interface AutomationsAddOptions extends AutomationsValidateOptions {
 	schedule?: string;
 	timezone?: string;
 	eventType?: string;
+	dryRun?: boolean;
+}
+
+interface AutomationsListOptions extends AutomationsValidateOptions {
+	status?: string;
+}
+
+interface AutomationsStatusOptions extends AutomationsValidateOptions {
+	id?: string;
+	status?: string;
 	dryRun?: boolean;
 }
 
@@ -208,6 +222,39 @@ function printAutomationsValidation(
 	}
 	const output = formatAutomationsValidationPlain(result);
 	console.log(result.ok ? output : chalk.red(output));
+}
+
+function parseProjectAutomationStatus(value: string | undefined): ProjectAutomationStatus {
+	if (
+		value === "draft" ||
+		value === "ready" ||
+		value === "active" ||
+		value === "archived"
+	) {
+		return value;
+	}
+	throw new Error("Automation status must be draft, ready, active, or archived.");
+}
+
+function filterAutomationsByStatus(
+	automations: ProjectAutomationRecord[],
+	status: string | undefined,
+): ProjectAutomationRecord[] {
+	if (status === undefined) return automations;
+	const parsedStatus = parseProjectAutomationStatus(status);
+	return automations.filter((automation) => automation.status === parsedStatus);
+}
+
+function formatAutomationsListPlain(
+	automations: ProjectAutomationRecord[],
+	options: { status?: string } = {},
+): string {
+	const suffix = options.status ? ` status=${options.status}` : "";
+	const lines = [`Project automations:${suffix} count=${automations.length}`];
+	for (const automation of automations) {
+		lines.push(`  ${automation.id} ${automation.status} ${automation.name}`);
+	}
+	return lines.join("\n");
 }
 
 function updateFromOptions(options: HandoffWriteOptions): ProjectHandoffUpdate {
@@ -376,6 +423,72 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		});
 
 	command
+		.command("list")
+		.description("List governed project automations")
+		.option("--status <status>", "Filter by status: draft, ready, active, or archived")
+		.option("--json", "Output machine-readable automation list")
+		.action((options: AutomationsListOptions) => {
+			const filePath = automationsPath(deps.cwd());
+			try {
+				const existing = readExistingJson(filePath);
+				const validation = validateProjectAutomationsDocument(existing);
+				if (!validation.ok) {
+					printAutomationsValidation(validation, {
+						json: options.json,
+						operation: "automations.list",
+					});
+					process.exitCode = 1;
+					return;
+				}
+				const document = normalizeProjectAutomationsDocument(existing);
+				const automations = filterAutomationsByStatus(
+					document.automations,
+					options.status,
+				);
+				const nextCommands = automationsNextCommands(validation);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "project",
+							operation: "automations.list",
+							nextCommands,
+							extra: {
+								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								status: options.status ?? null,
+								count: automations.length,
+								automations,
+								validation,
+							},
+						}),
+					);
+					return;
+				}
+				console.log(formatAutomationsListPlain(automations, {
+					status: options.status,
+				}));
+				for (const next of nextCommands) {
+					console.log(chalk.dim(`  next: ${next}`));
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "project",
+							operation: "automations.list",
+							error: "project_automation_list_failed",
+							message,
+							nextAction: "Run `refarm project automations list --help` and retry with a valid filter.",
+						}),
+					);
+				} else {
+					console.error(chalk.red(`Project automation list failed: ${message}`));
+				}
+				process.exitCode = 1;
+			}
+		});
+
+	command
 		.command("add")
 		.description("Append one governed project automation")
 		.requiredOption("--id <id>", "Stable automation id")
@@ -459,6 +572,81 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					);
 				} else {
 					console.error(chalk.red(`Project automation write failed: ${message}`));
+				}
+				process.exitCode = 1;
+			}
+		});
+
+	command
+		.command("set-status")
+		.description("Set the lifecycle status for one governed project automation")
+		.requiredOption("--id <id>", "Stable automation id")
+		.requiredOption(
+			"--status <status>",
+			"Automation status: draft, ready, active, or archived",
+		)
+		.option("--dry-run", "Print the would-be automations document without writing")
+		.option("--json", "Output machine-readable status update result")
+		.action((options: AutomationsStatusOptions) => {
+			const filePath = automationsPath(deps.cwd());
+			try {
+				const status = parseProjectAutomationStatus(options.status);
+				const document = updateProjectAutomationStatus(readExistingJson(filePath), {
+					id: options.id ?? "",
+					status,
+				});
+				const result = validateProjectAutomationsDocument(document);
+				if (!result.ok) {
+					printAutomationsValidation(result, {
+						json: options.json,
+						operation: "automations.set-status",
+					});
+					process.exitCode = 1;
+					return;
+				}
+				if (!options.dryRun) writeAutomations(filePath, document);
+
+				const automation = requireProjectAutomationId(document, options.id ?? "");
+				const nextCommands = automationsNextCommands(result);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "project",
+							operation: options.dryRun
+								? "automations.set-status.dry-run"
+								: "automations.set-status",
+							nextCommands,
+							extra: {
+								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								dryRun: Boolean(options.dryRun),
+								automation,
+								document,
+								validation: result,
+							},
+						}),
+					);
+					return;
+				}
+				console.log(
+					`Project automation ${options.dryRun ? "would be updated" : "updated"}: ${automation.id} ${automation.status}`,
+				);
+				for (const next of nextCommands) {
+					console.log(chalk.dim(`  next: ${next}`));
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "project",
+							operation: "automations.set-status",
+							error: "project_automation_status_failed",
+							message,
+							nextAction: "Run `refarm project automations set-status --help` and retry with a valid automation id and status.",
+						}),
+					);
+				} else {
+					console.error(chalk.red(`Project automation status update failed: ${message}`));
 				}
 				process.exitCode = 1;
 			}

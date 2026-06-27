@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	addProjectAutomationRecord,
 	buildProjectAutomationRecord,
+	updateProjectAutomationStatus,
 	validateProjectAutomationsDocument,
 } from "./project-automations.js";
 
@@ -85,5 +86,40 @@ describe("project automations", () => {
 			"invalid_project_automation_event_trigger",
 			"invalid_project_automation_trigger_type",
 		]);
+	});
+
+	it("updates automation status and preserves unknown fields", () => {
+		const document = updateProjectAutomationStatus({
+			automations: [
+				{
+					id: "daily-handoff",
+					name: "Daily handoff",
+					status: "active",
+					triggers: [{ type: "cron", schedule: "@daily" }],
+					owner: "refarm-main",
+				},
+			],
+			source: "project",
+		}, {
+			id: "daily-handoff",
+			status: "archived",
+		});
+
+		expect(document).toMatchObject({
+			source: "project",
+			automations: [
+				{
+					id: "daily-handoff",
+					status: "archived",
+					owner: "refarm-main",
+				},
+			],
+		});
+		expect(() =>
+			updateProjectAutomationStatus(document, {
+				id: "missing",
+				status: "active",
+			}),
+		).toThrow("Automation id not found: missing");
 	});
 });

@@ -51,6 +51,11 @@ export interface ProjectAutomationAddInput {
 	trigger: ProjectAutomationTrigger;
 }
 
+export interface ProjectAutomationStatusUpdateInput {
+	id: string;
+	status: ProjectAutomationStatus;
+}
+
 export type ProjectAutomationIssueSeverity = "error" | "warning";
 
 export interface ProjectAutomationValidationIssue {
@@ -154,6 +159,41 @@ export function addProjectAutomationRecord(
 		...document,
 		automations: [...document.automations, automation],
 	};
+}
+
+export function updateProjectAutomationStatus(
+	existing: unknown,
+	input: ProjectAutomationStatusUpdateInput,
+): ProjectAutomationsDocument {
+	const document = normalizeProjectAutomationsDocument(existing);
+	const id = requireCleanString(input.id, "Automation id");
+	if (!PROJECT_AUTOMATION_STATUSES.has(input.status)) {
+		throw new Error("Automation status must be draft, ready, active, or archived.");
+	}
+	let found = false;
+	const updated = {
+		...document,
+		automations: document.automations.map((automation) => {
+			if (automation.id !== id) return automation;
+			found = true;
+			return {
+				...automation,
+				status: input.status,
+			};
+		}),
+	};
+	if (!found) throw new Error(`Automation id not found: ${id}`);
+	return updated;
+}
+
+export function requireProjectAutomationId(
+	document: ProjectAutomationsDocument,
+	id: string,
+): ProjectAutomationRecord {
+	const cleaned = requireCleanString(id, "Automation id");
+	const automation = document.automations.find((item) => item.id === cleaned);
+	if (!automation) throw new Error(`Automation id not found: ${cleaned}`);
+	return automation;
 }
 
 export function validateProjectAutomationsDocument(

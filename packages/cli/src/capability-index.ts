@@ -113,7 +113,7 @@ const CAPABILITIES = [
 		id: "project-automations.governed",
 		title: "Governed project automations",
 		description:
-			"Validate and write project-local automations that resume can surface without running a daemon.",
+			"Validate, list, write, and lifecycle project-local automations that resume can surface without running a daemon.",
 		provider: {
 			kind: "sdk",
 			package: "@refarm.dev/cli",
@@ -125,6 +125,7 @@ const CAPABILITIES = [
 			enforcement: [
 				"schema validation",
 				"explicit write command",
+				"explicit lifecycle command",
 				"health/check visibility",
 			],
 			evidence: [
