@@ -77,9 +77,14 @@ POC below clears. If it never does, nothing in A or B is affected.
 
 ## POC — the gate for Part C only
 
-1. One Astro SSR route (`GET /health` → JSON) built with a custom adapter emitting a JS handler.
+1. One Astro SSR route (`GET /health.json` → JSON) built with a custom adapter emitting a JS
+   handler.
 2. `jco componentize` it against the `wasi:http/incoming-handler` WIT world.
 3. Run the component on Tractor's wasmtime host; serve a real request; assert body + status.
+
+Task 1 evidence (2026-06-27): `validations/astro-wasi-ssr/` builds with `astro@7.0.3`, emits
+`dist/server/index.mjs` through a local validation adapter, and imports that handler in a Node test
+that asserts `GET /health.json`. The remaining gate is componentization plus Tractor execution.
 
 Success: serves correctly from Tractor; cold-start + per-request latency within a budget set when
 the POC lands (ADR-044's <100ms transpile is the reference order). Evidence:

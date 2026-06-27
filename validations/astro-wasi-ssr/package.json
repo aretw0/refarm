@@ -1,0 +1,13 @@
+{
+  "name": "@refarm.dev/astro-wasi-ssr-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "test": "node --test test/health-handler.test.mjs"
+  },
+	"dependencies": {
+		"astro": "^7.0.3"
+	}
+}

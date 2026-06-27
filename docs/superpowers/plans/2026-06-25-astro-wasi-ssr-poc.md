@@ -6,10 +6,23 @@
 
 ## Task 1 - Validation Fixture Skeleton
 
+- Use Astro 7 for the fixture. The official release made the WASM direction materially less
+  speculative: Astro 7 ships Vite 8/Rolldown, the Rust `.astro` compiler with WASM fallback,
+  Rust-backed Markdown/MDX, and the `src/fetch.ts` advanced routing entrypoint.
 - Create `validations/astro-wasi-ssr/` with package metadata, one Astro SSR route, and a minimal
   README explaining the POC boundary.
-- Route: `GET /health` returns JSON with status and a static marker.
+- Route: `GET /health.json` returns JSON with status and a static marker.
 - Gate: normal Astro build path produces the expected server handler artifact.
+
+Status: green on 2026-06-27 with `astro@7.0.3`.
+
+Evidence:
+
+- `pnpm -C validations/astro-wasi-ssr exec astro --version` -> `astro v7.0.3`.
+- `pnpm -C validations/astro-wasi-ssr run build` emits `dist/server/index.mjs` through the local
+  validation adapter.
+- `pnpm -C validations/astro-wasi-ssr run test` imports the handler and asserts
+  `GET /health.json`.
 
 ## Task 2 - Componentization Attempt
 
