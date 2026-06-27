@@ -208,6 +208,76 @@ describe("operator resume", () => {
 		).toContain("Project handoff: .project/handoff.json phase=12");
 	});
 
+	it("carries scheduled work visibility without turning it into recovery noise", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const scheduledWork = {
+			schemaVersion: 1,
+			owner: "refarm-main",
+			generatedAt: "2026-06-27T10:00:00.000Z",
+			summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+			jobs: [
+				{
+					id: "automation-1:0",
+					automationId: "automation-1",
+					name: "daily handoff",
+					owner: "refarm-main",
+					kind: "one-shot" as const,
+					status: "due" as const,
+					schedule: { type: "once", at: "2026-06-27T09:00:00.000Z" },
+					modelRoute: "none" as const,
+					tokenUse: "none" as const,
+					resume: {
+						visible: true,
+						summary: "daily handoff owned by refarm-main",
+					},
+				},
+				{
+					id: "automation-2:0",
+					automationId: "automation-2",
+					name: "hourly cache refresh",
+					owner: "refarm-main",
+					kind: "recurring" as const,
+					status: "scheduled" as const,
+					schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
+					modelRoute: "none" as const,
+					tokenUse: "none" as const,
+				},
+			],
+		};
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			scheduledWork,
+		});
+
+		expect(envelope).toMatchObject({
+			scheduledWork: {
+				owner: "refarm-main",
+				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				jobs: expect.arrayContaining([
+					expect.objectContaining({
+						id: "automation-1:0",
+						status: "due",
+						modelRoute: "none",
+						tokenUse: "none",
+					}),
+				]),
+			},
+			nextCommands: ["refarm task list --json"],
+		});
+		const formatted = formatOperatorResumeSummary(
+			buildOperatorResumeSummary({ status: readyStatus, scheduledWork }),
+		);
+		expect(formatted).toContain(
+			"Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0",
+		);
+		expect(formatted).toContain(
+			"automation-1:0 due one-shot daily handoff at=2026-06-27T09:00:00.000Z",
+		);
+		expect(formatted).toContain(
+			"automation-2:0 scheduled recurring hourly cache refresh cron=@hourly timezone=UTC",
+		);
+	});
+
 	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({

@@ -6,6 +6,7 @@ import {
 	formatOperatorResumeSummary,
 	type OperatorResumeModelSummary,
 	type OperatorResumeProjectSummary,
+	type OperatorResumeScheduledWorkInspection,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
 import {
@@ -51,6 +52,7 @@ export interface ResumeDeps {
 	loadChatHistory(): string[];
 	loadModelTokens(): Promise<ModelTokens>;
 	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
+	loadScheduledWork(): Promise<OperatorResumeScheduledWorkInspection | undefined>;
 }
 
 interface ResumeOptions {
@@ -70,6 +72,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
 		loadProjectHandoff,
+		loadScheduledWork: async () => undefined,
 		...deps,
 	};
 
@@ -115,6 +118,7 @@ async function emitResume(
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
 	const project = deps.loadProjectHandoff();
+	const scheduledWork = await deps.loadScheduledWork();
 	const model = await loadModelResumeSummary(deps);
 	const recentSessions =
 		options.status === false ? [] : await deps.loadRecentSessions();
@@ -128,6 +132,7 @@ async function emitResume(
 			status,
 			model,
 			project,
+			scheduledWork,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
@@ -168,6 +173,7 @@ async function emitResume(
 			status,
 			model,
 			project,
+			scheduledWork,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
