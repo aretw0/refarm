@@ -151,6 +151,53 @@ describe("refarm.me runtime", () => {
 			"Personal space boot failed: OPFS denied",
 		);
 	});
+
+	it("updates rendered sync status when browser sync events arrive after shell setup", async () => {
+		const doc = createMeDocument();
+		const tractor = createTractorFixture();
+		let onBrowserSync:
+			| NonNullable<
+					NonNullable<
+						Parameters<typeof bootStudioRuntime>[0]["browserSync"]
+					>["onEvent"]
+			  >
+			| undefined;
+		const bootRuntime = vi.fn(async (runtimeOptions) => {
+			onBrowserSync = runtimeOptions.browserSync?.onEvent;
+			return { tractor };
+		}) as unknown as typeof bootStudioRuntime;
+		const setupShell = vi.fn(async () => {
+			const status = doc.createElement("dd");
+			status.setAttribute("data-refarm-me-sync-status", "");
+			status.textContent = "connecting";
+			doc.body.appendChild(status);
+		}) as unknown as typeof setupStudioShell;
+
+		await bootRefarmMeWorkbench({
+			document: doc,
+			bootRuntime,
+			setupShell,
+			pluginConstructors: createPluginConstructors(),
+			createSurfacePlugins: (() => []) as unknown as typeof createRefarmMeSurfacePlugins,
+			log: { error: vi.fn() },
+		});
+
+		onBrowserSync?.({
+			type: "remote-update-applied",
+			byteLength: 3,
+			wsUrl: "ws://localhost:42000",
+		});
+
+		expect(doc.body.textContent).toContain("snapshot-applied");
+		expect(tractor.emitTelemetry).toHaveBeenCalledWith({
+			event: "me:browser_sync",
+			payload: {
+				type: "remote-update-applied",
+				byteLength: 3,
+				wsUrl: "ws://localhost:42000",
+			},
+		});
+	});
 });
 
 function createMeDocument(): Document {
@@ -170,6 +217,13 @@ function createDocumentFixture() {
 			const element = elementsById.get(id);
 			return element && element.parent ? element : null;
 		},
+		querySelector: (selector: string) =>
+			selector === "[data-refarm-me-sync-status]"
+				? findElementByAttribute(
+						document.body,
+						"data-refarm-me-sync-status",
+					)
+				: null,
 		registerElement: (element: ReturnType<typeof createElementFixture>) => {
 			if (element.id) elementsById.set(element.id, element);
 			for (const child of element.children) document.registerElement(child);
@@ -185,7 +239,9 @@ interface ElementFixture {
 	style: Record<string, string>;
 	parent: ElementFixture | null;
 	children: ElementFixture[];
+	attributes: Map<string, string>;
 	appendChild(child: ElementFixture): ElementFixture;
+	setAttribute(name: string, value: string): void;
 	replaceChildren(...nextChildren: ElementFixture[]): void;
 	remove(): void;
 	textContent: string;
@@ -198,6 +254,7 @@ function createElementFixture(
 ): ElementFixture {
 	let elementId = "";
 	let ownText = "";
+	const attributes = new Map<string, string>();
 	const children: ElementFixture[] = [];
 	const element: ElementFixture = {
 		tagName: tagName.toUpperCase(),
@@ -205,11 +262,15 @@ function createElementFixture(
 		style: {} as Record<string, string>,
 		parent: null,
 		children,
+		attributes,
 		appendChild: (child: ElementFixture) => {
 			child.parent = element;
 			children.push(child);
 			onChildrenChanged?.(element);
 			return child;
+		},
+		setAttribute: (name: string, value: string) => {
+			attributes.set(name, value);
 		},
 		replaceChildren: (...nextChildren: ElementFixture[]) => {
 			children.splice(0, children.length);
@@ -240,6 +301,18 @@ function createElementFixture(
 		},
 	};
 	return element;
+}
+
+function findElementByAttribute(
+	element: ElementFixture,
+	attribute: string,
+): ElementFixture | null {
+	if (element.attributes.has(attribute)) return element;
+	for (const child of element.children) {
+		const match = findElementByAttribute(child, attribute);
+		if (match) return match;
+	}
+	return null;
 }
 
 function createTractorFixture() {

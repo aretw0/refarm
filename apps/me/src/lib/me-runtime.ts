@@ -63,7 +63,7 @@ export async function bootRefarmMeWorkbench(
 	options: RefarmMeRuntimeOptions = {},
 ): Promise<RefarmMeWorkbench> {
 	const doc = options.document ?? document;
-	const browserSyncTelemetry = createRefarmMeBrowserSyncTelemetryBuffer();
+	const browserSyncTelemetry = createRefarmMeBrowserSyncTelemetryBuffer(doc);
 	const runtime = await (options.bootRuntime ?? bootStudioRuntime)({
 		databaseName: "refarm-me-main",
 		namespace: "citizen",
@@ -107,6 +107,7 @@ export async function bootRefarmMeWorkbench(
 			});
 		}),
 	});
+	browserSyncTelemetry.renderStatus();
 
 	herald.announce();
 	doc.getElementById(REFARM_ME_LOADING_ID)?.remove();
@@ -163,9 +164,10 @@ function emitRefarmMeBrowserSyncTelemetry(
 	});
 }
 
-function createRefarmMeBrowserSyncTelemetryBuffer(): {
+function createRefarmMeBrowserSyncTelemetryBuffer(doc: Document): {
 	capture(event: RefarmMeBrowserSyncEvent): void;
 	flushTo(tractor: RefarmMeTractor): void;
+	renderStatus(): void;
 	status(): string;
 } {
 	const pending: RefarmMeBrowserSyncEvent[] = [];
@@ -174,6 +176,7 @@ function createRefarmMeBrowserSyncTelemetryBuffer(): {
 	return {
 		capture: (event) => {
 			status = refarmMeSyncStatusFromEvent(event);
+			renderRefarmMeSyncStatus(doc, status);
 			if (sink.tractor) {
 				emitRefarmMeBrowserSyncTelemetry(sink.tractor, event);
 				return;
@@ -186,8 +189,14 @@ function createRefarmMeBrowserSyncTelemetryBuffer(): {
 				emitRefarmMeBrowserSyncTelemetry(tractor, event);
 			}
 		},
+		renderStatus: () => renderRefarmMeSyncStatus(doc, status),
 		status: () => status,
 	};
+}
+
+function renderRefarmMeSyncStatus(doc: Document, status: string): void {
+	const element = doc.querySelector("[data-refarm-me-sync-status]");
+	if (element) element.textContent = status;
 }
 
 function refarmMeSyncStatusFromEvent(event: RefarmMeBrowserSyncEvent): string {

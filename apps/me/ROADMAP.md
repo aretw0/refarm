@@ -42,7 +42,7 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 - [x] `StudioShell` mounts with `HeraldPlugin` and `FireflyPlugin` in real DOM slots
 - [x] `HeraldPlugin` initializes: identity state legible (at minimum: `"unauthenticated"`)
 - [x] `FireflyPlugin` initializes: system notifications functional
-- [ ] `BrowserSyncClient` connects to tractor (`ws://localhost:42000`), snapshot received
+- [x] `BrowserSyncClient` connects to tractor (`ws://localhost:42000`), snapshot received
 - [ ] At least 1 content plugin installable by explicit URL + SHA-256
 - [ ] OPFS persistence: plugin cache survives page reload
 - [ ] PWA manifest + Service Worker: offline-first confirmed
@@ -64,6 +64,9 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   from those browser-sync events. A `remote-update-applied` event is surfaced as
   `snapshot-applied`, so the browser proof can assert DOM state instead of
   relying only on telemetry internals.
+- Browser smoke coverage now boots `apps/me` in Chromium against the running
+  Tractor daemon and asserts the rendered personal surface reaches
+  `snapshot-applied`. Coverage: `pnpm -C apps/me run smoke:sync`.
 - `sync-loro` now has a runtime transport smoke that connects to a running
   Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
   snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the
@@ -76,10 +79,10 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 ### Remaining bootstrap proof
 
-The next Gate 3b gap is still a browser/runtime proof, not another client unit
-mock: `apps/me` must boot against a running Tractor, receive an initial
-snapshot, and exercise OPFS-backed plugin/cache behavior before the broader
-daily-driver gate can be considered complete.
+The next Gate 3b gap is no longer another sync transport proof: `apps/me` boots
+against a running Tractor and receives an initial snapshot. The remaining gap is
+OPFS-backed plugin/cache behavior before the broader daily-driver gate can be
+considered complete.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).

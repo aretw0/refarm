@@ -12,6 +12,7 @@
 		"type-check:dist": "astro check && tsc --project tsconfig.build.json --noEmit",
 		"test:unit": "vitest run",
 		"test": "vitest run",
+		"smoke:sync": "node scripts/smoke-browser-sync-status.mjs",
 		"lint": "eslint src"
 	},
 	"dependencies": {
@@ -23,6 +24,7 @@
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",
+		"@playwright/test": "^1.60.0",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
