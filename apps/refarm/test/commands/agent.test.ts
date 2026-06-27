@@ -1652,6 +1652,61 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("uses package tests as an affected fallback for JS-only workspaces", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-js-only-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const packageDir = path.join(root, "packages", "vtconfig");
+		mkdirSync(path.join(packageDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(packageDir, "package.json"),
+			JSON.stringify({
+				name: "vtconfig-test",
+				scripts: { test: "vitest run" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(packageDir, "src", "index.js"), "export {};\n", "utf8");
+		const originalCwd = process.cwd();
+		process.chdir(packageDir);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { cwd?: string } }[];
+			nextCommands: string[];
+			selection: {
+				affectedWorkspaces?: string[];
+				validationScope: string;
+			};
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"package-packages-vtconfig-test",
+		]);
+		expect(payload.nextCommands).toContain("npm --prefix packages/vtconfig run test");
+		expect(payload.selection).toMatchObject({
+			validationScope: "dirtyTree",
+			affectedWorkspaces: ["packages/vtconfig"],
+		});
+		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
 	it("adds affected workspace steps from committed changes since a git ref", async () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-since-"));
 		tempDirs.push(root);
