@@ -1,7 +1,7 @@
 # Codemod Registry
 
-This directory records codemod-shaped work before Refarm adds any codemod
-runtime, package, hosted registry, or MCP surface.
+This directory records codemod-shaped work before Refarm promotes it into a
+codemod runtime, package, hosted registry, or MCP surface.
 
 The contract is intentionally small:
 
@@ -89,10 +89,17 @@ transform with fixtures. It must use a reviewed replace list, not a blind owner
 handle rewrite, because docs can mention accounts, migration history, examples,
 and publish targets with different meanings.
 
+## Promotion Beyond Local Scripts
+
+There are now two ready local codemods. That is enough evidence to consider a
+packaged runtime or shared surface, but not enough reason by itself. Promote
+beyond local scripts only when a concrete consumer needs discovery, reuse, or
+composition that cannot be handled by the checked-in dry-run commands.
+
 ## Non-Goals
 
-- No hosted registry until at least two entries are `ready`.
-- No new package until at least two entries are `ready`.
+- No hosted registry without a concrete consumer or distribution reason.
+- No new package while local scripts plus registry metadata are sufficient.
 - No MCP surface in this slice.
 - No broad rewrite without fixtures, dry-run output, verification, and rollback
   notes.

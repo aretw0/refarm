@@ -48,7 +48,8 @@ Each candidate records:
 ## Non-goals
 
 - No hosted registry.
-- No new package until at least two entries are `ready`.
+- No new package until there are at least two `ready` entries and a concrete consumer/distribution
+  reason. The threshold is now met; the product reason is still required.
 - No broad rewrite without fixtures and dry-run output.
 - No codemod for ADR decisions or speculative research.
 

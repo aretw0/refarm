@@ -244,9 +244,11 @@ that manual editing is riskier:
 - retired before codemod promotion: `CredentialProvider` import re-homing landed as a smaller
   manual 4c change; generated-vault manifest/inventory wiring landed as item 9a generator-first
   work;
-- next codemod candidates: ADR-069 publish-target scope sweep, `ds` token adoption in consumer CSS,
-  package-name/workspace adoption, and repository/package metadata rewrites broader than initial
-  generated-vault materialization;
+- ready codemods: `ds-token-adoption` for consumer CSS token/theme adoption and
+  `package-workspace-adoption` for generated or external consumer manifests;
+- remaining candidates: ADR-069 publish-target scope sweep stays manual-reviewed unless it recurs;
+  repository/package metadata rewrites broader than initial generated-vault materialization should
+  become codemods only when a second generated vault or consumer checkout needs the same rule;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
 `ds-token-adoption` is a ready codemod entry. It has before/after
@@ -275,10 +277,10 @@ Vault-seed generator classification:
   the target repository, and generated-vault externalization of the excluded
   `@aretw0/dgk-astro-plugins` workspace dependency. These are local, idempotent, and covered by
   the generated-vault smoke boundary.
-- codemod candidates: package-name adoption and workspace dependency externalization beyond the
-  current generated-vault template, repository/package metadata rewrites beyond the initial
-  template materialization, and any future cross-file JSON/TS/CSS rewrite needed by more than one
-  generated vault or consumer checkout.
+- codemod candidates: repository/package metadata rewrites beyond the initial template
+  materialization, plus any future cross-file JSON/TS/CSS rewrite needed by more than one generated
+  vault or consumer checkout. Package-name adoption and targeted workspace dependency
+  externalization are already covered by `package-workspace-adoption`.
 - still not codemods: Markdown prose choices and ADR/spec content. Promote them only after a
   repeatable structural rule exists.
 
