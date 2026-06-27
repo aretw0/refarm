@@ -29,8 +29,8 @@ pub mod host;
 pub mod observer;
 pub mod sidecar;
 pub mod storage;
-pub mod sync;
 pub(crate) mod streaming;
+pub mod sync;
 pub mod telemetry;
 pub mod trust;
 
@@ -191,7 +191,10 @@ impl TractorNative {
             .insert(plugin_id.clone(), tx.clone());
 
         if provides.contains(&crate::capabilities::CAP_AGENT_RESPOND.to_string()) {
-            let mut guard = self.active_agent_id.write().expect("active_agent_id poisoned");
+            let mut guard = self
+                .active_agent_id
+                .write()
+                .expect("active_agent_id poisoned");
             if guard.is_none() {
                 *guard = Some(plugin_id.clone());
                 tracing::info!(plugin_id = %plugin_id, "registered as active agent");
@@ -242,7 +245,10 @@ impl TractorNative {
 
         for join in joins {
             if let Err(panic_payload) = join.join() {
-                tracing::warn!("plugin runner thread panic during shutdown: {:?}", panic_payload);
+                tracing::warn!(
+                    "plugin runner thread panic during shutdown: {:?}",
+                    panic_payload
+                );
             }
         }
 

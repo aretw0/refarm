@@ -36,7 +36,11 @@ pub fn spawn_audit_subscriber(
     base_dir: PathBuf,
     observer_channels: AgentChannels,
 ) {
-    tokio::spawn(audit_subscriber_task(telemetry, base_dir, observer_channels));
+    tokio::spawn(audit_subscriber_task(
+        telemetry,
+        base_dir,
+        observer_channels,
+    ));
 }
 
 async fn audit_subscriber_task(
@@ -59,7 +63,10 @@ async fn audit_subscriber_task(
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                tracing::warn!(skipped = n, "scarecrow: audit subscriber lagged — events skipped");
+                tracing::warn!(
+                    skipped = n,
+                    "scarecrow: audit subscriber lagged — events skipped"
+                );
             }
         }
     }
@@ -74,7 +81,9 @@ fn forward_to_observers(
     json_payload: &str,
     observer_channels: &AgentChannels,
 ) {
-    let Ok(guard) = observer_channels.read() else { return };
+    let Ok(guard) = observer_channels.read() else {
+        return;
+    };
     for tx in guard.values() {
         let _ = tx.send(AgentMessage {
             event: event.event.clone(),
@@ -87,10 +96,19 @@ fn forward_to_observers(
 /// Payload fields are merged into the top-level object for direct `jq` access.
 pub(crate) fn format_audit_line(event: &TelemetryEvent) -> Option<String> {
     let mut obj = serde_json::Map::new();
-    obj.insert("ts".into(), serde_json::Value::Number(event.timestamp.into()));
-    obj.insert("event".into(), serde_json::Value::String(event.event.clone()));
+    obj.insert(
+        "ts".into(),
+        serde_json::Value::Number(event.timestamp.into()),
+    );
+    obj.insert(
+        "event".into(),
+        serde_json::Value::String(event.event.clone()),
+    );
     if let Some(plugin_id) = &event.plugin_id {
-        obj.insert("plugin_id".into(), serde_json::Value::String(plugin_id.clone()));
+        obj.insert(
+            "plugin_id".into(),
+            serde_json::Value::String(plugin_id.clone()),
+        );
     }
     if let Some(payload) = &event.payload {
         if let Some(map) = payload.as_object() {
@@ -103,7 +121,12 @@ pub(crate) fn format_audit_line(event: &TelemetryEvent) -> Option<String> {
 }
 
 async fn append_line(path: &Path, line: &str) {
-    match OpenOptions::new().create(true).append(true).open(path).await {
+    match OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+    {
         Ok(mut file) => {
             let _ = file.write_all(line.as_bytes()).await;
             let _ = file.write_all(b"\n").await;
@@ -119,7 +142,11 @@ mod tests {
     use super::*;
     use crate::telemetry::TelemetryEvent;
 
-    fn make_event(event: &str, plugin_id: Option<&str>, payload: serde_json::Value) -> TelemetryEvent {
+    fn make_event(
+        event: &str,
+        plugin_id: Option<&str>,
+        payload: serde_json::Value,
+    ) -> TelemetryEvent {
         let mut e = TelemetryEvent::new(event, plugin_id.map(String::from));
         e = e.with_payload(payload);
         e
@@ -207,7 +234,11 @@ mod tests {
         use std::sync::{Arc, RwLock};
 
         let observer_channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-        let ev = make_event("agent-tool:fs:read", Some("pi-agent"), serde_json::json!({}));
+        let ev = make_event(
+            "agent-tool:fs:read",
+            Some("pi-agent"),
+            serde_json::json!({}),
+        );
         let line = format_audit_line(&ev).unwrap();
         // Should not panic with no observers registered
         forward_to_observers(&ev, &line, &observer_channels);
