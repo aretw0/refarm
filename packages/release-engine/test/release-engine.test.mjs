@@ -272,6 +272,9 @@ test("exports the release output schema as a public package subpath", () => {
     "check",
     "gates",
   ]);
+  assert.equal(schema.$defs.summary.properties.auditRecord.$ref, "#/$defs/auditRecord");
+  assert.equal(schema.$defs.auditRecord.properties.schemaVersion.const, 1);
+  assert.equal(schema.$defs.auditRecord.properties.digest.properties.algorithm.const, "sha256");
 });
 
 test("cli plan json resolves the Refarm default release selection", () => {
@@ -357,6 +360,27 @@ test("cli check json uses the versioned machine-output contract", () => {
   );
 });
 
+test("cli plan json can include a deterministic audit record", () => {
+  const payload = runCliJson([
+    "plan",
+    "--cwd",
+    repoRoot,
+    "--selection",
+    "default",
+    "--audit",
+  ]);
+
+  assert.equal(payload.command, "plan");
+  assert.equal(payload.schemaVersion, 1);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.auditRecord.schemaVersion, 1);
+  assert.equal(payload.auditRecord.digest.algorithm, "sha256");
+  assert.match(payload.auditRecord.digest.value, /^[a-f0-9]{64}$/);
+  assert.equal(payload.auditRecord.payload.releaseOutputSchemaVersion, 1);
+  assert.equal(payload.auditRecord.payload.selection.id, "kernel-candidates");
+  assert.deepEqual(payload.auditRecord.payload.packages, payload.packages);
+});
+
 test("cli blocked plan json preserves the versioned output shape", () => {
   const payload = runCliJsonFailure([
     "plan",
@@ -374,6 +398,7 @@ test("cli blocked plan json preserves the versioned output shape", () => {
   assert.deepEqual(payload.publishIntents, []);
   assert.deepEqual(payload.profileTags, []);
   assert.equal(payload.selection, null);
+  assert.equal(payload.auditRecord, undefined);
 });
 
 test("cli blocked check json preserves the gate-result contract", () => {

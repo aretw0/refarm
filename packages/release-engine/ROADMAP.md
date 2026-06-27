@@ -85,5 +85,5 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 **Objetivo:** engine virar base para publicação orquestrada entre projetos.
 
 - [ ] Composição com `toolbox` para comandos de operador.
-- [ ] Publicação de política e plano com evidência hash.
+- [x] Publicação de política e plano com evidência hash.
 - [ ] Métricas de conformidade de release por projeto.
