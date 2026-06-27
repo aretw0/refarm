@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-27. Reference-driver supply map now keeps refarm-plugin-wit internal and treats refarm:plugin@0.1.0 as the durable WIT supply surface.",
-  "timestamp": "2026-06-27T20:18:59.190Z",
+  "context": "Checkpoint 2026-06-27. Worker profiles now expose a product-neutral agents-as-tools SDK contract; runtime dispatch remains intentionally blocked until policy, cancellation, observability, and cost controls are proven.",
+  "timestamp": "2026-06-27T20:39:32.852Z",
   "current_phase": "12",
   "current_tasks": [
-    "@refarm.dev/cli/capability-index now records refarm:plugin@0.1.0 and the refarm-plugin-wit Cargo package as internal supply targets instead of publication candidates.",
-    "packages/DISTRIBUTION_STATUS.md and docs/REFERENCE_AGENT_DRIVER_RESEARCH.md document that refarm-plugin-wit stays publish=false until runtime packaging policy and daily-driver evidence justify promotion.",
-    "Validation passed: capability-index vitest, packages/cli type-check, packages/cli build, validate-packages, git diff --check, after-edit, commit, and after-commit; after-commit got full Turbo cache hit for CLI validation."
+    "Commit 890037be added createWorkerProfile/createWorkerToolDescriptor plus validation for plan-only worker tool descriptors in @refarm.dev/cli.",
+    "Reusable SDK names in packages/cli/src/worker-profile.ts are product-neutral; do not add Refarm-prefixed compatibility aliases before publication for names that should not have existed.",
+    "Validation passed: worker-profile and capability-index vitest, packages/cli type-check, packages/cli build, validate-packages, git diff --check, after-edit, commit, and after-commit with full Turbo cache hit."
   ],
   "blockers": [],
   "next_actions": [
-    "Keep WIT/component publication planning on validate-packages plus capability-index supply-map evidence before touching npm/crates publishing.",
-    "Next slice can add a plan-only release preflight that reports internal/hold/candidate targets without building WASM.",
-    "Keep @refarm.dev/pi-agent private until plugin artifact policy and daily-driver gate justify a package candidate."
+    "Return to the publication/convergence track with a plan-only release preflight that reports internal, hold, and candidate supply targets without expensive builds.",
+    "Keep runtime-dispatch worker tools plan-only until policy/cancellation/observability/cost controls are implemented and validated.",
+    "Continue auditing exported SDK surfaces before publication so reusable primitives stay product-neutral and Refarm naming remains reserved for product identity surfaces."
   ],
   "open_questions": [],
   "key_decisions_active": [
