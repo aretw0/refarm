@@ -20,6 +20,7 @@ export interface ProjectAuditResult {
     git: HealthIssue[];
     builds: HealthIssue[];
     alignment: HealthIssue[];
+    automations?: HealthIssue[];
     complexity?: HealthIssue[];
     complexitySummary?: ComplexityAuditResult;
 }
@@ -116,6 +117,7 @@ export class ProjectAuditor {
     checkBuildConfigs(rootDir: string, options?: ProjectAuditorOptions): Promise<HealthIssue[]>;
     checkPackageAlignment(rootDir: string, options?: ProjectAuditorOptions): Promise<HealthIssue[]>;
     checkResolutionStatus(rootDir: string, options?: ProjectAuditorOptions): Promise<ResolutionStatus[]>;
+    checkProjectAutomations(rootDir: string): HealthIssue[];
 }
 
 export class RefarmProjectAuditor extends ProjectAuditor {
