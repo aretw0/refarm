@@ -10,6 +10,7 @@ import {
 import {
 	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+	REFARM_ME_SYNC_STATUS,
 } from "./me-surfaces";
 
 describe("refarm.me real shell runtime", () => {
@@ -72,6 +73,7 @@ describe("refarm.me real shell runtime", () => {
 		);
 		expect(mountedSurface?.textContent).toContain("My Sovereign Space");
 		expect(mountedSurface?.textContent).toContain(REFARM_ME_IDENTITY_STATUS);
+		expect(mountedSurface?.textContent).toContain(REFARM_ME_SYNC_STATUS);
 
 		for (const handler of telemetryHandlers) {
 			handler({
