@@ -35,7 +35,6 @@ The package script is bounded by `timeout 45s` so this validation cannot pin
 the development container if ComponentizeJS/Wizer behavior drifts. Evidence:
 `evidence/componentize-attempt.json`.
 
-Next POC steps remain intentionally separate: decide whether Part C deserves a
-custom Astro WASI adapter or bundle profile that removes Node built-ins
-(`node:module`, `process`, `Buffer`, `sharp`), or record Part C as red in
-ADR-070 instead of turning this validation into product work.
+Decision: Part C is red for now. Do not build a custom Astro WASI adapter or
+bundle profile from this POC alone. Revisit only if a second consumer or
+upstream Astro WASI bundle profile changes the cost model.

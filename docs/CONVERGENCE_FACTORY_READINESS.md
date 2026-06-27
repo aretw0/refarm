@@ -110,11 +110,11 @@ bundle still carries `process`, `Buffer`, and `sharp`:
 - `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
 - `validations/astro-wasi-ssr/`.
 
-Decision rule:
+Decision:
 
-- green POC: write a Part C feature spec for an Astro-on-Tractor adapter;
-- red POC: record the blocker in ADR-070 and keep Parts A/B as the accepted direction;
-- either way: do not block item 4 on item 5.
+- Part C is red for now; no Astro-on-Tractor adapter spec is opened.
+- ADR-070 Parts A/B remain the accepted direction.
+- Do not block item 4, Marimo WASM distribution, or generator/codemod work on item 5.
 
 ## Item 6 - Gardening Skills
 

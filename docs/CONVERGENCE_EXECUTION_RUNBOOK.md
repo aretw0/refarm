@@ -87,8 +87,9 @@ and rollback note.
 ### 7. Item 5 — ADR-070 follow-ups
 - **Part B (commit):** reconcile ADR-049 wording to **native-first + WASM-fallback** for Tractor
   distribution (doc change; keep dual-runtime).
-- **Part C (speculative):** follow `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
-  Green → write a Part C feature spec. Red → drop Part C, record the blocker.
+- **Part C (speculative):** closed red by `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
+  Do not open an Astro-on-Tractor adapter spec unless a second consumer or upstream Astro WASI
+  bundle profile changes the cost model.
 
 ### 8. Item 4d — dispatch-surface external API
 Branch: `feat/dispatch-surface-external-api`.

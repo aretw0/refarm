@@ -30,7 +30,7 @@ Evidence:
 - Keep the WIT world and generated component local to the validation directory.
 - Gate: either a component is produced or the blocker is captured as structured evidence.
 
-Status: blocked on 2026-06-27 at Astro server bundle evaluation, after WIT resolution.
+Status: red on 2026-06-27 at Astro server bundle evaluation, after WIT resolution.
 
 Evidence:
 
@@ -48,11 +48,14 @@ Evidence:
   `node:module`, `process`, `Buffer`, and `sharp`.
 - Structured evidence: `validations/astro-wasi-ssr/evidence/componentize-attempt.json`.
 
-Next action: decide whether Part C should pursue a custom Astro WASI adapter or bundle profile that
-removes Node built-ins (`node:module`, `process`, `Buffer`, `sharp`) before rerunning
-componentization. Do not move to Tractor host execution until this produces a component artifact.
+Decision: do not pursue a custom Astro WASI adapter or bundle profile now. Removing Node built-ins
+(`node:module`, `process`, `Buffer`, `sharp`) is a runtime/bundle-design project, not a bounded
+POC fix. Keep ADR-070 Parts A/B as the active WASM substrate direction and revisit Part C only if a
+second consumer or upstream Astro WASI bundle profile changes the cost model.
 
 ## Task 3 - Tractor Host Execution
+
+Status: skipped because Task 2 did not produce a component artifact.
 
 - Run the component on the Tractor wasmtime host.
 - Serve one real request and assert status/body.
@@ -61,8 +64,10 @@ componentization. Do not move to Tractor host execution until this produces a co
 
 ## Task 4 - ADR Outcome
 
-- If green: write a Part C feature spec for an adapter and keep the validation as evidence.
-- If red: update ADR-070 with the blocker and explicitly retain Parts A/B.
+- Status: complete. ADR-070 records Part C as red and explicitly retains Parts A/B.
+- If green in a future revisitation: write a new Part C feature spec for an adapter and keep this
+  validation as historical evidence.
+- If red: no adapter spec is opened.
 - Do not let a red Part C block item 4, Marimo WASM distribution, or native-first Tractor work.
 
 ## Budget Guard

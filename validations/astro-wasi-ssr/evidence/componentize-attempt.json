@@ -37,9 +37,13 @@
 		"summary": "After WIT resolution, ComponentizeJS/StarlingMonkey cannot initialize the generated Astro 7 server bundle because it imports Node-specific surfaces such as node:module. The bundle also references process, Buffer, and sharp, so Part C needs a WASI-oriented Astro bundle profile before host execution is meaningful.",
 		"observedAfterWitResolution": true
 	},
+	"decision": {
+		"partC": "red",
+		"summary": "Do not pursue an Astro-on-Tractor product adapter now. Removing Astro's generated Node surfaces would require a custom WASI-oriented Astro bundle profile or runtime design, which is outside the POC budget. ADR-070 Parts A/B remain the accepted direction."
+	},
 	"secondaryRisk": {
 		"layer": "componentize-resource-budget",
 		"summary": "The componentize script is intentionally bounded by timeout 45s because ComponentizeJS/Wizer can hang on bundle/runtime drift and should not be allowed to pin the development container."
 	},
-	"nextAction": "Decide whether Part C should pursue a custom Astro WASI adapter or bundle profile that removes Node built-ins, starting with node:module/process/Buffer/sharp, or record Part C as red and keep ADR-070 Parts A/B."
+	"nextAction": "Keep ADR-070 Parts A/B as the active WASM substrate direction; revisit Astro-on-Tractor only if a second consumer or upstream Astro WASI bundle profile changes the cost model."
 }

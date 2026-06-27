@@ -1,6 +1,6 @@
 # ADR-070: WASM Surface Substrate, Ecosystem Dependency Depth, and Tractor Distribution
 
-**Status**: Proposed (Part C is POC-gated)
+**Status**: Proposed (Parts A/B accepted; Part C POC red)
 **Date**: 2026-06-25
 **Authors**: Arthur Silva
 **Related**: ADR-044 (WASM plugin loading, browser), ADR-049 (dual-runtime), `docs/CONVERGENCE_ROADMAP.md` (item 5), `docs/ECOSYSTEM_SUPPLY_MAP.md`, `docs/VAULT_SEED_CONVERGENCE.md`
@@ -71,9 +71,8 @@ as native-first.
 ### Part C — Astro SSR on Tractor (speculative appendix, POC-gated)
 
 Running Astro SSR as a `wasi:http` component on Tractor (via a custom Astro adapter + `jco
-componentize` / ComponentizeJS, on SpiderMonkey/StarlingMonkey) remains an **explicitly speculative**
-exploration — not the central direction. It is unblocked by Parts A and B and pursued only if the
-POC below clears. If it never does, nothing in A or B is affected.
+componentize` / ComponentizeJS, on SpiderMonkey/StarlingMonkey) is **red for now**. It remains a
+recorded speculative appendix, not the central direction. Parts A and B stand without it.
 
 ## POC — the gate for Part C only
 
@@ -92,13 +91,13 @@ the fixture vendors the minimal official WASI v0.2.3 graph needed by
 timeout and currently fails before that budget while evaluating the generated Astro server bundle:
 ComponentizeJS/StarlingMonkey cannot load `node:module`. Static inspection also shows Node/runtime
 surfaces including `process`, `Buffer`, and `sharp`. Evidence is recorded in
-`validations/astro-wasi-ssr/evidence/componentize-attempt.json`. The next decision is whether Part C
-deserves a custom Astro WASI adapter/bundle profile that removes those Node surfaces, or whether
-Part C should be recorded red while Parts A/B stand.
+`validations/astro-wasi-ssr/evidence/componentize-attempt.json`. Decision: do not pursue an
+Astro-on-Tractor adapter now; removing those Node surfaces would require a custom WASI-oriented
+Astro bundle profile or runtime design, which is outside the POC budget. Revisit only if a second
+consumer or upstream Astro WASI bundle profile changes the cost model.
 
-Success: serves correctly from Tractor; cold-start + per-request latency within a budget set when
-the POC lands (ADR-044's <100ms transpile is the reference order). Evidence:
-`validations/astro-wasi-ssr/`. Green → Part C spec; red → drop Part C, record the blocker.
+Outcome: red for Part C. No Part C feature spec is opened. Evidence remains in
+`validations/astro-wasi-ssr/`; Parts A/B remain the accepted direction.
 
 ## Consequences
 
@@ -109,8 +108,8 @@ the POC lands (ADR-044's <100ms transpile is the reference order). Evidence:
 - B preserves Tractor's Rust as the primary artifact while gaining the ecosystem's fallback reach.
 
 ### Risks
-- Part C only: no existing Astro WASI adapter; SpiderMonkey-in-WASM cold-start/bundle size; WASI P3
-  still landing. Contained by POC-first.
+- Part C remains red unless the ecosystem supplies a WASI-oriented Astro bundle profile or a second
+  consumer proves the runtime-design cost is worth paying.
 - B requires an ADR-049 wording reconciliation (native-first vs ts-first) — a doc change, not a code
   change.
 
