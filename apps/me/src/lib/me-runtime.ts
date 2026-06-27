@@ -22,6 +22,7 @@ import {
 
 export const REFARM_ME_LOADING_ID = "loading-overlay";
 export const REFARM_ME_RENDERER = REFARM_ME_WEB_RENDERER;
+export const REFARM_ME_PLUGIN_REGISTRY_TYPE = "refarm:PluginRegistry";
 
 type RefarmMeRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;
 type RefarmMeTractor = RefarmMeRuntime["tractor"];
@@ -40,6 +41,13 @@ interface RefarmMeHeraldOptions {
 
 type RefarmMeFirefly = object;
 
+export type RefarmMeGraphMode = "bootstrap" | "sovereign";
+
+export interface RefarmMeGraphStatus {
+	mode: RefarmMeGraphMode;
+	pluginRegistryIds: string[];
+}
+
 export interface RefarmMePluginConstructors {
 	HeraldPlugin: new (
 		tractor: RefarmMeTractor,
@@ -53,6 +61,8 @@ export interface RefarmMeWorkbench {
 	renderer: HomesteadHostRendererDescriptor;
 	surfacePluginIds: string[];
 	contentPluginIds: string[];
+	graphMode: RefarmMeGraphMode;
+	pluginRegistryIds: string[];
 	storeLocalNode(input: RefarmMeLocalNodeInput): Promise<void>;
 }
 
@@ -98,6 +108,7 @@ export async function bootRefarmMeWorkbench(
 	});
 	const tractor = runtime.tractor;
 	browserSyncTelemetry.flushTo(tractor);
+	const graphStatus = await readRefarmMeGraphStatus(runtime);
 
 	const constructors =
 		options.pluginConstructors ?? (await loadRefarmMePluginConstructors());
@@ -123,6 +134,8 @@ export async function bootRefarmMeWorkbench(
 		surfaceContext: createRefarmMeSurfaceContextProvider({
 			identityStatus: REFARM_ME_IDENTITY_STATUS,
 			syncStatus: browserSyncTelemetry.status(),
+			graphMode: graphStatus.mode,
+			pluginRegistryCount: graphStatus.pluginRegistryIds.length,
 		}),
 		surfaceAction: createRefarmMeSurfaceActionHandler((request) => {
 			tractor.emitTelemetry({
@@ -146,8 +159,42 @@ export async function bootRefarmMeWorkbench(
 		renderer: REFARM_ME_RENDERER,
 		surfacePluginIds,
 		contentPluginIds,
+		graphMode: graphStatus.mode,
+		pluginRegistryIds: graphStatus.pluginRegistryIds,
 		storeLocalNode: (input) => storeRefarmMeLocalNode(runtime, input),
 	};
+}
+
+async function readRefarmMeGraphStatus(
+	runtime: RefarmMeRuntime,
+): Promise<RefarmMeGraphStatus> {
+	const registries = await runtime.storage.queryNodes(
+		REFARM_ME_PLUGIN_REGISTRY_TYPE,
+	);
+	const pluginRegistryIds = registries
+		.map(readRefarmMeStorageNodeId)
+		.filter((id): id is string => typeof id === "string" && id.length > 0);
+	return {
+		mode: pluginRegistryIds.length > 0 ? "sovereign" : "bootstrap",
+		pluginRegistryIds,
+	};
+}
+
+function readRefarmMeStorageNodeId(node: unknown): string | undefined {
+	if (!node || typeof node !== "object") return undefined;
+	const directId = (node as { id?: unknown }).id;
+	if (typeof directId === "string") return directId;
+
+	const payload = (node as { payload?: unknown }).payload;
+	if (typeof payload !== "string") return undefined;
+	try {
+		const parsed = JSON.parse(payload) as { id?: unknown; "@id"?: unknown };
+		if (typeof parsed.id === "string") return parsed.id;
+		if (typeof parsed["@id"] === "string") return parsed["@id"];
+	} catch {
+		return undefined;
+	}
+	return undefined;
 }
 
 async function storeRefarmMeLocalNode(

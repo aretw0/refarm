@@ -5,6 +5,7 @@ import {
 	createRefarmMeSurfaceContextProvider,
 	createRefarmMeSurfacePlugins,
 	invokeRefarmMePersonalSurfaceAction,
+	REFARM_ME_GRAPH_MODE,
 	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_OPEN_VAULT_ACTION_ID,
 	REFARM_ME_PERSONAL_SURFACE_ID,
@@ -64,6 +65,8 @@ describe("refarm.me Homestead surface", () => {
 				storageScope: "refarm-me-main",
 				syncScope: "citizen",
 				syncStatus: REFARM_ME_SYNC_STATUS,
+				graphMode: REFARM_ME_GRAPH_MODE,
+				pluginRegistryCount: 0,
 			},
 			actions: [
 				expect.objectContaining({
@@ -82,6 +85,9 @@ describe("refarm.me Homestead surface", () => {
 		);
 		expect((rendered as { html: string }).html).toContain(
 			`<dd data-refarm-me-sync-status>${REFARM_ME_SYNC_STATUS}</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-graph-mode>${REFARM_ME_GRAPH_MODE}</dd>`,
 		);
 		await expect(plugin?.call("other", {})).resolves.toBeNull();
 	});
@@ -104,6 +110,8 @@ describe("refarm.me Homestead surface", () => {
 					profileName: "Me <Root>",
 					identityStatus: "not <ready>",
 					syncStatus: "sync <ok>",
+					graphMode: "mode <ok>",
+					pluginRegistryCount: "<2>",
 				},
 				actions: [
 					{
@@ -120,6 +128,8 @@ describe("refarm.me Homestead surface", () => {
 		expect((rendered as { html: string }).html).toContain("Me &lt;Root&gt;");
 		expect((rendered as { html: string }).html).toContain("not &lt;ready&gt;");
 		expect((rendered as { html: string }).html).toContain("sync &lt;ok&gt;");
+		expect((rendered as { html: string }).html).toContain("mode &lt;ok&gt;");
+		expect((rendered as { html: string }).html).toContain("&lt;2&gt;");
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
 	});
 
@@ -145,6 +155,8 @@ describe("refarm.me Homestead surface", () => {
 			storageScope: "local-main",
 			syncScope: "solo",
 			syncStatus: "snapshot-applied",
+			graphMode: "sovereign",
+			pluginRegistryCount: 1,
 		});
 
 		expect(provider(createRefarmMePersonalSurfaceRenderRequest())).toMatchObject({
@@ -155,6 +167,8 @@ describe("refarm.me Homestead surface", () => {
 				storageScope: "local-main",
 				syncScope: "solo",
 				syncStatus: "snapshot-applied",
+				graphMode: "sovereign",
+				pluginRegistryCount: 1,
 			},
 		});
 	});
