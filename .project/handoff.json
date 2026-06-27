@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Refarm driver nucleus agora tem scheduled-work completo em leitura: resume carrega .project/automations.json e health valida o manifesto antes de qualquer writer governado.",
-  "timestamp": "2026-06-27T16:26:12.040Z",
+  "context": "Checkpoint 2026-06-27. Refarm driver nucleus agora tem scheduled-work de leitura e escrita: resume carrega .project/automations.json, health valida o manifesto e project automations add/validate escreve a fonte governada sem daemon.",
+  "timestamp": "2026-06-27T16:41:33.246Z",
   "current_phase": "12",
   "current_tasks": [
     "Daily-driver loop: resume/check/finish lanes seguem limpos; after-edit/after-commit usam affected scope, concorrencia limitada e cache.",
-    "Refarm como fornecedor: contratos embeddable cobrem capability index, worker profiles, project handoff, local scheduler, resume scheduled-work e health de automacoes do projeto.",
-    "Scheduler esta em visibilidade real minima: refarm resume le .project/automations.json opcional, normaliza triggers once/cron ativos e materializa jobs no-token pelo @refarm.dev/windmill/local-scheduler; health valida JSON, ids, nomes, status e triggers."
+    "Refarm como fornecedor: @refarm.dev/cli/project-automations foi publicado como primitiva SDK e capability project-automations.governed entrou no capability index.",
+    "Scheduler esta em ciclo minimo completo: CLI escreve automacoes, health valida JSON/status/triggers, resume materializa once/cron ativos no-token via @refarm.dev/windmill/local-scheduler."
   ],
   "blockers": [],
   "next_actions": [
-    "Escolher e implementar o primeiro writer governado de automacoes do projeto sem daemon: comando CLI, storage-contract/sqlite, ou integracao via farmhand.",
-    "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza friccao real de uso.",
-    "Preparar blocos publicaveis npm/crates mantendo validacao focada e evitando comandos globais pesados."
+    "Dogfoodar uma automacao real pequena via refarm project automations add --status active e confirmar resume scheduledWork sem executar jobs.",
+    "Decidir quando promover persistencia de .project/automations.json para storage-contract/sqlite com export/import, sem bloquear o daily-driver.",
+    "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza friccao real de uso."
   ],
   "open_questions": [
-    "O writer inicial deve persistir somente .project/automations.json ou ja nascer atraves de storage-contract/sqlite com export/import para arquivo?"
+    "Qual automacao real deve ser o primeiro dogfood: handoff diario, cache/health check, ou lembrete de publish readiness?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
