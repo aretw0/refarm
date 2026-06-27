@@ -97,6 +97,26 @@ provider. It still does not prove the full live policy bundle: host shell
 allowlist, trusted plugin enforcement, checkout root, and audit records active in
 one runtime-agent acceptance pass.
 
+Current evidence (2026-06-27): Tractor's host-side policy guards also have
+focused local proofs for the daily-driver shell boundary. The host rejects a
+command outside `MODEL_SHELL_ALLOWLIST`, blocks shell `cwd` outside
+`MODEL_FS_ROOT`, blocks unlisted plugins when `trusted_plugins` is configured,
+and formats `agent-tool:shell:spawn` telemetry as an audit line. The focused
+signals are:
+
+```bash
+cargo test --manifest-path packages/tractor/Cargo.toml shell_allowlist_blocks_unknown_command --lib --quiet
+cargo test --manifest-path packages/tractor/Cargo.toml spawn_cwd_outside_fs_root_is_blocked --lib --quiet
+cargo test --manifest-path packages/tractor/Cargo.toml trusted_plugins_enforcement_blocks_unlisted_plugin --lib --quiet
+cargo test --manifest-path packages/tractor/Cargo.toml format_shell_spawn_event --lib --quiet
+```
+
+That proves each host-side policy primitive independently without starting a
+model provider. It still does not prove the full live policy bundle in one pass:
+runtime-agent tool dispatch must run with the intended checkout root,
+`MODEL_SHELL_ALLOWLIST`, `trusted_plugins`, and Scarecrow audit subscriber active
+together.
+
 ## Memory Persistence Evidence
 
 Current evidence (2026-06-27): Refarm's CRDT memory engine is implemented across
