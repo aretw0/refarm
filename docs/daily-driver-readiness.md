@@ -127,6 +127,11 @@ What is already solid:
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 - The primitive contract map is maintained in
   `docs/OPERATOR_PRIMITIVES.md`.
+- Reference research against Codex, Claude Code, and Hermes Agent is maintained
+  in `docs/REFERENCE_AGENT_DRIVER_RESEARCH.md`. The adoption rule is to keep
+  the live daily-driver loop first, then close policy, governed handoff writes,
+  capability discovery, bounded worker profiles, and scheduler proof in that
+  order.
 
 What still blocks the 95/100 product target:
 
