@@ -263,8 +263,15 @@ function packageFinishStepsForWorkspace(
 		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
 		["build", "Build the package after source changes."],
 	] as const;
-	const availableCandidates = candidates
+	const baseCandidates = candidates.filter(([script]) => script !== "test");
+	const availableBaseCandidates = baseCandidates
 		.filter(([script]) => typeof scripts[script] === "string");
+	const availableCandidates = [
+		...candidates,
+		...(!includeTests && availableBaseCandidates.length === 0
+			? [["test", "Run the package test suite."]] as const
+			: []),
+	].filter(([script]) => typeof scripts[script] === "string");
 	if (availableCandidates.length === 0) return [];
 	if (workspaceCanUseTurboAdapter(findWorkspaceRoot()) && workspace !== ".") {
 		return [turboPackageValidationStep(
