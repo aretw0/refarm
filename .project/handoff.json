@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. code-ops agora tem prova no-token no host bridge do tractor, completando structured-io, session-tree e code-ops como primitivas reference-driver validadas localmente.",
-  "timestamp": "2026-06-27T18:20:17.388Z",
+  "context": "Checkpoint 2026-06-27. As primitivas reference-driver no-token agora estão consolidadas em um gate leve raiz: pnpm run reference-driver:smoke.",
+  "timestamp": "2026-06-27T18:27:02.478Z",
   "current_phase": "12",
   "current_tasks": [
-    "Reference-driver smoke: packages/tractor cobre CodeOpsHost::find_references e CodeOpsHost::rename_symbol via TractorNativeBindings, fake LSP local e sem provider.",
-    "A prova confirma que o boundary plugin-host -> LspBridge resolve referências e aplica workspace edit por LSP genérico; o comentário de core.rs foi atualizado para remover a noção obsoleta de stub.",
-    "Validação econômica: cargo test --manifest-path packages/tractor/Cargo.toml --lib code_ops --quiet, cargo fmt --manifest-path packages/tractor/Cargo.toml --check, git diff --check, after-edit e after-commit passaram; pós-commit teve full turbo hit."
+    "Gate consolidado: scripts/ci/reference-driver-smoke.mjs roda structured-io, session-tree e code-ops sequencialmente, sem provider e sem runtime real.",
+    "Scripts raiz adicionados: reference-driver:smoke e reference-driver:smoke:plan. O plan imprime os comandos exatos para auditoria antes de executar.",
+    "Validação econômica: pnpm run reference-driver:smoke:plan, pnpm run reference-driver:smoke, git diff --check, after-edit e after-commit passaram."
   ],
   "blockers": [],
   "next_actions": [
-    "Consolidar structured-io, session-tree e code-ops em um gate leve reference-driver/publication-readiness, ou seguir para empacotar/exportar SDKs que apps internos e futuros consumidores possam importar.",
-    "Revisar o espelhamento WIT/public contract de code-ops antes de tratar isso como superfície publicável para agent-tools/vault-seed/agents-lab.",
+    "Revisar o espelhamento WIT/public contract de code-ops antes de tratar code-ops como superfície publicável para agent-tools/vault-seed/agents-lab.",
+    "Usar pnpm run reference-driver:smoke como gate leve antes de mexer em publicação/SDK de runtime-agent.",
     "Continuar preparando blocos publicáveis npm/crates mantendo Refarm como fornecedor de SDK/engine e daily-driver de referência."
   ],
   "open_questions": [
-    "O próximo bloco deve ser gate leve de publicação das primitivas reference-driver, ou exposição/empacotamento formal do code-ops no WIT/SDK?"
+    "O próximo bloco deve formalizar code-ops no WIT/SDK ou avançar para release policy/publication-readiness usando o novo gate reference-driver?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
