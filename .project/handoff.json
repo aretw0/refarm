@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-27. Reference-driver publication posture is now machine-readable through @refarm.dev/cli/capability-index.",
-  "timestamp": "2026-06-27T19:50:01.386Z",
+  "context": "Checkpoint 2026-06-27. Runtime-agent plugin distribution remains private, but pi-agent now has explicit package artifact guardrails for future publication.",
+  "timestamp": "2026-06-27T20:02:10.268Z",
   "current_phase": "12",
   "current_tasks": [
-    "@refarm.dev/cli/capability-index now exports buildRefarmReferenceDriverSupplyMap(), mapping session-tree, structured-io, and code-ops to npm/WIT/runtime/crate supply channels.",
-    "The supply map is conservative: discovery SDK is exported, @refarm.dev/pi-agent stays on hold while private, structured-io stays behind refarm:agent-tools WIT, and code-ops stays split between plugin WIT and held refarm-tractor.",
-    "Validation passed: pnpm -C packages/cli exec vitest run src/capability-index.test.ts, pnpm -C packages/cli run type-check, pnpm -C packages/cli run build, git diff --check, after-edit, commit, and after-commit."
+    "packages/pi-agent/package.json now allowlists concrete artifacts only: dist/pi_agent.wasm, dist/plugin.json, and dist/jco.",
+    "scripts/validate-packages.mjs now validates @refarm.dev/pi-agent as a runtime-agent plugin package candidate: artifact files must be explicit, build:wasm must run check:wit and write wasm/plugin.json, build:jco must read wasm and write dist/jco, and public publication requires publishConfig.access=public.",
+    "Validation passed: node --test scripts/ci/test-validate-packages-lib.mjs, node scripts/validate-packages.mjs, git diff --check, pnpm run reference-driver:smoke, after-edit, commit, and after-commit; after-edit/after-commit also passed the no-token refarm:agent:e2e:mock."
   ],
   "blockers": [],
   "next_actions": [
-    "Decide the next publication slice for runtime-agent distribution: keep @refarm.dev/pi-agent private, or prepare a policy-gated plugin package candidate with explicit files/artifact checks.",
-    "If runtime package promotion remains too early, map the WIT/component distribution path for refarm:agent-tools and refarm:plugin before touching npm/crates publishing.",
-    "Keep reference-driver:smoke as the cheap guard when changing session-tree, structured-io, code-ops, or their supply map."
+    "Map the WIT/component distribution path for refarm:agent-tools and refarm:plugin before touching npm/crates publishing.",
+    "Keep @refarm.dev/pi-agent private until plugin artifact policy and daily-driver gate justify a package candidate.",
+    "Consider adding a plan-only/publication preflight for plugin packages so future agents can inspect candidate status without building WASM."
   ],
   "open_questions": [],
   "key_decisions_active": [
