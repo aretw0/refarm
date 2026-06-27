@@ -106,10 +106,18 @@ Current proof (2026-06-27): Refarm now exposes
 `@refarm.dev/cli/capability-index` and `refarm capabilities --json`. The index
 is intentionally static and cheap: it reports compact descriptors for proven
 capabilities (runtime-agent ask loop, governed project handoff, finish lanes,
-runtime shell policy audit, and stream observation subscriber) and planned
-reference-driver gaps (runtime-agent worker profiles and local scheduled jobs).
-The CLI command supports tag and policy-state filtering, so agents can ask for
-`--state planned --json` without scraping docs or loading long instructions.
+runtime shell policy audit, and stream observation subscriber), the governed
+worker-profile SDK contract, and planned reference-driver gaps such as local
+scheduled jobs. The CLI command supports tag and policy-state filtering, so
+agents can ask for `--state planned --json` or `--state governed --json` without
+scraping docs or loading long instructions.
+
+Current proof (2026-06-27): `@refarm.dev/cli/worker-profile` defines the first
+bounded worker contract: explicit context packet, allowed/denied tools, model
+scope, max concurrency, output contract, and cancellation/resume policy. This
+does not dispatch workers. It only gives downstream code and future runtime
+work a small, validated shape to target before Refarm enables delegated
+execution.
 
 ## Adoption Order
 
