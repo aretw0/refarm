@@ -57,6 +57,12 @@ const RELEASE_READINESS_STEPS = [
 			"Consumer-pulled mechanical adoption paths must keep fixtures, dry-run commands, and rollback notes.",
 	},
 	{
+		id: "reference-driver",
+		script: "reference-driver:smoke",
+		reason:
+			"Runtime-agent/reference-driver primitives must pass their lightweight no-provider smoke before publication packaging.",
+	},
+	{
 		id: "publish-dry-run",
 		script: "release:check",
 		reason: "Release-policy package manifests must survive a publish dry-run.",
