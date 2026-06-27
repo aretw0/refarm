@@ -17,6 +17,8 @@ describe("capability index", () => {
 			"agent-finish.lanes",
 			"policy.shell-audit",
 			"stream-observation.ui",
+			"runtime-agent.worker-profiles",
+			"scheduler.local-jobs",
 		]);
 		expect(new Set(ids).size).toBe(ids.length);
 		expect(index.capabilities).toEqual(getRefarmCapabilityDescriptors());

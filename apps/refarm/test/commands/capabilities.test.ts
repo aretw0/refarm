@@ -15,8 +15,8 @@ describe("capabilities command", () => {
 			operation: "index",
 			ok: true,
 			schemaVersion: 1,
-			count: 5,
-			filter: { tags: [] },
+			count: 7,
+			filter: { tags: [], states: [] },
 			capabilities: expect.arrayContaining([
 				expect.objectContaining({
 					id: "project-handoff.governed",
@@ -52,6 +52,37 @@ describe("capabilities command", () => {
 			"runtime-agent.ask",
 			"stream-observation.ui",
 		]);
+		logSpy.mockRestore();
+	});
+
+	it("filters capabilities by policy state", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--state",
+			"planned",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string; policy: { state: string } }>;
+			count: number;
+			filter: { states: string[] };
+		};
+		expect(payload.count).toBe(2);
+		expect(payload.filter.states).toEqual(["planned"]);
+		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
+			"runtime-agent.worker-profiles",
+			"scheduler.local-jobs",
+		]);
+		expect(
+			payload.capabilities.every(
+				(capability) => capability.policy.state === "planned",
+			),
+		).toBe(true);
 		logSpy.mockRestore();
 	});
 });

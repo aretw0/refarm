@@ -104,11 +104,12 @@ while preserving Refarm's stricter capability boundary.
 
 Current proof (2026-06-27): Refarm now exposes
 `@refarm.dev/cli/capability-index` and `refarm capabilities --json`. The index
-is intentionally static and cheap: it reports compact descriptors for the
-runtime-agent ask loop, governed project handoff, finish lanes, runtime shell
-policy audit, and stream observation subscriber. The CLI command supports tag
-filtering and is covered by the JSON handoff contract so downstream consumers
-can discover capabilities without scraping docs or loading long instructions.
+is intentionally static and cheap: it reports compact descriptors for proven
+capabilities (runtime-agent ask loop, governed project handoff, finish lanes,
+runtime shell policy audit, and stream observation subscriber) and planned
+reference-driver gaps (runtime-agent worker profiles and local scheduled jobs).
+The CLI command supports tag and policy-state filtering, so agents can ask for
+`--state planned --json` without scraping docs or loading long instructions.
 
 ## Adoption Order
 
