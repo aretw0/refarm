@@ -31,8 +31,33 @@ function releaseCheck() {
 	return {
 		ok: true,
 		plan: {
+			ok: true,
 			status: "ready",
 			selection: { id: "vault-seed-ready" },
+			orderedNames: ["@refarm.dev/alpha", "@refarm.dev/beta"],
+			orderedPackages: [
+				{
+					name: "@refarm.dev/alpha",
+					profile: {
+						risk: "shared",
+						tags: ["vault-seed-ready"],
+						mustPassChecks: ["pnpm --filter @refarm.dev/alpha run test"],
+					},
+				},
+				{
+					name: "@refarm.dev/beta",
+					profile: {
+						risk: "core",
+						tags: ["vault-seed-ready"],
+						mustPassChecks: ["pnpm --filter @refarm.dev/beta run test"],
+					},
+				},
+			],
+			gates: [{ id: "preflight", required: true }],
+			profileTags: ["vault-seed-ready"],
+			publishIntents: [
+				{ provider: "changesets", plan: { requiresManualApproval: true } },
+			],
 		},
 		commands: [
 			{
@@ -87,10 +112,35 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	});
 
 	assert.equal(manifest.ok, true);
+	assert.deepEqual(manifest.acceptance, {
+		status: "accepted",
+		packageCount: 2,
+		blockerCount: 0,
+		requiredGateCount: 1,
+		requiredCheckCount: 2,
+		providerCount: 1,
+		manualApprovalRequired: true,
+		surfaces: ["core", "shared"],
+		profileTags: ["vault-seed-ready"],
+		requiredChecks: [
+			{
+				command: "pnpm --filter @refarm.dev/alpha run test",
+				package: "@refarm.dev/alpha",
+			},
+			{
+				command: "pnpm --filter @refarm.dev/beta run test",
+				package: "@refarm.dev/beta",
+			},
+		],
+	});
 	assert.deepEqual(manifest.missing, []);
 	assert.deepEqual(manifest.extra, []);
 	assert.equal(manifest.packages[0].sha256, "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8");
 	assert.match(formatHandoffMarkdown(manifest), /refarm\.dev-alpha-0\.1\.0\.tgz/);
+	assert.match(
+		formatHandoffMarkdown(manifest),
+		/Acceptance: accepted \(2 package\(s\), 2 required check\(s\)\)/,
+	);
 });
 
 test("reports missing and extra handoff tarballs", () => {

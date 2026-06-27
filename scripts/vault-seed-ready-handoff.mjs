@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { releasePlanAcceptance } from "../packages/release-engine/src/index.mjs";
 import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const DEFAULT_SELECTION = "vault-seed-ready";
@@ -101,15 +102,17 @@ export function buildHandoffManifest({
 		});
 
 	if (!check.ok) {
+		const plan = check.plan ?? { ok: false };
 		return {
 			ok: false,
-			status: check.plan?.status ?? "blocked",
-			selection: check.plan?.selection ?? null,
+			status: plan.status ?? "blocked",
+			selection: plan.selection ?? null,
+			acceptance: releasePlanAcceptance(plan),
 			handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 			packages: [],
 			missing: [],
 			extra: [],
-			issues: [check.plan?.reason ?? "release selection is not ready"],
+			issues: [plan.reason ?? "release selection is not ready"],
 		};
 	}
 
@@ -150,6 +153,7 @@ export function buildHandoffManifest({
 		ok: issues.length === 0,
 		status: check.plan.status,
 		selection: check.plan.selection,
+		acceptance: releasePlanAcceptance(check.plan),
 		handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 		packages,
 		missing,
@@ -164,6 +168,9 @@ export function formatHandoffMarkdown(manifest) {
 		"",
 		`Directory: \`${manifest.handoffDir}\``,
 		`Status: ${manifest.ok ? "ok" : "blocked"}`,
+		`Acceptance: ${manifest.acceptance?.status ?? "unknown"} ` +
+			`(${manifest.acceptance?.packageCount ?? 0} package(s), ` +
+			`${manifest.acceptance?.requiredCheckCount ?? 0} required check(s))`,
 		"",
 		"| Package | Tarball | SHA256 |",
 		"| --- | --- | --- |",
