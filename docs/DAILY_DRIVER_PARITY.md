@@ -50,9 +50,10 @@ mock-runtime acceptance script,
 task run, task resume, session handoff, task handoff, and stream-file creation
 against a mock model provider.
 
-That proves the command and mock-runtime handoff shape. It does not yet prove
-that the creator can rely on a live Tractor/runtime-agent loop as the daily
-replacement for the external pi workflow.
+That proves the command and mock-runtime handoff shape. With
+`REFARM_AGENT_MOCK_POLICY_PROOF=1`, the same smoke also drives a live
+runtime-agent `bash` tool call through the mock provider and asserts the
+Scarecrow audit record for the resulting shell spawn.
 
 Validation economy note: app-level Vitest filters are currently easy to misuse
 and can fan out into unrelated `apps/refarm` suites. Prefer the mock smoke only
@@ -78,9 +79,11 @@ in `packages/pi-agent/ROADMAP.md`: `MODEL_SHELL_ALLOWLIST`, `MODEL_FS_ROOT`, and
 callers at the host boundary. Tool calls are stored in `AgentResponse.tool_calls`
 for CRDT audit, as documented in `packages/pi-agent/README.md`.
 
-That proves the local tool contract and audit path. It does not yet prove the
-creator can run the live daily-driver loop with the intended checkout root,
-shell allowlist, and trusted plugin policy active at the same time.
+That proves the local tool contract and audit path. The live daily-driver policy
+bundle is now covered by the opt-in mock smoke below: the runtime starts in an
+isolated temporary workspace containing `.refarm/config.json` with
+`trusted_plugins`, while `MODEL_FS_ROOT` points at the checkout and
+`MODEL_SHELL_ALLOWLIST` permits only the scripted command.
 
 Current evidence (2026-06-27): the `agent-tools` composition component now has a
 focused unit proof for its hard local `agent-shell` guard. `packages/agent-tools`
@@ -112,10 +115,24 @@ cargo test --manifest-path packages/tractor/Cargo.toml format_shell_spawn_event 
 ```
 
 That proves each host-side policy primitive independently without starting a
-model provider. It still does not prove the full live policy bundle in one pass:
-runtime-agent tool dispatch must run with the intended checkout root,
-`MODEL_SHELL_ALLOWLIST`, `trusted_plugins`, and Scarecrow audit subscriber active
-together.
+model provider. Once the e2e artifacts are already built, the integrated
+no-token proof is:
+
+```bash
+REFARM_AGENT_MOCK_POLICY_PROOF=1 node scripts/ci/smoke-refarm-agent-model-mock.mjs
+```
+
+When dependencies need refreshing first, run the existing build-backed gate with
+the same environment variable:
+
+```bash
+REFARM_AGENT_MOCK_POLICY_PROOF=1 pnpm run refarm:agent:e2e:mock
+```
+
+The proof scripts a model `bash` tool call, sets `MODEL_SHELL_ALLOWLIST=echo`
+and `MODEL_FS_ROOT` to the checkout, starts Tractor from an isolated temporary
+workspace with `trusted_plugins=["pi-agent"]`, then asserts an
+`agent-tool:shell:spawn` Scarecrow audit line for `pi-agent`.
 
 ## Memory Persistence Evidence
 

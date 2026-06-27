@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { SaysResponse } from "./types.js";
+import type { MockResponse, RawJsonResponse, SaysResponse } from "./types.js";
 
 const FAKE_ID = "chatcmpl-mock-0001";
 export const MODEL_MOCK_DEFAULT_MODEL = "gpt-5.5";
@@ -21,6 +21,20 @@ export function writeJsonResponse(res: ServerResponse, response: SaysResponse): 
 	});
 	res.writeHead(200, { "Content-Type": "application/json" });
 	res.end(body);
+}
+
+/** Non-streaming response with an exact OpenAI-compatible JSON payload. */
+export function writeRawJsonResponse(res: ServerResponse, response: RawJsonResponse): void {
+	res.writeHead(200, { "Content-Type": "application/json" });
+	res.end(JSON.stringify(response.body));
+}
+
+export function writeMockResponse(res: ServerResponse, response: MockResponse): void {
+	if (response.type === "raw-json") {
+		writeRawJsonResponse(res, response);
+		return;
+	}
+	writeJsonResponse(res, response);
 }
 
 /** Streaming SSE OpenAI response — emits content in one chunk then [DONE] */
