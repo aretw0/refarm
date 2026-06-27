@@ -1222,7 +1222,12 @@ describe("agent command", () => {
 			steps: {
 				id: string;
 				command: string;
-				process?: { packageManager?: string | null; tool?: string };
+				process?: {
+					packageManager?: string | null;
+					resourcePolicy?: { concurrency?: number; timeoutMs?: number };
+					timeoutMs?: number;
+					tool?: string;
+				};
 			}[];
 			nextCommands: string[];
 		};
@@ -1235,9 +1240,14 @@ describe("agent command", () => {
 			"package-validation",
 		]);
 		expect(payload.nextCommands).toContain(
-			"pnpm exec turbo run type-check lint build '--filter=./apps/refarm' '--output-logs=errors-only' '--ui=stream'",
+			"pnpm exec turbo run type-check lint build '--concurrency=2' '--filter=./apps/refarm' '--output-logs=errors-only' '--ui=stream'",
 		);
 		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		expect(payload.steps.at(-1)?.process?.resourcePolicy).toEqual({
+			concurrency: 2,
+			timeoutMs: 180000,
+		});
+		expect(payload.steps.at(-1)?.process?.timeoutMs).toBe(180000);
 		expect(payload.steps.at(-1)?.process?.tool).toBe("turbo");
 		logSpy.mockRestore();
 	});
