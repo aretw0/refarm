@@ -1,6 +1,7 @@
 import {
 	buildRefarmCapabilityIndex,
 	type RefarmCapabilityDescriptor,
+	type RefarmCapabilityPolicyState,
 } from "@refarm.dev/cli/capability-index";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import chalk from "chalk";
@@ -9,6 +10,7 @@ import { Command } from "commander";
 interface CapabilitiesOptions {
 	json?: boolean;
 	tag?: string[];
+	state?: RefarmCapabilityPolicyState[];
 }
 
 function collectOption(value: string, previous: string[] = []): string[] {
@@ -22,6 +24,14 @@ function matchesTags(
 	if (tags.length === 0) return true;
 	const capabilityTags = new Set(capability.tags);
 	return tags.every((tag) => capabilityTags.has(tag));
+}
+
+function matchesStates(
+	capability: RefarmCapabilityDescriptor,
+	states: readonly RefarmCapabilityPolicyState[],
+): boolean {
+	if (states.length === 0) return true;
+	return states.includes(capability.policy.state);
 }
 
 function formatCapabilityRows(
@@ -53,6 +63,12 @@ export function createCapabilitiesCommand(): Command {
 		.description("List compact Refarm capability descriptors for consumers")
 		.option("--json", "Output machine-readable capability index")
 		.option("--tag <tag>", "Filter by tag", collectOption, [])
+		.option(
+			"--state <state>",
+			"Filter by policy state (planned, governed, proven)",
+			collectOption,
+			[],
+		)
 		.addHelpText(
 			"after",
 			[
@@ -60,6 +76,7 @@ export function createCapabilitiesCommand(): Command {
 				"Examples:",
 				"  $ refarm capabilities",
 				"  $ refarm capabilities --tag daily-driver",
+				"  $ refarm capabilities --state planned --json",
 				"  $ refarm capabilities --json",
 				"",
 				"Notes:",
@@ -70,8 +87,9 @@ export function createCapabilitiesCommand(): Command {
 		.action((options: CapabilitiesOptions) => {
 			const index = buildRefarmCapabilityIndex();
 			const tags = options.tag ?? [];
+			const states = options.state ?? [];
 			const capabilities = index.capabilities.filter((capability) =>
-				matchesTags(capability, tags),
+				matchesTags(capability, tags) && matchesStates(capability, states),
 			);
 			if (options.json) {
 				printJson(
@@ -81,7 +99,7 @@ export function createCapabilitiesCommand(): Command {
 						extra: {
 							schemaVersion: index.schemaVersion,
 							count: capabilities.length,
-							filter: { tags },
+							filter: { tags, states },
 							capabilities,
 						},
 					}),

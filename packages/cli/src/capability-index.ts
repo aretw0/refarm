@@ -208,6 +208,64 @@ const CAPABILITIES = [
 		},
 		tags: ["ui", "streaming", "daily-driver"],
 	},
+	{
+		id: "runtime-agent.worker-profiles",
+		title: "Runtime agent worker profiles",
+		description:
+			"Describe bounded delegated workers with context, tools, model route, concurrency, output schema, and resume policy.",
+		provider: {
+			kind: "runtime",
+			package: "@refarm.dev/pi-agent",
+			surface: "runtime-agent worker profile",
+		},
+		requirements: [
+			"context packet",
+			"allowed toolset",
+			"model route",
+			"max concurrency",
+		],
+		policy: {
+			state: "planned",
+			enforcement: [
+				"explicit worker context",
+				"bounded tool access",
+				"cancellation/resume contract",
+			],
+			evidence: ["docs/REFERENCE_AGENT_DRIVER_RESEARCH.md"],
+		},
+		activation: {},
+		tags: ["runtime", "workers", "planning"],
+	},
+	{
+		id: "scheduler.local-jobs",
+		title: "Local scheduled work",
+		description:
+			"Run one-shot and recurring no-token jobs with durable ownership and visible resume or health handoffs.",
+		provider: {
+			kind: "runtime",
+			package: "@refarm.dev/windmill",
+			surface: "scheduler",
+		},
+		requirements: [
+			"local job store",
+			"ownership metadata",
+			"resume visibility",
+		],
+		policy: {
+			state: "planned",
+			enforcement: [
+				"durable owner",
+				"fail-closed model route",
+				"health/resume visibility",
+			],
+			evidence: [
+				"docs/DAILY_DRIVER_PARITY.md",
+				"docs/REFERENCE_AGENT_DRIVER_RESEARCH.md",
+			],
+		},
+		activation: {},
+		tags: ["automation", "scheduler", "planning"],
+	},
 ] as const satisfies readonly RefarmCapabilityDescriptor[];
 
 export function buildRefarmCapabilityIndex(): RefarmCapabilityIndex {
