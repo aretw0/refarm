@@ -198,9 +198,11 @@ Each numbered item gets its own `brainstorm → spec → plan` before execution.
 These are the next things worth deepening before writing broad code. They are deliberately phrased
 as codemod/generator work when a repeatable transform is cheaper and safer than manual edits.
 
-1. **Astro 7 / WASM substrate research (item 5):** Task 1 is green with `astro@7.0.3`; the next
-   artifact is the `jco componentize` / `wasi:http/incoming-handler` attempt in
-   `validations/astro-wasi-ssr/`, then a Tractor host run if componentization produces an artifact.
+1. **Astro 7 / WASM substrate research (item 5):** Task 1 is green with `astro@7.0.3`; Task 2 now
+   has structured evidence that `jco componentize` blocks at WIT resolution because
+   `wasi:http@0.2.3` is not locally available. The next artifact is a local official WASI HTTP WIT
+   graph, then the same componentize script, then a Tractor host run only if that produces a
+   component artifact.
 2. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
    that can materialize the template, run the generated-vault smoke suite, and keep template-only
    files behind the `initialize.yml` boundary. Spec:

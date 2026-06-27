@@ -1,0 +1,29 @@
+{
+	"schema": "refarm.validation.astro-wasi-ssr.componentize-attempt.v1",
+	"status": "blocked",
+	"date": "2026-06-27",
+	"task": "docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md#task-2---componentization-attempt",
+	"commands": [
+		{
+			"command": "pnpm -C validations/astro-wasi-ssr run build",
+			"exitCode": 0,
+			"result": "Astro 7 server build emitted dist/server/index.mjs."
+		},
+		{
+			"command": "pnpm -C validations/astro-wasi-ssr run componentize",
+			"exitCode": 1,
+			"stderrIncludes": "package 'wasi:http@0.2.3' not found",
+			"result": "jco stopped while resolving the local WIT world before evaluating the Astro handler."
+		}
+	],
+	"blocker": {
+		"layer": "wit-resolution",
+		"summary": "jco componentize does not provide wasi:http WIT packages automatically; the validation must vendor or generate the official wasi:http dependency graph before it can test the Astro handler.",
+		"observedBeforeAstroEvaluation": true
+	},
+	"secondaryRisk": {
+		"layer": "astro-server-bundle",
+		"summary": "The generated Astro 7 server bundle references Node-specific surfaces such as node:module, process, Buffer, and sharp chunks. This was not reached by the failing componentize command and remains the likely next compatibility check after WIT resolution."
+	},
+	"nextAction": "Vendor the official wasi:http WIT dependency graph locally or generate it from a known-good WASI HTTP component, then rerun the componentize script."
+}
