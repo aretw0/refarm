@@ -13,10 +13,7 @@ use clap::{Args, Parser, Subcommand};
 use futures_util::{SinkExt, StreamExt};
 use tokio::time::{sleep, Duration, Instant};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tractor::{
-    NativeStorage, TractorNative, TractorNativeConfig,
-    trust::SecurityMode,
-};
+use tractor::{trust::SecurityMode, NativeStorage, TractorNative, TractorNativeConfig};
 
 const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT: &str = "final_text";
 const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL: &str = "final_tool_call";
@@ -326,7 +323,11 @@ enum OutputFormat {
 
 impl OutputFormat {
     fn from_str(s: &str) -> Self {
-        if s.eq_ignore_ascii_case("plain") { Self::Plain } else { Self::Json }
+        if s.eq_ignore_ascii_case("plain") {
+            Self::Plain
+        } else {
+            Self::Json
+        }
     }
 }
 
@@ -362,12 +363,12 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Command::Prompt(args))    => run_prompt(args).await,
-        Some(Command::Watch(args))     => run_watch(args).await,
-        Some(Command::Health(args))    => run_health(args).await,
-        Some(Command::Query(args))     => run_query(args),
+        Some(Command::Prompt(args)) => run_prompt(args).await,
+        Some(Command::Watch(args)) => run_watch(args).await,
+        Some(Command::Health(args)) => run_health(args).await,
+        Some(Command::Query(args)) => run_query(args),
         Some(Command::StoreNode(args)) => run_store_node(args),
-        None                           => run_daemon(cli.daemon).await,
+        None => run_daemon(cli.daemon).await,
     }
 }
 
@@ -424,11 +425,13 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
     if args.http_port > 0 {
-        let base_dir = args
-            .refarm_dir
-            .clone()
-            .unwrap_or_else(dirs_refarm_base);
-        match tractor::sidecar::SidecarState::new(tractor.agent_channels.clone(), tractor.active_agent_id.clone(), &base_dir, args.namespace.clone()) {
+        let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
+        match tractor::sidecar::SidecarState::new(
+            tractor.agent_channels.clone(),
+            tractor.active_agent_id.clone(),
+            &base_dir,
+            args.namespace.clone(),
+        ) {
             Ok(state) => {
                 let http_host = args.http_host.clone();
                 let http_port = args.http_port;
@@ -451,8 +454,15 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     // ── Scarecrow audit subscriber ────────────────────────────────────────────
     let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
-    tractor::observer::spawn_audit_subscriber(tractor.telemetry.clone(), scarecrow_base.clone(), tractor.observer_channels.clone());
-    tracing::info!("Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson", scarecrow_base.display());
+    tractor::observer::spawn_audit_subscriber(
+        tractor.telemetry.clone(),
+        scarecrow_base.clone(),
+        tractor.observer_channels.clone(),
+    );
+    tracing::info!(
+        "Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson",
+        scarecrow_base.display()
+    );
 
     daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
@@ -676,10 +686,14 @@ fn run_query(args: QueryArgs) -> Result<()> {
     let rows: Vec<_> = rows.into_iter().take(args.limit).collect();
 
     if args.format.eq_ignore_ascii_case("json") {
-        let payloads: Vec<serde_json::Value> = rows.iter()
+        let payloads: Vec<serde_json::Value> = rows
+            .iter()
             .filter_map(|r| serde_json::from_str(&r.payload).ok())
             .collect();
-        println!("{}", serde_json::to_string(&payloads).unwrap_or_else(|_| "[]".into()));
+        println!(
+            "{}",
+            serde_json::to_string(&payloads).unwrap_or_else(|_| "[]".into())
+        );
     } else {
         for row in &rows {
             println!("{}", row.payload);
@@ -690,11 +704,13 @@ fn run_query(args: QueryArgs) -> Result<()> {
 
 fn run_store_node(args: StoreNodeArgs) -> Result<()> {
     // Validate: payload must be valid JSON with @type and @id.
-    let v: serde_json::Value = serde_json::from_str(&args.payload)
-        .context("--payload must be valid JSON")?;
-    let node_type = v["@type"].as_str()
+    let v: serde_json::Value =
+        serde_json::from_str(&args.payload).context("--payload must be valid JSON")?;
+    let node_type = v["@type"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("payload must contain @type field"))?;
-    let node_id = v["@id"].as_str()
+    let node_id = v["@id"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("payload must contain @id field"))?;
 
     let storage = NativeStorage::open(&args.namespace)
@@ -918,10 +934,22 @@ fn collect_new_response_events(
         let timestamp_ns = v.get("timestamp_ns").and_then(|x| x.as_u64()).unwrap_or(0);
 
         let llm = v.get("llm").and_then(|x| x.as_object());
-        let llm_tokens_in  = llm.and_then(|m| m.get("tokens_in")).and_then(|x| x.as_u64()).unwrap_or(0);
-        let llm_tokens_out = llm.and_then(|m| m.get("tokens_out")).and_then(|x| x.as_u64()).unwrap_or(0);
-        let llm_estimated_usd = llm.and_then(|m| m.get("estimated_usd")).and_then(|x| x.as_f64()).unwrap_or(0.0);
-        let llm_duration_ms   = llm.and_then(|m| m.get("duration_ms")).and_then(|x| x.as_u64()).unwrap_or(0);
+        let llm_tokens_in = llm
+            .and_then(|m| m.get("tokens_in"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        let llm_tokens_out = llm
+            .and_then(|m| m.get("tokens_out"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        let llm_estimated_usd = llm
+            .and_then(|m| m.get("estimated_usd"))
+            .and_then(|x| x.as_f64())
+            .unwrap_or(0.0);
+        let llm_duration_ms = llm
+            .and_then(|m| m.get("duration_ms"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
 
         out.push(AgentResponseEvent {
             id: row.id,
@@ -982,10 +1010,7 @@ fn plain_response_metadata(event: &AgentResponseEvent) -> String {
 
     format!(
         "# {}→{} tokens  ${:.4}  {}ms\n",
-        event.llm_tokens_in,
-        event.llm_tokens_out,
-        event.llm_estimated_usd,
-        event.llm_duration_ms,
+        event.llm_tokens_in, event.llm_tokens_out, event.llm_estimated_usd, event.llm_duration_ms,
     )
 }
 
@@ -1036,7 +1061,9 @@ async fn poll_agent_responses(
                 OutputFormat::Plain => {
                     let output = render_plain_response_event(&event, &mut plain_output_state);
                     print!("{}", output.stdout);
-                    std::io::stdout().flush().context("flush plain AgentResponse output")?;
+                    std::io::stdout()
+                        .flush()
+                        .context("flush plain AgentResponse output")?;
                     if !output.stderr.is_empty() {
                         eprint!("{}", output.stderr);
                     }
@@ -1085,7 +1112,8 @@ async fn poll_node_rows(
             }
         }
 
-        let rows = collect_new_node_rows(namespace, node_type, agent_filter, stream_ref_filter, seen)?;
+        let rows =
+            collect_new_node_rows(namespace, node_type, agent_filter, stream_ref_filter, seen)?;
         let mut got_terminal = false;
 
         for row in rows {
@@ -1117,7 +1145,11 @@ mod tests {
     use tokio::net::TcpListener;
     use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
 
-    fn test_response_event(content: &str, is_final: bool, prompt_ref: Option<&str>) -> AgentResponseEvent {
+    fn test_response_event(
+        content: &str,
+        is_final: bool,
+        prompt_ref: Option<&str>,
+    ) -> AgentResponseEvent {
         AgentResponseEvent {
             id: format!("event-{content}-{is_final}"),
             source_plugin: Some("pi-agent".to_string()),
@@ -1210,7 +1242,11 @@ mod tests {
         };
 
         assert!(row_matches_cli_filters(&row, "pi-agent", Some("stream-a")));
-        assert!(!row_matches_cli_filters(&row, "other-agent", Some("stream-a")));
+        assert!(!row_matches_cli_filters(
+            &row,
+            "other-agent",
+            Some("stream-a")
+        ));
         assert!(!row_matches_cli_filters(&row, "pi-agent", Some("stream-b")));
     }
 
@@ -1243,8 +1279,7 @@ mod tests {
 
     #[test]
     fn daemon_cli_accepts_model_stream_responses_flag() {
-        let cli = Cli::try_parse_from(["tractor", "--model-stream-responses"])
-            .expect("cli parse");
+        let cli = Cli::try_parse_from(["tractor", "--model-stream-responses"]).expect("cli parse");
 
         assert!(cli.daemon.model_stream_responses);
     }
@@ -1327,13 +1362,15 @@ mod tests {
     fn stream_ref_filter_rejects_ambiguous_inputs() {
         let err = resolve_stream_ref_filter(Some("stream-a"), Some("prompt-a"))
             .expect_err("ambiguous stream filters should fail");
-        assert!(err.to_string().contains("either --stream-ref or --prompt-ref"));
+        assert!(err
+            .to_string()
+            .contains("either --stream-ref or --prompt-ref"));
     }
 
     #[test]
     fn stream_ref_filter_rejects_empty_prompt_refs() {
-        let err = resolve_stream_ref_filter(None, Some(""))
-            .expect_err("empty prompt refs should fail");
+        let err =
+            resolve_stream_ref_filter(None, Some("")).expect_err("empty prompt refs should fail");
         assert!(err.to_string().contains("--prompt-ref must not be empty"));
     }
 
@@ -1351,7 +1388,9 @@ mod tests {
             id: "chunk-marker".to_string(),
             type_: "StreamChunk".to_string(),
             context: None,
-            payload: serde_json::json!({ "payload_kind": STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL }).to_string(),
+            payload:
+                serde_json::json!({ "payload_kind": STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL })
+                    .to_string(),
             source_plugin: Some("pi-agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
@@ -1381,7 +1420,10 @@ mod tests {
     #[test]
     fn plugin_load_policy_defaults_to_warn_and_continue() {
         let cli = Cli::try_parse_from(["tractor"]).expect("cli parse");
-        assert_eq!(plugin_load_policy(&cli.daemon), PluginLoadPolicy::WarnAndContinue);
+        assert_eq!(
+            plugin_load_policy(&cli.daemon),
+            PluginLoadPolicy::WarnAndContinue
+        );
     }
 
     #[test]
@@ -1461,12 +1503,8 @@ mod tests {
             .await
             .expect("load fixture plugin");
 
-        let result = maybe_ingest_on_load(
-            &mut handle,
-            fixture,
-            PluginIngestPolicy::WarnAndContinue,
-        )
-        .await;
+        let result =
+            maybe_ingest_on_load(&mut handle, fixture, PluginIngestPolicy::WarnAndContinue).await;
         assert!(result.is_ok(), "ingest-on-load should succeed: {result:?}");
 
         let metadata = handle.call_metadata().await.expect("metadata call");
@@ -1484,18 +1522,24 @@ mod tests {
     #[tokio::test]
     async fn ws_probe_returns_error_when_daemon_is_unavailable() {
         let result = probe_ws_daemon(1, Duration::from_millis(200)).await;
-        assert!(result.is_err(), "ws probe should fail when daemon is unavailable");
+        assert!(
+            result.is_err(),
+            "ws probe should fail when daemon is unavailable"
+        );
     }
 
     #[tokio::test]
     async fn ws_probe_succeeds_when_daemon_is_listening() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind listener");
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind listener");
         let port = listener.local_addr().expect("listener local addr").port();
 
         let storage = NativeStorage::open(":memory:").expect("open storage");
         let sync = Arc::new(NativeSync::new(storage, "health-probe").expect("new sync"));
         let telemetry = TelemetryBus::new(10);
-        let channels: AgentChannels = Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+        let channels: AgentChannels =
+            Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
         let server = daemon::WsServer::new(sync, port, telemetry, channels);
 
         tokio::spawn(async move {
@@ -1504,6 +1548,9 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         let result = probe_ws_daemon(port, Duration::from_millis(500)).await;
-        assert!(result.is_ok(), "ws probe should succeed when daemon is listening: {result:?}");
+        assert!(
+            result.is_ok(),
+            "ws probe should succeed when daemon is listening: {result:?}"
+        );
     }
 }

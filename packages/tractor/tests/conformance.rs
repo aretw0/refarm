@@ -6,9 +6,9 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use tractor::{NativeStorage, NativeSync, SecurityMode, TelemetryBus};
 use tractor::host::PluginHost;
 use tractor::trust::TrustManager;
+use tractor::{NativeStorage, NativeSync, SecurityMode, TelemetryBus};
 
 fn fixture_path() -> &'static Path {
     Path::new("tests/fixtures/null-plugin.wasm")
@@ -32,7 +32,8 @@ fn schema_compat_ts_db_readable() {
 
     // Write the TS schema directly via rusqlite (bypassing NativeStorage)
     let conn = rusqlite::Connection::open(&db_path).unwrap();
-    conn.execute_batch(r#"
+    conn.execute_batch(
+        r#"
         CREATE TABLE IF NOT EXISTS nodes (
             id TEXT PRIMARY KEY,
             type TEXT NOT NULL,
@@ -60,7 +61,9 @@ fn schema_compat_ts_db_readable() {
             'ts-plugin',
             datetime('now')
         );
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
     drop(conn);
 
     // Open the TS-created .db with NativeStorage (as if reading a browser-written file)
@@ -101,8 +104,7 @@ async fn security_mode_strict_rejects_untrusted_plugin() {
 
 #[tokio::test]
 async fn security_mode_strict_allows_after_grant() {
-    let wasm_bytes = std::fs::read(fixture_path())
-        .expect("null-plugin.wasm fixture must exist");
+    let wasm_bytes = std::fs::read(fixture_path()).expect("null-plugin.wasm fixture must exist");
     let hash = hex::encode(Sha256::digest(&wasm_bytes));
 
     let bus = TelemetryBus::new(100);
@@ -113,7 +115,11 @@ async fn security_mode_strict_allows_after_grant() {
     let sync = make_sync();
 
     let handle = host.load(fixture_path(), &sync).await;
-    assert!(handle.is_ok(), "trusted plugin must load in Strict mode: {:?}", handle.err());
+    assert!(
+        handle.is_ok(),
+        "trusted plugin must load in Strict mode: {:?}",
+        handle.err()
+    );
     assert_eq!(handle.unwrap().id, "null-plugin");
 }
 
@@ -133,7 +139,9 @@ async fn plugin_lifecycle_setup_teardown() {
     let sync = make_sync();
 
     // load() calls setup() internally — must not error
-    let mut handle = host.load(fixture_path(), &sync).await
+    let mut handle = host
+        .load(fixture_path(), &sync)
+        .await
         .expect("plugin must load and setup without error");
 
     assert_eq!(handle.id, "null-plugin");
@@ -166,7 +174,10 @@ fn loro_binary_js_interop() {
 
     // The read model (SQLite) must reflect the node from the fixture
     let rows = sync.query_nodes("Message").unwrap();
-    assert!(!rows.is_empty(), "NativeSync must project the JS-originated node to read model");
+    assert!(
+        !rows.is_empty(),
+        "NativeSync must project the JS-originated node to read model"
+    );
     assert_eq!(rows[0].id, "urn:interop:1");
     assert!(
         rows[0].payload.contains("hello from loro-crdt JS"),
@@ -187,12 +198,13 @@ async fn plugin_ingest_roundtrip() {
     let host = PluginHost::new(trust, bus).unwrap();
     let sync = make_sync();
 
-    let mut handle = host.load(fixture_path(), &sync).await
+    let mut handle = host
+        .load(fixture_path(), &sync)
+        .await
         .expect("plugin must load without error");
 
     // ingest() — null-plugin returns Ok(0)
-    let count = handle.call_ingest().await
-        .expect("ingest() must not error");
+    let count = handle.call_ingest().await.expect("ingest() must not error");
     assert_eq!(count, 0, "null-plugin ingest must return 0 nodes");
 
     // teardown() to complete the full lifecycle cycle

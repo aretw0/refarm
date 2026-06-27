@@ -6,10 +6,10 @@
 //!
 //! Binary-compatible with loro-crdt JS (loro-crdt@1.10.7).
 
+use crate::storage::NativeStorage;
 use anyhow::{anyhow, Result};
 use loro::{ExportMode, LoroDoc, LoroValue, Subscription, ValueOrContainer};
 use std::sync::{Arc, Mutex};
-use crate::storage::NativeStorage;
 
 /// Peer ID derived from namespace — stable across restarts.
 /// Uses first 8 bytes of SHA-256(namespace).
@@ -82,7 +82,8 @@ impl NativeSync {
         self.doc.commit();
 
         // Eager projection to read model (CQRS)
-        self.storage.store_node(id, type_, context, payload, source_plugin)?;
+        self.storage
+            .store_node(id, type_, context, payload, source_plugin)?;
         Ok(())
     }
 
@@ -103,9 +104,7 @@ impl NativeSync {
 
         // Collect keys first to avoid borrow checker issues with simultaneous
         // keys() iterator and get() calls on the same LoroMap.
-        let keys: Vec<String> = nodes_map.keys()
-            .map(|k| k.as_str().to_owned())
-            .collect();
+        let keys: Vec<String> = nodes_map.keys().map(|k| k.as_str().to_owned()).collect();
 
         for key in keys {
             let raw_json = match nodes_map.get(&key) {
@@ -125,11 +124,11 @@ impl NativeSync {
                 }
             };
 
-            let id      = node["id"].as_str().unwrap_or(&key);
-            let type_   = node["type"].as_str().unwrap_or("");
+            let id = node["id"].as_str().unwrap_or(&key);
+            let type_ = node["type"].as_str().unwrap_or("");
             let context = node["context"].as_str();
             let payload = node["payload"].as_str().unwrap_or("{}");
-            let source  = node["sourcePlugin"].as_str();
+            let source = node["sourcePlugin"].as_str();
 
             // Must never crash the CRDT engine — mirror TypeScript's try/catch
             if let Err(e) = self.storage.store_node(id, type_, context, payload, source) {
@@ -147,7 +146,8 @@ impl NativeSync {
     }
 
     pub fn get_update(&self) -> Result<Vec<u8>> {
-        self.doc.export(ExportMode::all_updates())
+        self.doc
+            .export(ExportMode::all_updates())
             .map_err(|e| anyhow!("export failed: {e:?}"))
     }
 
@@ -156,21 +156,31 @@ impl NativeSync {
     /// The subscription is kept alive for the lifetime of this NativeSync instance.
     pub fn on_update(&self, cb: impl Fn(Vec<u8>) + Send + Sync + 'static) {
         // NOTE: subscribe_local_update callback must return bool (true = stay subscribed)
-        let sub = self.doc.subscribe_local_update(Box::new(move |bytes: &Vec<u8>| {
-            cb(bytes.clone());
-            true // always stay subscribed
-        }));
-        self.update_subs.lock().unwrap_or_else(|p| p.into_inner()).push(sub);
+        let sub = self
+            .doc
+            .subscribe_local_update(Box::new(move |bytes: &Vec<u8>| {
+                cb(bytes.clone());
+                true // always stay subscribed
+            }));
+        self.update_subs
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .push(sub);
     }
 
     /// Register the WsServer broadcast callback (replaces any previous one).
     /// Called by WsServer::run() — cancels the stale subscription before installing a new one.
     pub fn set_broadcast_callback(&self, cb: impl Fn(Vec<u8>) + Send + Sync + 'static) {
-        let sub = self.doc.subscribe_local_update(Box::new(move |bytes: &Vec<u8>| {
-            cb(bytes.clone());
-            true
-        }));
-        let mut slot = self.ws_broadcast_sub.lock().unwrap_or_else(|p| p.into_inner());
+        let sub = self
+            .doc
+            .subscribe_local_update(Box::new(move |bytes: &Vec<u8>| {
+                cb(bytes.clone());
+                true
+            }));
+        let mut slot = self
+            .ws_broadcast_sub
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         *slot = Some(sub); // drops the previous Subscription, cancelling it
     }
 
@@ -206,18 +216,26 @@ mod tests {
     fn sync_creates_with_loro_doc() {
         let sync = make_sync();
         let bytes = sync.get_update().expect("get_update");
-        assert!(!bytes.is_empty(), "LoroDoc should export non-empty bytes even when empty");
-        sync.store_node("urn:test:1", "Note", None, "{}", None).unwrap();
+        assert!(
+            !bytes.is_empty(),
+            "LoroDoc should export non-empty bytes even when empty"
+        );
+        sync.store_node("urn:test:1", "Note", None, "{}", None)
+            .unwrap();
     }
 
     #[test]
     fn store_node_writes_to_loro_doc() {
         let sync = make_sync();
-        sync.store_node("urn:test:node-1", "Note", None, r#"{"text":"hello"}"#, None).unwrap();
+        sync.store_node("urn:test:node-1", "Note", None, r#"{"text":"hello"}"#, None)
+            .unwrap();
 
         // After store_node, the LoroDoc has content → export is non-empty
         let bytes = sync.get_update().unwrap();
-        assert!(!bytes.is_empty(), "LoroDoc should have exported bytes after store_node");
+        assert!(
+            !bytes.is_empty(),
+            "LoroDoc should have exported bytes after store_node"
+        );
     }
 
     #[test]
@@ -232,10 +250,14 @@ mod tests {
             fired_clone.lock().unwrap().push(bytes);
         });
 
-        sync.store_node("urn:test:sub-1", "Note", None, "{}", None).unwrap();
+        sync.store_node("urn:test:sub-1", "Note", None, "{}", None)
+            .unwrap();
 
         let calls = fired.lock().unwrap();
-        assert!(!calls.is_empty(), "on_update callback must fire after store_node");
+        assert!(
+            !calls.is_empty(),
+            "on_update callback must fire after store_node"
+        );
         assert!(!calls[0].is_empty(), "callback bytes must be non-empty");
     }
 
@@ -246,15 +268,19 @@ mod tests {
             let st = NativeStorage::open(":memory:").unwrap();
             NativeSync::new(st, "peer-a").unwrap()
         };
-        sync_a.store_node("urn:test:conv-1", "Task", None, r#"{"done":false}"#, None).unwrap();
+        sync_a
+            .store_node("urn:test:conv-1", "Task", None, r#"{"done":false}"#, None)
+            .unwrap();
 
         // Peer B starts empty
         let sync_b = {
             let st = NativeStorage::open(":memory:").unwrap();
             NativeSync::new(st, "peer-b").unwrap()
         };
-        assert!(sync_b.get_node("urn:test:conv-1").unwrap().is_none(),
-            "peer-b should start without the node");
+        assert!(
+            sync_b.get_node("urn:test:conv-1").unwrap().is_none(),
+            "peer-b should start without the node"
+        );
 
         // Exchange: A → B
         let bytes = sync_a.get_update().unwrap();
@@ -276,7 +302,15 @@ mod tests {
             let st = NativeStorage::open(":memory:").unwrap();
             NativeSync::new(st, "snap-a").unwrap()
         };
-        sync_a.store_node("urn:test:snap-1", "Article", None, r#"{"title":"test"}"#, None).unwrap();
+        sync_a
+            .store_node(
+                "urn:test:snap-1",
+                "Article",
+                None,
+                r#"{"title":"test"}"#,
+                None,
+            )
+            .unwrap();
 
         // Export snapshot from A
         let snap = sync_a.export_snapshot().unwrap();
