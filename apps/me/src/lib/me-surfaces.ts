@@ -18,6 +18,7 @@ export const REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID =
 export const REFARM_ME_PERSONAL_SURFACE_ID = "personal-vault-panel";
 export const REFARM_ME_OPEN_VAULT_ACTION_ID = "open-personal-vault";
 export const REFARM_ME_IDENTITY_STATUS = "unauthenticated";
+export const REFARM_ME_SYNC_STATUS = "waiting-for-tractor";
 
 export type RefarmMeSurfaceTelemetry = (
 	pluginId: string,
@@ -39,6 +40,7 @@ export interface RefarmMeSurfaceContextOptions {
 	profileName?: string;
 	storageScope?: string;
 	syncScope?: string;
+	syncStatus?: string;
 }
 
 export function createRefarmMeSurfacePlugins(
@@ -76,6 +78,9 @@ export function renderRefarmMePersonalSurface(
 	const identityStatus = escapeRefarmMeSurfaceText(
 		String(request.host?.data?.identityStatus ?? REFARM_ME_IDENTITY_STATUS),
 	);
+	const syncStatus = escapeRefarmMeSurfaceText(
+		String(request.host?.data?.syncStatus ?? REFARM_ME_SYNC_STATUS),
+	);
 	const action = request.host?.actions?.find(
 		(candidate) => candidate.id === REFARM_ME_OPEN_VAULT_ACTION_ID,
 	);
@@ -92,6 +97,10 @@ export function renderRefarmMePersonalSurface(
 				<div>
 					<dt class="refarm-eyebrow">Identity</dt>
 					<dd>${identityStatus}</dd>
+				</div>
+				<div>
+					<dt class="refarm-eyebrow">Sync</dt>
+					<dd>${syncStatus}</dd>
 				</div>
 			</dl>
 			<p>It keeps Refarm.me product UX app-owned while exercising the same layout, surface, and action primitives used by the Studio app.</p>
@@ -115,6 +124,7 @@ export function createRefarmMeSurfaceContextProvider(
 				identityStatus: options.identityStatus ?? REFARM_ME_IDENTITY_STATUS,
 				storageScope: options.storageScope ?? "refarm-me-main",
 				syncScope: options.syncScope ?? "citizen",
+				syncStatus: options.syncStatus ?? REFARM_ME_SYNC_STATUS,
 			},
 			actions: [
 				{

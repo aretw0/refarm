@@ -60,6 +60,10 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   telemetry (`me:browser_sync`), including early events emitted before the
   Tractor handle is returned from boot. This makes the next browser/runtime
   proof observable without relying on console scraping.
+- The personal Homestead surface now receives a host-owned `syncStatus` derived
+  from those browser-sync events. A `remote-update-applied` event is surfaced as
+  `snapshot-applied`, so the browser proof can assert DOM state instead of
+  relying only on telemetry internals.
 - `sync-loro` now has a runtime transport smoke that connects to a running
   Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
   snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the

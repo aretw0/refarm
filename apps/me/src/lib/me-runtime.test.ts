@@ -110,7 +110,10 @@ describe("refarm.me runtime", () => {
 		const host = await shellOptions.surfaceContext(request);
 		expect(host).toMatchObject({
 			hostId: "apps/me",
-			data: { identityStatus: REFARM_ME_IDENTITY_STATUS },
+			data: {
+				identityStatus: REFARM_ME_IDENTITY_STATUS,
+				syncStatus: "snapshot-applied",
+			},
 		});
 
 		await expect(

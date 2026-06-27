@@ -12,6 +12,7 @@ import {
 	createRefarmMeSurfacePlugins,
 	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+	REFARM_ME_SYNC_STATUS,
 	type RefarmMeSurfaceTelemetry,
 } from "./me-surfaces";
 
@@ -92,6 +93,7 @@ export async function bootRefarmMeWorkbench(
 	await setupShell(tractor, {
 		surfaceContext: createRefarmMeSurfaceContextProvider({
 			identityStatus: REFARM_ME_IDENTITY_STATUS,
+			syncStatus: browserSyncTelemetry.status(),
 		}),
 		surfaceAction: createRefarmMeSurfaceActionHandler((request) => {
 			tractor.emitTelemetry({
@@ -164,11 +166,14 @@ function emitRefarmMeBrowserSyncTelemetry(
 function createRefarmMeBrowserSyncTelemetryBuffer(): {
 	capture(event: RefarmMeBrowserSyncEvent): void;
 	flushTo(tractor: RefarmMeTractor): void;
+	status(): string;
 } {
 	const pending: RefarmMeBrowserSyncEvent[] = [];
 	const sink: { tractor?: RefarmMeTractor } = {};
+	let status = REFARM_ME_SYNC_STATUS;
 	return {
 		capture: (event) => {
+			status = refarmMeSyncStatusFromEvent(event);
 			if (sink.tractor) {
 				emitRefarmMeBrowserSyncTelemetry(sink.tractor, event);
 				return;
@@ -181,7 +186,29 @@ function createRefarmMeBrowserSyncTelemetryBuffer(): {
 				emitRefarmMeBrowserSyncTelemetry(tractor, event);
 			}
 		},
+		status: () => status,
 	};
+}
+
+function refarmMeSyncStatusFromEvent(event: RefarmMeBrowserSyncEvent): string {
+	switch (event.type) {
+		case "connecting":
+			return "connecting";
+		case "open":
+		case "local-state-sent":
+		case "local-update-sent":
+			return "connected";
+		case "remote-update-received":
+			return "receiving-snapshot";
+		case "remote-update-applied":
+			return "snapshot-applied";
+		case "closed":
+			return "reconnecting";
+		case "error":
+		case "connect-failed":
+		case "remote-update-failed":
+			return "sync-error";
+	}
 }
 
 async function loadRefarmMePluginConstructors(): Promise<RefarmMePluginConstructors> {
