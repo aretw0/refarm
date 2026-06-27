@@ -149,6 +149,12 @@ on hold while private, structured I/O remains a `refarm:agent-tools@0.1.0` WIT
 component boundary, and code-ops stays split between canonical plugin WIT and
 the held `refarm-tractor` host implementation.
 
+Current proof (2026-06-27): `scripts/validate-packages.mjs` now has a
+runtime-agent plugin package guard. `@refarm.dev/pi-agent` remains private, but
+its package allowlist must already name `dist/pi_agent.wasm`, `dist/plugin.json`,
+and `dist/jco`; if the package is ever made public, the same guard requires
+public publish config and keeps `build:wasm`/`build:jco` tied to those artifacts.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;
