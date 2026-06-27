@@ -2,7 +2,7 @@ import http from "node:http";
 import {
 	MODEL_MOCK_DEFAULT_MODEL,
 	readJsonBody,
-	writeJsonResponse,
+	writeMockResponse,
 	writeSseResponse,
 } from "./format.js";
 import type { CapturedRequest, MockResponse, ModelMockOptions } from "./types.js";
@@ -84,10 +84,10 @@ export class ModelMockServer {
 			this.requests.push(captured);
 
 			const response = this.dequeue();
-			if (captured.stream) {
+			if (captured.stream && response.type === "says") {
 				writeSseResponse(res, response);
 			} else {
-				writeJsonResponse(res, response);
+				writeMockResponse(res, response);
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);

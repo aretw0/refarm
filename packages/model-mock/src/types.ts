@@ -3,7 +3,12 @@ export interface SaysResponse {
 	text: string;
 }
 
-export type MockResponse = SaysResponse;
+export interface RawJsonResponse {
+	type: "raw-json";
+	body: unknown;
+}
+
+export type MockResponse = SaysResponse | RawJsonResponse;
 
 export interface CapturedRequest {
 	model: string;

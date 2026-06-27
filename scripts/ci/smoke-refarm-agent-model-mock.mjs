@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { createModelMock, says } from "../../packages/model-mock/dist/index.js";
+import { createModelMock, says, toolCall } from "../../packages/model-mock/dist/index.js";
 import {
 	parseJsonOutput,
 	runSubprocess,
@@ -20,6 +20,7 @@ const ROOT = path.resolve(
 const REFARM_CLI = path.join("apps", "refarm", "dist", "index.js");
 const EXPECTED_RESPONSE = "refarm model mock e2e ok";
 const EXPECTED_TASK_RESPONSE = "refarm task runtime agent mock e2e ok";
+const EXPECTED_POLICY_TOOL_OUTPUT = "refarm policy proof ok";
 
 function assert(condition, message) {
 	if (!condition) throw new Error(message);
@@ -159,7 +160,7 @@ function startMockRuntime(env, options) {
 			agentPluginWasm,
 		],
 		{
-			cwd: ROOT,
+			cwd: options.cwd ?? ROOT,
 			env,
 			stdio: ["ignore", "ignore", "pipe"],
 		},
@@ -208,16 +209,67 @@ async function listStreamFiles(streamsDir) {
 		.map((entry) => path.join(streamsDir, entry.name));
 }
 
+async function writePolicyWorkspace(runtimeWorkspaceDir) {
+	const refarmConfigDir = path.join(runtimeWorkspaceDir, ".refarm");
+	await mkdir(refarmConfigDir, { recursive: true });
+	await writeFile(
+		path.join(refarmConfigDir, "config.json"),
+		JSON.stringify({ trusted_plugins: ["pi-agent"] }, null, 2),
+	);
+}
+
+async function readAuditEvents(refarmDir) {
+	const auditPath = path.join(refarmDir, "scarecrow-audit.ndjson");
+	const content = await readFile(auditPath, "utf8");
+	return content
+		.split(/\r?\n/)
+		.filter(Boolean)
+		.map((line) => JSON.parse(line));
+}
+
+async function assertPolicyAudit(refarmDir) {
+	const events = await readAuditEvents(refarmDir);
+	const shellSpawn = events.find(
+		(event) =>
+			event.event === "agent-tool:shell:spawn" &&
+			event.plugin_id === "pi-agent" &&
+			Array.isArray(event.argv) &&
+			event.argv[0] === "echo" &&
+			event.argv.includes(EXPECTED_POLICY_TOOL_OUTPUT) &&
+			event.exit_code === 0 &&
+			event.timed_out === false,
+	);
+	assert(
+		shellSpawn,
+		`policy proof did not record expected shell spawn audit event: ${JSON.stringify(events)}`,
+	);
+}
+
 async function main() {
+	const policyProof = process.env.REFARM_AGENT_MOCK_POLICY_PROOF === "1";
 	const tempDir = await mkdtemp(path.join(tmpdir(), "refarm-agent-mock-"));
 	const streamsDir = path.join(tempDir, "streams");
 	const refarmHomeDir = path.join(tempDir, ".refarm");
 	const identityFile = path.join(refarmHomeDir, "identity.json");
+	const runtimeWorkspaceDir = path.join(tempDir, "runtime-workspace");
 	const wsPort = await getFreePort();
 	const httpPort = await getFreePort();
 	const namespace = `refarm-agent-mock-${process.pid}`;
 	const mock = await createModelMock({ repeatLast: true });
 	mock.queue(says(EXPECTED_RESPONSE));
+	if (policyProof) {
+		mock.queue(
+			toolCall(
+				"bash",
+				{
+					argv: ["echo", EXPECTED_POLICY_TOOL_OUTPUT],
+					cwd: ROOT,
+					timeout_ms: 5_000,
+				},
+				{ id: "call_policy_echo" },
+			),
+		);
+	}
 	mock.queue(says(EXPECTED_TASK_RESPONSE));
 
 	const baseEnv = {
@@ -228,6 +280,12 @@ async function main() {
 		...baseEnv,
 		...mock.env,
 		HOME: tempDir,
+		...(policyProof
+			? {
+					MODEL_FS_ROOT: ROOT,
+					MODEL_SHELL_ALLOWLIST: "echo",
+				}
+			: {}),
 		REFARM_HOME: refarmHomeDir,
 		REFARM_SIDECAR_URL: `http://127.0.0.1:${httpPort}`,
 		REFARM_STREAMS_DIR: streamsDir,
@@ -238,6 +296,9 @@ async function main() {
 	try {
 		await mkdir(streamsDir, { recursive: true });
 		await mkdir(refarmHomeDir, { recursive: true });
+		if (policyProof) {
+			await writePolicyWorkspace(runtimeWorkspaceDir);
+		}
 		await writeFile(
 			identityFile,
 			JSON.stringify(
@@ -259,6 +320,7 @@ async function main() {
 			httpPort,
 			namespace,
 			refarmDir: refarmHomeDir,
+			cwd: policyProof ? runtimeWorkspaceDir : ROOT,
 			wsPort,
 		});
 		await waitForMockRuntime(env);
@@ -465,6 +527,9 @@ async function main() {
 			streamFiles.length > 0,
 			`runtime agent did not create stream files under ${streamsDir}`,
 		);
+		if (policyProof) {
+			await assertPolicyAudit(refarmHomeDir);
+		}
 
 		console.log(
 			JSON.stringify(
@@ -475,6 +540,7 @@ async function main() {
 					modelProvider: mock.env.MODEL_PROVIDER,
 					modelBaseUrl: mock.env.MODEL_BASE_URL,
 					modelRequests: mock.requests.length,
+					policyProof,
 					streamFiles: streamFiles.length,
 					pluginReloadNextCommands: pluginReload.nextCommands,
 					askNextCommands: ask.nextCommands,
