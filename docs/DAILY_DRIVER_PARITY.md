@@ -9,7 +9,7 @@ Refarm reaches `v0.1.0` only when it can replace the creator's current external 
 | Start a work session      | `tractor` daemon + `apps/me` shell          | daemon boots, `apps/me` connects to `ws://localhost:42000`                                                                                      | ⬜     |
 | Ask an agent to reason    | Runtime agent hosted by Tractor             | `refarm ask` assembles the runtime-agent effort and follows stream chunks locally; live daily-driver Tractor/runtime-agent path pending           | local proven / live path pending |
 | See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; real Tractor/apps-me E2E pending                                                         | local proven / E2E pending |
-| Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are host-authorized and auditable                                                                                  | ⬜     |
+| Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities, policy-gated, and auditable; live policy bundle pending                 | local proven / policy pending |
 | Preserve memory           | `.project/` blocks + Loro/SQLite graph      | decisions/tasks/handoffs survive restart and sync roundtrip                                                                                     | ⬜     |
 | Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                                                           | ⬜     |
 | Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
@@ -50,6 +50,29 @@ Validation economy note: app-level Vitest filters are currently easy to misuse
 and can fan out into unrelated `apps/refarm` suites. Prefer the mock smoke only
 when explicitly validating the runtime-agent path; for documentation-only
 status reconciliation, use `git diff --check` plus the Refarm finish lane.
+
+## Runtime Agent Tool Evidence
+
+Current evidence (2026-06-27): the runtime-agent has the local-tool shape needed
+for a reference daily driver, but the full daily-driver policy bundle still needs
+one live acceptance pass. `packages/pi-agent/src/tools.rs` exposes OpenAI and
+Anthropic tool schemas for filesystem, search, shell, structured data, task,
+session, and LSP code operations. `packages/pi-agent/src/tool_dispatch/mod.rs`
+routes those tool names to specialized dispatch modules instead of a generic
+remote shell path.
+
+The host boundary is capability-based. `packages/pi-agent/wit/refarm-plugin-host.wit`
+imports `agent-fs`, `agent-shell`, and `structured-io`; `agent-shell` uses
+structured argv rather than shell interpolation, and `structured-io` validates
+JSON/TOML/YAML before writes. The current Tractor hardening surface is documented
+in `packages/pi-agent/ROADMAP.md`: `MODEL_SHELL_ALLOWLIST`, `MODEL_FS_ROOT`, and
+`trusted_plugins` gate subprocesses, filesystem reach, and shell-capable plugin
+callers at the host boundary. Tool calls are stored in `AgentResponse.tool_calls`
+for CRDT audit, as documented in `packages/pi-agent/README.md`.
+
+That proves the local tool contract and audit path. It does not yet prove the
+creator can run the live daily-driver loop with the intended checkout root,
+shell allowlist, and trusted plugin policy active at the same time.
 
 Current evidence (2026-06-27): Homestead already owns the first UI subscriber
 slice. `StudioShell` registers `onNode("StreamSession")` and
