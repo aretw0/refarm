@@ -92,9 +92,16 @@ function listSourceFiles(root, skipEntries) {
 	};
 }
 
-function ownerFromOptions(owner) {
+function ownerFromOptions({ owner, repository } = {}) {
 	if (owner) return owner;
+	const repo = repositoryFromOptions({ repository });
+	if (repo) return repo.split("/")[0];
 	return (process.env.GITHUB_REPOSITORY ?? "/").split("/")[0] || undefined;
+}
+
+function repositoryFromOptions({ repository } = {}) {
+	if (repository) return repository;
+	return process.env.GITHUB_REPOSITORY || undefined;
 }
 
 function formatJson(value) {
@@ -113,7 +120,7 @@ function applyTransform(content, transform, options) {
 			return formatJson(config);
 		}
 		case "set-license-holder": {
-			const owner = ownerFromOptions(options.owner);
+			const owner = ownerFromOptions(options);
 			if (!owner) return content;
 			const config = JSON.parse(content);
 			config.license = {
@@ -122,6 +129,17 @@ function applyTransform(content, transform, options) {
 				holderUrl: `https://github.com/${owner}`,
 			};
 			return formatJson(config);
+		}
+		case "set-package-repository": {
+			const repository = repositoryFromOptions(options);
+			if (!repository) return content;
+			const packageJson = JSON.parse(content);
+			packageJson.repository = {
+				...(packageJson.repository ?? {}),
+				type: packageJson.repository?.type ?? "git",
+				url: `https://github.com/${repository}.git`,
+			};
+			return formatJson(packageJson);
 		}
 		default:
 			throw new Error(`Unsupported vault-seed transform: ${transform}`);
@@ -143,6 +161,7 @@ function writeFileFromSource({
 	target,
 	transforms,
 	owner,
+	repository,
 }) {
 	const sourcePath = path.join(sourceDir, ...source.split("/"));
 	const targetPath = path.join(outDir, ...target.split("/"));
@@ -157,7 +176,10 @@ function writeFileFromSource({
 	}
 	writeFileSync(
 		targetPath,
-		transformContent(buffer.toString("utf8"), contentTransforms, { owner }),
+		transformContent(buffer.toString("utf8"), contentTransforms, {
+			owner,
+			repository,
+		}),
 	);
 }
 
@@ -191,7 +213,13 @@ function comparePath(left, right) {
 	return 0;
 }
 
-export async function generateVault({ manifest, sourceDir, outDir, owner }) {
+export async function generateVault({
+	manifest,
+	sourceDir,
+	outDir,
+	owner,
+	repository,
+}) {
 	assertValidInputs({ manifest, sourceDir, outDir });
 
 	mkdirSync(outDir, { recursive: true });
@@ -246,6 +274,7 @@ export async function generateVault({ manifest, sourceDir, outDir, owner }) {
 			target: entry.target,
 			transforms: entry.transforms ?? [],
 			owner,
+			repository,
 		});
 		written.push(entry.target);
 		inventory.push(

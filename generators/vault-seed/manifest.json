@@ -24,7 +24,7 @@
       "source": "package.template.json",
       "target": "package.json",
       "class": "transform",
-      "transforms": ["rename"]
+      "transforms": ["rename", "set-package-repository"]
     },
     {
       "source": "pnpm-lock.template.yaml",
