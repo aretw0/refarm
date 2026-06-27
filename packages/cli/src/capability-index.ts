@@ -503,9 +503,17 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 				channel: "wit",
 				name: "refarm:plugin@0.1.0",
 				path: "packages/refarm-plugin-wit/wit/refarm-plugin-host.wit",
-				status: "candidate",
+				status: "internal",
 				note:
-					"Canonical host contract for code-ops; guarded by pi-agent WIT sync and reference-driver smoke.",
+					"Canonical host contract for code-ops; supplyable as WIT, but not promoted as an npm or crates.io package yet.",
+			},
+			{
+				channel: "crate",
+				name: "refarm-plugin-wit",
+				path: "packages/refarm-plugin-wit",
+				status: "internal",
+				note:
+					"Cargo package is publish=false and exists to give cargo-component a canonical WIT package source inside the workspace.",
 			},
 			{
 				channel: "crate",
@@ -517,7 +525,7 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 		],
 		nextDecision:
-			"Keep code-ops contract in WIT and Tractor host bridge; publish implementation crates only after runtime packaging policy is explicit.",
+			"Keep refarm-plugin-wit internal; publish implementation crates only after runtime packaging policy is explicit and daily-driver evidence justifies it.",
 	},
 } as const satisfies Record<
 	string,

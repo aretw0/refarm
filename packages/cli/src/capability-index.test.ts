@@ -98,7 +98,12 @@ describe("capability index", () => {
 						expect.objectContaining({
 							channel: "wit",
 							name: "refarm:plugin@0.1.0",
-							status: "candidate",
+							status: "internal",
+						}),
+						expect.objectContaining({
+							channel: "crate",
+							name: "refarm-plugin-wit",
+							status: "internal",
 						}),
 						expect.objectContaining({
 							channel: "crate",
