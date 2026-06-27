@@ -60,6 +60,11 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   telemetry (`me:browser_sync`), including early events emitted before the
   Tractor handle is returned from boot. This makes the next browser/runtime
   proof observable without relying on console scraping.
+- `sync-loro` now has a runtime transport smoke that connects to a running
+  Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
+  snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the
+  `apps/me` Gate 3b bar because it does not boot the browser app or prove OPFS
+  projection.
 - `installPlugin()` has focused `tractor-ts` coverage for URL fetch/cache,
   cache-hit, cache revalidation, SHA-256 accept/reject, missing integrity
   rejection, and hex/base64 sha256 forms.

@@ -71,4 +71,10 @@
   (`connecting`, `open`, local send, remote receive/apply, close, error). These
   events are intentionally transport-level and do not interpret the Loro
   payload.
+- Runtime transport smoke is available through
+  `REFARM_SYNC_RUNTIME_URL=ws://127.0.0.1:42000 pnpm -C packages/sync-loro exec node scripts/smoke-browser-sync-runtime.mjs`.
+  It proves a running Tractor daemon sends a non-empty initial binary snapshot
+  that reaches `BrowserSyncClient.applyUpdate`. In this sandbox, the command
+  needs local-network permission; Vitest workers return `EPERM` for the same
+  socket.
 - The "Blood" of the sovereign farm — ensuring information flows consistently across all nodes.
