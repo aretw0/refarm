@@ -100,7 +100,7 @@ export function renderRefarmMePersonalSurface(
 				</div>
 				<div>
 					<dt class="refarm-eyebrow">Sync</dt>
-					<dd>${syncStatus}</dd>
+					<dd data-refarm-me-sync-status>${syncStatus}</dd>
 				</div>
 			</dl>
 			<p>It keeps Refarm.me product UX app-owned while exercising the same layout, surface, and action primitives used by the Studio app.</p>

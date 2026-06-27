@@ -265,6 +265,9 @@ importers:
       '@astrojs/check':
         specifier: ^0.9.9
         version: 0.9.9(prettier@3.8.3)(typescript@6.0.3)
+      '@playwright/test':
+        specifier: ^1.60.0
+        version: 1.60.0
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../../packages/config

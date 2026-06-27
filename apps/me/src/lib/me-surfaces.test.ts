@@ -81,7 +81,7 @@ describe("refarm.me Homestead surface", () => {
 			`<dd>${REFARM_ME_IDENTITY_STATUS}</dd>`,
 		);
 		expect((rendered as { html: string }).html).toContain(
-			`<dd>${REFARM_ME_SYNC_STATUS}</dd>`,
+			`<dd data-refarm-me-sync-status>${REFARM_ME_SYNC_STATUS}</dd>`,
 		);
 		await expect(plugin?.call("other", {})).resolves.toBeNull();
 	});
