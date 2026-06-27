@@ -2,15 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** A small registry that decides when a transform graduates from manual edits to an agent-operable codemod — metadata + the four named candidates, **before** any codemod runtime or hosted platform.
+**Goal:** A small registry that decides when a transform graduates from manual edits to an agent-operable codemod — metadata + named candidates, **before** any hosted platform.
 
-**Architecture:** A `registry.json` of codemod entries (the schema from the spec) + a JSON validator. The four initial candidates are seeded as `status: "candidate"`. Promoting an entry to `ready`/`implemented` (fixtures + dry-run + rollback) is **per-entry, gated** — done when that specific codemod is actually needed (not in this slice).
+**Architecture:** A `registry.json` of codemod entries (the schema from the spec) + a JSON validator. Entries move through `candidate` -> `ready`/`implemented` per transform, with fixtures + dry-run + rollback. `ds-token-adoption` and `package-workspace-adoption` are now `ready`; `credential-provider-rehome` and `vault-seed-manifest-inventory` are retired because smaller manual/generator lanes completed the work.
 
 **Spec:** `specs/features/2026-06-25-codemod-registry-contract.md`
 
 ## Global Constraints
 
-- **No new package, no hosted registry, no MCP** until ≥2 entries are `ready` (spec non-goals). This slice is a JSON file + a validator + the seeded candidates.
+- **No hosted registry or MCP** until there is a separate product reason. The registry now has two
+  `ready` entries, but that only permits a future package discussion; it does not require one.
 - **No broad rewrite without fixtures + dry-run output.** Candidates carry no fixtures yet; only `ready` entries do.
 - The non-gated work here is Tasks 1–2. Task 3 is the **per-entry promotion protocol** (runs when a codemod is picked up).
 
@@ -22,7 +23,7 @@
 - Create: `codemods/registry.json`
 - Create: `codemods/registry.test.mjs`
 
-- [x] **Step 1: Author `codemods/registry.json`** (the four candidates from spec §"Initial candidates")
+- [x] **Step 1: Author `codemods/registry.json`** (seeded candidates from spec §"Initial candidates"; later updated as entries were promoted or retired)
 
 ```json
 {
@@ -111,7 +112,7 @@ test("ready entries carry fixtures and a dry-run command", () => {
 - [x] **Step 3: Run to verify**
 
 Run: `node --test codemods/registry.test.mjs`
-Expected: PASS — all four candidates well-formed; the `ready`-entry rule holds vacuously (none are `ready` yet).
+Expected: PASS — all entries well-formed; every `ready` entry carries fixtures and a dry-run command.
 
 - [x] **Step 4: Commit**
 
@@ -138,9 +139,9 @@ git commit -m "docs(codemods): registry promotion rule and manual-reviewed line"
 
 ---
 
-### Task 3: Per-entry promotion protocol (gated — runs at codemod pickup)
+### Task 3: Per-entry promotion protocol
 
-> Not part of this slice. Recorded so the first codemod implementation follows a fixed shape.
+Status: exercised by `ds-token-adoption` and `package-workspace-adoption`.
 
 When a candidate is needed, promote it in one focused change:
 
@@ -150,13 +151,23 @@ When a candidate is needed, promote it in one focused change:
 4. set `status: "ready"`, run the registry test (now enforces fixtures + dry-run), then `implemented` after the gate (fixture test + dry-run output + target verification + rollback proof) passes;
 5. update `docs/CONVERGENCE_FACTORY_READINESS.md` "Codemod Discipline".
 
-**First implementation candidate** (cheapest, fixture-testable): `credential-provider-rehome` (after item 4c lands) or `ds-token-adoption` (after item 4a).
+Current ready entries:
+
+- `ds-token-adoption` — fixture-tested CSS token/theme adoption with JSON dry-run output.
+- `package-workspace-adoption` — fixture-tested package manifest rewrite with JSON dry-run output.
+
+Retired entries:
+
+- `credential-provider-rehome` — completed manually in the 4c lane; codemod promotion would have
+  cost more than the import boundary change.
+- `vault-seed-manifest-inventory` — completed through the item 9a generator-first lane.
 
 ---
 
 ## Non-Goal
 
-No hosted registry, no MCP integration, no new package until ≥2 entries are `ready`. No codemod for ADR decisions or speculative research.
+No hosted registry or MCP integration without a separate product reason. No codemod for ADR
+decisions or speculative research.
 
 ## Self-Review
 

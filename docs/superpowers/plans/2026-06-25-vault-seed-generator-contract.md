@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 >
-> **Nature:** this is a **prototype** (spec status: "ready for planning/prototype"), and it is
+> **Nature:** this is an **implemented prototype**, and it is
 > **manifest-first** — the contract is `manifest.json`, not bite-sized TDD code. Task 1 is fully
 > concrete (the classification is derived from `vault-seed/.github/workflows/initialize.yml`); the
 > generator (Task 2+) is prototype code that iterates against the real `vault-seed` source.
