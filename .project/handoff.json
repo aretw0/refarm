@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. apps/me passou a consumir o capability index como SDK e expor no painel pessoal a contagem de primitivas reference-driver, com slot opcional para scheduledWork via bootstrap operator status.",
-  "timestamp": "2026-06-27T17:27:22.137Z",
+  "context": "Checkpoint 2026-06-27. scheduledWork agora saiu do slot opcional e virou bootstrap real consumido por apps/me via SDK do @refarm.dev/cli, mantendo o app desacoplado de .project e do comando resume.",
+  "timestamp": "2026-06-27T17:43:18.703Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver UI: apps/me agora recebe driverStatus no boot e propaga referenceDriverCapabilityIds/scheduledWorkSummary pelo Homestead surface context.",
-    "Reference-driver parity: as primitivas session-tree, structured-io e code-ops agora aparecem tambem no consumidor UI sem acoplar apps/me a .project ou a comandos CLI.",
-    "Validacao economica mantida: testes focados de apps/me, build/lint/type-check scoped e after-edit com full turbo cache passaram."
+    "SDK provider: @refarm.dev/cli/project-automations expõe findProjectAutomationsPath/loadProjectScheduledWork, reutilizando Windmill para materializar jobs sem executar automações.",
+    "Daily-driver dogfood: apps/refarm resume delega scheduledWork para a primitiva SDK e apps/me injeta __REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__ no HTML Astro antes do boot cliente.",
+    "Validação econômica: testes focados de project-automations, resume e apps/me passaram; type-checks de packages/cli, apps/refarm e apps/me passaram; after-edit passou com cache Turbo parcial acima de 90%."
   ],
   "blockers": [],
   "next_actions": [
-    "Avaliar proxima fatia: fornecer bootstrap real de scheduledWork para apps/me a partir de um handoff serializado ou executar uma prova no-token de uma primitiva runtime-agent reference-driver.",
-    "Preparar blocos publicaveis npm/crates mantendo apps/me como consumidor interno do SDK e evitando duplicacao de primitivas.",
-    "Manter workers/subagentes atras do worker-profile ate haver proof local barato de execucao/cancelamento/resume."
+    "Provar visualmente no apps/me que Scheduled work renderiza 1 scheduled / 0 due a partir do bootstrap real, ou seguir para uma smoke no-token de primitiva runtime-agent reference-driver.",
+    "Continuar preparando blocos npm/crates publicáveis com Refarm como fornecedor de SDK/engine para apps internos e futuros consumidores.",
+    "Registrar melhoria de ergonomia/performance dos gates: after-edit ficou silencioso por cerca de um minuto apesar de cache hit alto."
   ],
   "open_questions": [
-    "A proxima melhoria deve materializar scheduledWork no bootstrap do app ou provar uma tool runtime-agent reference-driver em smoke no-token?"
+    "A próxima fatia deve priorizar prova visual do apps/me, smoke no-token runtime-agent, ou empacotamento/publicação dos blocos SDK?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
