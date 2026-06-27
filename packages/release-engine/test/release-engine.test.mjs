@@ -216,6 +216,20 @@ test("exports the release policy schema as a public package subpath", () => {
   assert.equal(schema.$defs.provider.required.includes("supportsDryRun"), true);
   assert.equal(schema.properties.providers.items.$ref, "#/$defs/provider");
   assert.equal(schema.properties.notes.items.type, "string");
+  assert.deepEqual(schema.properties.packageProfiles.items.properties.surface.enum, [
+    "core",
+    "app",
+    "plugin",
+    "agent",
+    "shared",
+  ]);
+  assert.deepEqual(schema.properties.surfaceBlocks.items.properties.surface.enum, [
+    "core",
+    "app",
+    "plugin",
+    "agent",
+    "shared",
+  ]);
 });
 
 test("ships the public contract manifest", () => {
@@ -275,6 +289,7 @@ test("exports the release output schema as a public package subpath", () => {
   assert.equal(schema.$defs.summary.properties.auditRecord.$ref, "#/$defs/auditRecord");
   assert.equal(schema.$defs.auditRecord.properties.schemaVersion.const, 1);
   assert.equal(schema.$defs.auditRecord.properties.digest.properties.algorithm.const, "sha256");
+  assert.equal(schema.$defs.packageProfileSummary.required.includes("surface"), true);
 });
 
 test("cli plan json resolves the Refarm default release selection", () => {
@@ -903,6 +918,39 @@ test("rejects invalid release package profile risk", () => {
   );
 });
 
+test("rejects invalid release package profile surface", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      packageProfiles: [
+        {
+          id: "@refarm.dev/contract",
+          risk: "core",
+          surface: "unknown",
+        },
+      ],
+    })),
+    /package profile surface must be one of: core, app, plugin, agent, shared for @refarm\.dev\/contract/,
+  );
+});
+
+test("rejects duplicate release surface blocks", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      surfaceBlocks: [
+        {
+          surface: "agent",
+          reason: "hold",
+        },
+        {
+          surface: "agent",
+          reason: "still hold",
+        },
+      ],
+    })),
+    /Duplicate release surface block: agent/,
+  );
+});
+
 test("rejects invalid release package profile bump", () => {
   assert.throws(
     () => validatePolicy(validPolicy({
@@ -1016,6 +1064,7 @@ test("summarizes package release profiles for selected packages", () => {
           {
             id: "@refarm.dev/alpha",
             risk: "shared",
+            surface: "agent",
             mustPassChecks: ["pnpm --filter @refarm.dev/alpha run build"],
             tags: ["kernel", "kernel-primitive"],
           },
@@ -1043,12 +1092,71 @@ test("summarizes package release profiles for selected packages", () => {
       {
         id: "@refarm.dev/alpha",
         risk: "shared",
+        surface: "agent",
         tags: ["kernel", "kernel-primitive"],
         mustPassChecks: ["pnpm --filter @refarm.dev/alpha run build"],
       },
     ]);
     assert.deepEqual(summarizePlan(plan).packageProfiles, releasePlanPackageProfiles(plan));
     assert.match(formatPlan(plan), /kernel-primitive/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("blocks release candidates by declared surface", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/agent-tool": {
+          dir: "agent-tool",
+        },
+      },
+      [],
+      validPolicy({
+        surfaceBlocks: [
+          {
+            surface: "agent",
+            reason: "Agent runtime packages stay internal until daily-driver parity.",
+          },
+        ],
+        packageProfiles: [
+          {
+            id: "@refarm.dev/agent-tool",
+            risk: "plugin",
+            surface: "agent",
+            tags: ["agent", "candidate"],
+          },
+        ],
+        phases: [
+          {
+            id: "gate",
+            name: "Gate",
+            commands: ["echo gate"],
+            required: true,
+            riskWeight: 1,
+          },
+        ],
+      }),
+      { embeddedConfigPath: "refarm.config.json" },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      profileTags: ["agent", "candidate"],
+    });
+
+    assert.equal(plan.ok, false);
+    assert.equal(plan.blockers[0].status, "blocked");
+    assert.equal(plan.blockers[0].surface, "agent");
+    assert.equal(
+      plan.blockers[0].note,
+      "Agent runtime packages stay internal until daily-driver parity.",
+    );
+    assert.deepEqual(plan.orderedNames, []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
