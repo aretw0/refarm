@@ -109,6 +109,8 @@ Before any publication or handoff:
 3. Preserve package-local dry-run evidence.
 4. Keep consumer-specific UX and vocabulary downstream-owned.
 5. Prefer codemods or manifest-driven generation for mechanical consumer moves.
+6. Audit exported SDK names: use product-neutral domain names for reusable
+   primitives, and reserve `Refarm` prefixes for product identity surfaces.
 
 Current commands:
 

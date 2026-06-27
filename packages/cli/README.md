@@ -88,3 +88,10 @@ The supply map is intentionally conservative. Today it marks
 `@refarm.dev/pi-agent` publication on hold while the plugin package is private,
 and records `agent-tools`, plugin WIT, and Tractor code-ops as WIT/runtime/crate
 boundaries rather than pretending they are ready npm APIs.
+
+`@refarm.dev/cli/worker-profile` also exposes the first "agents as tools"
+contract. `createWorkerProfile()` defines the bounded worker, and
+`createWorkerToolDescriptor()` wraps it as a plan-only tool descriptor with
+explicit model scope, token source, max turns, and max concurrency. Runtime
+dispatch is intentionally rejected until the worker engine has policy and
+observability proofs.

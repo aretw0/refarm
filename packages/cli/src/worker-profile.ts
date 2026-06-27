@@ -1,54 +1,80 @@
-export const REFARM_WORKER_PROFILE_SCHEMA_VERSION = 1 as const;
-export const REFARM_WORKER_PROFILE_MAX_PARALLEL = 4 as const;
+export const WORKER_PROFILE_SCHEMA_VERSION = 1 as const;
+export const WORKER_TOOL_SCHEMA_VERSION = 1 as const;
+export const WORKER_PROFILE_MAX_PARALLEL = 4 as const;
+export const WORKER_TOOL_MAX_TURNS = 8 as const;
 
-export type RefarmWorkerModelScope = "default" | "worker" | "monitor";
-export type RefarmWorkerResumePolicy = "continue" | "restart" | "manual";
-export type RefarmWorkerOutputFormat = "summary" | "json";
+export type WorkerModelScope = "default" | "worker" | "monitor";
+export type WorkerResumePolicy = "continue" | "restart" | "manual";
+export type WorkerOutputFormat = "summary" | "json";
+export type WorkerToolExecutionMode = "plan-only" | "runtime-dispatch";
 
-export interface RefarmWorkerContextPacket {
+export interface WorkerContextPacket {
 	objective: string;
 	instructions: readonly string[];
 	inputs: readonly string[];
 }
 
-export interface RefarmWorkerModelRoute {
-	scope: RefarmWorkerModelScope;
+export interface WorkerModelRoute {
+	scope: WorkerModelScope;
 	ref?: string;
 }
 
-export interface RefarmWorkerToolPolicy {
+export interface WorkerToolPolicy {
 	allowed: readonly string[];
 	denied?: readonly string[];
 }
 
-export interface RefarmWorkerConcurrencyPolicy {
+export interface WorkerConcurrencyPolicy {
 	maxParallel: number;
 }
 
-export interface RefarmWorkerOutputContract {
-	format: RefarmWorkerOutputFormat;
+export interface WorkerOutputContract {
+	format: WorkerOutputFormat;
 	requiredFields: readonly string[];
 }
 
-export interface RefarmWorkerLifecyclePolicy {
-	resume: RefarmWorkerResumePolicy;
+export interface WorkerLifecyclePolicy {
+	resume: WorkerResumePolicy;
 	cancellable: boolean;
 }
 
-export interface RefarmWorkerProfile {
-	schemaVersion: typeof REFARM_WORKER_PROFILE_SCHEMA_VERSION;
+export interface WorkerProfile {
+	schemaVersion: typeof WORKER_PROFILE_SCHEMA_VERSION;
 	id: string;
 	title: string;
 	description: string;
-	context: RefarmWorkerContextPacket;
-	tools: RefarmWorkerToolPolicy;
-	model: RefarmWorkerModelRoute;
-	concurrency: RefarmWorkerConcurrencyPolicy;
-	output: RefarmWorkerOutputContract;
-	lifecycle: RefarmWorkerLifecyclePolicy;
+	context: WorkerContextPacket;
+	tools: WorkerToolPolicy;
+	model: WorkerModelRoute;
+	concurrency: WorkerConcurrencyPolicy;
+	output: WorkerOutputContract;
+	lifecycle: WorkerLifecyclePolicy;
 }
 
-export interface RefarmWorkerProfileInput {
+export interface WorkerToolBudget {
+	maxTurns: number;
+	maxParallel: number;
+}
+
+export interface WorkerToolInvocation {
+	mode: WorkerToolExecutionMode;
+	model: WorkerModelRoute;
+	tokenUse: "provider";
+}
+
+export interface WorkerToolDescriptor {
+	schemaVersion: typeof WORKER_TOOL_SCHEMA_VERSION;
+	name: string;
+	title: string;
+	description: string;
+	profile: WorkerProfile;
+	budget: WorkerToolBudget;
+	invocation: WorkerToolInvocation;
+	inputFields: readonly string[];
+	outputFields: readonly string[];
+}
+
+export interface WorkerProfileInput {
 	id: string;
 	title: string;
 	description: string;
@@ -57,22 +83,32 @@ export interface RefarmWorkerProfileInput {
 	inputs?: readonly string[];
 	allowedTools?: readonly string[];
 	deniedTools?: readonly string[];
-	model?: Partial<RefarmWorkerModelRoute>;
+	model?: Partial<WorkerModelRoute>;
 	maxParallel?: number;
-	output?: Partial<RefarmWorkerOutputContract>;
-	lifecycle?: Partial<RefarmWorkerLifecyclePolicy>;
+	output?: Partial<WorkerOutputContract>;
+	lifecycle?: Partial<WorkerLifecyclePolicy>;
 }
 
-export interface RefarmWorkerProfileValidation {
+export interface WorkerProfileValidation {
 	ok: boolean;
 	issues: string[];
 }
 
-export function createRefarmWorkerProfile(
-	input: RefarmWorkerProfileInput,
-): RefarmWorkerProfile {
+export interface WorkerToolDescriptorInput {
+	name?: string;
+	title?: string;
+	description?: string;
+	mode?: WorkerToolExecutionMode;
+	maxTurns?: number;
+	maxParallel?: number;
+	inputFields?: readonly string[];
+}
+
+export function createWorkerProfile(
+	input: WorkerProfileInput,
+): WorkerProfile {
 	return {
-		schemaVersion: REFARM_WORKER_PROFILE_SCHEMA_VERSION,
+		schemaVersion: WORKER_PROFILE_SCHEMA_VERSION,
 		id: input.id,
 		title: input.title,
 		description: input.description,
@@ -103,11 +139,11 @@ export function createRefarmWorkerProfile(
 	};
 }
 
-export function validateRefarmWorkerProfile(
-	profile: RefarmWorkerProfile,
-): RefarmWorkerProfileValidation {
+export function validateWorkerProfile(
+	profile: WorkerProfile,
+): WorkerProfileValidation {
 	const issues: string[] = [];
-	if (profile.schemaVersion !== REFARM_WORKER_PROFILE_SCHEMA_VERSION) {
+	if (profile.schemaVersion !== WORKER_PROFILE_SCHEMA_VERSION) {
 		issues.push("schemaVersion must be 1");
 	}
 	if (!nonEmpty(profile.id)) issues.push("id is required");
@@ -122,10 +158,10 @@ export function validateRefarmWorkerProfile(
 	if (
 		!Number.isInteger(profile.concurrency.maxParallel) ||
 		profile.concurrency.maxParallel < 1 ||
-		profile.concurrency.maxParallel > REFARM_WORKER_PROFILE_MAX_PARALLEL
+		profile.concurrency.maxParallel > WORKER_PROFILE_MAX_PARALLEL
 	) {
 		issues.push(
-			`concurrency.maxParallel must be between 1 and ${REFARM_WORKER_PROFILE_MAX_PARALLEL}`,
+			`concurrency.maxParallel must be between 1 and ${WORKER_PROFILE_MAX_PARALLEL}`,
 		);
 	}
 	if (!["default", "worker", "monitor"].includes(profile.model.scope)) {
@@ -140,6 +176,79 @@ export function validateRefarmWorkerProfile(
 	if (!["continue", "restart", "manual"].includes(profile.lifecycle.resume)) {
 		issues.push("lifecycle.resume must be continue, restart, or manual");
 	}
+	return { ok: issues.length === 0, issues };
+}
+
+export function createWorkerToolDescriptor(
+	profile: WorkerProfile,
+	input: WorkerToolDescriptorInput = {},
+): WorkerToolDescriptor {
+	return {
+		schemaVersion: WORKER_TOOL_SCHEMA_VERSION,
+		name: input.name ?? profile.id,
+		title: input.title ?? profile.title,
+		description: input.description ?? profile.description,
+		profile,
+		budget: {
+			maxTurns: input.maxTurns ?? 1,
+			maxParallel: input.maxParallel ?? profile.concurrency.maxParallel,
+		},
+		invocation: {
+			mode: input.mode ?? "plan-only",
+			model: profile.model,
+			tokenUse: "provider",
+		},
+		inputFields: input.inputFields ?? ["task"],
+		outputFields: profile.output.requiredFields,
+	};
+}
+
+export function validateWorkerToolDescriptor(
+	descriptor: WorkerToolDescriptor,
+): WorkerProfileValidation {
+	const issues: string[] = [];
+	if (descriptor.schemaVersion !== WORKER_TOOL_SCHEMA_VERSION) {
+		issues.push("schemaVersion must be 1");
+	}
+	if (!nonEmpty(descriptor.name)) issues.push("name is required");
+	if (!nonEmpty(descriptor.title)) issues.push("title is required");
+	if (!nonEmpty(descriptor.description)) issues.push("description is required");
+
+	const profileValidation = validateWorkerProfile(descriptor.profile);
+	for (const issue of profileValidation.issues) {
+		issues.push(`profile.${issue}`);
+	}
+
+	if (descriptor.invocation.mode !== "plan-only") {
+		issues.push("invocation.mode must be plan-only until runtime dispatch is implemented");
+	}
+	if (descriptor.invocation.tokenUse !== "provider") {
+		issues.push("invocation.tokenUse must be provider");
+	}
+	if (!["default", "worker", "monitor"].includes(descriptor.invocation.model.scope)) {
+		issues.push("invocation.model.scope must be default, worker, or monitor");
+	}
+	if (
+		!Number.isInteger(descriptor.budget.maxTurns) ||
+		descriptor.budget.maxTurns < 1 ||
+		descriptor.budget.maxTurns > WORKER_TOOL_MAX_TURNS
+	) {
+		issues.push(`budget.maxTurns must be between 1 and ${WORKER_TOOL_MAX_TURNS}`);
+	}
+	if (
+		!Number.isInteger(descriptor.budget.maxParallel) ||
+		descriptor.budget.maxParallel < 1 ||
+		descriptor.budget.maxParallel > descriptor.profile.concurrency.maxParallel
+	) {
+		issues.push("budget.maxParallel must be between 1 and profile.concurrency.maxParallel");
+	}
+	if (descriptor.inputFields.length === 0) {
+		issues.push("inputFields must list at least one field");
+	}
+	if (descriptor.outputFields.length === 0) {
+		issues.push("outputFields must list at least one field");
+	}
+
 	return { ok: issues.length === 0, issues };
 }
 
