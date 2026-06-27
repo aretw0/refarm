@@ -225,15 +225,20 @@ const CAPABILITIES = [
 			"max concurrency",
 		],
 		policy: {
-			state: "planned",
+			state: "governed",
 			enforcement: [
 				"explicit worker context",
 				"bounded tool access",
 				"cancellation/resume contract",
 			],
-			evidence: ["docs/REFERENCE_AGENT_DRIVER_RESEARCH.md"],
+			evidence: [
+				"packages/cli/src/worker-profile.test.ts",
+				"docs/REFERENCE_AGENT_DRIVER_RESEARCH.md",
+			],
 		},
-		activation: {},
+		activation: {
+			sdk: "@refarm.dev/cli/worker-profile",
+		},
 		tags: ["runtime", "workers", "planning"],
 	},
 	{

@@ -75,6 +75,26 @@ export type {
 	WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 export {
+	createRefarmWorkerProfile,
+	REFARM_WORKER_PROFILE_MAX_PARALLEL,
+	REFARM_WORKER_PROFILE_SCHEMA_VERSION,
+	validateRefarmWorkerProfile,
+} from "./worker-profile.js";
+export type {
+	RefarmWorkerConcurrencyPolicy,
+	RefarmWorkerContextPacket,
+	RefarmWorkerLifecyclePolicy,
+	RefarmWorkerModelRoute,
+	RefarmWorkerModelScope,
+	RefarmWorkerOutputContract,
+	RefarmWorkerOutputFormat,
+	RefarmWorkerProfile,
+	RefarmWorkerProfileInput,
+	RefarmWorkerProfileValidation,
+	RefarmWorkerResumePolicy,
+	RefarmWorkerToolPolicy,
+} from "./worker-profile.js";
+export {
 	buildWorkspaceSourceCachePlan,
 	buildWorkspaceSweepPayload,
 	missingWorkspacePathMessage,

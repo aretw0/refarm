@@ -72,10 +72,9 @@ describe("capabilities command", () => {
 			count: number;
 			filter: { states: string[] };
 		};
-		expect(payload.count).toBe(2);
+		expect(payload.count).toBe(1);
 		expect(payload.filter.states).toEqual(["planned"]);
 		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
-			"runtime-agent.worker-profiles",
 			"scheduler.local-jobs",
 		]);
 		expect(
@@ -83,6 +82,34 @@ describe("capabilities command", () => {
 				(capability) => capability.policy.state === "planned",
 			),
 		).toBe(true);
+		logSpy.mockRestore();
+	});
+
+	it("surfaces governed worker profiles as an embeddable SDK capability", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--state",
+			"governed",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string; activation: { sdk?: string } }>;
+		};
+		expect(payload.capabilities).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "runtime-agent.worker-profiles",
+					activation: {
+						sdk: "@refarm.dev/cli/worker-profile",
+					},
+				}),
+			]),
+		);
 		logSpy.mockRestore();
 	});
 });
