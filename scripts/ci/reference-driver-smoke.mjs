@@ -28,6 +28,13 @@ const STEPS = [
 		},
 	},
 	{
+		id: "code-ops-wit",
+		packageScript: {
+			cwd: "packages/pi-agent",
+			script: "check:wit",
+		},
+	},
+	{
 		id: "code-ops",
 		display:
 			"cargo test --manifest-path packages/tractor/Cargo.toml --lib code_ops --quiet -- --test-threads=1",
