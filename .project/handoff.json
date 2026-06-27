@@ -1,19 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. session-tree agora tem uma smoke reference-driver no app refarm, provando list/show/preview --switch via envelopes JSON sem provider, git execution ou runtime real.",
-  "timestamp": "2026-06-27T18:09:45.584Z",
+  "context": "Checkpoint 2026-06-27. code-ops agora tem prova no-token no host bridge do tractor, completando structured-io, session-tree e code-ops como primitivas reference-driver validadas localmente.",
+  "timestamp": "2026-06-27T18:20:17.388Z",
   "current_phase": "12",
   "current_tasks": [
-    "Reference-driver smoke: apps/refarm/test/commands/tree.reference-driver.test.ts encadeia refarm tree list/show/preview --switch com fixtures e mocks do sidecar.",
-    "A prova garante URLs do sidecar local, nextCommand/nextAction dos envelopes e ausência de spawnSync, mantendo a primitiva session-tree no-token e sem substrato git.",
-    "Validação econômica: pnpm -C apps/refarm run test:tree-reference-driver, pnpm -C apps/refarm run type-check, git diff --check, after-edit e after-commit passaram; turbo pós-commit foi full-hit."
+    "Reference-driver smoke: packages/tractor cobre CodeOpsHost::find_references e CodeOpsHost::rename_symbol via TractorNativeBindings, fake LSP local e sem provider.",
+    "A prova confirma que o boundary plugin-host -> LspBridge resolve referências e aplica workspace edit por LSP genérico; o comentário de core.rs foi atualizado para remover a noção obsoleta de stub.",
+    "Validação econômica: cargo test --manifest-path packages/tractor/Cargo.toml --lib code_ops --quiet, cargo fmt --manifest-path packages/tractor/Cargo.toml --check, git diff --check, after-edit e after-commit passaram; pós-commit teve full turbo hit."
   ],
   "blockers": [],
   "next_actions": [
-    "Escolher a próxima primitiva reference-driver: code-ops pelo stub/LSP boundary ou empacotar structured-io + session-tree em um gate leve nomeado.",
-    "Continuar preparando blocos publicáveis npm/crates mantendo Refarm como fornecedor de SDK/engine para apps internos e futuros consumidores."
+    "Consolidar structured-io, session-tree e code-ops em um gate leve reference-driver/publication-readiness, ou seguir para empacotar/exportar SDKs que apps internos e futuros consumidores possam importar.",
+    "Revisar o espelhamento WIT/public contract de code-ops antes de tratar isso como superfície publicável para agent-tools/vault-seed/agents-lab.",
+    "Continuar preparando blocos publicáveis npm/crates mantendo Refarm como fornecedor de SDK/engine e daily-driver de referência."
   ],
   "open_questions": [
-    "A próxima fatia deve provar code-ops no-token ou consolidar smokes reference-driver em um comando/gate de publicação?"
+    "O próximo bloco deve ser gate leve de publicação das primitivas reference-driver, ou exposição/empacotamento formal do code-ops no WIT/SDK?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
