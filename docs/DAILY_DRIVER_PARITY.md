@@ -82,6 +82,21 @@ That proves the local tool contract and audit path. It does not yet prove the
 creator can run the live daily-driver loop with the intended checkout root,
 shell allowlist, and trusted plugin policy active at the same time.
 
+Current evidence (2026-06-27): the `agent-tools` composition component now has a
+focused unit proof for its hard local `agent-shell` guard. `packages/agent-tools`
+rejects empty `argv`, rejects requested subprocess timeouts above its 120-second
+cap, and accepts requests exactly at the cap. The README now matches the source
+cap. The focused signal is:
+
+```bash
+cargo test --manifest-path packages/agent-tools/Cargo.toml --lib --quiet
+```
+
+That proves the component-local policy guard without starting Tractor or a model
+provider. It still does not prove the full live policy bundle: host shell
+allowlist, trusted plugin enforcement, checkout root, and audit records active in
+one runtime-agent acceptance pass.
+
 ## Memory Persistence Evidence
 
 Current evidence (2026-06-27): Refarm's CRDT memory engine is implemented across

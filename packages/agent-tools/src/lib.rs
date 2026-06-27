@@ -237,4 +237,39 @@ fn atomic_write(path: &str, content: &[u8]) -> Result<(), String> {
     std::fs::rename(&tmp, path).map_err(|e| format!("write/rename({path}): {e}"))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spawn_request(argv: &[&str], timeout_ms: u32) -> SpawnRequest {
+        SpawnRequest {
+            argv: argv.iter().map(|arg| (*arg).to_string()).collect(),
+            env: vec![],
+            cwd: None,
+            timeout_ms,
+            stdin: None,
+        }
+    }
+
+    #[test]
+    fn spawn_policy_rejects_empty_argv() {
+        let err = enforce_spawn_policy(&spawn_request(&[], 1_000)).unwrap_err();
+        assert_eq!(err, "spawn: argv must be non-empty");
+    }
+
+    #[test]
+    fn spawn_policy_rejects_timeout_above_cap() {
+        let err = enforce_spawn_policy(&spawn_request(&["echo", "ok"], MAX_TIMEOUT_MS + 1))
+            .unwrap_err();
+        assert!(err.contains("exceeds policy cap"));
+        assert!(err.contains(&MAX_TIMEOUT_MS.to_string()));
+    }
+
+    #[test]
+    fn spawn_policy_accepts_timeout_at_cap() {
+        enforce_spawn_policy(&spawn_request(&["echo", "ok"], MAX_TIMEOUT_MS))
+            .expect("timeout at cap should be accepted");
+    }
+}
+
 export!(AgentTools);
