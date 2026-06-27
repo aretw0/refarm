@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-27. WIT/component distribution now has a build-free preflight for reference-driver publication planning.",
-  "timestamp": "2026-06-27T20:11:21.491Z",
+  "context": "Checkpoint 2026-06-27. Reference-driver supply map now keeps refarm-plugin-wit internal and treats refarm:plugin@0.1.0 as the durable WIT supply surface.",
+  "timestamp": "2026-06-27T20:18:59.190Z",
   "current_phase": "12",
   "current_tasks": [
-    "scripts/validate-packages.mjs now checks the refarm:agent-tools and refarm:plugin component mappings without compiling Rust or running JCO.",
-    "The preflight verifies Cargo component metadata, WIT package/world names, and the expected imports/exports for agent-tools-provider and refarm-plugin-host.",
-    "Validation passed: node --test scripts/ci/test-validate-packages-lib.mjs, node scripts/validate-packages.mjs, git diff --check, after-edit, commit, and after-commit."
+    "@refarm.dev/cli/capability-index now records refarm:plugin@0.1.0 and the refarm-plugin-wit Cargo package as internal supply targets instead of publication candidates.",
+    "packages/DISTRIBUTION_STATUS.md and docs/REFERENCE_AGENT_DRIVER_RESEARCH.md document that refarm-plugin-wit stays publish=false until runtime packaging policy and daily-driver evidence justify promotion.",
+    "Validation passed: capability-index vitest, packages/cli type-check, packages/cli build, validate-packages, git diff --check, after-edit, commit, and after-commit; after-commit got full Turbo cache hit for CLI validation."
   ],
   "blockers": [],
   "next_actions": [
-    "Use validate-packages as the cheap first signal before any npm/crate publication work touches WIT/component packages.",
-    "Keep @refarm.dev/pi-agent private until plugin artifact policy and daily-driver gate justify a package candidate.",
-    "Next publication slice should decide whether refarm-plugin-wit needs an explicit crate/package release surface or remains an internal canonical WIT crate for now."
+    "Keep WIT/component publication planning on validate-packages plus capability-index supply-map evidence before touching npm/crates publishing.",
+    "Next slice can add a plan-only release preflight that reports internal/hold/candidate targets without building WASM.",
+    "Keep @refarm.dev/pi-agent private until plugin artifact policy and daily-driver gate justify a package candidate."
   ],
   "open_questions": [],
   "key_decisions_active": [
