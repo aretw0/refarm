@@ -1,152 +1,128 @@
-# Capability Contracts — Distribution Status
+# Capability Contracts - Distribution Inventory
 
-**Status:** READY FOR v0.1.0 ALPHA DISTRIBUTION (3 Contracts)
+**Status:** candidate inventory validated; public publication is held.
 
-✅ 3 foundational contracts complete and tested.
-✅ Repository configured for publication to @refarm.dev scope.
-✅ CI/CD pipeline ready (Gate 1 completion pending in GitHub repo settings).
+Refarm is not publishing `v0.1.0` just because the first contracts are ready.
+The current policy is: keep publication on hold until the daily-driver gate
+passes or a human explicitly overrides it. Consumer-pulled `vault-seed` blocks
+may still move through a local candidate channel when that prevents downstream
+reimplementation.
 
-See Also: [REFARM_PERSONAL_DAILY_DRIVER.md](../docs/REFARM_PERSONAL_DAILY_DRIVER.md) — Publishing strategy and why plugin-manifest is deferred to v0.2.0.
+Source of truth:
 
----
-
-## What's Being Published in v0.1.0
-
-### 3 Foundational Capability Contracts (Immutable Interfaces)
-
-These packages define **what it means to be Refarm-compatible**. They are low-risk, high-value publications because they are *interfaces*, not *implementations*.
-
-#### 1. **@refarm.dev/storage-contract-v1** (0.1.0)
-   - **Purpose**: Capability contract for any Refarm-compatible storage backend
-   - **Conformance**: 6 validations
-   - **Stability**: **Immutable** (breaking changes → storage-contract-v2)
-   - **Use Case**: Third-party storage implementations (Firebase, DynamoDB, S3, etc.)
-   - **Status**: Ready for publication
-
-#### 2. **@refarm.dev/sync-contract-v1** (0.1.0)
-   - **Purpose**: CRDT delta format for interoperable sync
-   - **Conformance**: 4 validations
-   - **Stability**: **Immutable**
-   - **Use Case**: Loro, Automerge, or any CRDT can implement this interface
-   - **Status**: Ready for publication
-
-#### 3. **@refarm.dev/identity-contract-v1** (0.1.0)
-   - **Purpose**: Capability contract for identity/signing
-   - **Conformance**: 4 validations
-   - **Stability**: **Immutable**
-   - **Use Case**: Nostr, OPAQUE, custom identity systems can implement
-   - **Status**: Ready for publication
+- Release policy: [`refarm.config.json`](../refarm.config.json)
+- Release gate: [`docs/v0.1.0-release-gate.md`](../docs/v0.1.0-release-gate.md)
+- Release engine: [`packages/release-engine`](./release-engine)
+- Factory readiness: [`docs/CONVERGENCE_FACTORY_READINESS.md`](../docs/CONVERGENCE_FACTORY_READINESS.md)
 
 ---
 
-## What's **Not** Being Published Yet (Tier 2)
+## Current Release-Policy Selections
 
-### Reference Implementations (Mature in Private First)
+### `kernel-candidates` (default selection)
 
-These are the actual tools and systems. We keep them private for 3–6 months to stabilize before publishing.
+These packages are the first release candidates for daily-driver planning. They
+are not an immediate publish list while the daily-driver hold is active.
 
-| Package | v0.1.0 Status | Target Publication | Reason |
-|---------|---------------|--------------------|--------|
-| `tractor` (Rust) | Code ready, tests pass | May–June 2026 | Consumer testing (Gate 2/3) still WIP |
-| `apps/me` (Homestead) | Gate 3 in progress | July+ 2026 | Needs 6+ months daily use to validate UX |
-| **`plugin-manifest`** | **DEFERRED** | **v0.2.0 (July+ 2026)** | **See below** |
-| `barn` (Plugin lifecycle) | SDD/BDD phase | May 2026 | Must be rock-solid for installPlugin() |
-| `task-contract-v1` | Contract package implemented (TDD baseline) | v0.2.0 | In-memory adapter + conformance shipped; pending pi-agent/farmhand/storage-sqlite integration |
-| `session-contract-v1` | Contract package implemented (TDD baseline) | v0.2.0 | In-memory adapter + conformance shipped; pending pi-agent namespace migration + storage-sqlite adapter |
-| `silo` (Secrets) | Early design | June 2026 | Personal threat model; tailor to daily use |
-| `creek` (Telemetry) | Planned | v0.2.0 | Personal observability; genericize later |
-| `plugin-tem` (AI) | In progress | v0.2.0+ | Tightly personal; publish as example, not reference |
-| `windmill` (Automation) | In progress | v0.2.0 | Personal workflows first; ecosystem later |
+- `@refarm.dev/storage-contract-v1`
+- `@refarm.dev/sync-contract-v1`
+- `@refarm.dev/identity-contract-v1`
+- `@refarm.dev/channel-policy-v1`
 
-### Why `plugin-manifest` is Deferred to v0.2.0
+Validation:
 
-The current `plugin-manifest` describes **WASM plugins only**. But Refarm's real extensibility spans **all layers**:
-
-- **Pi layer** (IoT automaton, local scripts, hardware)
-- **Tractor layer** (custom backends, indexing, business logic)
-- **Homestead/Frontend layer** (UI widgets, sidebars, editors)
-- **Electron/Desktop layer** (file system, OS integration)
-- **Windmill/Automation layer** (workflow steps, custom actions)
-
-Publishing `plugin-manifest` now locks us into **WASM-only thinking**. Instead, gatekeep publication until:
-- [ ] Pi plugin format is designed
-- [ ] Manifest schema generalizes across all 5 layers
-- [ ] Inter-layer composition is proven (Pi plugin → Homestead widget)
-- [ ] 3+ examples exist (WASM + Pi + Frontend)
-
-**Target**: v0.2.0 publishes complete plugin ecosystem with multi-layer examples.
-
----
-
-## Developer Experience (v0.1.0)
-
-### For Contract Users
-- Package READMEs with installation/usage examples
-- Conformance tests runnable in external projects
-- TypeScript declarations exported
-- ESM-only (modern, no dual-bundle complexity)
-- Zero runtime dependencies (pure types + validation logic)
-- CI example for external projects
-- Third-party plugin example in examples/third-party-plugin/
-
-### For Daily Driver Users (You)
-- Tractor daemon boots locally reliably
-- Homestead ↔ Tractor integration (Gate 3) still stabilizing
-- Plugin hot-swap validated (3+ plugins needed)
-- Offline sync confirmed (7-day test required)
-- 100% test coverage on implementations
-
----
-
-## Publishing Configuration (Ready)
-
-### npm package.json Fields
-- `files` field (only dist + README shipped)
-- `publishConfig.access: "public"`
-- Repository/homepage URLs configured
-- Version bumped to `0.1.0`
-
-### CI/CD
-- `publish-packages.yml` workflow exists
-- Gate 1 (GitHub variables) pending: `RELEASE_AUTOMATION=true`, `RELEASE_OWNER=aretw0` while the repo remains under the personal profile.
-- NPM token provisioned in GitHub Secrets
-
----
-
-## Publishing Timeline
-
-### Phase A: Pre-Publish (This Week)
-- [ ] Set `RELEASE_AUTOMATION=true` in GitHub repository settings
-- [ ] Set `RELEASE_OWNER=aretw0` while the repo remains under the personal profile.
-- [ ] Verify `NPM_TOKEN` has publish access to @refarm.dev scope
-- [ ] Run `npm publish --dry-run` for each contract (should pass)
-
-### Phase B: Publish (Next Week)
 ```bash
-git tag @refarm.dev/storage-contract-v1@0.1.0 && git push origin @refarm.dev/storage-contract-v1@0.1.0
-git tag @refarm.dev/sync-contract-v1@0.1.0 && git push origin @refarm.dev/sync-contract-v1@0.1.0
-git tag @refarm.dev/identity-contract-v1@0.1.0 && git push origin @refarm.dev/identity-contract-v1@0.1.0
+pnpm run release:readiness
 ```
-- CI triggers: `publish-packages.yml` publishes all 3 to npm
 
-### Phase C: Post-Publish (Verification)
-- [ ] Verify on npm: `npm info @refarm.dev/storage-contract-v1`
-- [ ] Update this file with publish timestamps
-- [ ] Create GitHub Release for `v0.1.0-contracts`
-- [ ] Announce (optional)
+### `vault-seed-ready` (consumer-pulled candidate lane)
 
-### Phase D: Daily Driver Stabilization (Ongoing)
-- Continue using Refarm as personal daily driver
-- Complete Gate 2/3 (Tractor consumer testing)
-- Mature Barn plugin lifecycle
-- Begin Pi plugin design (blocks v0.2.0 plugin-manifest publication)
-- Plan v0.2.0 publication (mid-2026)
+These packages are allowed into the local handoff lane because `vault-seed`
+would otherwise keep rebuilding reusable Refarm machinery. This is a candidate
+channel, not a public npm publication promise.
+
+- `@refarm.dev/artifact-contract-v1`
+- `@refarm.dev/channel-policy-v1`
+- `@refarm.dev/effort-contract-v1`
+- `@refarm.dev/launch-process`
+- `@refarm.dev/release-engine`
+- `@refarm.dev/ds`
+- `@refarm.dev/heartwood`
+- `@refarm.dev/dispatch-surface`
+- `@refarm.dev/homestead-ssr`
+- `@refarm.dev/silo`
+
+Validation:
+
+```bash
+pnpm run release:vault-seed:check
+pnpm run release:vault-seed:handoff -- --json
+```
+
+The local handoff currently lives under
+`.refarm/handoff/vault-seed/2026-06-26/`. That directory is an operator artifact;
+the versioned policy and package checks remain the durable source of truth.
+
+---
+
+## Historical Contract Inventory
+
+The original three foundational contracts remain low-risk interface packages:
+
+| Package | Purpose | Conformance | Stability |
+| --- | --- | --- | --- |
+| `@refarm.dev/storage-contract-v1` | Storage backend capability contract | 6 validations | versioned contract |
+| `@refarm.dev/sync-contract-v1` | CRDT delta format for interoperable sync | 4 validations | versioned contract |
+| `@refarm.dev/identity-contract-v1` | Identity/signing capability contract | 4 validations | versioned contract |
+
+They are still useful release candidates, but the current kernel selection has
+expanded to include `@refarm.dev/channel-policy-v1`, and publication remains
+gated by the daily-driver policy.
+
+---
+
+## Deliberately Held Surfaces
+
+Some packages are useful but must not be promoted just because neighboring leaf
+packages are ready:
+
+| Surface | Current status | Reason |
+| --- | --- | --- |
+| `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies |
+| `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/launch-process` is the leaf package needed by consumers |
+| `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
+| Tractor/runtime reference implementation | daily-driver hold | must be reliable for real operator work before public release positioning |
+
+---
+
+## Publication Rules
+
+Do not run public publish steps while the daily-driver hold is active unless the
+human operator explicitly asks for that override.
+
+Before any publication or handoff:
+
+1. Confirm the intended selection in `refarm.config.json`.
+2. Run the scoped release check for that selection.
+3. Preserve package-local dry-run evidence.
+4. Keep consumer-specific UX and vocabulary downstream-owned.
+5. Prefer codemods or manifest-driven generation for mechanical consumer moves.
+
+Current commands:
+
+```bash
+pnpm run release:readiness
+pnpm run release:readiness:test
+pnpm run release:vault-seed:check
+pnpm run release:vault-seed:handoff -- --json
+```
 
 ---
 
 ## Repository State
 
-- **Current version**: v0.0.1-dev
-- **Next version**: v0.1.0 (3 contracts only; core kernel stays v0.0.x)
-- **Scope**: @refarm.dev (canonical Refarm block scope)
-- **Branch**: main (releases only); develop (daily development)
+- Current version: `v0.0.1-dev`
+- Public scope: `@refarm.dev`
+- Default release-policy selection: `kernel-candidates`
+- Consumer-pulled selection: `vault-seed-ready`
+- Publication posture: held until daily-driver gate or explicit human override
