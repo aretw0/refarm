@@ -8,7 +8,7 @@ Refarm reaches `v0.1.0` only when it can replace the creator's current external 
 | ------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | Start a work session      | `tractor` daemon + `apps/me` shell          | daemon boots, `apps/me` connects to `ws://localhost:42000`                                                                                      | ⬜     |
 | Ask an agent to reason    | Runtime agent hosted by Tractor             | prompt returns an `AgentResponse` and generic `StreamSession`/`StreamChunk` observations when streaming is enabled                              | ⬜     |
-| See live output           | UI consumer of Tractor observations         | Stream chunks render incrementally without special-casing the sync transport; `streamObservationView(...)` helper exists, UI subscriber pending | ⬜     |
+| See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; real Tractor/apps-me E2E pending                                                         | local proven / E2E pending |
 | Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are host-authorized and auditable                                                                                  | ⬜     |
 | Preserve memory           | `.project/` blocks + Loro/SQLite graph      | decisions/tasks/handoffs survive restart and sync roundtrip                                                                                     | ⬜     |
 | Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                                                           | ⬜     |
@@ -30,6 +30,20 @@ A capability can move from `dev` to `me` only when:
 ## First consumer priority
 
 For streaming work, the first production consumer should be a UI subscriber that reads generic `StreamSession` and `StreamChunk` nodes through the Tractor observation stream. `BrowserSyncClient` must remain schema-neutral; stream labeling, reduction, and rendering belong in the UI/client-helper layer.
+
+Current evidence (2026-06-27): Homestead already owns the first UI subscriber
+slice. `StudioShell` registers `onNode("StreamSession")` and
+`onNode("StreamChunk")`, reduces them through the stream observation helpers, and
+renders both statusbar pills and a dedicated streams slot when the DOM exposes
+`refarm-slot-streams`. The focused local signal is:
+
+```bash
+pnpm -C packages/homestead run test -- Shell.test.ts stream-observer.test.ts
+```
+
+That proves the UI helper and subscriber boundary. It does not yet prove the
+full daily-driver path with a real Tractor daemon, `apps/me`, and a live
+runtime-agent stream.
 
 ## Release consequence
 
