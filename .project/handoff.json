@@ -1,21 +1,19 @@
 {
-  "context": "Checkpoint 2026-06-27. code-ops está formalizado no WIT canônico e guardado no gate reference-driver:smoke via sync do pi-agent.",
-  "timestamp": "2026-06-27T18:35:18.970Z",
+  "context": "Checkpoint 2026-06-27. Release readiness now gates package dry-run with the lightweight reference-driver smoke, keeping runtime-agent/session-tree/code-ops primitives in the publication path without provider execution.",
+  "timestamp": "2026-06-27T19:40:21.270Z",
   "current_phase": "12",
   "current_tasks": [
-    "WIT público atualizado: packages/refarm-plugin-wit/wit/refarm-plugin-host.wit e packages/pi-agent/wit/refarm-plugin-host.wit removem a descrição obsoleta de stub e descrevem o LSP bridge real.",
-    "Gate consolidado reforçado: scripts/ci/reference-driver-smoke.mjs agora roda code-ops-wit com pnpm -C packages/pi-agent run check:wit antes da prova code-ops host.",
-    "Validação econômica: pnpm -C packages/pi-agent run check:wit, pnpm run reference-driver:smoke:plan, pnpm run reference-driver:smoke, git diff --check, after-edit e after-commit passaram; after-commit também passou o smoke no-token refarm:agent:e2e:mock."
+    "release-readiness.mjs now runs reference-driver:smoke after codemod-registry and before publish-dry-run; test-release-readiness pins the ordered plan.",
+    "docs/RELEASE_ENGINE.md and docs/CONVERGENCE_FACTORY_READINESS.md record the reference-driver smoke as the lightweight readiness gate before SDK/runtime packaging.",
+    "Validation passed: pnpm run release:readiness:plan, node --test scripts/ci/test-release-readiness.mjs, git diff --check, pnpm run reference-driver:smoke, after-edit, commit, and after-commit."
   ],
   "blockers": [],
   "next_actions": [
-    "Avançar publication/readiness usando pnpm run reference-driver:smoke como gate leve obrigatório antes de empacotar SDK/runtime-agent.",
-    "Revisar quais exports/SDKs npm/crates devem carregar as primitivas runtime-agent para consumidores internos antes de publicar.",
-    "Continuar mantendo Refarm como fornecedor de SDK/engine e daily-driver de referência sem reintroduzir validações pesadas sem necessidade."
+    "Map which npm/crates exports should carry runtime-agent/reference-driver primitives for Refarm itself before publication.",
+    "Keep pnpm run reference-driver:smoke as the cheap pre-publication signal; reserve full release:readiness for package/readiness checkpoints.",
+    "Continue daily-driver hardening without reintroducing provider-heavy or broad Rust validation unless the slice requires it."
   ],
-  "open_questions": [
-    "O próximo bloco deve ligar reference-driver:smoke à release policy/readiness, ou mapear primeiro os exports/SDKs que vault-seed e agents-lab eventualmente importarão?"
-  ],
+  "open_questions": [],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
     "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
