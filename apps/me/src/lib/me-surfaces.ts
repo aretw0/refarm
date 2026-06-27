@@ -1,4 +1,3 @@
-import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	createHomesteadSurfaceRenderActionRequest,
@@ -12,11 +11,13 @@ import {
 	type HomesteadSurfaceRenderRequest,
 	type HomesteadSurfaceRenderResult,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
+import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 
 export const REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID =
 	"refarm-me-personal-surface";
 export const REFARM_ME_PERSONAL_SURFACE_ID = "personal-vault-panel";
 export const REFARM_ME_OPEN_VAULT_ACTION_ID = "open-personal-vault";
+export const REFARM_ME_IDENTITY_STATUS = "unauthenticated";
 
 export type RefarmMeSurfaceTelemetry = (
 	pluginId: string,
@@ -65,6 +66,9 @@ export function renderRefarmMePersonalSurface(
 	const profileName = escapeRefarmMeSurfaceText(
 		String(request.host?.data?.profileName ?? "Sovereign citizen"),
 	);
+	const identityStatus = escapeRefarmMeSurfaceText(
+		String(request.host?.data?.identityStatus ?? REFARM_ME_IDENTITY_STATUS),
+	);
 	const action = request.host?.actions?.find(
 		(candidate) => candidate.id === REFARM_ME_OPEN_VAULT_ACTION_ID,
 	);
@@ -77,6 +81,12 @@ export function renderRefarmMePersonalSurface(
 			<p class="refarm-eyebrow">Personal sovereign surface</p>
 			<h1>${profileName}</h1>
 			<p>This panel is rendered through the shared Homestead surface contract with host context from <code class="refarm-code">${hostId}</code>.</p>
+			<dl class="refarm-stack" data-refarm-me-identity>
+				<div>
+					<dt class="refarm-eyebrow">Identity</dt>
+					<dd>${identityStatus}</dd>
+				</div>
+			</dl>
 			<p>It keeps Refarm.me product UX app-owned while exercising the same layout, surface, and action primitives used by the Studio app.</p>
 			${actionButton ? `<div class="refarm-cluster">${actionButton}</div>` : ""}
 		</section>`,
@@ -93,6 +103,7 @@ export function createRefarmMeSurfaceContextProvider(): HomesteadSurfaceRenderCo
 			hostId: "apps/me",
 			data: {
 				profileName: "My Sovereign Space",
+				identityStatus: REFARM_ME_IDENTITY_STATUS,
 				storageScope: "refarm-me-main",
 				syncScope: "citizen",
 			},
