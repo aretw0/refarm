@@ -17,6 +17,7 @@
 		"smoke:content-plugin": "node scripts/smoke-content-plugin.mjs",
 		"smoke:pwa": "node scripts/smoke-pwa.mjs",
 		"smoke:offline-roundtrip": "node scripts/smoke-offline-roundtrip.mjs",
+		"smoke:real-daemon-roundtrip": "node scripts/smoke-real-daemon-roundtrip.mjs",
 		"lint": "eslint src"
 	},
 	"dependencies": {

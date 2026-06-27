@@ -151,6 +151,37 @@ describe("refarm.me runtime", () => {
 		});
 	});
 
+	it("can point browser sync at a bootstrap WebSocket URL", async () => {
+		const doc = createMeDocument();
+		const tractor = createTractorFixture();
+		const storage = { storeNode: vi.fn(async () => {}) };
+		const bootRuntime = vi.fn(async () => ({
+			tractor,
+			storage,
+		})) as unknown as typeof bootStudioRuntime;
+
+		await bootRefarmMeWorkbench({
+			document: doc,
+			bootRuntime,
+			setupShell: vi.fn(async () => ({})) as unknown as typeof setupStudioShell,
+			pluginConstructors: createPluginConstructors(),
+			createSurfacePlugins: vi.fn(
+				() => [],
+			) as unknown as typeof createRefarmMeSurfacePlugins,
+			browserSyncWsUrl: "ws://127.0.0.1:49999",
+			log: { error: vi.fn() },
+		});
+
+		expect(bootRuntime).toHaveBeenCalledWith(
+			expect.objectContaining({
+				browserSync: {
+					onEvent: expect.any(Function),
+					wsUrl: "ws://127.0.0.1:49999",
+				},
+			}),
+		);
+	});
+
 	it("renders boot failure copy in the loading boundary", () => {
 		const doc = createMeDocument();
 		const log = { error: vi.fn() };
