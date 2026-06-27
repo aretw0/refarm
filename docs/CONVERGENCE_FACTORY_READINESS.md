@@ -76,7 +76,7 @@ This rule activates work that prevents migration churn:
 | Channels/outbox | `dgk-channels` + Telegram outbox/inbox -> channel policy evidence over Refarm channel-control surfaces | Telegram API, note UX, or DGK command names leak into Refarm |
 | Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes; Refarm-side fixture and tarball packet ready | notebook UX or vault schema moves upstream |
 | Template/generation | generated-vault smoke + initialize reset -> vault generator/codemod registry | generator cannot distinguish payload from template-dev-only files |
-| Release/package checks | package smoke, version, lockfile/integrity checks -> release-engine/package acceptance policy; release-engine tarball handoff ready | Refarm policy hardcodes DGK package names |
+| Release/package checks | package smoke, version, lockfile/integrity checks -> release-engine/package acceptance summary; release-engine tarball handoff ready | Refarm policy hardcodes DGK package names |
 | Health/substrate checks | action pins, substrate, generated-output, devcontainer contract checks -> health/environment substrate | project-local allowances become global rules |
 | Credentials | `silo` collect -> `vault-seed` `silo.js` bridge after 4c | namespaces collapse or app provider re-export is not stable |
 | Text quality | text scoring scripts -> text-quality contract/config | submission/vault rubric moves upstream |
@@ -198,7 +198,7 @@ to the existing lanes before `vault-seed` grows more local substrate:
 |---|---|---|
 | Lab dataset/outbox/notebook manifests | `artifact-contract-v1`, WASM substrate | Official `vault-seed` proof emits `refarm.task-artifacts.v1` manifests from Lab/outbox/notebook producers. |
 | Generated-vault smoke/reset/template inventory | vault generator + codemod registry | Keep active; this is the boilerplate-killing lane. |
-| Release package smoke, lockfile template sync, version contracts | `release-engine`, package acceptance checklist | Plan a release-policy consumer proof after generator inventory exists. |
+| Release package smoke, lockfile template sync, version contracts | `release-engine`, package acceptance summary/checklist | Plan a release-policy consumer proof after generator inventory exists. |
 | Action pinning, substrate/devcontainer checks, generated-output hygiene | `health` / environment substrate | Extract only rules that can be expressed as consumer policy. |
 | Text scoring and prose quality reports | text-quality contract/config | Keep Refarm scoring generic; leave Portuguese/vault dashboards downstream. |
 | Astro wiki/callout/image transforms | future content-transform contract | Hold until a second non-vault consumer repeats the same transforms. |

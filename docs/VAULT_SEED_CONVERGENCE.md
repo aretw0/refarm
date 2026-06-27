@@ -457,7 +457,7 @@ contains a tarball for every package in the 10-package release-policy selection:
 | `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `9daaa089560b558a145b0af78dc09a8b66cfd13decce362d205f7362d97f4ddf` |
 | `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `ed3c6dc6fe5c2afa7751ef3732703023f3a3a177857dc44e8868dcad1be18c9a` |
 | `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `28b13b6e1dc8ab5cbdfbb6b671f73cf0ff849881957a6b81710044d95d43d466` |
-| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `6a483624b2a82bdc9128005873fa6733e589028da22dd769ceca035a0295612f` |
+| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `95c17d3511b8d9ad9fb29e053b4259706a6f17e15cc86763d463da1f1da0cb54` |
 | `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `a85f33b5eb78496581b22c72397a5a5ee770f36f34a5df44556985ecf3a31986` |
 | `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf` |
 | `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `577ce12c4b7aee853b4b58a984dbdd5f8cd953938d9b3e19ad2feb48e09d38a5` |
@@ -480,7 +480,7 @@ this matrix before adding more `vault-seed`-local infrastructure:
 | `scripts/prepare_publication_outbox.mjs`, `.dgk/outbox-publicacao.json`, Lab outbox notebook | Artifact/provenance + channel policy evidence | Activate with 8b; vault-specific frontmatter stays downstream. |
 | `scripts/prepare_lab_datasets.mjs`, notebook export/check/pair helpers, Lab manifest | Artifact contract + WASM/lab distribution substrate | Candidate after artifact proof; Marimo UX stays downstream. |
 | `scripts/smoke_template.js`, initialize reset, generated-vault smoke | Vault generator + codemod registry | Active item 9a/9b. |
-| `release_package_smoke`, version/integrity/lockfile template checks | `@refarm.dev/release-engine` + package acceptance policy | Candidate block; DGK package names stay downstream. |
+| `release_package_smoke`, version/integrity/lockfile template checks | `@refarm.dev/release-engine` + package acceptance summary | Candidate block; DGK package names stay downstream. |
 | `actions:pins`, substrate/devcontainer/template contract checks | `@refarm.dev/health` / environment substrate checks | Candidate block when rules are consumer-neutral. |
 | text scoring and presentation quality scripts | Refarm text-quality contract/config | Already a Refarm lane; rubrics and dashboards stay downstream. |
 | wiki links, callouts, image/slug conventions | Content transform contract only if another consumer repeats it | Hold at product edge for now; Astro rendering remains `vault-seed`. |
