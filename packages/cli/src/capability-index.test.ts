@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildRefarmCapabilityIndex,
+	buildRefarmReferenceDriverSupplyMap,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
@@ -50,5 +51,63 @@ describe("capability index", () => {
 			"runtime-agent.structured-io",
 			"runtime-agent.code-ops",
 		]);
+	});
+
+	it("maps reference-driver primitives to publication supply channels", () => {
+		const supplyMap = buildRefarmReferenceDriverSupplyMap();
+
+		expect(supplyMap.schemaVersion).toBe(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION);
+		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
+		expect(supplyMap.smokeCommand).toBe("pnpm run reference-driver:smoke");
+		expect(supplyMap.entries.map((entry) => entry.capabilityId)).toEqual([
+			"runtime-agent.session-tree",
+			"runtime-agent.structured-io",
+			"runtime-agent.code-ops",
+		]);
+		expect(supplyMap.entries).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					capabilityId: "runtime-agent.session-tree",
+					targets: expect.arrayContaining([
+						expect.objectContaining({
+							channel: "npm",
+							name: "@refarm.dev/cli",
+							export: "@refarm.dev/cli/capability-index",
+							status: "exported",
+						}),
+						expect.objectContaining({
+							channel: "npm",
+							name: "@refarm.dev/pi-agent",
+							status: "hold",
+						}),
+					]),
+				}),
+				expect.objectContaining({
+					capabilityId: "runtime-agent.structured-io",
+					targets: expect.arrayContaining([
+						expect.objectContaining({
+							channel: "wit",
+							name: "refarm:agent-tools@0.1.0",
+							status: "internal",
+						}),
+					]),
+				}),
+				expect.objectContaining({
+					capabilityId: "runtime-agent.code-ops",
+					targets: expect.arrayContaining([
+						expect.objectContaining({
+							channel: "wit",
+							name: "refarm:plugin@0.1.0",
+							status: "candidate",
+						}),
+						expect.objectContaining({
+							channel: "crate",
+							name: "refarm-tractor",
+							status: "hold",
+						}),
+					]),
+				}),
+			]),
+		);
 	});
 });
