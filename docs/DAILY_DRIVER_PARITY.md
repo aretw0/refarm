@@ -134,6 +134,14 @@ and `MODEL_FS_ROOT` to the checkout, starts Tractor from an isolated temporary
 workspace with `trusted_plugins=["pi-agent"]`, then asserts an
 `agent-tool:shell:spawn` Scarecrow audit line for `pi-agent`.
 
+For the restart persistence proof, add `REFARM_AGENT_MOCK_RESTART_PROOF=1`.
+Both flags can be combined when validating the runtime-agent daily-driver path
+with existing artifacts:
+
+```bash
+REFARM_AGENT_MOCK_POLICY_PROOF=1 REFARM_AGENT_MOCK_RESTART_PROOF=1 node scripts/ci/smoke-refarm-agent-model-mock.mjs
+```
+
 ## Memory Persistence Evidence
 
 Current evidence (2026-06-27): Refarm's CRDT memory engine is implemented across
@@ -159,10 +167,11 @@ file-backed restart proof: `file_storage_survives_reopen` writes a `Task` node t
 a real SQLite file, drops the first handle, reopens the database, and verifies
 the node, context, payload, and source plugin remain queryable.
 
-That proves the memory engine and the local storage restart boundary. It does
-not yet prove the full daily-driver memory acceptance criterion: real decisions,
-tasks, and handoffs must survive a daemon/app restart and then roundtrip through
-the intended app/runtime path.
+That proves the memory engine and the local storage restart boundary. The
+runtime-agent smoke now covers the daily-driver restart path too: it restarts
+Tractor against the same `REFARM_HOME`, namespace, SQLite store, and stream/task
+result directories, then asserts that session history, task status, and
+top-level resume handoffs still roundtrip through the intended CLI/runtime path.
 
 ## Resume After Interruption Evidence
 

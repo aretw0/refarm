@@ -446,6 +446,43 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
 }
 
 #[tokio::test]
+async fn sidecar_effort_result_survives_state_reopen() {
+    let (_state, port, tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let rehydrated = SidecarState::new(
+        Arc::new(RwLock::new(HashMap::new())),
+        Arc::new(RwLock::new(None)),
+        &tmp,
+        ":memory:".to_string(),
+    )
+    .unwrap();
+    let store = rehydrated.efforts.read().expect("effort store poisoned");
+    let result = store.get(&id).expect("persisted effort must be rehydrated");
+
+    assert_eq!(result.effort_id, id);
+    assert_eq!(result.status, "failed");
+    assert!(
+        result.completed_at.is_some(),
+        "terminal effort must retain completion timestamp"
+    );
+    assert!(
+        result.results.iter().any(|task| task.status == "error"),
+        "rehydrated effort must retain task result details"
+    );
+}
+
+#[tokio::test]
 async fn sidecar_effort_fails_when_no_active_agent_loaded() {
     // When no plugin has declared "agent:respond" capability and no channel
     // matches the task's plugin_id, the effort must fail with a clear error.

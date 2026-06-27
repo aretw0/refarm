@@ -245,8 +245,16 @@ async function assertPolicyAudit(refarmDir) {
 	);
 }
 
+async function restartMockRuntime(runtime, env, options) {
+	await runtime.stop();
+	const restarted = startMockRuntime(env, options);
+	await waitForMockRuntime(env);
+	return restarted;
+}
+
 async function main() {
 	const policyProof = process.env.REFARM_AGENT_MOCK_POLICY_PROOF === "1";
+	const restartProof = process.env.REFARM_AGENT_MOCK_RESTART_PROOF === "1";
 	const tempDir = await mkdtemp(path.join(tmpdir(), "refarm-agent-mock-"));
 	const streamsDir = path.join(tempDir, "streams");
 	const refarmHomeDir = path.join(tempDir, ".refarm");
@@ -291,6 +299,13 @@ async function main() {
 		REFARM_STREAMS_DIR: streamsDir,
 		REFARM_OPERATOR_IDENTITY_FILE: identityFile,
 	};
+	const runtimeOptions = {
+		httpPort,
+		namespace,
+		refarmDir: refarmHomeDir,
+		cwd: policyProof ? runtimeWorkspaceDir : ROOT,
+		wsPort,
+	};
 	let runtime;
 
 	try {
@@ -316,13 +331,7 @@ async function main() {
 			),
 		);
 		await runRefarm(["plugin", "update", "--json"], env);
-		runtime = startMockRuntime(env, {
-			httpPort,
-			namespace,
-			refarmDir: refarmHomeDir,
-			cwd: policyProof ? runtimeWorkspaceDir : ROOT,
-			wsPort,
-		});
+		runtime = startMockRuntime(env, runtimeOptions);
 		await waitForMockRuntime(env);
 
 		const pluginReload = await runRefarmJsonResult(
@@ -530,6 +539,35 @@ async function main() {
 		if (policyProof) {
 			await assertPolicyAudit(refarmHomeDir);
 		}
+		if (restartProof) {
+			runtime = await restartMockRuntime(runtime, env, runtimeOptions);
+			const sessionAfterRestart = await runRefarmHandoff(showSessionCommand, env);
+			assert(
+				sessionAfterRestart.session?.["@id"] === session.session?.["@id"] &&
+					sessionAfterRestart.entries?.some((entry) =>
+						String(entry.content ?? "").includes(EXPECTED_RESPONSE),
+					),
+				`session history did not survive runtime restart: ${JSON.stringify(sessionAfterRestart)}`,
+			);
+			const taskStatusAfterRestart = await runRefarm(
+				["task", "status", taskRun.effortId, "--transport", "http", "--json"],
+				env,
+			);
+			assert(
+				taskStatusAfterRestart.status === "done" &&
+					taskStatusAfterRestart.result?.results?.some((result) => result.status === "ok"),
+				`task status did not survive runtime restart: ${JSON.stringify(taskStatusAfterRestart)}`,
+			);
+			const operatorResumeAfterRestart = await runRefarm(["resume", "--json"], env);
+			assert(
+				operatorResumeAfterRestart.ok === true &&
+					operatorResumeAfterRestart.runtime?.ready === true &&
+					operatorResumeAfterRestart.tasks?.recentEfforts?.some(
+						(effort) => effort.effortId === taskRun.effortId && effort.lastStatus === "done",
+					),
+				`operator resume did not preserve task handoff after runtime restart: ${JSON.stringify(operatorResumeAfterRestart)}`,
+			);
+		}
 
 		console.log(
 			JSON.stringify(
@@ -541,6 +579,7 @@ async function main() {
 					modelBaseUrl: mock.env.MODEL_BASE_URL,
 					modelRequests: mock.requests.length,
 					policyProof,
+					restartProof,
 					streamFiles: streamFiles.length,
 					pluginReloadNextCommands: pluginReload.nextCommands,
 					askNextCommands: ask.nextCommands,
