@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	bootRefarmMeWorkbench,
 	REFARM_ME_LOADING_ID,
+	REFARM_ME_PLUGIN_REGISTRY_TYPE,
 	REFARM_ME_RENDERER,
 	renderRefarmMeBootFailure,
 } from "./me-runtime";
@@ -28,7 +29,10 @@ describe("refarm.me runtime", () => {
 			runtimeOptions.browserSync?.onEvent?.(earlyBrowserSyncEvent);
 			return { tractor, storage };
 		}) as unknown as typeof bootStudioRuntime;
-		const storage = { storeNode: vi.fn(async () => {}) };
+		const storage = {
+			queryNodes: vi.fn(async () => []),
+			storeNode: vi.fn(async () => {}),
+		};
 		const setupShellMock = vi.fn(
 			async (_tractor: unknown, _options: unknown) => ({}),
 		);
@@ -90,8 +94,13 @@ describe("refarm.me runtime", () => {
 			renderer: REFARM_ME_RENDERER,
 			surfacePluginIds: [REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID],
 			contentPluginIds: [],
+			graphMode: "bootstrap",
+			pluginRegistryIds: [],
 			storeLocalNode: expect.any(Function),
 		});
+		expect(storage.queryNodes).toHaveBeenCalledWith(
+			REFARM_ME_PLUGIN_REGISTRY_TYPE,
+		);
 		await workbench.storeLocalNode({
 			id: "refarm-me-proof",
 			type: "refarm:Proof",
@@ -130,6 +139,8 @@ describe("refarm.me runtime", () => {
 			data: {
 				identityStatus: REFARM_ME_IDENTITY_STATUS,
 				syncStatus: "snapshot-applied",
+				graphMode: "bootstrap",
+				pluginRegistryCount: 0,
 			},
 		});
 
@@ -154,7 +165,10 @@ describe("refarm.me runtime", () => {
 	it("can point browser sync at a bootstrap WebSocket URL", async () => {
 		const doc = createMeDocument();
 		const tractor = createTractorFixture();
-		const storage = { storeNode: vi.fn(async () => {}) };
+		const storage = {
+			queryNodes: vi.fn(async () => []),
+			storeNode: vi.fn(async () => {}),
+		};
 		const bootRuntime = vi.fn(async () => ({
 			tractor,
 			storage,
@@ -180,6 +194,64 @@ describe("refarm.me runtime", () => {
 				},
 			}),
 		);
+	});
+
+	it("detects plugin registry nodes as sovereign graph mode", async () => {
+		const doc = createMeDocument();
+		const tractor = createTractorFixture();
+		const storage = {
+			queryNodes: vi.fn(async () => [
+				{ id: "refarm-me:registry:local" },
+				{ payload: "{\"@id\":\"refarm-me:registry:payload\"}" },
+			]),
+			storeNode: vi.fn(async () => {}),
+		};
+		const setupShell = vi.fn(
+			async (_tractor: unknown, _options: unknown) => ({}),
+		) as unknown as typeof setupStudioShell;
+
+		const workbench = await bootRefarmMeWorkbench({
+			document: doc,
+			bootRuntime: vi.fn(async () => ({
+				tractor,
+				storage,
+			})) as unknown as typeof bootStudioRuntime,
+			setupShell,
+			pluginConstructors: createPluginConstructors(),
+			createSurfacePlugins: (() => []) as unknown as typeof createRefarmMeSurfacePlugins,
+			log: { error: vi.fn() },
+		});
+
+		expect(storage.queryNodes).toHaveBeenCalledWith(
+			REFARM_ME_PLUGIN_REGISTRY_TYPE,
+		);
+		expect(workbench.graphMode).toBe("sovereign");
+		expect(workbench.pluginRegistryIds).toEqual([
+			"refarm-me:registry:local",
+			"refarm-me:registry:payload",
+		]);
+
+		const shellOptions = vi.mocked(setupShell).mock.calls[0]?.[1] as {
+			surfaceContext: (...args: unknown[]) => unknown;
+		};
+		const host = shellOptions.surfaceContext({
+			pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+			slotId: "main",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: REFARM_ME_PERSONAL_SURFACE_ID,
+				slot: "main",
+			},
+			locale: "en",
+		});
+		expect(host).toMatchObject({
+			data: {
+				graphMode: "sovereign",
+				pluginRegistryCount: 2,
+			},
+		});
 	});
 
 	it("renders boot failure copy in the loading boundary", () => {
@@ -212,7 +284,13 @@ describe("refarm.me runtime", () => {
 			| undefined;
 		const bootRuntime = vi.fn(async (runtimeOptions) => {
 			onBrowserSync = runtimeOptions.browserSync?.onEvent;
-			return { tractor };
+			return {
+				tractor,
+				storage: {
+					queryNodes: vi.fn(async () => []),
+					storeNode: vi.fn(async () => {}),
+				},
+			};
 		}) as unknown as typeof bootStudioRuntime;
 		const setupShell = vi.fn(async () => {
 			const status = doc.createElement("dd");

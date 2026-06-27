@@ -126,7 +126,7 @@ See [Gate 3b spec](../../docs/gate3-homestead-tractor-spec.md#gate-3b-reference-
 
 - [ ] `HeraldPlugin` reads identity from the graph — Nostr key via `identity-nostr`
       (`world refarm-identity-plugin` WIT, commit `07f338b`)
-- [ ] Distro checks graph for `refarm:PluginRegistry` nodes on boot
+- [x] Distro checks graph for `refarm:PluginRegistry` nodes on boot
 - [ ] Plugins discovered from registry → installed dynamically (no URL hardcoded in repo)
 - [ ] First plugin management UI:
   - Install plugin by URL + SHA-256 hash
@@ -142,6 +142,11 @@ See [Gate 3b spec](../../docs/gate3-homestead-tractor-spec.md#gate-3b-reference-
 The transition from bootstrap → sovereign mode occurs when the user's
 graph contains at least one `refarm:PluginRegistry` node and the daily-driver shell remains reliable. See
 [distro-evolution-model.md](../../docs/distro-evolution-model.md#the-point-of-inflexion).
+Current evidence: `apps/me` queries the graph for `refarm:PluginRegistry`
+nodes during workbench boot, exposes `bootstrap`/`sovereign` mode plus registry
+count through the personal Homestead surface context, and returns registry IDs
+from the workbench for the next discovery slice. Coverage: `me-runtime` and
+`me-surfaces` tests.
 
 ---
 

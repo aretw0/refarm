@@ -27,6 +27,10 @@ describe("refarm.me Firefly runtime", () => {
 		};
 		const bootRuntime = vi.fn(async () => ({
 			tractor,
+			storage: {
+				queryNodes: vi.fn(async () => []),
+				storeNode: vi.fn(async () => {}),
+			},
 		})) as unknown as typeof bootStudioRuntime;
 		const setupShell = vi.fn(
 			async (_tractor: unknown, _options: unknown) => ({}),

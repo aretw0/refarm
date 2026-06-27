@@ -19,6 +19,7 @@ export const REFARM_ME_PERSONAL_SURFACE_ID = "personal-vault-panel";
 export const REFARM_ME_OPEN_VAULT_ACTION_ID = "open-personal-vault";
 export const REFARM_ME_IDENTITY_STATUS = "unauthenticated";
 export const REFARM_ME_SYNC_STATUS = "waiting-for-tractor";
+export const REFARM_ME_GRAPH_MODE = "bootstrap";
 
 export type RefarmMeSurfaceTelemetry = (
 	pluginId: string,
@@ -41,6 +42,8 @@ export interface RefarmMeSurfaceContextOptions {
 	storageScope?: string;
 	syncScope?: string;
 	syncStatus?: string;
+	graphMode?: string;
+	pluginRegistryCount?: number;
 }
 
 export function createRefarmMeSurfacePlugins(
@@ -81,6 +84,12 @@ export function renderRefarmMePersonalSurface(
 	const syncStatus = escapeRefarmMeSurfaceText(
 		String(request.host?.data?.syncStatus ?? REFARM_ME_SYNC_STATUS),
 	);
+	const graphMode = escapeRefarmMeSurfaceText(
+		String(request.host?.data?.graphMode ?? REFARM_ME_GRAPH_MODE),
+	);
+	const pluginRegistryCount = escapeRefarmMeSurfaceText(
+		String(request.host?.data?.pluginRegistryCount ?? 0),
+	);
 	const action = request.host?.actions?.find(
 		(candidate) => candidate.id === REFARM_ME_OPEN_VAULT_ACTION_ID,
 	);
@@ -101,6 +110,14 @@ export function renderRefarmMePersonalSurface(
 				<div>
 					<dt class="refarm-eyebrow">Sync</dt>
 					<dd data-refarm-me-sync-status>${syncStatus}</dd>
+				</div>
+				<div>
+					<dt class="refarm-eyebrow">Graph</dt>
+					<dd data-refarm-me-graph-mode>${graphMode}</dd>
+				</div>
+				<div>
+					<dt class="refarm-eyebrow">Registries</dt>
+					<dd data-refarm-me-plugin-registry-count>${pluginRegistryCount}</dd>
 				</div>
 			</dl>
 			<p>It keeps Refarm.me product UX app-owned while exercising the same layout, surface, and action primitives used by the Studio app.</p>
@@ -125,6 +142,8 @@ export function createRefarmMeSurfaceContextProvider(
 				storageScope: options.storageScope ?? "refarm-me-main",
 				syncScope: options.syncScope ?? "citizen",
 				syncStatus: options.syncStatus ?? REFARM_ME_SYNC_STATUS,
+				graphMode: options.graphMode ?? REFARM_ME_GRAPH_MODE,
+				pluginRegistryCount: options.pluginRegistryCount ?? 0,
 			},
 			actions: [
 				{

@@ -49,7 +49,10 @@ describe("refarm.me real shell runtime", () => {
 		};
 		const bootRuntime = vi.fn(async () => ({
 			tractor,
-			storage: { storeNode: vi.fn(async () => {}) },
+			storage: {
+				queryNodes: vi.fn(async () => []),
+				storeNode: vi.fn(async () => {}),
+			},
 		})) as unknown as typeof bootStudioRuntime;
 
 		const workbench = await bootRefarmMeWorkbench({
