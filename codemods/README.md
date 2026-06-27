@@ -47,7 +47,7 @@ the transform is no longer needed.
 
 ## Ready Entries
 
-`ds-token-adoption` is the first `ready` entry. It is intentionally narrow:
+`ds-token-adoption` is intentionally narrow:
 
 - prepends the Refarm DS token/theme/component CSS imports when absent;
 - removes only semantic `ds-tokens:v1` custom-property declarations from
@@ -63,6 +63,23 @@ Dry run:
 
 ```bash
 node codemods/ds-token-adoption.mjs --input vault-seed/.site/styles/marimo-vault.css --json
+```
+
+`package-workspace-adoption` covers generated or external consumer manifests:
+
+- optionally sets the package `name` when a generated distribution needs a
+  concrete package identity;
+- rewrites only explicitly mapped `workspace:` dependency ranges, leaving other
+  workspace references untouched;
+- parses and emits `package.json` as structured JSON instead of doing string
+  replacement;
+- prints a stable JSON dry-run report with `--json`, including package-name and
+  workspace-range counts.
+
+Dry run:
+
+```bash
+node codemods/package-workspace-adoption.mjs --input vault-seed/package.template.json --external @aretw0/dgk-astro-plugins=latest --json
 ```
 
 ## Manual-Reviewed Line

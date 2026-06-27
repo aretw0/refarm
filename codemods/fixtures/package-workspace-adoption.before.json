@@ -1,0 +1,13 @@
+{
+  "name": "digital-gardening-kit",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@aretw0/dgk-astro-plugins": "workspace:^",
+    "astro": "^6.4.4"
+  },
+  "devDependencies": {
+    "@aretw0/dgk-cli": "workspace:*",
+    "prettier": "^3.8.3"
+  }
+}
