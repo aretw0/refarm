@@ -13,6 +13,7 @@
 		"test:unit": "vitest run",
 		"test": "vitest run",
 		"smoke:sync": "node scripts/smoke-browser-sync-status.mjs",
+		"smoke:scheduled-work": "node scripts/smoke-scheduled-work-bootstrap.mjs",
 		"smoke:plugin-cache": "node scripts/smoke-plugin-cache.mjs",
 		"smoke:content-plugin": "node scripts/smoke-content-plugin.mjs",
 		"smoke:pwa": "node scripts/smoke-pwa.mjs",
