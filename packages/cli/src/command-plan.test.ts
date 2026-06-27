@@ -419,4 +419,25 @@ describe("command plan runner", () => {
 			stderr: "",
 		});
 	});
+
+	it("honors process step timeouts", () => {
+		expect(
+			runCommandPlanProcessStep({
+				id: "process-timeout",
+				command: "node -e <script>",
+				args: [],
+				description: "Run process with timeout.",
+				process: {
+					command: process.execPath,
+					args: ["-e", "setTimeout(() => {}, 1000);"],
+					display: "node -e <script>",
+					timeoutMs: 20,
+				},
+			}),
+		).toMatchObject({
+			id: "process-timeout",
+			ok: false,
+			exitCode: 1,
+		});
+	});
 });

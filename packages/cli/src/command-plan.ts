@@ -21,7 +21,14 @@ export interface CommandProcessSpec {
 	cwd?: string;
 	display: string;
 	packageManager?: string | null;
+	resourcePolicy?: CommandProcessResourcePolicy;
+	timeoutMs?: number;
 	tool?: string;
+}
+
+export interface CommandProcessResourcePolicy {
+	concurrency?: number;
+	timeoutMs?: number;
 }
 
 export interface CommandPlanStep {
@@ -62,6 +69,7 @@ export interface CommandPlanStepRunResult extends CommandPlanStep {
 export interface CommandPlanCommandRunOptions {
 	cwd?: string;
 	env?: NodeJS.ProcessEnv;
+	timeoutMs?: number;
 }
 
 export interface CommandPlanCliStepRunOptions extends CommandPlanCommandRunOptions {
@@ -299,6 +307,7 @@ export function runCommandPlanProcessStep(
 		cwd: step.process.cwd ?? options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
+		timeout: step.process.timeoutMs ?? options.timeoutMs,
 	});
 	const exitCode = result.status ?? (result.error ? 1 : 0);
 	return {
@@ -306,7 +315,7 @@ export function runCommandPlanProcessStep(
 		ok: exitCode === 0,
 		exitCode,
 		stdout: result.stdout ?? "",
-		stderr: result.stderr ?? "",
+		stderr: result.stderr ?? result.error?.message ?? "",
 	};
 }
 

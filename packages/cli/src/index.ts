@@ -123,6 +123,7 @@ export type {
 	CommandPlanEnvelope,
 	CommandPlanEnvelopeContext,
 	CommandPlanEnvelopeExtra,
+	CommandProcessResourcePolicy,
 	CommandProcessSpec,
 	CommandPlanRunEnvelope,
 	CommandPlanRunResult,

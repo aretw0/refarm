@@ -1,13 +1,3 @@
-import { readGitCommand } from "@refarm.dev/cli/git-command";
-import {
-	affectedWorkspacePackagesFromChangedPaths, changedFilePathsFromGitNameOnly, changedFilePathsFromGitStatus, RUNTIME_AGENT_PLUGIN_DESCRIPTOR, findWorkspaceRoot as findWorkspaceRootFromMarkers, } from "@refarm.dev/config";
-import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
-import { Command } from "commander";
-import fs from "node:fs";
-import path from "node:path";
-import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
-import {
-	AGENT_FINISH_LANE_HELP, agentFinishCommand, agentFinishLaneCatalog, type AgentFinishLane, type AgentFinishLaneValidationScope, } from "./agent-handoff-plan.js";
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildCommandPlanEnvelope,
@@ -20,12 +10,29 @@ import {
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
 } from "@refarm.dev/cli/command-plan";
+import { readGitCommand } from "@refarm.dev/cli/git-command";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import {
+	affectedWorkspacePackagesFromChangedPaths, changedFilePathsFromGitNameOnly, changedFilePathsFromGitStatus,
+	findWorkspaceRoot as findWorkspaceRootFromMarkers,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+} from "@refarm.dev/config";
+import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
+import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
+import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
+import {
+	AGENT_FINISH_LANE_HELP, agentFinishCommand, agentFinishLaneCatalog, type AgentFinishLane, type AgentFinishLaneValidationScope,
+} from "./agent-handoff-plan.js";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
 } from "./package-manager.js";
 import { workspaceCanUseTurboAdapter } from "./workspace-execution.js";
+
+const FINISH_TURBO_CONCURRENCY = 2;
+const FINISH_PROCESS_TIMEOUT_MS = 180_000;
 
 export interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
@@ -286,6 +293,7 @@ function turboPackageValidationStep(
 	const command = createPackageBinaryCommand("turbo", [
 		"run",
 		...scripts,
+		`--concurrency=${FINISH_TURBO_CONCURRENCY}`,
 		`--filter=./${workspace}`,
 		"--output-logs=errors-only",
 		"--ui=stream",
@@ -302,6 +310,11 @@ function turboPackageValidationStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			resourcePolicy: {
+				concurrency: FINISH_TURBO_CONCURRENCY,
+				timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
+			},
+			timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
 			tool: "turbo",
 		},
 	};
