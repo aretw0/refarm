@@ -229,6 +229,161 @@ describe("project command", () => {
 		fs.rmSync(cwd, { recursive: true, force: true });
 	});
 
+	it("lists governed project automations by status", async () => {
+		const cwd = makeTempDir();
+		const automationsPath = path.join(cwd, ".project", "automations.json");
+		fs.mkdirSync(path.dirname(automationsPath), { recursive: true });
+		fs.writeFileSync(
+			automationsPath,
+			JSON.stringify({
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "active",
+						triggers: [{ type: "cron", schedule: "@daily" }],
+					},
+					{
+						id: "old-handoff",
+						name: "Old handoff",
+						status: "archived",
+						triggers: [{ type: "manual" }],
+					},
+				],
+			}),
+			"utf-8",
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-06-27T06:00:00.000Z"),
+		}).parseAsync(["automations", "list", "--status", "active", "--json"], {
+			from: "user",
+		});
+
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			command: "project",
+			operation: "automations.list",
+			ok: true,
+			path: ".project/automations.json",
+			status: "active",
+			count: 1,
+			automations: [
+				{
+					id: "daily-handoff",
+					status: "active",
+				},
+			],
+			validation: {
+				ok: true,
+				count: 2,
+			},
+		});
+		logSpy.mockRestore();
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
+
+	it("updates governed project automation status", async () => {
+		const cwd = makeTempDir();
+		const automationsPath = path.join(cwd, ".project", "automations.json");
+		fs.mkdirSync(path.dirname(automationsPath), { recursive: true });
+		fs.writeFileSync(
+			automationsPath,
+			JSON.stringify({
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "active",
+						triggers: [{ type: "cron", schedule: "@daily" }],
+					},
+				],
+			}),
+			"utf-8",
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-06-27T06:00:00.000Z"),
+		}).parseAsync([
+			"automations",
+			"set-status",
+			"--id",
+			"daily-handoff",
+			"--status",
+			"archived",
+			"--json",
+		], { from: "user" });
+
+		expect(readJson(automationsPath)).toMatchObject({
+			automations: [
+				{
+					id: "daily-handoff",
+					status: "archived",
+				},
+			],
+		});
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			command: "project",
+			operation: "automations.set-status",
+			ok: true,
+			automation: {
+				id: "daily-handoff",
+				status: "archived",
+			},
+		});
+		logSpy.mockRestore();
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
+
+	it("dry-runs governed project automation status updates", async () => {
+		const cwd = makeTempDir();
+		const automationsPath = path.join(cwd, ".project", "automations.json");
+		fs.mkdirSync(path.dirname(automationsPath), { recursive: true });
+		fs.writeFileSync(
+			automationsPath,
+			JSON.stringify({
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "active",
+						triggers: [{ type: "cron", schedule: "@daily" }],
+					},
+				],
+			}),
+			"utf-8",
+		);
+		const before = readJson(automationsPath);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-06-27T06:00:00.000Z"),
+		}).parseAsync([
+			"automations",
+			"set-status",
+			"--id",
+			"daily-handoff",
+			"--status",
+			"archived",
+			"--dry-run",
+			"--json",
+		], { from: "user" });
+
+		expect(readJson(automationsPath)).toEqual(before);
+		logSpy.mockRestore();
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
+
 	it("rejects duplicate project automation ids", async () => {
 		const cwd = makeTempDir();
 		const automationsPath = path.join(cwd, ".project", "automations.json");
