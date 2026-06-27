@@ -38,6 +38,20 @@
       "rollbackNote": "CSS custom-property migration; rerun without --write for review, and revert the stylesheet commit if adoption regresses"
     },
     {
+      "id": "package-workspace-adoption",
+      "status": "ready",
+      "ownerSurface": "consumer repo",
+      "tool": "codemod",
+      "inputs": ["package.json/package.template.json package name and selected workspace: dependency ranges for generated or external consumers"],
+      "fixtures": [
+        "codemods/fixtures/package-workspace-adoption.before.json",
+        "codemods/fixtures/package-workspace-adoption.after.json"
+      ],
+      "dryRunCommand": "node codemods/package-workspace-adoption.mjs --input vault-seed/package.template.json --external @aretw0/dgk-astro-plugins=latest --json",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/package-workspace-adoption.test.mjs; generated consumer package has no workspace: dependencies that point at excluded packages",
+      "rollbackNote": "Package JSON migration; rerun without --write for review, and revert the package manifest commit if installation or package identity regresses"
+    },
+    {
       "id": "vault-seed-manifest-inventory",
       "status": "retired",
       "ownerSurface": "cross-repo",

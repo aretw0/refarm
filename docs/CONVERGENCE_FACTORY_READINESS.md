@@ -252,6 +252,16 @@ reported `changed: true`, `importsAdded: 3`, and
 `semanticDeclarationsRemoved: 205` with `written: false`; official downstream
 application/visual review remains on the `vault-seed` side.
 
+`package-workspace-adoption` is now the second ready codemod entry. It parses
+package manifests as JSON, can set a concrete generated package `name`, and
+rewrites only explicitly mapped `workspace:` dependency ranges. A cache-only
+proof against
+`/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed/package.template.json`
+with `--external @aretw0/dgk-astro-plugins=latest` reported `changed: true`,
+`nameChanged: false`, `workspaceDependenciesRewritten: 1`, and
+`written: false`; official downstream application remains on the `vault-seed`
+side.
+
 Vault-seed generator classification:
 
 - generator actions: payload copy, template-dev file exclusion, deterministic rename, generated
