@@ -202,8 +202,10 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
 1. **Codemod candidates:** only codemod recurring transforms. The current ready entries are
    `ds-token-adoption` and `package-workspace-adoption`; keep ADR decisions and one-off prose as
    docs.
-2. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
-   dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.
+2. **XR/WebXR around the framework:** Task 1/2 POC is started under
+   `validations/xr-surface-poc/` with a renderer-neutral Refarm surface map and WebXR capability
+   probe. Keep A-Frame/three.js isolated to the validation directory until static preview and
+   browser/device evidence exist.
 3. **Linux async I/O (`io_uring`) substrate:** Task 1/2 probe is started under
    `validations/io-uring-substrate/`. Current WSL2/devcontainer evidence reports
    `status: "blocked"` (`EPERM`), so keep fallback mandatory and only continue the `io_uring`

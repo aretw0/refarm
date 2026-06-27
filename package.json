@@ -69,6 +69,7 @@
 		"validation-pocs:test": "node scripts/ci/run-root-scripts.mjs wallet:poc:test extension-sandbox:poc:test governed-note-box:poc:test task-artifacts:check validation-pocs:consumer:test validation-pocs:coding-agent:test validation-pocs:index:test validation-pocs:writing-consumer:test",
 		"io-uring:probe": "node validations/io-uring-substrate/run-probe.mjs --json",
 		"io-uring:probe:test": "node --test validations/io-uring-substrate/probe.test.mjs",
+		"xr-surface:poc:test": "node --test validations/xr-surface-poc/xr-surface.test.mjs",
 		"task-artifacts:check": "node scripts/ci/check-task-artifact-manifests.mjs",
 		"task-artifacts:check:test": "node --test scripts/ci/test-check-task-artifact-manifests-lib.mjs",
 		"openapi:check": "node scripts/ci/check-openapi-specs.mjs",

@@ -21,7 +21,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `launch-process` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
 | 10 `io_uring` substrate | probe started, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule, devcontainer capability probe | baseline materialization fixture; `io_uring` comparison only on a host/container that reports `available` |
-| 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
+| 11 XR/WebXR surface | POC started, not product-ready | WebXR/A-Frame/three.js posture, fallback rule, renderer-neutral fixture/probe | browser/device evidence from a contained static preview |
 
 | Cross-cutting item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
@@ -346,3 +346,14 @@ XR is a frontier surface, not a core dependency:
 
 The first gate is equal data across 2D fallback and XR scene. A-Frame or three.js stays isolated to
 the POC until graduation evidence exists.
+
+Started as `validations/xr-surface-poc/`:
+
+- selected data envelope: renderer-neutral Refarm surface map (`ds`, `homestead-ssr`,
+  `dispatch-surface`, `release-engine`);
+- `pnpm run xr-surface:poc:test` verifies fixture shape, WebXR capability classification, and equal
+  node/action IDs across deterministic 2D fallback and XR scene markup;
+- no production package imports A-Frame or three.js.
+
+The next useful step is a contained static preview under the validation directory. Do not introduce
+an XR package or production dependency before browser/device evidence exists.
