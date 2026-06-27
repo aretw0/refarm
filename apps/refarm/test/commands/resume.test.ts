@@ -251,6 +251,76 @@ describe("resume command", () => {
 		spy.mockRestore();
 	});
 
+	it("prints scheduled work visibility in JSON resume output", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+			loadScheduledWork: vi.fn().mockResolvedValue({
+				schemaVersion: 1,
+				owner: "refarm-main",
+				generatedAt: "2026-06-27T10:00:00.000Z",
+				summary: { total: 1, due: 1, scheduled: 0, unsupported: 0 },
+				jobs: [
+					{
+						id: "automation-1:0",
+						automationId: "automation-1",
+						name: "daily handoff",
+						owner: "refarm-main",
+						kind: "one-shot",
+						status: "due",
+						schedule: { type: "once", at: "2026-06-27T09:00:00.000Z" },
+						modelRoute: "none",
+						tokenUse: "none",
+						resume: {
+							visible: true,
+							summary: "daily handoff owned by refarm-main",
+						},
+					},
+				],
+			}),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			scheduledWork?: {
+				owner: string;
+				summary: { total: number; due: number };
+				jobs: Array<{
+					id: string;
+					status: string;
+					modelRoute: string;
+					tokenUse: string;
+				}>;
+			};
+		};
+		expect(payload.scheduledWork).toMatchObject({
+			owner: "refarm-main",
+			summary: { total: 1, due: 1 },
+			jobs: [
+				{
+					id: "automation-1:0",
+					status: "due",
+					modelRoute: "none",
+					tokenUse: "none",
+				},
+			],
+		});
+		spy.mockRestore();
+	});
+
 	it("prioritizes stale session cleanup in plain resume output", async () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),

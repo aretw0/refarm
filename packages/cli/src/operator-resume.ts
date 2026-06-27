@@ -74,6 +74,43 @@ export interface OperatorResumeFinishRecord {
 	remainingCommands: readonly string[];
 }
 
+export interface OperatorResumeScheduledWorkSummary {
+	total: number;
+	due: number;
+	scheduled: number;
+	unsupported: number;
+}
+
+export interface OperatorResumeScheduledWorkJob {
+	id: string;
+	automationId: string;
+	name: string;
+	owner: string;
+	kind: "one-shot" | "recurring";
+	status: "due" | "scheduled" | "unsupported";
+	schedule: {
+		type: string;
+		at?: string;
+		schedule?: string;
+		timezone?: string;
+	};
+	unsupportedReason?: string;
+	modelRoute: "none" | string;
+	tokenUse: "none" | string;
+	resume?: {
+		visible: boolean;
+		summary?: string;
+	};
+}
+
+export interface OperatorResumeScheduledWorkInspection {
+	schemaVersion: number;
+	owner: string;
+	generatedAt: string;
+	summary: OperatorResumeScheduledWorkSummary;
+	jobs: readonly OperatorResumeScheduledWorkJob[];
+}
+
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	model?: OperatorResumeModelSummary;
@@ -83,6 +120,7 @@ export interface OperatorResumeInput {
 	recentSessions?: readonly OperatorResumeSessionRecord[];
 	recentPrompts?: readonly string[];
 	finish?: OperatorResumeFinishRecord | null;
+	scheduledWork?: OperatorResumeScheduledWorkInspection | null;
 	commands?: Partial<OperatorResumeCommands>;
 }
 
@@ -152,6 +190,7 @@ export interface OperatorResumeSummary {
 	runtime?: OperatorResumeRuntimeSummary;
 	model?: OperatorResumeModelSummary;
 	project?: OperatorResumeProjectSummary;
+	scheduledWork?: OperatorResumeScheduledWorkInspection;
 	session: OperatorResumeSessionSummary;
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
@@ -367,6 +406,7 @@ export function buildOperatorResumeSummary(
 			status: runtime ||
 				Boolean(input.model) ||
 				Boolean(input.project) ||
+				Boolean(input.scheduledWork) ||
 				session.status !== "none" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
@@ -377,6 +417,7 @@ export function buildOperatorResumeSummary(
 		runtime,
 		model: input.model,
 		project: input.project ?? undefined,
+		scheduledWork: input.scheduledWork ?? undefined,
 		session,
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
@@ -622,6 +663,27 @@ export function formatOperatorResumeSummary(
 	} else {
 		lines.push("Project handoff: none");
 	}
+	if (summary.scheduledWork) {
+		const { summary: scheduledSummary } = summary.scheduledWork;
+		lines.push(
+			`Scheduled work: ${scheduledSummary.total} local job${scheduledSummary.total === 1 ? "" : "s"} due=${scheduledSummary.due} scheduled=${scheduledSummary.scheduled} unsupported=${scheduledSummary.unsupported}`,
+		);
+		lines.push(`  owner: ${summary.scheduledWork.owner}`);
+		for (const job of summary.scheduledWork.jobs.slice(0, 10)) {
+			const schedule = formatScheduledWorkSchedule(job);
+			lines.push(
+				`  ${job.id} ${job.status} ${job.kind} ${job.name}${schedule ? ` ${schedule}` : ""}`,
+			);
+			if (job.resume?.summary) {
+				lines.push(`    resume: ${job.resume.summary}`);
+			}
+			if (job.unsupportedReason) {
+				lines.push(`    unsupported: ${job.unsupportedReason}`);
+			}
+		}
+	} else {
+		lines.push("Scheduled work: none");
+	}
 	if (
 		(summary.session.status === "active" || summary.session.status === "stale") &&
 		summary.session.activeSessionId
@@ -716,6 +778,18 @@ export function formatOperatorResumeSummary(
 		lines.push(`    logs:   ${effort.logsCommand}`);
 	}
 	return lines.join("\n");
+}
+
+function formatScheduledWorkSchedule(
+	job: OperatorResumeScheduledWorkJob,
+): string | undefined {
+	if (job.schedule.type === "once" && job.schedule.at) {
+		return `at=${job.schedule.at}`;
+	}
+	if (job.schedule.type === "cron" && job.schedule.schedule) {
+		return `cron=${job.schedule.schedule}${job.schedule.timezone ? ` timezone=${job.schedule.timezone}` : ""}`;
+	}
+	return undefined;
 }
 
 function truncateResumeText(value: string, maxLength: number): string {

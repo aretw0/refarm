@@ -127,6 +127,13 @@ visibility. This does not dispatch work. It gives Refarm and downstream
 consumers a small governed surface before any daemon, fanout, or background
 execution is introduced.
 
+Current proof (2026-06-27): `refarm resume --json` has an operator-level slot
+for scheduled-work inspection payloads. The CLI can now carry due/scheduled
+local jobs in the same daily-driver handoff shape as runtime, model, project,
+session, finish, and task state. Refarm still does not invent a scheduler store
+or daemon in this layer; the next implementation can connect a real
+`automation:v1` adapter without changing the resume contract.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;
