@@ -67,4 +67,8 @@
 - The browser sync client contract is covered with a fake WebSocket; the
   `apps/me` Gate 3b proof still requires a running Tractor daemon and browser
   runtime snapshot application.
+- `BrowserSyncClient` emits lifecycle/update events for host-owned telemetry
+  (`connecting`, `open`, local send, remote receive/apply, close, error). These
+  events are intentionally transport-level and do not interpret the Loro
+  payload.
 - The "Blood" of the sovereign farm — ensuring information flows consistently across all nodes.

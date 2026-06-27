@@ -31,26 +31,55 @@ describe("BrowserSyncClient", () => {
 			}),
 		} as unknown as LoroCRDTStorage;
 
-		const client = new BrowserSyncClient(storage);
+		const onEvent = vi.fn();
+		const client = new BrowserSyncClient(storage, { onEvent });
 		client.connect();
 
 		const socket = sockets[0]!;
 		expect(socket.url).toBe("ws://localhost:42000");
 		expect(socket.binaryType).toBe("arraybuffer");
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "connecting",
+			wsUrl: "ws://localhost:42000",
+		});
 
 		socket.open();
 		await Promise.resolve();
 		expect(storage.getUpdate).toHaveBeenCalled();
 		expect(socket.sent).toEqual([localUpdate]);
 		expect(storage.onUpdate).toHaveBeenCalledWith(expect.any(Function));
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "open",
+			wsUrl: "ws://localhost:42000",
+		});
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "local-state-sent",
+			byteLength: localUpdate.byteLength,
+			wsUrl: "ws://localhost:42000",
+		});
 
 		const localDelta = new Uint8Array([7, 8, 9]);
 		localUpdateHandler?.(localDelta);
 		expect(socket.sent).toEqual([localUpdate, localDelta]);
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "local-update-sent",
+			byteLength: localDelta.byteLength,
+			wsUrl: "ws://localhost:42000",
+		});
 
 		socket.receive(remoteSnapshot);
 		await Promise.resolve();
 		expect(storage.applyUpdate).toHaveBeenCalledWith(remoteSnapshot);
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "remote-update-received",
+			byteLength: remoteSnapshot.byteLength,
+			wsUrl: "ws://localhost:42000",
+		});
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "remote-update-applied",
+			byteLength: remoteSnapshot.byteLength,
+			wsUrl: "ws://localhost:42000",
+		});
 
 		client.disconnect();
 		expect(socket.close).toHaveBeenCalled();

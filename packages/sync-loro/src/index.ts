@@ -31,5 +31,9 @@
 
 export { LoroCRDTStorage } from "./loro-crdt-storage.js";
 export { Projector } from "./projector.js";
-export { BrowserSyncClient } from "./browser-sync-client.js";
+export {
+	BrowserSyncClient,
+	type BrowserSyncClientEvent,
+	type BrowserSyncClientOptions,
+} from "./browser-sync-client.js";
 export { peerIdFromString, randomPeerId } from "./peer-id.js";

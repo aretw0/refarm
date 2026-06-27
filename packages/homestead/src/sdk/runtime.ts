@@ -4,6 +4,7 @@ import {
 	BrowserSyncClient,
 	LoroCRDTStorage,
 	randomPeerId,
+	type BrowserSyncClientEvent,
 } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 
@@ -33,6 +34,10 @@ export interface BootStudioRuntimeOptions {
 	envMetadata?: Record<string, string>;
 	connectBrowserSync?: boolean;
 	tractorSync?: boolean;
+	browserSync?: {
+		wsUrl?: string;
+		onEvent?: (event: BrowserSyncClientEvent) => void;
+	};
 }
 
 export interface StudioRuntime {
@@ -77,7 +82,7 @@ export async function bootStudioRuntime(
 		options.identityPublicKey,
 	);
 	const syncClient = options.connectBrowserSync
-		? new BrowserSyncClient(storage)
+		? new BrowserSyncClient(storage, options.browserSync)
 		: undefined;
 
 	if (syncClient) syncClient.connect();
