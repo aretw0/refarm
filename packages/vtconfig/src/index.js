@@ -123,13 +123,10 @@ export const baseConfig = {
     testTimeout: 15000,
     hookTimeout: 15000,
     // OOM-freeze guard: bound the worker pool so no test run (even a broad filter) can
-    // exhaust the container's 4GB cap. Caps the count for whichever pool is active
-    // (default/forks or threads); ~4 workers ≈ 1GB + base ≈ 2GB, safely under 4GB.
+    // exhaust the container's 4GB cap. Vitest 4 moved this limit to a top-level option.
+    // ~4 workers ≈ 1GB + base ≈ 2GB, safely under 4GB.
     // Tune up if the host gives the container more memory (see .devcontainer --memory).
-    poolOptions: {
-      forks: { maxForks: 4, minForks: 1 },
-      threads: { maxThreads: 4, minThreads: 1 },
-    },
+    maxWorkers: 4,
     ...getCiVitestReporterOptions(),
   },
   resolve: {
