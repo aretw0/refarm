@@ -24,7 +24,7 @@
       "source": "package.template.json",
       "target": "package.json",
       "class": "transform",
-      "transforms": ["rename", "set-package-repository"]
+      "transforms": ["rename", "set-package-repository", "externalize-dgk-astro-plugins"]
     },
     {
       "source": "pnpm-lock.template.yaml",

@@ -119,9 +119,17 @@ test("generated vault from vault-seed source satisfies the template boundary", a
 		packageJson.repository?.url,
 		"https://github.com/aretw0/generated-vault.git",
 	);
+	assert.equal(
+		packageJson.dependencies?.["@aretw0/dgk-astro-plugins"],
+		"latest",
+	);
 	assert.doesNotMatch(
 		readFileSync(path.join(outDir, "package.json"), "utf8"),
 		/\{\{REPO_NAME\}\}/,
+	);
+	assert.doesNotMatch(
+		readFileSync(path.join(outDir, "package.json"), "utf8"),
+		/"@aretw0\/dgk-astro-plugins":\s*"workspace:/,
 	);
 	assert.equal(packageJson.scripts?.changeset, undefined);
 	assert.equal(packageJson.devDependencies?.["standard-version"], undefined);

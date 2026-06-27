@@ -121,15 +121,16 @@ test("initialize.yml content transforms are represented", (t) => {
 	);
 });
 
-test("package template rename carries repository identity transform", () => {
+test("package template rename carries package materialization transforms", () => {
 	assert.ok(
 		manifest.renames.some(
 			(entry) =>
 				entry.source === "package.template.json" &&
 				entry.target === "package.json" &&
 				entry.transforms.includes("rename") &&
-				entry.transforms.includes("set-package-repository"),
+				entry.transforms.includes("set-package-repository") &&
+				entry.transforms.includes("externalize-dgk-astro-plugins"),
 		),
-		"missing package repository identity transform",
+		"missing package materialization transforms",
 	);
 });
