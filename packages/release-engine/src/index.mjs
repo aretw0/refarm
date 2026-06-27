@@ -3,10 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 
 export const DEFAULT_POLICY_VERSION = "2026-01";
 export const SUPPORTED_POLICY_VERSIONS = [DEFAULT_POLICY_VERSION];
 export const RELEASE_ENGINE_JSON_SCHEMA_VERSION = 1;
+export const RELEASE_PLAN_AUDIT_SCHEMA_VERSION = 1;
 
 export class ReleasePolicyValidationError extends Error {
   constructor(code, message, details = {}) {
@@ -717,6 +719,80 @@ export function summarizePlan(plan) {
     selection: plan.selection || null,
     ok: Boolean(plan.ok),
     dryRun: Boolean(plan.dryRun),
+  };
+}
+
+function stableJsonValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableJsonValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .filter((key) => value[key] !== undefined)
+        .map((key) => [key, stableJsonValue(value[key])]),
+    );
+  }
+
+  return value;
+}
+
+export function stringifyReleasePlanAuditPayload(payload) {
+  return JSON.stringify(stableJsonValue(payload));
+}
+
+function hashReleasePlanAuditPayload(payload) {
+  return createHash("sha256")
+    .update(stringifyReleasePlanAuditPayload(payload))
+    .digest("hex");
+}
+
+export function createReleasePlanAuditRecord(plan, { createdAt = new Date().toISOString() } = {}) {
+  const payload = {
+    schemaVersion: RELEASE_PLAN_AUDIT_SCHEMA_VERSION,
+    releaseOutputSchemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
+    ok: Boolean(plan.ok),
+    status: plan.status,
+    policyVersion: plan.policy?.policyVersion ?? null,
+    mode: plan.policy?.mode ?? null,
+    packageCount: plan.orderedNames?.length || 0,
+    packages: plan.orderedNames || [],
+    blockers: plan.blockers || [],
+    packageProfiles: releasePlanPackageProfiles(plan),
+    requiredGates: (plan.gates || [])
+      .filter((gate) => gate.required)
+      .map((gate) => gate.id),
+    gates: (plan.gates || []).map((gate) => ({
+      id: gate.id,
+      required: gate.required,
+      riskWeight: gate.riskWeight,
+      commandCount: Array.isArray(gate.commands) ? gate.commands.length : 0,
+    })),
+    publishIntents: (plan.publishIntents || []).map((intent) => ({
+      provider: intent.provider,
+      type: intent.type || null,
+      mode: intent.plan?.mode || null,
+      commandCount: Array.isArray(intent.plan?.commands) ? intent.plan.commands.length : 0,
+      dryRunCommandCount: Array.isArray(intent.plan?.dryRunCommands)
+        ? intent.plan.dryRunCommands.length
+        : 0,
+      requiresManualApproval: Boolean(intent.plan?.requiresManualApproval),
+    })),
+    profileTags: plan.profileTags || [],
+    selection: plan.selection || null,
+    dryRun: Boolean(plan.dryRun),
+  };
+
+  return {
+    schemaVersion: RELEASE_PLAN_AUDIT_SCHEMA_VERSION,
+    createdAt,
+    digest: {
+      algorithm: "sha256",
+      value: hashReleasePlanAuditPayload(payload),
+    },
+    payload,
   };
 }
 
