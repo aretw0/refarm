@@ -8,6 +8,10 @@ import {
 	type OperatorResumeProjectSummary,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
+import {
+	parseProjectHandoffSummary,
+	PROJECT_HANDOFF_RELATIVE_PATH,
+} from "@refarm.dev/cli/project-handoff";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -184,46 +188,15 @@ async function emitResume(
 	}
 }
 
-function stringArray(value: unknown, limit: number): string[] {
-	if (!Array.isArray(value)) return [];
-	return value
-		.filter((item): item is string => typeof item === "string" && item.length > 0)
-		.slice(0, limit);
-}
-
 export function loadProjectHandoff(
 	cwd: string = process.cwd(),
 ): OperatorResumeProjectSummary | undefined {
-	const handoffPath = path.join(cwd, ".project", "handoff.json");
+	const handoffPath = path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
 	try {
-		const parsed = JSON.parse(fs.readFileSync(handoffPath, "utf-8")) as Record<
-			string,
-			unknown
-		>;
-		const context = typeof parsed.context === "string"
-			? parsed.context
-			: undefined;
-		const timestamp = typeof parsed.timestamp === "string"
-			? parsed.timestamp
-			: undefined;
-		const currentPhase =
-			typeof parsed.current_phase === "string" ||
-			typeof parsed.current_phase === "number"
-				? parsed.current_phase
-				: undefined;
-		if (!context && !timestamp && currentPhase === undefined) {
-			return undefined;
-		}
-		return {
-			path: ".project/handoff.json",
-			timestamp,
-			currentPhase,
-			context,
-			currentTasks: stringArray(parsed.current_tasks, 5),
-			blockers: stringArray(parsed.blockers, 5),
-			nextActions: stringArray(parsed.next_actions, 5),
-			openQuestions: stringArray(parsed.open_questions, 5),
-		};
+		return parseProjectHandoffSummary(
+			JSON.parse(fs.readFileSync(handoffPath, "utf-8")),
+			{ arrayLimit: 5 },
+		);
 	} catch {
 		return undefined;
 	}

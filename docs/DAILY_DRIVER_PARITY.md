@@ -19,7 +19,7 @@ locally.
 | See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; runtime-agent smoke writes stream files; real Tractor/apps-me E2E pending                 | local stream proven / app E2E pending |
 | Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities; shell tool path is policy-gated, trusted-plugin gated, and audited      | live policy proven |
 | Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, syncs, reopens local nodes, and runtime-agent task/session handoffs survive a daemon restart                | restart proof proven |
-| Resume after interruption | handoff + project status                    | `refarm resume --json` recovers task checkpoints, reads `.project/handoff.json`, and uses governed handoff data as contextual recovery state     | checkpoint + project handoff policy proven / write command pending |
+| Resume after interruption | handoff + project status                    | `refarm resume --json` recovers task checkpoints, reads `.project/handoff.json`; `refarm project handoff validate/write` governs handoff updates | checkpoint + project handoff command proven |
 | Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
 | Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                                                      | ⬜     |
 | Automate reminders        | Windmill/scheduler equivalent               | one-shot and recurring reminders run locally with clear ownership                                                                               | ⬜     |
@@ -189,10 +189,11 @@ envelope.
 That proves the local checkpoint handoff and the versioned project handoff read.
 The project handoff policy is now explicit: `.project/handoff.json` is durable
 contextual recovery state for `resume`, not a hidden command queue. It becomes
-live current-work state only after an explicit source edit or future checkpoint
-command updates it, and the next slice must still pass `resume`, `check`, and
-the relevant finish lane before agents treat it as fresh. The remaining gap is a
-first-class write/validate command for governed handoff updates.
+live current-work state only after an explicit source edit or
+`refarm project handoff write` updates it, and the next slice must still pass
+`resume`, `check`, and the relevant finish lane before agents treat it as fresh.
+`refarm project handoff validate --json` is the machine-readable freshness and
+shape check for automated consumers.
 
 Current evidence (2026-06-27): Homestead already owns the first UI subscriber
 slice. `StudioShell` registers `onNode("StreamSession")` and
