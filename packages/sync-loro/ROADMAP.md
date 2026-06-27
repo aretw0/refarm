@@ -29,6 +29,9 @@
 
 - [x] Unit: `LoroDoc` snapshot and delta encoding/decoding.
 - [x] Unit: Projector mapping logic (Doc → SQL).
+- [x] Unit: `BrowserSyncClient` connects to `ws://localhost:42000`, sends local
+      binary state on open, forwards local deltas, and applies received binary
+      snapshots/updates.
 - [x] Coverage: >85%
 
 ### DDD (Domain Implementation) ✅
@@ -61,4 +64,7 @@
 
 - See [packages/sync-loro/src/loro-crdt-storage.ts](./src/loro-crdt-storage.ts) for core logic.
 - `BrowserSyncClient` remains schema-neutral: it transports Loro binary updates and must not special-case `AgentResponse`, `StreamChunk`, or `StreamSession`; stream rendering belongs in the UI subscriber that reads materialized Tractor nodes.
+- The browser sync client contract is covered with a fake WebSocket; the
+  `apps/me` Gate 3b proof still requires a running Tractor daemon and browser
+  runtime snapshot application.
 - The "Blood" of the sovereign farm — ensuring information flows consistently across all nodes.
