@@ -1,10 +1,23 @@
-import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	addProjectAutomationRecord,
 	buildProjectAutomationRecord,
+	findProjectAutomationsPath,
+	loadProjectScheduledWork,
 	updateProjectAutomationStatus,
 	validateProjectAutomationsDocument,
 } from "./project-automations.js";
+
+const tempRoots: string[] = [];
+
+afterEach(() => {
+	for (const root of tempRoots.splice(0)) {
+		fs.rmSync(root, { recursive: true, force: true });
+	}
+});
 
 describe("project automations", () => {
 	it("builds governed automation records with draft status by default", () => {
@@ -121,5 +134,65 @@ describe("project automations", () => {
 				status: "active",
 			}),
 		).toThrow("Automation id not found: missing");
+	});
+
+	it("loads scheduled work from a project automation manifest above cwd", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-project-"));
+		tempRoots.push(root);
+		const nested = path.join(root, "apps", "me");
+		fs.mkdirSync(path.join(root, ".project"), { recursive: true });
+		fs.mkdirSync(nested, { recursive: true });
+		const automationsPath = path.join(root, ".project", "automations.json");
+		fs.writeFileSync(
+			automationsPath,
+			JSON.stringify({
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "active",
+						triggers: [{ type: "cron", schedule: "@daily" }],
+					},
+					{
+						id: "manual-only",
+						name: "Manual only",
+						status: "active",
+						triggers: [{ type: "manual" }],
+					},
+					{
+						id: "draft",
+						name: "Draft",
+						status: "draft",
+						triggers: [{ type: "once", at: "2026-06-27T09:00:00.000Z" }],
+					},
+				],
+			}),
+		);
+
+		expect(findProjectAutomationsPath(nested)).toBe(automationsPath);
+		await expect(
+			loadProjectScheduledWork({
+				cwd: nested,
+				now: "2026-06-27T10:00:00.000Z",
+				owner: "apps/me",
+			}),
+		).resolves.toMatchObject({
+			owner: "apps/me",
+			summary: {
+				total: 1,
+				due: 0,
+				scheduled: 1,
+				unsupported: 0,
+			},
+			jobs: [
+				{
+					id: "daily-handoff:0",
+					automationId: "daily-handoff",
+					status: "scheduled",
+					modelRoute: "none",
+					tokenUse: "none",
+				},
+			],
+		});
 	});
 });

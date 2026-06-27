@@ -448,6 +448,9 @@ importers:
       '@refarm.dev/trust':
         specifier: workspace:*
         version: link:../trust
+      '@refarm.dev/windmill':
+        specifier: workspace:*
+        version: link:../windmill
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

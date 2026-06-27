@@ -227,6 +227,9 @@ export type {
 	OperatorResumeFinishSummary,
 	OperatorResumeInput,
 	OperatorResumeModelRoute,
+	OperatorResumeScheduledWorkInspection,
+	OperatorResumeScheduledWorkJob,
+	OperatorResumeScheduledWorkSummary,
 	OperatorResumeSessionRecord,
 	OperatorResumeRuntimeSummary,
 	OperatorResumeSessionSummary,
@@ -252,8 +255,12 @@ export type {
 export {
 	addProjectAutomationRecord,
 	buildProjectAutomationRecord,
+	findProjectAutomationsPath,
+	loadProjectScheduledWork,
 	normalizeProjectAutomationsDocument,
 	PROJECT_AUTOMATIONS_RELATIVE_PATH,
+	requireProjectAutomationId,
+	updateProjectAutomationStatus,
 	validateProjectAutomationsDocument,
 } from "./project-automations.js";
 export type {
@@ -266,7 +273,11 @@ export type {
 	ProjectAutomationRecord,
 	ProjectAutomationsDocument,
 	ProjectAutomationsValidationResult,
+	ProjectScheduledWorkInspection,
+	ProjectScheduledWorkOptions,
+	ProjectScheduledWorkSummary,
 	ProjectAutomationStatus,
+	ProjectAutomationStatusUpdateInput,
 	ProjectAutomationTrigger,
 	ProjectAutomationValidationIssue,
 } from "./project-automations.js";

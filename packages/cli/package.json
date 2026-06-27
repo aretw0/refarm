@@ -167,7 +167,8 @@
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/launch-process": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
-		"@refarm.dev/trust": "workspace:*"
+		"@refarm.dev/trust": "workspace:*",
+		"@refarm.dev/windmill": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",
 	"publishConfig": {
