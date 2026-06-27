@@ -1,20 +1,19 @@
 {
-  "context": "Checkpoint 2026-06-27. structured-io agora tem uma smoke no-token local no crate agent-tools, provando a primitiva reference-driver sem provider, sidecar ou build WASM.",
-  "timestamp": "2026-06-27T17:59:49.858Z",
+  "context": "Checkpoint 2026-06-27. session-tree agora tem uma smoke reference-driver no app refarm, provando list/show/preview --switch via envelopes JSON sem provider, git execution ou runtime real.",
+  "timestamp": "2026-06-27T18:09:45.584Z",
   "current_phase": "12",
   "current_tasks": [
-    "Reference-driver smoke: packages/agent-tools cobre structured_parse com paginação JSON e write_structured validando antes de tocar no arquivo.",
-    "A prova confirmou que escrita inválida retorna erro de parse e preserva o conteúdo original; escrita válida atualiza atomicamente pelo caminho da primitiva.",
-    "Validação econômica: cargo test --lib structured_io --quiet e cargo test --lib --quiet passaram em packages/agent-tools; git diff --check e after-edit passaram."
+    "Reference-driver smoke: apps/refarm/test/commands/tree.reference-driver.test.ts encadeia refarm tree list/show/preview --switch com fixtures e mocks do sidecar.",
+    "A prova garante URLs do sidecar local, nextCommand/nextAction dos envelopes e ausência de spawnSync, mantendo a primitiva session-tree no-token e sem substrato git.",
+    "Validação econômica: pnpm -C apps/refarm run test:tree-reference-driver, pnpm -C apps/refarm run type-check, git diff --check, after-edit e after-commit passaram; turbo pós-commit foi full-hit."
   ],
   "blockers": [],
   "next_actions": [
-    "Escolher a próxima primitiva reference-driver: session-tree via comandos CLI existentes ou code-ops pelo stub/LSP boundary.",
-    "Planejar exposição dessa prova em script/smoke nomeado se quisermos agregá-la a um gate leve sem depender de lembrar o filtro cargo manual.",
+    "Escolher a próxima primitiva reference-driver: code-ops pelo stub/LSP boundary ou empacotar structured-io + session-tree em um gate leve nomeado.",
     "Continuar preparando blocos publicáveis npm/crates mantendo Refarm como fornecedor de SDK/engine para apps internos e futuros consumidores."
   ],
   "open_questions": [
-    "A próxima prova no-token deve subir para session-tree, code-ops, ou empacotar um comando smoke que rode structured-io por nome?"
+    "A próxima fatia deve provar code-ops no-token ou consolidar smokes reference-driver em um comando/gate de publicação?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
