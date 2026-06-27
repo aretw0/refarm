@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -89,4 +90,34 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		assert.equal(command.display, "pnpm publish --dry-run --no-git-checks");
 		assert.equal(command.command.includes(" -r "), false);
 	}
+});
+
+test("release check plan json exposes acceptance summary", () => {
+	const output = execFileSync(
+		process.execPath,
+		[
+			"scripts/release-check.mjs",
+			"--selection",
+			"vault-seed-ready",
+			"--plan",
+			"--json",
+		],
+		{
+			cwd: ROOT,
+			encoding: "utf8",
+		},
+	);
+	const payload = JSON.parse(output);
+
+	assert.equal(payload.ok, true);
+	assert.equal(payload.selection.id, "vault-seed-ready");
+	assert.equal(payload.acceptance.status, "accepted");
+	assert.equal(payload.acceptance.packageCount, 10);
+	assert.equal(payload.acceptance.blockerCount, 0);
+	assert.equal(payload.acceptance.manualApprovalRequired, true);
+	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
+	assert.equal(
+		payload.acceptance.requiredChecks.length,
+		payload.acceptance.requiredCheckCount,
+	);
 });

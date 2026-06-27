@@ -3,7 +3,11 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { packagePublishDryRunCommand } from "../packages/config/src/package-manager.js";
-import { buildReleasePlan, formatPlan } from "../packages/release-engine/src/index.mjs";
+import {
+	buildReleasePlan,
+	formatPlan,
+	releasePlanAcceptance,
+} from "../packages/release-engine/src/index.mjs";
 
 export function parseReleaseCheckArgs(argv = []) {
 	const options = {
@@ -123,6 +127,7 @@ function serializeCheck(check) {
 		status: check.plan.status,
 		selection: check.plan.selection,
 		packages: check.plan.orderedNames,
+		acceptance: releasePlanAcceptance(check.plan),
 		commands: check.commands.map((command) => ({
 			packageName: command.packageName,
 			packageDir: command.packageDir,
