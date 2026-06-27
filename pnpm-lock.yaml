@@ -258,6 +258,9 @@ importers:
       '@refarm.dev/sync-loro':
         specifier: workspace:*
         version: link:../../packages/sync-loro
+      '@refarm.dev/tractor':
+        specifier: workspace:*
+        version: link:../../packages/tractor-ts
       astro:
         specifier: ^6.4.8
         version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)

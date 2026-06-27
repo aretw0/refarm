@@ -81,6 +81,7 @@ export function getAliases(root) {
 
   return {
     '@refarm.dev/tractor/test/test-utils': path.resolve(packagesDir, 'tractor-ts', 'test', 'test-utils.ts'),
+    '@refarm.dev/tractor/browser': path.resolve(packagesDir, 'tractor-ts', useDistGlobal || forcedDistPackages.includes('@refarm.dev/tractor') ? 'dist/src/index.browser.js' : 'src/index.browser.ts'),
     '@refarm.dev/tractor': path.resolve(packagesDir, 'tractor-ts', getSuffix('@refarm.dev/tractor')),
     '@refarm.dev/plugin-manifest': path.resolve(packagesDir, 'plugin-manifest', getSuffix('@refarm.dev/plugin-manifest')),
     '@refarm.dev/barn': path.resolve(packagesDir, 'barn', getSuffix('@refarm.dev/barn')),
