@@ -12,6 +12,11 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 > dos quatro candidatos atuais (`storage-contract-v1`, `sync-contract-v1`,
 > `identity-contract-v1`, `channel-policy-v1`). A publicação real continua
 > pendente de aprovação humana e credenciais de registry.
+>
+> Evidência de consumidor (2026-06-27): `scripts/ci/test-vault-seed-release-consumer.mjs`
+> gera um vault fixture pelo manifest atual, lê `inventory.json` e prova que as
+> dependências `@refarm.dev/*` do `package.json` gerado estão cobertas pela
+> seleção `vault-seed-ready` e seus checks.
 
 ## V0 — Núcleo de Planejamento Determinístico
 
@@ -31,8 +36,10 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [x] Testes unitários de parsing de policy.
 - [x] Testes de ordenação topológica de dependências.
 - [x] Testes de integração com policy do Refarm e seleção `vault-seed-ready`
-      via CLI JSON. Policies de `vault-seed`/`agents-lab` ficam para quando
-      esses projetos consumirem o pacote publicado ou um fixture próprio.
+      via CLI JSON.
+- [x] Prova de consumidor gerado: vault fixture -> inventory/package -> seleção
+      `vault-seed-ready`. Policies oficiais de `vault-seed`/`agents-lab` ficam
+      para quando esses projetos consumirem o pacote publicado ou um fixture próprio.
 
 ### DDD (Domain Delivery)
 - [x] CLI e API em módulo próprio (`packages/release-engine`).

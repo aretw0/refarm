@@ -199,20 +199,22 @@ Each numbered item gets its own `brainstorm → spec → plan` before execution.
 These are the next things worth deepening before writing broad code. They are deliberately phrased
 as codemod/generator work when a repeatable transform is cheaper and safer than manual edits.
 
-1. **Release-policy consumer proof after generator inventory:** connect the generated-vault
-   inventory/codemod lane to `release-engine` so `dgk publish workspace` and custom distributions
-   do not grow as `vault-seed`-local substrate.
-2. **Codemod candidates:** only codemod recurring transforms. The current ready entries are
+1. **Codemod candidates:** only codemod recurring transforms. The current ready entries are
    `ds-token-adoption` and `package-workspace-adoption`; keep ADR decisions and one-off prose as
    docs.
-3. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
+2. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.
-4. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
+3. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
    source materialization, generated vault output, and agent artifact/log workloads. It must stay
    capability-probed with fallback and cannot leak into TS public APIs.
 
 Item 5 note: Astro 7/WASI Part C is closed red for now. The evidence remains under
 `validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain active.
+
+Closed on 2026-06-27: the generated-vault inventory lane now has a Refarm-side consumer proof
+(`scripts/ci/test-vault-seed-release-consumer.mjs`) that generates a vault fixture, reads the
+generated `package.json` and `inventory.json`, and verifies every `@refarm.dev/*` package consumed
+by the fixture is covered by the `vault-seed-ready` release selection and package checks.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
 4, 5, 6, 7, 8, 9, 10, or 11. It records which items are execution-ready, which are deliberately gated, and
