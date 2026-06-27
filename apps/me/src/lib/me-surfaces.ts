@@ -45,6 +45,13 @@ export interface RefarmMeSurfaceContextOptions {
 	graphMode?: string;
 	pluginRegistryCount?: number;
 	discoveredContentPluginCount?: number;
+	referenceDriverCapabilityIds?: readonly string[];
+	scheduledWorkSummary?: {
+		total: number;
+		due: number;
+		scheduled: number;
+		unsupported: number;
+	};
 }
 
 export function createRefarmMeSurfacePlugins(
@@ -94,6 +101,24 @@ export function renderRefarmMePersonalSurface(
 	const discoveredContentPluginCount = escapeRefarmMeSurfaceText(
 		String(request.host?.data?.discoveredContentPluginCount ?? 0),
 	);
+	const referenceDriverCapabilityIds = Array.isArray(
+		request.host?.data?.referenceDriverCapabilityIds,
+	)
+		? request.host.data.referenceDriverCapabilityIds
+				.map((value) => String(value))
+				.filter((value) => value.length > 0)
+		: [];
+	const referenceDriverCapabilityCount = escapeRefarmMeSurfaceText(
+		String(referenceDriverCapabilityIds.length),
+	);
+	const scheduledWorkSummary = readRefarmMeSurfaceScheduledWorkSummary(
+		request.host?.data?.scheduledWorkSummary,
+	);
+	const scheduledWorkLabel = escapeRefarmMeSurfaceText(
+		scheduledWorkSummary
+			? `${scheduledWorkSummary.scheduled} scheduled / ${scheduledWorkSummary.due} due`
+			: "not provided",
+	);
 	const action = request.host?.actions?.find(
 		(candidate) => candidate.id === REFARM_ME_OPEN_VAULT_ACTION_ID,
 	);
@@ -127,6 +152,14 @@ export function renderRefarmMePersonalSurface(
 					<dt class="refarm-eyebrow">Plugins</dt>
 					<dd data-refarm-me-discovered-content-plugin-count>${discoveredContentPluginCount}</dd>
 				</div>
+				<div>
+					<dt class="refarm-eyebrow">Driver primitives</dt>
+					<dd data-refarm-me-reference-driver-count>${referenceDriverCapabilityCount}</dd>
+				</div>
+				<div>
+					<dt class="refarm-eyebrow">Scheduled work</dt>
+					<dd data-refarm-me-scheduled-work>${scheduledWorkLabel}</dd>
+				</div>
 			</dl>
 			<p>It keeps Refarm.me product UX app-owned while exercising the same layout, surface, and action primitives used by the Studio app.</p>
 			${actionButton ? `<div class="refarm-cluster">${actionButton}</div>` : ""}
@@ -154,6 +187,9 @@ export function createRefarmMeSurfaceContextProvider(
 				pluginRegistryCount: options.pluginRegistryCount ?? 0,
 				discoveredContentPluginCount:
 					options.discoveredContentPluginCount ?? 0,
+				referenceDriverCapabilityIds:
+					options.referenceDriverCapabilityIds ?? [],
+				scheduledWorkSummary: options.scheduledWorkSummary ?? null,
 			},
 			actions: [
 				{
@@ -230,6 +266,37 @@ export function createRefarmMeSurfaceActionHandler(
 
 		await onAction(request);
 		return true;
+	};
+}
+
+function readRefarmMeSurfaceScheduledWorkSummary(value: unknown):
+	| {
+			total: number;
+			due: number;
+			scheduled: number;
+			unsupported: number;
+	  }
+	| undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const candidate = value as {
+		total?: unknown;
+		due?: unknown;
+		scheduled?: unknown;
+		unsupported?: unknown;
+	};
+	if (
+		typeof candidate.total !== "number" ||
+		typeof candidate.due !== "number" ||
+		typeof candidate.scheduled !== "number" ||
+		typeof candidate.unsupported !== "number"
+	) {
+		return undefined;
+	}
+	return {
+		total: candidate.total,
+		due: candidate.due,
+		scheduled: candidate.scheduled,
+		unsupported: candidate.unsupported,
 	};
 }
 

@@ -246,6 +246,9 @@ importers:
 
   apps/me:
     dependencies:
+      '@refarm.dev/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead

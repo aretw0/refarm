@@ -1,3 +1,4 @@
+import { buildRefarmCapabilityIndex } from "@refarm.dev/cli/capability-index";
 import type { HomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
 import {
 	bootStudioRuntime,
@@ -71,6 +72,7 @@ export interface RefarmMeWorkbench {
 	graphMode: RefarmMeGraphMode;
 	pluginRegistryIds: string[];
 	discoveredContentPluginIds: string[];
+	driverStatus: RefarmMeDriverStatus;
 	storeLocalNode(input: RefarmMeLocalNodeInput): Promise<void>;
 }
 
@@ -91,7 +93,20 @@ export interface RefarmMeRuntimeOptions {
 	contentPlugins?: readonly RefarmMeContentPluginInstallInput[];
 	installContentPlugins?: typeof installRefarmMeContentPlugins;
 	browserSyncWsUrl?: string;
+	driverStatus?: RefarmMeDriverStatus;
 	log?: Pick<Console, "error">;
+}
+
+export interface RefarmMeScheduledWorkSummary {
+	total: number;
+	due: number;
+	scheduled: number;
+	unsupported: number;
+}
+
+export interface RefarmMeDriverStatus {
+	referenceDriverCapabilityIds: string[];
+	scheduledWorkSummary?: RefarmMeScheduledWorkSummary;
 }
 
 export async function bootRefarmMeWorkbench(
@@ -118,6 +133,8 @@ export async function bootRefarmMeWorkbench(
 	const tractor = runtime.tractor;
 	browserSyncTelemetry.flushTo(tractor);
 	const graphStatus = await readRefarmMeGraphStatus(runtime);
+	const driverStatus =
+		options.driverStatus ?? readRefarmMeBootstrapDriverStatus();
 
 	const constructors =
 		options.pluginConstructors ?? (await loadRefarmMePluginConstructors());
@@ -153,6 +170,9 @@ export async function bootRefarmMeWorkbench(
 			pluginRegistryCount: graphStatus.pluginRegistryIds.length,
 			discoveredContentPluginCount:
 				graphStatus.discoveredContentPlugins.length,
+			referenceDriverCapabilityIds:
+				driverStatus.referenceDriverCapabilityIds,
+			scheduledWorkSummary: driverStatus.scheduledWorkSummary,
 		}),
 		surfaceAction: createRefarmMeSurfaceActionHandler((request) => {
 			tractor.emitTelemetry({
@@ -181,7 +201,53 @@ export async function bootRefarmMeWorkbench(
 		discoveredContentPluginIds: graphStatus.discoveredContentPlugins.map(
 			(plugin) => plugin.input.manifest.id,
 		),
+		driverStatus,
 		storeLocalNode: (input) => storeRefarmMeLocalNode(runtime, input),
+	};
+}
+
+function readRefarmMeBootstrapDriverStatus(): RefarmMeDriverStatus {
+	const globalConfig = globalThis as typeof globalThis & {
+		__REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__?: {
+			scheduledWork?: { summary?: unknown };
+		};
+	};
+	return {
+		referenceDriverCapabilityIds: buildRefarmCapabilityIndex()
+			.capabilities.filter((capability) =>
+				capability.tags.includes("reference-driver"),
+			)
+			.map((capability) => capability.id),
+		scheduledWorkSummary: readRefarmMeScheduledWorkSummary(
+			globalConfig.__REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__?.scheduledWork
+				?.summary,
+		),
+	};
+}
+
+function readRefarmMeScheduledWorkSummary(
+	value: unknown,
+): RefarmMeScheduledWorkSummary | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const candidate = value as {
+		total?: unknown;
+		due?: unknown;
+		scheduled?: unknown;
+		unsupported?: unknown;
+	};
+	if (
+		typeof candidate.total !== "number" ||
+		typeof candidate.due !== "number" ||
+		typeof candidate.scheduled !== "number" ||
+		typeof candidate.unsupported !== "number"
+	) {
+		return undefined;
+	}
+	return {
+		total: candidate.total,
+		due: candidate.due,
+		scheduled: candidate.scheduled,
+		unsupported: candidate.unsupported,
 	};
 }
 

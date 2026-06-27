@@ -98,6 +98,13 @@ describe("refarm.me runtime", () => {
 			graphMode: "bootstrap",
 			pluginRegistryIds: [],
 			discoveredContentPluginIds: [],
+			driverStatus: {
+				referenceDriverCapabilityIds: [
+					"runtime-agent.session-tree",
+					"runtime-agent.structured-io",
+					"runtime-agent.code-ops",
+				],
+			},
 			storeLocalNode: expect.any(Function),
 		});
 		expect(storage.queryNodes).toHaveBeenCalledWith(
@@ -144,6 +151,12 @@ describe("refarm.me runtime", () => {
 				graphMode: "bootstrap",
 				pluginRegistryCount: 0,
 				discoveredContentPluginCount: 0,
+				referenceDriverCapabilityIds: [
+					"runtime-agent.session-tree",
+					"runtime-agent.structured-io",
+					"runtime-agent.code-ops",
+				],
+				scheduledWorkSummary: null,
 			},
 		});
 
@@ -197,6 +210,75 @@ describe("refarm.me runtime", () => {
 				},
 			}),
 		);
+	});
+
+	it("passes driver capability and scheduled work status into surface context", async () => {
+		const doc = createMeDocument();
+		const tractor = createTractorFixture();
+		const storage = {
+			queryNodes: vi.fn(async () => []),
+			storeNode: vi.fn(async () => {}),
+		};
+		const setupShell = vi.fn(
+			async (_tractor: unknown, _options: unknown) => ({}),
+		) as unknown as typeof setupStudioShell;
+
+		const workbench = await bootRefarmMeWorkbench({
+			document: doc,
+			bootRuntime: vi.fn(async () => ({
+				tractor,
+				storage,
+			})) as unknown as typeof bootStudioRuntime,
+			setupShell,
+			pluginConstructors: createPluginConstructors(),
+			createSurfacePlugins: (() => []) as unknown as typeof createRefarmMeSurfacePlugins,
+			driverStatus: {
+				referenceDriverCapabilityIds: ["runtime-agent.session-tree"],
+				scheduledWorkSummary: {
+					total: 1,
+					due: 0,
+					scheduled: 1,
+					unsupported: 0,
+				},
+			},
+			log: { error: vi.fn() },
+		});
+
+		expect(workbench.driverStatus).toEqual({
+			referenceDriverCapabilityIds: ["runtime-agent.session-tree"],
+			scheduledWorkSummary: {
+				total: 1,
+				due: 0,
+				scheduled: 1,
+				unsupported: 0,
+			},
+		});
+		const shellOptions = vi.mocked(setupShell).mock.calls[0]?.[1] as {
+			surfaceContext: (...args: unknown[]) => unknown;
+		};
+		const host = shellOptions.surfaceContext({
+			pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+			slotId: "main",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: REFARM_ME_PERSONAL_SURFACE_ID,
+				slot: "main",
+			},
+			locale: "en",
+		});
+		expect(host).toMatchObject({
+			data: {
+				referenceDriverCapabilityIds: ["runtime-agent.session-tree"],
+				scheduledWorkSummary: {
+					total: 1,
+					due: 0,
+					scheduled: 1,
+					unsupported: 0,
+				},
+			},
+		});
 	});
 
 	it("detects plugin registry nodes as sovereign graph mode", async () => {
