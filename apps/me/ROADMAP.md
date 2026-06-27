@@ -40,7 +40,7 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 ### Deliverables
 
 - [ ] `StudioShell` mounts with `HeraldPlugin` and `FireflyPlugin` in real DOM slots
-- [ ] `HeraldPlugin` initializes: identity state legible (at minimum: `"unauthenticated"`)
+- [x] `HeraldPlugin` initializes: identity state legible (at minimum: `"unauthenticated"`)
 - [x] `FireflyPlugin` initializes: system notifications functional
 - [ ] `BrowserSyncClient` connects to tractor (`ws://localhost:42000`), snapshot received
 - [ ] At least 1 content plugin installable by explicit URL + SHA-256
@@ -50,7 +50,7 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 ### Current evidence
 
-- Identity bootstrap state is legible through the `apps/me` personal Homestead surface (`"unauthenticated"` by default) and covered by `me-surfaces` plus runtime context handoff tests; the remaining work is binding that state to a real Herald-owned presentation.
+- Identity bootstrap state is legible through both the `apps/me` personal Homestead surface and the shared `HeraldPlugin` status presentation (`"unauthenticated"` by default). Coverage: `me-surfaces`, runtime context handoff, and Homestead Herald status rendering tests.
 - Firefly notifications are covered at the shared Homestead plugin level and through an `apps/me` runtime test that boots the real `FireflyPlugin` and renders a `system:alert` toast.
 - Shell test fixtures now match the real Homestead Layout slots (`logo`, `nav`, `main`, `streams`, `statusbar`) instead of a non-existent `header` slot.
 
