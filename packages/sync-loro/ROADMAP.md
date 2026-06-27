@@ -64,9 +64,12 @@
 
 - See [packages/sync-loro/src/loro-crdt-storage.ts](./src/loro-crdt-storage.ts) for core logic.
 - `BrowserSyncClient` remains schema-neutral: it transports Loro binary updates and must not special-case `AgentResponse`, `StreamChunk`, or `StreamSession`; stream rendering belongs in the UI subscriber that reads materialized Tractor nodes.
-- The browser sync client contract is covered with a fake WebSocket; the
-  `apps/me` Gate 3b proof still requires a running Tractor daemon and browser
-  runtime snapshot application.
+- The browser sync client contract is covered with a fake WebSocket. The
+  `apps/me` Gate 3b app-level proof now boots the browser app, applies a runtime
+  snapshot, and proves an offline local mutation is included in the reconnect
+  payload. The remaining release-gate observation is one combined
+  `apps/me` -> real Tractor daemon -> read-model query assertion for the exact
+  offline node.
 - `BrowserSyncClient` emits lifecycle/update events for host-owned telemetry
   (`connecting`, `open`, local send, remote receive/apply, close, error). These
   events are intentionally transport-level and do not interpret the Loro

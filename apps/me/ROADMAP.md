@@ -100,7 +100,10 @@ Gate 3b now has downstream `apps/me` proof for sync transport, plugin cache
 persistence, explicit content plugin installation, offline-first PWA behavior,
 and offline mutation/reconnect delivery. The remaining daily-driver work should
 move from bootstrap proof to sovereign-mode mileage: graph-backed identity,
-plugin registry discovery, plugin management UI, and multi-device sync.
+plugin registry discovery, plugin management UI, and multi-device sync. For the
+release gate, one combined real-daemon observation still needs to assert that the
+exact offline `apps/me` mutation appears in Tractor's read model after reconnect;
+the app-level smoke currently proves delivery into the reconnect payload.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).
