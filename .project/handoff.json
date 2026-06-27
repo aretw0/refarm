@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. A prova visual do scheduledWork no apps/me foi codificada como smoke browser versionado, fechando a ponta do bootstrap real sem depender de inspeção manual.",
-  "timestamp": "2026-06-27T17:52:32.010Z",
+  "context": "Checkpoint 2026-06-27. structured-io agora tem uma smoke no-token local no crate agent-tools, provando a primitiva reference-driver sem provider, sidecar ou build WASM.",
+  "timestamp": "2026-06-27T17:59:49.858Z",
   "current_phase": "12",
   "current_tasks": [
-    "apps/me ganhou smoke:scheduled-work, que sobe Astro isolado, espera a superfície Homestead renderizar e confirma Scheduled work = 1 scheduled / 0 due a partir de __REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__.",
-    "O dev server manual da 4321 foi encerrado; ficaram só os serviços runtime 42000/42001, evitando processo pendurado no container.",
-    "Validação econômica: smoke novo passou; git diff --check passou; after-edit passou para apps/me com 22/25 tarefas em cache Turbo."
+    "Reference-driver smoke: packages/agent-tools cobre structured_parse com paginação JSON e write_structured validando antes de tocar no arquivo.",
+    "A prova confirmou que escrita inválida retorna erro de parse e preserva o conteúdo original; escrita válida atualiza atomicamente pelo caminho da primitiva.",
+    "Validação econômica: cargo test --lib structured_io --quiet e cargo test --lib --quiet passaram em packages/agent-tools; git diff --check e after-edit passaram."
   ],
   "blockers": [],
   "next_actions": [
-    "Seguir para uma smoke no-token de primitiva runtime-agent reference-driver, começando por structured-io ou session-tree, sem acionar provider.",
-    "Continuar preparando blocos publicáveis npm/crates com Refarm como fornecedor de SDK/engine para apps internos e futuros consumidores.",
-    "Planejar melhoria de feedback/performance dos gates: after-edit continua silencioso por dezenas de segundos mesmo em fatias pequenas."
+    "Escolher a próxima primitiva reference-driver: session-tree via comandos CLI existentes ou code-ops pelo stub/LSP boundary.",
+    "Planejar exposição dessa prova em script/smoke nomeado se quisermos agregá-la a um gate leve sem depender de lembrar o filtro cargo manual.",
+    "Continuar preparando blocos publicáveis npm/crates mantendo Refarm como fornecedor de SDK/engine para apps internos e futuros consumidores."
   ],
   "open_questions": [
-    "A próxima fatia reference-driver deve provar structured-io, session-tree ou code-ops primeiro?"
+    "A próxima prova no-token deve subir para session-tree, code-ops, ou empacotar um comando smoke que rode structured-io por nome?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
