@@ -94,6 +94,9 @@ refarm release plan --json
 # plano por seleção declarada na política
 refarm release plan --selection default --json
 
+# plano com registro auditável e digest SHA-256
+refarm release plan --selection default --json --audit
+
 # validar candidatos explícitos (sem changesets)
 refarm release plan @scope/pkg-name
 
@@ -132,7 +135,8 @@ schema publicado em
 Para logs/auditoria, a API pública expõe `createReleasePlanAuditRecord(plan)`.
 Ela normaliza a parte relevante do plano e anexa um digest SHA-256 estável do
 payload canônico, permitindo comparar ou arquivar a decisão sem depender da
-ordem de propriedades do JSON.
+ordem de propriedades do JSON. O CLI também aceita `--audit` junto de `--json`
+para anexar esse record como `auditRecord`.
 Consumidores que validam a saída do CLI podem carregar
 `@refarm.dev/release-engine/release-output.schema.json`.
 
