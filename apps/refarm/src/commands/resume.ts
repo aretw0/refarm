@@ -1,21 +1,24 @@
+import { loadChatHistory } from "@refarm.dev/cli/chat-history";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
 	type OperatorResumeModelSummary,
+	type OperatorResumeProjectSummary,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
 import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
 import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
-import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { printJson, buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
@@ -43,6 +46,7 @@ export interface ResumeDeps {
 	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
 	loadModelTokens(): Promise<ModelTokens>;
+	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
 }
 
 interface ResumeOptions {
@@ -61,6 +65,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
+		loadProjectHandoff,
 		...deps,
 	};
 
@@ -105,6 +110,7 @@ async function emitResume(
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
+	const project = deps.loadProjectHandoff();
 	const model = await loadModelResumeSummary(deps);
 	const recentSessions =
 		options.status === false ? [] : await deps.loadRecentSessions();
@@ -117,6 +123,7 @@ async function emitResume(
 		const envelope = buildOperatorResumeEnvelope({
 			status,
 			model,
+			project,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
@@ -156,6 +163,7 @@ async function emitResume(
 		const summary = buildOperatorResumeSummary({
 			status,
 			model,
+			project,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
@@ -173,6 +181,51 @@ async function emitResume(
 		}
 	} finally {
 		await statusResult?.shutdown?.();
+	}
+}
+
+function stringArray(value: unknown, limit: number): string[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.filter((item): item is string => typeof item === "string" && item.length > 0)
+		.slice(0, limit);
+}
+
+export function loadProjectHandoff(
+	cwd: string = process.cwd(),
+): OperatorResumeProjectSummary | undefined {
+	const handoffPath = path.join(cwd, ".project", "handoff.json");
+	try {
+		const parsed = JSON.parse(fs.readFileSync(handoffPath, "utf-8")) as Record<
+			string,
+			unknown
+		>;
+		const context = typeof parsed.context === "string"
+			? parsed.context
+			: undefined;
+		const timestamp = typeof parsed.timestamp === "string"
+			? parsed.timestamp
+			: undefined;
+		const currentPhase =
+			typeof parsed.current_phase === "string" ||
+			typeof parsed.current_phase === "number"
+				? parsed.current_phase
+				: undefined;
+		if (!context && !timestamp && currentPhase === undefined) {
+			return undefined;
+		}
+		return {
+			path: ".project/handoff.json",
+			timestamp,
+			currentPhase,
+			context,
+			currentTasks: stringArray(parsed.current_tasks, 5),
+			blockers: stringArray(parsed.blockers, 5),
+			nextActions: stringArray(parsed.next_actions, 5),
+			openQuestions: stringArray(parsed.open_questions, 5),
+		};
+	} catch {
+		return undefined;
 	}
 }
 

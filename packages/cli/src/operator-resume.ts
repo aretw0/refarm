@@ -77,6 +77,7 @@ export interface OperatorResumeFinishRecord {
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	model?: OperatorResumeModelSummary;
+	project?: OperatorResumeProjectSummary | null;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
 	activeSessionId?: string | null;
 	recentSessions?: readonly OperatorResumeSessionRecord[];
@@ -112,6 +113,17 @@ export interface OperatorResumeModelSummary {
 	doctorCommand?: string;
 }
 
+export interface OperatorResumeProjectSummary {
+	path: string;
+	timestamp?: string;
+	currentPhase?: string | number;
+	context?: string;
+	currentTasks: readonly string[];
+	blockers: readonly string[];
+	nextActions: readonly string[];
+	openQuestions: readonly string[];
+}
+
 export interface OperatorResumeSessionSummary {
 	status: "none" | "active" | "stale";
 	activeSessionId?: string;
@@ -139,6 +151,7 @@ export interface OperatorResumeSummary {
 	status: "empty" | "ok";
 	runtime?: OperatorResumeRuntimeSummary;
 	model?: OperatorResumeModelSummary;
+	project?: OperatorResumeProjectSummary;
 	session: OperatorResumeSessionSummary;
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
@@ -353,15 +366,17 @@ export function buildOperatorResumeSummary(
 	return {
 			status: runtime ||
 				Boolean(input.model) ||
+				Boolean(input.project) ||
 				session.status !== "none" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
 			(input.recentPrompts?.length ?? 0) > 0 ||
 			finish.status !== "none"
 			? "ok"
-			: "empty",
+		: "empty",
 		runtime,
 		model: input.model,
+		project: input.project ?? undefined,
 		session,
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
@@ -581,6 +596,32 @@ export function formatOperatorResumeSummary(
 	} else {
 		lines.push("Model: not inspected");
 	}
+	if (summary.project) {
+		const phase = summary.project.currentPhase !== undefined
+			? ` phase=${summary.project.currentPhase}`
+			: "";
+		const timestamp = summary.project.timestamp
+			? ` timestamp=${summary.project.timestamp}`
+			: "";
+		lines.push(`Project handoff: ${summary.project.path}${phase}${timestamp}`);
+		if (summary.project.context) {
+			lines.push(`  context: ${truncateResumeText(summary.project.context, 180)}`);
+		}
+		for (const task of summary.project.currentTasks) {
+			lines.push(`  current: ${task}`);
+		}
+		for (const action of summary.project.nextActions) {
+			lines.push(`  next: ${action}`);
+		}
+		for (const blocker of summary.project.blockers) {
+			lines.push(`  blocker: ${blocker}`);
+		}
+		for (const question of summary.project.openQuestions) {
+			lines.push(`  question: ${question}`);
+		}
+	} else {
+		lines.push("Project handoff: none");
+	}
 	if (
 		(summary.session.status === "active" || summary.session.status === "stale") &&
 		summary.session.activeSessionId
@@ -675,4 +716,8 @@ export function formatOperatorResumeSummary(
 		lines.push(`    logs:   ${effort.logsCommand}`);
 	}
 	return lines.join("\n");
+}
+
+function truncateResumeText(value: string, maxLength: number): string {
+	return value.length <= maxLength ? value : `${value.slice(0, maxLength - 3)}...`;
 }

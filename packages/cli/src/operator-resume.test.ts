@@ -173,6 +173,41 @@ describe("operator resume", () => {
 		});
 	});
 
+	it("carries repository project handoff context without changing command recovery", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			project: {
+				path: ".project/handoff.json",
+				timestamp: "2026-06-27T05:00:00.000Z",
+				currentPhase: 12,
+				context: "Daily-driver resume checkpoint",
+				currentTasks: ["prove project handoff resume"],
+				blockers: [],
+				nextActions: ["wire project handoff into app resume"],
+				openQuestions: ["when does .project become source of truth?"],
+			},
+		});
+
+		expect(envelope).toMatchObject({
+			project: {
+				path: ".project/handoff.json",
+				currentPhase: 12,
+				currentTasks: ["prove project handoff resume"],
+				nextActions: ["wire project handoff into app resume"],
+			},
+			nextCommands: ["refarm task list --json"],
+		});
+		expect(
+			formatOperatorResumeSummary(
+				buildOperatorResumeSummary({
+					status: readyStatus,
+					project: envelope.project,
+				}),
+			),
+		).toContain("Project handoff: .project/handoff.json phase=12");
+	});
+
 	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({

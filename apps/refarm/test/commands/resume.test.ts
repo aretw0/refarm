@@ -1,7 +1,13 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentFinishSessionRecorder } from "../../src/commands/agent-finish-session.js";
-import { createResumeCommand } from "../../src/commands/resume.js";
+import {
+	createResumeCommand,
+	loadProjectHandoff,
+} from "../../src/commands/resume.js";
 import type {
 	TaskSessionCheckpoint,
 	TaskSessionRecorder,
@@ -58,6 +64,39 @@ function finishRecorder(
 }
 
 describe("resume command", () => {
+	it("loads repository project handoff context for resume", () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-resume-"));
+		try {
+			fs.mkdirSync(path.join(tempDir, ".project"));
+			fs.writeFileSync(
+				path.join(tempDir, ".project", "handoff.json"),
+				JSON.stringify({
+					context: "resume from project state",
+					timestamp: "2026-06-27T05:00:00.000Z",
+					current_phase: 12,
+					current_tasks: ["current A", "current B"],
+					blockers: ["blocked A"],
+					next_actions: ["next A"],
+					open_questions: ["question A"],
+				}),
+				"utf-8",
+			);
+
+			expect(loadProjectHandoff(tempDir)).toEqual({
+				path: ".project/handoff.json",
+				timestamp: "2026-06-27T05:00:00.000Z",
+				currentPhase: 12,
+				context: "resume from project state",
+				currentTasks: ["current A", "current B"],
+				blockers: ["blocked A"],
+				nextActions: ["next A"],
+				openQuestions: ["question A"],
+			});
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("prints the operator resume view", async () => {
 		const checkpoint: TaskSessionCheckpoint = {
 			version: 1,
@@ -164,6 +203,51 @@ describe("resume command", () => {
 		expect(spy).toHaveBeenCalledWith(
 			expect.stringContaining('"doctorCommand": "refarm model doctor --json"'),
 		);
+		spy.mockRestore();
+	});
+
+	it("prints project handoff context in JSON resume output", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "ollama",
+				modelId: "llama3.2",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+			loadProjectHandoff: vi.fn().mockReturnValue({
+				path: ".project/handoff.json",
+				timestamp: "2026-06-27T05:00:00.000Z",
+				currentPhase: 12,
+				context: "resume from project handoff",
+				currentTasks: ["finish current slice"],
+				blockers: [],
+				nextActions: ["pick next slice"],
+				openQuestions: [],
+			}),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			project?: {
+				path: string;
+				currentTasks: string[];
+				nextActions: string[];
+			};
+		};
+		expect(payload.project).toMatchObject({
+			path: ".project/handoff.json",
+			currentTasks: ["finish current slice"],
+			nextActions: ["pick next slice"],
+		});
 		spy.mockRestore();
 	});
 
