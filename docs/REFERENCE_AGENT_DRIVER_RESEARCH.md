@@ -134,6 +134,14 @@ session, finish, and task state. Refarm still does not invent a scheduler store
 or daemon in this layer; the next implementation can connect a real
 `automation:v1` adapter without changing the resume contract.
 
+Current proof (2026-06-27): the compact capability index now exposes the
+runtime-agent primitives that matter for reference-driver parity instead of
+hiding them inside prompt memory or source spelunking. `refarm capabilities
+--tag reference-driver --json` returns the CRDT-backed session tree tools,
+validated structured I/O tools, and LSP-shaped code-ops tools. This maps the
+Pi/Hermes/Codex research into a cheap operator query while keeping dispatch,
+policy, and UI promotion behind their existing proofs.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;
