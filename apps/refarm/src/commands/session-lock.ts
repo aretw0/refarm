@@ -123,17 +123,14 @@ export function clearActiveSessionId(): boolean {
 			continue;
 		}
 	}
-	if (cleared) {
+	if (cleared && readActiveSessionId() === null) {
 		return true;
-	}
-	const writablePath = getWriteCandidatePaths().at(0);
-	if (!writablePath) {
-		return false;
 	}
 	try {
-		fs.mkdirSync(path.dirname(writablePath), { recursive: true });
-		fs.writeFileSync(writablePath, "", "utf-8");
-		return true;
+		writeWithFallback((sessionLockPath) => {
+			fs.writeFileSync(sessionLockPath, "", "utf-8");
+		});
+		return readActiveSessionId() === null;
 	} catch {
 		return false;
 	}
