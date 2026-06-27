@@ -21,6 +21,10 @@
 			"import": "./dist/src/index.js",
 			"types": "./dist/src/index.d.ts"
 		},
+		"./browser": {
+			"types": "./dist/src/index.browser.d.ts",
+			"default": "./dist/src/index.browser.js"
+		},
 		"./test/test-utils": {
 			"types": "./dist/test/test-utils.d.ts",
 			"default": "./dist/test/test-utils.js"

@@ -27,6 +27,9 @@
 			],
 			"@refarm.dev/homestead/sdk/surface-renderer": [
 				"../../packages/homestead/src/sdk/surface-renderer.ts"
+			],
+			"@refarm.dev/tractor/browser": [
+				"../../packages/tractor-ts/src/index.browser.ts"
 			]
 		}
 	},

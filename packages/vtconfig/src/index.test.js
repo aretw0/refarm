@@ -34,10 +34,20 @@ describe("@refarm.dev/vtconfig Deterministic Verifications", () => {
         );
     });
 
+    it("should resolve tractor browser through its explicit browser entry", () => {
+        vi.mocked(fs.existsSync).mockReturnValue(false);
+
+        const aliases = getAliases("/root");
+        expect(aliases["@refarm.dev/tractor/browser"]).toBe(
+            path.resolve("/root", "packages/tractor-ts/src/index.browser.ts"),
+        );
+    });
+
     it("should resolve dist/index.js when VITEST_USE_DIST is true", () => {
         vi.stubEnv("VITEST_USE_DIST", "true");
         const aliases = getAliases("/root");
         expect(aliases["@refarm.dev/tractor"]).toContain("dist/index.js");
+        expect(aliases["@refarm.dev/tractor/browser"]).toContain("dist/src/index.browser.js");
         vi.unstubAllEnvs();
     });
 
