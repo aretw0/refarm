@@ -4,10 +4,11 @@ Refarm reaches `v0.1.0` only when it can replace the creator's current external 
 
 Reference driver research is tracked in
 [`docs/REFERENCE_AGENT_DRIVER_RESEARCH.md`](REFERENCE_AGENT_DRIVER_RESEARCH.md).
-Codex, Claude Code, and Hermes Agent converge on the same product pressure:
+Codex, Claude Code, Hermes Agent, and Pi converge on the same product pressure:
 hard lifecycle policy, progressive capabilities, durable memory, resumable
-sessions, bounded worker delegation, and scheduled work. This checklist remains
-the gate: a reference pattern only matters after Refarm can prove it locally.
+sessions, bounded worker delegation, and scheduled/headless work. This checklist
+remains the gate: a reference pattern only matters after Refarm can prove it
+locally.
 
 ## Minimum daily loop
 
