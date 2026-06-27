@@ -19,9 +19,15 @@ describe("refarm.me runtime", () => {
 	it("boots the personal workbench behind the Astro page boundary", async () => {
 		const doc = createMeDocument();
 		const tractor = createTractorFixture();
-		const bootRuntime = vi.fn(async () => ({
-			tractor,
-		})) as unknown as typeof bootStudioRuntime;
+		const earlyBrowserSyncEvent = {
+			type: "remote-update-applied" as const,
+			byteLength: 3,
+			wsUrl: "ws://localhost:42000",
+		};
+		const bootRuntime = vi.fn(async (runtimeOptions) => {
+			runtimeOptions.browserSync?.onEvent?.(earlyBrowserSyncEvent);
+			return { tractor };
+		}) as unknown as typeof bootStudioRuntime;
 		const setupShellMock = vi.fn(
 			async (_tractor: unknown, _options: unknown) => ({}),
 		);
@@ -51,6 +57,11 @@ describe("refarm.me runtime", () => {
 			envMetadata: { version: "0.1.0-solo-fertil", commit: "me" },
 			connectBrowserSync: true,
 			tractorSync: true,
+			browserSync: { onEvent: expect.any(Function) },
+		});
+		expect(tractor.emitTelemetry).toHaveBeenCalledWith({
+			event: "me:browser_sync",
+			payload: earlyBrowserSyncEvent,
 		});
 		expect(tractor.emitTelemetry).toHaveBeenCalledWith({
 			event: "surface:created",

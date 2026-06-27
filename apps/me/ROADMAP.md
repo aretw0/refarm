@@ -56,6 +56,10 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 - `BrowserSyncClient` now has a package-level proof for the default tractor
   endpoint (`ws://localhost:42000`), local-state send on open, local delta
   forwarding, and received binary snapshot/update application.
+- `apps/me` now wires `BrowserSyncClient` lifecycle/update events into runtime
+  telemetry (`me:browser_sync`), including early events emitted before the
+  Tractor handle is returned from boot. This makes the next browser/runtime
+  proof observable without relying on console scraping.
 - `installPlugin()` has focused `tractor-ts` coverage for URL fetch/cache,
   cache-hit, cache revalidation, SHA-256 accept/reject, missing integrity
   rejection, and hex/base64 sha256 forms.

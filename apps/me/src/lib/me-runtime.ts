@@ -1,5 +1,8 @@
 import type { HomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
-import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
+import {
+	bootStudioRuntime,
+	type BootStudioRuntimeOptions,
+} from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { REFARM_ME_WEB_RENDERER } from "./me-renderers";
@@ -18,6 +21,9 @@ export const REFARM_ME_RENDERER = REFARM_ME_WEB_RENDERER;
 type RefarmMeRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;
 type RefarmMeTractor = RefarmMeRuntime["tractor"];
 type SetupStudioShell = typeof setupStudioShell;
+type RefarmMeBrowserSyncEvent = Parameters<
+	NonNullable<NonNullable<BootStudioRuntimeOptions["browserSync"]>["onEvent"]>
+>[0];
 
 interface RefarmMeHerald {
 	announce(): void;
@@ -56,6 +62,7 @@ export async function bootRefarmMeWorkbench(
 	options: RefarmMeRuntimeOptions = {},
 ): Promise<RefarmMeWorkbench> {
 	const doc = options.document ?? document;
+	const browserSyncTelemetry = createRefarmMeBrowserSyncTelemetryBuffer();
 	const runtime = await (options.bootRuntime ?? bootStudioRuntime)({
 		databaseName: "refarm-me-main",
 		namespace: "citizen",
@@ -64,8 +71,10 @@ export async function bootRefarmMeWorkbench(
 		envMetadata: { version: "0.1.0-solo-fertil", commit: "me" },
 		connectBrowserSync: true,
 		tractorSync: true,
+		browserSync: { onEvent: browserSyncTelemetry.capture },
 	});
 	const tractor = runtime.tractor;
+	browserSyncTelemetry.flushTo(tractor);
 
 	const constructors =
 		options.pluginConstructors ?? (await loadRefarmMePluginConstructors());
@@ -140,6 +149,39 @@ function registerRefarmMeSurfacePlugins(
 		tractor.plugins.registerInternal(plugin as RuntimePluginHandle);
 	}
 	return plugins.map((plugin) => plugin.id);
+}
+
+function emitRefarmMeBrowserSyncTelemetry(
+	tractor: RefarmMeTractor,
+	event: RefarmMeBrowserSyncEvent,
+): void {
+	tractor.emitTelemetry({
+		event: "me:browser_sync",
+		payload: event,
+	});
+}
+
+function createRefarmMeBrowserSyncTelemetryBuffer(): {
+	capture(event: RefarmMeBrowserSyncEvent): void;
+	flushTo(tractor: RefarmMeTractor): void;
+} {
+	const pending: RefarmMeBrowserSyncEvent[] = [];
+	const sink: { tractor?: RefarmMeTractor } = {};
+	return {
+		capture: (event) => {
+			if (sink.tractor) {
+				emitRefarmMeBrowserSyncTelemetry(sink.tractor, event);
+				return;
+			}
+			pending.push(event);
+		},
+		flushTo: (tractor) => {
+			sink.tractor = tractor;
+			for (const event of pending.splice(0)) {
+				emitRefarmMeBrowserSyncTelemetry(tractor, event);
+			}
+		},
+	};
 }
 
 async function loadRefarmMePluginConstructors(): Promise<RefarmMePluginConstructors> {
