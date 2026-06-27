@@ -364,6 +364,63 @@ describe("resume command", () => {
 		spy.mockRestore();
 	});
 
+	it("recovers interrupted non-terminal task checkpoints through task resume", async () => {
+		const command = createResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder({
+				version: 1,
+				updatedAt: "2026-05-27T12:00:00.000Z",
+				efforts: [
+					{
+						effortId: "effort-pending",
+						transport: "http",
+						lastStatus: "pending",
+						statusCommand: "refarm task status effort-pending --transport http",
+						logsCommand: "refarm task logs effort-pending --transport http",
+					},
+				],
+			}),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai-codex",
+				modelId: "gpt-5.3-codex-spark",
+				oauthProvider: "openai-codex",
+				oauthCredentials: { "openai-codex": { access: "token" } },
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			nextCommand?: string | null;
+			nextCommands?: string[];
+			tasks: {
+				activeEffort?: { effortId: string };
+				recentEfforts: Array<{
+					effortId: string;
+					statusCommand: string;
+					logsCommand: string;
+				}>;
+			};
+		};
+		expect(payload.tasks.activeEffort).toBeUndefined();
+		expect(payload.tasks.recentEfforts[0]).toMatchObject({
+			effortId: "effort-pending",
+			statusCommand: "refarm task status effort-pending --transport http --json",
+			logsCommand: "refarm task logs effort-pending --transport http --json",
+		});
+		expect(payload.nextCommand).toBe("refarm task resume --json");
+		expect(payload.nextCommands).toEqual(["refarm task resume --json"]);
+		spy.mockRestore();
+	});
+
 	it("surfaces failedCommand and remaining count in operator output", async () => {
 		const command = createResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),

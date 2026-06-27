@@ -11,7 +11,7 @@ Refarm reaches `v0.1.0` only when it can replace the creator's current external 
 | See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; real Tractor/apps-me E2E pending                                                         | local proven / E2E pending |
 | Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities, policy-gated, and auditable; live policy bundle pending                 | local proven / policy pending |
 | Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, syncs, and reopens local nodes; app/daemon restart proof pending                                           | storage restart proven / app restart pending |
-| Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                                                           | ⬜     |
+| Resume after interruption | handoff + project status                    | `refarm resume --json` recovers non-terminal task checkpoints and hands off to `refarm task resume --json`; project-state recovery pending      | task checkpoint proven / project-state pending |
 | Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
 | Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                                                      | ⬜     |
 | Automate reminders        | Windmill/scheduler equivalent               | one-shot and recurring reminders run locally with clear ownership                                                                               | ⬜     |
@@ -103,6 +103,22 @@ That proves the memory engine and the local storage restart boundary. It does
 not yet prove the full daily-driver memory acceptance criterion: real decisions,
 tasks, and handoffs must survive a daemon/app restart and then roundtrip through
 the intended app/runtime path.
+
+## Resume After Interruption Evidence
+
+Current evidence (2026-06-27): the operator resume loop can recover local task
+continuation state without relying on chat context. `apps/refarm` wires
+`refarm resume --json` through the task session checkpoint recorder, finish
+recorder, active session pointer, recent sessions, recent prompts, runtime
+status, and model route summary. The focused source test
+`apps/refarm/test/commands/resume.test.ts` proves the interruption case where a
+new command instance sees a non-terminal task checkpoint with no active effort:
+the JSON handoff keeps the effort's status/log commands JSON-readable and makes
+`refarm task resume --json` the next executable command.
+
+That proves the local checkpoint handoff. It does not yet prove the full
+daily-driver criterion: a new session must recover current work from durable
+repository or `.project/` state, not only the local task checkpoint store.
 
 Current evidence (2026-06-27): Homestead already owns the first UI subscriber
 slice. `StudioShell` registers `onNode("StreamSession")` and
