@@ -1,3 +1,14 @@
+import {
+	inspectLocalScheduledWork,
+	type LocalScheduledTrigger,
+} from "@refarm.dev/windmill/local-scheduler";
+import fs from "node:fs";
+import path from "node:path";
+import type {
+	OperatorResumeScheduledWorkInspection,
+	OperatorResumeScheduledWorkSummary,
+} from "./operator-resume.js";
+
 export const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
 
 export type ProjectAutomationStatus = "draft" | "ready" | "active" | "archived";
@@ -71,6 +82,17 @@ export interface ProjectAutomationsValidationResult {
 	issues: readonly ProjectAutomationValidationIssue[];
 	count: number;
 }
+
+export interface ProjectScheduledWorkOptions {
+	cwd?: string;
+	now?: string | Date;
+	owner?: string;
+}
+
+export type ProjectScheduledWorkSummary = OperatorResumeScheduledWorkSummary;
+
+export type ProjectScheduledWorkInspection =
+	OperatorResumeScheduledWorkInspection;
 
 const PROJECT_AUTOMATION_STATUSES = new Set([
 	"draft",
@@ -362,4 +384,102 @@ function validateProjectAutomationTrigger(
 		];
 	}
 	return [];
+}
+
+export function findProjectAutomationsPath(
+	cwd: string = process.cwd(),
+): string | undefined {
+	let current = path.resolve(cwd);
+	while (true) {
+		const candidate = path.join(current, PROJECT_AUTOMATIONS_RELATIVE_PATH);
+		if (fs.existsSync(candidate)) return candidate;
+		const parent = path.dirname(current);
+		if (parent === current) return undefined;
+		current = parent;
+	}
+}
+
+export async function loadProjectScheduledWork(
+	options: ProjectScheduledWorkOptions = {},
+): Promise<ProjectScheduledWorkInspection | undefined> {
+	const automationsPath = findProjectAutomationsPath(
+		options.cwd ?? process.cwd(),
+	);
+	if (!automationsPath) return undefined;
+
+	let records: unknown;
+	try {
+		const parsed = JSON.parse(fs.readFileSync(automationsPath, "utf-8")) as
+			| ProjectAutomationsDocument
+			| unknown[];
+		records = Array.isArray(parsed) ? parsed : parsed.automations;
+	} catch {
+		return undefined;
+	}
+	if (!Array.isArray(records)) return undefined;
+
+	const automations = records.flatMap((record) => {
+		const automation = normalizeProjectAutomationForScheduler(record);
+		return automation ? [automation] : [];
+	});
+	if (automations.length === 0) return undefined;
+
+	return inspectLocalScheduledWork(
+		{
+			async query(filter?: { status?: string }) {
+				if (!filter?.status) return automations;
+				return automations.filter(
+					(automation) => automation.status === filter.status,
+				);
+			},
+		},
+		{ owner: options.owner ?? "refarm-main", now: options.now },
+	) as Promise<ProjectScheduledWorkInspection>;
+}
+
+function normalizeProjectAutomationForScheduler(record: unknown):
+	| {
+			id: string;
+			name: string;
+			description?: string;
+			status: string;
+			triggers: LocalScheduledTrigger[];
+	  }
+	| undefined {
+	if (!isRecord(record)) return undefined;
+	const id = cleanString(record.id);
+	const name = cleanString(record.name);
+	if (!id || !name || !Array.isArray(record.triggers)) return undefined;
+
+	const triggers = record.triggers.flatMap((trigger) => {
+		const normalized = normalizeScheduledTrigger(trigger);
+		return normalized ? [normalized] : [];
+	});
+	if (triggers.length === 0) return undefined;
+
+	return {
+		id,
+		name,
+		description: cleanString(record.description),
+		status: cleanString(record.status) ?? "draft",
+		triggers,
+	};
+}
+
+function normalizeScheduledTrigger(
+	trigger: unknown,
+): LocalScheduledTrigger | undefined {
+	if (!isRecord(trigger)) return undefined;
+	if (trigger.type === "once" && typeof trigger.at === "string") {
+		return { type: "once", at: trigger.at };
+	}
+	if (trigger.type === "cron" && typeof trigger.schedule === "string") {
+		return {
+			type: "cron",
+			schedule: trigger.schedule,
+			timezone:
+				typeof trigger.timezone === "string" ? trigger.timezone : undefined,
+		};
+	}
+	return undefined;
 }
