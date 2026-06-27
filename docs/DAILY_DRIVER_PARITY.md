@@ -10,7 +10,7 @@ Refarm reaches `v0.1.0` only when it can replace the creator's current external 
 | Ask an agent to reason    | Runtime agent hosted by Tractor             | `refarm ask` assembles the runtime-agent effort and follows stream chunks locally; live daily-driver Tractor/runtime-agent path pending           | local proven / live path pending |
 | See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; real Tractor/apps-me E2E pending                                                         | local proven / E2E pending |
 | Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities, policy-gated, and auditable; live policy bundle pending                 | local proven / policy pending |
-| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, and syncs nodes locally; decisions/tasks/handoffs restart proof pending                                    | engine proven / restart pending |
+| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, syncs, and reopens local nodes; app/daemon restart proof pending                                           | storage restart proven / app restart pending |
 | Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                                                           | ⬜     |
 | Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
 | Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                                                      | ⬜     |
@@ -94,11 +94,15 @@ implement the native side: `NativeSync` writes to Loro and eagerly mirrors to
 SQLite, exports/imports updates and snapshots, and `NativeStorage` opens either
 `:memory:` or a namespaced database under the Refarm data directory. The Rust
 sync tests cover update convergence, offline-first roundtrip, snapshot
-roundtrip, and idempotent update application.
+roundtrip, and idempotent update application. `NativeStorage` also has a focused
+file-backed restart proof: `file_storage_survives_reopen` writes a `Task` node to
+a real SQLite file, drops the first handle, reopens the database, and verifies
+the node, context, payload, and source plugin remain queryable.
 
-That proves the memory engine. It does not yet prove the daily-driver memory
-acceptance criterion: real decisions, tasks, and handoffs must survive a daemon
-restart and then roundtrip through the intended app/runtime path.
+That proves the memory engine and the local storage restart boundary. It does
+not yet prove the full daily-driver memory acceptance criterion: real decisions,
+tasks, and handoffs must survive a daemon/app restart and then roundtrip through
+the intended app/runtime path.
 
 Current evidence (2026-06-27): Homestead already owns the first UI subscriber
 slice. `StudioShell` registers `onNode("StreamSession")` and

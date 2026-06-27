@@ -74,9 +74,10 @@ impl NativeStorage {
     /// created by the TypeScript implementation without going through namespace
     /// resolution.
     pub fn open_at(path: &std::path::Path) -> Result<Self> {
-        let conn = Connection::open(path)
-            .with_context(|| format!("open SQLite at {path:?}"))?;
-        let storage = Self { conn: Arc::new(Mutex::new(conn)) };
+        let conn = Connection::open(path).with_context(|| format!("open SQLite at {path:?}"))?;
+        let storage = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         storage.ensure_schema()?;
         Ok(storage)
     }
@@ -90,15 +91,15 @@ impl NativeStorage {
             Connection::open_in_memory().context("open in-memory SQLite")?
         } else {
             let dir = db_dir()?;
-            std::fs::create_dir_all(&dir)
-                .with_context(|| format!("create db dir {dir:?}"))?;
+            std::fs::create_dir_all(&dir).with_context(|| format!("create db dir {dir:?}"))?;
             let path = dir.join(format!("{namespace}.db"));
             tracing::debug!(path = %path.display(), "Opening SQLite database");
-            Connection::open(&path)
-                .with_context(|| format!("open SQLite at {path:?}"))?
+            Connection::open(&path).with_context(|| format!("open SQLite at {path:?}"))?
         };
 
-        let storage = Self { conn: Arc::new(Mutex::new(conn)) };
+        let storage = Self {
+            conn: Arc::new(Mutex::new(conn)),
+        };
         storage.ensure_schema()?;
         Ok(storage)
     }
@@ -212,9 +213,7 @@ impl NativeStorage {
                         rusqlite::types::ValueRef::Text(s) => {
                             Value::String(String::from_utf8_lossy(s).into_owned())
                         }
-                        rusqlite::types::ValueRef::Blob(b) => {
-                            Value::String(hex::encode(b))
-                        }
+                        rusqlite::types::ValueRef::Blob(b) => Value::String(hex::encode(b)),
                     };
                     map.insert(name.clone(), val);
                 }
@@ -301,8 +300,10 @@ mod tests {
     #[test]
     fn upsert_updates_payload() {
         let s = memory_storage();
-        s.store_node("urn:test:1", "Note", None, r#"{"v":1}"#, None).unwrap();
-        s.store_node("urn:test:1", "Note", None, r#"{"v":2}"#, None).unwrap();
+        s.store_node("urn:test:1", "Note", None, r#"{"v":1}"#, None)
+            .unwrap();
+        s.store_node("urn:test:1", "Note", None, r#"{"v":2}"#, None)
+            .unwrap();
         let rows = s.query_nodes("Note").unwrap();
         assert_eq!(rows.len(), 1);
         assert!(rows[0].payload.contains("\"v\":2"));
@@ -316,5 +317,31 @@ mod tests {
         assert_eq!(s.query_nodes("A").unwrap().len(), 1);
         assert_eq!(s.query_nodes("B").unwrap().len(), 1);
         assert_eq!(s.query_nodes("C").unwrap().len(), 0);
+    }
+
+    #[test]
+    fn file_storage_survives_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("restart-proof.db");
+
+        {
+            let s = NativeStorage::open_at(&db_path).unwrap();
+            s.store_node(
+                "urn:test:restart-task",
+                "Task",
+                Some("daily-driver"),
+                r#"{"@type":"Task","status":"active"}"#,
+                Some("restart-proof"),
+            )
+            .unwrap();
+        }
+
+        let reopened = NativeStorage::open_at(&db_path).unwrap();
+        let rows = reopened.query_nodes("Task").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "urn:test:restart-task");
+        assert_eq!(rows[0].context.as_deref(), Some("daily-driver"));
+        assert!(rows[0].payload.contains("\"status\":\"active\""));
+        assert_eq!(rows[0].source_plugin.as_deref(), Some("restart-proof"));
     }
 }
