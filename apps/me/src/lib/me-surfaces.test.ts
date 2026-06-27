@@ -68,6 +68,8 @@ describe("refarm.me Homestead surface", () => {
 				graphMode: REFARM_ME_GRAPH_MODE,
 				pluginRegistryCount: 0,
 				discoveredContentPluginCount: 0,
+				referenceDriverCapabilityIds: [],
+				scheduledWorkSummary: null,
 			},
 			actions: [
 				expect.objectContaining({
@@ -93,6 +95,12 @@ describe("refarm.me Homestead surface", () => {
 		expect((rendered as { html: string }).html).toContain(
 			`<dd data-refarm-me-discovered-content-plugin-count>0</dd>`,
 		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-reference-driver-count>0</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-scheduled-work>not provided</dd>`,
+		);
 		await expect(plugin?.call("other", {})).resolves.toBeNull();
 	});
 
@@ -117,6 +125,13 @@ describe("refarm.me Homestead surface", () => {
 					graphMode: "mode <ok>",
 					pluginRegistryCount: "<2>",
 					discoveredContentPluginCount: "<1>",
+					referenceDriverCapabilityIds: ["<runtime>"],
+					scheduledWorkSummary: {
+						total: 2,
+						due: 1,
+						scheduled: 1,
+						unsupported: 0,
+					},
 				},
 				actions: [
 					{
@@ -136,6 +151,12 @@ describe("refarm.me Homestead surface", () => {
 		expect((rendered as { html: string }).html).toContain("mode &lt;ok&gt;");
 		expect((rendered as { html: string }).html).toContain("&lt;2&gt;");
 		expect((rendered as { html: string }).html).toContain("&lt;1&gt;");
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-reference-driver-count>1</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-scheduled-work>1 scheduled / 1 due</dd>`,
+		);
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
 	});
 
@@ -164,6 +185,16 @@ describe("refarm.me Homestead surface", () => {
 			graphMode: "sovereign",
 			pluginRegistryCount: 1,
 			discoveredContentPluginCount: 2,
+			referenceDriverCapabilityIds: [
+				"runtime-agent.session-tree",
+				"runtime-agent.structured-io",
+			],
+			scheduledWorkSummary: {
+				total: 1,
+				due: 0,
+				scheduled: 1,
+				unsupported: 0,
+			},
 		});
 
 		expect(provider(createRefarmMePersonalSurfaceRenderRequest())).toMatchObject({
@@ -177,6 +208,16 @@ describe("refarm.me Homestead surface", () => {
 				graphMode: "sovereign",
 				pluginRegistryCount: 1,
 				discoveredContentPluginCount: 2,
+				referenceDriverCapabilityIds: [
+					"runtime-agent.session-tree",
+					"runtime-agent.structured-io",
+				],
+				scheduledWorkSummary: {
+					total: 1,
+					due: 0,
+					scheduled: 1,
+					unsupported: 0,
+				},
 			},
 		});
 	});

@@ -21,6 +21,7 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
+		"@refarm.dev/cli": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",
