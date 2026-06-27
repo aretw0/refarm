@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Pesquisa de reference drivers foi assimilada no capability index: refarm capabilities --tag reference-driver --json agora mostra session-tree, structured-io e code-ops do runtime-agent como primitivas compactas.",
-  "timestamp": "2026-06-27T17:15:37.367Z",
+  "context": "Checkpoint 2026-06-27. apps/me passou a consumir o capability index como SDK e expor no painel pessoal a contagem de primitivas reference-driver, com slot opcional para scheduledWork via bootstrap operator status.",
+  "timestamp": "2026-06-27T17:27:22.137Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver loop segue verde com resume/check/finish e scheduledWork dogfood ativo.",
-    "Reference-driver parity: runtime-agent session tree, structured I/O e code-ops estao descobriveis pelo SDK/CLI sem depender de prompt memory.",
-    "Refarm como fornecedor: capability index continua o ponto barato para downstream/dgk descobrir primitivas em vez de reimplementar."
+    "Daily-driver UI: apps/me agora recebe driverStatus no boot e propaga referenceDriverCapabilityIds/scheduledWorkSummary pelo Homestead surface context.",
+    "Reference-driver parity: as primitivas session-tree, structured-io e code-ops agora aparecem tambem no consumidor UI sem acoplar apps/me a .project ou a comandos CLI.",
+    "Validacao economica mantida: testes focados de apps/me, build/lint/type-check scoped e after-edit com full turbo cache passaram."
   ],
   "blockers": [],
   "next_actions": [
-    "Avaliar se a proxima fatia deve levar scheduledWork/reference-driver para apps/me UI ou endurecer persistencia/export de .project/automations.json.",
-    "Preparar blocos publicaveis npm/crates mantendo capacidade embeddable e validacoes focadas.",
-    "Manter runtime-agent single-loop primeiro; workers/subagentes so avancam quando profile/governanca tiver proof local barato."
+    "Avaliar proxima fatia: fornecer bootstrap real de scheduledWork para apps/me a partir de um handoff serializado ou executar uma prova no-token de uma primitiva runtime-agent reference-driver.",
+    "Preparar blocos publicaveis npm/crates mantendo apps/me como consumidor interno do SDK e evitando duplicacao de primitivas.",
+    "Manter workers/subagentes atras do worker-profile ate haver proof local barato de execucao/cancelamento/resume."
   ],
   "open_questions": [
-    "A proxima melhoria deve ser visibilidade UI no apps/me ou proof local de uma dessas primitivas reference-driver pelo runtime-agent?"
+    "A proxima melhoria deve materializar scheduledWork no bootstrap do app ou provar uma tool runtime-agent reference-driver em smoke no-token?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
