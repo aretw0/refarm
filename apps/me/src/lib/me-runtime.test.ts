@@ -67,6 +67,9 @@ describe("refarm.me runtime", () => {
 				surfaceAction: expect.any(Function),
 			}),
 		);
+		expect(pluginConstructors.herald.constructed).toHaveBeenCalledWith(
+			expect.objectContaining({ identityStatus: REFARM_ME_IDENTITY_STATUS }),
+		);
 		expect(pluginConstructors.herald.announce).toHaveBeenCalled();
 		expect(pluginConstructors.firefly.constructed).toHaveBeenCalled();
 		expect(doc.getElementById(REFARM_ME_LOADING_ID)).toBeNull();
@@ -233,9 +236,13 @@ function createTractorFixture() {
 }
 
 function createPluginConstructors() {
-	const herald = { announce: vi.fn() };
+	const herald = { announce: vi.fn(), constructed: vi.fn() };
 	const firefly = { constructed: vi.fn() };
 	class HeraldPlugin {
+		constructor(_tractor: unknown, options?: { identityStatus?: string }) {
+			herald.constructed(options);
+		}
+
 		announce = herald.announce;
 	}
 	class FireflyPlugin {
