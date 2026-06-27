@@ -110,7 +110,14 @@ describe("active session pointer helpers", () => {
 		);
 
 		unlinkSpy.mockImplementationOnce(() => {
-			throw new Error("missing");
+			const error = new Error("missing") as NodeJS.ErrnoException;
+			error.code = "ENOENT";
+			throw error;
+		});
+		unlinkSpy.mockImplementationOnce(() => {
+			const error = new Error("missing") as NodeJS.ErrnoException;
+			error.code = "ENOENT";
+			throw error;
 		});
 		readSpy.mockReturnValueOnce("urn:refarm:session:v1:still-active");
 		expect(clearActiveSessionId()).toBe(false);
@@ -153,8 +160,10 @@ describe("active session pointer helpers", () => {
 					error.code = "EROFS";
 					throw error;
 				}
-				return undefined;
-		});
+				const error = new Error("missing") as NodeJS.ErrnoException;
+				error.code = "ENOENT";
+				throw error;
+			});
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation((pathValue) => {
@@ -165,8 +174,6 @@ describe("active session pointer helpers", () => {
 				}
 				return undefined;
 			});
-		const existsSpy = vi.spyOn(fs, "existsSync");
-		existsSpy.mockReturnValue(false);
 		vi.spyOn(fs, "readFileSync").mockReturnValue("");
 
 		expect(clearActiveSessionId()).toBe(true);

@@ -59,6 +59,22 @@ function writeWithFallback(write: (sessionLockPath: string) => void): void {
 	throw writeError ?? new Error("Unable to write active session lock");
 }
 
+function clearSessionLockPath(sessionLockPath: string): boolean {
+	try {
+		fs.unlinkSync(sessionLockPath);
+		return true;
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === "ENOENT") return false;
+		try {
+			fs.writeFileSync(sessionLockPath, "", "utf-8");
+			return true;
+		} catch {
+			return false;
+		}
+	}
+}
+
 function activeSessionLockPathForRead(): string[] {
 	const writablePath = getWriteCandidatePaths().at(0);
 	if (writablePath) {
@@ -114,14 +130,7 @@ export function writeActiveSessionIdAndVerify(
 export function clearActiveSessionId(): boolean {
 	let cleared = false;
 	for (const sessionLockPath of SESSION_LOCK_PATHS) {
-		try {
-			if (fs.existsSync(sessionLockPath)) {
-				fs.unlinkSync(sessionLockPath);
-				cleared = true;
-			}
-		} catch {
-			continue;
-		}
+		cleared = clearSessionLockPath(sessionLockPath) || cleared;
 	}
 	if (cleared && readActiveSessionId() === null) {
 		return true;
