@@ -51,8 +51,8 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 - [x] Especificar formato de saída de `plan`/`check` estável para consumidores de máquina.
 
 ### BDD (Behaviour Driven)
-- [ ] Registrar cenário de fallback: política local ausente usa default neutro, sem mudar side-effects.
-- [ ] Registrar cenários com `--policy` explícito preservando comportamento atual.
+- [x] Registrar cenário de fallback: política local ausente usa default neutro, sem mudar side-effects.
+- [x] Registrar cenários com `--policy` explícito preservando comportamento atual.
 - [x] Registrar cenários de provider opcional: planos podem ter providers inativos/ausentes sem bloquear parsing.
 
 ### TDD (Test Driven)

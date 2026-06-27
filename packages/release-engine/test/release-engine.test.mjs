@@ -393,6 +393,127 @@ test("cli blocked check json preserves the gate-result contract", () => {
   assert.equal(payload.gateResult.blockers[0].status, "missing");
 });
 
+test("cli plan json uses neutral fallback when no local policy exists", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(workspace, {
+      "@refarm.dev/alpha": {
+        dir: "alpha",
+      },
+    });
+  });
+
+  try {
+    const payload = runCliJson([
+      "plan",
+      "--cwd",
+      root,
+      "@refarm.dev/alpha",
+    ]);
+
+    assert.equal(payload.command, "plan");
+    assert.equal(payload.schemaVersion, 1);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.status, "ready");
+    assert.deepEqual(payload.packages, ["@refarm.dev/alpha"]);
+    assert.deepEqual(payload.providers, []);
+    assert.deepEqual(payload.publishIntents, []);
+    assert.deepEqual(payload.requiredGates, [
+      "preflight",
+      "quality",
+      "integration",
+      "runtime",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("cli --policy explicitly preserves override precedence over embedded policy", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/alpha": {
+          dir: "alpha",
+        },
+      },
+      [],
+      {
+        policyVersion: "2026-01",
+        mode: "changeset",
+        providers: [
+          {
+            id: "embedded",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+          },
+        ],
+        packageProfiles: [],
+        phases: [
+          {
+            id: "embedded-gate",
+            name: "Embedded Gate",
+            commands: ["echo embedded"],
+            required: true,
+            riskWeight: 3,
+          },
+        ],
+      },
+      { embeddedConfigPath: "refarm.config.json" },
+    );
+
+    fs.writeFileSync(
+      path.join(workspace, "explicit-policy.json"),
+      JSON.stringify(
+        validPolicy({
+          providers: [
+            {
+              id: "explicit",
+              type: "changesets",
+              supportsPublish: true,
+              supportsDryRun: true,
+              publishCommands: ["pnpm changeset publish"],
+            },
+          ],
+          phases: [
+            {
+              id: "explicit-gate",
+              name: "Explicit Gate",
+              commands: ["echo explicit"],
+              required: true,
+              riskWeight: 2,
+            },
+          ],
+        }),
+        null,
+        2,
+      ) + "\n",
+    );
+  });
+
+  try {
+    const payload = runCliJson([
+      "plan",
+      "--cwd",
+      root,
+      "--policy",
+      "explicit-policy.json",
+      "@refarm.dev/alpha",
+    ]);
+
+    assert.equal(payload.command, "plan");
+    assert.equal(payload.schemaVersion, 1);
+    assert.equal(payload.ok, true);
+    assert.deepEqual(payload.providers, ["explicit"]);
+    assert.equal(payload.gates[0].id, "explicit-gate");
+    assert.equal(payload.publishIntents[0].provider, "explicit");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("validates package profile bump policy", () => {
   assert.equal(
     validatePolicy(validPolicy({
