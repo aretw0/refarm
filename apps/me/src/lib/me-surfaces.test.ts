@@ -5,6 +5,7 @@ import {
 	createRefarmMeSurfaceContextProvider,
 	createRefarmMeSurfacePlugins,
 	invokeRefarmMePersonalSurfaceAction,
+	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_OPEN_VAULT_ACTION_ID,
 	REFARM_ME_PERSONAL_SURFACE_ID,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
@@ -58,6 +59,7 @@ describe("refarm.me Homestead surface", () => {
 			hostId: "apps/me",
 			data: {
 				profileName: "My Sovereign Space",
+				identityStatus: REFARM_ME_IDENTITY_STATUS,
 				storageScope: "refarm-me-main",
 				syncScope: "citizen",
 			},
@@ -73,6 +75,9 @@ describe("refarm.me Homestead surface", () => {
 				`data-refarm-surface-action-id="${REFARM_ME_OPEN_VAULT_ACTION_ID}"`,
 			),
 		});
+		expect((rendered as { html: string }).html).toContain(
+			`<dd>${REFARM_ME_IDENTITY_STATUS}</dd>`,
+		);
 		await expect(plugin?.call("other", {})).resolves.toBeNull();
 	});
 
@@ -90,7 +95,7 @@ describe("refarm.me Homestead surface", () => {
 			locale: "en",
 			host: {
 				hostId: '<apps/me & "citizen">',
-				data: { profileName: "Me <Root>" },
+				data: { profileName: "Me <Root>", identityStatus: "not <ready>" },
 				actions: [
 					{
 						id: REFARM_ME_OPEN_VAULT_ACTION_ID,
@@ -104,6 +109,7 @@ describe("refarm.me Homestead surface", () => {
 			"&lt;apps/me &amp; &quot;citizen&quot;&gt;",
 		);
 		expect((rendered as { html: string }).html).toContain("Me &lt;Root&gt;");
+		expect((rendered as { html: string }).html).toContain("not &lt;ready&gt;");
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
 	});
 
