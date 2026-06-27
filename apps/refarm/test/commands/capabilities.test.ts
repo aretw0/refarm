@@ -72,11 +72,9 @@ describe("capabilities command", () => {
 			count: number;
 			filter: { states: string[] };
 		};
-		expect(payload.count).toBe(1);
+		expect(payload.count).toBe(0);
 		expect(payload.filter.states).toEqual(["planned"]);
-		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
-			"scheduler.local-jobs",
-		]);
+		expect(payload.capabilities).toEqual([]);
 		expect(
 			payload.capabilities.every(
 				(capability) => capability.policy.state === "planned",
@@ -85,7 +83,7 @@ describe("capabilities command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("surfaces governed worker profiles as an embeddable SDK capability", async () => {
+	it("surfaces governed driver primitives as embeddable SDK capabilities", async () => {
 		const logs: string[] = [];
 		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
 			logs.push(String(value));
@@ -106,6 +104,12 @@ describe("capabilities command", () => {
 					id: "runtime-agent.worker-profiles",
 					activation: {
 						sdk: "@refarm.dev/cli/worker-profile",
+					},
+				}),
+				expect.objectContaining({
+					id: "scheduler.local-jobs",
+					activation: {
+						sdk: "@refarm.dev/windmill/local-scheduler",
 					},
 				}),
 			]),
