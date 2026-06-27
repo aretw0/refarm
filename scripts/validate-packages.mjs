@@ -185,6 +185,97 @@ export function validateRuntimeAgentPluginPackage(pkg) {
   return violations;
 }
 
+const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
+  {
+    id: "agent-tools",
+    packageDir: "packages/agent-tools",
+    cargoPackage: "refarm:agent-tools",
+    targetPath: "wit",
+    targetWorld: "agent-tools-provider",
+    witPath: "wit/world.wit",
+    witPackage: "refarm:agent-tools@0.1.0",
+    world: "agent-tools-provider",
+    imports: ["host-spawn"],
+    exports: ["agent-fs", "agent-shell", "structured-io"],
+  },
+  {
+    id: "refarm-plugin",
+    packageDir: "packages/refarm-plugin-wit",
+    cargoPackage: "refarm:plugin",
+    targetPath: "wit",
+    witPath: "wit/refarm-plugin-host.wit",
+    witPackage: "refarm:plugin@0.1.0",
+    world: "refarm-plugin-host",
+    imports: ["tractor-bridge", "model-bridge", "agent-fs", "agent-shell", "structured-io", "code-ops"],
+    exports: ["integration"],
+  },
+];
+
+export function validateWitComponentDistributionTarget(target, contents) {
+  const violations = [];
+  const cargoToml = contents?.cargoToml ?? "";
+  const wit = contents?.wit ?? "";
+
+  if (!cargoToml.includes("[package.metadata.component]")) {
+    violations.push(`${target.id} Cargo.toml must declare [package.metadata.component]`);
+  }
+  if (!cargoToml.includes(`package = "${target.cargoPackage}"`)) {
+    violations.push(`${target.id} Cargo.toml must declare component package "${target.cargoPackage}"`);
+  }
+  if (!cargoToml.includes("[package.metadata.component.target]")) {
+    violations.push(`${target.id} Cargo.toml must declare [package.metadata.component.target]`);
+  }
+  if (!cargoToml.includes(`path = "${target.targetPath}"`)) {
+    violations.push(`${target.id} Cargo.toml component target must point at "${target.targetPath}"`);
+  }
+  if (target.targetWorld && !cargoToml.includes(`world = "${target.targetWorld}"`)) {
+    violations.push(`${target.id} Cargo.toml component target must declare world "${target.targetWorld}"`);
+  }
+
+  if (!wit.includes(`package ${target.witPackage};`)) {
+    violations.push(`${target.id} WIT must declare package ${target.witPackage}`);
+  }
+  if (!wit.includes(`world ${target.world} {`)) {
+    violations.push(`${target.id} WIT must declare world ${target.world}`);
+  }
+  for (const importName of target.imports) {
+    if (!wit.includes(`import ${importName};`)) {
+      violations.push(`${target.id} WIT world must import ${importName}`);
+    }
+  }
+  for (const exportName of target.exports) {
+    if (!wit.includes(`export ${exportName};`)) {
+      violations.push(`${target.id} WIT world must export ${exportName}`);
+    }
+  }
+
+  return violations;
+}
+
+export function validateWitComponentDistributionPreflight(targets = WIT_COMPONENT_DISTRIBUTION_TARGETS) {
+  const violations = [];
+  for (const target of targets) {
+    const packageDir = join(ROOT, target.packageDir);
+    const cargoPath = join(packageDir, "Cargo.toml");
+    const witPath = join(packageDir, target.witPath);
+    if (!existsSync(cargoPath)) {
+      violations.push(`${target.id} Cargo.toml missing at ${target.packageDir}/Cargo.toml`);
+      continue;
+    }
+    if (!existsSync(witPath)) {
+      violations.push(`${target.id} WIT missing at ${target.packageDir}/${target.witPath}`);
+      continue;
+    }
+    violations.push(
+      ...validateWitComponentDistributionTarget(target, {
+        cargoToml: readFileSync(cargoPath, "utf8"),
+        wit: readFileSync(witPath, "utf8"),
+      }),
+    );
+  }
+  return violations;
+}
+
 function noRawVitestDep(pkg) {
   const devDeps = pkg.devDependencies ?? {};
   return !("vitest" in devDeps);
@@ -467,6 +558,16 @@ function main() {
   } else {
     for (const v of rootPackageManagerViolations) {
       console.log(`  ✗ root package manager config — ${v}`);
+      violations++;
+    }
+  }
+
+  const witComponentDistributionViolations = validateWitComponentDistributionPreflight();
+  if (witComponentDistributionViolations.length === 0) {
+    console.log("  ✓ WIT component distribution preflight");
+  } else {
+    for (const v of witComponentDistributionViolations) {
+      console.log(`  ✗ WIT component distribution preflight — ${v}`);
       violations++;
     }
   }

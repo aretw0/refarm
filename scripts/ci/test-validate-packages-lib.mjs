@@ -5,6 +5,7 @@ import {
 	validatePackageManagerConfig,
 	validatePublishSurface,
 	validateRuntimeAgentPluginPackage,
+	validateWitComponentDistributionTarget,
 } from "../validate-packages.mjs";
 
 test("allows root package manager config without legacy pnpm block", () => {
@@ -100,5 +101,77 @@ test("rejects runtime-agent plugin publication without explicit artifact policy"
 			'runtime-agent plugin build:wasm must write "dist/plugin.json"',
 			'runtime-agent plugin build:jco must write "dist/jco"',
 		],
+	);
+});
+
+test("accepts mapped WIT component distribution target", () => {
+	assert.deepEqual(
+		validateWitComponentDistributionTarget(
+			{
+				id: "agent-tools",
+				cargoPackage: "refarm:agent-tools",
+				targetPath: "wit",
+				targetWorld: "agent-tools-provider",
+				witPackage: "refarm:agent-tools@0.1.0",
+				world: "agent-tools-provider",
+				imports: ["host-spawn"],
+				exports: ["agent-fs", "agent-shell", "structured-io"],
+			},
+			{
+				cargoToml: `
+[package.metadata.component]
+package = "refarm:agent-tools"
+
+[package.metadata.component.target]
+path = "wit"
+world = "agent-tools-provider"
+`,
+				wit: `
+package refarm:agent-tools@0.1.0;
+
+world agent-tools-provider {
+    import host-spawn;
+    export agent-fs;
+    export agent-shell;
+    export structured-io;
+}
+`,
+			},
+		),
+		[],
+	);
+});
+
+test("rejects unmapped WIT component distribution target", () => {
+	assert.deepEqual(
+		validateWitComponentDistributionTarget(
+			{
+				id: "refarm-plugin",
+				cargoPackage: "refarm:plugin",
+				targetPath: "wit",
+				witPackage: "refarm:plugin@0.1.0",
+				world: "refarm-plugin-host",
+				imports: ["structured-io", "code-ops"],
+				exports: ["integration"],
+			},
+			{
+				cargoToml: `
+[package.metadata.component]
+package = "refarm:plugin"
+
+[package.metadata.component.target]
+path = "wit"
+`,
+				wit: `
+package refarm:plugin@0.1.0;
+
+world refarm-plugin-host {
+    import structured-io;
+    export integration;
+}
+`,
+			},
+		),
+		["refarm-plugin WIT world must import code-ops"],
 	);
 });
