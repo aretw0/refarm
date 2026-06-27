@@ -35,7 +35,16 @@ async function writeFixture(sourceDir) {
 	await mkdir(path.join(sourceDir, "00 - Entrada"), { recursive: true });
 	await mkdir(path.join(sourceDir, ".dgk"), { recursive: true });
 	await writeFile(path.join(sourceDir, "README.template.md"), "# Template\n");
-	await writeFile(path.join(sourceDir, "package.template.json"), '{"template":true}\n');
+	await writeFile(
+		path.join(sourceDir, "package.template.json"),
+		`${JSON.stringify({
+			template: true,
+			repository: {
+				type: "git",
+				url: "https://github.com/{{REPO_NAME}}.git",
+			},
+		})}\n`,
+	);
 	await writeFile(path.join(sourceDir, "package.json"), '{"dev":true}\n');
 	await writeFile(path.join(sourceDir, "docs/x.md"), "dev docs\n");
 	await writeFile(
@@ -100,7 +109,7 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 				source: "package.template.json",
 				target: "package.json",
 				class: "transform",
-				transforms: ["rename"],
+				transforms: ["rename", "set-package-repository"],
 			},
 		],
 		transforms: [
@@ -129,12 +138,14 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 		sourceDir,
 		outDir,
 		owner: "aretw0",
+		repository: "aretw0/generated-vault",
 	});
 
 	assert.equal(readFileSync(path.join(outDir, "README.md"), "utf8"), "# Template\n");
 	assert.equal(
-		readFileSync(path.join(outDir, "package.json"), "utf8"),
-		'{"template":true}\n',
+		JSON.parse(readFileSync(path.join(outDir, "package.json"), "utf8"))
+			.repository.url,
+		"https://github.com/aretw0/generated-vault.git",
 	);
 	assert.equal(
 		readFileSync(path.join(outDir, "00 - Entrada/note.md"), "utf8"),
@@ -171,7 +182,7 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 			"package.json": {
 				source: "package.template.json",
 				class: "transform",
-				transforms: ["rename"],
+				transforms: ["rename", "set-package-repository"],
 			},
 			"payload.md": {
 				source: "payload.md",
@@ -214,7 +225,7 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 			source: "package.template.json",
 			target: "package.json",
 			class: "transform",
-			transforms: ["rename"],
+			transforms: ["rename", "set-package-repository"],
 		},
 		{
 			source: "payload.md",
@@ -268,6 +279,7 @@ test("generateVault content transforms are idempotent with a fixed owner", async
 		sourceDir,
 		outDir: firstOut,
 		owner: "aretw0",
+		repository: "aretw0/generated-vault",
 	});
 	assert.equal(
 		readFileSync(path.join(firstOut, "00 - Entrada/note.md"), "utf8"),
@@ -283,12 +295,14 @@ test("generateVault content transforms are idempotent with a fixed owner", async
 		sourceDir: firstOut,
 		outDir: secondSource,
 		owner: "aretw0",
+		repository: "aretw0/generated-vault",
 	});
 	await generateVault({
 		manifest,
 		sourceDir: secondSource,
 		outDir: secondOut,
 		owner: "aretw0",
+		repository: "aretw0/generated-vault",
 	});
 
 	assert.deepEqual(readTree(secondSource), readTree(secondOut));

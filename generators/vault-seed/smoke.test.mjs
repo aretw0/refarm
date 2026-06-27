@@ -50,7 +50,13 @@ test("generated vault from vault-seed source satisfies the template boundary", a
 
 	const root = makeTempRoot();
 	const outDir = path.join(root, "generated");
-	await generateVault({ manifest, sourceDir, outDir, owner: "aretw0" });
+	await generateVault({
+		manifest,
+		sourceDir,
+		outDir,
+		owner: "aretw0",
+		repository: "aretw0/generated-vault",
+	});
 
 	for (const entry of manifest.devOnly) {
 		assert.equal(existsIn(outDir, entry), false, `dev-only leaked: ${entry}`);
@@ -108,6 +114,14 @@ test("generated vault from vault-seed source satisfies the template boundary", a
 
 	const packageJson = JSON.parse(
 		readFileSync(path.join(outDir, "package.json"), "utf8"),
+	);
+	assert.equal(
+		packageJson.repository?.url,
+		"https://github.com/aretw0/generated-vault.git",
+	);
+	assert.doesNotMatch(
+		readFileSync(path.join(outDir, "package.json"), "utf8"),
+		/\{\{REPO_NAME\}\}/,
 	);
 	assert.equal(packageJson.scripts?.changeset, undefined);
 	assert.equal(packageJson.devDependencies?.["standard-version"], undefined);

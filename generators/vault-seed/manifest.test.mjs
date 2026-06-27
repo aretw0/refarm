@@ -120,3 +120,16 @@ test("initialize.yml content transforms are represented", (t) => {
 		"missing vault.config.json transforms",
 	);
 });
+
+test("package template rename carries repository identity transform", () => {
+	assert.ok(
+		manifest.renames.some(
+			(entry) =>
+				entry.source === "package.template.json" &&
+				entry.target === "package.json" &&
+				entry.transforms.includes("rename") &&
+				entry.transforms.includes("set-package-repository"),
+		),
+		"missing package repository identity transform",
+	);
+});
