@@ -86,11 +86,15 @@ Task 1 evidence (2026-06-27): `validations/astro-wasi-ssr/` builds with `astro@7
 `dist/server/index.mjs` through a local validation adapter, and imports that handler in a Node test
 that asserts `GET /health.json`. The remaining gate is componentization plus Tractor execution.
 
-Task 2 evidence (2026-06-27): the componentization entrypoint exists, but `jco componentize` blocks
-at WIT resolution with `package 'wasi:http@0.2.3' not found`, before evaluating the Astro handler.
-Evidence is recorded in `validations/astro-wasi-ssr/evidence/componentize-attempt.json`. The next
-step is to vendor or generate the official WASI HTTP WIT dependency graph locally, then rerun the
-same componentize script.
+Task 2 evidence (2026-06-27): the componentization entrypoint now uses ComponentizeJS directly and
+the fixture vendors the minimal official WASI v0.2.3 graph needed by
+`wasi:http/incoming-handler@0.2.3`. WIT resolution is green. Componentization is bounded by a 45s
+timeout and currently fails before that budget while evaluating the generated Astro server bundle:
+ComponentizeJS/StarlingMonkey cannot load `node:module`. Static inspection also shows Node/runtime
+surfaces including `process`, `Buffer`, and `sharp`. Evidence is recorded in
+`validations/astro-wasi-ssr/evidence/componentize-attempt.json`. The next decision is whether Part C
+deserves a custom Astro WASI adapter/bundle profile that removes those Node surfaces, or whether
+Part C should be recorded red while Parts A/B stand.
 
 Success: serves correctly from Tractor; cold-start + per-request latency within a budget set when
 the POC lands (ADR-044's <100ms transpile is the reference order). Evidence:

@@ -199,10 +199,11 @@ These are the next things worth deepening before writing broad code. They are de
 as codemod/generator work when a repeatable transform is cheaper and safer than manual edits.
 
 1. **Astro 7 / WASM substrate research (item 5):** Task 1 is green with `astro@7.0.3`; Task 2 now
-   has structured evidence that `jco componentize` blocks at WIT resolution because
-   `wasi:http@0.2.3` is not locally available. The next artifact is a local official WASI HTTP WIT
-   graph, then the same componentize script, then a Tractor host run only if that produces a
-   component artifact.
+   has structured evidence that WIT resolution is green after vendoring the minimal official WASI
+   v0.2.3 graph. Componentization is bounded and now fails while evaluating the generated Astro
+   server bundle on `node:module`; static inspection also shows `process`, `Buffer`, and `sharp`.
+   The next decision is whether Part C deserves a custom Astro WASI adapter/bundle profile or should
+   be recorded red while Parts A/B remain accepted.
 2. **Generator-first vault-seed distribution:** define the smallest `refarm gen vault-seed` contract
    that can materialize the template, run the generated-vault smoke suite, and keep template-only
    files behind the `initialize.yml` boundary. Spec:

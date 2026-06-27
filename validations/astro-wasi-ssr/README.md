@@ -25,14 +25,17 @@ pnpm -C validations/astro-wasi-ssr run test
 pnpm -C validations/astro-wasi-ssr run componentize
 ```
 
-Task 2 status: blocked at WIT resolution, before Astro handler evaluation.
-`jco componentize` does not provide the `wasi:http@0.2.3` package graph
-automatically, so the local world cannot yet resolve
-`wasi:http/incoming-handler@0.2.3`. Evidence:
+Task 2 status: blocked at Astro server bundle evaluation, after WIT resolution.
+The fixture now vendors the minimal official WASI v0.2.3 WIT graph needed by
+`wasi:http/incoming-handler@0.2.3`, so local WIT resolution is green. The
+current blocker is the generated Astro server bundle's Node surface:
+ComponentizeJS starts evaluating `dist/server/index.mjs` and fails on
+`node:module`. Static inspection also shows `process`, `Buffer`, and `sharp`.
+The package script is bounded by `timeout 45s` so this validation cannot pin
+the development container if ComponentizeJS/Wizer behavior drifts. Evidence:
 `evidence/componentize-attempt.json`.
 
-Next POC steps remain intentionally separate: vendor the official WASI HTTP WIT
-dependency graph locally or generate it from a known-good WASI HTTP component,
-then rerun `componentize`. If the next layer requires a custom JS engine or
-runtime design, record that blocker in ADR-070 instead of turning this
-validation into product work.
+Next POC steps remain intentionally separate: decide whether Part C deserves a
+custom Astro WASI adapter or bundle profile that removes Node built-ins
+(`node:module`, `process`, `Buffer`, `sharp`), or record Part C as red in
+ADR-070 instead of turning this validation into product work.

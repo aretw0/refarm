@@ -5,10 +5,11 @@
 	"type": "module",
 	"scripts": {
 		"build": "astro build",
-		"componentize": "jco componentize src/wasi-fetch-entrypoint.mjs --wit wit --world-name astro-wasi-ssr -o dist/astro-wasi-ssr.component.wasm --enable fetch-event --enable http",
+		"componentize": "timeout 45s node scripts/componentize.mjs",
 		"test": "node --test test/*.test.mjs"
 	},
 	"dependencies": {
+		"@bytecodealliance/componentize-js": "0.19.3",
 		"@bytecodealliance/jco": "catalog:",
 		"astro": "^7.0.3"
 	}

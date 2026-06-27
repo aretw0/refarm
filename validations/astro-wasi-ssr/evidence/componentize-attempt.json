@@ -5,6 +5,11 @@
 	"task": "docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md#task-2---componentization-attempt",
 	"commands": [
 		{
+			"command": "pnpm -C packages/tractor-ts exec wasm-tools component wit ../../validations/astro-wasi-ssr/wit",
+			"exitCode": 0,
+			"result": "The local WIT world resolves after vendoring the official wasi:http, wasi:io, and wasi:clocks v0.2.3 subset used by incoming-handler."
+		},
+		{
 			"command": "pnpm -C validations/astro-wasi-ssr run build",
 			"exitCode": 0,
 			"result": "Astro 7 server build emitted dist/server/index.mjs."
@@ -12,18 +17,29 @@
 		{
 			"command": "pnpm -C validations/astro-wasi-ssr run componentize",
 			"exitCode": 1,
-			"stderrIncludes": "package 'wasi:http@0.2.3' not found",
-			"result": "jco stopped while resolving the local WIT world before evaluating the Astro handler."
+			"stderrIncludes": "ReferenceError: Error loading module \"node:module\" (resolved path \"dist/server/node:module\"): No such file or directory",
+			"result": "ComponentizeJS resolves the local WIT world and starts evaluating the Astro server bundle, then fails on the bundle's Node built-in import surface. The package script remains bounded by a 45s timeout to avoid future hangs."
+		},
+		{
+			"command": "rg -n \"node:module|process|Buffer|sharp\" validations/astro-wasi-ssr/dist/server -g '*.mjs'",
+			"exitCode": 0,
+			"result": "Static inspection of the generated Astro 7 server bundle shows Node-specific surfaces, starting with node:module in dist/server/index.mjs."
+		}
+	],
+	"resolved": [
+		{
+			"layer": "wit-resolution",
+			"summary": "The fixture vendors the minimal official WASI v0.2.3 WIT graph needed for wasi:http/incoming-handler: wasi:http types/handler, wasi:io error/poll/streams, and wasi:clocks monotonic-clock/wall-clock."
 		}
 	],
 	"blocker": {
-		"layer": "wit-resolution",
-		"summary": "jco componentize does not provide wasi:http WIT packages automatically; the validation must vendor or generate the official wasi:http dependency graph before it can test the Astro handler.",
-		"observedBeforeAstroEvaluation": true
+		"layer": "astro-server-bundle-node-surface",
+		"summary": "After WIT resolution, ComponentizeJS/StarlingMonkey cannot initialize the generated Astro 7 server bundle because it imports Node-specific surfaces such as node:module. The bundle also references process, Buffer, and sharp, so Part C needs a WASI-oriented Astro bundle profile before host execution is meaningful.",
+		"observedAfterWitResolution": true
 	},
 	"secondaryRisk": {
-		"layer": "astro-server-bundle",
-		"summary": "The generated Astro 7 server bundle references Node-specific surfaces such as node:module, process, Buffer, and sharp chunks. This was not reached by the failing componentize command and remains the likely next compatibility check after WIT resolution."
+		"layer": "componentize-resource-budget",
+		"summary": "The componentize script is intentionally bounded by timeout 45s because ComponentizeJS/Wizer can hang on bundle/runtime drift and should not be allowed to pin the development container."
 	},
-	"nextAction": "Vendor the official wasi:http WIT dependency graph locally or generate it from a known-good WASI HTTP component, then rerun the componentize script."
+	"nextAction": "Decide whether Part C should pursue a custom Astro WASI adapter or bundle profile that removes Node built-ins, starting with node:module/process/Buffer/sharp, or record Part C as red and keep ADR-070 Parts A/B."
 }
