@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-27. Release readiness now gates package dry-run with the lightweight reference-driver smoke, keeping runtime-agent/session-tree/code-ops primitives in the publication path without provider execution.",
-  "timestamp": "2026-06-27T19:40:21.270Z",
+  "context": "Checkpoint 2026-06-27. Reference-driver publication posture is now machine-readable through @refarm.dev/cli/capability-index.",
+  "timestamp": "2026-06-27T19:50:01.386Z",
   "current_phase": "12",
   "current_tasks": [
-    "release-readiness.mjs now runs reference-driver:smoke after codemod-registry and before publish-dry-run; test-release-readiness pins the ordered plan.",
-    "docs/RELEASE_ENGINE.md and docs/CONVERGENCE_FACTORY_READINESS.md record the reference-driver smoke as the lightweight readiness gate before SDK/runtime packaging.",
-    "Validation passed: pnpm run release:readiness:plan, node --test scripts/ci/test-release-readiness.mjs, git diff --check, pnpm run reference-driver:smoke, after-edit, commit, and after-commit."
+    "@refarm.dev/cli/capability-index now exports buildRefarmReferenceDriverSupplyMap(), mapping session-tree, structured-io, and code-ops to npm/WIT/runtime/crate supply channels.",
+    "The supply map is conservative: discovery SDK is exported, @refarm.dev/pi-agent stays on hold while private, structured-io stays behind refarm:agent-tools WIT, and code-ops stays split between plugin WIT and held refarm-tractor.",
+    "Validation passed: pnpm -C packages/cli exec vitest run src/capability-index.test.ts, pnpm -C packages/cli run type-check, pnpm -C packages/cli run build, git diff --check, after-edit, commit, and after-commit."
   ],
   "blockers": [],
   "next_actions": [
-    "Map which npm/crates exports should carry runtime-agent/reference-driver primitives for Refarm itself before publication.",
-    "Keep pnpm run reference-driver:smoke as the cheap pre-publication signal; reserve full release:readiness for package/readiness checkpoints.",
-    "Continue daily-driver hardening without reintroducing provider-heavy or broad Rust validation unless the slice requires it."
+    "Decide the next publication slice for runtime-agent distribution: keep @refarm.dev/pi-agent private, or prepare a policy-gated plugin package candidate with explicit files/artifact checks.",
+    "If runtime package promotion remains too early, map the WIT/component distribution path for refarm:agent-tools and refarm:plugin before touching npm/crates publishing.",
+    "Keep reference-driver:smoke as the cheap guard when changing session-tree, structured-io, code-ops, or their supply map."
   ],
   "open_questions": [],
   "key_decisions_active": [
