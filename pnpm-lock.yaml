@@ -1415,6 +1415,9 @@ importers:
 
   validations/astro-wasi-ssr:
     dependencies:
+      '@bytecodealliance/componentize-js':
+        specifier: 0.19.3
+        version: 0.19.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
       '@bytecodealliance/jco':
         specifier: 'catalog:'
         version: 1.19.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)

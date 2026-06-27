@@ -30,7 +30,7 @@ Evidence:
 - Keep the WIT world and generated component local to the validation directory.
 - Gate: either a component is produced or the blocker is captured as structured evidence.
 
-Status: blocked on 2026-06-27 at WIT resolution, before Astro handler evaluation.
+Status: blocked on 2026-06-27 at Astro server bundle evaluation, after WIT resolution.
 
 Evidence:
 
@@ -38,13 +38,19 @@ Evidence:
   StarlingMonkey `fetch` event entrypoint.
 - `validations/astro-wasi-ssr/wit/world.wit` declares the target export:
   `wasi:http/incoming-handler@0.2.3`.
-- `pnpm -C validations/astro-wasi-ssr run componentize` fails with
-  `package 'wasi:http@0.2.3' not found`.
+- `validations/astro-wasi-ssr/wit/deps/` vendors the minimal official WASI v0.2.3 WIT graph needed
+  by `incoming-handler`: `wasi:http`, `wasi:io`, and `wasi:clocks`.
+- `pnpm -C packages/tractor-ts exec wasm-tools component wit ../../validations/astro-wasi-ssr/wit`
+  resolves the local world.
+- `pnpm -C validations/astro-wasi-ssr run componentize` is bounded by a 45s timeout and fails with
+  `Error loading module "node:module"` before the timeout.
+- Static inspection of `dist/server/` shows Node-specific surfaces in the generated Astro bundle:
+  `node:module`, `process`, `Buffer`, and `sharp`.
 - Structured evidence: `validations/astro-wasi-ssr/evidence/componentize-attempt.json`.
 
-Next action: vendor the official WASI HTTP WIT dependency graph locally or generate it from a
-known-good WASI HTTP component, then rerun the same script. Do not move to Tractor host execution
-until this produces a component artifact.
+Next action: decide whether Part C should pursue a custom Astro WASI adapter or bundle profile that
+removes Node built-ins (`node:module`, `process`, `Buffer`, `sharp`) before rerunning
+componentization. Do not move to Tractor host execution until this produces a component artifact.
 
 ## Task 3 - Tractor Host Execution
 
