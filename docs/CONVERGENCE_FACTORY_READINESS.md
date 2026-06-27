@@ -19,7 +19,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `launch-process` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
-| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
+| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
 
@@ -27,7 +27,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
-| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages; `pnpm run release:vault-seed:handoff -- --json` now reports `acceptance.status: "accepted"` with 10 packages and 24 required checks; `.refarm/handoff/vault-seed/2026-06-26/` has matching tarballs for the full selection and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
+| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages; `pnpm run release:vault-seed:handoff -- --json` now reports `acceptance.status: "accepted"` with 10 packages and 24 required checks; `.refarm/handoff/vault-seed/2026-06-26/` has matching tarballs for the full selection; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
 
 ## Plan depth — read before "ready to implement"
 
@@ -292,8 +292,10 @@ The generator-first direction is implemented as a prototype:
 - `generators/vault-seed/generate.mjs`.
 
 The proof is manifest + inventory driven and passes the selected generated-vault smoke gate against
-the cached `vault-seed` checkout when available. Official downstream adoption remains outside this
-checkout.
+the cached `vault-seed` checkout when available. The Refarm-side release consumer proof also
+generates a vault fixture, reads `inventory.json`, and verifies generated `@refarm.dev/*`
+dependencies are covered by the `vault-seed-ready` release policy. Official downstream adoption
+remains outside this checkout.
 
 ## Item 9b - Codemod Registry
 
