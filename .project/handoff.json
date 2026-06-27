@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-06-27. Daily-driver hardening avançou: policy/restart runtime-agent proofs foram assimilados, o estado de daily-driver foi reconciliado, e o Refarm agora expõe @refarm.dev/cli/project-handoff mais refarm project handoff validate/write para transformar .project/handoff.json em estado durável governado sem memória implícita de prompt.",
-  "timestamp": "2026-06-27T06:46:28.740Z",
+  "context": "Checkpoint 2026-06-27. Daily-driver hardening avançou: session lock stale foi corrigido, project handoff validate/write entrou no test:handoffs, e vtconfig foi migrado para maxWorkers do Vitest 4 para manter o gate sem ruído e com limite de memória.",
+  "timestamp": "2026-06-27T08:24:09.390Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver loop: runtime ready, resume/check/finish lanes limpos, handoff governado implementado e dogfooded.",
+    "Daily-driver loop: runtime ready, resume/check/finish lanes limpos, handoff governado implementado, test:handoffs guardando project handoff validate/write.",
     "Refarm segue como fornecedor do ecossistema: primitives de CLI/SDK devem nascer em packages e apps/refarm apenas expõe cascas operacionais.",
-    "Trilha de validação precisa continuar lean: preferir testes focados, turbo cache e lanes affected antes de gates amplos."
+    "Trilha de validação continua lean: preferir testes focados, turbo cache, maxWorkers em Vitest e lanes affected antes de gates amplos."
   ],
   "blockers": [],
   "next_actions": [
-    "Adicionar contrato público para project handoff validate/write no test:handoffs, já que a superfície JSON nova deve ser guardada como handoff externo.",
-    "Depois seguir daily-driver mileage: apps/me/UI E2E ou command loop que mais reduza fricção de uso real.",
+    "Seguir daily-driver mileage: apps/me/UI E2E ou command loop que mais reduza fricção de uso real.",
+    "Revisar por que after-edit não seleciona validação de pacote para package.json/JS puro quando o teste focado já foi rodado manualmente.",
     "Manter atenção em resource discipline: evitar comandos globais pesados e preferir filtros por pacote/teste."
   ],
   "open_questions": [
