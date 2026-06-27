@@ -7,6 +7,7 @@ import {
 	createRefarmMeSurfaceActionHandler,
 	createRefarmMeSurfaceContextProvider,
 	createRefarmMeSurfacePlugins,
+	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 	type RefarmMeSurfaceTelemetry,
 } from "./me-surfaces";
@@ -71,7 +72,9 @@ export async function bootRefarmMeWorkbench(
 
 	const setupShell = options.setupShell ?? (await loadSetupStudioShell());
 	await setupShell(tractor, {
-		surfaceContext: createRefarmMeSurfaceContextProvider(),
+		surfaceContext: createRefarmMeSurfaceContextProvider({
+			identityStatus: REFARM_ME_IDENTITY_STATUS,
+		}),
 		surfaceAction: createRefarmMeSurfaceActionHandler((request) => {
 			tractor.emitTelemetry({
 				event: "me:surface_action",
