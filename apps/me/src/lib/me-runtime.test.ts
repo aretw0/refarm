@@ -1,6 +1,7 @@
 import type { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 import { describe, expect, it, vi } from "vitest";
+import type { installRefarmMeContentPlugins } from "./me-content-plugins";
 import {
 	bootRefarmMeWorkbench,
 	REFARM_ME_LOADING_ID,
@@ -96,6 +97,7 @@ describe("refarm.me runtime", () => {
 			contentPluginIds: [],
 			graphMode: "bootstrap",
 			pluginRegistryIds: [],
+			discoveredContentPluginIds: [],
 			storeLocalNode: expect.any(Function),
 		});
 		expect(storage.queryNodes).toHaveBeenCalledWith(
@@ -141,6 +143,7 @@ describe("refarm.me runtime", () => {
 				syncStatus: "snapshot-applied",
 				graphMode: "bootstrap",
 				pluginRegistryCount: 0,
+				discoveredContentPluginCount: 0,
 			},
 		});
 
@@ -230,6 +233,7 @@ describe("refarm.me runtime", () => {
 			"refarm-me:registry:local",
 			"refarm-me:registry:payload",
 		]);
+		expect(workbench.discoveredContentPluginIds).toEqual([]);
 
 		const shellOptions = vi.mocked(setupShell).mock.calls[0]?.[1] as {
 			surfaceContext: (...args: unknown[]) => unknown;
@@ -250,8 +254,99 @@ describe("refarm.me runtime", () => {
 			data: {
 				graphMode: "sovereign",
 				pluginRegistryCount: 2,
+				discoveredContentPluginCount: 0,
 			},
 		});
+	});
+
+	it("discovers content plugins from graph registry nodes before install", async () => {
+		const doc = createMeDocument();
+		const tractor = createTractorFixture();
+		const storage = {
+			queryNodes: vi.fn(async () => [
+				{
+					payload: JSON.stringify({
+						"@id": "refarm-me:registry:plugins",
+						contentPlugins: [
+							{
+								manifest: {
+									id: "@refarm.me/graph-content",
+									name: "Graph Content",
+									version: "0.1.0",
+									entry: "https://example.test/graph-content.wasm",
+									integrity: "sha256-graph",
+									capabilities: { provides: [], requires: [] },
+									permissions: [],
+									observability: { hooks: [] },
+									targets: ["browser"],
+									certification: {
+										license: "MIT",
+										a11yLevel: 0,
+										languages: ["en"],
+									},
+								},
+								wasmUrl: "https://cdn.example.test/graph-content.wasm",
+								sourceUrl: "https://registry.example.test/graph-content",
+								browserRuntimeModule: {
+									url: "https://cdn.example.test/graph-content.mjs",
+									integrity: "sha256-module",
+								},
+							},
+							{ id: "partial-entry-without-manifest" },
+						],
+					}),
+				},
+			]),
+			storeNode: vi.fn(async () => {}),
+		};
+		const installContentPluginsMock = vi.fn(
+			async (_tractor: unknown, inputs: readonly unknown[]) =>
+				inputs.map((input) => ({
+					pluginId: (
+						input as { manifest: { id: string } }
+					).manifest.id,
+				})),
+		);
+		const installContentPlugins =
+			installContentPluginsMock as unknown as typeof installRefarmMeContentPlugins;
+
+		const workbench = await bootRefarmMeWorkbench({
+			document: doc,
+			bootRuntime: vi.fn(async () => ({
+				tractor,
+				storage,
+			})) as unknown as typeof bootStudioRuntime,
+			setupShell: vi.fn(
+				async (_tractor: unknown, _options: unknown) => ({}),
+			) as unknown as typeof setupStudioShell,
+			pluginConstructors: createPluginConstructors(),
+			createSurfacePlugins: (() => []) as unknown as typeof createRefarmMeSurfacePlugins,
+			installContentPlugins,
+			log: { error: vi.fn() },
+		});
+
+		expect(workbench.graphMode).toBe("sovereign");
+		expect(workbench.pluginRegistryIds).toEqual([
+			"refarm-me:registry:plugins",
+		]);
+		expect(workbench.discoveredContentPluginIds).toEqual([
+			"@refarm.me/graph-content",
+		]);
+		expect(workbench.contentPluginIds).toEqual(["@refarm.me/graph-content"]);
+		expect(installContentPluginsMock).toHaveBeenCalledWith(tractor, [
+			expect.objectContaining({
+				manifest: expect.objectContaining({
+					id: "@refarm.me/graph-content",
+					entry: "https://example.test/graph-content.wasm",
+				}),
+				wasmUrl: "https://cdn.example.test/graph-content.wasm",
+				sourceUrl: "https://registry.example.test/graph-content",
+				browserRuntimeModule: {
+					url: "https://cdn.example.test/graph-content.mjs",
+					integrity: "sha256-module",
+				},
+			}),
+		]);
 	});
 
 	it("renders boot failure copy in the loading boundary", () => {

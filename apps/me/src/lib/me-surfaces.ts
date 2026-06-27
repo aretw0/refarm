@@ -44,6 +44,7 @@ export interface RefarmMeSurfaceContextOptions {
 	syncStatus?: string;
 	graphMode?: string;
 	pluginRegistryCount?: number;
+	discoveredContentPluginCount?: number;
 }
 
 export function createRefarmMeSurfacePlugins(
@@ -90,6 +91,9 @@ export function renderRefarmMePersonalSurface(
 	const pluginRegistryCount = escapeRefarmMeSurfaceText(
 		String(request.host?.data?.pluginRegistryCount ?? 0),
 	);
+	const discoveredContentPluginCount = escapeRefarmMeSurfaceText(
+		String(request.host?.data?.discoveredContentPluginCount ?? 0),
+	);
 	const action = request.host?.actions?.find(
 		(candidate) => candidate.id === REFARM_ME_OPEN_VAULT_ACTION_ID,
 	);
@@ -119,6 +123,10 @@ export function renderRefarmMePersonalSurface(
 					<dt class="refarm-eyebrow">Registries</dt>
 					<dd data-refarm-me-plugin-registry-count>${pluginRegistryCount}</dd>
 				</div>
+				<div>
+					<dt class="refarm-eyebrow">Plugins</dt>
+					<dd data-refarm-me-discovered-content-plugin-count>${discoveredContentPluginCount}</dd>
+				</div>
 			</dl>
 			<p>It keeps Refarm.me product UX app-owned while exercising the same layout, surface, and action primitives used by the Studio app.</p>
 			${actionButton ? `<div class="refarm-cluster">${actionButton}</div>` : ""}
@@ -144,6 +152,8 @@ export function createRefarmMeSurfaceContextProvider(
 				syncStatus: options.syncStatus ?? REFARM_ME_SYNC_STATUS,
 				graphMode: options.graphMode ?? REFARM_ME_GRAPH_MODE,
 				pluginRegistryCount: options.pluginRegistryCount ?? 0,
+				discoveredContentPluginCount:
+					options.discoveredContentPluginCount ?? 0,
 			},
 			actions: [
 				{
