@@ -56,6 +56,9 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 - `BrowserSyncClient` now has a package-level proof for the default tractor
   endpoint (`ws://localhost:42000`), local-state send on open, local delta
   forwarding, and received binary snapshot/update application.
+- `installPlugin()` has focused `tractor-ts` coverage for URL fetch/cache,
+  cache-hit, cache revalidation, SHA-256 accept/reject, missing integrity
+  rejection, and hex/base64 sha256 forms.
 - Shell test fixtures now match the real Homestead Layout slots (`logo`, `nav`, `main`, `streams`, `statusbar`) instead of a non-existent `header` slot.
 
 ### Remaining bootstrap proof

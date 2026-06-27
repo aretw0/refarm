@@ -193,7 +193,7 @@ The difference: POC tests pipes. Consolidated tests the user's experience of the
 | `tractor` binary (port 42000) | ✅ Graduated ADR-048 |
 | `BrowserSyncClient` (TS) | ✅ In `packages/sync-loro/src/browser-sync-client.ts` |
 | OPFS SQLite in Homestead | ✅ ADR-002/009 |
-| `installPlugin()` skeleton | ✅ In `packages/tractor-ts/src/lib/install-plugin.ts`; SHA-256 + OPFS cache 🚧 |
+| `installPlugin()` + cache contract | ✅ In `packages/tractor-ts/src/lib/install-plugin.ts`; focused tests cover fetch/cache, cache-hit, cache revalidation, SHA-256 accept/reject, missing integrity rejection, and hex/base64 sha256 forms |
 | `StudioShell` (Shell.ts) | ✅ In `packages/homestead/sdk/` |
 | `HeraldPlugin` (Herald.ts) | ✅ In `packages/homestead/sdk/` |
 | `FireflyPlugin` (Firefly.ts) | ✅ In `packages/homestead/sdk/` |
