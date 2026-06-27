@@ -406,11 +406,11 @@ The current handoff lives under `.refarm/handoff/vault-seed/2026-06-26/`:
 A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install both tarballs, override the unpublished
 transitive `@refarm.dev/ds` dependency to the local tarball, import
-`@refarm.dev/homestead-ssr`, render a `verde-jardim` shell, confirm DS classes
-and theme CSS references, and confirm `@refarm.dev/homestead` is absent from
-`node_modules`. The official consumer checkout still needs to assimilate/review
-that packet. Consumer-local semantic tokens remain fallback-only for raw Marimo
-sessions.
+`@refarm.dev/homestead-ssr`, and render a `verde-jardim` shell. The proof also
+confirmed DS classes and theme CSS references, and confirmed
+`@refarm.dev/homestead` is absent from `node_modules`. The official consumer
+checkout still needs to assimilate/review that packet. Consumer-local semantic
+tokens remain fallback-only for raw Marimo sessions.
 
 **2026-06-26 process provenance packet:** `@refarm.dev/launch-process` now proves
 its runner-style process specs can be embedded directly in
@@ -469,6 +469,14 @@ override unpublished workspace dependencies to matching tarballs where needed;
 for example, `@refarm.dev/dispatch-surface` depends on
 `@refarm.dev/effort-contract-v1`, and `@refarm.dev/silo` depends on
 `@refarm.dev/heartwood`.
+
+As of 2026-06-27, `pnpm run release:vault-seed:handoff -- --json` includes the
+same package acceptance summary exposed by the release plan. The current packet
+reports `acceptance.status: "accepted"`, 10 packages, 4 required gates, 24
+required checks, one publish provider, and `manualApprovalRequired: true`. The
+Markdown form prints the same acceptance line before the tarball table, so a
+consumer handoff can verify readiness without reinterpreting the full release
+plan.
 
 ### Additional Assimilation Matrix
 

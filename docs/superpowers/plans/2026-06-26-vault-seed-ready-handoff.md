@@ -10,6 +10,8 @@
   lists 10 packages.
 - [x] Ensure `.refarm/handoff/vault-seed/2026-06-26/` has one tarball for each
   selected package.
+- [x] Confirm `pnpm run release:vault-seed:handoff -- --json` reports
+  `acceptance.status: "accepted"` with 10 packages and 24 required checks.
 - [x] Record SHA256 checksums in the convergence docs.
 
 ## Task 2 - Focused Validation
@@ -30,3 +32,12 @@ workspace dependencies to the matching tarballs. Known direct pairings:
 - `@refarm.dev/homestead-ssr` -> `@refarm.dev/ds`.
 
 This packet is a candidate channel, not a public release.
+
+## Task 4 - Acceptance Handoff
+
+- [x] `scripts/vault-seed-ready-handoff.mjs` propagates `releasePlanAcceptance`
+  into both blocked and ready manifests.
+- [x] The Markdown handoff prints `Acceptance: accepted (10 package(s), 24
+  required check(s))` before the tarball table.
+- [x] `pnpm run release:readiness:test` covers the acceptance field and Markdown
+  summary through `scripts/ci/test-vault-seed-ready-handoff.mjs`.

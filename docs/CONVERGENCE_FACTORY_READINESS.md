@@ -27,7 +27,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
-| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages; `.refarm/handoff/vault-seed/2026-06-26/` now has matching tarballs for the full selection and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
+| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages; `pnpm run release:vault-seed:handoff -- --json` now reports `acceptance.status: "accepted"` with 10 packages and 24 required checks; `.refarm/handoff/vault-seed/2026-06-26/` has matching tarballs for the full selection and selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
 
 ## Plan depth — read before "ready to implement"
 
