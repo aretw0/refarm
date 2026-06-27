@@ -19,7 +19,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `launch-process` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
-| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry; first ready codemod (`ds-token-adoption`) | first official consumer run of the ready codemod remains downstream |
+| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
 | 10 `io_uring` substrate | POC-ready, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule | evidence from Refarm-shaped workload |
 | 11 XR/WebXR surface | POC-ready, not product-ready | WebXR/A-Frame/three.js posture; fallback rule | browser/device evidence from a contained surface POC |
 
@@ -266,12 +266,14 @@ Vault-seed generator classification:
 
 - generator actions: payload copy, template-dev file exclusion, deterministic rename, generated
   `inventory.json`, welcome-note status publication, current `vault.config.json` kudos
-  removal/license-holder fill, and `package.template.json` repository URL materialization from
-  the target repository. These are local, idempotent, and covered by the generated-vault smoke
-  boundary.
-- codemod candidates: package-name/workspace adoption, repository/package metadata rewrites beyond
-  the initial template materialization, and any future cross-file JSON/TS/CSS rewrite needed by
-  more than one generated vault or consumer checkout.
+  removal/license-holder fill, `package.template.json` repository URL materialization from
+  the target repository, and generated-vault externalization of the excluded
+  `@aretw0/dgk-astro-plugins` workspace dependency. These are local, idempotent, and covered by
+  the generated-vault smoke boundary.
+- codemod candidates: package-name adoption and workspace dependency externalization beyond the
+  current generated-vault template, repository/package metadata rewrites beyond the initial
+  template materialization, and any future cross-file JSON/TS/CSS rewrite needed by more than one
+  generated vault or consumer checkout.
 - still not codemods: Markdown prose choices and ADR/spec content. Promote them only after a
   repeatable structural rule exists.
 

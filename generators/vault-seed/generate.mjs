@@ -10,6 +10,9 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 const GENERATED_OUTPUTS = new Set(["inventory.json"]);
+const TEMPLATE_PACKAGE_RANGES = new Map([
+	["@aretw0/dgk-astro-plugins", "latest"],
+]);
 
 function toRelativePath(root, filePath) {
 	return path.relative(root, filePath).split(path.sep).join("/");
@@ -108,6 +111,26 @@ function formatJson(value) {
 	return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+function externalizeTemplateWorkspaceDependencies(packageJson) {
+	for (const sectionName of [
+		"dependencies",
+		"devDependencies",
+		"optionalDependencies",
+		"peerDependencies",
+	]) {
+		const section = packageJson[sectionName];
+		if (!section || typeof section !== "object" || Array.isArray(section)) {
+			continue;
+		}
+		for (const [packageName, range] of Object.entries(section)) {
+			if (!TEMPLATE_PACKAGE_RANGES.has(packageName)) continue;
+			if (typeof range !== "string" || !range.startsWith("workspace:")) continue;
+			section[packageName] = TEMPLATE_PACKAGE_RANGES.get(packageName);
+		}
+	}
+	return packageJson;
+}
+
 function applyTransform(content, transform, options) {
 	switch (transform) {
 		case "rename":
@@ -140,6 +163,10 @@ function applyTransform(content, transform, options) {
 				url: `https://github.com/${repository}.git`,
 			};
 			return formatJson(packageJson);
+		}
+		case "externalize-dgk-astro-plugins": {
+			const packageJson = JSON.parse(content);
+			return formatJson(externalizeTemplateWorkspaceDependencies(packageJson));
 		}
 		default:
 			throw new Error(`Unsupported vault-seed transform: ${transform}`);

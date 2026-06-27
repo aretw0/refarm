@@ -43,6 +43,10 @@ async function writeFixture(sourceDir) {
 				type: "git",
 				url: "https://github.com/{{REPO_NAME}}.git",
 			},
+			dependencies: {
+				"@aretw0/dgk-astro-plugins": "workspace:^",
+				astro: "^6.4.4",
+			},
 		})}\n`,
 	);
 	await writeFile(path.join(sourceDir, "package.json"), '{"dev":true}\n');
@@ -109,7 +113,11 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 				source: "package.template.json",
 				target: "package.json",
 				class: "transform",
-				transforms: ["rename", "set-package-repository"],
+				transforms: [
+					"rename",
+					"set-package-repository",
+					"externalize-dgk-astro-plugins",
+				],
 			},
 		],
 		transforms: [
@@ -148,6 +156,11 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 		"https://github.com/aretw0/generated-vault.git",
 	);
 	assert.equal(
+		JSON.parse(readFileSync(path.join(outDir, "package.json"), "utf8"))
+			.dependencies["@aretw0/dgk-astro-plugins"],
+		"latest",
+	);
+	assert.equal(
 		readFileSync(path.join(outDir, "00 - Entrada/note.md"), "utf8"),
 		"status: published\n",
 	);
@@ -182,7 +195,11 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 			"package.json": {
 				source: "package.template.json",
 				class: "transform",
-				transforms: ["rename", "set-package-repository"],
+				transforms: [
+					"rename",
+					"set-package-repository",
+					"externalize-dgk-astro-plugins",
+				],
 			},
 			"payload.md": {
 				source: "payload.md",
@@ -225,7 +242,11 @@ test("generateVault copies payload, applies renames, skips dev-only paths, and r
 			source: "package.template.json",
 			target: "package.json",
 			class: "transform",
-			transforms: ["rename", "set-package-repository"],
+			transforms: [
+				"rename",
+				"set-package-repository",
+				"externalize-dgk-astro-plugins",
+			],
 		},
 		{
 			source: "payload.md",
