@@ -45,6 +45,63 @@ script.
 | Checkpoints and rollback | Hermes documents checkpoints and rollback as a filesystem safety net for destructive operations. | Refarm has git discipline, finish lanes, checkpoints, and task/session resume, but rollback is not an operator product surface. | Treat rollback as a later hardening lane after policy denial and restart recovery are proven. It must never hide source changes from git. |
 | External sandbox boundary | Pi explicitly does not restrict filesystem, process, network, or credential access by default; it recommends running the whole process in Docker/OpenShell or routing tools into a micro-VM through Gondolin. | Refarm is already designed around capability-gated WASM host calls and local resource discipline. | Keep Refarm stricter than Pi by default. When using external agents, document whether they are host-powerful, containerized, or routed through a Refarm-controlled capability boundary. |
 
+## Source Refresh 2026-06-27
+
+The references converge on a small driver nucleus rather than one big app:
+
+- Codex makes progressive skills cheap by showing only a bounded skill index
+  until a skill is selected. It also treats subagents as explicit, bounded
+  context-isolation work, not automatic fanout.
+- Claude Code separates memory from enforcement: `CLAUDE.md` and auto memory are
+  context, while hooks and permissions are the hard control layer. Its subagents
+  add independent context, tool access, permissions, model choice, and optional
+  memory.
+- Hermes Agent is strongest as an always-on gateway: one agent loop can serve
+  terminal, messaging, memory search, skill evolution, delegates, and scheduled
+  work. That is useful product pressure, but not a reason for Refarm to copy all
+  surfaces before the local loop is dependable.
+- Pi is the cleanest SDK/RPC reference. It keeps the terminal harness small,
+  exposes interactive, print, JSON, RPC, and SDK modes, and lets packages supply
+  workflow shape. Its permissive security stance is an explicit tradeoff that
+  Refarm should not inherit by default.
+
+## Refarm Driver Nucleus
+
+The next product shape should be "Refarm as engine, CLI/app as shells":
+
+1. Keep the operator loop as the hard daily-driver spine: `resume`, `check`,
+   `ask`, stream/session/task inspection, `finish`, and project handoff.
+2. Add a compact capability index before adding more skills, packages, workers,
+   or UI affordances. The index should report name, description, provider,
+   requirements, policy state, and activation command without loading full
+   instructions.
+3. Treat worker profiles as a public contract only after the single-agent loop is
+   boring. A worker profile needs explicit context packet, allowed tools, model
+   route, max concurrency, output schema, and cancellation/resume behavior.
+4. Keep SDK/RPC shape close to Pi's useful boundary: Refarm packages should offer
+   embeddable primitives so a downstream tool such as dgk can be powered by
+   Refarm without being relabeled as Refarm.
+5. Keep memory and policy separate. `.project/handoff.json`, AGENTS-style
+   guidance, and future capability metadata are context. Scarecrow, Barn,
+   WIT host capabilities, tool audit, and finish lanes are enforcement.
+
+## Nearest Proving Slice
+
+The next bite-sized slice that best unlocks the reference-driver path is a
+capability discovery proof, not broad subagents or scheduler work:
+
+1. Define the minimal capability descriptor schema in a package-owned source
+   module.
+2. Populate it from existing Refarm surfaces: runtime-agent tools, project
+   handoff, finish lanes, policy/audit proof, and stream observation.
+3. Expose one JSON command or SDK function that returns the compact index.
+4. Add a handoff contract test so downstream consumers can rely on it without
+   scraping docs or prompts.
+
+This keeps the work aligned with Codex/Hermes progressive disclosure, Pi's
+embeddable shape, and Claude's separation between guidance and enforcement,
+while preserving Refarm's stricter capability boundary.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;
