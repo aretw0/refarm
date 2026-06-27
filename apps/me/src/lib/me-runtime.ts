@@ -8,6 +8,7 @@ import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import {
 	installRefarmMeContentPlugins,
 	type RefarmMeContentPluginInstallInput,
+	type RefarmMeContentPluginManifest,
 } from "./me-content-plugins";
 import { REFARM_ME_WEB_RENDERER } from "./me-renderers";
 import {
@@ -46,6 +47,12 @@ export type RefarmMeGraphMode = "bootstrap" | "sovereign";
 export interface RefarmMeGraphStatus {
 	mode: RefarmMeGraphMode;
 	pluginRegistryIds: string[];
+	discoveredContentPlugins: RefarmMeDiscoveredContentPlugin[];
+}
+
+export interface RefarmMeDiscoveredContentPlugin {
+	registryId: string;
+	input: RefarmMeContentPluginInstallInput;
 }
 
 export interface RefarmMePluginConstructors {
@@ -63,6 +70,7 @@ export interface RefarmMeWorkbench {
 	contentPluginIds: string[];
 	graphMode: RefarmMeGraphMode;
 	pluginRegistryIds: string[];
+	discoveredContentPluginIds: string[];
 	storeLocalNode(input: RefarmMeLocalNodeInput): Promise<void>;
 }
 
@@ -81,6 +89,7 @@ export interface RefarmMeRuntimeOptions {
 	pluginConstructors?: RefarmMePluginConstructors;
 	createSurfacePlugins?: typeof createRefarmMeSurfacePlugins;
 	contentPlugins?: readonly RefarmMeContentPluginInstallInput[];
+	installContentPlugins?: typeof installRefarmMeContentPlugins;
 	browserSyncWsUrl?: string;
 	log?: Pick<Console, "error">;
 }
@@ -117,10 +126,16 @@ export async function bootRefarmMeWorkbench(
 	});
 	new constructors.FireflyPlugin(tractor);
 
+	const discoveredContentPlugins = graphStatus.discoveredContentPlugins.map(
+		(plugin) => plugin.input,
+	);
 	const contentPluginIds = (
-		await installRefarmMeContentPlugins(
+		await (options.installContentPlugins ?? installRefarmMeContentPlugins)(
 			tractor,
-			options.contentPlugins ?? readRefarmMeBootstrapContentPlugins(),
+			mergeRefarmMeContentPlugins(
+				options.contentPlugins ?? readRefarmMeBootstrapContentPlugins() ?? [],
+				discoveredContentPlugins,
+			),
 		)
 	).map((plugin) => plugin.pluginId);
 
@@ -136,6 +151,8 @@ export async function bootRefarmMeWorkbench(
 			syncStatus: browserSyncTelemetry.status(),
 			graphMode: graphStatus.mode,
 			pluginRegistryCount: graphStatus.pluginRegistryIds.length,
+			discoveredContentPluginCount:
+				graphStatus.discoveredContentPlugins.length,
 		}),
 		surfaceAction: createRefarmMeSurfaceActionHandler((request) => {
 			tractor.emitTelemetry({
@@ -161,6 +178,9 @@ export async function bootRefarmMeWorkbench(
 		contentPluginIds,
 		graphMode: graphStatus.mode,
 		pluginRegistryIds: graphStatus.pluginRegistryIds,
+		discoveredContentPluginIds: graphStatus.discoveredContentPlugins.map(
+			(plugin) => plugin.input.manifest.id,
+		),
 		storeLocalNode: (input) => storeRefarmMeLocalNode(runtime, input),
 	};
 }
@@ -177,7 +197,37 @@ async function readRefarmMeGraphStatus(
 	return {
 		mode: pluginRegistryIds.length > 0 ? "sovereign" : "bootstrap",
 		pluginRegistryIds,
+		discoveredContentPlugins: registries.flatMap(
+			readRefarmMeDiscoveredContentPlugins,
+		),
 	};
+}
+
+function readRefarmMeDiscoveredContentPlugins(
+	node: unknown,
+): RefarmMeDiscoveredContentPlugin[] {
+	const registryId = readRefarmMeStorageNodeId(node);
+	if (!registryId) return [];
+	const payload = readRefarmMeStorageNodePayload(node);
+	const entries = readRefarmMeRegistryPluginEntries(payload);
+	return entries
+		.map((entry) => readRefarmMeRegistryContentPluginInput(entry))
+		.filter(
+			(input): input is RefarmMeContentPluginInstallInput =>
+				input !== undefined,
+		)
+		.map((input) => ({ registryId, input }));
+}
+
+function readRefarmMeStorageNodePayload(node: unknown): unknown {
+	if (!node || typeof node !== "object") return undefined;
+	const payload = (node as { payload?: unknown }).payload;
+	if (typeof payload !== "string") return payload;
+	try {
+		return JSON.parse(payload);
+	} catch {
+		return undefined;
+	}
 }
 
 function readRefarmMeStorageNodeId(node: unknown): string | undefined {
@@ -195,6 +245,97 @@ function readRefarmMeStorageNodeId(node: unknown): string | undefined {
 		return undefined;
 	}
 	return undefined;
+}
+
+function readRefarmMeRegistryPluginEntries(payload: unknown): unknown[] {
+	if (!payload || typeof payload !== "object") return [];
+	const registry = payload as {
+		contentPlugins?: unknown;
+		plugins?: unknown;
+		entries?: unknown;
+		"refarm:plugins"?: unknown;
+	};
+	for (const candidate of [
+		registry.contentPlugins,
+		registry.plugins,
+		registry.entries,
+		registry["refarm:plugins"],
+	]) {
+		if (Array.isArray(candidate)) return candidate;
+	}
+	return [];
+}
+
+function readRefarmMeRegistryContentPluginInput(
+	entry: unknown,
+): RefarmMeContentPluginInstallInput | undefined {
+	if (!entry || typeof entry !== "object") return undefined;
+	const candidate = entry as {
+		manifest?: unknown;
+		wasmUrl?: unknown;
+		sourceUrl?: unknown;
+		force?: unknown;
+		browserRuntimeModule?: unknown;
+	};
+	if (!isRefarmMeContentPluginManifest(candidate.manifest)) return undefined;
+
+	const input: RefarmMeContentPluginInstallInput = {
+		manifest: candidate.manifest,
+	};
+	if (typeof candidate.wasmUrl === "string") input.wasmUrl = candidate.wasmUrl;
+	if (typeof candidate.sourceUrl === "string") {
+		input.sourceUrl = candidate.sourceUrl;
+	}
+	if (typeof candidate.force === "boolean") input.force = candidate.force;
+	const browserRuntimeModule = readRefarmMeBrowserRuntimeModule(
+		candidate.browserRuntimeModule,
+	);
+	if (browserRuntimeModule) input.browserRuntimeModule = browserRuntimeModule;
+	return input;
+}
+
+function isRefarmMeContentPluginManifest(
+	manifest: unknown,
+): manifest is RefarmMeContentPluginManifest {
+	if (!manifest || typeof manifest !== "object") return false;
+	const candidate = manifest as { id?: unknown; entry?: unknown };
+	return (
+		typeof candidate.id === "string" &&
+		candidate.id.length > 0 &&
+		typeof candidate.entry === "string" &&
+		candidate.entry.length > 0
+	);
+}
+
+function readRefarmMeBrowserRuntimeModule(
+	value: unknown,
+): RefarmMeContentPluginInstallInput["browserRuntimeModule"] | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const candidate = value as {
+		url?: unknown;
+		integrity?: unknown;
+		format?: unknown;
+	};
+	if (
+		typeof candidate.url !== "string" ||
+		typeof candidate.integrity !== "string"
+	) {
+		return undefined;
+	}
+	return {
+		url: candidate.url,
+		integrity: candidate.integrity,
+	};
+}
+
+function mergeRefarmMeContentPlugins(
+	bootstrap: readonly RefarmMeContentPluginInstallInput[],
+	discovered: readonly RefarmMeContentPluginInstallInput[],
+): RefarmMeContentPluginInstallInput[] {
+	const byId = new Map<string, RefarmMeContentPluginInstallInput>();
+	for (const plugin of bootstrap) byId.set(plugin.manifest.id, plugin);
+	for (const plugin of discovered) byId.set(plugin.manifest.id, plugin);
+	return Array.from(byId.values());
 }
 
 async function storeRefarmMeLocalNode(

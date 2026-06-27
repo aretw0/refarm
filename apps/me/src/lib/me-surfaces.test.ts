@@ -67,6 +67,7 @@ describe("refarm.me Homestead surface", () => {
 				syncStatus: REFARM_ME_SYNC_STATUS,
 				graphMode: REFARM_ME_GRAPH_MODE,
 				pluginRegistryCount: 0,
+				discoveredContentPluginCount: 0,
 			},
 			actions: [
 				expect.objectContaining({
@@ -88,6 +89,9 @@ describe("refarm.me Homestead surface", () => {
 		);
 		expect((rendered as { html: string }).html).toContain(
 			`<dd data-refarm-me-graph-mode>${REFARM_ME_GRAPH_MODE}</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-discovered-content-plugin-count>0</dd>`,
 		);
 		await expect(plugin?.call("other", {})).resolves.toBeNull();
 	});
@@ -112,6 +116,7 @@ describe("refarm.me Homestead surface", () => {
 					syncStatus: "sync <ok>",
 					graphMode: "mode <ok>",
 					pluginRegistryCount: "<2>",
+					discoveredContentPluginCount: "<1>",
 				},
 				actions: [
 					{
@@ -130,6 +135,7 @@ describe("refarm.me Homestead surface", () => {
 		expect((rendered as { html: string }).html).toContain("sync &lt;ok&gt;");
 		expect((rendered as { html: string }).html).toContain("mode &lt;ok&gt;");
 		expect((rendered as { html: string }).html).toContain("&lt;2&gt;");
+		expect((rendered as { html: string }).html).toContain("&lt;1&gt;");
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
 	});
 
@@ -157,6 +163,7 @@ describe("refarm.me Homestead surface", () => {
 			syncStatus: "snapshot-applied",
 			graphMode: "sovereign",
 			pluginRegistryCount: 1,
+			discoveredContentPluginCount: 2,
 		});
 
 		expect(provider(createRefarmMePersonalSurfaceRenderRequest())).toMatchObject({
@@ -169,6 +176,7 @@ describe("refarm.me Homestead surface", () => {
 				syncStatus: "snapshot-applied",
 				graphMode: "sovereign",
 				pluginRegistryCount: 1,
+				discoveredContentPluginCount: 2,
 			},
 		});
 	});
