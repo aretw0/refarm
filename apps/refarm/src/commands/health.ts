@@ -46,6 +46,7 @@ export interface HealthResults {
   git: HealthIssue[];
   builds: HealthIssue[];
   alignment: HealthIssue[];
+  automations?: HealthIssue[];
   complexity?: HealthIssue[];
   complexitySummary?: unknown;
 }
@@ -162,6 +163,9 @@ const HEALTH_POLICY_MODE_CONFLICT_MESSAGE = "Choose only one health policy mode:
 const HEALTH_AUDIT_CACHE_VERSION = 1;
 const HEALTH_AUDIT_CACHE_FILE = "health-audit.json";
 const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 30_000;
+const HEALTH_PROJECT_STATE_FINGERPRINT_FILES = [
+  ".project/automations.json",
+];
 const HEALTH_FINGERPRINT_EXTENSIONS = new Set([
   ".cjs",
   ".js",
@@ -232,6 +236,7 @@ export function buildHealthReport(
   const issueCount = results.git.length
     + results.builds.length
     + results.alignment.length
+    + (results.automations?.length ?? 0)
     + (results.complexity?.length ?? 0);
   const recommendations = buildHealthRecommendations(results);
   const nextActions = diagnosticNextActions(recommendations);
@@ -276,6 +281,14 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       summary: `${issue.package ?? "A workspace package"} resolves to ${issue.entry ?? "source"} instead of its build output.`,
       action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
       command: RESOLUTION_ALIGNMENT_COMMAND,
+    })),
+    ...(results.automations ?? []).map((issue) => ({
+      issueType: issue.type,
+      diagnostic: issue.type,
+      target: issue.file,
+      summary: `${issue.file ?? "Project automations"} has an invalid automation manifest entry.`,
+      action: "Fix .project/automations.json before adding automation writers or relying on scheduled-work handoffs.",
+      command: HEALTH_NEXT_ACTION_COMMAND,
     })),
     ...(results.complexity ?? []).map((issue) => ({
       issueType: issue.type,
@@ -469,7 +482,16 @@ function emitHealthSummary(report: HealthReport): void {
     });
   }
 
-  console.log(chalk.bold("\n4. Complexity Pressure"));
+  console.log(chalk.bold("\n4. Project Automations"));
+  if (!report.results.automations || report.results.automations.length === 0) {
+    console.log(chalk.green("   ✅ Project automation manifest is valid or absent."));
+  } else {
+    report.results.automations.forEach((issue: HealthIssue) => {
+      console.log(chalk.yellow(`   ⚠️  ${issue.file} ${issue.note ?? "has an invalid automation entry."}`));
+    });
+  }
+
+  console.log(chalk.bold("\n5. Complexity Pressure"));
   if (!report.results.complexity) {
     console.log(chalk.gray("   Not enabled in health policy."));
   } else if (report.results.complexity.length === 0) {
@@ -760,6 +782,11 @@ function isHealthReport(value: unknown): value is HealthReport {
 function healthFingerprintFiles(rootDir: string): string[] {
   const files: string[] = [];
   collectHealthFingerprintFiles(rootDir, rootDir, files);
+  for (const relativePath of HEALTH_PROJECT_STATE_FINGERPRINT_FILES) {
+    if (fs.existsSync(path.join(rootDir, relativePath))) {
+      files.push(relativePath);
+    }
+  }
   return files.sort();
 }
 

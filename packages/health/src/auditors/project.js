@@ -3,6 +3,9 @@ import path from "node:path";
 
 const DEFAULT_WORKSPACE_ROOTS = ["packages", "apps"];
 const REFARM_EXEMPT_PACKAGE_IDS = ["packages/deps", "packages/heartwood", "packages/tsconfig"];
+const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
+const PROJECT_AUTOMATION_STATUSES = new Set(["draft", "ready", "active", "archived"]);
+const PROJECT_AUTOMATION_TRIGGER_TYPES = new Set(["manual", "cron", "once", "event"]);
 
 /**
  * ProjectAuditor: workspace/package auditor with caller-provided policy.
@@ -58,7 +61,8 @@ export class ProjectAuditor {
         return {
             git: genericResults.git || [],
             builds: await this.checkBuildConfigs(rootDir, { workspaceRoots, exemptPackageIds }),
-            alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots, exemptPackageIds })
+            alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots, exemptPackageIds }),
+            automations: this.checkProjectAutomations(rootDir),
         };
     }
 
@@ -171,6 +175,96 @@ export class ProjectAuditor {
         }
         return status;
     }
+
+    /**
+     * Validates the optional project-local automation manifest read by operator handoffs.
+     */
+    checkProjectAutomations(rootDir) {
+        const relativePath = PROJECT_AUTOMATIONS_RELATIVE_PATH;
+        const automationsPath = path.join(rootDir, relativePath);
+        if (!fs.existsSync(automationsPath)) return [];
+
+        let parsed;
+        try {
+            parsed = JSON.parse(fs.readFileSync(automationsPath, "utf-8"));
+        } catch {
+            return [projectAutomationIssue(relativePath, "invalid_project_automations_json", "Project automations must be valid JSON.")];
+        }
+
+        const records = Array.isArray(parsed)
+            ? parsed
+            : parsed && typeof parsed === "object"
+                ? parsed.automations
+                : undefined;
+        if (!Array.isArray(records)) {
+            return [projectAutomationIssue(relativePath, "invalid_project_automations_shape", "Project automations must be an array or an object with an automations array.")];
+        }
+
+        return records.flatMap((record, index) =>
+            validateProjectAutomationRecord(record, relativePath, index)
+        );
+    }
+}
+
+function projectAutomationIssue(file, type, note, suffix = "") {
+    return {
+        file,
+        type,
+        category: "project-state",
+        note: suffix ? `${note} (${suffix})` : note,
+    };
+}
+
+function validateProjectAutomationRecord(record, file, index) {
+    const suffix = `automations[${index}]`;
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+        return [projectAutomationIssue(file, "invalid_project_automation_record", "Project automation entries must be objects.", suffix)];
+    }
+
+    const issues = [];
+    if (typeof record.id !== "string" || record.id.trim().length === 0) {
+        issues.push(projectAutomationIssue(file, "invalid_project_automation_id", "Project automation id must be a non-empty string.", suffix));
+    }
+    if (typeof record.name !== "string" || record.name.trim().length === 0) {
+        issues.push(projectAutomationIssue(file, "invalid_project_automation_name", "Project automation name must be a non-empty string.", suffix));
+    }
+    if (
+        record.status !== undefined &&
+        (typeof record.status !== "string" || !PROJECT_AUTOMATION_STATUSES.has(record.status))
+    ) {
+        issues.push(projectAutomationIssue(file, "invalid_project_automation_status", "Project automation status must be draft, ready, active, or archived.", suffix));
+    }
+    if (!Array.isArray(record.triggers) || record.triggers.length === 0) {
+        issues.push(projectAutomationIssue(file, "invalid_project_automation_triggers", "Project automation triggers must be a non-empty array.", suffix));
+        return issues;
+    }
+
+    record.triggers.forEach((trigger, triggerIndex) => {
+        issues.push(...validateProjectAutomationTrigger(trigger, file, `${suffix}.triggers[${triggerIndex}]`));
+    });
+    return issues;
+}
+
+function validateProjectAutomationTrigger(trigger, file, suffix) {
+    if (!trigger || typeof trigger !== "object" || Array.isArray(trigger)) {
+        return [projectAutomationIssue(file, "invalid_project_automation_trigger", "Project automation triggers must be objects.", suffix)];
+    }
+    if (typeof trigger.type !== "string" || !PROJECT_AUTOMATION_TRIGGER_TYPES.has(trigger.type)) {
+        return [projectAutomationIssue(file, "invalid_project_automation_trigger_type", "Project automation trigger type must be manual, cron, once, or event.", suffix)];
+    }
+    if (
+        trigger.type === "once" &&
+        (typeof trigger.at !== "string" || Number.isNaN(new Date(trigger.at).getTime()))
+    ) {
+        return [projectAutomationIssue(file, "invalid_project_automation_once_trigger", "Project automation once trigger requires a valid at timestamp.", suffix)];
+    }
+    if (trigger.type === "cron" && (typeof trigger.schedule !== "string" || trigger.schedule.trim().length === 0)) {
+        return [projectAutomationIssue(file, "invalid_project_automation_cron_trigger", "Project automation cron trigger requires a non-empty schedule.", suffix)];
+    }
+    if (trigger.type === "event" && (typeof trigger.eventType !== "string" || trigger.eventType.trim().length === 0)) {
+        return [projectAutomationIssue(file, "invalid_project_automation_event_trigger", "Project automation event trigger requires a non-empty eventType.", suffix)];
+    }
+    return [];
 }
 
 /**
