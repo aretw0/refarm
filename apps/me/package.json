@@ -14,6 +14,7 @@
 		"test": "vitest run",
 		"smoke:sync": "node scripts/smoke-browser-sync-status.mjs",
 		"smoke:plugin-cache": "node scripts/smoke-plugin-cache.mjs",
+		"smoke:content-plugin": "node scripts/smoke-content-plugin.mjs",
 		"lint": "eslint src"
 	},
 	"dependencies": {

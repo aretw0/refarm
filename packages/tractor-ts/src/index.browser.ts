@@ -9,6 +9,41 @@
  * See ADR-044: specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md
  */
 
+import {
+	assertEntryRuntimeCompatibility,
+	type BrowserRuntimeModuleMetadata,
+	detectEntryFormat,
+	detectWasmBinaryKind,
+	type PluginArtifactMetadata,
+	type PluginManifest,
+	verifyBufferIntegrity,
+} from "@refarm.dev/plugin-manifest";
+import { SovereignRegistry } from "@refarm.dev/registry";
+import { CommandHost } from "./lib/command-host.js";
+import type { SovereignNode } from "./lib/graph-normalizer.js";
+import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
+import {
+	getCachedPlugin,
+	getCachedPluginMetadata,
+	getCachedPluginRuntimeModule,
+} from "./lib/opfs-plugin-cache.js";
+import {
+	dedupeRuntimeDescriptorRevocationConfigConflicts,
+	dedupeRuntimeDescriptorRevocationInvalidInputs,
+	resolveRuntimeDescriptorRevocationEnvironmentProfile,
+	resolveRuntimeDescriptorRevocationUnavailablePolicy,
+	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
+	type RuntimeDescriptorRevocationUnavailablePolicy,
+} from "./lib/runtime-descriptor-revocation-policy.js";
+import {
+	buildGithubReleaseAssetUrl,
+	fetchRuntimeDescriptorRevocationList,
+	isDescriptorHashRevoked,
+} from "./lib/runtime-descriptor-revocation.js";
+import type { TelemetryEvent } from "./lib/telemetry.js";
+import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
+import type { SecurityMode, TractorConfig, TractorLogger, TractorLogLevel } from "./lib/types.js";
+
 export * from "./lib/agent-response-stream.js";
 export * from "./lib/graph-normalizer.js";
 export * from "./lib/identity-recovery-host.js";
@@ -22,40 +57,6 @@ export * from "./lib/stream-view.js";
 export * from "./lib/telemetry.js";
 export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
 export * from "./lib/types.js";
-
-import {
-	assertEntryRuntimeCompatibility,
-	type BrowserRuntimeModuleMetadata,
-	detectEntryFormat,
-	detectWasmBinaryKind,
-	type PluginArtifactMetadata,
-	type PluginManifest,
-	verifyBufferIntegrity,
-} from "@refarm.dev/plugin-manifest";
-import type { SovereignNode } from "./lib/graph-normalizer.js";
-import type { TractorConfig } from "./lib/types.js";
-import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
-import {
-	getCachedPlugin,
-	getCachedPluginMetadata,
-	getCachedPluginRuntimeModule,
-} from "./lib/opfs-plugin-cache.js";
-import {
-	buildGithubReleaseAssetUrl,
-	fetchRuntimeDescriptorRevocationList,
-	isDescriptorHashRevoked,
-} from "./lib/runtime-descriptor-revocation.js";
-import {
-	dedupeRuntimeDescriptorRevocationConfigConflicts,
-	dedupeRuntimeDescriptorRevocationInvalidInputs,
-	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
-	type RuntimeDescriptorRevocationUnavailablePolicy,
-	resolveRuntimeDescriptorRevocationEnvironmentProfile,
-	resolveRuntimeDescriptorRevocationUnavailablePolicy,
-} from "./lib/runtime-descriptor-revocation-policy.js";
-import type { TelemetryEvent } from "./lib/telemetry.js";
-import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
-import type { TractorLogger } from "./lib/types.js";
 
 type ViteImportMeta = ImportMeta & { env?: Record<string, string | undefined> };
 type RefarmGlobals = typeof globalThis & {
@@ -691,18 +692,106 @@ export {
 export const TRACTOR_VERSION: string =
 	(import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
+type BrowserNodeHandler = (node: SovereignNode) => void | Promise<void>;
+type BrowserTelemetryHandler = (event: TelemetryEvent) => void | Promise<void>;
+
 /**
- * Browser-safe Tractor proxy.
+ * Browser-safe Tractor runtime for Homestead apps.
  *
- * We intentionally keep this as a lazy bridge to avoid eager module resolution
- * for Node-oriented workspace dependencies during browser-only test/runtime
- * paths. Full Tractor implementation is loaded only when boot is requested.
+ * The browser entry must not import the Node-oriented Tractor implementation:
+ * browser apps need the cache-backed PluginHost defined in this module.
  */
 export class Tractor {
 	static readonly VERSION = TRACTOR_VERSION;
 
-	static async boot(config: TractorConfig): Promise<unknown> {
-		const module = await import("./index.js");
-		return module.Tractor.boot(config);
+	readonly storage: TractorConfig["storage"];
+	readonly namespace: string;
+	readonly identity: TractorConfig["identity"];
+	readonly sync?: TractorConfig["sync"];
+	readonly registry: SovereignRegistry;
+	readonly plugins: PluginHost;
+	readonly envMetadata: Record<string, string>;
+	readonly defaultSecurityMode: SecurityMode;
+	readonly logLevel: TractorLogLevel;
+	readonly commands: CommandHost;
+	private readonly telemetryHandlers: BrowserTelemetryHandler[] = [];
+	private readonly nodeHandlers = new Map<string, BrowserNodeHandler[]>();
+
+	private constructor(config: TractorConfig) {
+		this.storage = config.storage;
+		this.namespace = config.namespace;
+		this.identity = config.identity;
+		this.sync = config.sync;
+		this.envMetadata = config.envMetadata ?? {};
+		this.defaultSecurityMode = config.securityMode ?? "strict";
+		this.logLevel = config.logLevel ?? "info";
+		this.registry = new SovereignRegistry();
+		this.plugins = new PluginHost(
+			(event) => this.emitTelemetry(event),
+			this.registry,
+			this.logger(),
+		);
+		this.commands = new CommandHost((event, payload) =>
+			this.emitTelemetry({ event, payload }),
+		);
+	}
+
+	static async boot(config: TractorConfig): Promise<Tractor> {
+		return new Tractor(config);
+	}
+
+	observe(handler: BrowserTelemetryHandler): void {
+		this.telemetryHandlers.push(handler);
+	}
+
+	emitTelemetry(event: TelemetryEvent): void {
+		for (const handler of this.telemetryHandlers) {
+			void handler(event);
+		}
+		this.plugins.dispatch(event);
+	}
+
+	onNode(type: string, handler: BrowserNodeHandler): void {
+		const handlers = this.nodeHandlers.get(type) ?? [];
+		handlers.push(handler);
+		this.nodeHandlers.set(type, handlers);
+	}
+
+	async storeNode(node: SovereignNode): Promise<void> {
+		const nodeType = String(node["@type"] ?? node.type ?? "");
+		if (!nodeType) return;
+		for (const handler of this.nodeHandlers.get(nodeType) ?? []) {
+			await handler(node);
+		}
+	}
+
+	async getHelpNodes(): Promise<SovereignNode[]> {
+		return this.plugins.getHelpNodes();
+	}
+
+	switchTier(tier: string): void {
+		this.emitTelemetry({
+			event: "system:switch-tier",
+			payload: { tier },
+		});
+	}
+
+	private logger(): TractorLogger {
+		return {
+			info: (...args) => this.log("info", ...args),
+			warn: (...args) => this.log("warn", ...args),
+			debug: (...args) => this.log("debug", ...args),
+			error: (...args) => this.log("error", ...args),
+		};
+	}
+
+	private log(
+		level: Exclude<TractorLogLevel, "silent">,
+		...args: unknown[]
+	): void {
+		if (this.logLevel === "silent") return;
+		if (level === "debug" && this.logLevel !== "debug") return;
+		if (level === "info" && !["info", "debug"].includes(this.logLevel)) return;
+		console[level](...args);
 	}
 }
