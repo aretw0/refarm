@@ -84,6 +84,37 @@ describe("BrowserSyncClient", () => {
 		client.disconnect();
 		expect(socket.close).toHaveBeenCalled();
 	});
+
+	it("emits a failure event when a remote update cannot be applied", async () => {
+		const remoteSnapshot = new Uint8Array([4, 5, 6]);
+		const storage = {
+			getUpdate: vi.fn(async () => new Uint8Array([1])),
+			applyUpdate: vi.fn(async () => {
+				throw new Error("bad snapshot");
+			}),
+			onUpdate: vi.fn(() => vi.fn()),
+		} as unknown as LoroCRDTStorage;
+		const onEvent = vi.fn();
+
+		const client = new BrowserSyncClient(storage, { onEvent });
+		client.connect();
+		const socket = sockets[0]!;
+		socket.open();
+		await Promise.resolve();
+
+		socket.receive(remoteSnapshot);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "remote-update-failed",
+			byteLength: remoteSnapshot.byteLength,
+			error: "bad snapshot",
+			wsUrl: "ws://localhost:42000",
+		});
+
+		client.disconnect();
+	});
 });
 
 class MockWebSocket {

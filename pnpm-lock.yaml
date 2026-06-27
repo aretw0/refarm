@@ -1211,6 +1211,12 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
+      ws:
+        specifier: 8.21.0
+        version: 8.21.0
 
   packages/task-contract-v1:
     dependencies:
