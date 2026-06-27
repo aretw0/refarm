@@ -16,6 +16,7 @@
 		"smoke:plugin-cache": "node scripts/smoke-plugin-cache.mjs",
 		"smoke:content-plugin": "node scripts/smoke-content-plugin.mjs",
 		"smoke:pwa": "node scripts/smoke-pwa.mjs",
+		"smoke:offline-roundtrip": "node scripts/smoke-offline-roundtrip.mjs",
 		"lint": "eslint src"
 	},
 	"dependencies": {

@@ -46,7 +46,7 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 - [x] At least 1 content plugin installable by explicit URL + SHA-256
 - [x] OPFS persistence: plugin cache survives page reload
 - [x] PWA manifest + Service Worker: offline-first confirmed
-- [ ] Offline roundtrip: disconnect tractor → write mutation → reconnect → delta delivered
+- [x] Offline roundtrip: disconnect tractor → write mutation → reconnect → delta delivered
 
 ### Current evidence
 
@@ -80,6 +80,10 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   the browser shell to become Service Worker controlled, reloads once to seed the
   cache, and then proves the personal surface renders while Chromium is offline.
   Coverage: `pnpm -C apps/me run smoke:pwa`.
+- Offline roundtrip smoke coverage boots the real app against a browser
+  WebSocket mock, disconnects sync, writes a local Loro-backed node through the
+  workbench, waits for reconnect, and asserts the next sync payload contains the
+  local mutation. Coverage: `pnpm -C apps/me run smoke:offline-roundtrip`.
 - `sync-loro` now has a runtime transport smoke that connects to a running
   Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
   snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the
@@ -92,13 +96,11 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 ### Remaining bootstrap proof
 
-The next Gate 3b gap is no longer sync transport, plugin cache persistence,
-explicit content plugin installation, or offline-first PWA behavior: `apps/me`
-boots against a running Tractor, receives an initial snapshot, proves
-OPFS-backed plugin cache survives a page reload, renders a SHA-256 pinned
-installed content plugin, and reloads its personal shell while Chromium is
-offline. The remaining bootstrap gap is the offline mutation/reconnect
-roundtrip before the broader daily-driver gate can be considered complete.
+Gate 3b now has downstream `apps/me` proof for sync transport, plugin cache
+persistence, explicit content plugin installation, offline-first PWA behavior,
+and offline mutation/reconnect delivery. The remaining daily-driver work should
+move from bootstrap proof to sovereign-mode mileage: graph-backed identity,
+plugin registry discovery, plugin management UI, and multi-device sync.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).

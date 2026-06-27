@@ -26,8 +26,9 @@ describe("refarm.me runtime", () => {
 		};
 		const bootRuntime = vi.fn(async (runtimeOptions) => {
 			runtimeOptions.browserSync?.onEvent?.(earlyBrowserSyncEvent);
-			return { tractor };
+			return { tractor, storage };
 		}) as unknown as typeof bootStudioRuntime;
+		const storage = { storeNode: vi.fn(async () => {}) };
 		const setupShellMock = vi.fn(
 			async (_tractor: unknown, _options: unknown) => ({}),
 		);
@@ -89,7 +90,22 @@ describe("refarm.me runtime", () => {
 			renderer: REFARM_ME_RENDERER,
 			surfacePluginIds: [REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID],
 			contentPluginIds: [],
+			storeLocalNode: expect.any(Function),
 		});
+		await workbench.storeLocalNode({
+			id: "refarm-me-proof",
+			type: "refarm:Proof",
+			context: "citizen",
+			payload: "{\"ok\":true}",
+			sourcePlugin: "apps/me:test",
+		});
+		expect(storage.storeNode).toHaveBeenCalledWith(
+			"refarm-me-proof",
+			"refarm:Proof",
+			"citizen",
+			"{\"ok\":true}",
+			"apps/me:test",
+		);
 
 		const shellOptions = setupShellMock.mock.calls[0]?.[1] as unknown as {
 			surfaceContext: (...args: unknown[]) => unknown;
