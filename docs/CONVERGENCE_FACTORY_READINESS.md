@@ -243,6 +243,14 @@ that manual editing is riskier:
   repository identity/package metadata rewrites, and package-name/workspace adoption;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
+`ds-token-adoption` is now the first ready codemod entry. It has before/after
+fixtures, preserves nested CSS at-rules, is idempotent, and exposes a JSON
+dry-run report. A cache-only proof against
+`/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed/.site/styles/marimo-vault.css`
+reported `changed: true`, `importsAdded: 3`, and
+`semanticDeclarationsRemoved: 205` with `written: false`; official downstream
+application/visual review remains on the `vault-seed` side.
+
 Vault-seed generator classification:
 
 - generator actions: payload copy, template-dev file exclusion, deterministic rename, generated
