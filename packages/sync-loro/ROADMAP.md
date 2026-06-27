@@ -67,9 +67,10 @@
 - The browser sync client contract is covered with a fake WebSocket. The
   `apps/me` Gate 3b app-level proof now boots the browser app, applies a runtime
   snapshot, and proves an offline local mutation is included in the reconnect
-  payload. The remaining release-gate observation is one combined
-  `apps/me` -> real Tractor daemon -> read-model query assertion for the exact
-  offline node.
+  payload. The combined release-gate observation is covered by
+  `pnpm -C apps/me run smoke:real-daemon-roundtrip`, which proves
+  `apps/me` -> real Tractor daemon -> read-model query for the exact offline
+  node.
 - `BrowserSyncClient` emits lifecycle/update events for host-owned telemetry
   (`connecting`, `open`, local send, remote receive/apply, close, error). These
   events are intentionally transport-level and do not interpret the Loro

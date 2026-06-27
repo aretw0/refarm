@@ -6,8 +6,7 @@
 > the primitives alone is not enough: the gate is complete only when `apps/me` boots as
 > a consolidated distro, exactly as it will behave in production.
 
-**Status**: 🚧 App-level Gate 3b evidence complete; final real-daemon
-persistence observation pending
+**Status**: ✅ Gate 3b downstream evidence complete
 **Tracked by**: [`docs/v0.1.0-release-gate.md`](v0.1.0-release-gate.md)
 **Related ADRs**: [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md), [ADR-048](../specs/ADRs/ADR-048-tractor-graduation.md)
 
@@ -158,14 +157,16 @@ surface:
 - `pnpm -C apps/me run smoke:offline-roundtrip` proves the real app writes a
   local Loro-backed node while disconnected and sends a larger sync payload on
   reconnect.
+- `pnpm -C apps/me run smoke:real-daemon-roundtrip` proves the real app writes
+  a local Loro-backed node while disconnected from an isolated Tractor daemon,
+  reconnects to the same daemon namespace, and the Tractor read model contains
+  the exact node.
 - `cargo test --test ws_integration ws_server_applies_incoming_update` proves
   the Rust WebSocket daemon applies incoming client updates to its read model.
 
-The remaining release-gate observation is the combined end-to-end proof:
+This closes the prior release-gate observation gap:
 `apps/me` offline mutation -> reconnect to a real Tractor daemon -> query the
-daemon/read model and assert the exact node is present. Until that exists as one
-command, Gate 3 should be treated as operationally close but not fully closed for
-release.
+daemon/read model and assert the exact node is present.
 
 ---
 
@@ -223,4 +224,4 @@ The difference: POC tests pipes. Consolidated tests the user's experience of the
 | `HeraldPlugin` (Herald.ts) | ✅ In `packages/homestead/sdk/` |
 | `FireflyPlugin` (Firefly.ts) | ✅ In `packages/homestead/sdk/` |
 | WIT `world refarm-identity-plugin` | ✅ commit `07f338b` |
-| `apps/me` as reference distro | ✅ App-level bootstrap evidence complete; final real-daemon persistence observation pending |
+| `apps/me` as reference distro | ✅ Gate 3b downstream evidence complete |

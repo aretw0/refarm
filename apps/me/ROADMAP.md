@@ -84,6 +84,11 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   WebSocket mock, disconnects sync, writes a local Loro-backed node through the
   workbench, waits for reconnect, and asserts the next sync payload contains the
   local mutation. Coverage: `pnpm -C apps/me run smoke:offline-roundtrip`.
+- Real daemon roundtrip smoke coverage boots an isolated Tractor daemon,
+  points `apps/me` at that daemon, disconnects it, writes a local Loro-backed
+  node while disconnected, restarts the same daemon namespace, and queries the
+  Tractor read model for the exact node. Coverage:
+  `pnpm -C apps/me run smoke:real-daemon-roundtrip`.
 - `sync-loro` now has a runtime transport smoke that connects to a running
   Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
   snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the
@@ -98,12 +103,10 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 Gate 3b now has downstream `apps/me` proof for sync transport, plugin cache
 persistence, explicit content plugin installation, offline-first PWA behavior,
-and offline mutation/reconnect delivery. The remaining daily-driver work should
-move from bootstrap proof to sovereign-mode mileage: graph-backed identity,
-plugin registry discovery, plugin management UI, and multi-device sync. For the
-release gate, one combined real-daemon observation still needs to assert that the
-exact offline `apps/me` mutation appears in Tractor's read model after reconnect;
-the app-level smoke currently proves delivery into the reconnect payload.
+offline mutation/reconnect delivery, and the combined real-daemon read-model
+observation. The remaining daily-driver work should move from bootstrap proof to
+sovereign-mode mileage: graph-backed identity, plugin registry discovery, plugin
+management UI, and multi-device sync.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).

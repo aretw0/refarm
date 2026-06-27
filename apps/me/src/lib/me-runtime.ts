@@ -71,6 +71,7 @@ export interface RefarmMeRuntimeOptions {
 	pluginConstructors?: RefarmMePluginConstructors;
 	createSurfacePlugins?: typeof createRefarmMeSurfacePlugins;
 	contentPlugins?: readonly RefarmMeContentPluginInstallInput[];
+	browserSyncWsUrl?: string;
 	log?: Pick<Console, "error">;
 }
 
@@ -79,6 +80,12 @@ export async function bootRefarmMeWorkbench(
 ): Promise<RefarmMeWorkbench> {
 	const doc = options.document ?? document;
 	const browserSyncTelemetry = createRefarmMeBrowserSyncTelemetryBuffer(doc);
+	const browserSyncWsUrl =
+		options.browserSyncWsUrl ?? readRefarmMeBootstrapSyncUrl();
+	const browserSyncOptions: NonNullable<
+		BootStudioRuntimeOptions["browserSync"]
+	> = { onEvent: browserSyncTelemetry.capture };
+	if (browserSyncWsUrl) browserSyncOptions.wsUrl = browserSyncWsUrl;
 	const runtime = await (options.bootRuntime ?? bootStudioRuntime)({
 		databaseName: "refarm-me-main",
 		namespace: "citizen",
@@ -87,7 +94,7 @@ export async function bootRefarmMeWorkbench(
 		envMetadata: { version: "0.1.0-solo-fertil", commit: "me" },
 		connectBrowserSync: true,
 		tractorSync: true,
-		browserSync: { onEvent: browserSyncTelemetry.capture },
+		browserSync: browserSyncOptions,
 	});
 	const tractor = runtime.tractor;
 	browserSyncTelemetry.flushTo(tractor);
@@ -284,6 +291,14 @@ function readRefarmMeBootstrapContentPlugins():
 		__REFARM_ME_BOOTSTRAP_CONTENT_PLUGINS__?: readonly RefarmMeContentPluginInstallInput[];
 	};
 	return globalConfig.__REFARM_ME_BOOTSTRAP_CONTENT_PLUGINS__;
+}
+
+function readRefarmMeBootstrapSyncUrl(): string | undefined {
+	const globalConfig = globalThis as typeof globalThis & {
+		__REFARM_ME_BOOTSTRAP_SYNC_URL__?: string;
+	};
+	const syncUrl = globalConfig.__REFARM_ME_BOOTSTRAP_SYNC_URL__?.trim();
+	return syncUrl && syncUrl.length > 0 ? syncUrl : undefined;
 }
 
 export { REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID };
