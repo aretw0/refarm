@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
-import { transformDsTokenAdoption } from "./ds-token-adoption.mjs";
+import {
+	transformDsTokenAdoption,
+	transformDsTokenAdoptionWithReport,
+} from "./ds-token-adoption.mjs";
 
 test("ds token adoption fixture matches expected output", () => {
 	const before = readFileSync(
@@ -14,6 +20,18 @@ test("ds token adoption fixture matches expected output", () => {
 	);
 
 	assert.equal(transformDsTokenAdoption(before), after);
+	assert.deepEqual(
+		{
+			...transformDsTokenAdoptionWithReport(before),
+			css: undefined,
+		},
+		{
+			css: undefined,
+			changed: true,
+			importsAdded: 3,
+			semanticDeclarationsRemoved: 13,
+		},
+	);
 });
 
 test("ds token adoption is idempotent", () => {
@@ -30,4 +48,34 @@ test("ds token adoption preserves nested at-rules", () => {
 	const expected = `@import "@refarm.dev/ds/tokens.css";\n@import "@refarm.dev/ds/themes/verde-jardim.css";\n@import "@refarm.dev/ds/components.css";\n\n:root {\n  --gdg-grid-line: var(--border);\n}\n\n@media (max-width: 44rem) {\n  :root[data-vault-marimo-theme=\"light\"] {\n    --background: #fff;\n  }\n\n  .panel {\n    color: var(--foreground);\n  }\n}\n`;
 
 	assert.equal(transformDsTokenAdoption(before), expected);
+});
+
+test("ds token adoption cli can emit a dry-run json report", () => {
+	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-ds-token-codemod-"));
+	const input = path.join(root, "marimo-vault.css");
+	writeFileSync(input, ":root {\n  --background: #fff;\n}\n", "utf8");
+
+	const result = spawnSync(
+		process.execPath,
+		[
+			new URL("./ds-token-adoption.mjs", import.meta.url).pathname,
+			"--input",
+			input,
+			"--json",
+		],
+		{
+			cwd: process.cwd(),
+			encoding: "utf8",
+		},
+	);
+
+	assert.equal(result.status, 0);
+	assert.deepEqual(JSON.parse(result.stdout), {
+		input,
+		changed: true,
+		importsAdded: 3,
+		semanticDeclarationsRemoved: 1,
+		written: false,
+	});
+	assert.equal(readFileSync(input, "utf8"), ":root {\n  --background: #fff;\n}\n");
 });
