@@ -6,6 +6,12 @@
 Este pacote é a primeira abstração consolidada da política de release do Refarm como produto reutilizável.
 
 > Contexto atual: o pacote ainda **não foi publicado**. Neste ciclo, a prioridade é preparar um **primeiro release com qualidade de minor madura**, reduzindo risco de mudanças de breaking logo após lançar.
+>
+> Evidência local (2026-06-27): `pnpm run release:readiness` passou fim a fim
+> para a seleção padrão `kernel-candidates`, incluindo o dry-run de publicação
+> dos quatro candidatos atuais (`storage-contract-v1`, `sync-contract-v1`,
+> `identity-contract-v1`, `channel-policy-v1`). A publicação real continua
+> pendente de aprovação humana e credenciais de registry.
 
 ## V0 — Núcleo de Planejamento Determinístico
 

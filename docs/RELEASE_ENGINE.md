@@ -72,6 +72,13 @@ Readiness de primeira release:
 - `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
 - `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
 
+Evidência local mais recente (2026-06-27): `pnpm run release:readiness`
+passou fim a fim para a seleção padrão `kernel-candidates`. O dry-run de
+publicação cobriu `@refarm.dev/storage-contract-v1`,
+`@refarm.dev/sync-contract-v1`, `@refarm.dev/identity-contract-v1` e
+`@refarm.dev/channel-policy-v1`. Esse resultado prova readiness local; não
+substitui aprovação explícita de publicação nem credenciais de npm/crates.
+
 Essa camada não substitui o `release-engine`: ela é um orquestrador de repo que
 amarra saúde do operador, política de release, substratos Node/Rust, ownership de
 artefatos, contratos de GitHub Actions e dry-run de publicação em uma pergunta
