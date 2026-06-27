@@ -6,7 +6,7 @@ import {
 	randomPeerId,
 	type BrowserSyncClientEvent,
 } from "@refarm.dev/sync-loro";
-import { Tractor } from "@refarm.dev/tractor";
+import { Tractor } from "@refarm.dev/tractor/browser";
 
 export const STUDIO_DEFAULT_ENV_METADATA = {
 	version: "0.1.0-dev",

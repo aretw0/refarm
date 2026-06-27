@@ -43,7 +43,7 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 - [x] `HeraldPlugin` initializes: identity state legible (at minimum: `"unauthenticated"`)
 - [x] `FireflyPlugin` initializes: system notifications functional
 - [x] `BrowserSyncClient` connects to tractor (`ws://localhost:42000`), snapshot received
-- [ ] At least 1 content plugin installable by explicit URL + SHA-256
+- [x] At least 1 content plugin installable by explicit URL + SHA-256
 - [x] OPFS persistence: plugin cache survives page reload
 - [ ] PWA manifest + Service Worker: offline-first confirmed
 - [ ] Offline roundtrip: disconnect tractor → write mutation → reconnect → delta delivered
@@ -71,6 +71,11 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   `@refarm.dev/tractor/browser`, reloads the page, and asserts the second
   install is an OPFS cache hit with no refetch. Coverage:
   `pnpm -C apps/me run smoke:plugin-cache`.
+- Content plugin smoke coverage injects a SHA-256 pinned component URL plus
+  browser runtime module URL before app boot, installs it through
+  `@refarm.dev/tractor/browser`, activates it in the Registry, loads it through
+  the browser `PluginHost`, and asserts its Homestead surface renders in the
+  real app DOM. Coverage: `pnpm -C apps/me run smoke:content-plugin`.
 - `sync-loro` now has a runtime transport smoke that connects to a running
   Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
   snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the
@@ -83,11 +88,12 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 ### Remaining bootstrap proof
 
-The next Gate 3b gap is no longer sync transport or plugin cache persistence:
-`apps/me` boots against a running Tractor, receives an initial snapshot, and
-proves OPFS-backed plugin cache survives a page reload. The remaining gap is a
-real installable content plugin and offline-first PWA behavior before the broader
-daily-driver gate can be considered complete.
+The next Gate 3b gap is no longer sync transport, plugin cache persistence, or
+explicit content plugin installation: `apps/me` boots against a running Tractor,
+receives an initial snapshot, proves OPFS-backed plugin cache survives a page
+reload, and renders a SHA-256 pinned installed content plugin. The remaining
+bootstrap gap is offline-first PWA behavior before the broader daily-driver gate
+can be considered complete.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).

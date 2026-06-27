@@ -14,6 +14,9 @@
 			"@refarm.dev/tractor": [
 				"packages/tractor/dist/index.d.ts"
 			],
+			"@refarm.dev/tractor/browser": [
+				"packages/tractor/dist/src/index.browser.d.ts"
+			],
 			"@refarm.dev/plugin-manifest": [
 				"packages/plugin-manifest/src/index.d.ts"
 			]

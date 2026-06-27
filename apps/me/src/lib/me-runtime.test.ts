@@ -88,6 +88,7 @@ describe("refarm.me runtime", () => {
 			tractor,
 			renderer: REFARM_ME_RENDERER,
 			surfacePluginIds: [REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID],
+			contentPluginIds: [],
 		});
 
 		const shellOptions = setupShellMock.mock.calls[0]?.[1] as unknown as {

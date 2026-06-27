@@ -5,6 +5,10 @@ import {
 } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
+import {
+	installRefarmMeContentPlugins,
+	type RefarmMeContentPluginInstallInput,
+} from "./me-content-plugins";
 import { REFARM_ME_WEB_RENDERER } from "./me-renderers";
 import {
 	createRefarmMeSurfaceActionHandler,
@@ -48,6 +52,7 @@ export interface RefarmMeWorkbench {
 	tractor: RefarmMeTractor;
 	renderer: HomesteadHostRendererDescriptor;
 	surfacePluginIds: string[];
+	contentPluginIds: string[];
 }
 
 export interface RefarmMeRuntimeOptions {
@@ -56,6 +61,7 @@ export interface RefarmMeRuntimeOptions {
 	setupShell?: SetupStudioShell;
 	pluginConstructors?: RefarmMePluginConstructors;
 	createSurfacePlugins?: typeof createRefarmMeSurfacePlugins;
+	contentPlugins?: readonly RefarmMeContentPluginInstallInput[];
 	log?: Pick<Console, "error">;
 }
 
@@ -83,6 +89,13 @@ export async function bootRefarmMeWorkbench(
 		identityStatus: REFARM_ME_IDENTITY_STATUS,
 	});
 	new constructors.FireflyPlugin(tractor);
+
+	const contentPluginIds = (
+		await installRefarmMeContentPlugins(
+			tractor,
+			options.contentPlugins ?? readRefarmMeBootstrapContentPlugins(),
+		)
+	).map((plugin) => plugin.pluginId);
 
 	const surfacePluginIds = registerRefarmMeSurfacePlugins(
 		tractor,
@@ -116,6 +129,7 @@ export async function bootRefarmMeWorkbench(
 		tractor,
 		renderer: REFARM_ME_RENDERER,
 		surfacePluginIds,
+		contentPluginIds,
 	};
 }
 
@@ -238,6 +252,15 @@ function refarmMeErrorMessage(error: unknown): string {
 	return typeof error === "string" && error.length > 0
 		? error
 		: "unknown error";
+}
+
+function readRefarmMeBootstrapContentPlugins():
+	| readonly RefarmMeContentPluginInstallInput[]
+	| undefined {
+	const globalConfig = globalThis as typeof globalThis & {
+		__REFARM_ME_BOOTSTRAP_CONTENT_PLUGINS__?: readonly RefarmMeContentPluginInstallInput[];
+	};
+	return globalConfig.__REFARM_ME_BOOTSTRAP_CONTENT_PLUGINS__;
 }
 
 export { REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID };
