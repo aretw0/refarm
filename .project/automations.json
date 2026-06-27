@@ -1,0 +1,16 @@
+{
+  "automations": [
+    {
+      "id": "daily-handoff",
+      "name": "Daily handoff",
+      "description": "Daily visibility hook for operator resume dogfood.",
+      "status": "active",
+      "triggers": [
+        {
+          "type": "cron",
+          "schedule": "@daily"
+        }
+      ]
+    }
+  ]
+}
