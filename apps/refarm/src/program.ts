@@ -16,6 +16,7 @@ import { modelCommand } from "./commands/model.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
+import { projectCommand } from "./commands/project.js";
 import { provisionCommand } from "./commands/provision.js";
 import { releaseCommand } from "./commands/release.js";
 import { resumeCommand } from "./commands/resume.js";
@@ -110,6 +111,7 @@ program
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
 			"  $ refarm workspace execution --json Inspect workspace executor/cache readiness",
+			"  $ refarm project handoff validate --json Validate durable project handoff state",
 			"  $ refarm release plan --selection default --json Plan release candidates by configured policy selection",
 			"  $ refarm agent --next-command    Print the first agent handoff command",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
@@ -127,7 +129,7 @@ program
 			`  $ refarm model ${OPENAI_DEFAULT_REF}`,
 			"  $ refarm model base-url http://127.0.0.1:8000",
 			"",
-			"Inside the interactive session, use /help for /model, /login, /reload, /clear, and session commands.",
+			"Inside the interactive session, use /help for /model, /login, /reload, /clear, /cls, and session commands.",
 		].join("\n"),
 	)
 	.action(async () => {
@@ -257,6 +259,7 @@ program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
 program.addCommand(packageManagerCommand);
 program.addCommand(pluginCommand);
+program.addCommand(projectCommand);
 program.addCommand(extensionCommand);
 program.addCommand(agentCommand);
 program.addCommand(openUrlCommand);

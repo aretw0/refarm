@@ -216,6 +216,20 @@ export type {
 	OperatorResumeTaskSummary,
 } from "./operator-resume.js";
 export {
+	buildProjectHandoffDocument,
+	parseProjectHandoffSummary,
+	PROJECT_HANDOFF_RELATIVE_PATH,
+	validateProjectHandoffDocument,
+} from "./project-handoff.js";
+export type {
+	ProjectHandoffDocument,
+	ProjectHandoffIssueSeverity,
+	ProjectHandoffUpdate,
+	ProjectHandoffValidationIssue,
+	ProjectHandoffValidationOptions,
+	ProjectHandoffValidationResult,
+} from "./project-handoff.js";
+export {
 	createLaunchProcessRunner,
 	createLaunchProcessSpec,
 	createLaunchProcessSpecFromRunner,

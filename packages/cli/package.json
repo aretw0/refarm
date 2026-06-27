@@ -50,6 +50,10 @@
 			"types": "./dist/operator-resume.d.ts",
 			"import": "./dist/operator-resume.js"
 		},
+		"./project-handoff": {
+			"types": "./dist/project-handoff.d.ts",
+			"import": "./dist/project-handoff.js"
+		},
 		"./launch-process": {
 			"types": "./dist/launch-process.d.ts",
 			"import": "./dist/launch-process.js"
@@ -125,6 +129,8 @@
 		"dist/launch-process.js",
 		"dist/operator-resume.d.ts",
 		"dist/operator-resume.js",
+		"dist/project-handoff.d.ts",
+		"dist/project-handoff.js",
 		"dist/rust-substrate.d.ts",
 		"dist/rust-substrate.js",
 		"dist/status.d.ts",

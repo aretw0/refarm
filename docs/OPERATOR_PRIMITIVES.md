@@ -87,8 +87,10 @@ Project Handoff Rules:
 - Agents may treat handoff content as current work only when it is checked into
   source and the current slice has passed `refarm resume --json` and
   `refarm check --next-action --json`.
-- Handoff writes must be explicit source edits or a future governed checkpoint
-  command; prompt-only intent is not durable project state.
+- Handoff writes must be explicit source edits or `refarm project handoff write`;
+  prompt-only intent is not durable project state.
+- Use `refarm project handoff validate --json` before trusting handoff freshness
+  in an automated consumer.
 - If handoff data conflicts with live runtime/task status, live status wins for
   recovery. The handoff becomes planning context to reconcile after the blocking
   runtime/task path is healthy.
