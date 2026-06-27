@@ -131,6 +131,7 @@ export interface ReleasePlanSummary {
 	packageCount: number;
 	packages: string[];
 	blockers: ReleasePlanBlocker[];
+	acceptance: ReleasePlanAcceptance;
 	packageProfiles: Array<{
 		id: string;
 		risk: string | null;
@@ -144,6 +145,22 @@ export interface ReleasePlanSummary {
 	selection: ReleasePlan["selection"];
 	ok: boolean;
 	dryRun: boolean;
+}
+
+export interface ReleasePlanAcceptance {
+	status: "accepted" | "blocked";
+	packageCount: number;
+	blockerCount: number;
+	requiredGateCount: number;
+	requiredCheckCount: number;
+	providerCount: number;
+	manualApprovalRequired: boolean;
+	surfaces: string[];
+	profileTags: string[];
+	requiredChecks: Array<{
+		command: string;
+		package: string;
+	}>;
 }
 
 export interface ReleasePlanAuditRecord {
@@ -163,6 +180,7 @@ export interface ReleasePlanAuditRecord {
 		packageCount: number;
 		packages: string[];
 		blockers: ReleasePlanBlocker[];
+		acceptance: ReleasePlanAcceptance;
 		packageProfiles: ReleasePlanSummary["packageProfiles"];
 		requiredGates: string[];
 		gates: Array<{
@@ -211,6 +229,7 @@ export function runReleaseGates(plan: ReleasePlan, options?: {
 }): ReleaseGateResult;
 export function formatPlan(plan: ReleasePlan): string;
 export function summarizePlan(plan: ReleasePlan): ReleasePlanSummary;
+export function releasePlanAcceptance(plan: ReleasePlan): ReleasePlanAcceptance;
 export function stringifyReleasePlanAuditPayload(payload: unknown): string;
 export function createReleasePlanAuditRecord(
 	plan: ReleasePlan,

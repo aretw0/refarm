@@ -12,6 +12,7 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - Descoberta de candidatos via `changeset` ou lista explícita
 - Ordenação topológica por dependência entre pacotes
 - Geração de plano (status, bloqueadores, ordem, perfis/tags de pacote)
+- Sumário de aceitação (`acceptance`) para consumidores decidirem handoff/publicação sem reinterpretar o plano inteiro
 - Execução padronizada de gates de qualidade/release
 - API pública para hosts como `refarm release`
 - JSON Schema importável em `@refarm.dev/release-engine/release-policy.schema.json`
@@ -114,6 +115,12 @@ O payload JSON de `plan` inclui `packageProfiles` para os pacotes selecionados,
 derivado da política ativa. Isso permite que um control plane diferencie
 `kernel-contract`, `kernel-primitive`, `reference-hold`, `internal-lab` ou outras
 tags de postura sem acoplar essas categorias ao engine.
+O mesmo payload inclui `acceptance`, um resumo append-only de aceitação com
+status (`accepted`/`blocked`), contagens de blockers, gates obrigatórios,
+checks obrigatórios por pacote, providers, aprovação manual e superfícies
+envolvidas. Consumidores como um CLI de produto podem usar esse campo para
+decidir se um pacote candidato está pronto para handoff/publicação sem depender
+de nomes internos do Refarm.
 Todo payload JSON emitido pelo CLI do pacote carrega `schemaVersion: 1`; campos
 novos devem ser adicionados de forma compatível. Consumidores de máquina devem
 falhar fechado quando receberem uma versão maior que a suportada.

@@ -17,6 +17,7 @@ commit moves them under a newer version.
 - Blocked `plan`/`check` CLI JSON now preserves the versioned machine-output shape.
 - `CONTRACTS.md` defines append-only public contract surfaces and ships in the package.
 - `examples/release-provider-changesets` provides the canonical changesets provider/policy helper without coupling providers into the engine.
+- `releasePlanAcceptance(plan)` and JSON `acceptance` summaries expose package acceptance evidence for handoff/publication consumers.
 
 ### Semver discipline
 
