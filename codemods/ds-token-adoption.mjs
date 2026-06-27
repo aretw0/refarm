@@ -57,14 +57,31 @@ function parseArgs(argv) {
 }
 
 function ensureImports(css) {
+	return ensureImportsWithReport(css).css;
+}
+
+function ensureImportsWithReport(css) {
 	const missing = IMPORTS.filter((line) => !css.includes(line));
-	if (missing.length === 0) return css;
-	return `${missing.join("\n")}\n\n${css.replace(/^\s+/, "")}`;
+	if (missing.length === 0) {
+		return {
+			css,
+			importsAdded: 0,
+		};
+	}
+	return {
+		css: `${missing.join("\n")}\n\n${css.replace(/^\s+/, "")}`,
+		importsAdded: missing.length,
+	};
 }
 
 function stripSemanticDeclarations(css) {
+	return stripSemanticDeclarationsWithReport(css).css;
+}
+
+function stripSemanticDeclarationsWithReport(css) {
 	let output = "";
 	let cursor = 0;
+	let semanticDeclarationsRemoved = 0;
 
 	for (const block of topLevelBlocks(css)) {
 		output += css.slice(cursor, block.start);
@@ -80,7 +97,9 @@ function stripSemanticDeclarations(css) {
 			.split("\n")
 			.filter((line) => {
 				const declaration = /^\s*--([a-z0-9-]+)\s*:/.exec(line);
-				return !declaration || !SEMANTIC_TOKENS.has(declaration[1]);
+				const shouldRemove = declaration && SEMANTIC_TOKENS.has(declaration[1]);
+				if (shouldRemove) semanticDeclarationsRemoved += 1;
+				return !shouldRemove;
 			})
 			.join("\n")
 			.replace(/\n{3,}/g, "\n\n")
@@ -92,7 +111,10 @@ function stripSemanticDeclarations(css) {
 		cursor = block.end + 1;
 	}
 
-	return output + css.slice(cursor);
+	return {
+		css: output + css.slice(cursor),
+		semanticDeclarationsRemoved,
+	};
 }
 
 function isSemanticTokenSelector(selector) {
@@ -136,10 +158,22 @@ function previousRuleBoundary(css, openIndex) {
 }
 
 export function transformDsTokenAdoption(css) {
-	return stripSemanticDeclarations(ensureImports(css))
+	return transformDsTokenAdoptionWithReport(css).css;
+}
+
+export function transformDsTokenAdoptionWithReport(css) {
+	const imports = ensureImportsWithReport(css);
+	const stripped = stripSemanticDeclarationsWithReport(imports.css);
+	const output = stripped.css
 		.replace(/\n{3,}/g, "\n\n")
 		.trim()
 		.concat("\n");
+	return {
+		css: output,
+		changed: output !== css,
+		importsAdded: imports.importsAdded,
+		semanticDeclarationsRemoved: stripped.semanticDeclarationsRemoved,
+	};
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -150,10 +184,22 @@ if (args.size > 0) {
 		process.exit(2);
 	}
 
-	const output = transformDsTokenAdoption(readFileSync(input, "utf8"));
+	const original = readFileSync(input, "utf8");
+	const result = transformDsTokenAdoptionWithReport(original);
 	if (args.get("write")) {
-		writeFileSync(input, output);
+		writeFileSync(input, result.css);
+	}
+	if (args.get("json")) {
+		process.stdout.write(
+			`${JSON.stringify({
+				input,
+				changed: result.changed,
+				importsAdded: result.importsAdded,
+				semanticDeclarationsRemoved: result.semanticDeclarationsRemoved,
+				written: Boolean(args.get("write")),
+			}, null, 2)}\n`,
+		);
 	} else {
-		process.stdout.write(output);
+		process.stdout.write(result.css);
 	}
 }

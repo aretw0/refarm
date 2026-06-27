@@ -55,12 +55,14 @@ the transform is no longer needed.
 - preserves consumer-local non-semantic variables such as `--gdg-*` as fallback
   surface state;
 - prints transformed CSS by default, so a consumer can review the dry run before
-  applying it with `--write`.
+  applying it with `--write`;
+- prints a stable JSON dry-run report with `--json`, including whether the file
+  would change and how many imports/declarations the codemod touched.
 
 Dry run:
 
 ```bash
-node codemods/ds-token-adoption.mjs --input vault-seed/.site/styles/marimo-vault.css
+node codemods/ds-token-adoption.mjs --input vault-seed/.site/styles/marimo-vault.css --json
 ```
 
 ## Manual-Reviewed Line
