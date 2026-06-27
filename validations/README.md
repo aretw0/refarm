@@ -75,6 +75,7 @@ pnpm run test:e2e       # Playwright E2E (wasm-plugin/host)
 pnpm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
 pnpm run validation-pocs:test # POCs sintéticas + manifests + índice
 pnpm run validation-pocs:writing-consumer:test # Consumidor de escrita
+pnpm run io-uring:probe:test # Probe Linux io_uring leve, sem Cargo/crates
 node scripts/ci/check-validation-poc-writing-consumer.mjs --json
 pnpm run test:repro     # Lint + type-check + unit + integration + e2e
 ```

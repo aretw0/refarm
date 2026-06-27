@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "schema": "refarm.io_uring_probe.v1",
+  "status": "blocked",
+  "errno": 1,
+  "reason": "io_uring_setup exists but is blocked by permissions or container policy",
+  "syscall": "io_uring_setup",
+  "kernelRelease": "5.15.153.1-microsoft-standard-WSL2",
+  "arch": "x86_64",
+  "container": true,
+  "fallback": "standard-file-io",
+  "publicApi": "async-io:native-linux"
+}

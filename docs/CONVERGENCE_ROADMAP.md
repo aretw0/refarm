@@ -204,9 +204,10 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    docs.
 2. **XR/WebXR around the framework:** treat this as a consumer surface over Refarm, not a core
    dependency. POC packet: `specs/features/2026-06-25-xr-surface-poc.md`.
-3. **Linux async I/O (`io_uring`) substrate:** evaluate as a native Rust-only capability for
-   source materialization, generated vault output, and agent artifact/log workloads. It must stay
-   capability-probed with fallback and cannot leak into TS public APIs.
+3. **Linux async I/O (`io_uring`) substrate:** Task 1/2 probe is started under
+   `validations/io-uring-substrate/`. Current WSL2/devcontainer evidence reports
+   `status: "blocked"` (`EPERM`), so keep fallback mandatory and only continue the `io_uring`
+   implementation path on a host/container that reports `available`.
 
 Item 5 note: Astro 7/WASI Part C is closed red for now. The evidence remains under
 `validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain active.
