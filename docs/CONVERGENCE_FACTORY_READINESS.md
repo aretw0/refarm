@@ -101,8 +101,9 @@ Remaining item-4 work is downstream adoption/proof, not block construction.
 ## Item 5 - WASM Substrate
 
 ADR-070 is enough to avoid re-arguing direction, but not enough to build a product surface. The
-Astro 7 validation fixture is green for the normal server build boundary; the next executable
-artifact is componentization:
+Astro 7 validation fixture is green for the normal server build boundary. The componentization
+attempt is blocked at local WIT resolution until the official WASI HTTP dependency graph is
+available to the validation:
 
 - `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
 - `validations/astro-wasi-ssr/`.

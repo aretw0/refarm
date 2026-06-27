@@ -1,0 +1,5 @@
+package refarm:astro-wasi-ssr-poc@0.1.0;
+
+world astro-wasi-ssr {
+	export wasi:http/incoming-handler@0.2.3;
+}

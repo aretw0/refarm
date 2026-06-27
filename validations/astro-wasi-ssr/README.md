@@ -22,10 +22,17 @@ Run:
 ```bash
 pnpm -C validations/astro-wasi-ssr run build
 pnpm -C validations/astro-wasi-ssr run test
+pnpm -C validations/astro-wasi-ssr run componentize
 ```
 
-Next POC steps remain intentionally separate: componentize the generated handler
-against `wasi:http/incoming-handler`, then attempt execution through the Tractor
-wasmtime host. If either step requires a custom JS engine or runtime design,
-record the blocker in ADR-070 instead of turning this validation into product
-work.
+Task 2 status: blocked at WIT resolution, before Astro handler evaluation.
+`jco componentize` does not provide the `wasi:http@0.2.3` package graph
+automatically, so the local world cannot yet resolve
+`wasi:http/incoming-handler@0.2.3`. Evidence:
+`evidence/componentize-attempt.json`.
+
+Next POC steps remain intentionally separate: vendor the official WASI HTTP WIT
+dependency graph locally or generate it from a known-good WASI HTTP component,
+then rerun `componentize`. If the next layer requires a custom JS engine or
+runtime design, record that blocker in ADR-070 instead of turning this
+validation into product work.

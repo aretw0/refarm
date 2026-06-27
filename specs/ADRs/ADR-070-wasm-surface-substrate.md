@@ -86,6 +86,12 @@ Task 1 evidence (2026-06-27): `validations/astro-wasi-ssr/` builds with `astro@7
 `dist/server/index.mjs` through a local validation adapter, and imports that handler in a Node test
 that asserts `GET /health.json`. The remaining gate is componentization plus Tractor execution.
 
+Task 2 evidence (2026-06-27): the componentization entrypoint exists, but `jco componentize` blocks
+at WIT resolution with `package 'wasi:http@0.2.3' not found`, before evaluating the Astro handler.
+Evidence is recorded in `validations/astro-wasi-ssr/evidence/componentize-attempt.json`. The next
+step is to vendor or generate the official WASI HTTP WIT dependency graph locally, then rerun the
+same componentize script.
+
 Success: serves correctly from Tractor; cold-start + per-request latency within a budget set when
 the POC lands (ADR-044's <100ms transpile is the reference order). Evidence:
 `validations/astro-wasi-ssr/`. Green → Part C spec; red → drop Part C, record the blocker.

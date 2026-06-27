@@ -30,6 +30,22 @@ Evidence:
 - Keep the WIT world and generated component local to the validation directory.
 - Gate: either a component is produced or the blocker is captured as structured evidence.
 
+Status: blocked on 2026-06-27 at WIT resolution, before Astro handler evaluation.
+
+Evidence:
+
+- `validations/astro-wasi-ssr/src/wasi-fetch-entrypoint.mjs` wraps the generated Astro handler in a
+  StarlingMonkey `fetch` event entrypoint.
+- `validations/astro-wasi-ssr/wit/world.wit` declares the target export:
+  `wasi:http/incoming-handler@0.2.3`.
+- `pnpm -C validations/astro-wasi-ssr run componentize` fails with
+  `package 'wasi:http@0.2.3' not found`.
+- Structured evidence: `validations/astro-wasi-ssr/evidence/componentize-attempt.json`.
+
+Next action: vendor the official WASI HTTP WIT dependency graph locally or generate it from a
+known-good WASI HTTP component, then rerun the same script. Do not move to Tractor host execution
+until this produces a component artifact.
+
 ## Task 3 - Tractor Host Execution
 
 - Run the component on the Tractor wasmtime host.
