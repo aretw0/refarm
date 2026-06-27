@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-27. Runtime-agent plugin distribution remains private, but pi-agent now has explicit package artifact guardrails for future publication.",
-  "timestamp": "2026-06-27T20:02:10.268Z",
+  "context": "Checkpoint 2026-06-27. WIT/component distribution now has a build-free preflight for reference-driver publication planning.",
+  "timestamp": "2026-06-27T20:11:21.491Z",
   "current_phase": "12",
   "current_tasks": [
-    "packages/pi-agent/package.json now allowlists concrete artifacts only: dist/pi_agent.wasm, dist/plugin.json, and dist/jco.",
-    "scripts/validate-packages.mjs now validates @refarm.dev/pi-agent as a runtime-agent plugin package candidate: artifact files must be explicit, build:wasm must run check:wit and write wasm/plugin.json, build:jco must read wasm and write dist/jco, and public publication requires publishConfig.access=public.",
-    "Validation passed: node --test scripts/ci/test-validate-packages-lib.mjs, node scripts/validate-packages.mjs, git diff --check, pnpm run reference-driver:smoke, after-edit, commit, and after-commit; after-edit/after-commit also passed the no-token refarm:agent:e2e:mock."
+    "scripts/validate-packages.mjs now checks the refarm:agent-tools and refarm:plugin component mappings without compiling Rust or running JCO.",
+    "The preflight verifies Cargo component metadata, WIT package/world names, and the expected imports/exports for agent-tools-provider and refarm-plugin-host.",
+    "Validation passed: node --test scripts/ci/test-validate-packages-lib.mjs, node scripts/validate-packages.mjs, git diff --check, after-edit, commit, and after-commit."
   ],
   "blockers": [],
   "next_actions": [
-    "Map the WIT/component distribution path for refarm:agent-tools and refarm:plugin before touching npm/crates publishing.",
+    "Use validate-packages as the cheap first signal before any npm/crate publication work touches WIT/component packages.",
     "Keep @refarm.dev/pi-agent private until plugin artifact policy and daily-driver gate justify a package candidate.",
-    "Consider adding a plan-only/publication preflight for plugin packages so future agents can inspect candidate status without building WASM."
+    "Next publication slice should decide whether refarm-plugin-wit needs an explicit crate/package release surface or remains an internal canonical WIT crate for now."
   ],
   "open_questions": [],
   "key_decisions_active": [
