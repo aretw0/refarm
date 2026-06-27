@@ -23,10 +23,17 @@ interface RefarmMeHerald {
 	announce(): void;
 }
 
+interface RefarmMeHeraldOptions {
+	identityStatus?: string;
+}
+
 type RefarmMeFirefly = object;
 
 export interface RefarmMePluginConstructors {
-	HeraldPlugin: new (tractor: RefarmMeTractor) => RefarmMeHerald;
+	HeraldPlugin: new (
+		tractor: RefarmMeTractor,
+		options?: RefarmMeHeraldOptions,
+	) => RefarmMeHerald;
 	FireflyPlugin: new (tractor: RefarmMeTractor) => RefarmMeFirefly;
 }
 
@@ -62,7 +69,9 @@ export async function bootRefarmMeWorkbench(
 
 	const constructors =
 		options.pluginConstructors ?? (await loadRefarmMePluginConstructors());
-	const herald = new constructors.HeraldPlugin(tractor);
+	const herald = new constructors.HeraldPlugin(tractor, {
+		identityStatus: REFARM_ME_IDENTITY_STATUS,
+	});
 	new constructors.FireflyPlugin(tractor);
 
 	const surfacePluginIds = registerRefarmMeSurfacePlugins(
