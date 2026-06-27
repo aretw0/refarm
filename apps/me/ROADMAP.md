@@ -41,12 +41,25 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 - [ ] `StudioShell` mounts with `HeraldPlugin` and `FireflyPlugin` in real DOM slots
 - [ ] `HeraldPlugin` initializes: identity state legible (at minimum: `"unauthenticated"`)
-- [ ] `FireflyPlugin` initializes: system notifications functional
+- [x] `FireflyPlugin` initializes: system notifications functional
 - [ ] `BrowserSyncClient` connects to tractor (`ws://localhost:42000`), snapshot received
 - [ ] At least 1 content plugin installable by explicit URL + SHA-256
 - [ ] OPFS persistence: plugin cache survives page reload
 - [ ] PWA manifest + Service Worker: offline-first confirmed
 - [ ] Offline roundtrip: disconnect tractor → write mutation → reconnect → delta delivered
+
+### Current evidence
+
+- Identity bootstrap state is legible through the `apps/me` personal Homestead surface (`"unauthenticated"` by default) and covered by `me-surfaces` plus runtime context handoff tests; the remaining work is binding that state to a real Herald-owned presentation.
+- Firefly notifications are covered at the shared Homestead plugin level and through an `apps/me` runtime test that boots the real `FireflyPlugin` and renders a `system:alert` toast.
+- Shell test fixtures now match the real Homestead Layout slots (`logo`, `nav`, `main`, `streams`, `statusbar`) instead of a non-existent `header` slot.
+
+### Remaining bootstrap proof
+
+The next Gate 3b gap is still a browser/runtime proof, not another unit mock:
+`apps/me` must boot against a running Tractor, receive an initial snapshot, and
+exercise OPFS-backed plugin/cache behavior before the broader daily-driver gate
+can be considered complete.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).
