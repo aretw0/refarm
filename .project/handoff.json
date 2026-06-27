@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Refarm driver nucleus avançou: capability index está limpo, worker profile e scheduler local estão governados, e resume já carrega slot de scheduled-work sem inventar store ou daemon.",
-  "timestamp": "2026-06-27T16:03:28.000Z",
+  "context": "Checkpoint 2026-06-27. Refarm driver nucleus agora tem scheduler local governado e o resume carrega automations do projeto como scheduled-work visivel, sem daemon, execucao ou fanout.",
+  "timestamp": "2026-06-27T16:15:37.746Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver loop: resume/check/finish lanes seguem limpos; after-edit/after-commit usam affected scope e cache com concorrência limitada.",
-    "Refarm como fornecedor: contratos embeddable existem para capability index, worker profiles, project handoff, local scheduler e resume scheduled-work handoffs.",
-    "Scheduler está em contrato/visibilidade: @refarm.dev/windmill/local-scheduler materializa jobs locais no-token e refarm resume aceita a inspeção quando houver adapter real."
+    "Daily-driver loop: resume/check/finish lanes seguem limpos; after-edit/after-commit usam affected scope, concorrencia limitada e cache.",
+    "Refarm como fornecedor: contratos embeddable cobrem capability index, worker profiles, project handoff, local scheduler e resume scheduled-work handoffs.",
+    "Scheduler esta em visibilidade real minima: refarm resume le .project/automations.json opcional, normaliza triggers once/cron ativos e materializa jobs no-token pelo @refarm.dev/windmill/local-scheduler."
   ],
   "blockers": [],
   "next_actions": [
-    "Conectar uma fonte real automation:v1 ao loader de scheduled work do resume, sem criar daemon ou fanout antes de existir store governada.",
-    "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza fricção real de uso.",
-    "Preparar blocos publicáveis npm/crates mantendo validação focada e evitando comandos globais pesados."
+    "Decidir se .project/automations.json precisa virar contrato/schema validado pelo health antes de adicionar escrita governada.",
+    "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza friccao real de uso.",
+    "Preparar blocos publicaveis npm/crates mantendo validacao focada e evitando comandos globais pesados."
   ],
   "open_questions": [
-    "Qual store local de automações deve ser o primeiro adapter real: arquivo governado, sqlite/storage-contract, ou integração via farmhand?"
+    "Qual sera o primeiro writer governado de automacoes: comando CLI, storage-contract/sqlite, ou integracao via farmhand?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
@@ -25,7 +25,5 @@
     "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
     "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
   ],
-  "files_in_flux": [
-    ".project/handoff.json"
-  ]
+  "files_in_flux": []
 }
