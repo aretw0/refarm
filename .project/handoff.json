@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-06-27. Daily-driver hardening avançou: session lock stale foi corrigido, project handoff validate/write entrou no test:handoffs, e vtconfig foi migrado para maxWorkers do Vitest 4 para manter o gate sem ruído e com limite de memória.",
-  "timestamp": "2026-06-27T08:24:09.390Z",
+  "context": "Checkpoint 2026-06-27. Daily-driver hardening avançou: session lock stale foi corrigido, project handoff validate/write está no test:handoffs, vtconfig usa maxWorkers do Vitest 4, e after-edit agora valida pacote afetado JS-only usando test como fallback quando não há type-check/lint/build.",
+  "timestamp": "2026-06-27T08:36:37.440Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver loop: runtime ready, resume/check/finish lanes limpos, handoff governado implementado, test:handoffs guardando project handoff validate/write.",
+    "Daily-driver loop: runtime ready, resume/check/finish lanes limpos; after-edit agora cobre dirty tree com pacote afetado e fallback test para JS-only.",
     "Refarm segue como fornecedor do ecossistema: primitives de CLI/SDK devem nascer em packages e apps/refarm apenas expõe cascas operacionais.",
     "Trilha de validação continua lean: preferir testes focados, turbo cache, maxWorkers em Vitest e lanes affected antes de gates amplos."
   ],
   "blockers": [],
   "next_actions": [
     "Seguir daily-driver mileage: apps/me/UI E2E ou command loop que mais reduza fricção de uso real.",
-    "Revisar por que after-edit não seleciona validação de pacote para package.json/JS puro quando o teste focado já foi rodado manualmente.",
+    "Mapear o próximo bloco publicável/SDK que reduz duplicação para vault-seed sem acoplar o checkout oficial antes da publicação.",
     "Manter atenção em resource discipline: evitar comandos globais pesados e preferir filtros por pacote/teste."
   ],
   "open_questions": [
