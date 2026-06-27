@@ -14,6 +14,9 @@ building blocks that should remain useful outside the app layer:
 - Browser-open, launch-readiness, Git, and GitHub Actions adapters.
 - Runner-style process adapters for consumer CLIs that already expose
   `(command, args, options) => Promise<void>` execution seams.
+- Compact capability discovery, including the reference-driver supply map that
+  tells consumers which primitives are SDK exports, runtime artifacts, WIT
+  boundaries, crate-held implementations, or publication holds.
 - Refarm status schema contracts and compatibility aliases where public callers
   still rely on Refarm-specific names.
 
@@ -64,3 +67,24 @@ runner output, but command-plan JSON should expose normalized `cache` fields and
 aggregate `cache.steps[]` data.
 
 See [ROADMAP.md](./ROADMAP.md) for the strategic evolution of the CLI.
+
+## Capability Discovery
+
+Consumers can inspect Refarm's compact capability surface without scraping docs
+or invoking a provider:
+
+```ts
+import {
+	buildRefarmCapabilityIndex,
+	buildRefarmReferenceDriverSupplyMap,
+} from "@refarm.dev/cli/capability-index";
+
+const index = buildRefarmCapabilityIndex();
+const referenceDriverSupply = buildRefarmReferenceDriverSupplyMap();
+```
+
+The supply map is intentionally conservative. Today it marks
+`@refarm.dev/cli/capability-index` as the exported discovery SDK, keeps
+`@refarm.dev/pi-agent` publication on hold while the plugin package is private,
+and records `agent-tools`, plugin WIT, and Tractor code-ops as WIT/runtime/crate
+boundaries rather than pretending they are ready npm APIs.

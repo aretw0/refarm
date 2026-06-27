@@ -142,6 +142,13 @@ validated structured I/O tools, and LSP-shaped code-ops tools. This maps the
 Pi/Hermes/Codex research into a cheap operator query while keeping dispatch,
 policy, and UI promotion behind their existing proofs.
 
+Current proof (2026-06-27): `@refarm.dev/cli/capability-index` now also exposes
+`buildRefarmReferenceDriverSupplyMap()`. The map makes publication posture
+machine-readable: discovery is an exported CLI SDK, `@refarm.dev/pi-agent` stays
+on hold while private, structured I/O remains a `refarm:agent-tools@0.1.0` WIT
+component boundary, and code-ops stays split between canonical plugin WIT and
+the held `refarm-tractor` host implementation.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;

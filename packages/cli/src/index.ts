@@ -283,6 +283,7 @@ export type {
 } from "./project-automations.js";
 export {
 	buildRefarmCapabilityIndex,
+	buildRefarmReferenceDriverSupplyMap,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
@@ -294,6 +295,11 @@ export type {
 	RefarmCapabilityPolicyState,
 	RefarmCapabilityProvider,
 	RefarmCapabilityProviderKind,
+	RefarmCapabilitySupplyChannel,
+	RefarmCapabilitySupplyStatus,
+	RefarmCapabilitySupplyTarget,
+	RefarmReferenceDriverSupplyEntry,
+	RefarmReferenceDriverSupplyMap,
 } from "./capability-index.js";
 export {
 	createLaunchProcessRunner,
