@@ -72,6 +72,27 @@ refarm check --next-action --json
 If `resume` returns `nextCommands`, follow the first command before inferring
 state from memory.
 
+### Project Handoff
+
+Purpose: preserve durable project context across sessions without turning
+session memory into hidden control flow.
+
+Project Handoff Rules:
+
+- `.project/handoff.json` is contextual recovery state for `resume`, not an
+  implicit command queue.
+- `resume --json` may surface `context`, `currentTasks`, `nextActions`, and open
+  questions from the handoff, but runtime/task/model recovery commands still
+  take priority in `nextCommands`.
+- Agents may treat handoff content as current work only when it is checked into
+  source and the current slice has passed `refarm resume --json` and
+  `refarm check --next-action --json`.
+- Handoff writes must be explicit source edits or a future governed checkpoint
+  command; prompt-only intent is not durable project state.
+- If handoff data conflicts with live runtime/task status, live status wins for
+  recovery. The handoff becomes planning context to reconcile after the blocking
+  runtime/task path is healthy.
+
 ### Session
 
 Purpose: preserve the operator timeline and make agent output inspectable.

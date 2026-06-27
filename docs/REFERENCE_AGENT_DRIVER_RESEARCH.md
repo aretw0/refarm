@@ -35,9 +35,9 @@ script.
 
 | Pattern | Reference signal | Refarm state | Refarm adoption rule |
 | --- | --- | --- | --- |
-| Hard lifecycle gates | Codex and Claude Code expose lifecycle hooks around tool use, sessions, permission requests, and stops. Hermes exposes gateway hooks, plugin hooks, and shell hooks; plugin `pre_tool_call` can veto a tool call. Pi keeps core permission UI minimal, but exposes trust decisions, tool allow/exclude flags, extension hooks, and containerization patterns. | Refarm already has WIT host capabilities, `request-permission`, Scarecrow policy concepts, Barn integrity, tool audit, and finish lanes. | Promote policy from prompt convention to a live acceptance bundle: tool allowlist, root boundary, trusted plugin, audit record, and denial proof in one focused run. |
+| Hard lifecycle gates | Codex and Claude Code expose lifecycle hooks around tool use, sessions, permission requests, and stops. Hermes exposes gateway hooks, plugin hooks, and shell hooks; plugin `pre_tool_call` can veto a tool call. Pi keeps core permission UI minimal, but exposes trust decisions, tool allow/exclude flags, extension hooks, and containerization patterns. | Refarm has WIT host capabilities, `request-permission`, Scarecrow policy concepts, Barn integrity, tool audit, finish lanes, and an opt-in no-token policy smoke that proves allowlist, root boundary, trusted plugin, and audit together. | Keep policy as executable proof, not prompt convention. Next policy work should add denial-path and UI/operator surfacing only when a real daily-driver failure demands it. |
 | Progressive capabilities | Codex skills and Hermes skills both use progressive disclosure. Hermes also supports skill bundles and agent-managed skills with optional write approval. Pi keeps the harness small and distributes workflow shape through extensions, skills, prompt templates, themes, and Pi packages from npm or git. | Refarm has plugins, tool manifests, runtime-agent tools, and package boundaries, but discovery is not yet a compact product surface. | Add a capability index only when it reduces prompt/context load. It must expose names, descriptions, requirements, and safety state without loading full instructions. |
-| Durable memory | Claude Code uses persistent project instructions and auto memory. Hermes uses bounded `MEMORY.md` and `USER.md` snapshots plus session search. Codex uses AGENTS instructions and durable context. | Refarm has `.project/`, task checkpoints, Loro/SQLite memory, and `resume` now reads `.project/handoff.json`. | Define the write policy for `.project/handoff.json`: who may update it, when it becomes canonical work state, and which command validates freshness. |
+| Durable memory | Claude Code uses persistent project instructions and auto memory. Hermes uses bounded `MEMORY.md` and `USER.md` snapshots plus session search. Codex uses AGENTS instructions and durable context. | Refarm has `.project/`, task checkpoints, Loro/SQLite memory, `resume` reads `.project/handoff.json`, and the runtime-agent smoke proves task/session handoffs across a Tractor restart. | Keep `.project/handoff.json` governed contextual recovery state until a first-class checkpoint writer exists. The next memory primitive is explicit handoff write/validate, not implicit prompt memory. |
 | Session portability | Claude Code and Hermes both emphasize moving across terminal, IDE, desktop, web, messaging, and background surfaces. Hermes uses one gateway process for many chat platforms. Pi stores JSONL sessions, supports continue/resume, tree navigation, fork/clone, HTML/JSONL export, RPC, SDK, and UI steering/follow-up while a run is active. | Refarm has CLI, app surfaces, runtime, sessions, stream observations, and JSON handoffs. | Prove the narrow local daily loop first: runtime up, ask, stream/session/task inspect, resume, finish. Add surfaces only after the contract survives restart and recovery. |
 | Delegated workers | Codex subagents, Claude sub-agents, and Hermes `delegate_task` all isolate worker context and return summaries. Hermes defaults to bounded parallelism. | Refarm has runtime-agent and plugin execution primitives, but no first-class operator worker profile contract yet. | Defer broad agent teams until the single-agent daily loop is boring. When added, require explicit context packet, toolset, max concurrency, and summary schema. |
 | Scheduled work | Claude Code and Hermes expose scheduled or recurring work. Hermes cron has one-shot and recurring jobs, skills per job, delivery targets, and fail-closed model pinning behavior. | Refarm has Windmill/scheduler intent, but the daily-driver checklist row is still unproven. | First proof should be local and cheap: one-shot and recurring no-token jobs, durable ownership, and clear resume/health visibility. |
@@ -47,13 +47,13 @@ script.
 
 ## Adoption Order
 
-1. Keep the daily-driver loop first. The current blocking proof is still the
-   live runtime-agent path: `runtime up -> ask -> stream/session/task inspect ->
-   resume -> finish`.
-2. Close the live policy bundle next. This is the shared foundation for Refarm,
-   `dgk`, `vault-seed`, and future app surfaces.
-3. Make `.project/handoff.json` a governed work-state primitive. Reading is now
-   proven; writing and freshness policy are not.
+1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;
+   the remaining signal is sustained daily mileage and the `apps/me`/UI surface.
+2. Keep the live policy bundle executable. The allowlist/root/trusted-plugin/audit
+   proof is closed; denial surfacing can wait for a real operator failure.
+3. Make `.project/handoff.json` a governed work-state primitive. Reading and
+   freshness policy are now documented; a first-class write/validate command is
+   still open.
 4. Add compact capability discovery only where it lowers context or removes
    duplicated consumer code.
 5. Add worker/subagent profiles after single-agent reliability is high enough
