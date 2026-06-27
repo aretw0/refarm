@@ -53,6 +53,15 @@ export interface RefarmMeWorkbench {
 	renderer: HomesteadHostRendererDescriptor;
 	surfacePluginIds: string[];
 	contentPluginIds: string[];
+	storeLocalNode(input: RefarmMeLocalNodeInput): Promise<void>;
+}
+
+export interface RefarmMeLocalNodeInput {
+	id: string;
+	type: string;
+	context: string;
+	payload: string;
+	sourcePlugin?: string | null;
 }
 
 export interface RefarmMeRuntimeOptions {
@@ -130,7 +139,21 @@ export async function bootRefarmMeWorkbench(
 		renderer: REFARM_ME_RENDERER,
 		surfacePluginIds,
 		contentPluginIds,
+		storeLocalNode: (input) => storeRefarmMeLocalNode(runtime, input),
 	};
+}
+
+async function storeRefarmMeLocalNode(
+	runtime: RefarmMeRuntime,
+	input: RefarmMeLocalNodeInput,
+): Promise<void> {
+	await runtime.storage.storeNode(
+		input.id,
+		input.type,
+		input.context,
+		input.payload,
+		input.sourcePlugin ?? null,
+	);
 }
 
 export function renderRefarmMeBootFailure(
