@@ -257,18 +257,21 @@ const CAPABILITIES = [
 			"resume visibility",
 		],
 		policy: {
-			state: "planned",
+			state: "governed",
 			enforcement: [
 				"durable owner",
 				"fail-closed model route",
 				"health/resume visibility",
 			],
 			evidence: [
+				"packages/windmill/src/local-scheduler.test.js",
 				"docs/DAILY_DRIVER_PARITY.md",
 				"docs/REFERENCE_AGENT_DRIVER_RESEARCH.md",
 			],
 		},
-		activation: {},
+		activation: {
+			sdk: "@refarm.dev/windmill/local-scheduler",
+		},
 		tags: ["automation", "scheduler", "planning"],
 	},
 ] as const satisfies readonly RefarmCapabilityDescriptor[];

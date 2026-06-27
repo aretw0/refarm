@@ -40,7 +40,7 @@ script.
 | Durable memory | Claude Code uses persistent project instructions and auto memory. Hermes uses bounded `MEMORY.md` and `USER.md` snapshots plus session search. Codex uses AGENTS instructions and durable context. | Refarm has `.project/`, task checkpoints, Loro/SQLite memory, `resume` reads `.project/handoff.json`, the runtime-agent smoke proves task/session handoffs across a Tractor restart, and `refarm project handoff validate/write` governs project handoff updates. | Keep `.project/handoff.json` contextual recovery state. Treat write/validate as the explicit bridge from session knowledge into durable project state, not as implicit prompt memory. |
 | Session portability | Claude Code and Hermes both emphasize moving across terminal, IDE, desktop, web, messaging, and background surfaces. Hermes uses one gateway process for many chat platforms. Pi stores JSONL sessions, supports continue/resume, tree navigation, fork/clone, HTML/JSONL export, RPC, SDK, and UI steering/follow-up while a run is active. | Refarm has CLI, app surfaces, runtime, sessions, stream observations, and JSON handoffs. | Prove the narrow local daily loop first: runtime up, ask, stream/session/task inspect, resume, finish. Add surfaces only after the contract survives restart and recovery. |
 | Delegated workers | Codex subagents, Claude sub-agents, and Hermes `delegate_task` all isolate worker context and return summaries. Hermes defaults to bounded parallelism. | Refarm has runtime-agent and plugin execution primitives, but no first-class operator worker profile contract yet. | Defer broad agent teams until the single-agent daily loop is boring. When added, require explicit context packet, toolset, max concurrency, and summary schema. |
-| Scheduled work | Claude Code and Hermes expose scheduled or recurring work. Hermes cron has one-shot and recurring jobs, skills per job, delivery targets, and fail-closed model pinning behavior. | Refarm has Windmill/scheduler intent, but the daily-driver checklist row is still unproven. | First proof should be local and cheap: one-shot and recurring no-token jobs, durable ownership, and clear resume/health visibility. |
+| Scheduled work | Claude Code and Hermes expose scheduled or recurring work. Hermes cron has one-shot and recurring jobs, skills per job, delivery targets, and fail-closed model pinning behavior. | Refarm has a governed Windmill local-scheduler SDK proof that materializes active automation triggers as owned no-token jobs with resume visibility; execution/daemon dispatch is still future work. | Keep the first proof local and cheap: one-shot and recurring no-token jobs, durable ownership, and clear resume/health visibility before timers or background dispatch. |
 | Composable headless CLI | Codex, Claude Code, Hermes, and Pi all support non-interactive/headless flows. Pi adds print mode, JSON event mode, strict JSONL RPC, and SDK embedding. | Refarm JSON handoffs already make CLI commands scriptable. | Keep `ok`, `nextCommands`, and executable handoffs as the stable public contract; do not require the app for automation. |
 | Checkpoints and rollback | Hermes documents checkpoints and rollback as a filesystem safety net for destructive operations. | Refarm has git discipline, finish lanes, checkpoints, and task/session resume, but rollback is not an operator product surface. | Treat rollback as a later hardening lane after policy denial and restart recovery are proven. It must never hide source changes from git. |
 | External sandbox boundary | Pi explicitly does not restrict filesystem, process, network, or credential access by default; it recommends running the whole process in Docker/OpenShell or routing tools into a micro-VM through Gondolin. | Refarm is already designed around capability-gated WASM host calls and local resource discipline. | Keep Refarm stricter than Pi by default. When using external agents, document whether they are host-powerful, containerized, or routed through a Refarm-controlled capability boundary. |
@@ -119,6 +119,14 @@ does not dispatch workers. It only gives downstream code and future runtime
 work a small, validated shape to target before Refarm enables delegated
 execution.
 
+Current proof (2026-06-27): `@refarm.dev/windmill/local-scheduler` defines the
+first local scheduled-work SDK boundary. It reads active `automation:v1`
+artifacts with `once` or `cron` triggers, requires an explicit owner, marks due
+jobs without starting timers, and returns no-token job handoffs with resume
+visibility. This does not dispatch work. It gives Refarm and downstream
+consumers a small governed surface before any daemon, fanout, or background
+execution is introduced.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;
@@ -132,8 +140,9 @@ execution.
    duplicated consumer code.
 5. Add worker/subagent profiles after single-agent reliability is high enough
    that parallelism does not multiply unresolved failures.
-6. Add scheduler proof after the core loop can explain scheduled ownership
-   through `resume`, `check`, or `health`.
+6. Keep scheduler execution behind the governed local-scheduler proof until the
+   core loop can explain scheduled ownership through `resume`, `check`, or
+   `health`.
 
 ## Non-Goals For Now
 

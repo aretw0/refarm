@@ -1,6 +1,12 @@
 import { GitHubProvider } from "./providers/github.js";
 import { CloudflareProvider } from "./providers/cloudflare.js";
 import path from "node:path";
+export {
+    LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
+    createLocalScheduledWork,
+    inspectLocalScheduledWork,
+    listLocalScheduledJobs,
+} from "./local-scheduler.js";
 
 /**
  * Windmill: Infrastructure Provider Bridges.
