@@ -3,6 +3,11 @@ import { Layout } from "@refarm.dev/homestead/ui";
 ---
 
 <Layout title="Refarm.me — My Sovereign Space">
+  <Fragment slot="head">
+    <link rel="manifest" href={`${import.meta.env.BASE_URL}manifest.webmanifest`} />
+    <meta name="theme-color" content="#1b5e3b" />
+  </Fragment>
+
   <div id="loading-overlay" class="refarm-loading-state">
     <div class="refarm-spinner"></div>
     <p>Opening your personal vault...</p>
@@ -14,6 +19,10 @@ import { Layout } from "@refarm.dev/homestead/ui";
     bootRefarmMeWorkbench,
     renderRefarmMeBootFailure,
   } from "../lib/me-runtime";
+  import { registerRefarmMePwa } from "../lib/me-pwa";
 
+  registerRefarmMePwa({ baseUrl: import.meta.env.BASE_URL }).catch((err) =>
+    console.warn("[me] PWA registration failed", err),
+  );
   bootRefarmMeWorkbench().catch((err) => renderRefarmMeBootFailure(err));
 </script>

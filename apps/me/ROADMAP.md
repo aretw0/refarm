@@ -45,7 +45,7 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 - [x] `BrowserSyncClient` connects to tractor (`ws://localhost:42000`), snapshot received
 - [x] At least 1 content plugin installable by explicit URL + SHA-256
 - [x] OPFS persistence: plugin cache survives page reload
-- [ ] PWA manifest + Service Worker: offline-first confirmed
+- [x] PWA manifest + Service Worker: offline-first confirmed
 - [ ] Offline roundtrip: disconnect tractor → write mutation → reconnect → delta delivered
 
 ### Current evidence
@@ -76,6 +76,10 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
   `@refarm.dev/tractor/browser`, activates it in the Registry, loads it through
   the browser `PluginHost`, and asserts its Homestead surface renders in the
   real app DOM. Coverage: `pnpm -C apps/me run smoke:content-plugin`.
+- PWA smoke coverage serves the `apps/me` manifest and Service Worker, waits for
+  the browser shell to become Service Worker controlled, reloads once to seed the
+  cache, and then proves the personal surface renders while Chromium is offline.
+  Coverage: `pnpm -C apps/me run smoke:pwa`.
 - `sync-loro` now has a runtime transport smoke that connects to a running
   Tractor daemon at `ws://127.0.0.1:42000` and proves a non-empty initial binary
   snapshot reaches `BrowserSyncClient.applyUpdate`. This is still below the
@@ -88,12 +92,13 @@ This roadmap describes capability tracks for `apps/me`; it is not a promise to p
 
 ### Remaining bootstrap proof
 
-The next Gate 3b gap is no longer sync transport, plugin cache persistence, or
-explicit content plugin installation: `apps/me` boots against a running Tractor,
-receives an initial snapshot, proves OPFS-backed plugin cache survives a page
-reload, and renders a SHA-256 pinned installed content plugin. The remaining
-bootstrap gap is offline-first PWA behavior before the broader daily-driver gate
-can be considered complete.
+The next Gate 3b gap is no longer sync transport, plugin cache persistence,
+explicit content plugin installation, or offline-first PWA behavior: `apps/me`
+boots against a running Tractor, receives an initial snapshot, proves
+OPFS-backed plugin cache survives a page reload, renders a SHA-256 pinned
+installed content plugin, and reloads its personal shell while Chromium is
+offline. The remaining bootstrap gap is the offline mutation/reconnect
+roundtrip before the broader daily-driver gate can be considered complete.
 
 **What loads from the repo**: everything — layout, shell plugins, initial configuration.
 **What loads from the graph**: nothing yet (empty OPFS on first boot).
