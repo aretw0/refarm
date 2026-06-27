@@ -15,11 +15,11 @@ locally.
 | Capability                | Refarm surface                              | Local validation signal                                                                                                                         | Status |
 | ------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | Start a work session      | `tractor` daemon + `apps/me` shell          | daemon boots, `apps/me` connects to `ws://localhost:42000`                                                                                      | ⬜     |
-| Ask an agent to reason    | Runtime agent hosted by Tractor             | `refarm ask` assembles the runtime-agent effort and follows stream chunks locally; live daily-driver Tractor/runtime-agent path pending           | local proven / live path pending |
-| See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; real Tractor/apps-me E2E pending                                                         | local proven / E2E pending |
-| Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities, policy-gated, and auditable; live policy bundle pending                 | local proven / policy pending |
-| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, syncs, and reopens local nodes; app/daemon restart proof pending                                           | storage restart proven / app restart pending |
-| Resume after interruption | handoff + project status                    | `refarm resume --json` recovers non-terminal task checkpoints, reads `.project/handoff.json`, and hands off to `refarm task resume --json`; live project-state policy pending | checkpoint + project handoff proven / policy pending |
+| Ask an agent to reason    | Runtime agent hosted by Tractor             | `refarm ask` assembles the runtime-agent effort, follows stream chunks locally, and is covered by the no-token runtime-agent smoke               | no-token live path proven / daily mileage pending |
+| See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; runtime-agent smoke writes stream files; real Tractor/apps-me E2E pending                 | local stream proven / app E2E pending |
+| Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities; shell tool path is policy-gated, trusted-plugin gated, and audited      | live policy proven |
+| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, syncs, reopens local nodes, and runtime-agent task/session handoffs survive a daemon restart                | restart proof proven |
+| Resume after interruption | handoff + project status                    | `refarm resume --json` recovers task checkpoints, reads `.project/handoff.json`, and uses governed handoff data as contextual recovery state     | checkpoint + project handoff policy proven / write command pending |
 | Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
 | Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                                                      | ⬜     |
 | Automate reminders        | Windmill/scheduler equivalent               | one-shot and recurring reminders run locally with clear ownership                                                                               | ⬜     |
@@ -187,9 +187,12 @@ handoff loader carries current tasks and next actions into the JSON resume
 envelope.
 
 That proves the local checkpoint handoff and the versioned project handoff read.
-It does not yet prove the full daily-driver criterion: Refarm still needs a clear
-policy for when `.project/handoff.json` becomes the live source of current work
-instead of only contextual recovery data.
+The project handoff policy is now explicit: `.project/handoff.json` is durable
+contextual recovery state for `resume`, not a hidden command queue. It becomes
+live current-work state only after an explicit source edit or future checkpoint
+command updates it, and the next slice must still pass `resume`, `check`, and
+the relevant finish lane before agents treat it as fresh. The remaining gap is a
+first-class write/validate command for governed handoff updates.
 
 Current evidence (2026-06-27): Homestead already owns the first UI subscriber
 slice. `StudioShell` registers `onNode("StreamSession")` and
