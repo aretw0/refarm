@@ -7,6 +7,7 @@ import type { AgentFinishSessionRecorder } from "../../src/commands/agent-finish
 import {
 	createResumeCommand,
 	loadProjectHandoff,
+	loadScheduledWork,
 } from "../../src/commands/resume.js";
 import type {
 	TaskSessionCheckpoint,
@@ -91,6 +92,76 @@ describe("resume command", () => {
 				blockers: ["blocked A"],
 				nextActions: ["next A"],
 				openQuestions: ["question A"],
+			});
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("loads project automations as resume scheduled work", async () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-resume-"));
+		try {
+			fs.mkdirSync(path.join(tempDir, ".project"));
+			fs.writeFileSync(
+				path.join(tempDir, ".project", "automations.json"),
+				JSON.stringify({
+					automations: [
+						{
+							id: "automation-1",
+							name: "daily handoff",
+							status: "active",
+							triggers: [{ type: "once", at: "2026-06-27T09:00:00.000Z" }],
+						},
+						{
+							id: "automation-2",
+							name: "draft ignored",
+							status: "draft",
+							triggers: [{ type: "once", at: "2026-06-27T09:00:00.000Z" }],
+						},
+						{
+							id: "automation-3",
+							name: "hourly cache refresh",
+							status: "active",
+							triggers: [{ type: "cron", schedule: "@hourly" }],
+						},
+						{
+							id: "automation-4",
+							name: "event ignored",
+							status: "active",
+							triggers: [{ type: "event", eventType: "effort.completed" }],
+						},
+					],
+				}),
+				"utf-8",
+			);
+
+			await expect(
+				loadScheduledWork(tempDir, {
+					now: "2026-06-27T10:15:00.000Z",
+					owner: "refarm-main",
+				}),
+			).resolves.toMatchObject({
+				owner: "refarm-main",
+				generatedAt: "2026-06-27T10:15:00.000Z",
+				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				jobs: [
+					{
+						automationId: "automation-1",
+						name: "daily handoff",
+						status: "due",
+						schedule: { type: "once", at: "2026-06-27T09:00:00.000Z" },
+						modelRoute: "none",
+						tokenUse: "none",
+					},
+					{
+						automationId: "automation-3",
+						name: "hourly cache refresh",
+						status: "scheduled",
+						schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
+						modelRoute: "none",
+						tokenUse: "none",
+					},
+				],
 			});
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
