@@ -19,9 +19,15 @@ export interface ReleasePolicyProvider {
 export interface ReleasePackageProfile {
 	id: string;
 	risk?: string;
+	surface?: "core" | "app" | "plugin" | "agent" | "shared";
 	bump?: "patch" | "minor" | "major";
 	tags?: string[];
 	mustPassChecks?: string[];
+}
+
+export interface ReleaseSurfaceBlock {
+	surface: "core" | "app" | "plugin" | "agent" | "shared";
+	reason?: string;
 }
 
 export interface ReleasePolicy {
@@ -31,6 +37,7 @@ export interface ReleasePolicy {
 	defaultSelection?: string;
 	selections?: ReleasePolicySelection[];
 	packageProfiles?: ReleasePackageProfile[];
+	surfaceBlocks?: ReleaseSurfaceBlock[];
 	phases: ReleasePolicyPhase[];
 	notes?: string[];
 }
@@ -64,6 +71,7 @@ export interface ReleasePlanBlocker {
 	bump?: "patch" | "minor" | "major";
 	source?: string;
 	status: "missing" | "blocked" | string;
+	surface?: string | null;
 	note?: string;
 }
 
@@ -126,6 +134,7 @@ export interface ReleasePlanSummary {
 	packageProfiles: Array<{
 		id: string;
 		risk: string | null;
+		surface: string | null;
 		tags: string[];
 		mustPassChecks: string[];
 	}>;

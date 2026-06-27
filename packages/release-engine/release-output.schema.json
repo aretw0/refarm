@@ -176,10 +176,16 @@
     },
     "packageProfileSummary": {
       "type": "object",
-      "required": ["id", "risk", "tags", "mustPassChecks"],
+      "required": ["id", "risk", "surface", "tags", "mustPassChecks"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "risk": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        },
+        "surface": {
           "anyOf": [
             { "type": "string" },
             { "type": "null" }

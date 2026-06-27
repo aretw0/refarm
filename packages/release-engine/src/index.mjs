@@ -70,6 +70,9 @@ const BUMP_WEIGHT = {
   major: 3,
 };
 
+const ALLOWED_PROFILE_RISKS = ["core", "app", "plugin", "shared"];
+const ALLOWED_RELEASE_SURFACES = ["core", "app", "plugin", "agent", "shared"];
+
 function ensureDirExists(baseDir) {
   if (!fs.existsSync(baseDir)) {
     throw new Error(`Directory not found: ${baseDir}`);
@@ -154,6 +157,10 @@ export function validatePolicy(policy) {
     throw new Error("packageProfiles must be an array when declared");
   }
 
+  if (policy.surfaceBlocks !== undefined && !Array.isArray(policy.surfaceBlocks)) {
+    throw new Error("surfaceBlocks must be an array when declared");
+  }
+
   for (const phase of policy.phases) {
     assert.ok(phase.id, `phase id is required: ${JSON.stringify(phase)}`);
     assert.ok(phase.name, `phase name is required: ${phase.id}`);
@@ -220,7 +227,6 @@ export function validatePolicy(policy) {
   }
 
   const profileIds = new Set();
-  const allowedProfileRisks = ["core", "app", "plugin", "shared"];
   const allowedProfileBumps = ["patch", "minor", "major"];
   for (const profile of policy.packageProfiles || []) {
     assert.ok(profile.id, `package profile id is required: ${JSON.stringify(profile)}`);
@@ -229,8 +235,12 @@ export function validatePolicy(policy) {
     }
     profileIds.add(profile.id);
 
-    if (profile.risk !== undefined && !allowedProfileRisks.includes(profile.risk)) {
-      throw new Error(`package profile risk must be one of: ${allowedProfileRisks.join(", ")} for ${profile.id}`);
+    if (profile.risk !== undefined && !ALLOWED_PROFILE_RISKS.includes(profile.risk)) {
+      throw new Error(`package profile risk must be one of: ${ALLOWED_PROFILE_RISKS.join(", ")} for ${profile.id}`);
+    }
+
+    if (profile.surface !== undefined && !ALLOWED_RELEASE_SURFACES.includes(profile.surface)) {
+      throw new Error(`package profile surface must be one of: ${ALLOWED_RELEASE_SURFACES.join(", ")} for ${profile.id}`);
     }
 
     if (profile.bump !== undefined && !allowedProfileBumps.includes(profile.bump)) {
@@ -239,6 +249,23 @@ export function validatePolicy(policy) {
 
     if (profile.tags !== undefined && !Array.isArray(profile.tags)) {
       throw new Error(`package profile tags must be array for ${profile.id}`);
+    }
+  }
+
+  const blockedSurfaces = new Set();
+  for (const block of policy.surfaceBlocks || []) {
+    if (!block || typeof block !== "object") {
+      throw new Error("surfaceBlocks entries must be objects");
+    }
+    if (!ALLOWED_RELEASE_SURFACES.includes(block.surface)) {
+      throw new Error(`surfaceBlocks.surface must be one of: ${ALLOWED_RELEASE_SURFACES.join(", ")}`);
+    }
+    if (blockedSurfaces.has(block.surface)) {
+      throw new Error(`Duplicate release surface block: ${block.surface}`);
+    }
+    blockedSurfaces.add(block.surface);
+    if (block.reason !== undefined && typeof block.reason !== "string") {
+      throw new Error(`surfaceBlocks.reason must be a string for ${block.surface}`);
     }
   }
 
@@ -402,6 +429,9 @@ function readChangesetCandidates(cwd = process.cwd()) {
 
 function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] }) {
   const allPackages = readPackageJsonsForWorkspace(cwd);
+  const surfaceBlocks = new Map(
+    (policy.surfaceBlocks || []).map((block) => [block.surface, block]),
+  );
   const explicitPackageNames = Array.isArray(packageNames)
     ? packageNames.filter(Boolean)
     : [];
@@ -439,12 +469,25 @@ function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] 
     }
 
     const profile = (policy.packageProfiles || []).find((item) => item.id === candidate.name);
+    const surface = profile?.surface || profile?.risk || null;
+    if (surface && surfaceBlocks.has(surface)) {
+      const block = surfaceBlocks.get(surface);
+      normalized.push({
+        ...candidate,
+        status: "blocked",
+        surface,
+        note: block.reason || `Release surface is blocked: ${surface}`,
+      });
+      continue;
+    }
+
     normalized.push({
       ...candidate,
       status: "ok",
       source: candidate.source || "manual",
       bump: candidate.bump || (profile && profile.bump) || "patch",
       profile,
+      surface,
       packageDir: entry.dir,
       currentVersion: entry.version,
     });
@@ -803,6 +846,7 @@ export function releasePlanPackageProfiles(plan) {
         return {
           id: entry.name,
           risk: null,
+          surface: null,
           tags: [],
           mustPassChecks: [],
         };
@@ -810,6 +854,7 @@ export function releasePlanPackageProfiles(plan) {
       return {
         id: entry.name,
         risk: entry.profile.risk ?? null,
+        surface: entry.profile.surface ?? entry.profile.risk ?? null,
         tags: Array.isArray(entry.profile.tags) ? entry.profile.tags : [],
         mustPassChecks: Array.isArray(entry.profile.mustPassChecks)
           ? entry.profile.mustPassChecks

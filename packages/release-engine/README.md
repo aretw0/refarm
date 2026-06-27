@@ -149,7 +149,10 @@ Consumidores que validam a saída do CLI podem carregar
 - providers com `supportsPublish: true` devem declarar `publishCommands` não vazios.
 - `defaultSelection`, quando declarado, deve apontar para uma entrada de `selections`.
 - cada seleção deve declarar `profileTags` com pelo menos uma tag não vazia.
-- `packageProfiles[].risk` e `packageProfiles[].bump`, quando declarados, devem usar os enums do schema.
+- `packageProfiles[].risk`, `packageProfiles[].surface` e
+  `packageProfiles[].bump`, quando declarados, devem usar os enums do schema.
+- `surfaceBlocks[]` bloqueia explicitamente superfícies de release (`core`,
+  `app`, `plugin`, `agent`, `shared`) com motivo auditável antes dos gates.
 
 Quando a versão da policy é maior/desconhecida, `validatePolicy` falha fechado
 com `ReleasePolicyValidationError.code =

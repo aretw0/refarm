@@ -48,6 +48,7 @@
         "properties": {
           "id": {"type": "string", "minLength": 1},
           "risk": {"enum": ["core", "app", "plugin", "shared"]},
+          "surface": {"enum": ["core", "app", "plugin", "agent", "shared"]},
           "bump": {"enum": ["patch", "minor", "major"]},
           "mustPassChecks": {
             "type": "array",
@@ -57,6 +58,18 @@
             "type": "array",
             "items": {"type": "string"}
           }
+        }
+      }
+    },
+    "surfaceBlocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["surface"],
+        "additionalProperties": false,
+        "properties": {
+          "surface": {"enum": ["core", "app", "plugin", "agent", "shared"]},
+          "reason": {"type": "string"}
         }
       }
     },
