@@ -16,6 +16,7 @@ describe("refarm program", () => {
 		expect(names).toContain("check");
 		expect(names).toContain("config");
 		expect(names).toContain("migrate");
+		expect(names).toContain("capabilities");
 		expect(names).toContain("project");
 		expect(names).toContain("open-url");
 		expect(names).toContain("actions");
@@ -109,6 +110,7 @@ describe("refarm program", () => {
 		expect(help).toContain("refarm check --next-action");
 		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("refarm tidy imports --check");
+		expect(help).toContain("refarm capabilities --json");
 		expect(help).toContain("refarm project handoff validate --json");
 		expect(help).toContain("refarm agent --next-command");
 		expect(help).toContain("refarm agent finish --next-command");

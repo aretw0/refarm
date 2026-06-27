@@ -87,7 +87,7 @@ The next product shape should be "Refarm as engine, CLI/app as shells":
 
 ## Nearest Proving Slice
 
-The next bite-sized slice that best unlocks the reference-driver path is a
+The next bite-sized slice that best unlocks the reference-driver path was a
 capability discovery proof, not broad subagents or scheduler work:
 
 1. Define the minimal capability descriptor schema in a package-owned source
@@ -101,6 +101,14 @@ capability discovery proof, not broad subagents or scheduler work:
 This keeps the work aligned with Codex/Hermes progressive disclosure, Pi's
 embeddable shape, and Claude's separation between guidance and enforcement,
 while preserving Refarm's stricter capability boundary.
+
+Current proof (2026-06-27): Refarm now exposes
+`@refarm.dev/cli/capability-index` and `refarm capabilities --json`. The index
+is intentionally static and cheap: it reports compact descriptors for the
+runtime-agent ask loop, governed project handoff, finish lanes, runtime shell
+policy audit, and stream observation subscriber. The CLI command supports tag
+filtering and is covered by the JSON handoff contract so downstream consumers
+can discover capabilities without scraping docs or loading long instructions.
 
 ## Adoption Order
 
