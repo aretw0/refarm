@@ -11,14 +11,16 @@ This document catalogues the modular primitives and engines of the Refarm monore
 | [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | **Ready** |
 
 ## 🛡 Capability Contracts (v1)
-These packages define the foundational interoperability layers between Refarm and its plugins.
+These packages define foundational interoperability layers between Refarm and
+its plugins. They are release-policy candidates, not an automatic publish list:
+publication remains held by the daily-driver gate or explicit human override.
 
 | Package | Tests | Status | Publishing |
 |---|---|---|---|
-| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ 6 Tests | 🟢 Ready | **Target v0.1.0** |
-| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
-| [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
-| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | **vault-seed-ready candidate** |
+| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
+| [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
+| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
+| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
 
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.
