@@ -352,7 +352,7 @@ describe("refarm sessions", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0] ?? "")).join("\n");
 		expect(output).toContain("No sessions found");
-		expect(output).toContain("Active session pointer is stale");
+		expect(output).toContain("Active pointer is stale");
 		expect(output).toContain("Clear it with: refarm sessions clear");
 	});
 
@@ -513,6 +513,9 @@ describe("refarm sessions", () => {
 
 	it("sessions clear prints clear result as JSON", async () => {
 		vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+			throw new Error("missing");
+		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand()

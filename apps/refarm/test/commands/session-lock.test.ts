@@ -99,7 +99,11 @@ describe("active session pointer helpers", () => {
 
 	it("reports whether clearing the active session lock succeeded", () => {
 		const unlinkSpy = vi.spyOn(fs, "unlinkSync");
+		const readSpy = vi.spyOn(fs, "readFileSync");
 		unlinkSpy.mockImplementationOnce(() => undefined);
+		readSpy.mockImplementationOnce(() => {
+			throw new Error("missing");
+		});
 		expect(clearActiveSessionId()).toBe(true);
 		expect(unlinkSpy).toHaveBeenCalledWith(
 			expect.stringContaining("/session.lock"),
@@ -108,6 +112,7 @@ describe("active session pointer helpers", () => {
 		unlinkSpy.mockImplementationOnce(() => {
 			throw new Error("missing");
 		});
+		readSpy.mockReturnValueOnce("urn:refarm:session:v1:still-active");
 		expect(clearActiveSessionId()).toBe(false);
 	});
 
@@ -149,12 +154,20 @@ describe("active session pointer helpers", () => {
 					throw error;
 				}
 				return undefined;
-			});
+		});
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
-			.mockImplementation(() => undefined);
+			.mockImplementation((pathValue) => {
+				if (pathValue === SESSION_LOCK_PATH) {
+					const error = new Error("read only") as NodeJS.ErrnoException;
+					error.code = "EROFS";
+					throw error;
+				}
+				return undefined;
+			});
 		const existsSpy = vi.spyOn(fs, "existsSync");
 		existsSpy.mockReturnValue(false);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("");
 
 		expect(clearActiveSessionId()).toBe(true);
 		expect(writeSpy).toHaveBeenCalledWith(
@@ -162,5 +175,24 @@ describe("active session pointer helpers", () => {
 			"",
 			"utf-8",
 		);
+	});
+
+	it("does not report clear success when the readable primary lock remains stale", () => {
+		vi.spyOn(fs, "existsSync").mockImplementation((pathValue) => {
+			return pathValue === SESSION_LOCK_PATH;
+		});
+		vi.spyOn(fs, "unlinkSync").mockImplementation((pathValue) => {
+			if (pathValue === SESSION_LOCK_PATH) {
+				const error = new Error("read only") as NodeJS.ErrnoException;
+				error.code = "EROFS";
+				throw error;
+			}
+		});
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(
+			"urn:refarm:session:v1:still-active",
+		);
+
+		expect(clearActiveSessionId()).toBe(false);
 	});
 });
