@@ -250,6 +250,27 @@ export type {
 	ProjectHandoffValidationResult,
 } from "./project-handoff.js";
 export {
+	addProjectAutomationRecord,
+	buildProjectAutomationRecord,
+	normalizeProjectAutomationsDocument,
+	PROJECT_AUTOMATIONS_RELATIVE_PATH,
+	validateProjectAutomationsDocument,
+} from "./project-automations.js";
+export type {
+	ProjectAutomationAddInput,
+	ProjectAutomationCronTrigger,
+	ProjectAutomationEventTrigger,
+	ProjectAutomationIssueSeverity,
+	ProjectAutomationManualTrigger,
+	ProjectAutomationOnceTrigger,
+	ProjectAutomationRecord,
+	ProjectAutomationsDocument,
+	ProjectAutomationsValidationResult,
+	ProjectAutomationStatus,
+	ProjectAutomationTrigger,
+	ProjectAutomationValidationIssue,
+} from "./project-automations.js";
+export {
 	buildRefarmCapabilityIndex,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
