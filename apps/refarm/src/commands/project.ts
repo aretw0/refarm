@@ -1,5 +1,14 @@
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
+	addProjectAutomationRecord,
+	PROJECT_AUTOMATIONS_RELATIVE_PATH,
+	validateProjectAutomationsDocument,
+	type ProjectAutomationsDocument,
+	type ProjectAutomationStatus,
+	type ProjectAutomationsValidationResult,
+	type ProjectAutomationTrigger,
+} from "@refarm.dev/cli/project-automations";
+import {
 	buildProjectHandoffDocument,
 	parseProjectHandoffSummary,
 	PROJECT_HANDOFF_RELATIVE_PATH,
@@ -35,6 +44,23 @@ interface HandoffWriteOptions extends HandoffValidateOptions {
 	dryRun?: boolean;
 }
 
+interface AutomationsValidateOptions {
+	json?: boolean;
+}
+
+interface AutomationsAddOptions extends AutomationsValidateOptions {
+	id?: string;
+	name?: string;
+	description?: string;
+	status?: string;
+	trigger?: string;
+	at?: string;
+	schedule?: string;
+	timezone?: string;
+	eventType?: string;
+	dryRun?: boolean;
+}
+
 function defaultDeps(): ProjectDeps {
 	return {
 		cwd: () => process.cwd(),
@@ -48,6 +74,10 @@ function collectOption(value: string, previous: string[] = []): string[] {
 
 function handoffPath(cwd: string): string {
 	return path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
+}
+
+function automationsPath(cwd: string): string {
+	return path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
 }
 
 function parseMaxAgeMs(value: string | undefined): number | undefined {
@@ -71,7 +101,23 @@ function readExistingHandoff(filePath: string): unknown {
 	}
 }
 
+function readExistingJson(filePath: string): unknown {
+	try {
+		return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+	} catch {
+		return undefined;
+	}
+}
+
 function writeHandoff(filePath: string, document: ProjectHandoffDocument): void {
+	fs.mkdirSync(path.dirname(filePath), { recursive: true });
+	fs.writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`, "utf-8");
+}
+
+function writeAutomations(
+	filePath: string,
+	document: ProjectAutomationsDocument,
+): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`, "utf-8");
 }
@@ -116,6 +162,51 @@ function printValidation(
 		return;
 	}
 	const output = formatValidationPlain(result);
+	console.log(result.ok ? output : chalk.red(output));
+}
+
+function formatAutomationsValidationPlain(
+	result: ProjectAutomationsValidationResult,
+): string {
+	const lines = [
+		`Project automations: ${result.ok ? "valid" : "invalid"} ${result.path}`,
+		`  count: ${result.count}`,
+	];
+	for (const issue of result.issues) {
+		const marker = issue.severity === "error" ? "error" : "warning";
+		lines.push(`  ${marker}: ${issue.path} ${issue.code} - ${issue.message}`);
+	}
+	return lines.join("\n");
+}
+
+function automationsNextCommands(
+	result: ProjectAutomationsValidationResult,
+): string[] {
+	return result.ok
+		? [
+				"refarm project automations validate --json",
+				"refarm resume --json",
+				"refarm check --next-action --json",
+			]
+		: [];
+}
+
+function printAutomationsValidation(
+	result: ProjectAutomationsValidationResult,
+	options: { json?: boolean; operation: string },
+): void {
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "project",
+				operation: options.operation,
+				nextCommands: automationsNextCommands(result),
+				extra: result,
+			}),
+		);
+		return;
+	}
+	const output = formatAutomationsValidationPlain(result);
 	console.log(result.ok ? output : chalk.red(output));
 }
 
@@ -265,11 +356,151 @@ function createHandoffCommand(deps: ProjectDeps): Command {
 	return command;
 }
 
+function createAutomationsCommand(deps: ProjectDeps): Command {
+	const command = new Command("automations")
+		.description("Validate or write governed project automations");
+
+	command
+		.command("validate")
+		.description("Validate .project/automations.json without modifying it")
+		.option("--json", "Output machine-readable validation result")
+		.action((options: AutomationsValidateOptions) => {
+			const filePath = automationsPath(deps.cwd());
+			const document = readExistingJson(filePath);
+			const result = validateProjectAutomationsDocument(document);
+			printAutomationsValidation(result, {
+				json: options.json,
+				operation: "automations.validate",
+			});
+			if (!result.ok) process.exitCode = 1;
+		});
+
+	command
+		.command("add")
+		.description("Append one governed project automation")
+		.requiredOption("--id <id>", "Stable automation id")
+		.requiredOption("--name <name>", "Automation display name")
+		.option("--description <text>", "Automation description")
+		.option(
+			"--status <status>",
+			"Automation status: draft, ready, active, or archived; defaults to draft",
+		)
+		.option(
+			"--trigger <type>",
+			"Trigger type: manual, once, cron, or event; defaults to manual",
+			"manual",
+		)
+		.option("--at <iso>", "ISO timestamp for --trigger once")
+		.option("--schedule <expr>", "Cron expression for --trigger cron")
+		.option("--timezone <tz>", "Timezone for --trigger cron")
+		.option("--event-type <type>", "Event type for --trigger event")
+		.option("--dry-run", "Print the would-be automations document without writing")
+		.option("--json", "Output machine-readable write result")
+		.action((options: AutomationsAddOptions) => {
+			const filePath = automationsPath(deps.cwd());
+			try {
+				const trigger = projectAutomationTriggerFromOptions(options);
+				const document = addProjectAutomationRecord(readExistingJson(filePath), {
+					id: options.id ?? "",
+					name: options.name ?? "",
+					description: options.description,
+					status: options.status as ProjectAutomationStatus | undefined,
+					trigger,
+				});
+				const result = validateProjectAutomationsDocument(document);
+				if (!result.ok) {
+					printAutomationsValidation(result, {
+						json: options.json,
+						operation: "automations.add",
+					});
+					process.exitCode = 1;
+					return;
+				}
+				if (!options.dryRun) writeAutomations(filePath, document);
+
+				const automation = document.automations.at(-1);
+				const nextCommands = automationsNextCommands(result);
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "project",
+							operation: options.dryRun
+								? "automations.add.dry-run"
+								: "automations.add",
+							nextCommands,
+							extra: {
+								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+								dryRun: Boolean(options.dryRun),
+								automation,
+								document,
+								validation: result,
+							},
+						}),
+					);
+					return;
+				}
+				console.log(
+					`Project automation ${options.dryRun ? "would be written" : "written"}: ${automation?.id}`,
+				);
+				for (const next of nextCommands) {
+					console.log(chalk.dim(`  next: ${next}`));
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "project",
+							operation: "automations.add",
+							error: "project_automation_write_failed",
+							message,
+							nextAction: "Run `refarm project automations add --help` and retry with a valid automation.",
+						}),
+					);
+				} else {
+					console.error(chalk.red(`Project automation write failed: ${message}`));
+				}
+				process.exitCode = 1;
+			}
+		});
+
+	return command;
+}
+
+function projectAutomationTriggerFromOptions(
+	options: AutomationsAddOptions,
+): ProjectAutomationTrigger {
+	const type = options.trigger ?? "manual";
+	if (type === "manual") return { type: "manual" };
+	if (type === "once") {
+		if (!options.at) throw new Error("--trigger once requires --at <iso>.");
+		return { type: "once", at: options.at };
+	}
+	if (type === "cron") {
+		if (!options.schedule) {
+			throw new Error("--trigger cron requires --schedule <expr>.");
+		}
+		return {
+			type: "cron",
+			schedule: options.schedule,
+			...(options.timezone ? { timezone: options.timezone } : {}),
+		};
+	}
+	if (type === "event") {
+		if (!options.eventType) {
+			throw new Error("--trigger event requires --event-type <type>.");
+		}
+		return { type: "event", eventType: options.eventType };
+	}
+	throw new Error("Automation trigger must be manual, once, cron, or event.");
+}
+
 export function createProjectCommand(deps: Partial<ProjectDeps> = {}): Command {
 	const resolvedDeps = { ...defaultDeps(), ...deps };
 	return new Command("project")
 		.description("Inspect and update Refarm project state")
-		.addCommand(createHandoffCommand(resolvedDeps));
+		.addCommand(createHandoffCommand(resolvedDeps))
+		.addCommand(createAutomationsCommand(resolvedDeps));
 }
 
 export const projectCommand = createProjectCommand();

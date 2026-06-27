@@ -129,4 +129,151 @@ describe("project command", () => {
 		expect(errorSpy).not.toHaveBeenCalled();
 		fs.rmSync(cwd, { recursive: true, force: true });
 	});
+
+	it("writes governed project automations", async () => {
+		const cwd = makeTempDir();
+		const automationsPath = path.join(cwd, ".project", "automations.json");
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-06-27T06:00:00.000Z"),
+		}).parseAsync([
+			"automations",
+			"add",
+			"--id",
+			"daily-handoff",
+			"--name",
+			"Daily handoff",
+			"--status",
+			"active",
+			"--trigger",
+			"once",
+			"--at",
+			"2026-06-27T09:00:00.000Z",
+			"--json",
+		], { from: "user" });
+
+		expect(readJson(automationsPath)).toMatchObject({
+			automations: [
+				{
+					id: "daily-handoff",
+					name: "Daily handoff",
+					status: "active",
+					triggers: [{ type: "once", at: "2026-06-27T09:00:00.000Z" }],
+				},
+			],
+		});
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			command: "project",
+			operation: "automations.add",
+			ok: true,
+			path: ".project/automations.json",
+			automation: {
+				id: "daily-handoff",
+				status: "active",
+			},
+			validation: {
+				ok: true,
+				count: 1,
+			},
+			nextCommands: [
+				"refarm project automations validate --json",
+				"refarm resume --json",
+				"refarm check --next-action --json",
+			],
+		});
+		logSpy.mockRestore();
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
+
+	it("validates governed project automations", async () => {
+		const cwd = makeTempDir();
+		const automationsPath = path.join(cwd, ".project", "automations.json");
+		fs.mkdirSync(path.dirname(automationsPath), { recursive: true });
+		fs.writeFileSync(
+			automationsPath,
+			JSON.stringify({
+				automations: [
+					{
+						id: "hourly-cache",
+						name: "Hourly cache",
+						status: "active",
+						triggers: [{ type: "cron", schedule: "@hourly" }],
+					},
+				],
+			}),
+			"utf-8",
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-06-27T06:00:00.000Z"),
+		}).parseAsync(["automations", "validate", "--json"], { from: "user" });
+
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			command: "project",
+			operation: "automations.validate",
+			ok: true,
+			path: ".project/automations.json",
+			count: 1,
+		});
+		logSpy.mockRestore();
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
+
+	it("rejects duplicate project automation ids", async () => {
+		const cwd = makeTempDir();
+		const automationsPath = path.join(cwd, ".project", "automations.json");
+		fs.mkdirSync(path.dirname(automationsPath), { recursive: true });
+		fs.writeFileSync(
+			automationsPath,
+			JSON.stringify({
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "draft",
+						triggers: [{ type: "manual" }],
+					},
+				],
+			}),
+			"utf-8",
+		);
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-06-27T06:00:00.000Z"),
+		}).parseAsync([
+			"automations",
+			"add",
+			"--id",
+			"daily-handoff",
+			"--name",
+			"Duplicate",
+			"--json",
+		], { from: "user" });
+
+		expect(process.exitCode).toBe(1);
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			command: "project",
+			operation: "automations.add",
+			ok: false,
+			error: "project_automation_write_failed",
+			message: "Automation id already exists: daily-handoff",
+		});
+		logSpy.mockRestore();
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
 });

@@ -110,6 +110,36 @@ const CAPABILITIES = [
 		tags: ["handoff", "memory", "sdk"],
 	},
 	{
+		id: "project-automations.governed",
+		title: "Governed project automations",
+		description:
+			"Validate and write project-local automations that resume can surface without running a daemon.",
+		provider: {
+			kind: "sdk",
+			package: "@refarm.dev/cli",
+			surface: "project-automations",
+		},
+		requirements: [".project/automations.json for project-local automations"],
+		policy: {
+			state: "proven",
+			enforcement: [
+				"schema validation",
+				"explicit write command",
+				"health/check visibility",
+			],
+			evidence: [
+				"packages/cli/src/project-automations.test.ts",
+				"apps/refarm/test/commands/project.test.ts",
+				"packages/health/src/auditors/project.test.js",
+			],
+		},
+		activation: {
+			command: refarmCommand(["project", "automations", "validate", "--json"]),
+			sdk: "@refarm.dev/cli/project-automations",
+		},
+		tags: ["automation", "handoff", "scheduler", "sdk"],
+	},
+	{
 		id: "agent-finish.lanes",
 		title: "Agent finish lanes",
 		description:

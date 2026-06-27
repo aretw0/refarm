@@ -14,6 +14,7 @@ describe("capability index", () => {
 		expect(ids).toEqual([
 			"runtime-agent.ask",
 			"project-handoff.governed",
+			"project-automations.governed",
 			"agent-finish.lanes",
 			"policy.shell-audit",
 			"stream-observation.ui",
