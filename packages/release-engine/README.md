@@ -128,6 +128,11 @@ para evitar que erro de configuração vire plano por changesets acidentalmente.
 Consumidores que validam configuração antes de chamar o engine podem carregar o
 schema publicado em
 `@refarm.dev/release-engine/release-policy.schema.json`.
+
+Para logs/auditoria, a API pública expõe `createReleasePlanAuditRecord(plan)`.
+Ela normaliza a parte relevante do plano e anexa um digest SHA-256 estável do
+payload canônico, permitindo comparar ou arquivar a decisão sem depender da
+ordem de propriedades do JSON.
 Consumidores que validam a saída do CLI podem carregar
 `@refarm.dev/release-engine/release-output.schema.json`.
 

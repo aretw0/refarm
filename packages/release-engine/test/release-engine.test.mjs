@@ -7,12 +7,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import test from "node:test";
 import {
   buildReleasePlan,
+  createReleasePlanAuditRecord,
   formatPlan,
   loadPolicy,
   ReleasePolicyValidationError,
+  RELEASE_PLAN_AUDIT_SCHEMA_VERSION,
   SUPPORTED_POLICY_VERSIONS,
   validatePolicy,
   summarizePlan,
+  stringifyReleasePlanAuditPayload,
   releasePlanPackageProfiles,
 } from "../src/index.mjs";
 
@@ -177,6 +180,7 @@ test("validates explicit policy", () => {
 
 test("exposes supported release policy versions", () => {
   assert.deepEqual(SUPPORTED_POLICY_VERSIONS, ["2026-01"]);
+  assert.equal(RELEASE_PLAN_AUDIT_SCHEMA_VERSION, 1);
 });
 
 test("rejects unsupported release policy versions with a structured error", () => {
@@ -509,6 +513,75 @@ test("cli --policy explicitly preserves override precedence over embedded policy
     assert.deepEqual(payload.providers, ["explicit"]);
     assert.equal(payload.gates[0].id, "explicit-gate");
     assert.equal(payload.publishIntents[0].provider, "explicit");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("creates deterministic release plan audit records", () => {
+  const root = withTempWorkspace((workspace) => {
+    createWorkspace(
+      workspace,
+      {
+        "@refarm.dev/alpha": {
+          dir: "alpha",
+        },
+      },
+      [],
+      validPolicy({
+        providers: [
+          {
+            id: "changesets",
+            type: "changesets",
+            supportsPublish: true,
+            supportsDryRun: true,
+            publishCommands: ["pnpm changeset publish"],
+            publishDryRunCommands: ["pnpm changeset version"],
+            publishRequiresManualApproval: true,
+          },
+        ],
+        phases: [
+          {
+            id: "quality",
+            name: "Quality",
+            commands: ["pnpm test", "pnpm lint"],
+            required: true,
+            riskWeight: 3,
+          },
+        ],
+      }),
+      { embeddedConfigPath: "refarm.config.json" },
+    );
+  });
+
+  try {
+    const plan = buildReleasePlan({
+      cwd: root,
+      packageNames: ["@refarm.dev/alpha"],
+    });
+    const createdAt = "2026-06-27T00:00:00.000Z";
+    const record = createReleasePlanAuditRecord(plan, { createdAt });
+    const clonedRecord = createReleasePlanAuditRecord(
+      JSON.parse(JSON.stringify(plan)),
+      { createdAt },
+    );
+
+    assert.deepEqual(record, clonedRecord);
+    assert.equal(record.schemaVersion, 1);
+    assert.equal(record.createdAt, createdAt);
+    assert.equal(record.digest.algorithm, "sha256");
+    assert.match(record.digest.value, /^[a-f0-9]{64}$/);
+    assert.equal(record.payload.releaseOutputSchemaVersion, 1);
+    assert.deepEqual(record.payload.packages, ["@refarm.dev/alpha"]);
+    assert.equal(record.payload.gates[0].commandCount, 2);
+    assert.equal(record.payload.publishIntents[0].provider, "changesets");
+    assert.equal(record.payload.publishIntents[0].commandCount, 1);
+    assert.equal(record.payload.publishIntents[0].dryRunCommandCount, 1);
+    assert.equal(record.payload.publishIntents[0].requiresManualApproval, true);
+    assert.equal(
+      stringifyReleasePlanAuditPayload({ b: 1, a: { d: 2, c: 3 } }),
+      '{"a":{"c":3,"d":2},"b":1}',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

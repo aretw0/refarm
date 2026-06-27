@@ -76,7 +76,7 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 **Objetivo:** suportar vários ecossistemas de publicação e prover plano auditável.
 
 - [ ] Provider plugin model para `npm`, `github-release`, `pypi` etc.
-- [ ] Output imutável de plano para logs/audit.
+- [x] Output imutável de plano para logs/audit.
 - [ ] Integração com `refarm`, `vault-seed`, `agents-lab` via policy local.
 - [ ] Bloqueios explícitos por superfície (`core`, `app`, `plugin`, `agent`).
 
