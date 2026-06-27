@@ -19,6 +19,9 @@ describe("capability index", () => {
 			"policy.shell-audit",
 			"stream-observation.ui",
 			"runtime-agent.worker-profiles",
+			"runtime-agent.session-tree",
+			"runtime-agent.structured-io",
+			"runtime-agent.code-ops",
 			"scheduler.local-jobs",
 		]);
 		expect(new Set(ids).size).toBe(ids.length);
@@ -34,5 +37,18 @@ describe("capability index", () => {
 			expect(capability.policy.evidence.length).toBeLessThanOrEqual(3);
 			expect(capability.tags.length).toBeLessThanOrEqual(4);
 		}
+	});
+
+	it("surfaces runtime-agent reference-driver primitives", () => {
+		const index = buildRefarmCapabilityIndex();
+		const referenceDriverIds = index.capabilities
+			.filter((capability) => capability.tags.includes("reference-driver"))
+			.map((capability) => capability.id);
+
+		expect(referenceDriverIds).toEqual([
+			"runtime-agent.session-tree",
+			"runtime-agent.structured-io",
+			"runtime-agent.code-ops",
+		]);
 	});
 });

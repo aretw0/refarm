@@ -15,7 +15,7 @@ describe("capabilities command", () => {
 			operation: "index",
 			ok: true,
 			schemaVersion: 1,
-			count: 7,
+			count: 11,
 			filter: { tags: [], states: [] },
 			capabilities: expect.arrayContaining([
 				expect.objectContaining({
@@ -28,6 +28,31 @@ describe("capabilities command", () => {
 			]),
 			nextCommands: [],
 		});
+		logSpy.mockRestore();
+	});
+
+	it("filters reference-driver runtime-agent capabilities", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--tag",
+			"reference-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string }>;
+			count: number;
+		};
+		expect(payload.count).toBe(3);
+		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
+			"runtime-agent.session-tree",
+			"runtime-agent.structured-io",
+			"runtime-agent.code-ops",
+		]);
 		logSpy.mockRestore();
 	});
 

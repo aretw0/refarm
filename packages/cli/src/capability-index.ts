@@ -273,6 +273,105 @@ const CAPABILITIES = [
 		tags: ["runtime", "workers", "planning"],
 	},
 	{
+		id: "runtime-agent.session-tree",
+		title: "Runtime agent session tree",
+		description:
+			"List, inspect, navigate, and fork CRDT-backed conversation sessions through runtime-agent tools.",
+		provider: {
+			kind: "runtime",
+			package: "@refarm.dev/pi-agent",
+			surface: "session tools",
+		},
+		requirements: [
+			"CRDT Session nodes",
+			"SessionEntry tree",
+			"runtime-agent tool dispatch",
+		],
+		policy: {
+			state: "proven",
+			enforcement: [
+				"session ownership validation",
+				"leaf pointer navigation",
+				"fork keeps source session intact",
+			],
+			evidence: [
+				"packages/pi-agent/src/tool_dispatch/session_tools.rs",
+				"packages/pi-agent/src/tests/session_schema_tests.rs",
+				"packages/pi-agent/src/tests/history_tree_tests.rs",
+			],
+		},
+		activation: {
+			command: refarmCommand(["ask", "list my sessions", "--json"]),
+		},
+		tags: ["runtime", "session", "memory", "reference-driver"],
+	},
+	{
+		id: "runtime-agent.structured-io",
+		title: "Runtime agent structured IO",
+		description:
+			"Read and write JSON, TOML, and YAML through validated, paged runtime-agent tools.",
+		provider: {
+			kind: "runtime",
+			package: "@refarm.dev/pi-agent",
+			surface: "structured tools",
+		},
+		requirements: [
+			"agent-tools structured-io",
+			"filesystem capability",
+			"format parser",
+		],
+		policy: {
+			state: "proven",
+			enforcement: [
+				"format validation before write",
+				"paged reads",
+				"atomic write path",
+			],
+			evidence: [
+				"packages/pi-agent/src/tool_dispatch/structured_tools.rs",
+				"packages/pi-agent/src/tests/structured_read_tests.rs",
+				"packages/pi-agent/src/tests/structured_validate_tests.rs",
+			],
+		},
+		activation: {
+			command: refarmCommand(["ask", "inspect package metadata", "--json"]),
+		},
+		tags: ["runtime", "tools", "structured-io", "reference-driver"],
+	},
+	{
+		id: "runtime-agent.code-ops",
+		title: "Runtime agent code ops",
+		description:
+			"Expose LSP-shaped find-references and rename-symbol tools behind a host capability boundary.",
+		provider: {
+			kind: "runtime",
+			package: "@refarm.dev/pi-agent",
+			surface: "code-ops tools",
+		},
+		requirements: [
+			"connected language server",
+			"host code-ops bridge",
+			"source checkout",
+		],
+		policy: {
+			state: "governed",
+			enforcement: [
+				"explicit symbol location",
+				"host capability boundary",
+				"rename result contract",
+			],
+			evidence: [
+				"packages/pi-agent/src/tool_dispatch/code_ops_tools.rs",
+				"packages/tractor/wit/host/agent-tools/world.wit",
+				"packages/pi-agent/src/tests/tools_schema_tests.rs",
+			],
+		},
+		activation: {
+			command: refarmCommand(["ask", "find references for this symbol", "--json"]),
+		},
+		tags: ["runtime", "tools", "code-ops", "reference-driver"],
+	},
+	{
 		id: "scheduler.local-jobs",
 		title: "Local scheduled work",
 		description:
