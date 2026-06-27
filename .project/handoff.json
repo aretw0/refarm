@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Daily-driver hardening avançou: session lock stale foi corrigido, project handoff validate/write está no test:handoffs, vtconfig usa maxWorkers do Vitest 4, e after-edit agora valida pacote afetado JS-only usando test como fallback quando não há type-check/lint/build.",
-  "timestamp": "2026-06-27T08:36:37.440Z",
+  "context": "Checkpoint 2026-06-27. Refarm driver nucleus avançou: capability index está limpo, worker profile e scheduler local estão governados, e resume já carrega slot de scheduled-work sem inventar store ou daemon.",
+  "timestamp": "2026-06-27T16:03:28.000Z",
   "current_phase": "12",
   "current_tasks": [
-    "Daily-driver loop: runtime ready, resume/check/finish lanes limpos; after-edit agora cobre dirty tree com pacote afetado e fallback test para JS-only.",
-    "Refarm segue como fornecedor do ecossistema: primitives de CLI/SDK devem nascer em packages e apps/refarm apenas expõe cascas operacionais.",
-    "Trilha de validação continua lean: preferir testes focados, turbo cache, maxWorkers em Vitest e lanes affected antes de gates amplos."
+    "Daily-driver loop: resume/check/finish lanes seguem limpos; after-edit/after-commit usam affected scope e cache com concorrência limitada.",
+    "Refarm como fornecedor: contratos embeddable existem para capability index, worker profiles, project handoff, local scheduler e resume scheduled-work handoffs.",
+    "Scheduler está em contrato/visibilidade: @refarm.dev/windmill/local-scheduler materializa jobs locais no-token e refarm resume aceita a inspeção quando houver adapter real."
   ],
   "blockers": [],
   "next_actions": [
-    "Seguir daily-driver mileage: apps/me/UI E2E ou command loop que mais reduza fricção de uso real.",
-    "Mapear o próximo bloco publicável/SDK que reduz duplicação para vault-seed sem acoplar o checkout oficial antes da publicação.",
-    "Manter atenção em resource discipline: evitar comandos globais pesados e preferir filtros por pacote/teste."
+    "Conectar uma fonte real automation:v1 ao loader de scheduled work do resume, sem criar daemon ou fanout antes de existir store governada.",
+    "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza fricção real de uso.",
+    "Preparar blocos publicáveis npm/crates mantendo validação focada e evitando comandos globais pesados."
   ],
   "open_questions": [
-    "Qual será o primeiro consumidor externo real do project handoff SDK: vault-seed/dgk, agents-lab, ou o próprio apps/me?"
+    "Qual store local de automações deve ser o primeiro adapter real: arquivo governado, sqlite/storage-contract, ou integração via farmhand?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
