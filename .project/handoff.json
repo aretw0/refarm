@@ -1,20 +1,20 @@
 {
-  "context": "Checkpoint 2026-06-27. Refarm driver nucleus agora tem scheduler local governado e o resume carrega automations do projeto como scheduled-work visivel, sem daemon, execucao ou fanout.",
-  "timestamp": "2026-06-27T16:15:37.746Z",
+  "context": "Checkpoint 2026-06-27. Refarm driver nucleus agora tem scheduled-work completo em leitura: resume carrega .project/automations.json e health valida o manifesto antes de qualquer writer governado.",
+  "timestamp": "2026-06-27T16:26:12.040Z",
   "current_phase": "12",
   "current_tasks": [
     "Daily-driver loop: resume/check/finish lanes seguem limpos; after-edit/after-commit usam affected scope, concorrencia limitada e cache.",
-    "Refarm como fornecedor: contratos embeddable cobrem capability index, worker profiles, project handoff, local scheduler e resume scheduled-work handoffs.",
-    "Scheduler esta em visibilidade real minima: refarm resume le .project/automations.json opcional, normaliza triggers once/cron ativos e materializa jobs no-token pelo @refarm.dev/windmill/local-scheduler."
+    "Refarm como fornecedor: contratos embeddable cobrem capability index, worker profiles, project handoff, local scheduler, resume scheduled-work e health de automacoes do projeto.",
+    "Scheduler esta em visibilidade real minima: refarm resume le .project/automations.json opcional, normaliza triggers once/cron ativos e materializa jobs no-token pelo @refarm.dev/windmill/local-scheduler; health valida JSON, ids, nomes, status e triggers."
   ],
   "blockers": [],
   "next_actions": [
-    "Decidir se .project/automations.json precisa virar contrato/schema validado pelo health antes de adicionar escrita governada.",
+    "Escolher e implementar o primeiro writer governado de automacoes do projeto sem daemon: comando CLI, storage-contract/sqlite, ou integracao via farmhand.",
     "Continuar daily-driver mileage em apps/me/UI ou command loop que reduza friccao real de uso.",
     "Preparar blocos publicaveis npm/crates mantendo validacao focada e evitando comandos globais pesados."
   ],
   "open_questions": [
-    "Qual sera o primeiro writer governado de automacoes: comando CLI, storage-contract/sqlite, ou integracao via farmhand?"
+    "O writer inicial deve persistir somente .project/automations.json ou ja nascer atraves de storage-contract/sqlite com export/import para arquivo?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
