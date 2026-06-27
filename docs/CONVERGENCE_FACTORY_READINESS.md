@@ -240,7 +240,8 @@ that manual editing is riskier:
   manual 4c change; generated-vault manifest/inventory wiring landed as item 9a generator-first
   work;
 - next codemod candidates: ADR-069 publish-target scope sweep, `ds` token adoption in consumer CSS,
-  repository identity/package metadata rewrites, and package-name/workspace adoption;
+  package-name/workspace adoption, and repository/package metadata rewrites broader than initial
+  generated-vault materialization;
 - not codemods: ADR decisions, one-off prose, and speculative research notes.
 
 `ds-token-adoption` is now the first ready codemod entry. It has before/after
@@ -254,12 +255,13 @@ application/visual review remains on the `vault-seed` side.
 Vault-seed generator classification:
 
 - generator actions: payload copy, template-dev file exclusion, deterministic rename, generated
-  `inventory.json`, welcome-note status publication, and the current `vault.config.json` kudos
-  removal/license-holder fill. These are local, idempotent, and covered by the generated-vault
-  smoke boundary.
-- codemod candidates: repository identity/package metadata rewrites, package-name/workspace
-  adoption, and any future cross-file JSON/TS/CSS rewrite needed by more than one generated vault
-  or consumer checkout.
+  `inventory.json`, welcome-note status publication, current `vault.config.json` kudos
+  removal/license-holder fill, and `package.template.json` repository URL materialization from
+  the target repository. These are local, idempotent, and covered by the generated-vault smoke
+  boundary.
+- codemod candidates: package-name/workspace adoption, repository/package metadata rewrites beyond
+  the initial template materialization, and any future cross-file JSON/TS/CSS rewrite needed by
+  more than one generated vault or consumer checkout.
 - still not codemods: Markdown prose choices and ADR/spec content. Promote them only after a
   repeatable structural rule exists.
 
