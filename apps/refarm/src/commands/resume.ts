@@ -13,6 +13,11 @@ import {
 	parseProjectHandoffSummary,
 	PROJECT_HANDOFF_RELATIVE_PATH,
 } from "@refarm.dev/cli/project-handoff";
+import {
+	inspectLocalScheduledWork,
+	type LocalScheduledAutomation,
+	type LocalScheduledTrigger,
+} from "@refarm.dev/windmill/local-scheduler";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -55,6 +60,27 @@ export interface ResumeDeps {
 	loadScheduledWork(): Promise<OperatorResumeScheduledWorkInspection | undefined>;
 }
 
+interface ProjectAutomationStore {
+	automations?: unknown;
+}
+
+interface ProjectAutomationRecord {
+	id?: unknown;
+	name?: unknown;
+	description?: unknown;
+	status?: unknown;
+	triggers?: unknown;
+}
+
+type ProjectAutomationForScheduler = LocalScheduledAutomation & {
+	status: string;
+};
+
+interface LoadScheduledWorkOptions {
+	now?: string | Date;
+	owner?: string;
+}
+
 interface ResumeOptions {
 	json?: boolean;
 	status?: boolean;
@@ -72,7 +98,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
 		loadProjectHandoff,
-		loadScheduledWork: async () => undefined,
+		loadScheduledWork,
 		...deps,
 	};
 
@@ -206,6 +232,96 @@ export function loadProjectHandoff(
 	} catch {
 		return undefined;
 	}
+}
+
+export const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
+
+export async function loadScheduledWork(
+	cwd: string = process.cwd(),
+	options: LoadScheduledWorkOptions = {},
+): Promise<OperatorResumeScheduledWorkInspection | undefined> {
+	const automationsPath = path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
+	if (!fs.existsSync(automationsPath)) return undefined;
+
+	let records: unknown;
+	try {
+		const parsed = JSON.parse(fs.readFileSync(automationsPath, "utf-8")) as
+			| ProjectAutomationStore
+			| unknown[];
+		records = Array.isArray(parsed) ? parsed : parsed.automations;
+	} catch {
+		return undefined;
+	}
+	if (!Array.isArray(records)) return undefined;
+
+	const automations = records.flatMap((record) => {
+		const automation = normalizeProjectAutomation(record);
+		return automation ? [automation] : [];
+	});
+
+	if (automations.length === 0) return undefined;
+
+	return inspectLocalScheduledWork(
+		{
+			async query(filter?: { status?: string }) {
+				if (!filter?.status) return automations;
+				return automations.filter(
+					(automation) => automation.status === filter.status,
+				);
+			},
+		},
+		{ owner: options.owner ?? "refarm-main", now: options.now },
+	) as Promise<OperatorResumeScheduledWorkInspection>;
+}
+
+function normalizeProjectAutomation(
+	record: unknown,
+): ProjectAutomationForScheduler | undefined {
+	if (!record || typeof record !== "object") return undefined;
+	const automation = record as ProjectAutomationRecord;
+	if (
+		typeof automation.id !== "string" ||
+		typeof automation.name !== "string" ||
+		!Array.isArray(automation.triggers)
+	) {
+		return undefined;
+	}
+
+	const triggers = automation.triggers.flatMap((trigger) => {
+		const normalized = normalizeScheduledTrigger(trigger);
+		return normalized ? [normalized] : [];
+	});
+	if (triggers.length === 0) return undefined;
+
+	return {
+		id: automation.id,
+		name: automation.name,
+		description:
+			typeof automation.description === "string"
+				? automation.description
+				: undefined,
+		status: typeof automation.status === "string" ? automation.status : "draft",
+		triggers,
+	};
+}
+
+function normalizeScheduledTrigger(
+	trigger: unknown,
+): LocalScheduledTrigger | undefined {
+	if (!trigger || typeof trigger !== "object") return undefined;
+	const record = trigger as Record<string, unknown>;
+	if (record.type === "once" && typeof record.at === "string") {
+		return { type: "once", at: record.at };
+	}
+	if (record.type === "cron" && typeof record.schedule === "string") {
+		return {
+			type: "cron",
+			schedule: record.schedule,
+			timezone:
+				typeof record.timezone === "string" ? record.timezone : undefined,
+		};
+	}
+	return undefined;
 }
 
 async function loadModelResumeSummary(
