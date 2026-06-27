@@ -170,6 +170,13 @@ The durable supply surface is the `refarm:plugin@0.1.0` WIT contract; the crate
 stays `publish = false` until runtime packaging policy and daily-driver evidence
 justify promoting implementation crates.
 
+Current proof (2026-06-27): `@refarm.dev/cli/worker-profile` now models
+"agents as tools" without dispatching them. A bounded worker profile can be
+wrapped as a plan-only tool descriptor with explicit model scope, provider token
+use, input/output fields, max turns, and max concurrency. Runtime dispatch is
+rejected by validation until the worker engine has policy, cancellation,
+observability, and cost controls.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;

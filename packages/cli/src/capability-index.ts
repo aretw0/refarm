@@ -278,26 +278,27 @@ const CAPABILITIES = [
 	},
 	{
 		id: "runtime-agent.worker-profiles",
-		title: "Runtime agent worker profiles",
+		title: "Runtime agent worker tools",
 		description:
-			"Describe bounded delegated workers with context, tools, model route, concurrency, output schema, and resume policy.",
+			"Describe bounded delegated workers as plan-only agent tools before runtime fanout is enabled.",
 		provider: {
 			kind: "runtime",
 			package: "@refarm.dev/pi-agent",
-			surface: "runtime-agent worker profile",
+			surface: "runtime-agent worker tools",
 		},
 		requirements: [
 			"context packet",
 			"allowed toolset",
 			"model route",
-			"max concurrency",
+			"bounded budget",
 		],
 		policy: {
 			state: "governed",
 			enforcement: [
 				"explicit worker context",
 				"bounded tool access",
-				"cancellation/resume contract",
+				"plan-only invocation guard",
+				"max turns and max concurrency",
 			],
 			evidence: [
 				"packages/cli/src/worker-profile.test.ts",
