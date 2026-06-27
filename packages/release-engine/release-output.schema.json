@@ -37,6 +37,7 @@
           "type": "array",
           "items": { "type": "object" }
         },
+        "acceptance": { "$ref": "#/$defs/acceptance" },
         "packageProfiles": {
           "type": "array",
           "items": { "$ref": "#/$defs/packageProfileSummary" }
@@ -129,6 +130,7 @@
               "type": "array",
               "items": { "type": "object" }
             },
+            "acceptance": { "$ref": "#/$defs/acceptance" },
             "packageProfiles": {
               "type": "array",
               "items": { "$ref": "#/$defs/packageProfileSummary" }
@@ -170,6 +172,51 @@
             { "type": "string" },
             { "type": "null" }
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "acceptance": {
+      "type": "object",
+      "required": [
+        "status",
+        "packageCount",
+        "blockerCount",
+        "requiredGateCount",
+        "requiredCheckCount",
+        "providerCount",
+        "manualApprovalRequired",
+        "surfaces",
+        "profileTags",
+        "requiredChecks"
+      ],
+      "properties": {
+        "status": { "enum": ["accepted", "blocked"] },
+        "packageCount": { "type": "integer", "minimum": 0 },
+        "blockerCount": { "type": "integer", "minimum": 0 },
+        "requiredGateCount": { "type": "integer", "minimum": 0 },
+        "requiredCheckCount": { "type": "integer", "minimum": 0 },
+        "providerCount": { "type": "integer", "minimum": 0 },
+        "manualApprovalRequired": { "type": "boolean" },
+        "surfaces": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "profileTags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "requiredChecks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["command", "package"],
+            "properties": {
+              "command": { "type": "string", "minLength": 1 },
+              "package": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false

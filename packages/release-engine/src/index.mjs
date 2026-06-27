@@ -755,6 +755,7 @@ export function summarizePlan(plan) {
     packageCount: plan.orderedNames?.length || 0,
     packages: plan.orderedNames || [],
     blockers: plan.blockers || [],
+    acceptance: releasePlanAcceptance(plan),
     packageProfiles: releasePlanPackageProfiles(plan),
     requiredGates: (plan.gates || []).filter((gate) => gate.required).map((gate) => gate.id),
     providers: (plan.publishIntents || []).map((item) => item.provider),
@@ -803,6 +804,7 @@ export function createReleasePlanAuditRecord(plan, { createdAt = new Date().toIS
     packageCount: plan.orderedNames?.length || 0,
     packages: plan.orderedNames || [],
     blockers: plan.blockers || [],
+    acceptance: releasePlanAcceptance(plan),
     packageProfiles: releasePlanPackageProfiles(plan),
     requiredGates: (plan.gates || [])
       .filter((gate) => gate.required)
@@ -836,6 +838,39 @@ export function createReleasePlanAuditRecord(plan, { createdAt = new Date().toIS
       value: hashReleasePlanAuditPayload(payload),
     },
     payload,
+  };
+}
+
+export function releasePlanAcceptance(plan) {
+  const packageProfiles = releasePlanPackageProfiles(plan);
+  const requiredGates = (plan.gates || []).filter((gate) => gate.required);
+  const publishIntents = plan.publishIntents || [];
+  const requiredChecks = packageProfiles.flatMap((profile) =>
+    profile.mustPassChecks.map((command) => ({
+      command,
+      package: profile.id,
+    })),
+  );
+  const surfaces = [...new Set(
+    packageProfiles
+      .map((profile) => profile.surface)
+      .filter(Boolean),
+  )].sort();
+  const profileTags = [...new Set(plan.profileTags || [])].sort();
+
+  return {
+    status: plan.ok ? "accepted" : "blocked",
+    packageCount: plan.orderedNames?.length || 0,
+    blockerCount: (plan.blockers || []).length,
+    requiredGateCount: requiredGates.length,
+    requiredCheckCount: requiredChecks.length,
+    providerCount: publishIntents.length,
+    manualApprovalRequired: publishIntents.some((intent) =>
+      Boolean(intent.plan?.requiresManualApproval)
+    ),
+    surfaces,
+    profileTags,
+    requiredChecks,
   };
 }
 

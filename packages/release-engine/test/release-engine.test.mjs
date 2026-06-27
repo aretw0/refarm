@@ -14,6 +14,7 @@ import {
   RELEASE_PLAN_AUDIT_SCHEMA_VERSION,
   SUPPORTED_POLICY_VERSIONS,
   validatePolicy,
+  releasePlanAcceptance,
   summarizePlan,
   stringifyReleasePlanAuditPayload,
   releasePlanPackageProfiles,
@@ -287,6 +288,13 @@ test("exports the release output schema as a public package subpath", () => {
     "gates",
   ]);
   assert.equal(schema.$defs.summary.properties.auditRecord.$ref, "#/$defs/auditRecord");
+  assert.equal(schema.$defs.summary.properties.acceptance.$ref, "#/$defs/acceptance");
+  assert.deepEqual(schema.$defs.acceptance.properties.status.enum, [
+    "accepted",
+    "blocked",
+  ]);
+  assert.equal(schema.$defs.acceptance.properties.requiredChecks.items.required.includes("command"), true);
+  assert.equal(schema.$defs.acceptance.properties.requiredChecks.items.required.includes("package"), true);
   assert.equal(schema.$defs.auditRecord.properties.schemaVersion.const, 1);
   assert.equal(schema.$defs.auditRecord.properties.digest.properties.algorithm.const, "sha256");
   assert.equal(schema.$defs.packageProfileSummary.required.includes("surface"), true);
@@ -347,6 +355,20 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   );
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
+  assert.equal(payload.acceptance.status, "accepted");
+  assert.equal(payload.acceptance.packageCount, 10);
+  assert.equal(payload.acceptance.blockerCount, 0);
+  assert.equal(payload.acceptance.manualApprovalRequired, true);
+  assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
+  assert.deepEqual(payload.acceptance.surfaces, ["core", "shared"]);
+  assert.equal(
+    payload.acceptance.requiredCheckCount,
+    payload.packageProfiles.reduce(
+      (total, profile) => total + profile.mustPassChecks.length,
+      0,
+    ),
+  );
+  assert.equal(payload.acceptance.requiredChecks.length, payload.acceptance.requiredCheckCount);
 });
 
 test("cli check json uses the versioned machine-output contract", () => {
@@ -410,6 +432,9 @@ test("cli blocked plan json preserves the versioned output shape", () => {
   assert.equal(payload.status, "blocked");
   assert.deepEqual(payload.packages, []);
   assert.equal(payload.blockers[0].status, "missing");
+  assert.equal(payload.acceptance.status, "blocked");
+  assert.equal(payload.acceptance.packageCount, 0);
+  assert.equal(payload.acceptance.blockerCount, 1);
   assert.deepEqual(payload.publishIntents, []);
   assert.deepEqual(payload.profileTags, []);
   assert.equal(payload.selection, null);
@@ -613,6 +638,9 @@ test("creates deterministic release plan audit records", () => {
     assert.match(record.digest.value, /^[a-f0-9]{64}$/);
     assert.equal(record.payload.releaseOutputSchemaVersion, 1);
     assert.deepEqual(record.payload.packages, ["@refarm.dev/alpha"]);
+    assert.deepEqual(record.payload.acceptance, releasePlanAcceptance(plan));
+    assert.equal(record.payload.acceptance.status, "accepted");
+    assert.equal(record.payload.acceptance.requiredCheckCount, 0);
     assert.equal(record.payload.gates[0].commandCount, 2);
     assert.equal(record.payload.publishIntents[0].provider, "changesets");
     assert.equal(record.payload.publishIntents[0].commandCount, 1);

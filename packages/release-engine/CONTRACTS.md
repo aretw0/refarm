@@ -5,6 +5,8 @@ This package treats the following surfaces as public contracts once published:
 - Package exports in `package.json`.
 - `ReleasePolicy`, `ReleasePlan`, `ReleaseGateResult`, and exported helper types
   in `types/index.d.ts`.
+- Release acceptance helpers and summary fields: `releasePlanAcceptance` and
+  `ReleasePlanSummary.acceptance`.
 - Release plan audit helpers: `createReleasePlanAuditRecord`,
   `stringifyReleasePlanAuditPayload`, and
   `RELEASE_PLAN_AUDIT_SCHEMA_VERSION`.
