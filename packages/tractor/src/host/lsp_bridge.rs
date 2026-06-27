@@ -221,7 +221,7 @@ impl LspBridge {
     }
 
     #[cfg(test)]
-    fn stop_lsp_session() -> Result<(), String> {
+    pub(crate) fn stop_lsp_session() -> Result<(), String> {
         let mut slot = Self::lock_session()?;
         if let Some(mut session) = slot.take() {
             session.stop();
