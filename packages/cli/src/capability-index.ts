@@ -68,7 +68,7 @@ export interface RefarmCapabilitySupplyTarget {
 	note: string;
 }
 
-export interface RefarmReferenceDriverSupplyEntry {
+export interface ReferenceDriverSupplyEntry {
 	capabilityId: string;
 	provider: RefarmCapabilityProvider;
 	policyState: RefarmCapabilityPolicyState;
@@ -77,11 +77,11 @@ export interface RefarmReferenceDriverSupplyEntry {
 	nextDecision: string;
 }
 
-export interface RefarmReferenceDriverSupplyMap {
+export interface ReferenceDriverSupplyMap {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	discoverySdk: "@refarm.dev/cli/capability-index";
 	smokeCommand: "pnpm run reference-driver:smoke";
-	entries: readonly RefarmReferenceDriverSupplyEntry[];
+	entries: readonly ReferenceDriverSupplyEntry[];
 }
 
 export interface ReferenceDriverSupplyPreflightTarget extends RefarmCapabilitySupplyTarget {
@@ -568,7 +568,7 @@ export function getRefarmCapabilityDescriptors(): readonly RefarmCapabilityDescr
 	return CAPABILITIES;
 }
 
-export function buildRefarmReferenceDriverSupplyMap(): RefarmReferenceDriverSupplyMap {
+export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 	const descriptors = CAPABILITIES as readonly RefarmCapabilityDescriptor[];
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -594,7 +594,7 @@ export function buildRefarmReferenceDriverSupplyMap(): RefarmReferenceDriverSupp
 export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPreflight {
 	const includedStatuses = ["candidate", "internal", "hold"] as const;
 	const includedStatusSet = new Set<RefarmCapabilitySupplyStatus>(includedStatuses);
-	const supplyMap = buildRefarmReferenceDriverSupplyMap();
+	const supplyMap = buildReferenceDriverSupplyMap();
 	const targets = supplyMap.entries.flatMap((entry) =>
 		entry.targets
 			.filter((target) => includedStatusSet.has(target.status))

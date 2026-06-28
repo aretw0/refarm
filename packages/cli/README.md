@@ -76,11 +76,11 @@ or invoking a provider:
 ```ts
 import {
 	buildRefarmCapabilityIndex,
-	buildRefarmReferenceDriverSupplyMap,
+	buildReferenceDriverSupplyMap,
 } from "@refarm.dev/cli/capability-index";
 
 const index = buildRefarmCapabilityIndex();
-const referenceDriverSupply = buildRefarmReferenceDriverSupplyMap();
+const referenceDriverSupply = buildReferenceDriverSupplyMap();
 ```
 
 The supply map is intentionally conservative. Today it marks
