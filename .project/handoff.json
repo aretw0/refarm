@@ -1,17 +1,15 @@
 {
-  "context": "Checkpoint 2026-06-28. Agent finish no longer has unbounded internal Refarm CLI steps: command-plan CLI steps now honor timeoutMs and surface spawn timeout/error messages, and agent finish passes the same 180s resource bound used by package process steps.",
-  "timestamp": "2026-06-28T04:32:49.796Z",
+  "context": "Checkpoint 2026-06-28. Agent finish remains bounded, and launch-process tarball handoff was moved from the accidental root vault-seed/vendor path into the established ignored handoff area under .refarm/handoff/vault-seed/2026-06-28/.",
+  "timestamp": "2026-06-28T04:35:44.540Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 6ad1563d fix(cli): bound finish command steps.",
-    "Validation passed: pnpm -C packages/cli run test -- command-plan; pnpm -C apps/refarm exec vitest run test/commands/agent.test.ts --maxWorkers=1; pnpm -C packages/cli run type-check; pnpm -C apps/refarm run type-check; pnpm -C packages/cli run build; pnpm -C apps/refarm run build; refarm tidy imports --check --json; refarm check --next-action --json.",
-    "Real finish smoke with timeout 90s returned structured JSON instead of hanging. It failed at nested refarm check with spawnSync node EPERM in this sandbox while direct refarm check passed; treat nested spawn EPERM as next hardening target.",
-    "Tarball handoff remains uncommitted at /workspaces/refarm/vault-seed/vendor/refarm.dev-launch-process-0.1.0.tgz."
+    "Commit 6ad1563d fix(cli): bound finish command steps remains the latest code checkpoint for bounded finish execution.",
+    "Tarball handoff path corrected: .refarm/handoff/vault-seed/2026-06-28/refarm.dev-launch-process-0.1.0.tgz. The previous vault-seed/vendor root path was accidental and removed to avoid consumer-checkout drift in the Refarm root.",
+    "Validation already passed for bounded finish: pnpm -C packages/cli run test -- command-plan; pnpm -C apps/refarm exec vitest run test/commands/agent.test.ts --maxWorkers=1; refarm check --next-action --json."
   ],
   "blockers": [],
   "next_actions": [
     "Investigate nested spawnSync EPERM in refarm agent finish and prefer direct refarm binary/process handoff when running inside managed sandboxes.",
-    "Add progress/step-start output for non-JSON or optional NDJSON finish runs if silent waits remain painful.",
     "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral."
   ],
   "open_questions": [],
