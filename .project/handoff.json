@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-28. Release planning now has a plan-only supply preflight, the operator handoff prefers it for current-workspace checks, and reusable SDK naming stayed product-neutral.",
-  "timestamp": "2026-06-28T01:03:41.071Z",
+  "context": "Checkpoint 2026-06-28. Release planning has a plan-only supply preflight, operator handoffs prefer it for current-workspace checks, and the reference-driver supply SDK now uses product-neutral names.",
+  "timestamp": "2026-06-28T01:10:49.130Z",
   "current_phase": "12",
   "current_tasks": [
     "Commit aece3013 added refarm release preflight --selection <id> --json for plan-only release posture checks without gates, builds, publish dry-runs, or runtime dispatch.",
     "Commit b5cf167c updated refarm agent/check/common help to recommend refarm release preflight --selection default --json as the cheap first current-workspace release posture check.",
-    "External consumer handoff templates intentionally remain on refarm release plan --cwd <dir> --selection default --json; Refarm-specific supply posture is not forced onto downstream checkouts.",
-    "SDK exports for the new preflight use buildReferenceDriverSupplyPreflight and ReferenceDriverSupplyPreflight names; no Refarm-prefixed generic aliases were added."
+    "Commit 5c4e987e renamed the reference-driver supply map SDK surface to buildReferenceDriverSupplyMap, ReferenceDriverSupplyMap, and ReferenceDriverSupplyEntry, removing the Refarm-prefixed map names before publication.",
+    "External consumer handoff templates intentionally remain on refarm release plan --cwd <dir> --selection default --json; Refarm-specific supply posture is not forced onto downstream checkouts."
   ],
   "blockers": [],
   "next_actions": [
     "Use refarm release preflight --selection default --json or --selection vault-seed-ready --json before heavier release checks to inspect candidate/internal/hold posture cheaply.",
-    "Continue auditing SDK exports before publication; product CLI commands may say refarm, but reusable SDK primitives should use product-neutral domain names where possible.",
+    "Continue auditing SDK exports before publication; keep product CLI names where they describe the Refarm app, but make reusable primitives product-neutral before they become public contracts.",
     "Decide whether release readiness scripts need a build-free JS/JSON source for supply posture, or whether the app/SDK preflight surface is enough for now."
   ],
   "open_questions": [],
