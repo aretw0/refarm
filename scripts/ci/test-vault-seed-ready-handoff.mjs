@@ -139,6 +139,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	});
 	assert.deepEqual(manifest.missing, []);
 	assert.deepEqual(manifest.extra, []);
+	assert.deepEqual(manifest.consumerProofs, []);
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].sha256, "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8");
 	assert.match(formatHandoffMarkdown(manifest), /refarm\.dev-alpha-0\.1\.0\.tgz/);
@@ -202,10 +203,19 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
 		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
 	});
+	assert.deepEqual(manifest.consumerProofs, [
+		{
+			packageName: "@refarm.dev/launch-process",
+			downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
+			proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
+			ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
+		},
+	]);
 	assert.match(
 		formatHandoffMarkdown(manifest),
 		/dgk-runner keeps run\(cmd, args, opts\) while using launch-process internally/,
 	);
+	assert.match(formatHandoffMarkdown(manifest), /Consumer proofs:/);
 });
 
 test("keeps current vault-seed-ready selection tied to consumer-pull metadata", () => {
@@ -219,6 +229,7 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
 	assert.equal(manifest.packages.length, 10);
+	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.deepEqual(
 		manifest.packages
 			.filter((entry) => entry.consumerPull === null)
