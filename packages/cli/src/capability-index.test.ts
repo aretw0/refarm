@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildRefarmCapabilityIndex,
 	buildRefarmReferenceDriverSupplyMap,
+	buildReferenceDriverSupplyPreflight,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
@@ -114,5 +115,44 @@ describe("capability index", () => {
 				}),
 			]),
 		);
+	});
+
+	it("builds a plan-only supply preflight for release posture checks", () => {
+		const preflight = buildReferenceDriverSupplyPreflight();
+
+		expect(preflight).toMatchObject({
+			schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+			source: "@refarm.dev/cli/capability-index",
+			mode: "plan-only",
+			summary: [
+				{ status: "candidate", count: 1 },
+				{ status: "internal", count: 3 },
+				{ status: "hold", count: 3 },
+			],
+		});
+		expect(preflight.targets.map((target) => target.status)).not.toContain("exported");
+		expect(preflight.targets).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					capabilityId: "runtime-agent.session-tree",
+					channel: "runtime",
+					name: "refarm tree",
+					status: "candidate",
+				}),
+				expect.objectContaining({
+					capabilityId: "runtime-agent.code-ops",
+					channel: "crate",
+					name: "refarm-plugin-wit",
+					status: "internal",
+				}),
+				expect.objectContaining({
+					capabilityId: "runtime-agent.structured-io",
+					channel: "npm",
+					name: "@refarm.dev/pi-agent",
+					status: "hold",
+				}),
+			]),
+		);
+		expect(preflight.nextDecisions).toHaveLength(3);
 	});
 });

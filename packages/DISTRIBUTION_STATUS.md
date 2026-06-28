@@ -115,6 +115,8 @@ Before any publication or handoff:
 Current commands:
 
 ```bash
+refarm release preflight --selection default --json
+refarm release preflight --selection vault-seed-ready --json
 pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:vault-seed:check
