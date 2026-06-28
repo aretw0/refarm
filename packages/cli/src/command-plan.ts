@@ -364,9 +364,10 @@ export function runCommandPlan(
 		if (!ok) {
 			const remainingSteps = stepsToRun.slice(index + 1);
 			const payloadNextCommands = commandPayloadNextCommands(result.payload);
+			const fallbackNextActions = commandPlanStepFallbackNextActions(step, result);
 			const nextActions = normalizeHandoffValues(
 				commandPayloadNextActions(result.payload) ??
-					payloadNextCommands ?? [step.command],
+					payloadNextCommands ?? fallbackNextActions,
 			);
 			const nextCommands = normalizeHandoffValues(
 				payloadNextCommands ?? [step.command],
@@ -403,4 +404,20 @@ export function runCommandPlan(
 		nextProcesses: [],
 		recommendations: [],
 	};
+}
+
+function commandPlanStepFallbackNextActions(
+	step: CommandPlanStep,
+	result: CommandPlanStepRunResult,
+): string[] {
+	if (isNestedSpawnRestricted(result)) {
+		return [
+			`Run \`${step.command}\` directly; this environment restricts nested process spawning.`,
+		];
+	}
+	return [step.command];
+}
+
+function isNestedSpawnRestricted(result: CommandPlanStepRunResult): boolean {
+	return /spawnSync .* EPERM/.test(result.stderr);
 }

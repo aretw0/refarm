@@ -262,6 +262,25 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("turns nested spawn restrictions into direct-run guidance", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: false,
+			exitCode: 1,
+			stdout: "",
+			stderr: "spawnSync /usr/local/bin/node EPERM",
+		}));
+
+		expect(runCommandPlan([steps[0]!], runStep)).toMatchObject({
+			ok: false,
+			failedStepId: "first",
+			nextActions: [
+				"Run `refarm first --json` directly; this environment restricts nested process spawning.",
+			],
+			nextCommands: ["refarm first --json"],
+		});
+	});
+
 	it("builds run JSON envelopes and strips raw streams from summaries", () => {
 		const result = runCommandPlan([steps[0]!], (step) => ({
 			...step,
