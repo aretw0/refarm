@@ -3,6 +3,7 @@
 "@refarm.dev/sync-contract-v1": minor
 "@refarm.dev/identity-contract-v1": minor
 "@refarm.dev/artifact-contract-v1": minor
+"@refarm.dev/effort-contract-v1": minor
 "@refarm.dev/plugin-manifest": minor
 ---
 
@@ -14,6 +15,7 @@ This is the first distributable release of Refarm's contract stack:
 - **@refarm.dev/sync-contract-v1**: Sync capability contract (sync:v1) with conformance test suite
 - **@refarm.dev/identity-contract-v1**: Identity capability contract (identity:v1) with conformance test suite and optional session-derived identity handles for OPAQUE, WebAuthn, and future protocol-owned sessions
 - **@refarm.dev/artifact-contract-v1**: Managed artifact lifecycle and task output manifests with provenance, tokenized producer process references, hashes, media types, review state, and consumer selection helpers
+- **@refarm.dev/effort-contract-v1**: Effort lifecycle contract for durable work attempts, status transitions, provider-neutral provenance, and downstream handoff evidence
 - **@refarm.dev/plugin-manifest**: Plugin manifest schema and validation helpers
 
 All packages include:
