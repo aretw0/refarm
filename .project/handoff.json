@@ -1,18 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Launch-process now handles detached spawn failures, and its initial release changeset includes the downstream ENOENT fix before vault-seed-ready publication.",
-  "timestamp": "2026-06-28T01:25:00.617Z",
+  "context": "Checkpoint 2026-06-28. Worker tool readiness now exposes structured plan-only blockers for agents-as-tools; launch-process ENOENT handling remains folded into pre-publication release notes.",
+  "timestamp": "2026-06-28T01:34:15.566Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 0eb1a193 fixed launchDetachedProcess so missing host tools such as xdg-open emit through onError instead of crashing the caller with an unhandled child-process error.",
-    "Commit 5a2ca8e6 folded that detached spawn fix into .changeset/launch-process-leaf.md instead of stacking a second changeset before first publication.",
-    "refarm release preflight --selection vault-seed-ready --json is ready and includes @refarm.dev/launch-process with lint/type-check/test/build required checks.",
-    "pnpm exec changeset status --since main reports @refarm.dev/launch-process in the minor initial-release set and @refarm.dev/cli in patch for the compatibility re-export."
+    "Commit 11a9bf3c added assessWorkerToolReadiness() to @refarm.dev/cli/worker-profile, exporting structured readiness blockers for policy, cancellation, observability, and cost-control before runtime-dispatch.",
+    "The worker-tool slice kept reusable SDK names product-neutral and left runtime-dispatch hard-blocked until the engine has executable fanout proofs.",
+    "after-edit and after-commit finish lanes passed for packages/cli; after-commit hit turbo cache 24/24 with concurrency 2.",
+    "Launch-process remains ready for vault-seed-ready preflight with detached spawn ENOENT handled through onError."
   ],
   "blockers": [],
   "next_actions": [
-    "Use refarm release preflight --selection vault-seed-ready --json before heavier vault-seed publication checks; avoid broad gates until another concrete package slice needs them.",
-    "Continue auditing vault-seed-ready SDK exports before publication; keep product CLI names where they describe the Refarm app, but make reusable primitives product-neutral before they become public contracts.",
-    "If vault-seed reports another concrete SDK defect, prefer fixing it in the Refarm package root and folding release notes into the existing package changeset when still pre-publication."
+    "Use refarm release preflight --selection vault-seed-ready --json before heavier publication checks; avoid broad gates until another concrete package slice needs them.",
+    "Continue auditing vault-seed-ready SDK exports before publication, preferring neutral reusable names and compatibility aliases only when an existing public contract requires them.",
+    "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap."
   ],
   "open_questions": [],
   "key_decisions_active": [
