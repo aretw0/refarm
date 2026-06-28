@@ -1,18 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Vault-seed-ready remains dry-run validated; Silo token output is now provider-neutral while preserving Refarm storage fallback.",
-  "timestamp": "2026-06-28T03:10:40.887Z",
+  "context": "Checkpoint 2026-06-28. Vault-seed-ready remains dry-run validated; Silo and DS public surfaces now prefer product-neutral names while retaining Refarm compatibility aliases.",
+  "timestamp": "2026-06-28T03:23:41.344Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit ff49cf9a makes @refarm.dev/silo resolve/provision provider-native GITHUB_TOKEN and CLOUDFLARE_API_TOKEN keys instead of Refarm-prefixed token keys.",
-    "SILO_HOME is now the preferred Silo storage override; REFARM_HOME remains a storage fallback for existing Refarm operators so model Silo OAuth continues to resolve.",
-    "Validated pnpm -C packages/silo run test, pnpm -C packages/silo run build, git diff --check, and refarm agent finish after-edit/after-commit for the Silo naming slice.",
-    "Manual low-resource turbo warmup used concurrency=1 before after-edit to avoid repeating container pressure; final after-commit passed with apps/refarm and packages/silo validation."
+    "Commit ff49cf9a makes @refarm.dev/silo resolve/provision provider-native GITHUB_TOKEN and CLOUDFLARE_API_TOKEN keys with SILO_HOME preferred and REFARM_HOME fallback.",
+    "Commit 5e22f70d makes @refarm.dev/ds prefer data-ds-theme, --ds-*, .ds-*, data-ds-scroll-region, and @layer ds.* while retaining Refarm-prefixed compatibility aliases.",
+    "Validated DS naming slice with pnpm -C packages/ds run test, build, lint, git diff --check, and refarm agent finish after-edit/after-commit.",
+    "after-commit DS validation was full turbo cache hit for type-check/lint/build; avoid broad release dry-run until package metadata/files/exports/release policy changes."
   ],
   "blockers": [],
   "next_actions": [
-    "Continue naming audit before publication with DS class/theme prefixes next, or update release readiness docs/checklist if naming churn should pause.",
-    "Do not repeat pnpm run release:vault-seed:check unless package metadata, files, exports, or release policy changes; latest 10-package dry-run already passed for the current lane before this Silo API change.",
-    "For stale runtime-agent sessions after container restart, avoid repeated sessions list retries if it destabilizes runtime; treat it as operator-state cleanup separate from package work."
+    "Continue pre-publication naming audit on remaining generic SDK/engine surfaces; prefer product-neutral API names unless Refarm branding is intentionally part of the CLI/app.",
+    "Do not repeat pnpm run release:vault-seed:check unless package metadata, files, exports, or release policy changes; latest 10-package dry-run already passed before the Silo/DS naming slices.",
+    "Treat stale runtime-agent session cleanup as separate operator-state work; avoid repeated sessions list/clear retries when the runtime is otherwise ready."
   ],
   "open_questions": [],
   "key_decisions_active": [
