@@ -1,18 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Release planning has a plan-only supply preflight, reusable SDK naming is being neutralized before publication, and launch-process now handles detached spawn failures for downstream consumers.",
-  "timestamp": "2026-06-28T01:18:31.517Z",
+  "context": "Checkpoint 2026-06-28. Launch-process now handles detached spawn failures, and its initial release changeset includes the downstream ENOENT fix before vault-seed-ready publication.",
+  "timestamp": "2026-06-28T01:25:00.617Z",
   "current_phase": "12",
   "current_tasks": [
     "Commit 0eb1a193 fixed launchDetachedProcess so missing host tools such as xdg-open emit through onError instead of crashing the caller with an unhandled child-process error.",
-    "The launch-process regression test now spawns a deliberately missing command and asserts ENOENT is reported without an uncaught exception.",
-    "Commit 5c4e987e renamed the reference-driver supply map SDK surface to buildReferenceDriverSupplyMap, ReferenceDriverSupplyMap, and ReferenceDriverSupplyEntry, removing the Refarm-prefixed map names before publication.",
-    "Commit b5cf167c updated refarm agent/check/common help to recommend refarm release preflight --selection default --json as the cheap first current-workspace release posture check."
+    "Commit 5a2ca8e6 folded that detached spawn fix into .changeset/launch-process-leaf.md instead of stacking a second changeset before first publication.",
+    "refarm release preflight --selection vault-seed-ready --json is ready and includes @refarm.dev/launch-process with lint/type-check/test/build required checks.",
+    "pnpm exec changeset status --since main reports @refarm.dev/launch-process in the minor initial-release set and @refarm.dev/cli in patch for the compatibility re-export."
   ],
   "blockers": [],
   "next_actions": [
-    "Use refarm release preflight --selection default --json or --selection vault-seed-ready --json before heavier release checks to inspect candidate/internal/hold posture cheaply.",
-    "Continue auditing SDK exports before publication; keep product CLI names where they describe the Refarm app, but make reusable primitives product-neutral before they become public contracts.",
-    "If vault-seed reports another concrete SDK defect, prefer fixing it in the Refarm package root before adding downstream workaround code."
+    "Use refarm release preflight --selection vault-seed-ready --json before heavier vault-seed publication checks; avoid broad gates until another concrete package slice needs them.",
+    "Continue auditing vault-seed-ready SDK exports before publication; keep product CLI names where they describe the Refarm app, but make reusable primitives product-neutral before they become public contracts.",
+    "If vault-seed reports another concrete SDK defect, prefer fixing it in the Refarm package root and folding release notes into the existing package changeset when still pre-publication."
   ],
   "open_questions": [],
   "key_decisions_active": [
