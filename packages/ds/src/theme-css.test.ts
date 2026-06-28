@@ -52,7 +52,7 @@ describe("shipped theme CSS conformance", () => {
 		);
 		const light = tokensInCssBlock(
 			css,
-			'[data-refarm-theme="verde-jardim"][data-mode="light"]',
+			':where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])[data-mode="light"]',
 		);
 		expect(light).toMatchObject({
 			background: "#f7f5f0",
@@ -63,7 +63,7 @@ describe("shipped theme CSS conformance", () => {
 			"accent-foreground": "#0f3d26",
 		});
 		expect(light["shadow-md"]).toBeDefined();
-		expect(css).toContain('[data-mode="light"] [data-refarm-theme="verde-jardim"]');
-		expect(css).toContain('[data-refarm-theme="verde-jardim"][data-mode="dark"]');
+		expect(css).toContain('[data-mode="light"] :where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])');
+		expect(css).toContain(':where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])[data-mode="dark"]');
 	});
 });

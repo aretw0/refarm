@@ -1,5 +1,5 @@
-@layer refarm.theme {
-	[data-refarm-theme="terracota"] {
+@layer ds.theme {
+	:where([data-ds-theme="terracota"], [data-refarm-theme="terracota"]) {
 		--background: #1d1714;
 		--foreground: #f5ede8;
 		--card: #211710;
