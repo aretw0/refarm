@@ -1,4 +1,5 @@
 import { refarmCommand } from "./command-handoff.js";
+import { WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS } from "./worker-profile.js";
 
 export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
 
@@ -74,6 +75,7 @@ export interface ReferenceDriverSupplyEntry {
 	policyState: RefarmCapabilityPolicyState;
 	activation: RefarmCapabilityActivation;
 	referenceLessons: readonly string[];
+	promotionProofTargets: readonly string[];
 	targets: readonly RefarmCapabilitySupplyTarget[];
 	nextDecision: string;
 }
@@ -619,6 +621,12 @@ const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
 	],
 } as const;
 
+const REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS: Record<string, readonly string[]> = {
+	"runtime-agent.worker-profiles": WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS.map(
+		(blocker) => blocker.proofTarget,
+	),
+} as const;
+
 export function buildRefarmCapabilityIndex(): RefarmCapabilityIndex {
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -647,6 +655,8 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 				policyState: capability.policy.state,
 				activation: capability.activation,
 				referenceLessons: REFERENCE_DRIVER_LESSONS[id] ?? [],
+				promotionProofTargets:
+					REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS[id] ?? [],
 				targets: supply.targets,
 				nextDecision: supply.nextDecision,
 			};
