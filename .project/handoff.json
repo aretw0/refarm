@@ -1,18 +1,19 @@
 {
-  "context": "Checkpoint 2026-06-28. ADR-071 defines workspace namespace policy: Refarm defaults to .refarm sidecar state and allows external root namespaces only through declaration.",
-  "timestamp": "2026-06-28T03:33:08.716Z",
+  "context": "Checkpoint 2026-06-28. Workspace namespace policy is now executable: refarm.config.json declares current root namespaces, @refarm.dev/config normalizes workspaceNamespaces, and health/check report undeclared versioned root namespace drift as warnings first. launch-process tarball handoff regenerated for vault-seed consumer review.",
+  "timestamp": "2026-06-28T04:23:01.653Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit d5c5dc1d records ADR-071 workspace namespace policy plus decision-log, ADR index, daily-driver, extensibility, and process playbook alignment.",
-    "Policy decision: refarm.config.json is versioned project policy; .refarm/ is Refarm-owned local sidecar; .project/ is a declared Pi/workflow compatibility namespace, not Refarm's semantic center.",
-    "Policy decision: the Refarm coding agent does not get a new root directory by default; Refarm-owned agent state should live under .refarm/agents, sessions, handoff, and runtime.",
-    "Validated docs slice with git diff --check and refarm agent finish after-edit/after-commit; no package workspaces were affected."
+    "Commit ab71c9bc feat(health): warn on undeclared workspace namespaces.",
+    "Validation passed: pnpm -C packages/config run test -- workspace-namespaces-config; pnpm -C packages/health run test -- project; pnpm -C apps/refarm exec vitest run test/commands/health.test.ts test/commands/check.test.ts --maxWorkers=1; pnpm -C apps/refarm run type-check; pnpm -C packages/launch-process run test; pnpm -C packages/launch-process run build; refarm check --next-action --json.",
+    "Tarball handoff: /workspaces/refarm/vault-seed/vendor/refarm.dev-launch-process-0.1.0.tgz. This artifact is intentionally left uncommitted."
   ],
-  "blockers": [],
+  "blockers": [
+    "refarm agent finish --lane after-edit/after-commit --run --json emitted no output and was interrupted to avoid container pressure; refarm check passed afterwards."
+  ],
   "next_actions": [
-    "Implement workspaceNamespaces policy shape in refarm.config.json/schema and teach health/check to report undeclared namespace drift as warnings first.",
-    "After namespace audit exists, declare current compatibility namespaces such as .project and ignored integration caches such as .pi-lens with owner/purpose/persistence/access.",
-    "Continue pre-publication naming audit on remaining generic SDK/engine surfaces after namespace policy hardening is planned or split into bite-sized tasks."
+    "Investigate why agent finish lanes can hang silently and make them resource-bounded/cache-aware.",
+    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral.",
+    "Use cached downstream checkout only when a consumer-proof is needed; otherwise keep advancing Refarm package readiness in-repo."
   ],
   "open_questions": [],
   "key_decisions_active": [
