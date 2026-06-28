@@ -234,7 +234,9 @@ describe("worker profile contract", () => {
 				summary: "Plan is small.",
 				risks: ["Missing rollback evidence."],
 			},
-			handoffs: ["refarm capabilities --tag reference-driver --json"],
+			handoffs: [
+				"refarm capabilities --tag reference-driver --supply reference-driver --json",
+			],
 		});
 
 		expect(result).toMatchObject({
@@ -242,7 +244,9 @@ describe("worker profile contract", () => {
 			descriptorName: "agent.planReview",
 			profileId: "worker.plan-review",
 			status: "completed",
-			handoffs: ["refarm capabilities --tag reference-driver --json"],
+			handoffs: [
+				"refarm capabilities --tag reference-driver --supply reference-driver --json",
+			],
 			issues: [],
 		});
 		expect(validateWorkerToolResult(descriptor, result)).toEqual({
