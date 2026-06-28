@@ -64,6 +64,10 @@ The local handoff currently lives under
 the versioned policy and package checks remain the durable source of truth. The
 handoff command materializes package tarballs sequentially before validating the
 manifest and SHA-256 inventory.
+Each package entry also carries `consumerPull` metadata when the selected
+package has a known `vault-seed` adoption target. That metadata names the
+downstream use, the expected `vault-seed` proof target, and the ownership
+boundary that must stay product-local.
 
 ---
 

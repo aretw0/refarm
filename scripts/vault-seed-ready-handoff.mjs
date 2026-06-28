@@ -20,6 +20,58 @@ import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const DEFAULT_SELECTION = "vault-seed-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/vault-seed/${new Date().toISOString().slice(0, 10)}`;
+const VAULT_SEED_CONSUMER_PULLS = {
+	"@refarm.dev/artifact-contract-v1": {
+		downstreamUse: "Lab datasets, publication outbox, and notebook snapshot evidence",
+		proofTarget: "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+		ownershipBoundary: "Vault schemas, notebook UX, and frontmatter remain downstream",
+	},
+	"@refarm.dev/channel-policy-v1": {
+		downstreamUse: "Channel destinations, rate limits, receipts, dry-run, and review gates",
+		proofTarget: "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
+		ownershipBoundary: "Provider API calls, copy formatting, and inbox/outbox UX remain downstream",
+	},
+	"@refarm.dev/effort-contract-v1": {
+		downstreamUse: "Reusable task/effort evidence for dgk operations and handoffs",
+		proofTarget: "dgk process flows attach effort identifiers to emitted evidence",
+		ownershipBoundary: "dgk command vocabulary and operator UX remain downstream",
+	},
+	"@refarm.dev/launch-process": {
+		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
+		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
+		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
+	},
+	"@refarm.dev/release-engine": {
+		downstreamUse: "Package acceptance, release planning, and publish dry-run policy",
+		proofTarget: "vault-seed release/package smoke consumes release-engine acceptance output",
+		ownershipBoundary: "Distribution identity, prose, and changelog content remain downstream",
+	},
+	"@refarm.dev/ds": {
+		downstreamUse: "Lab/admin tokens and verde-jardim light/dark theme source",
+		proofTarget: "vault-seed Lab/admin UI imports ds tokens and removes local semantic token fallback except for raw sessions",
+		ownershipBoundary: "PARA vocabulary, editorial copy, and content semantics remain downstream",
+	},
+	"@refarm.dev/heartwood": {
+		downstreamUse: "Shared crypto substrate needed by silo-backed credentials",
+		proofTarget: "vault-seed credential flow uses silo without local crypto stand-ins",
+		ownershipBoundary: "Credential policy choices and publishing identities remain downstream",
+	},
+	"@refarm.dev/dispatch-surface": {
+		downstreamUse: "Multi-surface command/action descriptor substrate",
+		proofTarget: "dgk exposes product commands through dispatch-surface-compatible descriptors",
+		ownershipBoundary: "Surface labels, routes, and product-specific actions remain downstream",
+	},
+	"@refarm.dev/homestead-ssr": {
+		downstreamUse: "Build-free SSR shell helpers for vault admin surfaces",
+		proofTarget: "dgk serve/admin renders through homestead-ssr without pulling full Homestead",
+		ownershipBoundary: "Admin copy, navigation, vault routes, and onboarding remain downstream",
+	},
+	"@refarm.dev/silo": {
+		downstreamUse: "Scoped credential collection and secret namespace separation",
+		proofTarget: "vault-seed stores model/runtime/publishing credentials through silo namespaces",
+		ownershipBoundary: "Provider-specific publishing adapters and approval workflow remain downstream",
+	},
+};
 
 export function parseHandoffArgs(argv = []) {
 	const options = {
@@ -207,6 +259,7 @@ export function buildHandoffManifest({
 			exists,
 			sha256: exists ? sha256File(filePath) : null,
 			sizeBytes: exists ? statSync(filePath).size : null,
+			consumerPull: VAULT_SEED_CONSUMER_PULLS[command.packageName] ?? null,
 		};
 	});
 
@@ -243,13 +296,13 @@ export function formatHandoffMarkdown(manifest) {
 			`(${manifest.acceptance?.packageCount ?? 0} package(s), ` +
 			`${manifest.acceptance?.requiredCheckCount ?? 0} required check(s))`,
 		"",
-		"| Package | Tarball | SHA256 |",
-		"| --- | --- | --- |",
+		"| Package | Tarball | SHA256 | Consumer proof |",
+		"| --- | --- | --- | --- |",
 	];
 
 	for (const entry of manifest.packages) {
 		lines.push(
-			`| \`${entry.packageName}\` | \`${entry.tarball}\` | \`${entry.sha256 ?? "missing"}\` |`,
+			`| \`${entry.packageName}\` | \`${entry.tarball}\` | \`${entry.sha256 ?? "missing"}\` | ${entry.consumerPull?.proofTarget ?? "none declared"} |`,
 		);
 	}
 
