@@ -9,6 +9,7 @@ import {
 	createLaunchProcessRunner,
 	createLaunchProcessSpec,
 	createLaunchProcessSpecFromRunner,
+	launchDetachedProcess,
 	splitLaunchCommand,
 } from "./index.js";
 
@@ -104,5 +105,31 @@ describe("launch-process leaf package", () => {
 			"scripts/prepare_lab_datasets.mjs",
 			"--json",
 		]);
+	});
+
+	it("reports detached spawn errors without raising an uncaught exception", async () => {
+		const missingCommand = `refarm-missing-launch-process-${process.pid}-${Date.now()}`;
+
+		await expect(
+			new Promise<NodeJS.ErrnoException>((resolve, reject) => {
+				const timeout = setTimeout(() => {
+					reject(new Error("Timed out waiting for detached spawn error."));
+				}, 1_000);
+
+				launchDetachedProcess(
+					{
+						command: missingCommand,
+						args: [],
+						display: missingCommand,
+					},
+					{
+						onError: (error) => {
+							clearTimeout(timeout);
+							resolve(error);
+						},
+					},
+				);
+			}),
+		).resolves.toMatchObject({ code: "ENOENT" });
 	});
 });

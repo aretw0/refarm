@@ -36,6 +36,7 @@ export interface LaunchProcessRunResult {
 export interface DetachedLaunchProcessOptions {
 	logPath?: string;
 	env?: NodeJS.ProcessEnv;
+	onError?: (error: NodeJS.ErrnoException) => void;
 }
 
 export interface DetachedLaunchProcess {
@@ -180,6 +181,9 @@ export function launchDetachedProcess(
 			detached: true,
 			env: options.env ?? process.env,
 			stdio: ["ignore", outputFd, outputFd],
+		});
+		child.once("error", (error) => {
+			options.onError?.(error as NodeJS.ErrnoException);
 		});
 		child.unref();
 		return child;
