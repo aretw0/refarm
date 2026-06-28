@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint 2026-06-27. Worker profiles now expose a product-neutral agents-as-tools SDK contract; runtime dispatch remains intentionally blocked until policy, cancellation, observability, and cost controls are proven.",
-  "timestamp": "2026-06-27T20:39:32.852Z",
+  "context": "Checkpoint 2026-06-28. Release planning now has a plan-only supply preflight, and the new SDK contract deliberately avoids adding Refarm-prefixed generic names.",
+  "timestamp": "2026-06-28T00:49:56.693Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 890037be added createWorkerProfile/createWorkerToolDescriptor plus validation for plan-only worker tool descriptors in @refarm.dev/cli.",
-    "Reusable SDK names in packages/cli/src/worker-profile.ts are product-neutral; do not add Refarm-prefixed compatibility aliases before publication for names that should not have existed.",
-    "Validation passed: worker-profile and capability-index vitest, packages/cli type-check, packages/cli build, validate-packages, git diff --check, after-edit, commit, and after-commit with full Turbo cache hit."
+    "Commit aece3013 added refarm release preflight --selection <id> --json for plan-only release posture checks without gates, builds, publish dry-runs, or runtime dispatch.",
+    "@refarm.dev/cli/capability-index now exports buildReferenceDriverSupplyPreflight plus ReferenceDriverSupplyPreflight types; no buildRefarmReferenceDriverSupplyPreflight or RefarmReferenceDriverSupplyPreflight aliases were added.",
+    "Validation passed: focused capability-index/release vitest, packages/cli and apps/refarm type-check, git diff --check, after-edit, commit, and after-commit with full Turbo cache hit after commit."
   ],
   "blockers": [],
   "next_actions": [
-    "Return to the publication/convergence track with a plan-only release preflight that reports internal, hold, and candidate supply targets without expensive builds.",
-    "Keep runtime-dispatch worker tools plan-only until policy/cancellation/observability/cost controls are implemented and validated.",
-    "Continue auditing exported SDK surfaces before publication so reusable primitives stay product-neutral and Refarm naming remains reserved for product identity surfaces."
+    "Use refarm release preflight --selection default --json or --selection vault-seed-ready --json before heavier release checks to inspect candidate/internal/hold posture cheaply.",
+    "Continue auditing SDK exports before publication; product CLI commands may say refarm, but reusable SDK primitives should use product-neutral domain names where possible.",
+    "Next convergence slice can connect preflight output to release handoff/readiness docs or continue package publication hardening without running expensive builds first."
   ],
   "open_questions": [],
   "key_decisions_active": [
