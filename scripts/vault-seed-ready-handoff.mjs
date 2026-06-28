@@ -157,6 +157,17 @@ function trimOutput(value) {
 	return typeof value === "string" ? value.trim() : "";
 }
 
+function buildConsumerProofs(packages) {
+	return packages
+		.filter((entry) => entry.consumerPull)
+		.map((entry) => ({
+			packageName: entry.packageName,
+			downstreamUse: entry.consumerPull.downstreamUse,
+			proofTarget: entry.consumerPull.proofTarget,
+			ownershipBoundary: entry.consumerPull.ownershipBoundary,
+		}));
+}
+
 export function materializeHandoffTarballs({
 	cwd = process.cwd(),
 	env = process.env,
@@ -237,6 +248,7 @@ export function buildHandoffManifest({
 			acceptance: releasePlanAcceptance(plan),
 			handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 			packages: [],
+			consumerProofs: [],
 			missing: [],
 			extra: [],
 			issues: [plan.reason ?? "release selection is not ready"],
@@ -286,6 +298,7 @@ export function buildHandoffManifest({
 		acceptance: releasePlanAcceptance(check.plan),
 		handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 		packages,
+		consumerProofs: buildConsumerProofs(packages),
 		missing,
 		extra,
 		issues,
@@ -310,6 +323,15 @@ export function formatHandoffMarkdown(manifest) {
 		lines.push(
 			`| \`${entry.packageName}\` | \`${entry.tarball}\` | \`${entry.sha256 ?? "missing"}\` | ${entry.consumerPull?.proofTarget ?? "none declared"} |`,
 		);
+	}
+
+	if ((manifest.consumerProofs ?? []).length > 0) {
+		lines.push("", "Consumer proofs:", "");
+		for (const proof of manifest.consumerProofs) {
+			lines.push(
+				`- \`${proof.packageName}\`: ${proof.proofTarget} (${proof.ownershipBoundary})`,
+			);
+		}
 	}
 
 	if (manifest.issues.length > 0) {
