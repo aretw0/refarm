@@ -88,8 +88,9 @@ The refreshed sources sharpen the "agents as tools" rule:
   embeddable posture while staying stricter than Pi on permission and host
   capability boundaries.
 
-Current proof (2026-06-28): `@refarm.dev/cli/worker-profile` now includes a
-worker result envelope. `createWorkerToolResult()` and
+Current proof (2026-06-28): `@refarm.dev/cli` and
+`@refarm.dev/cli/worker-profile` now include a worker result envelope.
+`createWorkerToolResult()` and
 `validateWorkerToolResult()` make the return side of "agents as tools" explicit:
 workers produce a compact summary, completed results must satisfy the
 descriptor's declared output fields, and blocked/failed/cancelled results must
@@ -149,12 +150,13 @@ scheduled jobs. The CLI command supports tag and policy-state filtering, so
 agents can ask for `--state planned --json` or `--state governed --json` without
 scraping docs or loading long instructions.
 
-Current proof (2026-06-27): `@refarm.dev/cli/worker-profile` defines the first
-bounded worker contract: explicit context packet, allowed/denied tools, model
-scope, max concurrency, output contract, and cancellation/resume policy. This
-does not dispatch workers. It only gives downstream code and future runtime
-work a small, validated shape to target before Refarm enables delegated
-execution.
+Current proof (2026-06-27): `@refarm.dev/cli/worker-profile` introduced the
+first bounded worker contract: explicit context packet, allowed/denied tools,
+model scope, max concurrency, output contract, and cancellation/resume policy.
+The current primary SDK surface is `@refarm.dev/cli`, with the subpath kept for
+focused imports. This does not dispatch workers. It only gives downstream code
+and future runtime work a small, validated shape to target before Refarm enables
+delegated execution.
 
 Current proof (2026-06-27): `@refarm.dev/windmill/local-scheduler` defines the
 first local scheduled-work SDK boundary. It reads active `automation:v1`
@@ -221,17 +223,19 @@ use, input/output fields, max turns, and max concurrency. Runtime dispatch is
 rejected by validation until the worker engine has policy, cancellation,
 observability, and cost controls.
 
-Current proof (2026-06-28): `@refarm.dev/cli/worker-profile` now exposes
-`assessWorkerToolReadiness()`. Consumers can ask whether a worker tool
-descriptor is offerable and get structured blockers for runtime dispatch:
-policy, cancellation, observability, and cost-control proofs. This keeps the Pi
-SDK lesson and the Hermes delegation lesson in the contract while preserving
-Refarm's hard plan-only boundary until the engine can prove safe fanout.
+Current proof (2026-06-28): `@refarm.dev/cli` now exposes
+`assessWorkerToolReadiness()` from the worker contract. Consumers can ask
+whether a worker tool descriptor is offerable and get structured blockers for
+runtime dispatch: policy, cancellation, observability, and cost-control proofs.
+This keeps the Pi SDK lesson and the Hermes delegation lesson in the contract
+while preserving Refarm's hard plan-only boundary until the engine can prove
+safe fanout.
 
 Current proof (2026-06-28): the compact capability index now treats bounded
 worker profiles as part of the `reference-driver` supply map. The exported
-surface is still the product-neutral `@refarm.dev/cli/worker-profile` SDK; the
-runtime promotion gate is only a plan-only candidate, and `@refarm.dev/pi-agent`
+surface is the product-neutral `@refarm.dev/cli` SDK, with
+`@refarm.dev/cli/worker-profile` available as the focused subpath. The runtime
+promotion gate is only a plan-only candidate, and `@refarm.dev/pi-agent`
 worker execution remains on hold until the local engine proves policy,
 cancellation, observability, and provider cost bounds.
 
