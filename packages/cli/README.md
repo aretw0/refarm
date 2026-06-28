@@ -92,10 +92,12 @@ refarm capabilities --tag reference-driver --supply reference-driver --json
 
 The supply map is intentionally conservative. Today it marks
 `@refarm.dev/cli/capability-index` as the exported discovery SDK, exposes
-`@refarm.dev/cli/worker-profile` as the plan-only worker descriptor/readiness
-SDK, keeps `@refarm.dev/pi-agent` publication on hold while the plugin package
-is private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
+`@refarm.dev/cli` as the plan-only worker descriptor/readiness/result SDK,
+keeps `@refarm.dev/pi-agent` publication on hold while the plugin package is
+private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
 WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
+The narrower `@refarm.dev/cli/worker-profile` subpath remains available for
+consumers that want only the worker contract.
 
 `@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
 "agents as tools" contract. `createWorkerProfile()` defines the bounded worker,
