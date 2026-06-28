@@ -16,6 +16,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -24,7 +25,6 @@ import {
 } from "./diagnostic-recommendations.js";
 import { buildRefarmDoctorReport, type RefarmDoctorReport } from "./doctor.js";
 import { runHealthAudit, type HealthReport } from "./health.js";
-import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildModelDoctorStatus,
 	defaultModelDeps,
@@ -252,7 +252,7 @@ function releasePolicyCheckRecommendations(
 			severity: "info",
 			summary: `Release policy currently selects ${releasePolicy.packageCount} kernel candidate package${releasePolicy.packageCount === 1 ? "" : "s"}.`,
 			action:
-				"Inspect the release plan before preparing npm or crates publication.",
+				"Inspect the release plan and supply posture before preparing npm or crates publication.",
 			command: releasePolicy.recommendedCommand,
 		},
 	];
@@ -460,7 +460,7 @@ async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
 }
 
 async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
-	const recommendedCommand = "refarm release plan --selection default --json";
+	const recommendedCommand = "refarm release preflight --selection default --json";
 	const engine = (await import("@refarm.dev/release-engine")) as {
 		buildReleasePlan: (options: {
 			cwd?: string;

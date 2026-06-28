@@ -251,7 +251,7 @@ function makeReleasePolicyCheck(
 		profileTags: ["kernel", "candidate"],
 		packageProfiles: [],
 		blockers: [],
-		recommendedCommand: "refarm release plan --selection default --json",
+		recommendedCommand: "refarm release preflight --selection default --json",
 		...overrides,
 	};
 }

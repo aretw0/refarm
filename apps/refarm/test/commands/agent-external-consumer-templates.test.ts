@@ -46,8 +46,8 @@ describe("agent external consumer templates", () => {
 		);
 		expect(templates).toContainEqual(
 			expect.objectContaining({
-				id: "declared-release-kernel-candidates-json",
-				command: "refarm release plan --selection default --json",
+				id: "declared-release-supply-preflight-json",
+				command: "refarm release preflight --selection default --json",
 				effects: ["observe"],
 				writes: false,
 				parameters: [],
