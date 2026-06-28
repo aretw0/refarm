@@ -6,6 +6,7 @@ import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-own
 import { findWorkspaceSourceOwnershipIssues } from "./check-workspace-source-ownership.mjs";
 import { checkNodeSubstrate } from "./check-node-substrate.mjs";
 import { checkRustSubstrate } from "./check-rust-substrate.mjs";
+import { buildFactoryPressureReport } from "./factory-pressure-lib.mjs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");
@@ -180,6 +181,7 @@ function pnpmToolAlternatives(env = process.env) {
 
 const nodeSubstrate = await checkNodeSubstrate();
 const rustSubstrate = checkRustSubstrate();
+const factoryPressure = buildFactoryPressureReport();
 
 function ownershipCheck(id, kind, command, findIssues) {
 	try {
@@ -232,7 +234,6 @@ const tools = [
 	toolCheck("tool_cargo", "cargo", ["-V"]),
 ];
 const diagnosticTools = [
-	toolCheck("diagnostic_rustup_version", "rustup", ["--version"], { required: false }),
 	toolCheck("diagnostic_wasm_tools", "wasm-tools", ["--version"], { required: false }),
 	toolCheck("diagnostic_bash", "bash", ["--version"], { required: false }),
 	toolCheck("diagnostic_jq", "jq", ["--version"], { required: false }),
@@ -261,6 +262,15 @@ const checks = [
 		command: "node scripts/ci/check-rust-substrate.mjs --json",
 		exitCode: rustSubstrate.ok ? 0 : 1,
 	},
+	{
+		id: "factory_pressure",
+		kind: "operational-pressure",
+		required: true,
+		ok: factoryPressure.ok === true,
+		command: "pnpm run factory:pressure:json",
+		decision: factoryPressure.decision,
+		signalCount: factoryPressure.signals.length,
+	},
 	sourceOwnershipCheck,
 	artifactOwnershipCheck,
 	...tools,
@@ -277,6 +287,11 @@ const recommendations = [
 	...(Array.isArray(rustSubstrate.recommendations)
 		? rustSubstrate.recommendations.map((recommendation) =>
 			normalizeRecommendation("rust-substrate", recommendation),
+		)
+		: []),
+	...(Array.isArray(factoryPressure.recommendations)
+		? factoryPressure.recommendations.map((recommendation) =>
+			normalizeRecommendation("factory-pressure", recommendation),
 		)
 		: []),
 	...tools
@@ -318,21 +333,13 @@ const recommendations = [
 		]),
 	...diagnosticTools
 		.filter((check) => !check.ok)
-		.map((check) => check.id === "diagnostic_rustup_version"
-			? {
-				diagnostic: "environment-substrate:rustup-version-probe",
-				severity: "warning",
-				summary: "rustup --version failed, but Rust target validation is handled by rust-substrate.",
-				action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
-				target: check.command,
-			}
-			: {
-				diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
-				severity: "warning",
-				summary: `Diagnostic tool is not available: ${check.command}`,
-				action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
-				target: check.command,
-			}),
+		.map((check) => ({
+			diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
+			severity: "warning",
+			summary: `Diagnostic tool is not available: ${check.command}`,
+			action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
+			target: check.command,
+		})),
 	...networkDiagnostics
 		.filter((check) => !check.ok)
 		.map((check) => ({
@@ -349,6 +356,7 @@ const recommendations = [
 const nextCommands = [
 	...(Array.isArray(nodeSubstrate.nextCommands) ? nodeSubstrate.nextCommands : []),
 	...(Array.isArray(rustSubstrate.nextCommands) ? rustSubstrate.nextCommands : []),
+	...(Array.isArray(factoryPressure.nextCommands) ? factoryPressure.nextCommands : []),
 ];
 const blockingRecommendations = recommendations.filter(
 	(recommendation) => recommendation.severity !== "warning" && recommendation.severity !== "info",
@@ -371,6 +379,7 @@ const result = {
 	substrate: {
 		node: nodeSubstrate,
 		rust: rustSubstrate,
+		factoryPressure,
 		tools,
 		diagnosticTools,
 		networkDiagnostics,
@@ -383,6 +392,10 @@ const result = {
 		rustSubstrate: compactImportedCheck(
 			rustSubstrate,
 			"node scripts/ci/check-rust-substrate.mjs --json",
+		),
+		factoryPressure: compactImportedCheck(
+			factoryPressure,
+			"pnpm run factory:pressure:json",
 		),
 	},
 	recommendations,
