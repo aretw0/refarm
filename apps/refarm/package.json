@@ -19,7 +19,7 @@
     "test:tree-reference-driver": "vitest run test/commands/tree.reference-driver.test.ts",
     "test:actions-safety": "vitest run test/commands/action-affordances.test.ts test/commands/actions.test.ts test/commands/action-fixture.test.ts test/commands/headless-action.test.ts test/commands/web-actions.test.ts test/commands/tui-actions.test.ts",
     "test": "vitest run --maxWorkers=1",
-    "test:focused": "vitest run --maxWorkers=1",
+    "test:file": "vitest run --maxWorkers=1",
     "test:capabilities": "vitest run --maxWorkers=1 test/commands/capabilities.test.ts",
     "test:handoffs": "vitest run test/commands/json-next-command-contract.test.ts test/commands/agent-external-consumer-templates.test.ts test/commands/project.test.ts test/commands/health-policy-suggestion.test.ts test/commands/health-policy-modes.test.ts",
     "smoke:dist-actions": "tsc --project tsconfig.build.json && node scripts/smoke-dist-action-readiness.mjs",
