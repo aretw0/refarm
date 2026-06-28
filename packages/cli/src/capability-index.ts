@@ -471,20 +471,20 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			{
 				channel: "npm",
 				name: "@refarm.dev/cli",
-				export: "@refarm.dev/cli/worker-profile",
-				path: "packages/cli/src/worker-profile.ts",
+				export: "@refarm.dev/cli",
+				path: "packages/cli/src/index.ts",
 				status: "exported",
 				note:
-					"Plan-only worker descriptor and readiness SDK for consumers that want agents-as-tools without runtime fanout.",
+					"Plan-only worker descriptor and readiness SDK for consumers that want agents-as-tools without runtime fanout; also available through @refarm.dev/cli/worker-profile.",
 			},
 			{
 				channel: "npm",
 				name: "@refarm.dev/cli worker result envelope",
-				export: "@refarm.dev/cli/worker-profile",
-				path: "packages/cli/src/worker-profile.ts",
+				export: "@refarm.dev/cli",
+				path: "packages/cli/src/index.ts",
 				status: "exported",
 				note:
-					"Worker result envelope requires compact summaries, declared output fields, handoffs, and issues for non-completed statuses.",
+					"Worker result envelope requires compact summaries, declared output fields, handoffs, and issues for non-completed statuses; also available through @refarm.dev/cli/worker-profile.",
 			},
 			{
 				channel: "runtime",
