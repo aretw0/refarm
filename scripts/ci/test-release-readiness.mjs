@@ -16,6 +16,7 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /environment-substrate: .*environment-substrate:check/);
 	assert.match(output, /source-ownership: .*workspace:source:ownership/);
 	assert.match(output, /derived-artifacts: .*workspace:artifacts:ownership/);
+	assert.match(output, /test-runner-contracts: .*test-runner:contracts/);
 	assert.match(output, /github-actions-pins: .*actions:pins/);
 	assert.match(output, /github-actions-contracts: .*actions:contracts/);
 	assert.match(output, /codemod-registry: .*codemods:check/);
@@ -42,6 +43,7 @@ test("prints structured release readiness metadata", () => {
 			"environment-substrate",
 			"source-ownership",
 			"derived-artifacts",
+			"test-runner-contracts",
 			"github-actions-pins",
 			"github-actions-contracts",
 			"codemod-registry",
