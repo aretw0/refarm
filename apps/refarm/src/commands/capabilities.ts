@@ -1,7 +1,9 @@
 import {
 	buildRefarmCapabilityIndex,
+	buildReferenceDriverSupplyMap,
 	type RefarmCapabilityDescriptor,
 	type RefarmCapabilityPolicyState,
+	type ReferenceDriverSupplyMap,
 } from "@refarm.dev/cli/capability-index";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import chalk from "chalk";
@@ -11,6 +13,7 @@ interface CapabilitiesOptions {
 	json?: boolean;
 	tag?: string[];
 	state?: RefarmCapabilityPolicyState[];
+	supply?: string;
 }
 
 function collectOption(value: string, previous: string[] = []): string[] {
@@ -58,11 +61,46 @@ function formatCapabilityRows(
 	return lines.join("\n");
 }
 
+function buildSupplyPayload(surface: string | undefined): {
+	surface: "reference-driver";
+	map: ReferenceDriverSupplyMap;
+} | undefined {
+	if (!surface) return undefined;
+	if (surface !== "reference-driver") {
+		throw new Error(
+			`Unsupported capability supply surface: ${surface}. Supported: reference-driver.`,
+		);
+	}
+	return {
+		surface,
+		map: buildReferenceDriverSupplyMap(),
+	};
+}
+
+function formatReferenceDriverSupplyMap(supplyMap: ReferenceDriverSupplyMap): string {
+	const lines = ["", chalk.bold("Supply posture")];
+	for (const entry of supplyMap.entries) {
+		lines.push(`${entry.capabilityId} ${chalk.dim(`[${entry.policyState}]`)}`);
+		for (const target of entry.targets) {
+			lines.push(
+				chalk.dim(
+					`  ${target.status}: ${target.channel} ${target.name}`,
+				),
+			);
+		}
+	}
+	return lines.join("\n");
+}
+
 export function createCapabilitiesCommand(): Command {
 	return new Command("capabilities")
 		.description("List compact Refarm capability descriptors for consumers")
 		.option("--json", "Output machine-readable capability index")
 		.option("--tag <tag>", "Filter by tag", collectOption, [])
+		.option(
+			"--supply <surface>",
+			"Include supply posture for a surface (reference-driver)",
+		)
 		.option(
 			"--state <state>",
 			"Filter by policy state (planned, governed, proven)",
@@ -76,6 +114,7 @@ export function createCapabilitiesCommand(): Command {
 				"Examples:",
 				"  $ refarm capabilities",
 				"  $ refarm capabilities --tag daily-driver",
+				"  $ refarm capabilities --tag reference-driver --supply reference-driver --json",
 				"  $ refarm capabilities --state planned --json",
 				"  $ refarm capabilities --json",
 				"",
@@ -91,6 +130,7 @@ export function createCapabilitiesCommand(): Command {
 			const capabilities = index.capabilities.filter((capability) =>
 				matchesTags(capability, tags) && matchesStates(capability, states),
 			);
+			const supply = buildSupplyPayload(options.supply);
 			if (options.json) {
 				printJson(
 					buildJsonSuccessEnvelope({
@@ -101,12 +141,17 @@ export function createCapabilitiesCommand(): Command {
 							count: capabilities.length,
 							filter: { tags, states },
 							capabilities,
+							supply,
 						},
 					}),
 				);
 				return;
 			}
-			console.log(formatCapabilityRows(capabilities));
+			const output = [
+				formatCapabilityRows(capabilities),
+				...(supply ? [formatReferenceDriverSupplyMap(supply.map)] : []),
+			].join("\n");
+			console.log(output);
 		});
 }
 
