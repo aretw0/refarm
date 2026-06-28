@@ -1,17 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Release planning now has a plan-only supply preflight, and the new SDK contract deliberately avoids adding Refarm-prefixed generic names.",
-  "timestamp": "2026-06-28T00:49:56.693Z",
+  "context": "Checkpoint 2026-06-28. Release planning now has a plan-only supply preflight, the operator handoff prefers it for current-workspace checks, and reusable SDK naming stayed product-neutral.",
+  "timestamp": "2026-06-28T01:03:41.071Z",
   "current_phase": "12",
   "current_tasks": [
     "Commit aece3013 added refarm release preflight --selection <id> --json for plan-only release posture checks without gates, builds, publish dry-runs, or runtime dispatch.",
-    "@refarm.dev/cli/capability-index now exports buildReferenceDriverSupplyPreflight plus ReferenceDriverSupplyPreflight types; no buildRefarmReferenceDriverSupplyPreflight or RefarmReferenceDriverSupplyPreflight aliases were added.",
-    "Validation passed: focused capability-index/release vitest, packages/cli and apps/refarm type-check, git diff --check, after-edit, commit, and after-commit with full Turbo cache hit after commit."
+    "Commit b5cf167c updated refarm agent/check/common help to recommend refarm release preflight --selection default --json as the cheap first current-workspace release posture check.",
+    "External consumer handoff templates intentionally remain on refarm release plan --cwd <dir> --selection default --json; Refarm-specific supply posture is not forced onto downstream checkouts.",
+    "SDK exports for the new preflight use buildReferenceDriverSupplyPreflight and ReferenceDriverSupplyPreflight names; no Refarm-prefixed generic aliases were added."
   ],
   "blockers": [],
   "next_actions": [
     "Use refarm release preflight --selection default --json or --selection vault-seed-ready --json before heavier release checks to inspect candidate/internal/hold posture cheaply.",
     "Continue auditing SDK exports before publication; product CLI commands may say refarm, but reusable SDK primitives should use product-neutral domain names where possible.",
-    "Next convergence slice can connect preflight output to release handoff/readiness docs or continue package publication hardening without running expensive builds first."
+    "Decide whether release readiness scripts need a build-free JS/JSON source for supply posture, or whether the app/SDK preflight surface is enough for now."
   ],
   "open_questions": [],
   "key_decisions_active": [
