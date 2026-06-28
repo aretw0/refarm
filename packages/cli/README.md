@@ -98,14 +98,54 @@ is private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
 WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
 
 `@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
-"agents as tools" contract. `createWorkerProfile()` defines the bounded worker, and
-`createWorkerToolDescriptor()` wraps it as a plan-only tool descriptor with
+"agents as tools" contract. `createWorkerProfile()` defines the bounded worker,
+and `createWorkerToolDescriptor()` wraps it as a plan-only tool descriptor with
 explicit model scope, token source, max turns, and max concurrency. Runtime
 dispatch is intentionally rejected until the worker engine has policy,
-cancellation, observability, and cost-control proofs. Consumers can call
-`assessWorkerToolReadiness()` to get structured blockers instead of parsing
-validation strings when deciding whether to expose a worker as a real tool.
-`createWorkerToolResult()` and `validateWorkerToolResult()` define the matching
-return envelope: workers must return a compact summary, satisfy the descriptor's
-declared output fields when completed, and explain blocked, failed, or cancelled
-statuses through `issues`.
+cancellation, observability, and cost-control proofs.
+
+```ts
+import {
+	assessWorkerToolReadiness,
+	createWorkerProfile,
+	createWorkerToolDescriptor,
+	createWorkerToolResult,
+	validateWorkerToolResult,
+} from "@refarm.dev/cli";
+
+const profile = createWorkerProfile({
+	id: "worker.plan-review",
+	title: "Plan Review Worker",
+	description: "Review a plan and return a compact risk summary.",
+	objective: "Find risks before implementation starts.",
+	allowedTools: ["read", "search"],
+	output: { format: "json", requiredFields: ["summary", "risks"] },
+});
+
+const descriptor = createWorkerToolDescriptor(profile, {
+	name: "agent.planReview",
+	inputFields: ["task", "scope"],
+});
+
+const readiness = assessWorkerToolReadiness(descriptor);
+if (!readiness.ok) {
+	throw new Error(readiness.issues.join("; "));
+}
+
+const result = createWorkerToolResult(descriptor, {
+	summary: "Plan is bounded; rollback evidence is missing.",
+	output: {
+		summary: "Plan is bounded.",
+		risks: ["Missing rollback evidence."],
+	},
+});
+
+validateWorkerToolResult(descriptor, result);
+```
+
+Consumers can call `assessWorkerToolReadiness()` to get structured blockers
+instead of parsing validation strings when deciding whether to expose a worker
+as a real tool. `createWorkerToolResult()` and `validateWorkerToolResult()`
+define the matching return envelope: workers must return a compact summary,
+satisfy the descriptor's declared output fields when completed, and explain
+blocked, failed, or cancelled statuses through `issues`.
