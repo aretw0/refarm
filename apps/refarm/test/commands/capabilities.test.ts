@@ -57,6 +57,56 @@ describe("capabilities command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints reference-driver supply posture for downstream consumers", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--tag",
+			"reference-driver",
+			"--supply",
+			"reference-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			supply: {
+				surface: string;
+				map: {
+					discoverySdk: string;
+					entries: Array<{
+						capabilityId: string;
+						targets: Array<{ name: string; status: string }>;
+					}>;
+				};
+			};
+		};
+		expect(payload.supply).toMatchObject({
+			surface: "reference-driver",
+			map: {
+				discoverySdk: "@refarm.dev/cli/capability-index",
+				entries: expect.arrayContaining([
+					expect.objectContaining({
+						capabilityId: "runtime-agent.worker-profiles",
+						targets: expect.arrayContaining([
+							expect.objectContaining({
+								name: "@refarm.dev/cli worker result envelope",
+								status: "exported",
+							}),
+							expect.objectContaining({
+								name: "worker tool promotion gate",
+								status: "candidate",
+							}),
+						]),
+					}),
+				]),
+			},
+		});
+		logSpy.mockRestore();
+	});
+
 	it("filters capabilities by tag", async () => {
 		const logs: string[] = [];
 		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {

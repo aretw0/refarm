@@ -174,6 +174,12 @@ code-ops tools. This maps the Pi/Hermes/Codex research into a cheap operator
 query while keeping dispatch, policy, and UI promotion behind their existing
 proofs.
 
+Current proof (2026-06-28): `refarm capabilities --tag reference-driver
+--supply reference-driver --json` now exposes the same static supply posture as
+`buildReferenceDriverSupplyMap()`. This gives external consumers and agents a
+cheap, no-provider handoff for exported SDK targets, runtime candidates,
+internal WIT/crate boundaries, and held packages before anything is published.
+
 Current proof (2026-06-27): `@refarm.dev/cli/capability-index` now also exposes
 `buildReferenceDriverSupplyMap()`. The map makes publication posture
 machine-readable: discovery is an exported CLI SDK, `@refarm.dev/pi-agent` stays

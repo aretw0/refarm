@@ -83,6 +83,13 @@ const index = buildRefarmCapabilityIndex();
 const referenceDriverSupply = buildReferenceDriverSupplyMap();
 ```
 
+The CLI exposes the same static posture for agents and downstream scripts that
+cannot import the package yet:
+
+```bash
+refarm capabilities --tag reference-driver --supply reference-driver --json
+```
+
 The supply map is intentionally conservative. Today it marks
 `@refarm.dev/cli/capability-index` as the exported discovery SDK, exposes
 `@refarm.dev/cli/worker-profile` as the plan-only worker descriptor/readiness
