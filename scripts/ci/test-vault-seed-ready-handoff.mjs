@@ -199,12 +199,14 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 
 	assert.equal(manifest.ok, true);
 	assert.deepEqual(manifest.packages[0].consumerPull, {
+		proofId: "launch-process.dgk-runner-adapter",
 		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
 		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
 		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
 	});
 	assert.deepEqual(manifest.consumerProofs, [
 		{
+			proofId: "launch-process.dgk-runner-adapter",
 			packageName: "@refarm.dev/launch-process",
 			downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
 			proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
@@ -215,6 +217,7 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 		formatHandoffMarkdown(manifest),
 		/dgk-runner keeps run\(cmd, args, opts\) while using launch-process internally/,
 	);
+	assert.match(formatHandoffMarkdown(manifest), /launch-process\.dgk-runner-adapter/);
 	assert.match(formatHandoffMarkdown(manifest), /Consumer proofs:/);
 });
 
@@ -230,6 +233,10 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
 	assert.equal(manifest.packages.length, 10);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
+	assert.equal(
+		new Set(manifest.consumerProofs.map((proof) => proof.proofId)).size,
+		manifest.consumerProofs.length,
+	);
 	assert.deepEqual(
 		manifest.packages
 			.filter((entry) => entry.consumerPull === null)

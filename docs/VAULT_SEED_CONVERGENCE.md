@@ -479,8 +479,9 @@ form prints the same acceptance line before the tarball table, so a consumer
 handoff can verify readiness without reinterpreting the full release plan. The
 JSON manifest is versioned (`schemaVersion: 1`) and carries `consumerPull` per
 package plus a flattened `consumerProofs` list. That list is the downstream
-assimilation checklist: each item names the `vault-seed` proof target and the
-product boundary that must remain local.
+assimilation checklist: each item has a stable `proofId`, names the
+`vault-seed` proof target, and records the product boundary that must remain
+local.
 
 ### Additional Assimilation Matrix
 

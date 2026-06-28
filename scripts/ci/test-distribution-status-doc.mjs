@@ -43,6 +43,7 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /schemaVersion: 1/);
 	assert.match(doc, /consumerPull/);
 	assert.match(doc, /consumerProofs/);
+	assert.match(doc, /proofId/);
 
 	for (const packageName of releaseSelectionNames("default")) {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
