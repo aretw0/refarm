@@ -1,9 +1,11 @@
 import { readGitCommand } from "@refarm.dev/cli/git-command";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
+	declaredWorkspaceNamespacesFromConfig,
 	defaultRefarmConfigPath,
 	findRefarmConfigPath,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+	type DeclaredWorkspaceNamespaceConfig,
 } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
@@ -29,6 +31,7 @@ import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 export interface HealthIssue {
   file?: string;
   package?: string;
+  path?: string;
   type: string;
   entry?: string;
   category?: string;
@@ -47,6 +50,7 @@ export interface HealthResults {
   builds: HealthIssue[];
   alignment: HealthIssue[];
   automations?: HealthIssue[];
+  namespaceWarnings?: HealthIssue[];
   complexity?: HealthIssue[];
   complexitySummary?: unknown;
 }
@@ -128,6 +132,7 @@ interface HealthPolicy {
   workspaceRoots?: string[];
   exemptPackageIds?: string[];
   ignoredGitVisibilityPatterns: string[];
+  workspaceNamespaces?: DeclaredWorkspaceNamespaceConfig[];
   complexity?: HealthComplexityPolicy;
   title?: string;
 }
@@ -141,6 +146,7 @@ interface HealthComplexityPolicy {
 }
 
 interface RefarmConfig {
+  workspaceNamespaces?: unknown;
   health?: {
     preset?: "refarm" | "workspace";
     workspaceRoots?: unknown;
@@ -290,6 +296,15 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       action: "Fix .project/automations.json before adding automation writers or relying on scheduled-work handoffs.",
       command: HEALTH_NEXT_ACTION_COMMAND,
     })),
+    ...(results.namespaceWarnings ?? []).map((issue) => ({
+      issueType: issue.type,
+      diagnostic: issue.type,
+      severity: "warning" as const,
+      target: issue.path,
+      summary: `${issue.path ?? "A workspace namespace"} is present without a workspaceNamespaces declaration.`,
+      action: "Declare the namespace owner, purpose, persistence, and access in refarm.config.json, or remove the drift.",
+      command: "refarm health --policy --json",
+    })),
     ...(results.complexity ?? []).map((issue) => ({
       issueType: issue.type,
       diagnostic: issue.type,
@@ -367,6 +382,9 @@ export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicy
 
   const complexity = normalizeComplexityPolicy(health.complexity);
   if (complexity) policy.complexity = complexity;
+
+  const workspaceNamespaces = declaredWorkspaceNamespacesFromConfig(config, { baseDir: rootDir });
+  if (workspaceNamespaces.length > 0) policy.workspaceNamespaces = workspaceNamespaces;
 
   return buildHealthPolicyReport({
     rootDir,
@@ -502,6 +520,15 @@ function emitHealthSummary(report: HealthReport): void {
     });
   }
 
+  console.log(chalk.bold("\n6. Workspace Namespaces"));
+  if (!report.results.namespaceWarnings || report.results.namespaceWarnings.length === 0) {
+    console.log(chalk.green("   ✅ Versioned root namespaces are declared or conventional infrastructure."));
+  } else {
+    report.results.namespaceWarnings.forEach((issue: HealthIssue) => {
+      console.log(chalk.yellow(`   ⚠️  ${issue.path} ${issue.note ?? "is undeclared."}`));
+    });
+  }
+
   if (report.ok) {
     console.log(chalk.bold.green("\n✨ All checks passed."));
   } else {
@@ -531,6 +558,9 @@ function emitHealthPolicySummary(report: HealthPolicyReport): void {
   }
   if (report.policy.ignoredGitVisibilityPatterns.length) {
     console.log(`   Ignored git visibility patterns: ${report.policy.ignoredGitVisibilityPatterns.join(", ")}`);
+  }
+  if (report.policy.workspaceNamespaces?.length) {
+    console.log(`   Workspace namespaces: ${report.policy.workspaceNamespaces.map((namespace) => namespace.path).join(", ")}`);
   }
   if (report.policy.complexity?.enabled) {
     console.log(`   Complexity max lines: ${report.policy.complexity.maxLines}`);

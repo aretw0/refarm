@@ -1,11 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 const DEFAULT_WORKSPACE_ROOTS = ["packages", "apps"];
 const REFARM_EXEMPT_PACKAGE_IDS = ["packages/deps", "packages/heartwood", "packages/tsconfig"];
 const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
 const PROJECT_AUTOMATION_STATUSES = new Set(["draft", "ready", "active", "archived"]);
 const PROJECT_AUTOMATION_TRIGGER_TYPES = new Set(["manual", "cron", "once", "event"]);
+const BUILTIN_INFRASTRUCTURE_NAMESPACES = new Set([
+    ".cargo",
+    ".changeset",
+    ".devcontainer",
+    ".git",
+    ".github",
+    ".refarm",
+]);
 
 /**
  * ProjectAuditor: workspace/package auditor with caller-provided policy.
@@ -15,11 +24,13 @@ export class ProjectAuditor {
     #title;
     #workspaceRoots;
     #exemptPackageIds;
+    #workspaceNamespaces;
 
     constructor(options = {}) {
         this.#title = options.title || "Workspace Health";
         this.#workspaceRoots = options.workspaceRoots || DEFAULT_WORKSPACE_ROOTS;
         this.#exemptPackageIds = new Set(options.exemptPackageIds || []);
+        this.#workspaceNamespaces = options.workspaceNamespaces || [];
     }
 
     get id() { return "project"; }
@@ -54,6 +65,7 @@ export class ProjectAuditor {
         const rootDir = context.rootDir || process.cwd();
         const workspaceRoots = context.policy?.workspaceRoots || context.workspaceRoots;
         const exemptPackageIds = context.policy?.exemptPackageIds || context.exemptPackageIds;
+        const workspaceNamespaces = context.policy?.workspaceNamespaces || context.workspaceNamespaces;
 
         // In a stratified flow, we might receive results from generic_fs
         const genericResults = context.generic_fs || {};
@@ -63,6 +75,7 @@ export class ProjectAuditor {
             builds: await this.checkBuildConfigs(rootDir, { workspaceRoots, exemptPackageIds }),
             alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots, exemptPackageIds }),
             automations: this.checkProjectAutomations(rootDir),
+            namespaceWarnings: this.checkWorkspaceNamespaces(rootDir, { workspaceNamespaces }),
         };
     }
 
@@ -204,6 +217,32 @@ export class ProjectAuditor {
             validateProjectAutomationRecord(record, relativePath, index)
         );
     }
+
+    /**
+     * Warns when versioned root dot-directories are not declared as workspace namespaces.
+     * This keeps project/tool sidecars intentional without scanning ignored runtime caches.
+     */
+    checkWorkspaceNamespaces(rootDir, options = {}) {
+        const declarations = options.workspaceNamespaces || this.#workspaceNamespaces;
+        const declaredPaths = new Set(
+            declarations
+                .map((namespace) => normalizeNamespacePath(namespace?.path))
+                .filter(Boolean),
+        );
+        const warnings = [];
+
+        for (const namespacePath of versionedRootDotDirectories(rootDir)) {
+            if (BUILTIN_INFRASTRUCTURE_NAMESPACES.has(namespacePath)) continue;
+            if (declaredPaths.has(namespacePath)) continue;
+            warnings.push(workspaceNamespaceIssue(
+                namespacePath,
+                "undeclared_workspace_namespace",
+                "Versioned root namespace must be declared in workspaceNamespaces.",
+            ));
+        }
+
+        return warnings;
+    }
 }
 
 function projectAutomationIssue(file, type, note, suffix = "") {
@@ -265,6 +304,50 @@ function validateProjectAutomationTrigger(trigger, file, suffix) {
         return [projectAutomationIssue(file, "invalid_project_automation_event_trigger", "Project automation event trigger requires a non-empty eventType.", suffix)];
     }
     return [];
+}
+
+function workspaceNamespaceIssue(namespacePath, type, note) {
+    return {
+        path: namespacePath,
+        type,
+        category: "workspace-namespace",
+        note,
+    };
+}
+
+function versionedRootDotDirectories(rootDir) {
+    let raw;
+    try {
+        raw = execFileSync("git", ["ls-files", "-z"], {
+            cwd: rootDir,
+            encoding: "utf-8",
+            stdio: ["ignore", "pipe", "ignore"],
+        });
+    } catch {
+        return [];
+    }
+
+    const namespaces = new Set();
+    for (const filePath of raw.split("\0")) {
+        if (!filePath) continue;
+        const [rootEntry] = filePath.split("/");
+        const namespacePath = normalizeNamespacePath(rootEntry);
+        if (!namespacePath || !namespacePath.startsWith(".")) continue;
+        try {
+            if (!fs.statSync(path.join(rootDir, namespacePath)).isDirectory()) continue;
+        } catch {
+            continue;
+        }
+        namespaces.add(namespacePath);
+    }
+    return [...namespaces].sort();
+}
+
+function normalizeNamespacePath(value) {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().replaceAll("\\", "/").replace(/\/+$/g, "");
+    if (!normalized || normalized === "." || normalized.startsWith("/") || normalized.includes("..")) return null;
+    return normalized;
 }
 
 /**

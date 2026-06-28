@@ -232,6 +232,9 @@ export function buildRefarmCheckReport(checks: {
 			workspaceSweepCheckRecommendations(checks.workspaceSweep).filter(
 				(recommendation) => recommendation.severity === "warning",
 			).length +
+			checks.health.recommendations.filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
 			modelDoctorCheckRecommendations(checks.model).length,
 		checks,
 		recommendations,
