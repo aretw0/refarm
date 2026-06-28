@@ -8,6 +8,13 @@ const ROOT = process.cwd();
 
 const STEPS = [
 	{
+		id: "ask-loop",
+		packageScript: {
+			cwd: "apps/refarm",
+			script: "test:ask-reference-driver",
+		},
+	},
+	{
 		id: "worker-profile",
 		packageScript: {
 			cwd: "packages/cli",
