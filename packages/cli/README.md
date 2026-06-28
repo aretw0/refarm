@@ -147,7 +147,9 @@ validateWorkerToolResult(descriptor, result);
 
 Consumers can call `assessWorkerToolReadiness()` to get structured blockers
 instead of parsing validation strings when deciding whether to expose a worker
-as a real tool. `createWorkerToolResult()` and `validateWorkerToolResult()`
-define the matching return envelope: workers must return a compact summary,
-satisfy the descriptor's declared output fields when completed, and explain
-blocked, failed, or cancelled statuses through `issues`.
+as a real tool. Each blocker includes a `proofTarget` so downstream tools can
+show the missing policy, cancellation, observability, or cost-control proof
+without inventing their own checklist. `createWorkerToolResult()` and
+`validateWorkerToolResult()` define the matching return envelope: workers must
+return a compact summary, satisfy the descriptor's declared output fields when
+completed, and explain blocked, failed, or cancelled statuses through `issues`.

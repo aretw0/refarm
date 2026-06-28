@@ -24,6 +24,7 @@ export interface WorkerToolReadinessBlocker {
 	code: string;
 	requirement: WorkerToolReadinessRequirement;
 	description: string;
+	proofTarget: string;
 }
 
 export interface WorkerContextPacket {
@@ -156,24 +157,32 @@ export const WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS = [
 		requirement: "policy",
 		description:
 			"Worker dispatch needs an executable policy proof for tool access, filesystem scope, and model route.",
+		proofTarget:
+			"policy bundle: tool allowlist, filesystem root guard, trusted plugin guard, and model route validation",
 	},
 	{
 		code: "runtime-dispatch.cancellation-proof-missing",
 		requirement: "cancellation",
 		description:
 			"Worker dispatch needs a cancellation and resume proof before work can fan out.",
+		proofTarget:
+			"worker lifecycle: cancellable task state, resume policy, and fanout stop propagation",
 	},
 	{
 		code: "runtime-dispatch.observability-proof-missing",
 		requirement: "observability",
 		description:
 			"Worker dispatch needs stream, session, and task handoffs for operator inspection.",
+		proofTarget:
+			"operator visibility: stream chunks, session entries, task status, and resume handoffs",
 	},
 	{
 		code: "runtime-dispatch.cost-control-proof-missing",
 		requirement: "cost-control",
 		description:
 			"Worker dispatch needs budget accounting for provider token use and bounded turns.",
+		proofTarget:
+			"budget ledger: provider token accounting, max turns, max parallel workers, and stop condition",
 	},
 ] as const satisfies readonly WorkerToolReadinessBlocker[];
 
@@ -337,6 +346,8 @@ export function assessWorkerToolReadiness(
 			requirement: "policy",
 			description:
 				"Worker tool descriptor must pass validation before it can be offered to another runtime.",
+			proofTarget:
+				"descriptor contract: valid worker profile, input fields, output fields, budget, and plan-only mode",
 		});
 	}
 
