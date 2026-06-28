@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-06-28. Vault-seed-ready preflight is ready and its selected packages are now covered by committed changesets; worker tool readiness remains the plan-only promotion gate for agents-as-tools.",
-  "timestamp": "2026-06-28T01:42:02.713Z",
+  "context": "Checkpoint 2026-06-28. Vault-seed-ready export audit fixed Heartwood's public npm entry metadata; selected packages remain preflight-ready and covered by changesets.",
+  "timestamp": "2026-06-28T01:50:09.128Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 37aef5c9 fixed the vault-seed-ready release lane by adding first-public changesets for @refarm.dev/heartwood and @refarm.dev/release-engine and folding @refarm.dev/effort-contract-v1 into the initial contracts changeset.",
-    "scripts/ci/test-release-check.mjs now asserts every vault-seed-ready selected package is covered by changesets provider inputs before publication handoff.",
-    "Validated pnpm run release:readiness:test, refarm release preflight --selection vault-seed-ready --json, pnpm exec changeset status --since main --verbose, and after-commit finish.",
-    "The 10-package vault-seed-ready selection remains plan-only ready with 0 blockers and 24 required checks; public publish still requires explicit manual approval."
+    "Commit f35eec79 fixed @refarm.dev/heartwood package metadata so the public entry has exports[\".\"].import -> ./pkg/heartwood.js and exports[\".\"].types/types -> ./pkg/heartwood.d.ts.",
+    "scripts/validate-packages.mjs now rejects public WASM component packages without typed package exports, with coverage in scripts/ci/test-validate-packages-lib.mjs.",
+    "Validated node --test scripts/ci/test-validate-packages-lib.mjs, pnpm run validate-packages, pnpm exec changeset status --since main --verbose, refarm release preflight --selection vault-seed-ready --json, and after-commit finish.",
+    "The Heartwood after-commit package build hit turbo cache 1/1 after the initial focused build; no broad gates were run."
   ],
   "blockers": [],
   "next_actions": [
-    "Continue auditing vault-seed-ready SDK exports before publication, preferring neutral reusable names and compatibility aliases only when an existing public contract requires them.",
+    "Continue auditing vault-seed-ready SDK exports before publication, especially consumer-facing README/API naming in release-engine, silo, ds, homestead-ssr, launch-process, and dispatch-surface.",
     "When ready for heavier evidence, run pnpm run release:vault-seed:check once; it performs package publish dry-runs for the 10 selected packages and should not be repeated unnecessarily.",
     "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap."
   ],
