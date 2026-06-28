@@ -84,10 +84,11 @@ resultado prova readiness local; não substitui aprovação explícita de public
 nem credenciais de npm/crates.
 
 Evidência de plano mais recente (2026-06-28): `pnpm run release:readiness:test`
-prova que `reference-driver:smoke` está no plano antes do dry-run de publicação,
-e que o próprio smoke começa pelo contrato plan-only de workers antes das
-primitivas de sessão/tree/code-ops do `runtime-agent`. Isso mantém o corte de
-readiness sem provider real e sem obrigar um smoke Rust completo em cada
+prova que `test-runner:contracts` e `reference-driver:smoke` estão no plano antes
+do dry-run de publicação, e que o próprio smoke começa pelo contrato plan-only de
+workers antes das primitivas de sessão/tree/code-ops do `runtime-agent`. Isso
+mantém o corte de readiness sem provider real, protege contra scripts de teste
+enganosamente baratos, e evita obrigar um smoke Rust completo em cada
 micro-slice.
 
 Essa camada não substitui o `release-engine`: ela é um orquestrador de repo que

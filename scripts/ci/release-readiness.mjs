@@ -41,6 +41,12 @@ const RELEASE_READINESS_STEPS = [
 		reason: "Generated artifacts must stay derived from source, not manually edited.",
 	},
 	{
+		id: "test-runner-contracts",
+		script: "test-runner:contracts",
+		reason:
+			"Test runner scripts must keep cheap gates explicit and avoid misleading app-level Vitest footguns.",
+	},
+	{
 		id: "github-actions-pins",
 		script: "actions:pins",
 		reason: "Release workflows must keep third-party actions pinned immutably.",
