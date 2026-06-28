@@ -9,7 +9,13 @@
 	],
 	"main": "./pkg/heartwood.js",
 	"module": "./pkg/heartwood.js",
-	"types": "./pkg/heartwood.js",
+	"types": "./pkg/heartwood.d.ts",
+	"exports": {
+		".": {
+			"import": "./pkg/heartwood.js",
+			"types": "./pkg/heartwood.d.ts"
+		}
+	},
 	"publishConfig": {
 		"access": "public"
 	},

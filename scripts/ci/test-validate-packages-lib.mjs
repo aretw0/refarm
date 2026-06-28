@@ -5,6 +5,7 @@ import {
 	validatePackageManagerConfig,
 	validatePublishSurface,
 	validateRuntimeAgentPluginPackage,
+	validateWasmComponent,
 	validateWitComponentDistributionTarget,
 } from "../validate-packages.mjs";
 
@@ -60,6 +61,49 @@ test("rejects publish allowlist entries for local cache state", () => {
 			'files entry ".turbo/turbo-build.log" must not include local cache/runtime state',
 			'files entry "tsconfig.build.tsbuildinfo" must not include TypeScript incremental state',
 		],
+	);
+});
+
+test("requires public WASM component packages to expose typed import entry", () => {
+	assert.deepEqual(
+		validateWasmComponent("/tmp/does-not-exist", {
+			publishConfig: { access: "public" },
+			main: "./pkg/heartwood.js",
+			types: "./pkg/heartwood.js",
+			scripts: {
+				"build:wasm": "cargo component build",
+				"build:transpile": "jco transpile",
+				build: "cargo component build && jco transpile",
+			},
+		}),
+		[
+			"Cargo.toml missing",
+			"public WASM component packages must declare a .d.ts types entry",
+			'public WASM component packages must declare exports["."] with "import" and "types" fields',
+		],
+	);
+});
+
+test("accepts public WASM component packages with explicit typed export", () => {
+	assert.deepEqual(
+		validateWasmComponent("/tmp/does-not-exist", {
+			publishConfig: { access: "public" },
+			main: "./pkg/heartwood.js",
+			module: "./pkg/heartwood.js",
+			types: "./pkg/heartwood.d.ts",
+			exports: {
+				".": {
+					import: "./pkg/heartwood.js",
+					types: "./pkg/heartwood.d.ts",
+				},
+			},
+			scripts: {
+				"build:wasm": "cargo component build",
+				"build:transpile": "jco transpile",
+				build: "cargo component build && jco transpile",
+			},
+		}).filter((issue) => issue !== "Cargo.toml missing"),
+		[],
 	);
 });
 

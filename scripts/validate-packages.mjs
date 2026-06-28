@@ -393,13 +393,34 @@ function validateSourceOnly(pkgDir, pkg) {
   return violations;
 }
 
-function validateWasmComponent(pkgDir, pkg) {
+export function validateWasmComponent(pkgDir, pkg) {
   const violations = [];
 
   if (!existsSync(join(pkgDir, "Cargo.toml"))) violations.push("Cargo.toml missing");
   if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
   if (!pkg.scripts?.["build:transpile"]) violations.push('script "build:transpile" missing');
   if (!pkg.scripts?.build) violations.push('script "build" missing');
+
+  if (pkg.private !== true && pkg.publishConfig?.access === "public") {
+    if (typeof pkg.main !== "string" || !pkg.main.endsWith(".js")) {
+      violations.push("public WASM component packages must declare a JavaScript main entry");
+    }
+    if (typeof pkg.types !== "string" || !pkg.types.endsWith(".d.ts")) {
+      violations.push("public WASM component packages must declare a .d.ts types entry");
+    }
+
+    const dot = pkg.exports?.["."];
+    if (!dot || typeof dot !== "object") {
+      violations.push('public WASM component packages must declare exports["."] with "import" and "types" fields');
+    } else {
+      if (dot.import !== pkg.main) {
+        violations.push('public WASM component exports["."].import must match package main');
+      }
+      if (dot.types !== pkg.types) {
+        violations.push('public WASM component exports["."].types must match package types');
+      }
+    }
+  }
 
   return violations;
 }
