@@ -54,6 +54,9 @@ Architecture Decision Records for Refarm.
 | [056](ADR-056-unified-refarm-host-boundary.md)                 | Unified `refarm` Host Boundary (Distro-Owned Host, Block-Owned Primitives)        | Accepted   | 2026-05-02 |
 | [057](ADR-057-task-session-contracts.md)                        | `task-contract-v1` + `session-contract-v1` as Memory Layer Contracts               | Accepted   | 2026-05-03 |
 | [068](ADR-068-artifact-contract-naming.md)                     | Artifact Contract Naming                                                          | Accepted   | 2026-06-12 |
+| [069](ADR-069-npm-scope-canonicalization.md)                   | npm Scope Canonicalization                                                        | Accepted   | 2026-06-25 |
+| [070](ADR-070-wasm-surface-substrate.md)                       | WASM Surface Substrate, Ecosystem Dependency Depth, and Tractor Distribution       | Proposed   | 2026-06-25 |
+| [071](ADR-071-workspace-namespace-policy.md)                   | Workspace Namespace Policy                                                        | Accepted   | 2026-06-28 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 

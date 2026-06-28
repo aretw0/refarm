@@ -160,7 +160,7 @@ or custom elements rather than a hand-rolled React substitute.
 ## Daily-driver order of attack
 
 1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar, richer stream panel, slot-level capability gate, plugin-provided render hook, render-mode diagnostics, and a host-owned surface context/actions contract landed; next step is deeper runtime trust checks and real registered plugin flow.
-2. **Project memory surface** — durable `.project`/graph-backed work state usable across sessions.
+2. **Project memory surface** — declared project-memory namespace or graph-backed work state usable across sessions; `.project` remains the current compatibility surface per ADR-071.
 3. **Automation surface** — reminders/scheduled checks with explicit ownership and retry rules.
 4. **Plugin management surface** — install/list/remove plugins with SHA-256 validation and OPFS cache visibility.
 5. **Multi-surface examples** — at least one plugin that combines UI + automation + assets without violating schema-neutral sync.
