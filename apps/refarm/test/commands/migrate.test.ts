@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockMirrorRepo, mockSiloResolve, mockOperatorAsk } = vi.hoisted(() => ({
   mockMirrorRepo: vi.fn().mockResolvedValue({ status: "dry-run" }),
   mockSiloResolve: vi.fn().mockResolvedValue(new Map([
-    ["REFARM_GITHUB_TOKEN", "ghp_test"],
+    ["GITHUB_TOKEN", "ghp_test"],
   ])),
   mockOperatorAsk: vi.fn().mockResolvedValue("https://github.com/user/fork.git"),
 }));

@@ -641,7 +641,7 @@ function createContractGuideCommand() {
 		loadConfig: () => ({ brand: { name: "contract farm" } }),
 		createSilo: () => ({
 			provision: vi.fn().mockResolvedValue({
-				REFARM_GITHUB_TOKEN: "ghp_contract",
+				GITHUB_TOKEN: "ghp_contract",
 			}),
 			loadTokens: vi.fn().mockResolvedValue({
 				modelProvider: "openai",

@@ -1,10 +1,10 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { printJson } from "@refarm.dev/cli/json-output";
 import { DEFAULT_MODEL_PROVIDER, defaultProviderModelRef, effectiveModelRouteForScope, loadConfig, modelCredentialStatus, } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { writeFileSync } from "node:fs";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { printJson } from "@refarm.dev/cli/json-output";
 
 interface GuideOptions {
   json?: boolean;
@@ -141,16 +141,16 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
       {
         id: "github-token",
         name: "GITHUB_TOKEN",
-        ok: Boolean(infraTokens.REFARM_GITHUB_TOKEN),
-        status: infraTokens.REFARM_GITHUB_TOKEN ? "ready" : "missing",
+        ok: Boolean(infraTokens.GITHUB_TOKEN),
+        status: infraTokens.GITHUB_TOKEN ? "ready" : "missing",
         action: "Configure GitHub credentials interactively.",
         actionCommand: "gh auth status",
       },
       {
         id: "cloudflare-token",
         name: "CLOUDFLARE_API_TOKEN",
-        ok: Boolean(infraTokens.REFARM_CLOUDFLARE_API_TOKEN),
-        status: infraTokens.REFARM_CLOUDFLARE_API_TOKEN ? "ready" : "missing",
+        ok: Boolean(infraTokens.CLOUDFLARE_API_TOKEN),
+        status: infraTokens.CLOUDFLARE_API_TOKEN ? "ready" : "missing",
         action: "Configure Cloudflare credentials interactively.",
         actionCommand: refarmCommand(["provision", "cloudflare", "turbo-cache", "--dry-run", "--json"]),
       },

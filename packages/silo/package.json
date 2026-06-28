@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/silo",
 	"version": "0.1.0",
-	"description": "The Silo — Context and Secret Provisioner for Refarm.",
+	"description": "The Silo — provider-neutral context and secret provisioner.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
