@@ -98,6 +98,7 @@ packages are ready:
 
 | Surface | Current status | Reason |
 | --- | --- | --- |
+| `@refarm.dev/health` | release-profiled; not selected | generic diagnostics and `environment-pressure` SDK are ready as primitives, but promotion waits for a consumer-pulled proof or default-candidate decision |
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/launch-process` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |

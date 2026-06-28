@@ -353,6 +353,21 @@
         ]
       },
       {
+        "id": "@refarm.dev/health",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/health run lint",
+          "pnpm --filter @refarm.dev/health run test",
+          "pnpm --filter @refarm.dev/health run build"
+        ],
+        "tags": [
+          "health",
+          "kernel-primitive",
+          "sdk-primitive",
+          "boundary-review"
+        ]
+      },
+      {
         "id": "@refarm.dev/release-engine",
         "risk": "shared",
         "mustPassChecks": [

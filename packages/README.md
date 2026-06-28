@@ -8,7 +8,7 @@ This document catalogues the modular primitives and engines of the Refarm monore
 |---|---|---|---|
 | [`@refarm.dev/tractor`](./tractor) | The Sovereign Microkernel & Plugin Host | 🟡 Stable-ish | Internal |
 | [`@refarm.dev/windmill`](./windmill) | Automation Engine & Infrastructure | 🟠 Alpha | Internal |
-| [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | **Ready** |
+| [`@refarm.dev/health`](./health) | Stratified Health & Policy Auditor | 🟢 Production | Release-profiled; held |
 
 ## 🛡 Capability Contracts (v1)
 These packages define foundational interoperability layers between Refarm and
