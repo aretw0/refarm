@@ -73,6 +73,7 @@ export interface ReferenceDriverSupplyEntry {
 	provider: RefarmCapabilityProvider;
 	policyState: RefarmCapabilityPolicyState;
 	activation: RefarmCapabilityActivation;
+	referenceLessons: readonly string[];
 	targets: readonly RefarmCapabilitySupplyTarget[];
 	nextDecision: string;
 }
@@ -598,6 +599,26 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 	}
 >;
 
+const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
+	"runtime-agent.worker-profiles": [
+		"Codex/Claude: isolate subagent context and return compact summaries.",
+		"Hermes: keep delegation bounded; do not make worker fanout ambient.",
+		"Pi: expose embeddable SDK/RPC shapes without forcing product labels.",
+	],
+	"runtime-agent.session-tree": [
+		"Pi: branchable sessions, resume, fork, and export are first-class driver primitives.",
+		"Codex/Hermes: durable context must survive terminal/session changes.",
+	],
+	"runtime-agent.structured-io": [
+		"Codex/Pi: headless automation needs machine-readable payloads, not scraped text.",
+		"Claude: keep memory/context separate from enforcement and validation.",
+	],
+	"runtime-agent.code-ops": [
+		"Claude/Codex: code operations must stay tool-shaped and reviewable.",
+		"Refarm stricter-than-Pi rule: host capability boundaries must gate source mutation.",
+	],
+} as const;
+
 export function buildRefarmCapabilityIndex(): RefarmCapabilityIndex {
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -625,6 +646,7 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 				provider: capability.provider,
 				policyState: capability.policy.state,
 				activation: capability.activation,
+				referenceLessons: REFERENCE_DRIVER_LESSONS[id] ?? [],
 				targets: supply.targets,
 				nextDecision: supply.nextDecision,
 			};

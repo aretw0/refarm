@@ -67,10 +67,18 @@ describe("capability index", () => {
 			"runtime-agent.structured-io",
 			"runtime-agent.code-ops",
 		]);
+		expect(
+			supplyMap.entries.every((entry) => entry.referenceLessons.length > 0),
+		).toBe(true);
 		expect(supplyMap.entries).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					capabilityId: "runtime-agent.worker-profiles",
+					referenceLessons: [
+						"Codex/Claude: isolate subagent context and return compact summaries.",
+						"Hermes: keep delegation bounded; do not make worker fanout ambient.",
+						"Pi: expose embeddable SDK/RPC shapes without forcing product labels.",
+					],
 					targets: expect.arrayContaining([
 						expect.objectContaining({
 							channel: "npm",
