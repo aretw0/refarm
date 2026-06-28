@@ -137,11 +137,91 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	});
 	assert.deepEqual(manifest.missing, []);
 	assert.deepEqual(manifest.extra, []);
+	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].sha256, "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8");
 	assert.match(formatHandoffMarkdown(manifest), /refarm\.dev-alpha-0\.1\.0\.tgz/);
 	assert.match(
 		formatHandoffMarkdown(manifest),
 		/Acceptance: accepted \(2 package\(s\), 2 required check\(s\)\)/,
+	);
+	assert.match(formatHandoffMarkdown(manifest), /none declared/);
+});
+
+test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
+	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-"));
+	const handoffDir = path.join(root, ".refarm/handoff/vault-seed/fixture");
+	mkdirSync(path.join(root, "packages/launch-process"), { recursive: true });
+	mkdirSync(handoffDir, { recursive: true });
+	writeFileSync(
+		path.join(root, "packages/launch-process/package.json"),
+		JSON.stringify({ name: "@refarm.dev/launch-process", version: "0.1.0" }),
+	);
+	writeFileSync(
+		path.join(handoffDir, "refarm.dev-launch-process-0.1.0.tgz"),
+		"launch",
+	);
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: {
+			ok: true,
+			plan: {
+				ok: true,
+				status: "ready",
+				selection: { id: "vault-seed-ready" },
+				orderedNames: ["@refarm.dev/launch-process"],
+				orderedPackages: [
+					{
+						name: "@refarm.dev/launch-process",
+						profile: {
+							risk: "shared",
+							tags: ["vault-seed-ready"],
+							mustPassChecks: ["pnpm --filter @refarm.dev/launch-process run test"],
+						},
+					},
+				],
+				gates: [{ id: "preflight", required: true }],
+				profileTags: ["vault-seed-ready"],
+				publishIntents: [],
+			},
+			commands: [
+				{
+					packageName: "@refarm.dev/launch-process",
+					packageDir: "packages/launch-process",
+				},
+			],
+		},
+	});
+
+	assert.equal(manifest.ok, true);
+	assert.deepEqual(manifest.packages[0].consumerPull, {
+		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
+		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
+		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
+	});
+	assert.match(
+		formatHandoffMarkdown(manifest),
+		/dgk-runner keeps run\(cmd, args, opts\) while using launch-process internally/,
+	);
+});
+
+test("keeps current vault-seed-ready selection tied to consumer-pull metadata", () => {
+	const root = process.cwd();
+	const handoffDir = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-empty-"));
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+	});
+
+	assert.equal(manifest.selection.id, "vault-seed-ready");
+	assert.equal(manifest.packages.length, 10);
+	assert.deepEqual(
+		manifest.packages
+			.filter((entry) => entry.consumerPull === null)
+			.map((entry) => entry.packageName),
+		[],
 	);
 });
 
