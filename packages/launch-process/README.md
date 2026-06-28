@@ -16,7 +16,10 @@ dependency closure.
 ## Example
 
 ```ts
-import { createLaunchProcessSpecFromRunner } from "@refarm.dev/launch-process";
+import {
+	createLaunchProcessSpecFromRunner,
+	launchDetachedProcess,
+} from "@refarm.dev/launch-process";
 
 const process = createLaunchProcessSpecFromRunner(
 	"node",
@@ -26,4 +29,18 @@ const process = createLaunchProcessSpecFromRunner(
 		display: "node scripts/prepare_lab_datasets.mjs --json",
 	},
 );
+```
+
+Detached launches install an `error` listener by default so missing host tools
+such as `xdg-open` do not crash the caller through an unhandled child-process
+event. Pass `onError` when the consumer should surface or log spawn failures:
+
+```ts
+launchDetachedProcess(process, {
+	onError(error) {
+		if (error.code === "ENOENT") {
+			// Report a missing opener or optional host tool.
+		}
+	},
+});
 ```
