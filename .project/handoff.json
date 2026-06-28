@@ -1,20 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Vault-seed-ready publication prep has export-audit coverage and a passing 10-package publish dry-run.",
-  "timestamp": "2026-06-28T02:15:40.192Z",
+  "context": "Checkpoint 2026-06-28. Vault-seed-ready publication prep remains dry-run validated; reference-driver supply now includes plan-only worker profiles.",
+  "timestamp": "2026-06-28T02:25:06.021Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 5a4f3dce exposes @refarm.dev/silo ./collect and ./key-manager as typed package exports matching published files.",
-    "Commit 5a763846 exposes @refarm.dev/ds ./contract and ./theme-conformance as typed package exports matching published dist files.",
-    "Commit 1f2152c8 exposes @refarm.dev/homestead-ssr ./render and ./shell as typed package exports matching published dist files.",
-    "scripts/validate-packages.mjs rejects missing Silo, DS, and Homestead SSR public SDK subpath exports, with coverage in scripts/ci/test-validate-packages-lib.mjs.",
-    "Validated pnpm run release:vault-seed:check on 2026-06-28: publish dry-run passed for all 10 vault-seed-ready packages and left the worktree clean.",
-    "Audited dispatch-surface: README explicitly says external consumers import package root only, and public-api tests lock the curated root surface, so no subpath export change is needed."
+    "Commit 6d4fde8b exposes bounded worker profiles in the reference-driver capability supply map while keeping runtime dispatch blocked behind readiness proofs.",
+    "@refarm.dev/cli/worker-profile is the product-neutral SDK surface for agents-as-tools descriptors and assessWorkerToolReadiness().",
+    "pnpm -C packages/cli run test, pnpm run reference-driver:smoke:plan, git diff --check, and refarm agent finish after-edit/after-commit passed for the worker-profile supply slice.",
+    "Validated pnpm run release:vault-seed:check on 2026-06-28: publish dry-run passed for all 10 vault-seed-ready packages; do not repeat unless package metadata, files, exports, or release policy changes."
   ],
   "blockers": [],
   "next_actions": [
-    "Decide the next publication step: either generate/update the vault-seed-ready handoff artifacts, or move to final release readiness docs/checklist for the 10 selected packages.",
-    "Do not repeat pnpm run release:vault-seed:check unless package metadata, files, exports, or release policy changes; the latest run passed for the current tree.",
-    "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap."
+    "Continue publication readiness with the cheap path first: generate/update vault-seed-ready handoff artifacts or final release readiness docs/checklist, without repeating the dry-run unless inputs changed.",
+    "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap.",
+    "Keep reusable SDK naming product-neutral where possible; package/CLI identity may remain Refarm, but generic descriptors should not require downstream labels."
   ],
   "open_questions": [],
   "key_decisions_active": [
