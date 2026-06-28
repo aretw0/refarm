@@ -1,19 +1,19 @@
 {
-  "context": "Checkpoint 2026-06-28. Vault-seed-ready export audit fixed Silo, DS, and Homestead SSR public SDK subpaths; selected packages remain preflight-ready and covered by changesets.",
-  "timestamp": "2026-06-28T02:11:45.704Z",
+  "context": "Checkpoint 2026-06-28. Vault-seed-ready publication prep has export-audit coverage and a passing 10-package publish dry-run.",
+  "timestamp": "2026-06-28T02:15:40.192Z",
   "current_phase": "12",
   "current_tasks": [
     "Commit 5a4f3dce exposes @refarm.dev/silo ./collect and ./key-manager as typed package exports matching published files.",
     "Commit 5a763846 exposes @refarm.dev/ds ./contract and ./theme-conformance as typed package exports matching published dist files.",
     "Commit 1f2152c8 exposes @refarm.dev/homestead-ssr ./render and ./shell as typed package exports matching published dist files.",
-    "scripts/validate-packages.mjs now rejects missing Silo, DS, and Homestead SSR public SDK subpath exports, with coverage in scripts/ci/test-validate-packages-lib.mjs.",
-    "Validated focused package tests/builds, package-export self-reference probes, pnpm run validate-packages, refarm release preflight --selection vault-seed-ready --json, git diff --check, and after-commit finish for each changed package.",
+    "scripts/validate-packages.mjs rejects missing Silo, DS, and Homestead SSR public SDK subpath exports, with coverage in scripts/ci/test-validate-packages-lib.mjs.",
+    "Validated pnpm run release:vault-seed:check on 2026-06-28: publish dry-run passed for all 10 vault-seed-ready packages and left the worktree clean.",
     "Audited dispatch-surface: README explicitly says external consumers import package root only, and public-api tests lock the curated root surface, so no subpath export change is needed."
   ],
   "blockers": [],
   "next_actions": [
-    "Continue vault-seed-ready publication prep by running the heavier pnpm run release:vault-seed:check once when ready for publish dry-run evidence; avoid repeating it unnecessarily.",
-    "Keep future SDK export audits focused on packages that publish dist submodules without a documented root-only boundary; dispatch-surface is intentionally root-only.",
+    "Decide the next publication step: either generate/update the vault-seed-ready handoff artifacts, or move to final release readiness docs/checklist for the 10 selected packages.",
+    "Do not repeat pnpm run release:vault-seed:check unless package metadata, files, exports, or release policy changes; the latest run passed for the current tree.",
     "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap."
   ],
   "open_questions": [],
