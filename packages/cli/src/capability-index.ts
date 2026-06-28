@@ -323,11 +323,12 @@ const CAPABILITIES = [
 			],
 			evidence: [
 				"packages/cli/src/worker-profile.test.ts",
+				"scripts/ci/reference-driver-smoke.mjs",
 				"docs/REFERENCE_AGENT_DRIVER_RESEARCH.md",
 			],
 		},
 		activation: {
-			sdk: "@refarm.dev/cli/worker-profile",
+			sdk: "@refarm.dev/cli",
 		},
 		tags: ["runtime", "workers", "planning", "reference-driver"],
 	},
