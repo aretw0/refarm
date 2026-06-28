@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+	validateDsPublicApi,
 	validatePackageManagerConfig,
 	validatePublishSurface,
 	validateRuntimeAgentPluginPackage,
@@ -179,6 +180,43 @@ test("accepts Silo public subpath exports for published SDK helpers", () => {
 				"./key-manager": {
 					import: "./dist/key-manager.js",
 					types: "./dist/key-manager.d.ts",
+				},
+			},
+		}),
+		[],
+	);
+});
+
+test("requires DS public subpath exports for published contract helpers", () => {
+	assert.deepEqual(
+		validateDsPublicApi({
+			name: "@refarm.dev/ds",
+			exports: {
+				".": {
+					import: "./dist/index.js",
+					types: "./dist/index.d.ts",
+				},
+			},
+		}),
+		[
+			'ds public API must declare exports["./contract"]',
+			'ds public API must declare exports["./theme-conformance"]',
+		],
+	);
+});
+
+test("accepts DS public subpath exports for published contract helpers", () => {
+	assert.deepEqual(
+		validateDsPublicApi({
+			name: "@refarm.dev/ds",
+			exports: {
+				"./contract": {
+					import: "./dist/contract.js",
+					types: "./dist/contract.d.ts",
+				},
+				"./theme-conformance": {
+					import: "./dist/theme-conformance.js",
+					types: "./dist/theme-conformance.d.ts",
 				},
 			},
 		}),

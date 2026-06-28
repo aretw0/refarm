@@ -217,6 +217,38 @@ export function validateSiloPublicApi(pkg) {
   return violations;
 }
 
+export function validateDsPublicApi(pkg) {
+  const violations = [];
+  if (pkg?.name !== "@refarm.dev/ds") return violations;
+
+  const requiredSubpaths = {
+    "./contract": {
+      import: "./dist/contract.js",
+      types: "./dist/contract.d.ts",
+    },
+    "./theme-conformance": {
+      import: "./dist/theme-conformance.js",
+      types: "./dist/theme-conformance.d.ts",
+    },
+  };
+
+  for (const [subpath, expected] of Object.entries(requiredSubpaths)) {
+    const exported = pkg.exports?.[subpath];
+    if (!exported || typeof exported !== "object") {
+      violations.push(`ds public API must declare exports["${subpath}"]`);
+      continue;
+    }
+    if (exported.import !== expected.import) {
+      violations.push(`ds exports["${subpath}"].import must be "${expected.import}"`);
+    }
+    if (exported.types !== expected.types) {
+      violations.push(`ds exports["${subpath}"].types must be "${expected.types}"`);
+    }
+  }
+
+  return violations;
+}
+
 const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
   {
     id: "agent-tools",
@@ -657,6 +689,7 @@ function main() {
     pkgViolations.push(...validatePublishSurface(pkg));
     pkgViolations.push(...validateRuntimeAgentPluginPackage(pkg));
     pkgViolations.push(...validateSiloPublicApi(pkg));
+    pkgViolations.push(...validateDsPublicApi(pkg));
 
     if (pkgViolations.length === 0) {
       console.log(`  ✓ ${name.padEnd(30)} ${type}`);
