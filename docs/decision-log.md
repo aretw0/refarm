@@ -18,6 +18,26 @@ Central register for high-impact technical decisions that are pending or recentl
 
 ---
 
+## Workspace Namespace Policy: Centralized Defaults with Declared Exceptions
+
+**Date**: 2026-06-28
+**Status**: Accepted
+**ADR**: [ADR-071](../specs/ADRs/ADR-071-workspace-namespace-policy.md)
+
+**Decision**: Refarm-owned local state defaults to `.refarm/`, reviewed project policy lives in
+`refarm.config.json`, and additional root-level namespaces such as `.project/`, `.pi-lens/`, or
+plugin-owned directories must be declared with owner, purpose, persistence, and access posture.
+
+**What this means now**:
+- `.project/` remains a compatibility namespace for Pi-style workflow handoffs, not the semantic
+  center of Refarm.
+- The Refarm coding agent should use `.refarm/agents/`, `.refarm/sessions/`, `.refarm/handoff/`,
+  and `.refarm/runtime/` rather than a new root directory.
+- Future `health/check` hardening should audit undeclared namespace drift before broad
+  publication.
+
+---
+
 ## Daemon Runtime Role: Tractor Node is Canonical, Farmhand is Transitional
 
 **Date**: 2026-04-13

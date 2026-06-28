@@ -361,7 +361,10 @@ pnpm run farm:status        # check ARTIFACTS section
       pi-agent.wasm
 ```
 
-All `.refarm/` contents are gitignored.
+All `.refarm/` contents are gitignored. Root-level integration namespaces such
+as `.project/` or `.pi-lens/` are governed separately by ADR-071: use `.refarm/`
+for Refarm-owned local state by default, and require an explicit declaration for
+other workspace-local namespaces.
 
 ---
 

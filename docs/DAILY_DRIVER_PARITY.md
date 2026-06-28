@@ -187,13 +187,13 @@ handoff loader carries current tasks and next actions into the JSON resume
 envelope.
 
 That proves the local checkpoint handoff and the versioned project handoff read.
-The project handoff policy is now explicit: `.project/handoff.json` is durable
-contextual recovery state for `resume`, not a hidden command queue. It becomes
-live current-work state only after an explicit source edit or
-`refarm project handoff write` updates it, and the next slice must still pass
-`resume`, `check`, and the relevant finish lane before agents treat it as fresh.
-`refarm project handoff validate --json` is the machine-readable freshness and
-shape check for automated consumers.
+ADR-071 classifies `.project/handoff.json` as a declared compatibility namespace:
+it is durable contextual recovery state for `resume`, not the semantic center of
+Refarm and not a hidden command queue. It becomes live current-work state only
+after an explicit source edit or `refarm project handoff write` updates it, and
+the next slice must still pass `resume`, `check`, and the relevant finish lane
+before agents treat it as fresh. `refarm project handoff validate --json` is the
+machine-readable freshness and shape check for automated consumers.
 
 Current evidence (2026-06-27): Homestead already owns the first UI subscriber
 slice. `StudioShell` registers `onNode("StreamSession")` and
