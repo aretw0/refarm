@@ -168,10 +168,11 @@ or daemon in this layer; the next implementation can connect a real
 Current proof (2026-06-27): the compact capability index now exposes the
 runtime-agent primitives that matter for reference-driver parity instead of
 hiding them inside prompt memory or source spelunking. `refarm capabilities
---tag reference-driver --json` returns the CRDT-backed session tree tools,
-validated structured I/O tools, and LSP-shaped code-ops tools. This maps the
-Pi/Hermes/Codex research into a cheap operator query while keeping dispatch,
-policy, and UI promotion behind their existing proofs.
+--tag reference-driver --json` returns the plan-only worker profile tools,
+CRDT-backed session tree tools, validated structured I/O tools, and LSP-shaped
+code-ops tools. This maps the Pi/Hermes/Codex research into a cheap operator
+query while keeping dispatch, policy, and UI promotion behind their existing
+proofs.
 
 Current proof (2026-06-27): `@refarm.dev/cli/capability-index` now also exposes
 `buildReferenceDriverSupplyMap()`. The map makes publication posture

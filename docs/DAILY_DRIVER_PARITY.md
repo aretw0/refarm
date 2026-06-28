@@ -56,9 +56,11 @@ runtime-agent `bash` tool call through the mock provider and asserts the
 Scarecrow audit record for the resulting shell spawn.
 
 Validation economy note: app-level Vitest filters are currently easy to misuse
-and can fan out into unrelated `apps/refarm` suites. Prefer the mock smoke only
-when explicitly validating the runtime-agent path; for documentation-only
-status reconciliation, use `git diff --check` plus the Refarm finish lane.
+and can fan out into unrelated `apps/refarm` suites. Prefer named scripts or
+explicit test files through `pnpm -C apps/refarm run test:focused -- <file>`.
+Use the mock smoke only when explicitly validating the runtime-agent path; for
+documentation-only status reconciliation, use `git diff --check` plus
+`refarm check --next-action --json`.
 
 ## Runtime Agent Tool Evidence
 
