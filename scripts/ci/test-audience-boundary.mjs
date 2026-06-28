@@ -71,3 +71,25 @@ test("external calibration docs declare inventory-only evidence handling", () =>
 	assert.match(convergence, /filenames are enough pressure signal/i);
 	assert.match(convergence, /should not ingest or quote the draft bodies/i);
 });
+
+test("release policy keeps SDK primitives behind explicit audience boundaries", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const profiles = config.releasePolicy.packageProfiles;
+	const sdkProfiles = profiles.filter((profile) =>
+		profile.tags?.includes("sdk-primitive"),
+	);
+
+	assert.ok(sdkProfiles.length > 0, "expected at least one sdk-primitive profile");
+
+	for (const profile of sdkProfiles) {
+		assert.ok(
+			profile.tags.includes("boundary-review"),
+			`${profile.id} must declare boundary-review before publication`,
+		);
+		assert.ok(
+			!profile.tags.includes("vault-seed-ready") ||
+				profile.tags.includes("consumer-pulled"),
+			`${profile.id} must not enter vault-seed-ready without consumer-pulled proof`,
+		);
+	}
+});

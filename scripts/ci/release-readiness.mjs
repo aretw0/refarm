@@ -63,6 +63,12 @@ const RELEASE_READINESS_STEPS = [
 			"Consumer-pulled mechanical adoption paths must keep fixtures, dry-run commands, and rollback notes.",
 	},
 	{
+		id: "audience-boundary",
+		script: "audience:boundary:test",
+		reason:
+			"Public SDK and release surfaces must keep product-specific naming behind explicit boundaries.",
+	},
+	{
 		id: "reference-driver",
 		script: "reference-driver:smoke",
 		reason:
