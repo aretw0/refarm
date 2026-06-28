@@ -11,7 +11,7 @@ describe("homestead ssr shellHtml", () => {
 		});
 
 		expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
-		expect(html).toContain('<body data-refarm-theme="verde-jardim">');
+		expect(html).toContain('<body data-ds-theme="verde-jardim">');
 		expect(html).toContain('href="/_ds/tokens.css"');
 		expect(html).toContain('href="/_ds/themes/verde-jardim.css"');
 		expect(html).toContain('href="/_ds/components.css"');
@@ -23,7 +23,7 @@ describe("homestead ssr shellHtml", () => {
 		const html = shellHtml({ title: "t", bodyHtml: "" });
 
 		expect(html).toContain('lang="en"');
-		expect(html).toContain('data-refarm-theme="tractor-green"');
+		expect(html).toContain('data-ds-theme="tractor-green"');
 		expect(html).toContain('href="/_ds/themes/tractor-green.css"');
 	});
 });

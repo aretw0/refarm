@@ -1,6 +1,6 @@
 # @refarm.dev/homestead-ssr
 
-Build-free Homestead SSR helpers for server-rendered Refarm surfaces.
+Build-free Homestead SSR helpers for server-rendered DS surfaces.
 
 This package exposes pure HTML-string helpers and a document shell that emit
 `@refarm.dev/ds` classes. It intentionally does not import the bundled
@@ -21,4 +21,3 @@ const html = shellHtml({
 	bodyHtml,
 });
 ```
-
