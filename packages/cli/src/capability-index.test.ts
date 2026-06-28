@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildRefarmCapabilityIndex,
-	buildRefarmReferenceDriverSupplyMap,
+	buildReferenceDriverSupplyMap,
 	buildReferenceDriverSupplyPreflight,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -55,7 +55,7 @@ describe("capability index", () => {
 	});
 
 	it("maps reference-driver primitives to publication supply channels", () => {
-		const supplyMap = buildRefarmReferenceDriverSupplyMap();
+		const supplyMap = buildReferenceDriverSupplyMap();
 
 		expect(supplyMap.schemaVersion).toBe(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");

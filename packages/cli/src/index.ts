@@ -292,12 +292,14 @@ export type {
 } from "./project-automations.js";
 export {
 	buildReferenceDriverSupplyPreflight,
+	buildReferenceDriverSupplyMap,
 	buildRefarmCapabilityIndex,
-	buildRefarmReferenceDriverSupplyMap,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
 export type {
+	ReferenceDriverSupplyEntry,
+	ReferenceDriverSupplyMap,
 	ReferenceDriverSupplyPreflight,
 	ReferenceDriverSupplyPreflightSummary,
 	ReferenceDriverSupplyPreflightTarget,
@@ -311,8 +313,6 @@ export type {
 	RefarmCapabilitySupplyChannel,
 	RefarmCapabilitySupplyStatus,
 	RefarmCapabilitySupplyTarget,
-	RefarmReferenceDriverSupplyEntry,
-	RefarmReferenceDriverSupplyMap,
 } from "./capability-index.js";
 export {
 	createLaunchProcessRunner,
