@@ -470,7 +470,7 @@ for example, `@refarm.dev/dispatch-surface` depends on
 `@refarm.dev/effort-contract-v1`, and `@refarm.dev/silo` depends on
 `@refarm.dev/heartwood`.
 
-As of 2026-06-28, `pnpm run release:vault-seed:handoff -- --pack --json`
+As of 2026-06-28, `pnpm --silent run release:vault-seed:handoff -- --pack --json`
 materializes the tarballs sequentially and emits the same package acceptance
 summary exposed by the release plan. The current packet reports
 `acceptance.status: "accepted"`, 10 packages, 4 required gates, 24 required
