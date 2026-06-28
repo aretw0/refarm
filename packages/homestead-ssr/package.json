@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/homestead-ssr",
 	"version": "0.1.0",
-	"description": "Build-free Homestead SSR helpers for server-rendered Refarm surfaces.",
+	"description": "Build-free Homestead SSR helpers for server-rendered DS surfaces.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

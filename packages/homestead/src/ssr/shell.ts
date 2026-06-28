@@ -23,7 +23,7 @@ export function shellHtml(opts: ShellOptions): string {
 <link rel="stylesheet" href="${base}/themes/${theme}.css">
 <link rel="stylesheet" href="${base}/components.css">
 </head>
-<body data-refarm-theme="${theme}">
+<body data-ds-theme="${theme}">
 ${opts.bodyHtml}
 </body>
 </html>`;

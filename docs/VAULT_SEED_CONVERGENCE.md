@@ -399,9 +399,9 @@ build-free SSR tier without pulling the full Homestead SDK dependency closure.
 The current handoff lives under `.refarm/handoff/vault-seed/2026-06-28/`:
 
 - `refarm.dev-ds-0.1.0.tgz`
-  (`sha256 ce1de41da7eca2447aabf6d87e6c6f85ac2d185a9e7ad1188f2bf2b47778743d`);
+  (`sha256 f2a2a74de322717af827a3f2541146fd54757bc3746fe7cd8e33ffb03620df11`);
 - `refarm.dev-homestead-ssr-0.1.0.tgz`
-  (`sha256 e0eb15f5ec0596b6ff9c9ad58ba8ad0ac4de3c6d12318185fb35156bd5d9f5c0`).
+  (`sha256 e7203aa919dd13b03c19f8fa675dda37fdf2843d4c5ab0f2598bedc130d1d015`).
 
 A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install both tarballs, override the unpublished
@@ -420,7 +420,7 @@ shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-28/refarm.dev-launch-process-0.1.0.tgz`
-(`sha256 b90a7bde64a48d1108e7574836896cc3e1cbdbe0a361e0883c8b673b29ec9464`).
+(`sha256 83856b177ef78e9e417fc985ecd7bf26a6ca0568209d8d75dc679be265618f9b`).
 The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `@aretw0/dgk-cli` should import
 `@refarm.dev/launch-process` internally while keeping the exported
@@ -432,7 +432,7 @@ now includes a Refarm-side fixture for `vault-seed` Lab datasets, publication
 outbox manifests, and notebook snapshots using generic roles plus labels instead
 of upstreaming notebook UX or vault schema. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-28/refarm.dev-artifact-contract-v1-0.1.0.tgz`
-(`sha256 13cd255007eb5f4fb6b8d317620435f8653c8585dc67ea6ca68c505dcde8edaa`).
+(`sha256 75c6c0f746435ae6b91ff009178b2a5f367e020f616eda33a3e11f54dd1caa08`).
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: `vault-seed` should emit
 `refarm.task-artifacts.v1` manifests from its Lab/outbox/notebook producers.
@@ -453,16 +453,16 @@ contains a tarball for every package in the 10-package release-policy selection:
 
 | Package | Tarball | SHA256 |
 | --- | --- | --- |
-| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `13cd255007eb5f4fb6b8d317620435f8653c8585dc67ea6ca68c505dcde8edaa` |
+| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `75c6c0f746435ae6b91ff009178b2a5f367e020f616eda33a3e11f54dd1caa08` |
 | `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `f524fd8a770aa2efb050e5dccdfa809bf1f71f397baddf149a9fd5e962f2bca8` |
 | `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `35ae608bec8bff652473efcd19a76d843f8fe91aaa7956e244a51914be396bfb` |
-| `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `b90a7bde64a48d1108e7574836896cc3e1cbdbe0a361e0883c8b673b29ec9464` |
+| `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `83856b177ef78e9e417fc985ecd7bf26a6ca0568209d8d75dc679be265618f9b` |
 | `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `8f45312c3b1881711176a092a3d598c06fbf1cd353ec4d96a31b83df2e70178c` |
-| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `ce1de41da7eca2447aabf6d87e6c6f85ac2d185a9e7ad1188f2bf2b47778743d` |
+| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `f2a2a74de322717af827a3f2541146fd54757bc3746fe7cd8e33ffb03620df11` |
 | `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `003df0efccdcd4367a08dea8f975f7dfd1141b54f45595dd441b23088ba539c5` |
 | `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `fcb135b1ba9a082d2de5c01bc94987df4540a1b9097a0e17da3d8968e8517bce` |
-| `@refarm.dev/homestead-ssr` | `refarm.dev-homestead-ssr-0.1.0.tgz` | `e0eb15f5ec0596b6ff9c9ad58ba8ad0ac4de3c6d12318185fb35156bd5d9f5c0` |
-| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `7253fc6565df6f85561a26dc38d7396270117fa6a51d641155d3a33ddafac773` |
+| `@refarm.dev/homestead-ssr` | `refarm.dev-homestead-ssr-0.1.0.tgz` | `e7203aa919dd13b03c19f8fa675dda37fdf2843d4c5ab0f2598bedc130d1d015` |
+| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `91ba2f208939eb4c8fb02d161ecaadbc2d75e83aed44fff00306bf4951e4fecb` |
 
 Pre-publication consumers should install these from the local handoff and
 override unpublished workspace dependencies to matching tarballs where needed;
