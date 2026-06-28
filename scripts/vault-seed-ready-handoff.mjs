@@ -24,51 +24,61 @@ const HANDOFF_MANIFEST_SCHEMA_VERSION = 1;
 const HANDOFF_MANIFEST_SOURCE = "vault-seed-ready-handoff";
 const VAULT_SEED_CONSUMER_PULLS = {
 	"@refarm.dev/artifact-contract-v1": {
+		proofId: "artifact-contract.lab-outbox-evidence",
 		downstreamUse: "Lab datasets, publication outbox, and notebook snapshot evidence",
 		proofTarget: "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
 		ownershipBoundary: "Vault schemas, notebook UX, and frontmatter remain downstream",
 	},
 	"@refarm.dev/channel-policy-v1": {
+		proofId: "channel-policy.telegram-delivery-envelope",
 		downstreamUse: "Channel destinations, rate limits, receipts, dry-run, and review gates",
 		proofTarget: "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
 		ownershipBoundary: "Provider API calls, copy formatting, and inbox/outbox UX remain downstream",
 	},
 	"@refarm.dev/effort-contract-v1": {
+		proofId: "effort-contract.dgk-effort-evidence",
 		downstreamUse: "Reusable task/effort evidence for dgk operations and handoffs",
 		proofTarget: "dgk process flows attach effort identifiers to emitted evidence",
 		ownershipBoundary: "dgk command vocabulary and operator UX remain downstream",
 	},
 	"@refarm.dev/launch-process": {
+		proofId: "launch-process.dgk-runner-adapter",
 		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
 		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
 		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
 	},
 	"@refarm.dev/release-engine": {
+		proofId: "release-engine.package-acceptance",
 		downstreamUse: "Package acceptance, release planning, and publish dry-run policy",
 		proofTarget: "vault-seed release/package smoke consumes release-engine acceptance output",
 		ownershipBoundary: "Distribution identity, prose, and changelog content remain downstream",
 	},
 	"@refarm.dev/ds": {
+		proofId: "ds.lab-admin-theme",
 		downstreamUse: "Lab/admin tokens and verde-jardim light/dark theme source",
 		proofTarget: "vault-seed Lab/admin UI imports ds tokens and removes local semantic token fallback except for raw sessions",
 		ownershipBoundary: "PARA vocabulary, editorial copy, and content semantics remain downstream",
 	},
 	"@refarm.dev/heartwood": {
+		proofId: "heartwood.silo-crypto-substrate",
 		downstreamUse: "Shared crypto substrate needed by silo-backed credentials",
 		proofTarget: "vault-seed credential flow uses silo without local crypto stand-ins",
 		ownershipBoundary: "Credential policy choices and publishing identities remain downstream",
 	},
 	"@refarm.dev/dispatch-surface": {
+		proofId: "dispatch-surface.dgk-descriptor",
 		downstreamUse: "Multi-surface command/action descriptor substrate",
 		proofTarget: "dgk exposes product commands through dispatch-surface-compatible descriptors",
 		ownershipBoundary: "Surface labels, routes, and product-specific actions remain downstream",
 	},
 	"@refarm.dev/homestead-ssr": {
+		proofId: "homestead-ssr.dgk-admin-shell",
 		downstreamUse: "Build-free SSR shell helpers for vault admin surfaces",
 		proofTarget: "dgk serve/admin renders through homestead-ssr without pulling full Homestead",
 		ownershipBoundary: "Admin copy, navigation, vault routes, and onboarding remain downstream",
 	},
 	"@refarm.dev/silo": {
+		proofId: "silo.credential-namespaces",
 		downstreamUse: "Scoped credential collection and secret namespace separation",
 		proofTarget: "vault-seed stores model/runtime/publishing credentials through silo namespaces",
 		ownershipBoundary: "Provider-specific publishing adapters and approval workflow remain downstream",
@@ -161,6 +171,7 @@ function buildConsumerProofs(packages) {
 	return packages
 		.filter((entry) => entry.consumerPull)
 		.map((entry) => ({
+			proofId: entry.consumerPull.proofId,
 			packageName: entry.packageName,
 			downstreamUse: entry.consumerPull.downstreamUse,
 			proofTarget: entry.consumerPull.proofTarget,
@@ -329,7 +340,7 @@ export function formatHandoffMarkdown(manifest) {
 		lines.push("", "Consumer proofs:", "");
 		for (const proof of manifest.consumerProofs) {
 			lines.push(
-				`- \`${proof.packageName}\`: ${proof.proofTarget} (${proof.ownershipBoundary})`,
+				`- \`${proof.proofId}\` / \`${proof.packageName}\`: ${proof.proofTarget} (${proof.ownershipBoundary})`,
 			);
 		}
 	}

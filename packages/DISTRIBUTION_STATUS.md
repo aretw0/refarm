@@ -68,10 +68,10 @@ manifest and SHA-256 inventory. The JSON manifest declares
 checks can treat it as an explicit handoff contract.
 Each package entry also carries `consumerPull` metadata when the selected package
 has a known `vault-seed` adoption target. That metadata names the downstream
-use, the expected `vault-seed` proof target, and the ownership boundary that
-must stay product-local. The same proof targets are flattened into
-`consumerProofs` so downstream checks can validate the adoption work without
-scraping the tarball table.
+use, a stable `proofId`, the expected `vault-seed` proof target, and the
+ownership boundary that must stay product-local. The same proof targets are
+flattened into `consumerProofs` so downstream checks can validate the adoption
+work without scraping the tarball table or matching prose.
 
 ---
 
