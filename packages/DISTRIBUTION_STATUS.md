@@ -63,11 +63,13 @@ The local handoff currently lives under
 `.refarm/handoff/vault-seed/2026-06-28/`. That directory is an operator artifact;
 the versioned policy and package checks remain the durable source of truth. The
 handoff command materializes package tarballs sequentially before validating the
-manifest and SHA-256 inventory.
-Each package entry also carries `consumerPull` metadata when the selected
-package has a known `vault-seed` adoption target. That metadata names the
-downstream use, the expected `vault-seed` proof target, and the ownership
-boundary that must stay product-local.
+manifest and SHA-256 inventory. The JSON manifest declares
+`schemaVersion: 1` and `source: "vault-seed-ready-handoff"` so downstream
+checks can treat it as an explicit handoff contract.
+Each package entry also carries `consumerPull` metadata when the selected package
+has a known `vault-seed` adoption target. That metadata names the downstream
+use, the expected `vault-seed` proof target, and the ownership boundary that
+must stay product-local.
 
 ---
 

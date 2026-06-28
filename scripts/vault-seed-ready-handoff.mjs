@@ -20,6 +20,8 @@ import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const DEFAULT_SELECTION = "vault-seed-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/vault-seed/${new Date().toISOString().slice(0, 10)}`;
+const HANDOFF_MANIFEST_SCHEMA_VERSION = 1;
+const HANDOFF_MANIFEST_SOURCE = "vault-seed-ready-handoff";
 const VAULT_SEED_CONSUMER_PULLS = {
 	"@refarm.dev/artifact-contract-v1": {
 		downstreamUse: "Lab datasets, publication outbox, and notebook snapshot evidence",
@@ -227,6 +229,8 @@ export function buildHandoffManifest({
 	if (!check.ok) {
 		const plan = check.plan ?? { ok: false };
 		return {
+			schemaVersion: HANDOFF_MANIFEST_SCHEMA_VERSION,
+			source: HANDOFF_MANIFEST_SOURCE,
 			ok: false,
 			status: plan.status ?? "blocked",
 			selection: plan.selection ?? null,
@@ -274,6 +278,8 @@ export function buildHandoffManifest({
 	];
 
 	return {
+		schemaVersion: HANDOFF_MANIFEST_SCHEMA_VERSION,
+		source: HANDOFF_MANIFEST_SOURCE,
 		ok: issues.length === 0,
 		status: check.plan.status,
 		selection: check.plan.selection,

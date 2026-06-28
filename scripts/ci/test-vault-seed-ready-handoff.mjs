@@ -113,6 +113,8 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		releaseCheck: releaseCheck(),
 	});
 
+	assert.equal(manifest.schemaVersion, 1);
+	assert.equal(manifest.source, "vault-seed-ready-handoff");
 	assert.equal(manifest.ok, true);
 	assert.deepEqual(manifest.acceptance, {
 		status: "accepted",
