@@ -112,7 +112,7 @@ describe("agent command", () => {
 				packageManager: string;
 				workspaceExecution: string;
 				workspaceSweep: string;
-				releaseKernelCandidates: string;
+				releaseSupplyPreflight: string;
 				codingProfile: string;
 			};
 			runtime: {
@@ -198,7 +198,7 @@ describe("agent command", () => {
 				packageManager: "refarm package-manager --json",
 				workspaceExecution: "refarm workspace execution --json",
 				workspaceSweep: "refarm workspace execution --all --json",
-				releaseKernelCandidates: "refarm release plan --selection default --json",
+				releaseSupplyPreflight: "refarm release preflight --selection default --json",
 				codingProfile: "refarm config profile coding --local --json",
 			},
 			runtime: {
@@ -774,15 +774,15 @@ describe("agent command", () => {
 				useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
 			}),
 			expect.objectContaining({
-				id: "declared-release-kernel-candidates-json",
-				command: "refarm release plan --selection default --json",
+				id: "declared-release-supply-preflight-json",
+				command: "refarm release preflight --selection default --json",
 				process: {
 					command: "refarm",
-					args: ["release", "plan", "--selection", "default", "--json"],
-					display: "refarm release plan --selection default --json",
+					args: ["release", "preflight", "--selection", "default", "--json"],
+					display: "refarm release preflight --selection default --json",
 				},
 				parameters: [],
-				useWhen: "Inspect the current workspace default release-policy selection without executing gates or publishing.",
+				useWhen: "Inspect the current workspace release-policy selection and supply posture without executing gates, builds, or publishing.",
 			}),
 			expect.objectContaining({
 				id: "external-consumer-release-plan-json",

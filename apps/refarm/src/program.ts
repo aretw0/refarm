@@ -114,7 +114,7 @@ program
 			"  $ refarm workspace execution --json Inspect workspace executor/cache readiness",
 			"  $ refarm capabilities --json List compact capability descriptors for consumers",
 			"  $ refarm project handoff validate --json Validate durable project handoff state",
-			"  $ refarm release plan --selection default --json Plan release candidates by configured policy selection",
+			"  $ refarm release preflight --selection default --json Inspect release candidates and supply posture",
 			"  $ refarm agent --next-command    Print the first agent handoff command",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --lane after-edit --run --json Verify changed workspaces",

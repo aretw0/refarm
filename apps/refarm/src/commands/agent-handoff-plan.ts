@@ -146,13 +146,13 @@ function agentFinishTemplates() {
 			useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
 		},
 		{
-			id: "declared-release-kernel-candidates-json",
-			command: refarmCommand(["release", "plan", "--selection", "default", "--json"]),
-			process: refarmProcess(["release", "plan", "--selection", "default", "--json"]),
+			id: "declared-release-supply-preflight-json",
+			command: refarmCommand(["release", "preflight", "--selection", "default", "--json"]),
+			process: refarmProcess(["release", "preflight", "--selection", "default", "--json"]),
 			effects: ["observe"],
 			writes: false,
 			parameters: [],
-			useWhen: "Inspect the current workspace default release-policy selection without executing gates or publishing.",
+			useWhen: "Inspect the current workspace release-policy selection and supply posture without executing gates, builds, or publishing.",
 		},
 		{
 			id: "external-consumer-release-plan-json",
@@ -306,7 +306,7 @@ export const agentRuntimePlan = {
 		packageManager: refarmCommand(["package-manager", "--json"]),
 		workspaceExecution: refarmCommand(["workspace", "execution", "--json"]),
 		workspaceSweep: refarmCommand(["workspace", "execution", "--all", "--json"]),
-		releaseKernelCandidates: refarmCommand(["release", "plan", "--selection", "default", "--json"]),
+		releaseSupplyPreflight: refarmCommand(["release", "preflight", "--selection", "default", "--json"]),
 		codingProfile: refarmCommand(["config", "profile", "coding", "--local", "--json"]),
 	},
 	runtime: {
