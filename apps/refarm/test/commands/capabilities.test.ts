@@ -78,7 +78,7 @@ describe("capabilities command", () => {
 					discoverySdk: string;
 					entries: Array<{
 						capabilityId: string;
-						targets: Array<{ name: string; status: string }>;
+						targets: Array<{ export?: string; name: string; status: string }>;
 					}>;
 				};
 			};
@@ -92,6 +92,12 @@ describe("capabilities command", () => {
 						capabilityId: "runtime-agent.worker-profiles",
 						targets: expect.arrayContaining([
 							expect.objectContaining({
+								export: "@refarm.dev/cli",
+								name: "@refarm.dev/cli",
+								status: "exported",
+							}),
+							expect.objectContaining({
+								export: "@refarm.dev/cli",
 								name: "@refarm.dev/cli worker result envelope",
 								status: "exported",
 							}),

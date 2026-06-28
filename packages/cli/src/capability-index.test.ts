@@ -75,13 +75,13 @@ describe("capability index", () => {
 						expect.objectContaining({
 							channel: "npm",
 							name: "@refarm.dev/cli",
-							export: "@refarm.dev/cli/worker-profile",
+							export: "@refarm.dev/cli",
 							status: "exported",
 						}),
 						expect.objectContaining({
 							channel: "npm",
 							name: "@refarm.dev/cli worker result envelope",
-							export: "@refarm.dev/cli/worker-profile",
+							export: "@refarm.dev/cli",
 							status: "exported",
 						}),
 						expect.objectContaining({
