@@ -18,6 +18,8 @@
 	"files": [
 		"README.md",
 		"ROADMAP.md",
+		"dist/environment-pressure.js",
+		"dist/environment-pressure.d.ts",
 		"dist/index.js",
 		"dist/index.d.ts"
 	],
@@ -28,6 +30,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./environment-pressure": {
+			"import": "./dist/environment-pressure.js",
+			"types": "./dist/environment-pressure.d.ts"
 		}
 	},
 	"devDependencies": {

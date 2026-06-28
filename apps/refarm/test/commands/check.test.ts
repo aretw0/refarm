@@ -4,7 +4,7 @@ import {
 	buildNodeSubstrateRecommendations,
 	buildRefarmCheckReport,
 	createCheckCommand,
-	type FactoryPressureCheck,
+	type EnvironmentPressureCheck,
 	type NodeSubstrateCheck,
 	type RefarmCheckDeps,
 	type ReleasePolicyCheck,
@@ -174,11 +174,11 @@ function makeRustSubstrateCheck(
 	};
 }
 
-function makeFactoryPressureCheck(
-	overrides: Partial<FactoryPressureCheck> = {},
-): FactoryPressureCheck {
+function makeEnvironmentPressureCheck(
+	overrides: Partial<EnvironmentPressureCheck> = {},
+): EnvironmentPressureCheck {
 	return {
-		command: "factory-pressure",
+		command: "environment-pressure",
 		operation: "check",
 		ok: true,
 		decision: "continue",
@@ -290,7 +290,7 @@ function makeDeps(overrides: {
 	model?: Partial<ModelDoctorStatus>;
 	nodeSubstrate?: Partial<NodeSubstrateCheck>;
 	rustSubstrate?: Partial<RustSubstrateCheck>;
-	factoryPressure?: Partial<FactoryPressureCheck>;
+	environmentPressure?: Partial<EnvironmentPressureCheck>;
 	workspaceExecution?: Partial<WorkspaceExecutionStatus>;
 	workspaceSweep?: Partial<WorkspaceSweepCheck>;
 	releasePolicy?: Partial<ReleasePolicyCheck>;
@@ -298,7 +298,7 @@ function makeDeps(overrides: {
 	return {
 		runNodeSubstrate: vi.fn().mockResolvedValue(makeNodeSubstrateCheck(overrides.nodeSubstrate)),
 		runRustSubstrate: vi.fn().mockResolvedValue(makeRustSubstrateCheck(overrides.rustSubstrate)),
-		runFactoryPressure: vi.fn().mockResolvedValue(makeFactoryPressureCheck(overrides.factoryPressure)),
+		runEnvironmentPressure: vi.fn().mockResolvedValue(makeEnvironmentPressureCheck(overrides.environmentPressure)),
 		runWorkspaceExecution: vi.fn().mockResolvedValue(makeWorkspaceExecutionStatus(overrides.workspaceExecution)),
 		runWorkspaceSweep: vi.fn().mockResolvedValue(makeWorkspaceSweepCheck(overrides.workspaceSweep)),
 		runReleasePolicy: vi.fn().mockResolvedValue(makeReleasePolicyCheck(overrides.releasePolicy)),
@@ -414,12 +414,12 @@ describe("buildRefarmCheckReport", () => {
 		const report = buildRefarmCheckReport({
 			nodeSubstrate: makeNodeSubstrateCheck(),
 			rustSubstrate: makeRustSubstrateCheck(),
-			factoryPressure: makeFactoryPressureCheck({
+			environmentPressure: makeEnvironmentPressureCheck({
 				ok: false,
 				decision: "stop-and-investigate",
 				recommendations: [
 					{
-						diagnostic: "factory-pressure:filesystem-free-space",
+						diagnostic: "environment-pressure:filesystem-free-space",
 						severity: "failure",
 						summary: "Workspace filesystem is under disk pressure.",
 						action: "Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
@@ -880,7 +880,7 @@ describe("checkCommand", () => {
 
 		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
 		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
-		expect(deps.runFactoryPressure).toHaveBeenCalledOnce();
+		expect(deps.runEnvironmentPressure).toHaveBeenCalledOnce();
 		expect(deps.runWorkspaceExecution).toHaveBeenCalledOnce();
 		expect(deps.runWorkspaceSweep).toHaveBeenCalledOnce();
 		expect(deps.runHealth).toHaveBeenCalledOnce();
@@ -893,7 +893,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"nodeSubstrate"');
 		expect(output).toContain('"rustSubstrate"');
-		expect(output).toContain('"factoryPressure"');
+		expect(output).toContain('"environmentPressure"');
 		expect(output).toContain('"workspaceExecution"');
 		expect(output).toContain('"workspaceSweep"');
 		expect(output).toContain('"releasePolicy"');
@@ -940,7 +940,7 @@ describe("checkCommand", () => {
 		expect(output).toContain("Check: FAIL");
 		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues, 0 workspace links, 0 runtime deps, 0 source access issues)");
 		expect(output).toContain("Rust substrate: pass (0 missing)");
-		expect(output).toContain("Factory pressure: continue (1 signals)");
+		expect(output).toContain("Environment pressure: continue (1 signals)");
 		expect(output).toContain("Workspace execution: turbo (local cache available, remote cache configured)");
 		expect(output).toContain("Workspace sweep: 1/1 ready (0 missing paths, 0 remote cache pending)");
 		expect(output).toContain("Health: fail (1 issue)");
@@ -966,7 +966,7 @@ describe("checkCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: PASS");
 		expect(output).not.toContain("Rust substrate:");
-		expect(output).toContain("Factory pressure: continue (1 signals)");
+		expect(output).toContain("Environment pressure: continue (1 signals)");
 		expect(process.exitCode).toBeUndefined();
 	});
 
@@ -1065,7 +1065,7 @@ describe("checkCommand", () => {
 
 		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
 		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
-		expect(deps.runFactoryPressure).toHaveBeenCalledOnce();
+		expect(deps.runEnvironmentPressure).toHaveBeenCalledOnce();
 		expect(deps.runHealth).toHaveBeenCalledOnce();
 		expect(deps.runDoctor).toHaveBeenCalledOnce();
 		expect(deps.runModelDoctor).not.toHaveBeenCalled();

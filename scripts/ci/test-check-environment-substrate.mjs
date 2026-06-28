@@ -34,14 +34,14 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.ok(Array.isArray(output.nextCommands));
 	assert.equal(typeof output.substrate.node.ok, "boolean");
 	assert.equal(typeof output.substrate.rust.ok, "boolean");
-	assert.equal(output.substrate.factoryPressure.command, "factory-pressure");
-	assert.match(output.substrate.factoryPressure.decision, /^(continue|safe-mode|stop-and-investigate)$/);
-	assert.ok(Array.isArray(output.substrate.factoryPressure.signals));
+	assert.equal(output.substrate.environmentPressure.command, "environment-pressure");
+	assert.match(output.substrate.environmentPressure.decision, /^(continue|safe-mode|stop-and-investigate)$/);
+	assert.ok(Array.isArray(output.substrate.environmentPressure.signals));
 	assert.ok(Array.isArray(output.substrate.networkDiagnostics));
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
 	assert.ok(output.checks.some((check) =>
-		check.id === "factory_pressure" &&
+		check.id === "environment_pressure" &&
 		check.kind === "operational-pressure" &&
 		check.required === true &&
 		check.command === "pnpm run factory:pressure:json" &&
@@ -88,9 +88,9 @@ test("environment substrate check keeps optional diagnostics non-blocking", () =
 		output.failedChecks.some((check) => check.required === false),
 		false,
 	);
-	if (output.substrate.factoryPressure.decision !== "stop-and-investigate") {
+	if (output.substrate.environmentPressure.decision !== "stop-and-investigate") {
 		assert.equal(
-			output.failedChecks.some((check) => check.id === "factory_pressure"),
+			output.failedChecks.some((check) => check.id === "environment_pressure"),
 			false,
 		);
 	}

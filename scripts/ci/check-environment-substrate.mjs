@@ -6,7 +6,7 @@ import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-own
 import { findWorkspaceSourceOwnershipIssues } from "./check-workspace-source-ownership.mjs";
 import { checkNodeSubstrate } from "./check-node-substrate.mjs";
 import { checkRustSubstrate } from "./check-rust-substrate.mjs";
-import { buildFactoryPressureReport } from "./factory-pressure-lib.mjs";
+import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");
@@ -181,7 +181,19 @@ function pnpmToolAlternatives(env = process.env) {
 
 const nodeSubstrate = await checkNodeSubstrate();
 const rustSubstrate = checkRustSubstrate();
-const factoryPressure = buildFactoryPressureReport();
+const environmentPressure = buildEnvironmentPressureReport({
+	guidance: {
+		diskPressureAction:
+			"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+		diskPressureCommand: "pnpm run clean:rust:check",
+		diskProbeFailureAction: "Run `pnpm run disk:check` only if disk pressure is suspected.",
+		diskProbeFailureCommand: "pnpm run disk:check",
+		memoryPressureAction:
+			"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+		gitGcLogAction:
+			"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
+	},
+});
 
 function ownershipCheck(id, kind, command, findIssues) {
 	try {
@@ -263,13 +275,13 @@ const checks = [
 		exitCode: rustSubstrate.ok ? 0 : 1,
 	},
 	{
-		id: "factory_pressure",
+		id: "environment_pressure",
 		kind: "operational-pressure",
 		required: true,
-		ok: factoryPressure.ok === true,
+		ok: environmentPressure.ok === true,
 		command: "pnpm run factory:pressure:json",
-		decision: factoryPressure.decision,
-		signalCount: factoryPressure.signals.length,
+		decision: environmentPressure.decision,
+		signalCount: environmentPressure.signals.length,
 	},
 	sourceOwnershipCheck,
 	artifactOwnershipCheck,
@@ -289,9 +301,9 @@ const recommendations = [
 			normalizeRecommendation("rust-substrate", recommendation),
 		)
 		: []),
-	...(Array.isArray(factoryPressure.recommendations)
-		? factoryPressure.recommendations.map((recommendation) =>
-			normalizeRecommendation("factory-pressure", recommendation),
+	...(Array.isArray(environmentPressure.recommendations)
+		? environmentPressure.recommendations.map((recommendation) =>
+			normalizeRecommendation("environment-pressure", recommendation),
 		)
 		: []),
 	...tools
@@ -356,7 +368,7 @@ const recommendations = [
 const nextCommands = [
 	...(Array.isArray(nodeSubstrate.nextCommands) ? nodeSubstrate.nextCommands : []),
 	...(Array.isArray(rustSubstrate.nextCommands) ? rustSubstrate.nextCommands : []),
-	...(Array.isArray(factoryPressure.nextCommands) ? factoryPressure.nextCommands : []),
+	...(Array.isArray(environmentPressure.nextCommands) ? environmentPressure.nextCommands : []),
 ];
 const blockingRecommendations = recommendations.filter(
 	(recommendation) => recommendation.severity !== "warning" && recommendation.severity !== "info",
@@ -379,7 +391,7 @@ const result = {
 	substrate: {
 		node: nodeSubstrate,
 		rust: rustSubstrate,
-		factoryPressure,
+		environmentPressure,
 		tools,
 		diagnosticTools,
 		networkDiagnostics,
@@ -393,8 +405,8 @@ const result = {
 			rustSubstrate,
 			"node scripts/ci/check-rust-substrate.mjs --json",
 		),
-		factoryPressure: compactImportedCheck(
-			factoryPressure,
+		environmentPressure: compactImportedCheck(
+			environmentPressure,
 			"pnpm run factory:pressure:json",
 		),
 	},

@@ -4,19 +4,19 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import {
-	buildFactoryPressureReport,
+	buildEnvironmentPressureReport,
 	classifyDiskPressure,
 	classifyMemoryPressure,
-	decideFactoryPressure,
-	DEFAULT_FACTORY_PRESSURE_THRESHOLDS,
-} from "./factory-pressure-lib.mjs";
+	decideEnvironmentPressure,
+	DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+} from "@refarm.dev/health/environment-pressure";
 
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
 test("factory pressure classifies low disk as stop-and-investigate", () => {
 	assert.equal(classifyDiskPressure(2 * GB), "failure");
-	assert.equal(decideFactoryPressure([{ severity: "failure" }]), "stop-and-investigate");
+	assert.equal(decideEnvironmentPressure([{ severity: "failure" }]), "stop-and-investigate");
 });
 
 test("factory pressure classifies tight memory as safe-mode", () => {
@@ -26,25 +26,35 @@ test("factory pressure classifies tight memory as safe-mode", () => {
 	});
 
 	assert.equal(severity, "warning");
-	assert.equal(decideFactoryPressure([{ severity }]), "safe-mode");
+	assert.equal(decideEnvironmentPressure([{ severity }]), "safe-mode");
 });
 
 test("factory pressure report is read-only and recommends bounded cleanup", () => {
-	const report = buildFactoryPressureReport({
+	const report = buildEnvironmentPressureReport({
 		cwd: "/repo",
+		command: "factory-pressure",
 		env: { CARGO_TARGET_DIR: ".cache/cargo-target" },
 		now: new Date("2026-06-28T00:00:00.000Z"),
-		existsSync: (candidate) => candidate === "/repo/.git/gc.log",
-		statfsSync: () => ({
-			bavail: 2 * 1024,
-			bsize: 1024 * 1024,
-			blocks: 100 * 1024,
-		}),
+		fs: {
+			existsSync: (candidate) => candidate === "/repo/.git/gc.log",
+			statfsSync: () => ({
+				bavail: 2 * 1024,
+				bsize: 1024 * 1024,
+				blocks: 100 * 1024,
+			}),
+		},
 		os: {
 			freemem: () => 4 * GB,
 			totalmem: () => 8 * GB,
 		},
-		thresholds: DEFAULT_FACTORY_PRESSURE_THRESHOLDS,
+		thresholds: DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+		guidance: {
+			diskPressureAction:
+				"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+			diskPressureCommand: "pnpm run clean:rust:check",
+			gitGcLogAction:
+				"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
+		},
 	});
 
 	assert.equal(report.schemaVersion, 1);
