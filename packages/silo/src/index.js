@@ -12,7 +12,7 @@ export * from "./collect.js";
 export class SiloCore {
     constructor(config = {}) {
         this.config = config;
-        this.storagePath = config.storagePath || path.join(resolveRefarmHome(), "identity.json");
+        this.storagePath = config.storagePath || path.join(resolveSiloHome(), "identity.json");
     }
 
     /**
@@ -129,8 +129,8 @@ export class SiloCore {
         // 2. Environment Variables
         // 3. Stored Tokens
         const mapping = {
-            'REFARM_GITHUB_TOKEN': this.config.tokens?.githubToken || process.env.GITHUB_TOKEN || process.env.REFARM_GITHUB_TOKEN || storedTokens.githubToken,
-            'REFARM_CLOUDFLARE_API_TOKEN': this.config.tokens?.cloudflareToken || process.env.CLOUDFLARE_API_TOKEN || process.env.REFARM_CLOUDFLARE_API_TOKEN || storedTokens.cloudflareToken
+            GITHUB_TOKEN: this.config.tokens?.githubToken || process.env.GITHUB_TOKEN || storedTokens.githubToken,
+            CLOUDFLARE_API_TOKEN: this.config.tokens?.cloudflareToken || process.env.CLOUDFLARE_API_TOKEN || storedTokens.cloudflareToken
         };
 
         for (const [key, value] of Object.entries(mapping)) {
@@ -203,9 +203,10 @@ export class SiloCore {
     }
 }
 
-export function resolveRefarmHome(env = process.env) {
-    const configured = typeof env.REFARM_HOME === "string" ? env.REFARM_HOME.trim() : "";
-    return configured || path.join(os.homedir(), ".refarm");
+export function resolveSiloHome(env = process.env) {
+    const configured = typeof env.SILO_HOME === "string" ? env.SILO_HOME.trim() : "";
+    const refarmHome = typeof env.REFARM_HOME === "string" ? env.REFARM_HOME.trim() : "";
+    return configured || refarmHome || path.join(os.homedir(), ".silo");
 }
 
 export default SiloCore;

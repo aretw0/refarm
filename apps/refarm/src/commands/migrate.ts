@@ -1,4 +1,9 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { joinCommand, quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/cli/json-output";
 import { findRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
@@ -7,12 +12,6 @@ import chalk from "chalk";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { joinCommand, quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/cli/json-output";
 
 interface MigrateConfig {
 	brand?: { slug?: string; urls?: { repository?: string } };
@@ -141,8 +140,8 @@ export const migrateCommand = new Command("migrate")
     const tokens = await silo.resolve();
     
     // Set environment variables for Windmill providers
-    process.env.GITHUB_TOKEN = tokens.get("REFARM_GITHUB_TOKEN") || process.env.GITHUB_TOKEN;
-    process.env.CLOUDFLARE_API_TOKEN = tokens.get("REFARM_CLOUDFLARE_API_TOKEN") || process.env.CLOUDFLARE_API_TOKEN;
+    process.env.GITHUB_TOKEN = tokens.get("GITHUB_TOKEN") || process.env.GITHUB_TOKEN;
+    process.env.CLOUDFLARE_API_TOKEN = tokens.get("CLOUDFLARE_API_TOKEN") || process.env.CLOUDFLARE_API_TOKEN;
 
     // Load config from current directory
     const configPath = findRefarmConfigPath(process.cwd());
