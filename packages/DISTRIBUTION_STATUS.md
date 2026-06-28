@@ -55,8 +55,8 @@ channel, not a public npm publication promise.
 Validation:
 
 ```bash
-pnpm run release:vault-seed:check -- --plan --json
-pnpm run release:vault-seed:handoff -- --pack --json
+pnpm --silent run release:vault-seed:check -- --plan --json
+pnpm --silent run release:vault-seed:handoff -- --pack --json
 ```
 
 The local handoff currently lives under
@@ -122,7 +122,7 @@ refarm release preflight --selection vault-seed-ready --json
 pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:vault-seed:check
-pnpm run release:vault-seed:handoff -- --pack --json
+pnpm --silent run release:vault-seed:handoff -- --pack --json
 ```
 
 ---
