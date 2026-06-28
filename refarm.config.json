@@ -212,6 +212,7 @@
           "contract",
           "kernel",
           "kernel-contract",
+          "consumer-pulled",
           "vault-seed-ready",
           "review"
         ]
@@ -254,6 +255,7 @@
           "contract",
           "kernel",
           "kernel-contract",
+          "consumer-pulled",
           "vault-seed-ready",
           "review"
         ]
@@ -376,6 +378,7 @@
         "tags": [
           "kernel",
           "kernel-primitive",
+          "consumer-pulled",
           "vault-seed-ready",
           "dogfood"
         ]
@@ -421,6 +424,7 @@
         "tags": [
           "crypto",
           "silo-dependency",
+          "consumer-pulled",
           "vault-seed-ready",
           "candidate"
         ]
