@@ -11,8 +11,24 @@ boundaries.
 Before starting work, measure rather than guess:
 
 ```bash
+pnpm run factory:pressure
 pnpm run clean:rust:check
 ```
+
+`factory:pressure` is the cheap operator preflight. It does not scan the tree and
+does not delete anything. It samples filesystem free space, host memory, and a
+few maintenance markers, then returns one of:
+
+- `continue`: focused work can proceed normally.
+- `safe-mode`: keep commands explicit and bounded; avoid broad worker fan-out,
+  full `cargo test`, full `turbo build`, or repo-wide Vitest.
+- `stop-and-investigate`: pause broad work and recover disk/memory headroom
+  before running expensive gates.
+
+This mirrors the operational lesson from downstream agents-lab work: environment
+pain should become an explicit signal, not a surprise crash. Cleanup remains
+operator-directed. Sessions and global agent history are protected by default;
+do not delete them from an agent unless the operator explicitly asks for that.
 
 At the end of a normal session:
 
