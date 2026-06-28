@@ -3,8 +3,10 @@ import {
 	assessWorkerToolReadiness,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
+	createWorkerToolResult,
 	validateWorkerProfile,
 	validateWorkerToolDescriptor,
+	validateWorkerToolResult,
 	WORKER_PROFILE_MAX_PARALLEL,
 	WORKER_TOOL_MAX_TURNS,
 } from "./worker-profile.js";
@@ -207,6 +209,88 @@ describe("worker profile contract", () => {
 						"Worker dispatch needs budget accounting for provider token use and bounded turns.",
 				},
 			],
+		});
+	});
+
+	it("validates worker tool results against the descriptor output contract", () => {
+		const profile = createWorkerProfile({
+			id: "worker.plan-review",
+			title: "Plan Review Worker",
+			description: "Review a plan and return a compact risk summary.",
+			objective: "Find plan risks before implementation starts.",
+			allowedTools: ["read", "search"],
+			output: {
+				format: "json",
+				requiredFields: ["summary", "risks"],
+			},
+		});
+		const descriptor = createWorkerToolDescriptor(profile, {
+			name: "agent.planReview",
+		});
+
+		const result = createWorkerToolResult(descriptor, {
+			summary: "Plan is small; main risk is missing rollback evidence.",
+			output: {
+				summary: "Plan is small.",
+				risks: ["Missing rollback evidence."],
+			},
+			handoffs: ["refarm capabilities --tag reference-driver --json"],
+		});
+
+		expect(result).toMatchObject({
+			schemaVersion: 1,
+			descriptorName: "agent.planReview",
+			profileId: "worker.plan-review",
+			status: "completed",
+			handoffs: ["refarm capabilities --tag reference-driver --json"],
+			issues: [],
+		});
+		expect(validateWorkerToolResult(descriptor, result)).toEqual({
+			ok: true,
+			issues: [],
+		});
+	});
+
+	it("rejects incomplete worker results and unexplained non-completed statuses", () => {
+		const profile = createWorkerProfile({
+			id: "worker.audit",
+			title: "Audit Worker",
+			description: "Return structured audit findings.",
+			objective: "Audit a focused code slice.",
+			allowedTools: ["read"],
+			output: {
+				format: "json",
+				requiredFields: ["summary", "findings"],
+			},
+		});
+		const descriptor = createWorkerToolDescriptor(profile, {
+			name: "agent.audit",
+		});
+
+		expect(
+			validateWorkerToolResult(
+				descriptor,
+				createWorkerToolResult(descriptor, {
+					summary: "Findings omitted.",
+					output: { summary: "Incomplete." },
+				}),
+			),
+		).toEqual({
+			ok: false,
+			issues: ["output.findings is required for completed results"],
+		});
+
+		expect(
+			validateWorkerToolResult(
+				descriptor,
+				createWorkerToolResult(descriptor, {
+					status: "blocked",
+					summary: "Cannot run.",
+				}),
+			),
+		).toEqual({
+			ok: false,
+			issues: ["issues must explain non-completed results"],
 		});
 	});
 });

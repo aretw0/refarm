@@ -1,5 +1,6 @@
 export const WORKER_PROFILE_SCHEMA_VERSION = 1 as const;
 export const WORKER_TOOL_SCHEMA_VERSION = 1 as const;
+export const WORKER_TOOL_RESULT_SCHEMA_VERSION = 1 as const;
 export const WORKER_PROFILE_MAX_PARALLEL = 4 as const;
 export const WORKER_TOOL_MAX_TURNS = 8 as const;
 
@@ -8,6 +9,11 @@ export type WorkerResumePolicy = "continue" | "restart" | "manual";
 export type WorkerOutputFormat = "summary" | "json";
 export type WorkerToolExecutionMode = "plan-only" | "runtime-dispatch";
 export type WorkerToolReadinessState = "ready" | "blocked";
+export type WorkerToolResultStatus =
+	| "completed"
+	| "blocked"
+	| "failed"
+	| "cancelled";
 export type WorkerToolReadinessRequirement =
 	| "policy"
 	| "cancellation"
@@ -95,6 +101,17 @@ export interface WorkerToolReadiness {
 	blockers: readonly WorkerToolReadinessBlocker[];
 }
 
+export interface WorkerToolResult {
+	schemaVersion: typeof WORKER_TOOL_RESULT_SCHEMA_VERSION;
+	descriptorName: string;
+	profileId: string;
+	status: WorkerToolResultStatus;
+	summary: string;
+	output: Record<string, unknown>;
+	handoffs: readonly string[];
+	issues: readonly string[];
+}
+
 export interface WorkerProfileInput {
 	id: string;
 	title: string;
@@ -123,6 +140,14 @@ export interface WorkerToolDescriptorInput {
 	maxTurns?: number;
 	maxParallel?: number;
 	inputFields?: readonly string[];
+}
+
+export interface WorkerToolResultInput {
+	status?: WorkerToolResultStatus;
+	summary: string;
+	output?: Record<string, unknown>;
+	handoffs?: readonly string[];
+	issues?: readonly string[];
 }
 
 export const WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS = [
@@ -327,6 +352,56 @@ export function assessWorkerToolReadiness(
 		issues: validation.issues,
 		blockers,
 	};
+}
+
+export function createWorkerToolResult(
+	descriptor: WorkerToolDescriptor,
+	input: WorkerToolResultInput,
+): WorkerToolResult {
+	return {
+		schemaVersion: WORKER_TOOL_RESULT_SCHEMA_VERSION,
+		descriptorName: descriptor.name,
+		profileId: descriptor.profile.id,
+		status: input.status ?? "completed",
+		summary: input.summary,
+		output: input.output ?? {},
+		handoffs: input.handoffs ?? [],
+		issues: input.issues ?? [],
+	};
+}
+
+export function validateWorkerToolResult(
+	descriptor: WorkerToolDescriptor,
+	result: WorkerToolResult,
+): WorkerProfileValidation {
+	const issues: string[] = [];
+	if (result.schemaVersion !== WORKER_TOOL_RESULT_SCHEMA_VERSION) {
+		issues.push("schemaVersion must be 1");
+	}
+	if (result.descriptorName !== descriptor.name) {
+		issues.push("descriptorName must match descriptor.name");
+	}
+	if (result.profileId !== descriptor.profile.id) {
+		issues.push("profileId must match descriptor.profile.id");
+	}
+	if (!["completed", "blocked", "failed", "cancelled"].includes(result.status)) {
+		issues.push("status must be completed, blocked, failed, or cancelled");
+	}
+	if (!nonEmpty(result.summary)) issues.push("summary is required");
+
+	if (result.status === "completed") {
+		for (const field of descriptor.outputFields) {
+			if (!(field in result.output)) {
+				issues.push(`output.${field} is required for completed results`);
+			}
+		}
+	}
+
+	if (result.status !== "completed" && result.issues.length === 0) {
+		issues.push("issues must explain non-completed results");
+	}
+
+	return { ok: issues.length === 0, issues };
 }
 
 function nonEmpty(value: string): boolean {
