@@ -93,3 +93,20 @@ test("release policy keeps SDK primitives behind explicit audience boundaries", 
 		);
 	}
 });
+
+test("vault-seed-ready packages declare consumer-pulled intent", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const profiles = config.releasePolicy.packageProfiles;
+	const readyProfiles = profiles.filter((profile) =>
+		profile.tags?.includes("vault-seed-ready"),
+	);
+
+	assert.ok(readyProfiles.length > 0, "expected vault-seed-ready profiles");
+
+	for (const profile of readyProfiles) {
+		assert.ok(
+			profile.tags.includes("consumer-pulled"),
+			`${profile.id} must declare consumer-pulled before entering vault-seed-ready`,
+		);
+	}
+});
