@@ -79,6 +79,12 @@ describe("capability index", () => {
 						"Hermes: keep delegation bounded; do not make worker fanout ambient.",
 						"Pi: expose embeddable SDK/RPC shapes without forcing product labels.",
 					],
+					promotionProofTargets: [
+						"policy bundle: tool allowlist, filesystem root guard, trusted plugin guard, and model route validation",
+						"worker lifecycle: cancellable task state, resume policy, and fanout stop propagation",
+						"operator visibility: stream chunks, session entries, task status, and resume handoffs",
+						"budget ledger: provider token accounting, max turns, max parallel workers, and stop condition",
+					],
 					targets: expect.arrayContaining([
 						expect.objectContaining({
 							channel: "npm",
