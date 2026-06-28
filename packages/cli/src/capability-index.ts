@@ -329,7 +329,7 @@ const CAPABILITIES = [
 		activation: {
 			sdk: "@refarm.dev/cli/worker-profile",
 		},
-		tags: ["runtime", "workers", "planning"],
+		tags: ["runtime", "workers", "planning", "reference-driver"],
 	},
 	{
 		id: "runtime-agent.session-tree",
@@ -466,6 +466,37 @@ const CAPABILITIES = [
 ] as const satisfies readonly RefarmCapabilityDescriptor[];
 
 const REFERENCE_DRIVER_SUPPLY_TARGETS = {
+	"runtime-agent.worker-profiles": {
+		targets: [
+			{
+				channel: "npm",
+				name: "@refarm.dev/cli",
+				export: "@refarm.dev/cli/worker-profile",
+				path: "packages/cli/src/worker-profile.ts",
+				status: "exported",
+				note:
+					"Plan-only worker descriptor and readiness SDK for consumers that want agents-as-tools without runtime fanout.",
+			},
+			{
+				channel: "runtime",
+				name: "worker tool promotion gate",
+				path: "packages/cli/src/worker-profile.ts",
+				status: "candidate",
+				note:
+					"assessWorkerToolReadiness() is the promotion gate; runtime-dispatch remains blocked until local policy, cancellation, observability, and cost-control proofs exist.",
+			},
+			{
+				channel: "npm",
+				name: "@refarm.dev/pi-agent",
+				path: "packages/pi-agent",
+				status: "hold",
+				note:
+					"Runtime worker execution still belongs behind the private plugin boundary until dispatch policy is proven.",
+			},
+		],
+		nextDecision:
+			"Keep agents-as-tools plan-only; promote runtime dispatch only after the worker engine can prove policy, cancellation, observability, and provider cost bounds locally.",
+	},
 	"runtime-agent.session-tree": {
 		targets: [
 			{
@@ -487,7 +518,7 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "runtime",
-				name: "refarm tree",
+				name: "session tree command",
 				path: "apps/refarm/src/commands/tree.ts",
 				status: "candidate",
 				note:

@@ -56,7 +56,7 @@ export function parseChatLine(line: string): ChatCommand {
 	const withoutSlash = trimmed.slice(1);
 	let parts: string[];
 	try {
-		parts = splitCommandLine(withoutSlash, "refarm chat command");
+		parts = splitCommandLine(withoutSlash, "chat command");
 	} catch {
 		return { kind: "message", text: trimmed };
 	}

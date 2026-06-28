@@ -84,10 +84,11 @@ const referenceDriverSupply = buildReferenceDriverSupplyMap();
 ```
 
 The supply map is intentionally conservative. Today it marks
-`@refarm.dev/cli/capability-index` as the exported discovery SDK, keeps
-`@refarm.dev/pi-agent` publication on hold while the plugin package is private,
-and records `agent-tools`, plugin WIT, and Tractor code-ops as WIT/runtime/crate
-boundaries rather than pretending they are ready npm APIs.
+`@refarm.dev/cli/capability-index` as the exported discovery SDK, exposes
+`@refarm.dev/cli/worker-profile` as the plan-only worker descriptor/readiness
+SDK, keeps `@refarm.dev/pi-agent` publication on hold while the plugin package
+is private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
+WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
 
 `@refarm.dev/cli/worker-profile` also exposes the first "agents as tools"
 contract. `createWorkerProfile()` defines the bounded worker, and
