@@ -70,6 +70,7 @@ test("parses release check package overrides", () => {
 			"default",
 			"--package",
 			"@refarm.dev/storage-contract-v1",
+			"--",
 			"--plan",
 			"--json",
 		]),

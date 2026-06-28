@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
 	existsSync,
@@ -10,11 +11,15 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	detectPackageManager,
+	packageManagerSpawnCommand,
+} from "../packages/config/src/package-manager.js";
 import { releasePlanAcceptance } from "../packages/release-engine/src/index.mjs";
 import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const DEFAULT_SELECTION = "vault-seed-ready";
-const DEFAULT_HANDOFF_DIR = ".refarm/handoff/vault-seed/2026-06-26";
+const DEFAULT_HANDOFF_DIR = `.refarm/handoff/vault-seed/${new Date().toISOString().slice(0, 10)}`;
 
 export function parseHandoffArgs(argv = []) {
 	const options = {
@@ -22,6 +27,7 @@ export function parseHandoffArgs(argv = []) {
 		handoffDir: DEFAULT_HANDOFF_DIR,
 		json: false,
 		out: null,
+		pack: false,
 	};
 
 	for (let index = 0; index < argv.length; index += 1) {
@@ -46,6 +52,10 @@ export function parseHandoffArgs(argv = []) {
 		}
 		if (arg === "--json") {
 			options.json = true;
+			continue;
+		}
+		if (arg === "--pack") {
+			options.pack = true;
 			continue;
 		}
 		throw new Error(`Unknown handoff argument: ${arg}`);
@@ -87,6 +97,67 @@ function sha256File(filePath) {
 function maybeRelative(cwd, filePath) {
 	const relative = path.relative(cwd, filePath);
 	return relative.startsWith("..") ? filePath : relative;
+}
+
+function trimOutput(value) {
+	return typeof value === "string" ? value.trim() : "";
+}
+
+export function materializeHandoffTarballs({
+	cwd = process.cwd(),
+	env = process.env,
+	handoffDir = DEFAULT_HANDOFF_DIR,
+	releaseCheck,
+} = {}) {
+	const check =
+		releaseCheck ??
+		buildReleaseCheckPlan({
+			cwd,
+			selectionId: DEFAULT_SELECTION,
+		});
+
+	if (!check.ok) {
+		const plan = check.plan ?? { ok: false };
+		throw new Error(plan.reason ?? "release selection is not ready");
+	}
+
+	const absoluteHandoffDir = path.resolve(cwd, handoffDir);
+	mkdirSync(absoluteHandoffDir, { recursive: true });
+
+	const packageManager = detectPackageManager({ cwd, env });
+	const spawnCommand = packageManagerSpawnCommand(packageManager, [
+		"pack",
+		"--pack-destination",
+		absoluteHandoffDir,
+	]);
+	const packed = [];
+
+	for (const command of check.commands) {
+		const packageCwd = path.join(cwd, command.packageDir);
+		const result = spawnSync(spawnCommand.command, spawnCommand.args, {
+			cwd: packageCwd,
+			encoding: "utf8",
+		});
+
+		if (result.error) {
+			throw new Error(`${command.packageName} pack failed: ${result.error.message}`);
+		}
+		if (result.status !== 0) {
+			const details = trimOutput(result.stderr) || trimOutput(result.stdout);
+			throw new Error(
+				`${command.packageName} pack failed with status ${result.status}` +
+					(details ? `: ${details}` : ""),
+			);
+		}
+
+		packed.push({
+			packageName: command.packageName,
+			packageDir: command.packageDir,
+			command: `${packageManager} pack --pack-destination ${maybeRelative(cwd, absoluteHandoffDir)}`,
+		});
+	}
+
+	return packed;
 }
 
 export function buildHandoffManifest({
@@ -207,6 +278,12 @@ if (isMain()) {
 		const releaseCheck = buildReleaseCheckPlan({
 			selectionId: options.selectionId,
 		});
+		if (options.pack) {
+			materializeHandoffTarballs({
+				handoffDir: options.handoffDir,
+				releaseCheck,
+			});
+		}
 		const manifest = buildHandoffManifest({
 			handoffDir: options.handoffDir,
 			releaseCheck,
