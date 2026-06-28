@@ -185,7 +185,7 @@ describe("capabilities command", () => {
 				expect.objectContaining({
 					id: "runtime-agent.worker-profiles",
 					activation: {
-						sdk: "@refarm.dev/cli/worker-profile",
+						sdk: "@refarm.dev/cli",
 					},
 				}),
 				expect.objectContaining({
