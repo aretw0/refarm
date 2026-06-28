@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
     buildEnvironmentPressureReport,
@@ -10,6 +11,13 @@ const MiB = 1024 * 1024;
 const GiB = 1024 * MiB;
 
 describe("environment pressure", () => {
+    it("keeps the primitive source product-neutral", () => {
+        const source = readFileSync(new URL("./environment-pressure.js", import.meta.url), "utf8");
+
+        expect(source).not.toMatch(/\brefarm\b/i);
+        expect(source).not.toMatch(/\bfactory\b/i);
+    });
+
     it("classifies pressure without knowing the host application", () => {
         expect(classifyDiskPressure(2 * GiB)).toBe("failure");
         expect(classifyMemoryPressure({ freeBytes: 900 * MiB, totalBytes: 8 * GiB })).toBe("warning");
