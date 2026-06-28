@@ -476,7 +476,11 @@ summary exposed by the release plan. The current packet reports
 `acceptance.status: "accepted"`, 10 packages, 4 required gates, 24 required
 checks, one publish provider, and `manualApprovalRequired: true`. The Markdown
 form prints the same acceptance line before the tarball table, so a consumer
-handoff can verify readiness without reinterpreting the full release plan.
+handoff can verify readiness without reinterpreting the full release plan. The
+JSON manifest is versioned (`schemaVersion: 1`) and carries `consumerPull` per
+package plus a flattened `consumerProofs` list. That list is the downstream
+assimilation checklist: each item names the `vault-seed` proof target and the
+product boundary that must remain local.
 
 ### Additional Assimilation Matrix
 

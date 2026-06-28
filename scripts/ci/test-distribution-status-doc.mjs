@@ -40,6 +40,9 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /daily-driver gate/);
 	assert.match(doc, /kernel-candidates/);
 	assert.match(doc, /vault-seed-ready/);
+	assert.match(doc, /schemaVersion: 1/);
+	assert.match(doc, /consumerPull/);
+	assert.match(doc, /consumerProofs/);
 
 	for (const packageName of releaseSelectionNames("default")) {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
