@@ -177,6 +177,13 @@ use, input/output fields, max turns, and max concurrency. Runtime dispatch is
 rejected by validation until the worker engine has policy, cancellation,
 observability, and cost controls.
 
+Current proof (2026-06-28): `@refarm.dev/cli/worker-profile` now exposes
+`assessWorkerToolReadiness()`. Consumers can ask whether a worker tool
+descriptor is offerable and get structured blockers for runtime dispatch:
+policy, cancellation, observability, and cost-control proofs. This keeps the Pi
+SDK lesson and the Hermes delegation lesson in the contract while preserving
+Refarm's hard plan-only boundary until the engine can prove safe fanout.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;

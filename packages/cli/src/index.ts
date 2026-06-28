@@ -75,10 +75,12 @@ export type {
 	WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 export {
+	assessWorkerToolReadiness,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
 	WORKER_PROFILE_MAX_PARALLEL,
 	WORKER_PROFILE_SCHEMA_VERSION,
+	WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS,
 	WORKER_TOOL_MAX_TURNS,
 	WORKER_TOOL_SCHEMA_VERSION,
 	validateWorkerProfile,
@@ -96,6 +98,10 @@ export type {
 	WorkerProfileInput,
 	WorkerProfileValidation,
 	WorkerResumePolicy,
+	WorkerToolReadiness,
+	WorkerToolReadinessBlocker,
+	WorkerToolReadinessRequirement,
+	WorkerToolReadinessState,
 	WorkerToolPolicy,
 	WorkerToolBudget,
 	WorkerToolDescriptor,

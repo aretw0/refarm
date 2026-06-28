@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	assessWorkerToolReadiness,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
 	validateWorkerProfile,
@@ -128,6 +129,14 @@ describe("worker profile contract", () => {
 			ok: true,
 			issues: [],
 		});
+		expect(assessWorkerToolReadiness(descriptor)).toEqual({
+			ok: true,
+			state: "ready",
+			requestedMode: "plan-only",
+			supportedMode: "plan-only",
+			issues: [],
+			blockers: [],
+		});
 	});
 
 	it("rejects runtime-dispatch worker tools until dispatch is implemented", () => {
@@ -154,6 +163,50 @@ describe("worker profile contract", () => {
 				"inputFields must list at least one field",
 			],
 		});
-	});
 
+		expect(assessWorkerToolReadiness(descriptor)).toEqual({
+			ok: false,
+			state: "blocked",
+			requestedMode: "runtime-dispatch",
+			supportedMode: "plan-only",
+			issues: [
+				"invocation.mode must be plan-only until runtime dispatch is implemented",
+				`budget.maxTurns must be between 1 and ${WORKER_TOOL_MAX_TURNS}`,
+				"budget.maxParallel must be between 1 and profile.concurrency.maxParallel",
+				"inputFields must list at least one field",
+			],
+			blockers: [
+				{
+					code: "descriptor.validation-failed",
+					requirement: "policy",
+					description:
+						"Worker tool descriptor must pass validation before it can be offered to another runtime.",
+				},
+				{
+					code: "runtime-dispatch.policy-proof-missing",
+					requirement: "policy",
+					description:
+						"Worker dispatch needs an executable policy proof for tool access, filesystem scope, and model route.",
+				},
+				{
+					code: "runtime-dispatch.cancellation-proof-missing",
+					requirement: "cancellation",
+					description:
+						"Worker dispatch needs a cancellation and resume proof before work can fan out.",
+				},
+				{
+					code: "runtime-dispatch.observability-proof-missing",
+					requirement: "observability",
+					description:
+						"Worker dispatch needs stream, session, and task handoffs for operator inspection.",
+				},
+				{
+					code: "runtime-dispatch.cost-control-proof-missing",
+					requirement: "cost-control",
+					description:
+						"Worker dispatch needs budget accounting for provider token use and bounded turns.",
+				},
+			],
+		});
+	});
 });

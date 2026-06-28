@@ -93,5 +93,7 @@ boundaries rather than pretending they are ready npm APIs.
 contract. `createWorkerProfile()` defines the bounded worker, and
 `createWorkerToolDescriptor()` wraps it as a plan-only tool descriptor with
 explicit model scope, token source, max turns, and max concurrency. Runtime
-dispatch is intentionally rejected until the worker engine has policy and
-observability proofs.
+dispatch is intentionally rejected until the worker engine has policy,
+cancellation, observability, and cost-control proofs. Consumers can call
+`assessWorkerToolReadiness()` to get structured blockers instead of parsing
+validation strings when deciding whether to expose a worker as a real tool.

@@ -7,6 +7,18 @@ export type WorkerModelScope = "default" | "worker" | "monitor";
 export type WorkerResumePolicy = "continue" | "restart" | "manual";
 export type WorkerOutputFormat = "summary" | "json";
 export type WorkerToolExecutionMode = "plan-only" | "runtime-dispatch";
+export type WorkerToolReadinessState = "ready" | "blocked";
+export type WorkerToolReadinessRequirement =
+	| "policy"
+	| "cancellation"
+	| "observability"
+	| "cost-control";
+
+export interface WorkerToolReadinessBlocker {
+	code: string;
+	requirement: WorkerToolReadinessRequirement;
+	description: string;
+}
 
 export interface WorkerContextPacket {
 	objective: string;
@@ -74,6 +86,15 @@ export interface WorkerToolDescriptor {
 	outputFields: readonly string[];
 }
 
+export interface WorkerToolReadiness {
+	ok: boolean;
+	state: WorkerToolReadinessState;
+	requestedMode: WorkerToolExecutionMode;
+	supportedMode: "plan-only";
+	issues: readonly string[];
+	blockers: readonly WorkerToolReadinessBlocker[];
+}
+
 export interface WorkerProfileInput {
 	id: string;
 	title: string;
@@ -103,6 +124,33 @@ export interface WorkerToolDescriptorInput {
 	maxParallel?: number;
 	inputFields?: readonly string[];
 }
+
+export const WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS = [
+	{
+		code: "runtime-dispatch.policy-proof-missing",
+		requirement: "policy",
+		description:
+			"Worker dispatch needs an executable policy proof for tool access, filesystem scope, and model route.",
+	},
+	{
+		code: "runtime-dispatch.cancellation-proof-missing",
+		requirement: "cancellation",
+		description:
+			"Worker dispatch needs a cancellation and resume proof before work can fan out.",
+	},
+	{
+		code: "runtime-dispatch.observability-proof-missing",
+		requirement: "observability",
+		description:
+			"Worker dispatch needs stream, session, and task handoffs for operator inspection.",
+	},
+	{
+		code: "runtime-dispatch.cost-control-proof-missing",
+		requirement: "cost-control",
+		description:
+			"Worker dispatch needs budget accounting for provider token use and bounded turns.",
+	},
+] as const satisfies readonly WorkerToolReadinessBlocker[];
 
 export function createWorkerProfile(
 	input: WorkerProfileInput,
@@ -250,6 +298,35 @@ export function validateWorkerToolDescriptor(
 	}
 
 	return { ok: issues.length === 0, issues };
+}
+
+export function assessWorkerToolReadiness(
+	descriptor: WorkerToolDescriptor,
+): WorkerToolReadiness {
+	const validation = validateWorkerToolDescriptor(descriptor);
+	const blockers: WorkerToolReadinessBlocker[] = [];
+
+	if (!validation.ok) {
+		blockers.push({
+			code: "descriptor.validation-failed",
+			requirement: "policy",
+			description:
+				"Worker tool descriptor must pass validation before it can be offered to another runtime.",
+		});
+	}
+
+	if (descriptor.invocation.mode === "runtime-dispatch") {
+		blockers.push(...WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS);
+	}
+
+	return {
+		ok: validation.ok && blockers.length === 0,
+		state: blockers.length === 0 ? "ready" : "blocked",
+		requestedMode: descriptor.invocation.mode,
+		supportedMode: "plan-only",
+		issues: validation.issues,
+		blockers,
+	};
 }
 
 function nonEmpty(value: string): boolean {
