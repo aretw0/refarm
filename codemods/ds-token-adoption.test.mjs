@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import {
+	runDsTokenAdoptionCli,
 	transformDsTokenAdoption,
 	transformDsTokenAdoptionWithReport,
 } from "./ds-token-adoption.mjs";
@@ -54,23 +54,19 @@ test("ds token adoption cli can emit a dry-run json report", () => {
 	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-ds-token-codemod-"));
 	const input = path.join(root, "marimo-vault.css");
 	writeFileSync(input, ":root {\n  --background: #fff;\n}\n", "utf8");
+	let stdout = "";
 
-	const result = spawnSync(
-		process.execPath,
+	const status = runDsTokenAdoptionCli(
 		[
-			new URL("./ds-token-adoption.mjs", import.meta.url).pathname,
 			"--input",
 			input,
 			"--json",
 		],
-		{
-			cwd: process.cwd(),
-			encoding: "utf8",
-		},
+		{ stdout: { write: (chunk) => { stdout += chunk; } } },
 	);
 
-	assert.equal(result.status, 0);
-	assert.deepEqual(JSON.parse(result.stdout), {
+	assert.equal(status, 0);
+	assert.deepEqual(JSON.parse(stdout), {
 		input,
 		changed: true,
 		importsAdded: 3,

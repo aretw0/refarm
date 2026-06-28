@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import test from "node:test";
 import { runSubprocess } from "./subprocess-utils.mjs";
 
 test("runSubprocess preserves captured output on failure", async () => {
+	const fakeSpawn = () => {
+		const child = new EventEmitter();
+		child.stdout = new EventEmitter();
+		child.stderr = new EventEmitter();
+		queueMicrotask(() => {
+			child.stdout.emit("data", "captured stdout\n");
+			child.stderr.emit("data", "captured stderr\n");
+			child.emit("exit", 7);
+		});
+		return child;
+	};
+
 	await assert.rejects(
 		runSubprocess(
 			process.execPath,
@@ -10,7 +23,7 @@ test("runSubprocess preserves captured output on failure", async () => {
 				"-e",
 				"console.log('captured stdout'); console.error('captured stderr'); process.exit(7);",
 			],
-			{ captureOutput: true },
+			{ captureOutput: true, spawn: fakeSpawn },
 		),
 		(error) => {
 			assert.equal(error.exitCode, 7);

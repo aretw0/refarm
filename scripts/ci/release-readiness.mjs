@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
 import { parseJsonOutput, runSubprocess } from "./subprocess-utils.mjs";
 
@@ -100,14 +102,14 @@ function packageScriptCommand(script) {
 	};
 }
 
-function buildPlan() {
+export function buildPlan() {
 	return RELEASE_READINESS_STEPS.map((step) => ({
 		...step,
 		...packageScriptCommand(step.script),
 	}));
 }
 
-function serializeStep({ id, script, reason, display }) {
+export function serializeStep({ id, script, reason, display }) {
 	return {
 		id,
 		script,
@@ -116,7 +118,7 @@ function serializeStep({ id, script, reason, display }) {
 	};
 }
 
-function serializePlan(plan) {
+export function serializePlan(plan) {
 	return plan.map((step) => serializeStep(step));
 }
 
@@ -263,61 +265,72 @@ function aggregateResults(results) {
 	};
 }
 
-const args = process.argv.slice(2).filter((arg) => arg !== "--");
-const planOnly = args.includes("--plan");
-const json = args.includes("--json");
-const unknownArgs = args.filter((arg) => arg !== "--plan" && arg !== "--json");
-
-if (unknownArgs.length > 0) {
-	console.error(`Unknown argument: ${unknownArgs[0]}`);
-	usage();
-	process.exit(1);
+export function parseReleaseReadinessArgs(argv = []) {
+	const args = argv.filter((arg) => arg !== "--");
+	const planOnly = args.includes("--plan");
+	const json = args.includes("--json");
+	const unknownArgs = args.filter((arg) => arg !== "--plan" && arg !== "--json");
+	return { planOnly, json, unknownArgs };
 }
 
-const plan = buildPlan();
+function isMain() {
+	return process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
 
-if (planOnly) {
+if (isMain()) {
+	const { planOnly, json, unknownArgs } = parseReleaseReadinessArgs(process.argv.slice(2));
+
+	if (unknownArgs.length > 0) {
+		console.error(`Unknown argument: ${unknownArgs[0]}`);
+		usage();
+		process.exit(1);
+	}
+
+	const plan = buildPlan();
+
+	if (planOnly) {
+		if (json) {
+			console.log(
+				JSON.stringify(
+					{
+						ok: true,
+						command: "release-readiness",
+						mode: "plan",
+						steps: serializePlan(plan),
+					},
+					null,
+					2,
+				),
+			);
+			process.exit(0);
+		}
+
+		for (const step of plan) {
+			console.log(`${step.id}: ${step.display}`);
+		}
+		process.exit(0);
+	}
+
+	const runResult = await runPlan(plan, { json });
+	const aggregate = aggregateResults(runResult.results);
+
 	if (json) {
 		console.log(
 			JSON.stringify(
 				{
-					ok: true,
+					ok: runResult.ok,
 					command: "release-readiness",
-					mode: "plan",
+					mode: "run",
+					failedStepId: runResult.failedStepId,
 					steps: serializePlan(plan),
+					results: runResult.results,
+					...aggregate,
 				},
 				null,
 				2,
 			),
 		);
-		process.exit(0);
 	}
 
-	for (const step of plan) {
-		console.log(`${step.id}: ${step.display}`);
-	}
-	process.exit(0);
+	if (!runResult.ok) process.exit(1);
 }
-
-const runResult = await runPlan(plan, { json });
-const aggregate = aggregateResults(runResult.results);
-
-if (json) {
-	console.log(
-		JSON.stringify(
-			{
-				ok: runResult.ok,
-				command: "release-readiness",
-				mode: "run",
-				failedStepId: runResult.failedStepId,
-				steps: serializePlan(plan),
-				results: runResult.results,
-				...aggregate,
-			},
-			null,
-			2,
-		),
-	);
-}
-
-if (!runResult.ok) process.exit(1);

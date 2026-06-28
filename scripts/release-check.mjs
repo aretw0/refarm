@@ -124,7 +124,7 @@ function runPublishDryRun(command) {
 	};
 }
 
-function serializeCheck(check) {
+export function serializeReleaseCheck(check) {
 	return {
 		ok: check.ok,
 		status: check.plan.status,
@@ -141,7 +141,7 @@ function serializeCheck(check) {
 
 function printPlan(check, { json = false } = {}) {
 	if (json) {
-		console.log(JSON.stringify(serializeCheck(check), null, 2));
+		console.log(JSON.stringify(serializeReleaseCheck(check), null, 2));
 		return;
 	}
 
