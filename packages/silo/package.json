@@ -11,6 +11,14 @@
 			"browser": "./dist/index.browser.js",
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./collect": {
+			"import": "./dist/collect.js",
+			"types": "./dist/collect.d.ts"
+		},
+		"./key-manager": {
+			"import": "./dist/key-manager.js",
+			"types": "./dist/key-manager.d.ts"
 		}
 	},
 	"scripts": {
