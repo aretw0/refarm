@@ -188,6 +188,12 @@ Current proof (2026-06-28): `refarm capabilities --tag reference-driver
 cheap, no-provider handoff for exported SDK targets, runtime candidates,
 internal WIT/crate boundaries, and held packages before anything is published.
 
+Current proof (2026-06-28): `buildReferenceDriverSupplyMap()` now carries
+compact `referenceLessons` per reference-driver primitive. This makes the
+Codex/Claude/Hermes/Pi lessons visible to downstream tools and agents through
+the same cheap supply handoff, without loading this research note or enabling
+runtime fanout.
+
 Current proof (2026-06-27): `@refarm.dev/cli/capability-index` now also exposes
 `buildReferenceDriverSupplyMap()`. The map makes publication posture
 machine-readable: discovery is an exported CLI SDK, `@refarm.dev/pi-agent` stays
