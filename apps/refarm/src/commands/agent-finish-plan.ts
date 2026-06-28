@@ -383,7 +383,10 @@ function changedPathsFromGit(options: {
 	}
 }
 
-function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
+function affectedScriptChecksFromChangedPaths(
+	paths: string[],
+	options: { includeHeavy?: boolean } = {},
+): string[] {
 	const checks = new Set<string>();
 	for (const file of paths) {
 		if (
@@ -393,7 +396,7 @@ function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
 		) {
 			checks.add("organize-imports");
 		}
-		if (isAgentRuntimeE2ePath(file)) {
+		if (options.includeHeavy === true && isAgentRuntimeE2ePath(file)) {
 			checks.add("agent-e2e-mock");
 		}
 	}
@@ -687,7 +690,9 @@ export function resolveFinishSelectionContext(
 		since: sinceRef,
 	});
 	return {
-		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths),
+		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths, {
+			includeHeavy: selection.includeTests === true,
+		}),
 		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
 		...(sinceRef ? { sinceRef } : {}),
 	};

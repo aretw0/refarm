@@ -97,10 +97,11 @@ What is already solid:
   The full native platform proof remains intentionally blocked until the Windows
   Rust/WASM substrate matches CI setup. No devcontainer rebuild is indicated by
   that failure.
-- Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and Tractor
-  WASI LLM routing are now routed to that no-token e2e smoke by
-  `refarm agent finish --profile affected` and the host smoke auto profile
-  `agent-e2e-mock`.
+- Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and
+  Tractor WASI LLM routing route to that no-token e2e smoke only when the
+  operator explicitly chooses `refarm agent finish --lane agent-e2e-mock` or an
+  affected finish with `--include-tests`. The default affected and after-commit
+  lanes stay cheap enough for frequent agent handoffs.
 - `refarm agent --json` exposes the no-token `agent-e2e-mock` lane directly in
   `nextActions` and `nextCommands`, so agents do not need to discover it only
   from nested lane metadata.
@@ -196,7 +197,9 @@ the primary daily driver:
    `nextCommands`. ✅ Priority-aware; failedCommand and remaining count visible.
 2. Finish gate: `refarm agent finish --lane after-edit --run --json` and
    `after-commit` pass reliably for small slices without manual command
-   selection. ✅ Lanes solid; affected profile includes script checks.
+   selection. ✅ Lanes solid; affected profile includes lightweight script checks
+   by default and requires explicit `--include-tests`/`agent-e2e-mock` for the
+   runtime e2e lane.
 3. Handoff gate: `refarm agent finish --lane handoffs --run --json` passes
    after public JSON output changes and catches placeholders, REPL-only
    commands, and missing template metadata. ✅ Contract tests cover all major

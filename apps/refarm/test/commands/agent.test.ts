@@ -2278,8 +2278,8 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("adds no-token agent e2e smoke for affected runtime model paths", async () => {
-		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-agent-smoke-"));
+	it("keeps heavy agent e2e smoke out of default affected runtime paths", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-agent-smoke-default-"));
 		tempDirs.push(root);
 		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
 		writeFileSync(
@@ -2309,6 +2309,65 @@ describe("agent command", () => {
 				"finish",
 				"--profile",
 				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { command?: string } }[];
+			selection: {
+				affectedScriptChecks?: string[];
+				affectedWorkspaces?: string[];
+			};
+		};
+		logSpy.mockRestore();
+
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+		]);
+		expect(payload.steps.map((step) => step.id)).not.toContain(
+			"script-refarm-agent-e2e-mock",
+		);
+		expect(payload.selection.affectedScriptChecks).toEqual([]);
+		expect(payload.selection.affectedWorkspaces).toEqual([]);
+	});
+
+	it("adds no-token agent e2e smoke for affected runtime model paths when tests are requested", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-agent-smoke-tests-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				name: "root",
+				scripts: { "refarm:agent:e2e:mock": "node scripts/ci/smoke-refarm-agent-model-mock.mjs" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		mkdirSync(path.join(root, "packages", "tractor", "src", "host", "wasi_bridge"), {
+			recursive: true,
+		});
+		writeFileSync(
+			path.join(root, "packages", "tractor", "src", "host", "wasi_bridge", "core.rs"),
+			"pub fn changed() {}\n",
+			"utf8",
+		);
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--include-tests",
 				"--json",
 			], { from: "user" });
 		} finally {

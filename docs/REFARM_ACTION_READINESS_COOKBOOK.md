@@ -225,9 +225,10 @@ most recent commit (`HEAD~1..HEAD`) so docs-only and small commits stay cheap:
 refarm agent finish --lane after-commit --run --json
 ```
 
-For runtime, model routing, runtime agent, or `ask` execution-plane changes, use the
-explicit no-token e2e lane when you need the proof outside of `affected`
-selection:
+For runtime, model routing, runtime agent, or `ask` execution-plane changes, use
+the explicit no-token e2e lane when you need the full execution-plane proof. This
+lane may rebuild WASM and start an isolated runtime, so it is intentionally not
+part of the default `after-commit` lane:
 
 ```bash
 refarm agent finish --lane agent-e2e-mock --run --json
@@ -245,7 +246,9 @@ refarm agent finish --lane before-push --run --json
 Keep package tests explicit. Add `--include-tests` when the slice needs package
 test scripts in addition to the default `type-check`, `lint`, and `build`
 scripts. This keeps the normal affected profile fast enough for frequent agent
-handoffs while preserving a deterministic test path.
+handoffs while preserving a deterministic test path. Heavy affected script
+checks, including `refarm:agent:e2e:mock`, are only inferred when tests are
+explicitly requested.
 
 Each plan step declares an `effect`:
 
