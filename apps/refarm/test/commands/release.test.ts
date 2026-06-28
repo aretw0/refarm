@@ -151,7 +151,52 @@ describe("release command", () => {
 		expect(payload.auditRecord.digest.value).toMatch(/^[a-f0-9]{64}$/);
 	});
 
-	it.each(["plan", "check", "gates"])(
+	it("prints plan-only release preflight with supply target posture", async () => {
+		const root = createReleaseWorkspace();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createReleaseCommand({ cwd: () => root }).parseAsync(
+			["preflight", "--selection", "default", "--json"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(payload).toMatchObject({
+			command: "release",
+			operation: "preflight",
+			ok: true,
+			status: "ready",
+			packages: ["@refarm.dev/storage-contract-v1"],
+			commandNote:
+				"Plan-only release preflight; no gates, builds, publish dry-runs, or runtime dispatch were executed.",
+			supplyPreflight: {
+				mode: "plan-only",
+				source: "@refarm.dev/cli/capability-index",
+				summary: [
+					{ status: "candidate", count: 1 },
+					{ status: "internal", count: 3 },
+					{ status: "hold", count: 3 },
+				],
+				targets: expect.arrayContaining([
+					expect.objectContaining({
+						capabilityId: "runtime-agent.session-tree",
+						status: "candidate",
+					}),
+					expect.objectContaining({
+						capabilityId: "runtime-agent.code-ops",
+						status: "internal",
+					}),
+					expect.objectContaining({
+						capabilityId: "runtime-agent.structured-io",
+						status: "hold",
+					}),
+				]),
+			},
+		});
+		expect(payload.gateResult).toBeUndefined();
+	});
+
+	it.each(["plan", "preflight", "check", "gates"])(
 		"prints structured JSON when release policy selection is missing for %s",
 		async (operation) => {
 			const root = createReleaseWorkspace();

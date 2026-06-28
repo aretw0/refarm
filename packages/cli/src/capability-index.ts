@@ -84,6 +84,27 @@ export interface RefarmReferenceDriverSupplyMap {
 	entries: readonly RefarmReferenceDriverSupplyEntry[];
 }
 
+export interface ReferenceDriverSupplyPreflightTarget extends RefarmCapabilitySupplyTarget {
+	capabilityId: string;
+}
+
+export interface ReferenceDriverSupplyPreflightSummary {
+	status: Exclude<RefarmCapabilitySupplyStatus, "exported">;
+	count: number;
+}
+
+export interface ReferenceDriverSupplyPreflight {
+	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
+	source: "@refarm.dev/cli/capability-index";
+	mode: "plan-only";
+	targets: readonly ReferenceDriverSupplyPreflightTarget[];
+	summary: readonly ReferenceDriverSupplyPreflightSummary[];
+	nextDecisions: readonly {
+		capabilityId: string;
+		nextDecision: string;
+	}[];
+}
+
 const CAPABILITIES = [
 	{
 		id: "runtime-agent.ask",
@@ -567,5 +588,34 @@ export function buildRefarmReferenceDriverSupplyMap(): RefarmReferenceDriverSupp
 				nextDecision: supply.nextDecision,
 			};
 		}),
+	};
+}
+
+export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPreflight {
+	const includedStatuses = ["candidate", "internal", "hold"] as const;
+	const includedStatusSet = new Set<RefarmCapabilitySupplyStatus>(includedStatuses);
+	const supplyMap = buildRefarmReferenceDriverSupplyMap();
+	const targets = supplyMap.entries.flatMap((entry) =>
+		entry.targets
+			.filter((target) => includedStatusSet.has(target.status))
+			.map((target) => ({
+				capabilityId: entry.capabilityId,
+				...target,
+			})),
+	);
+
+	return {
+		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+		source: "@refarm.dev/cli/capability-index",
+		mode: "plan-only",
+		targets,
+		summary: includedStatuses.map((status) => ({
+			status,
+			count: targets.filter((target) => target.status === status).length,
+		})),
+		nextDecisions: supplyMap.entries.map((entry) => ({
+			capabilityId: entry.capabilityId,
+			nextDecision: entry.nextDecision,
+		})),
 	};
 }

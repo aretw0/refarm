@@ -291,12 +291,16 @@ export type {
 	ProjectAutomationValidationIssue,
 } from "./project-automations.js";
 export {
+	buildReferenceDriverSupplyPreflight,
 	buildRefarmCapabilityIndex,
 	buildRefarmReferenceDriverSupplyMap,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
 export type {
+	ReferenceDriverSupplyPreflight,
+	ReferenceDriverSupplyPreflightSummary,
+	ReferenceDriverSupplyPreflightTarget,
 	RefarmCapabilityActivation,
 	RefarmCapabilityDescriptor,
 	RefarmCapabilityIndex,
