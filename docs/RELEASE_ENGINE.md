@@ -71,10 +71,10 @@ Readiness de primeira release:
 - `pnpm run release:readiness:plan` → mostra a sequência de gates que responde "estamos prontos para publicar?" sem executar nada.
 - `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
 - `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
-- `pnpm run reference-driver:smoke` → prova leve, sem provider, do SDK
-  `worker-profile` e das primitivas `runtime-agent`/reference-driver que
-  precisam continuar funcionando antes de empacotar SDKs ou runtime de
-  publicação.
+- `pnpm run reference-driver:smoke` → prova leve, sem provider, do loop
+  `ask`, do SDK `worker-profile` e das primitivas
+  `runtime-agent`/reference-driver que precisam continuar funcionando antes de
+  empacotar SDKs ou runtime de publicação.
 
 Evidência local mais recente (2026-06-27): `pnpm run release:readiness`
 passou fim a fim para a seleção padrão `kernel-candidates`. O dry-run de
@@ -86,11 +86,11 @@ nem credenciais de npm/crates.
 Evidência de plano mais recente (2026-06-28): `pnpm run release:readiness:test`
 prova que `test-runner:contracts`, `audience:boundary:test` e
 `reference-driver:smoke` estão no plano antes do dry-run de publicação. O próprio
-smoke começa pelo contrato plan-only de workers antes das primitivas de
-sessão/tree/code-ops do `runtime-agent`. O teste de readiness também roda dentro
-do `pnpm` sem depender de `execFileSync`/`spawnSync` nos testes-alvo, mantendo o
-corte validável em sandboxes de agente sem obrigar um smoke Rust completo em
-cada micro-slice.
+smoke começa pelo loop local `ask` e então pelo contrato plan-only de workers
+antes das primitivas de sessão/tree/code-ops do `runtime-agent`. O teste de
+readiness também roda dentro do `pnpm` sem depender de
+`execFileSync`/`spawnSync` nos testes-alvo, mantendo o corte validável em
+sandboxes de agente sem obrigar um smoke Rust completo em cada micro-slice.
 
 Essa camada não substitui o `release-engine`: ela é um orquestrador de repo que
 amarra saúde do operador, política de release, substratos Node/Rust, ownership de

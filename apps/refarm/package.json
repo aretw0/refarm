@@ -15,6 +15,7 @@
     "test:prepush": "vitest run --maxWorkers=1 test/commands/chat-repl-session.test.ts",
     "test:chat-session": "vitest run --maxWorkers=1 test/commands/chat-repl-session.test.ts",
     "test:chat-batch": "vitest run test/commands/chat-repl-session.test.ts test/commands/chat.test.ts test/commands/chat-repl.test.ts --pool=threads",
+    "test:ask-reference-driver": "vitest run --maxWorkers=1 test/commands/ask.test.ts",
     "test:tree-safety": "vitest run test/commands/tree.list.test.ts test/commands/tree.show.test.ts test/commands/tree.preview.test.ts",
     "test:tree-reference-driver": "vitest run test/commands/tree.reference-driver.test.ts",
     "test:actions-safety": "vitest run test/commands/action-affordances.test.ts test/commands/actions.test.ts test/commands/action-fixture.test.ts test/commands/headless-action.test.ts test/commands/web-actions.test.ts test/commands/tui-actions.test.ts",

@@ -849,7 +849,13 @@ export {
 			chalk.dim("   Install bundled plugins:  refarm plugin install"),
 		);
 	}
-	console.error(chalk.dim("   Reload runtime plugins:   /reload (or /r)"));
+	console.error(
+		chalk.dim(
+			agentInstalled
+				? "   Reload runtime plugins:   /reload agent (or /r agent)"
+				: "   Reload runtime plugins:   /reload (or /r)",
+		),
+	);
 	console.error(
 		chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`),
 	);

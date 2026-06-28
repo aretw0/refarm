@@ -98,10 +98,11 @@ carry explanatory issues. This adopts the Codex subagent summary lesson and the
 Pi JSON/RPC lesson without enabling runtime fanout.
 
 Current proof (2026-06-28): `pnpm run reference-driver:smoke:plan` now starts
-with `worker-profile`, and that step runs the focused `@refarm.dev/cli`
-worker-profile/index tests. The release-readiness path therefore proves the
-plan-only delegated-worker SDK before it reaches heavier structured-io,
-session-tree, and code-ops checks.
+with the no-provider `ask-loop` command test, then runs the focused
+`@refarm.dev/cli` worker-profile/index tests. The release-readiness path
+therefore proves the local interaction nucleus and the plan-only
+delegated-worker SDK before it reaches heavier structured-io, session-tree, and
+code-ops checks.
 
 ## Refarm Driver Nucleus
 
@@ -201,6 +202,11 @@ promotion proofs needed before gateway/RPC parity: prompt lifecycle, streaming,
 abort/steer/follow-up, resume, and budget visibility. This adopts Hermes's
 single gateway pressure and Pi's embeddable steering/session lesson without
 promoting more surfaces ahead of the daily-driver loop.
+
+Current proof (2026-06-28): `reference-driver:smoke:plan` now carries the
+`ask-loop` first, using `pnpm -C apps/refarm run test:ask-reference-driver`.
+That keeps the local interaction nucleus in the release-readiness lane without
+calling a provider or spawning the full runtime.
 
 Current proof (2026-06-28): the reference-driver supply map now also carries
 `promotionProofTargets` for worker-profile runtime promotion. Those targets are
