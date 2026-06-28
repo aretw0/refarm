@@ -1,18 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Vault-seed-ready publication prep remains dry-run validated; reference-driver supply now includes plan-only worker profiles.",
-  "timestamp": "2026-06-28T02:25:06.021Z",
+  "context": "Checkpoint 2026-06-28. Vault-seed-ready remains dry-run validated; Silo token output is now provider-neutral while preserving Refarm storage fallback.",
+  "timestamp": "2026-06-28T03:10:40.887Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 6d4fde8b exposes bounded worker profiles in the reference-driver capability supply map while keeping runtime dispatch blocked behind readiness proofs.",
-    "@refarm.dev/cli/worker-profile is the product-neutral SDK surface for agents-as-tools descriptors and assessWorkerToolReadiness().",
-    "pnpm -C packages/cli run test, pnpm run reference-driver:smoke:plan, git diff --check, and refarm agent finish after-edit/after-commit passed for the worker-profile supply slice.",
-    "Validated pnpm run release:vault-seed:check on 2026-06-28: publish dry-run passed for all 10 vault-seed-ready packages; do not repeat unless package metadata, files, exports, or release policy changes."
+    "Commit ff49cf9a makes @refarm.dev/silo resolve/provision provider-native GITHUB_TOKEN and CLOUDFLARE_API_TOKEN keys instead of Refarm-prefixed token keys.",
+    "SILO_HOME is now the preferred Silo storage override; REFARM_HOME remains a storage fallback for existing Refarm operators so model Silo OAuth continues to resolve.",
+    "Validated pnpm -C packages/silo run test, pnpm -C packages/silo run build, git diff --check, and refarm agent finish after-edit/after-commit for the Silo naming slice.",
+    "Manual low-resource turbo warmup used concurrency=1 before after-edit to avoid repeating container pressure; final after-commit passed with apps/refarm and packages/silo validation."
   ],
   "blockers": [],
   "next_actions": [
-    "Continue publication readiness with the cheap path first: generate/update vault-seed-ready handoff artifacts or final release readiness docs/checklist, without repeating the dry-run unless inputs changed.",
-    "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap.",
-    "Keep reusable SDK naming product-neutral where possible; package/CLI identity may remain Refarm, but generic descriptors should not require downstream labels."
+    "Continue naming audit before publication with DS class/theme prefixes next, or update release readiness docs/checklist if naming churn should pause.",
+    "Do not repeat pnpm run release:vault-seed:check unless package metadata, files, exports, or release policy changes; latest 10-package dry-run already passed for the current lane before this Silo API change.",
+    "For stale runtime-agent sessions after container restart, avoid repeated sessions list retries if it destabilizes runtime; treat it as operator-state cleanup separate from package work."
   ],
   "open_questions": [],
   "key_decisions_active": [
