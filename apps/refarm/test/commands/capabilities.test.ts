@@ -47,8 +47,9 @@ describe("capabilities command", () => {
 			capabilities: Array<{ id: string }>;
 			count: number;
 		};
-		expect(payload.count).toBe(3);
+		expect(payload.count).toBe(4);
 		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
+			"runtime-agent.worker-profiles",
 			"runtime-agent.session-tree",
 			"runtime-agent.structured-io",
 			"runtime-agent.code-ops",

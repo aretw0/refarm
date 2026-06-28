@@ -117,8 +117,13 @@ protective without stopping momentum:
   - `pnpm run refarm:safety:test:tree`
   - `pnpm run refarm:safety:test:actions`
 - direct package slices:
+  - `pnpm -C apps/refarm run test:focused -- test/commands/<file>.test.ts`
+  - `pnpm -C apps/refarm run test:capabilities`
   - `pnpm -C apps/refarm run test:tree-safety`
   - `pnpm -C apps/refarm run test:actions-safety`
+  - avoid `pnpm -C apps/refarm run test -- <word>` during daily work; a loose
+    Vitest filter can discover unrelated suites. Use an explicit test file path
+    or a named package script.
 - **Protective lane trigger:**
   - command re-runs due to repeated `--filter ... test` slices,
   - observed flakiness/timeouts under load,
