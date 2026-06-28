@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-06-28. Vault-seed-ready export audit fixed Heartwood's public npm entry metadata; selected packages remain preflight-ready and covered by changesets.",
-  "timestamp": "2026-06-28T01:50:09.128Z",
+  "context": "Checkpoint 2026-06-28. Vault-seed-ready export audit fixed Silo public SDK subpaths after Heartwood; selected packages remain preflight-ready and covered by changesets.",
+  "timestamp": "2026-06-28T01:58:14.794Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit f35eec79 fixed @refarm.dev/heartwood package metadata so the public entry has exports[\".\"].import -> ./pkg/heartwood.js and exports[\".\"].types/types -> ./pkg/heartwood.d.ts.",
-    "scripts/validate-packages.mjs now rejects public WASM component packages without typed package exports, with coverage in scripts/ci/test-validate-packages-lib.mjs.",
-    "Validated node --test scripts/ci/test-validate-packages-lib.mjs, pnpm run validate-packages, pnpm exec changeset status --since main --verbose, refarm release preflight --selection vault-seed-ready --json, and after-commit finish.",
-    "The Heartwood after-commit package build hit turbo cache 1/1 after the initial focused build; no broad gates were run."
+    "Commit 5a4f3dce exposes @refarm.dev/silo ./collect and ./key-manager as typed package exports matching the files already published in the allowlist.",
+    "scripts/validate-packages.mjs now rejects missing Silo public SDK subpath exports, with coverage in scripts/ci/test-validate-packages-lib.mjs.",
+    "Validated node --test scripts/ci/test-validate-packages-lib.mjs, pnpm run validate-packages, pnpm -C packages/silo run build, pnpm -C packages/silo run test, Node package-export import probes, refarm release preflight --selection vault-seed-ready --json, git diff --check, and after-commit finish.",
+    "The Silo after-commit package lint/build hit turbo cache 4/4; no broad release dry-run or heavy gate was repeated."
   ],
   "blockers": [],
   "next_actions": [
-    "Continue auditing vault-seed-ready SDK exports before publication, especially consumer-facing README/API naming in release-engine, silo, ds, homestead-ssr, launch-process, and dispatch-surface.",
+    "Continue auditing vault-seed-ready SDK exports and consumer-facing naming before publication, especially release-engine, ds, homestead-ssr, launch-process, and dispatch-surface.",
     "When ready for heavier evidence, run pnpm run release:vault-seed:check once; it performs package publish dry-runs for the 10 selected packages and should not be repeated unnecessarily.",
     "For agents-as-tools, consume assessWorkerToolReadiness() as the promotion gate; implement runtime-dispatch only after policy, cancellation, observability, and cost-control proofs are local and cheap."
   ],
