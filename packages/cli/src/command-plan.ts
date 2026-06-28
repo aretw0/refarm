@@ -278,10 +278,16 @@ export function runCommandPlanCliStep(
 		cwd: options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
+		timeout: options.timeoutMs,
 	});
 	const exitCode = result.status ?? (result.error ? 1 : 0);
 	const stdout = result.stdout ?? "";
-	const stderr = result.stderr ?? "";
+	const stderr = commandPlanSpawnErrorMessage(
+		result.stderr,
+		exitCode === 0 ? undefined : result.error,
+		result.signal,
+		options.timeoutMs,
+	);
 	const payload = parseCommandJsonPayload(stdout);
 	return {
 		id: args.join(" "),
@@ -315,8 +321,25 @@ export function runCommandPlanProcessStep(
 		ok: exitCode === 0,
 		exitCode,
 		stdout: result.stdout ?? "",
-		stderr: result.stderr ?? result.error?.message ?? "",
+		stderr: commandPlanSpawnErrorMessage(
+			result.stderr,
+			exitCode === 0 ? undefined : result.error,
+			result.signal,
+			step.process.timeoutMs ?? options.timeoutMs,
+		),
 	};
+}
+
+function commandPlanSpawnErrorMessage(
+	stderr: string | null | undefined,
+	error: Error | undefined,
+	signal: NodeJS.Signals | null,
+	timeoutMs: number | undefined,
+): string {
+	if (stderr) return stderr;
+	if (error?.message) return error.message;
+	if (signal && timeoutMs) return `Command timed out after ${timeoutMs}ms (${signal}).`;
+	return "";
 }
 
 export function runCommandPlan(
