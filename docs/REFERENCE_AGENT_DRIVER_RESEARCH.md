@@ -65,6 +65,37 @@ The references converge on a small driver nucleus rather than one big app:
   workflow shape. Its permissive security stance is an explicit tradeoff that
   Refarm should not inherit by default.
 
+## Source Refresh 2026-06-28
+
+The refreshed sources sharpen the "agents as tools" rule:
+
+- Codex documents skills as progressive-disclosure workflow packages and
+  subagents as explicit, manually-triggered parallel workers that should return
+  summaries rather than noisy intermediate output. Its hooks and non-interactive
+  JSONL mode reinforce two hard requirements for Refarm: lifecycle enforcement
+  remains separate from memory/prompt context, and headless automation needs
+  machine-readable events.
+- Hermes Agent's current README emphasizes a single gateway process spanning
+  terminal and messaging surfaces, a learning loop with memory and skills,
+  scheduled automations, delegates, RPC-backed scripts, and multiple terminal
+  backends. Refarm should absorb the pressure as contracts first: gateway and
+  scheduler visibility through `resume`, worker results as summaries, and
+  terminal/backend choice as explicit policy.
+- Pi's coding-agent README remains the cleanest "small core, rich extension"
+  reference. It keeps subagents, plan mode, permission gates, and UI changes as
+  extension/package concerns; exposes interactive, print/JSON, RPC, and SDK
+  modes; and stores branchable JSONL sessions. Refarm should keep the same
+  embeddable posture while staying stricter than Pi on permission and host
+  capability boundaries.
+
+Current proof (2026-06-28): `@refarm.dev/cli/worker-profile` now includes a
+worker result envelope. `createWorkerToolResult()` and
+`validateWorkerToolResult()` make the return side of "agents as tools" explicit:
+workers produce a compact summary, completed results must satisfy the
+descriptor's declared output fields, and blocked/failed/cancelled results must
+carry explanatory issues. This adopts the Codex subagent summary lesson and the
+Pi JSON/RPC lesson without enabling runtime fanout.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":
