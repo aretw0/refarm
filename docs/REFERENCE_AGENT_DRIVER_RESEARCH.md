@@ -194,6 +194,14 @@ Codex/Claude/Hermes/Pi lessons visible to downstream tools and agents through
 the same cheap supply handoff, without loading this research note or enabling
 runtime fanout.
 
+Current proof (2026-06-28): the reference-driver supply map now includes
+`runtime-agent.ask` as the interaction nucleus. It records the local ask command
+as a runtime candidate, keeps `@refarm.dev/pi-agent` on hold, and lists the
+promotion proofs needed before gateway/RPC parity: prompt lifecycle, streaming,
+abort/steer/follow-up, resume, and budget visibility. This adopts Hermes's
+single gateway pressure and Pi's embeddable steering/session lesson without
+promoting more surfaces ahead of the daily-driver loop.
+
 Current proof (2026-06-28): the reference-driver supply map now also carries
 `promotionProofTargets` for worker-profile runtime promotion. Those targets are
 derived from the same readiness blockers used by

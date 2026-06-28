@@ -139,7 +139,7 @@ const CAPABILITIES = [
 		activation: {
 			command: refarmCommand(["ask", "ok", "--json"]),
 		},
-		tags: ["daily-driver", "runtime", "streaming"],
+		tags: ["daily-driver", "runtime", "streaming", "reference-driver"],
 	},
 	{
 		id: "project-handoff.governed",
@@ -470,6 +470,28 @@ const CAPABILITIES = [
 ] as const satisfies readonly RefarmCapabilityDescriptor[];
 
 const REFERENCE_DRIVER_SUPPLY_TARGETS = {
+	"runtime-agent.ask": {
+		targets: [
+			{
+				channel: "runtime",
+				name: "runtime-agent ask command",
+				path: "apps/refarm/src/commands/ask.ts",
+				status: "candidate",
+				note:
+					"Operator CLI ask loop is source-proven and mock-runtime proven; broader gateway/RPC promotion waits for steering, abort, resume, and event contract proofs.",
+			},
+			{
+				channel: "npm",
+				name: "@refarm.dev/pi-agent",
+				path: "packages/pi-agent",
+				status: "hold",
+				note:
+					"Runtime-agent package remains private until plugin artifact policy and daily-driver mileage justify publishing the interaction engine.",
+			},
+		],
+		nextDecision:
+			"Keep ask as the local daily-driver spine; promote cross-surface gateway/RPC only after prompt acceptance, streaming, abort/steer/follow-up, resume, and provider-cost visibility are all locally proven.",
+	},
 	"runtime-agent.worker-profiles": {
 		targets: [
 			{
@@ -602,6 +624,11 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 >;
 
 const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
+	"runtime-agent.ask": [
+		"Hermes: one interaction loop can serve CLI and messaging gateways, but the gateway must stay behind one contract.",
+		"Pi: steering, follow-up, abort, and session state are part of the embeddable driver protocol.",
+		"Codex/Claude: headless asks need machine-readable handoffs and lifecycle enforcement, not scraped terminal text.",
+	],
 	"runtime-agent.worker-profiles": [
 		"Codex/Claude: isolate subagent context and return compact summaries.",
 		"Hermes: keep delegation bounded; do not make worker fanout ambient.",
@@ -622,6 +649,12 @@ const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
 } as const;
 
 const REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS: Record<string, readonly string[]> = {
+	"runtime-agent.ask": [
+		"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",
+		"operator steering: follow-up and redirect queue semantics persist into session/task handoffs",
+		"gateway parity: CLI, app, and future RPC/messaging surfaces share the same ask contract",
+		"budget visibility: model route, token/cost use, retries, and stop conditions are visible in resume/check handoffs",
+	],
 	"runtime-agent.worker-profiles": WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS.map(
 		(blocker) => blocker.proofTarget,
 	),
