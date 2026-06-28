@@ -327,6 +327,22 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("bounds CLI steps with the configured timeout", () => {
+		const result = runCommandPlanCliStep(["setTimeout(() => {}, 1000)"], {
+			executable: process.execPath,
+			entrypoint: "-e",
+			command: "node -e 'setTimeout(() => {}, 1000)'",
+			timeoutMs: 50,
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			exitCode: 1,
+			command: "node -e 'setTimeout(() => {}, 1000)'",
+		});
+		expect(result.stderr).toMatch(/ETIMEDOUT|timed out/);
+	});
+
 	it("keeps cache observations in command plan summaries and aggregate reports", () => {
 		const result = runCommandPlan([processSteps[0]!], (step) => ({
 			...step,

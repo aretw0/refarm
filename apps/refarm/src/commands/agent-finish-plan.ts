@@ -92,6 +92,7 @@ export function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
 		entrypoint: process.argv[1]!,
 		command: refarmCommand(args),
 		description: "Refarm command execution result.",
+		timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
 	});
 }
 
