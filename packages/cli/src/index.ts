@@ -78,13 +78,16 @@ export {
 	assessWorkerToolReadiness,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
+	createWorkerToolResult,
 	WORKER_PROFILE_MAX_PARALLEL,
 	WORKER_PROFILE_SCHEMA_VERSION,
 	WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS,
 	WORKER_TOOL_MAX_TURNS,
+	WORKER_TOOL_RESULT_SCHEMA_VERSION,
 	WORKER_TOOL_SCHEMA_VERSION,
 	validateWorkerProfile,
 	validateWorkerToolDescriptor,
+	validateWorkerToolResult,
 } from "./worker-profile.js";
 export type {
 	WorkerConcurrencyPolicy,
@@ -108,6 +111,9 @@ export type {
 	WorkerToolDescriptorInput,
 	WorkerToolExecutionMode,
 	WorkerToolInvocation,
+	WorkerToolResult,
+	WorkerToolResultInput,
+	WorkerToolResultStatus,
 } from "./worker-profile.js";
 export {
 	buildWorkspaceSourceCachePlan,
