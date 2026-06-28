@@ -77,6 +77,38 @@
       "target"
     ]
   },
+  "workspaceNamespaces": {
+    ".pi": {
+      "owner": "pi-stack",
+      "purpose": "Versioned Pi monitors and companion agent guardrails used while Refarm remains compatible with Pi workflows.",
+      "persistence": "versioned",
+      "access": "readWrite"
+    },
+    ".pi-lens": {
+      "owner": "pi-lens",
+      "purpose": "Ignored local analysis cache produced by Pi Lens integrations.",
+      "persistence": "ignored",
+      "access": "readWrite"
+    },
+    ".project": {
+      "owner": "pi-project-workflows",
+      "purpose": "Versioned project planning, handoff, decision, task, and verification state shared with Pi project workflows.",
+      "persistence": "versioned",
+      "access": "readWrite"
+    },
+    ".vscode": {
+      "owner": "workspace-editor",
+      "purpose": "Versioned editor task definitions for the shared development workspace.",
+      "persistence": "versioned",
+      "access": "readWrite"
+    },
+    ".workflows": {
+      "owner": "pi-project-workflows",
+      "purpose": "Ignored local workflow integration state that may be produced by project workflow tools.",
+      "persistence": "ignored",
+      "access": "readWrite"
+    }
+  },
   "plugins": {
     "autoInstall": []
   },

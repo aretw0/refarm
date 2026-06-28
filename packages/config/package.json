@@ -12,6 +12,7 @@
     "./package-manager": "./src/package-manager.js",
     "./plugin-identity": "./src/plugin-identity.js",
     "./workspace": "./src/workspace.js",
+    "./workspace-namespaces-config": "./src/workspace-namespaces-config.js",
     "./workspaces-config": "./src/workspaces-config.js"
   },
   "scripts": {
@@ -33,6 +34,8 @@
     "src/types.js",
     "src/workspace.d.ts",
     "src/workspace.js",
+    "src/workspace-namespaces-config.d.ts",
+    "src/workspace-namespaces-config.js",
     "src/workspaces-config.d.ts",
     "src/workspaces-config.js"
   ],

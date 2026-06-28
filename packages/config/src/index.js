@@ -79,6 +79,14 @@ export {
     parseWorkspaceRemoteCacheProvider,
 } from "./workspaces-config.js";
 export {
+    WORKSPACE_NAMESPACE_ACCESS,
+    WORKSPACE_NAMESPACE_PERSISTENCE,
+    declaredWorkspaceNamespaceFromConfig,
+    declaredWorkspaceNamespacesFromConfig,
+    parseWorkspaceNamespaceAccess,
+    parseWorkspaceNamespacePersistence,
+} from "./workspace-namespaces-config.js";
+export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
     changedFilePathsFromGitNameOnly,

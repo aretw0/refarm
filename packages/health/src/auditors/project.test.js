@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProjectAuditor, RefarmProjectAuditor } from "./project.js";
 
@@ -202,6 +203,40 @@ describe("ProjectAuditor", () => {
             }),
         ]);
     });
+
+    it("warns when versioned root namespaces are not declared", () => {
+        const auditor = new ProjectAuditor();
+        initGitRoot(rootDir);
+        fs.writeFileSync(path.join(rootDir, ".gitignore"), ".cache/\n", "utf-8");
+        fs.mkdirSync(path.join(rootDir, ".project"), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, ".project", "handoff.json"), "{}\n", "utf-8");
+        fs.mkdirSync(path.join(rootDir, ".github"), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, ".github", "workflow.yml"), "{}\n", "utf-8");
+        execGit(rootDir, ["add", ".gitignore", ".project/handoff.json", ".github/workflow.yml"]);
+
+        expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([
+            {
+                path: ".project",
+                type: "undeclared_workspace_namespace",
+                category: "workspace-namespace",
+                note: "Versioned root namespace must be declared in workspaceNamespaces.",
+            },
+        ]);
+    });
+
+    it("accepts declared versioned root namespaces", () => {
+        const auditor = new ProjectAuditor({
+            workspaceNamespaces: [
+                { path: ".project", owner: "pi-project-workflows" },
+            ],
+        });
+        initGitRoot(rootDir);
+        fs.mkdirSync(path.join(rootDir, ".project"), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, ".project", "handoff.json"), "{}\n", "utf-8");
+        execGit(rootDir, ["add", ".project/handoff.json"]);
+
+        expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([]);
+    });
 });
 
 describe("RefarmProjectAuditor", () => {
@@ -236,3 +271,11 @@ describe("RefarmProjectAuditor", () => {
         ]);
     });
 });
+
+function initGitRoot(cwd) {
+    execGit(cwd, ["init", "--quiet"]);
+}
+
+function execGit(cwd, args) {
+    execFileSync("git", args, { cwd, stdio: "ignore" });
+}

@@ -21,6 +21,7 @@ export interface ProjectAuditResult {
     builds: HealthIssue[];
     alignment: HealthIssue[];
     automations?: HealthIssue[];
+    namespaceWarnings?: HealthIssue[];
     complexity?: HealthIssue[];
     complexitySummary?: ComplexityAuditResult;
 }
@@ -42,6 +43,13 @@ export interface ProjectAuditorOptions {
     title?: string;
     workspaceRoots?: string[];
     exemptPackageIds?: string[];
+    workspaceNamespaces?: Array<{
+        path: string;
+        owner?: string;
+        purpose?: string;
+        persistence?: string;
+        access?: string;
+    }>;
 }
 
 export interface ComplexityAuditorOptions {
@@ -118,6 +126,7 @@ export class ProjectAuditor {
     checkPackageAlignment(rootDir: string, options?: ProjectAuditorOptions): Promise<HealthIssue[]>;
     checkResolutionStatus(rootDir: string, options?: ProjectAuditorOptions): Promise<ResolutionStatus[]>;
     checkProjectAutomations(rootDir: string): HealthIssue[];
+    checkWorkspaceNamespaces(rootDir: string, options?: ProjectAuditorOptions): HealthIssue[];
 }
 
 export class RefarmProjectAuditor extends ProjectAuditor {
