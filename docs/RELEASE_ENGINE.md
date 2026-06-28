@@ -77,14 +77,18 @@ Readiness de primeira release:
   publicação.
 
 Evidência local mais recente (2026-06-27): `pnpm run release:readiness`
-passou fim a fim para a seleção padrão `kernel-candidates`. O plano agora inclui
-`reference-driver:smoke` antes do dry-run de publicação, para manter o contrato
-plan-only de workers e as primitivas de sessão/tree/code-ops do `runtime-agent`
-no corte de readiness sem rodar provider real. O dry-run de publicação cobriu
-`@refarm.dev/storage-contract-v1`, `@refarm.dev/sync-contract-v1`,
+passou fim a fim para a seleção padrão `kernel-candidates`. O dry-run de
+publicação cobriu `@refarm.dev/storage-contract-v1`, `@refarm.dev/sync-contract-v1`,
 `@refarm.dev/identity-contract-v1` e `@refarm.dev/channel-policy-v1`. Esse
 resultado prova readiness local; não substitui aprovação explícita de publicação
 nem credenciais de npm/crates.
+
+Evidência de plano mais recente (2026-06-28): `pnpm run release:readiness:test`
+prova que `reference-driver:smoke` está no plano antes do dry-run de publicação,
+e que o próprio smoke começa pelo contrato plan-only de workers antes das
+primitivas de sessão/tree/code-ops do `runtime-agent`. Isso mantém o corte de
+readiness sem provider real e sem obrigar um smoke Rust completo em cada
+micro-slice.
 
 Essa camada não substitui o `release-engine`: ela é um orquestrador de repo que
 amarra saúde do operador, política de release, substratos Node/Rust, ownership de
