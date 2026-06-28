@@ -1,18 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Release planning has a plan-only supply preflight, operator handoffs prefer it for current-workspace checks, and the reference-driver supply SDK now uses product-neutral names.",
-  "timestamp": "2026-06-28T01:10:49.130Z",
+  "context": "Checkpoint 2026-06-28. Release planning has a plan-only supply preflight, reusable SDK naming is being neutralized before publication, and launch-process now handles detached spawn failures for downstream consumers.",
+  "timestamp": "2026-06-28T01:18:31.517Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit aece3013 added refarm release preflight --selection <id> --json for plan-only release posture checks without gates, builds, publish dry-runs, or runtime dispatch.",
-    "Commit b5cf167c updated refarm agent/check/common help to recommend refarm release preflight --selection default --json as the cheap first current-workspace release posture check.",
+    "Commit 0eb1a193 fixed launchDetachedProcess so missing host tools such as xdg-open emit through onError instead of crashing the caller with an unhandled child-process error.",
+    "The launch-process regression test now spawns a deliberately missing command and asserts ENOENT is reported without an uncaught exception.",
     "Commit 5c4e987e renamed the reference-driver supply map SDK surface to buildReferenceDriverSupplyMap, ReferenceDriverSupplyMap, and ReferenceDriverSupplyEntry, removing the Refarm-prefixed map names before publication.",
-    "External consumer handoff templates intentionally remain on refarm release plan --cwd <dir> --selection default --json; Refarm-specific supply posture is not forced onto downstream checkouts."
+    "Commit b5cf167c updated refarm agent/check/common help to recommend refarm release preflight --selection default --json as the cheap first current-workspace release posture check."
   ],
   "blockers": [],
   "next_actions": [
     "Use refarm release preflight --selection default --json or --selection vault-seed-ready --json before heavier release checks to inspect candidate/internal/hold posture cheaply.",
     "Continue auditing SDK exports before publication; keep product CLI names where they describe the Refarm app, but make reusable primitives product-neutral before they become public contracts.",
-    "Decide whether release readiness scripts need a build-free JS/JSON source for supply posture, or whether the app/SDK preflight surface is enough for now."
+    "If vault-seed reports another concrete SDK defect, prefer fixing it in the Refarm package root before adding downstream workaround code."
   ],
   "open_questions": [],
   "key_decisions_active": [
