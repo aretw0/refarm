@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const IMPORTS = [
 	'@import "@refarm.dev/ds/tokens.css";',
@@ -176,12 +178,15 @@ export function transformDsTokenAdoptionWithReport(css) {
 	};
 }
 
-const args = parseArgs(process.argv.slice(2));
-if (args.size > 0) {
+export function runDsTokenAdoptionCli(
+	argv = process.argv.slice(2),
+	{ stdout = process.stdout, stderr = process.stderr } = {},
+) {
+	const args = parseArgs(argv);
 	const input = args.get("input");
 	if (typeof input !== "string") {
-		console.error("Usage: node codemods/ds-token-adoption.mjs --input <css> [--write]");
-		process.exit(2);
+		stderr.write("Usage: node codemods/ds-token-adoption.mjs --input <css> [--write]\n");
+		return 2;
 	}
 
 	const original = readFileSync(input, "utf8");
@@ -190,7 +195,7 @@ if (args.size > 0) {
 		writeFileSync(input, result.css);
 	}
 	if (args.get("json")) {
-		process.stdout.write(
+		stdout.write(
 			`${JSON.stringify({
 				input,
 				changed: result.changed,
@@ -200,6 +205,15 @@ if (args.size > 0) {
 			}, null, 2)}\n`,
 		);
 	} else {
-		process.stdout.write(result.css);
+		stdout.write(result.css);
 	}
+	return 0;
+}
+
+function isMain() {
+	return process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
+
+if (isMain() && process.argv.slice(2).length > 0) {
+	process.exit(runDsTokenAdoptionCli());
 }

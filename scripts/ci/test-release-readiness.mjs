@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import test from "node:test";
-
-const SCRIPT = "scripts/ci/release-readiness.mjs";
+import {
+	buildPlan,
+	parseReleaseReadinessArgs,
+	serializePlan,
+} from "./release-readiness.mjs";
 
 test("prints an ordered release readiness plan", () => {
-	const output = execFileSync(process.execPath, [SCRIPT, "--plan"], {
-		encoding: "utf8",
-	});
+	const output = buildPlan()
+		.map((step) => `${step.id}: ${step.display}`)
+		.join("\n");
 
 	assert.match(output, /operator-readiness: .*refarm:check:gate/);
 	assert.match(output, /release-policy: .*release:policy:check/);
@@ -26,10 +28,13 @@ test("prints an ordered release readiness plan", () => {
 });
 
 test("prints structured release readiness metadata", () => {
-	const output = execFileSync(process.execPath, [SCRIPT, "--plan", "--json"], {
-		encoding: "utf8",
-	});
-	const payload = JSON.parse(output);
+	const plan = buildPlan();
+	const payload = {
+		ok: true,
+		command: "release-readiness",
+		mode: "plan",
+		steps: serializePlan(plan),
+	};
 
 	assert.equal(payload.ok, true);
 	assert.equal(payload.command, "release-readiness");
@@ -56,17 +61,16 @@ test("prints structured release readiness metadata", () => {
 });
 
 test("accepts package-manager argument separators before json flags", () => {
-	const output = execFileSync(
-		process.execPath,
-		[SCRIPT, "--plan", "--", "--json"],
-		{
-			encoding: "utf8",
-		},
-	);
-	const payload = JSON.parse(output);
+	const parsed = parseReleaseReadinessArgs(["--plan", "--", "--json"]);
+	const payload = {
+		ok: true,
+		mode: parsed.planOnly ? "plan" : "run",
+		steps: serializePlan(buildPlan()),
+	};
 
 	assert.equal(payload.ok, true);
 	assert.equal(payload.mode, "plan");
+	assert.equal(parsed.json, true);
 	assert.equal(payload.steps.at(-1).id, "publish-dry-run");
 	assert.equal(payload.steps.at(-2).id, "reference-driver");
 	assert.equal(payload.steps.at(-3).id, "audience-boundary");

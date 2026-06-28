@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +6,7 @@ import test from "node:test";
 import {
 	buildReleaseCheckPlan,
 	parseReleaseCheckArgs,
+	serializeReleaseCheck,
 } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -138,21 +138,15 @@ test("vault-seed-ready selection is covered by changesets provider inputs", () =
 });
 
 test("release check plan json exposes acceptance summary", () => {
-	const output = execFileSync(
-		process.execPath,
-		[
-			"scripts/release-check.mjs",
-			"--selection",
-			"vault-seed-ready",
-			"--plan",
-			"--json",
-		],
-		{
+	const payload = serializeReleaseCheck(
+		buildReleaseCheckPlan({
 			cwd: ROOT,
-			encoding: "utf8",
-		},
+			env: {
+				REFARM_PACKAGE_MANAGER: "pnpm",
+			},
+			selectionId: "vault-seed-ready",
+		}),
 	);
-	const payload = JSON.parse(output);
 
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "vault-seed-ready");

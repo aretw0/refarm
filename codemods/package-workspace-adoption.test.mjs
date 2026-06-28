@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import {
+	runPackageWorkspaceAdoptionCli,
 	transformPackageWorkspaceAdoption,
 	transformPackageWorkspaceAdoptionWithReport,
 } from "./package-workspace-adoption.mjs";
@@ -56,11 +56,10 @@ test("package workspace adoption cli can emit a dry-run json report", () => {
 		'{\n  "name": "digital-gardening-kit",\n  "dependencies": {\n    "@aretw0/dgk-astro-plugins": "workspace:^"\n  }\n}\n',
 		"utf8",
 	);
+	let stdout = "";
 
-	const result = spawnSync(
-		process.execPath,
+	const status = runPackageWorkspaceAdoptionCli(
 		[
-			new URL("./package-workspace-adoption.mjs", import.meta.url).pathname,
 			"--input",
 			input,
 			"--name",
@@ -69,14 +68,11 @@ test("package workspace adoption cli can emit a dry-run json report", () => {
 			"@aretw0/dgk-astro-plugins=latest",
 			"--json",
 		],
-		{
-			cwd: process.cwd(),
-			encoding: "utf8",
-		},
+		{ stdout: { write: (chunk) => { stdout += chunk; } } },
 	);
 
-	assert.equal(result.status, 0);
-	assert.deepEqual(JSON.parse(result.stdout), {
+	assert.equal(status, 0);
+	assert.deepEqual(JSON.parse(stdout), {
 		input,
 		changed: true,
 		nameChanged: true,

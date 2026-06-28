@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
 import { runSubprocess } from "./subprocess-utils.mjs";
 
 const ROOT = process.cwd();
-const plan = process.argv.includes("--plan");
 
 const STEPS = [
 	{
@@ -59,11 +60,11 @@ const STEPS = [
 	},
 ];
 
-function commandForStep(step) {
+function commandForStep(step, root = ROOT) {
 	if (step.packageScript) {
 		const command = createPackageScriptCommand({
 			cwd: step.packageScript.cwd,
-			repoRoot: ROOT,
+			repoRoot: root,
 			script: step.packageScript.script,
 		});
 		return {
@@ -75,15 +76,29 @@ function commandForStep(step) {
 	return step;
 }
 
-for (const step of STEPS) {
-	const command = commandForStep(step);
-	if (plan) {
-		console.log(`${step.id}: ${command.display}`);
-		continue;
+export function buildReferenceDriverSmokePlan(root = ROOT) {
+	return STEPS.map((step) => ({
+		...step,
+		...commandForStep(step, root),
+	}));
+}
+
+function isMain() {
+	return process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
+
+if (isMain()) {
+	const plan = process.argv.includes("--plan");
+
+	for (const step of buildReferenceDriverSmokePlan()) {
+		if (plan) {
+			console.log(`${step.id}: ${step.display}`);
+			continue;
+		}
+		console.log(`\n[reference-driver:smoke] ${step.id}: ${step.display}`);
+		await runSubprocess(step.command, step.args, {
+			cwd: ROOT,
+			env: process.env,
+		});
 	}
-	console.log(`\n[reference-driver:smoke] ${step.id}: ${command.display}`);
-	await runSubprocess(command.command, command.args, {
-		cwd: ROOT,
-		env: process.env,
-	});
 }

@@ -304,7 +304,8 @@ export function parseJsonOutput(output) {
 
 export function runSubprocess(command, commandArgs, options = {}) {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, commandArgs, {
+		const spawnFn = options.spawn ?? spawn;
+		const child = spawnFn(command, commandArgs, {
 			cwd: options.cwd,
 			env: options.env,
 			stdio: options.captureOutput ? ["ignore", "pipe", "pipe"] : "inherit",
