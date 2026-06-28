@@ -55,13 +55,15 @@ channel, not a public npm publication promise.
 Validation:
 
 ```bash
-pnpm run release:vault-seed:check
-pnpm run release:vault-seed:handoff -- --json
+pnpm run release:vault-seed:check -- --plan --json
+pnpm run release:vault-seed:handoff -- --pack --json
 ```
 
 The local handoff currently lives under
-`.refarm/handoff/vault-seed/2026-06-26/`. That directory is an operator artifact;
-the versioned policy and package checks remain the durable source of truth.
+`.refarm/handoff/vault-seed/2026-06-28/`. That directory is an operator artifact;
+the versioned policy and package checks remain the durable source of truth. The
+handoff command materializes package tarballs sequentially before validating the
+manifest and SHA-256 inventory.
 
 ---
 
@@ -120,7 +122,7 @@ refarm release preflight --selection vault-seed-ready --json
 pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:vault-seed:check
-pnpm run release:vault-seed:handoff -- --json
+pnpm run release:vault-seed:handoff -- --pack --json
 ```
 
 ---

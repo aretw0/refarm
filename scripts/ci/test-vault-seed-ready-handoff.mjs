@@ -88,6 +88,7 @@ test("parses handoff CLI arguments", () => {
 			".refarm/handoff",
 			"--out",
 			"manifest.md",
+			"--pack",
 			"--",
 			"--json",
 		]),
@@ -96,6 +97,7 @@ test("parses handoff CLI arguments", () => {
 			handoffDir: ".refarm/handoff",
 			json: true,
 			out: "manifest.md",
+			pack: true,
 		},
 	);
 });
