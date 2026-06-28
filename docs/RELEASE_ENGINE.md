@@ -71,15 +71,16 @@ Readiness de primeira release:
 - `pnpm run release:readiness:plan` → mostra a sequência de gates que responde "estamos prontos para publicar?" sem executar nada.
 - `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
 - `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
-- `pnpm run reference-driver:smoke` → prova leve, sem provider, das primitivas
-  `runtime-agent`/reference-driver que precisam continuar funcionando antes de
-  empacotar SDKs ou runtime de publicação.
+- `pnpm run reference-driver:smoke` → prova leve, sem provider, do SDK
+  `worker-profile` e das primitivas `runtime-agent`/reference-driver que
+  precisam continuar funcionando antes de empacotar SDKs ou runtime de
+  publicação.
 
 Evidência local mais recente (2026-06-27): `pnpm run release:readiness`
 passou fim a fim para a seleção padrão `kernel-candidates`. O plano agora inclui
-`reference-driver:smoke` antes do dry-run de publicação, para manter as
-primitivas de sessão/tree/code-ops do `runtime-agent` no corte de readiness sem
-rodar provider real. O dry-run de publicação cobriu
+`reference-driver:smoke` antes do dry-run de publicação, para manter o contrato
+plan-only de workers e as primitivas de sessão/tree/code-ops do `runtime-agent`
+no corte de readiness sem rodar provider real. O dry-run de publicação cobriu
 `@refarm.dev/storage-contract-v1`, `@refarm.dev/sync-contract-v1`,
 `@refarm.dev/identity-contract-v1` e `@refarm.dev/channel-policy-v1`. Esse
 resultado prova readiness local; não substitui aprovação explícita de publicação

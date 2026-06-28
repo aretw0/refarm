@@ -7,6 +7,13 @@ const plan = process.argv.includes("--plan");
 
 const STEPS = [
 	{
+		id: "worker-profile",
+		packageScript: {
+			cwd: "packages/cli",
+			script: "test:worker-profile",
+		},
+	},
+	{
 		id: "structured-io",
 		display:
 			"cargo test --manifest-path packages/agent-tools/Cargo.toml --lib structured_io --quiet",
