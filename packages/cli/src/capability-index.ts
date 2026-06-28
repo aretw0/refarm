@@ -478,6 +478,15 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 					"Plan-only worker descriptor and readiness SDK for consumers that want agents-as-tools without runtime fanout.",
 			},
 			{
+				channel: "npm",
+				name: "@refarm.dev/cli worker result envelope",
+				export: "@refarm.dev/cli/worker-profile",
+				path: "packages/cli/src/worker-profile.ts",
+				status: "exported",
+				note:
+					"Worker result envelope requires compact summaries, declared output fields, handoffs, and issues for non-completed statuses.",
+			},
+			{
 				channel: "runtime",
 				name: "worker tool promotion gate",
 				path: "packages/cli/src/worker-profile.ts",
@@ -495,7 +504,7 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 		],
 		nextDecision:
-			"Keep agents-as-tools plan-only; promote runtime dispatch only after the worker engine can prove policy, cancellation, observability, and provider cost bounds locally.",
+			"Keep agents-as-tools plan-only with descriptor, readiness, and result envelopes; promote runtime dispatch only after the worker engine can prove policy, cancellation, observability, and provider cost bounds locally.",
 	},
 	"runtime-agent.session-tree": {
 		targets: [
