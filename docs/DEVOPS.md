@@ -114,6 +114,9 @@ workarounds for derived artifact ownership problems.
   do not depend on Vitest APIs or Vite transforms.
 - `pnpm run test-runner:contracts` scans root scripts so `node --test` does not
   accidentally target a Vitest-backed file.
+- `release:readiness:test` must not target tests that use synchronous nested
+  process calls such as `execFileSync` or `spawnSync`; expose importable helpers
+  and test those helpers so managed agent sandboxes can run the gate reliably.
 
 ### GitHub Authentication In Devcontainers
 
