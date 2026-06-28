@@ -1013,22 +1013,27 @@ Notes:
 		)
 		.action(async (options: RefarmCheckOptions) => {
 			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
-			const nodeSubstrate = await deps.runNodeSubstrate?.();
-			const rustSubstrate = await deps.runRustSubstrate?.();
-			const health = await deps.runHealth();
-			const doctor = await deps.runDoctor({
-				failOnWarnings: options.failOnWarnings,
-			});
-			const model = nextActionOnly ? undefined : await deps.runModelDoctor?.();
-			const workspaceExecution = nextActionOnly
-				? undefined
-				: await deps.runWorkspaceExecution?.();
-			const workspaceSweep = nextActionOnly
-				? undefined
-				: await deps.runWorkspaceSweep?.();
-			const releasePolicy = nextActionOnly
-				? undefined
-				: await deps.runReleasePolicy?.();
+			const [
+				nodeSubstrate,
+				rustSubstrate,
+				health,
+				doctor,
+				model,
+				workspaceExecution,
+				workspaceSweep,
+				releasePolicy,
+			] = await Promise.all([
+				deps.runNodeSubstrate?.(),
+				deps.runRustSubstrate?.(),
+				deps.runHealth(),
+				deps.runDoctor({
+					failOnWarnings: options.failOnWarnings,
+				}),
+				nextActionOnly ? undefined : deps.runModelDoctor?.(),
+				nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
+				nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
+				nextActionOnly ? undefined : deps.runReleasePolicy?.(),
+			]);
 			const report = buildRefarmCheckReport({
 				nodeSubstrate,
 				rustSubstrate,
