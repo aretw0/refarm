@@ -14,7 +14,27 @@ artifacts, but those exceptions should not be baked into the generic auditors.
 - **Build Verification**: Ensuring required source/build contracts are present and valid.
 - **Configurable Project Policy**: `ProjectAuditor` is generic by default; `RefarmProjectAuditor` is only a convenience preset with Refarm roots and exemptions.
 - **Opt-in Complexity Pressure**: `ComplexityAuditor` reports large hand-written files when a workspace enables `health.complexity`.
+- **Environment Pressure**: `buildEnvironmentPressureReport` samples disk, memory, and maintenance markers without scanning or deleting workspace state.
 - **Actionable Output**: `refarm health --json` includes stable `recommendations` for agents and CI wrappers.
+
+## Programmatic Environment Pressure
+
+Use the SDK primitive when a CLI, agent, or downstream tool needs a cheap
+go/no-go signal before expensive work:
+
+```js
+import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+
+const report = buildEnvironmentPressureReport({
+  guidance: {
+    diskPressureCommand: "pnpm run clean:rust:check",
+  },
+});
+```
+
+The report decision is `continue`, `safe-mode`, or `stop-and-investigate`.
+Consumers provide their own commands and wording; the primitive owns only the
+measurement and classification policy.
 
 ## CLI Policy
 

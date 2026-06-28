@@ -8,6 +8,7 @@ import {
 	loadConfig,
 	packageFrozenInstallCommand,
 } from "@refarm.dev/config";
+import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import chalk from "chalk";
 import { Command } from "commander";
 import { constants as fsConstants } from "node:fs";
@@ -54,16 +55,6 @@ const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND =
 	"Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
 const NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND =
 	"Use an environment-owned checkout or fix tracked source ownership for the current operator, then retry `refarm check --next-action --json`.";
-const MiB = 1024 * 1024;
-const GiB = 1024 * MiB;
-const FACTORY_PRESSURE_THRESHOLDS = {
-	diskWarnFreeBytes: 10 * GiB,
-	diskBlockFreeBytes: 3 * GiB,
-	memoryWarnFreeBytes: 1536 * MiB,
-	memoryBlockFreeBytes: 512 * MiB,
-	memoryWarnUsedRatio: 0.88,
-	memoryBlockUsedRatio: 0.95,
-};
 
 export interface NodeSubstrateCheck {
 	command: "node-substrate";
@@ -128,7 +119,7 @@ export interface RefarmCheckReport {
 		model?: ModelDoctorStatus;
 		nodeSubstrate?: NodeSubstrateCheck;
 		rustSubstrate?: RustSubstrateCheck;
-		factoryPressure?: FactoryPressureCheck;
+		environmentPressure?: EnvironmentPressureCheck;
 		workspaceExecution?: WorkspaceExecutionStatus;
 		workspaceSweep?: WorkspaceSweepCheck;
 		releasePolicy?: ReleasePolicyCheck;
@@ -161,18 +152,18 @@ export interface RefarmCheckDeps {
 	runModelDoctor?(): Promise<ModelDoctorStatus>;
 	runNodeSubstrate?(): Promise<NodeSubstrateCheck>;
 	runRustSubstrate?(): Promise<RustSubstrateCheck>;
-	runFactoryPressure?(): Promise<FactoryPressureCheck>;
+	runEnvironmentPressure?(): Promise<EnvironmentPressureCheck>;
 	runWorkspaceExecution?(): Promise<WorkspaceExecutionStatus>;
 	runWorkspaceSweep?(): Promise<WorkspaceSweepCheck>;
 	runReleasePolicy?(): Promise<ReleasePolicyCheck>;
 }
 
-export type FactoryPressureDecision =
+export type EnvironmentPressureDecision =
 	| "continue"
 	| "safe-mode"
 	| "stop-and-investigate";
 
-export interface FactoryPressureSignal {
+export interface EnvironmentPressureSignal {
 	id: string;
 	kind: "filesystem" | "memory" | "git" | "cache";
 	severity: "info" | "warning" | "failure";
@@ -187,12 +178,12 @@ export interface FactoryPressureSignal {
 	error?: string;
 }
 
-export interface FactoryPressureCheck {
-	command: "factory-pressure";
-	operation: "check";
+export interface EnvironmentPressureCheck {
+	command: string;
+	operation: string;
 	ok: boolean;
-	decision: FactoryPressureDecision;
-	signals: FactoryPressureSignal[];
+	decision: EnvironmentPressureDecision;
+	signals: EnvironmentPressureSignal[];
 	recommendations: DiagnosticRecommendation[];
 	nextAction: string | null;
 	nextActions: string[];
@@ -229,7 +220,7 @@ export function buildRefarmCheckReport(checks: {
 	model?: ModelDoctorStatus;
 	nodeSubstrate?: NodeSubstrateCheck;
 	rustSubstrate?: RustSubstrateCheck;
-	factoryPressure?: FactoryPressureCheck;
+	environmentPressure?: EnvironmentPressureCheck;
 	workspaceExecution?: WorkspaceExecutionStatus;
 	workspaceSweep?: WorkspaceSweepCheck;
 	releasePolicy?: ReleasePolicyCheck;
@@ -237,7 +228,7 @@ export function buildRefarmCheckReport(checks: {
 	const recommendations: DiagnosticRecommendation[] = [
 		...(checks.nodeSubstrate?.recommendations ?? []),
 		...(checks.rustSubstrate?.recommendations ?? []),
-		...(checks.factoryPressure?.recommendations ?? []),
+		...(checks.environmentPressure?.recommendations ?? []),
 		...workspaceExecutionCheckRecommendations(checks.workspaceExecution),
 		...workspaceSweepCheckRecommendations(checks.workspaceSweep),
 		...releasePolicyCheckRecommendations(checks.releasePolicy),
@@ -251,7 +242,7 @@ export function buildRefarmCheckReport(checks: {
 	const failureCount =
 		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.rustSubstrate?.ok === false ? 1 : 0) +
-		(checks.factoryPressure?.ok === false ? 1 : 0) +
+		(checks.environmentPressure?.ok === false ? 1 : 0) +
 		(checks.health.ok ? 0 : checks.health.issueCount) +
 		checks.doctor.failureCount;
 
@@ -263,7 +254,7 @@ export function buildRefarmCheckReport(checks: {
 		ok:
 			(checks.nodeSubstrate?.ok ?? true) &&
 			(checks.rustSubstrate?.ok ?? true) &&
-			(checks.factoryPressure?.ok ?? true) &&
+			(checks.environmentPressure?.ok ?? true) &&
 			checks.health.ok &&
 			checks.doctor.ok,
 		failureCount,
@@ -274,7 +265,7 @@ export function buildRefarmCheckReport(checks: {
 			(checks.rustSubstrate?.recommendations ?? []).filter(
 				(recommendation) => recommendation.severity === "warning",
 			).length +
-			(checks.factoryPressure?.recommendations ?? []).filter(
+			(checks.environmentPressure?.recommendations ?? []).filter(
 				(recommendation) => recommendation.severity === "warning",
 			).length +
 			checks.doctor.warningCount +
@@ -313,171 +304,20 @@ function releasePolicyCheckRecommendations(
 	];
 }
 
-function bytesToMiB(value: number): number {
-	return Math.round(value / MiB);
-}
-
-function classifyDiskPressure(freeBytes: number): FactoryPressureSignal["severity"] {
-	if (freeBytes < FACTORY_PRESSURE_THRESHOLDS.diskBlockFreeBytes) {
-		return "failure";
-	}
-	if (freeBytes < FACTORY_PRESSURE_THRESHOLDS.diskWarnFreeBytes) {
-		return "warning";
-	}
-	return "info";
-}
-
-function classifyMemoryPressure(
-	freeBytes: number,
-	totalBytes: number,
-): FactoryPressureSignal["severity"] {
-	const usedRatio = totalBytes > 0 ? 1 - freeBytes / totalBytes : 0;
-	if (
-		freeBytes < FACTORY_PRESSURE_THRESHOLDS.memoryBlockFreeBytes &&
-		usedRatio >= FACTORY_PRESSURE_THRESHOLDS.memoryBlockUsedRatio
-	) {
-		return "failure";
-	}
-	if (
-		freeBytes < FACTORY_PRESSURE_THRESHOLDS.memoryWarnFreeBytes ||
-		usedRatio >= FACTORY_PRESSURE_THRESHOLDS.memoryWarnUsedRatio
-	) {
-		return "warning";
-	}
-	return "info";
-}
-
-function decideFactoryPressure(
-	signals: FactoryPressureSignal[],
-): FactoryPressureDecision {
-	if (signals.some((signal) => signal.severity === "failure")) {
-		return "stop-and-investigate";
-	}
-	if (signals.some((signal) => signal.severity === "warning")) {
-		return "safe-mode";
-	}
-	return "continue";
-}
-
-async function runDefaultFactoryPressure(): Promise<FactoryPressureCheck> {
-	const cwd = process.cwd();
-	const signals: FactoryPressureSignal[] = [];
-	try {
-		const stats = await fs.statfs(cwd);
-		const freeBytes = Number(stats.bavail) * Number(stats.bsize);
-		const totalBytes = Number(stats.blocks) * Number(stats.bsize);
-		const severity = classifyDiskPressure(freeBytes);
-		signals.push({
-			id: "filesystem-free-space",
-			kind: "filesystem",
-			severity,
-			ok: severity !== "failure",
-			path: cwd,
-			freeMiB: bytesToMiB(freeBytes),
-			totalMiB: bytesToMiB(totalBytes),
-			summary:
-				severity === "info"
-					? "Workspace filesystem has enough free space for focused work."
-					: "Workspace filesystem is under disk pressure.",
-			action:
-				severity === "info"
-					? null
-					: "Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
-			command: severity === "info" ? null : "pnpm run clean:rust:check",
-		});
-	} catch (error) {
-		signals.push({
-			id: "filesystem-free-space",
-			kind: "filesystem",
-			severity: "warning",
-			ok: true,
-			path: cwd,
-			summary: "Workspace filesystem free-space probe failed.",
-			action: "Run `pnpm run disk:check` only if disk pressure is suspected.",
-			command: "pnpm run disk:check",
-			error: error instanceof Error ? error.message : String(error),
-		});
-	}
-
-	const totalBytes = os.totalmem();
-	const freeBytes = os.freemem();
-	const memorySeverity = classifyMemoryPressure(freeBytes, totalBytes);
-	signals.push({
-		id: "host-memory-available",
-		kind: "memory",
-		severity: memorySeverity,
-		ok: memorySeverity !== "failure",
-		freeMiB: bytesToMiB(freeBytes),
-		totalMiB: bytesToMiB(totalBytes),
-		usedRatio: totalBytes > 0 ? Number((1 - freeBytes / totalBytes).toFixed(3)) : null,
-		summary:
-			memorySeverity === "info"
-				? "Host memory has enough headroom for focused work."
-				: "Host memory is tight; broad worker fan-out can stall the devcontainer.",
-		action:
-			memorySeverity === "info"
-				? null
-				: "Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
-	});
-
-	const gitGcLogPath = path.join(cwd, ".git", "gc.log");
-	try {
-		await fs.access(gitGcLogPath, fsConstants.F_OK);
-		signals.push({
-			id: "git-gc-log-present",
-			kind: "git",
-			severity: "warning",
-			ok: true,
-			path: gitGcLogPath,
-			summary: "Git left a gc.log marker; automatic maintenance may be disabled until inspected.",
-			action:
+async function runDefaultEnvironmentPressure(): Promise<EnvironmentPressureCheck> {
+	return buildEnvironmentPressureReport({
+		guidance: {
+			diskPressureAction:
+				"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+			diskPressureCommand: "pnpm run clean:rust:check",
+			diskProbeFailureAction: "Run `pnpm run disk:check` only if disk pressure is suspected.",
+			diskProbeFailureCommand: "pnpm run disk:check",
+			memoryPressureAction:
+				"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+			gitGcLogAction:
 				"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
-		});
-	} catch {
-		// Absence of gc.log is the healthy default.
-	}
-
-	if (process.env.CARGO_TARGET_DIR) {
-		signals.push({
-			id: "cargo-target-dir",
-			kind: "cache",
-			severity: "info",
-			ok: true,
-			path: path.resolve(cwd, process.env.CARGO_TARGET_DIR),
-			summary: "Rust builds are routed through CARGO_TARGET_DIR.",
-			action: null,
-		});
-	}
-
-	const decision = decideFactoryPressure(signals);
-	const recommendations = signals
-		.filter((signal) => signal.action)
-		.map((signal) => ({
-			diagnostic: `factory-pressure:${signal.id}`,
-			severity: signal.severity,
-			summary: signal.summary,
-			action: signal.action ?? "",
-			command: signal.command ?? undefined,
-			target: signal.path ?? signal.kind,
-		}));
-	const nextCommands = recommendations
-		.map((recommendation) => recommendation.command)
-		.filter((command, index, all): command is string =>
-			Boolean(command) && all.indexOf(command) === index,
-		);
-	const nextActions = recommendations.map((recommendation) => recommendation.action);
-	return {
-		command: "factory-pressure",
-		operation: "check",
-		ok: decision !== "stop-and-investigate",
-		decision,
-		signals,
-		recommendations,
-		nextAction: nextActions[0] ?? null,
-		nextActions,
-		nextCommand: nextCommands[0] ?? null,
-		nextCommands,
-	};
+		},
+	});
 }
 
 function workspaceSweepCheckRecommendations(
@@ -572,9 +412,9 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 			`Rust substrate: ${report.checks.rustSubstrate.ok ? "pass" : "fail"} (${report.checks.rustSubstrate.missing.length} missing)`,
 		);
 	}
-	if (report.checks.factoryPressure) {
+	if (report.checks.environmentPressure) {
 		console.log(
-			`Factory pressure: ${report.checks.factoryPressure.decision} (${report.checks.factoryPressure.signals.length} signals)`,
+			`Environment pressure: ${report.checks.environmentPressure.decision} (${report.checks.environmentPressure.signals.length} signals)`,
 		);
 	}
 	if (report.checks.workspaceExecution) {
@@ -1200,7 +1040,7 @@ export function createCheckCommand(
 		runModelDoctor: runDefaultModelDoctor,
 		runNodeSubstrate: runDefaultNodeSubstrate,
 		runRustSubstrate: runRustSubstrateCheck,
-		runFactoryPressure: runDefaultFactoryPressure,
+		runEnvironmentPressure: runDefaultEnvironmentPressure,
 		runWorkspaceExecution: runDefaultWorkspaceExecution,
 		runWorkspaceSweep: runDefaultWorkspaceSweep,
 		runReleasePolicy: runDefaultReleasePolicy,
@@ -1241,7 +1081,7 @@ Notes:
 			const [
 				nodeSubstrate,
 				rustSubstrate,
-				factoryPressure,
+				environmentPressure,
 				health,
 				doctor,
 				model,
@@ -1251,7 +1091,7 @@ Notes:
 			] = await Promise.all([
 				deps.runNodeSubstrate?.(),
 				deps.runRustSubstrate?.(),
-				deps.runFactoryPressure?.(),
+				deps.runEnvironmentPressure?.(),
 				deps.runHealth(),
 				deps.runDoctor({
 					failOnWarnings: options.failOnWarnings,
@@ -1264,7 +1104,7 @@ Notes:
 			const report = buildRefarmCheckReport({
 				nodeSubstrate,
 				rustSubstrate,
-				factoryPressure,
+				environmentPressure,
 				workspaceExecution,
 				workspaceSweep,
 				releasePolicy,
