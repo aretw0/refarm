@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -9,6 +10,30 @@ import {
 } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+function changesetPackageNames(root = ROOT) {
+	const changesetDir = path.join(root, ".changeset");
+	const names = new Set();
+
+	for (const entry of readdirSync(changesetDir, { withFileTypes: true })) {
+		if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "README.md") {
+			continue;
+		}
+		const text = readFileSync(path.join(changesetDir, entry.name), "utf8");
+		const match = text.match(/^---\n([\s\S]*?)\n---/);
+		if (!match) {
+			continue;
+		}
+		for (const line of match[1].split("\n")) {
+			const parsed = line.match(/^\"([^\"]+)\":\s*(patch|minor|major)\s*$/);
+			if (parsed) {
+				names.add(parsed[1]);
+			}
+		}
+	}
+
+	return names;
+}
 
 test("plans publish dry-runs only for default release policy packages", () => {
 	const check = buildReleaseCheckPlan({
@@ -90,6 +115,25 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		assert.equal(command.display, "pnpm publish --dry-run --no-git-checks");
 		assert.equal(command.command.includes(" -r "), false);
 	}
+});
+
+test("vault-seed-ready selection is covered by changesets provider inputs", () => {
+	const check = buildReleaseCheckPlan({
+		cwd: ROOT,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "vault-seed-ready",
+	});
+	const changesetPackages = changesetPackageNames();
+	const missing = check.plan.orderedNames.filter((name) => !changesetPackages.has(name));
+
+	assert.equal(check.ok, true);
+	assert.deepEqual(
+		missing,
+		[],
+		"`vault-seed-ready` uses the changesets provider, so every selected package must have a changeset before publication handoff.",
+	);
 });
 
 test("release check plan json exposes acceptance summary", () => {
