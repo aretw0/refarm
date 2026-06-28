@@ -1,30 +1,52 @@
-/* @refarm.dev/ds token contract entry. Scoped, never bare :root.
+/* Design-system token contract entry. Scoped, never bare :root.
  * Import a theme file, such as themes/tractor-green.css, alongside this file. */
-@layer refarm.tokens, refarm.theme;
+@layer ds.tokens, ds.theme, refarm.tokens, refarm.theme;
 
-@layer refarm.tokens {
-	[data-refarm-theme] {
-		--refarm-bg-primary: var(--background);
-		--refarm-bg-secondary: var(--muted);
-		--refarm-bg-elevated: var(--card);
-		--refarm-border-default: var(--border);
-		--refarm-border-muted: var(--border);
-		--refarm-text-primary: var(--foreground);
-		--refarm-text-secondary: var(--muted-foreground);
-		--refarm-text-muted: var(--muted-foreground);
-		--refarm-accent-primary: var(--primary);
-		--refarm-accent-secondary: var(--accent);
-		--refarm-accent-muted: color-mix(in srgb, var(--primary) 22%, transparent);
-		--refarm-font-mono: var(--font-mono);
-		--refarm-font-sans: var(--font-sans);
-		--refarm-radius-sm: var(--radius-sm);
-		--refarm-radius-md: var(--radius-md);
-		--refarm-radius-lg: var(--radius-lg);
-		--refarm-shadow-sm: var(--shadow-sm);
-		--refarm-shadow-md: var(--shadow-md);
-		--refarm-shadow-lg: var(--shadow-lg);
-		--refarm-focus-ring: 0 0 0 2px var(--ring);
-		--refarm-glass-bg: color-mix(in srgb, var(--card) 80%, transparent);
-		--refarm-glass-blur: blur(16px);
+@layer ds.tokens {
+	:where([data-ds-theme], [data-refarm-theme]) {
+		--ds-bg-primary: var(--background);
+		--ds-bg-secondary: var(--muted);
+		--ds-bg-elevated: var(--card);
+		--ds-border-default: var(--border);
+		--ds-border-muted: var(--border);
+		--ds-text-primary: var(--foreground);
+		--ds-text-secondary: var(--muted-foreground);
+		--ds-text-muted: var(--muted-foreground);
+		--ds-accent-primary: var(--primary);
+		--ds-accent-secondary: var(--accent);
+		--ds-accent-muted: color-mix(in srgb, var(--primary) 22%, transparent);
+		--ds-font-mono: var(--font-mono);
+		--ds-font-sans: var(--font-sans);
+		--ds-radius-sm: var(--radius-sm);
+		--ds-radius-md: var(--radius-md);
+		--ds-radius-lg: var(--radius-lg);
+		--ds-shadow-sm: var(--shadow-sm);
+		--ds-shadow-md: var(--shadow-md);
+		--ds-shadow-lg: var(--shadow-lg);
+		--ds-focus-ring: 0 0 0 2px var(--ring);
+		--ds-glass-bg: color-mix(in srgb, var(--card) 80%, transparent);
+		--ds-glass-blur: blur(16px);
+		--refarm-bg-primary: var(--ds-bg-primary);
+		--refarm-bg-secondary: var(--ds-bg-secondary);
+		--refarm-bg-elevated: var(--ds-bg-elevated);
+		--refarm-border-default: var(--ds-border-default);
+		--refarm-border-muted: var(--ds-border-muted);
+		--refarm-text-primary: var(--ds-text-primary);
+		--refarm-text-secondary: var(--ds-text-secondary);
+		--refarm-text-muted: var(--ds-text-muted);
+		--refarm-accent-primary: var(--ds-accent-primary);
+		--refarm-accent-secondary: var(--ds-accent-secondary);
+		--refarm-accent-muted: var(--ds-accent-muted);
+		--refarm-font-mono: var(--ds-font-mono);
+		--refarm-font-sans: var(--ds-font-sans);
+		--refarm-radius-sm: var(--ds-radius-sm);
+		--refarm-radius-md: var(--ds-radius-md);
+		--refarm-radius-lg: var(--ds-radius-lg);
+		--refarm-shadow-sm: var(--ds-shadow-sm);
+		--refarm-shadow-md: var(--ds-shadow-md);
+		--refarm-shadow-lg: var(--ds-shadow-lg);
+		--refarm-focus-ring: var(--ds-focus-ring);
+		--refarm-glass-bg: var(--ds-glass-bg);
+		--refarm-glass-blur: var(--ds-glass-blur);
 	}
 }

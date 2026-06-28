@@ -1,5 +1,5 @@
-@layer refarm.theme {
-	[data-refarm-theme="tractor-green"] {
+@layer ds.theme {
+	:where([data-ds-theme="tractor-green"], [data-refarm-theme="tractor-green"]) {
 		--background: #0d1117;
 		--foreground: #c9d1d9;
 		--card: #161b22;

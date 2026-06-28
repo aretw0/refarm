@@ -12,6 +12,7 @@ describe("token scope discipline", () => {
 		for (const file of readdirSync(dir)) {
 			const css = read(`./themes/${file}`);
 			expect(/:root\s*\{/.test(css)).toBe(false);
+			expect(css).toContain("[data-ds-theme=");
 			expect(css).toContain("[data-refarm-theme=");
 		}
 	});
@@ -23,11 +24,21 @@ describe("token scope discipline", () => {
 		expect(/#[0-9a-fA-F]{3,8}\b/.test(css)).toBe(false);
 	});
 
-	it("tokens.css keeps legacy refarm aliases scoped", () => {
+	it("tokens.css keeps generic contract aliases scoped", () => {
 		const css = read("./tokens.css");
 		expect(css).not.toMatch(/:root\s*\{/);
-		expect(css).toContain("[data-refarm-theme]");
-		expect(css).toContain("--refarm-bg-primary: var(--background);");
-		expect(css).toContain("--refarm-accent-primary: var(--primary);");
+		expect(css).toContain(":where([data-ds-theme], [data-refarm-theme])");
+		expect(css).toContain("--ds-bg-primary: var(--background);");
+		expect(css).toContain("--ds-accent-primary: var(--primary);");
+		expect(css).toContain("--refarm-bg-primary: var(--ds-bg-primary);");
+	});
+
+	it("styles.css exposes generic classes with legacy aliases", () => {
+		const css = read("./styles.css");
+		expect(css).toContain(".ds-btn");
+		expect(css).toContain(".refarm-btn");
+		expect(css).toContain("[data-ds-scroll-region]");
+		expect(css).toContain("[data-refarm-scroll-region]");
+		expect(css).toContain("var(--ds-bg-primary)");
 	});
 });

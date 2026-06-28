@@ -1,5 +1,5 @@
-@layer refarm.theme {
-	[data-refarm-theme="oceano"] {
+@layer ds.theme {
+	:where([data-ds-theme="oceano"], [data-refarm-theme="oceano"]) {
 		--background: #0f1623;
 		--foreground: #eef2f8;
 		--card: #181c26;
