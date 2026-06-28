@@ -5,6 +5,7 @@ import {
 	validatePackageManagerConfig,
 	validatePublishSurface,
 	validateRuntimeAgentPluginPackage,
+	validateSiloPublicApi,
 	validateWasmComponent,
 	validateWitComponentDistributionTarget,
 } from "../validate-packages.mjs";
@@ -145,6 +146,43 @@ test("rejects runtime-agent plugin publication without explicit artifact policy"
 			'runtime-agent plugin build:wasm must write "dist/plugin.json"',
 			'runtime-agent plugin build:jco must write "dist/jco"',
 		],
+	);
+});
+
+test("requires Silo public subpath exports for published SDK helpers", () => {
+	assert.deepEqual(
+		validateSiloPublicApi({
+			name: "@refarm.dev/silo",
+			exports: {
+				".": {
+					import: "./dist/index.js",
+					types: "./dist/index.d.ts",
+				},
+			},
+		}),
+		[
+			'silo public API must declare exports["./collect"]',
+			'silo public API must declare exports["./key-manager"]',
+		],
+	);
+});
+
+test("accepts Silo public subpath exports for published SDK helpers", () => {
+	assert.deepEqual(
+		validateSiloPublicApi({
+			name: "@refarm.dev/silo",
+			exports: {
+				"./collect": {
+					import: "./dist/collect.js",
+					types: "./dist/collect.d.ts",
+				},
+				"./key-manager": {
+					import: "./dist/key-manager.js",
+					types: "./dist/key-manager.d.ts",
+				},
+			},
+		}),
+		[],
 	);
 });
 
