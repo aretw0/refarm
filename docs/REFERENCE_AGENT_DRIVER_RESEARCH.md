@@ -184,6 +184,13 @@ policy, cancellation, observability, and cost-control proofs. This keeps the Pi
 SDK lesson and the Hermes delegation lesson in the contract while preserving
 Refarm's hard plan-only boundary until the engine can prove safe fanout.
 
+Current proof (2026-06-28): the compact capability index now treats bounded
+worker profiles as part of the `reference-driver` supply map. The exported
+surface is still the product-neutral `@refarm.dev/cli/worker-profile` SDK; the
+runtime promotion gate is only a plan-only candidate, and `@refarm.dev/pi-agent`
+worker execution remains on hold until the local engine proves policy,
+cancellation, observability, and provider cost bounds.
+
 ## Adoption Order
 
 1. Keep the daily-driver loop first. The no-token runtime-agent path is proven;

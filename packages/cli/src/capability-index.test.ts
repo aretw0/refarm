@@ -48,6 +48,7 @@ describe("capability index", () => {
 			.map((capability) => capability.id);
 
 		expect(referenceDriverIds).toEqual([
+			"runtime-agent.worker-profiles",
 			"runtime-agent.session-tree",
 			"runtime-agent.structured-io",
 			"runtime-agent.code-ops",
@@ -61,12 +62,34 @@ describe("capability index", () => {
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
 		expect(supplyMap.smokeCommand).toBe("pnpm run reference-driver:smoke");
 		expect(supplyMap.entries.map((entry) => entry.capabilityId)).toEqual([
+			"runtime-agent.worker-profiles",
 			"runtime-agent.session-tree",
 			"runtime-agent.structured-io",
 			"runtime-agent.code-ops",
 		]);
 		expect(supplyMap.entries).toEqual(
 			expect.arrayContaining([
+				expect.objectContaining({
+					capabilityId: "runtime-agent.worker-profiles",
+					targets: expect.arrayContaining([
+						expect.objectContaining({
+							channel: "npm",
+							name: "@refarm.dev/cli",
+							export: "@refarm.dev/cli/worker-profile",
+							status: "exported",
+						}),
+						expect.objectContaining({
+							channel: "runtime",
+							name: "worker tool promotion gate",
+							status: "candidate",
+						}),
+						expect.objectContaining({
+							channel: "npm",
+							name: "@refarm.dev/pi-agent",
+							status: "hold",
+						}),
+					]),
+				}),
 				expect.objectContaining({
 					capabilityId: "runtime-agent.session-tree",
 					targets: expect.arrayContaining([
@@ -125,18 +148,24 @@ describe("capability index", () => {
 			source: "@refarm.dev/cli/capability-index",
 			mode: "plan-only",
 			summary: [
-				{ status: "candidate", count: 1 },
+				{ status: "candidate", count: 2 },
 				{ status: "internal", count: 3 },
-				{ status: "hold", count: 3 },
+				{ status: "hold", count: 4 },
 			],
 		});
 		expect(preflight.targets.map((target) => target.status)).not.toContain("exported");
 		expect(preflight.targets).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
+					capabilityId: "runtime-agent.worker-profiles",
+					channel: "runtime",
+					name: "worker tool promotion gate",
+					status: "candidate",
+				}),
+				expect.objectContaining({
 					capabilityId: "runtime-agent.session-tree",
 					channel: "runtime",
-					name: "refarm tree",
+					name: "session tree command",
 					status: "candidate",
 				}),
 				expect.objectContaining({
@@ -153,6 +182,6 @@ describe("capability index", () => {
 				}),
 			]),
 		);
-		expect(preflight.nextDecisions).toHaveLength(3);
+		expect(preflight.nextDecisions).toHaveLength(4);
 	});
 });
