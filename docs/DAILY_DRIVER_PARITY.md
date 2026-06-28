@@ -57,7 +57,9 @@ Scarecrow audit record for the resulting shell spawn.
 
 Validation economy note: app-level Vitest filters are currently easy to misuse
 and can fan out into unrelated `apps/refarm` suites. Prefer named scripts or
-explicit test files through `pnpm -C apps/refarm run test:focused -- <file>`.
+explicit test files through `pnpm -C apps/refarm run test:file -- <file>`.
+When the container is under memory pressure, treat app-level Vitest as a
+package checkpoint rather than a micro-slice gate.
 Use the mock smoke only when explicitly validating the runtime-agent path; for
 documentation-only status reconciliation, use `git diff --check` plus
 `refarm check --next-action --json`.

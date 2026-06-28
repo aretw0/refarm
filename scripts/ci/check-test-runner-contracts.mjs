@@ -43,20 +43,45 @@ export function checkPackageScripts(packageJson, { root = ROOT } = {}) {
 	return violations;
 }
 
+export function checkAppsRefarmScripts(packageJson) {
+	const violations = [];
+	const focusedCommand = packageJson.scripts?.["test:focused"];
+	if (typeof focusedCommand === "string") {
+		violations.push({
+			script: "test:focused",
+			target: "apps/refarm/package.json",
+			message:
+				"apps/refarm must not expose test:focused; use test:file or named scripts so agents do not treat app Vitest as a cheap generic gate.",
+		});
+	}
+	return violations;
+}
+
 function main() {
 	const packageJsonPath = path.join(ROOT, "package.json");
 	const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-	const violations = checkPackageScripts(packageJson, { root: ROOT });
+	const appsRefarmPackageJsonPath = path.join(
+		ROOT,
+		"apps",
+		"refarm",
+		"package.json",
+	);
+	const appsRefarmPackageJson = JSON.parse(
+		readFileSync(appsRefarmPackageJsonPath, "utf8"),
+	);
+	const violations = [
+		...checkPackageScripts(packageJson, { root: ROOT }),
+		...checkAppsRefarmScripts(appsRefarmPackageJson),
+	];
 
 	if (violations.length === 0) {
 		console.log("test-runner contracts: OK");
 		return;
 	}
 
-	console.error("test-runner contracts: mixed runner usage detected");
+	console.error("test-runner contracts: violations detected");
 	for (const violation of violations) {
 		console.error(`- ${violation.message}`);
-		console.error("  Use Vitest for files importing from vitest; reserve node --test for node:test suites.");
 	}
 	process.exitCode = 1;
 }

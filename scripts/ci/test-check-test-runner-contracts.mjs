@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+	checkAppsRefarmScripts,
 	checkPackageScripts,
 	nodeTestTargets,
 	sourceUsesVitest,
@@ -74,4 +75,30 @@ test("rejects node --test scripts backed by Vitest files", () => {
 			],
 		);
 	});
+});
+
+test("rejects apps/refarm test:focused because it looks cheaper than it is", () => {
+	assert.deepEqual(
+		checkAppsRefarmScripts({
+			scripts: {
+				"test:focused": "vitest run --maxWorkers=1",
+			},
+		}),
+		[
+			{
+				script: "test:focused",
+				target: "apps/refarm/package.json",
+				message:
+					"apps/refarm must not expose test:focused; use test:file or named scripts so agents do not treat app Vitest as a cheap generic gate.",
+			},
+		],
+	);
+	assert.deepEqual(
+		checkAppsRefarmScripts({
+			scripts: {
+				"test:file": "vitest run --maxWorkers=1",
+			},
+		}),
+		[],
+	);
 });
