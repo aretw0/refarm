@@ -12,6 +12,14 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./render": {
+			"import": "./dist/render.js",
+			"types": "./dist/render.d.ts"
+		},
+		"./shell": {
+			"import": "./dist/shell.js",
+			"types": "./dist/shell.d.ts"
 		}
 	},
 	"scripts": {
