@@ -799,6 +799,9 @@ describe("checkCommand", () => {
 		expect(help).toContain("refarm check --next-action --json");
 		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("combines refarm health and refarm doctor");
+		expect(help).toContain(
+			"--next-action and --next-command skip advisory model/workspace/release checks",
+		);
 		expect(help).toContain("quick local confidence signal");
 	});
 
@@ -968,6 +971,35 @@ describe("checkCommand", () => {
 			from: "user",
 		});
 
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+			recommendations: [],
+		});
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+	});
+
+	it("skips advisory checks for next-action JSON", async () => {
+		const deps = makeDeps();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runHealth).toHaveBeenCalledOnce();
+		expect(deps.runDoctor).toHaveBeenCalledOnce();
+		expect(deps.runModelDoctor).not.toHaveBeenCalled();
+		expect(deps.runWorkspaceExecution).not.toHaveBeenCalled();
+		expect(deps.runWorkspaceSweep).not.toHaveBeenCalled();
+		expect(deps.runReleasePolicy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			ok: true,
 			nextAction: null,

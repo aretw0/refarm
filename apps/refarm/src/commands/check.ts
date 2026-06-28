@@ -1007,20 +1007,28 @@ Examples:
 
 Notes:
   check combines refarm health and refarm doctor into one low-cost gate.
+  --next-action and --next-command skip advisory model/workspace/release checks.
   Use it before a commit or handoff when you need a quick local confidence signal.
 `,
 		)
 		.action(async (options: RefarmCheckOptions) => {
+			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
 			const nodeSubstrate = await deps.runNodeSubstrate?.();
 			const rustSubstrate = await deps.runRustSubstrate?.();
 			const health = await deps.runHealth();
 			const doctor = await deps.runDoctor({
 				failOnWarnings: options.failOnWarnings,
 			});
-			const model = await deps.runModelDoctor?.();
-			const workspaceExecution = await deps.runWorkspaceExecution?.();
-			const workspaceSweep = await deps.runWorkspaceSweep?.();
-			const releasePolicy = await deps.runReleasePolicy?.();
+			const model = nextActionOnly ? undefined : await deps.runModelDoctor?.();
+			const workspaceExecution = nextActionOnly
+				? undefined
+				: await deps.runWorkspaceExecution?.();
+			const workspaceSweep = nextActionOnly
+				? undefined
+				: await deps.runWorkspaceSweep?.();
+			const releasePolicy = nextActionOnly
+				? undefined
+				: await deps.runReleasePolicy?.();
 			const report = buildRefarmCheckReport({
 				nodeSubstrate,
 				rustSubstrate,
