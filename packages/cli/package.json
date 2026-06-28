@@ -108,7 +108,8 @@
 		"dev": "tsc --project tsconfig.build.json --watch",
 		"lint": "eslint src",
 		"type-check": "tsc --noEmit",
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:worker-profile": "vitest run src/worker-profile.test.ts src/index.test.ts"
 	},
 	"files": [
 		"README.md",
