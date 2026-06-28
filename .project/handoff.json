@@ -1,16 +1,16 @@
 {
-  "context": "Checkpoint 2026-06-28. Agent finish remains bounded, and launch-process tarball handoff was moved from the accidental root vault-seed/vendor path into the established ignored handoff area under .refarm/handoff/vault-seed/2026-06-28/.",
-  "timestamp": "2026-06-28T04:35:44.540Z",
+  "context": "Checkpoint 2026-06-28. Nested process restrictions are now surfaced as explicit direct-run guidance in command-plan results, so agent finish can tell agents to run the failing command directly when managed sandboxes reject nested spawnSync.",
+  "timestamp": "2026-06-28T04:41:57.396Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit 6ad1563d fix(cli): bound finish command steps remains the latest code checkpoint for bounded finish execution.",
-    "Tarball handoff path corrected: .refarm/handoff/vault-seed/2026-06-28/refarm.dev-launch-process-0.1.0.tgz. The previous vault-seed/vendor root path was accidental and removed to avoid consumer-checkout drift in the Refarm root.",
-    "Validation already passed for bounded finish: pnpm -C packages/cli run test -- command-plan; pnpm -C apps/refarm exec vitest run test/commands/agent.test.ts --maxWorkers=1; refarm check --next-action --json."
+    "Commit 0b0677b8 fix(cli): explain restricted nested spawns.",
+    "Validation passed: pnpm -C packages/cli run test -- command-plan; pnpm -C packages/cli run type-check; pnpm -C packages/cli run build; timeout 60s refarm agent finish --lane after-edit --run --json returned direct-run guidance; refarm check --next-action --json passed directly.",
+    "Observed sandbox behavior: Node child_process spawnSync may emit EPERM under nested execution even when direct shell commands work; finish now points to the direct command instead of encouraging repeated nested finish retries."
   ],
   "blockers": [],
   "next_actions": [
-    "Investigate nested spawnSync EPERM in refarm agent finish and prefer direct refarm binary/process handoff when running inside managed sandboxes.",
-    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral."
+    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral.",
+    "Return to package readiness/publication lane for vault-seed-ready primitives, using .refarm/handoff for local tarball handoffs."
   ],
   "open_questions": [],
   "key_decisions_active": [
