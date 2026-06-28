@@ -1,19 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-28. Workspace namespace policy is now executable: refarm.config.json declares current root namespaces, @refarm.dev/config normalizes workspaceNamespaces, and health/check report undeclared versioned root namespace drift as warnings first. launch-process tarball handoff regenerated for vault-seed consumer review.",
-  "timestamp": "2026-06-28T04:23:01.653Z",
+  "context": "Checkpoint 2026-06-28. Agent finish no longer has unbounded internal Refarm CLI steps: command-plan CLI steps now honor timeoutMs and surface spawn timeout/error messages, and agent finish passes the same 180s resource bound used by package process steps.",
+  "timestamp": "2026-06-28T04:32:49.796Z",
   "current_phase": "12",
   "current_tasks": [
-    "Commit ab71c9bc feat(health): warn on undeclared workspace namespaces.",
-    "Validation passed: pnpm -C packages/config run test -- workspace-namespaces-config; pnpm -C packages/health run test -- project; pnpm -C apps/refarm exec vitest run test/commands/health.test.ts test/commands/check.test.ts --maxWorkers=1; pnpm -C apps/refarm run type-check; pnpm -C packages/launch-process run test; pnpm -C packages/launch-process run build; refarm check --next-action --json.",
-    "Tarball handoff: /workspaces/refarm/vault-seed/vendor/refarm.dev-launch-process-0.1.0.tgz. This artifact is intentionally left uncommitted."
+    "Commit 6ad1563d fix(cli): bound finish command steps.",
+    "Validation passed: pnpm -C packages/cli run test -- command-plan; pnpm -C apps/refarm exec vitest run test/commands/agent.test.ts --maxWorkers=1; pnpm -C packages/cli run type-check; pnpm -C apps/refarm run type-check; pnpm -C packages/cli run build; pnpm -C apps/refarm run build; refarm tidy imports --check --json; refarm check --next-action --json.",
+    "Real finish smoke with timeout 90s returned structured JSON instead of hanging. It failed at nested refarm check with spawnSync node EPERM in this sandbox while direct refarm check passed; treat nested spawn EPERM as next hardening target.",
+    "Tarball handoff remains uncommitted at /workspaces/refarm/vault-seed/vendor/refarm.dev-launch-process-0.1.0.tgz."
   ],
-  "blockers": [
-    "refarm agent finish --lane after-edit/after-commit --run --json emitted no output and was interrupted to avoid container pressure; refarm check passed afterwards."
-  ],
+  "blockers": [],
   "next_actions": [
-    "Investigate why agent finish lanes can hang silently and make them resource-bounded/cache-aware.",
-    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral.",
-    "Use cached downstream checkout only when a consumer-proof is needed; otherwise keep advancing Refarm package readiness in-repo."
+    "Investigate nested spawnSync EPERM in refarm agent finish and prefer direct refarm binary/process handoff when running inside managed sandboxes.",
+    "Add progress/step-start output for non-JSON or optional NDJSON finish runs if silent waits remain painful.",
+    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral."
   ],
   "open_questions": [],
   "key_decisions_active": [
