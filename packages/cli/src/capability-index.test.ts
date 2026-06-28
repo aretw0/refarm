@@ -48,6 +48,7 @@ describe("capability index", () => {
 			.map((capability) => capability.id);
 
 		expect(referenceDriverIds).toEqual([
+			"runtime-agent.ask",
 			"runtime-agent.worker-profiles",
 			"runtime-agent.session-tree",
 			"runtime-agent.structured-io",
@@ -62,6 +63,7 @@ describe("capability index", () => {
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
 		expect(supplyMap.smokeCommand).toBe("pnpm run reference-driver:smoke");
 		expect(supplyMap.entries.map((entry) => entry.capabilityId)).toEqual([
+			"runtime-agent.ask",
 			"runtime-agent.worker-profiles",
 			"runtime-agent.session-tree",
 			"runtime-agent.structured-io",
@@ -72,6 +74,32 @@ describe("capability index", () => {
 		).toBe(true);
 		expect(supplyMap.entries).toEqual(
 			expect.arrayContaining([
+				expect.objectContaining({
+					capabilityId: "runtime-agent.ask",
+					referenceLessons: [
+						"Hermes: one interaction loop can serve CLI and messaging gateways, but the gateway must stay behind one contract.",
+						"Pi: steering, follow-up, abort, and session state are part of the embeddable driver protocol.",
+						"Codex/Claude: headless asks need machine-readable handoffs and lifecycle enforcement, not scraped terminal text.",
+					],
+					promotionProofTargets: [
+						"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",
+						"operator steering: follow-up and redirect queue semantics persist into session/task handoffs",
+						"gateway parity: CLI, app, and future RPC/messaging surfaces share the same ask contract",
+						"budget visibility: model route, token/cost use, retries, and stop conditions are visible in resume/check handoffs",
+					],
+					targets: expect.arrayContaining([
+						expect.objectContaining({
+							channel: "runtime",
+							name: "runtime-agent ask command",
+							status: "candidate",
+						}),
+						expect.objectContaining({
+							channel: "npm",
+							name: "@refarm.dev/pi-agent",
+							status: "hold",
+						}),
+					]),
+				}),
 				expect.objectContaining({
 					capabilityId: "runtime-agent.worker-profiles",
 					referenceLessons: [
@@ -168,14 +196,20 @@ describe("capability index", () => {
 			source: "@refarm.dev/cli/capability-index",
 			mode: "plan-only",
 			summary: [
-				{ status: "candidate", count: 2 },
+				{ status: "candidate", count: 3 },
 				{ status: "internal", count: 3 },
-				{ status: "hold", count: 4 },
+				{ status: "hold", count: 5 },
 			],
 		});
 		expect(preflight.targets.map((target) => target.status)).not.toContain("exported");
 		expect(preflight.targets).toEqual(
 			expect.arrayContaining([
+				expect.objectContaining({
+					capabilityId: "runtime-agent.ask",
+					channel: "runtime",
+					name: "runtime-agent ask command",
+					status: "candidate",
+				}),
 				expect.objectContaining({
 					capabilityId: "runtime-agent.worker-profiles",
 					channel: "runtime",
@@ -202,6 +236,6 @@ describe("capability index", () => {
 				}),
 			]),
 		);
-		expect(preflight.nextDecisions).toHaveLength(4);
+		expect(preflight.nextDecisions).toHaveLength(5);
 	});
 });
