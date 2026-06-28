@@ -173,11 +173,15 @@ describe("release command", () => {
 				mode: "plan-only",
 				source: "@refarm.dev/cli/capability-index",
 				summary: [
-					{ status: "candidate", count: 1 },
+					{ status: "candidate", count: 2 },
 					{ status: "internal", count: 3 },
-					{ status: "hold", count: 3 },
+					{ status: "hold", count: 4 },
 				],
 				targets: expect.arrayContaining([
+					expect.objectContaining({
+						capabilityId: "runtime-agent.worker-profiles",
+						status: "candidate",
+					}),
 					expect.objectContaining({
 						capabilityId: "runtime-agent.session-tree",
 						status: "candidate",
