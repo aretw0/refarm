@@ -137,6 +137,16 @@ describe("capability index", () => {
 							channel: "npm",
 							name: "@refarm.dev/cli interaction driver",
 							export: "@refarm.dev/cli/interaction-driver",
+							eventContract: {
+								format: "json-events",
+								requiredEvents: [
+									"accepted",
+									"streamed",
+									"completed",
+									"failed",
+								],
+								terminalEvents: ["completed", "failed"],
+							},
 							status: "exported",
 						}),
 						expect.objectContaining({

@@ -303,6 +303,10 @@ function taskJsonSummary(
 	};
 }
 
+function isRefarmResumeCommand(command: string): boolean {
+	return command.trim().startsWith("refarm ");
+}
+
 function isTerminalTaskStatus(status: string | undefined): boolean {
 	return status === "done" ||
 		status === "partial" ||
@@ -466,7 +470,10 @@ export function operatorResumeNextCommands(
 	const nextCommands: string[] = [];
 
 	if (summary.environmentPressure?.decision === "stop-and-investigate") {
-		nextCommands.push(...summary.environmentPressure.nextCommands);
+		nextCommands.push(
+			...summary.environmentPressure.nextCommands.filter(isRefarmResumeCommand),
+		);
+		return [...new Set(nextCommands)];
 	}
 
 	// Recovery: finish failed — the most urgent resumption point.

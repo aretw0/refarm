@@ -1,5 +1,11 @@
 import { refarmCommand } from "./command-handoff.js";
-import { INTERACTION_DRIVER_GATEWAY_BLOCKERS } from "./interaction-driver.js";
+import {
+	INTERACTION_DRIVER_GATEWAY_BLOCKERS,
+	INTERACTION_DRIVER_MIN_REQUIRED_EVENTS,
+	INTERACTION_DRIVER_TERMINAL_EVENTS,
+	type InteractionDriverEventName,
+	type InteractionDriverTerminalEventName,
+} from "./interaction-driver.js";
 import { WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS } from "./worker-profile.js";
 
 export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
@@ -76,6 +82,11 @@ export interface RefarmCapabilitySupplyTarget {
 	name: string;
 	export?: string;
 	path?: string;
+	eventContract?: {
+		format: "json-events";
+		requiredEvents: readonly InteractionDriverEventName[];
+		terminalEvents: readonly InteractionDriverTerminalEventName[];
+	};
 	status: RefarmCapabilitySupplyStatus;
 	note: string;
 }
@@ -506,6 +517,11 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 				name: "@refarm.dev/cli interaction driver",
 				export: "@refarm.dev/cli/interaction-driver",
 				path: "packages/cli/src/interaction-driver.ts",
+				eventContract: {
+					format: "json-events",
+					requiredEvents: INTERACTION_DRIVER_MIN_REQUIRED_EVENTS,
+					terminalEvents: INTERACTION_DRIVER_TERMINAL_EVENTS,
+				},
 				status: "exported",
 				note:
 					"Product-neutral local-loop descriptor and gateway/RPC readiness SDK for consumers that need ask-loop promotion status without importing the app.",
