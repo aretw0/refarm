@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	validateDsPublicApi,
-	validateHomesteadSsrPublicApi,
 	validatePackageManagerConfig,
 	validatePublishSurface,
 	validateRuntimeAgentPluginPackage,
@@ -223,43 +222,6 @@ test("accepts DS public subpath exports for published contract helpers", () => {
 				"./html": {
 					import: "./dist/html.js",
 					types: "./dist/html.d.ts",
-				},
-			},
-		}),
-		[],
-	);
-});
-
-test("requires Homestead SSR public subpath exports for published render helpers", () => {
-	assert.deepEqual(
-		validateHomesteadSsrPublicApi({
-			name: "@refarm.dev/homestead-ssr",
-			exports: {
-				".": {
-					import: "./dist/index.js",
-					types: "./dist/index.d.ts",
-				},
-			},
-		}),
-		[
-			'homestead-ssr public API must declare exports["./render"]',
-			'homestead-ssr public API must declare exports["./shell"]',
-		],
-	);
-});
-
-test("accepts Homestead SSR public subpath exports for published render helpers", () => {
-	assert.deepEqual(
-		validateHomesteadSsrPublicApi({
-			name: "@refarm.dev/homestead-ssr",
-			exports: {
-				"./render": {
-					import: "./dist/render.js",
-					types: "./dist/render.d.ts",
-				},
-				"./shell": {
-					import: "./dist/shell.js",
-					types: "./dist/shell.d.ts",
 				},
 			},
 		}),

@@ -1,9 +1,13 @@
 # Spec: Homestead Build-Free Surface Tier + dgk admin (Roadmap Item 4b)
 
-**Status:** DRAFT — ready for implementation
+**Status:** Superseded by ADR-072 on 2026-06-29
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
 **Related:** `docs/CONVERGENCE_ROADMAP.md` (item 4), `specs/features/2026-06-25-ds-token-contract.md` (4a — dependency), `docs/APPS_REFARM_PROMOTION_LEDGER.md`
+
+> Superseded outcome: the build-free HTML helper surface is owned by `@refarm.dev/ds/html`.
+> `@refarm.dev/homestead/ssr` and `@refarm.dev/homestead-ssr` were removed pre-publication so
+> Homestead stays focused on SDK/shell/runtime integration.
 
 ---
 

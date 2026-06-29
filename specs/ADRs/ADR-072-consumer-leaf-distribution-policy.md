@@ -36,8 +36,8 @@ contract:
 - Homestead owns runtime/shell/studio integration, not DS-only HTML string helpers.
 - CLI owns operator commands and binaries, not generic process handoff primitives.
 
-Compatibility re-exports may exist during migration, but release lanes and new docs must point to
-the canonical light surface.
+Pre-release compatibility re-exports should be removed when they only preserve misleading names.
+Release lanes and new docs must point to the canonical light surface.
 
 ### Leaf vs parent rule
 
@@ -55,9 +55,9 @@ runtime closure and does not change the consumer's license/distribution posture.
 
 `@refarm.dev/ds/html` is the canonical public surface for build-free DS HTML helpers.
 
-`@refarm.dev/homestead-ssr` and `@refarm.dev/homestead/ssr` are compatibility surfaces, not the
-public consumer lane. They should not be promoted in `vault-seed-ready`, because the name incorrectly
-suggests server-only rendering and Homestead ownership.
+`@refarm.dev/homestead-ssr` and `@refarm.dev/homestead/ssr` are removed pre-publication instead of
+kept as compatibility surfaces. They should not be promoted in `vault-seed-ready`, because the names
+incorrectly suggest server-only rendering and Homestead ownership.
 
 ### Process outcome
 
@@ -79,14 +79,14 @@ adaptation, detached execution, and artifact/provenance handoffs.
 ### Negative
 
 - `vault-seed-ready` package counts and historical handoff docs change.
-- Consumers using `@refarm.dev/homestead-ssr` need to switch to `@refarm.dev/ds/html`.
+- Pre-release consumers using `@refarm.dev/homestead-ssr` need to switch to `@refarm.dev/ds/html`.
 - The rename from `launch-process` to `process-handoff` is a breaking import change for consumers
   that adopted the pre-release leaf.
 
 ### Risks
 
-- Keeping compatibility re-exports too long may preserve the old vocabulary. Mitigation: release
-  policy and current docs point only to canonical surfaces.
+- Reintroducing compatibility re-exports would preserve the old vocabulary. Mitigation: release
+  policy, package exports, and current docs point only to canonical surfaces.
 - Moving too much into DS could make it less focused. Mitigation: DS may own generic HTML over DS
   classes, but domain routing, copy, workflows, and runtime state stay in host packages.
 
@@ -94,7 +94,8 @@ adaptation, detached execution, and artifact/provenance handoffs.
 
 1. Add `@refarm.dev/ds/html` and validate it as part of the DS public API.
 2. Remove `@refarm.dev/homestead-ssr` from `vault-seed-ready` release selection.
-3. Keep Homestead SSR surfaces as compatibility re-exports over DS until downstream users have moved.
+3. Remove Homestead SSR package/subpath surfaces before public release; downstream users should adopt
+   `@refarm.dev/ds/html` directly.
 4. Update current docs and handoff metadata so `ds/html` is the canonical admin/shell helper.
 5. Rename `@refarm.dev/launch-process` to `@refarm.dev/process-handoff` and keep CLI access as a
    `@refarm.dev/cli/process-handoff` re-export.

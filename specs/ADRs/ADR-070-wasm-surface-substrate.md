@@ -48,7 +48,7 @@ using the Astro framework, using only what Astro uses (its substrate), or neithe
 |---|---|---|---|
 | Public vault site (content, nav, graph, timeline) | **Yes** — and embed WASM surfaces | via Astro | content sites are Astro's sweet spot; consumer-owned per `VAULT_SEED_CONVERGENCE` |
 | `homestead` bundled SDK / studio-host | No | **Yes — directly** | Refarm owns its shell; it needs the bundler, not the framework's opinions |
-| `dgk serve` admin (build-free) | No | No | `node:http` + the `homestead/ssr` string tier (item 4b) |
+| `dgk serve` admin (build-free) | No | No | `node:http` + `@refarm.dev/ds/html` helpers (item 4b) |
 | Marimo lab | No — embedded into the site | No | Pyodide WASM producer, consumed via A1 |
 
 Principle: **lean on the ecosystem at the layer that earns its keep.** Adopt the framework where

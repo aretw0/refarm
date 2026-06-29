@@ -681,22 +681,6 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
-  packages/homestead-ssr:
-    dependencies:
-      '@refarm.dev/ds':
-        specifier: workspace:*
-        version: link:../ds
-    devDependencies:
-      '@refarm.dev/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@refarm.dev/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@refarm.dev/vtconfig':
-        specifier: workspace:*
-        version: link:../vtconfig
-
   packages/identity-contract-v1:
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -798,21 +782,6 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
-  packages/process-handoff:
-    devDependencies:
-      '@refarm.dev/artifact-contract-v1':
-        specifier: workspace:*
-        version: link:../artifact-contract-v1
-      '@refarm.dev/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@refarm.dev/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@refarm.dev/vtconfig':
-        specifier: workspace:*
-        version: link:../vtconfig
-
   packages/model-mock:
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -910,6 +879,21 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  packages/process-handoff:
+    devDependencies:
+      '@refarm.dev/artifact-contract-v1':
+        specifier: workspace:*
+        version: link:../artifact-contract-v1
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/prompt-contract-v1:
     devDependencies:

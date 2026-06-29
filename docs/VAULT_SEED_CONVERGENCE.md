@@ -396,8 +396,8 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 **2026-06-29 UI consumer packet:** `@refarm.dev/ds` now exposes the Lab-proven
 `verde-jardim` light mode and the canonical build-free HTML helper surface at
 `@refarm.dev/ds/html`. ADR-072 supersedes the earlier `@refarm.dev/homestead-ssr`
-packet: Homestead SSR surfaces are compatibility-only and the public consumer lane
-ships the DS-owned helper surface without pulling the full Homestead SDK dependency
+packet: Homestead SSR package/subpath surfaces were removed pre-publication and the public consumer
+lane ships the DS-owned helper surface without pulling the full Homestead SDK dependency
 closure. The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/`:
 
 - `refarm.dev-ds-0.1.0.tgz`
@@ -447,7 +447,7 @@ adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
 calls and user-facing command semantics local.
 
 **2026-06-29 full `vault-seed-ready` handoff:** after ADR-072 the release-policy
-selection contains 9 packages. `@refarm.dev/homestead-ssr` is no longer selected;
+selection contains 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publication;
 `@refarm.dev/ds/html` ships through the DS tarball.
 
 | Package | Tarball | SHA256 |

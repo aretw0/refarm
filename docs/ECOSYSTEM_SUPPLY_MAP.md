@@ -69,7 +69,7 @@ Refarm internally when that reduces duplicated substrate.
 | --- | --- | --- | --- |
 | **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ | KEYSTONE implemented. Activate extra adapters only when consumed. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ + `@refarm.dev/ds/html` ✅ | Wire `ds` as the token/style source and DS-owned build-free HTML helper surface. |
-| Shell / admin UI | `dgk serve` | `@refarm.dev/ds/html` ✅; Homestead SSR surfaces are compatibility-only | Admin UI composes from DS-owned HTML helpers; bundled Homestead SDK remains separate. |
+| Shell / admin UI | `dgk serve` | `@refarm.dev/ds/html` ✅ | Admin UI composes from DS-owned HTML helpers; Homestead SSR package/subpath surfaces were removed pre-publication. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
 | WASM distribution (lab/site) | Marimo (Pyodide) + Astro isolated | Tractor WASM (ADR-049 / ADR-044) ✅ substrate | Refarm learns from Marimo / Astro 7 and becomes the shared substrate. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |

@@ -10,10 +10,10 @@
       "summary": "Scoped tokens, themes, and component classes."
     },
     {
-      "id": "homestead-ssr",
-      "label": "Homestead SSR",
+      "id": "ds-html",
+      "label": "DS HTML",
       "kind": "surface",
-      "summary": "Build-free server-rendered surface helpers."
+      "summary": "Build-free HTML helpers over DS tokens and classes."
     },
     {
       "id": "dispatch-surface",
@@ -31,12 +31,12 @@
   "links": [
     {
       "from": "ds",
-      "to": "homestead-ssr",
+      "to": "ds-html",
       "relation": "styles"
     },
     {
       "from": "dispatch-surface",
-      "to": "homestead-ssr",
+      "to": "ds-html",
       "relation": "actions"
     },
     {
@@ -49,7 +49,7 @@
     {
       "id": "inspect-surface",
       "label": "Inspect Surface",
-      "targetNodeId": "homestead-ssr"
+      "targetNodeId": "ds-html"
     },
     {
       "id": "open-release-plan",
