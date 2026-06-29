@@ -6,7 +6,11 @@ import {
 	type InteractionDriverEventName,
 	type InteractionDriverTerminalEventName,
 } from "./interaction-driver.js";
-import { WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS } from "./worker-profile.js";
+import {
+	WORKER_PROFILE_MAX_PARALLEL,
+	WORKER_TOOL_MAX_TURNS,
+	WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS,
+} from "./worker-profile.js";
 
 export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
 export const CAPABILITY_INDEX_SCHEMA_VERSION =
@@ -86,6 +90,12 @@ export interface RefarmCapabilitySupplyTarget {
 		format: "json-events";
 		requiredEvents: readonly InteractionDriverEventName[];
 		terminalEvents: readonly InteractionDriverTerminalEventName[];
+	};
+	budgetContract?: {
+		tokenUse: "provider";
+		maxTurns: typeof WORKER_TOOL_MAX_TURNS;
+		maxParallel: typeof WORKER_PROFILE_MAX_PARALLEL;
+		stopConditionRequired: true;
 	};
 	status: RefarmCapabilitySupplyStatus;
 	note: string;
@@ -563,9 +573,15 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 				name: "@refarm.dev/cli worker profile SDK",
 				export: "@refarm.dev/cli/worker-profile",
 				path: "packages/cli/src/worker-profile.ts",
+				budgetContract: {
+					tokenUse: "provider",
+					maxTurns: WORKER_TOOL_MAX_TURNS,
+					maxParallel: WORKER_PROFILE_MAX_PARALLEL,
+					stopConditionRequired: true,
+				},
 				status: "exported",
 				note:
-					"Dedicated worker profile subpath for consumers that only need bounded delegated-worker descriptors, readiness blockers, and result envelopes.",
+					"Dedicated worker profile subpath for consumers that only need bounded delegated-worker descriptors, readiness blockers, provider token-use budgets, stop conditions, and result envelopes.",
 			},
 			{
 				channel: "npm",
@@ -580,9 +596,15 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 				channel: "runtime",
 				name: "worker tool promotion gate",
 				path: "packages/cli/src/worker-profile.ts",
+				budgetContract: {
+					tokenUse: "provider",
+					maxTurns: WORKER_TOOL_MAX_TURNS,
+					maxParallel: WORKER_PROFILE_MAX_PARALLEL,
+					stopConditionRequired: true,
+				},
 				status: "candidate",
 				note:
-					"assessWorkerToolReadiness() is the promotion gate; runtime-dispatch remains blocked until local policy, cancellation, observability, and cost-control proofs exist.",
+					"assessWorkerToolReadiness() is the promotion gate; runtime-dispatch remains blocked until local policy, cancellation, observability, provider budget, and cost-control proofs exist.",
 			},
 			{
 				channel: "npm",
@@ -697,6 +719,7 @@ const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
 		"Codex/Claude: isolate subagent context and return compact summaries.",
 		"Hermes: keep delegation bounded; do not make worker fanout ambient.",
 		"Pi: expose embeddable SDK/RPC shapes without forcing product labels.",
+		"Refarm: provider token use, max turns, max parallelism, and stop condition belong in the worker descriptor before runtime dispatch exists.",
 	],
 	"runtime-agent.session-tree": [
 		"Pi: branchable sessions, resume, fork, and export are first-class driver primitives.",
