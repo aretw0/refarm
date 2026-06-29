@@ -63,7 +63,7 @@ async function writeConsumerFixture(sourceDir) {
 					"@refarm.dev/artifact-contract-v1": "^0.1.0",
 					"@refarm.dev/channel-policy-v1": "^0.1.0",
 					"@refarm.dev/ds": "^0.1.0",
-					"@refarm.dev/launch-process": "^0.1.0",
+					"@refarm.dev/process-handoff": "^0.1.0",
 					"@refarm.dev/silo": "^0.1.0",
 				},
 				devDependencies: {
@@ -144,7 +144,7 @@ test("generated vault consumer dependencies are covered by vault-seed-ready rele
 		"@refarm.dev/artifact-contract-v1",
 		"@refarm.dev/channel-policy-v1",
 		"@refarm.dev/ds",
-		"@refarm.dev/launch-process",
+		"@refarm.dev/process-handoff",
 		"@refarm.dev/release-engine",
 		"@refarm.dev/silo",
 	]);

@@ -1,15 +1,15 @@
-# @refarm.dev/launch-process
+# @refarm.dev/process-handoff
 
 Build-free tokenized process helpers for host and consumer CLIs.
 
 This is the leaf package for consumers that only need the
-`@refarm.dev/cli/launch-process` surface without installing the full Refarm CLI
+`@refarm.dev/cli/process-handoff` surface without installing the full Refarm CLI
 dependency closure.
 
 ## Boundary
 
 - Produces structured `{ command, args, cwd, display }` process specs.
-- Adapts runner-style `(command, args, options) => Promise<void>` seams.
+- Adapts runner-style `(command, args, options) => Promise<void>` inputs.
 - Fits `@refarm.dev/artifact-contract-v1` process provenance.
 - Does not import `@refarm.dev/cli`, Homestead, runtime, trust, or config.
 
@@ -17,11 +17,11 @@ dependency closure.
 
 ```ts
 import {
-	createLaunchProcessSpecFromRunner,
-	launchDetachedProcess,
-} from "@refarm.dev/launch-process";
+	createProcessHandoffSpecFromRunner,
+	startDetachedProcessHandoff,
+} from "@refarm.dev/process-handoff";
 
-const process = createLaunchProcessSpecFromRunner(
+const process = createProcessHandoffSpecFromRunner(
 	"node",
 	["scripts/prepare_workflow_outputs.mjs", "--json"],
 	{
@@ -31,12 +31,12 @@ const process = createLaunchProcessSpecFromRunner(
 );
 ```
 
-Detached launches install an `error` listener by default so missing host tools
+Detached process handoffs install an `error` listener by default so missing host tools
 such as `xdg-open` do not crash the caller through an unhandled child-process
 event. Pass `onError` when the consumer should surface or log spawn failures:
 
 ```ts
-launchDetachedProcess(process, {
+startDetachedProcessHandoff(process, {
 	onError(error) {
 		if (error.code === "ENOENT") {
 			// Report a missing opener or optional host tool.

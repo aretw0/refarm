@@ -1,14 +1,13 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { runLaunchProcess, type LaunchProcessRunOptions, type LaunchProcessRunResult, type LaunchProcessSpec, } from "@refarm.dev/cli/launch-process";
-import { findWorkspaceRoot } from "@refarm.dev/config";
-import { Command } from "commander";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
+import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/cli/json-output";
+import { runProcessHandoff, type ProcessHandoffRunOptions, type ProcessHandoffRunResult, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
+import { findWorkspaceRoot } from "@refarm.dev/config";
+import { Command } from "commander";
+import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import {
 	createPackageScriptCommand,
 	PACKAGE_MANAGER_OVERRIDE,
@@ -21,12 +20,12 @@ export interface TidyImportsOptions {
 	json?: boolean;
 }
 
-export type TidyRunOptions = LaunchProcessRunOptions;
-export type TidyRunResult = LaunchProcessRunResult;
+export type TidyRunOptions = ProcessHandoffRunOptions;
+export type TidyRunResult = ProcessHandoffRunResult;
 
 export interface TidyDeps {
 	cwd(): string;
-	run(spec: LaunchProcessSpec, options: TidyRunOptions): Promise<TidyRunResult>;
+	run(spec: ProcessHandoffSpec, options: TidyRunOptions): Promise<TidyRunResult>;
 }
 
 export interface TidyImportsPlan {
@@ -34,7 +33,7 @@ export interface TidyImportsPlan {
 	check: boolean;
 	files: string[];
 	packageManager: string | null;
-	process: LaunchProcessSpec;
+	process: ProcessHandoffSpec;
 	processCommand: string;
 	processArgs: string[];
 	display: string;
@@ -51,7 +50,7 @@ export function resolveTidyImportsSpec(options: {
 	cwd: string;
 	check?: boolean;
 	files?: string[];
-}): LaunchProcessSpec {
+}): ProcessHandoffSpec {
 	return createPackageScriptCommand({
 		cwd: options.cwd,
 		script: "imports:organize",
@@ -63,7 +62,7 @@ export function resolveTidyImportsSpec(options: {
 }
 
 function buildTidyImportsPlan(
-	spec: LaunchProcessSpec,
+	spec: ProcessHandoffSpec,
 	options: TidyImportsOptions,
 	files: string[],
 ): TidyImportsPlan {
@@ -90,10 +89,10 @@ function refarmTidyImportsCommand(files: string[], options: { check?: boolean } 
 }
 
 export function runTidyProcess(
-	spec: LaunchProcessSpec,
+	spec: ProcessHandoffSpec,
 	options: TidyRunOptions,
 ): Promise<TidyRunResult> {
-	return runLaunchProcess(spec, options);
+	return runProcessHandoff(spec, options);
 }
 
 export function createTidyCommand(deps?: Partial<TidyDeps>): Command {

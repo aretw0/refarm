@@ -62,9 +62,9 @@
 			"types": "./dist/project-automations.d.ts",
 			"import": "./dist/project-automations.js"
 		},
-		"./launch-process": {
-			"types": "./dist/launch-process.d.ts",
-			"import": "./dist/launch-process.js"
+		"./process-handoff": {
+			"types": "./dist/process-handoff.d.ts",
+			"import": "./dist/process-handoff.js"
 		},
 		"./launch-policy": {
 			"types": "./dist/launch-policy.d.ts",
@@ -147,8 +147,8 @@
 		"dist/json-output.js",
 		"dist/launch-policy.d.ts",
 		"dist/launch-policy.js",
-		"dist/launch-process.d.ts",
-		"dist/launch-process.js",
+		"dist/process-handoff.d.ts",
+		"dist/process-handoff.js",
 		"dist/operator-resume.d.ts",
 		"dist/operator-resume.js",
 		"dist/project-handoff.d.ts",
@@ -173,7 +173,7 @@
 	"dependencies": {
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
-		"@refarm.dev/launch-process": "workspace:*",
+		"@refarm.dev/process-handoff": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/trust": "workspace:*",
 		"@refarm.dev/windmill": "workspace:*"

@@ -35,7 +35,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/artifact-contract-v1`](./artifact-contract-v1) | Artifact/provenance manifests for Lab datasets, outbox manifests, and notebook snapshots | `vault-seed-ready`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | Channel delivery evidence, rate limits, dry-run reports, and review gates | `kernel-candidates` + `vault-seed-ready`; held |
 | [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `vault-seed-ready`; held |
-| [`@refarm.dev/launch-process`](./launch-process) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
+| [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
 | [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `vault-seed-ready`; held |
 | [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `vault-seed-ready`; held |
 | [`@refarm.dev/heartwood`](./heartwood) | Cryptographic core dependency for Silo | `vault-seed-ready`; held |
@@ -64,7 +64,7 @@ This layer waits for the Pi and multi-layer plugin architecture proofs before en
 - **[`@refarm.dev/fence`](./fence)**: Scope & Boundary Auditing.
 - **[`@refarm.dev/thresher`](./thresher)**: Data Ingestion & Transformation.
 - **[`@refarm.dev/heartwood`](./heartwood)**: Cryptographic Core (WASM).
-- **[`@refarm.dev/launch-process`](./launch-process)**: Build-free tokenized
+- **[`@refarm.dev/process-handoff`](./process-handoff)**: Build-free tokenized
   process launch helpers and provenance-ready runner adapters.
 - **[`@refarm.dev/cli`](./cli)**: Shared CLI primitives, process adapters, JSON
   envelopes, and compatibility Refarm contracts. The executable Refarm app lives

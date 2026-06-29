@@ -156,14 +156,14 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-"));
 	const handoffDir = path.join(root, ".refarm/handoff/vault-seed/fixture");
-	mkdirSync(path.join(root, "packages/launch-process"), { recursive: true });
+	mkdirSync(path.join(root, "packages/process-handoff"), { recursive: true });
 	mkdirSync(handoffDir, { recursive: true });
 	writeFileSync(
-		path.join(root, "packages/launch-process/package.json"),
-		JSON.stringify({ name: "@refarm.dev/launch-process", version: "0.1.0" }),
+		path.join(root, "packages/process-handoff/package.json"),
+		JSON.stringify({ name: "@refarm.dev/process-handoff", version: "0.1.0" }),
 	);
 	writeFileSync(
-		path.join(handoffDir, "refarm.dev-launch-process-0.1.0.tgz"),
+		path.join(handoffDir, "refarm.dev-process-handoff-0.1.0.tgz"),
 		"launch",
 	);
 
@@ -176,14 +176,14 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 				ok: true,
 				status: "ready",
 				selection: { id: "vault-seed-ready" },
-				orderedNames: ["@refarm.dev/launch-process"],
+				orderedNames: ["@refarm.dev/process-handoff"],
 				orderedPackages: [
 					{
-						name: "@refarm.dev/launch-process",
+						name: "@refarm.dev/process-handoff",
 						profile: {
 							risk: "shared",
 							tags: ["vault-seed-ready"],
-							mustPassChecks: ["pnpm --filter @refarm.dev/launch-process run test"],
+							mustPassChecks: ["pnpm --filter @refarm.dev/process-handoff run test"],
 						},
 					},
 				],
@@ -193,8 +193,8 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 			},
 			commands: [
 				{
-					packageName: "@refarm.dev/launch-process",
-					packageDir: "packages/launch-process",
+					packageName: "@refarm.dev/process-handoff",
+					packageDir: "packages/process-handoff",
 				},
 			],
 		},
@@ -202,25 +202,25 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 
 	assert.equal(manifest.ok, true);
 	assert.deepEqual(manifest.packages[0].consumerPull, {
-		proofId: "launch-process.dgk-runner-adapter",
+		proofId: "process-handoff.dgk-runner-adapter",
 		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
-		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
+		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
 		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
 	});
 	assert.deepEqual(manifest.consumerProofs, [
 		{
-			proofId: "launch-process.dgk-runner-adapter",
-			packageName: "@refarm.dev/launch-process",
+			proofId: "process-handoff.dgk-runner-adapter",
+			packageName: "@refarm.dev/process-handoff",
 			downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
-			proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
+			proofTarget: "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
 			ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
 		},
 	]);
 	assert.match(
 		formatHandoffMarkdown(manifest),
-		/dgk-runner keeps run\(cmd, args, opts\) while using launch-process internally/,
+		/dgk-runner keeps run\(cmd, args, opts\) while using process-handoff internally/,
 	);
-	assert.match(formatHandoffMarkdown(manifest), /launch-process\.dgk-runner-adapter/);
+	assert.match(formatHandoffMarkdown(manifest), /process-handoff\.dgk-runner-adapter/);
 	assert.match(formatHandoffMarkdown(manifest), /Consumer proofs:/);
 });
 

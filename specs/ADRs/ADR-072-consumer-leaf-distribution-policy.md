@@ -21,7 +21,7 @@ Two concrete signals triggered this decision:
 
 - `@refarm.dev/homestead-ssr` exposes pure DS HTML helpers. The helpers are isomorphic, browser-safe,
   and do not require Homestead. The `-ssr` suffix and Homestead ownership both mislead consumers.
-- `@refarm.dev/launch-process` is a light process primitive re-exported by `@refarm.dev/cli`.
+- `@refarm.dev/process-handoff` is a light process primitive re-exported by `@refarm.dev/cli`.
   Folding it into CLI would couple consumers to the CLI package's heavier runtime closure and
   different distribution posture.
 
@@ -61,12 +61,11 @@ suggests server-only rendering and Homestead ownership.
 
 ### Process outcome
 
-`@refarm.dev/launch-process` must not become a `@refarm.dev/cli`-only subpath.
+`@refarm.dev/process-handoff` must not become a `@refarm.dev/cli`-only subpath.
 
-The long-term name should be capability-oriented. The preferred rename for the next breaking slice is
-`@refarm.dev/process-handoff`, with CLI compatibility exposed only as a re-export if still needed.
-That name better matches the package's actual role: tokenized process specs, runner adaptation,
-detached execution, and artifact/provenance handoffs.
+The capability-oriented package name is `@refarm.dev/process-handoff`, with CLI access exposed only
+as a re-export. That name matches the package's actual role: tokenized process specs, runner
+adaptation, detached execution, and artifact/provenance handoffs.
 
 ## Consequences
 
@@ -81,8 +80,8 @@ detached execution, and artifact/provenance handoffs.
 
 - `vault-seed-ready` package counts and historical handoff docs change.
 - Consumers using `@refarm.dev/homestead-ssr` need to switch to `@refarm.dev/ds/html`.
-- Renaming `launch-process` to `process-handoff` is a breaking import change and needs a focused
-  migration slice.
+- The rename from `launch-process` to `process-handoff` is a breaking import change for consumers
+  that adopted the pre-release leaf.
 
 ### Risks
 
@@ -97,6 +96,5 @@ detached execution, and artifact/provenance handoffs.
 2. Remove `@refarm.dev/homestead-ssr` from `vault-seed-ready` release selection.
 3. Keep Homestead SSR surfaces as compatibility re-exports over DS until downstream users have moved.
 4. Update current docs and handoff metadata so `ds/html` is the canonical admin/shell helper.
-5. In a separate breaking slice, rename `@refarm.dev/launch-process` to
-   `@refarm.dev/process-handoff` and keep or remove CLI compatibility based on the release policy
-   of that slice.
+5. Rename `@refarm.dev/launch-process` to `@refarm.dev/process-handoff` and keep CLI access as a
+   `@refarm.dev/cli/process-handoff` re-export.

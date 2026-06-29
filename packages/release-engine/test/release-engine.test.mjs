@@ -350,7 +350,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
     "@refarm.dev/artifact-contract-v1",
     "@refarm.dev/channel-policy-v1",
     "@refarm.dev/effort-contract-v1",
-    "@refarm.dev/launch-process",
+    "@refarm.dev/process-handoff",
     "@refarm.dev/release-engine",
     "@refarm.dev/ds",
     "@refarm.dev/heartwood",

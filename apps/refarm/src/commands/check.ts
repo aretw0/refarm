@@ -1,4 +1,4 @@
-import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
+import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	runRustSubstrateCheck,
 	type RustSubstrateCheck,
@@ -864,7 +864,7 @@ function isSourceOwnershipCandidate(relativePath: string): boolean {
 
 async function readGitTrackedFiles(root: string): Promise<string[]> {
 	try {
-		const { stdout } = await runLaunchProcess(
+		const { stdout } = await runProcessHandoff(
 			{
 				command: "git",
 				args: ["ls-files", "-z"],

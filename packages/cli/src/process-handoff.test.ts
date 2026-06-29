@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-	createLaunchProcessRunner,
-	createLaunchProcessSpec,
-	createLaunchProcessSpecFromRunner,
-	launchDetachedProcess,
-	runLaunchProcess,
-	splitLaunchCommand,
-} from "./launch-process.js";
+	createProcessHandoffRunner,
+	createProcessHandoffSpec,
+	createProcessHandoffSpecFromRunner,
+	runProcessHandoff,
+	splitProcessHandoffCommand,
+	startDetachedProcessHandoff,
+} from "./process-handoff.js";
 
 async function waitForLogContent(
 	logPath: string,
@@ -26,34 +26,36 @@ async function waitForLogContent(
 	return content;
 }
 
-describe("splitLaunchCommand", () => {
-	it("splits launcher command into command + args", () => {
-		expect(splitLaunchCommand("runner -C apps/dev run dev")).toEqual({
+describe("splitProcessHandoffCommand", () => {
+	it("splits a process handoff command into command + args", () => {
+		expect(splitProcessHandoffCommand("runner -C apps/dev run dev")).toEqual({
 			command: "runner",
 			args: ["-C", "apps/dev", "run", "dev"],
 		});
 	});
 
 	it("normalizes repeated whitespace", () => {
-		expect(splitLaunchCommand("cargo   run -p tractor -- watch")).toEqual({
+		expect(splitProcessHandoffCommand("cargo   run -p tractor -- watch")).toEqual({
 			command: "cargo",
 			args: ["run", "-p", "tractor", "--", "watch"],
 		});
 	});
 
-	it("preserves quoted launcher arguments", () => {
-		expect(splitLaunchCommand("runner --label 'Refarm Dev'")).toEqual({
+	it("preserves quoted process handoff arguments", () => {
+		expect(splitProcessHandoffCommand("runner --label 'Refarm Dev'")).toEqual({
 			command: "runner",
 			args: ["--label", "Refarm Dev"],
 		});
 	});
 
-	it("rejects empty launcher command", () => {
-		expect(() => splitLaunchCommand("   ")).toThrow(/Invalid launcher command/);
+	it("rejects empty process handoff command", () => {
+		expect(() => splitProcessHandoffCommand("   ")).toThrow(
+			/Invalid process handoff command/,
+		);
 	});
 
-	it("builds full launch process spec from command display", () => {
-		expect(createLaunchProcessSpec("runner -C apps/dev run dev")).toEqual({
+	it("builds full process handoff spec from command display", () => {
+		expect(createProcessHandoffSpec("runner -C apps/dev run dev")).toEqual({
 			command: "runner",
 			args: ["-C", "apps/dev", "run", "dev"],
 			display: "runner -C apps/dev run dev",
@@ -62,7 +64,7 @@ describe("splitLaunchCommand", () => {
 
 	it("can carry an explicit working directory", () => {
 		expect(
-			createLaunchProcessSpec("tractor watch", { cwd: "/workspaces/refarm" }),
+			createProcessHandoffSpec("tractor watch", { cwd: "/workspaces/refarm" }),
 		).toEqual({
 			command: "tractor",
 			args: ["watch"],
@@ -73,7 +75,7 @@ describe("splitLaunchCommand", () => {
 
 	it("builds process specs from runner-style command arguments", () => {
 		expect(
-			createLaunchProcessSpecFromRunner(
+			createProcessHandoffSpecFromRunner(
 				"node",
 				["scripts/run task.mjs", "--json"],
 				{
@@ -92,7 +94,7 @@ describe("splitLaunchCommand", () => {
 
 	it("lets consumers override runner process display strings", () => {
 		expect(
-			createLaunchProcessSpecFromRunner("refarm", ["check", "--json"], {
+			createProcessHandoffSpecFromRunner("refarm", ["check", "--json"], {
 				display: "refarm check --json",
 			}),
 		).toEqual({
@@ -104,7 +106,7 @@ describe("splitLaunchCommand", () => {
 
 	it("can capture process output and exit code", async () => {
 		await expect(
-			runLaunchProcess(
+			runProcessHandoff(
 				{
 					command: process.execPath,
 					args: [
@@ -124,7 +126,7 @@ describe("splitLaunchCommand", () => {
 
 	it("creates a runner adapter that resolves on successful process execution", async () => {
 		const calls: unknown[] = [];
-		const runner = createLaunchProcessRunner(async (spec, options) => {
+		const runner = createProcessHandoffRunner(async (spec, options) => {
 			calls.push({ spec, options });
 			return { exitCode: 0 };
 		});
@@ -154,7 +156,7 @@ describe("splitLaunchCommand", () => {
 	});
 
 	it("creates a runner adapter that rejects failed process execution", async () => {
-		const runner = createLaunchProcessRunner(async () => ({ exitCode: 2 }));
+		const runner = createProcessHandoffRunner(async () => ({ exitCode: 2 }));
 
 		await expect(
 			runner("node", ["scripts/etl.mjs"], {
@@ -164,14 +166,14 @@ describe("splitLaunchCommand", () => {
 	});
 
 	it("can launch a detached process and capture output to a log", async () => {
-		const root = join(tmpdir(), `refarm-launch-process-${Date.now()}`);
+		const root = join(tmpdir(), `refarm-process-handoff-${Date.now()}`);
 		const logPath = join(root, "process.log");
 		const script = join(root, "write-log.js");
 		mkdirSync(root, { recursive: true });
 		writeFileSync(script, "process.stdout.write('detached ok');");
 
 		try {
-			launchDetachedProcess(
+			startDetachedProcessHandoff(
 				{
 					command: process.execPath,
 					args: [script],

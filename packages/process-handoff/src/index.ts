@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-export interface LaunchProcessSpec {
+export interface ProcessHandoffSpec {
 	packageManager?: string | null;
 	command: string;
 	args: string[];
@@ -10,55 +10,55 @@ export interface LaunchProcessSpec {
 	display: string;
 }
 
-export interface LaunchProcessRunOptions {
+export interface ProcessHandoffRunOptions {
 	capture?: boolean;
 	env?: NodeJS.ProcessEnv;
 }
 
-export interface LaunchProcessRunnerOptions extends LaunchProcessRunOptions {
+export interface ProcessHandoffRunnerOptions extends ProcessHandoffRunOptions {
 	cwd?: string;
 	display?: string;
 	packageManager?: string | null;
 }
 
-export type LaunchProcessRunner = (
+export type ProcessHandoffRunner = (
 	command: string,
 	args: string[],
-	options?: LaunchProcessRunnerOptions,
+	options?: ProcessHandoffRunnerOptions,
 ) => Promise<void>;
 
-export interface LaunchProcessRunResult {
+export interface ProcessHandoffRunResult {
 	exitCode: number;
 	stdout?: string;
 	stderr?: string;
 }
 
-export interface DetachedLaunchProcessOptions {
+export interface DetachedProcessHandoffOptions {
 	logPath?: string;
 	env?: NodeJS.ProcessEnv;
 	onError?: (error: NodeJS.ErrnoException) => void;
 }
 
-export interface DetachedLaunchProcess {
+export interface DetachedProcessHandoff {
 	unref(): void;
 }
 
-export function quoteLaunchProcessArg(value: string): string {
+export function quoteProcessHandoffArg(value: string): string {
 	return `'${value.replace(/'/g, "'\"'\"'")}'`;
 }
 
-export function createLaunchProcessDisplay(
+export function createProcessHandoffDisplay(
 	command: string,
 	args: readonly string[] = [],
 ): string {
-	return [command, ...args.map(quoteLaunchProcessArg)].join(" ");
+	return [command, ...args.map(quoteProcessHandoffArg)].join(" ");
 }
 
-export function createLaunchProcessSpec(
+export function createProcessHandoffSpec(
 	commandDisplay: string,
 	options: { cwd?: string } = {},
-): LaunchProcessSpec {
-	const parsed = splitLaunchCommand(commandDisplay);
+): ProcessHandoffSpec {
+	const parsed = splitProcessHandoffCommand(commandDisplay);
 	return {
 		...parsed,
 		...(options.cwd ? { cwd: options.cwd } : {}),
@@ -66,11 +66,11 @@ export function createLaunchProcessSpec(
 	};
 }
 
-export function createLaunchProcessSpecFromRunner(
+export function createProcessHandoffSpecFromRunner(
 	command: string,
 	args: string[],
-	options: LaunchProcessRunnerOptions = {},
-): LaunchProcessSpec {
+	options: ProcessHandoffRunnerOptions = {},
+): ProcessHandoffSpec {
 	return {
 		command,
 		args,
@@ -78,17 +78,17 @@ export function createLaunchProcessSpecFromRunner(
 		...(options.packageManager !== undefined
 			? { packageManager: options.packageManager }
 			: {}),
-		display: options.display ?? createLaunchProcessDisplay(command, args),
+		display: options.display ?? createProcessHandoffDisplay(command, args),
 	};
 }
 
-export function splitLaunchCommand(command: string): {
+export function splitProcessHandoffCommand(command: string): {
 	command: string;
 	args: string[];
 } {
-	const parts = splitCommandLine(command, "launcher command");
+	const parts = splitCommandLine(command, "process handoff command");
 	if (parts.length === 0) {
-		throw new Error("Invalid launcher command.");
+		throw new Error("Invalid process handoff command.");
 	}
 
 	return {
@@ -97,10 +97,10 @@ export function splitLaunchCommand(command: string): {
 	};
 }
 
-export function runLaunchProcess(
-	spec: LaunchProcessSpec,
-	options: LaunchProcessRunOptions = {},
-): Promise<LaunchProcessRunResult> {
+export function runProcessHandoff(
+	spec: ProcessHandoffSpec,
+	options: ProcessHandoffRunOptions = {},
+): Promise<ProcessHandoffRunResult> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(spec.command, spec.args, {
 			cwd: spec.cwd ?? process.cwd(),
@@ -134,10 +134,10 @@ export function runLaunchProcess(
 	});
 }
 
-export function runLaunchProcessSync(
-	spec: LaunchProcessSpec,
-	options: LaunchProcessRunOptions = {},
-): LaunchProcessRunResult {
+export function runProcessHandoffSync(
+	spec: ProcessHandoffSpec,
+	options: ProcessHandoffRunOptions = {},
+): ProcessHandoffRunResult {
 	const result = spawnSync(spec.command, spec.args, {
 		cwd: spec.cwd ?? process.cwd(),
 		encoding: "utf-8",
@@ -150,19 +150,21 @@ export function runLaunchProcessSync(
 	};
 }
 
-export async function launchProcess(spec: LaunchProcessSpec): Promise<number> {
-	const result = await runLaunchProcess(spec);
+export async function executeProcessHandoff(
+	spec: ProcessHandoffSpec,
+): Promise<number> {
+	const result = await runProcessHandoff(spec);
 	return result.exitCode;
 }
 
-export function createLaunchProcessRunner(
+export function createProcessHandoffRunner(
 	runProcess: (
-		spec: LaunchProcessSpec,
-		options?: LaunchProcessRunOptions,
-	) => Promise<LaunchProcessRunResult> = runLaunchProcess,
-): LaunchProcessRunner {
+		spec: ProcessHandoffSpec,
+		options?: ProcessHandoffRunOptions,
+	) => Promise<ProcessHandoffRunResult> = runProcessHandoff,
+): ProcessHandoffRunner {
 	return async (command, args, options = {}) => {
-		const spec = createLaunchProcessSpecFromRunner(command, args, options);
+		const spec = createProcessHandoffSpecFromRunner(command, args, options);
 		const result = await runProcess(spec, options);
 		if (result.exitCode !== 0) {
 			throw new Error(`'${spec.display}' exited with code ${result.exitCode}`);
@@ -170,11 +172,11 @@ export function createLaunchProcessRunner(
 	};
 }
 
-export function launchDetachedProcess(
-	spec: LaunchProcessSpec,
-	options: DetachedLaunchProcessOptions = {},
-): DetachedLaunchProcess {
-	const outputFd = options.logPath ? openLaunchProcessLog(options.logPath) : "ignore";
+export function startDetachedProcessHandoff(
+	spec: ProcessHandoffSpec,
+	options: DetachedProcessHandoffOptions = {},
+): DetachedProcessHandoff {
+	const outputFd = options.logPath ? openProcessHandoffLog(options.logPath) : "ignore";
 	try {
 		const child = spawn(spec.command, spec.args, {
 			cwd: spec.cwd ?? process.cwd(),
@@ -194,7 +196,7 @@ export function launchDetachedProcess(
 	}
 }
 
-function openLaunchProcessLog(logPath: string): number {
+function openProcessHandoffLog(logPath: string): number {
 	fs.mkdirSync(path.dirname(logPath), { recursive: true });
 	return fs.openSync(logPath, "a");
 }

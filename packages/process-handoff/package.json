@@ -1,7 +1,7 @@
 {
-	"name": "@refarm.dev/launch-process",
+	"name": "@refarm.dev/process-handoff",
 	"version": "0.1.0",
-	"description": "Build-free tokenized process launch helpers for Refarm and consumer CLIs.",
+	"description": "Build-free tokenized process handoff helpers for Refarm and consumer CLIs.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

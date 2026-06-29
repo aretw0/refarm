@@ -6,30 +6,30 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-	createLaunchProcessRunner,
-	createLaunchProcessSpec,
-	createLaunchProcessSpecFromRunner,
-	launchDetachedProcess,
-	splitLaunchCommand,
+	createProcessHandoffRunner,
+	createProcessHandoffSpec,
+	createProcessHandoffSpecFromRunner,
+	splitProcessHandoffCommand,
+	startDetachedProcessHandoff,
 } from "./index.js";
 
-describe("launch-process leaf package", () => {
-	it("splits launcher command into command + args", () => {
-		expect(splitLaunchCommand("runner -C apps/dev run dev")).toEqual({
+describe("process-handoff leaf package", () => {
+	it("splits a process handoff command into command + args", () => {
+		expect(splitProcessHandoffCommand("runner -C apps/dev run dev")).toEqual({
 			command: "runner",
 			args: ["-C", "apps/dev", "run", "dev"],
 		});
 	});
 
-	it("preserves quoted launcher arguments", () => {
-		expect(splitLaunchCommand("runner --label 'Refarm Dev'")).toEqual({
+	it("preserves quoted process handoff arguments", () => {
+		expect(splitProcessHandoffCommand("runner --label 'Refarm Dev'")).toEqual({
 			command: "runner",
 			args: ["--label", "Refarm Dev"],
 		});
 	});
 
-	it("builds full launch process spec from command display", () => {
-		expect(createLaunchProcessSpec("runner -C apps/dev run dev")).toEqual({
+	it("builds full process handoff spec from command display", () => {
+		expect(createProcessHandoffSpec("runner -C apps/dev run dev")).toEqual({
 			command: "runner",
 			args: ["-C", "apps/dev", "run", "dev"],
 			display: "runner -C apps/dev run dev",
@@ -38,7 +38,7 @@ describe("launch-process leaf package", () => {
 
 	it("builds process specs from runner-style command arguments", () => {
 		expect(
-			createLaunchProcessSpecFromRunner(
+			createProcessHandoffSpecFromRunner(
 				"node",
 				["scripts/run task.mjs", "--json"],
 				{
@@ -56,7 +56,7 @@ describe("launch-process leaf package", () => {
 	});
 
 	it("creates a runner adapter that rejects failed process execution", async () => {
-		const runner = createLaunchProcessRunner(async () => ({ exitCode: 2 }));
+		const runner = createProcessHandoffRunner(async () => ({ exitCode: 2 }));
 
 		await expect(
 			runner("node", ["scripts/etl.mjs"], {
@@ -66,7 +66,7 @@ describe("launch-process leaf package", () => {
 	});
 
 	it("maps runner process specs into artifact provenance without shell-splitting", () => {
-		const process = createLaunchProcessSpecFromRunner(
+		const process = createProcessHandoffSpecFromRunner(
 			"node",
 			["scripts/prepare_lab_datasets.mjs", "--json"],
 			{
@@ -108,7 +108,7 @@ describe("launch-process leaf package", () => {
 	});
 
 	it("reports detached spawn errors without raising an uncaught exception", async () => {
-		const missingCommand = `refarm-missing-launch-process-${process.pid}-${Date.now()}`;
+		const missingCommand = `refarm-missing-process-handoff-${process.pid}-${Date.now()}`;
 
 		await expect(
 			new Promise<NodeJS.ErrnoException>((resolve, reject) => {
@@ -116,7 +116,7 @@ describe("launch-process leaf package", () => {
 					reject(new Error("Timed out waiting for detached spawn error."));
 				}, 1_000);
 
-				launchDetachedProcess(
+				startDetachedProcessHandoff(
 					{
 						command: missingCommand,
 						args: [],

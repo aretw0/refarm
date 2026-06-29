@@ -12,7 +12,7 @@ application lives in `apps/refarm`.
 - JSON output envelopes and command result parsing.
 - Command handoff, command plan, and execution plan helpers.
 - Surface action affordance helpers.
-- Browser-open and launch process helpers.
+- Browser-open and process handoff helpers.
 - Launch readiness policy.
 - Git command and GitHub Actions CLI adapters.
 - Operator resume formatting.
@@ -38,7 +38,7 @@ Keep these modules agnostic by default:
 - `execution-plan`
 - `browser-open` (`BROWSER_OPEN_COMMAND` is the primary opener override;
   `REFARM_BROWSER_OPEN_COMMAND` remains as a compatibility alias)
-- `launch-process`
+- `process-handoff`
 - `git-command`
 - `github-actions`
 

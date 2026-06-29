@@ -25,7 +25,7 @@ evidence shapes.
 |---|---|---|
 | 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | `silo` collect exists and another consumer needs scoped secret storage | model/runtime/channel/publishing namespaces remain separate |
 | 8b `dgk-channels` -> channel policy blocks | **Candidate active**: `vault-seed` Telegram outbox/inbox + Refarm channel-control surfaces both need destination, rate-limit, delivery state, receipt, dry-run, and review semantics | contacts/rate limits/receipts are not Telegram- or DGK-specific |
-| 8c `dgk-runner` -> `@refarm.dev/launch-process` | another CLI needs the same process launch lifecycle | helper is independent of DGK command names and vault paths |
+| 8c `dgk-runner` -> `@refarm.dev/process-handoff` | another CLI needs the same process handoff lifecycle | helper is independent of DGK command names and vault paths |
 
 ## Bridge 8b Scope
 
