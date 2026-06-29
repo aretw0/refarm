@@ -190,6 +190,12 @@ placement: discovery is available through `@refarm.dev/cli/capability-index`,
 but `@refarm.dev/cli` remains in `boundary-review`, is not a
 `vault-seed-ready` leaf, and does not make runtime execution public.
 
+Current proof (2026-06-29): the reference-driver supply preflight now carries
+`promotionQueue`. It ranks blocked targets as candidate, internal, then hold and
+includes proof count, budget-contract presence, and the next decision for each
+item. This gives the Refarm lab and downstream planners a cheap next-proof list
+without promoting runtime dispatch or reprocessing the full supply map.
+
 Current proof (2026-06-29): the reference-driver supply map now carries
 top-level `adoptionCriteria`. This is the long-term promotion bar for turning
 research pressure into Refarm supply instead of app-local behavior: structured

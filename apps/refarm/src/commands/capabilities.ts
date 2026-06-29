@@ -128,6 +128,11 @@ function formatReferenceDriverSupplyPreflight(
 		chalk.dim(
 			`proofs: blocked targets ${proofSummary.blockedTargetCount}; with proofs ${proofSummary.targetsWithPromotionProofTargets}; unique proof targets ${proofSummary.uniquePromotionProofTargetCount}; budget contracts ${proofSummary.targetsWithBudgetContract}`,
 		),
+		...preflight.promotionQueue.slice(0, 3).map((item) =>
+			chalk.dim(
+				`  #${item.rank} ${item.status}: ${item.channel} ${item.name}; proofs ${item.proofTargetCount}; budget ${item.hasBudgetContract ? "yes" : "no"}`,
+			),
+		),
 		...preflight.nextDecisions.map((entry) =>
 			chalk.dim(`  ${entry.capabilityId}: ${entry.nextDecision}`),
 		),

@@ -343,8 +343,54 @@ describe("capability index", () => {
 				uniquePromotionProofTargetCount: 8,
 				targetsWithBudgetContract: 1,
 			},
+			promotionQueue: expect.arrayContaining([
+				{
+					rank: 1,
+					capabilityId: "runtime-agent.ask",
+					status: "candidate",
+					channel: "runtime",
+					name: "runtime-agent ask command",
+					proofTargetCount: 4,
+					hasBudgetContract: false,
+					nextDecision: expect.stringContaining("Keep ask as the local daily-driver spine"),
+				},
+				{
+					rank: 2,
+					capabilityId: "runtime-agent.worker-profiles",
+					status: "candidate",
+					channel: "runtime",
+					name: "worker tool promotion gate",
+					proofTargetCount: 4,
+					hasBudgetContract: true,
+					nextDecision: expect.stringContaining("Keep agents-as-tools plan-only"),
+				},
+				{
+					rank: 4,
+					capabilityId: "runtime-agent.structured-io",
+					status: "internal",
+					channel: "wit",
+					name: "refarm:agent-tools@0.1.0",
+					proofTargetCount: 0,
+					hasBudgetContract: false,
+					nextDecision: expect.stringContaining("Promote structured-io through WIT"),
+				},
+			]),
 		});
 		expect(preflight.targets.map((target) => target.status)).not.toContain("exported");
+		expect(preflight.promotionQueue).toHaveLength(11);
+		expect(preflight.promotionQueue.map((item) => item.status)).toEqual([
+			"candidate",
+			"candidate",
+			"candidate",
+			"internal",
+			"internal",
+			"internal",
+			"hold",
+			"hold",
+			"hold",
+			"hold",
+			"hold",
+		]);
 		expect(preflight.targets).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({

@@ -352,6 +352,7 @@ export type {
 	CapabilitySupplyTarget,
 	ReferenceDriverAdoptionCriterion,
 	ReferenceDriverPublicationBoundary,
+	ReferenceDriverSupplyPromotionQueueItem,
 	ReferenceDriverSupplyEntry,
 	ReferenceDriverSupplyMap,
 	ReferenceDriverSupplyPreflight,
