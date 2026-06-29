@@ -1,3 +1,4 @@
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	assertRefarmStatusJson,
 	buildRefarmStatusJson,
@@ -11,9 +12,8 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
-import { printJson } from "@refarm.dev/cli/json-output";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
-import { probeRuntimeReady } from "./runtime-readiness.js";
+import { probeRuntimeLiveness } from "./runtime-readiness.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -63,7 +63,7 @@ async function createStatusRuntimeSummary(
 			return "unknown";
 		}
 	})();
-	const ready = await probeRuntimeReady(300);
+	const ready = (await probeRuntimeLiveness()).ready;
 	return {
 		ready,
 		namespace,

@@ -1078,12 +1078,17 @@ Notes:
 		)
 		.action(async (options: RefarmCheckOptions) => {
 			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
+			const doctor = nextActionOnly
+				? await deps.runDoctor({
+						failOnWarnings: options.failOnWarnings,
+					})
+				: undefined;
 			const [
 				nodeSubstrate,
 				rustSubstrate,
 				environmentPressure,
 				health,
-				doctor,
+				parallelDoctor,
 				model,
 				workspaceExecution,
 				workspaceSweep,
@@ -1093,9 +1098,11 @@ Notes:
 				deps.runRustSubstrate?.(),
 				deps.runEnvironmentPressure?.(),
 				deps.runHealth(),
-				deps.runDoctor({
-					failOnWarnings: options.failOnWarnings,
-				}),
+				doctor
+					? undefined
+					: deps.runDoctor({
+							failOnWarnings: options.failOnWarnings,
+						}),
 				nextActionOnly ? undefined : deps.runModelDoctor?.(),
 				nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
 				nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
@@ -1109,7 +1116,7 @@ Notes:
 				workspaceSweep,
 				releasePolicy,
 				health,
-				doctor,
+				doctor: doctor ?? parallelDoctor!,
 				model,
 			});
 

@@ -1085,6 +1085,50 @@ describe("checkCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("runs doctor before fan-out checks for next-action JSON", async () => {
+		const deps = makeDeps();
+		const order: string[] = [];
+		deps.runDoctor = vi.fn(async () => {
+			order.push("doctor");
+			return makeDoctorReport();
+		});
+		deps.runHealth = vi.fn(async () => {
+			order.push("health");
+			return makeHealthReport();
+		});
+		deps.runNodeSubstrate = vi.fn(async () => {
+			order.push("node-substrate");
+			return makeNodeSubstrateCheck();
+		});
+		deps.runRustSubstrate = vi.fn(async () => {
+			order.push("rust-substrate");
+			return makeRustSubstrateCheck();
+		});
+		deps.runEnvironmentPressure = vi.fn(async () => {
+			order.push("environment-pressure");
+			return makeEnvironmentPressureCheck();
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(order[0]).toBe("doctor");
+		expect(order).toEqual(
+			expect.arrayContaining([
+				"doctor",
+				"health",
+				"node-substrate",
+				"rust-substrate",
+				"environment-pressure",
+			]),
+		);
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+	});
+
 	it("prints only the first blocking recovery action with --next-action", async () => {
 		const deps = makeDeps({
 			health: {

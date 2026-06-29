@@ -1,5 +1,5 @@
-import { sidecarUrl } from "./sidecar-url.js";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 export interface RuntimeReadinessProbe {
 	url: string;
@@ -84,6 +84,12 @@ export async function probeRuntimeReadiness(
 		...effortsProbe,
 		status: sessionsProbe.status,
 	};
+}
+
+export async function probeRuntimeLiveness(
+	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
+): Promise<RuntimeReadinessProbe> {
+	return probeRuntimeEndpoint("/efforts/summary", probeTimeoutMs);
 }
 
 export async function probeRuntimeReady(
