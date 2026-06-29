@@ -90,6 +90,16 @@ describe("capabilities command", () => {
 				discoverySdk: "@refarm.dev/cli/capability-index",
 				entries: expect.arrayContaining([
 					expect.objectContaining({
+						capabilityId: "runtime-agent.ask",
+						targets: expect.arrayContaining([
+							expect.objectContaining({
+								export: "@refarm.dev/cli/interaction-driver",
+								name: "@refarm.dev/cli interaction driver",
+								status: "exported",
+							}),
+						]),
+					}),
+					expect.objectContaining({
 						capabilityId: "runtime-agent.worker-profiles",
 						targets: expect.arrayContaining([
 							expect.objectContaining({
