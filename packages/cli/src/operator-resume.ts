@@ -111,6 +111,26 @@ export interface OperatorResumeScheduledWorkInspection {
 	jobs: readonly OperatorResumeScheduledWorkJob[];
 }
 
+export interface OperatorResumeEnvironmentPressureSignal {
+	id: string;
+	kind: string;
+	severity: "info" | "warning" | "failure";
+	ok: boolean;
+	summary: string;
+	action: string | null;
+	command?: string | null;
+	path?: string;
+}
+
+export interface OperatorResumeEnvironmentPressure {
+	command: string;
+	operation: string;
+	ok: boolean;
+	decision: "continue" | "safe-mode" | "stop-and-investigate";
+	signals: readonly OperatorResumeEnvironmentPressureSignal[];
+	nextCommands: readonly string[];
+}
+
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	model?: OperatorResumeModelSummary;
@@ -121,6 +141,7 @@ export interface OperatorResumeInput {
 	recentPrompts?: readonly string[];
 	finish?: OperatorResumeFinishRecord | null;
 	scheduledWork?: OperatorResumeScheduledWorkInspection | null;
+	environmentPressure?: OperatorResumeEnvironmentPressure | null;
 	commands?: Partial<OperatorResumeCommands>;
 }
 
@@ -191,6 +212,7 @@ export interface OperatorResumeSummary {
 	model?: OperatorResumeModelSummary;
 	project?: OperatorResumeProjectSummary;
 	scheduledWork?: OperatorResumeScheduledWorkInspection;
+	environmentPressure?: OperatorResumeEnvironmentPressure;
 	session: OperatorResumeSessionSummary;
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
@@ -407,6 +429,7 @@ export function buildOperatorResumeSummary(
 				Boolean(input.model) ||
 				Boolean(input.project) ||
 				Boolean(input.scheduledWork) ||
+				Boolean(input.environmentPressure) ||
 				session.status !== "none" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
@@ -418,6 +441,7 @@ export function buildOperatorResumeSummary(
 		model: input.model,
 		project: input.project ?? undefined,
 		scheduledWork: input.scheduledWork ?? undefined,
+		environmentPressure: input.environmentPressure ?? undefined,
 		session,
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
@@ -440,6 +464,10 @@ export function operatorResumeNextCommands(
 	}
 
 	const nextCommands: string[] = [];
+
+	if (summary.environmentPressure?.decision === "stop-and-investigate") {
+		nextCommands.push(...summary.environmentPressure.nextCommands);
+	}
 
 	// Recovery: finish failed — the most urgent resumption point.
 	if (summary.finish.status === "failed") {
@@ -683,6 +711,20 @@ export function formatOperatorResumeSummary(
 		}
 	} else {
 		lines.push("Scheduled work: none");
+	}
+	if (summary.environmentPressure) {
+		lines.push(
+			`Environment pressure: ${summary.environmentPressure.decision} (${summary.environmentPressure.signals.length} signals)`,
+		);
+		for (const signal of summary.environmentPressure.signals.filter(
+			(signal) => signal.severity !== "info",
+		).slice(0, 5)) {
+			lines.push(`  ${signal.severity}: ${signal.summary}`);
+			if (signal.action) lines.push(`    action: ${signal.action}`);
+			if (signal.command) lines.push(`    command: ${signal.command}`);
+		}
+	} else {
+		lines.push("Environment pressure: not inspected");
 	}
 	if (
 		(summary.session.status === "active" || summary.session.status === "stale") &&

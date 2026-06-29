@@ -165,7 +165,7 @@ export type EnvironmentPressureDecision =
 
 export interface EnvironmentPressureSignal {
 	id: string;
-	kind: "filesystem" | "memory" | "git" | "cache";
+	kind: "filesystem" | "memory" | "git" | "cache" | "session";
 	severity: "info" | "warning" | "failure";
 	ok: boolean;
 	summary: string;
