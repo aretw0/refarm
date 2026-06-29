@@ -176,7 +176,7 @@ test("process handoff stays the selected process leaf", () => {
 	assert.doesNotMatch(policyText, /@refarm\.dev\/launch-process/);
 });
 
-test("source librarian adapters stay profiled but consumer-gated", () => {
+test("source librarian adapters stay profiled but proof-gated", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policyText = read("refarm.config.json");
 	const profiles = config.releasePolicy.packageProfiles;
@@ -204,11 +204,11 @@ test("source librarian adapters stay profiled but consumer-gated", () => {
 		);
 		assert.ok(
 			profile.tags.includes("candidate-hold"),
-			`${packageName} must stay held until pulled`,
+			`${packageName} must stay held until executable consumer proof`,
 		);
 		assert.ok(
 			!vaultSeedReady.has(packageName),
-			`${packageName} must not enter vault-seed-ready without downstream proof`,
+			`${packageName} must not enter vault-seed-ready without selected downstream proof`,
 		);
 	}
 
