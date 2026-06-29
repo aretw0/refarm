@@ -53,7 +53,7 @@ describe("executeRendererLaunchFlow", () => {
 
 	it("no-ops when launch flag is not enabled", async () => {
 		const resolveLaunchSpec = vi.fn(() => ({ display: "runner dev" }));
-		const launchProcess = vi.fn().mockResolvedValue(0);
+		const executeProcessHandoff = vi.fn().mockResolvedValue(0);
 
 		await executeRendererLaunchFlow({
 			launch: false,
@@ -64,11 +64,11 @@ describe("executeRendererLaunchFlow", () => {
 			dryRunRuntimeLabel: "web runtime",
 			startRuntimeLabel: "web runtime",
 			resolveLaunchSpec,
-			launchProcess,
+			executeProcessHandoff,
 		});
 
 		expect(resolveLaunchSpec).not.toHaveBeenCalled();
-		expect(launchProcess).not.toHaveBeenCalled();
+		expect(executeProcessHandoff).not.toHaveBeenCalled();
 	});
 
 	it("handles dry-run without launching process", async () => {
@@ -78,7 +78,7 @@ describe("executeRendererLaunchFlow", () => {
 			display: "runner dev",
 		};
 		const resolveLaunchSpec = vi.fn(() => spec);
-		const launchProcess = vi.fn().mockResolvedValue(0);
+		const executeProcessHandoff = vi.fn().mockResolvedValue(0);
 		const onDryRun = vi.fn();
 		const log = vi.fn();
 
@@ -91,7 +91,7 @@ describe("executeRendererLaunchFlow", () => {
 			dryRunRuntimeLabel: "web runtime",
 			startRuntimeLabel: "web runtime",
 			resolveLaunchSpec,
-			launchProcess,
+			executeProcessHandoff,
 			onDryRun,
 			log,
 		});
@@ -101,7 +101,7 @@ describe("executeRendererLaunchFlow", () => {
 			expect.stringContaining("[dry-run] would launch web runtime"),
 		);
 		expect(onDryRun).toHaveBeenCalledWith(spec);
-		expect(launchProcess).not.toHaveBeenCalled();
+		expect(executeProcessHandoff).not.toHaveBeenCalled();
 	});
 
 	it("prints machine-readable dry-run launch envelopes", async () => {
@@ -111,7 +111,7 @@ describe("executeRendererLaunchFlow", () => {
 			display: "runner dev",
 		};
 		const resolveLaunchSpec = vi.fn(() => spec);
-		const launchProcess = vi.fn().mockResolvedValue(0);
+		const executeProcessHandoff = vi.fn().mockResolvedValue(0);
 		const onDryRun = vi.fn();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -127,7 +127,7 @@ describe("executeRendererLaunchFlow", () => {
 			dryRunRuntimeLabel: "web runtime",
 			startRuntimeLabel: "web runtime",
 			resolveLaunchSpec,
-			launchProcess,
+			executeProcessHandoff,
 			onDryRun,
 		});
 
@@ -149,7 +149,7 @@ describe("executeRendererLaunchFlow", () => {
 			nextCommands: ["runner dev"],
 		});
 		expect(onDryRun).toHaveBeenCalledWith(spec);
-		expect(launchProcess).not.toHaveBeenCalled();
+		expect(executeProcessHandoff).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
 
@@ -160,7 +160,7 @@ describe("executeRendererLaunchFlow", () => {
 			display: "runner dev",
 		};
 		const resolveLaunchSpec = vi.fn(() => spec);
-		const launchProcess = vi.fn().mockResolvedValue(0);
+		const executeProcessHandoff = vi.fn().mockResolvedValue(0);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await executeRendererLaunchFlow({
@@ -175,11 +175,11 @@ describe("executeRendererLaunchFlow", () => {
 			dryRunRuntimeLabel: "web runtime",
 			startRuntimeLabel: "web runtime",
 			resolveLaunchSpec,
-			launchProcess,
+			executeProcessHandoff,
 		});
 
 		expect(resolveLaunchSpec).toHaveBeenCalled();
-		expect(launchProcess).not.toHaveBeenCalled();
+		expect(executeProcessHandoff).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			command: "web",
 			operation: "dry-run",
@@ -201,7 +201,7 @@ describe("executeRendererLaunchFlow", () => {
 	it("launches process and propagates non-zero exit code via callback", async () => {
 		const spec = { command: "cargo", args: ["run"], display: "cargo run" };
 		const resolveLaunchSpec = vi.fn(() => spec);
-		const launchProcess = vi.fn().mockResolvedValue(4);
+		const executeProcessHandoff = vi.fn().mockResolvedValue(4);
 		const onLaunchStarted = vi.fn().mockResolvedValue(undefined);
 		const setExitCode = vi.fn();
 		const log = vi.fn();
@@ -215,7 +215,7 @@ describe("executeRendererLaunchFlow", () => {
 			dryRunRuntimeLabel: "tui runtime",
 			startRuntimeLabel: "TUI runtime",
 			resolveLaunchSpec,
-			launchProcess,
+			executeProcessHandoff,
 			onLaunchStarted,
 			setExitCode,
 			log,
@@ -224,13 +224,13 @@ describe("executeRendererLaunchFlow", () => {
 		expect(log).toHaveBeenCalledWith(
 			expect.stringContaining("Launching TUI runtime"),
 		);
-		expect(launchProcess).toHaveBeenCalledWith(spec);
+		expect(executeProcessHandoff).toHaveBeenCalledWith(spec);
 		expect(onLaunchStarted).toHaveBeenCalledWith(spec);
 		expect(setExitCode).toHaveBeenCalledWith(4);
 	});
 
 	it("fails closed when launch policy diagnostics contain failures", async () => {
-		const launchProcess = vi.fn().mockResolvedValue(0);
+		const executeProcessHandoff = vi.fn().mockResolvedValue(0);
 
 		await expect(
 			executeRendererLaunchFlow({
@@ -242,10 +242,10 @@ describe("executeRendererLaunchFlow", () => {
 				dryRunRuntimeLabel: "web runtime",
 				startRuntimeLabel: "web runtime",
 				resolveLaunchSpec: () => ({ display: "runner dev" }),
-				launchProcess,
+				executeProcessHandoff,
 			}),
 		).rejects.toThrow(/runtime:not-ready/);
 
-		expect(launchProcess).not.toHaveBeenCalled();
+		expect(executeProcessHandoff).not.toHaveBeenCalled();
 	});
 });

@@ -1,9 +1,9 @@
-import type { LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
 import { refarmCommand, refarmProcess, type ApplicationProcessSpec } from "@refarm.dev/cli/command-handoff";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import type { ProcessHandoffSpec } from "@refarm.dev/cli/process-handoff";
 import { PACKAGE_MANAGER_OVERRIDE_ENV_VAR, PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS, packageBinaryCommand as createSharedPackageBinaryCommand, createPackageScriptCommand as createSharedPackageScriptCommand, detectPackageManager as detectSharedPackageManager, packageManagerOverrideDiagnostic, type PackageManagerName, type PackageScriptCommandOptions, } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,
@@ -31,8 +31,8 @@ export interface PackageManagerStatus {
 		tidyImportsDryRun: string;
 	};
 	commands: {
-		tidyImportsCheck: LaunchProcessSpec;
-		tidyImportsApply: LaunchProcessSpec;
+		tidyImportsCheck: ProcessHandoffSpec;
+		tidyImportsApply: ProcessHandoffSpec;
 	};
 	templates: Array<{
 		id: string;
@@ -206,7 +206,7 @@ export function createPackageManagerCommand(deps?: {
 
 export function createPackageScriptCommand(
 	options: RefarmPackageScriptCommandOptions,
-): LaunchProcessSpec {
+): ProcessHandoffSpec {
 	warnInvalidPackageManagerOverride(options.env);
 	const command = createSharedPackageScriptCommand(options);
 	return {
@@ -224,7 +224,7 @@ export function createPackageBinaryCommand(
 		cwd?: string;
 		env?: NodeJS.ProcessEnv;
 	} = {},
-): LaunchProcessSpec {
+): ProcessHandoffSpec {
 	warnInvalidPackageManagerOverride(options.env);
 	const command = createSharedPackageBinaryCommand(binary, args, options);
 	return {

@@ -1,6 +1,6 @@
+import { CHAT_HELP_TEXT } from "@refarm.dev/cli/chat-repl";
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHAT_HELP_TEXT } from "@refarm.dev/cli/chat-repl";
 
 const MAX_CHAT_HISTORY_LINES = 500;
 
@@ -8,7 +8,7 @@ import type { ChatDeps } from "../../src/commands/chat.js";
 import { runSessionRepl } from "../../src/commands/chat.js";
 
 const mockedCreateInterface = vi.hoisted(() => vi.fn());
-const mockedLaunchProcess = vi.hoisted(() => vi.fn());
+const mockedProcessHandoff = vi.hoisted(() => vi.fn());
 const mockedLoadChatHistory = vi.hoisted(() => vi.fn().mockReturnValue([]));
 const mockedSaveChatHistory = vi.hoisted(() => vi.fn());
 
@@ -19,8 +19,8 @@ vi.mock("node:readline", () => ({
 	createInterface: mockedCreateInterface,
 }));
 
-vi.mock("@refarm.dev/cli/launch-process", () => ({
-	launchProcess: mockedLaunchProcess,
+vi.mock("@refarm.dev/cli/process-handoff", () => ({
+	executeProcessHandoff: mockedProcessHandoff,
 }));
 
 vi.mock("@refarm.dev/cli/chat-history", () => ({
@@ -161,7 +161,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockResolvedValue(0);
+		mockedProcessHandoff.mockResolvedValue(0);
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -174,7 +174,7 @@ describe("runSessionRepl", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		expect(mockedLaunchProcess).toHaveBeenCalledWith({
+		expect(mockedProcessHandoff).toHaveBeenCalledWith({
 			command: process.argv[0],
 			args: [process.argv[1], "status"],
 			display: "refarm status",
@@ -193,7 +193,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockResolvedValue(0);
+		mockedProcessHandoff.mockResolvedValue(0);
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -206,7 +206,7 @@ describe("runSessionRepl", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		expect(mockedLaunchProcess).toHaveBeenCalledWith({
+		expect(mockedProcessHandoff).toHaveBeenCalledWith({
 			command: process.argv[0],
 			args: [process.argv[1], "status"],
 			display: "refarm status",
@@ -262,7 +262,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockResolvedValue(2);
+		mockedProcessHandoff.mockResolvedValue(2);
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -694,7 +694,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockRejectedValue(new Error("launch exploded"));
+		mockedProcessHandoff.mockRejectedValue(new Error("launch exploded"));
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),

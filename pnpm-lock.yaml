@@ -439,9 +439,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../homestead
-      '@refarm.dev/launch-process':
+      '@refarm.dev/process-handoff':
         specifier: workspace:*
-        version: link:../launch-process
+        version: link:../process-handoff
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -798,7 +798,7 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
-  packages/launch-process:
+  packages/process-handoff:
     devDependencies:
       '@refarm.dev/artifact-contract-v1':
         specifier: workspace:*

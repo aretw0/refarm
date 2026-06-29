@@ -1,4 +1,15 @@
-import { launchProcess } from "@refarm.dev/cli/launch-process";
+import {
+	loadChatHistory,
+	MAX_CHAT_HISTORY_LINES,
+	rememberChatHistoryLine,
+	saveChatHistory,
+} from "@refarm.dev/cli/chat-history";
+import {
+	CHAT_HELP_TEXT,
+	CHAT_RUNTIME_COMMANDS_HELP,
+	parseChatLine,
+} from "@refarm.dev/cli/chat-repl";
+import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -14,17 +25,6 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import readline from "node:readline";
-import {
-	loadChatHistory,
-	MAX_CHAT_HISTORY_LINES,
-	rememberChatHistoryLine,
-	saveChatHistory,
-} from "@refarm.dev/cli/chat-history";
-import {
-	CHAT_HELP_TEXT,
-	CHAT_RUNTIME_COMMANDS_HELP,
-	parseChatLine,
-} from "@refarm.dev/cli/chat-repl";
 import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	buildCurrentModelStatus,
@@ -203,7 +203,7 @@ export {
 			"Cannot locate the refarm CLI entrypoint for status check.",
 		);
 	}
-	const exitCode = await launchProcess({
+	const exitCode = await executeProcessHandoff({
 		command: node,
 		args: [entrypoint, "status", ...args],
 		display: ["refarm", "status", ...args].join(" "),
@@ -221,7 +221,7 @@ export {
 			"Cannot locate the refarm CLI entrypoint for credential setup.",
 		);
 	}
-	const exitCode = await launchProcess({
+	const exitCode = await executeProcessHandoff({
 		command: node,
 		args: [entrypoint, "sow", ...args],
 		display: ["refarm", "sow", ...args].join(" "),

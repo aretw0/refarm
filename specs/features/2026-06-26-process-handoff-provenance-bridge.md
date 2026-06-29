@@ -9,10 +9,10 @@
 
 `dgk-runner` already exposes the useful seam: product commands accept an
 injectable `(command, args, options) => Promise<void>` runner. Refarm now ships
-`@refarm.dev/launch-process`, which converts that shape into a tokenized
-`LaunchProcessSpec`, and `@refarm.dev/artifact-contract-v1`, which stores
+`@refarm.dev/process-handoff`, which converts that shape into a tokenized
+`ProcessHandoffSpec`, and `@refarm.dev/artifact-contract-v1`, which stores
 tokenized process evidence under `ArtifactProvenance.process`.
-`@refarm.dev/cli/launch-process` remains a compatibility re-export for existing
+`@refarm.dev/cli/process-handoff` remains a CLI re-export for existing
 Refarm callers.
 
 The downstream direction is SDK absorption, not CLI replacement: `dgk` keeps its
@@ -25,9 +25,9 @@ Create a leaf runner package for 8c so consumer projects can adopt the process
 boundary without pulling the full CLI dependency closure. The bridge is the
 compatibility between:
 
-- `createLaunchProcessSpecFromRunner` / `createLaunchProcessRunner` in
-  `@refarm.dev/launch-process`;
-- the compatibility subpath `@refarm.dev/cli/launch-process`;
+- `createProcessHandoffSpecFromRunner` / `createProcessHandoffRunner` in
+  `@refarm.dev/process-handoff`;
+- the CLI subpath `@refarm.dev/cli/process-handoff`;
 - `ArtifactProcessReference` in `@refarm.dev/artifact-contract-v1`;
 - downstream product runners such as `@aretw0/dgk-runner`.
 
@@ -52,11 +52,11 @@ Downstream owns:
 
 ## Verification
 
-- `packages/launch-process/src/index.test.ts` proves a runner-style process spec
+- `packages/process-handoff/src/index.test.ts` proves a runner-style process spec
   validates as artifact provenance without shell-splitting.
-- `@refarm.dev/launch-process` is the process adapter package selected by
+- `@refarm.dev/process-handoff` is the process adapter package selected by
   `vault-seed-ready`.
-- `@refarm.dev/cli/launch-process` stays as a compatibility re-export.
+- `@refarm.dev/cli/process-handoff` stays as a CLI re-export.
 - `@refarm.dev/artifact-contract-v1` remains independent of the process package.
 
 ## Rollback

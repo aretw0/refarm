@@ -70,9 +70,9 @@ versions of Refarm-shaped blocks.
 
 - **8a after item 4c:** write the focused bridge spec for `vault-seed` `silo.js` ->
   `@refarm.dev/silo`; prove namespaces remain `model`, `runtime`, `channel`, and `publishing`.
-- **8c active:** `@refarm.dev/launch-process` now has a Refarm-side proof that runner
+- **8c active:** `@refarm.dev/process-handoff` now has a Refarm-side proof that runner
   process specs validate as `@refarm.dev/artifact-contract-v1` provenance. The
-  `@refarm.dev/cli/launch-process` subpath remains a compatibility re-export. The
+  `@refarm.dev/cli/process-handoff` subpath remains a compatibility re-export. The
   official downstream proof still needs `@aretw0/dgk-runner` or `dgk-cli` to import the
   SDK internally, preserve the exported runner/command UX, and emit manifests without
   importing `dgk` vocabulary into Refarm.

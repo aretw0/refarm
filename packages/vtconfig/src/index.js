@@ -92,6 +92,7 @@ export function getAliases(root) {
     '@refarm.dev/config': path.resolve(packagesDir, 'config', getSuffix('@refarm.dev/config')),
     '@refarm.dev/vtconfig': path.resolve(packagesDir, 'vtconfig', getSuffix('@refarm.dev/vtconfig')),
     '@refarm.dev/toolbox': path.resolve(packagesDir, 'toolbox', getSuffix('@refarm.dev/toolbox')),
+    '@refarm.dev/process-handoff': path.resolve(packagesDir, 'process-handoff', getSuffix('@refarm.dev/process-handoff')),
     '@refarm.dev/storage-sqlite': path.resolve(packagesDir, 'storage-sqlite', getSuffix('@refarm.dev/storage-sqlite')),
     '@refarm.dev/locales': localesDir,
   };

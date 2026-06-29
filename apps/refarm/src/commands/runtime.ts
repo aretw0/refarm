@@ -1,6 +1,6 @@
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { printJson } from "@refarm.dev/cli/json-output";
-import { runLaunchProcessSync } from "@refarm.dev/cli/launch-process";
+import { runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
 import {
 	RUNTIME_ENGINE_MODES, type RuntimeSidecarProbeSummary, type RuntimeStatusSummary,
 } from "@refarm.dev/runtime";
@@ -346,7 +346,7 @@ function findDefaultPortRuntimeSocketProcesses(): number[] {
 	}
 	if (process.env.NODE_ENV === "test" || process.env.VITEST) return [];
 	if (process.platform !== "linux") return [];
-	const result = runLaunchProcessSync(
+	const result = runProcessHandoffSync(
 		{
 			command: "ss",
 			args: ["-tlnp"],

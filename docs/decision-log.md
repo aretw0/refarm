@@ -7,7 +7,7 @@ Central register for high-impact technical decisions that are pending or recentl
 **Date**: 2026-06-29
 **Status**: Accepted
 **ADR**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md)
-**References**: `@refarm.dev/ds/html`, `packages/homestead-ssr`, `@refarm.dev/launch-process`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md), [docs/NAMING_REGISTRY.md](NAMING_REGISTRY.md)
+**References**: `@refarm.dev/ds/html`, `packages/homestead-ssr`, `@refarm.dev/process-handoff`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md), [docs/NAMING_REGISTRY.md](NAMING_REGISTRY.md)
 
 **Decision**: reusable consumer-pulled leaves stay under the lightest correct domain. A parent
 subpath is acceptable only when it does not pull unrelated install closure, license posture, runtime
@@ -17,7 +17,7 @@ dependencies, or release cadence.
 `@refarm.dev/ds/html`. `@refarm.dev/homestead-ssr` and `@refarm.dev/homestead/ssr` are compatibility
 surfaces only and are not part of the public `vault-seed-ready` lane.
 
-**Process outcome**: `@refarm.dev/launch-process` must not collapse into `@refarm.dev/cli`. The
+**Process outcome**: `@refarm.dev/process-handoff` must not collapse into `@refarm.dev/cli`. The
 preferred breaking rename is `@refarm.dev/process-handoff`, because the package models tokenized
 process specs, runner adaptation, detached execution, and artifact/provenance handoffs.
 

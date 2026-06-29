@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const sourceDir = fileURLToPath(new URL(".", import.meta.url));
 
-describe("launch-process package isolation", () => {
+describe("process-handoff package isolation", () => {
 	it("does not import the bundled CLI/runtime tier", () => {
 		for (const file of readdirSync(sourceDir)) {
 			if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;

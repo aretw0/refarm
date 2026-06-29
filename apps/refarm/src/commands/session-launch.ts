@@ -3,7 +3,7 @@
  * No readline REPL, no Commander. Just policy.
  */
 
-import { launchProcess } from "@refarm.dev/cli/launch-process";
+import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	hasUsableModelCredential,
 	hasUsableModelCredentialSource,
@@ -319,7 +319,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 			}
 			// Re-invoke the same CLI binary with the `sow` subcommand.
 			// process.argv[0] = node binary, process.argv[1] = refarm entry script.
-			await launchProcess({
+			await executeProcessHandoff({
 				command: process.argv[0]!,
 				args: [process.argv[1]!, "sow"],
 				display: "refarm sow",

@@ -53,10 +53,10 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		proofTarget: "dgk process flows attach effort identifiers to emitted evidence",
 		ownershipBoundary: "dgk command vocabulary and operator UX remain downstream",
 	},
-	"@refarm.dev/launch-process": {
-		proofId: "launch-process.dgk-runner-adapter",
+	"@refarm.dev/process-handoff": {
+		proofId: "process-handoff.dgk-runner-adapter",
 		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
-		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using launch-process internally",
+		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
 		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
 	},
 	"@refarm.dev/release-engine": {

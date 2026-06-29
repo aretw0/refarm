@@ -331,13 +331,13 @@
         ]
       },
       {
-        "id": "@refarm.dev/launch-process",
+        "id": "@refarm.dev/process-handoff",
         "risk": "shared",
         "mustPassChecks": [
-          "pnpm --filter @refarm.dev/launch-process run lint",
-          "pnpm --filter @refarm.dev/launch-process run type-check",
-          "pnpm --filter @refarm.dev/launch-process run test",
-          "pnpm --filter @refarm.dev/launch-process run build"
+          "pnpm --filter @refarm.dev/process-handoff run lint",
+          "pnpm --filter @refarm.dev/process-handoff run type-check",
+          "pnpm --filter @refarm.dev/process-handoff run test",
+          "pnpm --filter @refarm.dev/process-handoff run build"
         ],
         "tags": [
           "process",

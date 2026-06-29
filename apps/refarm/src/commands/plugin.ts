@@ -1,21 +1,24 @@
-import { refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
 import { resolvePluginPackage, type PluginPackageSource, } from "@refarm.dev/barn";
-import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
+import { quoteCommandArg, refarmCommand, refarmProcess, shellCommand } from "@refarm.dev/cli/command-handoff";
 import {
-	isRuntimeAgentPluginId, normalizePluginId, RUNTIME_AGENT_PLUGIN_DESCRIPTOR, REFARM_BUNDLED_PLUGIN_DESCRIPTORS, RUNTIME_AGENT_PLUGIN_ID, RUNTIME_AGENT_NPM_PACKAGE, } from "@refarm.dev/config/plugin-identity";
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/cli/json-output";
+import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
+import {
+	isRuntimeAgentPluginId, normalizePluginId,
+	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
+	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+	RUNTIME_AGENT_PLUGIN_ID,
+} from "@refarm.dev/config/plugin-identity";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path, { basename, extname } from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
-import {
-	quoteCommandArg, shellCommand } from "@refarm.dev/cli/command-handoff";
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/cli/json-output";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
@@ -76,7 +79,7 @@ async function restartRuntimeForPluginReload(wait: boolean): Promise<{
 	failedCommand?: string;
 }> {
 	const restart = runtimeRestartProcess(wait);
-	const startResult = await runLaunchProcess(restart, { capture: false });
+	const startResult = await runProcessHandoff(restart, { capture: false });
 	return {
 		ok: startResult.exitCode === 0,
 		restartCommand: restart.display,
@@ -1042,13 +1045,13 @@ pluginCommand
 			console.log(`Bundling plugin ${name} from ${input}...`);
 		}
 		let result:
-			| Awaited<ReturnType<typeof runLaunchProcess>>
+			| Awaited<ReturnType<typeof runProcessHandoff>>
 			| undefined;
 		try {
 			if (!options.json) {
 				console.log(`  → ${command.display}`);
 			}
-			result = await runLaunchProcess(
+			result = await runProcessHandoff(
 				{
 					...command,
 					display: command.display,

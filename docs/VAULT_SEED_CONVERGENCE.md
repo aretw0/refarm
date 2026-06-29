@@ -80,11 +80,11 @@ artifacts, channel evidence, release evidence, and health signals. This is
 "powered by Refarm", not a replacement of `dgk` by the Refarm CLI.
 
 Refarm now exposes the first generic building block for that path:
-`@refarm.dev/launch-process` provides `createLaunchProcessSpecFromRunner` and
-`createLaunchProcessRunner`. These helpers accept the same runner-shaped inputs
+`@refarm.dev/process-handoff` provides `createProcessHandoffSpecFromRunner` and
+`createProcessHandoffRunner`. These helpers accept the same runner-shaped inputs
 that `dgk` already uses, keep execution shell-free, and preserve optional `cwd`,
 `display`, and package-manager metadata for later handoffs.
-`@refarm.dev/cli/launch-process` remains a compatibility re-export for existing
+`@refarm.dev/cli/process-handoff` remains a compatibility re-export for existing
 Refarm callers, but consumers should use the leaf package to avoid the full CLI
 dependency closure.
 `@refarm.dev/artifact-contract-v1` also accepts the same tokenized process shape
@@ -216,14 +216,14 @@ consumer CLI directly to Refarm internals:
    - Product CLIs such as `dgk` should be able to expose commands as structured
      process specs instead of ad hoc shell strings.
    - Refarm should keep the reusable representation in
-     `@refarm.dev/launch-process`; `dgk` may later import that SDK primitive
+     `@refarm.dev/process-handoff`; `dgk` may later import that SDK primitive
      behind its existing runner API.
    - The existing `dgk-runner` injection point is the likely composition seam:
      keep `dgk` commands product-local, but allow the runner implementation to
      emit Refarm process specs and JSON handoffs when the SDK is installed.
    - The first reusable adapter is
-     `createLaunchProcessRunner`/`createLaunchProcessSpecFromRunner` in
-     `@refarm.dev/launch-process`; deeper task recording can wrap the same
+     `createProcessHandoffRunner`/`createProcessHandoffSpecFromRunner` in
+     `@refarm.dev/process-handoff`; deeper task recording can wrap the same
      process boundary later.
 
 3. **Vault/source provenance**
@@ -387,7 +387,7 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 | Consumer need | Refarm block lane | Why it accelerates v0.1.0 |
 | --- | --- | --- |
 | Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/ds/html` | Converts UI duplication into token/HTML conformance evidence without pulling Homestead. |
-| Vault ETL, Lab export, publish receipts | `@refarm.dev/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
+| Vault ETL, Lab export, publish receipts | `@refarm.dev/process-handoff` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
 | Credential collection without secret sprawl | `@refarm.dev/silo` collect + later bridge | Proves namespace separation across app and consumer. |
 | Telegram outbox/inbox and channel state | `@refarm.dev/channel-policy-v1`: destinations, rate limits, receipts, dry-run, review gates | Lets `vault-seed` keep Telegram UX while Refarm gains reusable channel evidence for dispatch/farmhand surfaces. |
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
@@ -410,18 +410,18 @@ references while keeping `@refarm.dev/homestead` absent from `node_modules`. The
 official consumer checkout still needs to assimilate/review that packet.
 Consumer-local semantic tokens remain fallback-only for raw Marimo sessions.
 
-**2026-06-26 process provenance packet:** `@refarm.dev/launch-process` now proves
+**2026-06-26 process provenance packet:** `@refarm.dev/process-handoff` now proves
 its runner-style process specs can be embedded directly in
 `@refarm.dev/artifact-contract-v1` task artifact provenance without
 shell-splitting. The package is the build-free `vault-seed-ready` leaf;
-`@refarm.dev/cli/launch-process` stays as a compatibility re-export. The
+`@refarm.dev/cli/process-handoff` stays as a compatibility re-export. The
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-launch-process-0.1.0.tgz`
+`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-process-handoff-0.1.0.tgz`
 (`sha256 f6115c55bec3c9a9772e662239f88fb7f94ec5b1baeed0d8b5b6a80a8237c9ac`).
 The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `@aretw0/dgk-cli` should import
-`@refarm.dev/launch-process` internally while keeping the exported
+`@refarm.dev/process-handoff` internally while keeping the exported
 `run(cmd, args, opts)` API and command UX local, then emit a task artifact
 manifest that references the tokenized process boundary.
 
@@ -455,7 +455,7 @@ selection contains 9 packages. `@refarm.dev/homestead-ssr` is no longer selected
 | `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `aabe843ea8138c9cc5d293771acafda8fa01365640ec02ee113b37f527482527` |
 | `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `e4f04d81043807cb96b710aa32daede4d57d2328e0b9f5cd510a9588faa3f15c` |
 | `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `35ae608bec8bff652473efcd19a76d843f8fe91aaa7956e244a51914be396bfb` |
-| `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `f6115c55bec3c9a9772e662239f88fb7f94ec5b1baeed0d8b5b6a80a8237c9ac` |
+| `@refarm.dev/process-handoff` | `refarm.dev-process-handoff-0.1.0.tgz` | `f6115c55bec3c9a9772e662239f88fb7f94ec5b1baeed0d8b5b6a80a8237c9ac` |
 | `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `121a73b5ea2bd8329fc603130a5311cc9fb078586ef6d50d25c0b2eb664682f2` |
 | `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `47cf26e69178fc8917b262738e20ef4fbc70c12f15e4c62179f10ce61f609cf3` |
 | `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `5439347124b5765a3364d27cfe8d33f3c12d897325fd5a6295dc76aacbf4fefe` |

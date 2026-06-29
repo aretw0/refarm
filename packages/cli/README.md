@@ -39,9 +39,9 @@ Consumer CLIs can keep their own command vocabulary and inject Refarm's process
 adapter only at the execution boundary:
 
 ```ts
-import { createLaunchProcessRunner } from "@refarm.dev/launch-process";
+import { createProcessHandoffRunner } from "@refarm.dev/process-handoff";
 
-const runner = createLaunchProcessRunner();
+const runner = createProcessHandoffRunner();
 await runner("node", ["scripts/prepare_lab_datasets.mjs"], {
 	cwd: "/workspaces/vault",
 	display: "node scripts/prepare_lab_datasets.mjs",
@@ -54,8 +54,8 @@ CLIs such as vault cockpits: their commands stay local, while Refarm can later
 record richer handoffs, provenance, and task artifacts around the same process
 boundary.
 
-`@refarm.dev/cli/launch-process` remains a compatibility re-export. New
-consumers should import `@refarm.dev/launch-process` so they do not pull the
+`@refarm.dev/cli/process-handoff` remains a compatibility re-export. New
+consumers should import `@refarm.dev/process-handoff` so they do not pull the
 full CLI dependency closure.
 
 Structured process handoffs should identify the producing executor through

@@ -18,7 +18,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
 | 6 gardening skills | activation-gated | taxonomy; activation spec+plan | skill runtime/engine dogfood gate not present |
 | 7 librarian completion | correctly deferred | source:v1 base contract | waits for dispatch consumer or live-tree consumer |
-| 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `launch-process` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
+| 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
 | 10 `io_uring` substrate | probe started, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule, devcontainer capability probe | baseline materialization fixture; `io_uring` comparison only on a host/container that reports `available` |
 | 11 XR/WebXR surface | POC started, not product-ready | WebXR/A-Frame/three.js posture, fallback rule, renderer-neutral fixture/probe | browser/device evidence from a contained static preview |
@@ -27,7 +27,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; the plan includes `test-runner:contracts`, `audience:boundary:test`, and the lightweight `reference-driver:smoke` gate before package dry-run, and publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
-| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after ADR-072 the lane reports `acceptance.status: "accepted"` with 9 packages and 20 required checks; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/launch-process` instead of full Homestead/CLI closures | official downstream assimilation proofs remain pending |
+| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after ADR-072 the lane reports `acceptance.status: "accepted"` with 9 packages and 20 required checks; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/process-handoff` instead of full Homestead/CLI closures | official downstream assimilation proofs remain pending |
 
 ## Plan depth — read before "ready to implement"
 
@@ -72,7 +72,7 @@ This rule activates work that prevents migration churn:
 | Lane | Active proof | Stops when |
 |---|---|---|
 | UI blocks | `ds` -> `ds/html` -> `vault-seed` Lab/admin adoption | token/HTML conformance or consumer proof fails |
-| Process/artifacts | `launch-process` + `artifact-contract-v1` -> `dgk-runner`/Lab evidence | process vocabulary becomes DGK-specific |
+| Process/artifacts | `process-handoff` + `artifact-contract-v1` -> `dgk-runner`/Lab evidence | process vocabulary becomes DGK-specific |
 | Channels/outbox | `dgk-channels` + Telegram outbox/inbox -> channel policy evidence over Refarm channel-control surfaces | Telegram API, note UX, or DGK command names leak into Refarm |
 | Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes; Refarm-side fixture and tarball packet ready | notebook UX or vault schema moves upstream |
 | Template/generation | generated-vault smoke + initialize reset -> vault generator/codemod registry | generator cannot distinguish payload from template-dev-only files |
@@ -166,7 +166,7 @@ Split the bridges so activation is evidence-based rather than a general cleanup 
 |---|---|---|
 | 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Refarm handoff ready after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary; local tarball proof stayed adapter-only | namespaces preserve model/runtime/channel/publishing separation |
 | 8b channel policy (`contacts` + `rate-limiter` + receipts) | **Refarm-side package slice active**: `@refarm.dev/channel-policy-v1` covers destinations, rate-limit policy/evidence, delivery state, receipts, dry-run, and review semantics | official `vault-seed` Telegram adapter proof must emit the neutral envelope while keeping API/UX downstream |
-| 8c `launch-process` + artifact provenance | **Refarm-side proof active**: `@refarm.dev/launch-process` process specs validate as `artifact-contract-v1` provenance; `@refarm.dev/cli/launch-process` remains a compatibility re-export | official `dgk-runner`/`dgk-cli` proof must import the SDK internally, preserve `dgk` UX, and emit manifests without leaking `dgk` command names upstream |
+| 8c `process-handoff` + artifact provenance | **Refarm-side proof active**: `@refarm.dev/process-handoff` process specs validate as `artifact-contract-v1` provenance; `@refarm.dev/cli/process-handoff` remains a compatibility re-export | official `dgk-runner`/`dgk-cli` proof must import the SDK internally, preserve `dgk` UX, and emit manifests without leaking `dgk` command names upstream |
 
 Spec rule: each bridge gets its own feature spec and its own consumer proof. A bridge does not
 start because it is convenient; it starts because the second consumer exists. `vault-seed` counts
@@ -190,8 +190,8 @@ tests show the subdomains need independent versioning.
 
 8c focused activation packet:
 
-- `specs/features/2026-06-26-launch-process-provenance-bridge.md`;
-- `docs/superpowers/plans/2026-06-26-launch-process-provenance-bridge.md`.
+- `specs/features/2026-06-26-process-handoff-provenance-bridge.md`;
+- `docs/superpowers/plans/2026-06-26-process-handoff-provenance-bridge.md`.
 
 ## Additional Downstream Assimilation Backlog
 

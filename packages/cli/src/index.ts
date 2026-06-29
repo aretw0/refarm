@@ -363,23 +363,23 @@ export type {
 	RefarmCapabilitySupplyTarget,
 } from "./capability-index.js";
 export {
-	createLaunchProcessRunner,
-	createLaunchProcessSpec,
-	createLaunchProcessSpecFromRunner,
-	launchDetachedProcess,
-	launchProcess,
-	runLaunchProcess,
-	splitLaunchCommand,
-} from "./launch-process.js";
+	createProcessHandoffRunner,
+	createProcessHandoffSpec,
+	createProcessHandoffSpecFromRunner,
+	startDetachedProcessHandoff,
+	executeProcessHandoff,
+	runProcessHandoff,
+	splitProcessHandoffCommand,
+} from "./process-handoff.js";
 export type {
-	DetachedLaunchProcess,
-	DetachedLaunchProcessOptions,
-	LaunchProcessRunner,
-	LaunchProcessRunnerOptions,
-	LaunchProcessSpec,
-	LaunchProcessRunOptions,
-	LaunchProcessRunResult,
-} from "./launch-process.js";
+	DetachedProcessHandoff,
+	DetachedProcessHandoffOptions,
+	ProcessHandoffRunner,
+	ProcessHandoffRunnerOptions,
+	ProcessHandoffSpec,
+	ProcessHandoffRunOptions,
+	ProcessHandoffRunResult,
+} from "./process-handoff.js";
 export {
 	assertLaunchAllowed,
 	REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,

@@ -59,7 +59,7 @@ What is already solid:
 - Package-manager-sensitive commands are structured and spawn-safe.
 - `@refarm.dev/cli` owns status, browser-open, command-line parsing, handoff
   command helpers, JSON output envelopes, command result parsing, command plan
-  execution/envelopes, launch process specs, detached process launch, launch
+  execution/envelopes, process handoff specs, detached process handoff, launch
   readiness policy, Git command helpers, GitHub Actions CLI adapters, resume
   envelope, and execution-plan readiness/handoffs.
 - Host action affordance selection lives in `@refarm.dev/cli` with agnostic
@@ -313,7 +313,7 @@ than the center of every future workflow.
 
 - `apps/refarm`: product commands, operator output, final CLI UX.
 - `packages/cli`: reusable CLI primitives, JSON envelopes, handoff commands,
-  command plans, execution plans, action affordances, launch process specs,
+  command plans, execution plans, action affordances, process handoff specs,
   detached process launch, launch readiness policy, Git command helpers, GitHub
   Actions CLI adapters, status schemas, resume envelope.
 - `packages/config`: defaults, provider/model/package-manager policy.

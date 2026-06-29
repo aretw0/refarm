@@ -424,7 +424,7 @@ refarm agent finish --fix --run --json
 - `apps/refarm`: final CLI UX, command orchestration, runtime HTTP calls, human
   output.
 - `packages/cli`: reusable CLI contracts, JSON envelopes, command plans,
-  handoff primitives, agnostic binary command builders, launch process specs,
+  handoff primitives, agnostic binary command builders, process handoff specs,
   detached process launch, launch readiness policy, status schemas, Git command
   helpers, GitHub Actions CLI adapters, resume formatting.
 - `packages/config`: provider, model, package-manager, and operator policy.
