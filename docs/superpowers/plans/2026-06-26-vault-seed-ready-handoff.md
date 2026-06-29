@@ -47,5 +47,8 @@ This packet is a candidate channel, not a public release.
 - [x] The handoff manifest rejects stale tarballs when package source-level
   inputs such as `package.json`, `README.md`, `src/`, `wit/`, or Cargo metadata
   are newer than the handoff tarball.
+- [x] The manifest also rejects publishable `dist/` or `pkg/` output when
+  source build inputs are newer, so a freshly packed tarball cannot hide stale
+  build artifacts.
 - [x] Stale tarballs are reported as explicit `issues` so consumer-pulled
   packets cannot look ready after local SDK docs or source changed.
