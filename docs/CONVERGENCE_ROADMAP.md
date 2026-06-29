@@ -25,7 +25,7 @@ each sub-project's own brainstorm.
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ✅ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B accepted; Part C POC red |
 | 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
-| 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◻ deferred; activation spec+plan ready |
+| 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◑ `source-local` implemented; `source-dispatch` deferred until dispatch consumer |
 | 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `process-handoff` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ✅ vault generator implemented; registry has two ready codemods |
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
@@ -37,7 +37,8 @@ each sub-project's own brainstorm.
 ### 1. Librarian (done — implemented + smoke green)
 `source:v1` contract + `source-git` impl. Unblocks everything: once Refarm can materialize a
 clean read-only copy of any repo, it can absorb logic from the ecosystem instead of guessing.
-Deferred pieces (`source-dispatch`, `source-local`, `tarball`) tracked in item 7.
+Deferred pieces (`source-dispatch`, `tarball`) tracked in item 7; `source-local` is now active for
+live local tree reads.
 
 Re-verified 2026-06-26:
 
@@ -99,10 +100,11 @@ skill set. Map the overlap, define the superset, and provide a compatibility ada
 Activation packet: `specs/features/2026-06-25-skill-runtime-activation.md` and
 `docs/superpowers/plans/2026-06-25-skill-runtime-activation.md`.
 
-### 7. Librarian completion (deferred)
+### 7. Librarian completion (partially active)
 `source-dispatch` adapter (wire `source:v1` into `dispatch-surface` for agentic/kernel use) and a
-real `source-local` package (live local tree). Built when consumed — `source-dispatch` waits on
-item 4's dispatch work; `source-local` waits on a consumer wanting the live tree.
+real `source-local` package (live local tree). `source-local` is implemented and reports
+dirty/untracked state explicitly. `source-dispatch` still waits on item 4's dispatch work and an
+agentic consumer.
 
 Activation packet: `specs/features/2026-06-25-source-adapter-activation.md` and
 `docs/superpowers/plans/2026-06-25-source-adapter-activation.md`.

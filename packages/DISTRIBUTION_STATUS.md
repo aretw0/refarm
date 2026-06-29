@@ -103,6 +103,7 @@ packages are ready:
 | Surface | Current status | Reason |
 | --- | --- | --- |
 | `@refarm.dev/health` | release-profiled; not selected | generic diagnostics and `environment-pressure` SDK are ready as primitives, but promotion waits for a consumer-pulled proof or default-candidate decision |
+| `@refarm.dev/source-local` | implemented; not selected | live working-tree reads are useful for the librarian, but consumer handoff waits for a proof that dirty/untracked state is required |
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |

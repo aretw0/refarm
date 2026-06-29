@@ -1,6 +1,7 @@
 # Spec: Source Adapter Activation (Roadmap Item 7)
 
-**Status:** DRAFT — deferred activation packet
+**Status:** Partially activated — `source-local` implemented on 2026-06-29; `source-dispatch`
+and `source-tarball` remain deferred
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
 **Related:** `specs/features/2026-06-24-source-contract-v1.md`, `docs/CONVERGENCE_ROADMAP.md` item 7
@@ -20,7 +21,7 @@ Build exactly one adapter when its trigger appears:
 | Adapter | Trigger | First proof |
 |---|---|---|
 | `source-dispatch` | an agent/kernel path needs to invoke `source:v1` through `dispatch-surface` | dispatch call materializes a source through the same conformance suite |
-| `source-local` | a consumer needs live dirty working-tree reads | local provider reports dirty/untracked state explicitly |
+| `source-local` | a consumer needs live dirty working-tree reads | ✅ `@refarm.dev/source-local` reports dirty/untracked state explicitly and runs the source:v1 conformance suite |
 | `source-tarball` | reproducible archive input is needed for cross-repo consumption | tarball hash maps to deterministic file inventory |
 
 Do not implement all adapters in one branch.

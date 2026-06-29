@@ -1037,6 +1037,22 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/source-local:
+    dependencies:
+      '@refarm.dev/source-contract-v1':
+        specifier: workspace:*
+        version: link:../source-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/sower:
     dependencies:
       '@refarm.dev/runtime':

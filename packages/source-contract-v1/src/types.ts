@@ -50,6 +50,9 @@ export interface SourceStatus {
 	path?: string;
 	stale?: boolean;
 	clean?: boolean;
+	dirty?: boolean;
+	untracked?: boolean;
+	untrackedPaths?: string[];
 	head?: string;
 	lastFetchedAt?: string;
 }

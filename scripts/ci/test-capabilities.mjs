@@ -29,6 +29,7 @@ const STEPS = [
 	["packages/dispatch-surface", "test"],
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "test:conformance"],
+	["packages/source-local", "test:conformance"],
 ];
 
 function commandForStep([workspaceDir, script]) {

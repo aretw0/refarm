@@ -10,7 +10,7 @@ Not everything is planned to execution depth yet. The safe state is:
 
 | Item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|
-| 1 librarian `source:v1` | **implemented** | `@refarm.dev/source-contract-v1`, `@refarm.dev/source-git`, conformance, build, `test:capabilities`, and librarian smoke re-verified 2026-06-26 | downstream adapters remain item 7 and activate only when consumed |
+| 1 librarian `source:v1` | **implemented** | `@refarm.dev/source-contract-v1`, `@refarm.dev/source-git`, `@refarm.dev/source-local`, conformance, build, `test:capabilities`, and librarian smoke re-verified 2026-06-29 | `source-dispatch` remains item 7 and activates only when consumed |
 | 4a `ds` tokens | **implemented** (Tasks 1–5 committed in `packages/ds/src`) | contract, scoped tokens, 4 themes, theme-conformance, component classes, CSS exports; focused package gate re-verified 2026-06-26 | broad steward/push gate and official `vault-seed` assimilation remain pending |
 | 4b `ds/html` | **implemented** | DS-owned helper API, build-free boundary, consumer proof, package files constraint | downstream adoption proof remains consumer-side |
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring | storage adoption by `vault-seed` remains item 8a |
@@ -147,7 +147,7 @@ Keep deferred. It is not missing planning; it is missing consumption pressure.
 Activation triggers:
 
 - `source-dispatch`: an agent/kernel path needs to invoke `source:v1` through `dispatch-surface`;
-- `source-local`: a consumer needs live local tree reads instead of clean git materialization;
+- `source-local`: implemented for consumers that need live local tree reads instead of clean git materialization;
 - `source-tarball`: cross-repo consumption needs reproducible archive input.
 
 When a trigger appears, write a feature spec and plan for exactly one adapter. Do not bundle all

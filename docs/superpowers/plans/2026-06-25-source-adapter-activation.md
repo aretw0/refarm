@@ -3,6 +3,8 @@
 > Spec: `specs/features/2026-06-25-source-adapter-activation.md`.
 > Goal: provide the activation playbook for `source-dispatch`, `source-local`, or `source-tarball`
 > without implementing them before a consumer exists.
+> Status 2026-06-29: `source-local` has been activated as `@refarm.dev/source-local`; this plan now
+> remains for `source-dispatch` and `source-tarball`.
 
 ## Task 1 - Confirm Trigger
 

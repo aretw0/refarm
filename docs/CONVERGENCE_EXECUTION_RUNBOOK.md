@@ -34,7 +34,8 @@ Skim `docs/CONVERGENCE_ROADMAP.md` and `docs/ECOSYSTEM_SUPPLY_MAP.md`.
 Branch: `feat/source-contract-v1`.
 Plan: `docs/superpowers/plans/2026-06-24-source-contract-v1.md` (5 tasks, TDD).
 Status: implemented as `@refarm.dev/source-contract-v1` and `@refarm.dev/source-git`.
-**Gate:** `pnpm run test:capabilities` green (now includes `source-contract-v1` + `source-git`);
+**Gate:** `pnpm run test:capabilities` green (now includes `source-contract-v1`, `source-git`,
+and `source-local`);
 `pnpm run source:librarian:smoke` prints OK.
 **Why first:** after this, Refarm can materialize `vault-seed`/`agents-lab` read-only — the manual
 "cola" of the planning session becomes automated.
@@ -154,7 +155,8 @@ supported/unsupported/blocked; XR dependencies stay inside the POC.
 - **Item 6 skill contract** — wait for the "Refarm as engine" runtime (dogfooding gate). Taxonomy
   is in `docs/GARDENING_SKILLS_TAXONOMY.md`; activation packet:
   `specs/features/2026-06-25-skill-runtime-activation.md`.
-- **Item 7** — `source-dispatch` adapter + `source-local` — when an agentic consumer/kernel needs them.
+- **Item 7** — `source-dispatch` adapter when an agentic consumer/kernel needs it. `source-local`
+  is implemented for live working-tree reads.
   Activation packet: `specs/features/2026-06-25-source-adapter-activation.md`.
 - No broad Item 8 bridge remains deferred as a bucket. 8a, 8b, and 8c each require their own
   focused spec and proof before code moves.
