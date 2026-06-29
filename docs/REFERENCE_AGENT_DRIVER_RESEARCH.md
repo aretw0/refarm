@@ -104,6 +104,33 @@ therefore proves the local interaction nucleus and the plan-only
 delegated-worker SDK before it reaches heavier structured-io, session-tree, and
 code-ops checks.
 
+## Source Refresh 2026-06-29
+
+The useful next step is not broader runtime fanout. It is making the reference
+lessons inspectable through the same cheap handoff that downstream tools already
+use for capability discovery.
+
+- Hermes Agent still applies pressure toward one gateway contract spanning local
+  terminal use, messaging surfaces, memory, skills, scheduled work, delegation,
+  RPC scripts, and terminal backends. Refarm should adopt the contract pressure,
+  not the surface count: gateway parity belongs behind one ask/event lifecycle.
+- Pi remains the clearest embeddable driver reference: small core, extensions,
+  print/JSON/RPC/SDK modes, session branching/resume/export, steering, and
+  follow-up while a run is active. Refarm should keep those primitives
+  product-neutral so tools like dgk can import the engine and apply their own
+  labels.
+- The Refarm-specific stance stays stricter than Pi by default: filesystem,
+  process, network, provider, and budget use must be visible as policy or
+  handoff state before a worker engine can dispatch in parallel.
+
+Current proof (2026-06-29): `buildReferenceDriverSupplyMap()` now carries
+`referenceSources` beside `referenceLessons`. This makes the Hermes/Pi/Codex
+style lessons a machine-readable SDK/CLI handoff instead of prose that agents or
+downstream consumers need to scrape from this note. The first adoption keeps the
+runtime-agent ask loop, worker profiles, session tree, structured I/O, and
+code-ops tied to primary reference URLs while preserving the plan-only promotion
+gates for worker dispatch.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":

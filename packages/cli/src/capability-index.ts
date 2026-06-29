@@ -69,11 +69,17 @@ export interface RefarmCapabilitySupplyTarget {
 	note: string;
 }
 
+export interface ReferenceDriverSourceReference {
+	name: string;
+	url: string;
+}
+
 export interface ReferenceDriverSupplyEntry {
 	capabilityId: string;
 	provider: RefarmCapabilityProvider;
 	policyState: RefarmCapabilityPolicyState;
 	activation: RefarmCapabilityActivation;
+	referenceSources: readonly ReferenceDriverSourceReference[];
 	referenceLessons: readonly string[];
 	promotionProofTargets: readonly string[];
 	targets: readonly RefarmCapabilitySupplyTarget[];
@@ -648,6 +654,64 @@ const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
 	],
 } as const;
 
+const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
+	string,
+	readonly ReferenceDriverSourceReference[]
+> = {
+	"runtime-agent.ask": [
+		{
+			name: "Hermes Agent README",
+			url: "https://github.com/NousResearch/hermes-agent",
+		},
+		{
+			name: "Pi coding-agent README",
+			url:
+				"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
+		},
+		{
+			name: "Pi RPC mode",
+			url:
+				"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
+		},
+	],
+	"runtime-agent.worker-profiles": [
+		{
+			name: "Hermes Agent README",
+			url: "https://github.com/NousResearch/hermes-agent",
+		},
+		{
+			name: "Pi coding-agent README",
+			url:
+				"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
+		},
+	],
+	"runtime-agent.session-tree": [
+		{
+			name: "Pi sessions and branching",
+			url:
+				"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
+		},
+		{
+			name: "Pi RPC mode",
+			url:
+				"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
+		},
+	],
+	"runtime-agent.structured-io": [
+		{
+			name: "Pi RPC mode",
+			url:
+				"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
+		},
+	],
+	"runtime-agent.code-ops": [
+		{
+			name: "Pi permissions and containerization",
+			url: "https://github.com/earendil-works/pi",
+		},
+	],
+} as const;
+
 const REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS: Record<string, readonly string[]> = {
 	"runtime-agent.ask": [
 		"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",
@@ -687,6 +751,7 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 				provider: capability.provider,
 				policyState: capability.policy.state,
 				activation: capability.activation,
+				referenceSources: REFERENCE_DRIVER_SOURCE_REFERENCES[id] ?? [],
 				referenceLessons: REFERENCE_DRIVER_LESSONS[id] ?? [],
 				promotionProofTargets:
 					REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS[id] ?? [],
