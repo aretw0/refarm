@@ -140,6 +140,7 @@ export interface ReferenceDriverSupplyMap {
 
 export interface ReferenceDriverSupplyPreflightTarget extends RefarmCapabilitySupplyTarget {
 	capabilityId: string;
+	promotionProofTargets: readonly string[];
 }
 
 export interface ReferenceDriverSupplyPreflightSummary {
@@ -968,6 +969,7 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 			.filter((target) => includedStatusSet.has(target.status))
 			.map((target) => ({
 				capabilityId: entry.capabilityId,
+				promotionProofTargets: entry.promotionProofTargets,
 				...target,
 			})),
 	);
