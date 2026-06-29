@@ -318,6 +318,54 @@
         ]
       },
       {
+        "id": "@refarm.dev/source-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/source-contract-v1 run test:conformance",
+          "pnpm --filter @refarm.dev/source-contract-v1 run build"
+        ],
+        "tags": [
+          "librarian",
+          "source",
+          "contract",
+          "sdk-primitive",
+          "boundary-review",
+          "candidate-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/source-git",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/source-git run test:conformance",
+          "pnpm --filter @refarm.dev/source-git run build"
+        ],
+        "tags": [
+          "librarian",
+          "source",
+          "adapter",
+          "sdk-primitive",
+          "boundary-review",
+          "candidate-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/source-local",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/source-local run test:conformance",
+          "pnpm --filter @refarm.dev/source-local run build"
+        ],
+        "tags": [
+          "librarian",
+          "source",
+          "adapter",
+          "sdk-primitive",
+          "boundary-review",
+          "candidate-hold"
+        ]
+      },
+      {
         "id": "@refarm.dev/cli",
         "risk": "shared",
         "mustPassChecks": [
