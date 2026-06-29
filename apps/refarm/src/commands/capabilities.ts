@@ -123,6 +123,9 @@ function formatReferenceDriverSupplyPreflight(
 		chalk.bold("Supply preflight"),
 		chalk.dim(`mode: ${preflight.mode}; ${summary}`),
 		chalk.dim(
+			`boundary: ${preflight.publicationBoundary.discoverySubpath}; ${preflight.publicationBoundary.publicationState}; ${preflight.publicationBoundary.consumerInstallPolicy}; runtime ${preflight.publicationBoundary.runtimeExecutionState}`,
+		),
+		chalk.dim(
 			`proofs: blocked targets ${proofSummary.blockedTargetCount}; with proofs ${proofSummary.targetsWithPromotionProofTargets}; unique proof targets ${proofSummary.uniquePromotionProofTargetCount}; budget contracts ${proofSummary.targetsWithBudgetContract}`,
 		),
 		...preflight.nextDecisions.map((entry) =>

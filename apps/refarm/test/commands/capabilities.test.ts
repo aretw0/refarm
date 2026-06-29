@@ -146,6 +146,13 @@ describe("capabilities command", () => {
 				surface: string;
 				preflight: {
 					mode: string;
+					publicationBoundary: {
+						discoveryPackage: string;
+						discoverySubpath: string;
+						publicationState: string;
+						consumerInstallPolicy: string;
+						runtimeExecutionState: string;
+					};
 					proofSummary: {
 						blockedTargetCount: number;
 						targetsWithPromotionProofTargets: number;
@@ -160,10 +167,17 @@ describe("capabilities command", () => {
 		};
 		expect(payload.supplyPreflight).toMatchObject({
 			surface: "reference-driver",
-			preflight: {
-				mode: "plan-only",
-				summary: [
-					{ status: "candidate", count: 3 },
+				preflight: {
+					mode: "plan-only",
+					publicationBoundary: {
+						discoveryPackage: "@refarm.dev/cli",
+						discoverySubpath: "@refarm.dev/cli/capability-index",
+						publicationState: "boundary-review",
+						consumerInstallPolicy: "not-vault-seed-ready",
+						runtimeExecutionState: "private",
+					},
+					summary: [
+						{ status: "candidate", count: 3 },
 					{ status: "internal", count: 3 },
 					{ status: "hold", count: 5 },
 				],
@@ -196,6 +210,9 @@ describe("capabilities command", () => {
 		const output = logs.join("\n");
 		expect(output).toContain("Supply preflight");
 		expect(output).toContain("mode: plan-only; candidate: 3, internal: 3, hold: 5");
+		expect(output).toContain(
+			"boundary: @refarm.dev/cli/capability-index; boundary-review; not-vault-seed-ready; runtime private",
+		);
 		expect(output).toContain(
 			"proofs: blocked targets 11; with proofs 4; unique proof targets 8; budget contracts 1",
 		);

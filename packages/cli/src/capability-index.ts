@@ -118,6 +118,15 @@ export interface ReferenceDriverAdoptionCriterion {
 	consumerBoundary: string;
 }
 
+export interface ReferenceDriverPublicationBoundary {
+	discoveryPackage: "@refarm.dev/cli";
+	discoverySubpath: "@refarm.dev/cli/capability-index";
+	publicationState: "boundary-review";
+	consumerInstallPolicy: "not-vault-seed-ready";
+	runtimeExecutionState: "private";
+	note: string;
+}
+
 export interface ReferenceDriverSupplyEntry {
 	capabilityId: string;
 	provider: RefarmCapabilityProvider;
@@ -134,6 +143,7 @@ export interface ReferenceDriverSupplyMap {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	discoverySdk: "@refarm.dev/cli/capability-index";
 	smokeCommand: "pnpm run reference-driver:smoke";
+	publicationBoundary: ReferenceDriverPublicationBoundary;
 	adoptionCriteria: readonly ReferenceDriverAdoptionCriterion[];
 	entries: readonly ReferenceDriverSupplyEntry[];
 }
@@ -159,6 +169,7 @@ export interface ReferenceDriverSupplyPreflight {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	source: "@refarm.dev/cli/capability-index";
 	mode: "plan-only";
+	publicationBoundary: ReferenceDriverPublicationBoundary;
 	adoptionCriteria: readonly ReferenceDriverAdoptionCriterion[];
 	targets: readonly ReferenceDriverSupplyPreflightTarget[];
 	summary: readonly ReferenceDriverSupplyPreflightSummary[];
@@ -168,6 +179,16 @@ export interface ReferenceDriverSupplyPreflight {
 		nextDecision: string;
 	}[];
 }
+
+const REFERENCE_DRIVER_PUBLICATION_BOUNDARY: ReferenceDriverPublicationBoundary = {
+	discoveryPackage: "@refarm.dev/cli",
+	discoverySubpath: "@refarm.dev/cli/capability-index",
+	publicationState: "boundary-review",
+	consumerInstallPolicy: "not-vault-seed-ready",
+	runtimeExecutionState: "private",
+	note:
+		"Reference-driver discovery is exported from the CLI package for dogfood and planning, but @refarm.dev/cli is not a vault-seed-ready leaf and runtime execution stays private until promotion proofs pass.",
+} as const;
 
 const CAPABILITIES = [
 	{
@@ -947,6 +968,7 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 		discoverySdk: "@refarm.dev/cli/capability-index",
 		smokeCommand: "pnpm run reference-driver:smoke",
+		publicationBoundary: REFERENCE_DRIVER_PUBLICATION_BOUNDARY,
 		adoptionCriteria: REFERENCE_DRIVER_ADOPTION_CRITERIA,
 		entries: Object.entries(REFERENCE_DRIVER_SUPPLY_TARGETS).map(([id, supply]) => {
 			const capability = descriptors.find((candidate) => candidate.id === id);
@@ -990,6 +1012,7 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 		source: "@refarm.dev/cli/capability-index",
 		mode: "plan-only",
+		publicationBoundary: supplyMap.publicationBoundary,
 		adoptionCriteria: supplyMap.adoptionCriteria,
 		targets,
 		summary: includedStatuses.map((status) => ({

@@ -351,6 +351,7 @@ export type {
 	CapabilitySupplyStatus,
 	CapabilitySupplyTarget,
 	ReferenceDriverAdoptionCriterion,
+	ReferenceDriverPublicationBoundary,
 	ReferenceDriverSupplyEntry,
 	ReferenceDriverSupplyMap,
 	ReferenceDriverSupplyPreflight,

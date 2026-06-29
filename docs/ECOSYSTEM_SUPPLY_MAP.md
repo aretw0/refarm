@@ -129,8 +129,11 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    counts, `proofSummary`, and next decisions. `proofSummary` is the cheap
    promotion ledger for blocked targets, explicit proof targets, unique proof
    targets, and budget-contract coverage. Exported SDK targets remain visible in
-   the full supply map; the preflight is for release posture and consumer
-   planning, not app-owned runtime dispatch.
+   the full supply map. Both payloads carry `publicationBoundary`: discovery
+   currently lives at `@refarm.dev/cli/capability-index`, `@refarm.dev/cli`
+   remains in `boundary-review`, it is not a `vault-seed-ready` leaf, and runtime
+   execution stays private until promotion proofs pass. The preflight is for
+   release posture and consumer planning, not app-owned runtime dispatch.
 
 Boundary note: the capability index is a supply/readiness index, not Barn's
 plugin catalog. `@refarm.dev/plugin-manifest` remains the authority for
