@@ -140,6 +140,7 @@ test("vault-seed-ready README openings stay consumer-neutral", () => {
 		/\bRefarm consumers\b/,
 		/\bRefarm and consumer CLIs\b/,
 		/\bRefarm's sovereign cryptographic core\b/,
+		/\bused by `refarm` and `farmhand`\b/i,
 	];
 
 	for (const profile of profiles) {

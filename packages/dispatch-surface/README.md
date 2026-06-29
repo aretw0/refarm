@@ -2,7 +2,8 @@
 
 Shared primitives for dispatch/control-surface transport handling.
 
-> Note: this package is the TS boundary used by `refarm` and `farmhand`.
+> Note: this package is the TypeScript boundary for hosts that need shared
+> dispatch and effort control-plane primitives.
 > Its behavior is now backed by an optional Wasm/WIT contract from
 > `packages/dispatch-surface-rs` when available, with transparent fallback to the
 > native TypeScript implementation.
