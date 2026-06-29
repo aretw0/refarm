@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	probeRuntimeLiveness,
 	probeRuntimeReadiness,
 	probeRuntimeReady,
 	waitForRuntimeReady,
@@ -52,9 +53,8 @@ describe("runtime readiness", () => {
 		await expect(probeRuntimeReady()).resolves.toBe(false);
 
 		expect(fetch).toHaveBeenCalledTimes(1);
-		expect(fetch).toHaveBeenCalledWith(
+		expect(fetch.mock.calls[0]?.[0]).toBe(
 			"http://127.0.0.1:42001/efforts/summary",
-			{},
 		);
 	});
 
@@ -69,6 +69,25 @@ describe("runtime readiness", () => {
 			ready: false,
 			status: 503,
 		});
+	});
+
+	it("checks liveness without requiring the session endpoint", async () => {
+		const fetch = vi
+			.fn()
+			.mockResolvedValueOnce(response(true))
+			.mockResolvedValueOnce(response(false, 503));
+		vi.stubGlobal("fetch", fetch);
+
+		await expect(probeRuntimeLiveness()).resolves.toEqual({
+			url: "http://127.0.0.1:42001/efforts/summary",
+			ready: true,
+			status: 200,
+		});
+
+		expect(fetch).toHaveBeenCalledTimes(1);
+		expect(fetch.mock.calls[0]?.[0]).toBe(
+			"http://127.0.0.1:42001/efforts/summary",
+		);
 	});
 
 	it("returns readiness probe transport errors", async () => {
