@@ -66,6 +66,9 @@ manifest, SHA-256 inventory, tarball freshness, and publishable build-output
 freshness. The JSON manifest declares `schemaVersion: 1` and
 `source: "vault-seed-ready-handoff"` so downstream checks can treat it as an
 explicit handoff contract.
+When a package rename or selection change intentionally leaves old generated
+tarballs in that ephemeral directory, rerun the handoff with `--prune-extra` to
+delete only unexpected `.tgz` files before manifest validation.
 The `vault-seed-ready` release-policy selection also carries an
 `audienceBoundary` contract: consumer `vault-seed`, naming
 `product-neutral-sdk`, and vault-specific CLI labels, copy, notebooks, routes,
@@ -138,6 +141,7 @@ pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:vault-seed:check
 pnpm --silent run release:vault-seed:handoff -- --pack --json
+pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json
 ```
 
 ---
