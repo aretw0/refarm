@@ -32,6 +32,8 @@ const PACKAGE_SOURCE_INPUTS = [
 	"Cargo.toml",
 	"Cargo.lock",
 ];
+const BUILD_SOURCE_INPUTS = ["src", "wit", "Cargo.toml", "Cargo.lock"];
+const BUILD_OUTPUT_INPUTS = ["dist", "pkg"];
 const VAULT_SEED_CONSUMER_PULLS = {
 	"@refarm.dev/artifact-contract-v1": {
 		proofId: "artifact-contract.lab-outbox-evidence",
@@ -153,9 +155,14 @@ export function packageTarballName(packageName, version) {
 	return `${unscoped.replace("/", "-")}-${version}.tgz`;
 }
 
-function readPackageVersion(cwd, packageDir) {
+function readPackageJson(cwd, packageDir) {
 	const packageJsonPath = path.join(cwd, packageDir, "package.json");
 	const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+	return { packageJsonPath, packageJson };
+}
+
+function readPackageVersion(cwd, packageDir) {
+	const { packageJsonPath, packageJson } = readPackageJson(cwd, packageDir);
 	if (!packageJson.version) {
 		throw new Error(`${packageJsonPath} does not declare version`);
 	}
@@ -168,19 +175,30 @@ function sha256File(filePath) {
 	return hash.digest("hex");
 }
 
-function latestPathMtime(filePath) {
+function isBuildSourceFile(filePath) {
+	const basename = path.basename(filePath);
+	if (/\.(test|spec|stories)\.[cm]?[jt]sx?$/.test(basename)) {
+		return false;
+	}
+	return /\.(cjs|css|js|jsx|mjs|rs|ts|tsx|wit)$/.test(basename);
+}
+
+function latestPathMtime(filePath, { includeFile = () => true } = {}) {
 	if (!existsSync(filePath)) {
 		return null;
 	}
 
 	const stats = statSync(filePath);
 	if (!stats.isDirectory()) {
+		if (!includeFile(filePath)) {
+			return null;
+		}
 		return { path: filePath, mtimeMs: stats.mtimeMs };
 	}
 
 	let latest = null;
 	for (const entry of readdirSync(filePath)) {
-		const candidate = latestPathMtime(path.join(filePath, entry));
+		const candidate = latestPathMtime(path.join(filePath, entry), { includeFile });
 		if (!candidate) {
 			continue;
 		}
@@ -191,11 +209,11 @@ function latestPathMtime(filePath) {
 	return latest;
 }
 
-function latestPackageSourceInput(cwd, packageDir) {
+function latestPackageInput(cwd, packageDir, inputs, options = {}) {
 	const packagePath = path.join(cwd, packageDir);
 	let latest = null;
-	for (const input of PACKAGE_SOURCE_INPUTS) {
-		const candidate = latestPathMtime(path.join(packagePath, input));
+	for (const input of inputs) {
+		const candidate = latestPathMtime(path.join(packagePath, input), options);
 		if (!candidate) {
 			continue;
 		}
@@ -209,6 +227,32 @@ function latestPackageSourceInput(cwd, packageDir) {
 				mtimeMs: latest.mtimeMs,
 			}
 		: null;
+}
+
+function latestPackageSourceInput(cwd, packageDir) {
+	return latestPackageInput(cwd, packageDir, PACKAGE_SOURCE_INPUTS);
+}
+
+function latestPackageBuildInput(cwd, packageDir) {
+	return latestPackageInput(cwd, packageDir, BUILD_SOURCE_INPUTS, {
+		includeFile: isBuildSourceFile,
+	});
+}
+
+function latestPackageBuildOutput(cwd, packageDir) {
+	return latestPackageInput(cwd, packageDir, BUILD_OUTPUT_INPUTS);
+}
+
+function packageReferencesBuildOutput(packageJson) {
+	const serialized = JSON.stringify({
+		bin: packageJson.bin,
+		exports: packageJson.exports,
+		files: packageJson.files,
+		main: packageJson.main,
+		module: packageJson.module,
+		types: packageJson.types,
+	});
+	return /(^|["/])(dist|pkg)(["/]|$)/.test(serialized);
 }
 
 function maybeRelative(cwd, filePath) {
@@ -326,17 +370,26 @@ export function buildHandoffManifest({
 	const handoffFileSet = new Set(handoffFiles);
 
 	const packages = check.commands.map((command) => {
+		const { packageJson } = readPackageJson(cwd, command.packageDir);
 		const version = readPackageVersion(cwd, command.packageDir);
 		const tarball = packageTarballName(command.packageName, version);
 		const filePath = path.join(absoluteHandoffDir, tarball);
 		const exists = handoffFileSet.has(tarball) && existsSync(filePath);
 		const tarballStats = exists ? statSync(filePath) : null;
 		const latestSourceInput = latestPackageSourceInput(cwd, command.packageDir);
+		const buildInput = latestPackageBuildInput(cwd, command.packageDir);
+		const buildOutput = packageReferencesBuildOutput(packageJson)
+			? latestPackageBuildOutput(cwd, command.packageDir)
+			: null;
 		const stale =
 			exists &&
 			latestSourceInput !== null &&
 			tarballStats !== null &&
 			latestSourceInput.mtimeMs > tarballStats.mtimeMs;
+		const buildOutputStale =
+			buildInput !== null &&
+			packageReferencesBuildOutput(packageJson) &&
+			(buildOutput === null || buildInput.mtimeMs > buildOutput.mtimeMs);
 		return {
 			packageName: command.packageName,
 			packageDir: command.packageDir,
@@ -348,6 +401,9 @@ export function buildHandoffManifest({
 			sizeBytes: tarballStats ? tarballStats.size : null,
 			stale,
 			sourceInput: latestSourceInput,
+			buildInput,
+			buildOutput,
+			buildOutputStale,
 			consumerPull: VAULT_SEED_CONSUMER_PULLS[command.packageName] ?? null,
 		};
 	});
@@ -365,6 +421,13 @@ export function buildHandoffManifest({
 			.map(
 				(entry) =>
 					`stale tarball: ${entry.tarball} is older than ${entry.sourceInput?.path ?? entry.packageDir}`,
+			),
+		...packages
+			.filter((entry) => entry.buildOutputStale)
+			.map((entry) =>
+				entry.buildOutput
+					? `stale build output: ${entry.packageName} output ${entry.buildOutput.path} is older than ${entry.buildInput?.path ?? entry.packageDir}`
+					: `missing build output: ${entry.packageName} has publishable build output but no dist/pkg files`,
 			),
 	];
 

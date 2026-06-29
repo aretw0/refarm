@@ -142,6 +142,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.deepEqual(manifest.consumerProofs, []);
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].stale, false);
+	assert.equal(manifest.packages[0].buildOutputStale, false);
 	assert.equal(manifest.packages[0].sourceInput.path, path.join("packages", "alpha", "package.json"));
 	assert.equal(manifest.packages[0].sha256, "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8");
 	assert.match(formatHandoffMarkdown(manifest), /refarm\.dev-alpha-0\.1\.0\.tgz/);
@@ -296,4 +297,48 @@ test("reports stale handoff tarballs when package inputs are newer", () => {
 		`stale tarball: refarm.dev-alpha-0.1.0.tgz is older than ${path.join("packages", "alpha", "README.md")}`,
 	]);
 	assert.match(formatHandoffMarkdown(manifest), /stale tarball: refarm\.dev-alpha-0\.1\.0\.tgz/);
+});
+
+test("reports stale build outputs before accepting fresh tarballs", () => {
+	const { root, handoffDir } = makeFixture();
+	const packageDir = path.join(root, "packages/alpha");
+	const packageJsonPath = path.join(packageDir, "package.json");
+	const tarballPath = path.join(handoffDir, "refarm.dev-alpha-0.1.0.tgz");
+	const sourcePath = path.join(packageDir, "src/index.ts");
+	const outputPath = path.join(packageDir, "dist/index.js");
+	writeFileSync(
+		packageJsonPath,
+		JSON.stringify({
+			name: "@refarm.dev/alpha",
+			version: "0.1.0",
+			main: "./dist/index.js",
+			files: ["dist"],
+		}),
+	);
+	mkdirSync(path.dirname(sourcePath), { recursive: true });
+	mkdirSync(path.dirname(outputPath), { recursive: true });
+	writeFileSync(sourcePath, "export const value = 1;\n");
+	writeFileSync(outputPath, "export const value = 0;\n");
+	writeFileSync(tarballPath, "alpha");
+	writeFileSync(path.join(handoffDir, "refarm.dev-beta-0.2.0.tgz"), "beta");
+
+	const oldTime = new Date("2026-01-01T00:00:00.000Z");
+	const newTime = new Date("2026-01-02T00:00:00.000Z");
+	utimesSync(packageJsonPath, oldTime, oldTime);
+	utimesSync(outputPath, oldTime, oldTime);
+	utimesSync(sourcePath, newTime, newTime);
+	utimesSync(tarballPath, newTime, newTime);
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+	});
+
+	assert.equal(manifest.ok, false);
+	assert.equal(manifest.packages[0].stale, false);
+	assert.equal(manifest.packages[0].buildOutputStale, true);
+	assert.deepEqual(manifest.issues, [
+		`stale build output: @refarm.dev/alpha output ${path.join("packages", "alpha", "dist", "index.js")} is older than ${path.join("packages", "alpha", "src", "index.ts")}`,
+	]);
 });
