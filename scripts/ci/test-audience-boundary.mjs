@@ -227,6 +227,10 @@ test("vault-seed-ready README bodies avoid Refarm-owned capability wording", () 
 	const forbiddenCapabilityOwnership = [
 		/\bRefarm owns\b/,
 		/\bThis lets Refarm\b/,
+		/\bexisting Refarm app surfaces\b/i,
+		/\bcurrent Refarm apps\b/i,
+		/\bconsumer CLIs to adopt Refarm\b/i,
+		/\bRefarm operators can still\b/i,
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>

@@ -25,7 +25,7 @@ Apply the theme on the consuming shell:
 <body data-ds-theme="tractor-green">
 ```
 
-The previous Refarm-specific theme attribute remains an alias:
+The previous product-specific theme attribute remains an alias:
 
 ```html
 <body data-refarm-theme="tractor-green">
@@ -37,7 +37,7 @@ on the themed element or an ancestor to use it. The unqualified preset remains
 dark for backward compatibility.
 `tokens.css` never writes contract variables to bare `:root`; `--ds-*` aliases
 are scoped under `[data-ds-theme]` and `[data-refarm-theme]`. Legacy
-`--refarm-*` aliases are still emitted for existing Refarm app surfaces.
+`--refarm-*` aliases are still emitted for existing host app surfaces.
 
 Import `@refarm.dev/ds/styles/styles.css` once in a host shell to expose shared,
 framework-agnostic primitives:
@@ -50,7 +50,7 @@ framework-agnostic primitives:
 - loading states: `.ds-loading-state`, `.ds-spinner`.
 
 The previous `.refarm-*`, `data-refarm-theme`, and `data-refarm-scroll-region`
-forms remain aliases so current Refarm apps can migrate incrementally.
+forms remain aliases so existing host apps can migrate incrementally.
 
 Host packages should keep domain logic local and consume these classes for
 agnostic presentation. For example, Homestead owns stream node rendering while
