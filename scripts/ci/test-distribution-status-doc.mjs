@@ -19,6 +19,10 @@ const vaultSeedConvergenceDoc = readFileSync(
 	path.join(ROOT, "docs/VAULT_SEED_CONVERGENCE.md"),
 	"utf8",
 );
+const crossRepoConsumptionDoc = readFileSync(
+	path.join(ROOT, "docs/DEV_CROSS_REPO_CONSUMPTION.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -50,6 +54,10 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /prunedExtra/);
 	assert.match(doc, /proofId/);
 	assert.match(doc, /\.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\//);
+	assert.match(doc, /manifest\.json/);
+	assert.match(doc, /manifest\.md/);
+	assert.match(doc, /--out \.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\/manifest\.json/);
+	assert.match(doc, /official consumer checkout should collect the `\.tgz` files/);
 	assert.match(doc, /tarball freshness/);
 	assert.match(doc, /publishable build-output\s+freshness/);
 	assert.doesNotMatch(
@@ -87,6 +95,19 @@ test("vault seed convergence keeps current handoff hashes in the manifest", () =
 		.split("### Additional Assimilation Matrix")[0];
 
 	assert.match(currentHandoffSection, /packages\[\]\.sha256/);
+	assert.match(currentHandoffSection, /manifest\.json/);
+	assert.match(currentHandoffSection, /manifest\.md/);
+	assert.match(currentHandoffSection, /packages\[\]\.tarball/);
 	assert.match(currentHandoffSection, /prunedExtra/);
 	assert.doesNotMatch(currentHandoffSection, /\b[a-f0-9]{64}\b/);
+});
+
+test("cross-repo consumption uses the current vault-seed-ready packet", () => {
+	assert.match(crossRepoConsumptionDoc, /vault-seed-ready/);
+	assert.match(crossRepoConsumptionDoc, /release:vault-seed:check -- --plan --json/);
+	assert.match(crossRepoConsumptionDoc, /--out \.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\/manifest\.json/);
+	assert.match(crossRepoConsumptionDoc, /manifest\.json/);
+	assert.match(crossRepoConsumptionDoc, /manifest\.md/);
+	assert.match(crossRepoConsumptionDoc, /consumerProofs/);
+	assert.doesNotMatch(crossRepoConsumptionDoc, /`@refarm\.dev\/ds`, `\/homestead`, `\/silo`/);
 });

@@ -55,18 +55,23 @@ Validation:
 
 ```bash
 pnpm --silent run release:vault-seed:check -- --plan --json
-pnpm --silent run release:vault-seed:handoff -- --pack --json
+pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
+pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.md
 ```
 
 The local handoff uses the daily operator artifact path
 `.refarm/handoff/vault-seed/<YYYY-MM-DD>/`. That directory is ephemeral; the
 versioned policy and package checks remain the durable source of truth. The
-handoff command materializes package tarballs sequentially before validating the
-manifest, SHA-256 inventory, tarball freshness, and publishable build-output
-freshness. The JSON manifest declares `schemaVersion: 1` and
+handoff command materializes package tarballs sequentially before writing
+`manifest.json` beside those `.tgz` files and validating the manifest, SHA-256
+inventory, tarball freshness, and publishable build-output freshness. The JSON
+manifest declares `schemaVersion: 1` and
 `source: "vault-seed-ready-handoff"` so downstream checks can treat it as an
-explicit handoff contract. When cleanup is requested, `prunedExtra` records the
-unexpected generated tarballs removed before validation.
+explicit handoff contract. `manifest.md` is the operator-readable companion, but
+the official consumer checkout should collect the `.tgz` files listed in
+`manifest.json` and use that manifest as the integrity and assimilation
+checklist. When cleanup is requested, `prunedExtra` records the unexpected
+generated tarballs removed before validation.
 When a package rename or selection change intentionally leaves old generated
 tarballs in that ephemeral directory, rerun the handoff with `--prune-extra` to
 delete only unexpected `.tgz` files before manifest validation.
@@ -146,6 +151,8 @@ pnpm run release:readiness:test
 pnpm run release:vault-seed:check
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json
+pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
+pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.md
 ```
 
 ---
