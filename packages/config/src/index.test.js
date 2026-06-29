@@ -77,6 +77,62 @@ describe("@refarm.dev/config Deterministic Tests", () => {
         }
     });
 
+    it("merges legacy root config with canonical project-local config", () => {
+        const root = mkdtempSync(join(tmpdir(), "refarm-config-merge-"));
+        try {
+            mkdirSync(join(root, ".refarm"), { recursive: true });
+            writeFileSync(
+                join(root, "refarm.config.json"),
+                JSON.stringify({
+                    brand: {
+                        slug: "legacy",
+                        scopes: { dev: "@legacy" },
+                    },
+                    health: {
+                        workspaceRoots: ["packages"],
+                        ignoredGitVisibilityPatterns: ["legacy.js"],
+                    },
+                    workspaceNamespaces: {
+                        ".project": {
+                            owner: "project",
+                            persistence: "versioned",
+                            access: "readWrite",
+                        },
+                    },
+                }),
+            );
+            writeFileSync(
+                defaultRefarmConfigPath(root),
+                JSON.stringify({
+                    brand: { slug: "canonical" },
+                    health: {
+                        ignoredGitVisibilityPatterns: ["canonical.js"],
+                    },
+                }),
+            );
+
+            expect(loadConfig(root)).toMatchObject({
+                brand: {
+                    slug: "canonical",
+                    scopes: { dev: "@legacy" },
+                },
+                health: {
+                    workspaceRoots: ["packages"],
+                    ignoredGitVisibilityPatterns: ["canonical.js"],
+                },
+                workspaceNamespaces: {
+                    ".project": {
+                        owner: "project",
+                        persistence: "versioned",
+                        access: "readWrite",
+                    },
+                },
+            });
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
     it("keeps legacy root config readable for existing projects", () => {
         const root = mkdtempSync(join(tmpdir(), "refarm-config-legacy-"));
         try {

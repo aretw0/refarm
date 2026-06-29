@@ -140,6 +140,8 @@ export function findRefarmRoot(startDir = process.cwd()) {
  */
 function deepMerge(target, source) {
     if (!source) return target;
+    if (Array.isArray(source)) return [...source];
+    if (Array.isArray(target)) return source;
     const output = { ...target };
 
     for (const key of Object.keys(source)) {
@@ -199,14 +201,16 @@ function resolveInterpolation(config, current = config) {
 const JsonSource = {
     name: "json",
     loadSync(root) {
-        const configPath = findRefarmConfigPath(root);
-        if (!configPath) return {};
-        try {
-            return JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        } catch (e) {
-            console.warn(`[refarm/config] Failed to parse JSON at ${configPath}`);
-            return {};
+        let config = {};
+        for (const configPath of [...refarmConfigPathCandidates(root)].reverse()) {
+            if (!fs.existsSync(configPath)) continue;
+            try {
+                config = deepMerge(config, JSON.parse(fs.readFileSync(configPath, "utf-8")));
+            } catch (e) {
+                console.warn(`[refarm/config] Failed to parse JSON at ${configPath}`);
+            }
         }
+        return config;
     }
 };
 
