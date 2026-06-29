@@ -72,7 +72,7 @@ Readiness de primeira release:
 - `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
 - `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
 - `pnpm run reference-driver:smoke` → prova leve, sem provider, do loop
-  `ask`, do SDK `worker-profile` e das primitivas
+  `ask`, dos SDKs `interaction-driver`/`worker-profile` e das primitivas
   `runtime-agent`/reference-driver que precisam continuar funcionando antes de
   empacotar SDKs ou runtime de publicação.
 

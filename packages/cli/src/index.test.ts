@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+	assessInteractionDriverReadiness,
+	createInteractionDriverDescriptor,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
 	createWorkerToolResult,
@@ -8,6 +10,20 @@ import {
 } from "./index.js";
 
 describe("cli sdk barrel", () => {
+	it("exports interaction driver readiness helpers for downstream SDK consumers", () => {
+		const descriptor = createInteractionDriverDescriptor({
+			id: "runtime-agent.ask",
+			title: "Runtime agent ask loop",
+			description: "Submit a prompt, stream output, and preserve handoffs.",
+		});
+
+		expect(assessInteractionDriverReadiness(descriptor)).toMatchObject({
+			ok: true,
+			state: "ready",
+			supportedMode: "local-loop",
+		});
+	});
+
 	it("exports worker tool result helpers for downstream SDK consumers", () => {
 		const profile = createWorkerProfile({
 			id: "worker.plan-review",

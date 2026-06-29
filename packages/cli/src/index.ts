@@ -75,6 +75,27 @@ export type {
 	WorkspaceExecutionStatus,
 } from "./workspace-execution.js";
 export {
+	assessInteractionDriverReadiness,
+	createInteractionDriverDescriptor,
+	INTERACTION_DRIVER_GATEWAY_BLOCKERS,
+	INTERACTION_DRIVER_MIN_REQUIRED_EVENTS,
+	INTERACTION_DRIVER_SCHEMA_VERSION,
+	validateInteractionDriverDescriptor,
+} from "./interaction-driver.js";
+export type {
+	InteractionDriverBudgetVisibility,
+	InteractionDriverDescriptor,
+	InteractionDriverDescriptorInput,
+	InteractionDriverEventContract,
+	InteractionDriverHandoffContract,
+	InteractionDriverMode,
+	InteractionDriverReadiness,
+	InteractionDriverReadinessBlocker,
+	InteractionDriverReadinessRequirement,
+	InteractionDriverReadinessState,
+	InteractionDriverValidation,
+} from "./interaction-driver.js";
+export {
 	assessWorkerToolReadiness,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
