@@ -276,6 +276,24 @@ function buildConsumerProofs(packages) {
 		}));
 }
 
+function buildConsumerInstall({ packages, handoffDir }) {
+	const fileSpecs = Object.fromEntries(
+		packages.map((entry) => [
+			entry.packageName,
+			`file:./vendor/${entry.tarball}`,
+		]),
+	);
+	return {
+		packageManager: "pnpm",
+		vendorDir: "vendor",
+		copyFrom: handoffDir,
+		copyFiles: ["manifest.json", ...packages.map((entry) => entry.tarball)],
+		fileSpecs,
+		pnpmOverrides: { ...fileSpecs },
+		proofChecklist: "consumerProofs",
+	};
+}
+
 function expectedTarballSet(cwd, commands) {
 	return new Set(
 		commands.map((command) =>
@@ -402,6 +420,10 @@ export function buildHandoffManifest({
 			acceptance: releasePlanAcceptance(plan),
 			handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 			packages: [],
+			consumerInstall: buildConsumerInstall({
+				packages: [],
+				handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
+			}),
 			consumerProofs: [],
 			missing: [],
 			extra: [],
@@ -487,6 +509,10 @@ export function buildHandoffManifest({
 		acceptance: releasePlanAcceptance(check.plan),
 		handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 		packages,
+		consumerInstall: buildConsumerInstall({
+			packages,
+			handoffDir: maybeRelative(cwd, absoluteHandoffDir),
+		}),
 		consumerProofs: buildConsumerProofs(packages),
 		missing,
 		extra,
@@ -522,6 +548,17 @@ export function formatHandoffMarkdown(manifest) {
 				`- \`${proof.proofId}\` / \`${proof.packageName}\`: ${proof.proofTarget} (${proof.ownershipBoundary})`,
 			);
 		}
+	}
+
+	if (manifest.consumerInstall) {
+		lines.push(
+			"",
+			"Consumer install hints:",
+			"",
+			`- Vendor dir: \`${manifest.consumerInstall.vendorDir}\``,
+			`- Proof checklist: \`${manifest.consumerInstall.proofChecklist}\``,
+			"- Use `consumerInstall.fileSpecs` for direct dependencies and `consumerInstall.pnpmOverrides` for unpublished transitive `@refarm.dev/*` packages.",
+		);
 	}
 
 	if ((manifest.prunedExtra ?? []).length > 0) {

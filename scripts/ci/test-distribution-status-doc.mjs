@@ -50,6 +50,7 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /vault-seed-ready/);
 	assert.match(doc, /schemaVersion: 1/);
 	assert.match(doc, /consumerPull/);
+	assert.match(doc, /consumerInstall/);
 	assert.match(doc, /consumerProofs/);
 	assert.match(doc, /prunedExtra/);
 	assert.match(doc, /proofId/);
@@ -98,6 +99,8 @@ test("vault seed convergence keeps current handoff hashes in the manifest", () =
 	assert.match(currentHandoffSection, /manifest\.json/);
 	assert.match(currentHandoffSection, /manifest\.md/);
 	assert.match(currentHandoffSection, /packages\[\]\.tarball/);
+	assert.match(currentHandoffSection, /consumerInstall\.fileSpecs/);
+	assert.match(currentHandoffSection, /consumerInstall\.pnpmOverrides/);
 	assert.match(currentHandoffSection, /prunedExtra/);
 	assert.doesNotMatch(currentHandoffSection, /\b[a-f0-9]{64}\b/);
 });
@@ -108,6 +111,8 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 	assert.match(crossRepoConsumptionDoc, /--out \.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\/manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.md/);
+	assert.match(crossRepoConsumptionDoc, /consumerInstall\.fileSpecs/);
+	assert.match(crossRepoConsumptionDoc, /consumerInstall\.pnpmOverrides/);
 	assert.match(crossRepoConsumptionDoc, /consumerProofs/);
 	assert.doesNotMatch(crossRepoConsumptionDoc, /`@refarm\.dev\/ds`, `\/homestead`, `\/silo`/);
 });

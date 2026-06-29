@@ -33,22 +33,22 @@ selected `@refarm.dev/*` packages inside `vault-seed` before those packages are 
 3. In `vault-seed`: add the dependency and install.
    ```jsonc
    // package.json
-   "@refarm.dev/<name>": "file:./vendor/refarm.dev-<name>-<version>.tgz"
+   "@refarm.dev/<name>": "<manifest consumerInstall.fileSpecs entry>"
    ```
    ```bash
    pnpm install
    ```
    If the candidate depends on another unpublished `@refarm.dev/*` package, pin
    the direct dependency and the transitive dependency to the same local packet
-   with `pnpm.overrides` until the packages are published:
+   with `consumerInstall.pnpmOverrides` until the packages are published:
    ```jsonc
    {
      "dependencies": {
-       "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz"
+       "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz" // from consumerInstall.fileSpecs
      },
      "pnpm": {
        "overrides": {
-         "@refarm.dev/heartwood": "file:./vendor/refarm.dev-heartwood-0.1.0.tgz"
+         "@refarm.dev/heartwood": "file:./vendor/refarm.dev-heartwood-0.1.0.tgz" // from consumerInstall.pnpmOverrides
        }
      }
    }
@@ -78,6 +78,7 @@ and hand off:
 - manifest path and date;
 - selected package names and versions;
 - tarball paths and SHA-256 values from `manifest.json`;
+- `consumerInstall.fileSpecs` and `consumerInstall.pnpmOverrides`;
 - handoff commands used;
 - expected consumer proof commands from `consumerProofs`.
 
