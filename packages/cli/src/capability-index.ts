@@ -666,7 +666,7 @@ const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
 	"runtime-agent.ask": [
 		"Hermes: one interaction loop can serve CLI and messaging gateways, but the gateway must stay behind one contract.",
 		"Pi: steering, follow-up, abort, and session state are part of the embeddable driver protocol.",
-		"Codex/Claude: headless asks need machine-readable handoffs and lifecycle enforcement, not scraped terminal text.",
+		"Codex/Claude: headless asks need machine-readable events, lifecycle hooks, and durable handoffs, not scraped terminal text.",
 	],
 	"runtime-agent.worker-profiles": [
 		"Codex/Claude: isolate subagent context and return compact summaries.",
@@ -706,6 +706,14 @@ const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
 			url:
 				"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
 		},
+		{
+			name: "OpenAI Codex non-interactive mode",
+			url: "https://developers.openai.com/codex/codex-manual.md",
+		},
+		{
+			name: "Claude Code hooks reference",
+			url: "https://docs.anthropic.com/en/docs/claude-code/hooks.md",
+		},
 	],
 	"runtime-agent.worker-profiles": [
 		{
@@ -716,6 +724,14 @@ const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
 			name: "Pi coding-agent README",
 			url:
 				"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
+		},
+		{
+			name: "OpenAI Codex subagents",
+			url: "https://developers.openai.com/codex/codex-manual.md",
+		},
+		{
+			name: "Claude Code subagents",
+			url: "https://docs.anthropic.com/en/docs/claude-code/sub-agents.md",
 		},
 	],
 	"runtime-agent.session-tree": [
@@ -729,6 +745,10 @@ const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
 			url:
 				"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
 		},
+		{
+			name: "Claude Code subagent transcripts",
+			url: "https://docs.anthropic.com/en/docs/claude-code/sub-agents.md",
+		},
 	],
 	"runtime-agent.structured-io": [
 		{
@@ -736,11 +756,23 @@ const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
 			url:
 				"https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md",
 		},
+		{
+			name: "OpenAI Codex JSONL output",
+			url: "https://developers.openai.com/codex/codex-manual.md",
+		},
+		{
+			name: "Claude Code memory",
+			url: "https://docs.anthropic.com/en/docs/claude-code/memory.md",
+		},
 	],
 	"runtime-agent.code-ops": [
 		{
 			name: "Pi permissions and containerization",
 			url: "https://github.com/earendil-works/pi",
+		},
+		{
+			name: "Claude Code tool hooks",
+			url: "https://docs.anthropic.com/en/docs/claude-code/hooks.md",
 		},
 	],
 } as const;
