@@ -119,7 +119,7 @@ describe("capability index", () => {
 					referenceLessons: [
 						"Hermes: one interaction loop can serve CLI and messaging gateways, but the gateway must stay behind one contract.",
 						"Pi: steering, follow-up, abort, and session state are part of the embeddable driver protocol.",
-						"Codex/Claude: headless asks need machine-readable events, lifecycle hooks, and durable handoffs, not scraped terminal text.",
+						"Codex/Claude: headless asks need machine-readable success and failure events, lifecycle hooks, and durable handoffs, not scraped terminal text.",
 					],
 					promotionProofTargets: [
 						"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",

@@ -3,6 +3,7 @@ export const INTERACTION_DRIVER_MIN_REQUIRED_EVENTS = [
 	"accepted",
 	"streamed",
 	"completed",
+	"failed",
 ] as const;
 
 export type InteractionDriverMode = "local-loop" | "gateway-rpc";
