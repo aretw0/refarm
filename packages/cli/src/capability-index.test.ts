@@ -72,10 +72,24 @@ describe("capability index", () => {
 		expect(
 			supplyMap.entries.every((entry) => entry.referenceLessons.length > 0),
 		).toBe(true);
+		expect(
+			supplyMap.entries.every((entry) => entry.referenceSources.length > 0),
+		).toBe(true);
 		expect(supplyMap.entries).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					capabilityId: "runtime-agent.ask",
+					referenceSources: expect.arrayContaining([
+						{
+							name: "Hermes Agent README",
+							url: "https://github.com/NousResearch/hermes-agent",
+						},
+						{
+							name: "Pi coding-agent README",
+							url:
+								"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
+						},
+					]),
 					referenceLessons: [
 						"Hermes: one interaction loop can serve CLI and messaging gateways, but the gateway must stay behind one contract.",
 						"Pi: steering, follow-up, abort, and session state are part of the embeddable driver protocol.",
