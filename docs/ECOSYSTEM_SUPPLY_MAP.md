@@ -123,7 +123,12 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    becomes public engine supply. `refarm capabilities --supply-preflight
    reference-driver --json` exposes the plan-only candidate/internal/hold
    posture for consumers that need to avoid treating private runtime targets as
-   published supply.
+   published supply. That compact preflight is package-owned by
+   `@refarm.dev/cli/capability-index` and carries `adoptionCriteria`, per-target
+   `promotionProofTargets`, worker `budgetContract` data where relevant, summary
+   counts, and next decisions. Exported SDK targets remain visible in the full
+   supply map; the preflight is for release posture and consumer planning, not
+   app-owned runtime dispatch.
 
 Boundary note: the capability index is a supply/readiness index, not Barn's
 plugin catalog. `@refarm.dev/plugin-manifest` remains the authority for
