@@ -28,6 +28,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; the plan includes `test-runner:contracts`, `audience:boundary:test`, and the lightweight `reference-driver:smoke` gate before package dry-run, and publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
 | `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after ADR-072 the lane reports `acceptance.status: "accepted"` with 9 packages and 20 required checks; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/process-handoff` instead of full Homestead/CLI closures | official downstream assimilation proofs remain pending |
+| environment citizenship | active guardrail | `@refarm.dev/health/environment-pressure`, `refarm resume`, and `refarm check --next-action` already expose disk/memory pressure before work starts; Rust build parallelism is capped in repo config | turn pressure into hard command ceilings for broad test/build/fanout lanes so Refarm refuses, serializes, or degrades before agents can OOM or stall the host |
 
 ## Plan depth — read before "ready to implement"
 
@@ -80,6 +81,35 @@ This rule activates work that prevents migration churn:
 | Health/substrate checks | action pins, substrate, generated-output, devcontainer contract checks -> health/environment substrate | project-local allowances become global rules |
 | Credentials | `silo` collect -> `vault-seed` `silo.js` bridge after 4c | namespaces collapse or app provider re-export is not stable |
 | Text quality | text scoring scripts -> text-quality contract/config | submission/vault rubric moves upstream |
+
+## Environment Ceiling / Citizenship Rule
+
+Refarm must be a good citizen in every environment where it can be used or
+developed. The desired invariant is stronger than "agents should be careful":
+expensive commands should have environment ceilings that are hard to cross. If
+disk, memory, CPU, sandbox, or session pressure makes a broad lane unsafe, the
+tool should refuse with the next safe command, serialize the work, or degrade to
+a smaller proof before the host reaches an OOM/stall condition.
+
+Observed footgun (2026-06-29): a single focused `apps/refarm` Vitest command was
+killed with exit 137 in this container after earlier concurrent app validation
+had already destabilized the session. Treat this as product pressure, not as an
+operator anecdote. Future validation tooling should connect
+`environment-pressure` to command planning for broad app tests, type-checks,
+runtime fanout, and worker dispatch. Until that ceiling exists, prefer
+package-owned SDK tests, `git diff --check`, build of the directly affected
+package, and operator lanes that can emit direct next commands over repeating a
+command that has already been killed by the environment.
+
+Disposition rule: do not confuse abandoning a high-risk validation path with
+abandoning the product direction. In the 2026-06-29 reference-driver slice, the
+important contract was the `@refarm.dev/cli/capability-index` supply map gaining
+`adoptionCriteria`; that stayed in the package-owned SDK and docs. The
+app-local presentation/test path was dropped because it did not own the
+contract and its focused Vitest command was killed by the environment. The next
+implementation move is not to retry the same app command, but to add command
+planning ceilings that select package-owned proofs or controlled operator lanes
+before broad app validation is allowed.
 
 ## Item 4 - UI and Surface Blocks
 

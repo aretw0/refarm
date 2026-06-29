@@ -115,7 +115,21 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `@refarm.dev/cli/interaction-driver` is the ask-loop promotion contract, and
    `@refarm.dev/cli/worker-profile` is the plan-only worker contract. The
    `runtime-agent`/`pi-agent` execution package remains private until the
-   daily-driver proofs and plugin artifact policy justify publication.
+   daily-driver proofs and plugin artifact policy justify publication. The
+   discovery supply map carries `adoptionCriteria` as the promotion bar:
+   lifecycle events, session portability, steering/cancellation, worker
+   isolation, policy-before-hooks, skill/plugin packaging, gateway parity, and
+   budget/observability evidence must be satisfied before runtime execution
+   becomes public engine supply.
+
+Boundary note: the capability index is a supply/readiness index, not Barn's
+plugin catalog. `@refarm.dev/plugin-manifest` remains the authority for
+plugin-declared `capabilities.provides` / `capabilities.requires`, executable
+entry compatibility, and manifest validation. Barn remains the authority for
+installed plugin inventory, cache, and SHA-256 integrity. Reference-driver
+entries that later become installable plugins must still pass through
+`plugin-manifest` and Barn; the capability index only explains which Refarm
+primitive is supplyable and what proof still blocks promotion.
 
 ## Librarian follow-up
 

@@ -16,6 +16,7 @@ describe("capability index", () => {
 		const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 
 		expect(readme).toMatch(/primary\s+source references/);
+		expect(readme).toContain("adoptionCriteria");
 		expect(readme).toContain("referenceLessons");
 		expect(readme).toContain("referenceSources");
 		expect(readme).toContain("full research note");
@@ -80,6 +81,31 @@ describe("capability index", () => {
 		expect(supplyMap.schemaVersion).toBe(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
 		expect(supplyMap.smokeCommand).toBe("pnpm run reference-driver:smoke");
+		expect(supplyMap.adoptionCriteria.map((criterion) => criterion.id)).toEqual([
+			"interaction-lifecycle",
+			"session-portability",
+			"steering-control",
+			"worker-isolation",
+			"policy-hooks",
+			"skill-plugin-compatibility",
+			"gateway-parity",
+			"budget-observability",
+		]);
+		expect(supplyMap.adoptionCriteria).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "worker-isolation",
+					requirement: expect.stringContaining("explicit context packets"),
+					proof: expect.stringContaining("@refarm.dev/cli/worker-profile"),
+					consumerBoundary: expect.stringContaining("ambient fanout"),
+				}),
+				expect.objectContaining({
+					id: "gateway-parity",
+					requirement: expect.stringContaining("one ask/session/worker contract"),
+					consumerBoundary: expect.stringContaining("product routes"),
+				}),
+			]),
+		);
 		expect(supplyMap.entries.map((entry) => entry.capabilityId)).toEqual([
 			"runtime-agent.ask",
 			"runtime-agent.worker-profiles",

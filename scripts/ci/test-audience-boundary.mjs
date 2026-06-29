@@ -91,9 +91,31 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(supplyMap, /@refarm\.dev\/cli\/interaction-driver/);
 	assert.match(supplyMap, /@refarm\.dev\/cli\/worker-profile/);
 	assert.match(supplyMap, /@refarm\.dev\/pi-agent` held/);
+	assert.match(supplyMap, /adoptionCriteria/);
+	assert.match(supplyMap, /worker\s+isolation/i);
+	assert.match(supplyMap, /gateway\s+parity/i);
+	assert.match(supplyMap, /budget\/observability/i);
+	assert.match(supplyMap, /supply\/readiness index/);
+	assert.match(supplyMap, /not Barn's\s+plugin catalog/);
+	assert.match(supplyMap, /plugin-declared\s+`capabilities\.provides`\s+\/\s+`capabilities\.requires`/);
+	assert.match(supplyMap, /installed plugin inventory, cache, and SHA-256 integrity/);
 	assert.match(supplyMap, /Consumers keep their own command labels and product UX/);
 	assert.match(supplyMap, /The\s+`runtime-agent`\/`pi-agent` execution package remains private/);
 	assert.doesNotMatch(supplyMap, /reference-driver.*apps\/refarm/i);
+});
+
+test("factory readiness records hard environment ceilings", () => {
+	const readiness = read("docs/CONVERGENCE_FACTORY_READINESS.md");
+
+	assert.match(readiness, /environment citizenship/i);
+	assert.match(readiness, /Environment Ceiling \/ Citizenship Rule/);
+	assert.match(readiness, /hard to cross/);
+	assert.match(readiness, /refuse with the next safe command, serialize the work, or degrade/);
+	assert.match(readiness, /exit 137/);
+	assert.match(readiness, /environment-pressure/);
+	assert.match(readiness, /do not confuse abandoning a high-risk validation path/i);
+	assert.match(readiness, /@refarm\.dev\/cli\/capability-index/);
+	assert.match(readiness, /command\s+planning ceilings/);
 });
 
 test("superseded homestead ssr docs stay non-executable", () => {

@@ -349,6 +349,7 @@ export type {
 	CapabilitySupplyChannel,
 	CapabilitySupplyStatus,
 	CapabilitySupplyTarget,
+	ReferenceDriverAdoptionCriterion,
 	ReferenceDriverSupplyEntry,
 	ReferenceDriverSupplyMap,
 	ReferenceDriverSupplyPreflight,
