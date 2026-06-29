@@ -1,6 +1,6 @@
 # @refarm.dev/channel-policy-v1
 
-Provider-neutral channel policy and delivery evidence for Refarm consumers.
+Provider-neutral channel policy and delivery evidence for downstream consumers.
 
 This package does not call provider APIs, format messages, write inbox notes, or
 persist limiter state. It only defines the shared envelope for destinations,

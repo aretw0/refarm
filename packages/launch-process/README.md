@@ -1,6 +1,6 @@
 # @refarm.dev/launch-process
 
-Build-free tokenized process helpers for Refarm and consumer CLIs.
+Build-free tokenized process helpers for host and consumer CLIs.
 
 This is the leaf package for consumers that only need the
 `@refarm.dev/cli/launch-process` surface without installing the full Refarm CLI

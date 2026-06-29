@@ -1,6 +1,7 @@
 # @refarm.dev/ds
 
-The Design System (DS) is the source of truth for visual tokens, styles, and headless UI primitives shared by Refarm and downstream ecosystem apps.
+The Design System (DS) is the source of truth for visual tokens, styles, and
+headless UI primitives shared by host and downstream ecosystem apps.
 
 ## Features
 
