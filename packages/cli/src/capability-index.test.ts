@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
 	buildCapabilityIndex,
@@ -11,6 +12,15 @@ import {
 } from "./capability-index.js";
 
 describe("capability index", () => {
+	it("documents reference-driver lessons and sources in the CLI README", () => {
+		const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+
+		expect(readme).toMatch(/primary\s+source references/);
+		expect(readme).toContain("referenceLessons");
+		expect(readme).toContain("referenceSources");
+		expect(readme).toContain("full research note");
+	});
+
 	it("builds a compact, stable descriptor index", () => {
 		const index = buildCapabilityIndex();
 		const ids = index.capabilities.map((capability) => capability.id);
