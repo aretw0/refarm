@@ -193,3 +193,26 @@ test("vault-seed-ready README openings promote selected packages, not compatibil
 		}
 	}
 });
+
+test("vault-seed-ready README bodies avoid Refarm-owned capability wording", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const forbiddenCapabilityOwnership = [
+		/\bRefarm owns\b/,
+		/\bThis lets Refarm\b/,
+	];
+
+	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
+		candidate.tags?.includes("vault-seed-ready"),
+	)) {
+		const packageDir = profile.id.replace("@refarm.dev/", "");
+		const readme = read(`packages/${packageDir}/README.md`);
+
+		for (const pattern of forbiddenCapabilityOwnership) {
+			assert.doesNotMatch(
+				readme,
+				pattern,
+				`${profile.id} README should describe package/host ownership instead of Refarm-owned capability wording`,
+			);
+		}
+	}
+});

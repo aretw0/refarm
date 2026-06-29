@@ -9,7 +9,7 @@ and idempotency keys.
 
 ## Boundaries
 
-- Refarm owns `channel-policy:v1` shapes and validation.
+- This package owns `channel-policy:v1` shapes and validation.
 - Downstream products own provider adapters, copy formatting, note UX, and
   product commands.
 - Split `contacts` or `rate-limiter` into separate packages only when
