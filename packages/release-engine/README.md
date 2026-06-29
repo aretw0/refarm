@@ -120,7 +120,7 @@ status (`accepted`/`blocked`), contagens de blockers, gates obrigatórios,
 checks obrigatórios por pacote, providers, aprovação manual e superfícies
 envolvidas. Consumidores como um CLI de produto podem usar esse campo para
 decidir se um pacote candidato está pronto para handoff/publicação sem depender
-de nomes internos do Refarm.
+de nomes internos do host.
 Todo payload JSON emitido pelo CLI do pacote carrega `schemaVersion: 1`; campos
 novos devem ser adicionados de forma compatível. Consumidores de máquina devem
 falhar fechado quando receberem uma versão maior que a suportada.
