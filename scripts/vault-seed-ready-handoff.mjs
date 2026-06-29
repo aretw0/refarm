@@ -381,6 +381,7 @@ export function pruneExtraHandoffTarballs({
 export function buildHandoffManifest({
 	cwd = process.cwd(),
 	handoffDir = DEFAULT_HANDOFF_DIR,
+	prunedExtra = [],
 	releaseCheck,
 } = {}) {
 	const check =
@@ -404,6 +405,7 @@ export function buildHandoffManifest({
 			consumerProofs: [],
 			missing: [],
 			extra: [],
+			prunedExtra,
 			issues: [plan.reason ?? "release selection is not ready"],
 		};
 	}
@@ -488,6 +490,7 @@ export function buildHandoffManifest({
 		consumerProofs: buildConsumerProofs(packages),
 		missing,
 		extra,
+		prunedExtra,
 		issues,
 	};
 }
@@ -521,6 +524,13 @@ export function formatHandoffMarkdown(manifest) {
 		}
 	}
 
+	if ((manifest.prunedExtra ?? []).length > 0) {
+		lines.push("", "Pruned generated extras:", "");
+		for (const file of manifest.prunedExtra) {
+			lines.push(`- \`${file}\``);
+		}
+	}
+
 	if (manifest.issues.length > 0) {
 		lines.push("", "Issues:");
 		for (const issue of manifest.issues) {
@@ -546,6 +556,7 @@ if (isMain()) {
 		const releaseCheck = buildReleaseCheckPlan({
 			selectionId: options.selectionId,
 		});
+		let prunedExtra = [];
 		if (options.pack) {
 			materializeHandoffTarballs({
 				handoffDir: options.handoffDir,
@@ -553,13 +564,14 @@ if (isMain()) {
 			});
 		}
 		if (options.pruneExtra) {
-			pruneExtraHandoffTarballs({
+			prunedExtra = pruneExtraHandoffTarballs({
 				handoffDir: options.handoffDir,
 				releaseCheck,
 			});
 		}
 		const manifest = buildHandoffManifest({
 			handoffDir: options.handoffDir,
+			prunedExtra,
 			releaseCheck,
 		});
 		const output = options.json

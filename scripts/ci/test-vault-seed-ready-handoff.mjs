@@ -148,6 +148,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	});
 	assert.deepEqual(manifest.missing, []);
 	assert.deepEqual(manifest.extra, []);
+	assert.deepEqual(manifest.prunedExtra, []);
 	assert.deepEqual(manifest.consumerProofs, []);
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].stale, false);
@@ -296,14 +297,16 @@ test("prunes only unexpected handoff tarballs", () => {
 	assert.equal(existsSync(alphaTarball), true);
 	assert.equal(existsSync(betaTarball), true);
 	assert.equal(existsSync(unexpectedTarball), false);
-	assert.equal(
-		buildHandoffManifest({
-			cwd: root,
-			handoffDir,
-			releaseCheck: releaseCheck(),
-		}).ok,
-		true,
-	);
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		prunedExtra: pruned,
+		releaseCheck: releaseCheck(),
+	});
+	assert.equal(manifest.ok, true);
+	assert.deepEqual(manifest.prunedExtra, ["unexpected-0.1.0.tgz"]);
+	assert.match(formatHandoffMarkdown(manifest), /Pruned generated extras:/);
+	assert.match(formatHandoffMarkdown(manifest), /unexpected-0\.1\.0\.tgz/);
 });
 
 test("reports stale handoff tarballs when package inputs are newer", () => {
