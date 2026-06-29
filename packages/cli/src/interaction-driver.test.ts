@@ -3,6 +3,7 @@ import {
 	assessInteractionDriverReadiness,
 	createInteractionDriverDescriptor,
 	INTERACTION_DRIVER_GATEWAY_BLOCKERS,
+	INTERACTION_DRIVER_TERMINAL_EVENTS,
 	validateInteractionDriverDescriptor,
 } from "./interaction-driver.js";
 
@@ -40,6 +41,10 @@ describe("interaction driver contract", () => {
 			ok: true,
 			issues: [],
 		});
+		expect(INTERACTION_DRIVER_TERMINAL_EVENTS).toEqual([
+			"completed",
+			"failed",
+		]);
 		expect(assessInteractionDriverReadiness(descriptor)).toEqual({
 			ok: true,
 			state: "ready",
