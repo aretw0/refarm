@@ -25,6 +25,12 @@ export interface ReleasePackageProfile {
 	mustPassChecks?: string[];
 }
 
+export interface ReleaseAudienceBoundary {
+	consumer: string;
+	naming: string;
+	productLocal: string;
+}
+
 export interface ReleaseSurfaceBlock {
 	surface: "core" | "app" | "plugin" | "agent" | "shared";
 	reason?: string;
@@ -53,6 +59,7 @@ export interface ReleasePolicySelection {
 	id: string;
 	description?: string;
 	profileTags: string[];
+	audienceBoundary?: ReleaseAudienceBoundary;
 }
 
 export interface ReleasePlanPackage {
@@ -99,6 +106,7 @@ export interface ReleasePlan {
 	selection?: {
 		id: string;
 		description: string | null;
+		audienceBoundary: ReleaseAudienceBoundary | null;
 	} | null;
 	dryRun: boolean;
 	releaseNotes: string;

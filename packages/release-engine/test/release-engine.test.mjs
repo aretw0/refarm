@@ -298,6 +298,11 @@ test("exports the release output schema as a public package subpath", () => {
   assert.equal(schema.$defs.auditRecord.properties.schemaVersion.const, 1);
   assert.equal(schema.$defs.auditRecord.properties.digest.properties.algorithm.const, "sha256");
   assert.equal(schema.$defs.packageProfileSummary.required.includes("surface"), true);
+  assert.equal(schema.$defs.selectionSummary.required.includes("audienceBoundary"), true);
+  assert.deepEqual(
+    schema.$defs.audienceBoundary.required,
+    ["consumer", "naming", "productLocal"],
+  );
 });
 
 test("cli plan json resolves the Refarm default release selection", () => {
@@ -334,6 +339,12 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   assert.equal(payload.schemaVersion, 1);
   assert.equal(payload.ok, true);
   assert.equal(payload.selection.id, "vault-seed-ready");
+  assert.deepEqual(payload.selection.audienceBoundary, {
+    consumer: "vault-seed",
+    naming: "product-neutral-sdk",
+    productLocal:
+      "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned.",
+  });
   assert.deepEqual(payload.profileTags, ["vault-seed-ready"]);
   assert.deepEqual(payload.packages, [
     "@refarm.dev/artifact-contract-v1",
@@ -729,6 +740,27 @@ test("rejects release policy selections without profile tags", () => {
       ],
     })),
     /selection profileTags must be a non-empty array for empty-selection/,
+  );
+});
+
+test("rejects malformed release policy selection audience boundaries", () => {
+  assert.throws(
+    () => validatePolicy(validPolicy({
+      defaultSelection: "kernel-candidates",
+      selections: [
+        {
+          id: "kernel-candidates",
+          description: "Kernel candidates",
+          profileTags: ["kernel", "candidate"],
+          audienceBoundary: {
+            consumer: "vault-seed",
+            naming: "",
+            productLocal: "copy stays downstream",
+          },
+        },
+      ],
+    })),
+    /selection audienceBoundary for kernel-candidates\.naming must be a non-empty string/,
   );
 });
 

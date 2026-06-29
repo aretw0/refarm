@@ -96,7 +96,16 @@ test("release policy keeps SDK primitives behind explicit audience boundaries", 
 
 test("vault-seed-ready packages declare consumer-pulled intent", () => {
 	const config = JSON.parse(read("refarm.config.json"));
-	const profiles = config.releasePolicy.packageProfiles;
+	const policy = config.releasePolicy;
+	const selection = policy.selections.find((item) => item.id === "vault-seed-ready");
+	assert.deepEqual(selection.audienceBoundary, {
+		consumer: "vault-seed",
+		naming: "product-neutral-sdk",
+		productLocal:
+			"Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned.",
+	});
+
+	const profiles = policy.packageProfiles;
 	const readyProfiles = profiles.filter((profile) =>
 		profile.tags?.includes("vault-seed-ready"),
 	);

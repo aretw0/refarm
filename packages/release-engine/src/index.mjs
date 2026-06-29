@@ -295,6 +295,10 @@ export function validatePolicy(policy) {
         throw new Error(`selection profileTags must contain non-empty strings for ${selection.id}`);
       }
     }
+
+    if (selection.audienceBoundary !== undefined) {
+      validateAudienceBoundary(selection.audienceBoundary, `selection audienceBoundary for ${selection.id}`);
+    }
   }
 
   if (policy.defaultSelection && !selectionIds.has(policy.defaultSelection)) {
@@ -338,6 +342,29 @@ function validateCommandList(commands, label, code, providerId) {
       });
     }
   }
+}
+
+function validateAudienceBoundary(boundary, label) {
+  assert.ok(boundary && typeof boundary === "object" && !Array.isArray(boundary), `${label} must be an object`);
+  for (const field of ["consumer", "naming", "productLocal"]) {
+    assert.ok(
+      typeof boundary[field] === "string" && boundary[field].length > 0,
+      `${label}.${field} must be a non-empty string`,
+    );
+  }
+}
+
+function audienceBoundarySummary(boundary) {
+  if (!boundary || typeof boundary !== "object" || Array.isArray(boundary)) return null;
+  const { consumer, naming, productLocal } = boundary;
+  if (
+    typeof consumer !== "string" ||
+    typeof naming !== "string" ||
+    typeof productLocal !== "string"
+  ) {
+    return null;
+  }
+  return { consumer, naming, productLocal };
 }
 
 function readJson(absPath) {
@@ -656,6 +683,7 @@ export function buildReleasePlan({
       ? {
           id: selection.id,
           description: selection.description || null,
+          audienceBoundary: audienceBoundarySummary(selection.audienceBoundary),
         }
       : null,
     dryRun,

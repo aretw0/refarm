@@ -164,7 +164,7 @@
     },
     "selectionSummary": {
       "type": "object",
-      "required": ["id", "description"],
+      "required": ["id", "description", "audienceBoundary"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "description": {
@@ -172,7 +172,23 @@
             { "type": "string" },
             { "type": "null" }
           ]
+        },
+        "audienceBoundary": {
+          "anyOf": [
+            { "$ref": "#/$defs/audienceBoundary" },
+            { "type": "null" }
+          ]
         }
+      },
+      "additionalProperties": false
+    },
+    "audienceBoundary": {
+      "type": "object",
+      "required": ["consumer", "naming", "productLocal"],
+      "properties": {
+        "consumer": { "type": "string", "minLength": 1 },
+        "naming": { "type": "string", "minLength": 1 },
+        "productLocal": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     },
