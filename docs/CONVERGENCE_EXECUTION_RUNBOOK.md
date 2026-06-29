@@ -36,7 +36,8 @@ Plan: `docs/superpowers/plans/2026-06-24-source-contract-v1.md` (5 tasks, TDD).
 Status: implemented as `@refarm.dev/source-contract-v1` and `@refarm.dev/source-git`.
 **Gate:** `pnpm run test:capabilities` green (now includes `source-contract-v1`, `source-git`,
 and `source-local`);
-`pnpm run source:librarian:smoke` prints OK.
+`pnpm run source:librarian:smoke` prints OK for remote git materialization, and
+`pnpm run source:librarian:local-smoke` prints OK for live Refarm working-tree reads.
 **Why first:** after this, Refarm can materialize `vault-seed`/`agents-lab` read-only — the manual
 "cola" of the planning session becomes automated.
 
