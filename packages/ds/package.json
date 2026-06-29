@@ -18,6 +18,10 @@
 		"dist/theme-conformance.js.map",
 		"dist/theme-conformance.d.ts",
 		"dist/theme-conformance.d.ts.map",
+		"dist/html.js",
+		"dist/html.js.map",
+		"dist/html.d.ts",
+		"dist/html.d.ts.map",
 		"src/*.css",
 		"src/themes/*.css"
 	],
@@ -33,6 +37,10 @@
 		"./theme-conformance": {
 			"import": "./dist/theme-conformance.js",
 			"types": "./dist/theme-conformance.d.ts"
+		},
+		"./html": {
+			"import": "./dist/html.js",
+			"types": "./dist/html.d.ts"
 		},
 		"./tokens.css": "./src/tokens.css",
 		"./components.css": "./src/components.css",

@@ -202,6 +202,7 @@ test("requires DS public subpath exports for published contract helpers", () => 
 		[
 			'ds public API must declare exports["./contract"]',
 			'ds public API must declare exports["./theme-conformance"]',
+			'ds public API must declare exports["./html"]',
 		],
 	);
 });
@@ -218,6 +219,10 @@ test("accepts DS public subpath exports for published contract helpers", () => {
 				"./theme-conformance": {
 					import: "./dist/theme-conformance.js",
 					types: "./dist/theme-conformance.d.ts",
+				},
+				"./html": {
+					import: "./dist/html.js",
+					types: "./dist/html.d.ts",
 				},
 			},
 		}),

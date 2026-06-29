@@ -66,9 +66,9 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		ownershipBoundary: "Distribution identity, prose, and changelog content remain downstream",
 	},
 	"@refarm.dev/ds": {
-		proofId: "ds.lab-admin-theme",
-		downstreamUse: "Lab/admin tokens and verde-jardim light/dark theme source",
-		proofTarget: "vault-seed Lab/admin UI imports ds tokens and removes local semantic token fallback except for raw sessions",
+		proofId: "ds.lab-admin-html-shell",
+		downstreamUse: "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML shell helpers",
+		proofTarget: "vault-seed Lab/admin UI imports ds tokens and renders through @refarm.dev/ds/html without pulling Homestead",
 		ownershipBoundary: "PARA vocabulary, editorial copy, and content semantics remain downstream",
 	},
 	"@refarm.dev/heartwood": {
@@ -82,12 +82,6 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		downstreamUse: "Multi-surface command/action descriptor substrate",
 		proofTarget: "dgk exposes product commands through dispatch-surface-compatible descriptors",
 		ownershipBoundary: "Surface labels, routes, and product-specific actions remain downstream",
-	},
-	"@refarm.dev/homestead-ssr": {
-		proofId: "homestead-ssr.dgk-admin-shell",
-		downstreamUse: "Build-free SSR shell helpers for vault admin surfaces",
-		proofTarget: "dgk serve/admin renders through homestead-ssr without pulling full Homestead",
-		ownershipBoundary: "Admin copy, navigation, vault routes, and onboarding remain downstream",
 	},
 	"@refarm.dev/silo": {
 		proofId: "silo.credential-namespaces",

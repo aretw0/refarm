@@ -2,32 +2,28 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
-## homestead-ssr naming & packaging (consumer signal — pending)
+## Consumer leaf distribution policy
 
 **Date**: 2026-06-29
-**Status**: Pending (open — surfaced by `vault-seed` admin consumption)
-**References**: `packages/homestead-ssr`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md), [docs/NAMING_REGISTRY.md](NAMING_REGISTRY.md)
+**Status**: Accepted
+**ADR**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md)
+**References**: `@refarm.dev/ds/html`, `packages/homestead-ssr`, `@refarm.dev/launch-process`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md), [docs/NAMING_REGISTRY.md](NAMING_REGISTRY.md)
 
-**Signal**: while adopting `homestead-ssr` for the `dgk serve` admin (a *client-rendered*
-surface), `vault-seed` found the leaf's render/shell helpers are **isomorphic** —
-pure, ds-only, browser-safe — so the `-ssr` suffix undersells them: a client-rendered
-consumer would not know it can serve the helpers to the browser. The leaf *structure*
-(light, ds-only, build-free) is right; the open question is **naming/packaging**:
+**Decision**: reusable consumer-pulled leaves stay under the lightest correct domain. A parent
+subpath is acceptable only when it does not pull unrelated install closure, license posture, runtime
+dependencies, or release cadence.
 
-- (a) keep two packages but make the light/common tier the canonical name (`homestead`)
-  and annex the heavy SDK (`homestead-sdk` / `-runtime`); or
-- (b) a single `homestead` with subpath exports (`homestead/render`, `homestead/shell`,
-  `homestead/sdk`) where the heavy tier sits behind optional/peer deps, so importing only
-  `render` stays install-light.
+**Homestead/DS outcome**: the build-free HTML helpers are DS-owned and canonical at
+`@refarm.dev/ds/html`. `@refarm.dev/homestead-ssr` and `@refarm.dev/homestead/ssr` are compatibility
+surfaces only and are not part of the public `vault-seed-ready` lane.
 
-Note: tree-shaking alone does **not** prune installed dependencies — a single fat package
-with regular `dependencies` on the heavy tier would still pull the whole closure on install,
-and the build-free (no-bundler) path has no tree-shaking at all. So the decoupling has to be
-package/subpath/peer-dep shaped, not just "make it tree-shakeable".
+**Process outcome**: `@refarm.dev/launch-process` must not collapse into `@refarm.dev/cli`. The
+preferred breaking rename is `@refarm.dev/process-handoff`, because the package models tokenized
+process specs, runner adaptation, detached execution, and artifact/provenance handoffs.
 
-**This is a general "light-leaf vs heavy-parent" policy question, not per-package.** The same
-shape recurs at least once more: `@refarm.dev/launch-process` is the light leaf of
-`@refarm.dev/cli` (`cli/launch-process` re-exports it). A single policy could cover both pairs.
+Note: tree-shaking alone does **not** prune installed dependencies. A single fat package with regular
+`dependencies` on the heavy tier still pulls the whole closure on install, and build-free consumers
+have no bundler pruning. The decoupling has to be package/subpath/peer-dep shaped.
 
 **Explicitly NOT candidates** (separation is justified — do not merge these into subpaths):
 - the `*-contract-v1` family (~17 pkgs) — independently versioned (`:v1` is the point; a single
@@ -35,10 +31,6 @@ shape recurs at least once more: `@refarm.dev/launch-process` is the light leaf 
 - `storage-*` (`memory`/`rest`/`sqlite`), `sync-*` (`crdt`/`loro`), `*-stream-transport` — a
   contract plus *swappable* implementations with heavy native/WASM deps; separate install is the
   whole point.
-
-**Not a decision** — a consumer signal for Refarm to weigh (migration cost vs. clarity).
-The isomorphic guarantee itself is now documented (`README.md`) and tested
-(`isolation.test.ts`) in the package.
 
 ---
 

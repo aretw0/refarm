@@ -37,14 +37,8 @@ is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" st
    ```jsonc
    {
      "dependencies": {
-       "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz",
-       "@refarm.dev/homestead-ssr": "file:./vendor/refarm.dev-homestead-ssr-0.1.0.tgz"
+       "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz"
      },
-     "pnpm": {
-       "overrides": {
-         "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz"
-       }
-     }
    }
    ```
 4. Run the surface (`dgk build` / `dgk serve` / the site test roteiro) — that is the proof.
@@ -70,7 +64,7 @@ For the current UI packet, the Refarm-side fallback proof is:
 
 ```bash
 pnpm install --offline --store-dir /tmp/<proof>/.pnpm-store
-node --input-type=module -e "import { shellHtml, cardHtml, buttonHtml } from '@refarm.dev/homestead-ssr'; const bodyHtml = cardHtml({ title: 'Card', rows: ['<p>Ready</p>'], actionsHtml: buttonHtml({ label: 'Open' }) }); const html = shellHtml({ title: 'Proof', bodyHtml, theme: 'verde-jardim' }); if (!html.includes('data-ds-theme=\"verde-jardim\"') || !html.includes('ds-card') || !html.includes('ds-btn') || !html.includes('/_ds/themes/verde-jardim.css')) throw new Error('consumer proof failed');"
+node --input-type=module -e "import { shellHtml, cardHtml, buttonHtml } from '@refarm.dev/ds/html'; const bodyHtml = cardHtml({ title: 'Card', rows: ['<p>Ready</p>'], actionsHtml: buttonHtml({ label: 'Open' }) }); const html = shellHtml({ title: 'Proof', bodyHtml, theme: 'verde-jardim' }); if (!html.includes('data-ds-theme=\"verde-jardim\"') || !html.includes('ds-card') || !html.includes('ds-btn') || !html.includes('/_ds/themes/verde-jardim.css')) throw new Error('consumer proof failed');"
 pnpm list --depth 1
 test ! -e node_modules/@refarm.dev/homestead
 ```
