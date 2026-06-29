@@ -8,6 +8,7 @@ import {
 	createWorkerToolDescriptor,
 	createWorkerToolResult,
 	getCapabilityDescriptors,
+	INTERACTION_DRIVER_TERMINAL_EVENTS,
 	validateWorkerToolResult,
 	WORKER_TOOL_RESULT_SCHEMA_VERSION,
 } from "./index.js";
@@ -25,6 +26,10 @@ describe("cli sdk barrel", () => {
 			state: "ready",
 			supportedMode: "local-loop",
 		});
+		expect(INTERACTION_DRIVER_TERMINAL_EVENTS).toEqual([
+			"completed",
+			"failed",
+		]);
 	});
 
 	it("exports agnostic capability discovery helpers for downstream SDK consumers", () => {

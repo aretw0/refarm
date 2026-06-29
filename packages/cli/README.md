@@ -113,7 +113,9 @@ embeddable interaction contract and reports why gateway/RPC promotion remains
 blocked. It does not call a provider, start a runtime, or depend on any app
 shell. The minimal JSON event contract includes accepted, streamed, completed,
 and failed events so automation can consume both successful and terminal-error
-paths without scraping terminal text.
+paths without scraping terminal text. Consumers can import
+`INTERACTION_DRIVER_TERMINAL_EVENTS` when they only need to branch on terminal
+success or failure.
 
 `@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
 "agents as tools" contract. `createWorkerProfile()` defines the bounded worker,
