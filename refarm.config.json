@@ -157,6 +157,11 @@
       {
         "id": "vault-seed-ready",
         "description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
+        "audienceBoundary": {
+          "consumer": "vault-seed",
+          "naming": "product-neutral-sdk",
+          "productLocal": "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned."
+        },
         "profileTags": [
           "vault-seed-ready"
         ]

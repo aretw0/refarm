@@ -66,6 +66,10 @@ handoff command materializes package tarballs sequentially before validating the
 manifest and SHA-256 inventory. The JSON manifest declares
 `schemaVersion: 1` and `source: "vault-seed-ready-handoff"` so downstream
 checks can treat it as an explicit handoff contract.
+The `vault-seed-ready` release-policy selection also carries an
+`audienceBoundary` contract: consumer `vault-seed`, naming
+`product-neutral-sdk`, and vault-specific CLI labels, copy, notebooks, routes,
+and UX remaining downstream-owned.
 Each package entry also carries `consumerPull` metadata when the selected package
 has a known `vault-seed` adoption target. That metadata names the downstream
 use, a stable `proofId`, the expected `vault-seed` proof target, and the
