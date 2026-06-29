@@ -22,6 +22,27 @@ publication remains held by the daily-driver gate or explicit human override.
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
 
+## 🌱 Consumer-Pulled Candidate Lane
+
+The `vault-seed-ready` selection is a pre-publication handoff lane for packages
+that `vault-seed` can consume as local tarballs before the full daily-driver
+release. It is not an automatic npm publication promise: the lane remains
+manual-approval gated, product-neutral, and downstream-owned for vault-specific
+CLI labels, copy, notebooks, routes, and UX.
+
+| Package | Purpose | Publishing |
+|---|---|---|
+| [`@refarm.dev/artifact-contract-v1`](./artifact-contract-v1) | Artifact/provenance manifests for Lab datasets, outbox manifests, and notebook snapshots | `vault-seed-ready`; held |
+| [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | Channel delivery evidence, rate limits, dry-run reports, and review gates | `kernel-candidates` + `vault-seed-ready`; held |
+| [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `vault-seed-ready`; held |
+| [`@refarm.dev/launch-process`](./launch-process) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
+| [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `vault-seed-ready`; held |
+| [`@refarm.dev/ds`](./ds) | Design tokens and theme CSS consumed by vault admin/Lab UI | `vault-seed-ready`; held |
+| [`@refarm.dev/heartwood`](./heartwood) | Cryptographic core dependency for Silo | `vault-seed-ready`; held |
+| [`@refarm.dev/dispatch-surface`](./dispatch-surface) | Product-neutral dispatch surface contracts | `vault-seed-ready`; held |
+| [`@refarm.dev/homestead-ssr`](./homestead-ssr) | Build-free SSR helpers without the full Homestead closure | `vault-seed-ready`; held |
+| [`@refarm.dev/silo`](./silo) | Namespaced secret collection and storage | `vault-seed-ready`; held |
+
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.
 
