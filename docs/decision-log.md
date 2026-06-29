@@ -34,6 +34,30 @@ have no bundler pruning. The decoupling has to be package/subpath/peer-dep shape
 
 ---
 
+## `ds/html` shellHtml naming (consumer signal — pending)
+
+**Date**: 2026-06-29
+**Status**: Pending (consumer signal — vault-seed, follow-up to ADR-072)
+**References**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md), `@refarm.dev/ds/html`
+
+**Signal**: ADR-072 correctly moved the build-free DS HTML helpers to `@refarm.dev/ds/html`
+(cohesion — the emitters and the CSS that styles their `ds-*` classes are one contract; splitting
+them across packages is what risks drift). But `@refarm.dev/ds/html` exports `shellHtml`, and
+"shell" is the word ADR-072 reserves for Homestead (*"Homestead owns runtime/shell/studio
+integration"*). The object is right in DS — it is a pure, build-free static HTML document that only
+links the DS stylesheets and sets the theme — but the NAME overloads "shell" and can read as
+Homestead's live app shell.
+
+**Suggestion**: rename `ds/html`'s `shellHtml` → `documentHtml` (or `pageHtml`) — "a static DS-wired
+page" — keeping "shell" for Homestead's runtime shell. Small and pre-publication; keeps the
+DS↔Homestead boundary crisp. Guardrail: keep `ds/html` strictly presentational (string emitters
+only); if framework renderers arrive later, mirror the subpath convention (`ds/react`, …) with
+`ds/html` as the build-free variant.
+
+**Not a decision** — a naming nit for Refarm to weigh.
+
+---
+
 ## Documentation Canonical Layering
 
 **Date**: 2026-06-17
