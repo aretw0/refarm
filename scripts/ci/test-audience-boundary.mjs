@@ -136,6 +136,8 @@ test("release-engine docs keep host integration product-neutral", () => {
 	const readme = read("packages/release-engine/README.md");
 
 	assert.doesNotMatch(roadmap, /controle de release por vault/i);
+	assert.doesNotMatch(readme, /fonte local do reposit[oó]rio Refarm/i);
+	assert.doesNotMatch(readme, /plano operacional via Refarm/i);
 	assert.match(roadmap, /host\/control-plane consumidor/);
 	assert.match(readme, /host\/control-plane consumidor/);
 	assert.match(readme, /incluindo `apps\/refarm`/);
