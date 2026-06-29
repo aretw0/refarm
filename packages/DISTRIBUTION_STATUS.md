@@ -59,13 +59,14 @@ pnpm --silent run release:vault-seed:check -- --plan --json
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 ```
 
-The local handoff currently lives under
-`.refarm/handoff/vault-seed/2026-06-28/`. That directory is an operator artifact;
-the versioned policy and package checks remain the durable source of truth. The
+The local handoff uses the daily operator artifact path
+`.refarm/handoff/vault-seed/<YYYY-MM-DD>/`. That directory is ephemeral; the
+versioned policy and package checks remain the durable source of truth. The
 handoff command materializes package tarballs sequentially before validating the
-manifest and SHA-256 inventory. The JSON manifest declares
-`schemaVersion: 1` and `source: "vault-seed-ready-handoff"` so downstream
-checks can treat it as an explicit handoff contract.
+manifest, SHA-256 inventory, tarball freshness, and publishable build-output
+freshness. The JSON manifest declares `schemaVersion: 1` and
+`source: "vault-seed-ready-handoff"` so downstream checks can treat it as an
+explicit handoff contract.
 The `vault-seed-ready` release-policy selection also carries an
 `audienceBoundary` contract: consumer `vault-seed`, naming
 `product-neutral-sdk`, and vault-specific CLI labels, copy, notebooks, routes,

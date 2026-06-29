@@ -44,6 +44,13 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /consumerPull/);
 	assert.match(doc, /consumerProofs/);
 	assert.match(doc, /proofId/);
+	assert.match(doc, /\.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\//);
+	assert.match(doc, /tarball freshness/);
+	assert.match(doc, /publishable build-output\s+freshness/);
+	assert.doesNotMatch(
+		doc,
+		/currently lives under\s+`\.refarm\/handoff\/vault-seed\/\d{4}-\d{2}-\d{2}\//,
+	);
 
 	for (const packageName of releaseSelectionNames("default")) {
 		assert.match(doc, new RegExp(`\\\`${escapeRegExp(packageName)}\\\``));
