@@ -81,6 +81,14 @@ describe("capability index", () => {
 		expect(supplyMap.schemaVersion).toBe(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
 		expect(supplyMap.smokeCommand).toBe("pnpm run reference-driver:smoke");
+		expect(supplyMap.publicationBoundary).toEqual({
+			discoveryPackage: "@refarm.dev/cli",
+			discoverySubpath: "@refarm.dev/cli/capability-index",
+			publicationState: "boundary-review",
+			consumerInstallPolicy: "not-vault-seed-ready",
+			runtimeExecutionState: "private",
+			note: expect.stringContaining("@refarm.dev/cli is not a vault-seed-ready leaf"),
+		});
 		expect(supplyMap.adoptionCriteria.map((criterion) => criterion.id)).toEqual([
 			"interaction-lifecycle",
 			"session-portability",
@@ -306,6 +314,14 @@ describe("capability index", () => {
 			schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 			source: "@refarm.dev/cli/capability-index",
 			mode: "plan-only",
+			publicationBoundary: {
+				discoveryPackage: "@refarm.dev/cli",
+				discoverySubpath: "@refarm.dev/cli/capability-index",
+				publicationState: "boundary-review",
+				consumerInstallPolicy: "not-vault-seed-ready",
+				runtimeExecutionState: "private",
+				note: expect.stringContaining("runtime execution stays private"),
+			},
 			adoptionCriteria: expect.arrayContaining([
 				expect.objectContaining({
 					id: "worker-isolation",

@@ -184,6 +184,12 @@ budget-contract coverage. This lets `vault-seed`, future `agents-lab`, and the
 Refarm apps render feature-growth pressure without importing runtime dispatch or
 joining the full supply map.
 
+Current proof (2026-06-29): the reference-driver supply map and preflight now
+carry `publicationBoundary`. This keeps the laboratory honest about package
+placement: discovery is available through `@refarm.dev/cli/capability-index`,
+but `@refarm.dev/cli` remains in `boundary-review`, is not a
+`vault-seed-ready` leaf, and does not make runtime execution public.
+
 Current proof (2026-06-29): the reference-driver supply map now carries
 top-level `adoptionCriteria`. This is the long-term promotion bar for turning
 research pressure into Refarm supply instead of app-local behavior: structured
