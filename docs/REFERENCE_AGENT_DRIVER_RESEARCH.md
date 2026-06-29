@@ -140,6 +140,14 @@ visibility proofs. The reference-driver supply map now lists this SDK as an
 exported target for `runtime-agent.ask`, while `@refarm.dev/pi-agent` remains on
 hold for runtime execution.
 
+Current proof (2026-06-29): the reference-driver supply map now carries official
+Codex and Claude Code source references beside the Hermes and Pi references.
+This makes lifecycle hooks, JSONL/headless automation, subagent context
+isolation, memory-as-context, and policy-as-enforcement inspectable from
+`@refarm.dev/cli/capability-index`. The adoption rule is unchanged: these
+patterns promote into packages, subpaths, WIT contracts, or policy gates before
+they become app behavior.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":

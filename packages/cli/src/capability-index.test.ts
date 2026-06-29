@@ -97,11 +97,19 @@ describe("capability index", () => {
 							url:
 								"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
 						},
+						{
+							name: "OpenAI Codex non-interactive mode",
+							url: "https://developers.openai.com/codex/codex-manual.md",
+						},
+						{
+							name: "Claude Code hooks reference",
+							url: "https://docs.anthropic.com/en/docs/claude-code/hooks.md",
+						},
 					]),
 					referenceLessons: [
 						"Hermes: one interaction loop can serve CLI and messaging gateways, but the gateway must stay behind one contract.",
 						"Pi: steering, follow-up, abort, and session state are part of the embeddable driver protocol.",
-						"Codex/Claude: headless asks need machine-readable handoffs and lifecycle enforcement, not scraped terminal text.",
+						"Codex/Claude: headless asks need machine-readable events, lifecycle hooks, and durable handoffs, not scraped terminal text.",
 					],
 					promotionProofTargets: [
 						"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",
@@ -130,6 +138,16 @@ describe("capability index", () => {
 				}),
 				expect.objectContaining({
 					capabilityId: "runtime-agent.worker-profiles",
+					referenceSources: expect.arrayContaining([
+						{
+							name: "OpenAI Codex subagents",
+							url: "https://developers.openai.com/codex/codex-manual.md",
+						},
+						{
+							name: "Claude Code subagents",
+							url: "https://docs.anthropic.com/en/docs/claude-code/sub-agents.md",
+						},
+					]),
 					referenceLessons: [
 						"Codex/Claude: isolate subagent context and return compact summaries.",
 						"Hermes: keep delegation bounded; do not make worker fanout ambient.",
