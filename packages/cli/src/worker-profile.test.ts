@@ -118,7 +118,13 @@ describe("worker profile contract", () => {
 			schemaVersion: 1,
 			name: "worker.planReview",
 			profile,
-			budget: { maxTurns: 2, maxParallel: 2 },
+			budget: {
+				maxTurns: 2,
+				maxParallel: 2,
+				tokenUse: "provider",
+				stopCondition:
+					"stop when the objective is satisfied or the maxTurns budget is exhausted",
+			},
 			invocation: {
 				mode: "plan-only",
 				model: { scope: "worker" },
@@ -153,6 +159,7 @@ describe("worker profile contract", () => {
 			mode: "runtime-dispatch",
 			maxTurns: WORKER_TOOL_MAX_TURNS + 1,
 			maxParallel: profile.concurrency.maxParallel + 1,
+			stopCondition: " ",
 			inputFields: [],
 		});
 
@@ -162,6 +169,7 @@ describe("worker profile contract", () => {
 				"invocation.mode must be plan-only until runtime dispatch is implemented",
 				`budget.maxTurns must be between 1 and ${WORKER_TOOL_MAX_TURNS}`,
 				"budget.maxParallel must be between 1 and profile.concurrency.maxParallel",
+				"budget.stopCondition is required",
 				"inputFields must list at least one field",
 			],
 		});
@@ -175,6 +183,7 @@ describe("worker profile contract", () => {
 				"invocation.mode must be plan-only until runtime dispatch is implemented",
 				`budget.maxTurns must be between 1 and ${WORKER_TOOL_MAX_TURNS}`,
 				"budget.maxParallel must be between 1 and profile.concurrency.maxParallel",
+				"budget.stopCondition is required",
 				"inputFields must list at least one field",
 			],
 			blockers: [

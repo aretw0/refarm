@@ -130,6 +130,7 @@ export type {
 	WorkerToolReadinessRequirement,
 	WorkerToolReadinessState,
 	WorkerToolPolicy,
+	WorkerTokenUse,
 	WorkerToolBudget,
 	WorkerToolDescriptor,
 	WorkerToolDescriptorInput,

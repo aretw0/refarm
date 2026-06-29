@@ -143,9 +143,9 @@ without importing the interaction-driver subpath.
 `@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
 "agents as tools" contract. `createWorkerProfile()` defines the bounded worker,
 and `createWorkerToolDescriptor()` wraps it as a plan-only tool descriptor with
-explicit model scope, token source, max turns, and max concurrency. Runtime
-dispatch is intentionally rejected until the worker engine has policy,
-cancellation, observability, and cost-control proofs.
+explicit model scope, provider token use, max turns, max concurrency, and a
+stop condition. Runtime dispatch is intentionally rejected until the worker
+engine has policy, cancellation, observability, and cost-control proofs.
 
 ```ts
 import {
@@ -168,6 +168,7 @@ const profile = createWorkerProfile({
 const descriptor = createWorkerToolDescriptor(profile, {
 	name: "worker.planReview",
 	inputFields: ["task", "scope"],
+	stopCondition: "stop after the plan risks are summarized or maxTurns is reached",
 });
 
 const readiness = assessWorkerToolReadiness(descriptor);

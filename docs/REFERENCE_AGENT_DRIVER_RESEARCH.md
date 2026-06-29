@@ -228,11 +228,11 @@ scraping docs or loading long instructions.
 
 Current proof (2026-06-27): `@refarm.dev/cli/worker-profile` introduced the
 first bounded worker contract: explicit context packet, allowed/denied tools,
-model scope, max concurrency, output contract, and cancellation/resume policy.
-The current primary SDK surface is `@refarm.dev/cli`, with the subpath kept for
-focused imports. This does not dispatch workers. It only gives downstream code
-and future runtime work a small, validated shape to target before Refarm enables
-delegated execution.
+model scope, provider token use, max turns, max concurrency, stop condition,
+output contract, and cancellation/resume policy. The current primary SDK
+surface is `@refarm.dev/cli`, with the subpath kept for focused imports. This
+does not dispatch workers. It only gives downstream code and future runtime work
+a small, validated shape to target before Refarm enables delegated execution.
 
 Current proof (2026-06-27): `@refarm.dev/windmill/local-scheduler` defines the
 first local scheduled-work SDK boundary. It reads active `automation:v1`
