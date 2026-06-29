@@ -11,7 +11,7 @@ custom-element code.
 import { cardHtml, shellHtml } from "@refarm.dev/homestead-ssr";
 
 const bodyHtml = cardHtml({
-	title: "Vault",
+	title: "Operations",
 	rows: ["<p>Ready</p>"],
 });
 

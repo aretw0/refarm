@@ -23,10 +23,10 @@ import {
 
 const process = createLaunchProcessSpecFromRunner(
 	"node",
-	["scripts/prepare_lab_datasets.mjs", "--json"],
+	["scripts/prepare_workflow_outputs.mjs", "--json"],
 	{
-		cwd: "/workspaces/vault-seed",
-		display: "node scripts/prepare_lab_datasets.mjs --json",
+		cwd: "/workspaces/consumer-project",
+		display: "node scripts/prepare_workflow_outputs.mjs --json",
 	},
 );
 ```
