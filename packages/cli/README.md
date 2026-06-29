@@ -16,7 +16,8 @@ building blocks that should remain useful outside the app layer:
   `(command, args, options) => Promise<void>` execution seams.
 - Compact capability discovery, including the reference-driver supply map that
   tells consumers which primitives are SDK exports, runtime artifacts, WIT
-  boundaries, crate-held implementations, or publication holds.
+  boundaries, crate-held implementations, or publication holds, with primary
+  source references for the adopted driver lessons.
 - Refarm status schema contracts and compatibility aliases where public callers
   still rely on Refarm-specific names.
 
@@ -103,6 +104,9 @@ worker descriptor/readiness/result SDK,
 keeps `@refarm.dev/pi-agent` publication on hold while the plugin package is
 private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
 WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
+Each entry also carries compact `referenceLessons` and `referenceSources`, so a
+consumer can inspect why a primitive exists and which primary references shaped
+it without loading the full research note.
 
 `@refarm.dev/cli/interaction-driver` describes the local ask loop as an
 embeddable interaction contract and reports why gateway/RPC promotion remains
