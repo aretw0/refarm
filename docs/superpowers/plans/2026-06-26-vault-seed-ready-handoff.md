@@ -41,3 +41,11 @@ This packet is a candidate channel, not a public release.
   required check(s))` before the tarball table.
 - [x] `pnpm run release:readiness:test` covers the acceptance field and Markdown
   summary through `scripts/ci/test-vault-seed-ready-handoff.mjs`.
+
+## Task 5 - Freshness Guard
+
+- [x] The handoff manifest rejects stale tarballs when package source-level
+  inputs such as `package.json`, `README.md`, `src/`, `wit/`, or Cargo metadata
+  are newer than the handoff tarball.
+- [x] Stale tarballs are reported as explicit `issues` so consumer-pulled
+  packets cannot look ready after local SDK docs or source changed.
