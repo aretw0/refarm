@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+	buildCapabilityIndex,
 	buildRefarmCapabilityIndex,
 	buildReferenceDriverSupplyMap,
 	buildReferenceDriverSupplyPreflight,
+	CAPABILITY_INDEX_SCHEMA_VERSION,
+	getCapabilityDescriptors,
 	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
 
 describe("capability index", () => {
 	it("builds a compact, stable descriptor index", () => {
-		const index = buildRefarmCapabilityIndex();
+		const index = buildCapabilityIndex();
 		const ids = index.capabilities.map((capability) => capability.id);
 
-		expect(index.schemaVersion).toBe(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION);
+		expect(index.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(ids).toEqual([
 			"runtime-agent.ask",
 			"project-handoff.governed",
@@ -27,11 +30,16 @@ describe("capability index", () => {
 			"scheduler.local-jobs",
 		]);
 		expect(new Set(ids).size).toBe(ids.length);
-		expect(index.capabilities).toEqual(getRefarmCapabilityDescriptors());
+		expect(index.capabilities).toEqual(getCapabilityDescriptors());
+		expect(buildRefarmCapabilityIndex).toBe(buildCapabilityIndex);
+		expect(getRefarmCapabilityDescriptors).toBe(getCapabilityDescriptors);
+		expect(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION).toBe(
+			CAPABILITY_INDEX_SCHEMA_VERSION,
+		);
 	});
 
 	it("keeps descriptors small enough for progressive discovery", () => {
-		const index = buildRefarmCapabilityIndex();
+		const index = buildCapabilityIndex();
 
 		for (const capability of index.capabilities) {
 			expect(capability.description.length).toBeLessThanOrEqual(140);
@@ -42,7 +50,7 @@ describe("capability index", () => {
 	});
 
 	it("surfaces runtime-agent reference-driver primitives", () => {
-		const index = buildRefarmCapabilityIndex();
+		const index = buildCapabilityIndex();
 		const referenceDriverIds = index.capabilities
 			.filter((capability) => capability.tags.includes("reference-driver"))
 			.map((capability) => capability.id);

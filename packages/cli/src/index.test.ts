@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
 	assessInteractionDriverReadiness,
+	buildCapabilityIndex,
+	CAPABILITY_INDEX_SCHEMA_VERSION,
 	createInteractionDriverDescriptor,
 	createWorkerProfile,
 	createWorkerToolDescriptor,
 	createWorkerToolResult,
+	getCapabilityDescriptors,
 	validateWorkerToolResult,
 	WORKER_TOOL_RESULT_SCHEMA_VERSION,
 } from "./index.js";
@@ -22,6 +25,18 @@ describe("cli sdk barrel", () => {
 			state: "ready",
 			supportedMode: "local-loop",
 		});
+	});
+
+	it("exports agnostic capability discovery helpers for downstream SDK consumers", () => {
+		const index = buildCapabilityIndex();
+
+		expect(index.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
+		expect(index.capabilities).toEqual(getCapabilityDescriptors());
+		expect(
+			index.capabilities.some(
+				(capability) => capability.id === "runtime-agent.ask",
+			),
+		).toBe(true);
 	});
 
 	it("exports worker tool result helpers for downstream SDK consumers", () => {

@@ -3,6 +3,8 @@ import { INTERACTION_DRIVER_GATEWAY_BLOCKERS } from "./interaction-driver.js";
 import { WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS } from "./worker-profile.js";
 
 export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
+export const CAPABILITY_INDEX_SCHEMA_VERSION =
+	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 
 export type RefarmCapabilityProviderKind =
 	| "cli"
@@ -49,6 +51,14 @@ export interface RefarmCapabilityIndex {
 	capabilities: readonly RefarmCapabilityDescriptor[];
 }
 
+export type CapabilityProviderKind = RefarmCapabilityProviderKind;
+export type CapabilityPolicyState = RefarmCapabilityPolicyState;
+export type CapabilityProvider = RefarmCapabilityProvider;
+export type CapabilityActivation = RefarmCapabilityActivation;
+export type CapabilityPolicy = RefarmCapabilityPolicy;
+export type CapabilityDescriptor = RefarmCapabilityDescriptor;
+export type CapabilityIndex = RefarmCapabilityIndex;
+
 export type RefarmCapabilitySupplyChannel =
 	| "npm"
 	| "crate"
@@ -69,6 +79,10 @@ export interface RefarmCapabilitySupplyTarget {
 	status: RefarmCapabilitySupplyStatus;
 	note: string;
 }
+
+export type CapabilitySupplyChannel = RefarmCapabilitySupplyChannel;
+export type CapabilitySupplyStatus = RefarmCapabilitySupplyStatus;
+export type CapabilitySupplyTarget = RefarmCapabilitySupplyTarget;
 
 export interface ReferenceDriverSourceReference {
 	name: string;
@@ -740,16 +754,19 @@ const REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS: Record<string, readonly string[]
 	),
 } as const;
 
-export function buildRefarmCapabilityIndex(): RefarmCapabilityIndex {
+export function buildCapabilityIndex(): CapabilityIndex {
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 		capabilities: CAPABILITIES,
 	};
 }
 
-export function getRefarmCapabilityDescriptors(): readonly RefarmCapabilityDescriptor[] {
+export function getCapabilityDescriptors(): readonly CapabilityDescriptor[] {
 	return CAPABILITIES;
 }
+
+export const buildRefarmCapabilityIndex = buildCapabilityIndex;
+export const getRefarmCapabilityDescriptors = getCapabilityDescriptors;
 
 export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 	const descriptors = CAPABILITIES as readonly RefarmCapabilityDescriptor[];
