@@ -16,6 +16,8 @@ const GiB = 1024 * MiB;
  * @property {number} memoryBlockFreeBytes
  * @property {number} memoryWarnUsedRatio
  * @property {number} memoryBlockUsedRatio
+ * @property {number} sessionWarnBytes
+ * @property {number} sessionBlockBytes
  *
  * @typedef EnvironmentPressureGuidance
  * @property {string} [diskPressureAction]
@@ -24,10 +26,12 @@ const GiB = 1024 * MiB;
  * @property {string | null} [diskProbeFailureCommand]
  * @property {string} [memoryPressureAction]
  * @property {string} [gitGcLogAction]
+ * @property {string} [sessionPressureAction]
+ * @property {string} [sessionResumePressureAction]
  *
  * @typedef EnvironmentPressureSignal
  * @property {string} id
- * @property {"filesystem" | "memory" | "git" | "cache"} kind
+ * @property {"filesystem" | "memory" | "git" | "cache" | "session"} kind
  * @property {EnvironmentPressureSeverity} severity
  * @property {boolean} ok
  * @property {string} summary
@@ -38,6 +42,11 @@ const GiB = 1024 * MiB;
  * @property {number} [totalMiB]
  * @property {number | null} [usedRatio]
  * @property {string} [error]
+ * @property {number} [sizeMiB]
+ *
+ * @typedef EnvironmentPressureSessionFile
+ * @property {string} path
+ * @property {number} bytes
  *
  * @typedef EnvironmentPressureRecommendation
  * @property {string} diagnostic
@@ -72,6 +81,8 @@ const GiB = 1024 * MiB;
  * @property {{ statfsSync: (path: string) => { bavail: number | bigint, bsize: number | bigint, blocks: number | bigint }, existsSync: (path: string) => boolean }} [fs]
  * @property {Date} [now]
  * @property {EnvironmentPressureGuidance} [guidance]
+ * @property {EnvironmentPressureSessionFile[]} [sessionFiles]
+ * @property {boolean} [sessionResumeIntent]
  */
 
 /** @type {EnvironmentPressureThresholds} */
@@ -82,6 +93,8 @@ export const DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS = {
     memoryBlockFreeBytes: 512 * MiB,
     memoryWarnUsedRatio: 0.88,
     memoryBlockUsedRatio: 0.95,
+    sessionWarnBytes: 50 * MiB,
+    sessionBlockBytes: 150 * MiB,
 };
 
 /**
@@ -146,6 +159,44 @@ export function decideEnvironmentPressure(signals) {
 }
 
 /**
+ * @param {EnvironmentPressureSessionFile[]} files
+ * @param {EnvironmentPressureThresholds} [thresholds]
+ * @returns {{ warnBytes: number, blockBytes: number, oversized: Array<EnvironmentPressureSessionFile & { level: "warning" | "failure", overWarnMiB: number, overBlockMiB: number }>, blockers: Array<EnvironmentPressureSessionFile & { level: "warning" | "failure", overWarnMiB: number, overBlockMiB: number }>, recommendation: "within-budget" | "prefer-new-session-and-checkpoint-before-resume" | "do-not-resume-archive-or-delete-after-checkpoint" }}
+ */
+export function buildSessionPressureBudget(
+    files,
+    thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+) {
+    const warnBytes = Number.isFinite(Number(thresholds.sessionWarnBytes))
+        ? Number(thresholds.sessionWarnBytes)
+        : DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS.sessionWarnBytes;
+    const blockBytes = Number.isFinite(Number(thresholds.sessionBlockBytes))
+        ? Number(thresholds.sessionBlockBytes)
+        : DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS.sessionBlockBytes;
+    const oversized = (Array.isArray(files) ? files : [])
+        .filter((file) => Number(file.bytes) >= warnBytes)
+        .map((file) => {
+            const level = Number(file.bytes) >= blockBytes ? "failure" : "warning";
+            return {
+                ...file,
+                level,
+                overWarnMiB: bytesToMiB(Number(file.bytes) - warnBytes),
+                overBlockMiB: level === "failure"
+                    ? bytesToMiB(Number(file.bytes) - blockBytes)
+                    : 0,
+            };
+        });
+    const blockers = oversized.filter((file) => file.level === "failure");
+    const recommendation = blockers.length > 0
+        ? "do-not-resume-archive-or-delete-after-checkpoint"
+        : oversized.length > 0
+            ? "prefer-new-session-and-checkpoint-before-resume"
+            : "within-budget";
+
+    return { warnBytes, blockBytes, oversized, blockers, recommendation };
+}
+
+/**
  * @param {EnvironmentPressureOptions} [options]
  * @returns {EnvironmentPressureReport}
  */
@@ -173,6 +224,10 @@ export function buildEnvironmentPressureReport(options = {}) {
             "Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
         gitGcLogAction:
             "Inspect the Git maintenance marker; do not run prune or destructive Git cleanup without explicit operator intent.",
+        sessionPressureAction:
+            "Prefer a new session and checkpoint before resuming large session files.",
+        sessionResumePressureAction:
+            "Do not resume oversized session files until they are archived, reduced, or explicitly accepted by the operator.",
         ...(options.guidance ?? {}),
     };
     /** @type {EnvironmentPressureSignal[]} */
@@ -254,6 +309,28 @@ export function buildEnvironmentPressureReport(options = {}) {
             summary: "Rust builds are routed through CARGO_TARGET_DIR.",
             action: null,
         });
+    }
+
+    if (Array.isArray(options.sessionFiles) && options.sessionFiles.length > 0) {
+        const budget = buildSessionPressureBudget(options.sessionFiles, thresholds);
+        for (const file of budget.oversized) {
+            const resumeBlocked = file.level === "failure" && options.sessionResumeIntent === true;
+            const severity = resumeBlocked ? "failure" : "warning";
+            signals.push({
+                id: resumeBlocked ? "huge-resume-session" : "large-session-file",
+                kind: "session",
+                severity,
+                ok: !resumeBlocked,
+                path: file.path,
+                sizeMiB: bytesToMiB(Number(file.bytes)),
+                summary: resumeBlocked
+                    ? "A requested resume session is too large for safe continuation."
+                    : "A session file is large enough to make resume or context loading expensive.",
+                action: resumeBlocked
+                    ? guidance.sessionResumePressureAction
+                    : guidance.sessionPressureAction,
+            });
+        }
     }
 
     const decision = decideEnvironmentPressure(signals);

@@ -39,6 +39,25 @@ A capability can move from `dev` to `me` only when:
 
 For streaming work, the first production consumer should be a UI subscriber that reads generic `StreamSession` and `StreamChunk` nodes through the Tractor observation stream. `BrowserSyncClient` must remain schema-neutral; stream labeling, reduction, and rendering belong in the UI/client-helper layer.
 
+## Environment Pressure Evidence
+
+Current evidence (2026-06-29): `@refarm.dev/health/environment-pressure` carries
+the operational pressure pattern that proved useful in `agents-lab`: cheap
+read-only signals first, explicit safe-mode decisions, and no automatic cleanup.
+The primitive already samples workspace disk, host memory, Git maintenance
+markers, and cache routing without scanning or deleting project state.
+
+The same primitive now accepts caller-provided `sessionFiles` and
+`sessionResumeIntent`. Large session files are advisory for a new session, while
+an explicit resume of an oversized session becomes `stop-and-investigate`. This
+keeps the factory from blindly loading expensive context while preserving the
+operator's ability to start fresh, checkpoint, archive, or explicitly override
+outside the primitive. The focused signal is:
+
+```bash
+pnpm -C packages/health run test
+```
+
 ## Runtime Agent Ask Evidence
 
 Current evidence (2026-06-27): the CLI boundary for asking the runtime agent is

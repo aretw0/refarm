@@ -93,6 +93,7 @@ import { FileSystemAuditor } from "./auditors/generic.js";
 import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
 import { ComplexityAuditor } from "./auditors/complexity.js";
 export {
+    buildSessionPressureBudget,
     buildEnvironmentPressureReport,
     bytesToMiB,
     classifyDiskPressure,
