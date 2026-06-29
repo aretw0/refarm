@@ -234,7 +234,7 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
-	assert.equal(manifest.packages.length, 10);
+	assert.equal(manifest.packages.length, 9);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.equal(
 		new Set(manifest.consumerProofs.map((proof) => proof.proofId)).size,

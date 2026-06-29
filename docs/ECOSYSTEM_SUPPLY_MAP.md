@@ -68,8 +68,8 @@ Refarm internally when that reduces duplicated substrate.
 | Layer | What downstream re-implements | Refarm supplier (exists?) | Verdict / gate |
 | --- | --- | --- | --- |
 | **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ | KEYSTONE implemented. Activate extra adapters only when consumed. |
-| UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ | Wire `ds` as the token/style source. |
-| Shell / admin UI | `dgk serve` | `@refarm.dev/homestead-ssr` ✅ + `@refarm.dev/homestead/ssr` ✅ | Admin UI composes from the build-free SSR tier; bundled Homestead SDK remains separate. |
+| UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ + `@refarm.dev/ds/html` ✅ | Wire `ds` as the token/style source and DS-owned build-free HTML helper surface. |
+| Shell / admin UI | `dgk serve` | `@refarm.dev/ds/html` ✅; Homestead SSR surfaces are compatibility-only | Admin UI composes from DS-owned HTML helpers; bundled Homestead SDK remains separate. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
 | WASM distribution (lab/site) | Marimo (Pyodide) + Astro isolated | Tractor WASM (ADR-049 / ADR-044) ✅ substrate | Refarm learns from Marimo / Astro 7 and becomes the shared substrate. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
@@ -91,7 +91,7 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    depending on manual cross-checkout memory.
 2. **npm scope closed**: ADR-069 sets `@refarm.dev` as the canonical scope for Refarm blocks and
    contracts. `@aretw0/*` remains only for `vault-seed`/DGK products.
-3. **Consumer-pulled block lane**: `ds`, `homestead-ssr`/`homestead/ssr`, `launch-process`,
+3. **Consumer-pulled block lane**: `ds`/`ds/html`, `launch-process`,
    artifact provenance, and `silo` collect can advance in parallel with the
    librarian when their plans include Refarm dogfood + `vault-seed` proof.
 4. `dispatch-surface` as the official multi-surface API once public imports and

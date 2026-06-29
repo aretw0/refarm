@@ -37,10 +37,9 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `vault-seed-ready`; held |
 | [`@refarm.dev/launch-process`](./launch-process) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
 | [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `vault-seed-ready`; held |
-| [`@refarm.dev/ds`](./ds) | Design tokens and theme CSS consumed by vault admin/Lab UI | `vault-seed-ready`; held |
+| [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `vault-seed-ready`; held |
 | [`@refarm.dev/heartwood`](./heartwood) | Cryptographic core dependency for Silo | `vault-seed-ready`; held |
 | [`@refarm.dev/dispatch-surface`](./dispatch-surface) | Product-neutral dispatch surface contracts | `vault-seed-ready`; held |
-| [`@refarm.dev/homestead-ssr`](./homestead-ssr) | Build-free SSR helpers without the full Homestead closure | `vault-seed-ready`; held |
 | [`@refarm.dev/silo`](./silo) | Namespaced secret collection and storage | `vault-seed-ready`; held |
 
 ## 🔖 Plugin Metadata

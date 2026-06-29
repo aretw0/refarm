@@ -12,7 +12,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | 1 librarian `source:v1` | **implemented** | `@refarm.dev/source-contract-v1`, `@refarm.dev/source-git`, conformance, build, `test:capabilities`, and librarian smoke re-verified 2026-06-26 | downstream adapters remain item 7 and activate only when consumed |
 | 4a `ds` tokens | **implemented** (Tasks 1–5 committed in `packages/ds/src`) | contract, scoped tokens, 4 themes, theme-conformance, component classes, CSS exports; focused package gate re-verified 2026-06-26 | broad steward/push gate and official `vault-seed` assimilation remain pending |
-| 4b `homestead/ssr` | **implemented** | subpath, helper API, build-free boundary, consumer proof, package files constraint | downstream adoption proof remains consumer-side |
+| 4b `ds/html` | **implemented** | DS-owned helper API, build-free boundary, consumer proof, package files constraint | downstream adoption proof remains consumer-side |
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring | storage adoption by `vault-seed` remains item 8a |
 | 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
@@ -27,7 +27,7 @@ Not everything is planned to execution depth yet. The safe state is:
 |---|---|---|---|
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; the plan includes `test-runner:contracts`, `audience:boundary:test`, and the lightweight `reference-driver:smoke` gate before package dry-run, and publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
-| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; `pnpm run release:vault-seed:check` passed on 2026-06-26 for 10 packages; `pnpm --silent run release:vault-seed:handoff -- --pack --json` now reports `acceptance.status: "accepted"` with 10 packages and 24 required checks; `.refarm/handoff/vault-seed/2026-06-28/` has matching tarballs for the full selection; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects leaf packages such as `@refarm.dev/homestead-ssr` and `@refarm.dev/launch-process` instead of full SDK/CLI closures | official downstream assimilation proofs remain pending |
+| `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after ADR-072 the lane reports `acceptance.status: "accepted"` with 9 packages and 20 required checks; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/launch-process` instead of full Homestead/CLI closures | official downstream assimilation proofs remain pending |
 
 ## Plan depth — read before "ready to implement"
 
@@ -35,7 +35,7 @@ Two plan depths exist; do not confuse them:
 
 - **Bite-sized executable plans** (TDD steps + complete code, per `superpowers:writing-plans`):
   the librarian (`docs/superpowers/plans/2026-06-24-source-contract-v1.md`) and the whole **item-4
-  family** — **4a `ds`**, **4b `homestead/ssr`**, **4c `silo` collect**, **4d `dispatch-surface`
+  family** — **4a `ds`**, **4b `ds/html`**, **4c `silo` collect**, **4d `dispatch-surface`
   external API** (the `2026-06-25-*` plans). Open and execute step by step.
 - **Concrete first-artifact plans** (the contract/manifest is real; the runtime iterates or gates):
   **9a** (manifest-first — the file classification is derived verbatim from
@@ -71,7 +71,7 @@ This rule activates work that prevents migration churn:
 
 | Lane | Active proof | Stops when |
 |---|---|---|
-| UI blocks | `ds` -> `homestead/ssr` -> `vault-seed` Lab/admin adoption | token/SSR conformance or consumer proof fails |
+| UI blocks | `ds` -> `ds/html` -> `vault-seed` Lab/admin adoption | token/HTML conformance or consumer proof fails |
 | Process/artifacts | `launch-process` + `artifact-contract-v1` -> `dgk-runner`/Lab evidence | process vocabulary becomes DGK-specific |
 | Channels/outbox | `dgk-channels` + Telegram outbox/inbox -> channel policy evidence over Refarm channel-control surfaces | Telegram API, note UX, or DGK command names leak into Refarm |
 | Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes; Refarm-side fixture and tarball packet ready | notebook UX or vault schema moves upstream |
@@ -87,10 +87,9 @@ Execution record:
 
 1. 4a `ds` token contract - implemented via
    `docs/superpowers/plans/2026-06-25-ds-token-contract.md`.
-2. 4b `homestead/ssr` - implemented via
-   `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`; public consumer lane uses
-   the leaf package `@refarm.dev/homestead-ssr` so `vault-seed` can adopt the build-free
-   helpers without installing the bundled Homestead SDK closure.
+2. 4b `ds/html` - implemented as `@refarm.dev/ds/html`; public consumer lane uses
+   `@refarm.dev/ds` so `vault-seed` can adopt the build-free helpers without installing
+   the bundled Homestead SDK closure. The earlier Homestead SSR plan remains historical context.
 3. 4c `silo` collect - implemented via
    `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`.
 4. 4d `dispatch-surface` external-consumer API - implemented via
@@ -349,7 +348,7 @@ the POC until graduation evidence exists.
 
 Started as `validations/xr-surface-poc/`:
 
-- selected data envelope: renderer-neutral Refarm surface map (`ds`, `homestead-ssr`,
+- selected data envelope: renderer-neutral Refarm surface map (`ds`, `ds/html`,
   `dispatch-surface`, `release-engine`);
 - `pnpm run xr-surface:poc:test` verifies fixture shape, WebXR capability classification, and equal
   node/action IDs across deterministic 2D fallback and XR scene markup;

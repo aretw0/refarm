@@ -49,7 +49,6 @@ channel, not a public npm publication promise.
 - `@refarm.dev/ds`
 - `@refarm.dev/heartwood`
 - `@refarm.dev/dispatch-surface`
-- `@refarm.dev/homestead-ssr`
 - `@refarm.dev/silo`
 
 Validation:
@@ -104,7 +103,8 @@ packages are ready:
 | Surface | Current status | Reason |
 | --- | --- | --- |
 | `@refarm.dev/health` | release-profiled; not selected | generic diagnostics and `environment-pressure` SDK are ready as primitives, but promotion waits for a consumer-pulled proof or default-candidate decision |
-| `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies |
+| `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
+| `@refarm.dev/homestead-ssr` | compatibility only; not selected | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/launch-process` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
 | `refarm-plugin-wit` | internal canonical WIT crate | `publish = false`; the supply surface is `refarm:plugin@0.1.0` WIT, not crates.io/npm yet |

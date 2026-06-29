@@ -355,7 +355,6 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
     "@refarm.dev/ds",
     "@refarm.dev/heartwood",
     "@refarm.dev/dispatch-surface",
-    "@refarm.dev/homestead-ssr",
     "@refarm.dev/silo",
   ]);
   assert.equal(
@@ -367,7 +366,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
   assert.equal(payload.acceptance.status, "accepted");
-  assert.equal(payload.acceptance.packageCount, 10);
+  assert.equal(payload.acceptance.packageCount, 9);
   assert.equal(payload.acceptance.blockerCount, 0);
   assert.equal(payload.acceptance.manualApprovalRequired, true);
   assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);

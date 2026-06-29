@@ -386,31 +386,29 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 
 | Consumer need | Refarm block lane | Why it accelerates v0.1.0 |
 | --- | --- | --- |
-| Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/homestead/ssr` | Converts UI duplication into token/SSR conformance evidence. |
+| Lab/admin visual consistency | `@refarm.dev/ds` + `@refarm.dev/ds/html` | Converts UI duplication into token/HTML conformance evidence without pulling Homestead. |
 | Vault ETL, Lab export, publish receipts | `@refarm.dev/launch-process` + `@refarm.dev/artifact-contract-v1` | Turns `dgk` process boundaries into reusable task/provenance evidence. |
 | Credential collection without secret sprawl | `@refarm.dev/silo` collect + later bridge | Proves namespace separation across app and consumer. |
 | Telegram outbox/inbox and channel state | `@refarm.dev/channel-policy-v1`: destinations, rate limits, receipts, dry-run, review gates | Lets `vault-seed` keep Telegram UX while Refarm gains reusable channel evidence for dispatch/farmhand surfaces. |
 | Generated vaults instead of template drift | vault-seed generator + codemod registry | Makes boilerplate reduction a tested Refarm capability. |
 | Skill/agent compatibility | skill runtime activation + Pi/WASM/UI proof | Starts only when a real invocation surface exists, but is planned from consumer pressure. |
 
-**2026-06-26 UI consumer packet:** `@refarm.dev/ds` now exposes the Lab-proven
-`verde-jardim` light mode, and `@refarm.dev/homestead-ssr` gives `vault-seed` a
-build-free SSR tier without pulling the full Homestead SDK dependency closure.
-The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/`:
+**2026-06-29 UI consumer packet:** `@refarm.dev/ds` now exposes the Lab-proven
+`verde-jardim` light mode and the canonical build-free HTML helper surface at
+`@refarm.dev/ds/html`. ADR-072 supersedes the earlier `@refarm.dev/homestead-ssr`
+packet: Homestead SSR surfaces are compatibility-only and the public consumer lane
+ships the DS-owned helper surface without pulling the full Homestead SDK dependency
+closure. The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/`:
 
 - `refarm.dev-ds-0.1.0.tgz`
   (`sha256 47cf26e69178fc8917b262738e20ef4fbc70c12f15e4c62179f10ce61f609cf3`);
-- `refarm.dev-homestead-ssr-0.1.0.tgz`
-  (`sha256 ded473074bb5dd0994f57c718617dab4f15123e82079b80588e60f08733aa6e5`).
 
 A scratch consumer proof validated the intended adoption shape without
-committing into `vault-seed`: install both tarballs, override the unpublished
-transitive `@refarm.dev/ds` dependency to the local tarball, import
-`@refarm.dev/homestead-ssr`, and render a `verde-jardim` shell. The proof also
-confirmed DS classes and theme CSS references, and confirmed
-`@refarm.dev/homestead` is absent from `node_modules`. The official consumer
-checkout still needs to assimilate/review that packet. Consumer-local semantic
-tokens remain fallback-only for raw Marimo sessions.
+committing into `vault-seed`: install the DS tarball, import `@refarm.dev/ds/html`,
+and render a `verde-jardim` shell. The proof confirms DS classes and theme CSS
+references while keeping `@refarm.dev/homestead` absent from `node_modules`. The
+official consumer checkout still needs to assimilate/review that packet.
+Consumer-local semantic tokens remain fallback-only for raw Marimo sessions.
 
 **2026-06-26 process provenance packet:** `@refarm.dev/launch-process` now proves
 its runner-style process specs can be embedded directly in
@@ -448,8 +446,9 @@ Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
 calls and user-facing command semantics local.
 
-**2026-06-29 full `vault-seed-ready` handoff:** the local handoff directory now
-contains a tarball for every package in the 10-package release-policy selection:
+**2026-06-29 full `vault-seed-ready` handoff:** after ADR-072 the release-policy
+selection contains 9 packages. `@refarm.dev/homestead-ssr` is no longer selected;
+`@refarm.dev/ds/html` ships through the DS tarball.
 
 | Package | Tarball | SHA256 |
 | --- | --- | --- |
@@ -461,7 +460,6 @@ contains a tarball for every package in the 10-package release-policy selection:
 | `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `47cf26e69178fc8917b262738e20ef4fbc70c12f15e4c62179f10ce61f609cf3` |
 | `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `5439347124b5765a3364d27cfe8d33f3c12d897325fd5a6295dc76aacbf4fefe` |
 | `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `8fa1be4cbce6fc0d402735933c38da4fb16671e114c560e95b4bac54ab7b89e8` |
-| `@refarm.dev/homestead-ssr` | `refarm.dev-homestead-ssr-0.1.0.tgz` | `ded473074bb5dd0994f57c718617dab4f15123e82079b80588e60f08733aa6e5` |
 | `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `7253fc6565df6f85561a26dc38d7396270117fa6a51d641155d3a33ddafac773` |
 
 Pre-publication consumers should install these from the local handoff and
@@ -473,7 +471,7 @@ for example, `@refarm.dev/dispatch-surface` depends on
 As of 2026-06-29, `pnpm --silent run release:vault-seed:handoff -- --pack --json`
 materializes the tarballs sequentially and emits the same package acceptance
 summary exposed by the release plan. The current packet reports
-`acceptance.status: "accepted"`, 10 packages, 4 required gates, 24 required
+`acceptance.status: "accepted"`, 9 packages, 4 required gates, 20 required
 checks, one publish provider, `manualApprovalRequired: true`, and no stale
 tarball or stale build-output issues. The Markdown form prints the same
 acceptance line before the tarball table, so a consumer handoff can verify

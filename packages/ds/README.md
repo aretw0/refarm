@@ -57,6 +57,31 @@ agnostic presentation. For example, Homestead owns stream node rendering while
 the DS owns the generic pill, panel, card, badge, workbench, and scroll-region
 styling.
 
+## HTML helpers
+
+Use `@refarm.dev/ds/html` when a consumer needs build-free HTML strings over DS
+classes without installing Homestead, Astro, runtime, sync, or storage packages.
+The helpers are isomorphic and safe for server-side rendering, static generation,
+CLI/admin shells, and browser-side composition.
+
+```ts
+import { cardHtml, shellHtml } from "@refarm.dev/ds/html";
+
+const bodyHtml = cardHtml({
+	title: "Vault",
+	rows: ["<p>Ready</p>"],
+});
+
+const html = shellHtml({
+	title: "Admin",
+	theme: "verde-jardim",
+	bodyHtml,
+});
+```
+
+`shellHtml` links the DS CSS assets under `/_ds` by default. Set `assetBase` if
+the host serves `tokens.css`, theme CSS, and `components.css` from another path.
+
 ## Scroll region utilities
 
 Use explicit scroll regions instead of relying on document/page scroll when a host owns the viewport.

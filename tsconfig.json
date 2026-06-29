@@ -16,6 +16,7 @@
       ],
       "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
+      "@refarm.dev/ds/html": ["./packages/ds/src/html"],
       "@refarm.dev/file-stream-transport": [
         "./packages/file-stream-transport/src/index"
       ],

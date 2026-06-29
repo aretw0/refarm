@@ -230,6 +230,10 @@ export function validateDsPublicApi(pkg) {
       import: "./dist/theme-conformance.js",
       types: "./dist/theme-conformance.d.ts",
     },
+    "./html": {
+      import: "./dist/html.js",
+      types: "./dist/html.d.ts",
+    },
   };
 
   for (const [subpath, expected] of Object.entries(requiredSubpaths)) {
