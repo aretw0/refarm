@@ -96,6 +96,25 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.doesNotMatch(supplyMap, /reference-driver.*apps\/refarm/i);
 });
 
+test("superseded homestead ssr docs stay non-executable", () => {
+	const spec = read("specs/features/2026-06-25-homestead-ssr-tier.md");
+	const plan = read("docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md");
+	const runbook = read("docs/CONVERGENCE_EXECUTION_RUNBOOK.md");
+
+	for (const document of [spec, plan]) {
+		assert.match(document, /Superseded by ADR-072/);
+		assert.match(document, /@refarm\.dev\/ds\/html/);
+		assert.match(document, /Do not (implement|execute|create)/i);
+		assert.doesNotMatch(document, /Task 1: Leaf render helpers/);
+		assert.doesNotMatch(document, /pnpm --filter @refarm\.dev\/homestead-ssr pack/);
+		assert.doesNotMatch(document, /Branch: `feat\/homestead-ssr-tier`/);
+	}
+
+	assert.match(runbook, /Item 4b\s+— superseded by `@refarm\.dev\/ds\/html`/);
+	assert.doesNotMatch(runbook, /Branch: `feat\/homestead-ssr-tier`/);
+	assert.doesNotMatch(runbook, /vault-seed` `serve\.js` rebuilt on the tier/);
+});
+
 test("release policy keeps SDK primitives behind explicit audience boundaries", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;

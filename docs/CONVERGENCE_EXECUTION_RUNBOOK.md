@@ -53,11 +53,15 @@ Plan: `docs/superpowers/plans/2026-06-25-ds-token-contract.md`.
 **Gate (spec §5):** `pnpm -C packages/ds run test` (all 4 themes conform; incomplete theme reports
 `missing`); scope-leak check (host `:root` unaffected); `vault-seed` consumer proof on a branch.
 
-### 4. Item 4b — `homestead` build-free SSR tier (depends on 4a)
-Branch: `feat/homestead-ssr-tier`. Spec: `specs/features/2026-06-25-homestead-ssr-tier.md`.
-Plan: `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`.
-**Gate:** tier unit tests run under plain `node` (build-free); isolation check (no `./sdk` import);
-a11y check; `vault-seed` `serve.js` rebuilt on the tier, `docs/roteiro-teste-admin.md` passes.
+### 4. Item 4b — superseded by `@refarm.dev/ds/html`
+ADR-072 removed the `@refarm.dev/homestead-ssr` package and
+`@refarm.dev/homestead/ssr` subpath before public release. Do not execute the
+old branch or plan. Build-free DS HTML helpers now live at
+`@refarm.dev/ds/html`; Homestead stays focused on shell/runtime integration.
+
+Archived tombstones:
+- Spec: `specs/features/2026-06-25-homestead-ssr-tier.md`.
+- Plan: `docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md`.
 
 ### 5. Item 4c — silo collection contract
 Branch: `feat/silo-collection-contract`. Spec: `specs/features/2026-06-25-silo-collection-contract.md`.
