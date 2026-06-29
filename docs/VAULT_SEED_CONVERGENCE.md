@@ -486,10 +486,12 @@ versioned (`schemaVersion: 1`) and carries the current `packages[].sha256`,
 `manifest.json`, not hand-written prose, as the integrity source of truth. The
 official checkout should collect every `.tgz` named by `packages[].tarball`
 from the same handoff directory, then use `packages[].sha256` to verify the
-packet before pinning `file:` dependencies or `pnpm.overrides`. The flattened
-`consumerProofs` list is the downstream assimilation checklist: each item has a
-stable `proofId`, names the `vault-seed` proof target, and records the product
-boundary that must remain local.
+packet before pinning dependencies. `consumerInstall.fileSpecs` gives
+ready-to-copy `file:./vendor/<tarball>` specs for direct dependencies, and
+`consumerInstall.pnpmOverrides` gives the matching unpublished transitive
+overrides. The flattened `consumerProofs` list is the downstream assimilation
+checklist: each item has a stable `proofId`, names the `vault-seed` proof
+target, and records the product boundary that must remain local.
 
 ### Additional Assimilation Matrix
 

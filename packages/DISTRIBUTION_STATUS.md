@@ -70,8 +70,11 @@ manifest declares `schemaVersion: 1` and
 explicit handoff contract. `manifest.md` is the operator-readable companion, but
 the official consumer checkout should collect the `.tgz` files listed in
 `manifest.json` and use that manifest as the integrity and assimilation
-checklist. When cleanup is requested, `prunedExtra` records the unexpected
-generated tarballs removed before validation.
+checklist. The `consumerInstall` block provides ready-to-copy `file:` specs and
+`pnpmOverrides` for a consumer-local `vendor/` directory while leaving the
+choice of direct dependencies downstream-owned. When cleanup is requested,
+`prunedExtra` records the unexpected generated tarballs removed before
+validation.
 When a package rename or selection change intentionally leaves old generated
 tarballs in that ephemeral directory, rerun the handoff with `--prune-extra` to
 delete only unexpected `.tgz` files before manifest validation.

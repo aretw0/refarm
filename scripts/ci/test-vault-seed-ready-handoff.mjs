@@ -150,6 +150,25 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.deepEqual(manifest.extra, []);
 	assert.deepEqual(manifest.prunedExtra, []);
 	assert.deepEqual(manifest.consumerProofs, []);
+	assert.deepEqual(manifest.consumerInstall, {
+		packageManager: "pnpm",
+		vendorDir: "vendor",
+		copyFrom: ".refarm/handoff/vault-seed/fixture",
+		copyFiles: [
+			"manifest.json",
+			"refarm.dev-alpha-0.1.0.tgz",
+			"refarm.dev-beta-0.2.0.tgz",
+		],
+		fileSpecs: {
+			"@refarm.dev/alpha": "file:./vendor/refarm.dev-alpha-0.1.0.tgz",
+			"@refarm.dev/beta": "file:./vendor/refarm.dev-beta-0.2.0.tgz",
+		},
+		pnpmOverrides: {
+			"@refarm.dev/alpha": "file:./vendor/refarm.dev-alpha-0.1.0.tgz",
+			"@refarm.dev/beta": "file:./vendor/refarm.dev-beta-0.2.0.tgz",
+		},
+		proofChecklist: "consumerProofs",
+	});
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].stale, false);
 	assert.equal(manifest.packages[0].buildOutputStale, false);
@@ -161,6 +180,8 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		/Acceptance: accepted \(2 package\(s\), 2 required check\(s\)\)/,
 	);
 	assert.match(formatHandoffMarkdown(manifest), /none declared/);
+	assert.match(formatHandoffMarkdown(manifest), /Consumer install hints:/);
+	assert.match(formatHandoffMarkdown(manifest), /consumerInstall\.pnpmOverrides/);
 });
 
 test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
@@ -296,6 +317,17 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
 	assert.equal(manifest.packages.length, 9);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
+	assert.equal(Object.keys(manifest.consumerInstall.fileSpecs).length, manifest.packages.length);
+	assert.equal(Object.keys(manifest.consumerInstall.pnpmOverrides).length, manifest.packages.length);
+	assert.equal(manifest.consumerInstall.copyFiles.length, manifest.packages.length + 1);
+	assert.equal(
+		manifest.consumerInstall.fileSpecs["@refarm.dev/ds"],
+		"file:./vendor/refarm.dev-ds-0.1.0.tgz",
+	);
+	assert.equal(
+		manifest.consumerInstall.pnpmOverrides["@refarm.dev/heartwood"],
+		"file:./vendor/refarm.dev-heartwood-0.1.0.tgz",
+	);
 	assert.equal(
 		new Set(manifest.consumerProofs.map((proof) => proof.proofId)).size,
 		manifest.consumerProofs.length,
