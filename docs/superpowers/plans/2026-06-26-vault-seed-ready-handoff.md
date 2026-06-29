@@ -29,7 +29,9 @@ workspace dependencies to the matching tarballs. Known direct pairings:
 
 - `@refarm.dev/dispatch-surface` -> `@refarm.dev/effort-contract-v1`;
 - `@refarm.dev/silo` -> `@refarm.dev/heartwood`;
-- `@refarm.dev/homestead-ssr` -> `@refarm.dev/ds`.
+- historical only: `@refarm.dev/homestead-ssr` -> `@refarm.dev/ds`; ADR-072
+  replaced this with direct `@refarm.dev/ds/html` consumption before public
+  release.
 
 This packet is a candidate channel, not a public release.
 
