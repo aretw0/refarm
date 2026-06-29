@@ -27,7 +27,9 @@ packages and passed, and `pnpm run source:librarian:smoke` materialized
 - **Conformance total:** `7` validations.
 - **Cache default (git):** `~/.cache/checkouts/<host>/<org>/<repo>`. **Partial clone filter default:** `blob:none`. **Stale default:** `300` seconds.
 - **Pattern source of truth:** mirror `packages/storage-contract-v1` for file layout, tsconfig/vitest/eslint configs, and conformance shape.
-- **Deferred (do NOT build here):** `source-dispatch` adapter, `source-local` real-FS package, `tarball` kind, `dgk` consumption.
+- **Deferred in this original slice:** `source-dispatch` adapter, `source-local` real-FS package,
+  `tarball` kind, `dgk` consumption. Status 2026-06-29: `source-local` has since been activated as
+  `@refarm.dev/source-local`.
 
 ---
 

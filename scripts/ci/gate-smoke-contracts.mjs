@@ -41,6 +41,8 @@ const STEPS = [
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "build"],
 	["packages/source-git", "test:conformance"],
+	["packages/source-local", "build"],
+	["packages/source-local", "test:conformance"],
 ];
 
 function commandForStep([workspaceDir, script]) {

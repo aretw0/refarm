@@ -67,7 +67,7 @@ Refarm internally when that reduces duplicated substrate.
 
 | Layer | What downstream re-implements | Refarm supplier (exists?) | Verdict / gate |
 | --- | --- | --- | --- |
-| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ | KEYSTONE implemented. Activate extra adapters only when consumed. |
+| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ + `@refarm.dev/source-local` ✅ | KEYSTONE implemented. `source-local` covers live dirty-tree reads; `source-dispatch` remains deferred until an agent/kernel path consumes it. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ + `@refarm.dev/ds/html` ✅ | Wire `ds` as the token/style source and DS-owned build-free HTML helper surface. |
 | Shell / admin UI | `dgk serve` | `@refarm.dev/ds/html` ✅ | Admin UI composes from DS-owned HTML helpers; Homestead SSR package/subpath surfaces were removed pre-publication. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
@@ -114,9 +114,9 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
 
 The librarian question is no longer open-ended. The selected base path is:
 
-- `source:v1` contract + `source-git` provider: `specs/features/2026-06-24-source-contract-v1.md`;
+- `source:v1` contract + `source-git`/`source-local` providers: `specs/features/2026-06-24-source-contract-v1.md`;
 - execution plan: `docs/superpowers/plans/2026-06-24-source-contract-v1.md`;
 - deferred adapter activation: `specs/features/2026-06-25-source-adapter-activation.md`.
 
 Do not re-open the port-vs-toolbox decision during implementation. Build the base contract first;
-only add `source-dispatch`, `source-local`, or `source-tarball` when the activation trigger exists.
+only add `source-dispatch` or `source-tarball` when the activation trigger exists.

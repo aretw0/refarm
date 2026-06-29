@@ -284,7 +284,6 @@ A conformance roda sem rede; o smoke do `source-git` precisa de `git` no PATH.
   dogfood quando o agente/kernel o conecta. Não se centraliza no dispatch — centraliza-se no
   provider; os adapters partem dele. O contrato já é dispatch-agnóstico, então o adapter entra sem
   tocar no core.
-- **`source-local` separado:** não agora. O kind `local` continua de primeira classe no contrato
-  (adicionar real depois é não-breaking) e a reference in-memory já o prova. Default do dogfood é
-  `git` (snapshot limpo; working trees irmãs estão sujas — §7). `source-local` real só quando um
-  consumidor precisar da árvore local viva.
+- **`source-local` separado:** ativado em 2026-06-29 como `@refarm.dev/source-local` para live
+  working-tree reads. O primeiro consumo padrão continua sendo `git` para snapshot limpo; use
+  `source-local` apenas quando o consumidor precisa observar explicitamente dirty/untracked state.
