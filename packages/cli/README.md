@@ -115,7 +115,9 @@ shell. The minimal JSON event contract includes accepted, streamed, completed,
 and failed events so automation can consume both successful and terminal-error
 paths without scraping terminal text. Consumers can import
 `INTERACTION_DRIVER_TERMINAL_EVENTS` when they only need to branch on terminal
-success or failure.
+success or failure. The reference-driver supply map also carries the same
+`eventContract`, so discovery clients can inspect required and terminal events
+without importing the interaction-driver subpath.
 
 `@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
 "agents as tools" contract. `createWorkerProfile()` defines the bounded worker,

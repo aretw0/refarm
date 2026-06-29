@@ -155,6 +155,13 @@ lesson and Claude/Hermes lifecycle-hook pressure without promoting a gateway or
 runtime fanout path: downstream tools can rely on a product-neutral success and
 failure envelope before the runtime-agent package is public.
 
+Current proof (2026-06-29): the reference-driver supply map now exposes the
+interaction-driver `eventContract` for the exported
+`@refarm.dev/cli/interaction-driver` target. The contract is derived from the
+SDK constants for required events and terminal events, so discovery clients can
+inspect `accepted`, `streamed`, `completed`, and `failed` without scraping docs
+or duplicating lists.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":
