@@ -67,7 +67,7 @@ Refarm internally when that reduces duplicated substrate.
 
 | Layer | What downstream re-implements | Refarm supplier (exists?) | Verdict / gate |
 | --- | --- | --- | --- |
-| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ + `@refarm.dev/source-local` ✅ | KEYSTONE implemented. `source-local` covers live dirty-tree reads; `source-dispatch` remains deferred until an agent/kernel path consumes it. |
+| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ + `@refarm.dev/source-local` ✅ | KEYSTONE implemented. `source-local` covers live dirty-tree reads. Refarm dogfood, `vault-seed`, and `agents-lab` are expected consumers; `source-dispatch` remains proof-gated until one of those paths needs `source:v1` through `dispatch-surface`. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ + `@refarm.dev/ds/html` ✅ | Wire `ds` as the token/style source and DS-owned build-free HTML helper surface. |
 | Shell / admin UI | `dgk serve` | `@refarm.dev/ds/html` ✅ | Admin UI composes from DS-owned HTML helpers; Homestead SSR package/subpath surfaces were removed pre-publication. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |

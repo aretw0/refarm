@@ -107,10 +107,10 @@ packages are ready:
 | Surface | Current status | Reason |
 | --- | --- | --- |
 | `@refarm.dev/health` | release-profiled; not selected | generic diagnostics and `environment-pressure` SDK are ready as primitives, but promotion waits for a consumer-pulled proof or default-candidate decision |
-| `@refarm.dev/source-contract-v1` | release-profiled; not selected | source capability contract is implemented and checked, but publication waits for a librarian consumer lane or explicit default-candidate decision |
-| `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded, but no current consumer handoff requires publication |
-| `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for the librarian, but consumer handoff waits for a proof that dirty/untracked state is required |
-| `@refarm.dev/source-dispatch` | not created | dispatch adapter activates only when an agent/kernel path invokes `source:v1` through `dispatch-surface` |
+| `@refarm.dev/source-contract-v1` | release-profiled; not selected | source capability contract is implemented and checked; publication waits for an executable dogfood, `vault-seed`, or `agents-lab` consumer proof rather than mere strategic intent |
+| `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded; handoff promotion waits for a selected consumer path that needs package consumption |
+| `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
+| `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |

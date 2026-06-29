@@ -26,9 +26,12 @@ publication remains held by the daily-driver gate or explicit human override.
 
 These packages provide the `source:v1` librarian boundary. They are
 release-profiled and checked, but not selected for `vault-seed-ready` until a
-consumer-pulled proof needs source materialization directly. `source-dispatch`
-is intentionally absent until an agent/kernel path consumes `source:v1` through
-`dispatch-surface`.
+consumer-pulled proof needs source materialization directly. The expected
+consumers are real: Refarm dogfood in its own apps/runtime, the official
+`vault-seed` checkout, and `agents-lab` as it moves toward Refarm as engine.
+The current hold means the proof is not yet a selected handoff/publication
+contract. `source-dispatch` is intentionally absent until one of those paths
+needs `source:v1` through `dispatch-surface` with an executable proof.
 
 | Package | Purpose | Publishing |
 |---|---|---|
