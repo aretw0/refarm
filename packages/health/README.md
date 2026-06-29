@@ -15,6 +15,7 @@ artifacts, but those exceptions should not be baked into the generic auditors.
 - **Configurable Project Policy**: `ProjectAuditor` is generic by default; `RefarmProjectAuditor` is only a convenience preset with Refarm roots and exemptions.
 - **Opt-in Complexity Pressure**: `ComplexityAuditor` reports large hand-written files when a workspace enables `health.complexity`.
 - **Environment Pressure**: `buildEnvironmentPressureReport` samples disk, memory, and maintenance markers without scanning or deleting workspace state.
+- **Session Pressure**: callers may pass known session files so resume paths can warn or block before loading oversized context.
 - **Actionable Output**: `refarm health --json` includes stable `recommendations` for agents and CI wrappers.
 
 ## Programmatic Environment Pressure
@@ -29,12 +30,18 @@ const report = buildEnvironmentPressureReport({
   guidance: {
     diskPressureCommand: "pnpm run clean:rust:check",
   },
+  sessionFiles: [
+    { path: ".sessions/latest.jsonl", bytes: 180 * 1024 * 1024 },
+  ],
+  sessionResumeIntent: true,
 });
 ```
 
 The report decision is `continue`, `safe-mode`, or `stop-and-investigate`.
 Consumers provide their own commands and wording; the primitive owns only the
-measurement and classification policy.
+measurement and classification policy. Session files are never discovered,
+opened, archived, deleted, or compacted by this primitive; a caller must provide
+the bounded file list it already decided is relevant.
 
 ## CLI Policy
 
