@@ -128,7 +128,11 @@ target carries its `promotionProofTargets`, and worker targets also carry
 `budgetContract`, so a consumer can explain the blocked posture without loading
 the full supply map. The top-level `proofSummary` gives the cheap promotion
 ledger: blocked target count, targets with explicit proof targets, unique proof
-target count, and blocked targets that already carry a budget contract.
+target count, and blocked targets that already carry a budget contract. The
+top-level `promotionQueue` orders blocked targets as candidate, internal, then
+hold, carrying proof count, budget-contract presence, and the next decision for
+each item so a lab or downstream planner can choose the next proof slice without
+rebuilding the queue.
 
 This is not the plugin capability catalog. `@refarm.dev/plugin-manifest` owns
 plugin-declared `capabilities.provides` / `capabilities.requires` and runtime

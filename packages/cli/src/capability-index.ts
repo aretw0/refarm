@@ -165,6 +165,17 @@ export interface ReferenceDriverSupplyPreflightProofSummary {
 	targetsWithBudgetContract: number;
 }
 
+export interface ReferenceDriverSupplyPromotionQueueItem {
+	rank: number;
+	capabilityId: string;
+	status: Exclude<RefarmCapabilitySupplyStatus, "exported">;
+	channel: RefarmCapabilitySupplyChannel;
+	name: string;
+	proofTargetCount: number;
+	hasBudgetContract: boolean;
+	nextDecision: string;
+}
+
 export interface ReferenceDriverSupplyPreflight {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	source: "@refarm.dev/cli/capability-index";
@@ -174,6 +185,7 @@ export interface ReferenceDriverSupplyPreflight {
 	targets: readonly ReferenceDriverSupplyPreflightTarget[];
 	summary: readonly ReferenceDriverSupplyPreflightSummary[];
 	proofSummary: ReferenceDriverSupplyPreflightProofSummary;
+	promotionQueue: readonly ReferenceDriverSupplyPromotionQueueItem[];
 	nextDecisions: readonly {
 		capabilityId: string;
 		nextDecision: string;
@@ -1007,6 +1019,41 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 	const uniquePromotionProofTargets = new Set(
 		targets.flatMap((target) => target.promotionProofTargets),
 	);
+	const nextDecisionByCapabilityId = new Map(
+		supplyMap.entries.map((entry) => [entry.capabilityId, entry.nextDecision]),
+	);
+	const statusRank: Record<Exclude<RefarmCapabilitySupplyStatus, "exported">, number> = {
+		candidate: 0,
+		internal: 1,
+		hold: 2,
+	};
+	const statusForQueue = (
+		status: RefarmCapabilitySupplyStatus,
+	): Exclude<RefarmCapabilitySupplyStatus, "exported"> => {
+		if (status === "exported") {
+			throw new Error("Reference-driver preflight queue cannot include exported targets");
+		}
+		return status;
+	};
+	const promotionQueue = [...targets]
+		.sort(
+			(left, right) =>
+				statusRank[statusForQueue(left.status)] -
+				statusRank[statusForQueue(right.status)],
+		)
+		.map((target, index) => {
+			const status = statusForQueue(target.status);
+			return {
+				rank: index + 1,
+				capabilityId: target.capabilityId,
+				status,
+				channel: target.channel,
+				name: target.name,
+				proofTargetCount: target.promotionProofTargets.length,
+				hasBudgetContract: target.budgetContract !== undefined,
+				nextDecision: nextDecisionByCapabilityId.get(target.capabilityId) ?? "",
+			};
+		});
 
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -1029,6 +1076,7 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 				(target) => target.budgetContract !== undefined,
 			).length,
 		},
+		promotionQueue,
 		nextDecisions: supplyMap.entries.map((entry) => ({
 			capabilityId: entry.capabilityId,
 			nextDecision: entry.nextDecision,

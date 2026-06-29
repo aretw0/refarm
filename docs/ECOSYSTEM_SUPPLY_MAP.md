@@ -128,8 +128,10 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `promotionProofTargets`, worker `budgetContract` data where relevant, summary
    counts, `proofSummary`, and next decisions. `proofSummary` is the cheap
    promotion ledger for blocked targets, explicit proof targets, unique proof
-   targets, and budget-contract coverage. Exported SDK targets remain visible in
-   the full supply map. Both payloads carry `publicationBoundary`: discovery
+   targets, and budget-contract coverage. `promotionQueue` orders blocked targets
+   as candidate, internal, then hold, with proof count, budget-contract presence,
+   and the next decision per item. Exported SDK targets remain visible in the
+   full supply map. Both payloads carry `publicationBoundary`: discovery
    currently lives at `@refarm.dev/cli/capability-index`, `@refarm.dev/cli`
    remains in `boundary-review`, it is not a `vault-seed-ready` leaf, and runtime
    execution stays private until promotion proofs pass. The preflight is for

@@ -159,6 +159,15 @@ describe("capabilities command", () => {
 						uniquePromotionProofTargetCount: number;
 						targetsWithBudgetContract: number;
 					};
+					promotionQueue: Array<{
+						rank: number;
+						capabilityId: string;
+						status: string;
+						channel: string;
+						name: string;
+						proofTargetCount: number;
+						hasBudgetContract: boolean;
+					}>;
 					summary: Array<{ status: string; count: number }>;
 					targets: Array<{ capabilityId: string; status: string }>;
 					nextDecisions: Array<{ capabilityId: string }>;
@@ -187,11 +196,32 @@ describe("capabilities command", () => {
 					uniquePromotionProofTargetCount: 8,
 					targetsWithBudgetContract: 1,
 				},
+				promotionQueue: expect.arrayContaining([
+					expect.objectContaining({
+						rank: 1,
+						capabilityId: "runtime-agent.ask",
+						status: "candidate",
+						channel: "runtime",
+						name: "runtime-agent ask command",
+						proofTargetCount: 4,
+						hasBudgetContract: false,
+					}),
+					expect.objectContaining({
+						rank: 2,
+						capabilityId: "runtime-agent.worker-profiles",
+						status: "candidate",
+						channel: "runtime",
+						name: "worker tool promotion gate",
+						proofTargetCount: 4,
+						hasBudgetContract: true,
+					}),
+				]),
 			},
 		});
 		expect(
 			payload.supplyPreflight.preflight.targets.map((target) => target.status),
 		).not.toContain("exported");
+		expect(payload.supplyPreflight.preflight.promotionQueue).toHaveLength(11);
 		expect(payload.supplyPreflight.preflight.nextDecisions).toHaveLength(5);
 		logSpy.mockRestore();
 	});
@@ -215,6 +245,12 @@ describe("capabilities command", () => {
 		);
 		expect(output).toContain(
 			"proofs: blocked targets 11; with proofs 4; unique proof targets 8; budget contracts 1",
+		);
+		expect(output).toContain(
+			"#1 candidate: runtime runtime-agent ask command; proofs 4; budget no",
+		);
+		expect(output).toContain(
+			"#2 candidate: runtime worker tool promotion gate; proofs 4; budget yes",
 		);
 		logSpy.mockRestore();
 	});
