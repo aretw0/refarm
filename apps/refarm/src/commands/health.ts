@@ -4,6 +4,7 @@ import {
 	declaredWorkspaceNamespacesFromConfig,
 	defaultRefarmConfigPath,
 	findRefarmConfigPath,
+	loadConfig,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	type DeclaredWorkspaceNamespaceConfig,
 } from "@refarm.dev/config";
@@ -335,18 +336,7 @@ export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicy
     });
   }
 
-  let config: RefarmConfig;
-  try {
-    config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmConfig;
-  } catch {
-    return buildHealthPolicyReport({
-      rootDir,
-      configPath,
-      configFound: true,
-      source: fallbackSource,
-      policy: fallback,
-    });
-  }
+  const config = loadConfig(rootDir) as RefarmConfig;
 
   if (!config.health) {
     return buildHealthPolicyReport({
