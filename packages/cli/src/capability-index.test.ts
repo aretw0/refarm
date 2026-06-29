@@ -321,6 +321,12 @@ describe("capability index", () => {
 				{ status: "internal", count: 3 },
 				{ status: "hold", count: 5 },
 			],
+			proofSummary: {
+				blockedTargetCount: 11,
+				targetsWithPromotionProofTargets: 4,
+				uniquePromotionProofTargetCount: 8,
+				targetsWithBudgetContract: 1,
+			},
 		});
 		expect(preflight.targets.map((target) => target.status)).not.toContain("exported");
 		expect(preflight.targets).toEqual(

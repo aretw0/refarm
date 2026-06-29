@@ -122,7 +122,9 @@ decision for each reference-driver primitive. It also carries the global
 focus on what still must not be treated as public engine runtime. Each preflight
 target carries its `promotionProofTargets`, and worker targets also carry
 `budgetContract`, so a consumer can explain the blocked posture without loading
-the full supply map.
+the full supply map. The top-level `proofSummary` gives the cheap promotion
+ledger: blocked target count, targets with explicit proof targets, unique proof
+target count, and blocked targets that already carry a budget contract.
 
 This is not the plugin capability catalog. `@refarm.dev/plugin-manifest` owns
 plugin-declared `capabilities.provides` / `capabilities.requires` and runtime

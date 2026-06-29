@@ -126,9 +126,11 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    published supply. That compact preflight is package-owned by
    `@refarm.dev/cli/capability-index` and carries `adoptionCriteria`, per-target
    `promotionProofTargets`, worker `budgetContract` data where relevant, summary
-   counts, and next decisions. Exported SDK targets remain visible in the full
-   supply map; the preflight is for release posture and consumer planning, not
-   app-owned runtime dispatch.
+   counts, `proofSummary`, and next decisions. `proofSummary` is the cheap
+   promotion ledger for blocked targets, explicit proof targets, unique proof
+   targets, and budget-contract coverage. Exported SDK targets remain visible in
+   the full supply map; the preflight is for release posture and consumer
+   planning, not app-owned runtime dispatch.
 
 Boundary note: the capability index is a supply/readiness index, not Barn's
 plugin catalog. `@refarm.dev/plugin-manifest` remains the authority for

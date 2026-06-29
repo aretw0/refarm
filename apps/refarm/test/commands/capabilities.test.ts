@@ -146,6 +146,12 @@ describe("capabilities command", () => {
 				surface: string;
 				preflight: {
 					mode: string;
+					proofSummary: {
+						blockedTargetCount: number;
+						targetsWithPromotionProofTargets: number;
+						uniquePromotionProofTargetCount: number;
+						targetsWithBudgetContract: number;
+					};
 					summary: Array<{ status: string; count: number }>;
 					targets: Array<{ capabilityId: string; status: string }>;
 					nextDecisions: Array<{ capabilityId: string }>;
@@ -161,12 +167,38 @@ describe("capabilities command", () => {
 					{ status: "internal", count: 3 },
 					{ status: "hold", count: 5 },
 				],
+				proofSummary: {
+					blockedTargetCount: 11,
+					targetsWithPromotionProofTargets: 4,
+					uniquePromotionProofTargetCount: 8,
+					targetsWithBudgetContract: 1,
+				},
 			},
 		});
 		expect(
 			payload.supplyPreflight.preflight.targets.map((target) => target.status),
 		).not.toContain("exported");
 		expect(payload.supplyPreflight.preflight.nextDecisions).toHaveLength(5);
+		logSpy.mockRestore();
+	});
+
+	it("prints a human reference-driver preflight proof summary", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--supply-preflight",
+			"reference-driver",
+		], { from: "user" });
+
+		const output = logs.join("\n");
+		expect(output).toContain("Supply preflight");
+		expect(output).toContain("mode: plan-only; candidate: 3, internal: 3, hold: 5");
+		expect(output).toContain(
+			"proofs: blocked targets 11; with proofs 4; unique proof targets 8; budget contracts 1",
+		);
 		logSpy.mockRestore();
 	});
 

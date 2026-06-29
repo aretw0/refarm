@@ -177,6 +177,13 @@ Current proof (2026-06-29): the reference-driver supply preflight also carries
 the top-level `adoptionCriteria` promotion bar, so a downstream tool can render
 both global rules and per-target blockers from one plan-only payload.
 
+Current proof (2026-06-29): the reference-driver supply preflight now carries
+`proofSummary`, a compact promotion ledger with blocked target count, targets
+that expose explicit promotion proofs, unique proof target count, and
+budget-contract coverage. This lets `vault-seed`, future `agents-lab`, and the
+Refarm apps render feature-growth pressure without importing runtime dispatch or
+joining the full supply map.
+
 Current proof (2026-06-29): the reference-driver supply map now carries
 top-level `adoptionCriteria`. This is the long-term promotion bar for turning
 research pressure into Refarm supply instead of app-local behavior: structured
