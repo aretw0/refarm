@@ -319,18 +319,31 @@ describe("capability index", () => {
 					capabilityId: "runtime-agent.ask",
 					channel: "runtime",
 					name: "runtime-agent ask command",
+					promotionProofTargets: [
+						"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",
+						"operator steering: follow-up and redirect queue semantics persist into session/task handoffs",
+						"gateway parity: CLI, app, and future RPC/messaging surfaces share the same ask contract",
+						"budget visibility: model route, token/cost use, retries, and stop conditions are visible in resume/check handoffs",
+					],
 					status: "candidate",
 				}),
 				expect.objectContaining({
 					capabilityId: "runtime-agent.worker-profiles",
 					channel: "runtime",
 					name: "worker tool promotion gate",
+					promotionProofTargets: [
+						"policy bundle: tool allowlist, filesystem root guard, trusted plugin guard, and model route validation",
+						"worker lifecycle: cancellable task state, resume policy, and fanout stop propagation",
+						"operator visibility: stream chunks, session entries, task status, and resume handoffs",
+						"budget ledger: provider token accounting, max turns, max parallel workers, and stop condition",
+					],
 					status: "candidate",
 				}),
 				expect.objectContaining({
 					capabilityId: "runtime-agent.session-tree",
 					channel: "runtime",
 					name: "session tree command",
+					promotionProofTargets: [],
 					status: "candidate",
 				}),
 				expect.objectContaining({

@@ -168,6 +168,11 @@ provider token use, max turns, max parallelism, and the required stop condition
 without importing runtime-agent code or treating worker dispatch as public
 engine supply.
 
+Current proof (2026-06-29): the reference-driver supply preflight now attaches
+`promotionProofTargets` to each candidate/internal/hold target. Consumers can
+render the blocked posture from the compact preflight without joining it back to
+the full supply map or scraping this note.
+
 Current proof (2026-06-29): the reference-driver supply map now carries
 top-level `adoptionCriteria`. This is the long-term promotion bar for turning
 research pressure into Refarm supply instead of app-local behavior: structured
