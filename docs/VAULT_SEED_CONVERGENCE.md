@@ -399,9 +399,9 @@ build-free SSR tier without pulling the full Homestead SDK dependency closure.
 The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/`:
 
 - `refarm.dev-ds-0.1.0.tgz`
-  (`sha256 db5f6623b234f121ee5a61fabc2347e0b0beb47b62b36dfc8e25e947b3eb21c7`);
+  (`sha256 47cf26e69178fc8917b262738e20ef4fbc70c12f15e4c62179f10ce61f609cf3`);
 - `refarm.dev-homestead-ssr-0.1.0.tgz`
-  (`sha256 8c142f1f39835560407bffb1994dc905cf3c08133a13cb83b6be98d3d24b62cf`).
+  (`sha256 ded473074bb5dd0994f57c718617dab4f15123e82079b80588e60f08733aa6e5`).
 
 A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install both tarballs, override the unpublished
@@ -420,7 +420,7 @@ shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-29/refarm.dev-launch-process-0.1.0.tgz`
-(`sha256 eb6d09d663cc932690bf4ab1a59532569d7864d6828e42061590f6d0a911f48f`).
+(`sha256 f6115c55bec3c9a9772e662239f88fb7f94ec5b1baeed0d8b5b6a80a8237c9ac`).
 The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `@aretw0/dgk-cli` should import
 `@refarm.dev/launch-process` internally while keeping the exported
@@ -432,7 +432,7 @@ now includes a Refarm-side fixture for `vault-seed` Lab datasets, publication
 outbox manifests, and notebook snapshots using generic roles plus labels instead
 of upstreaming notebook UX or vault schema. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-29/refarm.dev-artifact-contract-v1-0.1.0.tgz`
-(`sha256 002b9a32617e53663c3ebd7ab345324d95433d3c7ce8fe7a307743071bb10be0`).
+(`sha256 aabe843ea8138c9cc5d293771acafda8fa01365640ec02ee113b37f527482527`).
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: `vault-seed` should emit
 `refarm.task-artifacts.v1` manifests from its Lab/outbox/notebook producers.
@@ -442,7 +442,7 @@ consumer-pulled handoff for Telegram/outbox evidence without moving provider API
 behavior, Markdown formatting, or `dgk outbox/inbox` UX upstream. Candidate
 tarball:
 `.refarm/handoff/vault-seed/2026-06-29/refarm.dev-channel-policy-v1-0.1.0.tgz`
-(`sha256 818969584e2fe8f4b94fe33ff91e35c85c258a5c81d7d46dbedda293bdf6fea8`).
+(`sha256 e4f04d81043807cb96b710aa32daede4d57d2328e0b9f5cd510a9588faa3f15c`).
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: the `vault-seed` Telegram
 adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
@@ -453,16 +453,16 @@ contains a tarball for every package in the 10-package release-policy selection:
 
 | Package | Tarball | SHA256 |
 | --- | --- | --- |
-| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `002b9a32617e53663c3ebd7ab345324d95433d3c7ce8fe7a307743071bb10be0` |
-| `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `818969584e2fe8f4b94fe33ff91e35c85c258a5c81d7d46dbedda293bdf6fea8` |
-| `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `a39811a0ec3fbfa1bbcb5a34ffbdcf3bb01ffe0e31169cd8678482fcf3930c28` |
-| `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `eb6d09d663cc932690bf4ab1a59532569d7864d6828e42061590f6d0a911f48f` |
-| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `285425050176ea5426bf3424344c589f0dcc76c76beb1ebf5bfb31a138a8f4d0` |
-| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `db5f6623b234f121ee5a61fabc2347e0b0beb47b62b36dfc8e25e947b3eb21c7` |
-| `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `003df0efccdcd4367a08dea8f975f7dfd1141b54f45595dd441b23088ba539c5` |
-| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `36a4fe977f2876e3b1d9762caf07cd29c402954b66f90b70e64dc6b4fde57b31` |
-| `@refarm.dev/homestead-ssr` | `refarm.dev-homestead-ssr-0.1.0.tgz` | `8c142f1f39835560407bffb1994dc905cf3c08133a13cb83b6be98d3d24b62cf` |
-| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `5fb4794e7b9fcfd76e4d3731a4ebcfabc9c4c6f8747fb552b5b4dad86518cb7c` |
+| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `aabe843ea8138c9cc5d293771acafda8fa01365640ec02ee113b37f527482527` |
+| `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `e4f04d81043807cb96b710aa32daede4d57d2328e0b9f5cd510a9588faa3f15c` |
+| `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `35ae608bec8bff652473efcd19a76d843f8fe91aaa7956e244a51914be396bfb` |
+| `@refarm.dev/launch-process` | `refarm.dev-launch-process-0.1.0.tgz` | `f6115c55bec3c9a9772e662239f88fb7f94ec5b1baeed0d8b5b6a80a8237c9ac` |
+| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `121a73b5ea2bd8329fc603130a5311cc9fb078586ef6d50d25c0b2eb664682f2` |
+| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `47cf26e69178fc8917b262738e20ef4fbc70c12f15e4c62179f10ce61f609cf3` |
+| `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `5439347124b5765a3364d27cfe8d33f3c12d897325fd5a6295dc76aacbf4fefe` |
+| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `8fa1be4cbce6fc0d402735933c38da4fb16671e114c560e95b4bac54ab7b89e8` |
+| `@refarm.dev/homestead-ssr` | `refarm.dev-homestead-ssr-0.1.0.tgz` | `ded473074bb5dd0994f57c718617dab4f15123e82079b80588e60f08733aa6e5` |
+| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `7253fc6565df6f85561a26dc38d7396270117fa6a51d641155d3a33ddafac773` |
 
 Pre-publication consumers should install these from the local handoff and
 override unpublished workspace dependencies to matching tarballs where needed;
