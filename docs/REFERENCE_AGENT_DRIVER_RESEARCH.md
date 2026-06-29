@@ -162,6 +162,15 @@ SDK constants for required events and terminal events, so discovery clients can
 inspect `accepted`, `streamed`, `completed`, and `failed` without scraping docs
 or duplicating lists.
 
+Current proof (2026-06-29): the reference-driver supply map now carries
+top-level `adoptionCriteria`. This is the long-term promotion bar for turning
+research pressure into Refarm supply instead of app-local behavior: structured
+interaction lifecycle, resumable session tree, steering/cancellation, bounded
+worker isolation, policy-before-hooks, skills/plugins as package surfaces, one
+gateway contract, and budget/observability handoffs. Consumers such as `dgk`,
+`vault-seed`, and future `agents-lab` integrations keep product routes, labels,
+copy, and UX while importing the Refarm engine contracts that satisfy the bar.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":

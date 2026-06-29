@@ -107,6 +107,20 @@ WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
 Each entry also carries compact `referenceLessons` and `referenceSources`, so a
 consumer can inspect why a primitive exists and which primary references shaped
 it without loading the full research note.
+The top-level `adoptionCriteria` list is the promotion bar for reference-driver
+work: structured lifecycle events, resumable sessions, steering/cancellation,
+bounded worker isolation, policy-before-hooks, skills/plugins as package
+surfaces, gateway parity, and budget/observability must be proven before a
+runtime primitive moves from candidate or hold into public engine supply.
+
+This is not the plugin capability catalog. `@refarm.dev/plugin-manifest` owns
+plugin-declared `capabilities.provides` / `capabilities.requires` and runtime
+manifest validation; Barn owns installed plugin inventory, cache, and integrity.
+The CLI capability index is a package/work-driver supply index for Refarm
+primitives such as handoffs, interaction-driver, worker-profile, and
+reference-driver readiness. If an entry becomes an installable plugin artifact,
+its executable manifest and integrity still graduate through
+`plugin-manifest`/Barn.
 
 `@refarm.dev/cli/interaction-driver` describes the local ask loop as an
 embeddable interaction contract and reports why gateway/RPC promotion remains

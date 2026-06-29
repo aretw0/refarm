@@ -100,6 +100,14 @@ export interface ReferenceDriverSourceReference {
 	url: string;
 }
 
+export interface ReferenceDriverAdoptionCriterion {
+	id: string;
+	title: string;
+	requirement: string;
+	proof: string;
+	consumerBoundary: string;
+}
+
 export interface ReferenceDriverSupplyEntry {
 	capabilityId: string;
 	provider: RefarmCapabilityProvider;
@@ -116,6 +124,7 @@ export interface ReferenceDriverSupplyMap {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	discoverySdk: "@refarm.dev/cli/capability-index";
 	smokeCommand: "pnpm run reference-driver:smoke";
+	adoptionCriteria: readonly ReferenceDriverAdoptionCriterion[];
 	entries: readonly ReferenceDriverSupplyEntry[];
 }
 
@@ -703,6 +712,89 @@ const REFERENCE_DRIVER_LESSONS: Record<string, readonly string[]> = {
 	],
 } as const;
 
+const REFERENCE_DRIVER_ADOPTION_CRITERIA = [
+	{
+		id: "interaction-lifecycle",
+		title: "Structured interaction lifecycle",
+		requirement:
+			"Ask loops expose accepted, streamed, completed, and failed JSON events before any gateway or RPC promotion.",
+		proof:
+			"Use @refarm.dev/cli/interaction-driver and reference-driver:smoke before publishing runtime execution.",
+		consumerBoundary:
+			"Downstream products may rename commands and UX, but they consume the same event lifecycle.",
+	},
+	{
+		id: "session-portability",
+		title: "Resumable session tree",
+		requirement:
+			"Sessions survive resume, inspection, branching, and task handoff without relying on chat memory.",
+		proof:
+			"Prove session/tree commands and resume handoffs before exporting a session SDK beyond discovery.",
+		consumerBoundary:
+			"Consumers keep product labels such as dgk, but session identity and recovery semantics stay Refarm-shaped.",
+	},
+	{
+		id: "steering-control",
+		title: "Operator steering and cancellation",
+		requirement:
+			"Follow-up, redirect, abort, retry, and stop conditions are visible in durable handoffs.",
+		proof:
+			"Gateway promotion stays blocked until steering and abort/resume proofs are executable.",
+		consumerBoundary:
+			"Product workflows may choose when to expose controls, but the engine cannot hide them.",
+	},
+	{
+		id: "worker-isolation",
+		title: "Bounded worker isolation",
+		requirement:
+			"Delegated workers carry explicit context packets, tool scopes, model route, output contract, budget, and compact result envelope.",
+		proof:
+			"Use @refarm.dev/cli/worker-profile in plan-only mode until policy, cancellation, observability, and cost proofs pass.",
+		consumerBoundary:
+			"Consumers can compose agents-as-tools without inheriting Refarm app vocabulary or ambient fanout.",
+	},
+	{
+		id: "policy-hooks",
+		title: "Policy before hooks",
+		requirement:
+			"Lifecycle hooks, plugin hooks, and tool calls cannot bypass filesystem, process, credential, model, or trusted-plugin policy.",
+		proof:
+			"Keep hook and runtime promotion behind Scarecrow/Barn/WIT policy evidence and denial-path tests.",
+		consumerBoundary:
+			"Consumer hooks may add product behavior, not weaken the Refarm capability boundary.",
+	},
+	{
+		id: "skill-plugin-compatibility",
+		title: "Skills and plugins as packages",
+		requirement:
+			"Reusable workflows graduate as skills, plugin artifacts, contracts, or package subpaths instead of app-local behavior.",
+		proof:
+			"Keep dgk-skills as a downstream subset until Refarm has a skill invocation surface and one executable adapter proof.",
+		consumerBoundary:
+			"Vault-seed owns dgk skill vocabulary; Refarm owns reusable engine contracts.",
+	},
+	{
+		id: "gateway-parity",
+		title: "One gateway contract",
+		requirement:
+			"CLI, app, RPC, HTTP, messaging, and future agents-lab surfaces share one ask/session/worker contract.",
+		proof:
+			"Add surfaces only after the local daily-driver loop and discovery SDK expose the same contract shape.",
+		consumerBoundary:
+			"Refarm supplies the engine; consumers supply product routes, commands, labels, and editorial UX.",
+	},
+	{
+		id: "budget-observability",
+		title: "Budget and observability handoff",
+		requirement:
+			"Model route, provider token/cost use, retry count, max turns, max parallel workers, and stop condition are visible before fanout.",
+		proof:
+			"Worker runtime dispatch and pi-agent publication remain held until budget ledgers are boring.",
+		consumerBoundary:
+			"Consumer dashboards may restyle the evidence, but cannot replace it with unstructured logs.",
+	},
+] as const satisfies readonly ReferenceDriverAdoptionCriterion[];
+
 const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
 	string,
 	readonly ReferenceDriverSourceReference[]
@@ -822,6 +914,7 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 		discoverySdk: "@refarm.dev/cli/capability-index",
 		smokeCommand: "pnpm run reference-driver:smoke",
+		adoptionCriteria: REFERENCE_DRIVER_ADOPTION_CRITERIA,
 		entries: Object.entries(REFERENCE_DRIVER_SUPPLY_TARGETS).map(([id, supply]) => {
 			const capability = descriptors.find((candidate) => candidate.id === id);
 			if (!capability || !capability.tags.includes("reference-driver")) {
