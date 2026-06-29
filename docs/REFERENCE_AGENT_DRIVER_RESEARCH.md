@@ -162,6 +162,12 @@ SDK constants for required events and terminal events, so discovery clients can
 inspect `accepted`, `streamed`, `completed`, and `failed` without scraping docs
 or duplicating lists.
 
+Current proof (2026-06-29): the reference-driver supply map now exposes
+`budgetContract` for worker-profile targets. Discovery clients can inspect
+provider token use, max turns, max parallelism, and the required stop condition
+without importing runtime-agent code or treating worker dispatch as public
+engine supply.
+
 Current proof (2026-06-29): the reference-driver supply map now carries
 top-level `adoptionCriteria`. This is the long-term promotion bar for turning
 research pressure into Refarm supply instead of app-local behavior: structured

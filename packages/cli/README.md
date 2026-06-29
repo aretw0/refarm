@@ -139,6 +139,9 @@ paths without scraping terminal text. Consumers can import
 success or failure. The reference-driver supply map also carries the same
 `eventContract`, so discovery clients can inspect required and terminal events
 without importing the interaction-driver subpath.
+Worker-profile supply targets similarly carry `budgetContract`, so discovery
+clients can inspect provider token use, max turns, max parallelism, and the
+required stop condition without importing the worker-profile subpath.
 
 `@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
 "agents as tools" contract. `createWorkerProfile()` defines the bounded worker,

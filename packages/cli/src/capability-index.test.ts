@@ -198,6 +198,7 @@ describe("capability index", () => {
 						"Codex/Claude: isolate subagent context and return compact summaries.",
 						"Hermes: keep delegation bounded; do not make worker fanout ambient.",
 						"Pi: expose embeddable SDK/RPC shapes without forcing product labels.",
+						"Refarm: provider token use, max turns, max parallelism, and stop condition belong in the worker descriptor before runtime dispatch exists.",
 					],
 					promotionProofTargets: [
 						"policy bundle: tool allowlist, filesystem root guard, trusted plugin guard, and model route validation",
@@ -216,6 +217,12 @@ describe("capability index", () => {
 							channel: "npm",
 							name: "@refarm.dev/cli worker profile SDK",
 							export: "@refarm.dev/cli/worker-profile",
+							budgetContract: {
+								tokenUse: "provider",
+								maxTurns: 8,
+								maxParallel: 4,
+								stopConditionRequired: true,
+							},
 							status: "exported",
 						}),
 						expect.objectContaining({
@@ -227,6 +234,12 @@ describe("capability index", () => {
 						expect.objectContaining({
 							channel: "runtime",
 							name: "worker tool promotion gate",
+							budgetContract: {
+								tokenUse: "provider",
+								maxTurns: 8,
+								maxParallel: 4,
+								stopConditionRequired: true,
+							},
 							status: "candidate",
 						}),
 						expect.objectContaining({
