@@ -163,6 +163,19 @@ test("vault-seed-ready packages declare consumer-pulled intent", () => {
 	}
 });
 
+test("process handoff stays the selected process leaf", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const policyText = read("refarm.config.json");
+	const selected = config.releasePolicy.packageProfiles
+		.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+		.map((profile) => profile.id);
+
+	assert.ok(selected.includes("@refarm.dev/process-handoff"));
+	assert.ok(!selected.includes("@refarm.dev/launch-process"));
+	assert.ok(!selected.includes("@refarm.dev/cli"));
+	assert.doesNotMatch(policyText, /@refarm\.dev\/launch-process/);
+});
+
 test("release-engine docs keep host integration product-neutral", () => {
 	const roadmap = read("packages/release-engine/ROADMAP.md");
 	const readme = read("packages/release-engine/README.md");
@@ -187,6 +200,7 @@ test("vault-seed-ready README openings stay consumer-neutral", () => {
 		/\bRefarm and consumer CLIs\b/,
 		/\bRefarm's sovereign cryptographic core\b/,
 		/\bused by `refarm` and `farmhand`\b/i,
+		/@refarm\.dev\/launch-process/,
 	];
 
 	for (const profile of profiles) {
@@ -212,6 +226,7 @@ test("vault-seed-ready package descriptions stay consumer-neutral", () => {
 		/\bRefarm consumers\b/i,
 		/\bRefarm and consumer CLIs\b/i,
 		/\bRefarm's\b/i,
+		/@refarm\.dev\/launch-process/,
 	];
 
 	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
