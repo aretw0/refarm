@@ -108,7 +108,12 @@ describe("capabilities command", () => {
 								status: "exported",
 							}),
 							expect.objectContaining({
-								export: "@refarm.dev/cli",
+								export: "@refarm.dev/cli/worker-profile",
+								name: "@refarm.dev/cli worker profile SDK",
+								status: "exported",
+							}),
+							expect.objectContaining({
+								export: "@refarm.dev/cli/worker-profile",
 								name: "@refarm.dev/cli worker result envelope",
 								status: "exported",
 							}),

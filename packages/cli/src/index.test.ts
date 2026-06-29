@@ -37,7 +37,7 @@ describe("cli sdk barrel", () => {
 			},
 		});
 		const descriptor = createWorkerToolDescriptor(profile, {
-			name: "agent.planReview",
+			name: "worker.planReview",
 		});
 
 		const result = createWorkerToolResult(descriptor, {
