@@ -8,6 +8,7 @@ export type WorkerModelScope = "default" | "worker" | "monitor";
 export type WorkerResumePolicy = "continue" | "restart" | "manual";
 export type WorkerOutputFormat = "summary" | "json";
 export type WorkerToolExecutionMode = "plan-only" | "runtime-dispatch";
+export type WorkerTokenUse = "provider";
 export type WorkerToolReadinessState = "ready" | "blocked";
 export type WorkerToolResultStatus =
 	| "completed"
@@ -73,12 +74,14 @@ export interface WorkerProfile {
 export interface WorkerToolBudget {
 	maxTurns: number;
 	maxParallel: number;
+	tokenUse: WorkerTokenUse;
+	stopCondition: string;
 }
 
 export interface WorkerToolInvocation {
 	mode: WorkerToolExecutionMode;
 	model: WorkerModelRoute;
-	tokenUse: "provider";
+	tokenUse: WorkerTokenUse;
 }
 
 export interface WorkerToolDescriptor {
@@ -140,6 +143,7 @@ export interface WorkerToolDescriptorInput {
 	mode?: WorkerToolExecutionMode;
 	maxTurns?: number;
 	maxParallel?: number;
+	stopCondition?: string;
 	inputFields?: readonly string[];
 }
 
@@ -274,6 +278,10 @@ export function createWorkerToolDescriptor(
 		budget: {
 			maxTurns: input.maxTurns ?? 1,
 			maxParallel: input.maxParallel ?? profile.concurrency.maxParallel,
+			tokenUse: "provider",
+			stopCondition:
+				input.stopCondition ??
+				"stop when the objective is satisfied or the maxTurns budget is exhausted",
 		},
 		invocation: {
 			mode: input.mode ?? "plan-only",
@@ -323,6 +331,12 @@ export function validateWorkerToolDescriptor(
 		descriptor.budget.maxParallel > descriptor.profile.concurrency.maxParallel
 	) {
 		issues.push("budget.maxParallel must be between 1 and profile.concurrency.maxParallel");
+	}
+	if (descriptor.budget.tokenUse !== "provider") {
+		issues.push("budget.tokenUse must be provider");
+	}
+	if (!nonEmpty(descriptor.budget.stopCondition)) {
+		issues.push("budget.stopCondition is required");
 	}
 	if (descriptor.inputFields.length === 0) {
 		issues.push("inputFields must list at least one field");
