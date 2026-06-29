@@ -91,8 +91,8 @@ semantics in labels. For example, a Lab dataset can be `role: "dataset"` with
 `labels: ["lab"]`, a publication outbox can be `role: "manifest"` with
 `labels: ["publication", "outbox"]`, and a notebook export can be
 `role: "report"` with `labels: ["lab", "notebook", "snapshot"]`. This lets
-Refarm validate and query the evidence without owning notebook UX, channel
-provider behavior, or vault folder conventions.
+consuming hosts validate and query the evidence without owning notebook UX,
+channel provider behavior, or vault folder conventions.
 
 When the producer uses a tokenized runner, store the exact executable boundary
 in `provenance.process`. Keep `provenance.command` as a stable display string
