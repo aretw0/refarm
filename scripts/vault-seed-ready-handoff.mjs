@@ -22,6 +22,16 @@ const DEFAULT_SELECTION = "vault-seed-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/vault-seed/${new Date().toISOString().slice(0, 10)}`;
 const HANDOFF_MANIFEST_SCHEMA_VERSION = 1;
 const HANDOFF_MANIFEST_SOURCE = "vault-seed-ready-handoff";
+const PACKAGE_SOURCE_INPUTS = [
+	"package.json",
+	"README.md",
+	"LICENSE",
+	"LICENSE.md",
+	"src",
+	"wit",
+	"Cargo.toml",
+	"Cargo.lock",
+];
 const VAULT_SEED_CONSUMER_PULLS = {
 	"@refarm.dev/artifact-contract-v1": {
 		proofId: "artifact-contract.lab-outbox-evidence",
@@ -158,6 +168,49 @@ function sha256File(filePath) {
 	return hash.digest("hex");
 }
 
+function latestPathMtime(filePath) {
+	if (!existsSync(filePath)) {
+		return null;
+	}
+
+	const stats = statSync(filePath);
+	if (!stats.isDirectory()) {
+		return { path: filePath, mtimeMs: stats.mtimeMs };
+	}
+
+	let latest = null;
+	for (const entry of readdirSync(filePath)) {
+		const candidate = latestPathMtime(path.join(filePath, entry));
+		if (!candidate) {
+			continue;
+		}
+		if (!latest || candidate.mtimeMs > latest.mtimeMs) {
+			latest = candidate;
+		}
+	}
+	return latest;
+}
+
+function latestPackageSourceInput(cwd, packageDir) {
+	const packagePath = path.join(cwd, packageDir);
+	let latest = null;
+	for (const input of PACKAGE_SOURCE_INPUTS) {
+		const candidate = latestPathMtime(path.join(packagePath, input));
+		if (!candidate) {
+			continue;
+		}
+		if (!latest || candidate.mtimeMs > latest.mtimeMs) {
+			latest = candidate;
+		}
+	}
+	return latest
+		? {
+				path: maybeRelative(cwd, latest.path),
+				mtimeMs: latest.mtimeMs,
+			}
+		: null;
+}
+
 function maybeRelative(cwd, filePath) {
 	const relative = path.relative(cwd, filePath);
 	return relative.startsWith("..") ? filePath : relative;
@@ -277,6 +330,13 @@ export function buildHandoffManifest({
 		const tarball = packageTarballName(command.packageName, version);
 		const filePath = path.join(absoluteHandoffDir, tarball);
 		const exists = handoffFileSet.has(tarball) && existsSync(filePath);
+		const tarballStats = exists ? statSync(filePath) : null;
+		const latestSourceInput = latestPackageSourceInput(cwd, command.packageDir);
+		const stale =
+			exists &&
+			latestSourceInput !== null &&
+			tarballStats !== null &&
+			latestSourceInput.mtimeMs > tarballStats.mtimeMs;
 		return {
 			packageName: command.packageName,
 			packageDir: command.packageDir,
@@ -285,7 +345,9 @@ export function buildHandoffManifest({
 			path: maybeRelative(cwd, filePath),
 			exists,
 			sha256: exists ? sha256File(filePath) : null,
-			sizeBytes: exists ? statSync(filePath).size : null,
+			sizeBytes: tarballStats ? tarballStats.size : null,
+			stale,
+			sourceInput: latestSourceInput,
 			consumerPull: VAULT_SEED_CONSUMER_PULLS[command.packageName] ?? null,
 		};
 	});
@@ -298,6 +360,12 @@ export function buildHandoffManifest({
 	const issues = [
 		...missing.map((file) => `missing expected tarball: ${file}`),
 		...extra.map((file) => `unexpected tarball: ${file}`),
+		...packages
+			.filter((entry) => entry.stale)
+			.map(
+				(entry) =>
+					`stale tarball: ${entry.tarball} is older than ${entry.sourceInput?.path ?? entry.packageDir}`,
+			),
 	];
 
 	return {

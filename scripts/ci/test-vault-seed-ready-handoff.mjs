@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -141,6 +141,8 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.deepEqual(manifest.extra, []);
 	assert.deepEqual(manifest.consumerProofs, []);
 	assert.equal(manifest.packages[0].consumerPull, null);
+	assert.equal(manifest.packages[0].stale, false);
+	assert.equal(manifest.packages[0].sourceInput.path, path.join("packages", "alpha", "package.json"));
 	assert.equal(manifest.packages[0].sha256, "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8");
 	assert.match(formatHandoffMarkdown(manifest), /refarm\.dev-alpha-0\.1\.0\.tgz/);
 	assert.match(
@@ -263,4 +265,35 @@ test("reports missing and extra handoff tarballs", () => {
 		"missing expected tarball: refarm.dev-beta-0.2.0.tgz",
 		"unexpected tarball: unexpected-0.1.0.tgz",
 	]);
+});
+
+test("reports stale handoff tarballs when package inputs are newer", () => {
+	const { root, handoffDir } = makeFixture();
+	const tarballPath = path.join(handoffDir, "refarm.dev-alpha-0.1.0.tgz");
+	const packageJsonPath = path.join(root, "packages/alpha/package.json");
+	const readmePath = path.join(root, "packages/alpha/README.md");
+	writeFileSync(tarballPath, "alpha");
+	writeFileSync(path.join(handoffDir, "refarm.dev-beta-0.2.0.tgz"), "beta");
+	writeFileSync(readmePath, "# Alpha\n");
+
+	const oldTime = new Date("2026-01-01T00:00:00.000Z");
+	const newTime = new Date("2026-01-02T00:00:00.000Z");
+	utimesSync(tarballPath, oldTime, oldTime);
+	utimesSync(packageJsonPath, oldTime, oldTime);
+	utimesSync(readmePath, newTime, newTime);
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+	});
+
+	assert.equal(manifest.ok, false);
+	assert.equal(manifest.packages[0].stale, true);
+	assert.deepEqual(manifest.missing, []);
+	assert.deepEqual(manifest.extra, []);
+	assert.deepEqual(manifest.issues, [
+		`stale tarball: refarm.dev-alpha-0.1.0.tgz is older than ${path.join("packages", "alpha", "README.md")}`,
+	]);
+	assert.match(formatHandoffMarkdown(manifest), /stale tarball: refarm\.dev-alpha-0\.1\.0\.tgz/);
 });
