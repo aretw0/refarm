@@ -2,6 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
+**Status:** Superseded by ADR-072 on 2026-06-29. The canonical build-free helper surface is
+`@refarm.dev/ds/html`; `@refarm.dev/homestead/ssr` and `@refarm.dev/homestead-ssr` were removed
+pre-publication.
+
 **Goal:** Add `@refarm.dev/homestead/ssr` — a build-free string/SSR tier (pure HTML-string helpers + page shell over `ds` tokens, baked-in a11y, no runtime/bundler) so server-rendered surfaces like `dgk serve` compose from it.
 
 **Architecture:** Pure functions returning HTML strings that emit `ds` component classes (`.ds-*` from item 4a). A subpath export `@refarm.dev/homestead/ssr` isolated from the bundled `./sdk` studio-host. Isomorphic (server + client). Mirrors the spec's helper API exactly.

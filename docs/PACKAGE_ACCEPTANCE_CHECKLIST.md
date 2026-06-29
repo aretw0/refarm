@@ -50,5 +50,5 @@ For each new package (manual fallback / verification):
 - **Item 1 (new packages):** `source-contract-v1` (contract-v1 type), `source-git` (adapter type) —
   full checklist.
 - **Item 4 (existing packages, new surface):** `ds`, `homestead`, `silo` already exist — for them
-  #2/#3 apply to the **new** test entries (e.g. `ds` theme conformance, `homestead/ssr`,
+  #2/#3 apply to the **new** test entries (e.g. `ds` theme conformance, `ds/html`,
   `silo` collect), and #6 (changeset) applies to the changed packages. No re-scaffold.

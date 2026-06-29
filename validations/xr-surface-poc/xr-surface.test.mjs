@@ -18,10 +18,10 @@ const fixture = JSON.parse(
 test("fixture is a renderer-neutral Refarm surface map", () => {
 	assert.deepEqual(validateSurfaceMapEnvelope(fixture), []);
 	assert.deepEqual(surfaceMapIds(fixture), {
-		nodes: ["dispatch-surface", "ds", "homestead-ssr", "release-engine"],
+		nodes: ["dispatch-surface", "ds", "ds-html", "release-engine"],
 		links: [
-			"dispatch-surface->homestead-ssr:actions",
-			"ds->homestead-ssr:styles",
+			"dispatch-surface->ds-html:actions",
+			"ds->ds-html:styles",
 			"release-engine->dispatch-surface:handoff",
 		],
 		actions: ["inspect-surface", "open-release-plan"],

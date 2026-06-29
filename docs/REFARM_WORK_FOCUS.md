@@ -50,7 +50,7 @@ choose Refarm as the product. Users should experience a better `vault-seed`, not
 a forced Refarm rebrand.
 
 `vault-seed` is the active exception to passive lab pressure: it already needs
-`ds`, `homestead/ssr`, process/artifact handoffs, `silo`, and generator/codemod
+`ds`/`ds-html`, process/artifact handoffs, `silo`, and generator/codemod
 support. When those needs match a Refarm block, the next slice should include a
 consumer proof instead of letting `vault-seed` keep building local stand-ins that
 will be migrated later.

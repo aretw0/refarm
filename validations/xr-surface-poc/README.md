@@ -11,7 +11,7 @@ three.js install.
 
 The first envelope visualizes a small Refarm surface map:
 
-- `nodes`: supply blocks such as `ds`, `homestead-ssr`, `dispatch-surface`, and `release-engine`;
+- `nodes`: supply blocks such as `ds`, `ds-html`, `dispatch-surface`, and `release-engine`;
 - `links`: consumer relationships between those blocks;
 - `actions`: dispatch-style affordances that a surface could expose.
 
