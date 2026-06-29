@@ -72,6 +72,17 @@ test("external calibration docs declare inventory-only evidence handling", () =>
 	assert.match(convergence, /should not ingest or quote the draft bodies/i);
 });
 
+test("convergence docs keep apps as thin block consumers", () => {
+	const convergence = read("docs/VAULT_SEED_CONVERGENCE.md");
+
+	assert.match(convergence, /Do not duplicate the `dgk` product CLI in `apps\/refarm`/);
+	assert.match(convergence, /without centralizing every workflow in `apps\/refarm`/);
+	assert.match(convergence, /`apps\/refarm` accretes logic that should be a reusable block/);
+	assert.match(convergence, /the apps\s+should be thin consumers that prove the blocks/i);
+	assert.match(convergence, /package, package subpath, plugin, checked-in policy\/contract, or downstream\s+consumer bridge/i);
+	assert.match(convergence, /reusable capability\s+belongs outside the app boundary/i);
+});
+
 test("release policy keeps SDK primitives behind explicit audience boundaries", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;

@@ -357,6 +357,10 @@ What changes is the line between **product** and **block**.
 only after Refarm consumes it itself (`apps/me`, `apps/refarm`, `farmhand`, `tractor`). If
 `apps/refarm` accretes logic that should be a reusable block, that is misfocus — the apps
 should be thin consumers that prove the blocks.
+Before adding capability to `apps/refarm`, choose the narrowest durable owner:
+package, package subpath, plugin, checked-in policy/contract, or downstream
+consumer bridge. The app owns composition and operator UX; reusable capability
+belongs outside the app boundary.
 
 **Astro / Marimo convergence:** treat them not as two embedded apps but as two language
 surfaces (TS, Python) over one WASM distribution substrate. Refarm should learn WASM
