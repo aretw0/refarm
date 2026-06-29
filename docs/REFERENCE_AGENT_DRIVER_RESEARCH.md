@@ -131,6 +131,15 @@ runtime-agent ask loop, worker profiles, session tree, structured I/O, and
 code-ops tied to primary reference URLs while preserving the plan-only promotion
 gates for worker dispatch.
 
+Current proof (2026-06-29): `@refarm.dev/cli/interaction-driver` now defines the
+ask-loop promotion contract without coupling it to `apps/refarm`. The descriptor
+models the local interaction loop as a JSON-event, resume/session/task handoff
+surface, and `assessInteractionDriverReadiness()` reports why gateway/RPC
+promotion is still blocked: lifecycle, steering, gateway parity, and budget
+visibility proofs. The reference-driver supply map now lists this SDK as an
+exported target for `runtime-agent.ask`, while `@refarm.dev/pi-agent` remains on
+hold for runtime execution.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":

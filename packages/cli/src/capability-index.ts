@@ -1,4 +1,5 @@
 import { refarmCommand } from "./command-handoff.js";
+import { INTERACTION_DRIVER_GATEWAY_BLOCKERS } from "./interaction-driver.js";
 import { WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS } from "./worker-profile.js";
 
 export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
@@ -488,6 +489,15 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "npm",
+				name: "@refarm.dev/cli interaction driver",
+				export: "@refarm.dev/cli/interaction-driver",
+				path: "packages/cli/src/interaction-driver.ts",
+				status: "exported",
+				note:
+					"Product-neutral local-loop descriptor and gateway/RPC readiness SDK for consumers that need ask-loop promotion status without importing the app.",
+			},
+			{
+				channel: "npm",
 				name: "@refarm.dev/pi-agent",
 				path: "packages/pi-agent",
 				status: "hold",
@@ -713,12 +723,9 @@ const REFERENCE_DRIVER_SOURCE_REFERENCES: Record<
 } as const;
 
 const REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS: Record<string, readonly string[]> = {
-	"runtime-agent.ask": [
-		"interaction lifecycle: prompt accepted, streamed, aborted, resumed, and reported through stable JSON events",
-		"operator steering: follow-up and redirect queue semantics persist into session/task handoffs",
-		"gateway parity: CLI, app, and future RPC/messaging surfaces share the same ask contract",
-		"budget visibility: model route, token/cost use, retries, and stop conditions are visible in resume/check handoffs",
-	],
+	"runtime-agent.ask": INTERACTION_DRIVER_GATEWAY_BLOCKERS.map(
+		(blocker) => blocker.proofTarget,
+	),
 	"runtime-agent.worker-profiles": WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS.map(
 		(blocker) => blocker.proofTarget,
 	),

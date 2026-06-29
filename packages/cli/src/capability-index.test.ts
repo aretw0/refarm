@@ -109,6 +109,12 @@ describe("capability index", () => {
 						}),
 						expect.objectContaining({
 							channel: "npm",
+							name: "@refarm.dev/cli interaction driver",
+							export: "@refarm.dev/cli/interaction-driver",
+							status: "exported",
+						}),
+						expect.objectContaining({
+							channel: "npm",
 							name: "@refarm.dev/pi-agent",
 							status: "hold",
 						}),

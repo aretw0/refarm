@@ -15,10 +15,10 @@ const STEPS = [
 		},
 	},
 	{
-		id: "worker-profile",
+		id: "reference-driver-sdk",
 		packageScript: {
 			cwd: "packages/cli",
-			script: "test:worker-profile",
+			script: "test:reference-driver-sdk",
 		},
 	},
 	{

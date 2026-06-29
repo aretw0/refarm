@@ -8,7 +8,7 @@ test("prints an ordered reference-driver smoke plan", () => {
 	);
 	assert.deepEqual(lines, [
 		"ask-loop: pnpm -C apps/refarm run test:ask-reference-driver",
-		"worker-profile: pnpm -C packages/cli run test:worker-profile",
+		"reference-driver-sdk: pnpm -C packages/cli run test:reference-driver-sdk",
 		"structured-io: cargo test --manifest-path packages/agent-tools/Cargo.toml --lib structured_io --quiet",
 		"session-tree: pnpm -C apps/refarm run test:tree-reference-driver",
 		"code-ops-wit: pnpm -C packages/pi-agent run check:wit",
