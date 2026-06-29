@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/release-engine",
   "version": "0.1.0",
-  "description": "Deterministic release planning and publication policy engine for Refarm-powered projects.",
+  "description": "Deterministic release planning and publication policy engine for host and consumer projects.",
   "type": "module",
   "main": "./src/index.mjs",
   "types": "./types/index.d.ts",
