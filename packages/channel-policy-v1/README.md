@@ -32,7 +32,7 @@ const contentHash = {
 const envelope = {
 	schema: CHANNEL_DELIVERY_ENVELOPE_SCHEMA,
 	createdAt: new Date().toISOString(),
-	producer: "vault-seed:dgk-outbox",
+	producer: "consumer-cli:publication-outbox",
 	deliveries: [
 		{
 			id: "publication-1",
@@ -48,7 +48,7 @@ const envelope = {
 				channelId: "telegram",
 				destinationId: "main-channel",
 				contentHash,
-				logicalKey: "note:publicacao/2026-06-26",
+				logicalKey: "note:publication/2026-06-26",
 			}),
 			contentHash,
 			createdAt: new Date().toISOString(),
