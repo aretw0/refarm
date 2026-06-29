@@ -408,7 +408,7 @@ closure. The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/
 
 A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install the DS tarball, import `@refarm.dev/ds/html`,
-and render a `verde-jardim` shell. The proof confirms DS classes and theme CSS
+and render a `verde-jardim` static document through `documentHtml`. The proof confirms DS classes and theme CSS
 references while keeping `@refarm.dev/homestead` absent from `node_modules`. The
 official consumer checkout still needs to assimilate/review that packet.
 Consumer-local semantic tokens remain fallback-only for raw Marimo sessions.

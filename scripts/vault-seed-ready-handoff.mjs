@@ -67,9 +67,9 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		ownershipBoundary: "Distribution identity, prose, and changelog content remain downstream",
 	},
 	"@refarm.dev/ds": {
-		proofId: "ds.lab-admin-html-shell",
-		downstreamUse: "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML shell helpers",
-		proofTarget: "vault-seed Lab/admin UI imports ds tokens and renders through @refarm.dev/ds/html without pulling Homestead",
+		proofId: "ds.lab-admin-static-document",
+		downstreamUse: "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
+		proofTarget: "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
 		ownershipBoundary: "PARA vocabulary, editorial copy, and content semantics remain downstream",
 	},
 	"@refarm.dev/heartwood": {
