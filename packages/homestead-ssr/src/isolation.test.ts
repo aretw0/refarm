@@ -20,4 +20,17 @@ describe("homestead ssr package isolation", () => {
 			expect(source.includes("astro"), file).toBe(false);
 		}
 	});
+
+	it("stays browser-safe (no Node built-in imports) so helpers run client-side too", () => {
+		for (const file of readdirSync(sourceDir)) {
+			if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
+			const source = readFileSync(new URL(file, import.meta.url), "utf-8");
+
+			// The render/shell helpers are isomorphic: a consumer may serve dist/
+			// to the browser and call the same helpers client-side. That only holds
+			// while the source imports no Node built-ins.
+			expect(/from\s+["']node:/.test(source), file).toBe(false);
+			expect(/require\(\s*["']node:/.test(source), file).toBe(false);
+		}
+	});
 });
