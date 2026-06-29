@@ -152,6 +152,7 @@ export interface ReferenceDriverSupplyPreflight {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	source: "@refarm.dev/cli/capability-index";
 	mode: "plan-only";
+	adoptionCriteria: readonly ReferenceDriverAdoptionCriterion[];
 	targets: readonly ReferenceDriverSupplyPreflightTarget[];
 	summary: readonly ReferenceDriverSupplyPreflightSummary[];
 	nextDecisions: readonly {
@@ -978,6 +979,7 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 		source: "@refarm.dev/cli/capability-index",
 		mode: "plan-only",
+		adoptionCriteria: supplyMap.adoptionCriteria,
 		targets,
 		summary: includedStatuses.map((status) => ({
 			status,

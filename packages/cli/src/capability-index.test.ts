@@ -306,6 +306,16 @@ describe("capability index", () => {
 			schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 			source: "@refarm.dev/cli/capability-index",
 			mode: "plan-only",
+			adoptionCriteria: expect.arrayContaining([
+				expect.objectContaining({
+					id: "worker-isolation",
+					requirement: expect.stringContaining("explicit context packets"),
+				}),
+				expect.objectContaining({
+					id: "budget-observability",
+					requirement: expect.stringContaining("Model route"),
+				}),
+			]),
 			summary: [
 				{ status: "candidate", count: 3 },
 				{ status: "internal", count: 3 },

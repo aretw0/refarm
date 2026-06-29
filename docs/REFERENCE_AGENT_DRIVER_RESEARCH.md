@@ -173,6 +173,10 @@ Current proof (2026-06-29): the reference-driver supply preflight now attaches
 render the blocked posture from the compact preflight without joining it back to
 the full supply map or scraping this note.
 
+Current proof (2026-06-29): the reference-driver supply preflight also carries
+the top-level `adoptionCriteria` promotion bar, so a downstream tool can render
+both global rules and per-target blockers from one plan-only payload.
+
 Current proof (2026-06-29): the reference-driver supply map now carries
 top-level `adoptionCriteria`. This is the long-term promotion bar for turning
 research pressure into Refarm supply instead of app-local behavior: structured

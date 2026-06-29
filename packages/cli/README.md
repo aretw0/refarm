@@ -117,11 +117,12 @@ surfaces, gateway parity, and budget/observability must be proven before a
 runtime primitive moves from candidate or hold into public engine supply.
 The supply preflight is the compact plan-only view for agents and consumers that
 only need blocked posture: candidate, internal, and hold targets plus the next
-decision for each reference-driver primitive. It omits exported SDK targets so
-consumers can focus on what still must not be treated as public engine runtime.
-Each preflight target carries its `promotionProofTargets`, and worker targets
-also carry `budgetContract`, so a consumer can explain the blocked posture
-without loading the full supply map.
+decision for each reference-driver primitive. It also carries the global
+`adoptionCriteria` promotion bar. It omits exported SDK targets so consumers can
+focus on what still must not be treated as public engine runtime. Each preflight
+target carries its `promotionProofTargets`, and worker targets also carry
+`budgetContract`, so a consumer can explain the blocked posture without loading
+the full supply map.
 
 This is not the plugin capability catalog. `@refarm.dev/plugin-manifest` owns
 plugin-declared `capabilities.provides` / `capabilities.requires` and runtime
