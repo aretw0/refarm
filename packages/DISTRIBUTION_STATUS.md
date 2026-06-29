@@ -65,7 +65,8 @@ handoff command materializes package tarballs sequentially before validating the
 manifest, SHA-256 inventory, tarball freshness, and publishable build-output
 freshness. The JSON manifest declares `schemaVersion: 1` and
 `source: "vault-seed-ready-handoff"` so downstream checks can treat it as an
-explicit handoff contract.
+explicit handoff contract. When cleanup is requested, `prunedExtra` records the
+unexpected generated tarballs removed before validation.
 When a package rename or selection change intentionally leaves old generated
 tarballs in that ephemeral directory, rerun the handoff with `--prune-extra` to
 delete only unexpected `.tgz` files before manifest validation.

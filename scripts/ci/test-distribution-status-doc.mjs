@@ -15,6 +15,10 @@ const packageRegistryDoc = readFileSync(
 	path.join(ROOT, "packages/README.md"),
 	"utf8",
 );
+const vaultSeedConvergenceDoc = readFileSync(
+	path.join(ROOT, "docs/VAULT_SEED_CONVERGENCE.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -43,6 +47,7 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /schemaVersion: 1/);
 	assert.match(doc, /consumerPull/);
 	assert.match(doc, /consumerProofs/);
+	assert.match(doc, /prunedExtra/);
 	assert.match(doc, /proofId/);
 	assert.match(doc, /\.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\//);
 	assert.match(doc, /tarball freshness/);
@@ -74,4 +79,14 @@ test("package registry does not promise publication ahead of release policy", ()
 			new RegExp(`\\[\\\`${escapeRegExp(packageName)}\\\``),
 		);
 	}
+});
+
+test("vault seed convergence keeps current handoff hashes in the manifest", () => {
+	const currentHandoffSection = vaultSeedConvergenceDoc
+		.split("**2026-06-29 full `vault-seed-ready` handoff:**")[1]
+		.split("### Additional Assimilation Matrix")[0];
+
+	assert.match(currentHandoffSection, /packages\[\]\.sha256/);
+	assert.match(currentHandoffSection, /prunedExtra/);
+	assert.doesNotMatch(currentHandoffSection, /\b[a-f0-9]{64}\b/);
 });

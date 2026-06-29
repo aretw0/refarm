@@ -401,7 +401,6 @@ lane ships the DS-owned helper surface without pulling the full Homestead SDK de
 closure. The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/`:
 
 - `refarm.dev-ds-0.1.0.tgz`
-  (`sha256 61ec741b427d45bac73856120ba094841b6b0aa5263bddcd6558878d5c0be7d5`);
 
 A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install the DS tarball, import `@refarm.dev/ds/html`,
@@ -417,8 +416,7 @@ shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `@refarm.dev/cli/process-handoff` stays as a compatibility re-export. The
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-process-handoff-0.1.0.tgz`
-(`sha256 e44f4e452f27e7ce398c7c9b0311c5c0c04ad50a886bd747c24f9bd59f5c11e3`).
+`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-process-handoff-0.1.0.tgz`.
 The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `@aretw0/dgk-cli` should import
 `@refarm.dev/process-handoff` internally while keeping the exported
@@ -429,8 +427,7 @@ manifest that references the tokenized process boundary.
 now includes a Refarm-side fixture for `vault-seed` Lab datasets, publication
 outbox manifests, and notebook snapshots using generic roles plus labels instead
 of upstreaming notebook UX or vault schema. Candidate tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-artifact-contract-v1-0.1.0.tgz`
-(`sha256 a48374c34fa910fcafee5aa4aadc1457ec291cac7f76ea02753708a10c50e7d3`).
+`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-artifact-contract-v1-0.1.0.tgz`.
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: `vault-seed` should emit
 `refarm.task-artifacts.v1` manifests from its Lab/outbox/notebook producers.
@@ -439,8 +436,7 @@ Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 consumer-pulled handoff for Telegram/outbox evidence without moving provider API
 behavior, Markdown formatting, or `dgk outbox/inbox` UX upstream. Candidate
 tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-channel-policy-v1-0.1.0.tgz`
-(`sha256 e4f04d81043807cb96b710aa32daede4d57d2328e0b9f5cd510a9588faa3f15c`).
+`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-channel-policy-v1-0.1.0.tgz`.
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: the `vault-seed` Telegram
 adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
@@ -450,17 +446,17 @@ calls and user-facing command semantics local.
 selection contains 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publication;
 `@refarm.dev/ds/html` ships through the DS tarball.
 
-| Package | Tarball | SHA256 |
-| --- | --- | --- |
-| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` | `a48374c34fa910fcafee5aa4aadc1457ec291cac7f76ea02753708a10c50e7d3` |
-| `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` | `e4f04d81043807cb96b710aa32daede4d57d2328e0b9f5cd510a9588faa3f15c` |
-| `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` | `a1a02cc6eeb7de9774b79d946ae7376e5eec2c7bf563e3587de30911d14fd6d8` |
-| `@refarm.dev/process-handoff` | `refarm.dev-process-handoff-0.1.0.tgz` | `e44f4e452f27e7ce398c7c9b0311c5c0c04ad50a886bd747c24f9bd59f5c11e3` |
-| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` | `121a73b5ea2bd8329fc603130a5311cc9fb078586ef6d50d25c0b2eb664682f2` |
-| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` | `61ec741b427d45bac73856120ba094841b6b0aa5263bddcd6558878d5c0be7d5` |
-| `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` | `5439347124b5765a3364d27cfe8d33f3c12d897325fd5a6295dc76aacbf4fefe` |
-| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` | `94a244d913602b26039850a17732890df6713041f38e4d8f557b30a2621f0ef2` |
-| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` | `a8f315b1a200f7463ae28a7d0b52e911410d0f468b4660cdb27dcdc4135cbf90` |
+| Package | Tarball |
+| --- | --- |
+| `@refarm.dev/artifact-contract-v1` | `refarm.dev-artifact-contract-v1-0.1.0.tgz` |
+| `@refarm.dev/channel-policy-v1` | `refarm.dev-channel-policy-v1-0.1.0.tgz` |
+| `@refarm.dev/effort-contract-v1` | `refarm.dev-effort-contract-v1-0.1.0.tgz` |
+| `@refarm.dev/process-handoff` | `refarm.dev-process-handoff-0.1.0.tgz` |
+| `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` |
+| `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` |
+| `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` |
+| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` |
+| `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` |
 
 Pre-publication consumers should install these from the local handoff and
 override unpublished workspace dependencies to matching tarballs where needed;
@@ -477,10 +473,12 @@ checks, one publish provider, `manualApprovalRequired: true`, and no stale
 tarball or stale build-output issues. The Markdown form prints the same
 acceptance line before the tarball table, so a consumer handoff can verify
 readiness without reinterpreting the full release plan. The JSON manifest is
-versioned (`schemaVersion: 1`) and carries `consumerPull` per package plus a
-flattened `consumerProofs` list. That list is the downstream assimilation
-checklist: each item has a stable `proofId`, names the `vault-seed` proof target,
-and records the product boundary that must remain local.
+versioned (`schemaVersion: 1`) and carries the current `packages[].sha256`,
+`consumerPull` per package, `consumerProofs`, and `prunedExtra` fields. Treat
+the manifest, not hand-written prose, as the integrity source of truth. The
+flattened `consumerProofs` list is the downstream assimilation checklist: each
+item has a stable `proofId`, names the `vault-seed` proof target, and records
+the product boundary that must remain local.
 
 ### Additional Assimilation Matrix
 
