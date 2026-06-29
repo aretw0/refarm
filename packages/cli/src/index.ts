@@ -243,6 +243,8 @@ export {
 } from "./operator-resume.js";
 export type {
 	OperatorResumeCommands,
+	OperatorResumeEnvironmentPressure,
+	OperatorResumeEnvironmentPressureSignal,
 	OperatorResumeEnvelope,
 	OperatorResumeFinishRecord,
 	OperatorResumeFinishSummary,

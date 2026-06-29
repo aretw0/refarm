@@ -64,6 +64,15 @@ function finishRecorder(
 	};
 }
 
+function createTestResumeCommand(
+	deps: Parameters<typeof createResumeCommand>[0],
+) {
+	return createResumeCommand({
+		loadEnvironmentPressure: vi.fn().mockReturnValue(undefined),
+		...deps,
+	});
+}
+
 describe("resume command", () => {
 	it("loads repository project handoff context for resume", () => {
 		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-resume-"));
@@ -183,7 +192,7 @@ describe("resume command", () => {
 				},
 			],
 		};
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(checkpoint),
 			finishRecorder: finishRecorder({
@@ -248,7 +257,7 @@ describe("resume command", () => {
 	});
 
 	it("prints JSON handoff output", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -278,7 +287,7 @@ describe("resume command", () => {
 	});
 
 	it("prints project handoff context in JSON resume output", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -323,7 +332,7 @@ describe("resume command", () => {
 	});
 
 	it("prints scheduled work visibility in JSON resume output", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -392,8 +401,64 @@ describe("resume command", () => {
 		spy.mockRestore();
 	});
 
+	it("prints environment pressure visibility in JSON resume output", async () => {
+		const command = createTestResumeCommand({
+			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
+			sessionRecorder: recorder(null),
+			finishRecorder: finishRecorder(null),
+			readActiveSessionId: vi.fn().mockReturnValue(null),
+			loadModelTokens: vi.fn().mockResolvedValue({
+				modelProvider: "openai",
+				modelId: "gpt-5.5",
+			}),
+			loadRecentSessions: vi.fn().mockResolvedValue([]),
+			loadChatHistory: vi.fn().mockReturnValue([]),
+			loadEnvironmentPressure: vi.fn().mockReturnValue({
+				command: "environment-pressure",
+				operation: "resume",
+				ok: true,
+				decision: "safe-mode",
+				nextCommands: [],
+				signals: [
+					{
+						id: "large-session-file",
+						kind: "session",
+						severity: "warning",
+						ok: true,
+						summary: "A session file is large enough to make resume expensive.",
+						action: "Prefer a new session and checkpoint.",
+					},
+				],
+			}),
+		});
+		const logs: string[] = [];
+		const spy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			environmentPressure?: {
+				decision: string;
+				signals: Array<{ id: string; kind: string; severity: string }>;
+			};
+		};
+		expect(payload.environmentPressure).toMatchObject({
+			decision: "safe-mode",
+			signals: [
+				{
+					id: "large-session-file",
+					kind: "session",
+					severity: "warning",
+				},
+			],
+		});
+		spy.mockRestore();
+	});
+
 	it("prioritizes stale session cleanup in plain resume output", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -430,7 +495,7 @@ describe("resume command", () => {
 	});
 
 	it("prioritizes stale session cleanup in JSON resume handoff", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -469,7 +534,7 @@ describe("resume command", () => {
 	});
 
 	it("prints only the next command in plain text", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -491,7 +556,7 @@ describe("resume command", () => {
 	});
 
 	it("prints only the next command in JSON format", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
@@ -540,7 +605,7 @@ describe("resume command", () => {
 	});
 
 	it("prints task checkpoint command fields as JSON handoffs", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder({
 				version: 1,
@@ -590,7 +655,7 @@ describe("resume command", () => {
 	});
 
 	it("recovers interrupted non-terminal task checkpoints through task resume", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder({
 				version: 1,
@@ -647,7 +712,7 @@ describe("resume command", () => {
 	});
 
 	it("surfaces failedCommand and remaining count in operator output", async () => {
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder({
@@ -683,7 +748,7 @@ describe("resume command", () => {
 	it("can skip runtime status inspection", async () => {
 		const resolveStatusPayload = vi.fn().mockResolvedValue({ json: status });
 		const loadRecentSessions = vi.fn().mockResolvedValue([]);
-		const command = createResumeCommand({
+		const command = createTestResumeCommand({
 			resolveStatusPayload,
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),

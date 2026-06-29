@@ -4,11 +4,13 @@ import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
+	type OperatorResumeEnvironmentPressure,
 	type OperatorResumeModelSummary,
 	type OperatorResumeProjectSummary,
 	type OperatorResumeScheduledWorkInspection,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
+import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import {
 	loadProjectScheduledWork,
 	type ProjectScheduledWorkInspection
@@ -57,6 +59,7 @@ export interface ResumeDeps {
 	loadModelTokens(): Promise<ModelTokens>;
 	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
 	loadScheduledWork(): Promise<ProjectScheduledWorkInspection | undefined>;
+	loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined;
 }
 
 interface LoadScheduledWorkOptions {
@@ -82,6 +85,7 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadModelTokens: defaultModelDeps().loadTokens,
 		loadProjectHandoff,
 		loadScheduledWork,
+		loadEnvironmentPressure,
 		...deps,
 	};
 
@@ -128,6 +132,7 @@ async function emitResume(
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
 	const project = deps.loadProjectHandoff();
 	const scheduledWork = await deps.loadScheduledWork();
+	const environmentPressure = deps.loadEnvironmentPressure();
 	const model = await loadModelResumeSummary(deps);
 	const recentSessions =
 		options.status === false ? [] : await deps.loadRecentSessions();
@@ -147,6 +152,7 @@ async function emitResume(
 			recentSessions,
 			recentPrompts,
 			finish,
+			environmentPressure,
 		});
 
 		const nextCommandMode = options.nextAction || options.nextCommand;
@@ -188,6 +194,7 @@ async function emitResume(
 			recentSessions,
 			recentPrompts,
 			finish,
+			environmentPressure,
 		});
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = envelope.nextCommands;
@@ -200,6 +207,36 @@ async function emitResume(
 		}
 	} finally {
 		await statusResult?.shutdown?.();
+	}
+}
+
+export function loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined {
+	try {
+		const report = buildEnvironmentPressureReport({
+			command: "environment-pressure",
+			operation: "resume",
+			guidance: {
+				diskPressureAction:
+					"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+				diskPressureCommand: "pnpm run clean:rust:check",
+				diskProbeFailureAction: "Run `pnpm run disk:check` only if disk pressure is suspected.",
+				diskProbeFailureCommand: "pnpm run disk:check",
+				memoryPressureAction:
+					"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+				gitGcLogAction:
+					"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
+			},
+		});
+		return {
+			command: report.command,
+			operation: report.operation,
+			ok: report.ok,
+			decision: report.decision,
+			signals: report.signals,
+			nextCommands: report.nextCommands,
+		};
+	} catch {
+		return undefined;
 	}
 }
 

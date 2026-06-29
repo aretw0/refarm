@@ -278,6 +278,55 @@ describe("operator resume", () => {
 		);
 	});
 
+	it("surfaces stop-level environment pressure before normal resume work", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const environmentPressure = {
+			command: "environment-pressure",
+			operation: "check",
+			ok: false,
+			decision: "stop-and-investigate" as const,
+			nextCommands: ["pnpm run clean:rust:check"],
+			signals: [
+				{
+					id: "filesystem-free-space",
+					kind: "filesystem",
+					severity: "failure" as const,
+					ok: false,
+					summary: "Workspace filesystem is under disk pressure.",
+					action: "Recover disk headroom before broad builds.",
+					command: "pnpm run clean:rust:check",
+				},
+			],
+		};
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			environmentPressure,
+		});
+
+		expect(operatorResumeNextCommands(summary)).toEqual([
+			"pnpm run clean:rust:check",
+			"refarm task list --json",
+		]);
+		expect(formatOperatorResumeSummary(summary)).toContain(
+			"Environment pressure: stop-and-investigate (1 signals)",
+		);
+		expect(buildOperatorResumeEnvelope({
+			status: readyStatus,
+			environmentPressure,
+		})).toMatchObject({
+			environmentPressure: {
+				decision: "stop-and-investigate",
+				signals: [
+					expect.objectContaining({
+						id: "filesystem-free-space",
+						severity: "failure",
+					}),
+				],
+			},
+			nextCommand: "pnpm run clean:rust:check",
+		});
+	});
+
 	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
