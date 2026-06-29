@@ -469,9 +469,13 @@ for example, `@refarm.dev/dispatch-surface` depends on
 `@refarm.dev/heartwood`.
 
 As of 2026-06-29, `pnpm --silent run release:vault-seed:handoff -- --pack
---prune-extra --json` materializes the tarballs sequentially, prunes only
-unexpected generated `.tgz` files, and emits the same package acceptance summary
-exposed by the release plan. The current packet reports
+--prune-extra --json --out .refarm/handoff/vault-seed/2026-06-29/manifest.json`
+materializes the tarballs sequentially, prunes only unexpected generated `.tgz`
+files, writes `manifest.json` beside the tarballs, and emits the same package
+acceptance summary exposed by the release plan. The companion
+`pnpm --silent run release:vault-seed:handoff -- --out
+.refarm/handoff/vault-seed/2026-06-29/manifest.md` writes the operator-readable
+Markdown view of the same packet. The current packet reports
 `acceptance.status: "accepted"`, 9 packages, 4 required gates, 20 required
 checks, one publish provider, `manualApprovalRequired: true`, and no stale
 tarball or stale build-output issues. The Markdown form prints the same
@@ -479,10 +483,13 @@ acceptance line before the tarball table, so a consumer handoff can verify
 readiness without reinterpreting the full release plan. The JSON manifest is
 versioned (`schemaVersion: 1`) and carries the current `packages[].sha256`,
 `consumerPull` per package, `consumerProofs`, and `prunedExtra` fields. Treat
-the manifest, not hand-written prose, as the integrity source of truth. The
-flattened `consumerProofs` list is the downstream assimilation checklist: each
-item has a stable `proofId`, names the `vault-seed` proof target, and records
-the product boundary that must remain local.
+`manifest.json`, not hand-written prose, as the integrity source of truth. The
+official checkout should collect every `.tgz` named by `packages[].tarball`
+from the same handoff directory, then use `packages[].sha256` to verify the
+packet before pinning `file:` dependencies or `pnpm.overrides`. The flattened
+`consumerProofs` list is the downstream assimilation checklist: each item has a
+stable `proofId`, names the `vault-seed` proof target, and records the product
+boundary that must remain local.
 
 ### Additional Assimilation Matrix
 

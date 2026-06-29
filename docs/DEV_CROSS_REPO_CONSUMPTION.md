@@ -7,8 +7,8 @@
 ## Problem
 
 `vault-seed` is a **separate repo** — `grep refarm` in its `package.json` / `pnpm-workspace.yaml`
-is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" steps need
-`@refarm.dev/ds`, `/homestead`, `/silo` **inside `vault-seed`** before those packages are on npm.
+is empty; there is no workspace link to Refarm. The item-4 and item-9 consumer proof steps need
+selected `@refarm.dev/*` packages inside `vault-seed` before those packages are on npm.
 `vault-seed` and `refarm` are separate repos — not one pnpm workspace — so `vault-seed` cannot
 `workspace:*`-link Refarm packages.
 
@@ -16,13 +16,20 @@ is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" st
 
 **Consumer-proof uses a local tarball — faithful to the published shape.**
 
-1. In the Refarm working tree: build and pack the package.
+1. In the Refarm working tree, materialize the current `vault-seed-ready`
+   packet:
    ```bash
-   pnpm -C packages/<name> run build
-   pnpm -C packages/<name> pack   # → refarm.dev-<name>-<version>.tgz
+   pnpm --silent run release:vault-seed:check -- --plan --json
+   pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
+   pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.md
    ```
-2. Copy the `.tgz` to `vault-seed`, e.g. into the repo-root `vault-seed/vendor/`. This is a local
-   proof cache, not source; the consumer repo should ignore it.
+   The packet directory contains `manifest.json`, `manifest.md`, and the
+   `.tgz` files named by `manifest.json` `packages[].tarball`.
+2. Copy the needed `.tgz` files to `vault-seed`, e.g. into the repo-root
+   `vault-seed/vendor/`. This is a local proof cache, not source; the consumer
+   repo should ignore it. Keep `manifest.json` beside the copied tarballs or in
+   the proof notes so the official checkout can verify `packages[].sha256` and
+   follow `consumerProofs`.
 3. In `vault-seed`: add the dependency and install.
    ```jsonc
    // package.json
@@ -31,17 +38,30 @@ is empty; there is no workspace link to Refarm. The 4a/4b/4c "consumer proof" st
    ```bash
    pnpm install
    ```
-   If the candidate depends on another unpublished `@refarm.dev/*` package, pin the direct
-   dependency and the transitive dependency to the same local tarball with `pnpm.overrides` until
-   the packages are published:
+   If the candidate depends on another unpublished `@refarm.dev/*` package, pin
+   the direct dependency and the transitive dependency to the same local packet
+   with `pnpm.overrides` until the packages are published:
    ```jsonc
    {
      "dependencies": {
        "@refarm.dev/ds": "file:./vendor/refarm.dev-ds-0.1.0.tgz"
      },
+     "pnpm": {
+       "overrides": {
+         "@refarm.dev/heartwood": "file:./vendor/refarm.dev-heartwood-0.1.0.tgz"
+       }
+     }
    }
    ```
 4. Run the surface (`dgk build` / `dgk serve` / the site test roteiro) — that is the proof.
+
+Manual single-package pack remains an escape hatch for a package that is not in
+`vault-seed-ready` yet, but it is not the official handoff path:
+
+   ```bash
+   pnpm -C packages/<name> run build
+   pnpm -C packages/<name> pack   # → refarm.dev-<name>-<version>.tgz
+   ```
 
 Before committing the consumer proof, confirm the packed artifact stayed out of source control:
 
@@ -55,10 +75,11 @@ while it is active; the packed artifact itself stays local.
 If the consumer checkout is not available from the current working environment, stop after packing
 and hand off:
 
-- package name and version;
-- tarball path or checksum;
-- build/pack commands used;
-- expected consumer proof command.
+- manifest path and date;
+- selected package names and versions;
+- tarball paths and SHA-256 values from `manifest.json`;
+- handoff commands used;
+- expected consumer proof commands from `consumerProofs`.
 
 For the current UI packet, the Refarm-side fallback proof is:
 
