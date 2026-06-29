@@ -2,17 +2,17 @@ catalog:
   # build tooling
   typescript: "^6.0.3"
   # wasm runtime
-  "@bytecodealliance/jco": "^1.18.0"
+  "@bytecodealliance/jco": "^1.24.5"
   # crypto / identity primitives
   "@noble/ed25519": "^3.1.0"
-  nostr-tools: "^2.23.3"
+  nostr-tools: "^2.23.8"
   # sync / storage
-  isomorphic-git: "^1.37.5"
+  isomorphic-git: "^1.38.5"
   # websocket
   ws: "^8.21.0"
   "@types/ws": "^8.18.1"
   # node types
-  "@types/node": "^25.6.0"
+  "@types/node": "^26.0.1"
 
 shamefullyHoist: false
 strictPeerDependencies: false
@@ -43,3 +43,8 @@ overrides:
 auditConfig:
   ignoreGhsas:
     - GHSA-48c2-rrv3-qjmp
+minimumReleaseAgeExclude:
+  - '@bytecodealliance/jco-transpile@0.3.8'
+  - '@bytecodealliance/jco@1.24.5'
+  - '@cloudflare/workers-types@4.20260629.1'
+  - npm-check-updates@22.2.9
