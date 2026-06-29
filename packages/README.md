@@ -22,6 +22,20 @@ publication remains held by the daily-driver gate or explicit human override.
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
 
+## 📚 Librarian Source Primitives
+
+These packages provide the `source:v1` librarian boundary. They are
+release-profiled and checked, but not selected for `vault-seed-ready` until a
+consumer-pulled proof needs source materialization directly. `source-dispatch`
+is intentionally absent until an agent/kernel path consumes `source:v1` through
+`dispatch-surface`.
+
+| Package | Purpose | Publishing |
+|---|---|---|
+| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | release-profiled; held |
+| [`@refarm.dev/source-git`](./source-git) | Clean cached git checkout provider for remote repositories | release-profiled; held |
+| [`@refarm.dev/source-local`](./source-local) | Live local working-tree provider with dirty/untracked status | release-profiled; held |
+
 ## 🌱 Consumer-Pulled Candidate Lane
 
 The `vault-seed-ready` selection is a pre-publication handoff lane for packages

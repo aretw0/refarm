@@ -176,6 +176,45 @@ test("process handoff stays the selected process leaf", () => {
 	assert.doesNotMatch(policyText, /@refarm\.dev\/launch-process/);
 });
 
+test("source librarian adapters stay profiled but consumer-gated", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const policyText = read("refarm.config.json");
+	const profiles = config.releasePolicy.packageProfiles;
+	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+	const vaultSeedReady = new Set(
+		profiles
+			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.map((profile) => profile.id),
+	);
+
+	for (const packageName of [
+		"@refarm.dev/source-contract-v1",
+		"@refarm.dev/source-git",
+		"@refarm.dev/source-local",
+	]) {
+		const profile = byId.get(packageName);
+		assert.ok(profile, `${packageName} must be release-profiled`);
+		assert.ok(
+			profile.tags.includes("librarian"),
+			`${packageName} must declare librarian scope`,
+		);
+		assert.ok(
+			profile.tags.includes("boundary-review"),
+			`${packageName} must stay boundary-reviewed`,
+		);
+		assert.ok(
+			profile.tags.includes("candidate-hold"),
+			`${packageName} must stay held until pulled`,
+		);
+		assert.ok(
+			!vaultSeedReady.has(packageName),
+			`${packageName} must not enter vault-seed-ready without downstream proof`,
+		);
+	}
+
+	assert.doesNotMatch(policyText, /@refarm\.dev\/source-dispatch/);
+});
+
 test("release-engine docs keep host integration product-neutral", () => {
 	const roadmap = read("packages/release-engine/ROADMAP.md");
 	const readme = read("packages/release-engine/README.md");
