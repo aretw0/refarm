@@ -49,6 +49,7 @@ pnpm --filter @refarm.dev/source-contract-v1 run build
 pnpm --filter @refarm.dev/source-git run build
 pnpm run test:capabilities
 pnpm run source:librarian:smoke
+pnpm run source:librarian:local-smoke
 ```
 
 ### 2. `apps/refarm` promotion audit — recommended next

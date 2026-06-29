@@ -64,6 +64,9 @@ importers:
       '@refarm.dev/source-git':
         specifier: workspace:*
         version: link:packages/source-git
+      '@refarm.dev/source-local':
+        specifier: workspace:*
+        version: link:packages/source-local
       '@refarm.dev/thresher':
         specifier: workspace:*
         version: link:packages/thresher
