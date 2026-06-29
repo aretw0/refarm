@@ -7,6 +7,7 @@ import {
 	readFileSync,
 	readdirSync,
 	statSync,
+	unlinkSync,
 	writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -98,6 +99,7 @@ export function parseHandoffArgs(argv = []) {
 		json: false,
 		out: null,
 		pack: false,
+		pruneExtra: false,
 	};
 
 	for (let index = 0; index < argv.length; index += 1) {
@@ -126,6 +128,10 @@ export function parseHandoffArgs(argv = []) {
 		}
 		if (arg === "--pack") {
 			options.pack = true;
+			continue;
+		}
+		if (arg === "--prune-extra") {
+			options.pruneExtra = true;
 			continue;
 		}
 		throw new Error(`Unknown handoff argument: ${arg}`);
@@ -270,6 +276,14 @@ function buildConsumerProofs(packages) {
 		}));
 }
 
+function expectedTarballSet(cwd, commands) {
+	return new Set(
+		commands.map((command) =>
+			packageTarballName(command.packageName, readPackageVersion(cwd, command.packageDir)),
+		),
+	);
+}
+
 export function materializeHandoffTarballs({
 	cwd = process.cwd(),
 	env = process.env,
@@ -325,6 +339,43 @@ export function materializeHandoffTarballs({
 	}
 
 	return packed;
+}
+
+export function pruneExtraHandoffTarballs({
+	cwd = process.cwd(),
+	handoffDir = DEFAULT_HANDOFF_DIR,
+	releaseCheck,
+} = {}) {
+	const check =
+		releaseCheck ??
+		buildReleaseCheckPlan({
+			cwd,
+			selectionId: DEFAULT_SELECTION,
+		});
+
+	if (!check.ok) {
+		const plan = check.plan ?? { ok: false };
+		throw new Error(plan.reason ?? "release selection is not ready");
+	}
+
+	const absoluteHandoffDir = path.resolve(cwd, handoffDir);
+	if (!existsSync(absoluteHandoffDir)) {
+		return [];
+	}
+
+	const expected = expectedTarballSet(cwd, check.commands);
+	const pruned = [];
+	const tarballs = readdirSync(absoluteHandoffDir)
+		.filter((entry) => entry.endsWith(".tgz"))
+		.sort();
+	for (const file of tarballs) {
+		if (expected.has(file)) {
+			continue;
+		}
+		unlinkSync(path.join(absoluteHandoffDir, file));
+		pruned.push(file);
+	}
+	return pruned;
 }
 
 export function buildHandoffManifest({
@@ -497,6 +548,12 @@ if (isMain()) {
 		});
 		if (options.pack) {
 			materializeHandoffTarballs({
+				handoffDir: options.handoffDir,
+				releaseCheck,
+			});
+		}
+		if (options.pruneExtra) {
+			pruneExtraHandoffTarballs({
 				handoffDir: options.handoffDir,
 				releaseCheck,
 			});

@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, utimesSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	mkdirSync,
+	utimesSync,
+	writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -8,6 +14,7 @@ import {
 	formatHandoffMarkdown,
 	packageTarballName,
 	parseHandoffArgs,
+	pruneExtraHandoffTarballs,
 } from "../vault-seed-ready-handoff.mjs";
 
 function makeFixture() {
@@ -89,6 +96,7 @@ test("parses handoff CLI arguments", () => {
 			"--out",
 			"manifest.md",
 			"--pack",
+			"--prune-extra",
 			"--",
 			"--json",
 		]),
@@ -98,6 +106,7 @@ test("parses handoff CLI arguments", () => {
 			json: true,
 			out: "manifest.md",
 			pack: true,
+			pruneExtra: true,
 		},
 	);
 });
@@ -266,6 +275,35 @@ test("reports missing and extra handoff tarballs", () => {
 		"missing expected tarball: refarm.dev-beta-0.2.0.tgz",
 		"unexpected tarball: unexpected-0.1.0.tgz",
 	]);
+});
+
+test("prunes only unexpected handoff tarballs", () => {
+	const { root, handoffDir } = makeFixture();
+	const alphaTarball = path.join(handoffDir, "refarm.dev-alpha-0.1.0.tgz");
+	const betaTarball = path.join(handoffDir, "refarm.dev-beta-0.2.0.tgz");
+	const unexpectedTarball = path.join(handoffDir, "unexpected-0.1.0.tgz");
+	writeFileSync(alphaTarball, "alpha");
+	writeFileSync(betaTarball, "beta");
+	writeFileSync(unexpectedTarball, "extra");
+
+	const pruned = pruneExtraHandoffTarballs({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+	});
+
+	assert.deepEqual(pruned, ["unexpected-0.1.0.tgz"]);
+	assert.equal(existsSync(alphaTarball), true);
+	assert.equal(existsSync(betaTarball), true);
+	assert.equal(existsSync(unexpectedTarball), false);
+	assert.equal(
+		buildHandoffManifest({
+			cwd: root,
+			handoffDir,
+			releaseCheck: releaseCheck(),
+		}).ok,
+		true,
+	);
 });
 
 test("reports stale handoff tarballs when package inputs are newer", () => {
