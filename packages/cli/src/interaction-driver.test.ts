@@ -22,7 +22,7 @@ describe("interaction driver contract", () => {
 			mode: "local-loop",
 			eventContract: {
 				format: "json-events",
-				requiredEvents: ["accepted", "streamed", "completed"],
+				requiredEvents: ["accepted", "streamed", "completed", "failed"],
 			},
 			handoffs: {
 				resume: true,
@@ -94,6 +94,7 @@ describe("interaction driver contract", () => {
 				"title is required",
 				"eventContract.requiredEvents must include streamed",
 				"eventContract.requiredEvents must include completed",
+				"eventContract.requiredEvents must include failed",
 				"handoffs.session must be true",
 				"budget.modelRoute must be true",
 			],

@@ -148,6 +148,13 @@ isolation, memory-as-context, and policy-as-enforcement inspectable from
 patterns promote into packages, subpaths, WIT contracts, or policy gates before
 they become app behavior.
 
+Current proof (2026-06-29): `@refarm.dev/cli/interaction-driver` now requires a
+terminal failure event in the minimal ask-loop JSON event contract, alongside
+accepted, streamed, and completed. This adopts Codex's JSONL failure/error event
+lesson and Claude/Hermes lifecycle-hook pressure without promoting a gateway or
+runtime fanout path: downstream tools can rely on a product-neutral success and
+failure envelope before the runtime-agent package is public.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":
