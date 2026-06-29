@@ -96,6 +96,6 @@ adaptation, detached execution, and artifact/provenance handoffs.
 2. Remove `@refarm.dev/homestead-ssr` from `vault-seed-ready` release selection.
 3. Remove Homestead SSR package/subpath surfaces before public release; downstream users should adopt
    `@refarm.dev/ds/html` directly.
-4. Update current docs and handoff metadata so `ds/html` is the canonical admin/shell helper.
+4. Update current docs and handoff metadata so `ds/html` is the canonical static document helper.
 5. Rename `@refarm.dev/launch-process` to `@refarm.dev/process-handoff` and keep CLI access as a
    `@refarm.dev/cli/process-handoff` re-export.

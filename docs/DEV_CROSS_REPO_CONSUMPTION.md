@@ -64,7 +64,7 @@ For the current UI packet, the Refarm-side fallback proof is:
 
 ```bash
 pnpm install --offline --store-dir /tmp/<proof>/.pnpm-store
-node --input-type=module -e "import { shellHtml, cardHtml, buttonHtml } from '@refarm.dev/ds/html'; const bodyHtml = cardHtml({ title: 'Card', rows: ['<p>Ready</p>'], actionsHtml: buttonHtml({ label: 'Open' }) }); const html = shellHtml({ title: 'Proof', bodyHtml, theme: 'verde-jardim' }); if (!html.includes('data-ds-theme=\"verde-jardim\"') || !html.includes('ds-card') || !html.includes('ds-btn') || !html.includes('/_ds/themes/verde-jardim.css')) throw new Error('consumer proof failed');"
+node --input-type=module -e "import { documentHtml, cardHtml, buttonHtml } from '@refarm.dev/ds/html'; const bodyHtml = cardHtml({ title: 'Card', rows: ['<p>Ready</p>'], actionsHtml: buttonHtml({ label: 'Open' }) }); const html = documentHtml({ title: 'Proof', bodyHtml, theme: 'verde-jardim' }); if (!html.includes('data-ds-theme=\"verde-jardim\"') || !html.includes('ds-card') || !html.includes('ds-btn') || !html.includes('/_ds/themes/verde-jardim.css')) throw new Error('consumer proof failed');"
 pnpm list --depth 1
 test ! -e node_modules/@refarm.dev/homestead
 ```

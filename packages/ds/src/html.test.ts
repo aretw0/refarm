@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
 	buttonHtml,
 	cardHtml,
+	documentHtml,
 	escapeHtml,
 	feedbackHtml,
 	fieldHtml,
 	footerHtml,
 	gridHtml,
 	sectionHtml,
-	shellHtml,
 	tableHtml,
 } from "./html.js";
 
@@ -80,8 +80,8 @@ describe("ds html helpers", () => {
 		expect(footerHtml("f")).toContain('class="ds-footer"');
 	});
 
-	it("shellHtml emits a scoped document linking ds css under assetBase", () => {
-		const html = shellHtml({
+	it("documentHtml emits a scoped document linking ds css under assetBase", () => {
+		const html = documentHtml({
 			title: "dgk admin",
 			theme: "verde-jardim",
 			assetBase: "/_ds",
@@ -97,8 +97,8 @@ describe("ds html helpers", () => {
 		expect(html).toContain("<main>x</main>");
 	});
 
-	it("shellHtml defaults lang=en, theme=tractor-green, assetBase=/_ds", () => {
-		const html = shellHtml({ title: "t", bodyHtml: "" });
+	it("documentHtml defaults lang=en, theme=tractor-green, assetBase=/_ds", () => {
+		const html = documentHtml({ title: "t", bodyHtml: "" });
 
 		expect(html).toContain('lang="en"');
 		expect(html).toContain('data-ds-theme="tractor-green"');

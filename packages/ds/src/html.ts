@@ -1,4 +1,4 @@
-export interface ShellOptions {
+export interface DocumentOptions {
 	title: string;
 	lang?: string;
 	theme?: string;
@@ -87,7 +87,7 @@ export function footerHtml(text: string): string {
 	return `<footer class="ds-footer">${escapeHtml(text)}</footer>`;
 }
 
-export function shellHtml(opts: ShellOptions): string {
+export function documentHtml(opts: DocumentOptions): string {
 	const lang = escapeHtml(opts.lang ?? "en");
 	const theme = escapeHtml(opts.theme ?? "tractor-green");
 	const base = escapeHtml(opts.assetBase ?? "/_ds");

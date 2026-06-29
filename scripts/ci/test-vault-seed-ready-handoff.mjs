@@ -234,6 +234,56 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 	assert.match(formatHandoffMarkdown(manifest), /Consumer proofs:/);
 });
 
+test("uses document wording for ds/html consumer-pull metadata", () => {
+	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-"));
+	const handoffDir = path.join(root, ".refarm/handoff/vault-seed/fixture");
+	mkdirSync(path.join(root, "packages/ds"), { recursive: true });
+	mkdirSync(handoffDir, { recursive: true });
+	writeFileSync(
+		path.join(root, "packages/ds/package.json"),
+		JSON.stringify({ name: "@refarm.dev/ds", version: "0.1.0" }),
+	);
+	writeFileSync(path.join(handoffDir, "refarm.dev-ds-0.1.0.tgz"), "ds");
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: {
+			ok: true,
+			plan: {
+				ok: true,
+				status: "ready",
+				selection: { id: "vault-seed-ready" },
+				orderedNames: ["@refarm.dev/ds"],
+				orderedPackages: [
+					{
+						name: "@refarm.dev/ds",
+						profile: {
+							risk: "shared",
+							tags: ["vault-seed-ready"],
+							mustPassChecks: ["pnpm --filter @refarm.dev/ds run test"],
+						},
+					},
+				],
+				gates: [{ id: "preflight", required: true }],
+				profileTags: ["vault-seed-ready"],
+				publishIntents: [],
+			},
+			commands: [
+				{
+					packageName: "@refarm.dev/ds",
+					packageDir: "packages/ds",
+				},
+			],
+		},
+	});
+
+	assert.equal(manifest.packages[0].consumerPull.proofId, "ds.lab-admin-static-document");
+	assert.match(manifest.packages[0].consumerPull.downstreamUse, /document helpers/);
+	assert.match(manifest.packages[0].consumerPull.proofTarget, /documentHtml/);
+	assert.doesNotMatch(formatHandoffMarkdown(manifest), /html-shell|HTML shell|shell helpers/);
+});
+
 test("keeps current vault-seed-ready selection tied to consumer-pull metadata", () => {
 	const root = process.cwd();
 	const handoffDir = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-empty-"));
