@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgentFinishSessionRecorder } from "../../src/commands/agent-finish-session.js";
 import {
 	createResumeCommand,
+	loadKnownSessionPressureFiles,
 	loadProjectHandoff,
 	loadScheduledWork,
 } from "../../src/commands/resume.js";
@@ -172,6 +173,43 @@ describe("resume command", () => {
 					},
 				],
 			});
+		} finally {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("loads only known local checkpoint files for session pressure", () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-resume-"));
+		try {
+			fs.mkdirSync(path.join(tempDir, "sessions"), { recursive: true });
+			fs.writeFileSync(
+				path.join(tempDir, "sessions", "task-session.v1.json"),
+				JSON.stringify({
+					version: 1,
+					updatedAt: "2026-06-29T00:00:00.000Z",
+					efforts: [],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(tempDir, "sessions", "agent-finish-session.v1.json"),
+				JSON.stringify({ version: 1 }),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(tempDir, "sessions", "unrelated.jsonl"),
+				"must not be discovered",
+				"utf-8",
+			);
+
+			expect(
+				loadKnownSessionPressureFiles(tempDir).map((file) =>
+					path.basename(file.path),
+				),
+			).toEqual([
+				"task-session.v1.json",
+				"agent-finish-session.v1.json",
+			]);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}

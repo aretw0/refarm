@@ -23,6 +23,7 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import {
+	agentFinishSessionFilePath,
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
@@ -43,6 +44,7 @@ import {
 } from "./status.js";
 import {
 	createTaskSessionRecorder,
+	taskSessionFilePath,
 	type TaskSessionCheckpoint,
 	type TaskSessionRecorder,
 } from "./task-session.js";
@@ -215,6 +217,7 @@ export function loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | u
 		const report = buildEnvironmentPressureReport({
 			command: "environment-pressure",
 			operation: "resume",
+			sessionFiles: loadKnownSessionPressureFiles(),
 			guidance: {
 				diskPressureAction:
 					"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
@@ -238,6 +241,28 @@ export function loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | u
 	} catch {
 		return undefined;
 	}
+}
+
+export interface SessionPressureFile {
+	path: string;
+	bytes: number;
+}
+
+export function loadKnownSessionPressureFiles(
+	baseDir?: string,
+): SessionPressureFile[] {
+	return [
+		taskSessionFilePath(baseDir),
+		agentFinishSessionFilePath(baseDir),
+	].flatMap((sessionPath) => {
+		try {
+			const stat = fs.statSync(sessionPath);
+			if (!stat.isFile()) return [];
+			return [{ path: sessionPath, bytes: stat.size }];
+		} catch {
+			return [];
+		}
+	});
 }
 
 export function loadProjectHandoff(

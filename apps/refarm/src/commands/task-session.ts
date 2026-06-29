@@ -15,6 +15,10 @@ import { isFinalEffortStatus } from "./task-status.js";
 const SESSION_VERSION = 1 as const;
 const DEFAULT_MAX_EFFORTS = 25;
 
+export function taskSessionFilePath(baseDir = resolveRefarmHome()): string {
+	return path.join(baseDir, "sessions", "task-session.v1.json");
+}
+
 export type SessionStatus = EffortStatus | "not-found";
 
 export interface TaskSessionModelRoute {
@@ -292,7 +296,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 		private readonly maxEfforts = DEFAULT_MAX_EFFORTS,
 	) {
 		this.sessionsDir = path.join(baseDir, "sessions");
-		this.sessionFilePath = path.join(this.sessionsDir, "task-session.v1.json");
+		this.sessionFilePath = taskSessionFilePath(baseDir);
 	}
 
 	rememberRun(input: { effort: Effort; transport: string }): void {
