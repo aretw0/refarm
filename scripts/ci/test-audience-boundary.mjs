@@ -157,6 +157,33 @@ test("vault-seed-ready README openings stay consumer-neutral", () => {
 	}
 });
 
+test("vault-seed-ready package descriptions stay consumer-neutral", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const forbiddenDescriptions = [
+		/\bRefarm-powered\b/i,
+		/\bRefarm platform\b/i,
+		/\bRefarm consumers\b/i,
+		/\bRefarm and consumer CLIs\b/i,
+		/\bRefarm's\b/i,
+	];
+
+	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
+		candidate.tags?.includes("vault-seed-ready"),
+	)) {
+		const packageDir = profile.id.replace("@refarm.dev/", "");
+		const packageJson = JSON.parse(read(`packages/${packageDir}/package.json`));
+		const description = packageJson.description || "";
+
+		for (const pattern of forbiddenDescriptions) {
+			assert.doesNotMatch(
+				description,
+				pattern,
+				`${profile.id} package description should describe reusable capability, not Refarm-only positioning`,
+			);
+		}
+	}
+});
+
 test("vault-seed-ready README openings promote selected packages, not compatibility subpaths", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const selectedPackageNames = new Set(
