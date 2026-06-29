@@ -2,9 +2,9 @@
 
 Build-free tokenized process helpers for host and consumer CLIs.
 
-This is the leaf package for consumers that only need the
-`@refarm.dev/cli/process-handoff` surface without installing the full Refarm CLI
-dependency closure.
+This is the leaf package for consumers that need structured process specs,
+runner adaptation, detached process starts, or artifact provenance without
+installing a CLI dependency closure.
 
 ## Boundary
 

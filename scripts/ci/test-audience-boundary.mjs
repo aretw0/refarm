@@ -156,3 +156,40 @@ test("vault-seed-ready README openings stay consumer-neutral", () => {
 		}
 	}
 });
+
+test("vault-seed-ready README openings promote selected packages, not compatibility subpaths", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const selectedPackageNames = new Set(
+		config.releasePolicy.packageProfiles
+			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.map((profile) => profile.id),
+	);
+	const forbiddenCompatibilitySubpaths = [
+		{
+			pattern: /@refarm\.dev\/cli\/process-handoff/,
+			requiredPackage: "@refarm.dev/cli",
+		},
+		{
+			pattern: /@refarm\.dev\/homestead\/ssr/,
+			requiredPackage: "@refarm.dev/homestead",
+		},
+	];
+
+	for (const profile of config.releasePolicy.packageProfiles.filter((candidate) =>
+		candidate.tags?.includes("vault-seed-ready"),
+	)) {
+		const packageDir = profile.id.replace("@refarm.dev/", "");
+		const readme = read(`packages/${packageDir}/README.md`);
+		const opening = readme.split("\n## ")[0];
+
+		for (const { pattern, requiredPackage } of forbiddenCompatibilitySubpaths) {
+			if (!selectedPackageNames.has(requiredPackage)) {
+				assert.doesNotMatch(
+					opening,
+					pattern,
+					`${profile.id} README opening should promote its selected leaf package instead of ${requiredPackage} compatibility subpaths`,
+				);
+			}
+		}
+	}
+});
