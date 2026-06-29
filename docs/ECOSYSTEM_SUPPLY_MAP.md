@@ -72,6 +72,7 @@ Refarm internally when that reduces duplicated substrate.
 | Shell / admin UI | `dgk serve` | `@refarm.dev/ds/html` ✅ | Admin UI composes from DS-owned HTML helpers; Homestead SSR package/subpath surfaces were removed pre-publication. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
 | WASM distribution (lab/site) | Marimo (Pyodide) + Astro isolated | Tractor WASM (ADR-049 / ADR-044) ✅ substrate | Refarm learns from Marimo / Astro 7 and becomes the shared substrate. |
+| Reference agent driver | ad hoc agent loops, `dgk` orchestration ideas, worker delegation | `@refarm.dev/cli/capability-index` ✅ + `@refarm.dev/cli/interaction-driver` ✅ + `@refarm.dev/cli/worker-profile` ✅; `@refarm.dev/pi-agent` held | Supply the embeddable ask/worker/session/tool contracts first. Runtime execution stays private until policy, cancellation, observability, cost, and plugin artifact proofs are boring. Consumers keep their own command labels and product UX. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
 | `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/process-handoff` ✅ (`@refarm.dev/cli/process-handoff` re-exports it for compatibility), artifact/channel/release/source primitives next | `dgk` is powered by Refarm where practical: imports Refarm SDK primitives internally while keeping its package, binary, command UX, audience, and product labels. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
@@ -109,6 +110,12 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `dgk-runner`/`dgk-cli` internals; release/source/artifact primitives → `dgk` operations.
    Promote whenever the duplicated substrate can be consumer-neutral and the `dgk` public
    surface remains product-owned.
+9. Reference-driver contracts advance through the package layer before runtime
+   fanout. `@refarm.dev/cli/capability-index` is the discovery surface,
+   `@refarm.dev/cli/interaction-driver` is the ask-loop promotion contract, and
+   `@refarm.dev/cli/worker-profile` is the plan-only worker contract. The
+   `runtime-agent`/`pi-agent` execution package remains private until the
+   daily-driver proofs and plugin artifact policy justify publication.
 
 ## Librarian follow-up
 
