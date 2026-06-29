@@ -131,7 +131,7 @@ const profile = createWorkerProfile({
 });
 
 const descriptor = createWorkerToolDescriptor(profile, {
-	name: "agent.planReview",
+	name: "worker.planReview",
 	inputFields: ["task", "scope"],
 });
 

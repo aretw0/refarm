@@ -109,14 +109,14 @@ describe("worker profile contract", () => {
 			},
 		});
 		const descriptor = createWorkerToolDescriptor(profile, {
-			name: "agent.planReview",
+			name: "worker.planReview",
 			maxTurns: 2,
 			inputFields: ["task", "scope"],
 		});
 
 		expect(descriptor).toMatchObject({
 			schemaVersion: 1,
-			name: "agent.planReview",
+			name: "worker.planReview",
 			profile,
 			budget: { maxTurns: 2, maxParallel: 2 },
 			invocation: {
@@ -235,7 +235,7 @@ describe("worker profile contract", () => {
 			},
 		});
 		const descriptor = createWorkerToolDescriptor(profile, {
-			name: "agent.planReview",
+			name: "worker.planReview",
 		});
 
 		const result = createWorkerToolResult(descriptor, {
@@ -251,7 +251,7 @@ describe("worker profile contract", () => {
 
 		expect(result).toMatchObject({
 			schemaVersion: 1,
-			descriptorName: "agent.planReview",
+			descriptorName: "worker.planReview",
 			profileId: "worker.plan-review",
 			status: "completed",
 			handoffs: [
@@ -278,7 +278,7 @@ describe("worker profile contract", () => {
 			},
 		});
 		const descriptor = createWorkerToolDescriptor(profile, {
-			name: "agent.audit",
+			name: "worker.audit",
 		});
 
 		expect(
