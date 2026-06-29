@@ -107,6 +107,7 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 	]);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead-ssr"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead"), false);
+	assert.equal(check.plan.orderedNames.includes("@refarm.dev/launch-process"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/config"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/trust"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/cli"), false);
