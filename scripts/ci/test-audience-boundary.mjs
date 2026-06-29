@@ -83,6 +83,19 @@ test("convergence docs keep apps as thin block consumers", () => {
 	assert.match(convergence, /reusable capability\s+belongs outside the app boundary/i);
 });
 
+test("ecosystem supply map keeps reference driver package-first", () => {
+	const supplyMap = read("docs/ECOSYSTEM_SUPPLY_MAP.md");
+
+	assert.match(supplyMap, /Reference agent driver/);
+	assert.match(supplyMap, /@refarm\.dev\/cli\/capability-index/);
+	assert.match(supplyMap, /@refarm\.dev\/cli\/interaction-driver/);
+	assert.match(supplyMap, /@refarm\.dev\/cli\/worker-profile/);
+	assert.match(supplyMap, /@refarm\.dev\/pi-agent` held/);
+	assert.match(supplyMap, /Consumers keep their own command labels and product UX/);
+	assert.match(supplyMap, /The\s+`runtime-agent`\/`pi-agent` execution package remains private/);
+	assert.doesNotMatch(supplyMap, /reference-driver.*apps\/refarm/i);
+});
+
 test("release policy keeps SDK primitives behind explicit audience boundaries", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;
