@@ -129,3 +129,30 @@ test("release-engine docs keep host integration product-neutral", () => {
 	assert.match(readme, /host\/control-plane consumidor/);
 	assert.match(readme, /incluindo `apps\/refarm`/);
 });
+
+test("vault-seed-ready README openings stay consumer-neutral", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const profiles = config.releasePolicy.packageProfiles.filter((profile) =>
+		profile.tags?.includes("vault-seed-ready"),
+	);
+	const forbiddenOpening = [
+		/\bRefarm platform\b/,
+		/\bRefarm consumers\b/,
+		/\bRefarm and consumer CLIs\b/,
+		/\bRefarm's sovereign cryptographic core\b/,
+	];
+
+	for (const profile of profiles) {
+		const packageDir = profile.id.replace("@refarm.dev/", "");
+		const readme = read(`packages/${packageDir}/README.md`);
+		const opening = readme.split("\n## ")[0];
+
+		for (const pattern of forbiddenOpening) {
+			assert.doesNotMatch(
+				opening,
+				pattern,
+				`${profile.id} README opening should describe reusable capability, not Refarm-only positioning`,
+			);
+		}
+	}
+});

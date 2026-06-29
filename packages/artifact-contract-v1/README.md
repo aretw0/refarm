@@ -1,6 +1,7 @@
 # @refarm.dev/artifact-contract-v1
 
-Shared lifecycle base types for managed artifacts in the Refarm platform.
+Shared lifecycle base types for managed artifacts across host and consumer
+projects.
 
 ## Types
 
