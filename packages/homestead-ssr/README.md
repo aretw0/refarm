@@ -21,3 +21,13 @@ const html = shellHtml({
 	bodyHtml,
 });
 ```
+
+## Isomorphic: SSR is the primary use, not the only one
+
+The render helpers (`@refarm.dev/homestead-ssr/render`) and the document shell
+are pure, dependency-free HTML-string functions — they import no Node built-ins
+(locked by `isolation.test.ts`). So beyond server-side rendering, a consumer can
+serve `dist/render.js` to the browser and call the same `cardHtml` / `tableHtml`
+/ … client-side, producing identical `@refarm.dev/ds`-classed markup on both
+sides with no duplicate render logic. SSR is the headline use; the helpers are
+not server-only.
