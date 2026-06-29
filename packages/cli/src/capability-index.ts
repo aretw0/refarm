@@ -148,6 +148,13 @@ export interface ReferenceDriverSupplyPreflightSummary {
 	count: number;
 }
 
+export interface ReferenceDriverSupplyPreflightProofSummary {
+	blockedTargetCount: number;
+	targetsWithPromotionProofTargets: number;
+	uniquePromotionProofTargetCount: number;
+	targetsWithBudgetContract: number;
+}
+
 export interface ReferenceDriverSupplyPreflight {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 	source: "@refarm.dev/cli/capability-index";
@@ -155,6 +162,7 @@ export interface ReferenceDriverSupplyPreflight {
 	adoptionCriteria: readonly ReferenceDriverAdoptionCriterion[];
 	targets: readonly ReferenceDriverSupplyPreflightTarget[];
 	summary: readonly ReferenceDriverSupplyPreflightSummary[];
+	proofSummary: ReferenceDriverSupplyPreflightProofSummary;
 	nextDecisions: readonly {
 		capabilityId: string;
 		nextDecision: string;
@@ -974,6 +982,9 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 				...target,
 			})),
 	);
+	const uniquePromotionProofTargets = new Set(
+		targets.flatMap((target) => target.promotionProofTargets),
+	);
 
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -985,6 +996,16 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 			status,
 			count: targets.filter((target) => target.status === status).length,
 		})),
+		proofSummary: {
+			blockedTargetCount: targets.length,
+			targetsWithPromotionProofTargets: targets.filter(
+				(target) => target.promotionProofTargets.length > 0,
+			).length,
+			uniquePromotionProofTargetCount: uniquePromotionProofTargets.size,
+			targetsWithBudgetContract: targets.filter(
+				(target) => target.budgetContract !== undefined,
+			).length,
+		},
 		nextDecisions: supplyMap.entries.map((entry) => ({
 			capabilityId: entry.capabilityId,
 			nextDecision: entry.nextDecision,

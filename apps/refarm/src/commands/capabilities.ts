@@ -117,10 +117,14 @@ function formatReferenceDriverSupplyPreflight(
 	const summary = preflight.summary
 		.map((entry) => `${entry.status}: ${entry.count}`)
 		.join(", ");
+	const proofSummary = preflight.proofSummary;
 	return [
 		"",
 		chalk.bold("Supply preflight"),
 		chalk.dim(`mode: ${preflight.mode}; ${summary}`),
+		chalk.dim(
+			`proofs: blocked targets ${proofSummary.blockedTargetCount}; with proofs ${proofSummary.targetsWithPromotionProofTargets}; unique proof targets ${proofSummary.uniquePromotionProofTargetCount}; budget contracts ${proofSummary.targetsWithBudgetContract}`,
+		),
 		...preflight.nextDecisions.map((entry) =>
 			chalk.dim(`  ${entry.capabilityId}: ${entry.nextDecision}`),
 		),

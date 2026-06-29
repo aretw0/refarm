@@ -354,6 +354,7 @@ export type {
 	ReferenceDriverSupplyEntry,
 	ReferenceDriverSupplyMap,
 	ReferenceDriverSupplyPreflight,
+	ReferenceDriverSupplyPreflightProofSummary,
 	ReferenceDriverSupplyPreflightSummary,
 	ReferenceDriverSupplyPreflightTarget,
 	RefarmCapabilityActivation,
