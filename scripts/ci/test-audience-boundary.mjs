@@ -119,3 +119,13 @@ test("vault-seed-ready packages declare consumer-pulled intent", () => {
 		);
 	}
 });
+
+test("release-engine docs keep host integration product-neutral", () => {
+	const roadmap = read("packages/release-engine/ROADMAP.md");
+	const readme = read("packages/release-engine/README.md");
+
+	assert.doesNotMatch(roadmap, /controle de release por vault/i);
+	assert.match(roadmap, /host\/control-plane consumidor/);
+	assert.match(readme, /host\/control-plane consumidor/);
+	assert.match(readme, /incluindo `apps\/refarm`/);
+});

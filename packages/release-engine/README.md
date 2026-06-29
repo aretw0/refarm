@@ -67,8 +67,8 @@ Integração CI recomendada:
 4. Executar publicação apenas no workflow/host que possui credenciais e aprovação.
 
 O pacote não deve acessar `NPM_TOKEN`, GitHub Releases, crates.io ou canais. Esses
-adaptadores pertencem ao control-plane (`apps/refarm`, workflows, ou consumidores
-futuros) e consomem a saída versionada do engine.
+adaptadores pertencem ao host/control-plane consumidor, como workflows ou uma
+aplicação de operador, e consomem a saída versionada do engine.
 
 O exemplo canônico de provider changesets fica em
 `examples/release-provider-changesets`. Ele é um pacote-modelo privado para
@@ -186,9 +186,12 @@ que também é incluído no pacote publicado.
 ### Arquitetura de controle operacional
 
 - O `release-engine` permanece neutro; não conhece Telegram/Matrix/Cascade ou outro canal.
-- Um control-plane host (ex.: `apps/refarm`) escolhe quais repositórios/políticas executar e invoca a API pública do pacote.
+- Um host/control-plane consumidor escolhe quais repositórios/políticas executar
+  e invoca a API pública do pacote.
 - `refarm release plan --cwd <repo> --selection default --json` é a superfície operacional inicial para aplicar a mesma política em outros workspaces sem acoplar o engine a um produto.
-- A integração em `apps/refarm` deve ser não bloqueante: se a seleção externa falhar, o host reporta blockers e `nextCommands`; não transforma ausência de policy downstream em publish local.
+- A integração em qualquer host, incluindo `apps/refarm`, deve ser não
+  bloqueante: se a seleção externa falhar, o host reporta blockers e
+  `nextCommands`; não transforma ausência de policy downstream em publish local.
 - Dessa forma, a integração de canais futuros fica concentrada no host/entrada (bot/adaptador), mantendo o pacote reutilizável.
 
 ## Próximos passos

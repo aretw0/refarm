@@ -72,7 +72,9 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
       público para consumidores de máquina.
 
 ### DDD (Domain Delivery)
-- [x] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.
+- [x] Documentar integração de providers via host/control-plane consumidor em
+      modo não bloqueante, sem acoplar o engine ao `apps/refarm` ou a um produto
+      vault.
 - [x] Adicionar `CHANGELOG` inicial (`0.0.1-dev` → `0.1.0-dev`) com disciplina de semver.
 - [x] Definir pacote de exemplo `release-provider` canônico (changesets) sem alterar engine principal.
 - [x] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
