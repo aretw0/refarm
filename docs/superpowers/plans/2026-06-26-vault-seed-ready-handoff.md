@@ -4,6 +4,12 @@
 > release-policy selection before public publication or official downstream
 > assimilation.
 
+> Current-state note (2026-06-29): this plan captured the historical 2026-06-26
+> packet, when `homestead-ssr` was still present. ADR-072 removed
+> `homestead-ssr` pre-publication, so the active `vault-seed-ready` selection is
+> now 9 packages and 20 required checks. Use the generated handoff manifest as
+> the source of truth for current package lists.
+
 ## Task 1 - Selection Parity
 
 - [x] Confirm `node scripts/release-check.mjs --selection vault-seed-ready --plan --json`

@@ -23,6 +23,14 @@ const crossRepoConsumptionDoc = readFileSync(
 	path.join(ROOT, "docs/DEV_CROSS_REPO_CONSUMPTION.md"),
 	"utf8",
 );
+const releaseGateDoc = readFileSync(
+	path.join(ROOT, "docs/v0.1.0-release-gate.md"),
+	"utf8",
+);
+const vaultSeedHandoffPlan = readFileSync(
+	path.join(ROOT, "docs/superpowers/plans/2026-06-26-vault-seed-ready-handoff.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -115,4 +123,18 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 	assert.match(crossRepoConsumptionDoc, /consumerInstall\.pnpmOverrides/);
 	assert.match(crossRepoConsumptionDoc, /consumerProofs/);
 	assert.doesNotMatch(crossRepoConsumptionDoc, /`@refarm\.dev\/ds`, `\/homestead`, `\/silo`/);
+});
+
+test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
+	const currentSelection = releaseSelectionNames("vault-seed-ready");
+	assert.equal(currentSelection.length, 9);
+
+	assert.match(releaseGateDoc, /current 9-package selection/);
+	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
+	assert.match(
+		releaseGateDoc,
+		/ADR-072 superseded that packet before\s+publication/,
+	);
+	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
+	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 9 packages and 20 required checks/);
 });
