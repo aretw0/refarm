@@ -25,11 +25,11 @@
 		"@refarm.dev/policy-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20241106.0",
+		"@cloudflare/workers-types": "^4.20260629.1",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"typescript": "catalog:",
-		"wrangler": "^4.103.0"
+		"wrangler": "^4.105.0"
 	}
 }
