@@ -75,13 +75,18 @@ or invoking a provider:
 
 ```ts
 import {
-	buildRefarmCapabilityIndex,
+	buildCapabilityIndex,
 	buildReferenceDriverSupplyMap,
 } from "@refarm.dev/cli/capability-index";
 
-const index = buildRefarmCapabilityIndex();
+const index = buildCapabilityIndex();
 const referenceDriverSupply = buildReferenceDriverSupplyMap();
 ```
+
+`buildRefarmCapabilityIndex()` and `getRefarmCapabilityDescriptors()` remain as
+compatibility aliases for callers that already adopted the original names. New
+consumer code should prefer `buildCapabilityIndex()` and
+`getCapabilityDescriptors()`.
 
 The CLI exposes the same static posture for agents and downstream scripts that
 cannot import the package yet:
