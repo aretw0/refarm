@@ -1,6 +1,6 @@
 # @refarm.dev/release-engine
 
-> Nota arquitetônica: este pacote é deliberadamente genérico. A política concreta de cada repositório fica no próprio `releasePolicy` da configuração estratégica (p.ex. `refarm.config.json` no Refarm).
+> Nota arquitetônica: este pacote é deliberadamente genérico. A política concreta de cada repositório fica no próprio `releasePolicy` da configuração estratégica (p.ex. `refarm.config.json` no host).
 
 Solução de propósito geral para **planejamento e policy de release** de projetos.
 
@@ -78,7 +78,7 @@ engine principal nem executa publicação.
 ## Uso sem publicar (fase local)
 
 - O pacote foi criado para ser testado em outros projetos antes de publicação do npm:
-  - mantenha o projeto consumidor com a dependência apontando para a fonte local do repositório Refarm (ex.: `workspace:*` em monorepo, ou `link:`/`file:` durante calibração),
+  - mantenha o projeto consumidor com a dependência apontando para a fonte local do fornecedor do engine (ex.: `workspace:*` em monorepo, ou `link:`/`file:` durante calibração),
   - declare `releasePolicy` em `refarm.config.json`,
   - importe a API pública por package name (`@refarm.dev/release-engine`) ou use `refarm release` como control-plane.
 
@@ -89,7 +89,7 @@ O `src/cli.mjs` é mantido para smoke local do pacote. Não o trate como entrypo
 ## Uso rápido
 
 ```bash
-# plano operacional via Refarm (usa refarm.config.json por padrão)
+# plano operacional via host CLI (usa refarm.config.json por padrão)
 refarm release plan --json
 
 # plano por seleção declarada na política
