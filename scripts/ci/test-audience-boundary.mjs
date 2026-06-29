@@ -115,6 +115,42 @@ test("superseded homestead ssr docs stay non-executable", () => {
 	assert.doesNotMatch(runbook, /vault-seed` `serve\.js` rebuilt on the tier/);
 });
 
+test("ds html active handoff docs use static document naming", () => {
+	const activeDocs = [
+		"packages/ds/README.md",
+		"docs/DEV_CROSS_REPO_CONSUMPTION.md",
+		"docs/VAULT_SEED_CONVERGENCE.md",
+		"docs/v0.1.0-release-gate.md",
+		"docs/ECOSYSTEM_SUPPLY_MAP.md",
+		"scripts/vault-seed-ready-handoff.mjs",
+	];
+	const forbidden = [
+		/\bshellHtml\b/,
+		/\bShellOptions\b/,
+		/html-shell/i,
+		/HTML shell/i,
+		/shell helpers/i,
+		/render a `verde-jardim` shell/i,
+		/DS HTML helpers/,
+	];
+
+	for (const file of activeDocs) {
+		const contents = read(file);
+		assert.match(
+			contents,
+			/documentHtml|static document|document helpers/,
+			`${file} should expose ds/html as a static document helper`,
+		);
+		for (const pattern of forbidden) {
+			assert.doesNotMatch(
+				contents,
+				pattern,
+				`${file} should not reintroduce Homestead shell vocabulary for ds/html`,
+			);
+		}
+	}
+});
+
 test("release policy keeps SDK primitives behind explicit audience boundaries", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;
