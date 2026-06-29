@@ -521,9 +521,18 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "npm",
+				name: "@refarm.dev/cli worker profile SDK",
+				export: "@refarm.dev/cli/worker-profile",
+				path: "packages/cli/src/worker-profile.ts",
+				status: "exported",
+				note:
+					"Dedicated worker profile subpath for consumers that only need bounded delegated-worker descriptors, readiness blockers, and result envelopes.",
+			},
+			{
+				channel: "npm",
 				name: "@refarm.dev/cli worker result envelope",
-				export: "@refarm.dev/cli",
-				path: "packages/cli/src/index.ts",
+				export: "@refarm.dev/cli/worker-profile",
+				path: "packages/cli/src/worker-profile.ts",
 				status: "exported",
 				note:
 					"Worker result envelope requires compact summaries, declared output fields, handoffs, and issues for non-completed statuses; also available through @refarm.dev/cli/worker-profile.",
