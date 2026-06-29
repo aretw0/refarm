@@ -171,6 +171,14 @@ gateway contract, and budget/observability handoffs. Consumers such as `dgk`,
 `vault-seed`, and future `agents-lab` integrations keep product routes, labels,
 copy, and UX while importing the Refarm engine contracts that satisfy the bar.
 
+Current proof (2026-06-29): `refarm capabilities --supply-preflight
+reference-driver --json` now exposes the plan-only blocked posture from the same
+capability-index SDK. This gives downstream tools a cheap way to see candidate,
+internal, and held reference-driver targets plus next decisions without invoking
+the release planner or loading this research note. Exported SDK targets remain
+visible in the full supply map; the preflight deliberately focuses attention on
+what still must not be treated as public runtime engine supply.
+
 ## Refarm Driver Nucleus
 
 The next product shape should be "Refarm as engine, CLI/app as shells":

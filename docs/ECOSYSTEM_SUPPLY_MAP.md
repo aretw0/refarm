@@ -120,7 +120,10 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    lifecycle events, session portability, steering/cancellation, worker
    isolation, policy-before-hooks, skill/plugin packaging, gateway parity, and
    budget/observability evidence must be satisfied before runtime execution
-   becomes public engine supply.
+   becomes public engine supply. `refarm capabilities --supply-preflight
+   reference-driver --json` exposes the plan-only candidate/internal/hold
+   posture for consumers that need to avoid treating private runtime targets as
+   published supply.
 
 Boundary note: the capability index is a supply/readiness index, not Barn's
 plugin catalog. `@refarm.dev/plugin-manifest` remains the authority for

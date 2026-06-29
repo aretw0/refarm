@@ -129,6 +129,47 @@ describe("capabilities command", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints reference-driver supply preflight for downstream consumers", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--supply-preflight",
+			"reference-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			supplyPreflight: {
+				surface: string;
+				preflight: {
+					mode: string;
+					summary: Array<{ status: string; count: number }>;
+					targets: Array<{ capabilityId: string; status: string }>;
+					nextDecisions: Array<{ capabilityId: string }>;
+				};
+			};
+		};
+		expect(payload.supplyPreflight).toMatchObject({
+			surface: "reference-driver",
+			preflight: {
+				mode: "plan-only",
+				summary: [
+					{ status: "candidate", count: 3 },
+					{ status: "internal", count: 3 },
+					{ status: "hold", count: 5 },
+				],
+			},
+		});
+		expect(
+			payload.supplyPreflight.preflight.targets.map((target) => target.status),
+		).not.toContain("exported");
+		expect(payload.supplyPreflight.preflight.nextDecisions).toHaveLength(5);
+		logSpy.mockRestore();
+	});
+
 	it("filters capabilities by tag", async () => {
 		const logs: string[] = [];
 		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {

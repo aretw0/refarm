@@ -78,10 +78,12 @@ or invoking a provider:
 import {
 	buildCapabilityIndex,
 	buildReferenceDriverSupplyMap,
+	buildReferenceDriverSupplyPreflight,
 } from "@refarm.dev/cli/capability-index";
 
 const index = buildCapabilityIndex();
 const referenceDriverSupply = buildReferenceDriverSupplyMap();
+const referenceDriverPreflight = buildReferenceDriverSupplyPreflight();
 ```
 
 `buildRefarmCapabilityIndex()` and `getRefarmCapabilityDescriptors()` remain as
@@ -94,6 +96,7 @@ cannot import the package yet:
 
 ```bash
 refarm capabilities --tag reference-driver --supply reference-driver --json
+refarm capabilities --supply-preflight reference-driver --json
 ```
 
 The supply map is intentionally conservative. Today it marks
@@ -112,6 +115,10 @@ work: structured lifecycle events, resumable sessions, steering/cancellation,
 bounded worker isolation, policy-before-hooks, skills/plugins as package
 surfaces, gateway parity, and budget/observability must be proven before a
 runtime primitive moves from candidate or hold into public engine supply.
+The supply preflight is the compact plan-only view for agents and consumers that
+only need blocked posture: candidate, internal, and hold targets plus the next
+decision for each reference-driver primitive. It omits exported SDK targets so
+consumers can focus on what still must not be treated as public engine runtime.
 
 This is not the plugin capability catalog. `@refarm.dev/plugin-manifest` owns
 plugin-declared `capabilities.provides` / `capabilities.requires` and runtime
