@@ -2,6 +2,28 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Pears distributed runtime reference
+
+**Date**: 2026-06-30
+**Status**: Accepted
+**ADR**: [ADR-075](../specs/ADRs/ADR-075-pears-distributed-runtime-reference.md)
+**References**: Pears/Holepunch docs, ADR-046, ADR-049, ADR-070, ADR-074
+
+**Decision**: Refarm will use Pears/Holepunch as a distributed runtime reference model:
+portable core, thin platform-specific surfaces, explicit peer/distribution availability, and
+release/update trust evidence. This is an architectural influence, not a dependency decision.
+
+Refarm keeps Tractor, Loro/SQLite, WIT/component boundaries, `dispatch-surface`, and the existing
+package/contract strategy as its implementation path. Bare, Hypercore, Hyperdrive, Corestore,
+Hyperswarm, HyperDHT, and Pear runtime APIs are research references until a focused proof and
+consumer pressure justify more.
+
+**Near-term impact**: continue ADR-074 through the remote workspace proof, grow typed host/core
+seams through task/process/stream/artifact contracts, and add availability/distribution evidence
+before claiming P2P-style install/update reach.
+
+---
+
 ## Remote workspace control plane
 
 **Date**: 2026-06-30

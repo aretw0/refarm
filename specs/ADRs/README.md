@@ -60,6 +60,7 @@ Architecture Decision Records for Refarm.
 | [072](ADR-072-consumer-leaf-distribution-policy.md)            | Consumer Leaf Distribution Policy                                                 | Accepted   | 2026-06-29 |
 | [073](ADR-073-capability-index-incubation-boundary.md)         | Capability Index Incubation Boundary                                              | Accepted   | 2026-06-30 |
 | [074](ADR-074-remote-workspace-control-plane.md)               | Remote Workspace Control Plane                                                    | Accepted   | 2026-06-30 |
+| [075](ADR-075-pears-distributed-runtime-reference.md)          | Pears as Distributed Runtime Reference                                             | Accepted   | 2026-06-30 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
