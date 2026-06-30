@@ -225,6 +225,40 @@ export async function runSkillContractV1Conformance(
 	}
 
 	total++;
+	if (manifest) {
+		try {
+			const surfaceResult = await adapter.buildSurfaceDeclaration(manifest, {
+				assetPath: "skills/refarm-git-workflow/SKILL.md",
+			});
+			if (!surfaceResult.ok || !surfaceResult.surface) {
+				failures.push(`valid manifest could not produce activation surface: ${formatIssues(surfaceResult.issues)}`);
+			} else {
+				const result = await adapter.evaluateActivationPreflight(manifest, surfaceResult.surface, {
+					approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+					availableEngineBindings: ["runtime-agent", "source:v1"],
+					install: {
+						pluginManifestValid: true,
+						integrityVerified: true,
+						policyAccepted: true,
+					},
+				});
+				if (!result.ok || !result.preflight) {
+					failures.push(`valid manifest did not pass activation preflight: ${formatIssues(result.issues)}`);
+				} else {
+					if (result.preflight.schema !== "refarm.skill-activation-preflight.v1") {
+						failures.push("activation preflight schema must be refarm.skill-activation-preflight.v1");
+					}
+					if (result.preflight.state !== "ready" || result.preflight.readyForRuntimeDispatch !== true) {
+						failures.push("activation preflight must mark complete evidence as runtime-ready");
+					}
+				}
+			}
+		} catch (error) {
+			failures.push(`evaluateActivationPreflight(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
 	try {
 		const result = await adapter.prepareInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",

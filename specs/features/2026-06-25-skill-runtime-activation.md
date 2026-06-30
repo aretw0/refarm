@@ -32,7 +32,9 @@ Start this item only when all are true:
    upstream source evidence plus a `source:v1` receipt without installing or executing the
    external skill, and `native:skills:dgk-vault-search-smoke` records the same wrapper/evidence
    pattern plus a package-declared `pi/skill` surface for `vault-seed`'s
-   `dgk-skills/vault-search` without executing `dgk` or Obsidian CLI.
+   `dgk-skills/vault-search` without executing `dgk` or Obsidian CLI. The
+   wrapper smoke now also records activation preflight as blocked until
+   integrity and install policy evidence exist.
 
 ## Scope
 
@@ -65,6 +67,6 @@ only supplies the runtime envelope.
   `native:skills:source-engine-smoke` records source-engine evidence first,
   `native:skills:agents-lab-git-workflow-smoke` proves the external wrapper pattern, and
   `native:skills:dgk-vault-search-smoke` closes the first DGK wrapper fixture proof and validates
-  its package-declared skill surface. Runtime-host execution and direct DGK fixture comparison
-  still remain after install/policy gates.
+  its package-declared skill surface. It also records the activation preflight blocker explicitly.
+  Runtime-host execution and direct DGK fixture comparison still remain after install/policy gates.
 - No import from `vault-seed` product paths appears in Refarm runtime code.

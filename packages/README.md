@@ -56,7 +56,9 @@ uses `source:v1` through `@refarm.dev/source-local`; external `dgk-skills` or
 installing or executing the external skill; the first DGK `vault-search`
 wrapper smoke records upstream `vault-seed` source evidence and validates a
 package-declared `pi/skill` surface without executing `dgk` or Obsidian CLI.
-Runtime-host execution and install policy remain the next promotion gates.
+It also records activation preflight as blocked until integrity and install
+policy evidence exist. Runtime-host execution and install policy remain the next
+promotion gates.
 
 It is deliberately not a second plugin system. Packages and plugin manifests
 remain the distribution/trust boundary; skills are declared as surfaces or

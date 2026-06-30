@@ -11,6 +11,7 @@ export {
 	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
+	evaluateSkillActivationPreflight,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationDecision,
@@ -23,6 +24,11 @@ export {
 } from "./manifest.js";
 export type {
 	SkillCapabilityEnvelope,
+	SkillActivationInstallEvidence,
+	SkillActivationPreflightBuildResult,
+	SkillActivationPreflightOptions,
+	SkillActivationPreflightState,
+	SkillActivationPreflightV1,
 	SkillContractV1Adapter,
 	SkillContractV1ConformanceResult,
 	SkillEngineBindingEnvelope,
@@ -64,6 +70,7 @@ export type {
 	SkillToolAccess,
 } from "./types.js";
 export {
+	SKILL_ACTIVATION_PREFLIGHT_SCHEMA,
 	SKILL_CAPABILITY,
 	SKILL_INVOCATION_DECISION_SCHEMA,
 	SKILL_INVOCATION_PLAN_SCHEMA,

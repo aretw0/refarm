@@ -87,6 +87,16 @@ test("DGK vault-search smoke wraps external skill evidence without installing or
 		"refarm.operator-loop",
 		"source:v1",
 	]);
+	assert.equal(result.activationPreflight.schema, "refarm.skill-activation-preflight.v1");
+	assert.equal(result.activationPreflight.state, "blocked");
+	assert.equal(result.activationPreflight.readyForRuntimeDispatch, false);
+	assert.deepEqual(
+		result.activationPreflight.issues.map((item) => item.code),
+		[
+			"ACTIVATION_INTEGRITY_NOT_VERIFIED",
+			"ACTIVATION_POLICY_NOT_ACCEPTED",
+		],
+	);
 	assert.deepEqual(result.plan.capabilityRequests, [
 		{ id: "refarm.operator-loop", required: true },
 		{ id: "source:v1", required: true },
@@ -106,8 +116,10 @@ test("DGK vault-search smoke wraps external skill evidence without installing or
 	assert.match(result.receipt.output.body, /DGK vault-search wrapper evidence/);
 	assert.match(result.boundaries.join("\n"), /does not execute dgk/);
 	assert.match(result.boundaries.join("\n"), /package skill surface/);
+	assert.match(result.boundaries.join("\n"), /activation preflight as blocked/);
 	assert.match(result.nextActions.join("\n"), /first external skill fixture proof/);
 	assert.match(result.nextActions.join("\n"), /package-declared pi\/skill surface/);
+	assert.match(result.nextActions.join("\n"), /activation preflight/);
 	assert.deepEqual(result.issues, []);
 });
 
