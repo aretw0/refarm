@@ -43,22 +43,22 @@ surface ships complete and stable. Every item below is backed by the 2026-06-29 
 `specs/features/2026-06-26-vault-seed-silo-bridge.md` (Consumer Findings).
 
 ### Storage / identity closure split — **ADR-076**
-- [ ] `.` export (`SiloCore` storage) free of a static `key-manager.js` import; `bootstrapIdentity`
+- [x] `.` export (`SiloCore` storage) free of a static `key-manager.js` import; `bootstrapIdentity`
   loads `KeyManager` dynamically (matching how `key-manager.js` already defers `heartwood`).
-- [ ] `@refarm.dev/heartwood` becomes an `optionalDependency` (or optional peer), required only by
+- [x] `@refarm.dev/heartwood` becomes an `optionalDependency` (or optional peer), required only by
   the `./key-manager` identity surface. A `channel`/`publishing` consumer installs without the WASM
   closure — "light by default".
-- [ ] Test: importing `@refarm.dev/silo` + `saveSecret`/`loadSecret` never resolves `heartwood`.
+- [x] Test: importing `@refarm.dev/silo` + `saveSecret`/`loadSecret` never resolves `heartwood`.
 
 ### Namespaced bulk operations
-- [ ] `listSecrets(namespace): Promise<Record<id, value>>` — enumerate a namespace (consumer status
+- [x] `listSecrets(namespace): Promise<Record<id, value>>` — enumerate a namespace (consumer status
   views need it; no single-key form exists today).
-- [ ] `removeSecret(namespace, id)` — delete one secret; consumers compose service-level removal.
-- [ ] Tests: enumeration scoped to one namespace; two namespaces never collide.
+- [x] `removeSecret(namespace, id)` — delete one secret; consumers compose service-level removal.
+- [x] Tests: enumeration scoped to one namespace; two namespaces never collide.
 
 ### Storage hardening (security now, before OPAQUE)
-- [ ] Write the secret file `0600` and its directory `0700`, with a Windows/no-POSIX no-op guard.
-- [ ] Test: file lands `0600` on POSIX.
+- [x] Write the secret file `0600` and its directory `0700`, with a Windows/no-POSIX no-op guard.
+- [x] Test: file lands `0600` on POSIX.
 
 ### Collection contract — multi-field services
 - [ ] Resolve the single-value `collect(ctx): Promise<string>` vs multi-field services (telegram =

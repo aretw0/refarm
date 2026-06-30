@@ -13,21 +13,24 @@ helpers if the consumer proof shows unavoidable repeated logic.
 
 **Spec:** `specs/features/2026-06-26-vault-seed-silo-bridge.md`
 
-**Reconciled 2026-06-26:** The Refarm-side package proof stayed adapter-only;
-no new `@refarm.dev/silo` helper API was needed. The current handoff tarballs are:
+**Reconciled 2026-06-26:** The first Refarm-side package proof stayed
+adapter-only; no new `@refarm.dev/silo` helper API was needed for that handoff.
+The current historical handoff tarballs are:
 
 - `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-silo-0.1.0.tgz`
   (`sha256 3335f225a6161769c1e44ff199007c3accf1f51aa69a4b5d0a1bd71be26189d5`);
 - `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-heartwood-0.1.0.tgz`
   (`sha256 0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf`).
 
-Pre-publication consumers should install `@refarm.dev/silo` from the local
-tarball and override the unpublished transitive `@refarm.dev/heartwood` package
-to the matching local tarball. The temporary consumer proof saved
-`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and a collected dry-run value under
-namespace `publishing`, verified they did not enter the flat `tokens` map or the
-`model` namespace, and confirmed the installed dependency tree was only
-`@refarm.dev/silo -> @refarm.dev/heartwood`.
+Pre-publication storage-only consumers should install `@refarm.dev/silo` from
+the local tarball without pulling the identity/Heartwood closure. Consumers that
+call `bootstrapIdentity()` should also install the matching local
+`@refarm.dev/heartwood` tarball as the optional identity substrate. The
+temporary consumer proof saved `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and a
+collected dry-run value under namespace `publishing`, verified they did not
+enter the flat `tokens` map or the `model` namespace, and now treats
+`@refarm.dev/silo` storage as the base package while `@refarm.dev/heartwood`
+belongs to the identity path.
 
 ## Global Constraints
 
@@ -100,9 +103,13 @@ pnpm -C packages/silo run test
   metadata changes.
 - [x] **Step 4:** Run `refarm agent finish --lane after-edit --run --json` before committing.
 
-No helper API was required. Validation was run with direct local binaries after
-the lockfile changed, to avoid `pnpm run` triggering a broad install in the
-restricted container:
+2026-06-29 follow-up: the downstream proof showed repeated namespace operations
+that belong in `@refarm.dev/silo` rather than every consumer. Refarm added
+`listSecrets(namespace)`, `removeSecret(namespace, id)`, owner-only storage
+modes, and the ADR-076 storage/identity closure split.
+
+Earlier validation was run with direct local binaries after the lockfile changed,
+to avoid `pnpm run` triggering a broad install in the restricted container:
 
 ```bash
 ./node_modules/.bin/eslint packages/silo/src
@@ -129,9 +136,10 @@ Telegram adapter behavior stay out of this bridge.
 
 **Spec coverage:** one bridge only -> global constraints; two consumers -> `apps/refarm` already uses
 `@refarm.dev/silo` and `vault-seed` becomes the second consumer; neutral API -> existing
-`SiloCore` namespace methods; downstream ownership -> service catalog/admin UX stay in `vault-seed`;
-fallback -> legacy file read only; package acceptance -> Task 3.
+`SiloCore` namespace methods plus `listSecrets`/`removeSecret`; downstream ownership -> service
+catalog/admin UX stay in `vault-seed`; fallback -> legacy file read only; package acceptance ->
+Task 3.
 
 **Placeholder scan:** the implementation tasks name concrete files, namespace, keys, tests, and
-fallback behavior. The only conditional work is Refarm helper APIs, explicitly gated by consumer
-proof.
+fallback behavior. Conditional Refarm helper work was gated by consumer proof and then folded into
+the Silo v0.1.1 storage surface.

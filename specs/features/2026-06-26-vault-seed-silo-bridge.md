@@ -100,10 +100,12 @@ pnpm -C packages/silo run test
 2026-06-26 Refarm-side handoff: `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-silo-0.1.0.tgz`
 (`sha256 3335f225a6161769c1e44ff199007c3accf1f51aa69a4b5d0a1bd71be26189d5`) plus
 `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-heartwood-0.1.0.tgz`
-(`sha256 0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf`) for the unpublished
-transitive dependency. The temporary consumer proof installed both from local tarballs, wrote
-Telegram credentials under namespace `publishing`, confirmed they did not enter the flat `tokens`
-map or `model` namespace, and kept the bridge adapter-only.
+(`sha256 0604de49b56d739c4aeac6a29162a6f5d3f79609b5bab1d872e8fb3d0c43daaf`) for the historical
+identity closure. The temporary consumer proof installed both from local tarballs, wrote Telegram
+credentials under namespace `publishing`, and confirmed they did not enter the flat `tokens` map or
+`model` namespace. The 2026-06-29 follow-up below promoted the repeated namespace operations and
+storage/identity closure split into `@refarm.dev/silo` so future storage-only consumers do not need
+the Heartwood closure.
 
 ## Migration And Fallback
 

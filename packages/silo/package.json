@@ -27,7 +27,7 @@
 		"test": "vitest run",
 		"lint": "eslint src"
 	},
-	"dependencies": {
+	"optionalDependencies": {
 		"@refarm.dev/heartwood": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",

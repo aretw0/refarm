@@ -991,7 +991,7 @@ importers:
         version: link:../vtconfig
 
   packages/silo:
-    dependencies:
+    optionalDependencies:
       '@refarm.dev/heartwood':
         specifier: workspace:*
         version: link:../heartwood
