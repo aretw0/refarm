@@ -2,12 +2,15 @@ import { createHash } from "node:crypto";
 
 import {
 	SKILL_INVOCATION_PLAN_SCHEMA,
+	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 	type SkillContractV1Adapter,
 	type SkillEngineBindingEnvelope,
 	type SkillInvocationPlanBuildResult,
 	type SkillInvocationPlanPrepareResult,
 	type SkillInvocationPlanV1,
+	type SkillInvocationRequestBuildResult,
+	type SkillInvocationRequestV1,
 	type SkillIoEnvelope,
 	type SkillManifestIssue,
 	type SkillManifestParseOptions,
@@ -172,6 +175,36 @@ export function buildSkillInvocationPlan(
 	};
 }
 
+export function buildSkillInvocationRequest(
+	plan: SkillInvocationPlanV1,
+	input: string,
+): SkillInvocationRequestBuildResult {
+	const planValidation = validateSkillInvocationPlan(plan);
+	if (!planValidation.ok) {
+		return { ok: false, request: null, issues: planValidation.issues };
+	}
+
+	const request: SkillInvocationRequestV1 = {
+		schema: SKILL_INVOCATION_REQUEST_SCHEMA,
+		skill: plan.skill,
+		input: {
+			format: plan.io.input.format,
+			body: input,
+		},
+		policy: plan.policy,
+		capabilityRequests: plan.capabilityRequests,
+		engineBindings: plan.engineBindings,
+		output: plan.io.output,
+		requiresHostPolicyApproval: true,
+	};
+	const validation = validateSkillInvocationRequest(request);
+	return {
+		ok: validation.ok,
+		request: validation.ok ? request : null,
+		issues: validation.issues,
+	};
+}
+
 export function prepareSkillInvocationPlan(
 	source: string,
 	options: SkillManifestParseOptions = {},
@@ -216,8 +249,31 @@ export function validateSkillInvocationPlan(value: unknown): SkillManifestValida
 	return { ok: issues.length === 0, issues };
 }
 
+export function validateSkillInvocationRequest(value: unknown): SkillManifestValidationResult {
+	const issues: SkillManifestIssue[] = [];
+	if (!isRecord(value)) {
+		return {
+			ok: false,
+			issues: [issue("INVOCATION_REQUEST_NOT_OBJECT", "$", "Expected a skill invocation request object.")],
+		};
+	}
+
+	requireExact(value.schema, SKILL_INVOCATION_REQUEST_SCHEMA, "$.schema", issues);
+	validateInvocationSkillRef(value.skill, "$.skill", issues);
+	validateInvocationInput(value.input, "$.input", issues);
+	validatePolicy(value.policy, "$.policy", issues);
+	validateInvocationCapabilities(value.capabilityRequests, "$.capabilityRequests", issues);
+	validateEngineBindings(value.engineBindings, "$.engineBindings", issues);
+	validateOutputEnvelope(value.output, "$.output", issues);
+	if (value.requiresHostPolicyApproval !== true) {
+		issues.push(issue("INVOCATION_POLICY_APPROVAL_REQUIRED", "$.requiresHostPolicyApproval", "Expected true."));
+	}
+	return { ok: issues.length === 0, issues };
+}
+
 export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 	return {
+		buildInvocationRequest: buildSkillInvocationRequest,
 		buildInvocationPlan: buildSkillInvocationPlan,
 		parseMarkdown: parseSkillMarkdown,
 		prepareInvocationPlan: prepareSkillInvocationPlan,
@@ -443,6 +499,15 @@ function validateInvocationCapabilities(
 			issues.push(issue("INVOCATION_CAPABILITY_REQUIRED_INVALID", `${itemPath}.required`, "Expected boolean."));
 		}
 	});
+}
+
+function validateInvocationInput(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("INVOCATION_INPUT_NOT_OBJECT", path, "Expected invocation input object."));
+		return;
+	}
+	requireExact(value.format, "text/markdown", `${path}.format`, issues);
+	requireNonEmptyString(value.body, `${path}.body`, issues);
 }
 
 function validateCapabilityArray(

@@ -5,11 +5,13 @@ export {
 } from "./conformance.js";
 export {
 	buildSkillInvocationPlan,
+	buildSkillInvocationRequest,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationPlan,
+	validateSkillInvocationRequest,
 	validateSkillManifest,
 	verifySkillSource,
 } from "./manifest.js";
@@ -20,11 +22,14 @@ export type {
 	SkillEngineBindingEnvelope,
 	SkillExecutionMode,
 	SkillInputEnvelope,
+	SkillInvocationInputPayload,
 	SkillInvocationPlanBuildResult,
 	SkillInvocationPlanCapability,
 	SkillInvocationPlanPrepareResult,
 	SkillInvocationPlanSkillRef,
 	SkillInvocationPlanV1,
+	SkillInvocationRequestBuildResult,
+	SkillInvocationRequestV1,
 	SkillIoEnvelope,
 	SkillIoFormat,
 	SkillManifestIssue,
@@ -41,5 +46,6 @@ export type {
 export {
 	SKILL_CAPABILITY,
 	SKILL_INVOCATION_PLAN_SCHEMA,
+	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 } from "./types.js";

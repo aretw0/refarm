@@ -18,6 +18,8 @@ content:
 - build a host-policy-checkable invocation plan that preserves source integrity,
   requested capabilities, policy, and Markdown instructions without executing
   the skill;
+- build a host-policy-checkable invocation request from a plan and markdown
+  input without calling a runtime;
 - prepare a manifest and invocation plan from one `SKILL.md` source so hosts and
   adapters do not reimplement the parse/build handoff;
 - provide conformance helpers for future adapters and hosts.
@@ -37,6 +39,7 @@ contract only after that boundary accepts the surface.
 
 ```ts
 import {
+	buildSkillInvocationRequest,
 	prepareSkillInvocationPlan,
 	verifySkillSource,
 } from "@refarm.dev/skill-contract-v1";
@@ -58,6 +61,11 @@ if (!sourceCheck.ok) {
 
 console.log(result.plan.io.input.format); // "text/markdown"
 console.log(result.plan.engineBindings.requires); // declared engine binding ids
+
+const request = buildSkillInvocationRequest(result.plan, "Review this working tree.");
+if (!request.ok) {
+	throw new Error(request.issues.map((issue) => issue.message).join("; "));
+}
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
@@ -70,3 +78,5 @@ The I/O envelope is descriptive and policy-facing. Hosts still decide whether a
 particular invocation payload is allowed.
 Engine bindings are declarations only. This package does not select or call an
 engine implementation.
+Invocation requests are still pre-runtime artifacts; hosts must approve policy
+before dispatch.
