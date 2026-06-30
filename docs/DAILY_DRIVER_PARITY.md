@@ -49,10 +49,13 @@ markers, and cache routing without scanning or deleting project state.
 
 The same primitive now accepts caller-provided `sessionFiles` and
 `sessionResumeIntent`. Large session files are advisory for a new session, while
-an explicit resume of an oversized session becomes `stop-and-investigate`. This
-keeps the factory from blindly loading expensive context while preserving the
-operator's ability to start fresh, checkpoint, archive, or explicitly override
-outside the primitive. The focused signal is:
+an explicit resume of an oversized session becomes `stop-and-investigate`. It
+also exposes `planEnvironmentWorkCeiling`, a pure package-level decision helper
+that maps a pressure report plus caller-owned work class to `allow`, `degrade`,
+`serialize`, or `refuse`. This keeps the factory from blindly loading expensive
+context or dispatching broad work while preserving the operator's ability to
+start fresh, checkpoint, archive, or explicitly override outside the primitive.
+The focused signal is:
 
 ```bash
 pnpm -C packages/health run test

@@ -114,7 +114,7 @@ packages are ready:
 
 | Surface | Current status | Reason |
 | --- | --- | --- |
-| `@refarm.dev/health` | release-profiled; not selected | generic diagnostics and `environment-pressure` SDK are ready as primitives, but promotion waits for a consumer-pulled proof or default-candidate decision |
+| `@refarm.dev/health` | release-profiled; not selected | generic diagnostics, `environment-pressure`, and work-ceiling SDK primitives are ready, but promotion waits for a consumer-pulled proof or default-candidate decision |
 | `@refarm.dev/source-contract-v1` | release-profiled; not selected | source capability contract is implemented and checked; publication waits for an executable dogfood, `vault-seed`, or `agents-lab` consumer proof rather than mere strategic intent |
 | `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded; handoff promotion waits for a selected consumer path that needs package consumption |
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |

@@ -71,6 +71,29 @@ const GiB = 1024 * MiB;
  * @property {string | null} nextCommand
  * @property {string[]} nextCommands
  *
+ * @typedef {"focused-check" | "package-check" | "broad-check" | "worker-fanout" | "mutation"} EnvironmentWorkClass
+ * @typedef {"allow" | "degrade" | "serialize" | "refuse"} EnvironmentWorkCeilingDecision
+ *
+ * @typedef EnvironmentWorkCeilingRequest
+ * @property {EnvironmentWorkClass} workClass
+ * @property {string} [command]
+ * @property {string} [fallbackCommand]
+ * @property {number} [maxConcurrency]
+ *
+ * @typedef EnvironmentWorkCeilingPlan
+ * @property {1} schemaVersion
+ * @property {boolean} ok
+ * @property {EnvironmentWorkCeilingDecision} decision
+ * @property {EnvironmentWorkClass} workClass
+ * @property {EnvironmentPressureDecision} pressureDecision
+ * @property {string} reason
+ * @property {string | null} nextAction
+ * @property {string[]} nextActions
+ * @property {string | null} nextCommand
+ * @property {string[]} nextCommands
+ * @property {number | null} maxConcurrency
+ * @property {EnvironmentPressureRecommendation[]} recommendations
+ *
  * @typedef EnvironmentPressureOptions
  * @property {string} [cwd]
  * @property {string} [command]
@@ -156,6 +179,126 @@ export function decideEnvironmentPressure(signals) {
         return "safe-mode";
     }
     return "continue";
+}
+
+const FOCUSED_WORK_CLASSES = new Set(["focused-check", "package-check"]);
+
+/**
+ * @param {EnvironmentPressureReport} report
+ * @param {EnvironmentWorkCeilingRequest} request
+ * @returns {EnvironmentWorkCeilingPlan}
+ */
+export function planEnvironmentWorkCeiling(report, request) {
+    const pressureDecision = report.decision;
+    const workClass = request.workClass;
+    const recommendations = Array.isArray(report.recommendations)
+        ? report.recommendations
+        : [];
+
+    if (pressureDecision === "stop-and-investigate") {
+        return buildWorkCeilingPlan({
+            ok: false,
+            decision: "refuse",
+            workClass,
+            pressureDecision,
+            reason: "Environment pressure is blocking; inspect and recover before running more work.",
+            nextActions: report.nextActions.length > 0
+                ? report.nextActions
+                : ["Recover environment headroom before running more work."],
+            nextCommands: report.nextCommands,
+            maxConcurrency: null,
+            recommendations,
+        });
+    }
+
+    if (pressureDecision === "safe-mode") {
+        if (FOCUSED_WORK_CLASSES.has(workClass)) {
+            return buildWorkCeilingPlan({
+                ok: true,
+                decision: "allow",
+                workClass,
+                pressureDecision,
+                reason: "Focused checks can continue under safe mode.",
+                nextActions: [],
+                nextCommands: [],
+                maxConcurrency: request.maxConcurrency ?? null,
+                recommendations,
+            });
+        }
+
+        if (workClass === "worker-fanout" || workClass === "mutation") {
+            return buildWorkCeilingPlan({
+                ok: true,
+                decision: "serialize",
+                workClass,
+                pressureDecision,
+                reason: "Safe mode requires serialized work instead of fan-out.",
+                nextActions: [
+                    request.command
+                        ? `Run \`${request.command}\` with concurrency 1.`
+                        : "Run the work with concurrency 1.",
+                ],
+                nextCommands: request.command ? [request.command] : [],
+                maxConcurrency: 1,
+                recommendations,
+            });
+        }
+
+        if (request.fallbackCommand) {
+            return buildWorkCeilingPlan({
+                ok: true,
+                decision: "degrade",
+                workClass,
+                pressureDecision,
+                reason: "Safe mode requires a smaller proof instead of broad work.",
+                nextActions: [`Run the bounded fallback: ${request.fallbackCommand}`],
+                nextCommands: [request.fallbackCommand],
+                maxConcurrency: request.maxConcurrency ?? null,
+                recommendations,
+            });
+        }
+
+        return buildWorkCeilingPlan({
+            ok: false,
+            decision: "refuse",
+            workClass,
+            pressureDecision,
+            reason: "Safe mode blocks broad work without a bounded fallback.",
+            nextActions: ["Choose a focused check or provide a bounded fallback command."],
+            nextCommands: [],
+            maxConcurrency: null,
+            recommendations,
+        });
+    }
+
+    return buildWorkCeilingPlan({
+        ok: true,
+        decision: "allow",
+        workClass,
+        pressureDecision,
+        reason: "Environment pressure allows the requested work.",
+        nextActions: [],
+        nextCommands: [],
+        maxConcurrency: request.maxConcurrency ?? null,
+        recommendations,
+    });
+}
+
+/**
+ * @param {Omit<EnvironmentWorkCeilingPlan, "schemaVersion" | "nextAction" | "nextCommand">} input
+ * @returns {EnvironmentWorkCeilingPlan}
+ */
+function buildWorkCeilingPlan(input) {
+    const nextActions = Array.from(new Set(input.nextActions));
+    const nextCommands = Array.from(new Set(input.nextCommands));
+    return {
+        schemaVersion: 1,
+        ...input,
+        nextAction: nextActions[0] ?? null,
+        nextActions,
+        nextCommand: nextCommands[0] ?? null,
+        nextCommands,
+    };
 }
 
 /**
