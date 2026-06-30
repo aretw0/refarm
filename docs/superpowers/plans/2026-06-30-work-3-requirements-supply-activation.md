@@ -69,10 +69,19 @@ vocabulary.
 
 ## Task 5 - Consumer Handoff Planning
 
-- Add release-policy profiles only after package slices exist and have checks.
-- Use local handoff for consumer-pulled proofs before public npm publication.
-- Record fallback paths so downstream POCs can keep moving if a Refarm leaf is
+- [x] Add release-policy profiles only after package slices exist and have checks.
+- [x] Use local handoff for consumer-pulled proofs before public npm publication.
+- [x] Record fallback paths so downstream POCs can keep moving if a Refarm leaf is
   not yet selected.
+
+Implemented as proof-gated release-policy profiles for `@refarm.dev/source-web`,
+`@refarm.dev/enrichment-contract-v1`, and `@refarm.dev/records-contract-v1`.
+They carry `requirements-supply`, `boundary-review`, and `candidate-hold` tags,
+package-local checks, and explicit audit coverage that blocks premature
+`vault-seed-ready` selection. The official `vault-seed-ready` tarball handoff
+remains unchanged until the downstream checkout consumes these leaves through a
+named proof; until then private login/selectors/enrichment providers stay
+downstream and can wrap the Refarm packages when available.
 
 ## Non-Goal
 

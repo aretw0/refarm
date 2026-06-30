@@ -366,6 +366,59 @@
         ]
       },
       {
+        "id": "@refarm.dev/source-web",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/source-web run lint",
+          "pnpm --filter @refarm.dev/source-web run type-check",
+          "pnpm --filter @refarm.dev/source-web run test:conformance",
+          "pnpm --filter @refarm.dev/source-web run build"
+        ],
+        "tags": [
+          "librarian",
+          "source",
+          "adapter",
+          "sdk-primitive",
+          "requirements-supply",
+          "boundary-review",
+          "candidate-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/enrichment-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/enrichment-contract-v1 run lint",
+          "pnpm --filter @refarm.dev/enrichment-contract-v1 run type-check",
+          "pnpm --filter @refarm.dev/enrichment-contract-v1 run test:conformance",
+          "pnpm --filter @refarm.dev/enrichment-contract-v1 run build"
+        ],
+        "tags": [
+          "contract",
+          "sdk-primitive",
+          "requirements-supply",
+          "boundary-review",
+          "candidate-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/records-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/records-contract-v1 run lint",
+          "pnpm --filter @refarm.dev/records-contract-v1 run type-check",
+          "pnpm --filter @refarm.dev/records-contract-v1 run test:conformance",
+          "pnpm --filter @refarm.dev/records-contract-v1 run build"
+        ],
+        "tags": [
+          "contract",
+          "sdk-primitive",
+          "requirements-supply",
+          "boundary-review",
+          "candidate-hold"
+        ]
+      },
+      {
         "id": "@refarm.dev/cli",
         "risk": "shared",
         "mustPassChecks": [

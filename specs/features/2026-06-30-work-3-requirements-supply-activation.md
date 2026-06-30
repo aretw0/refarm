@@ -1,6 +1,6 @@
 # Spec: Work 3 Requirements Supply Activation
 
-**Status:** DRAFT - activation packet, source-web/enrichment/records package slices implemented, cheap composition proof added
+**Status:** DRAFT - activation packet, source-web/enrichment/records package slices implemented, cheap composition proof and proof-gated release-policy profiles added
 **Date:** 2026-06-30
 **Related:** `docs/ECOSYSTEM_SUPPLY_MAP.md`,
 `specs/features/2026-06-24-source-contract-v1.md`,
@@ -97,6 +97,12 @@ Private downstream proofs own:
    release-policy, private selectors, login flows, or consumer vocabulary.
 5. Only then add release-policy entries or `vault-seed-ready` handoff metadata,
    and only for package leaves with checks and a named downstream proof.
+   Current implementation registers `@refarm.dev/source-web`,
+   `@refarm.dev/enrichment-contract-v1`, and `@refarm.dev/records-contract-v1`
+   as release-profiled `requirements-supply` candidates with package checks,
+   `boundary-review`, and `candidate-hold`. They are intentionally not selected
+   for `vault-seed-ready` until the downstream checkout records a consumer pull
+   proof through the local handoff lane.
 
 ## First Proof Shape
 
@@ -136,3 +142,11 @@ Each eventual package slice must provide:
 Current composition proof:
 
 - `pnpm run requirements:supply:composition:test`
+
+Current handoff planning proof:
+
+- release-policy profiles exist for the three requirements-supply leaves;
+- `pnpm run release:boundary:audit` blocks missing hold tags or premature
+  `vault-seed-ready` selection;
+- downstream POCs may keep private login, selectors, and enrichment providers
+  outside Refarm while wrapping the profiled packages when available.
