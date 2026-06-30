@@ -120,6 +120,12 @@ Plugins may declare additive extension surfaces under `extensions.surfaces` so o
 
 Valid surface layers are `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`. Unknown hosts must ignore unknown surfaces safely; hosts that understand a surface still need to enforce capabilities, integrity, and trust policy before activation. Homestead panels that execute `renderHomesteadSurface(request)` should declare `ui:panel:render`; host-owned actions are exposed at runtime through `request.host.actions` and rendered controls identify the chosen action with `data-refarm-surface-action-id`. See `docs/EXTENSIBILITY_MODEL.md` in the monorepo for the long-term model.
 
+`pi` skill surfaces have an additional central gate. A declaration with
+`layer: "pi"` and `kind: "skill"` must carry non-empty `capabilities`, must not
+declare a UI `slot`, and must include at least one relative package asset ending
+in `SKILL.md`. This keeps local `file:` skill drafts and package-distributed
+skill surfaces distinct before any runtime host evaluates the skill contract.
+
 Host-neutral helpers are exported for discovery:
 
 ```typescript
@@ -182,6 +188,7 @@ type TelemetryHook =
 8. `targets` must be a non-empty array using only `browser`, `server`, `remote`
 9. All required telemetry hooks must be declared
 10. Optional `extensions.surfaces` entries must use a known layer, non-empty `kind`/`id`, valid optional string arrays, and unique `layer`/`id` pairs
+11. `pi` + `skill` surfaces must declare capabilities, avoid UI slots, and point at a relative package `SKILL.md` asset
 
 ## FAQ — "Plugin precisa ser WASM?"
 

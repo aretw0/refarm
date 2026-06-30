@@ -16,7 +16,9 @@
 - **`refarm`**: **no executable skill surface yet.** It has a native contract package that parses
   `SKILL.md` into a policy-checkable manifest/invocation plan handoff, carries markdown I/O
   envelopes and declarative engine bindings, verifies loaded source integrity,
-  and builds plugin-manifest-compatible `pi/skill` surface declarations, plus *engines* — `sower` (scaffold/import), `thresher`
+  and builds plugin-manifest-compatible `pi/skill` surface declarations. The
+  plugin manifest now validates those `pi/skill` surfaces as package asset
+  declarations before any host executes them. Refarm also has *engines* — `sower` (scaffold/import), `thresher`
   (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
   (`context-provider-v1`, the in-progress `source:v1`). The skill invocation path is the future
   "Refarm as engine" milestone.
@@ -62,7 +64,8 @@ without calling a runtime, and can build a `layer: "pi", kind: "skill"` surface
 declaration from a valid manifest plus relative package asset path. It exposes
 `prepareSkillInvocationPlan` as the
 adapter/host handoff for one source and `verifySkillSource` for source integrity
-checks before host trust. The
+checks before host trust. `@refarm.dev/plugin-manifest` validates that package
+surface as a non-UI, capability-declared `SKILL.md` asset declaration. The
 remaining runtime work is to pass that plan through policy and invoke Refarm engines
 through `runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable
 owner should remain a package/plugin manifest surface, not `apps/refarm`.
