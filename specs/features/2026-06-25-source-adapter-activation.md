@@ -1,8 +1,8 @@
 # Spec: Source Adapter Activation (Roadmap Item 7)
 
-**Status:** Partially activated — `source-local` implemented on 2026-06-29; `source-dispatch`
-and `source-tarball` remain deferred; `source-web` (authenticated capture) added as a T3 candidate
-on 2026-06-30
+**Status:** Partially activated — `source-local` implemented on 2026-06-29; `source-web`
+implemented as a sanitized fixture adapter on 2026-06-30; `source-dispatch`
+and `source-tarball` remain deferred
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
 **Related:** `specs/features/2026-06-24-source-contract-v1.md`,
@@ -25,7 +25,7 @@ Build exactly one adapter when its trigger appears:
 | `source-dispatch` | an agent/kernel path needs to invoke `source:v1` through `dispatch-surface` | dispatch call materializes a source through the same conformance suite |
 | `source-local` | a consumer needs live dirty working-tree reads | ✅ `@refarm.dev/source-local` reports dirty/untracked state explicitly and runs the source:v1 conformance suite |
 | `source-tarball` | reproducible archive input is needed for cross-repo consumption | tarball hash maps to deterministic file inventory |
-| `source-web` | a requirements-vault proof needs a stable local snapshot of an authenticated web source | a sanitized fixture web source materializes with session/cache provenance through the same conformance suite; no private target |
+| `source-web` | a requirements-vault proof needs a stable local snapshot of an authenticated web source | ✅ `@refarm.dev/source-web` materializes a sanitized fixture web source with session/cache provenance through the same conformance suite; no private target |
 
 Do not implement all adapters in one branch.
 
@@ -56,6 +56,11 @@ The consumer seam (stays downstream / in the private proof, never in `@refarm.de
 The adapter accepts these as injected inputs and passes the same `source:v1` conformance suite. First
 proof: a local fixture web source with login/session evidence but no private target, mirroring the
 First Proof Shape in the work-3 activation packet.
+
+Implemented shape: `@refarm.dev/source-web` reports `location.kind = "local"`
+because `source-contract-v1` remains unchanged. The package-owned result
+provenance carries the authenticated web origin evidence: session, pacing,
+cache hash/captured-at, offline replay, and redaction report.
 
 ## Shared Requirements
 
