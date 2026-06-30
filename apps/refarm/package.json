@@ -12,7 +12,7 @@
     "clean": "rm -rf dist",
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
-    "test:prepush": "vitest run --maxWorkers=1 test/commands/chat-repl-session.test.ts",
+    "test:prepush": "vitest run --maxWorkers=1 test/commands/action-fixture.test.ts test/commands/headless.test.ts test/commands/status.test.ts",
     "test:chat-session": "vitest run --maxWorkers=1 test/commands/chat-repl-session.test.ts",
     "test:chat-batch": "vitest run test/commands/chat-repl-session.test.ts test/commands/chat.test.ts test/commands/chat-repl.test.ts --pool=threads",
     "test:ask-reference-driver": "vitest run --maxWorkers=1 test/commands/ask.test.ts",

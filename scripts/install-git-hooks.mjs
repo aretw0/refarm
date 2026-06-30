@@ -76,6 +76,9 @@ esac
 
 PACKAGE_AUDIT_HIGH=$(audit_high_command_for_package_manager "$PACKAGE_MANAGER" 2>/dev/null || printf "%s audit" "$PACKAGE_MANAGER")
 TURBO_LOCAL_CONCURRENCY_ARGS="--concurrency=2"
+TURBO_CACHE_DIR="\${TURBO_CACHE_DIR:-\${TMPDIR:-/tmp}/refarm-turbo-cache}"
+export TURBO_CACHE_DIR
+mkdir -p "$TURBO_CACHE_DIR" 2>/dev/null || true
 
 package_run() {
   script_name="$1"
