@@ -1,6 +1,6 @@
 # Spec: Records Contract v1 (`records:v1`) — Knowledge/Content Manifest
 
-**Status:** DRAFT — ready for implementation (activation order step 3)
+**Status:** DRAFT — initial package slice implemented (activation order step 3)
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** [`specs/features/2026-06-30-work-3-requirements-supply-activation.md`](./2026-06-30-work-3-requirements-supply-activation.md),
@@ -122,6 +122,13 @@ export interface RecordsProvider {
   that **unknown fields survive a read/write round-trip** (forward-safety); that `upcast` raises an
   older `schemaVersion` fixture to the current one without dropping data; that `contentHash` is
   stable for canonical content.
+
+Current implementation note: `@refarm.dev/records-contract-v1` now provides the
+versioned types, deterministic reference fixture/provider, referential-integrity
+validation, stable content-hash helper, open-vocabulary validation, and
+forward-safe upcast. It does not store, sync, render, or dereference sources or
+artifacts, and it remains outside release-policy until a named downstream proof
+exists.
 
 ## 3. Forward compatibility — "the solo for the future"
 

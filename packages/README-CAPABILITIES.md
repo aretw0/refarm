@@ -44,6 +44,16 @@ provider retorna mudanças com proveniência e diagnósticos; consumidores decid
 se e como persistir. O pacote está implementado e proof-gated, sem entrada em
 release-policy até existir prova downstream.
 
+### `records:v1`
+**Pacote**: `@refarm.dev/records-contract-v1`
+**Provider**: `RecordsProvider`
+**Operações**: `validate`, `upcast`
+
+Envelope neutro para records de conhecimento/conteúdo, relações, seções,
+anexos, source refs, hash e estado de revisão. Vocabulário fica em dados
+JSON-LD/open strings; storage, sync, renderer e workflow editorial ficam fora
+do contrato.
+
 ## Uso
 
 ### Para Consumidores (Kernel/Apps)

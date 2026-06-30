@@ -81,7 +81,11 @@ Private downstream proofs own:
    additive source kind belongs in `source:v1` or behind a web-specific package
    wrapper.
 3. Specify the knowledge/content manifest after the enrichment and source
-   evidence shapes are concrete enough to reference.
+   evidence shapes are concrete enough to reference. Initial package slice is
+   implemented in `@refarm.dev/records-contract-v1` with sanitized fixture
+   validation, relation integrity, stable content hashes, and forward-safe
+   upcast; release promotion remains gated by downstream proof and composition
+   evidence.
 4. Only then add release-policy entries or `vault-seed-ready` handoff metadata,
    and only for package leaves with checks and a named downstream proof.
 
