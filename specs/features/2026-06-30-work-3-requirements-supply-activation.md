@@ -1,6 +1,6 @@
 # Spec: Work 3 Requirements Supply Activation
 
-**Status:** DRAFT - activation packet, enrichment package slice implemented
+**Status:** DRAFT - activation packet, enrichment/records package slices implemented, cheap composition proof added
 **Date:** 2026-06-30
 **Related:** `docs/ECOSYSTEM_SUPPLY_MAP.md`,
 `specs/features/2026-06-24-source-contract-v1.md`,
@@ -86,7 +86,14 @@ Private downstream proofs own:
    validation, relation integrity, stable content hashes, and forward-safe
    upcast; release promotion remains gated by downstream proof and composition
    evidence.
-4. Only then add release-policy entries or `vault-seed-ready` handoff metadata,
+4. Add a cheap sanitized composition proof before any browser-heavy proof.
+   `requirements:supply:composition:test` builds `@refarm.dev/health`,
+   `@refarm.dev/enrichment-contract-v1`, and `@refarm.dev/records-contract-v1`,
+   then checks environment pressure, source coverage, review-state counts,
+   deterministic enrichment, hash drift, and final `records:v1` validation.
+   The proof does not add release-policy, private selectors, login flows, or
+   consumer vocabulary.
+5. Only then add release-policy entries or `vault-seed-ready` handoff metadata,
    and only for package leaves with checks and a named downstream proof.
 
 ## First Proof Shape
@@ -123,3 +130,7 @@ Each eventual package slice must provide:
 4. a downstream proof that consumes the package through local handoff or an
    equivalent candidate channel;
 5. explicit fallback behavior when the Refarm package is unavailable.
+
+Current composition proof:
+
+- `pnpm run requirements:supply:composition:test`
