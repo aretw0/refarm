@@ -168,3 +168,87 @@ describe("SiloCore namespaced secrets", () => {
         });
     });
 });
+
+describe("SiloCore forward-safe envelope reads (ADR-077 freeze)", () => {
+    function writeStore(core: SiloCore, store: unknown) {
+        writeFileSync(core.storagePath, JSON.stringify(store));
+    }
+
+    it("string consumer methods stay string while disk stays an envelope", async () => {
+        const core = tmpCore();
+        await core.saveSecret("publishing", "TELEGRAM_BOT_TOKEN", "tok");
+
+        // on-disk shape is an envelope object…
+        const stored = JSON.parse(readFileSync(core.storagePath, "utf8"));
+        expect(typeof stored.secrets.publishing.TELEGRAM_BOT_TOKEN).toBe("object");
+        // …but the frozen consumer surface remains string-based.
+        expect(typeof (await core.loadSecret("publishing", "TELEGRAM_BOT_TOKEN"))).toBe("string");
+        const listed = await core.listSecrets("publishing");
+        expect(typeof listed.TELEGRAM_BOT_TOKEN).toBe("string");
+    });
+
+    it("refuses a future encrypted envelope instead of returning ciphertext", async () => {
+        const core = tmpCore();
+        writeStore(core, {
+            schemaVersion: 2,
+            secrets: {
+                publishing: {
+                    TELEGRAM_BOT_TOKEN: {
+                        value: "OPAQUE-CIPHERTEXT",
+                        protection: {
+                            scheme: "opaque-envelope-v1",
+                            encrypted: true,
+                            keySource: "@refarm.dev/heartwood",
+                        },
+                    },
+                },
+            },
+        });
+
+        await expect(core.loadSecret("publishing", "TELEGRAM_BOT_TOKEN")).rejects.toMatchObject({
+            code: "SILO_SECRET_UNREADABLE",
+            scheme: "opaque-envelope-v1",
+        });
+    });
+
+    it("refuses an unknown scheme rather than guessing the value is plaintext", async () => {
+        const core = tmpCore();
+        writeStore(core, {
+            secrets: { publishing: { X: { value: "v", protection: { scheme: "some-future-v9" } } } },
+        });
+
+        await expect(core.loadSecret("publishing", "X")).rejects.toMatchObject({
+            code: "SILO_SECRET_UNREADABLE",
+        });
+    });
+
+    it("omits unreadable entries from listSecrets but keeps readable siblings", async () => {
+        const core = tmpCore();
+        await core.saveSecret("publishing", "TELEGRAM_CHAT_ID", "chat");
+        const stored = JSON.parse(readFileSync(core.storagePath, "utf8"));
+        stored.secrets.publishing.TELEGRAM_BOT_TOKEN = {
+            value: "CIPHER",
+            protection: { scheme: "opaque-envelope-v1", encrypted: true },
+        };
+        writeStore(core, stored);
+
+        await expect(core.listSecrets("publishing")).resolves.toEqual({ TELEGRAM_CHAT_ID: "chat" });
+    });
+
+    it("reads a higher store schemaVersion when the entry scheme is readable", async () => {
+        const core = tmpCore();
+        writeStore(core, {
+            schemaVersion: 99,
+            secrets: {
+                publishing: {
+                    TELEGRAM_CHAT_ID: {
+                        value: "chat",
+                        protection: { scheme: "local-plaintext-v1", encrypted: false },
+                    },
+                },
+            },
+        });
+
+        await expect(core.loadSecret("publishing", "TELEGRAM_CHAT_ID")).resolves.toBe("chat");
+    });
+});

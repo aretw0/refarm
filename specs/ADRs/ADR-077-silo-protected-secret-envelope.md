@@ -61,6 +61,16 @@ without inspecting private JSON or loading Heartwood. Today it reports `local-pl
 owner-only file modes. Future OPAQUE and hardware-backed work changes the envelope internals, not
 the consumer method signatures.
 
+**Forward-safe reads (the scheme is executable, not decorative).** A build must not return the raw
+stored value for an envelope it cannot interpret. If a reader meets `encrypted: true` or an unknown
+`protection.scheme`, `loadSecret` throws a typed `UnreadableSecretError`
+(`code: "SILO_SECRET_UNREADABLE"`, `scheme`) and `listSecrets` omits that entry while keeping
+readable siblings. Legacy plaintext strings and `local-plaintext-v1` stay readable, and a higher
+store `schemaVersion` with a readable entry scheme is tolerated. This is what makes the freeze honest
+across versions: an older consumer reading a newer OPAQUE/hardware store fails loudly instead of
+silently handing back ciphertext as if it were the secret. Shipping the guard in the first public
+`0.1.0` means a `0.1.0` consumer is forward-safe by construction, before any encrypted store exists.
+
 ## Boundary
 
 - **Silo** owns storage shape, migration from legacy plaintext entries, status reporting, and
