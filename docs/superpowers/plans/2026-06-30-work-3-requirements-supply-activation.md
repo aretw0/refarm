@@ -81,7 +81,12 @@ package-local checks, and explicit audit coverage that blocks premature
 `vault-seed-ready` selection. The official `vault-seed-ready` tarball handoff
 remains unchanged until the downstream checkout consumes these leaves through a
 named proof; until then private login/selectors/enrichment providers stay
-downstream and can wrap the Refarm packages when available.
+downstream and can wrap the Refarm packages when available. `pnpm run
+requirements:supply:handoff` emits the machine-readable candidate handoff plan:
+candidate leaf packages, planned `file:./vendor/*.tgz` specs, local
+`pnpmOverrides` for unpublished Refarm dependencies, consumer proof metadata,
+and fallback behavior, but does not pack tarballs or write `.refarm/handoff`
+artifacts.
 
 ## Non-Goal
 
