@@ -4,11 +4,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import {
+	createMockManifest,
+	validatePluginManifest,
+} from "@refarm.dev/plugin-manifest";
+
 import { createLocalSourceProvider } from "../../packages/source-local/dist/index.js";
 import {
 	buildSkillInvocationDecision,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
+	buildSkillSurfaceDeclaration,
 	prepareSkillInvocationPlan,
 	verifySkillSource,
 } from "../../packages/skill-contract-v1/dist/index.js";
@@ -19,6 +25,7 @@ const DEFAULT_SOURCE_DIR =
 	"/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed";
 const DEFAULT_SKILL_NAME = "vault-search";
 const DEFAULT_SOURCE_URI = "fixture:vault-seed/dgk-vault-search-refarm-wrapper/SKILL.md";
+const DEFAULT_ASSET_PATH = "skills/dgk-vault-search-refarm-wrapper/SKILL.md";
 const SCHEMA_VERSION = 1;
 
 const READONLY_MARKERS = [
@@ -78,6 +85,24 @@ function issue(code, message, evidence = null) {
 		message,
 		...(evidence ? { evidence } : {}),
 	};
+}
+
+function buildPluginManifest(surface) {
+	return createMockManifest({
+		id: "@refarm.dev/dgk-vault-search-skill-wrapper",
+		name: "DGK Vault Search Skill Wrapper",
+		entry: "./dist/plugin.mjs",
+		integrity: undefined,
+		capabilities: {
+			provides: ["skill:dgk-vault-search"],
+			requires: ["refarm.operator-loop", "source:v1"],
+			providesApi: [],
+			requiresApi: [],
+		},
+		extensions: {
+			surfaces: [surface],
+		},
+	});
 }
 
 function skillPathFor(skillName) {
@@ -195,6 +220,7 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 	sourceDir = DEFAULT_SOURCE_DIR,
 	skillName = DEFAULT_SKILL_NAME,
 	sourceUri = DEFAULT_SOURCE_URI,
+	assetPath = DEFAULT_ASSET_PATH,
 	completedAt,
 } = {}) {
 	const issues = [];
@@ -241,6 +267,29 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			"WRAPPER_SKILL_SOURCE_INTEGRITY_FAILED",
 			"Expected wrapper source integrity to match the planned source reference.",
 			sourceCheck.issues,
+		));
+	}
+
+	const surfaceResult = prepared.manifest
+		? buildSkillSurfaceDeclaration(prepared.manifest, { assetPath })
+		: null;
+	if (surfaceResult && (!surfaceResult.ok || !surfaceResult.surface)) {
+		issues.push(issue(
+			"WRAPPER_SKILL_SURFACE_NOT_READY",
+			"Expected DGK vault-search wrapper to build a plugin-manifest skill surface declaration.",
+			surfaceResult.issues,
+		));
+	}
+
+	const pluginManifest = surfaceResult?.surface ? buildPluginManifest(surfaceResult.surface) : null;
+	const pluginManifestValidation = pluginManifest
+		? validatePluginManifest(pluginManifest)
+		: { valid: false, errors: ["No plugin manifest was built."] };
+	if (!pluginManifestValidation.valid) {
+		issues.push(issue(
+			"PLUGIN_MANIFEST_SKILL_SURFACE_INVALID",
+			"Expected plugin-manifest to accept the DGK wrapper skill surface declaration.",
+			pluginManifestValidation.errors,
 		));
 	}
 
@@ -353,7 +402,16 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			id: prepared.manifest?.id ?? null,
 			name: prepared.manifest?.name ?? null,
 			sourceUri,
+			assetPath,
 		},
+		pluginManifest: pluginManifest
+			? {
+				id: pluginManifest.id,
+				valid: pluginManifestValidation.valid,
+				errors: pluginManifestValidation.errors,
+			}
+			: null,
+		surface: surfaceResult?.surface ?? null,
 		engine: {
 			binding: "source:v1",
 			providerId: provider.pluginId,
@@ -388,6 +446,7 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 		boundaries: [
 			"This smoke reads vault-seed dgk-skills/vault-search as source evidence only.",
 			"This smoke does not install, copy, vendor, or execute the external DGK skill.",
+			"This smoke declares a package skill surface, not a standalone skill installation.",
 			"This smoke executes only source:v1 status through @refarm.dev/source-local.",
 			"This smoke does not execute dgk, Obsidian CLI, runtime-agent, pi-agent, shell tools, file mutations, or model calls.",
 			"Dirty or untracked upstream checkout status is recorded as evidence, not hidden or normalized.",
@@ -395,6 +454,7 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 		nextActions: issues.length === 0
 			? [
 				"Treat DGK vault-search as the first external skill fixture proof for @refarm.dev/skill-contract-v1.",
+				"Keep the wrapper as a package-declared pi/skill surface until install and runtime-host policy proofs exist.",
 				"Keep DGK vocabulary and Obsidian behavior downstream-owned until a runtime host policy proof exists.",
 			]
 			: [

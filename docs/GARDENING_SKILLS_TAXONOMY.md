@@ -83,10 +83,12 @@ command repeats the wrapper/evidence pattern for `vault-seed`'s downstream-owned
 `dgk-skills/vault-search`: it records the upstream `SKILL.md` hash, accepts
 dirty/untracked checkout status as evidence, calls only `source:v1`, and does
 not execute `dgk`, Obsidian CLI, runtime-agent, shell tools, file mutations, or
-model calls. The remaining runtime work is to invoke runtime-agent or another
-Refarm plugin host only after policy, cancellation, observability, and
-cost-control proofs exist. The durable owner should remain a package/plugin
-manifest surface, not `apps/refarm`.
+model calls. It also declares the wrapper as a package-owned
+`layer: "pi", kind: "skill"` surface and validates that surface through
+`@refarm.dev/plugin-manifest`. The remaining runtime work is to invoke
+runtime-agent or another Refarm plugin host only after policy, cancellation,
+observability, and cost-control proofs exist. The durable owner should remain a
+package/plugin manifest surface, not `apps/refarm`.
 
 This must not become a second plugin system. Packages remain the distribution
 unit, plugins remain the executable/capability providers, and skills are
@@ -107,8 +109,9 @@ Activation sequence:
    Refarm wrapper smoke, keeping upstream content as source evidence only;
 4. **done:** run one reviewed DGK skill fixture through a Refarm wrapper smoke,
    keeping upstream content as source evidence only;
-5. represent that skill as a manifest-declared surface such as
-   `layer: "pi", kind: "skill"` with `assets` pointing to the `SKILL.md`;
+5. **done:** represent the DGK wrapper as a manifest-declared surface:
+   `layer: "pi", kind: "skill"` with `assets` pointing to the wrapper
+   `SKILL.md`;
 6. run the first DGK runtime-host fixture without bypassing
    plugin-manifest/Barn/Scarecrow boundaries;
 7. only then install, vendor, or publish skill wrappers.
@@ -190,6 +193,7 @@ copying, vendoring, or executing the upstream skill.
 As of the DGK wrapper smoke, `native:skills:dgk-vault-search-smoke` records the
 upstream `vault-seed` `packages/dgk-skills/skills/vault-search/SKILL.md` hash,
 verifies the Refarm wrapper, calls `source:v1` over the external `vault-seed`
-checkout, and emits an execution receipt without installing, copying,
-vendoring, or executing the upstream skill or the `dgk`/Obsidian product
-commands.
+checkout, validates a package-declared `pi/skill` surface through
+`@refarm.dev/plugin-manifest`, and emits an execution receipt without
+installing, copying, vendoring, or executing the upstream skill or the
+`dgk`/Obsidian product commands.
