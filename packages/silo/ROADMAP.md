@@ -70,6 +70,10 @@ surface ships complete and stable. Every item below is backed by the 2026-06-29 
   without loading Heartwood.
 - [x] Mark the current scheme honestly as `local-plaintext-v1` with owner-only file modes, with
   `opaque-envelope-v1` and hardware-backed envelopes as planned internal upgrades.
+- [x] Forward-safe reads: an unreadable envelope (`encrypted: true` / unknown scheme) makes
+  `loadSecret` throw `UnreadableSecretError` (`SILO_SECRET_UNREADABLE`) and `listSecrets` omit it —
+  never returns ciphertext as plaintext. Ships in the first public `0.1.0` so consumers are
+  forward-safe by construction (vault-seed consumer proof, 2026-06-29).
 
 ### Collection contract — multi-field services
 - [ ] Resolve the single-value `collect(ctx): Promise<string>` vs multi-field services (telegram =

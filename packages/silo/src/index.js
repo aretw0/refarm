@@ -55,22 +55,47 @@ function createSecretEnvelope(value) {
     };
 }
 
-function readSecretEnvelope(entry) {
-    if (typeof entry === "string") {
-        return entry;
+// Schemes this build can read as plaintext. Legacy bare strings and the
+// local-plaintext envelope are readable; anything encrypted or carrying an
+// unknown scheme is NOT, so a future OPAQUE/hardware store is never silently
+// handed back as a raw value (ADR-077 forward-safety).
+const READABLE_SECRET_SCHEMES = new Set([SILO_SECRET_PROTECTION_SCHEME]);
+
+export class UnreadableSecretError extends Error {
+    constructor(scheme) {
+        super(
+            `[Silo] secret is protected with "${scheme}", which this @refarm.dev/silo build ` +
+                `cannot read; upgrade @refarm.dev/silo to a release that supports it.`,
+        );
+        this.name = "UnreadableSecretError";
+        this.code = "SILO_SECRET_UNREADABLE";
+        this.scheme = scheme;
     }
-    if (entry && typeof entry === "object" && typeof entry.value === "string") {
-        return entry.value;
-    }
-    return undefined;
 }
 
-function listSecretEnvelopeValues(entries = {}) {
-    return Object.fromEntries(
-        Object.entries(entries)
-            .map(([id, entry]) => [id, readSecretEnvelope(entry)])
-            .filter(([, value]) => value !== undefined),
-    );
+// Classify a stored secret entry against what this build can interpret.
+// Returns { present, readable, value, scheme }. `value` is only set when the
+// entry is both present and readable.
+function classifySecretEntry(entry) {
+    if (entry === undefined || entry === null) return { present: false };
+    if (typeof entry === "string") {
+        return { present: true, readable: true, value: entry };
+    }
+    if (typeof entry === "object" && typeof entry.value === "string") {
+        const protection = entry.protection;
+        const scheme = protection?.scheme;
+        const readable =
+            !protection ||
+            (protection.encrypted !== true &&
+                (scheme === undefined || READABLE_SECRET_SCHEMES.has(scheme)));
+        return {
+            present: true,
+            readable,
+            value: readable ? entry.value : undefined,
+            scheme: scheme ?? "unknown",
+        };
+    }
+    return { present: false }; // malformed → treat as absent
 }
 
 /**
@@ -177,7 +202,10 @@ export class SiloCore {
      */
     async loadSecret(namespace, id) {
         const data = this._readStore("secret");
-        return readSecretEnvelope(data.secrets?.[namespace]?.[id]);
+        const entry = classifySecretEntry(data.secrets?.[namespace]?.[id]);
+        if (!entry.present) return undefined;
+        if (!entry.readable) throw new UnreadableSecretError(entry.scheme);
+        return entry.value;
     }
 
     /**
@@ -186,8 +214,15 @@ export class SiloCore {
      * @returns {Promise<Record<string, string>>}
      */
     async listSecrets(namespace) {
-        const data = this._readStore("secrets");
-        return listSecretEnvelopeValues(data.secrets?.[namespace]);
+        const entries = this._readStore("secrets").secrets?.[namespace] || {};
+        const out = {};
+        for (const [id, raw] of Object.entries(entries)) {
+            const entry = classifySecretEntry(raw);
+            // Unreadable entries (encrypted/unknown scheme) are omitted rather
+            // than returned as raw values; use loadSecret for a precise error.
+            if (entry.present && entry.readable) out[id] = entry.value;
+        }
+        return out;
     }
 
     /**
