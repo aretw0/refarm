@@ -121,3 +121,67 @@ map or `model` namespace, and kept the bridge adapter-only.
 - Merging model/runtime secrets with publishing-channel credentials.
 - Migrating contacts/rate-limit/receipt state. That is item 8b.
 - Publishing a generated vault.
+
+---
+
+## Consumer Findings (2026-06-29, vault-seed proof)
+
+This section supplies the consumer evidence this spec invited ("optional small helpers in
+`@refarm.dev/silo` only if the consumer proof shows repeated bulk namespace operations"). Findings
+were verified against `packages/silo/dist` and `vault-seed/packages/cli/src/silo.js`.
+
+### Bulk namespace operations are real → `listSecrets` / `removeSecret`
+
+The bridge cannot preserve the existing `vault-seed` API on `loadSecret(ns, id)` alone:
+
+- `siloStatus()` enumerates **every configured key across a namespace** to render the admin/check
+  status (per-service `configured` + masked `preview`). There is no single-key form.
+- `removeService(serviceId)` deletes a service's **whole key set** from the namespace.
+
+Both are repeated bulk-per-namespace operations with no single-id equivalent. This is the proof the
+spec asked for: promote two helpers into `silo` so consumers do not each re-walk the store —
+`listSecrets(namespace): Promise<Record<id, value>>` (or id list) and `removeSecret(namespace, id)`.
+
+### `CredentialProvider.collect` is single-value; real services are multi-field
+
+`collect(ctx): Promise<string>` returns one secret. The telegram channel is a **two-field set**:
+`TELEGRAM_BOT_TOKEN` (secret) + `TELEGRAM_CHAT_ID` (non-secret, auto-discovered). Either model the
+service as **one provider per key** (namespace `channel`, `id` = the env key) — which composes
+cleanly once `listSecrets` exists — or extend the contract to a credential-set collect. The
+per-field `secret` flag (masking) and the discovery flow stay product-side UX.
+
+### Install-closure separation → ADR-076
+
+Verified: the `heartwood` WASM is loaded lazily at runtime (never for a storage-only consumer), but
+`heartwood` is a hard `dependency` and `index.js` statically imports `key-manager.js`, so a
+`channel`-only consumer still pulls the identity closure into its install. Tracked as **ADR-076**
+(storage surface free of the identity closure). Prerequisite for a clean "light by default" adoption.
+
+### Storage permission hardening (security now, before OPAQUE)
+
+Verified: `silo` storage performs no `chmod`/`mode` hardening (`writeFileSync` without `mode`;
+`_ensureStorage` is a bare recursive `mkdir`). The `vault-seed` code it replaces writes `0600`/`0700`
+with a Windows no-op guard. Storage should match this **now**, independent of the v0.2.0 OPAQUE
+at-rest encryption (ADR-076 decision 3).
+
+### Env hydration helper (candidate, may stay downstream)
+
+`injectSiloEnv()` (non-overriding hydrate of a namespace's secrets into `process.env`) is the
+consumer hot path (`etl`/`inbox`/`lab`/`outbox`). `resolve()→Map` covers provider tokens, not a
+namespace hydrate. A namespace-scoped hydrate helper would avoid each consumer re-implementing it —
+flagged as a candidate, not a blocker; it can stay in `vault-seed` if `silo` prefers a thin storage
+surface.
+
+### Storage location pin (resolved)
+
+`config.storagePath` lets the bridge pin `~/.dgk/silo.json` (the default is
+`resolveSiloHome()/identity.json`). No new API needed; document the legacy-file import + `storagePath`
+override in the adapter.
+
+### Security roadmap — consumer demand affirmed
+
+vault-seed affirms real consumer demand for **v0.2.0 OPAQUE Protection** (at-rest encryption) and
+**v0.3.0 Sentinel Isolation** (isolated WASM + TPM/HSM). The near-term value of adoption is namespace
+convergence + unified storage; the encryption our users deserve is what the roadmap already plans.
+This is a prioritization signal, not new scope. The consumer-surface items above are folded into the
+revised `packages/silo/ROADMAP.md` v0.1.1 so the package ships consumer-complete in one push.
