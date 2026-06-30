@@ -59,6 +59,7 @@ Architecture Decision Records for Refarm.
 | [071](ADR-071-workspace-namespace-policy.md)                   | Workspace Namespace Policy                                                        | Accepted   | 2026-06-28 |
 | [072](ADR-072-consumer-leaf-distribution-policy.md)            | Consumer Leaf Distribution Policy                                                 | Accepted   | 2026-06-29 |
 | [073](ADR-073-capability-index-incubation-boundary.md)         | Capability Index Incubation Boundary                                              | Accepted   | 2026-06-30 |
+| [074](ADR-074-remote-workspace-control-plane.md)               | Remote Workspace Control Plane                                                    | Accepted   | 2026-06-30 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 

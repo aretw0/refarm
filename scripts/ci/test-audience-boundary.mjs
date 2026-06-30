@@ -144,6 +144,34 @@ test("factory readiness records hard environment ceilings", () => {
 	assert.match(readiness, /command\s+planning ceilings/);
 });
 
+test("remote workspace control horizon stays transport and app neutral", () => {
+	const adr = read("specs/ADRs/ADR-074-remote-workspace-control-plane.md");
+	const roadmap = read("docs/CONVERGENCE_ROADMAP.md");
+	const readiness = read("docs/CONVERGENCE_FACTORY_READINESS.md");
+	const decisionLog = read("docs/decision-log.md");
+
+	assert.match(adr, /Remote Workspace Control Plane/);
+	assert.match(adr, /transport-neutral/);
+	assert.match(adr, /Tailscale.*not require it as the only transport/s);
+	assert.match(adr, /Telegram or Matrix bridge is a channel adapter/);
+	assert.match(adr, /No raw shell by default/);
+	assert.match(adr, /Policy precedes execution/);
+	assert.match(adr, /Environment ceilings are part of dispatch/);
+	assert.match(adr, /Work policy is respected/);
+	assert.match(adr, /Do not add remote execution directly to `apps\/refarm` as app-local logic/);
+	assert.match(adr, /bounded read-only check/);
+	assert.match(roadmap, /Remote workspace control plane/);
+	assert.match(roadmap, /PWA, Android, CLI, Telegram, Matrix/);
+	assert.match(roadmap, /Tailscale is a strong private-network fixture, not the canonical protocol/);
+	assert.match(roadmap, /contract deferred until proof pressure/);
+	assert.match(readiness, /remote workspace control plane/);
+	assert.match(readiness, /not execution-ready/);
+	assert.match(readiness, /remote Refarm node must be allowed to refuse,\s+serialize, or degrade work/);
+	assert.match(decisionLog, /Remote workspace control plane/);
+	assert.match(decisionLog, /not a Telegram\/Matrix\/Tailscale-specific protocol/);
+	assert.match(decisionLog, /Remote mutation and raw shell remain elevated/);
+});
+
 test("superseded homestead ssr docs stay non-executable", () => {
 	const spec = read("specs/features/2026-06-25-homestead-ssr-tier.md");
 	const plan = read("docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md");
