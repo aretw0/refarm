@@ -100,10 +100,13 @@ describe("refarm.me runtime", () => {
 			discoveredContentPluginIds: [],
 			driverStatus: {
 				referenceDriverCapabilityIds: [
+					"runtime-agent.ask",
+					"runtime-agent.worker-profiles",
 					"runtime-agent.session-tree",
 					"runtime-agent.structured-io",
 					"runtime-agent.code-ops",
 				],
+				scheduledWorkSummary: undefined,
 			},
 			storeLocalNode: expect.any(Function),
 		});
@@ -152,6 +155,8 @@ describe("refarm.me runtime", () => {
 				pluginRegistryCount: 0,
 				discoveredContentPluginCount: 0,
 				referenceDriverCapabilityIds: [
+					"runtime-agent.ask",
+					"runtime-agent.worker-profiles",
 					"runtime-agent.session-tree",
 					"runtime-agent.structured-io",
 					"runtime-agent.code-ops",
