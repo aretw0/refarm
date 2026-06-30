@@ -99,6 +99,7 @@ export {
     classifyDiskPressure,
     classifyMemoryPressure,
     decideEnvironmentPressure,
+    planEnvironmentWorkCeiling,
     DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
 } from "./environment-pressure.js";
 

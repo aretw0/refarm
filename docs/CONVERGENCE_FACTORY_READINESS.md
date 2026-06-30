@@ -29,7 +29,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; the plan includes `test-runner:contracts`, `audience:boundary:test`, and the lightweight `reference-driver:smoke` gate before package dry-run, and publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
 | `vault-seed` release lane | dry-run validated + handoff complete | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after ADR-072 the lane reports `acceptance.status: "accepted"` with 9 packages and 20 required checks; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/process-handoff` instead of full Homestead/CLI closures | official downstream assimilation proofs remain pending |
-| environment citizenship | active guardrail | `@refarm.dev/health/environment-pressure`, `refarm resume`, and `refarm check --next-action` already expose disk/memory pressure before work starts; Rust build parallelism is capped in repo config | turn pressure into hard command ceilings for broad test/build/fanout lanes so Refarm refuses, serializes, or degrades before agents can OOM or stall the host |
+| environment citizenship | package ceiling primitive implemented | `@refarm.dev/health/environment-pressure` exposes disk/memory/session pressure and `planEnvironmentWorkCeiling` maps work classes to allow/degrade/serialize/refuse; `refarm resume` and `refarm check --next-action` already expose pressure before work starts; Rust build parallelism is capped in repo config | wire the ceiling primitive into command planning for broad test/build/fanout lanes so Refarm refuses, serializes, or degrades before agents can OOM or stall the host |
 
 ## Plan depth — read before "ready to implement"
 
@@ -95,9 +95,12 @@ a smaller proof before the host reaches an OOM/stall condition.
 Observed footgun (2026-06-29): a single focused `apps/refarm` Vitest command was
 killed with exit 137 in this container after earlier concurrent app validation
 had already destabilized the session. Treat this as product pressure, not as an
-operator anecdote. Future validation tooling should connect
-`environment-pressure` to command planning for broad app tests, type-checks,
-runtime fanout, and worker dispatch. Until that ceiling exists, prefer
+operator anecdote. The package-owned first step is now
+`planEnvironmentWorkCeiling`, which lets callers classify work as focused,
+package-scoped, broad, fanout, or mutation and receive an allow/degrade/
+serialize/refuse decision from the current pressure report. Future validation
+tooling should wire that primitive into command planning ceilings for broad app tests,
+type-checks, runtime fanout, and worker dispatch. Until that wiring exists, prefer
 package-owned SDK tests, `git diff --check`, build of the directly affected
 package, and operator lanes that can emit direct next commands over repeating a
 command that has already been killed by the environment.
@@ -108,9 +111,9 @@ important contract was the `@refarm.dev/cli/capability-index` supply map gaining
 `adoptionCriteria`; that stayed in the package-owned SDK and docs. The
 app-local presentation/test path was dropped because it did not own the
 contract and its focused Vitest command was killed by the environment. The next
-implementation move is not to retry the same app command, but to add command
-planning ceilings that select package-owned proofs or controlled operator lanes
-before broad app validation is allowed.
+implementation move is not to retry the same app command, but to consume the
+health-owned ceiling primitive from command planning so package-owned proofs or
+controlled operator lanes are selected before broad app validation is allowed.
 
 Remote workspace implication: ADR-074 makes environment ceilings part of the
 remote dispatch boundary. A remote Refarm node must be allowed to refuse,
