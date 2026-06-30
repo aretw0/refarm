@@ -169,6 +169,23 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		},
 		proofChecklist: "consumerProofs",
 	});
+	assert.equal(manifest.distributionEvidence.schema, "refarm.vault-seed-ready-distribution-evidence.v1");
+	assert.equal(manifest.distributionEvidence.state, "local-handoff-ready");
+	assert.equal(manifest.distributionEvidence.stableRef, "refarm-handoff://vault-seed-ready");
+	assert.equal(
+		manifest.distributionEvidence.currentRef,
+		"refarm-handoff://vault-seed-ready/fixture",
+	);
+	assert.equal(manifest.distributionEvidence.subject.selectionId, "vault-seed-ready");
+	assert.deepEqual(manifest.distributionEvidence.subject.tarballs, [
+		"refarm.dev-alpha-0.1.0.tgz",
+		"refarm.dev-beta-0.2.0.tgz",
+	]);
+	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 1);
+	assert.equal(manifest.distributionEvidence.update.source, "release-engine");
+	assert.equal(manifest.distributionEvidence.rollback.requiresHumanApproval, true);
+	assert.equal(manifest.distributionEvidence.boundary.publicInstallContract, false);
+	assert.equal(manifest.distributionEvidence.boundary.p2pSubstrateAdopted, false);
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].stale, false);
 	assert.equal(manifest.packages[0].buildOutputStale, false);
@@ -179,6 +196,8 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		formatHandoffMarkdown(manifest),
 		/Acceptance: accepted \(2 package\(s\), 2 required check\(s\)\)/,
 	);
+	assert.match(formatHandoffMarkdown(manifest), /Distribution evidence:/);
+	assert.match(formatHandoffMarkdown(manifest), /refarm-handoff:\/\/vault-seed-ready\/fixture/);
 	assert.match(formatHandoffMarkdown(manifest), /none declared/);
 	assert.match(formatHandoffMarkdown(manifest), /Consumer install hints:/);
 	assert.match(formatHandoffMarkdown(manifest), /consumerInstall\.pnpmOverrides/);
@@ -305,6 +324,34 @@ test("uses document wording for ds/html consumer-pull metadata", () => {
 	assert.doesNotMatch(formatHandoffMarkdown(manifest), /html-shell|HTML shell|shell helpers/);
 });
 
+test("keeps blocked distribution evidence at zero verified copies", () => {
+	const { root, handoffDir } = makeFixture();
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: {
+			ok: false,
+			plan: {
+				ok: false,
+				status: "blocked",
+				selection: { id: "vault-seed-ready" },
+				reason: "release selection is not ready",
+				orderedNames: [],
+				orderedPackages: [],
+				blockers: [],
+				gates: [],
+				publishIntents: [],
+			},
+		},
+	});
+
+	assert.equal(manifest.ok, false);
+	assert.deepEqual(manifest.packages, []);
+	assert.equal(manifest.distributionEvidence.state, "blocked");
+	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
+	assert.deepEqual(manifest.distributionEvidence.issues, ["release selection is not ready"]);
+});
+
 test("keeps current vault-seed-ready selection tied to consumer-pull metadata", () => {
 	const root = process.cwd();
 	const handoffDir = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-empty-"));
@@ -317,6 +364,10 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
 	assert.equal(manifest.packages.length, 9);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
+	assert.equal(manifest.distributionEvidence.state, "blocked");
+	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 9);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 9);
 	assert.equal(Object.keys(manifest.consumerInstall.fileSpecs).length, manifest.packages.length);
 	assert.equal(Object.keys(manifest.consumerInstall.pnpmOverrides).length, manifest.packages.length);
 	assert.equal(manifest.consumerInstall.copyFiles.length, manifest.packages.length + 1);
@@ -358,6 +409,9 @@ test("reports missing and extra handoff tarballs", () => {
 		"missing expected tarball: refarm.dev-beta-0.2.0.tgz",
 		"unexpected tarball: unexpected-0.1.0.tgz",
 	]);
+	assert.equal(manifest.distributionEvidence.state, "blocked");
+	assert.deepEqual(manifest.distributionEvidence.issues, manifest.issues);
+	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
 });
 
 test("prunes only unexpected handoff tarballs", () => {

@@ -23,6 +23,7 @@ const DEFAULT_SELECTION = "vault-seed-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/vault-seed/${new Date().toISOString().slice(0, 10)}`;
 const HANDOFF_MANIFEST_SCHEMA_VERSION = 1;
 const HANDOFF_MANIFEST_SOURCE = "vault-seed-ready-handoff";
+const HANDOFF_DISTRIBUTION_EVIDENCE_SCHEMA = "refarm.vault-seed-ready-distribution-evidence.v1";
 const PACKAGE_SOURCE_INPUTS = [
 	"package.json",
 	"README.md",
@@ -294,6 +295,90 @@ function buildConsumerInstall({ packages, handoffDir }) {
 	};
 }
 
+function handoffRef(handoffDir) {
+	const normalized = handoffDir.replace(/\\/g, "/");
+	const marker = ".refarm/handoff/vault-seed/";
+	const markerIndex = normalized.indexOf(marker);
+	const suffix = markerIndex >= 0
+		? normalized.slice(markerIndex + marker.length)
+		: path.basename(normalized);
+	return `refarm-handoff://vault-seed-ready/${suffix || "local"}`;
+}
+
+function buildDistributionEvidence({
+	packages,
+	manifestOk,
+	handoffDir,
+	acceptance,
+	selectionId = DEFAULT_SELECTION,
+	issues = [],
+}) {
+	const presentPackages = packages.filter((entry) => entry.exists);
+	const tarballs = packages.map((entry) => ({
+		packageName: entry.packageName,
+		version: entry.version,
+		tarball: entry.tarball,
+		sha256: entry.sha256,
+		exists: entry.exists,
+	}));
+	return {
+		schema: HANDOFF_DISTRIBUTION_EVIDENCE_SCHEMA,
+		stableRef: "refarm-handoff://vault-seed-ready",
+		currentRef: handoffRef(handoffDir),
+		state: manifestOk ? "local-handoff-ready" : "blocked",
+		subject: {
+			kind: "release-selection",
+			selectionId,
+			packageCount: packages.length,
+			packageNames: packages.map((entry) => entry.packageName),
+			tarballs: tarballs.map((entry) => entry.tarball),
+		},
+		availability: {
+			mode: "local-handoff",
+			minAvailableCopies: 1,
+			currentVerifiedCopies: packages.length > 0 && presentPackages.length === packages.length ? 1 : 0,
+			offlineBehavior: "consumer can use copied vendor tarballs after SHA-256 verification",
+			actors: [
+				{
+					id: "refarm-local-handoff",
+					role: "primary-source",
+					required: true,
+					ref: handoffRef(handoffDir),
+				},
+				{
+					id: "consumer-vendor-copy",
+					role: "expected-replica",
+					required: false,
+					ref: "consumerInstall.vendorDir",
+				},
+			],
+		},
+		update: {
+			source: "release-engine",
+			strategy: "replace handoff directory and selected package tarballs",
+			acceptanceStatus: acceptance?.status ?? "unknown",
+			evidenceRefs: ["acceptance", "packages[].sha256", "consumerProofs"],
+		},
+		rollback: {
+			strategy: "retain previous handoff directory or pinned consumer vendor tarballs",
+			targetRef: "previous refarm-handoff://vault-seed-ready/<date>",
+			requiresHumanApproval: true,
+		},
+		integrity: {
+			algorithm: "sha256",
+			tarballs,
+		},
+		boundary: {
+			publicInstallContract: false,
+			p2pSubstrateAdopted: false,
+			pearRuntimeAdopted: false,
+			appOwnedContract: false,
+			productReady: false,
+		},
+		issues,
+	};
+}
+
 function expectedTarballSet(cwd, commands) {
 	return new Set(
 		commands.map((command) =>
@@ -425,6 +510,14 @@ export function buildHandoffManifest({
 				handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 			}),
 			consumerProofs: [],
+			distributionEvidence: buildDistributionEvidence({
+				packages: [],
+				manifestOk: false,
+				handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
+				acceptance: releasePlanAcceptance(plan),
+				selectionId: plan.selection?.id ?? DEFAULT_SELECTION,
+				issues: [plan.reason ?? "release selection is not ready"],
+			}),
 			missing: [],
 			extra: [],
 			prunedExtra,
@@ -514,6 +607,14 @@ export function buildHandoffManifest({
 			handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 		}),
 		consumerProofs: buildConsumerProofs(packages),
+		distributionEvidence: buildDistributionEvidence({
+			packages,
+			manifestOk: issues.length === 0,
+			handoffDir: maybeRelative(cwd, absoluteHandoffDir),
+			acceptance: releasePlanAcceptance(check.plan),
+			selectionId: check.plan.selection?.id ?? DEFAULT_SELECTION,
+			issues,
+		}),
 		missing,
 		extra,
 		prunedExtra,
@@ -558,6 +659,18 @@ export function formatHandoffMarkdown(manifest) {
 			`- Vendor dir: \`${manifest.consumerInstall.vendorDir}\``,
 			`- Proof checklist: \`${manifest.consumerInstall.proofChecklist}\``,
 			"- Use `consumerInstall.fileSpecs` for direct dependencies and `consumerInstall.pnpmOverrides` for unpublished transitive `@refarm.dev/*` packages.",
+		);
+	}
+
+	if (manifest.distributionEvidence) {
+		lines.push(
+			"",
+			"Distribution evidence:",
+			"",
+			`- State: \`${manifest.distributionEvidence.state}\``,
+			`- Stable ref: \`${manifest.distributionEvidence.stableRef}\``,
+			`- Current ref: \`${manifest.distributionEvidence.currentRef}\``,
+			`- Rollback: ${manifest.distributionEvidence.rollback.strategy}`,
 		);
 	}
 

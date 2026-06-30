@@ -49,6 +49,9 @@ This packet is a candidate channel, not a public release.
   required check(s))` before the tarball table.
 - [x] `pnpm run release:readiness:test` covers the acceptance field and Markdown
   summary through `scripts/ci/test-vault-seed-ready-handoff.mjs`.
+- [x] The handoff manifest now carries `distributionEvidence` with stable/current
+  local handoff refs, tarball integrity, update source, rollback target, and
+  boundaries that keep the packet out of public install/P2P claims.
 
 ## Task 5 - Freshness Guard
 

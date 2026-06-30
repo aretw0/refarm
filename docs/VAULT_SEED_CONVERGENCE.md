@@ -482,16 +482,19 @@ tarball or stale build-output issues. The Markdown form prints the same
 acceptance line before the tarball table, so a consumer handoff can verify
 readiness without reinterpreting the full release plan. The JSON manifest is
 versioned (`schemaVersion: 1`) and carries the current `packages[].sha256`,
-`consumerPull` per package, `consumerProofs`, and `prunedExtra` fields. Treat
-`manifest.json`, not hand-written prose, as the integrity source of truth. The
-official checkout should collect every `.tgz` named by `packages[].tarball`
-from the same handoff directory, then use `packages[].sha256` to verify the
-packet before pinning dependencies. `consumerInstall.fileSpecs` gives
-ready-to-copy `file:./vendor/<tarball>` specs for direct dependencies, and
-`consumerInstall.pnpmOverrides` gives the matching unpublished transitive
-overrides. The flattened `consumerProofs` list is the downstream assimilation
-checklist: each item has a stable `proofId`, names the `vault-seed` proof
-target, and records the product boundary that must remain local.
+`consumerPull` per package, `consumerProofs`, `distributionEvidence`, and
+`prunedExtra` fields. Treat `manifest.json`, not hand-written prose, as the
+integrity source of truth. The official checkout should collect every `.tgz`
+named by `packages[].tarball` from the same handoff directory, then use
+`packages[].sha256` to verify the packet before pinning dependencies.
+`consumerInstall.fileSpecs` gives ready-to-copy `file:./vendor/<tarball>` specs
+for direct dependencies, and `consumerInstall.pnpmOverrides` gives the matching
+unpublished transitive overrides. The flattened `consumerProofs` list is the
+downstream assimilation checklist: each item has a stable `proofId`, names the
+`vault-seed` proof target, and records the product boundary that must remain
+local. `distributionEvidence` records the local handoff ref, verified-copy
+state, update source, rollback target, and the explicit boundary that this is
+not a public install contract or P2P substrate.
 
 ### Additional Assimilation Matrix
 
