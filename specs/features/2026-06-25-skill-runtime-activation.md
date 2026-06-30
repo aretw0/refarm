@@ -31,7 +31,8 @@ Start this item only when all are true:
    `@refarm.dev/source-local`, an external `agents-lab` git-workflow wrapper smoke records
    upstream source evidence plus a `source:v1` receipt without installing or executing the
    external skill, and `native:skills:dgk-vault-search-smoke` records the same wrapper/evidence
-   pattern for `vault-seed`'s `dgk-skills/vault-search` without executing `dgk` or Obsidian CLI.
+   pattern plus a package-declared `pi/skill` surface for `vault-seed`'s
+   `dgk-skills/vault-search` without executing `dgk` or Obsidian CLI.
 
 ## Scope
 
@@ -63,6 +64,7 @@ only supplies the runtime envelope.
 - Invocation smoke runs one DGK skill through Refarm and records engine calls. The internal
   `native:skills:source-engine-smoke` records source-engine evidence first,
   `native:skills:agents-lab-git-workflow-smoke` proves the external wrapper pattern, and
-  `native:skills:dgk-vault-search-smoke` closes the first DGK wrapper fixture proof. Runtime-host
-  execution and direct DGK fixture comparison still remain after install/policy gates.
+  `native:skills:dgk-vault-search-smoke` closes the first DGK wrapper fixture proof and validates
+  its package-declared skill surface. Runtime-host execution and direct DGK fixture comparison
+  still remain after install/policy gates.
 - No import from `vault-seed` product paths appears in Refarm runtime code.

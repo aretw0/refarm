@@ -76,6 +76,17 @@ test("DGK vault-search smoke wraps external skill evidence without installing or
 	assert.match(result.selectedExternalSkill.sha256, /^[a-f0-9]{64}$/);
 	assert.equal(result.selectedExternalSkill.decision, "requires-refarm-wrapper-before-install");
 	assert.equal(result.wrapperSkill.name, "dgk-vault-search-refarm-wrapper");
+	assert.equal(result.wrapperSkill.assetPath, "skills/dgk-vault-search-refarm-wrapper/SKILL.md");
+	assert.equal(result.pluginManifest.id, "@refarm.dev/dgk-vault-search-skill-wrapper");
+	assert.equal(result.pluginManifest.valid, true);
+	assert.equal(result.surface.layer, "pi");
+	assert.equal(result.surface.kind, "skill");
+	assert.equal(result.surface.id, "dgk-vault-search-refarm-wrapper");
+	assert.deepEqual(result.surface.assets, ["skills/dgk-vault-search-refarm-wrapper/SKILL.md"]);
+	assert.deepEqual(result.surface.capabilities, [
+		"refarm.operator-loop",
+		"source:v1",
+	]);
 	assert.deepEqual(result.plan.capabilityRequests, [
 		{ id: "refarm.operator-loop", required: true },
 		{ id: "source:v1", required: true },
@@ -94,7 +105,9 @@ test("DGK vault-search smoke wraps external skill evidence without installing or
 	assert.equal(result.sourceStatus.clean, true);
 	assert.match(result.receipt.output.body, /DGK vault-search wrapper evidence/);
 	assert.match(result.boundaries.join("\n"), /does not execute dgk/);
+	assert.match(result.boundaries.join("\n"), /package skill surface/);
 	assert.match(result.nextActions.join("\n"), /first external skill fixture proof/);
+	assert.match(result.nextActions.join("\n"), /package-declared pi\/skill surface/);
 	assert.deepEqual(result.issues, []);
 });
 

@@ -112,10 +112,12 @@ policy decision, plus a `source:v1` engine dogfood smoke that records a receipt 
 git-workflow wrapper smoke that records upstream hash/source evidence and a `source:v1` receipt
 without installing or executing the upstream skill. It now has the matching DGK wrapper smoke for
 `vault-seed`'s `dgk-skills/vault-search`, recording upstream hash/source evidence and a
-`source:v1` receipt without executing `dgk` or Obsidian CLI. DGK skills still do not become
-executable under Refarm until a runtime host, install policy, and direct fixture comparison pass.
-`dgk-skills` and `agents-lab` skills are compatibility fixtures and consumer pressure, not code
-that moves into `apps/refarm`.
+`source:v1` receipt, plus a package-declared `pi/skill` surface validated through
+`@refarm.dev/plugin-manifest`, without executing `dgk` or Obsidian CLI. DGK
+skills still do not become executable under Refarm until a runtime host, install
+policy, and direct fixture comparison pass. `dgk-skills` and `agents-lab` skills
+are compatibility fixtures and consumer pressure, not code that moves into
+`apps/refarm`.
 
 The first adapter should prove one external skill can run under Refarm's skill surface without a
 one-shot rename, without inventing a second skill installer/runtime, and without bypassing
