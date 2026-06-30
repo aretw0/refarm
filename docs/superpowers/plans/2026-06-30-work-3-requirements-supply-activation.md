@@ -62,9 +62,10 @@ composition proof in `scripts/ci` that builds `@refarm.dev/health`,
 `@refarm.dev/source-web`, `@refarm.dev/enrichment-contract-v1`, and
 `@refarm.dev/records-contract-v1`, then validates environment pressure,
 authenticated-web fixture replay, source coverage, review-state counts,
-deterministic enrichment, record hash drift, and final `records:v1`
-validation. It intentionally avoids browser automation, private selectors,
-release-policy promotion, and consumer vocabulary.
+deterministic enrichment, record hash drift, final `records:v1` validation, and
+a sanitized `artifact:v1` manifest with review report. It intentionally avoids
+browser automation, private selectors, release-policy promotion, and consumer
+vocabulary.
 
 ## Task 5 - Consumer Handoff Planning
 

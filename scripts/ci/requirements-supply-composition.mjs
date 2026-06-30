@@ -1,5 +1,10 @@
 #!/usr/bin/env node
+import {
+	TASK_ARTIFACT_MANIFEST_SCHEMA,
+	validateTaskArtifactManifest,
+} from "../../packages/artifact-contract-v1/dist/index.js";
 import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -13,6 +18,7 @@ import { createWebSourceProvider } from "../../packages/source-web/dist/index.js
 
 const SCHEMA = "refarm.requirements-supply-composition.v1";
 const DEFAULT_COMPLETED_AT = "2026-06-30T00:00:00.000Z";
+const RUN_ID = "requirements-supply-composition-2026-06-30";
 
 function issue(code, message, evidence = null) {
 	return {
@@ -47,6 +53,23 @@ function sourceCoverage(records) {
 	};
 }
 
+function stableStringify(value) {
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+	}
+
+	if (value && typeof value === "object") {
+		const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
+		return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`).join(",")}}`;
+	}
+
+	return JSON.stringify(value);
+}
+
+function sha256(value) {
+	return createHash("sha256").update(stableStringify(value)).digest("hex");
+}
+
 function applyEnrichment(manifest, enrichmentResult) {
 	const byId = new Map(enrichmentResult.records.map((record) => [record.id, record]));
 	return {
@@ -78,6 +101,119 @@ function decideGate({ pressure, validation, coverage, enrichment }) {
 	if (pressure.decision !== "continue") return "serialize";
 	if (enrichment.diagnostics.skipped > 0) return "degrade";
 	return "allow";
+}
+
+function buildReviewReport({ coverage, enrichment, finalValidation, sourceProvenance, gateDecision }) {
+	return {
+		schema: "refarm.requirements-supply-review.v1",
+		gateDecision,
+		source: {
+			authenticatedFixture: sourceProvenance?.session.authenticated === true,
+			offlineReplay: sourceProvenance?.cache.offlineReplay === true,
+			redacted: sourceProvenance?.redaction.applied === true,
+		},
+		records: {
+			sourceCoverage: coverage,
+			validation: finalValidation,
+		},
+		enrichment: {
+			mode: enrichment.mode,
+			diagnostics: enrichment.diagnostics,
+		},
+	};
+}
+
+function buildArtifactManifest({
+	completedAt,
+	enrichedManifest,
+	enrichment,
+	reviewReport,
+	sourceMaterialize,
+	sourceProvenance,
+}) {
+	const command = "pnpm run requirements:supply:composition";
+	const process = {
+		command: "pnpm",
+		args: ["run", "requirements:supply:composition"],
+		display: command,
+		cwd: "/workspaces/refarm",
+		packageManager: "pnpm",
+	};
+	const baseProvenance = {
+		runId: RUN_ID,
+		producer: "refarm:requirements-supply-composition",
+		command,
+		process,
+		source: "requirements-supply-fixture",
+		sourceVersion: "synthetic-v1",
+		producedAt: completedAt,
+	};
+
+	return {
+		schema: TASK_ARTIFACT_MANIFEST_SCHEMA,
+		taskId: "work-3-requirements-supply",
+		effortId: RUN_ID,
+		createdAt: completedAt,
+		artifacts: [
+			{
+				id: "source-web-snapshot",
+				uri: sourceMaterialize.location.path,
+				mediaType: "application/vnd.refarm.source-web.snapshot+json",
+				role: "dataset",
+				reviewState: "accepted",
+				hash: {
+					algorithm: "sha256",
+					value: sourceProvenance?.cache.hash.replace(/^sha256:/, "") ?? sha256(sourceMaterialize),
+				},
+				provenance: {
+					...baseProvenance,
+					inputHashes: sourceProvenance
+						? [{ algorithm: "sha256", value: sourceProvenance.cache.hash.replace(/^sha256:/, "") }]
+						: undefined,
+				},
+				labels: ["source-web", "offline-replay", "redacted"],
+			},
+			{
+				id: "records-manifest",
+				uri: "memory:requirements-supply/records-manifest.json",
+				mediaType: "application/vnd.refarm.records+json",
+				role: "manifest",
+				reviewState: "accepted",
+				hash: {
+					algorithm: "sha256",
+					value: sha256(enrichedManifest),
+				},
+				provenance: baseProvenance,
+				labels: ["records:v1", "knowledge-graph"],
+			},
+			{
+				id: "enrichment-report",
+				uri: "memory:requirements-supply/enrichment-report.json",
+				mediaType: "application/vnd.refarm.enrichment-report+json",
+				role: "report",
+				reviewState: enrichment.diagnostics.skipped === 0 ? "accepted" : "unreviewed",
+				hash: {
+					algorithm: "sha256",
+					value: sha256(enrichment),
+				},
+				provenance: baseProvenance,
+				labels: ["enrichment:v1", "dry-run"],
+			},
+			{
+				id: "review-report",
+				uri: "memory:requirements-supply/review-report.json",
+				mediaType: "application/vnd.refarm.requirements-supply-review+json",
+				role: "audit-trail",
+				reviewState: "accepted",
+				hash: {
+					algorithm: "sha256",
+					value: sha256(reviewReport),
+				},
+				provenance: baseProvenance,
+				labels: ["review", "preflight", "composition"],
+			},
+		],
+	};
 }
 
 export async function buildRequirementsSupplyComposition({
@@ -158,6 +294,29 @@ export async function buildRequirementsSupplyComposition({
 		coverage,
 		enrichment,
 	});
+	const reviewReport = buildReviewReport({
+		coverage,
+		enrichment,
+		finalValidation,
+		sourceProvenance,
+		gateDecision,
+	});
+	const artifactManifest = buildArtifactManifest({
+		completedAt,
+		enrichedManifest,
+		enrichment,
+		reviewReport,
+		sourceMaterialize,
+		sourceProvenance,
+	});
+	const artifactValidation = validateTaskArtifactManifest(artifactManifest);
+	if (!artifactValidation.ok) {
+		issues.push(issue(
+			"ARTIFACT_MANIFEST_INVALID",
+			"Expected the sanitized artifact:v1 manifest to validate.",
+			artifactValidation.issues,
+		));
+	}
 
 	return {
 		schema: SCHEMA,
@@ -224,6 +383,15 @@ export async function buildRequirementsSupplyComposition({
 				.filter((record) => !record.skipped && record.changes.length > 0)
 				.map((record) => record.id),
 		},
+		artifacts: {
+			capability: "artifact:v1",
+			validation: {
+				ok: artifactValidation.ok,
+				issueCount: artifactValidation.issues.length,
+			},
+			manifest: artifactManifest,
+			reviewReport,
+		},
 		boundaries: [
 			"does not run browser automation",
 			"does not import private source selectors or login flows",
@@ -231,8 +399,8 @@ export async function buildRequirementsSupplyComposition({
 			"does not add release-policy or vault-seed-ready metadata",
 		],
 		nextActions: [
-			"attach a sanitized artifact manifest and review report before release-policy promotion",
 			"record downstream local handoff evidence before release-policy promotion",
+			"keep release-policy and vault-seed-ready metadata held until a consumer pulls the local package handoff",
 		],
 		issueCount: issues.length,
 		issues,
