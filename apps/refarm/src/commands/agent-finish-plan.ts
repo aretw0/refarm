@@ -6,9 +6,11 @@ import {
 	runCommandPlan,
 	runCommandPlanCliStep,
 	runCommandPlanProcessStep,
+	type CommandPlanResourceCeilingPlan,
 	type CommandPlanRunResult,
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
+	type CommandPlanWorkClass,
 } from "@refarm.dev/cli/command-plan";
 import { readGitCommand } from "@refarm.dev/cli/git-command";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
@@ -17,6 +19,10 @@ import {
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 } from "@refarm.dev/config";
+import {
+	buildEnvironmentPressureReport,
+	planEnvironmentWorkCeiling,
+} from "@refarm.dev/health/environment-pressure";
 import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
 import { Command } from "commander";
 import fs from "node:fs";
@@ -121,6 +127,7 @@ function packageScriptStep(
 	script: string,
 	description: string,
 	idPrefix = "package",
+	workClass: CommandPlanWorkClass = "package-check",
 ): CommandPlanStep {
 	const repoRoot = findWorkspaceRoot();
 	const cwd = path.resolve(repoRoot, workspace);
@@ -141,6 +148,9 @@ function packageScriptStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			resourcePolicy: {
+				workClass,
+			},
 			tool: "package-script",
 		},
 	};
@@ -227,6 +237,9 @@ function scriptTestStep(input: {
 			cwd: repoRoot,
 			display: input.args.join(" "),
 			packageManager: null,
+			resourcePolicy: {
+				workClass: "focused-check",
+			},
 		},
 	};
 }
@@ -321,6 +334,7 @@ function turboPackageValidationStep(
 			resourcePolicy: {
 				concurrency: FINISH_TURBO_CONCURRENCY,
 				timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
+				workClass: "package-check",
 			},
 			timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
 			tool: "turbo",
@@ -588,11 +602,37 @@ export function runAgentFinishPlan(
 		affectedWorkspaces?: string[];
 	} = {},
 ): CommandPlanRunResult {
+	const environmentPressure = buildEnvironmentPressureReport({
+		command: "agent",
+		operation: "finish",
+	});
 	return runCommandPlan(selectedFinishSteps(options), (step) =>
 		step.process
 			? enrichFinishStepResult(step, deps.runProcess(step))
 			: deps.runRefarm(step.args),
+	{
+		planResourceCeiling: (step) =>
+			finishStepResourceCeiling(step, environmentPressure),
+	},
 	);
+}
+
+function finishStepResourceCeiling(
+	step: CommandPlanStep,
+	environmentPressure: ReturnType<typeof buildEnvironmentPressureReport>,
+): CommandPlanResourceCeilingPlan | null {
+	const resourcePolicy = step.process?.resourcePolicy;
+	if (!resourcePolicy?.workClass) return null;
+	return planEnvironmentWorkCeiling(environmentPressure, {
+		workClass: resourcePolicy.workClass,
+		command: step.command,
+		...(resourcePolicy.fallbackCommand
+			? { fallbackCommand: resourcePolicy.fallbackCommand }
+			: {}),
+		...(resourcePolicy.concurrency
+			? { maxConcurrency: resourcePolicy.concurrency }
+			: {}),
+	}) as CommandPlanResourceCeilingPlan;
 }
 
 function enrichFinishStepResult(

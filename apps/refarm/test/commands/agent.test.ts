@@ -1224,7 +1224,7 @@ describe("agent command", () => {
 				command: string;
 				process?: {
 					packageManager?: string | null;
-					resourcePolicy?: { concurrency?: number; timeoutMs?: number };
+					resourcePolicy?: { concurrency?: number; timeoutMs?: number; workClass?: string };
 					timeoutMs?: number;
 					tool?: string;
 				};
@@ -1246,6 +1246,7 @@ describe("agent command", () => {
 		expect(payload.steps.at(-1)?.process?.resourcePolicy).toEqual({
 			concurrency: 2,
 			timeoutMs: 180000,
+			workClass: "package-check",
 		});
 		expect(payload.steps.at(-1)?.process?.timeoutMs).toBe(180000);
 		expect(payload.steps.at(-1)?.process?.tool).toBe("turbo");
