@@ -26,7 +26,7 @@ each sub-project's own brainstorm.
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + docs sweep | — | publish dry-run green under chosen scope | ✅ decided + docs sweep done ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ✅ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B accepted; Part C POC red |
-| 6 | **Native Refarm skills** — `dgk-skills` and `agents-lab` as fixtures | contract + manifest surface + adapter + smoke | 1 | Refarm runs one external skill through its own contract, plugin-manifest surface, policy, and invocation host | ◑ contract + `pi/skill` validation + plan-only surface smoke done; engine invocation pending |
+| 6 | **Native Refarm skills** — `dgk-skills` and `agents-lab` as fixtures | contract + manifest surface + adapter + smoke | 1 | Refarm runs one external skill through its own contract, plugin-manifest surface, policy, and invocation host | ◑ contract + `pi/skill` validation + plan-only, source-engine, agents-lab, and DGK wrapper smokes done; runtime host pending |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◑ `source-local` implemented; `source-dispatch` deferred until dispatch consumer |
 | 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `process-handoff` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ✅ vault generator implemented; registry has two ready codemods |
@@ -110,9 +110,12 @@ plan-only wrapper smoke for the Refarm git-workflow skill surface with a recorde
 policy decision, plus a `source:v1` engine dogfood smoke that records a receipt from
 `@refarm.dev/source-local` without invoking runtime-agent. It also has an external `agents-lab`
 git-workflow wrapper smoke that records upstream hash/source evidence and a `source:v1` receipt
-without installing or executing the upstream skill. It still needs one `dgk-skills` fixture before
-DGK skills become executable under Refarm. `dgk-skills` and `agents-lab` skills are compatibility
-fixtures and consumer pressure, not code that moves into `apps/refarm`.
+without installing or executing the upstream skill. It now has the matching DGK wrapper smoke for
+`vault-seed`'s `dgk-skills/vault-search`, recording upstream hash/source evidence and a
+`source:v1` receipt without executing `dgk` or Obsidian CLI. DGK skills still do not become
+executable under Refarm until a runtime host, install policy, and direct fixture comparison pass.
+`dgk-skills` and `agents-lab` skills are compatibility fixtures and consumer pressure, not code
+that moves into `apps/refarm`.
 
 The first adapter should prove one external skill can run under Refarm's skill surface without a
 one-shot rename, without inventing a second skill installer/runtime, and without bypassing
