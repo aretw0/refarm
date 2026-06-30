@@ -2,6 +2,28 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Work 3 requirements supply activation
+
+**Date**: 2026-06-30
+**Status**: Proposed
+**Spec**: [2026-06-30-work-3-requirements-supply-activation](../specs/features/2026-06-30-work-3-requirements-supply-activation.md)
+**References**: `source:v1`, `artifact-contract-v1`, `@refarm.dev/health/environment-pressure`,
+`docs/ECOSYSTEM_SUPPLY_MAP.md`
+
+**Decision**: requirements-vault POC pressure activates only the neutral Refarm surfaces:
+authenticated web source capture, `enrichment:v1`, a knowledge/content manifest, and cheap
+diagnostics. Accessible-system discovery, target login, selectors, private enrichment providers,
+and domain vocabulary stay downstream. Refarm should prepare package slices and local handoff
+metadata when checks and sanitized proofs exist, but this decision does not publish npm packages or
+promote the private reference-agent runtime.
+
+**Origin**: downstream POC planning needs Refarm and `vault-seed` to publish or hand off the blocks
+that are reusable before project-specific adapters are written. The pressure is valid, but the
+boundary is strict: reusable substrate moves to Refarm; product-vault UX moves to `vault-seed`; the
+private proof keeps only its adapters and vocabulary.
+
+---
+
 ## Agent-commons environment ceilings
 
 **Date**: 2026-06-30

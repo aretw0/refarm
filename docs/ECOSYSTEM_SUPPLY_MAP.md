@@ -84,11 +84,12 @@ storage/runtime dependencies.
 | `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/process-handoff` ✅ (`@refarm.dev/cli/process-handoff` re-exports it for compatibility), artifact/channel/release/source primitives next | `dgk` is powered by Refarm where practical: imports Refarm SDK primitives internally while keeping its package, binary, command UX, audience, and product labels. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
 | Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
-| Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging` | `source:v1` adapters + source profile contract + artifact retention policy | Candidate: Python implementations and PARA target rules stay downstream. |
+| Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging`, authenticated web capture pressure | `source:v1` adapters + source profile contract + artifact retention policy; authenticated web adapter candidate tracked by `specs/features/2026-06-30-work-3-requirements-supply-activation.md` | Candidate: Python implementations, PARA target rules, accessible-system discovery, login strategy, and source-specific selectors stay downstream. |
+| Record enrichment | downstream note/tag enrichment scripts and provider lookups | future `enrichment:v1` contract with dry-run/apply evidence, provider identity, deterministic summaries, diagnostics, and provenance | New T3 pressure: Refarm owns the neutral contract; private lookup providers and domain vocabulary stay downstream. |
 | Lab runtime data helpers | WASM HTTP helpers, feed/OpenGraph readers, refresh jobs | WASM substrate + source HTTP readers + artifact snapshots | Candidate after item 5 proof; Marimo UX stays downstream. |
 | Workspace publishing / generated distributions | `dgk publish workspace`, initialize reset, package provenance | generator/codemod registry + `release-engine` + package acceptance policy | Candidate active through item 9; distribution identity stays downstream. |
 | Distributed availability / install/update | ad hoc seeds, generated bundles, remote workspace reachability | future availability policy over release/artifact/source/remote-node manifests | Pears-inspired, proof-gated: `validations/distributed-availability-evidence` now proves identity + update + rollback + availability + trust evidence without package extraction or P2P substrate adoption. |
-| Knowledge/content export | OKF mapping, JSON-LD graph, semantic graph, changelog-as-content | future knowledge/content manifest contract + release-note artifact envelope | Hold until a second consumer proves the same envelope. |
+| Knowledge/content export | OKF mapping, JSON-LD graph, semantic graph, changelog-as-content, requirement-like records | future knowledge/content manifest contract + release-note artifact envelope | T3 supplies the second-consumer pressure; activate through the requirements supply packet before package extraction. |
 | Data lifecycle beyond git | SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifacts | Candidate: backend choice and migration timing stay vault-owned. |
 
 What stays at the consumer edge is **product/content/config** (PARA vocabulary, onboarding
@@ -111,6 +112,9 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    substrate, classify it as source/profile, channel policy, release/generator, WASM/lab,
    storage/retention, or knowledge/content manifest pressure. Activate through the matching
    spec, not through product-local stand-ins.
+   Requirements-vault pressure follows `specs/features/2026-06-30-work-3-requirements-supply-activation.md`:
+   `enrichment:v1`, authenticated web source capture, knowledge/content manifest, and cheap
+   diagnostics are Refarm supply candidates; accessible-system discovery and private adapters are not.
 7. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.

@@ -527,12 +527,14 @@ local stand-ins:
 | --- | --- | --- |
 | v0.5 source IaC: `lab.sources.json`, `ExtractionProfile`, cache/staging | `source:v1` adapters, source profile contract, artifact/provenance, retention policy | source catalog, Python profile bodies, PARA target semantics |
 | v0.5 `target: "auto"` classification | model/task classification contract with auditable artifact evidence | taxonomy, review workflow, note placement rules |
+| authenticated web source capture for requirements-vault proofs | authenticated `source:v1` adapter candidate, cache/provenance, pacing policy, redaction, offline replay | accessible-system discovery, login strategy, source-specific selectors, target aliases |
+| record/note enrichment | future `enrichment:v1` contract, dry-run/apply evidence, provider identity, diagnostics | private lookup providers, tag vocabulary, editorial decisions |
 | v0.5/v0.6 multi-channel publishing: Mastodon, Bluesky, Telegram, Nostr | channel policy/evidence, `silo` identity namespaces, receipt/idempotency/rate-limit shapes | provider API adapters, copy formatting, inbox/outbox CLI UX |
 | v0.6 Nostr kind 30023 | identity/channel proof and signed receipt shape | relay choices, notebook UX, article conventions |
 | v0.7 Refarm primitive adoption | item 8 bridges with candidate packages, codemods, fallback wrappers | `@aretw0/dgk-*` product packages and migration compatibility |
 | Lab WASM helpers, feed/OpenGraph readers, refresh workflows | WASM substrate, HTTP/source readers, artifact snapshot contract | Marimo notebooks, dataset examples, visual exploration |
 | `dgk publish workspace` and custom distributions | generator/codemod registry, release-engine, package acceptance policy | distribution identity, Obsidian/Foam defaults, user-facing template docs |
-| OKF/JSON-LD/semantic graph export | knowledge/content manifest contract and graph artifact envelope | OKF-specific mapping, editorial governance, publication copy |
+| OKF/JSON-LD/semantic graph export and requirement-like records | knowledge/content manifest contract and graph artifact envelope | OKF-specific mapping, domain vocabulary, editorial governance, publication copy |
 | DGK changelog as publishable content | release-engine emits release-note artifact; channel policy handles delivery evidence | final prose, frontmatter defaults, channel selection |
 | local data lifecycle beyond git: SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifact contracts | backend choice for each vault and migration timing |
 | `vault-publish`, `vault-inbox`, `vault-changelog` skills | Refarm skill runtime activation over source/channel/release primitives | SKILL.md copy, DGK-specific skill packaging |
