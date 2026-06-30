@@ -21,7 +21,7 @@ publication remains held by the daily-driver gate or explicit human override.
 | [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
-| [`@refarm.dev/skill-contract-v1`](./skill-contract-v1) | ✅ Manifest/Surface Validation | 🟡 Proof-gated | held until adapter smoke |
+| [`@refarm.dev/skill-contract-v1`](./skill-contract-v1) | ✅ Manifest/Surface Validation | 🟡 Proof-gated | held until engine dogfood smoke |
 
 ## 📚 Librarian Source Primitives
 

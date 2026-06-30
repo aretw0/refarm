@@ -66,9 +66,12 @@ declaration from a valid manifest plus relative package asset path. It exposes
 adapter/host handoff for one source and `verifySkillSource` for source integrity
 checks before host trust. `@refarm.dev/plugin-manifest` validates that package
 surface as a non-UI, capability-declared `SKILL.md` asset declaration. The
-remaining runtime work is to pass that plan through policy and invoke Refarm engines
-through `runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable
-owner should remain a package/plugin manifest surface, not `apps/refarm`.
+`native:skills:surface-smoke` command proves the Refarm git-workflow wrapper as
+a plan-only handoff through manifest, source verification, package surface,
+plugin-manifest validation, and invocation request. The remaining runtime work
+is to pass that request through policy and invoke Refarm engines through
+`runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable owner
+should remain a package/plugin manifest surface, not `apps/refarm`.
 
 This must not become a second plugin system. Packages remain the distribution
 unit, plugins remain the executable/capability providers, and skills are
@@ -87,7 +90,8 @@ Activation sequence:
 3. represent that skill as a manifest-declared surface such as
    `layer: "pi", kind: "skill"` with `assets` pointing to the `SKILL.md`;
 4. run the first dogfood smoke through `runtime-agent` or a Refarm plugin
-   without bypassing plugin-manifest/Barn/Scarecrow boundaries;
+   without bypassing plugin-manifest/Barn/Scarecrow boundaries; a plan-only
+   smoke exists, but engine-call evidence is still pending;
 5. only then install, vendor, or publish skill wrappers.
 
 ## Deferred Until Native Host Exists
