@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
 	SKILL_INVOCATION_DECISION_SCHEMA,
 	SKILL_INVOCATION_PLAN_SCHEMA,
+	SKILL_INVOCATION_RECEIPT_SCHEMA,
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 	type SkillContractV1Adapter,
@@ -13,6 +14,9 @@ import {
 	type SkillInvocationPlanBuildResult,
 	type SkillInvocationPlanPrepareResult,
 	type SkillInvocationPlanV1,
+	type SkillInvocationReceiptBuildResult,
+	type SkillInvocationReceiptOptions,
+	type SkillInvocationReceiptV1,
 	type SkillInvocationRequestBuildResult,
 	type SkillInvocationRequestV1,
 	type SkillIoEnvelope,
@@ -270,6 +274,62 @@ export function buildSkillInvocationDecision(
 	};
 }
 
+export function buildSkillInvocationReceipt(
+	decision: SkillInvocationDecisionV1,
+	options: SkillInvocationReceiptOptions,
+): SkillInvocationReceiptBuildResult {
+	const decisionValidation = validateSkillInvocationDecision(decision);
+	if (!decisionValidation.ok) {
+		return { ok: false, receipt: null, issues: decisionValidation.issues };
+	}
+	if (!isRecord(options)) {
+		return {
+			ok: false,
+			receipt: null,
+			issues: [issue("INVOCATION_RECEIPT_OPTIONS_NOT_OBJECT", "$", "Expected invocation receipt options.")],
+		};
+	}
+
+	const issues: SkillManifestIssue[] = [];
+	validateExecutionStatus(options.status, "$.status", issues);
+	validateEngineCallEvidenceList(options.engineCalls, "$.engineCalls", issues);
+	if (options.output !== undefined) {
+		validateInvocationOutputPayload(options.output, "$.output", issues);
+	}
+	if (options.error !== undefined) {
+		requireNonEmptyString(options.error, "$.error", issues);
+	}
+	if (options.completedAt !== undefined) {
+		validateIsoTimestamp(options.completedAt, "$.completedAt", issues);
+	}
+	if (options.status === "succeeded" && options.output === undefined) {
+		issues.push(issue("INVOCATION_RECEIPT_OUTPUT_REQUIRED", "$.output", "Expected output for succeeded receipts."));
+	}
+	if (options.status === "failed" && options.error === undefined) {
+		issues.push(issue("INVOCATION_RECEIPT_ERROR_REQUIRED", "$.error", "Expected error for failed receipts."));
+	}
+	if (issues.length > 0) {
+		return { ok: false, receipt: null, issues };
+	}
+
+	const receipt: SkillInvocationReceiptV1 = {
+		schema: SKILL_INVOCATION_RECEIPT_SCHEMA,
+		decision,
+		status: options.status,
+		engineCalls: options.engineCalls,
+		...(options.output ? { output: options.output } : {}),
+		...(options.error ? { error: options.error } : {}),
+		completedAt: options.completedAt ?? new Date().toISOString(),
+		executed: true,
+	};
+	const validation = validateSkillInvocationReceipt(receipt);
+	return {
+		ok: validation.ok,
+		receipt: validation.ok ? receipt : null,
+		issues: validation.issues,
+	};
+}
+
 export function buildSkillSurfaceDeclaration(
 	manifest: SkillManifestV1,
 	options: SkillSurfaceDeclarationOptions,
@@ -434,6 +494,59 @@ export function validateSkillInvocationDecision(value: unknown): SkillManifestVa
 			"$.requiresRuntimeDispatch",
 			"Expected denied decisions to block runtime dispatch.",
 		));
+	}
+	return { ok: issues.length === 0, issues };
+}
+
+export function validateSkillInvocationReceipt(value: unknown): SkillManifestValidationResult {
+	const issues: SkillManifestIssue[] = [];
+	if (!isRecord(value)) {
+		return {
+			ok: false,
+			issues: [issue("INVOCATION_RECEIPT_NOT_OBJECT", "$", "Expected a skill invocation receipt object.")],
+		};
+	}
+
+	requireExact(value.schema, SKILL_INVOCATION_RECEIPT_SCHEMA, "$.schema", issues);
+	const decisionValidation = validateSkillInvocationDecision(value.decision);
+	if (!decisionValidation.ok) {
+		issues.push(...decisionValidation.issues.map((item) => ({
+			...item,
+			path: `$.decision${item.path === "$" ? "" : item.path.slice(1)}`,
+		})));
+	}
+	if (isRecord(value.decision)) {
+		if (value.decision.decision !== "approved") {
+			issues.push(issue("INVOCATION_RECEIPT_REQUIRES_APPROVAL", "$.decision.decision", "Expected approved decision."));
+		}
+		if (value.decision.requiresRuntimeDispatch !== true) {
+			issues.push(issue(
+				"INVOCATION_RECEIPT_REQUIRES_RUNTIME_DISPATCH",
+				"$.decision.requiresRuntimeDispatch",
+				"Expected decision to require runtime dispatch.",
+			));
+		}
+		if (value.decision.executed !== false) {
+			issues.push(issue("INVOCATION_RECEIPT_DECISION_ALREADY_EXECUTED", "$.decision.executed", "Expected false."));
+		}
+	}
+	validateExecutionStatus(value.status, "$.status", issues);
+	validateEngineCallEvidenceList(value.engineCalls, "$.engineCalls", issues);
+	if (value.output !== undefined) {
+		validateInvocationOutputPayload(value.output, "$.output", issues);
+	}
+	if (value.error !== undefined) {
+		requireNonEmptyString(value.error, "$.error", issues);
+	}
+	validateIsoTimestamp(value.completedAt, "$.completedAt", issues);
+	if (value.executed !== true) {
+		issues.push(issue("INVOCATION_RECEIPT_EXECUTED_INVALID", "$.executed", "Expected true."));
+	}
+	if (value.status === "succeeded" && value.output === undefined) {
+		issues.push(issue("INVOCATION_RECEIPT_OUTPUT_REQUIRED", "$.output", "Expected output for succeeded receipts."));
+	}
+	if (value.status === "failed" && value.error === undefined) {
+		issues.push(issue("INVOCATION_RECEIPT_ERROR_REQUIRED", "$.error", "Expected error for failed receipts."));
 	}
 	return { ok: issues.length === 0, issues };
 }
@@ -696,9 +809,61 @@ function validateInvocationInput(value: unknown, path: string, issues: SkillMani
 	requireNonEmptyString(value.body, `${path}.body`, issues);
 }
 
+function validateInvocationOutputPayload(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("INVOCATION_OUTPUT_NOT_OBJECT", path, "Expected invocation output object."));
+		return;
+	}
+	requireExact(value.format, "text/markdown", `${path}.format`, issues);
+	requireNonEmptyString(value.body, `${path}.body`, issues);
+}
+
 function validatePolicyDecision(value: unknown, path: string, issues: SkillManifestIssue[]): void {
 	if (value !== "approved" && value !== "denied") {
 		issues.push(issue("INVOCATION_DECISION_VALUE_INVALID", path, "Expected approved or denied."));
+	}
+}
+
+function validateExecutionStatus(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (value !== "succeeded" && value !== "failed") {
+		issues.push(issue("INVOCATION_EXECUTION_STATUS_INVALID", path, "Expected succeeded or failed."));
+	}
+}
+
+function validateEngineCallEvidenceList(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!Array.isArray(value)) {
+		issues.push(issue("ENGINE_CALL_EVIDENCE_LIST_INVALID", path, "Expected engine call evidence array."));
+		return;
+	}
+	if (value.length === 0) {
+		issues.push(issue("ENGINE_CALL_EVIDENCE_LIST_EMPTY", path, "Expected at least one engine call evidence entry."));
+	}
+	value.forEach((item, index) => {
+		validateEngineCallEvidence(item, `${path}.${index}`, issues);
+	});
+}
+
+function validateEngineCallEvidence(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("ENGINE_CALL_EVIDENCE_NOT_OBJECT", path, "Expected engine call evidence object."));
+		return;
+	}
+	if (!isEngineBindingId(value.engineBinding)) {
+		issues.push(issue("ENGINE_BINDING_ID_INVALID", `${path}.engineBinding`, "Expected a valid engine binding id."));
+	}
+	if (!isCapabilityId(value.capability)) {
+		issues.push(issue("CAPABILITY_ID_INVALID", `${path}.capability`, "Expected a valid capability id."));
+	}
+	requireNonEmptyString(value.providerId, `${path}.providerId`, issues);
+	requireNonEmptyString(value.operation, `${path}.operation`, issues);
+	if (typeof value.ok !== "boolean") {
+		issues.push(issue("ENGINE_CALL_OK_INVALID", `${path}.ok`, "Expected boolean."));
+	}
+	if (typeof value.durationMs !== "number" || value.durationMs < 0 || !Number.isFinite(value.durationMs)) {
+		issues.push(issue("ENGINE_CALL_DURATION_INVALID", `${path}.durationMs`, "Expected a non-negative duration."));
+	}
+	if (value.error !== undefined) {
+		requireNonEmptyString(value.error, `${path}.error`, issues);
 	}
 }
 
@@ -971,6 +1136,15 @@ function isEngineBindingId(value: unknown): value is string {
 
 function isSha256(value: unknown): value is string {
 	return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
+function validateIsoTimestamp(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	requireNonEmptyString(value, path, issues);
+	if (typeof value !== "string") return;
+	const timestamp = Date.parse(value);
+	if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) {
+		issues.push(issue("TIMESTAMP_INVALID", path, "Expected an ISO-8601 timestamp."));
+	}
 }
 
 function engineBindingsEqual(left: unknown, right: unknown): boolean {

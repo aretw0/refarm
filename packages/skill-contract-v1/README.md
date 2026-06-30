@@ -22,6 +22,8 @@ content:
   input without calling a runtime;
 - build a host policy decision from a request, approving or denying the
   requested capabilities while keeping the artifact pre-runtime and unexecuted;
+- build a host-owned execution receipt from an approved decision and explicit
+  engine-call evidence;
 - build a plugin-manifest-compatible skill surface declaration
   (`layer: "pi", kind: "skill"`) from a validated manifest and package asset
   path;
@@ -45,6 +47,7 @@ contract only after that boundary accepts the surface.
 ```ts
 import {
 	buildSkillInvocationDecision,
+	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
 	prepareSkillInvocationPlan,
@@ -91,6 +94,27 @@ const decision = buildSkillInvocationDecision(request.request, {
 if (!decision.ok) {
 	throw new Error(decision.issues.map((issue) => issue.message).join("; "));
 }
+
+const receipt = buildSkillInvocationReceipt(decision.decision, {
+	status: "succeeded",
+	engineCalls: [
+		{
+			engineBinding: "source:v1",
+			capability: "source:v1",
+			providerId: "@refarm.dev/source-local",
+			operation: "status",
+			ok: true,
+			durationMs: 12,
+		},
+	],
+	output: {
+		format: "text/markdown",
+		body: "Source status inspected.",
+	},
+});
+if (!receipt.ok) {
+	throw new Error(receipt.issues.map((issue) => issue.message).join("; "));
+}
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
@@ -108,6 +132,9 @@ before dispatch.
 Invocation decisions are also pre-runtime artifacts. An approved decision may
 set `requiresRuntimeDispatch: true`, but it must still carry `executed: false`
 until a host-owned dispatcher records actual engine-call evidence.
+Invocation receipts are host-owned execution evidence. They require an approved
+decision, at least one engine call entry, and either markdown output for success
+or an error for failure.
 Skill surface declarations require a relative package asset path; local
 `file:`/`fixture:` sources can be reviewed and parsed before packaging, but they
 do not become package manifest assets by accident.

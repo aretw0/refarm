@@ -16,7 +16,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring, first-public Silo bulk storage helpers, protection envelope, and light-by-default storage closure | official storage adoption by `vault-seed` remains item 8a |
 | 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
-| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, prepares host-policy-checkable invocation plans/requests, records pre-runtime host policy decisions, and builds plugin-manifest-compatible `pi/skill` surface declarations; `@refarm.dev/plugin-manifest` validates `pi/skill` surfaces as package asset declarations; `native:skills:surface-smoke` proves the plan-only wrapper handoff without executing skills | engine dogfood gate not present |
+| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, prepares host-policy-checkable invocation plans/requests, records pre-runtime host policy decisions, records execution receipts from engine-call evidence, and builds plugin-manifest-compatible `pi/skill` surface declarations; `@refarm.dev/plugin-manifest` validates `pi/skill` surfaces as package asset declarations; `native:skills:surface-smoke` proves the plan-only wrapper handoff without executing skills; `native:skills:source-engine-smoke` proves one `source:v1` engine call through `@refarm.dev/source-local` | external `dgk-skills` or `agents-lab` fixture proof not present |
 | 7 librarian completion | proof-gated | source:v1 base contract plus held source package profiles | waits for a dispatch proof; live-tree reads use `@refarm.dev/source-local` but still need selected dogfood/downstream proof before handoff promotion |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete, with Silo storage helpers, protection envelope, and storage/identity closure split folded back from the `vault-seed` proof; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
@@ -203,6 +203,9 @@ Current contract closure:
   request engine bindings and per-capability decisions, and keeps
   `executed: false` until a host-owned dispatcher records real engine-call
   evidence;
+- `buildSkillInvocationReceipt` records host-owned execution evidence from an
+  approved decision, including engine calls, markdown output or failure error,
+  and completion timestamp;
 - `buildSkillSurfaceDeclaration` turns a valid manifest plus relative package
   asset path into a `layer: "pi", kind: "skill"` declaration with declared
   capabilities for future `extensions.surfaces[]` handoff;
@@ -216,6 +219,10 @@ Current contract closure:
   parse -> plan -> source verification -> `pi/skill` surface -> plugin-manifest
   validation -> invocation request -> host policy decision, with
   `executesRuntime: false`;
+- `native:skills:source-engine-smoke` composes a Refarm source-status wrapper
+  through parse -> plan -> decision -> `source:v1` status call ->
+  invocation receipt, using `@refarm.dev/source-local` and
+  `executesRuntimeAgent: false`;
 - the package still does not install, authorize, or execute skills.
 
 Activation trigger:

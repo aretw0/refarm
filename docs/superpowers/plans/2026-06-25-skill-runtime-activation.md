@@ -27,6 +27,10 @@ package/plugin manifest surface, not `apps/refarm`.
 - **Runtime adapter**: a small adapter maps `SKILL.md` content into a
   policy-checkable invocation plan. It does not execute shell/file operations by
   parsing Markdown directly.
+- **Execution receipt**: hosts record engine-call evidence only after an
+  approved policy decision. `native:skills:source-engine-smoke` proves this
+  internally with `source:v1` through `@refarm.dev/source-local`; it does not
+  claim runtime-agent or external skill execution.
 - **Execution host**: `runtime-agent` may be the first dogfood host, but the
   contract stays host-neutral so a Refarm plugin can provide or consume skills
   later.
@@ -84,7 +88,9 @@ package/plugin manifest surface, not `apps/refarm`.
 - Run the selected skill through Refarm's invocation surface.
 - Compare output with direct DGK fixture or approved snapshot.
 - Record engine calls and capability checks.
-- Gate: smoke passes or records the concrete runtime blocker.
+- Gate: smoke passes or records the concrete runtime blocker. Internal
+  source-status dogfood now records a `source:v1` execution receipt; the
+  external DGK/agents-lab fixture comparison remains pending.
 
 ## Task 7 - Consumer handoff
 
