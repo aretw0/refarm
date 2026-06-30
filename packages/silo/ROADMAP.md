@@ -4,9 +4,10 @@
 **Parent**: [Main Roadmap](../../roadmaps/MAIN.md)  
 **Process**: SDD → BDD → TDD → DDD ([Workflow Guide](../../docs/WORKFLOW.md))
 
-> **Revision 2026-06-29.** Silo has not published yet, so the v0.1.0 momentum is used to land the
-> full consumer-facing surface in one push (v0.1.1) and **freeze the consumer API contract**. The
-> security milestones (v0.2.0 OPAQUE, v0.3.0 Sentinel) then evolve *internals behind the frozen
+> **Revision 2026-06-30.** Silo has not published yet, so the first public `0.1.0` should already
+> include the full consumer-facing surface, storage/identity closure split, and protection envelope.
+> Do not treat the pre-publication hardening as `0.1.1`; fold it into the initial release. The
+> security milestones (OPAQUE and hardware-backed isolation) then evolve *internals behind the frozen
 > surface* — adopting consumers (vault-seed item 8a and the next consumer) ride the security
 > improvements without churn. Goal: ship Silo consumer-complete and not reshape it for a long while.
 
@@ -37,7 +38,7 @@
 
 ---
 
-## v0.1.1 - Consumer Surface Completion (PRE-LAUNCH)
+## v0.1.0 - Consumer Surface Completion (PRE-LAUNCH)
 **Scope**: Close the gaps the first external consumer (`vault-seed`, item 8a) hit, so the public
 surface ships complete and stable. Every item below is backed by the 2026-06-29 consumer proof in
 `specs/features/2026-06-26-vault-seed-silo-bridge.md` (Consumer Findings).
@@ -60,6 +61,16 @@ surface ships complete and stable. Every item below is backed by the 2026-06-29 
 - [x] Write the secret file `0600` and its directory `0700`, with a Windows/no-POSIX no-op guard.
 - [x] Test: file lands `0600` on POSIX.
 
+### Protection envelope — **ADR-077**
+- [x] Store namespaced secrets as versioned envelopes with explicit protection metadata rather than
+  bare strings.
+- [x] Keep consumer methods string-based (`saveSecret`, `loadSecret`, `listSecrets`) while reading
+  legacy plaintext entries.
+- [x] Expose `describeProtection()` so hosts can report current protection and planned upgrade path
+  without loading Heartwood.
+- [x] Mark the current scheme honestly as `local-plaintext-v1` with owner-only file modes, with
+  `opaque-envelope-v1` and hardware-backed envelopes as planned internal upgrades.
+
 ### Collection contract — multi-field services
 - [ ] Resolve the single-value `collect(ctx): Promise<string>` vs multi-field services (telegram =
   `BOT_TOKEN` + `CHAT_ID`): document **provider-per-key** (namespace `channel`, `id` = env key,
@@ -78,26 +89,29 @@ surface ships complete and stable. Every item below is backed by the 2026-06-29 
 
 ---
 
-## API Stability Contract (frozen at v0.1.1)
+## API Stability Contract (frozen at v0.1.0)
 
-After v0.1.1, the **consumer-facing surface is stable** and later milestones must not break it:
+At the first public `0.1.0`, the **consumer-facing surface is stable** and later milestones must not
+break it:
 
 - **Storage:** `saveSecret`, `loadSecret`, `listSecrets`, `removeSecret`, `saveTokens`, `loadTokens`.
+- **Protection status:** `describeProtection`, `SILO_STORE_SCHEMA_VERSION`,
+  `SILO_SECRET_PROTECTION_SCHEME`.
 - **Collection:** `CredentialProvider`, `CollectContext`, `collectAndStore`, the reserved namespace
   set (`model | runtime | channel | publishing`, consumer-extensible).
 - **Provisioning:** `resolve`, `provision`, `toGitHubEnv`.
 - **Home/location:** `resolveSiloHome`, `config.storagePath`.
 
-v0.2.0 and v0.3.0 change **how** secrets are protected at rest and where keys live — **not** these
-signatures. Encryption and isolation are internal; a consumer that adopted v0.1.1 gains them by
-upgrading, without code changes.
+Future OPAQUE and hardware-backed work changes **how** secrets are protected at rest and where keys
+live — **not** these signatures. Encryption and isolation are internal; a consumer that adopted the
+first public Silo gains them by upgrading, without code changes.
 
 ---
 
-## v0.2.0 - OPAQUE Protection (internal; surface frozen)
+## Post-0.1 - OPAQUE Protection (internal; surface frozen)
 **Scope**: Protecting the Silo master key and tokens with the OPAQUE protocol — **behind the frozen
-v0.1.1 storage surface**, no consumer API change. *Consumer demand affirmed (vault-seed, 2026-06-29):
-the at-rest encryption our users deserve; prioritization signal, not new scope.*
+first-public storage surface**, no consumer API change. *Consumer demand affirmed (vault-seed,
+2026-06-29): the at-rest encryption our users deserve; prioritization signal, not new scope.*
 
 - [ ] Implementation of **OPAQUE Key Stretching**: Replace standard hashing with OPAQUE OPRF for unlocking the Vault.
 - [ ] **Identity Derived Keys**: Using the OPAQUE session key to encrypt/decrypt sensitive identity artifacts.
@@ -106,9 +120,10 @@ the at-rest encryption our users deserve; prioritization signal, not new scope.*
 
 ---
 
-## v0.3.0 - Sentinel Isolation (internal; surface frozen)
+## Post-0.1 - Sentinel Isolation (internal; surface frozen)
 **Scope**: Moving the Silo's sensitive core into a hardware/WASM-isolated context — **behind the
-frozen v0.1.1 surface**, no consumer API change. *Consumer demand affirmed (vault-seed, 2026-06-29).*
+frozen first-public surface**, no consumer API change. *Consumer demand affirmed (vault-seed,
+2026-06-29).*
 
 - [ ] Implementation of **Sentinel WASM**: Running the Silo's key management in an isolated `wasmtime` context with exclusive access to the `server_key`.
 - [ ] Support for **TPM/HSM** backends for the master key.

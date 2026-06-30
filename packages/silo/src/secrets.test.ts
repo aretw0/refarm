@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +17,48 @@ describe("SiloCore namespaced secrets", () => {
         await core.saveSecret("channel", "telegram", "tok-123");
 
         expect(await core.loadSecret("channel", "telegram")).toBe("tok-123");
+    });
+
+    it("stores namespaced secrets as protection envelopes", async () => {
+        const core = tmpCore();
+
+        await core.saveSecret("publishing", "TELEGRAM_BOT_TOKEN", "tok");
+
+        const stored = JSON.parse(readFileSync(core.storagePath, "utf8"));
+        expect(stored.schemaVersion).toBe(1);
+        expect(stored.secrets.publishing.TELEGRAM_BOT_TOKEN).toEqual({
+            value: "tok",
+            protection: {
+                scheme: "local-plaintext-v1",
+                encrypted: false,
+                atRest: "posix-owner-only",
+                keySource: "none",
+                upgradeTarget: "opaque-envelope-v1",
+            },
+        });
+        await expect(core.loadSecret("publishing", "TELEGRAM_BOT_TOKEN")).resolves.toBe("tok");
+        await expect(core.listSecrets("publishing")).resolves.toEqual({
+            TELEGRAM_BOT_TOKEN: "tok",
+        });
+    });
+
+    it("reads legacy plaintext secret entries through the envelope API", async () => {
+        const core = tmpCore();
+        writeFileSync(
+            core.storagePath,
+            JSON.stringify({
+                secrets: {
+                    publishing: {
+                        TELEGRAM_BOT_TOKEN: "legacy-token",
+                    },
+                },
+            }),
+        );
+
+        await expect(core.loadSecret("publishing", "TELEGRAM_BOT_TOKEN")).resolves.toBe("legacy-token");
+        await expect(core.listSecrets("publishing")).resolves.toEqual({
+            TELEGRAM_BOT_TOKEN: "legacy-token",
+        });
     });
 
     it("keeps namespaces separate and does not touch tokens", async () => {
@@ -90,5 +132,39 @@ describe("SiloCore namespaced secrets", () => {
 
         expect(dirMode).toBe(0o700);
         expect(fileMode).toBe(0o600);
+    });
+
+    it("describes the protection plan for consumer status surfaces", () => {
+        const core = tmpCore();
+
+        expect(core.describeProtection()).toMatchObject({
+            schemaVersion: 1,
+            storagePath: core.storagePath,
+            current: {
+                scheme: "local-plaintext-v1",
+                encrypted: false,
+                atRest: "posix-owner-only",
+                keySource: "none",
+                upgradeTarget: "opaque-envelope-v1",
+            },
+            planned: [
+                {
+                    scheme: "opaque-envelope-v1",
+                    encrypted: true,
+                    keySource: "@refarm.dev/heartwood",
+                    status: "planned",
+                },
+                {
+                    scheme: "hardware-backed-envelope-v1",
+                    encrypted: true,
+                    keySource: "passkey|secure-enclave|tpm|hsm",
+                    status: "planned",
+                },
+            ],
+            identityClosure: {
+                package: "@refarm.dev/heartwood",
+                requiredForStorage: false,
+            },
+        });
     });
 });

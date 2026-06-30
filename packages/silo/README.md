@@ -8,7 +8,7 @@ host-specific environment variable names.
 
 - **Context Provisioning**: Resolve and inject provider secrets into specific targets (e.g. GitHub Actions).
 - **Master Key Management**: Bootstrap and protect local identity key material.
-- **Persistence**: Owner-only local storage of provider tokens, namespaced secrets, and non-sensitive identity metadata.
+- **Persistence**: Owner-only local storage of provider tokens, protected namespaced secret envelopes, and non-sensitive identity metadata.
 
 `SiloCore.resolve()` and `SiloCore.provision("object")` return provider-native
 keys such as `GITHUB_TOKEN` and `CLOUDFLARE_API_TOKEN`. Use `SILO_HOME` to choose
@@ -33,6 +33,34 @@ await silo.removeSecret("publishing", "TELEGRAM_BOT_TOKEN");
 service-level status or deletion by choosing the ids they own. Storage writes
 the containing directory with `0700` and the JSON file with `0600` on POSIX
 filesystems, with a no-op guard on platforms that do not support those modes.
+
+The on-disk secret representation is an envelope, not the consumer API:
+
+```json
+{
+  "schemaVersion": 1,
+  "secrets": {
+    "publishing": {
+      "TELEGRAM_BOT_TOKEN": {
+        "value": "...",
+        "protection": {
+          "scheme": "local-plaintext-v1",
+          "encrypted": false,
+          "atRest": "posix-owner-only",
+          "keySource": "none",
+          "upgradeTarget": "opaque-envelope-v1"
+        }
+      }
+    }
+  }
+}
+```
+
+`SiloCore.describeProtection()` exposes this status to hosts without loading
+identity crypto. Today it reports `local-plaintext-v1` plus owner-only file
+modes; the envelope is the upgrade point for OPAQUE-derived encryption and
+hardware-backed keys without changing `saveSecret`, `loadSecret`, or
+`listSecrets`.
 
 The base `SiloCore` storage surface does not import the identity/Heartwood
 closure. `bootstrapIdentity()` loads `./key-manager` dynamically, and

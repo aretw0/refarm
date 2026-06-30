@@ -163,7 +163,7 @@ Verified: the `heartwood` WASM is loaded lazily at runtime (never for a storage-
 
 Verified: `silo` storage performs no `chmod`/`mode` hardening (`writeFileSync` without `mode`;
 `_ensureStorage` is a bare recursive `mkdir`). The `vault-seed` code it replaces writes `0600`/`0700`
-with a Windows no-op guard. Storage should match this **now**, independent of the v0.2.0 OPAQUE
+with a Windows no-op guard. Storage should match this **now**, independent of the post-0.1 OPAQUE
 at-rest encryption (ADR-076 decision 3).
 
 ### Env hydration helper (candidate, may stay downstream)
@@ -182,8 +182,8 @@ override in the adapter.
 
 ### Security roadmap — consumer demand affirmed
 
-vault-seed affirms real consumer demand for **v0.2.0 OPAQUE Protection** (at-rest encryption) and
-**v0.3.0 Sentinel Isolation** (isolated WASM + TPM/HSM). The near-term value of adoption is namespace
+vault-seed affirms real consumer demand for **OPAQUE Protection** (at-rest encryption) and
+**Sentinel Isolation** (isolated WASM + TPM/HSM). The near-term value of adoption is namespace
 convergence + unified storage; the encryption our users deserve is what the roadmap already plans.
 This is a prioritization signal, not new scope. The consumer-surface items above are folded into the
-revised `packages/silo/ROADMAP.md` v0.1.1 so the package ships consumer-complete in one push.
+first public Silo storage surface so the package ships consumer-complete in one push.

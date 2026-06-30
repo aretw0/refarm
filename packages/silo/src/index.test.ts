@@ -112,6 +112,14 @@ describe("@refarm.dev/silo Smoke Tests", () => {
         }
     });
 
+    it("does not resolve heartwood when describing storage protection", () => {
+        const silo = new SiloCore({});
+        heartwoodImport.count = 0;
+
+        expect(silo.describeProtection().current.scheme).toBe("local-plaintext-v1");
+        expect(heartwoodImport.count).toBe(0);
+    });
+
     it("should bootstrap identity using KeyManager", async () => {
         const silo = new SiloCore({});
         heartwoodImport.count = 0;

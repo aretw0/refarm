@@ -9,18 +9,18 @@ Central register for high-impact technical decisions that are pending or recentl
 **ADR**: [ADR-076](../specs/ADRs/ADR-076-silo-storage-identity-closure-separation.md)
 **References**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md),
 [`silo bridge spec`](../specs/features/2026-06-26-vault-seed-silo-bridge.md) (Consumer Findings),
-[`packages/silo/ROADMAP.md`](../packages/silo/ROADMAP.md) (v0.1.1)
+[`packages/silo/ROADMAP.md`](../packages/silo/ROADMAP.md) (pre-publication hardening)
 
 **Decision**: Silo's storage surface (`saveSecret`/`loadSecret`/`listSecrets`/`removeSecret`/tokens)
 must import without the identity/`heartwood` install closure. `heartwood` becomes optional and the
 `.` export stops statically importing `key-manager.js`; identity stays on the `./key-manager`
-subpath. Storage also hardens file permissions (`0600`/`0700`) now, ahead of the v0.2.0 OPAQUE
+subpath. Storage also hardens file permissions (`0600`/`0700`) now, ahead of the post-0.1 OPAQUE
 at-rest encryption. Applies ADR-072's "lightest correct domain" rule *inside* `silo`.
 
 **Origin**: vault-seed consumer proof (first `channel`/`publishing` consumer, item 8a, 2026-06-29).
 The same proof drove the `packages/silo/ROADMAP.md` revision that folds the consumer surface into a
-pre-launch **v0.1.1** and **freezes the consumer API contract**, so v0.2.0 OPAQUE and v0.3.0 Sentinel
-evolve internals without consumer churn.
+first-public **0.1.0** and **freezes the consumer API contract**, so OPAQUE and Sentinel evolve
+internals without consumer churn.
 
 ---
 
@@ -356,6 +356,7 @@ provider ecosystem), Rust-core correctness.
 | Native browser permissions as proxy capabilities | ADR-029 | 2026-03-07 | Capabilities as superset of browser native permissions |
 | Astro type-checking in pre-push hooks | (inline) | 2026-03-09 | Added `astro check` to homestead lint/type-check; tsc does not verify `.astro` files |
 | Rust WASM plugin compilation in CI | (inline) | 2026-03-09 | Added Rust toolchain + WASM build steps to test.yml and granular-tests.yml; JCO integration tests require pre-compiled plugin binary |
+| Silo protected secret envelope | ADR-077 | 2026-06-30 | Silo stores namespaced secrets as versioned protection envelopes, reports `local-plaintext-v1` honestly, and leaves OPAQUE/hardware crypto behind the same consumer API |
 
 ---
 
