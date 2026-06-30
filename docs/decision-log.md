@@ -2,6 +2,33 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Agent-commons environment ceilings
+
+**Date**: 2026-06-30
+**Status**: Proposed
+**ADR**: [ADR-078](../specs/ADRs/ADR-078-agent-commons-environment-ceilings.md)
+**References**: [ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md),
+`docs/local-disk-hygiene.md`, `@refarm.dev/health` (`environment-pressure`),
+`validations/extension-sandbox-poc`, `.devcontainer/`
+
+**Decision**: the shared devcontainer enforces resource/identity/tooling ceilings at the runtime
+boundary; inhabitants (coding agents, refarm, its suite) do not self-police. Kernel-enforced cgroup
+v2 ceilings (`pids.max`, `memory.high`/`max`, `cpu.weight`, `memory.min`) are the non-bypassable
+backstop behind the advisory `factory:pressure` signal. The control plane (agent + refarm runtimes)
+runs in a slice separate from the workload plane (builds/tests/suite) so a runaway workload fails
+loudly without taking down its controller or the commons. No actor — including refarm's own suite —
+gets an exemption. This is the local realization of ADR-074's "environment ceilings are part of
+dispatch", ahead of the multi-machine control plane.
+
+**Origin**: 2026-06-30 incident — a pnpm self-managed-version install recursed into a `pnpm add
+pnpm@<v>` fork storm (~328 temp installs, ~4 GB) that stalled the shared devcontainer; the launching
+agent could not react. The doctrine already existed as advisory signals + CI checks
+(`environment-pressure`, `local-disk-hygiene`, `workspace:*:ownership`, `extension-sandbox-poc`) but
+nothing enforced it at runtime. Pointual fix shipped: `.npmrc manage-package-manager-versions=false`
+(`6189da20`). Surfaced by the vault-seed consumer working in the shared container.
+
+---
+
 ## Silo storage surface free of the identity closure
 
 **Date**: 2026-06-29
