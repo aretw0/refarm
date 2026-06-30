@@ -177,3 +177,25 @@ The librarian question is no longer open-ended. The selected base path is:
 
 Do not re-open the port-vs-toolbox decision during implementation. Build the base contract first;
 only add `source-dispatch` or `source-tarball` when the activation trigger exists.
+
+## Agents-lab assimilation follow-up
+
+`agents-lab` is now treated as a source of portable skills and primitive pressure,
+not as a runtime engine to port wholesale. `pnpm run agents-lab:assimilation:audit`
+emits the current machine-readable posture:
+
+- Markdown skills such as `git-skills`, `cultivate-primitive`,
+  `evaluate-extension`, and `provider-model-discovery` are `import-now` after
+  convention review.
+- Concepts such as `context-watchdog`, `guardrails-core`, `quota-visibility`,
+  and `colony-pilot` are `cultivate-refarm-primitive`: they should become
+  Refarm compaction, Scarecrow, budget, worker-profile, or effort orchestration
+  proofs.
+- Pi TypeScript extension APIs and public runtime-agent publication remain on
+  hold. The rule is: runtime execution stays private, and fanout stays behind the
+  reference-driver promotion proofs for policy, cancellation, observability, and
+  cost visibility.
+
+This lets Refarm start learning from `agents-lab` immediately without coupling
+the platform to Pi extension internals or publishing the runtime engine before
+the local daily-driver loop is boring.

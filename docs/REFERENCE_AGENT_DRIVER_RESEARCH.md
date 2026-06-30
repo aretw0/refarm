@@ -188,7 +188,9 @@ Current proof (2026-06-29): the reference-driver supply map and preflight now
 carry `publicationBoundary`. This keeps the laboratory honest about package
 placement: discovery is available through `@refarm.dev/cli/capability-index`,
 but `@refarm.dev/cli` remains in `boundary-review`, is not a
-`vault-seed-ready` leaf, and does not make runtime execution public.
+`vault-seed-ready` leaf, and does not make runtime execution public. The rule is:
+runtime execution stays private until the promotion proofs make policy,
+cancellation, observability, and cost visibility boring.
 
 Current proof (2026-06-29): the reference-driver supply preflight now carries
 `promotionQueue`. It ranks blocked targets as candidate, internal, then hold and
