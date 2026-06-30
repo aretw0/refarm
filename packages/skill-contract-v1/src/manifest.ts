@@ -4,6 +4,7 @@ import {
 	SKILL_INVOCATION_PLAN_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 	type SkillContractV1Adapter,
+	type SkillEngineBindingEnvelope,
 	type SkillInvocationPlanBuildResult,
 	type SkillInvocationPlanPrepareResult,
 	type SkillInvocationPlanV1,
@@ -19,6 +20,7 @@ import {
 } from "./types.js";
 
 const CAPABILITY_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
+const ENGINE_BINDING_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
 
 export function parseSkillMarkdown(
 	source: string,
@@ -43,6 +45,7 @@ export function parseSkillMarkdown(
 	const providedCapabilities = normalizeCapabilityList(
 		frontmatterResult.frontmatter.providesCapabilities,
 	);
+	const engineBindings = createSkillEngineBindingEnvelope(frontmatterResult.frontmatter);
 	const io = createSkillIoEnvelope(frontmatterResult.frontmatter);
 	const instructions = frontmatterResult.body.trim();
 	const sourceRef = createSkillSourceRef(source, options);
@@ -58,6 +61,7 @@ export function parseSkillMarkdown(
 			...(optionalCapabilities.length > 0 ? { optional: optionalCapabilities } : {}),
 			...(providedCapabilities.length > 0 ? { provides: providedCapabilities } : {}),
 		},
+		engineBindings,
 		policy: {
 			executionMode: "plan-only",
 			toolAccess: "declared-capabilities-only",
@@ -90,6 +94,7 @@ export function validateSkillManifest(value: unknown): SkillManifestValidationRe
 	requireNonEmptyString(value.name, "$.name", issues);
 	validateSource(value.source, "$.source", issues);
 	validateCapabilities(value.capabilities, "$.capabilities", issues);
+	validateEngineBindings(value.engineBindings, "$.engineBindings", issues);
 	validatePolicy(value.policy, "$.policy", issues);
 	validateIo(value.io, "$.io", issues);
 	requireNonEmptyString(value.instructions, "$.instructions", issues);
@@ -154,6 +159,7 @@ export function buildSkillInvocationPlan(
 			...manifest.capabilities.requires.map((id) => ({ id, required: true })),
 			...(manifest.capabilities.optional ?? []).map((id) => ({ id, required: false })),
 		],
+		engineBindings: manifest.engineBindings,
 		io: manifest.io,
 		instructions: manifest.instructions,
 		requiresHostPolicyApproval: true,
@@ -201,6 +207,7 @@ export function validateSkillInvocationPlan(value: unknown): SkillManifestValida
 	validateInvocationSkillRef(value.skill, "$.skill", issues);
 	validatePolicy(value.policy, "$.policy", issues);
 	validateInvocationCapabilities(value.capabilityRequests, "$.capabilityRequests", issues);
+	validateEngineBindings(value.engineBindings, "$.engineBindings", issues);
 	validateIo(value.io, "$.io", issues);
 	requireNonEmptyString(value.instructions, "$.instructions", issues);
 	if (value.requiresHostPolicyApproval !== true) {
@@ -306,6 +313,17 @@ function validateCapabilities(value: unknown, path: string, issues: SkillManifes
 	}
 }
 
+function validateEngineBindings(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("ENGINE_BINDINGS_NOT_OBJECT", path, "Expected engine binding object."));
+		return;
+	}
+	validateEngineBindingArray(value.requires, `${path}.requires`, issues);
+	if (value.optional !== undefined) {
+		validateEngineBindingArray(value.optional, `${path}.optional`, issues);
+	}
+}
+
 function validatePolicy(value: unknown, path: string, issues: SkillManifestIssue[]): void {
 	if (!isRecord(value)) {
 		issues.push(issue("POLICY_NOT_OBJECT", path, "Expected policy object."));
@@ -372,6 +390,24 @@ function createSkillIoEnvelope(
 	};
 }
 
+function createSkillEngineBindingEnvelope(
+	frontmatter: Readonly<Record<string, string | readonly string[]>>,
+): SkillEngineBindingEnvelope {
+	const required = normalizeEngineBindingList(
+		frontmatter.engineBindings ??
+			frontmatter.requiredEngineBindings ??
+			frontmatter.requiresEngines,
+	);
+	const optional = normalizeEngineBindingList(
+		frontmatter.optionalEngineBindings ??
+			frontmatter.optionalEngines,
+	);
+	return {
+		requires: required,
+		...(optional.length > 0 ? { optional } : {}),
+	};
+}
+
 function validateInvocationSkillRef(value: unknown, path: string, issues: SkillManifestIssue[]): void {
 	if (!isRecord(value)) {
 		issues.push(issue("INVOCATION_SKILL_NOT_OBJECT", path, "Expected skill reference object."));
@@ -429,7 +465,40 @@ function validateCapabilityArray(
 	});
 }
 
+function validateEngineBindingArray(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
+	if (!Array.isArray(value)) {
+		issues.push(issue("ENGINE_BINDING_LIST_INVALID", path, "Expected an array of engine binding ids."));
+		return;
+	}
+	value.forEach((item, index) => {
+		if (!isEngineBindingId(item)) {
+			issues.push(issue("ENGINE_BINDING_ID_INVALID", `${path}.${index}`, "Expected a valid engine binding id."));
+		}
+	});
+}
+
 function normalizeCapabilityList(value: unknown): readonly string[] {
+	if (Array.isArray(value)) {
+		return value.map(String).map((item) => item.trim()).filter(Boolean);
+	}
+	if (typeof value !== "string") return [];
+	const trimmed = value.trim();
+	if (!trimmed) return [];
+	const withoutBrackets =
+		trimmed.startsWith("[") && trimmed.endsWith("]")
+			? trimmed.slice(1, -1)
+			: trimmed;
+	return withoutBrackets
+		.split(",")
+		.map((item) => stripQuotes(item.trim()))
+		.filter(Boolean);
+}
+
+function normalizeEngineBindingList(value: unknown): readonly string[] {
 	if (Array.isArray(value)) {
 		return value.map(String).map((item) => item.trim()).filter(Boolean);
 	}
@@ -504,6 +573,10 @@ function getBoolean(value: unknown, fallback: boolean): boolean {
 
 function isCapabilityId(value: unknown): value is string {
 	return typeof value === "string" && CAPABILITY_ID_PATTERN.test(value);
+}
+
+function isEngineBindingId(value: unknown): value is string {
+	return typeof value === "string" && ENGINE_BINDING_ID_PATTERN.test(value);
 }
 
 function isSha256(value: unknown): value is string {

@@ -11,6 +11,8 @@ content:
   by a manifest or invocation plan;
 - expose markdown input/output envelopes for hosts to validate before invoking
   policy or engines;
+- carry declarative engine bindings so hosts can check available Refarm engines
+  before runtime dispatch;
 - require explicit capability declarations before a manifest is accepted;
 - default to `plan-only` execution and `declared-capabilities-only` tool access;
 - build a host-policy-checkable invocation plan that preserves source integrity,
@@ -55,6 +57,7 @@ if (!sourceCheck.ok) {
 }
 
 console.log(result.plan.io.input.format); // "text/markdown"
+console.log(result.plan.engineBindings.requires); // declared engine binding ids
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
@@ -65,3 +68,5 @@ Source verification only confirms content identity; it does not install, trust,
 or execute a skill.
 The I/O envelope is descriptive and policy-facing. Hosts still decide whether a
 particular invocation payload is allowed.
+Engine bindings are declarations only. This package does not select or call an
+engine implementation.

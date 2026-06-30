@@ -35,6 +35,9 @@ describe("skill-contract-v1", () => {
 				requires: ["refarm.operator-loop", "refarm.git.write"],
 				optional: ["refarm.github.pr"],
 			},
+			engineBindings: {
+				requires: ["runtime-agent", "source:v1"],
+			},
 			policy: {
 				executionMode: "plan-only",
 				toolAccess: "declared-capabilities-only",
@@ -80,6 +83,9 @@ describe("skill-contract-v1", () => {
 			capabilities: {
 				requires: [],
 			},
+			engineBindings: {
+				requires: ["bad engine"],
+			},
 			io: {
 				input: {
 					format: "application/json",
@@ -95,6 +101,7 @@ describe("skill-contract-v1", () => {
 			issues: expect.arrayContaining([
 				expect.objectContaining({ code: "SOURCE_SHA256_INVALID" }),
 				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
+				expect.objectContaining({ code: "ENGINE_BINDING_ID_INVALID" }),
 				expect.objectContaining({ code: "VALUE_INVALID", path: "$.io.input.format" }),
 				expect.objectContaining({ code: "INPUT_REQUIRED_INVALID" }),
 				expect.objectContaining({ code: "VALUE_INVALID", path: "$.io.output.format" }),
@@ -165,6 +172,9 @@ describe("skill-contract-v1", () => {
 				{ id: "refarm.git.write", required: true },
 				{ id: "refarm.github.pr", required: false },
 			],
+			engineBindings: {
+				requires: ["runtime-agent", "source:v1"],
+			},
 			io: {
 				input: {
 					format: "text/markdown",
@@ -211,6 +221,7 @@ describe("skill-contract-v1", () => {
 		expect(result.plan).not.toBeNull();
 		expect(result.plan?.skill.id).toBe(result.manifest?.id);
 		expect(result.plan?.skill.source.sha256).toBe(result.manifest?.source.sha256);
+		expect(result.plan?.engineBindings).toEqual(result.manifest?.engineBindings);
 		expect(result.plan?.io).toEqual(result.manifest?.io);
 		expect(result.plan?.requiresHostPolicyApproval).toBe(true);
 	});
