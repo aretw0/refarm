@@ -12,7 +12,9 @@ import {
 	type SkillManifestParseResult,
 	type SkillManifestV1,
 	type SkillManifestValidationResult,
-	type SkillPolicyEnvelope
+	type SkillPolicyEnvelope,
+	type SkillSourceRef,
+	type SkillSourceVerificationResult
 } from "./types.js";
 
 const CAPABILITY_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
@@ -41,19 +43,14 @@ export function parseSkillMarkdown(
 		frontmatterResult.frontmatter.providesCapabilities,
 	);
 	const instructions = frontmatterResult.body.trim();
-	const hash = sha256(source);
+	const sourceRef = createSkillSourceRef(source, options);
 
 	const manifest: SkillManifestV1 = {
 		schema: SKILL_MANIFEST_SCHEMA,
-		id: createSkillManifestId(name || "unnamed", hash),
+		id: createSkillManifestId(name || "unnamed", sourceRef.sha256),
 		name,
 		...(description ? { description } : {}),
-		source: {
-			format: "SKILL.md",
-			uri: options.sourceUri ?? "inline:skill",
-			sha256: hash,
-			bytes: Buffer.byteLength(source),
-		},
+		source: sourceRef,
 		capabilities: {
 			requires: requiredCapabilities,
 			...(optionalCapabilities.length > 0 ? { optional: optionalCapabilities } : {}),
@@ -94,6 +91,43 @@ export function validateSkillManifest(value: unknown): SkillManifestValidationRe
 	requireNonEmptyString(value.instructions, "$.instructions", issues);
 
 	return { ok: issues.length === 0, issues };
+}
+
+export function createSkillSourceRef(
+	source: string,
+	options: SkillManifestParseOptions = {},
+): SkillSourceRef {
+	return {
+		format: "SKILL.md",
+		uri: options.sourceUri ?? "inline:skill",
+		sha256: sha256(source),
+		bytes: Buffer.byteLength(source),
+	};
+}
+
+export function verifySkillSource(
+	source: string,
+	expected: SkillSourceRef,
+	options: SkillManifestParseOptions = {},
+): SkillSourceVerificationResult {
+	const expectedUri = isRecord(expected) && typeof expected.uri === "string"
+		? expected.uri
+		: "inline:skill";
+	const actual = createSkillSourceRef(source, {
+		sourceUri: options.sourceUri ?? expectedUri,
+	});
+	const issues: SkillManifestIssue[] = [];
+	validateSource(expected, "$.expected", issues);
+	if (expected.sha256 !== actual.sha256) {
+		issues.push(issue("SOURCE_SHA256_MISMATCH", "$.expected.sha256", "Expected source content SHA-256 to match."));
+	}
+	if (expected.bytes !== actual.bytes) {
+		issues.push(issue("SOURCE_BYTES_MISMATCH", "$.expected.bytes", "Expected source byte length to match."));
+	}
+	if (options.sourceUri !== undefined && expected.uri !== options.sourceUri) {
+		issues.push(issue("SOURCE_URI_MISMATCH", "$.expected.uri", "Expected source URI to match."));
+	}
+	return { ok: issues.length === 0, actual, issues };
 }
 
 export function buildSkillInvocationPlan(
@@ -175,6 +209,7 @@ export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 		parseMarkdown: parseSkillMarkdown,
 		prepareInvocationPlan: prepareSkillInvocationPlan,
 		validateManifest: validateSkillManifest,
+		verifySource: verifySkillSource,
 	};
 }
 

@@ -7,6 +7,8 @@ content:
 
 - parse frontmatter and Markdown instructions into `SkillManifestV1`;
 - record source URI, byte length, and SHA-256 hash;
+- verify a loaded `SKILL.md` source against the source reference already carried
+  by a manifest or invocation plan;
 - require explicit capability declarations before a manifest is accepted;
 - default to `plan-only` execution and `declared-capabilities-only` tool access;
 - build a host-policy-checkable invocation plan that preserves source integrity,
@@ -32,6 +34,7 @@ contract only after that boundary accepts the surface.
 ```ts
 import {
 	prepareSkillInvocationPlan,
+	verifySkillSource,
 } from "@refarm.dev/skill-contract-v1";
 
 const result = prepareSkillInvocationPlan(skillMarkdown, {
@@ -41,9 +44,18 @@ const result = prepareSkillInvocationPlan(skillMarkdown, {
 if (!result.ok) {
 	throw new Error(result.issues.map((issue) => issue.message).join("; "));
 }
+
+const sourceCheck = verifySkillSource(skillMarkdown, result.plan.skill.source, {
+	sourceUri: "file:skills/refarm-git-workflow/SKILL.md",
+});
+if (!sourceCheck.ok) {
+	throw new Error(sourceCheck.issues.map((issue) => issue.message).join("; "));
+}
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
 fails closed instead of becoming an executable artifact by accident.
 Invocation plans always require host policy approval; this package does not
 authorize tools by itself.
+Source verification only confirms content identity; it does not install, trust,
+or execute a skill.
