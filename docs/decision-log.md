@@ -2,6 +2,35 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Capability index incubation boundary
+
+**Date**: 2026-06-30
+**Status**: Accepted
+**ADR**: [ADR-073](../specs/ADRs/ADR-073-capability-index-incubation-boundary.md)
+**References**: `@refarm.dev/cli/capability-index`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md)
+
+**Decision**: the current reference-driver capability index is an incubating operator/discovery
+surface, not the final public owner for every capability concept. Refarm distinguishes:
+
+- **capability registry** — runtime/plugin truth owned by plugin manifests, Barn, Tractor, policy,
+  and future runtime registry work;
+- **supply/readiness index** — release/operator truth about which Refarm primitives are supplyable,
+  blocked, private, or proof-gated;
+- **assimilation map** — downstream planning for `vault-seed` and `agents-lab`, useful but not
+  necessarily a permanent public API.
+
+`@refarm.dev/cli/capability-index` may keep incubating the supply/readiness surface because CLI is
+the current operator entrypoint and dogfood consumer. That subpath remains `boundary-review`, not a
+`vault-seed-ready` leaf. `apps/refarm` may render the data, but must not own capability truth,
+promotion policy, or runtime dispatch.
+
+**Extraction trigger**: promote to a new package such as `@refarm.dev/capability-index` only when a
+second real non-CLI consumer, install-closure pressure, stable CI/release contract pressure, public
+tgz/npm handoff pressure, or reference-driver runtime API pressure proves that CLI is the wrong
+owner.
+
+---
+
 ## Consumer leaf distribution policy
 
 **Date**: 2026-06-29

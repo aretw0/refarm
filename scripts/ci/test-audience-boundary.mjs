@@ -85,6 +85,8 @@ test("convergence docs keep apps as thin block consumers", () => {
 
 test("ecosystem supply map keeps reference driver package-first", () => {
 	const supplyMap = read("docs/ECOSYSTEM_SUPPLY_MAP.md");
+	const adr = read("specs/ADRs/ADR-073-capability-index-incubation-boundary.md");
+	const decisionLog = read("docs/decision-log.md");
 
 	assert.match(supplyMap, /Reference agent driver/);
 	assert.match(supplyMap, /@refarm\.dev\/cli\/capability-index/);
@@ -111,6 +113,18 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(supplyMap, /not Barn's\s+plugin catalog/);
 	assert.match(supplyMap, /plugin-declared\s+`capabilities\.provides`\s+\/\s+`capabilities\.requires`/);
 	assert.match(supplyMap, /installed plugin inventory, cache, and SHA-256 integrity/);
+	assert.match(supplyMap, /capability registry,\s*supply\/readiness index,\s+and downstream assimilation map/);
+	assert.match(supplyMap, /second non-CLI consumer/);
+	assert.match(adr, /incubating operator\/discovery surface/);
+	assert.match(adr, /Capability registry/);
+	assert.match(adr, /Supply\/readiness index/);
+	assert.match(adr, /Assimilation map/);
+	assert.match(adr, /`@refarm\.dev\/cli\/capability-index` may continue to incubate/);
+	assert.match(adr, /not a `vault-seed-ready` install leaf/);
+	assert.match(adr, /`apps\/refarm`.*render or consume package-owned discovery data/s);
+	assert.match(decisionLog, /Capability index incubation boundary/);
+	assert.match(decisionLog, /second real non-CLI consumer/);
+	assert.match(decisionLog, /`apps\/refarm` may render the data, but must not own capability truth/);
 	assert.match(supplyMap, /Consumers keep their own command labels and product UX/);
 	assert.match(supplyMap, /The\s+`runtime-agent`\/`pi-agent` execution package remains private/);
 	assert.doesNotMatch(supplyMap, /reference-driver.*apps\/refarm/i);
