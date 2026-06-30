@@ -459,8 +459,8 @@ selection contains 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publi
 | `@refarm.dev/release-engine` | `refarm.dev-release-engine-0.1.0.tgz` |
 | `@refarm.dev/ds` | `refarm.dev-ds-0.1.0.tgz` |
 | `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` |
-| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` |
 | `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` |
+| `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` |
 
 Pre-publication consumers should install these from the local handoff and
 override unpublished workspace dependencies to matching tarballs where needed;

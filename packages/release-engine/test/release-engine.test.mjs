@@ -354,8 +354,8 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
     "@refarm.dev/release-engine",
     "@refarm.dev/ds",
     "@refarm.dev/heartwood",
-    "@refarm.dev/dispatch-surface",
     "@refarm.dev/silo",
+    "@refarm.dev/dispatch-surface",
   ]);
   assert.equal(
     payload.packageProfiles.every((profile) =>
