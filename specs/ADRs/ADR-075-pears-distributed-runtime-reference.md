@@ -31,6 +31,18 @@ Important observed patterns:
 - **Release trust ladder**: stage, provision, release lines, and multisig make publication a
   first-class platform workflow rather than an afterthought.
 
+The Holepunch GitHub organization sharpens that picture: the ecosystem is not one repository or one
+SDK. It is a catalog of narrowly-owned packages grouped by job:
+
+- **Networking:** `hyperswarm`, `hyperdht`.
+- **Core data structures:** `hypercore`, `corestore`, `hyperbee`.
+- **File management:** `hyperdrive`, `localdrive`, `mirrordrive`.
+- **Collaboration:** `autobase`.
+- **Runtime and host seams:** `bare`, `bare-*`, `bare-rpc`, `hyperschema`, `pear-runtime`.
+- **Availability:** `blind-peer`, `blind-peering`, `blind-peer-cli`.
+- **Install/update/release tooling:** `pear`, `pear-runtime-updater`, `pear-install`, `pear build`
+  and the stage/provision/multisig release flow.
+
 Refarm already has adjacent pieces: Tractor native/WASM runtime, dispatch surfaces, task/session/
 effort/process contracts, stream transports, artifact/release evidence, source adapters, Loro/SQLite
 sync, operator finish lanes, and the remote workspace control-plane horizon. The missing step is
@@ -64,6 +76,30 @@ This is an architectural influence, not a dependency decision:
 | `pear://` link and swarm install/update | future Refarm install/distribution descriptor with stable identity and update evidence | plugin manifest, release policy, future distribution proof |
 | seeding and blind peers | availability policy for nodes, artifacts, plugins, and generated distributions | not yet created; proof-gated |
 | stage/provision/multisig | release trust ladder and signed promotion evidence | `release-engine`, package acceptance, policy contracts |
+| typed Bare RPC seam | schema-owned host/core methods instead of ad hoc IPC payloads | `dispatch-surface`, `process-handoff`, task/stream contracts |
+| many small Holepunch packages | capability packages before app coupling | ADR-072, release-policy package profiles |
+
+## Package Boundary Lessons
+
+The Holepunch organization reinforces a boundary rule Refarm already needs:
+
+1. **A package exists when a primitive has its own lifecycle.** Networking, storage, release,
+   availability, runtime, and RPC seams are separate modules because they need separate tests,
+   docs, and adoption pressure.
+2. **A platform package composes primitives; it does not absorb them.** Pear composes Bare,
+   Hypercore-family modules, storage, updates, and CLI flows. The Refarm app should do the same
+   with Tractor/runtime-agent, Silo, release-engine, source, artifacts, dispatch, and future
+   availability primitives.
+3. **Availability is not an afterthought.** Blind peers are a package family because "keep this
+   reachable without reading it" is different from storage and different from app UX. Refarm's
+   `distributed-availability-evidence` proof should mature toward an availability-policy package
+   only when dogfood or a second consumer needs it.
+4. **Install/update is a product surface with a low-level contract.** Pear's install/update story
+   treats platform and app distribution with the same swarm mechanics. Refarm should model install,
+   update, rollback, and seed evidence before adding any app-specific installer UX.
+5. **Typed seams beat improvised control messages.** Bare's RPC/schema direction maps directly to
+   Refarm's existing process/task/stream/dispatch contracts. Remote workspace control should grow
+   through typed schemas, not by passing shell-like strings between hosts.
 
 ## Primitives To Cultivate
 
@@ -77,6 +113,11 @@ This is an architectural influence, not a dependency decision:
    seed/availability evidence.
 5. **P2P substrate research**: compare Loro/SQLite/Tractor transports with Hypercore-family ideas
    through contained validations, not by replacing sync or storage in-place.
+6. **Install/update descriptor**: define the smallest Refarm-owned descriptor that can say what is
+   installed, which update source it follows, which rollback target exists, and which availability
+   policy keeps it reachable.
+7. **Blind-replica policy**: model "replicate without reading" as an availability capability. Do
+   not make it a Silo, app, or release-engine concern unless the policy proves it belongs there.
 
 ## What To Compose Now
 
@@ -88,6 +129,9 @@ This is an architectural influence, not a dependency decision:
   `release-engine` as the current composition path.
 - Keep apps thin: app work should render topology, status, streams, approvals, and receipts rather
   than owning the runtime contract.
+- Promote the existing `distributed-availability-evidence` proof only by extracting one narrow
+  package at a time: likely install/update descriptor first, then availability policy/blind-replica
+  policy when there is a real consumer.
 
 ## Non-goals
 
@@ -122,7 +166,9 @@ This is an architectural influence, not a dependency decision:
 
 - Pear docs home: <https://docs.pears.com/>
 - Pears site: <https://pears.com/>
+- Holepunch GitHub organization: <https://github.com/holepunchto>
 - The Pears stack: <https://docs.pears.com/explanation/the-pears-stack/>
 - Runtime and languages: <https://docs.pears.com/explanation/runtime-and-languages/>
 - Storage and distribution: <https://docs.pears.com/explanation/storage-and-distribution/>
+- Availability and blind peering: <https://docs.pears.com/explanation/availability-and-blind-peering/>
 - Release pipeline: <https://docs.pears.com/explanation/release-pipeline/>
