@@ -9,6 +9,9 @@ content:
 - record source URI, byte length, and SHA-256 hash;
 - require explicit capability declarations before a manifest is accepted;
 - default to `plan-only` execution and `declared-capabilities-only` tool access;
+- build a host-policy-checkable invocation plan that preserves source integrity,
+  requested capabilities, policy, and Markdown instructions without executing
+  the skill;
 - provide conformance helpers for future adapters and hosts.
 
 It does not execute skills, install skills, vendor external skill text, or call
@@ -25,7 +28,10 @@ contract only after that boundary accepts the surface.
 ## Example
 
 ```ts
-import { parseSkillMarkdown } from "@refarm.dev/skill-contract-v1";
+import {
+	buildSkillInvocationPlan,
+	parseSkillMarkdown,
+} from "@refarm.dev/skill-contract-v1";
 
 const result = parseSkillMarkdown(skillMarkdown, {
 	sourceUri: "file:skills/refarm-git-workflow/SKILL.md",
@@ -34,7 +40,14 @@ const result = parseSkillMarkdown(skillMarkdown, {
 if (!result.ok) {
 	throw new Error(result.issues.map((issue) => issue.message).join("; "));
 }
+
+const invocation = buildSkillInvocationPlan(result.manifest);
+if (!invocation.ok) {
+	throw new Error(invocation.issues.map((issue) => issue.message).join("; "));
+}
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
 fails closed instead of becoming an executable artifact by accident.
+Invocation plans always require host policy approval; this package does not
+authorize tools by itself.

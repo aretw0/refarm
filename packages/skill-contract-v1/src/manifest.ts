@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 
 import {
+	SKILL_INVOCATION_PLAN_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 	type SkillContractV1Adapter,
+	type SkillInvocationPlanBuildResult,
+	type SkillInvocationPlanV1,
 	type SkillManifestIssue,
 	type SkillManifestParseOptions,
 	type SkillManifestParseResult,
@@ -92,8 +95,60 @@ export function validateSkillManifest(value: unknown): SkillManifestValidationRe
 	return { ok: issues.length === 0, issues };
 }
 
+export function buildSkillInvocationPlan(
+	manifest: SkillManifestV1,
+): SkillInvocationPlanBuildResult {
+	const validation = validateSkillManifest(manifest);
+	if (!validation.ok) {
+		return { ok: false, plan: null, issues: validation.issues };
+	}
+
+	const plan: SkillInvocationPlanV1 = {
+		schema: SKILL_INVOCATION_PLAN_SCHEMA,
+		skill: {
+			id: manifest.id,
+			name: manifest.name,
+			source: manifest.source,
+		},
+		policy: manifest.policy,
+		capabilityRequests: [
+			...manifest.capabilities.requires.map((id) => ({ id, required: true })),
+			...(manifest.capabilities.optional ?? []).map((id) => ({ id, required: false })),
+		],
+		instructions: manifest.instructions,
+		requiresHostPolicyApproval: true,
+	};
+	const planValidation = validateSkillInvocationPlan(plan);
+	return {
+		ok: planValidation.ok,
+		plan: planValidation.ok ? plan : null,
+		issues: planValidation.issues,
+	};
+}
+
+export function validateSkillInvocationPlan(value: unknown): SkillManifestValidationResult {
+	const issues: SkillManifestIssue[] = [];
+	if (!isRecord(value)) {
+		return {
+			ok: false,
+			issues: [issue("INVOCATION_PLAN_NOT_OBJECT", "$", "Expected a skill invocation plan object.")],
+		};
+	}
+
+	requireExact(value.schema, SKILL_INVOCATION_PLAN_SCHEMA, "$.schema", issues);
+	validateInvocationSkillRef(value.skill, "$.skill", issues);
+	validatePolicy(value.policy, "$.policy", issues);
+	validateInvocationCapabilities(value.capabilityRequests, "$.capabilityRequests", issues);
+	requireNonEmptyString(value.instructions, "$.instructions", issues);
+	if (value.requiresHostPolicyApproval !== true) {
+		issues.push(issue("INVOCATION_POLICY_APPROVAL_REQUIRED", "$.requiresHostPolicyApproval", "Expected true."));
+	}
+	return { ok: issues.length === 0, issues };
+}
+
 export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 	return {
+		buildInvocationPlan: buildSkillInvocationPlan,
 		parseMarkdown: parseSkillMarkdown,
 		validateManifest: validateSkillManifest,
 	};
@@ -198,6 +253,43 @@ function validatePolicy(value: unknown, path: string, issues: SkillManifestIssue
 	if (policy.toolAccess !== "declared-capabilities-only") {
 		issues.push(issue("POLICY_TOOL_ACCESS_INVALID", `${path}.toolAccess`, "Expected declared-capabilities-only."));
 	}
+}
+
+function validateInvocationSkillRef(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("INVOCATION_SKILL_NOT_OBJECT", path, "Expected skill reference object."));
+		return;
+	}
+	requireNonEmptyString(value.id, `${path}.id`, issues);
+	requireNonEmptyString(value.name, `${path}.name`, issues);
+	validateSource(value.source, `${path}.source`, issues);
+}
+
+function validateInvocationCapabilities(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
+	if (!Array.isArray(value)) {
+		issues.push(issue("INVOCATION_CAPABILITY_LIST_INVALID", path, "Expected capability request array."));
+		return;
+	}
+	if (value.length === 0) {
+		issues.push(issue("INVOCATION_CAPABILITY_LIST_EMPTY", path, "Expected at least one capability request."));
+	}
+	value.forEach((item, index) => {
+		const itemPath = `${path}.${index}`;
+		if (!isRecord(item)) {
+			issues.push(issue("INVOCATION_CAPABILITY_NOT_OBJECT", itemPath, "Expected capability request object."));
+			return;
+		}
+		if (!isCapabilityId(item.id)) {
+			issues.push(issue("CAPABILITY_ID_INVALID", `${itemPath}.id`, "Expected a valid capability id."));
+		}
+		if (typeof item.required !== "boolean") {
+			issues.push(issue("INVOCATION_CAPABILITY_REQUIRED_INVALID", `${itemPath}.required`, "Expected boolean."));
+		}
+	});
 }
 
 function validateCapabilityArray(

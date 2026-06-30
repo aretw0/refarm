@@ -71,6 +71,30 @@ export async function runSkillContractV1Conformance(
 	}
 
 	total++;
+	if (manifest) {
+		try {
+			const result = await adapter.buildInvocationPlan(manifest);
+			if (!result.ok || !result.plan) {
+				failures.push(`valid manifest did not build invocation plan: ${formatIssues(result.issues)}`);
+			} else {
+				if (result.plan.schema !== "refarm.skill-invocation-plan.v1") {
+					failures.push("invocation plan schema must be refarm.skill-invocation-plan.v1");
+				}
+				if (result.plan.requiresHostPolicyApproval !== true) {
+					failures.push("invocation plan must require host policy approval");
+				}
+				if (!result.plan.capabilityRequests.some((item) =>
+					item.id === "refarm.operator-loop" && item.required === true
+				)) {
+					failures.push("invocation plan must preserve required capability requests");
+				}
+			}
+		} catch (error) {
+			failures.push(`buildInvocationPlan(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
 	try {
 		const result = await adapter.parseMarkdown(MISSING_CAPABILITIES_SKILL_MARKDOWN_FIXTURE);
 		if (result.ok || result.manifest) {
