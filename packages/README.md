@@ -53,8 +53,10 @@ manifest plus a relative package asset path. The first engine dogfood smoke
 uses `source:v1` through `@refarm.dev/source-local`; external `dgk-skills` or
 `agents-lab` fixtures must stay wrapper/evidence based. The first
 `agents-lab` git-workflow wrapper smoke records upstream source evidence without
-installing or executing the external skill; a `dgk-skills` fixture remains the
-next promotion gate.
+installing or executing the external skill; the first DGK `vault-search`
+wrapper smoke records upstream `vault-seed` source evidence without executing
+`dgk` or Obsidian CLI. Runtime-host execution and install policy remain the next
+promotion gates.
 
 It is deliberately not a second plugin system. Packages and plugin manifests
 remain the distribution/trust boundary; skills are declared as surfaces or

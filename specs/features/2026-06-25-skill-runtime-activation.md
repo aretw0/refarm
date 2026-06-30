@@ -28,9 +28,10 @@ Start this item only when all are true:
 3. The selected skill can call an existing Refarm engine (`source:v1`, `context-provider-v1`,
    `sower`, `thresher`, `windmill`, or `homestead`) without product vocabulary moving upstream.
    **Current:** an internal source-status smoke calls `source:v1` through
-   `@refarm.dev/source-local`, and an external `agents-lab` git-workflow wrapper smoke records
+   `@refarm.dev/source-local`, an external `agents-lab` git-workflow wrapper smoke records
    upstream source evidence plus a `source:v1` receipt without installing or executing the
-   external skill. A DGK fixture remains pending.
+   external skill, and `native:skills:dgk-vault-search-smoke` records the same wrapper/evidence
+   pattern for `vault-seed`'s `dgk-skills/vault-search` without executing `dgk` or Obsidian CLI.
 
 ## Scope
 
@@ -38,7 +39,8 @@ Start this item only when all are true:
   capabilities, and engine bindings.
 - Define a `dgk-skills` compatibility adapter that reads existing `SKILL.md` metadata and produces
   the Refarm manifest shape.
-- Run one DGK skill through the Refarm invocation surface.
+- Run one DGK skill through the Refarm invocation surface. The current DGK proof is a
+  wrapper/evidence smoke; runtime-host execution remains a later gate.
 - Prove the adapter does not depend on vault-specific folder names except through declared input.
 
 ## Non-goals
@@ -59,7 +61,8 @@ only supplies the runtime envelope.
 - Manifest parser rejects missing capability declarations.
 - Adapter fixture maps one `SKILL.md` into `SkillManifestV1`.
 - Invocation smoke runs one DGK skill through Refarm and records engine calls. The internal
-  `native:skills:source-engine-smoke` records source-engine evidence first, and
-  `native:skills:agents-lab-git-workflow-smoke` proves the external wrapper pattern, but neither
-  replaces the DGK consumer proof.
+  `native:skills:source-engine-smoke` records source-engine evidence first,
+  `native:skills:agents-lab-git-workflow-smoke` proves the external wrapper pattern, and
+  `native:skills:dgk-vault-search-smoke` closes the first DGK wrapper fixture proof. Runtime-host
+  execution and direct DGK fixture comparison still remain after install/policy gates.
 - No import from `vault-seed` product paths appears in Refarm runtime code.

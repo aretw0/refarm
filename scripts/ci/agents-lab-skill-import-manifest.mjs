@@ -157,7 +157,7 @@ export function buildAgentsLabSkillImportManifest({ root = DEFAULT_ROOT } = {}) 
 			stillBlockedBy: [
 				"No external skill is installed or vendored yet; wrappers must remain package-declared surfaces.",
 				"Runtime-agent dispatch remains held by policy, cancellation, observability, and cost-control gates.",
-				"DGK skill fixture proof remains pending.",
+				"Direct DGK runtime comparison remains pending after wrapper/evidence proof.",
 			],
 		},
 		install: {

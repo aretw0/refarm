@@ -36,6 +36,11 @@ package/plugin manifest surface, not `apps/refarm`.
   evidence, running a Refarm wrapper, calling `source:v1` over the external
   checkout, and emitting a receipt without installing or executing upstream
   skill text.
+- **DGK wrapper proof**: `native:skills:dgk-vault-search-smoke` proves the
+  first `vault-seed` `dgk-skills` fixture by recording the upstream
+  `vault-search` hash/source evidence, running a Refarm wrapper, calling
+  `source:v1` over the external checkout, and emitting a receipt without
+  installing or executing upstream skill text, `dgk`, or Obsidian CLI.
 - **Execution host**: `runtime-agent` may be the first dogfood host, but the
   contract stays host-neutral so a Refarm plugin can provide or consume skills
   later.
@@ -52,7 +57,8 @@ package/plugin manifest surface, not `apps/refarm`.
 - Verify local unpublished sources can remain in user/project space until the
   operator chooses to package or replicate them.
 - Select one minimal skill fixture (`agents-lab/git-workflow` wrapper or one
-  DGK gardening skill) as dogfood.
+  DGK gardening skill) as dogfood. The first two wrapper fixtures are now
+  `agents-lab/git-workflow` and `dgk-skills/vault-search`.
 - Record which existing Refarm engine or capability the skill calls.
 - Gate: if no contract owner exists, stop at planning and do not install skills.
 
@@ -96,7 +102,8 @@ package/plugin manifest surface, not `apps/refarm`.
 - Gate: smoke passes or records the concrete runtime blocker. Internal
   source-status dogfood now records a `source:v1` execution receipt; the
   external `agents-lab` wrapper proof now records a `source:v1` receipt; the
-  DGK fixture comparison remains pending.
+  external DGK `vault-search` wrapper proof now records a `source:v1` receipt;
+  runtime-host execution and direct DGK fixture comparison remain pending.
 
 ## Task 7 - Consumer handoff
 

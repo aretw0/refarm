@@ -22,7 +22,7 @@ test("agents-lab skill import manifest plans only reviewed markdown skills", () 
 	);
 	assert.match(
 		manifest.activationGate.stillBlockedBy.join("\n"),
-		/DGK skill fixture proof remains pending/,
+		/Direct DGK runtime comparison remains pending/,
 	);
 	assert.equal(manifest.install.performsInstall, false);
 	assert.equal(manifest.install.requiresHumanReview, true);
