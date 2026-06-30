@@ -46,6 +46,24 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 		"record:requirements-root",
 		"record:requirements-child",
 	]);
+	assert.equal(result.artifacts.capability, "artifact:v1");
+	assert.equal(result.artifacts.validation.ok, true);
+	assert.equal(result.artifacts.validation.issueCount, 0);
+	assert.equal(result.artifacts.manifest.schema, "refarm.task-artifacts.v1");
+	assert.equal(result.artifacts.manifest.artifacts.length, 4);
+	assert.deepEqual(
+		result.artifacts.manifest.artifacts.map((artifact) => artifact.id),
+		[
+			"source-web-snapshot",
+			"records-manifest",
+			"enrichment-report",
+			"review-report",
+		],
+	);
+	assert.equal(result.artifacts.reviewReport.schema, "refarm.requirements-supply-review.v1");
+	assert.equal(result.artifacts.reviewReport.source.offlineReplay, true);
+	assert.equal(result.artifacts.reviewReport.source.redacted, true);
+	assert.equal(result.artifacts.reviewReport.records.validation.ok, true);
 	assert.match(result.boundaries.join("\n"), /does not run browser automation/);
 	assert.match(result.boundaries.join("\n"), /does not add release-policy/);
 	assert.match(result.nextActions.join("\n"), /downstream local handoff evidence/);

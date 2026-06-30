@@ -92,9 +92,9 @@ Private downstream proofs own:
    `@refarm.dev/source-web`, `@refarm.dev/enrichment-contract-v1`, and
    `@refarm.dev/records-contract-v1`, then checks environment pressure,
    authenticated-web fixture replay, source coverage, review-state counts,
-   deterministic enrichment, hash drift, and final `records:v1` validation. The
-   proof does not add release-policy, private selectors, login flows, or
-   consumer vocabulary.
+   deterministic enrichment, hash drift, final `records:v1` validation, and a
+   sanitized `artifact:v1` manifest with review report. The proof does not add
+   release-policy, private selectors, login flows, or consumer vocabulary.
 5. Only then add release-policy entries or `vault-seed-ready` handoff metadata,
    and only for package leaves with checks and a named downstream proof.
 
