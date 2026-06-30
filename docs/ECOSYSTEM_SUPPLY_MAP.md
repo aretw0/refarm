@@ -50,6 +50,13 @@ a Refarm-branded distro or making Refarm a required dependency for already
 generated vaults. New or maintained product packages may still be powered by
 Refarm internally when that reduces duplicated substrate.
 
+ADR-075 adds Pears/Holepunch as the reference posture for distributed runtime supply. The lesson is
+not "adopt Bare/Hypercore now"; it is that a real platform separates portable core from thin
+surfaces and treats distribution as identity + update + availability + rollback + trust evidence.
+Refarm's supply map should therefore grow availability/distribution primitives through existing
+release, artifact, source, dispatch, and remote-workspace contracts before considering new P2P
+storage/runtime dependencies.
+
 ## Dual keystone
 
 1. **Librarian in Refarm** — a checkout/cache capability for remote repositories (today it
@@ -80,6 +87,7 @@ Refarm internally when that reduces duplicated substrate.
 | Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging` | `source:v1` adapters + source profile contract + artifact retention policy | Candidate: Python implementations and PARA target rules stay downstream. |
 | Lab runtime data helpers | WASM HTTP helpers, feed/OpenGraph readers, refresh jobs | WASM substrate + source HTTP readers + artifact snapshots | Candidate after item 5 proof; Marimo UX stays downstream. |
 | Workspace publishing / generated distributions | `dgk publish workspace`, initialize reset, package provenance | generator/codemod registry + `release-engine` + package acceptance policy | Candidate active through item 9; distribution identity stays downstream. |
+| Distributed availability / install/update | ad hoc seeds, generated bundles, remote workspace reachability | future availability policy over release/artifact/source/remote-node manifests | Pears-inspired, proof-gated: model who keeps code/data/node state available before adopting a P2P substrate. |
 | Knowledge/content export | OKF mapping, JSON-LD graph, semantic graph, changelog-as-content | future knowledge/content manifest contract + release-note artifact envelope | Hold until a second consumer proves the same envelope. |
 | Data lifecycle beyond git | SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifacts | Candidate: backend choice and migration timing stay vault-owned. |
 
@@ -148,11 +156,15 @@ primitive is supplyable and what proof still blocks promotion.
 
 Incubation note: ADR-073 splits this vocabulary into capability registry,
 supply/readiness index, and downstream assimilation map. The current
-`@refarm.dev/cli/capability-index` placement is acceptable while the surface is
+   `@refarm.dev/cli/capability-index` placement is acceptable while the surface is
 operator-owned discovery and release preflight. It should move to a narrower
 package only after a second non-CLI consumer, install-closure pressure, stable
 CI/release contract pressure, public tgz/npm handoff pressure, or
 reference-driver runtime API pressure proves that CLI is the wrong owner.
+10. Pears/Holepunch alignment: cultivate portable-core/thin-surface boundaries and
+    availability/update evidence. Do not start by replacing storage or runtime; start by proving
+    Refarm manifests can say what is installed, what updates it, who keeps it available, how it
+    rolls back, and which trust evidence promoted it.
 
 ## Librarian follow-up
 

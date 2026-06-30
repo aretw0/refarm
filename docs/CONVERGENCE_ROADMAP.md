@@ -3,7 +3,9 @@
 > Status: working roadmap (2026-06-24). Sequences every sub-project the convergence needs so
 > work can start without re-deciding direction. Governed by
 > [`ECOSYSTEM_SUPPLY_MAP.md`](./ECOSYSTEM_SUPPLY_MAP.md) and the 2026-06-24 amendment in
-> [`VAULT_SEED_CONVERGENCE.md`](./VAULT_SEED_CONVERGENCE.md).
+> [`VAULT_SEED_CONVERGENCE.md`](./VAULT_SEED_CONVERGENCE.md). ADR-075 adds Pears/Holepunch as a
+> distributed runtime reference model: portable core, thin surfaces, peer-aware distribution, and
+> explicit availability evidence.
 
 ## How to read this
 
@@ -92,6 +94,11 @@ for lab/site surfaces. Treat Marimo (Python→WASM via Pyodide) and Astro 7 (Rus
 language surfaces over one substrate, not two embedded apps. **Requires research first** — Astro 7
 is recent; verify its toolchain/WASM story (context7/web) before committing an ADR. Output: an ADR
 plus a proof that one surface (the lab or the site) distributes through the substrate.
+
+ADR-075 adds Pears/Holepunch as the platform reference for this lane: distribution is not only
+"build an artifact"; it is identity, update, availability, rollback, and trust evidence. Refarm
+does not adopt Bare/Hypercore by default, but Pears' portable-core/thin-surface split should guide
+how Tractor, WASM surfaces, and future install/update descriptors are shaped.
 
 ### 6. `dgk-skills` ⊂ refarm gardening skills
 `dgk-skills` (read, search, create, context, daily) is a subset of a broader Refarm gardening
@@ -186,6 +193,9 @@ when policy allows, and future agents running in parallel. ADR-074 fixes the bou
 - Tailscale is a strong private-network fixture, not the canonical protocol;
 - remote work flows through existing task/session/effort/process/stream/artifact/channel contracts;
 - the first proof is status + bounded read-only check + stream + cancel + audit evidence.
+- Pears/Holepunch is the reference shape for "portable core behind thin hosts": do not put this
+  control plane in a UI app, and do not call the result distributed until availability/update
+  evidence exists.
 
 First proof packet: `specs/features/2026-06-30-remote-workspace-control-plane-proof.md`,
 `docs/superpowers/plans/2026-06-30-remote-workspace-control-plane-proof.md`, and
@@ -234,6 +244,9 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    `validations/io-uring-substrate/`. Current WSL2/devcontainer evidence reports
    `status: "blocked"` (`EPERM`), so keep fallback mandatory and only continue the `io_uring`
    implementation path on a host/container that reports `available`.
+4. **Pears/Holepunch alignment:** use ADR-075 as reference pressure for the next distribution or
+   remote-workspace slice. The first concrete proof should be availability/distribution evidence
+   over existing Refarm manifests, not a broad storage/runtime rewrite.
 
 Item 5 note: Astro 7/WASI Part C is closed red for now. The evidence remains under
 `validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain active.
