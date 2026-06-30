@@ -29,7 +29,10 @@ selected `@refarm.dev/*` packages inside `vault-seed` before those packages are 
    `vault-seed/vendor/`. This is a local proof cache, not source; the consumer
    repo should ignore it. Keep `manifest.json` beside the copied tarballs or in
    the proof notes so the official checkout can verify `packages[].sha256` and
-   follow `consumerProofs`.
+   follow `consumerProofs`. Also record `distributionEvidence.currentRef` and
+   `distributionEvidence.rollback.targetRef` in the proof notes; this captures
+   which local handoff was copied and how to roll back before public packages
+   exist.
 3. In `vault-seed`: add the dependency and install.
    ```jsonc
    // package.json
@@ -79,6 +82,7 @@ and hand off:
 - selected package names and versions;
 - tarball paths and SHA-256 values from `manifest.json`;
 - `consumerInstall.fileSpecs` and `consumerInstall.pnpmOverrides`;
+- `distributionEvidence.state`, `distributionEvidence.currentRef`, and rollback target;
 - handoff commands used;
 - expected consumer proof commands from `consumerProofs`.
 

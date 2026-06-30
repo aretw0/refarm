@@ -75,6 +75,10 @@ checklist. The `consumerInstall` block provides ready-to-copy `file:` specs and
 choice of direct dependencies downstream-owned. When cleanup is requested,
 `prunedExtra` records the unexpected generated tarballs removed before
 validation.
+The `distributionEvidence` block records the local distribution state for the
+packet: stable/current handoff refs, verified local-copy count, tarball SHA-256
+inventory, update source, rollback strategy, and explicit boundaries that this
+is not a public install contract or P2P substrate.
 When a package rename or selection change intentionally leaves old generated
 tarballs in that ephemeral directory, rerun the handoff with `--prune-extra` to
 delete only unexpected `.tgz` files before manifest validation.

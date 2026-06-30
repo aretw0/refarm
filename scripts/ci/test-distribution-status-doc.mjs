@@ -60,6 +60,7 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /consumerPull/);
 	assert.match(doc, /consumerInstall/);
 	assert.match(doc, /consumerProofs/);
+	assert.match(doc, /distributionEvidence/);
 	assert.match(doc, /prunedExtra/);
 	assert.match(doc, /proofId/);
 	assert.match(doc, /\.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\//);
@@ -109,6 +110,7 @@ test("vault seed convergence keeps current handoff hashes in the manifest", () =
 	assert.match(currentHandoffSection, /packages\[\]\.tarball/);
 	assert.match(currentHandoffSection, /consumerInstall\.fileSpecs/);
 	assert.match(currentHandoffSection, /consumerInstall\.pnpmOverrides/);
+	assert.match(currentHandoffSection, /distributionEvidence/);
 	assert.match(currentHandoffSection, /prunedExtra/);
 	assert.doesNotMatch(currentHandoffSection, /\b[a-f0-9]{64}\b/);
 });
@@ -122,6 +124,7 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 	assert.match(crossRepoConsumptionDoc, /consumerInstall\.fileSpecs/);
 	assert.match(crossRepoConsumptionDoc, /consumerInstall\.pnpmOverrides/);
 	assert.match(crossRepoConsumptionDoc, /consumerProofs/);
+	assert.match(crossRepoConsumptionDoc, /distributionEvidence\.currentRef/);
 	assert.doesNotMatch(crossRepoConsumptionDoc, /`@refarm\.dev\/ds`, `\/homestead`, `\/silo`/);
 });
 
