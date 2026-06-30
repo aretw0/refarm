@@ -54,6 +54,18 @@ anexos, source refs, hash e estado de revisão. Vocabulário fica em dados
 JSON-LD/open strings; storage, sync, renderer e workflow editorial ficam fora
 do contrato.
 
+## Source Adapters
+
+### `source:v1`
+**Contrato**: `@refarm.dev/source-contract-v1`
+**Adapters**: `@refarm.dev/source-git`, `@refarm.dev/source-local`,
+`@refarm.dev/source-web`
+
+Materialização de fontes em snapshots estáveis. `source-web` não adiciona
+`kind: "web"` ao contrato; ele materializa captura web autenticada como snapshot
+local redigido e replayable, com sessão/cache/pacing/redaction em provenance do
+pacote.
+
 ## Uso
 
 ### Para Consumidores (Kernel/Apps)

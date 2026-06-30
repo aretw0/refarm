@@ -21,14 +21,19 @@ uses the package without moving private providers into Refarm.
 
 ## Task 2 - Authenticated Web Source Adapter Design
 
-- Extend the source-adapter activation packet with an authenticated web capture
+- [x] Extend the source-adapter activation packet with an authenticated web capture
   trigger.
-- Decide whether the additive source kind belongs directly in `source:v1` or in
+- [x] Decide whether the additive source kind belongs directly in `source:v1` or in
   a web-specific package wrapper that emits `source:v1`-compatible snapshots.
-- Include session evidence, pacing policy, cache identity, offline replay, and
+- [x] Include session evidence, pacing policy, cache identity, offline replay, and
   redaction rules.
-- Gate: discovery of accessible systems and source-specific selectors remain
+- [x] Gate: discovery of accessible systems and source-specific selectors remain
   downstream adapters.
+
+Implemented as `@refarm.dev/source-web`: an authenticated-web fixture adapter
+that materializes redacted, replayable local snapshots through `source:v1`.
+`source-contract-v1` remains unchanged; web session/cache/pacing/redaction
+details live in package provenance and real login/selectors stay downstream.
 
 ## Task 3 - Knowledge/Content Manifest
 

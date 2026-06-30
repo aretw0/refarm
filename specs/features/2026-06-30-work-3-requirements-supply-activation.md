@@ -1,6 +1,6 @@
 # Spec: Work 3 Requirements Supply Activation
 
-**Status:** DRAFT - activation packet, enrichment/records package slices implemented, cheap composition proof added
+**Status:** DRAFT - activation packet, source-web/enrichment/records package slices implemented, cheap composition proof added
 **Date:** 2026-06-30
 **Related:** `docs/ECOSYSTEM_SUPPLY_MAP.md`,
 `specs/features/2026-06-24-source-contract-v1.md`,
@@ -77,9 +77,10 @@ Private downstream proofs own:
    fixture provider and conformance suite; release promotion remains gated by a
    downstream proof.
 2. Extend the source-adapter activation packet for authenticated web capture.
-   Do not change `source-contract-v1` until the package slice states whether the
-   additive source kind belongs in `source:v1` or behind a web-specific package
-   wrapper.
+   Implemented as `@refarm.dev/source-web`: a web-specific adapter that
+   materializes redacted, replayable local snapshots through `source:v1`.
+   `source-contract-v1` remains unchanged; session/cache/pacing/redaction
+   provenance is package-owned and real login/selectors stay downstream.
 3. Specify the knowledge/content manifest after the enrichment and source
    evidence shapes are concrete enough to reference. Initial package slice is
    implemented in `@refarm.dev/records-contract-v1` with sanitized fixture

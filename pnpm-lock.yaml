@@ -1077,6 +1077,12 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/source-web:
+    dependencies:
+      '@refarm.dev/source-contract-v1':
+        specifier: workspace:*
+        version: link:../source-contract-v1
+
   packages/sower:
     dependencies:
       '@refarm.dev/runtime':

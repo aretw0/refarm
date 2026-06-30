@@ -39,18 +39,19 @@ needs `source:v1` through `dispatch-surface` with an executable proof.
 | [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | release-profiled; held |
 | [`@refarm.dev/source-git`](./source-git) | Clean cached git checkout provider for remote repositories | release-profiled; held |
 | [`@refarm.dev/source-local`](./source-local) | Live local working-tree provider with dirty/untracked status | release-profiled; held |
+| [`@refarm.dev/source-web`](./source-web) | Authenticated web capture fixture adapter that materializes redacted, replayable local snapshots through `source:v1` | proof-gated; held |
 
-The T3 requirements-vault pressure adds an authenticated web source candidate,
-but no package exists yet. The activation packet is
-`specs/features/2026-06-30-work-3-requirements-supply-activation.md`. That work
-must keep accessible-system discovery, login strategy, and source-specific
-selectors downstream.
+The T3 requirements-vault pressure activated `@refarm.dev/source-web` as a
+sanitized fixture adapter. It deliberately reports `source:v1` snapshots as
+`location.kind = "local"` and carries web session/cache/redaction details in
+package-owned provenance. Accessible-system discovery, login strategy, and
+source-specific selectors remain downstream.
 
 ## Requirements/Knowledge Supply Candidates
 
-These packages do not exist yet. They are the neutral slices identified by the
-requirements-vault activation packet and must not enter release policy before
-package-local checks and downstream proofs exist.
+These packages are the neutral slices identified by the requirements-vault
+activation packet and must not enter release policy before package-local checks
+and downstream proofs exist.
 
 | Candidate | Purpose | Publishing |
 |---|---|---|
