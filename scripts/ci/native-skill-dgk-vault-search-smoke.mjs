@@ -14,6 +14,7 @@ import {
 	buildSkillInvocationDecision,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
+	buildSkillSourceIntegrityEvidence,
 	buildSkillSurfaceDeclaration,
 	evaluateSkillActivationPreflight,
 	prepareSkillInvocationPlan,
@@ -293,13 +294,23 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			pluginManifestValidation.errors,
 		));
 	}
+	const sourceIntegrity = prepared.manifest && surfaceResult?.surface
+		? buildSkillSourceIntegrityEvidence(wrapperSkill, prepared.manifest, surfaceResult.surface, { sourceUri })
+		: null;
+	if (sourceIntegrity && !sourceIntegrity.ok) {
+		issues.push(issue(
+			"WRAPPER_SKILL_SOURCE_INTEGRITY_EVIDENCE_FAILED",
+			"Expected wrapper package source integrity evidence to verify before activation preflight.",
+			sourceIntegrity.issues,
+		));
+	}
 	const activationPreflight = prepared.manifest && surfaceResult?.surface
 		? evaluateSkillActivationPreflight(prepared.manifest, surfaceResult.surface, {
 			approvedCapabilities: prepared.manifest.capabilities.requires,
 			availableEngineBindings: ["source:v1"],
 			install: {
 				pluginManifestValid: pluginManifestValidation.valid,
-				integrityVerified: false,
+				integrityVerified: sourceIntegrity?.evidence?.verified === true,
 				policyAccepted: false,
 			},
 		})
@@ -424,6 +435,15 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			}
 			: null,
 		surface: surfaceResult?.surface ?? null,
+		sourceIntegrity: sourceIntegrity?.evidence
+			? {
+				schema: sourceIntegrity.evidence.schema,
+				verified: sourceIntegrity.evidence.verified,
+				assetPath: sourceIntegrity.evidence.assetPath,
+				source: sourceIntegrity.evidence.source,
+				issues: sourceIntegrity.evidence.issues,
+			}
+			: null,
 		activationPreflight: activationPreflight?.preflight
 			? {
 				schema: activationPreflight.preflight.schema,
@@ -467,7 +487,8 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			"This smoke reads vault-seed dgk-skills/vault-search as source evidence only.",
 			"This smoke does not install, copy, vendor, or execute the external DGK skill.",
 			"This smoke declares a package skill surface, not a standalone skill installation.",
-			"This smoke records activation preflight as blocked until integrity and install policy evidence exist.",
+			"This smoke verifies wrapper SKILL.md source integrity before activation preflight.",
+			"This smoke records activation preflight as blocked until install policy evidence exists.",
 			"This smoke executes only source:v1 status through @refarm.dev/source-local.",
 			"This smoke does not execute dgk, Obsidian CLI, runtime-agent, pi-agent, shell tools, file mutations, or model calls.",
 			"Dirty or untracked upstream checkout status is recorded as evidence, not hidden or normalized.",
@@ -476,7 +497,7 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			? [
 				"Treat DGK vault-search as the first external skill fixture proof for @refarm.dev/skill-contract-v1.",
 				"Keep the wrapper as a package-declared pi/skill surface until install and runtime-host policy proofs exist.",
-				"Resolve activation preflight with integrity verification and host install policy before runtime dispatch.",
+				"Resolve activation preflight with host install policy before runtime dispatch.",
 				"Keep DGK vocabulary and Obsidian behavior downstream-owned until a runtime host policy proof exists.",
 			]
 			: [

@@ -7,6 +7,7 @@ import {
 	SKILL_INVOCATION_RECEIPT_SCHEMA,
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
+	SKILL_SOURCE_INTEGRITY_SCHEMA,
 	type SkillActivationPreflightBuildResult,
 	type SkillActivationPreflightOptions,
 	type SkillContractV1Adapter,
@@ -29,6 +30,7 @@ import {
 	type SkillManifestV1,
 	type SkillManifestValidationResult,
 	type SkillPolicyEnvelope,
+	type SkillSourceIntegrityBuildResult,
 	type SkillSourceRef,
 	type SkillSourceVerificationResult,
 	type SkillSurfaceDeclarationBuildResult,
@@ -154,6 +156,54 @@ export function verifySkillSource(
 		issues.push(issue("SOURCE_URI_MISMATCH", "$.expected.uri", "Expected source URI to match."));
 	}
 	return { ok: issues.length === 0, actual, issues };
+}
+
+export function buildSkillSourceIntegrityEvidence(
+	source: string,
+	manifest: SkillManifestV1,
+	surface: SkillSurfaceDeclarationV1,
+	options: SkillManifestParseOptions = {},
+): SkillSourceIntegrityBuildResult {
+	const issues: SkillManifestIssue[] = [];
+	const manifestValidation = validateSkillManifest(manifest);
+	if (!manifestValidation.ok) {
+		issues.push(...manifestValidation.issues);
+	}
+
+	const surfaceValidation = validateSkillSurfaceDeclaration(surface);
+	if (!surfaceValidation.ok) {
+		issues.push(...surfaceValidation.issues.map((item) => ({
+			...item,
+			path: `$.surface${item.path === "$" ? "" : item.path.slice(1)}`,
+		})));
+	}
+
+	const sourceCheck = verifySkillSource(source, manifest.source, options);
+	if (!sourceCheck.ok) {
+		issues.push(...sourceCheck.issues);
+	}
+
+	const assetPath = surface.assets[0] ?? "";
+	if (!assetPath) {
+		issues.push(issue(
+			"SOURCE_INTEGRITY_ASSET_MISSING",
+			"$.surface.assets",
+			"Expected package skill surface to declare the SKILL.md asset path.",
+		));
+	}
+
+	const verified = issues.length === 0;
+	return {
+		ok: verified,
+		evidence: {
+			schema: SKILL_SOURCE_INTEGRITY_SCHEMA,
+			source: sourceCheck.actual,
+			assetPath,
+			verified,
+			issues,
+		},
+		issues,
+	};
 }
 
 export function buildSkillInvocationPlan(
@@ -703,6 +753,7 @@ export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 		buildInvocationDecision: buildSkillInvocationDecision,
 		buildInvocationRequest: buildSkillInvocationRequest,
 		buildInvocationPlan: buildSkillInvocationPlan,
+		buildSourceIntegrityEvidence: buildSkillSourceIntegrityEvidence,
 		buildSurfaceDeclaration: buildSkillSurfaceDeclaration,
 		evaluateActivationPreflight: evaluateSkillActivationPreflight,
 		parseMarkdown: parseSkillMarkdown,

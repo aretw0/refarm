@@ -16,7 +16,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring, first-public Silo bulk storage helpers, protection envelope, and light-by-default storage closure | official storage adoption by `vault-seed` remains item 8a |
 | 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
-| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, prepares host-policy-checkable invocation plans/requests, records pre-runtime host policy decisions, records execution receipts from engine-call evidence, builds plugin-manifest-compatible `pi/skill` surface declarations, and evaluates activation preflight from host install/runtime evidence; `@refarm.dev/plugin-manifest` validates `pi/skill` surfaces as package asset declarations; `native:skills:surface-smoke` proves the plan-only wrapper handoff without executing skills; `native:skills:source-engine-smoke` proves one `source:v1` engine call through `@refarm.dev/source-local`; `native:skills:agents-lab-git-workflow-smoke` proves one external `agents-lab` wrapper smoke without installing or executing upstream skill text; `native:skills:dgk-vault-search-smoke` proves one external `dgk-skills/vault-search` wrapper smoke plus package-declared `pi/skill` surface and blocked activation preflight without executing `dgk` or Obsidian CLI | runtime-host execution, install policy, and direct DGK fixture comparison remain pending |
+| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, builds package skill source integrity evidence, prepares host-policy-checkable invocation plans/requests, records pre-runtime host policy decisions, records execution receipts from engine-call evidence, builds plugin-manifest-compatible `pi/skill` surface declarations, and evaluates activation preflight from host install/runtime evidence; `@refarm.dev/plugin-manifest` validates `pi/skill` surfaces as package asset declarations; `native:skills:surface-smoke` proves the plan-only wrapper handoff without executing skills; `native:skills:source-engine-smoke` proves one `source:v1` engine call through `@refarm.dev/source-local`; `native:skills:agents-lab-git-workflow-smoke` proves one external `agents-lab` wrapper smoke without installing or executing upstream skill text; `native:skills:dgk-vault-search-smoke` proves one external `dgk-skills/vault-search` wrapper smoke plus package-declared `pi/skill` surface, source integrity evidence, and activation preflight blocked on install policy without executing `dgk` or Obsidian CLI | runtime-host execution, install policy, and direct DGK fixture comparison remain pending |
 | 7 librarian completion | proof-gated | source:v1 base contract plus held source package profiles | waits for a dispatch proof; live-tree reads use `@refarm.dev/source-local` but still need selected dogfood/downstream proof before handoff promotion |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete, with Silo storage helpers, protection envelope, and storage/identity closure split folded back from the `vault-seed` proof; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
@@ -213,6 +213,9 @@ Current contract closure:
   evidence is complete before activation: package surface, approved
   capabilities, available engine bindings, plugin-manifest validation,
   integrity verification, and policy acceptance;
+- `buildSkillSourceIntegrityEvidence` turns a loaded `SKILL.md`, manifest
+  source reference, and package `pi/skill` surface asset into objective
+  integrity evidence for activation preflight;
 - `@refarm.dev/plugin-manifest` now validates the plugin-manifest skill surface
   for `layer: "pi", kind: "skill"` as a package declaration: non-empty
   capabilities, no UI slot, and at least one relative package `SKILL.md` asset;
@@ -233,11 +236,12 @@ Current contract closure:
   copying, vendoring, or executing the external skill;
 - `native:skills:dgk-vault-search-smoke` composes the reviewed `vault-seed`
   `dgk-skills/vault-search` source as evidence through a Refarm wrapper,
-  `pi/skill` package surface declaration, plugin-manifest validation, decision,
-  activation preflight, `source:v1` checkout status call, and receipt without
+  `pi/skill` package surface declaration, plugin-manifest validation, source
+  integrity evidence, decision, activation preflight, `source:v1` checkout
+  status call, and receipt without
   installing, copying, vendoring, executing the external skill, or executing
   `dgk`/Obsidian product commands; the preflight remains blocked until
-  integrity and install policy evidence exist;
+  install policy evidence exists;
 - the package still does not install, authorize, or execute skills.
 
 Activation trigger:

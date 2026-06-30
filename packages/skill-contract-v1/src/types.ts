@@ -5,6 +5,7 @@ export const SKILL_INVOCATION_REQUEST_SCHEMA = "refarm.skill-invocation-request.
 export const SKILL_INVOCATION_DECISION_SCHEMA = "refarm.skill-invocation-decision.v1" as const;
 export const SKILL_INVOCATION_RECEIPT_SCHEMA = "refarm.skill-invocation-receipt.v1" as const;
 export const SKILL_ACTIVATION_PREFLIGHT_SCHEMA = "refarm.skill-activation-preflight.v1" as const;
+export const SKILL_SOURCE_INTEGRITY_SCHEMA = "refarm.skill-source-integrity.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";
@@ -224,6 +225,14 @@ export interface SkillSourceVerificationResult extends SkillManifestValidationRe
 	readonly actual: SkillSourceRef;
 }
 
+export interface SkillSourceIntegrityEvidenceV1 {
+	readonly schema: typeof SKILL_SOURCE_INTEGRITY_SCHEMA;
+	readonly source: SkillSourceRef;
+	readonly assetPath: string;
+	readonly verified: boolean;
+	readonly issues: readonly SkillManifestIssue[];
+}
+
 export interface SkillInvocationPlanBuildResult extends SkillManifestValidationResult {
 	readonly plan: SkillInvocationPlanV1 | null;
 }
@@ -246,6 +255,10 @@ export interface SkillSurfaceDeclarationBuildResult extends SkillManifestValidat
 
 export interface SkillActivationPreflightBuildResult extends SkillManifestValidationResult {
 	readonly preflight: SkillActivationPreflightV1 | null;
+}
+
+export interface SkillSourceIntegrityBuildResult extends SkillManifestValidationResult {
+	readonly evidence: SkillSourceIntegrityEvidenceV1 | null;
 }
 
 export interface SkillInvocationPlanPrepareResult extends SkillManifestValidationResult {
@@ -274,6 +287,12 @@ export interface SkillContractV1Adapter {
 		expected: SkillSourceRef,
 		options?: SkillManifestParseOptions,
 	): SkillSourceVerificationResult | Promise<SkillSourceVerificationResult>;
+	buildSourceIntegrityEvidence(
+		source: string,
+		manifest: SkillManifestV1,
+		surface: SkillSurfaceDeclarationV1,
+		options?: SkillManifestParseOptions,
+	): SkillSourceIntegrityBuildResult | Promise<SkillSourceIntegrityBuildResult>;
 	buildInvocationPlan(
 		manifest: SkillManifestV1,
 	): SkillInvocationPlanBuildResult | Promise<SkillInvocationPlanBuildResult>;

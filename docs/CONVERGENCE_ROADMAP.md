@@ -114,7 +114,7 @@ without installing or executing the upstream skill. It now has the matching DGK 
 `vault-seed`'s `dgk-skills/vault-search`, recording upstream hash/source evidence and a
 `source:v1` receipt, plus a package-declared `pi/skill` surface validated through
 `@refarm.dev/plugin-manifest`, and an activation preflight that remains blocked
-until integrity and install policy evidence exist, without executing `dgk` or
+until install policy evidence exists, without executing `dgk` or
 Obsidian CLI. DGK skills still do not become executable under Refarm until a
 runtime host, install policy, and direct fixture comparison pass. `dgk-skills`
 and `agents-lab` skills are compatibility fixtures and consumer pressure, not

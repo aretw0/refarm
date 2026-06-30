@@ -9,6 +9,8 @@ content:
 - record source URI, byte length, and SHA-256 hash;
 - verify a loaded `SKILL.md` source against the source reference already carried
   by a manifest or invocation plan;
+- build package skill source integrity evidence from the loaded `SKILL.md`,
+  manifest source reference, and declared package surface asset;
 - expose markdown input/output envelopes for hosts to validate before invoking
   policy or engines;
 - carry declarative engine bindings so hosts can check available Refarm engines
@@ -51,6 +53,7 @@ import {
 	buildSkillInvocationDecision,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
+	buildSkillSourceIntegrityEvidence,
 	buildSkillSurfaceDeclaration,
 	evaluateSkillActivationPreflight,
 	prepareSkillInvocationPlan,
@@ -82,12 +85,22 @@ if (!surface.ok) {
 	throw new Error(surface.issues.map((issue) => issue.message).join("; "));
 }
 
+const integrity = buildSkillSourceIntegrityEvidence(
+	skillMarkdown,
+	result.manifest,
+	surface.surface,
+	{ sourceUri: "file:skills/refarm-git-workflow/SKILL.md" },
+);
+if (!integrity.ok) {
+	throw new Error(integrity.issues.map((issue) => issue.message).join("; "));
+}
+
 const activation = evaluateSkillActivationPreflight(result.manifest, surface.surface, {
 	approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
 	availableEngineBindings: ["runtime-agent", "source:v1"],
 	install: {
 		pluginManifestValid: true,
-		integrityVerified: true,
+		integrityVerified: integrity.evidence.verified,
 		policyAccepted: true,
 	},
 });
@@ -139,6 +152,9 @@ Invocation plans always require host policy approval; this package does not
 authorize tools by itself.
 Source verification only confirms content identity; it does not install, trust,
 or execute a skill.
+Source integrity evidence packages that same identity check with the declared
+package `SKILL.md` asset path so activation preflight can consume objective
+evidence instead of a hand-written boolean.
 The I/O envelope is descriptive and policy-facing. Hosts still decide whether a
 particular invocation payload is allowed.
 Engine bindings are declarations only. This package does not select or call an

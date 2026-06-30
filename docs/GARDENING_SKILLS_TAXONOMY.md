@@ -18,7 +18,7 @@
 - **`refarm`**: **no executable skill surface yet.** It has a native contract package that parses
   `SKILL.md` into a policy-checkable manifest/invocation plan handoff, carries markdown I/O
   envelopes and declarative engine bindings, verifies loaded source integrity,
-  and builds plugin-manifest-compatible `pi/skill` surface declarations. The
+  and builds package skill source integrity evidence plus plugin-manifest-compatible `pi/skill` surface declarations. The
   plugin manifest now validates those `pi/skill` surfaces as package asset
   declarations before any host executes them. Refarm also has *engines* — `sower` (scaffold/import), `thresher`
   (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
@@ -85,8 +85,8 @@ dirty/untracked checkout status as evidence, calls only `source:v1`, and does
 not execute `dgk`, Obsidian CLI, runtime-agent, shell tools, file mutations, or
 model calls. It also declares the wrapper as a package-owned
 `layer: "pi", kind: "skill"` surface and validates that surface through
-`@refarm.dev/plugin-manifest`, then records activation preflight as blocked
-until integrity verification and install policy evidence exist. The remaining
+`@refarm.dev/plugin-manifest`, verifies wrapper source integrity, then records
+activation preflight as blocked until install policy evidence exists. The remaining
 runtime work is to invoke runtime-agent or another Refarm plugin host only after
 policy, cancellation, observability, and cost-control proofs exist. The durable
 owner should remain a package/plugin manifest surface, not `apps/refarm`.
@@ -113,8 +113,9 @@ Activation sequence:
 5. **done:** represent the DGK wrapper as a manifest-declared surface:
    `layer: "pi", kind: "skill"` with `assets` pointing to the wrapper
    `SKILL.md`;
-6. **done:** record activation preflight for that surface and keep it blocked
-   until integrity and install policy evidence exist;
+6. **done:** record source integrity evidence and activation preflight for that
+   surface, keeping runtime dispatch blocked until install policy evidence
+   exists;
 7. run the first DGK runtime-host fixture without bypassing
    plugin-manifest/Barn/Scarecrow boundaries;
 8. only then install, vendor, or publish skill wrappers.
@@ -198,6 +199,6 @@ upstream `vault-seed` `packages/dgk-skills/skills/vault-search/SKILL.md` hash,
 verifies the Refarm wrapper, calls `source:v1` over the external `vault-seed`
 checkout, validates a package-declared `pi/skill` surface through
 `@refarm.dev/plugin-manifest`, records activation preflight as blocked on
-missing integrity and install policy evidence, and emits an execution receipt
+missing install policy evidence, and emits an execution receipt
 without installing, copying, vendoring, or executing the upstream skill or the
 `dgk`/Obsidian product commands.
