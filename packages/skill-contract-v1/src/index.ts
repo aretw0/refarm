@@ -17,6 +17,7 @@ export type {
 	SkillCapabilityEnvelope,
 	SkillContractV1Adapter,
 	SkillContractV1ConformanceResult,
+	SkillEngineBindingEnvelope,
 	SkillExecutionMode,
 	SkillInputEnvelope,
 	SkillInvocationPlanBuildResult,

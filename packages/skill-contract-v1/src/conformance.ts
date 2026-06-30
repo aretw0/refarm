@@ -13,6 +13,9 @@ requiredCapabilities:
   - refarm.git.write
 optionalCapabilities:
   - refarm.github.pr
+engineBindings:
+  - runtime-agent
+  - source:v1
 input: Markdown task context for the host to inspect before planning git workflow steps.
 inputRequired: true
 output: Markdown plan describing the proposed git workflow steps.
@@ -71,6 +74,9 @@ export async function runSkillContractV1Conformance(
 		if (manifest.policy.toolAccess !== "declared-capabilities-only") {
 			failures.push("manifest must default to declared capability tool access");
 		}
+		if (!manifest.engineBindings.requires.includes("runtime-agent")) {
+			failures.push("manifest must preserve required engine bindings");
+		}
 		if (manifest.io.input.format !== "text/markdown" || manifest.io.output.format !== "text/markdown") {
 			failures.push("manifest must expose markdown input/output envelopes");
 		}
@@ -113,6 +119,9 @@ export async function runSkillContractV1Conformance(
 				}
 				if (result.plan.io.input.required !== true) {
 					failures.push("invocation plan must preserve input requirements");
+				}
+				if (!result.plan.engineBindings.requires.includes("runtime-agent")) {
+					failures.push("invocation plan must preserve engine bindings");
 				}
 			}
 		} catch (error) {

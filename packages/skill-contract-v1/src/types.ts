@@ -25,6 +25,11 @@ export interface SkillCapabilityEnvelope {
 	readonly provides?: readonly string[];
 }
 
+export interface SkillEngineBindingEnvelope {
+	readonly requires: readonly string[];
+	readonly optional?: readonly string[];
+}
+
 export interface SkillPolicyEnvelope {
 	readonly executionMode: SkillExecutionMode;
 	readonly toolAccess: SkillToolAccess;
@@ -55,6 +60,7 @@ export interface SkillManifestV1 {
 	readonly description?: string;
 	readonly source: SkillSourceRef;
 	readonly capabilities: SkillCapabilityEnvelope;
+	readonly engineBindings: SkillEngineBindingEnvelope;
 	readonly policy: SkillPolicyEnvelope;
 	readonly io: SkillIoEnvelope;
 	readonly instructions: string;
@@ -77,6 +83,7 @@ export interface SkillInvocationPlanV1 {
 	readonly skill: SkillInvocationPlanSkillRef;
 	readonly policy: SkillPolicyEnvelope;
 	readonly capabilityRequests: readonly SkillInvocationPlanCapability[];
+	readonly engineBindings: SkillEngineBindingEnvelope;
 	readonly io: SkillIoEnvelope;
 	readonly instructions: string;
 	readonly requiresHostPolicyApproval: true;
