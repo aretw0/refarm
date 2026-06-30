@@ -21,10 +21,14 @@ that can invoke one DGK skill as a consumer proof.
 Start this item only when all are true:
 
 1. Refarm exposes a skill-like invocation surface with manifest metadata, input envelope, output
-   envelope, and capability declaration.
+   envelope, and capability declaration. **Current:** `@refarm.dev/skill-contract-v1` covers
+   manifest, invocation plan, request, host policy decision, execution receipt, and package skill
+   surface declaration.
 2. One existing `dgk-skills` skill is selected as the dogfood consumer.
 3. The selected skill can call an existing Refarm engine (`source:v1`, `context-provider-v1`,
    `sower`, `thresher`, `windmill`, or `homestead`) without product vocabulary moving upstream.
+   **Current:** an internal source-status smoke calls `source:v1` through
+   `@refarm.dev/source-local`; external fixture selection remains pending.
 
 ## Scope
 
@@ -52,5 +56,7 @@ only supplies the runtime envelope.
 
 - Manifest parser rejects missing capability declarations.
 - Adapter fixture maps one `SKILL.md` into `SkillManifestV1`.
-- Invocation smoke runs one DGK skill through Refarm and records engine calls.
+- Invocation smoke runs one DGK skill through Refarm and records engine calls. The internal
+  `native:skills:source-engine-smoke` records source-engine evidence first, but it does not replace
+  the DGK consumer proof.
 - No import from `vault-seed` product paths appears in Refarm runtime code.

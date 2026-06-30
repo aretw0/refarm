@@ -3,10 +3,12 @@ export const SKILL_MANIFEST_SCHEMA = "refarm.skill-manifest.v1" as const;
 export const SKILL_INVOCATION_PLAN_SCHEMA = "refarm.skill-invocation-plan.v1" as const;
 export const SKILL_INVOCATION_REQUEST_SCHEMA = "refarm.skill-invocation-request.v1" as const;
 export const SKILL_INVOCATION_DECISION_SCHEMA = "refarm.skill-invocation-decision.v1" as const;
+export const SKILL_INVOCATION_RECEIPT_SCHEMA = "refarm.skill-invocation-receipt.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";
 export type SkillInvocationPolicyDecision = "approved" | "denied";
+export type SkillInvocationExecutionStatus = "succeeded" | "failed";
 
 export interface SkillContractV1ConformanceResult {
 	readonly pass: boolean;
@@ -132,6 +134,40 @@ export interface SkillInvocationDecisionV1 {
 	readonly executed: false;
 }
 
+export interface SkillInvocationEngineCallEvidence {
+	readonly engineBinding: string;
+	readonly capability: string;
+	readonly providerId: string;
+	readonly operation: string;
+	readonly ok: boolean;
+	readonly durationMs: number;
+	readonly error?: string;
+}
+
+export interface SkillInvocationOutputPayload {
+	readonly format: SkillIoFormat;
+	readonly body: string;
+}
+
+export interface SkillInvocationReceiptOptions {
+	readonly status: SkillInvocationExecutionStatus;
+	readonly engineCalls: readonly SkillInvocationEngineCallEvidence[];
+	readonly output?: SkillInvocationOutputPayload;
+	readonly error?: string;
+	readonly completedAt?: string;
+}
+
+export interface SkillInvocationReceiptV1 {
+	readonly schema: typeof SKILL_INVOCATION_RECEIPT_SCHEMA;
+	readonly decision: SkillInvocationDecisionV1;
+	readonly status: SkillInvocationExecutionStatus;
+	readonly engineCalls: readonly SkillInvocationEngineCallEvidence[];
+	readonly output?: SkillInvocationOutputPayload;
+	readonly error?: string;
+	readonly completedAt: string;
+	readonly executed: true;
+}
+
 export interface SkillSurfaceDeclarationOptions {
 	readonly assetPath: string;
 	readonly id?: string;
@@ -171,6 +207,10 @@ export interface SkillInvocationRequestBuildResult extends SkillManifestValidati
 
 export interface SkillInvocationDecisionBuildResult extends SkillManifestValidationResult {
 	readonly decision: SkillInvocationDecisionV1 | null;
+}
+
+export interface SkillInvocationReceiptBuildResult extends SkillManifestValidationResult {
+	readonly receipt: SkillInvocationReceiptV1 | null;
 }
 
 export interface SkillSurfaceDeclarationBuildResult extends SkillManifestValidationResult {

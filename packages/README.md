@@ -47,8 +47,11 @@ Refarm skill surfaces. It parses `SKILL.md`-style content into
 `SkillManifestV1`, records source hashes, requires explicit capabilities, and
 defaults to plan-only, declared-capability tool access. It also builds
 host-policy-checkable invocation plans, requests, pre-runtime decisions, and
+host-owned execution receipts from engine-call evidence. It also builds
 `pi/skill` surface declarations for package manifest handoff from a validated
-manifest plus a relative package asset path.
+manifest plus a relative package asset path. The first engine dogfood smoke
+uses `source:v1` through `@refarm.dev/source-local`; external `dgk-skills` or
+`agents-lab` fixture proof remains the promotion gate.
 
 It is deliberately not a second plugin system. Packages and plugin manifests
 remain the distribution/trust boundary; skills are declared as surfaces or

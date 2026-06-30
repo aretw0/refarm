@@ -60,18 +60,23 @@ plans carry markdown input/output envelopes so hosts can validate payload shape
 before policy or engine dispatch, and declarative engine bindings so hosts can
 check required Refarm engine availability before dispatch. The contract can also
 build a host-policy-checkable invocation request from a plan and markdown input
-without calling a runtime, and can build a `layer: "pi", kind: "skill"` surface
-declaration from a valid manifest plus relative package asset path. It exposes
-`prepareSkillInvocationPlan` as the
+without calling a runtime, record a pre-runtime host policy decision, and record
+a host-owned execution receipt from explicit engine-call evidence. It can build
+a `layer: "pi", kind: "skill"` surface declaration from a valid manifest plus
+relative package asset path. It exposes `prepareSkillInvocationPlan` as the
 adapter/host handoff for one source and `verifySkillSource` for source integrity
 checks before host trust. `@refarm.dev/plugin-manifest` validates that package
 surface as a non-UI, capability-declared `SKILL.md` asset declaration. The
 `native:skills:surface-smoke` command proves the Refarm git-workflow wrapper as
 a plan-only handoff through manifest, source verification, package surface,
-plugin-manifest validation, and invocation request. The remaining runtime work
-is to pass that request through policy and invoke Refarm engines through
-`runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable owner
-should remain a package/plugin manifest surface, not `apps/refarm`.
+plugin-manifest validation, invocation request, and host policy decision. The
+`native:skills:source-engine-smoke` command proves one source-status skill can
+call `source:v1` through `@refarm.dev/source-local` and record a receipt without
+runtime-agent, pi-agent, shell tools, file mutations, or model calls. The
+remaining runtime work is to select one external `dgk-skills` or `agents-lab`
+fixture and later invoke runtime-agent or another Refarm plugin host only after
+policy, cancellation, observability, and cost-control proofs exist. The durable
+owner should remain a package/plugin manifest surface, not `apps/refarm`.
 
 This must not become a second plugin system. Packages remain the distribution
 unit, plugins remain the executable/capability providers, and skills are
@@ -82,17 +87,19 @@ manifest decides which host can see each surface.
 Activation sequence:
 
 1. **done:** create the contract package for skill metadata, capability
-   declarations, source hash, policy-checkable invocation plan/request, and
-   package surface declaration helper, scoped as a schema helper for
+   declarations, source hash, policy-checkable invocation plan/request,
+   policy decision, execution receipt, and package surface declaration helper,
+   scoped as a schema helper for
    plugin-declared skill surfaces;
-2. add a minimal adapter that maps one reviewed external skill into the
+2. **done:** run an internal source-status dogfood smoke through `source:v1`
+   without bypassing policy, recording engine-call evidence in a receipt;
+3. add a minimal adapter that maps one reviewed external skill into the
    policy-checkable invocation plan;
-3. represent that skill as a manifest-declared surface such as
+4. represent that skill as a manifest-declared surface such as
    `layer: "pi", kind: "skill"` with `assets` pointing to the `SKILL.md`;
-4. run the first dogfood smoke through `runtime-agent` or a Refarm plugin
-   without bypassing plugin-manifest/Barn/Scarecrow boundaries; a plan-only
-   smoke exists, but engine-call evidence is still pending;
-5. only then install, vendor, or publish skill wrappers.
+5. run the first external fixture smoke without bypassing
+   plugin-manifest/Barn/Scarecrow boundaries;
+6. only then install, vendor, or publish skill wrappers.
 
 ## Deferred Until Native Host Exists
 

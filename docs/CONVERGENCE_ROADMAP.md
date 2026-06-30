@@ -107,9 +107,11 @@ skill set, but the core work is the native Refarm skill surface itself. Refarm n
 package, manifest parser, capability envelope, host-policy-checkable invocation handoffs, and
 central plugin-manifest validation for `pi/skill` package asset declarations. It also has a
 plan-only wrapper smoke for the Refarm git-workflow skill surface with a recorded pre-runtime host
-policy decision. It still needs engine invocation proof before any external `SKILL.md` becomes
-executable. `dgk-skills` and `agents-lab` skills are compatibility fixtures and consumer pressure,
-not code that moves into `apps/refarm`.
+policy decision, plus a `source:v1` engine dogfood smoke that records a receipt from
+`@refarm.dev/source-local` without invoking runtime-agent. It still needs one external
+`dgk-skills` or `agents-lab` fixture before external `SKILL.md` becomes executable. `dgk-skills`
+and `agents-lab` skills are compatibility fixtures and consumer pressure, not code that moves
+into `apps/refarm`.
 
 The first adapter should prove one external skill can run under Refarm's skill surface without a
 one-shot rename, without inventing a second skill installer/runtime, and without bypassing

@@ -8,6 +8,7 @@ import {
 import {
 	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
+	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
@@ -16,6 +17,7 @@ import {
 	prepareSkillInvocationPlan,
 	validateSkillInvocationDecision,
 	validateSkillInvocationPlan,
+	validateSkillInvocationReceipt,
 	validateSkillInvocationRequest,
 	validateSkillManifest,
 	validateSkillSurfaceDeclaration,
@@ -356,6 +358,81 @@ describe("skill-contract-v1", () => {
 				expect.objectContaining({ code: "INVOCATION_DENIAL_BLOCKS_RUNTIME_DISPATCH" }),
 				expect.objectContaining({ code: "INVOCATION_DECISION_EXECUTED_INVALID" }),
 				expect.objectContaining({ code: "INVOCATION_DENIAL_APPROVES_CAPABILITY" }),
+			]),
+		});
+	});
+
+	it("builds an execution receipt from an approved decision and engine evidence", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+		const request = buildSkillInvocationRequest(built.plan!, "Review state.");
+		const decision = buildSkillInvocationDecision(request.request!, {
+			decision: "approved",
+			reason: "Operator approved this workflow.",
+			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+		});
+
+		const result = buildSkillInvocationReceipt(decision.decision!, {
+			status: "succeeded",
+			completedAt: "2026-06-30T00:00:00.000Z",
+			engineCalls: [
+				{
+					engineBinding: "source:v1",
+					capability: "refarm.operator-loop",
+					providerId: "@refarm.dev/source-local",
+					operation: "status",
+					ok: true,
+					durationMs: 4,
+				},
+			],
+			output: {
+				format: "text/markdown",
+				body: "Source status inspected.",
+			},
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.receipt).toMatchObject({
+			schema: "refarm.skill-invocation-receipt.v1",
+			status: "succeeded",
+			completedAt: "2026-06-30T00:00:00.000Z",
+			executed: true,
+			output: {
+				format: "text/markdown",
+				body: "Source status inspected.",
+			},
+		});
+		expect(result.receipt?.decision).toEqual(decision.decision);
+	});
+
+	it("rejects execution receipts without approval, evidence, or required outcome fields", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+		const request = buildSkillInvocationRequest(built.plan!, "Review state.");
+		const denied = buildSkillInvocationDecision(request.request!, {
+			decision: "denied",
+			reason: "Host policy denied this request.",
+		});
+		expect(denied.decision).not.toBeNull();
+
+		const result = validateSkillInvocationReceipt({
+			schema: "refarm.skill-invocation-receipt.v1",
+			decision: denied.decision,
+			status: "succeeded",
+			engineCalls: [],
+			completedAt: "not-a-date",
+			executed: false,
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "INVOCATION_RECEIPT_REQUIRES_APPROVAL" }),
+				expect.objectContaining({ code: "ENGINE_CALL_EVIDENCE_LIST_EMPTY" }),
+				expect.objectContaining({ code: "TIMESTAMP_INVALID" }),
+				expect.objectContaining({ code: "INVOCATION_RECEIPT_EXECUTED_INVALID" }),
+				expect.objectContaining({ code: "INVOCATION_RECEIPT_OUTPUT_REQUIRED" }),
 			]),
 		});
 	});
