@@ -22,7 +22,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
 | 10 `io_uring` substrate | probe started, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule, devcontainer capability probe | baseline materialization fixture; `io_uring` comparison only on a host/container that reports `available` |
 | 11 XR/WebXR surface | POC started, not product-ready | WebXR/A-Frame/three.js posture, fallback rule, renderer-neutral fixture/probe | browser/device evidence from a contained static preview |
-| 13 remote workspace control plane | horizon accepted, not execution-ready | ADR-074 sets the boundary: identity-bound Refarm nodes, transport-neutral adapters, policy-before-execution, environment ceilings, no raw shell by default | a first proof spec is still needed for status + bounded read-only check + stream + cancel + audit/artifact evidence |
+| 13 remote workspace control plane | proof-spec ready, not product-ready | ADR-074 sets the boundary; the first proof spec/plan defines status + bounded read-only check + stream + cancel + audit/artifact evidence without package extraction | implementation proof still needed; real machine-to-machine transport and package extraction remain gated by proof pressure |
 
 | Cross-cutting item | Factory state | What is closed | What still stops execution |
 |---|---|---|---|

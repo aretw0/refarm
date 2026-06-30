@@ -146,6 +146,8 @@ test("factory readiness records hard environment ceilings", () => {
 
 test("remote workspace control horizon stays transport and app neutral", () => {
 	const adr = read("specs/ADRs/ADR-074-remote-workspace-control-plane.md");
+	const spec = read("specs/features/2026-06-30-remote-workspace-control-plane-proof.md");
+	const plan = read("docs/superpowers/plans/2026-06-30-remote-workspace-control-plane-proof.md");
 	const roadmap = read("docs/CONVERGENCE_ROADMAP.md");
 	const readiness = read("docs/CONVERGENCE_FACTORY_READINESS.md");
 	const decisionLog = read("docs/decision-log.md");
@@ -160,12 +162,21 @@ test("remote workspace control horizon stays transport and app neutral", () => {
 	assert.match(adr, /Work policy is respected/);
 	assert.match(adr, /Do not add remote execution directly to `apps\/refarm` as app-local logic/);
 	assert.match(adr, /bounded read-only check/);
+	assert.match(spec, /READY FOR FIRST PROOF/);
+	assert.match(spec, /proof-local until a second consumer needs it as a stable SDK/);
+	assert.match(spec, /process-handoff/);
+	assert.match(spec, /stream-contract-v1/);
+	assert.match(spec, /Do not extract a package yet/);
+	assert.match(spec, /docs\/tests prove no Telegram\/Matrix\/Tailscale\/PWA\/Android\/app-specific/);
+	assert.match(plan, /descriptor is not exported as a public package contract/);
+	assert.match(plan, /no generic remote shell/);
+	assert.match(plan, /Do not create `@refarm\.dev\/workspace-node-contract-v1`/);
 	assert.match(roadmap, /Remote workspace control plane/);
 	assert.match(roadmap, /PWA, Android, CLI, Telegram, Matrix/);
 	assert.match(roadmap, /Tailscale is a strong private-network fixture, not the canonical protocol/);
-	assert.match(roadmap, /contract deferred until proof pressure/);
+	assert.match(roadmap, /first proof spec ready/);
 	assert.match(readiness, /remote workspace control plane/);
-	assert.match(readiness, /not execution-ready/);
+	assert.match(readiness, /proof-spec ready, not product-ready/);
 	assert.match(readiness, /remote Refarm node must be allowed to refuse,\s+serialize, or degrade work/);
 	assert.match(decisionLog, /Remote workspace control plane/);
 	assert.match(decisionLog, /not a Telegram\/Matrix\/Tailscale-specific protocol/);

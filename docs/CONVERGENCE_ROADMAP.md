@@ -31,7 +31,7 @@ each sub-project's own brainstorm.
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 | 11 | **XR/WebXR surface POC** — immersive surface around Refarm | POC | 4, optional 5 | XR-capable browser renders the same Refarm data as 2D fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-xr-surface-poc.md)) |
 | 12 | **Vault-seed roadmap assimilation** — sources/ETL, multi-channel publishing, OKF, workspace publishing, Lab WASM helpers | classification + specs | 1, 5, 8, 9 | each future vault-seed slice either consumes a Refarm candidate block or stays explicitly product-local | ▶ classified; activate per lane |
-| 13 | **Remote workspace control plane** — coordinate personal/work/vault machines through policy-aware Refarm nodes | ADR + future contract/proof | 4, 7, 8, task/session/effort/process/stream contracts | one enrolled remote node answers status, runs a bounded read-only check, streams output, supports cancel, and emits audit/artifact evidence | ◻ horizon accepted ([ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md)); contract deferred until proof pressure |
+| 13 | **Remote workspace control plane** — coordinate personal/work/vault machines through policy-aware Refarm nodes | ADR + proof spec/plan | 4, 7, 8, task/session/effort/process/stream contracts | one enrolled remote node answers status, runs a bounded read-only check, streams output, supports cancel, and emits audit/artifact evidence | ◻ horizon accepted ([ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md)); first proof spec ready ([spec](../specs/features/2026-06-30-remote-workspace-control-plane-proof.md)) |
 
 ## Detail & rationale
 
@@ -186,6 +186,9 @@ when policy allows, and future agents running in parallel. ADR-074 fixes the bou
 - Tailscale is a strong private-network fixture, not the canonical protocol;
 - remote work flows through existing task/session/effort/process/stream/artifact/channel contracts;
 - the first proof is status + bounded read-only check + stream + cancel + audit evidence.
+
+First proof packet: `specs/features/2026-06-30-remote-workspace-control-plane-proof.md` and
+`docs/superpowers/plans/2026-06-30-remote-workspace-control-plane-proof.md`.
 
 Do not create a package for this until there is proof pressure: a second operator surface, a channel
 adapter, a browser-safe client, a stable remote-node JSON contract, or a downstream consumer that
