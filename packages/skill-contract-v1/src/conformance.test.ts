@@ -8,10 +8,12 @@ import {
 import {
 	buildSkillInvocationPlan,
 	createSkillContractV1Adapter,
+	createSkillSourceRef,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationPlan,
 	validateSkillManifest,
+	verifySkillSource,
 } from "./manifest.js";
 
 describe("skill-contract-v1", () => {
@@ -76,6 +78,39 @@ describe("skill-contract-v1", () => {
 				expect.objectContaining({ code: "SOURCE_SHA256_INVALID" }),
 				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
 				expect.objectContaining({ code: "STRING_EMPTY", path: "$.instructions" }),
+			]),
+		});
+	});
+
+	it("verifies loaded SKILL.md source integrity against a manifest source ref", () => {
+		const expected = createSkillSourceRef(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+
+		const result = verifySkillSource(VALID_SKILL_MARKDOWN_FIXTURE, expected, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.actual).toEqual(expected);
+	});
+
+	it("rejects loaded SKILL.md source when hash, bytes, or uri drift", () => {
+		const expected = createSkillSourceRef(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+
+		const result = verifySkillSource(`${VALID_SKILL_MARKDOWN_FIXTURE}\nChanged`, expected, {
+			sourceUri: "fixture:other/SKILL.md",
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "SOURCE_SHA256_MISMATCH" }),
+				expect.objectContaining({ code: "SOURCE_BYTES_MISMATCH" }),
+				expect.objectContaining({ code: "SOURCE_URI_MISMATCH" }),
 			]),
 		});
 	});
@@ -168,6 +203,6 @@ describe("skill-contract-v1", () => {
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(6);
+		expect(result.total).toBe(7);
 	});
 });

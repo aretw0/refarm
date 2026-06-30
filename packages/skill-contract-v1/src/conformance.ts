@@ -73,6 +73,23 @@ export async function runSkillContractV1Conformance(
 	total++;
 	if (manifest) {
 		try {
+			const result = await adapter.verifySource(VALID_SKILL_MARKDOWN_FIXTURE, manifest.source, {
+				sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+			});
+			if (!result.ok) {
+				failures.push(`valid SKILL.md source did not verify: ${formatIssues(result.issues)}`);
+			}
+			if (result.actual.sha256 !== manifest.source.sha256) {
+				failures.push("source verification must return the loaded source hash");
+			}
+		} catch (error) {
+			failures.push(`verifySource(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
+	if (manifest) {
+		try {
 			const result = await adapter.buildInvocationPlan(manifest);
 			if (!result.ok || !result.plan) {
 				failures.push(`valid manifest did not build invocation plan: ${formatIssues(result.issues)}`);

@@ -73,6 +73,10 @@ export interface SkillManifestValidationResult {
 	readonly issues: readonly SkillManifestIssue[];
 }
 
+export interface SkillSourceVerificationResult extends SkillManifestValidationResult {
+	readonly actual: SkillSourceRef;
+}
+
 export interface SkillInvocationPlanBuildResult extends SkillManifestValidationResult {
 	readonly plan: SkillInvocationPlanV1 | null;
 }
@@ -98,6 +102,11 @@ export interface SkillContractV1Adapter {
 	validateManifest(
 		manifest: unknown,
 	): SkillManifestValidationResult | Promise<SkillManifestValidationResult>;
+	verifySource(
+		source: string,
+		expected: SkillSourceRef,
+		options?: SkillManifestParseOptions,
+	): SkillSourceVerificationResult | Promise<SkillSourceVerificationResult>;
 	buildInvocationPlan(
 		manifest: SkillManifestV1,
 	): SkillInvocationPlanBuildResult | Promise<SkillInvocationPlanBuildResult>;

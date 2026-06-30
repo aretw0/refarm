@@ -6,10 +6,12 @@ export {
 export {
 	buildSkillInvocationPlan,
 	createSkillContractV1Adapter,
+	createSkillSourceRef,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationPlan,
 	validateSkillManifest,
+	verifySkillSource,
 } from "./manifest.js";
 export type {
 	SkillCapabilityEnvelope,
@@ -28,6 +30,7 @@ export type {
 	SkillManifestValidationResult,
 	SkillPolicyEnvelope,
 	SkillSourceRef,
+	SkillSourceVerificationResult,
 	SkillToolAccess,
 } from "./types.js";
 export {
