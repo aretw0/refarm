@@ -75,6 +75,7 @@ case "$PACKAGE_MANAGER" in
 esac
 
 PACKAGE_AUDIT_HIGH=$(audit_high_command_for_package_manager "$PACKAGE_MANAGER" 2>/dev/null || printf "%s audit" "$PACKAGE_MANAGER")
+TURBO_LOCAL_CONCURRENCY_ARGS="--concurrency=2"
 
 package_run() {
   script_name="$1"
@@ -369,7 +370,7 @@ else
     done
 
     if [ -n "$PREPUSH_LINT_FILTERS" ]; then
-      if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint:prepush $PREPUSH_LINT_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint:prepush $TURBO_LOCAL_CONCURRENCY_ARGS $PREPUSH_LINT_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
         echo "   ✅ Turbo lint:prepush passed"
       else
         LINT_STATUS=$?
@@ -389,7 +390,7 @@ else
     fi
 
     if [ -n "$STANDARD_LINT_FILTERS" ] && [ $LINT_FAILED -eq 0 ]; then
-      if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint $STANDARD_LINT_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint $TURBO_LOCAL_CONCURRENCY_ARGS $STANDARD_LINT_FILTERS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
         echo "   ✅ Turbo lint passed"
       else
         LINT_STATUS=$?
@@ -417,7 +418,7 @@ else
       WARNINGS=1
     fi
   else
-    if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 360 env CI=1 $PACKAGE_EXEC turbo run lint $TURBO_LOCAL_CONCURRENCY_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Global Turbo lint passed"
       mark_lane_validated "lint"
     else
@@ -483,7 +484,7 @@ else
 
     if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_TYPECHECK -eq 0 ]; then
       echo "   🔎 Turbo scoped type-check for changed workspaces"
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_LOCAL_CONCURRENCY_ARGS $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Turbo type-check passed"
         mark_lane_validated "type-check"
       else
@@ -507,7 +508,7 @@ else
         fi
       fi
     else
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_LOCAL_CONCURRENCY_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Global Turbo type-check passed"
         mark_lane_validated "type-check"
       else
