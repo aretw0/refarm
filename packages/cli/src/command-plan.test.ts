@@ -323,6 +323,100 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("serializes a runnable process step when the resource ceiling lowers concurrency", () => {
+		const fanoutStep: CommandPlanStep = {
+			id: "fanout",
+			command: "worker-runner run tests --concurrency=4 --scope apps/refarm",
+			args: [
+				"run",
+				"tests",
+				"--concurrency=4",
+				"--scope",
+				"apps/refarm",
+			],
+			description: "Run broad test fanout.",
+			effect: "verify",
+			process: {
+				command: "worker-runner",
+				args: [
+					"run",
+					"tests",
+					"--concurrency=4",
+					"--scope",
+					"apps/refarm",
+				],
+				cwd: "/workspaces/refarm",
+				display: "worker-runner run tests --concurrency=4 --scope apps/refarm",
+				packageManager: null,
+				resourcePolicy: {
+					concurrency: 4,
+					workClass: "worker-fanout",
+				},
+				tool: "turbo",
+			},
+		};
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+
+		const result = runCommandPlan([fanoutStep], runStep, {
+			planResourceCeiling: () => ({
+				ok: true,
+				decision: "serialize",
+				workClass: "worker-fanout",
+				pressureDecision: "safe-mode",
+				reason: "Safe mode requires serialized work instead of fan-out.",
+				nextActions: ["Run `worker-runner run tests` with concurrency 1."],
+				nextCommands: ["worker-runner run tests --concurrency=1"],
+				maxConcurrency: 1,
+				recommendations: [],
+			}),
+		});
+
+		expect(result.ok).toBe(true);
+		expect(runStep).toHaveBeenCalledTimes(1);
+		expect(runStep.mock.calls[0]?.[0]).toMatchObject({
+			command: "worker-runner run tests --concurrency=1 --scope apps/refarm",
+			args: [
+				"worker-runner",
+				"run",
+				"tests",
+				"--concurrency=1",
+				"--scope",
+				"apps/refarm",
+			],
+			process: {
+				args: [
+					"run",
+					"tests",
+					"--concurrency=1",
+					"--scope",
+					"apps/refarm",
+				],
+				display: "worker-runner run tests --concurrency=1 --scope apps/refarm",
+				resourcePolicy: {
+					concurrency: 1,
+					workClass: "worker-fanout",
+				},
+			},
+		});
+		expect(result.steps[0]).toMatchObject({
+			id: "fanout",
+			ok: true,
+			command: "worker-runner run tests --concurrency=1 --scope apps/refarm",
+			process: {
+				resourcePolicy: {
+					concurrency: 1,
+					workClass: "worker-fanout",
+				},
+			},
+		});
+	});
+
 	it("turns nested spawn restrictions into direct-run guidance", () => {
 		const runStep = vi.fn((step: CommandPlanStep) => ({
 			...step,

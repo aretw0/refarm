@@ -29,7 +29,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
 | release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; the plan includes `test-runner:contracts`, `audience:boundary:test`, and the lightweight `reference-driver:smoke` gate before package dry-run, and publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
 | `vault-seed` release lane | dry-run validated + local handoff ready | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after ADR-072 the lane reports `acceptance.status: "accepted"` with 9 packages and 20 required checks; the current local packet is `.refarm/handoff/vault-seed/2026-06-30/manifest.json` with `distributionEvidence.state: "local-handoff-ready"` and no stale tarball/build-output issues; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/process-handoff` instead of full Homestead/CLI closures | official downstream assimilation proofs remain pending |
-| environment citizenship | package finish lanes wired | `@refarm.dev/health/environment-pressure` exposes disk/memory/session pressure and `planEnvironmentWorkCeiling` maps work classes to allow/degrade/serialize/refuse; `refarm resume` and `refarm check --next-action` expose pressure before work starts; `@refarm.dev/cli/command-plan` accepts injected resource-ceiling decisions and fails closed before running a step; `refarm agent finish` classifies package-script/Turbo validation as `package-check`; Rust build parallelism is capped in repo config | extend ceiling classification/enforcement beyond package finish lanes to broad app tests, runtime fanout, worker dispatch, mutation lanes, and fallback command rewriting so Refarm refuses, serializes, or degrades before agents can OOM or stall the host |
+| environment citizenship | package finish lanes wired | `@refarm.dev/health/environment-pressure` exposes disk/memory/session pressure and `planEnvironmentWorkCeiling` maps work classes to allow/degrade/serialize/refuse; `refarm resume` and `refarm check --next-action` expose pressure before work starts; `@refarm.dev/cli/command-plan` accepts injected resource-ceiling decisions, fails closed before unsafe steps, and serializes recognized `--concurrency=N`/`--concurrency N` process steps when a ceiling lowers max concurrency; `refarm agent finish` classifies package-script/Turbo validation as `package-check`; Rust build parallelism is capped in repo config | extend ceiling classification/enforcement beyond package finish lanes to broad app tests, runtime fanout, worker dispatch, mutation lanes, and richer fallback command rewriting so Refarm refuses, serializes, or degrades before agents can OOM or stall the host |
 | distributed availability evidence | first proof implemented | `specs/features/2026-06-30-distributed-availability-evidence-proof.md` and `validations/distributed-availability-evidence` compose `artifact-contract-v1`, `release-engine` audit digests, read-only remote-node evidence, seed/replica policy, update evidence, and rollback evidence under proof-local schemas; ADR-075 now records the Holepunch package taxonomy and blind-replica lesson | public install/update descriptor, availability/blind-replica policy package extraction, and any Bare/Hypercore/Pears runtime/storage adoption remain gated by dogfood or second-consumer pressure |
 
 ## Plan depth — read before "ready to implement"
@@ -101,13 +101,15 @@ operator anecdote. The package-owned first step is now
 package-scoped, broad, fanout, or mutation and receive an allow/degrade/
 serialize/refuse decision from the current pressure report. As of 2026-06-30,
 `@refarm.dev/cli/command-plan` can fail closed from an injected ceiling decision,
-and `refarm agent finish` dogfoods the primitive for package-scoped validation
-steps. Future validation tooling should extend the same command planning ceilings
-to broad app tests, runtime fanout, worker dispatch, mutation lanes, and fallback
-command rewriting. Until those surfaces are wired, prefer package-owned SDK
-tests, `git diff --check`, build of the directly affected package, and operator
-lanes that can emit direct next commands over repeating a command that has
-already been killed or timed out by the environment.
+rewrite recognized `--concurrency=N`/`--concurrency N` process steps when a
+`serialize` ceiling lowers max concurrency, and `refarm agent finish` dogfoods
+the primitive for package-scoped validation steps. Future validation tooling
+should extend the same command planning ceilings to broad app tests, runtime
+fanout, worker dispatch, mutation lanes, and richer fallback command rewriting.
+Until those surfaces are wired, prefer package-owned SDK tests,
+`git diff --check`, build of the directly affected package, and operator lanes
+that can emit direct next commands over repeating a command that has already
+been killed or timed out by the environment.
 
 Disposition rule: do not confuse abandoning a high-risk validation path with
 abandoning the product direction. In the 2026-06-29 reference-driver slice, the

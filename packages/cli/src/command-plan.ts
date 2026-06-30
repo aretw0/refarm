@@ -386,7 +386,15 @@ export function runCommandPlan(
 	const steps: CommandPlanStepRunResult[] = [];
 	for (const [index, step] of stepsToRun.entries()) {
 		const resourceCeiling = options.planResourceCeiling?.(step);
-		if (resourceCeiling && shouldStopForResourceCeiling(resourceCeiling)) {
+		const serializedStep = resourceCeiling
+			? commandPlanSerializedStep(step, resourceCeiling)
+			: null;
+		const executableStep = serializedStep ?? step;
+		if (
+			resourceCeiling &&
+			!serializedStep &&
+			shouldStopForResourceCeiling(resourceCeiling)
+		) {
 			const normalized = commandPlanResourceCeilingStepResult(step, resourceCeiling);
 			steps.push(normalized);
 			const remainingSteps = stepsToRun.slice(index + 1);
@@ -408,14 +416,14 @@ export function runCommandPlan(
 				recommendations: resourceCeiling.recommendations ?? [],
 			};
 		}
-		const observed = runStep(step);
+		const observed = runStep(executableStep);
 		const result = {
 			...observed,
-			id: step.id,
-			command: step.command,
-			args: step.args,
-			description: step.description,
-			effect: step.effect,
+			id: executableStep.id,
+			command: executableStep.command,
+			args: executableStep.args,
+			description: executableStep.description,
+			effect: executableStep.effect,
 		};
 		const payloadOk = commandPayloadOk(result.payload);
 		const ok = result.exitCode === 0 && payloadOk !== false;
@@ -424,13 +432,13 @@ export function runCommandPlan(
 		if (!ok) {
 			const remainingSteps = stepsToRun.slice(index + 1);
 			const payloadNextCommands = commandPayloadNextCommands(result.payload);
-			const fallbackNextActions = commandPlanStepFallbackNextActions(step, result);
+			const fallbackNextActions = commandPlanStepFallbackNextActions(executableStep, result);
 			const nextActions = normalizeHandoffValues(
 				commandPayloadNextActions(result.payload) ??
 					payloadNextCommands ?? fallbackNextActions,
 			);
 			const nextCommands = normalizeHandoffValues(
-				payloadNextCommands ?? [step.command],
+				payloadNextCommands ?? [executableStep.command],
 			);
 			return {
 				ok: false,
@@ -439,12 +447,12 @@ export function runCommandPlan(
 				remainingSteps,
 				remainingCommands: commandPlanStepCommands(remainingSteps),
 				remainingProcesses: commandPlanStepProcesses(remainingSteps),
-				failedStepId: step.id,
-				failedCommand: step.command,
-				failedProcess: step.process ?? null,
+				failedStepId: executableStep.id,
+				failedCommand: executableStep.command,
+				failedProcess: executableStep.process ?? null,
 				nextActions,
 				nextCommands,
-				nextProcesses: payloadNextCommands ? [] : commandPlanStepProcesses([step]),
+				nextProcesses: payloadNextCommands ? [] : commandPlanStepProcesses([executableStep]),
 				recommendations: commandPayloadRecommendations(result.payload) ?? [],
 			};
 		}
@@ -486,6 +494,80 @@ function shouldStopForResourceCeiling(
 	resourceCeiling: CommandPlanResourceCeilingPlan,
 ): boolean {
 	return resourceCeiling.ok === false || resourceCeiling.decision !== "allow";
+}
+
+function commandPlanSerializedStep(
+	step: CommandPlanStep,
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): CommandPlanStep | null {
+	if (resourceCeiling.decision !== "serialize") return null;
+	const maxConcurrency = resourceCeiling.maxConcurrency;
+	if (!Number.isInteger(maxConcurrency) || Number(maxConcurrency) < 1) {
+		return null;
+	}
+	const process = step.process;
+	const currentConcurrency = process?.resourcePolicy?.concurrency;
+	if (!process || !Number.isInteger(currentConcurrency)) return null;
+	if (Number(currentConcurrency) <= Number(maxConcurrency)) return step;
+	const serializedProcessArgs = commandPlanSerializedConcurrencyArgs(
+		process.args,
+		Number(maxConcurrency),
+	);
+	if (!serializedProcessArgs) return null;
+	const serializedDisplay = commandPlanSerializedConcurrencyText(
+		process.display,
+		Number(maxConcurrency),
+	) ?? shellCommand(process.command, serializedProcessArgs);
+	const serializedCommand = commandPlanSerializedConcurrencyText(
+		step.command,
+		Number(maxConcurrency),
+	) ?? serializedDisplay;
+	return {
+		...step,
+		command: serializedCommand,
+		args: [process.command, ...serializedProcessArgs],
+		process: {
+			...process,
+			args: serializedProcessArgs,
+			display: serializedDisplay,
+			resourcePolicy: {
+				...process.resourcePolicy,
+				concurrency: Number(maxConcurrency),
+			},
+		},
+	};
+}
+
+function commandPlanSerializedConcurrencyArgs(
+	args: readonly string[],
+	maxConcurrency: number,
+): string[] | null {
+	for (const [index, arg] of args.entries()) {
+		if (/^--concurrency=\d+$/.test(arg)) {
+			const nextArgs = [...args];
+			nextArgs[index] = `--concurrency=${maxConcurrency}`;
+			return nextArgs;
+		}
+		if (arg === "--concurrency" && /^\d+$/.test(args[index + 1] ?? "")) {
+			const nextArgs = [...args];
+			nextArgs[index + 1] = String(maxConcurrency);
+			return nextArgs;
+		}
+	}
+	return null;
+}
+
+function commandPlanSerializedConcurrencyText(
+	value: string,
+	maxConcurrency: number,
+): string | null {
+	if (/--concurrency=\d+/.test(value)) {
+		return value.replace(/--concurrency=\d+/, `--concurrency=${maxConcurrency}`);
+	}
+	if (/--concurrency\s+\d+/.test(value)) {
+		return value.replace(/--concurrency\s+\d+/, `--concurrency ${maxConcurrency}`);
+	}
+	return null;
 }
 
 function commandPlanResourceCeilingStepResult(
