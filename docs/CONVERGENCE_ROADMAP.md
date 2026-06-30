@@ -26,7 +26,7 @@ each sub-project's own brainstorm.
 | 3 | **npm scope decision** — `@aretw0` vs `@refarm.dev` | ADR + docs sweep | — | publish dry-run green under chosen scope | ✅ decided + docs sweep done ([ADR-069](../specs/ADRs/ADR-069-npm-scope-canonicalization.md)) |
 | 4 | **UI/surface blocks supply** — grow `ds` + `homestead` + `dispatch-surface` | spec + plan | 2, 3 | Refarm admin UI (`apps/me`/`apps/refarm`) composed FROM the blocks | ▶ 4a/4b/4c/4d spec+plans ready (see [factory readiness](./CONVERGENCE_FACTORY_READINESS.md)) |
 | 5 | **WASM distribution substrate** — Tractor as common lab/site layer | research + ADR | research (Astro 7) | one surface (lab or site) distributed via the substrate | ✅ [ADR-070](../specs/ADRs/ADR-070-wasm-surface-substrate.md) Parts A/B accepted; Part C POC red |
-| 6 | **`dgk-skills` ⊂ refarm gardening skills** | spec + adapter | 1 | Refarm runs a `dgk` skill via its own skill surface | ◻ taxonomy done; activation spec+plan ready |
+| 6 | **Native Refarm skills** — `dgk-skills` and `agents-lab` as fixtures | contract + adapter + smoke | 1 | Refarm runs one external skill through its own contract, policy, and skill surface | ◻ taxonomy done; native activation spec+plan ready |
 | 7 | **Librarian completion** — `source-dispatch` adapter + `source-local` | spec + plan | 1, 4 (dispatch) | agent invokes `source:v1` through dispatch | ◑ `source-local` implemented; `source-dispatch` deferred until dispatch consumer |
 | 8 | **Consumer bridges** — `silo`, channel policy (`contacts`/rate limits/receipts), `process-handoff` for `dgk` | specs + package/proof slices | 3 + second consumer/control surface | a second consumer or Refarm control surface needs the same primitive | ▶ partially active; 8a Refarm-side ready, 8b package slice active, 8c Refarm-side proof ready |
 | 9 | **Executable specs** — generators + codemods over prose | tooling | — | a gated package scaffolds + self-registers via `turbo gen`; generated vault smoke passes | ✅ vault generator implemented; registry has two ready codemods |
@@ -101,11 +101,15 @@ ADR-075 adds Pears/Holepunch as the platform reference for this lane: distributi
 does not adopt Bare/Hypercore by default, but Pears' portable-core/thin-surface split should guide
 how Tractor, WASM surfaces, and future install/update descriptors are shaped.
 
-### 6. `dgk-skills` ⊂ refarm gardening skills
+### 6. Native Refarm skills; `dgk-skills` ⊂ gardening skills
 `dgk-skills` (read, search, create, context, daily) is a subset of a broader Refarm gardening
-skill set. Map the overlap, define the superset, and provide a compatibility adapter so a
-`dgk` skill can run under Refarm's skill surface without a one-shot rename (the convergence doc's
-"Skill/package compatibility" promotion candidate).
+skill set, but the core work is the native Refarm skill system itself. Refarm needs a contract
+package, manifest parser, capability envelope, policy boundary, and invocation adapter before any
+external `SKILL.md` becomes executable. `dgk-skills` and `agents-lab` skills are compatibility
+fixtures and consumer pressure, not code that moves into `apps/refarm`.
+
+The first adapter should prove one external skill can run under Refarm's skill surface without a
+one-shot rename and without bypassing plugin-manifest/Barn/Scarecrow policy gates.
 
 Activation packet: `specs/features/2026-06-25-skill-runtime-activation.md` and
 `docs/superpowers/plans/2026-06-25-skill-runtime-activation.md`.

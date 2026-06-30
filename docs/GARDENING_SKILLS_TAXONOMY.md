@@ -45,12 +45,30 @@ Skills for **tending a sovereign knowledge farm**, spanning: scaffold (`sower`),
 Some engines already exist (`context-provider-v1`, `sower`, `thresher`; `source:v1` in progress);
 the **skill runtime** that would invoke them does not.
 
-## Deferred (not built now)
+## Native Refarm Skill System
 
-- **Skill contract / adapter** (`SKILL.md` → Refarm manifest/runtime): the
+The work is not only adopting existing skills. Refarm needs a native skill
+system that can parse `SKILL.md`-style content into a `SkillManifestV1`-style
+contract, require explicit capabilities, pass policy, and invoke Refarm engines
+through `runtime-agent` or a Refarm plugin host. The durable owner should be a
+package or plugin surface, not `apps/refarm`.
+
+Activation sequence:
+
+1. create the contract package for skill metadata, capability declarations,
+   source hash, and I/O envelope;
+2. add a minimal adapter that maps one reviewed skill into a policy-checkable
+   invocation plan;
+3. run the first dogfood smoke through `runtime-agent` or a Refarm plugin
+   without bypassing plugin-manifest/Barn/Scarecrow boundaries;
+4. only then install, vendor, or publish skill wrappers.
+
+## Deferred Until Native Contract Exists
+
+- **External skill adapters** (`SKILL.md` → Refarm manifest/runtime): the
   `VAULT_SEED_CONVERGENCE.md` "skill compatibility" promotion candidate. Deferred until Refarm has
-  a skill runtime to consume it — otherwise it is supply-ahead-of-consumption, against the
-  dogfooding gate. Tracked under the "Refarm as engine" milestone.
+  its own skill contract and invocation surface — otherwise it is supply-ahead-of-consumption,
+  against the dogfooding gate. Tracked under the "Refarm as engine" milestone.
 - **`dgk-skills` stays in `vault-seed`** (canonical to DGK); it conforms to the future contract,
   it does not migrate.
 
@@ -93,3 +111,24 @@ That makes the skills track active without coupling Refarm to the `agents-lab`
 product runtime. Source review is allowed now; installation, vendoring, or
 runtime execution still waits for convention review plus the dogfood invocation
 gate.
+
+`pnpm run agents-lab:skills:conventions` is the convention gate for the first
+candidate, `git-skills/git-workflow`. The current result is intentionally not
+"install now": upstream `git-workflow` aligns with non-interactive git safety
+(`git commit -m`, `GIT_EDITOR=true`, `git merge --no-edit`,
+`GH_PROMPT_DISABLED=1`), but it does not carry Refarm's operator-loop and source
+sovereignty rules. The decision is therefore
+`requires-refarm-wrapper-before-install`.
+
+The wrapper must prepend Refarm-specific invariants before any future skill
+adapter smoke:
+
+- start each slice with `refarm resume --json` and
+  `refarm check --next-action --json`;
+- after edits, commits, or public JSON/CLI contract changes, run the matching
+  `refarm agent finish` lane and follow `nextCommands`;
+- preserve source sovereignty and avoid generated artifacts;
+- require explicit confirmation for destructive or wide-impact git operations.
+
+This keeps `agents-lab` as source evidence and Refarm as the neutral supplier of
+the execution boundary.

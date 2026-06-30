@@ -18,20 +18,26 @@ A user who codes with Pi in one project and refarm in another should:
 
 ---
 
-## Layer 1: Skills (already interoperable)
+## Layer 1: Skills (content-portable, runtime-gated)
 
-Markdown-based skills work identically in Pi and refarm. The skill format is
-the shared protocol: a Markdown file with front matter activating on user request.
+Markdown-based skills are the right shared content shape, but they do not yet
+work as a native Refarm runtime surface. The portable artifact is a Markdown
+file with front matter and instructions; the missing Refarm piece is a
+`skill-contract-v1`-style manifest, policy envelope, and invocation adapter.
 
 agents-lab already curates for both ecosystems from a single repository. A skill
-installed in Pi works in refarm without modification.
+installed in Pi can be reviewed by Refarm without modification, but native
+execution requires Refarm-owned parsing, capability declaration, and policy
+checks first.
 
-**What this means**: any skill written for refarm is automatically available to
-Pi users who install it, and vice versa. Invest in skill quality — the audience
-is both ecosystems.
+**What this means**: any skill written for Refarm should keep the `SKILL.md`
+content shape so Pi/Codex-style users can understand or reuse it, but Refarm
+does not treat external Markdown as executable by default. Invest in skill
+quality and in the native contract that makes invocation safe.
 
-**No action needed** beyond ensuring skill file locations are consistent
-(`~/.claude/plugins/` or equivalent per ecosystem).
+**Action needed**: define the native Refarm skill contract and adapter before
+claiming skills run under Refarm. External skills are source evidence and
+fixtures until that gate passes.
 
 ---
 
@@ -194,7 +200,7 @@ and add to Pi's plugin config.
 
 | Layer | State today | Action needed |
 |---|---|---|
-| Skills (Markdown) | ✅ Fully interoperable | Curate and maintain in agents-lab |
+| Skills (Markdown) | 🟡 Content-portable, runtime-gated | Build native Refarm skill contract/adapter before execution |
 | `.project/` schema | ✅ Shared protocol | Nothing |
 | LLM provider env vars | ✅ Same convention | Nothing |
 | WIT contracts | ✅ Structurally aligned | Run `wasm-tools` diff to confirm binary compat |
