@@ -2,6 +2,25 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Distributed availability evidence proof
+
+**Date**: 2026-06-30
+**Status**: Proof implemented
+**References**: [ADR-075](../specs/ADRs/ADR-075-pears-distributed-runtime-reference.md),
+[`spec`](../specs/features/2026-06-30-distributed-availability-evidence-proof.md),
+[`validations/distributed-availability-evidence`](../validations/distributed-availability-evidence/README.md)
+
+**Decision**: the first Pears-inspired distribution slice is a proof-local evidence harness over
+existing Refarm blocks, not a new runtime/storage dependency. The proof records stable identity,
+update source, rollback target, seed/replica availability policy, release-engine trust evidence,
+and an artifact manifest.
+
+**Boundary**: no public install/update contract, no package extraction, no `apps/refarm` ownership,
+and no Bare/Hypercore/Pears runtime adoption. Promotion requires dogfood or second-consumer
+pressure.
+
+---
+
 ## Pears distributed runtime reference
 
 **Date**: 2026-06-30
