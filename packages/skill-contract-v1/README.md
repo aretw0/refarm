@@ -12,6 +12,8 @@ content:
 - build a host-policy-checkable invocation plan that preserves source integrity,
   requested capabilities, policy, and Markdown instructions without executing
   the skill;
+- prepare a manifest and invocation plan from one `SKILL.md` source so hosts and
+  adapters do not reimplement the parse/build handoff;
 - provide conformance helpers for future adapters and hosts.
 
 It does not execute skills, install skills, vendor external skill text, or call
@@ -29,21 +31,15 @@ contract only after that boundary accepts the surface.
 
 ```ts
 import {
-	buildSkillInvocationPlan,
-	parseSkillMarkdown,
+	prepareSkillInvocationPlan,
 } from "@refarm.dev/skill-contract-v1";
 
-const result = parseSkillMarkdown(skillMarkdown, {
+const result = prepareSkillInvocationPlan(skillMarkdown, {
 	sourceUri: "file:skills/refarm-git-workflow/SKILL.md",
 });
 
 if (!result.ok) {
 	throw new Error(result.issues.map((issue) => issue.message).join("; "));
-}
-
-const invocation = buildSkillInvocationPlan(result.manifest);
-if (!invocation.ok) {
-	throw new Error(invocation.issues.map((issue) => issue.message).join("; "));
 }
 ```
 
