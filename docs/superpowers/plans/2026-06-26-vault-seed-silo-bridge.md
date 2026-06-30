@@ -106,7 +106,8 @@ pnpm -C packages/silo run test
 2026-06-29 follow-up: the downstream proof showed repeated namespace operations
 that belong in `@refarm.dev/silo` rather than every consumer. Refarm added
 `listSecrets(namespace)`, `removeSecret(namespace, id)`, owner-only storage
-modes, and the ADR-076 storage/identity closure split.
+modes, the ADR-076 storage/identity closure split, and the ADR-077 protection
+envelope into the first public Silo storage surface.
 
 Earlier validation was run with direct local binaries after the lockfile changed,
 to avoid `pnpm run` triggering a broad install in the restricted container:
@@ -142,4 +143,4 @@ Task 3.
 
 **Placeholder scan:** the implementation tasks name concrete files, namespace, keys, tests, and
 fallback behavior. Conditional Refarm helper work was gated by consumer proof and then folded into
-the Silo v0.1.1 storage surface.
+the first public Silo storage surface.

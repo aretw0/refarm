@@ -4,8 +4,32 @@ import os from "node:os";
 
 export * from "./collect.js";
 
+export const SILO_STORE_SCHEMA_VERSION = 1;
+export const SILO_SECRET_PROTECTION_SCHEME = "local-plaintext-v1";
+
 const DIRECTORY_MODE = 0o700;
 const FILE_MODE = 0o600;
+const DEFAULT_SECRET_PROTECTION = Object.freeze({
+    scheme: SILO_SECRET_PROTECTION_SCHEME,
+    encrypted: false,
+    atRest: "posix-owner-only",
+    keySource: "none",
+    upgradeTarget: "opaque-envelope-v1",
+});
+const PLANNED_SECRET_PROTECTION = Object.freeze([
+    {
+        scheme: "opaque-envelope-v1",
+        encrypted: true,
+        keySource: "@refarm.dev/heartwood",
+        status: "planned",
+    },
+    {
+        scheme: "hardware-backed-envelope-v1",
+        encrypted: true,
+        keySource: "passkey|secure-enclave|tpm|hsm",
+        status: "planned",
+    },
+]);
 
 function canApplyPosixModes() {
     return process.platform !== "win32";
@@ -18,6 +42,35 @@ function applyMode(targetPath, mode) {
     } catch {
         // Some filesystems ignore POSIX modes; storage remains usable.
     }
+}
+
+function cloneProtection(protection = DEFAULT_SECRET_PROTECTION) {
+    return { ...protection };
+}
+
+function createSecretEnvelope(value) {
+    return {
+        value,
+        protection: cloneProtection(),
+    };
+}
+
+function readSecretEnvelope(entry) {
+    if (typeof entry === "string") {
+        return entry;
+    }
+    if (entry && typeof entry === "object" && typeof entry.value === "string") {
+        return entry.value;
+    }
+    return undefined;
+}
+
+function listSecretEnvelopeValues(entries = {}) {
+    return Object.fromEntries(
+        Object.entries(entries)
+            .map(([id, entry]) => [id, readSecretEnvelope(entry)])
+            .filter(([, value]) => value !== undefined),
+    );
 }
 
 /**
@@ -53,8 +106,29 @@ export class SiloCore {
 
     _writeStore(store) {
         this._ensureStorage();
-        writeFileSync(this.storagePath, JSON.stringify(store, null, 2), { mode: FILE_MODE });
+        const nextStore = {
+            schemaVersion: SILO_STORE_SCHEMA_VERSION,
+            ...store,
+        };
+        writeFileSync(this.storagePath, JSON.stringify(nextStore, null, 2), { mode: FILE_MODE });
         applyMode(this.storagePath, FILE_MODE);
+    }
+
+    /**
+     * Describe the current storage protection contract without loading identity crypto.
+     */
+    describeProtection() {
+        return {
+            schemaVersion: SILO_STORE_SCHEMA_VERSION,
+            storagePath: this.storagePath,
+            current: cloneProtection(),
+            planned: PLANNED_SECRET_PROTECTION.map((entry) => ({ ...entry })),
+            identityClosure: {
+                package: "@refarm.dev/heartwood",
+                requiredForStorage: false,
+                loadedBy: ["bootstrapIdentity", "./key-manager"],
+            },
+        };
     }
 
     /**
@@ -88,7 +162,7 @@ export class SiloCore {
 
         current.secrets = current.secrets || {};
         current.secrets[namespace] = current.secrets[namespace] || {};
-        current.secrets[namespace][id] = value;
+        current.secrets[namespace][id] = createSecretEnvelope(value);
         current.updatedAt = new Date().toISOString();
 
         this._writeStore(current);
@@ -103,7 +177,7 @@ export class SiloCore {
      */
     async loadSecret(namespace, id) {
         const data = this._readStore("secret");
-        return data.secrets?.[namespace]?.[id];
+        return readSecretEnvelope(data.secrets?.[namespace]?.[id]);
     }
 
     /**
@@ -113,7 +187,7 @@ export class SiloCore {
      */
     async listSecrets(namespace) {
         const data = this._readStore("secrets");
-        return { ...(data.secrets?.[namespace] || {}) };
+        return listSecretEnvelopeValues(data.secrets?.[namespace]);
     }
 
     /**
