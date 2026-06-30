@@ -46,11 +46,19 @@ release-policy until downstream proof and composition evidence exist.
 
 ## Task 4 - Diagnostics Gate
 
-- Define the cheap preflight for ingestion work: environment pressure, source
+- [x] Define the first cheap preflight for ingestion work: environment pressure, source
   coverage, cache completeness, drift, and review-state validation.
-- Prefer package-local fixture checks over browser-heavy end-to-end tests.
-- Gate: an operator can tell whether to allow, degrade, serialize, or refuse the
+- [x] Prefer package-local fixture checks over browser-heavy end-to-end tests.
+- [x] Gate: an operator can tell whether to allow, degrade, serialize, or refuse the
   ingestion before launching expensive work.
+
+Initial coverage is `requirements:supply:composition:test`, a sanitized
+composition proof in `scripts/ci` that builds `@refarm.dev/health`,
+`@refarm.dev/enrichment-contract-v1`, and `@refarm.dev/records-contract-v1`,
+then validates environment pressure, source coverage, review-state counts,
+deterministic enrichment, record hash drift, and final `records:v1`
+validation. It intentionally avoids browser automation, private selectors,
+release-policy promotion, and consumer vocabulary.
 
 ## Task 5 - Consumer Handoff Planning
 
