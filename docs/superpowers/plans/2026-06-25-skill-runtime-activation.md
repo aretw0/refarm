@@ -1,15 +1,38 @@
-# Plan: Skill Runtime Activation
+# Plan: Native Skill System Activation
 
 > Spec: `specs/features/2026-06-25-skill-runtime-activation.md`.
-> Goal: make roadmap item 6 executable once the skill runtime trigger appears, without moving
-> `dgk-skills` into Refarm.
+> Goal: make roadmap item 6 executable by giving Refarm its own native skill system, without moving
+> `dgk-skills` or `agents-lab` skills into Refarm as product-owned code.
 
-## Task 1 - Confirm trigger
+This plan is not only about adopting existing skills. Refarm needs a native
+skill system that can read `SKILL.md`-style workflow packages, declare required
+capabilities, pass through policy, and invoke existing Refarm engines. External
+skills are fixtures and consumer pressure; the durable owner is a Refarm package
+or plugin surface, not `apps/refarm`.
 
-- Verify Refarm has a skill-like invocation surface.
-- Select one DGK skill as dogfood.
-- Record which existing Refarm engine the skill calls.
-- Gate: if no runtime exists, stop and keep this item deferred.
+## Target shape
+
+- **Contract package**: `skill-contract-v1` (or equivalent selected name) owns
+  `SkillManifestV1`, metadata parsing, capability declarations, input/output
+  envelopes, and conformance fixtures.
+- **Runtime adapter**: a small adapter maps `SKILL.md` content into a
+  policy-checkable invocation plan. It does not execute shell/file operations by
+  parsing Markdown directly.
+- **Execution host**: `runtime-agent` may be the first dogfood host, but the
+  contract stays host-neutral so a Refarm plugin can provide or consume skills
+  later.
+- **Policy boundary**: plugin-manifest/Barn/Scarecrow own install, integrity,
+  capability, and denial-path checks before a skill can call tools.
+- **Consumer bridges**: `dgk-skills` and `agents-lab` skills remain canonical in
+  their projects and become compatibility fixtures for Refarm's contract.
+
+## Task 1 - Confirm native owner
+
+- Verify the native skill system has a clear owner outside `apps/refarm`.
+- Select one minimal skill fixture (`agents-lab/git-workflow` wrapper or one
+  DGK gardening skill) as dogfood.
+- Record which existing Refarm engine or capability the skill calls.
+- Gate: if no contract owner exists, stop at planning and do not install skills.
 
 ## Task 2 - Red tests for manifest shape
 
@@ -18,20 +41,27 @@
 - Assert missing capability declarations fail closed.
 - Gate: tests fail for missing parser/adapter.
 
-## Task 3 - Implement adapter
+## Task 3 - Implement contract package
 
-- Implement the smallest parser/adapter needed for the selected skill.
+- Implement the smallest `SkillManifestV1` parser needed for the selected skill.
+- Include conformance helpers that assert metadata, required capabilities,
+  source hash, and policy envelope.
+- Gate: contract tests pass without loading runtime-agent.
+
+## Task 4 - Implement adapter
+
+- Implement the smallest adapter needed for the selected skill.
 - Keep product vocabulary in adapter input fixtures, not in Refarm engine code.
 - Gate: adapter tests pass.
 
-## Task 4 - Invocation smoke
+## Task 5 - Invocation smoke
 
-- Run the selected DGK skill through Refarm's invocation surface.
+- Run the selected skill through Refarm's invocation surface.
 - Compare output with direct DGK fixture or approved snapshot.
 - Record engine calls and capability checks.
 - Gate: smoke passes or records the concrete runtime blocker.
 
-## Task 5 - Consumer handoff
+## Task 6 - Consumer handoff
 
 - Update `docs/GARDENING_SKILLS_TAXONOMY.md` with the selected skill and runtime evidence.
 - Update `docs/CONVERGENCE_FACTORY_READINESS.md` if the item moves from deferred to ready.

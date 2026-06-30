@@ -248,8 +248,8 @@ export function buildAgentsLabSkillSourceReview({
 		],
 		nextActions: [
 			"Review git-workflow text against Refarm AGENTS.md and operator CLI handoff rules.",
-			"Patch or upstream-follow-up lab-skills wording before any local installation.",
-			"Select one reviewed skill for a future minimal SKILL.md invocation smoke.",
+			"Patch or upstream-follow-up lab-skills wording before any Refarm wrapper.",
+			"Select one reviewed skill only after the native skill contract can produce a policy-checkable invocation smoke.",
 		],
 		issueCount: issues.length,
 		issues,
