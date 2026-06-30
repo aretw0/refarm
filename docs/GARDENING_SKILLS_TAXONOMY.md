@@ -13,9 +13,9 @@
 - **`agents-lab`**: `git-skills` (incl. `git-checkout-cache` = the librarian), `lab-skills`
   (agentic ops), `pi-skills` (Pi authoring), `web-skills` (`source-research`, `web-browser`). The
   Pi proving ground.
-- **`refarm`**: **no skill package.** It has *engines* — `sower` (scaffold/import), `thresher`
+- **`refarm`**: **no executable skill surface yet.** It has *engines* — `sower` (scaffold/import), `thresher`
   (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
-  (`context-provider-v1`, the in-progress `source:v1`). The skill runtime is the future
+  (`context-provider-v1`, the in-progress `source:v1`). The skill invocation path is the future
   "Refarm as engine" milestone.
 
 ## The key finding
@@ -45,23 +45,32 @@ Skills for **tending a sovereign knowledge farm**, spanning: scaffold (`sower`),
 Some engines already exist (`context-provider-v1`, `sower`, `thresher`; `source:v1` in progress);
 the **skill runtime** that would invoke them does not.
 
-## Native Refarm Skill System
+## Native Refarm Skill Surface
 
 The work is not only adopting existing skills. Refarm needs a native skill
-system that can parse `SKILL.md`-style content into a `SkillManifestV1`-style
+surface that can parse `SKILL.md`-style content into a `SkillManifestV1`-style
 contract, require explicit capabilities, pass policy, and invoke Refarm engines
-through `runtime-agent` or a Refarm plugin host. The durable owner should be a
-package or plugin surface, not `apps/refarm`.
+through `runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable
+owner should be a package/plugin manifest surface, not `apps/refarm`.
+
+This must not become a second plugin system. Packages remain the distribution
+unit, plugins remain the executable/capability providers, and skills are
+agent-facing workflow surfaces or assets declared by that package. A package may
+bundle `SKILL.md`, guides, references, themes, and code extensions together; the
+manifest decides which host can see each surface.
 
 Activation sequence:
 
 1. create the contract package for skill metadata, capability declarations,
-   source hash, and I/O envelope;
+   source hash, and I/O envelope, scoped as a schema helper for plugin-declared
+   skill surfaces;
 2. add a minimal adapter that maps one reviewed skill into a policy-checkable
    invocation plan;
-3. run the first dogfood smoke through `runtime-agent` or a Refarm plugin
+3. represent that skill as a manifest-declared surface such as
+   `layer: "pi", kind: "skill"` with `assets` pointing to the `SKILL.md`;
+4. run the first dogfood smoke through `runtime-agent` or a Refarm plugin
    without bypassing plugin-manifest/Barn/Scarecrow boundaries;
-4. only then install, vendor, or publish skill wrappers.
+5. only then install, vendor, or publish skill wrappers.
 
 ## Deferred Until Native Contract Exists
 

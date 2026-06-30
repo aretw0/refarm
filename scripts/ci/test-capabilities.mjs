@@ -30,6 +30,7 @@ const STEPS = [
 	["packages/source-contract-v1", "test:unit"],
 	["packages/source-git", "test:conformance"],
 	["packages/source-local", "test:conformance"],
+	["packages/skill-contract-v1", "test:unit"],
 ];
 
 function commandForStep([workspaceDir, script]) {

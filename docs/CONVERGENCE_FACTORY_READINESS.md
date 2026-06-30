@@ -16,7 +16,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring | storage adoption by `vault-seed` remains item 8a |
 | 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
-| 6 native skills | activation-gated | taxonomy; native activation spec+plan | native skill contract + engine dogfood gate not present |
+| 6 native skills | activation-gated | taxonomy; native activation spec+plan | native skill contract + plugin-manifest skill surface + engine dogfood gate not present |
 | 7 librarian completion | proof-gated | source:v1 base contract plus held source package profiles | waits for a dispatch proof; live-tree reads use `@refarm.dev/source-local` but still need selected dogfood/downstream proof before handoff promotion |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
@@ -158,14 +158,22 @@ Decision:
 ## Item 6 - Gardening Skills
 
 The taxonomy is enough for strategy, not implementation. The missing prerequisite is a native
-Refarm skill system: contract package, capability envelope, policy boundary, and invocation
-surface. Until that exists, creating a `dgk-skills` or `agents-lab` adapter would be supply ahead
-of consumption.
+Refarm skill surface: contract package, capability envelope, plugin-manifest declaration, policy
+boundary, and invocation surface. Until that exists, creating a `dgk-skills` or `agents-lab`
+adapter would be supply ahead of consumption.
+
+Do not model skills as a parallel plugin ecosystem. A package can distribute
+`SKILL.md`, guides, references, themes, and executable extensions together, but
+plugin-manifest/Barn/Scarecrow remain the install, integrity, trust, and
+capability gates. `skill-contract-v1` is only a schema/conformance helper for
+the manifest-declared skill surface.
 
 Activation trigger:
 
 - Refarm has a `skill-contract-v1`-style owner outside `apps/refarm`;
 - Refarm can load a `SKILL.md` source fixture into a policy-checkable manifest;
+- the selected package/plugin manifest exposes that fixture as a skill surface,
+  for example `layer: "pi", kind: "skill"`, instead of a standalone skill install path;
 - one existing `dgk-skills` or `agents-lab` skill is chosen as the dogfood consumer;
 - the adapter spec proves external skills remain canonical in their projects and only conform to
   the Refarm runtime.
@@ -175,8 +183,9 @@ First adapter spec sections when the trigger fires:
 1. `SKILL.md` metadata mapping to the Refarm manifest.
 2. Input/output envelope for read/search/create/admin skills.
 3. Engine calls (`source:v1`, `context-provider-v1`, `sower`, `thresher`, `homestead`).
-4. Policy checks through plugin-manifest/Barn/Scarecrow before tool access.
-5. Compatibility test that runs one external skill through the Refarm surface.
+4. Manifest surface declaration for skill assets and capability requirements.
+5. Policy checks through plugin-manifest/Barn/Scarecrow before tool access.
+6. Compatibility test that runs one external skill through the Refarm surface.
 
 Activation packet:
 

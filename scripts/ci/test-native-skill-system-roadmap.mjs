@@ -12,6 +12,10 @@ test("native skill system plan owns execution before external adapters", () => {
 	assert.match(plan, /Native Skill System Activation/);
 	assert.match(plan, /skill-contract-v1/);
 	assert.match(plan, /SkillManifestV1/);
+	assert.match(plan, /schema helper, not an installer/);
+	assert.match(plan, /extensions\.surfaces\[\]/);
+	assert.match(plan, /layer: "pi"/);
+	assert.match(plan, /kind: "skill"/);
 	assert.match(plan, /runtime-agent/);
 	assert.match(plan, /plugin-manifest\/Barn\/Scarecrow/);
 	assert.match(plan, /not `apps\/refarm`/);
@@ -41,11 +45,35 @@ test("roadmap and taxonomy treat external skills as fixtures for native Refarm s
 	assert.match(roadmap, /contract\s+package, manifest parser, capability envelope/);
 	assert.match(roadmap, /compatibility\s+fixtures and consumer pressure/);
 
-	assert.match(taxonomy, /Native Refarm Skill System/);
-	assert.match(taxonomy, /package or plugin surface, not `apps\/refarm`/);
+	assert.match(taxonomy, /Native Refarm Skill Surface/);
+	assert.match(taxonomy, /native skill\s+surface/);
+	assert.match(taxonomy, /package\/plugin manifest surface, not `apps\/refarm`/);
+	assert.match(taxonomy, /second plugin system/);
 	assert.match(taxonomy, /only then install, vendor, or publish skill wrappers/);
 
-	assert.match(readiness, /native\s+Refarm skill system/);
+	assert.match(readiness, /native\s+Refarm skill surface/);
 	assert.match(readiness, /skill-contract-v1/);
 	assert.match(readiness, /policy-checkable manifest/);
+	assert.match(readiness, /parallel plugin ecosystem/);
+	assert.match(readiness, /plugin-manifest skill surface/);
+});
+
+test("extensibility model keeps skills inside the package/plugin surface model", () => {
+	const extensibility = read("docs/EXTENSIBILITY_MODEL.md");
+	const packagesReadme = read("packages/README.md");
+	const skillReadme = read("packages/skill-contract-v1/README.md");
+
+	assert.match(extensibility, /Skills Are Surfaces, Not A Second Plugin System/);
+	assert.match(extensibility, /distribution unit stays the package\/plugin bundle/);
+	assert.match(extensibility, /"layer": "pi"/);
+	assert.match(extensibility, /"kind": "skill"/);
+	assert.match(extensibility, /plugin\s+manifest\/Barn\/Scarecrow path still owns install/);
+
+	assert.match(packagesReadme, /schema\/conformance helper for native/);
+	assert.match(packagesReadme, /not a second plugin system/);
+	assert.match(packagesReadme, /Packages and plugin manifests\s+remain the distribution\/trust boundary/);
+
+	assert.match(skillReadme, /not a parallel plugin system/);
+	assert.match(skillReadme, /distribution unit remains the package\/plugin bundle/);
+	assert.match(skillReadme, /layer: "pi", kind: "skill"/);
 });
