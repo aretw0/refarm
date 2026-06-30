@@ -32,6 +32,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/sync-loro",
 	"packages/ds",
 	"packages/homestead",
+	"packages/process-handoff",
 	"packages/cli",
 	"packages/barn",
 	"packages/prompt-contract-v1",
