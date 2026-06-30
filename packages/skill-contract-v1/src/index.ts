@@ -6,6 +6,7 @@ export {
 export {
 	buildSkillInvocationPlan,
 	buildSkillInvocationRequest,
+	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
 	parseSkillMarkdown,
@@ -13,6 +14,7 @@ export {
 	validateSkillInvocationPlan,
 	validateSkillInvocationRequest,
 	validateSkillManifest,
+	validateSkillSurfaceDeclaration,
 	verifySkillSource,
 } from "./manifest.js";
 export type {
@@ -41,6 +43,9 @@ export type {
 	SkillPolicyEnvelope,
 	SkillSourceRef,
 	SkillSourceVerificationResult,
+	SkillSurfaceDeclarationBuildResult,
+	SkillSurfaceDeclarationOptions,
+	SkillSurfaceDeclarationV1,
 	SkillToolAccess,
 } from "./types.js";
 export {

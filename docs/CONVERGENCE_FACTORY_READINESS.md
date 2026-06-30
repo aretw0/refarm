@@ -16,7 +16,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring, first-public Silo bulk storage helpers, protection envelope, and light-by-default storage closure | official storage adoption by `vault-seed` remains item 8a |
 | 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
-| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, and prepares host-policy-checkable invocation plans/requests without executing skills | plugin-manifest skill surface + engine dogfood gate not present |
+| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, prepares host-policy-checkable invocation plans/requests, and builds plugin-manifest-compatible `pi/skill` surface declarations without executing skills | central plugin-manifest skill surface validation + engine dogfood gate not present |
 | 7 librarian completion | proof-gated | source:v1 base contract plus held source package profiles | waits for a dispatch proof; live-tree reads use `@refarm.dev/source-local` but still need selected dogfood/downstream proof before handoff promotion |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete, with Silo storage helpers, protection envelope, and storage/identity closure split folded back from the `vault-seed` proof; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
@@ -199,6 +199,9 @@ Current contract closure:
 - `buildSkillInvocationRequest` turns a valid plan and markdown input into a
   host-policy-checkable request that still requires host approval before
   dispatch;
+- `buildSkillSurfaceDeclaration` turns a valid manifest plus relative package
+  asset path into a `layer: "pi", kind: "skill"` declaration with declared
+  capabilities for future `extensions.surfaces[]` handoff;
 - `prepareSkillInvocationPlan` composes parse + plan as the adapter/host handoff
   for one `SKILL.md` source, keeping source integrity and policy issues in the
   contract result instead of in each consumer;

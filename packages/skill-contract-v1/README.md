@@ -20,6 +20,9 @@ content:
   the skill;
 - build a host-policy-checkable invocation request from a plan and markdown
   input without calling a runtime;
+- build a plugin-manifest-compatible skill surface declaration
+  (`layer: "pi", kind: "skill"`) from a validated manifest and package asset
+  path;
 - prepare a manifest and invocation plan from one `SKILL.md` source so hosts and
   adapters do not reimplement the parse/build handoff;
 - provide conformance helpers for future adapters and hosts.
@@ -40,6 +43,7 @@ contract only after that boundary accepts the surface.
 ```ts
 import {
 	buildSkillInvocationRequest,
+	buildSkillSurfaceDeclaration,
 	prepareSkillInvocationPlan,
 	verifySkillSource,
 } from "@refarm.dev/skill-contract-v1";
@@ -62,6 +66,13 @@ if (!sourceCheck.ok) {
 console.log(result.plan.io.input.format); // "text/markdown"
 console.log(result.plan.engineBindings.requires); // declared engine binding ids
 
+const surface = buildSkillSurfaceDeclaration(result.manifest, {
+	assetPath: "skills/refarm-git-workflow/SKILL.md",
+});
+if (!surface.ok) {
+	throw new Error(surface.issues.map((issue) => issue.message).join("; "));
+}
+
 const request = buildSkillInvocationRequest(result.plan, "Review this working tree.");
 if (!request.ok) {
 	throw new Error(request.issues.map((issue) => issue.message).join("; "));
@@ -80,3 +91,6 @@ Engine bindings are declarations only. This package does not select or call an
 engine implementation.
 Invocation requests are still pre-runtime artifacts; hosts must approve policy
 before dispatch.
+Skill surface declarations require a relative package asset path; local
+`file:`/`fixture:` sources can be reviewed and parsed before packaging, but they
+do not become package manifest assets by accident.

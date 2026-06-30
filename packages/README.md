@@ -21,7 +21,7 @@ publication remains held by the daily-driver gate or explicit human override.
 | [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
-| [`@refarm.dev/skill-contract-v1`](./skill-contract-v1) | ✅ Manifest Validation | 🟡 Proof-gated | held until plugin-manifest surface + adapter smoke |
+| [`@refarm.dev/skill-contract-v1`](./skill-contract-v1) | ✅ Manifest/Surface Validation | 🟡 Proof-gated | held until central plugin-manifest gate + adapter smoke |
 
 ## 📚 Librarian Source Primitives
 
@@ -45,7 +45,9 @@ needs `source:v1` through `dispatch-surface` with an executable proof.
 `@refarm.dev/skill-contract-v1` is the schema/conformance helper for native
 Refarm skill surfaces. It parses `SKILL.md`-style content into
 `SkillManifestV1`, records source hashes, requires explicit capabilities, and
-defaults to plan-only, declared-capability tool access.
+defaults to plan-only, declared-capability tool access. It also builds
+`pi/skill` surface declarations for package manifest handoff from a validated
+manifest plus a relative package asset path.
 
 It is deliberately not a second plugin system. Packages and plugin manifests
 remain the distribution/trust boundary; skills are declared as surfaces or

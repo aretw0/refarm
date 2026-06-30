@@ -19,7 +19,10 @@ import {
 	type SkillManifestValidationResult,
 	type SkillPolicyEnvelope,
 	type SkillSourceRef,
-	type SkillSourceVerificationResult
+	type SkillSourceVerificationResult,
+	type SkillSurfaceDeclarationBuildResult,
+	type SkillSurfaceDeclarationOptions,
+	type SkillSurfaceDeclarationV1
 } from "./types.js";
 
 const CAPABILITY_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
@@ -205,6 +208,50 @@ export function buildSkillInvocationRequest(
 	};
 }
 
+export function buildSkillSurfaceDeclaration(
+	manifest: SkillManifestV1,
+	options: SkillSurfaceDeclarationOptions,
+): SkillSurfaceDeclarationBuildResult {
+	const manifestValidation = validateSkillManifest(manifest);
+	if (!manifestValidation.ok) {
+		return { ok: false, surface: null, issues: manifestValidation.issues };
+	}
+	if (!isRecord(options)) {
+		return {
+			ok: false,
+			surface: null,
+			issues: [issue("SURFACE_OPTIONS_NOT_OBJECT", "$", "Expected skill surface declaration options.")],
+		};
+	}
+
+	const optionsIssues: SkillManifestIssue[] = [];
+	validateSurfaceAssetPath(options.assetPath, "$.assetPath", optionsIssues);
+	if (options.id !== undefined) {
+		validateSurfaceId(options.id, "$.id", optionsIssues);
+	}
+	if (optionsIssues.length > 0) {
+		return { ok: false, surface: null, issues: optionsIssues };
+	}
+
+	const capabilities = [
+		...manifest.capabilities.requires,
+		...(options.includeOptionalCapabilities ? manifest.capabilities.optional ?? [] : []),
+	];
+	const surface: SkillSurfaceDeclarationV1 = {
+		layer: "pi",
+		kind: "skill",
+		id: options.id ?? slugify(manifest.name),
+		assets: [options.assetPath],
+		capabilities,
+	};
+	const validation = validateSkillSurfaceDeclaration(surface);
+	return {
+		ok: validation.ok,
+		surface: validation.ok ? surface : null,
+		issues: validation.issues,
+	};
+}
+
 export function prepareSkillInvocationPlan(
 	source: string,
 	options: SkillManifestParseOptions = {},
@@ -271,10 +318,28 @@ export function validateSkillInvocationRequest(value: unknown): SkillManifestVal
 	return { ok: issues.length === 0, issues };
 }
 
+export function validateSkillSurfaceDeclaration(value: unknown): SkillManifestValidationResult {
+	const issues: SkillManifestIssue[] = [];
+	if (!isRecord(value)) {
+		return {
+			ok: false,
+			issues: [issue("SURFACE_NOT_OBJECT", "$", "Expected a skill surface declaration object.")],
+		};
+	}
+
+	requireExact(value.layer, "pi", "$.layer", issues);
+	requireExact(value.kind, "skill", "$.kind", issues);
+	validateSurfaceId(value.id, "$.id", issues);
+	validateSurfaceAssets(value.assets, "$.assets", issues);
+	validateCapabilityArray(value.capabilities, "$.capabilities", issues, { requireNonEmpty: true });
+	return { ok: issues.length === 0, issues };
+}
+
 export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 	return {
 		buildInvocationRequest: buildSkillInvocationRequest,
 		buildInvocationPlan: buildSkillInvocationPlan,
+		buildSurfaceDeclaration: buildSkillSurfaceDeclaration,
 		parseMarkdown: parseSkillMarkdown,
 		prepareInvocationPlan: prepareSkillInvocationPlan,
 		validateManifest: validateSkillManifest,
@@ -508,6 +573,36 @@ function validateInvocationInput(value: unknown, path: string, issues: SkillMani
 	}
 	requireExact(value.format, "text/markdown", `${path}.format`, issues);
 	requireNonEmptyString(value.body, `${path}.body`, issues);
+}
+
+function validateSurfaceAssets(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!Array.isArray(value)) {
+		issues.push(issue("SURFACE_ASSETS_INVALID", path, "Expected an array of relative asset paths."));
+		return;
+	}
+	if (value.length === 0) {
+		issues.push(issue("SURFACE_ASSETS_EMPTY", path, "Expected at least one skill asset path."));
+	}
+	value.forEach((item, index) => {
+		validateSurfaceAssetPath(item, `${path}.${index}`, issues);
+	});
+}
+
+function validateSurfaceAssetPath(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	requireNonEmptyString(value, path, issues);
+	if (typeof value !== "string") return;
+	const trimmed = value.trim();
+	if (trimmed.startsWith("/") || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+		issues.push(issue("SURFACE_ASSET_PATH_INVALID", path, "Expected a relative package asset path."));
+	}
+}
+
+function validateSurfaceId(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	requireNonEmptyString(value, path, issues);
+	if (typeof value !== "string") return;
+	if (slugify(value) !== value) {
+		issues.push(issue("SURFACE_ID_INVALID", path, "Expected a lowercase slug id."));
+	}
 }
 
 function validateCapabilityArray(
