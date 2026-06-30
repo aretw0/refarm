@@ -1,10 +1,12 @@
 # Spec: Source Adapter Activation (Roadmap Item 7)
 
 **Status:** Partially activated — `source-local` implemented on 2026-06-29; `source-dispatch`
-and `source-tarball` remain deferred
+and `source-tarball` remain deferred; `source-web` (authenticated capture) added as a T3 candidate
+on 2026-06-30
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
-**Related:** `specs/features/2026-06-24-source-contract-v1.md`, `docs/CONVERGENCE_ROADMAP.md` item 7
+**Related:** `specs/features/2026-06-24-source-contract-v1.md`,
+`specs/features/2026-06-30-work-3-requirements-supply-activation.md`, `docs/CONVERGENCE_ROADMAP.md` item 7
 
 ---
 
@@ -23,8 +25,37 @@ Build exactly one adapter when its trigger appears:
 | `source-dispatch` | an agent/kernel path needs to invoke `source:v1` through `dispatch-surface` | dispatch call materializes a source through the same conformance suite |
 | `source-local` | a consumer needs live dirty working-tree reads | ✅ `@refarm.dev/source-local` reports dirty/untracked state explicitly and runs the source:v1 conformance suite |
 | `source-tarball` | reproducible archive input is needed for cross-repo consumption | tarball hash maps to deterministic file inventory |
+| `source-web` | a requirements-vault proof needs a stable local snapshot of an authenticated web source | a sanitized fixture web source materializes with session/cache provenance through the same conformance suite; no private target |
 
 Do not implement all adapters in one branch.
+
+## Authenticated web capture (`source-web`, T3 candidate)
+
+`source-web` **converges on `source:v1`** — it is another adapter of the existing contract, not a new
+contract and not a wrapper that changes it. `materialize` still means "give me a stable local
+snapshot"; only the snapshot's origin differs (an authenticated web source instead of a git remote).
+**`source-contract-v1` does not change**; this resolves the open "in `source:v1` vs a web-specific
+wrapper" question recorded in `DISTRIBUTION_STATUS.md`.
+
+What the adapter owns beyond `source-git`/`source-local`, exposed through provenance:
+
+- **session/auth lifecycle evidence** — logged-in capture, token/cookie lifetime; credentials are
+  resolved through `@refarm.dev/silo`, never embedded in the adapter;
+- **pacing policy** — rate/backoff so capture is polite and reproducible;
+- **cache identity and provenance** — content hash + captured-at, so a snapshot is auditable;
+- **offline replay hooks** — a captured snapshot replays without the live source (required so
+  sanitized fixtures and CI run without the target);
+- **redaction** — strip secrets/PII from the cached snapshot before it is stored.
+
+The consumer seam (stays downstream / in the private proof, never in `@refarm.dev/source-web`):
+
+- `AuthStrategy` — how to log in to the real target;
+- `TargetDescriptor` — URLs, selectors, and aliases of the real source;
+- accessible-system discovery.
+
+The adapter accepts these as injected inputs and passes the same `source:v1` conformance suite. First
+proof: a local fixture web source with login/session evidence but no private target, mirroring the
+First Proof Shape in the work-3 activation packet.
 
 ## Shared Requirements
 
