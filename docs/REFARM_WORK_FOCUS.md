@@ -67,6 +67,22 @@ Refarm block first, then let `vault-seed` or `agents-lab` consume it. Do not
 create more downstream local substrate as a placeholder unless there is a clear
 rollback path and an explicit Refarm follow-up.
 
+### Track orbit ledger
+
+Use this ledger to keep adjacent tracks visible without turning every prompt
+into a new control plane. "Dormant" means gated by evidence, not abandoned.
+
+| Track | Current posture | Next safe touch | Avoid |
+| --- | --- | --- | --- |
+| Release kernel / `vault-seed` handoff | Active. Candidate blocks must be packable and consumable before public release. | Keep using `vault-seed-ready` selection, local tarball handoffs, generator/codemod dry-runs, and downstream-owned product behavior as proof. | Publishing or renaming surfaces before conformance/docs/consumer neutrality are settled. |
+| Daily-driver Refarm | Active. The `refarm` CLI, runtime, finish gates, sessions, plugins, credentials, and recovery loops are first-class dogfood. | Harden operator loops and environment-pressure ceilings when they unblock current work. | Moving product-specific choices into reusable packages. |
+| Silo / security | Active, storage-ready. Silo has namespaces, storage helpers, hardened file modes, and protected envelopes. | Add stronger protection providers only behind the existing envelope/key-manager boundary when dogfood or a consumer proves the need. | Claiming full encryption before the provider exists, or putting crypto policy into `apps/refarm`. |
+| WASM substrate / Astro 7 | Active as substrate, red as Astro-on-Tractor product adapter. ADR-070 Parts A/B remain the lane; Part C evidence is red under `validations/astro-wasi-ssr/`. | Define/consume `wasm-surface:v1`, loader/manifest policy, and Tractor native-first plus WASM-fallback behavior when a lab/site consumer needs it. | Reopening Astro SSR on Tractor as product work without a new upstream WASI profile or second-consumer proof. |
+| Native skills | Activation-gated. Skills are distributed capabilities over plugin/manifest/policy substrate, not a second plugin ecosystem. | Write/execute the native skill contract plus plugin-manifest skill surface with one `dgk-skills` or `agents-lab` fixture. | Copying external skills into Refarm or building a parallel runtime outside Barn/plugin policy. |
+| Source librarian | Partially active. `source:v1`, `source-git`, and `source-local` exist; `source-dispatch` waits for executable dispatch pressure. | Wire `source:v1` through `dispatch-surface` only when the agent/kernel path needs it. | Creating a generic source megasystem before dogfood, `vault-seed`, or `agents-lab` proves dispatch semantics. |
+| Distributed availability / Pears | Evidence-active, runtime-adoption-gated. ADR-075 is reference pressure for portable core and thin surfaces. | Turn the existing availability proof into install/update descriptor or blind-replica policy only when dogfood or a second consumer needs it. | Adopting Bare/Hypercore/Pears wholesale as Refarm storage/runtime before the boundary is proven. |
+| Remote workspace control | Horizon-active. The desired shape is capability-scoped control of local and remote machines through explicit handoffs. | Extend workspace descriptors, read-only probes, and environment ceilings when current workflows need cross-machine observation or dispatch. | Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction. |
+
 The rest of the `vault-seed` roadmap is now classified the same way:
 
 - source IaC, extraction profiles, cache/staging, and data lifecycle attach to

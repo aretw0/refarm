@@ -269,8 +269,9 @@ as codemod/generator work when a repeatable transform is cheaper and safer than 
    `validations/distributed-availability-evidence`: availability/distribution evidence over existing
    Refarm manifests, not a broad storage/runtime rewrite.
 
-Item 5 note: Astro 7/WASI Part C is closed red for now. The evidence remains under
-`validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain active.
+Item 5 note: WASM substrate remains active, but Astro 7/WASI Part C is closed red for now. The
+evidence remains under `validations/astro-wasi-ssr/`; ADR-070 Parts A/B remain active for the
+`wasm-surface:v1` contract, loader policy, and Tractor native-first plus WASM-fallback posture.
 
 Closed on 2026-06-27: the generated-vault inventory lane now has a Refarm-side consumer proof
 (`scripts/ci/test-vault-seed-release-consumer.mjs`) that generates a vault fixture, reads the
