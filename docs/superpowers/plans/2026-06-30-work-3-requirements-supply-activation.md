@@ -32,12 +32,17 @@ uses the package without moving private providers into Refarm.
 
 ## Task 3 - Knowledge/Content Manifest
 
-- Specify a graph/content envelope for records, sections, relations,
+- [x] Specify a graph/content envelope for records, sections, relations,
   attachments, source references, hashes, and review state.
-- Reuse `artifact-contract-v1` provenance and selection concepts instead of
+- [x] Reuse `artifact-contract-v1` provenance and selection concepts instead of
   creating a vault schema.
-- Gate: the manifest must work for sanitized requirement-like fixtures and not
+- [x] Gate: the manifest must work for sanitized requirement-like fixtures and not
   require consumer vocabulary.
+
+Implemented as `@refarm.dev/records-contract-v1` with a sanitized fixture
+manifest, referential-integrity validation, stable content hashes, open
+vocabulary, and forward-safe upcast. It remains proof-gated and out of
+release-policy until downstream proof and composition evidence exist.
 
 ## Task 4 - Diagnostics Gate
 

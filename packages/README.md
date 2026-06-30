@@ -55,7 +55,7 @@ package-local checks and downstream proofs exist.
 | Candidate | Purpose | Publishing |
 |---|---|---|
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | implemented; proof-gated |
-| knowledge/content manifest package | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state | not created; proof-gated |
+| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state | implemented; proof-gated |
 
 ## 🌿 Native Skill Surface Contract
 
