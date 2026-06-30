@@ -7,11 +7,13 @@ import {
 } from "./conformance.js";
 import {
 	buildSkillInvocationPlan,
+	buildSkillInvocationRequest,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationPlan,
+	validateSkillInvocationRequest,
 	validateSkillManifest,
 	verifySkillSource,
 } from "./manifest.js";
@@ -210,6 +212,60 @@ describe("skill-contract-v1", () => {
 		});
 	});
 
+	it("builds a host-policy-checkable invocation request from a plan", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+
+		const result = buildSkillInvocationRequest(
+			built.plan!,
+			"Review the current git state and propose a safe workflow.",
+		);
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.request).toMatchObject({
+			schema: "refarm.skill-invocation-request.v1",
+			skill: {
+				id: built.plan?.skill.id,
+				name: "refarm-git-workflow",
+			},
+			input: {
+				format: "text/markdown",
+				body: "Review the current git state and propose a safe workflow.",
+			},
+			output: {
+				format: "text/markdown",
+			},
+			requiresHostPolicyApproval: true,
+		});
+		expect(result.request?.capabilityRequests).toEqual(built.plan?.capabilityRequests);
+		expect(result.request?.engineBindings).toEqual(built.plan?.engineBindings);
+	});
+
+	it("rejects invocation requests with invalid input or missing host policy approval", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+		const request = buildSkillInvocationRequest(built.plan!, "Review state.");
+		expect(request.request).not.toBeNull();
+
+		const result = validateSkillInvocationRequest({
+			...request.request,
+			input: { format: "application/json", body: "" },
+			requiresHostPolicyApproval: false,
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "VALUE_INVALID", path: "$.input.format" }),
+				expect.objectContaining({ code: "STRING_EMPTY", path: "$.input.body" }),
+				expect.objectContaining({ code: "INVOCATION_POLICY_APPROVAL_REQUIRED" }),
+			]),
+		});
+	});
+
 	it("prepares a manifest and invocation plan from one SKILL.md source", () => {
 		const result = prepareSkillInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
@@ -245,6 +301,6 @@ describe("skill-contract-v1", () => {
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(7);
+		expect(result.total).toBe(8);
 	});
 });

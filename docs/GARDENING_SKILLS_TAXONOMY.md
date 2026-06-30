@@ -55,9 +55,11 @@ content into `SkillManifestV1`, requires explicit capabilities, and builds a
 host-policy-checkable invocation plan without executing tools. Manifests and
 plans carry markdown input/output envelopes so hosts can validate payload shape
 before policy or engine dispatch, and declarative engine bindings so hosts can
-check required Refarm engine availability before dispatch. It also exposes
-`prepareSkillInvocationPlan` as the adapter/host handoff for one source and
-`verifySkillSource` for source integrity checks before host trust. The
+check required Refarm engine availability before dispatch. The contract can also
+build a host-policy-checkable invocation request from a plan and markdown input
+without calling a runtime. It exposes `prepareSkillInvocationPlan` as the
+adapter/host handoff for one source and `verifySkillSource` for source integrity
+checks before host trust. The
 remaining runtime work is to pass that plan through policy and invoke Refarm engines
 through `runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable
 owner should remain a package/plugin manifest surface, not `apps/refarm`.

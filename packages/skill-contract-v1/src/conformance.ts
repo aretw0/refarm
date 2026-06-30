@@ -130,6 +130,33 @@ export async function runSkillContractV1Conformance(
 	}
 
 	total++;
+	if (manifest) {
+		try {
+			const planResult = await adapter.buildInvocationPlan(manifest);
+			if (!planResult.ok || !planResult.plan) {
+				failures.push(`valid manifest could not produce request plan: ${formatIssues(planResult.issues)}`);
+			} else {
+				const requestResult = await adapter.buildInvocationRequest(
+					planResult.plan,
+					"Review the current git state and propose a safe workflow.",
+				);
+				if (!requestResult.ok || !requestResult.request) {
+					failures.push(`valid invocation plan did not build request: ${formatIssues(requestResult.issues)}`);
+				} else {
+					if (requestResult.request.input.format !== "text/markdown") {
+						failures.push("invocation request must preserve markdown input format");
+					}
+					if (requestResult.request.skill.id !== planResult.plan.skill.id) {
+						failures.push("invocation request must reference the planned skill");
+					}
+				}
+			}
+		} catch (error) {
+			failures.push(`buildInvocationRequest(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
 	try {
 		const result = await adapter.prepareInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",

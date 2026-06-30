@@ -1,6 +1,7 @@
 export const SKILL_CAPABILITY = "skill:v1" as const;
 export const SKILL_MANIFEST_SCHEMA = "refarm.skill-manifest.v1" as const;
 export const SKILL_INVOCATION_PLAN_SCHEMA = "refarm.skill-invocation-plan.v1" as const;
+export const SKILL_INVOCATION_REQUEST_SCHEMA = "refarm.skill-invocation-request.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";
@@ -53,6 +54,11 @@ export interface SkillIoEnvelope {
 	readonly output: SkillOutputEnvelope;
 }
 
+export interface SkillInvocationInputPayload {
+	readonly format: SkillIoFormat;
+	readonly body: string;
+}
+
 export interface SkillManifestV1 {
 	readonly schema: typeof SKILL_MANIFEST_SCHEMA;
 	readonly id: string;
@@ -89,6 +95,17 @@ export interface SkillInvocationPlanV1 {
 	readonly requiresHostPolicyApproval: true;
 }
 
+export interface SkillInvocationRequestV1 {
+	readonly schema: typeof SKILL_INVOCATION_REQUEST_SCHEMA;
+	readonly skill: SkillInvocationPlanSkillRef;
+	readonly input: SkillInvocationInputPayload;
+	readonly policy: SkillPolicyEnvelope;
+	readonly capabilityRequests: readonly SkillInvocationPlanCapability[];
+	readonly engineBindings: SkillEngineBindingEnvelope;
+	readonly output: SkillOutputEnvelope;
+	readonly requiresHostPolicyApproval: true;
+}
+
 export interface SkillManifestIssue {
 	readonly code: string;
 	readonly path: string;
@@ -106,6 +123,10 @@ export interface SkillSourceVerificationResult extends SkillManifestValidationRe
 
 export interface SkillInvocationPlanBuildResult extends SkillManifestValidationResult {
 	readonly plan: SkillInvocationPlanV1 | null;
+}
+
+export interface SkillInvocationRequestBuildResult extends SkillManifestValidationResult {
+	readonly request: SkillInvocationRequestV1 | null;
 }
 
 export interface SkillInvocationPlanPrepareResult extends SkillManifestValidationResult {
@@ -137,6 +158,10 @@ export interface SkillContractV1Adapter {
 	buildInvocationPlan(
 		manifest: SkillManifestV1,
 	): SkillInvocationPlanBuildResult | Promise<SkillInvocationPlanBuildResult>;
+	buildInvocationRequest(
+		plan: SkillInvocationPlanV1,
+		input: string,
+	): SkillInvocationRequestBuildResult | Promise<SkillInvocationRequestBuildResult>;
 	prepareInvocationPlan(
 		source: string,
 		options?: SkillManifestParseOptions,
