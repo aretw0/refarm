@@ -230,6 +230,8 @@
 		"native:skills:surface-smoke:test": "pnpm -C packages/skill-contract-v1 run build && node --test scripts/ci/test-native-skill-surface-smoke.mjs",
 		"native:skills:source-engine-smoke": "pnpm -C packages/skill-contract-v1 run build && pnpm -C packages/source-contract-v1 run build && pnpm -C packages/source-local run build && node scripts/ci/native-skill-source-engine-smoke.mjs --json",
 		"native:skills:source-engine-smoke:test": "pnpm -C packages/skill-contract-v1 run build && pnpm -C packages/source-contract-v1 run build && pnpm -C packages/source-local run build && node --test scripts/ci/test-native-skill-source-engine-smoke.mjs",
+		"native:skills:agents-lab-git-workflow-smoke": "pnpm -C packages/skill-contract-v1 run build && pnpm -C packages/source-contract-v1 run build && pnpm -C packages/source-local run build && node scripts/ci/native-skill-agents-lab-git-workflow-smoke.mjs --json",
+		"native:skills:agents-lab-git-workflow-smoke:test": "pnpm -C packages/skill-contract-v1 run build && pnpm -C packages/source-contract-v1 run build && pnpm -C packages/source-local run build && node --test scripts/ci/test-native-skill-agents-lab-git-workflow-smoke.mjs",
 		"release": "node scripts/release.mjs",
 		"release:boundary:audit": "node scripts/ci/release-boundary-audit.mjs --json",
 		"release:boundary:audit:test": "node --test scripts/ci/test-release-boundary-audit.mjs",

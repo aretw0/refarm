@@ -50,7 +50,7 @@ test("roadmap and taxonomy treat external skills as fixtures for native Refarm s
 
 	assert.match(taxonomy, /Native Refarm Skill Surface/);
 	assert.match(taxonomy, /native skill\s+surface/);
-	assert.match(taxonomy, /package\/plugin manifest surface, not `apps\/refarm`/);
+	assert.match(taxonomy, /package\/plugin\s+manifest surface, not `apps\/refarm`/);
 	assert.match(taxonomy, /second plugin system/);
 	assert.match(taxonomy, /only then install, vendor, or publish skill wrappers/);
 

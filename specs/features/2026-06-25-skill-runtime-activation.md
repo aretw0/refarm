@@ -28,7 +28,9 @@ Start this item only when all are true:
 3. The selected skill can call an existing Refarm engine (`source:v1`, `context-provider-v1`,
    `sower`, `thresher`, `windmill`, or `homestead`) without product vocabulary moving upstream.
    **Current:** an internal source-status smoke calls `source:v1` through
-   `@refarm.dev/source-local`; external fixture selection remains pending.
+   `@refarm.dev/source-local`, and an external `agents-lab` git-workflow wrapper smoke records
+   upstream source evidence plus a `source:v1` receipt without installing or executing the
+   external skill. A DGK fixture remains pending.
 
 ## Scope
 
@@ -57,6 +59,7 @@ only supplies the runtime envelope.
 - Manifest parser rejects missing capability declarations.
 - Adapter fixture maps one `SKILL.md` into `SkillManifestV1`.
 - Invocation smoke runs one DGK skill through Refarm and records engine calls. The internal
-  `native:skills:source-engine-smoke` records source-engine evidence first, but it does not replace
-  the DGK consumer proof.
+  `native:skills:source-engine-smoke` records source-engine evidence first, and
+  `native:skills:agents-lab-git-workflow-smoke` proves the external wrapper pattern, but neither
+  replaces the DGK consumer proof.
 - No import from `vault-seed` product paths appears in Refarm runtime code.

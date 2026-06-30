@@ -71,7 +71,7 @@ test("agents-lab git workflow convention review requires a Refarm wrapper", () =
 		/start-slice-operator-loop/,
 	);
 	assert.match(review.boundaries.join("\n"), /does not install/);
-	assert.match(review.nextActions.join("\n"), /Draft a Refarm git-workflow wrapper/);
+	assert.match(review.nextActions.join("\n"), /Run the Refarm git-workflow wrapper smoke/);
 	assert.deepEqual(review.issues, []);
 });
 

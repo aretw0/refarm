@@ -78,7 +78,7 @@ test("agents-lab skill source review records source evidence without installing"
 		3,
 	);
 	assert.match(review.boundaries.join("\n"), /No agents-lab file is installed/);
-	assert.match(review.boundaries.join("\n"), /runtime execution remains deferred/);
+	assert.match(review.boundaries.join("\n"), /Runtime-agent execution remains deferred/);
 	assert.match(review.nextActions.join("\n"), /Review git-workflow/);
 	assert.deepEqual(review.issues, []);
 });

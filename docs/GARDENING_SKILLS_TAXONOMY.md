@@ -2,7 +2,8 @@
 
 > Status: taxonomy ledger (2026-06-25). Maps `vault-seed`'s `dgk-skills` to Refarm engines and to
 > `agents-lab` skills, to locate the "gardening skills" superset. The skill **contract** now exists
-> as `@refarm.dev/skill-contract-v1`; runtime execution remains deferred. Refarm runs no skills yet.
+> as `@refarm.dev/skill-contract-v1`. Refarm now records internal `source:v1` skill receipts and
+> one external `agents-lab` wrapper smoke; runtime-agent execution remains deferred.
 > Feeds `docs/CONVERGENCE_ROADMAP.md` item 6.
 
 ## Where skills live today
@@ -73,10 +74,14 @@ plugin-manifest validation, invocation request, and host policy decision. The
 `native:skills:source-engine-smoke` command proves one source-status skill can
 call `source:v1` through `@refarm.dev/source-local` and record a receipt without
 runtime-agent, pi-agent, shell tools, file mutations, or model calls. The
-remaining runtime work is to select one external `dgk-skills` or `agents-lab`
-fixture and later invoke runtime-agent or another Refarm plugin host only after
-policy, cancellation, observability, and cost-control proofs exist. The durable
-owner should remain a package/plugin manifest surface, not `apps/refarm`.
+`native:skills:agents-lab-git-workflow-smoke` command proves one external
+`agents-lab` source fixture can be wrapped as Refarm-owned skill evidence, call
+`source:v1` on the external checkout, and record a receipt without installing or
+executing the upstream skill. The remaining runtime work is to repeat the
+pattern with one `dgk-skills` fixture and later invoke runtime-agent or another
+Refarm plugin host only after policy, cancellation, observability, and
+cost-control proofs exist. The durable owner should remain a package/plugin
+manifest surface, not `apps/refarm`.
 
 This must not become a second plugin system. Packages remain the distribution
 unit, plugins remain the executable/capability providers, and skills are
@@ -93,13 +98,15 @@ Activation sequence:
    plugin-declared skill surfaces;
 2. **done:** run an internal source-status dogfood smoke through `source:v1`
    without bypassing policy, recording engine-call evidence in a receipt;
-3. add a minimal adapter that maps one reviewed external skill into the
+3. **done:** run one reviewed `agents-lab` git-workflow fixture through a
+   Refarm wrapper smoke, keeping upstream content as source evidence only;
+4. add a minimal adapter that maps one reviewed DGK skill into the
    policy-checkable invocation plan;
-4. represent that skill as a manifest-declared surface such as
+5. represent that skill as a manifest-declared surface such as
    `layer: "pi", kind: "skill"` with `assets` pointing to the `SKILL.md`;
-5. run the first external fixture smoke without bypassing
+6. run the first DGK fixture smoke without bypassing
    plugin-manifest/Barn/Scarecrow boundaries;
-6. only then install, vendor, or publish skill wrappers.
+7. only then install, vendor, or publish skill wrappers.
 
 ## Deferred Until Native Host Exists
 
@@ -169,4 +176,8 @@ adapter smoke:
 - require explicit confirmation for destructive or wide-impact git operations.
 
 This keeps `agents-lab` as source evidence and Refarm as the neutral supplier of
-the execution boundary.
+the execution boundary. As of the external wrapper smoke,
+`native:skills:agents-lab-git-workflow-smoke` records the upstream
+`git-workflow` hash, verifies the Refarm wrapper, calls `source:v1` over the
+`agents-lab` checkout, and emits an execution receipt without installing,
+copying, vendoring, or executing the upstream skill.

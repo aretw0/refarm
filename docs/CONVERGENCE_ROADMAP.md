@@ -108,10 +108,11 @@ package, manifest parser, capability envelope, host-policy-checkable invocation 
 central plugin-manifest validation for `pi/skill` package asset declarations. It also has a
 plan-only wrapper smoke for the Refarm git-workflow skill surface with a recorded pre-runtime host
 policy decision, plus a `source:v1` engine dogfood smoke that records a receipt from
-`@refarm.dev/source-local` without invoking runtime-agent. It still needs one external
-`dgk-skills` or `agents-lab` fixture before external `SKILL.md` becomes executable. `dgk-skills`
-and `agents-lab` skills are compatibility fixtures and consumer pressure, not code that moves
-into `apps/refarm`.
+`@refarm.dev/source-local` without invoking runtime-agent. It also has an external `agents-lab`
+git-workflow wrapper smoke that records upstream hash/source evidence and a `source:v1` receipt
+without installing or executing the upstream skill. It still needs one `dgk-skills` fixture before
+DGK skills become executable under Refarm. `dgk-skills` and `agents-lab` skills are compatibility
+fixtures and consumer pressure, not code that moves into `apps/refarm`.
 
 The first adapter should prove one external skill can run under Refarm's skill surface without a
 one-shot rename, without inventing a second skill installer/runtime, and without bypassing
