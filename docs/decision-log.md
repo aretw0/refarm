@@ -2,6 +2,30 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Remote workspace control plane
+
+**Date**: 2026-06-30
+**Status**: Accepted
+**ADR**: [ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md)
+**References**: `dispatch-surface`, `task-contract-v1`, `session-contract-v1`,
+`process-handoff`, `channel-policy-v1`, `source:v1`, `silo`
+
+**Decision**: Refarm's multi-machine horizon is a remote workspace control plane, not an
+app-local feature and not a Telegram/Matrix/Tailscale-specific protocol. A remote workspace is an
+identity-bound Refarm node that can advertise readiness, accept bounded efforts, stream progress,
+emit artifacts/evidence, and enforce policy/environment ceilings.
+
+PWA, Android, Telegram, Matrix, CLI, and future surfaces are operator surfaces or adapters.
+Tailscale is an expected private-network fixture for personal use, but not the canonical protocol.
+`apps/refarm` may render and operate the topology; reusable control mechanics belong in packages or
+contracts.
+
+**First safe proof**: query a remote node's status, run a bounded read-only check, stream output,
+cancel if needed, and emit artifact/audit evidence. Remote mutation and raw shell remain elevated
+capabilities behind explicit enrollment, policy checks, and environment ceilings.
+
+---
+
 ## Capability index incubation boundary
 
 **Date**: 2026-06-30

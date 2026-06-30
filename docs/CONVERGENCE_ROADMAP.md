@@ -31,6 +31,7 @@ each sub-project's own brainstorm.
 | 10 | **Linux async I/O substrate** — `io_uring` research | research + POC | native Rust substrate | Refarm-shaped file workload proves ROI with fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-io-uring-substrate.md)) |
 | 11 | **XR/WebXR surface POC** — immersive surface around Refarm | POC | 4, optional 5 | XR-capable browser renders the same Refarm data as 2D fallback | ◻ POC planned ([spec](../specs/features/2026-06-25-xr-surface-poc.md)) |
 | 12 | **Vault-seed roadmap assimilation** — sources/ETL, multi-channel publishing, OKF, workspace publishing, Lab WASM helpers | classification + specs | 1, 5, 8, 9 | each future vault-seed slice either consumes a Refarm candidate block or stays explicitly product-local | ▶ classified; activate per lane |
+| 13 | **Remote workspace control plane** — coordinate personal/work/vault machines through policy-aware Refarm nodes | ADR + future contract/proof | 4, 7, 8, task/session/effort/process/stream contracts | one enrolled remote node answers status, runs a bounded read-only check, streams output, supports cancel, and emits audit/artifact evidence | ◻ horizon accepted ([ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md)); contract deferred until proof pressure |
 
 ## Detail & rationale
 
@@ -175,6 +176,21 @@ POC packet: `specs/features/2026-06-25-xr-surface-poc.md` and
 This item is a guardrail, not a new mega-project. Each row activates only through the existing
 lane's spec/plan, with a consumer proof and a downstream rollback path.
 
+### 13. Remote workspace control plane — horizon accepted, contract deferred
+Refarm should eventually let an operator raise a workspace on one machine and coordinate bounded
+work across other enrolled machines: a home workstation, a vault checkout, a laptop, a work machine
+when policy allows, and future agents running in parallel. ADR-074 fixes the boundary:
+
+- the core is a package-owned remote workspace control plane, not `apps/refarm` app-local logic;
+- PWA, Android, CLI, Telegram, Matrix, and future surfaces are operator surfaces or adapters;
+- Tailscale is a strong private-network fixture, not the canonical protocol;
+- remote work flows through existing task/session/effort/process/stream/artifact/channel contracts;
+- the first proof is status + bounded read-only check + stream + cancel + audit evidence.
+
+Do not create a package for this until there is proof pressure: a second operator surface, a channel
+adapter, a browser-safe client, a stable remote-node JSON contract, or a downstream consumer that
+needs to inspect remote workspace capabilities.
+
 ## Sequence
 
 ```
@@ -190,6 +206,7 @@ lane's spec/plan, with a consumer proof and a downstream rollback path.
       ├──► 6 dgk-skills overlap
       ├──► 7 Librarian completion (source-dispatch needs item 4)
       └──► 8 Consumer bridges (gated by 2nd consumer)
+              └──► 13 Remote workspace control plane (horizon; activates through proof pressure)
 ```
 
 ## Working rule
@@ -223,7 +240,7 @@ generated `package.json` and `inventory.json`, and verifies every `@refarm.dev/*
 by the fixture is covered by the `vault-seed-ready` release selection and package checks.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
-4, 5, 6, 7, 8, 9, 10, or 11. It records which items are execution-ready, which are deliberately gated, and
+4, 5, 6, 7, 8, 9, 10, 11, or 13. It records which items are execution-ready, which are deliberately gated, and
 which exact spec/plan must be written next.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)
