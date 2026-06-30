@@ -7,6 +7,7 @@ import {
 	type SkillInvocationPlanBuildResult,
 	type SkillInvocationPlanPrepareResult,
 	type SkillInvocationPlanV1,
+	type SkillIoEnvelope,
 	type SkillManifestIssue,
 	type SkillManifestParseOptions,
 	type SkillManifestParseResult,
@@ -42,6 +43,7 @@ export function parseSkillMarkdown(
 	const providedCapabilities = normalizeCapabilityList(
 		frontmatterResult.frontmatter.providesCapabilities,
 	);
+	const io = createSkillIoEnvelope(frontmatterResult.frontmatter);
 	const instructions = frontmatterResult.body.trim();
 	const sourceRef = createSkillSourceRef(source, options);
 
@@ -60,6 +62,7 @@ export function parseSkillMarkdown(
 			executionMode: "plan-only",
 			toolAccess: "declared-capabilities-only",
 		},
+		io,
 		instructions,
 		frontmatter: frontmatterResult.frontmatter,
 	};
@@ -88,6 +91,7 @@ export function validateSkillManifest(value: unknown): SkillManifestValidationRe
 	validateSource(value.source, "$.source", issues);
 	validateCapabilities(value.capabilities, "$.capabilities", issues);
 	validatePolicy(value.policy, "$.policy", issues);
+	validateIo(value.io, "$.io", issues);
 	requireNonEmptyString(value.instructions, "$.instructions", issues);
 
 	return { ok: issues.length === 0, issues };
@@ -150,6 +154,7 @@ export function buildSkillInvocationPlan(
 			...manifest.capabilities.requires.map((id) => ({ id, required: true })),
 			...(manifest.capabilities.optional ?? []).map((id) => ({ id, required: false })),
 		],
+		io: manifest.io,
 		instructions: manifest.instructions,
 		requiresHostPolicyApproval: true,
 	};
@@ -196,6 +201,7 @@ export function validateSkillInvocationPlan(value: unknown): SkillManifestValida
 	validateInvocationSkillRef(value.skill, "$.skill", issues);
 	validatePolicy(value.policy, "$.policy", issues);
 	validateInvocationCapabilities(value.capabilityRequests, "$.capabilityRequests", issues);
+	validateIo(value.io, "$.io", issues);
 	requireNonEmptyString(value.instructions, "$.instructions", issues);
 	if (value.requiresHostPolicyApproval !== true) {
 		issues.push(issue("INVOCATION_POLICY_APPROVAL_REQUIRED", "$.requiresHostPolicyApproval", "Expected true."));
@@ -312,6 +318,58 @@ function validatePolicy(value: unknown, path: string, issues: SkillManifestIssue
 	if (policy.toolAccess !== "declared-capabilities-only") {
 		issues.push(issue("POLICY_TOOL_ACCESS_INVALID", `${path}.toolAccess`, "Expected declared-capabilities-only."));
 	}
+}
+
+function validateIo(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("IO_NOT_OBJECT", path, "Expected input/output envelope object."));
+		return;
+	}
+	validateInputEnvelope(value.input, `${path}.input`, issues);
+	validateOutputEnvelope(value.output, `${path}.output`, issues);
+}
+
+function validateInputEnvelope(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("INPUT_NOT_OBJECT", path, "Expected input envelope object."));
+		return;
+	}
+	requireExact(value.format, "text/markdown", `${path}.format`, issues);
+	if (typeof value.required !== "boolean") {
+		issues.push(issue("INPUT_REQUIRED_INVALID", `${path}.required`, "Expected boolean."));
+	}
+	if (value.description !== undefined) {
+		requireNonEmptyString(value.description, `${path}.description`, issues);
+	}
+}
+
+function validateOutputEnvelope(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (!isRecord(value)) {
+		issues.push(issue("OUTPUT_NOT_OBJECT", path, "Expected output envelope object."));
+		return;
+	}
+	requireExact(value.format, "text/markdown", `${path}.format`, issues);
+	if (value.description !== undefined) {
+		requireNonEmptyString(value.description, `${path}.description`, issues);
+	}
+}
+
+function createSkillIoEnvelope(
+	frontmatter: Readonly<Record<string, string | readonly string[]>>,
+): SkillIoEnvelope {
+	const inputDescription = getString(frontmatter.input);
+	const outputDescription = getString(frontmatter.output);
+	return {
+		input: {
+			format: "text/markdown",
+			required: getBoolean(frontmatter.inputRequired, false),
+			...(inputDescription ? { description: inputDescription } : {}),
+		},
+		output: {
+			format: "text/markdown",
+			...(outputDescription ? { description: outputDescription } : {}),
+		},
+	};
 }
 
 function validateInvocationSkillRef(value: unknown, path: string, issues: SkillManifestIssue[]): void {
@@ -434,6 +492,14 @@ function requireNonEmptyString(
 
 function getString(value: unknown): string {
 	return typeof value === "string" ? value.trim() : "";
+}
+
+function getBoolean(value: unknown, fallback: boolean): boolean {
+	if (typeof value !== "string") return fallback;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === "true" || normalized === "yes") return true;
+	if (normalized === "false" || normalized === "no") return false;
+	return fallback;
 }
 
 function isCapabilityId(value: unknown): value is string {

@@ -14,8 +14,8 @@
   (agentic ops), `pi-skills` (Pi authoring), `web-skills` (`source-research`, `web-browser`). The
   Pi proving ground.
 - **`refarm`**: **no executable skill surface yet.** It has a native contract package that parses
-  `SKILL.md` into a policy-checkable manifest/invocation plan handoff and verifies loaded source
-  integrity, plus *engines* — `sower` (scaffold/import), `thresher`
+  `SKILL.md` into a policy-checkable manifest/invocation plan handoff, carries markdown I/O
+  envelopes, and verifies loaded source integrity, plus *engines* — `sower` (scaffold/import), `thresher`
   (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
   (`context-provider-v1`, the in-progress `source:v1`). The skill invocation path is the future
   "Refarm as engine" milestone.
@@ -52,9 +52,11 @@ the **skill host/runtime** that would invoke them does not.
 The work is not only adopting existing skills. Refarm has started the native skill
 surface with `@refarm.dev/skill-contract-v1`: it parses `SKILL.md`-style
 content into `SkillManifestV1`, requires explicit capabilities, and builds a
-host-policy-checkable invocation plan without executing tools. It also exposes
-`prepareSkillInvocationPlan` as the adapter/host handoff for one source and
-`verifySkillSource` for source integrity checks before host trust. The
+host-policy-checkable invocation plan without executing tools. Manifests and
+plans carry markdown input/output envelopes so hosts can validate payload shape
+before policy or engine dispatch. It also exposes `prepareSkillInvocationPlan`
+as the adapter/host handoff for one source and `verifySkillSource` for source
+integrity checks before host trust. The
 remaining runtime work is to pass that plan through policy and invoke Refarm engines
 through `runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable
 owner should remain a package/plugin manifest surface, not `apps/refarm`.

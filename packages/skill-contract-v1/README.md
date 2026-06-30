@@ -9,6 +9,8 @@ content:
 - record source URI, byte length, and SHA-256 hash;
 - verify a loaded `SKILL.md` source against the source reference already carried
   by a manifest or invocation plan;
+- expose markdown input/output envelopes for hosts to validate before invoking
+  policy or engines;
 - require explicit capability declarations before a manifest is accepted;
 - default to `plan-only` execution and `declared-capabilities-only` tool access;
 - build a host-policy-checkable invocation plan that preserves source integrity,
@@ -51,6 +53,8 @@ const sourceCheck = verifySkillSource(skillMarkdown, result.plan.skill.source, {
 if (!sourceCheck.ok) {
 	throw new Error(sourceCheck.issues.map((issue) => issue.message).join("; "));
 }
+
+console.log(result.plan.io.input.format); // "text/markdown"
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
@@ -59,3 +63,5 @@ Invocation plans always require host policy approval; this package does not
 authorize tools by itself.
 Source verification only confirms content identity; it does not install, trust,
 or execute a skill.
+The I/O envelope is descriptive and policy-facing. Hosts still decide whether a
+particular invocation payload is allowed.

@@ -39,6 +39,17 @@ describe("skill-contract-v1", () => {
 				executionMode: "plan-only",
 				toolAccess: "declared-capabilities-only",
 			},
+			io: {
+				input: {
+					format: "text/markdown",
+					required: true,
+					description: "Markdown task context for the host to inspect before planning git workflow steps.",
+				},
+				output: {
+					format: "text/markdown",
+					description: "Markdown plan describing the proposed git workflow steps.",
+				},
+			},
 		});
 		expect(result.manifest?.source.sha256).toMatch(/^[a-f0-9]{64}$/);
 		expect(result.manifest?.id).toMatch(/^urn:refarm:skill:v1:refarm-git-workflow:/);
@@ -69,6 +80,13 @@ describe("skill-contract-v1", () => {
 			capabilities: {
 				requires: [],
 			},
+			io: {
+				input: {
+					format: "application/json",
+					required: "yes",
+				},
+				output: {},
+			},
 			instructions: "",
 		};
 
@@ -77,6 +95,9 @@ describe("skill-contract-v1", () => {
 			issues: expect.arrayContaining([
 				expect.objectContaining({ code: "SOURCE_SHA256_INVALID" }),
 				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
+				expect.objectContaining({ code: "VALUE_INVALID", path: "$.io.input.format" }),
+				expect.objectContaining({ code: "INPUT_REQUIRED_INVALID" }),
+				expect.objectContaining({ code: "VALUE_INVALID", path: "$.io.output.format" }),
 				expect.objectContaining({ code: "STRING_EMPTY", path: "$.instructions" }),
 			]),
 		});
@@ -144,6 +165,15 @@ describe("skill-contract-v1", () => {
 				{ id: "refarm.git.write", required: true },
 				{ id: "refarm.github.pr", required: false },
 			],
+			io: {
+				input: {
+					format: "text/markdown",
+					required: true,
+				},
+				output: {
+					format: "text/markdown",
+				},
+			},
 			requiresHostPolicyApproval: true,
 		});
 		expect(result.plan?.instructions).toContain("Start with the operator loop");
@@ -181,6 +211,7 @@ describe("skill-contract-v1", () => {
 		expect(result.plan).not.toBeNull();
 		expect(result.plan?.skill.id).toBe(result.manifest?.id);
 		expect(result.plan?.skill.source.sha256).toBe(result.manifest?.source.sha256);
+		expect(result.plan?.io).toEqual(result.manifest?.io);
 		expect(result.plan?.requiresHostPolicyApproval).toBe(true);
 	});
 
