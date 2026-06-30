@@ -59,8 +59,9 @@ release-policy until downstream proof and composition evidence exist.
 
 Initial coverage is `requirements:supply:composition:test`, a sanitized
 composition proof in `scripts/ci` that builds `@refarm.dev/health`,
-`@refarm.dev/enrichment-contract-v1`, and `@refarm.dev/records-contract-v1`,
-then validates environment pressure, source coverage, review-state counts,
+`@refarm.dev/source-web`, `@refarm.dev/enrichment-contract-v1`, and
+`@refarm.dev/records-contract-v1`, then validates environment pressure,
+authenticated-web fixture replay, source coverage, review-state counts,
 deterministic enrichment, record hash drift, and final `records:v1`
 validation. It intentionally avoids browser automation, private selectors,
 release-policy promotion, and consumer vocabulary.

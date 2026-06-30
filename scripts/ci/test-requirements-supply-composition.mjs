@@ -13,6 +13,21 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 	assert.equal(result.mode, "synthetic-sanitized-composition");
 	assert.equal(result.gateDecision, "allow");
 	assert.equal(result.pressure.ok, true);
+	assert.equal(result.source.capability, "source:v1");
+	assert.deepEqual(result.source.kinds, ["local"]);
+	assert.equal(result.source.location.kind, "local");
+	assert.equal(result.source.status.materialized, true);
+	assert.equal(result.source.status.clean, true);
+	assert.equal(result.source.status.dirty, false);
+	assert.equal(result.source.provenance.session.kind, "fixture");
+	assert.equal(result.source.provenance.session.authenticated, true);
+	assert.equal(result.source.provenance.cache.offlineReplay, true);
+	assert.match(result.source.provenance.cache.hash, /^sha256:/);
+	assert.deepEqual(result.source.provenance.redaction.fields, [
+		"cookie",
+		"authorization",
+		"set-cookie",
+	]);
 	assert.equal(result.records.capability, "records:v1");
 	assert.equal(result.records.total, 2);
 	assert.equal(result.records.initialValidation.ok, true);
@@ -33,6 +48,6 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 	]);
 	assert.match(result.boundaries.join("\n"), /does not run browser automation/);
 	assert.match(result.boundaries.join("\n"), /does not add release-policy/);
-	assert.match(result.nextActions.join("\n"), /sanitized source-web snapshot proof/);
+	assert.match(result.nextActions.join("\n"), /downstream local handoff evidence/);
 	assert.deepEqual(result.issues, []);
 });

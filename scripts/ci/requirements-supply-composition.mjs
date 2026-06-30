@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createReferenceEnrichmentProvider } from "../../packages/enrichment-contract-v1/dist/index.js";
 import {
 	computeRecordContentHash,
 	createReferenceRecordsFixture,
 	createReferenceRecordsProvider,
 } from "../../packages/records-contract-v1/dist/index.js";
+import { createWebSourceProvider } from "../../packages/source-web/dist/index.js";
 
 const SCHEMA = "refarm.requirements-supply-composition.v1";
 const DEFAULT_COMPLETED_AT = "2026-06-30T00:00:00.000Z";
@@ -81,8 +85,21 @@ export async function buildRequirementsSupplyComposition({
 	cwd = process.cwd(),
 } = {}) {
 	const issues = [];
+	const sourceCacheRoot = await mkdtemp(path.join(os.tmpdir(), "requirements-supply-source-web-"));
+	const sourceProvider = createWebSourceProvider({ cacheRoot: sourceCacheRoot });
 	const recordsProvider = createReferenceRecordsProvider();
 	const enrichmentProvider = createReferenceEnrichmentProvider();
+	const sourceMaterialize = await sourceProvider.materialize("web:requirements-fixture", { offline: true });
+	const sourceStatus = await sourceProvider.status("web:requirements-fixture");
+	const sourceProvenance = await sourceProvider.snapshotProvenance("web:requirements-fixture");
+	if (!sourceStatus.materialized || !sourceProvenance) {
+		issues.push(issue(
+			"SOURCE_WEB_SNAPSHOT_NOT_READY",
+			"Expected source-web fixture to materialize an offline replay snapshot with provenance.",
+			{ status: sourceStatus, materialize: sourceMaterialize },
+		));
+	}
+
 	const manifest = createReferenceRecordsFixture();
 	const initialValidation = recordsProvider.validate(manifest);
 	if (!initialValidation.ok) {
@@ -154,6 +171,34 @@ export async function buildRequirementsSupplyComposition({
 			signalCount: pressure.signals.length,
 			nextCommands: pressure.nextCommands,
 		},
+		source: {
+			providerId: sourceProvider.pluginId,
+			capability: sourceProvider.capability,
+			kinds: sourceProvider.kinds,
+			ref: sourceProvenance?.cache.ref ?? "web:requirements-fixture",
+			location: sourceMaterialize.location,
+			action: sourceMaterialize.action,
+			status: {
+				materialized: sourceStatus.materialized,
+				kind: sourceStatus.kind,
+				clean: sourceStatus.clean,
+				dirty: sourceStatus.dirty,
+				head: sourceStatus.head,
+				lastFetchedAt: sourceStatus.lastFetchedAt,
+			},
+			provenance: sourceProvenance
+				? {
+					session: {
+						kind: sourceProvenance.session.kind,
+						authenticated: sourceProvenance.session.authenticated,
+						credentialRef: sourceProvenance.session.credentialRef,
+					},
+					pacing: sourceProvenance.pacing,
+					cache: sourceProvenance.cache,
+					redaction: sourceProvenance.redaction,
+				}
+				: null,
+		},
 		records: {
 			providerId: recordsProvider.pluginId,
 			capability: recordsProvider.capability,
@@ -186,7 +231,7 @@ export async function buildRequirementsSupplyComposition({
 			"does not add release-policy or vault-seed-ready metadata",
 		],
 		nextActions: [
-			"attach a sanitized source-web snapshot proof before private target work",
+			"attach a sanitized artifact manifest and review report before release-policy promotion",
 			"record downstream local handoff evidence before release-policy promotion",
 		],
 		issueCount: issues.length,
