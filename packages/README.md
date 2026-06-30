@@ -40,6 +40,23 @@ needs `source:v1` through `dispatch-surface` with an executable proof.
 | [`@refarm.dev/source-git`](./source-git) | Clean cached git checkout provider for remote repositories | release-profiled; held |
 | [`@refarm.dev/source-local`](./source-local) | Live local working-tree provider with dirty/untracked status | release-profiled; held |
 
+The T3 requirements-vault pressure adds an authenticated web source candidate,
+but no package exists yet. The activation packet is
+`specs/features/2026-06-30-work-3-requirements-supply-activation.md`. That work
+must keep accessible-system discovery, login strategy, and source-specific
+selectors downstream.
+
+## Requirements/Knowledge Supply Candidates
+
+These packages do not exist yet. They are the neutral slices identified by the
+requirements-vault activation packet and must not enter release policy before
+package-local checks and downstream proofs exist.
+
+| Candidate | Purpose | Publishing |
+|---|---|---|
+| `@refarm.dev/enrichment-contract-v1` | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | not created; proof-gated |
+| knowledge/content manifest package | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state | not created; proof-gated |
+
 ## 🌿 Native Skill Surface Contract
 
 `@refarm.dev/skill-contract-v1` is the schema/conformance helper for native

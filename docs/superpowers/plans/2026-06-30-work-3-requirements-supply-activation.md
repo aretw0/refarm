@@ -1,0 +1,55 @@
+# Plan: Work 3 Requirements Supply Activation
+
+> Spec: `specs/features/2026-06-30-work-3-requirements-supply-activation.md`.
+> Goal: make Refarm supply the neutral blocks a requirements-vault POC needs,
+> while keeping private target logic downstream and preserving the publication
+> gates.
+
+## Task 1 - Enrichment Contract Slice
+
+- Draft `enrichment:v1` with provider identity, input selectors, dry-run/apply
+  mode, deterministic result summaries, diagnostics, and provenance.
+- Add a sanitized reference fixture that enriches local records without network
+  access.
+- Gate: no private registry, identifier vocabulary, or vault-specific tag prefix
+  in the contract.
+
+## Task 2 - Authenticated Web Source Adapter Design
+
+- Extend the source-adapter activation packet with an authenticated web capture
+  trigger.
+- Decide whether the additive source kind belongs directly in `source:v1` or in
+  a web-specific package wrapper that emits `source:v1`-compatible snapshots.
+- Include session evidence, pacing policy, cache identity, offline replay, and
+  redaction rules.
+- Gate: discovery of accessible systems and source-specific selectors remain
+  downstream adapters.
+
+## Task 3 - Knowledge/Content Manifest
+
+- Specify a graph/content envelope for records, sections, relations,
+  attachments, source references, hashes, and review state.
+- Reuse `artifact-contract-v1` provenance and selection concepts instead of
+  creating a vault schema.
+- Gate: the manifest must work for sanitized requirement-like fixtures and not
+  require consumer vocabulary.
+
+## Task 4 - Diagnostics Gate
+
+- Define the cheap preflight for ingestion work: environment pressure, source
+  coverage, cache completeness, drift, and review-state validation.
+- Prefer package-local fixture checks over browser-heavy end-to-end tests.
+- Gate: an operator can tell whether to allow, degrade, serialize, or refuse the
+  ingestion before launching expensive work.
+
+## Task 5 - Consumer Handoff Planning
+
+- Add release-policy profiles only after package slices exist and have checks.
+- Use local handoff for consumer-pulled proofs before public npm publication.
+- Record fallback paths so downstream POCs can keep moving if a Refarm leaf is
+  not yet selected.
+
+## Non-Goal
+
+Do not implement the private POC, source login, target discovery, or enrichment
+provider in Refarm.
