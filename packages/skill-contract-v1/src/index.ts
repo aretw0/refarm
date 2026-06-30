@@ -4,6 +4,7 @@ export {
 	runSkillContractV1Conformance,
 } from "./conformance.js";
 export {
+	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
@@ -11,6 +12,7 @@ export {
 	createSkillSourceRef,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
+	validateSkillInvocationDecision,
 	validateSkillInvocationPlan,
 	validateSkillInvocationRequest,
 	validateSkillManifest,
@@ -24,11 +26,16 @@ export type {
 	SkillEngineBindingEnvelope,
 	SkillExecutionMode,
 	SkillInputEnvelope,
+	SkillInvocationCapabilityDecision,
+	SkillInvocationDecisionBuildResult,
+	SkillInvocationDecisionOptions,
+	SkillInvocationDecisionV1,
 	SkillInvocationInputPayload,
 	SkillInvocationPlanBuildResult,
 	SkillInvocationPlanCapability,
 	SkillInvocationPlanPrepareResult,
 	SkillInvocationPlanSkillRef,
+	SkillInvocationPolicyDecision,
 	SkillInvocationPlanV1,
 	SkillInvocationRequestBuildResult,
 	SkillInvocationRequestV1,
@@ -50,6 +57,7 @@ export type {
 } from "./types.js";
 export {
 	SKILL_CAPABILITY,
+	SKILL_INVOCATION_DECISION_SCHEMA,
 	SKILL_INVOCATION_PLAN_SCHEMA,
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,

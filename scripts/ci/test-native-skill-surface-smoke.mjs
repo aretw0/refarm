@@ -30,6 +30,14 @@ test("native skill surface smoke builds a policy-checkable package skill handoff
 	assert.equal(result.request.input.format, "text/markdown");
 	assert.equal(result.request.output.format, "text/markdown");
 	assert.equal(result.request.requiresHostPolicyApproval, true);
+	assert.equal(result.decision.schema, "refarm.skill-invocation-decision.v1");
+	assert.equal(result.decision.decision, "approved");
+	assert.equal(result.decision.requiresRuntimeDispatch, true);
+	assert.equal(result.decision.executed, false);
+	assert.deepEqual(
+		result.decision.capabilityDecisions.filter((item) => item.decision === "approved").map((item) => item.id),
+		["refarm.operator-loop", "refarm.git.write"],
+	);
 	assert.match(result.boundaries.join("\n"), /does not execute runtime-agent/);
 	assert.match(result.boundaries.join("\n"), /not a standalone skill installation/);
 	assert.match(result.nextActions.join("\n"), /engine-call evidence/);

@@ -106,10 +106,10 @@ how Tractor, WASM surfaces, and future install/update descriptors are shaped.
 skill set, but the core work is the native Refarm skill surface itself. Refarm now has the contract
 package, manifest parser, capability envelope, host-policy-checkable invocation handoffs, and
 central plugin-manifest validation for `pi/skill` package asset declarations. It also has a
-plan-only wrapper smoke for the Refarm git-workflow skill surface. It still needs the host policy
-boundary and engine invocation proof before any external `SKILL.md` becomes executable. `dgk-skills` and
-`agents-lab` skills are compatibility fixtures and consumer pressure, not code that moves into
-`apps/refarm`.
+plan-only wrapper smoke for the Refarm git-workflow skill surface with a recorded pre-runtime host
+policy decision. It still needs engine invocation proof before any external `SKILL.md` becomes
+executable. `dgk-skills` and `agents-lab` skills are compatibility fixtures and consumer pressure,
+not code that moves into `apps/refarm`.
 
 The first adapter should prove one external skill can run under Refarm's skill surface without a
 one-shot rename, without inventing a second skill installer/runtime, and without bypassing

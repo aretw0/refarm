@@ -1,11 +1,15 @@
 import { createHash } from "node:crypto";
 
 import {
+	SKILL_INVOCATION_DECISION_SCHEMA,
 	SKILL_INVOCATION_PLAN_SCHEMA,
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 	type SkillContractV1Adapter,
 	type SkillEngineBindingEnvelope,
+	type SkillInvocationDecisionBuildResult,
+	type SkillInvocationDecisionOptions,
+	type SkillInvocationDecisionV1,
 	type SkillInvocationPlanBuildResult,
 	type SkillInvocationPlanPrepareResult,
 	type SkillInvocationPlanV1,
@@ -22,7 +26,7 @@ import {
 	type SkillSourceVerificationResult,
 	type SkillSurfaceDeclarationBuildResult,
 	type SkillSurfaceDeclarationOptions,
-	type SkillSurfaceDeclarationV1
+	type SkillSurfaceDeclarationV1,
 } from "./types.js";
 
 const CAPABILITY_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
@@ -208,6 +212,64 @@ export function buildSkillInvocationRequest(
 	};
 }
 
+export function buildSkillInvocationDecision(
+	request: SkillInvocationRequestV1,
+	options: SkillInvocationDecisionOptions,
+): SkillInvocationDecisionBuildResult {
+	const requestValidation = validateSkillInvocationRequest(request);
+	if (!requestValidation.ok) {
+		return { ok: false, decision: null, issues: requestValidation.issues };
+	}
+	if (!isRecord(options)) {
+		return {
+			ok: false,
+			decision: null,
+			issues: [issue("INVOCATION_DECISION_OPTIONS_NOT_OBJECT", "$", "Expected invocation decision options.")],
+		};
+	}
+
+	const issues: SkillManifestIssue[] = [];
+	validatePolicyDecision(options.decision, "$.decision", issues);
+	requireNonEmptyString(options.reason, "$.reason", issues);
+	if (options.approvedCapabilities !== undefined) {
+		validateApprovedCapabilities(options.approvedCapabilities, "$.approvedCapabilities", request, issues);
+	}
+	if (options.decision === "approved" && !Array.isArray(options.approvedCapabilities)) {
+		issues.push(issue(
+			"INVOCATION_DECISION_APPROVED_CAPABILITIES_REQUIRED",
+			"$.approvedCapabilities",
+			"Expected explicit approved capabilities for an approval decision.",
+		));
+	}
+	if (issues.length > 0) {
+		return { ok: false, decision: null, issues };
+	}
+
+	const approvedCapabilities = new Set(options.approvedCapabilities ?? []);
+	const capabilityDecisions = request.capabilityRequests.map((item) => ({
+		id: item.id,
+		required: item.required,
+		decision: approvedCapabilities.has(item.id) ? "approved" as const : "denied" as const,
+		...(!approvedCapabilities.has(item.id) ? { reason: "Capability was not approved by host policy." } : {}),
+	}));
+	const decision: SkillInvocationDecisionV1 = {
+		schema: SKILL_INVOCATION_DECISION_SCHEMA,
+		request,
+		decision: options.decision,
+		reason: options.reason,
+		capabilityDecisions,
+		engineBindings: request.engineBindings,
+		requiresRuntimeDispatch: options.decision === "approved",
+		executed: false,
+	};
+	const validation = validateSkillInvocationDecision(decision);
+	return {
+		ok: validation.ok,
+		decision: validation.ok ? decision : null,
+		issues: validation.issues,
+	};
+}
+
 export function buildSkillSurfaceDeclaration(
 	manifest: SkillManifestV1,
 	options: SkillSurfaceDeclarationOptions,
@@ -318,6 +380,64 @@ export function validateSkillInvocationRequest(value: unknown): SkillManifestVal
 	return { ok: issues.length === 0, issues };
 }
 
+export function validateSkillInvocationDecision(value: unknown): SkillManifestValidationResult {
+	const issues: SkillManifestIssue[] = [];
+	if (!isRecord(value)) {
+		return {
+			ok: false,
+			issues: [issue("INVOCATION_DECISION_NOT_OBJECT", "$", "Expected a skill invocation decision object.")],
+		};
+	}
+
+	requireExact(value.schema, SKILL_INVOCATION_DECISION_SCHEMA, "$.schema", issues);
+	const requestValidation = validateSkillInvocationRequest(value.request);
+	if (!requestValidation.ok) {
+		issues.push(...requestValidation.issues.map((item) => ({
+			...item,
+			path: `$.request${item.path === "$" ? "" : item.path.slice(1)}`,
+		})));
+	}
+	validatePolicyDecision(value.decision, "$.decision", issues);
+	requireNonEmptyString(value.reason, "$.reason", issues);
+	validateEngineBindings(value.engineBindings, "$.engineBindings", issues);
+	if (isRecord(value.request) && !engineBindingsEqual(value.engineBindings, value.request.engineBindings)) {
+		issues.push(issue(
+			"INVOCATION_DECISION_ENGINE_BINDINGS_MISMATCH",
+			"$.engineBindings",
+			"Expected decision engine bindings to match the invocation request.",
+		));
+	}
+	if (value.requiresRuntimeDispatch !== true && value.requiresRuntimeDispatch !== false) {
+		issues.push(issue("INVOCATION_RUNTIME_DISPATCH_INVALID", "$.requiresRuntimeDispatch", "Expected boolean."));
+	}
+	if (value.executed !== false) {
+		issues.push(issue("INVOCATION_DECISION_EXECUTED_INVALID", "$.executed", "Expected false."));
+	}
+	const request = isRecord(value.request) ? value.request : null;
+	validateInvocationCapabilityDecisions(
+		value.capabilityDecisions,
+		"$.capabilityDecisions",
+		isRecord(request) && Array.isArray(request.capabilityRequests) ? request.capabilityRequests : [],
+		value.decision,
+		issues,
+	);
+	if (value.decision === "approved" && value.requiresRuntimeDispatch !== true) {
+		issues.push(issue(
+			"INVOCATION_APPROVAL_REQUIRES_RUNTIME_DISPATCH",
+			"$.requiresRuntimeDispatch",
+			"Expected approved decisions to require runtime dispatch.",
+		));
+	}
+	if (value.decision === "denied" && value.requiresRuntimeDispatch !== false) {
+		issues.push(issue(
+			"INVOCATION_DENIAL_BLOCKS_RUNTIME_DISPATCH",
+			"$.requiresRuntimeDispatch",
+			"Expected denied decisions to block runtime dispatch.",
+		));
+	}
+	return { ok: issues.length === 0, issues };
+}
+
 export function validateSkillSurfaceDeclaration(value: unknown): SkillManifestValidationResult {
 	const issues: SkillManifestIssue[] = [];
 	if (!isRecord(value)) {
@@ -337,6 +457,7 @@ export function validateSkillSurfaceDeclaration(value: unknown): SkillManifestVa
 
 export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 	return {
+		buildInvocationDecision: buildSkillInvocationDecision,
 		buildInvocationRequest: buildSkillInvocationRequest,
 		buildInvocationPlan: buildSkillInvocationPlan,
 		buildSurfaceDeclaration: buildSkillSurfaceDeclaration,
@@ -575,6 +696,115 @@ function validateInvocationInput(value: unknown, path: string, issues: SkillMani
 	requireNonEmptyString(value.body, `${path}.body`, issues);
 }
 
+function validatePolicyDecision(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+	if (value !== "approved" && value !== "denied") {
+		issues.push(issue("INVOCATION_DECISION_VALUE_INVALID", path, "Expected approved or denied."));
+	}
+}
+
+function validateApprovedCapabilities(
+	value: unknown,
+	path: string,
+	request: SkillInvocationRequestV1,
+	issues: SkillManifestIssue[],
+): void {
+	if (!Array.isArray(value)) {
+		issues.push(issue("APPROVED_CAPABILITY_LIST_INVALID", path, "Expected an array of capability ids."));
+		return;
+	}
+
+	const requested = new Set(request.capabilityRequests.map((item) => item.id));
+	const seen = new Set<string>();
+	value.forEach((item, index) => {
+		const itemPath = `${path}.${index}`;
+		if (!isCapabilityId(item)) {
+			issues.push(issue("CAPABILITY_ID_INVALID", itemPath, "Expected a valid capability id."));
+			return;
+		}
+		if (!requested.has(item)) {
+			issues.push(issue("APPROVED_CAPABILITY_NOT_REQUESTED", itemPath, "Expected a requested capability id."));
+		}
+		if (seen.has(item)) {
+			issues.push(issue("APPROVED_CAPABILITY_DUPLICATE", itemPath, "Expected capability approvals to be unique."));
+		}
+		seen.add(item);
+	});
+}
+
+function validateInvocationCapabilityDecisions(
+	value: unknown,
+	path: string,
+	requestedCapabilities: readonly unknown[],
+	decision: unknown,
+	issues: SkillManifestIssue[],
+): void {
+	if (!Array.isArray(value)) {
+		issues.push(issue("INVOCATION_CAPABILITY_DECISIONS_INVALID", path, "Expected capability decision array."));
+		return;
+	}
+	if (value.length === 0) {
+		issues.push(issue("INVOCATION_CAPABILITY_DECISIONS_EMPTY", path, "Expected at least one capability decision."));
+	}
+
+	const requestedById = new Map<string, boolean>();
+	requestedCapabilities.forEach((item) => {
+		if (isRecord(item) && typeof item.id === "string" && typeof item.required === "boolean") {
+			requestedById.set(item.id, item.required);
+		}
+	});
+	const seen = new Set<string>();
+	value.forEach((item, index) => {
+		const itemPath = `${path}.${index}`;
+		if (!isRecord(item)) {
+			issues.push(issue("INVOCATION_CAPABILITY_DECISION_NOT_OBJECT", itemPath, "Expected capability decision object."));
+			return;
+		}
+		if (!isCapabilityId(item.id)) {
+			issues.push(issue("CAPABILITY_ID_INVALID", `${itemPath}.id`, "Expected a valid capability id."));
+			return;
+		}
+		if (!requestedById.has(item.id)) {
+			issues.push(issue("INVOCATION_CAPABILITY_DECISION_NOT_REQUESTED", `${itemPath}.id`, "Expected requested capability id."));
+		}
+		if (seen.has(item.id)) {
+			issues.push(issue("INVOCATION_CAPABILITY_DECISION_DUPLICATE", `${itemPath}.id`, "Expected one decision per capability."));
+		}
+		seen.add(item.id);
+		if (typeof item.required !== "boolean") {
+			issues.push(issue("INVOCATION_CAPABILITY_DECISION_REQUIRED_INVALID", `${itemPath}.required`, "Expected boolean."));
+		} else if (requestedById.get(item.id) !== item.required) {
+			issues.push(issue(
+				"INVOCATION_CAPABILITY_DECISION_REQUIRED_MISMATCH",
+				`${itemPath}.required`,
+				"Expected required flag to match the invocation request.",
+			));
+		}
+		validatePolicyDecision(item.decision, `${itemPath}.decision`, issues);
+		if (item.reason !== undefined) {
+			requireNonEmptyString(item.reason, `${itemPath}.reason`, issues);
+		}
+		if (decision === "approved" && item.required === true && item.decision !== "approved") {
+			issues.push(issue(
+				"INVOCATION_REQUIRED_CAPABILITY_NOT_APPROVED",
+				`${itemPath}.decision`,
+				"Expected approved decisions to approve every required capability.",
+			));
+		}
+		if (decision === "denied" && item.decision === "approved") {
+			issues.push(issue(
+				"INVOCATION_DENIAL_APPROVES_CAPABILITY",
+				`${itemPath}.decision`,
+				"Expected denied decisions to approve no capabilities.",
+			));
+		}
+	});
+	for (const id of requestedById.keys()) {
+		if (!seen.has(id)) {
+			issues.push(issue("INVOCATION_CAPABILITY_DECISION_MISSING", path, "Expected one decision per requested capability."));
+		}
+	}
+}
+
 function validateSurfaceAssets(value: unknown, path: string, issues: SkillManifestIssue[]): void {
 	if (!Array.isArray(value)) {
 		issues.push(issue("SURFACE_ASSETS_INVALID", path, "Expected an array of relative asset paths."));
@@ -741,6 +971,18 @@ function isEngineBindingId(value: unknown): value is string {
 
 function isSha256(value: unknown): value is string {
 	return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
+function engineBindingsEqual(left: unknown, right: unknown): boolean {
+	if (!isRecord(left) || !isRecord(right)) return false;
+	return stringArraysEqual(left.requires, right.requires) && stringArraysEqual(left.optional, right.optional);
+}
+
+function stringArraysEqual(left: unknown, right: unknown): boolean {
+	if (left === undefined && right === undefined) return true;
+	if (!Array.isArray(left) || !Array.isArray(right)) return false;
+	if (left.length !== right.length) return false;
+	return left.every((item, index) => item === right[index]);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

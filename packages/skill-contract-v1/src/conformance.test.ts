@@ -6,6 +6,7 @@ import {
 	runSkillContractV1Conformance,
 } from "./conformance.js";
 import {
+	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
@@ -13,6 +14,7 @@ import {
 	createSkillSourceRef,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
+	validateSkillInvocationDecision,
 	validateSkillInvocationPlan,
 	validateSkillInvocationRequest,
 	validateSkillManifest,
@@ -268,6 +270,96 @@ describe("skill-contract-v1", () => {
 		});
 	});
 
+	it("builds a host policy decision before runtime dispatch", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+		const request = buildSkillInvocationRequest(
+			built.plan!,
+			"Review the current git state and propose a safe workflow.",
+		);
+
+		const result = buildSkillInvocationDecision(request.request!, {
+			decision: "approved",
+			reason: "Operator approved the declared workflow capabilities.",
+			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.decision).toMatchObject({
+			schema: "refarm.skill-invocation-decision.v1",
+			request: request.request,
+			decision: "approved",
+			reason: "Operator approved the declared workflow capabilities.",
+			requiresRuntimeDispatch: true,
+			executed: false,
+		});
+		expect(result.decision?.capabilityDecisions).toEqual([
+			{ id: "refarm.operator-loop", required: true, decision: "approved" },
+			{ id: "refarm.git.write", required: true, decision: "approved" },
+			{
+				id: "refarm.github.pr",
+				required: false,
+				decision: "denied",
+				reason: "Capability was not approved by host policy.",
+			},
+		]);
+		expect(result.decision?.engineBindings).toEqual(request.request?.engineBindings);
+	});
+
+	it("rejects approval decisions that skip required capability approval", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+		const request = buildSkillInvocationRequest(built.plan!, "Review state.");
+
+		const result = buildSkillInvocationDecision(request.request!, {
+			decision: "approved",
+			reason: "Incomplete approval should fail.",
+			approvedCapabilities: ["refarm.operator-loop"],
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			decision: null,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "INVOCATION_REQUIRED_CAPABILITY_NOT_APPROVED" }),
+			]),
+		});
+	});
+
+	it("rejects invocation decisions that execute early or let denials authorize capabilities", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const built = buildSkillInvocationPlan(parsed.manifest!);
+		const request = buildSkillInvocationRequest(built.plan!, "Review state.");
+		const denied = buildSkillInvocationDecision(request.request!, {
+			decision: "denied",
+			reason: "Host policy denied this request.",
+		});
+		expect(denied.decision).not.toBeNull();
+
+		const result = validateSkillInvocationDecision({
+			...denied.decision,
+			requiresRuntimeDispatch: true,
+			executed: true,
+			capabilityDecisions: [
+				{ id: "refarm.operator-loop", required: true, decision: "approved" },
+				{ id: "refarm.git.write", required: true, decision: "denied" },
+				{ id: "refarm.github.pr", required: false, decision: "denied" },
+			],
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "INVOCATION_DENIAL_BLOCKS_RUNTIME_DISPATCH" }),
+				expect.objectContaining({ code: "INVOCATION_DECISION_EXECUTED_INVALID" }),
+				expect.objectContaining({ code: "INVOCATION_DENIAL_APPROVES_CAPABILITY" }),
+			]),
+		});
+	});
+
 	it("builds a plugin-manifest-compatible skill surface declaration", () => {
 		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "file:skills/refarm-git-workflow/SKILL.md",
@@ -362,6 +454,6 @@ describe("skill-contract-v1", () => {
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(9);
+		expect(result.total).toBe(10);
 	});
 });
