@@ -71,6 +71,41 @@ capability authorization, denial paths, and promotion. Runtime-agent or
 `pi-agent` may consume a skill surface, but they do not make `SKILL.md` an
 executable artifact by itself.
 
+## Authoring Spaces Before Packaging
+
+Published packages are not the only place where extension work lives. Users and
+projects must be able to keep private, unpublished skills, extensions, guides,
+themes, templates, fixtures, and experiments in an authoring space, then decide
+later whether any of that work should become a package, release, or replicated
+artifact.
+
+The lifecycle is intentionally staged:
+
+1. **User space** — personal drafts and operator-owned tools. These may live
+   under the user's Refarm home or another user-selected local store. They are
+   private by default, mutable, and not a publish contract.
+2. **Project space** — project-scoped skills/extensions/assets used by one
+   workspace. These may live in the project sidecar or checked-in policy area
+   when the project wants them to be part of its normal workflow.
+3. **Package/bundle** — an explicit packaging step turns selected local work
+   into a portable bundle with manifest metadata, hashes, and declared
+   capabilities.
+4. **Release/replication** — a release lane, tarball handoff, registry publish,
+   or peer-distributed availability layer makes the bundle shareable across
+   machines, collaborators, or devices.
+
+Local authoring does not bypass policy. A local skill still needs a
+`SkillManifestV1`-style parse, declared capabilities, source hash, and a host
+decision before invocation. A local executable extension still needs the same
+capability and trust posture as any other plugin candidate. The difference is
+provenance and audience: local source is editable operator/project material;
+packages and releases are shareable contracts.
+
+This keeps the Pears/Holepunch lesson in scope without forcing one transport:
+peer availability is a distribution proof for an already packaged or replicated
+bundle, not a reason to require npm/crates publication and not a reason to make
+draft skills executable by default.
+
 ## Manifest shape direction
 
 The manifest should remain a shared contract, not a runtime implementation. Additive metadata can describe extension surfaces without forcing every host to execute them:

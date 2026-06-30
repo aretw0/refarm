@@ -16,6 +16,9 @@ test("native skill system plan owns execution before external adapters", () => {
 	assert.match(plan, /extensions\.surfaces\[\]/);
 	assert.match(plan, /layer: "pi"/);
 	assert.match(plan, /kind: "skill"/);
+	assert.match(plan, /Authoring space/);
+	assert.match(plan, /user and project spaces may carry unpublished skills/);
+	assert.match(plan, /Packaging is an explicit promotion/);
 	assert.match(plan, /runtime-agent/);
 	assert.match(plan, /plugin-manifest\/Barn\/Scarecrow/);
 	assert.match(plan, /not `apps\/refarm`/);
@@ -56,10 +59,14 @@ test("roadmap and taxonomy treat external skills as fixtures for native Refarm s
 	assert.match(readiness, /policy-checkable manifest/);
 	assert.match(readiness, /parallel plugin ecosystem/);
 	assert.match(readiness, /plugin-manifest skill surface/);
+	assert.match(readiness, /Do not require packaging before authoring/);
+	assert.match(readiness, /User and project spaces may contain/);
+	assert.match(readiness, /peer\/device\s+replication/);
 });
 
 test("extensibility model keeps skills inside the package/plugin surface model", () => {
 	const extensibility = read("docs/EXTENSIBILITY_MODEL.md");
+	const authoringTracks = read("docs/PLUGIN_AUTHORING_TRACKS.md");
 	const packagesReadme = read("packages/README.md");
 	const skillReadme = read("packages/skill-contract-v1/README.md");
 
@@ -68,6 +75,18 @@ test("extensibility model keeps skills inside the package/plugin surface model",
 	assert.match(extensibility, /"layer": "pi"/);
 	assert.match(extensibility, /"kind": "skill"/);
 	assert.match(extensibility, /plugin\s+manifest\/Barn\/Scarecrow path still owns install/);
+	assert.match(extensibility, /Authoring Spaces Before Packaging/);
+	assert.match(extensibility, /Published packages are not the only place/);
+	assert.match(extensibility, /User space/);
+	assert.match(extensibility, /Project space/);
+	assert.match(extensibility, /Release\/replication/);
+	assert.match(extensibility, /peer availability is a distribution proof/);
+
+	assert.match(authoringTracks, /Espaços locais antes do plugin/);
+	assert.match(authoringTracks, /user space/);
+	assert.match(authoringTracks, /project space/);
+	assert.match(authoringTracks, /bundle\/package/);
+	assert.match(authoringTracks, /não são bypass de segurança/);
 
 	assert.match(packagesReadme, /schema\/conformance helper for native/);
 	assert.match(packagesReadme, /not a second plugin system/);

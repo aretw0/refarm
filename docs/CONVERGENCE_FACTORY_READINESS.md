@@ -168,12 +168,22 @@ plugin-manifest/Barn/Scarecrow remain the install, integrity, trust, and
 capability gates. `skill-contract-v1` is only a schema/conformance helper for
 the manifest-declared skill surface.
 
+Do not require packaging before authoring. User and project spaces may contain
+private, unpublished skills, extensions, guides, themes, and experiments. Those
+local sources are valid inputs for review and dogfood as long as they still pass
+capability, source-hash, and host-policy gates before invocation. Packaging is a
+promotion step for sharing, release, tarball handoff, or peer/device
+replication; it is not the entry requirement for a user to use their own local
+skill or extension.
+
 Activation trigger:
 
 - Refarm has a `skill-contract-v1`-style owner outside `apps/refarm`;
-- Refarm can load a `SKILL.md` source fixture into a policy-checkable manifest;
+- Refarm can load a local or external `SKILL.md` source fixture into a
+  policy-checkable manifest without treating unpublished source as installed;
 - the selected package/plugin manifest exposes that fixture as a skill surface,
-  for example `layer: "pi", kind: "skill"`, instead of a standalone skill install path;
+  for example `layer: "pi", kind: "skill"`, or the plan records the exact
+  promotion step from user/project space to bundle when sharing is required;
 - one existing `dgk-skills` or `agents-lab` skill is chosen as the dogfood consumer;
 - the adapter spec proves external skills remain canonical in their projects and only conform to
   the Refarm runtime.

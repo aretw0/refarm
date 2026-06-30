@@ -34,6 +34,24 @@ Um plugin no Refarm é uma unidade de extensão com **entry executável** + **ma
 >
 > Modelo canônico: [`docs/EXTENSIBILITY_MODEL.md`](EXTENSIBILITY_MODEL.md).
 
+### Espaços locais antes do plugin
+
+O requisito de `entry` vale para um plugin empacotado, não para todo trabalho de
+autoria. Usuários e projetos podem manter skills, extensões, temas, guias e
+experimentos em um space local antes de criar um pacote:
+
+- **user space**: material privado do operador, mutável e não publicado;
+- **project space**: material usado por um workspace, opcionalmente versionado
+  pelo projeto;
+- **bundle/package**: promoção explícita quando o material precisa ser
+  compartilhado, instalado em outro dispositivo, entregue como tarball, ou
+  replicado por um transporte peer-to-peer.
+
+Esses spaces locais não são bypass de segurança. Uma skill local ainda precisa
+de capacidades declaradas e validação de source/hash antes de invocação; uma
+extensão executável local ainda precisa passar pela política do host antes de
+rodar. A diferença é audiência e proveniência, não permissão implícita.
+
 ---
 
 ## 2) Exemplo prático: plugin de temas com marketplace próprio
