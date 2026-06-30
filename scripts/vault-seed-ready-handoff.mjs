@@ -17,6 +17,7 @@ import {
 	packageManagerSpawnCommand,
 } from "../packages/config/src/package-manager.js";
 import { releasePlanAcceptance } from "../packages/release-engine/src/index.mjs";
+import { buildReleaseBoundaryAudit } from "./ci/release-boundary-audit.mjs";
 import { buildReleaseCheckPlan } from "./release-check.mjs";
 
 const DEFAULT_SELECTION = "vault-seed-ready";
@@ -277,6 +278,39 @@ function buildConsumerProofs(packages) {
 		}));
 }
 
+function buildHandoffBoundaryAudit({ cwd, releaseBoundaryAudit }) {
+	if (releaseBoundaryAudit !== undefined) {
+		return releaseBoundaryAudit;
+	}
+	if (!existsSync(path.join(cwd, "refarm.config.json"))) {
+		return null;
+	}
+	const audit = buildReleaseBoundaryAudit({ root: cwd });
+	return {
+		schemaVersion: audit.schemaVersion,
+		command: audit.command,
+		ok: audit.ok,
+		selectionId: audit.selectionId,
+		auditedPackageCount: audit.auditedPackageCount,
+		auditedPackages: audit.auditedPackages,
+		issueCount: audit.issueCount,
+		issues: audit.issues,
+	};
+}
+
+function releaseBoundaryAuditIssues(releaseBoundaryAudit) {
+	if (!releaseBoundaryAudit || releaseBoundaryAudit.ok) {
+		return [];
+	}
+	if ((releaseBoundaryAudit.issues ?? []).length === 0) {
+		return ["release boundary audit failed"];
+	}
+	return releaseBoundaryAudit.issues.map((item) => {
+		const code = item.code ? `${item.code}: ` : "";
+		return `release boundary audit ${code}${item.message}`;
+	});
+}
+
 function buildConsumerInstall({ packages, handoffDir }) {
 	const fileSpecs = Object.fromEntries(
 		packages.map((entry) => [
@@ -310,6 +344,7 @@ function buildDistributionEvidence({
 	manifestOk,
 	handoffDir,
 	acceptance,
+	releaseBoundaryAudit = null,
 	selectionId = DEFAULT_SELECTION,
 	issues = [],
 }) {
@@ -357,7 +392,12 @@ function buildDistributionEvidence({
 			source: "release-engine",
 			strategy: "replace handoff directory and selected package tarballs",
 			acceptanceStatus: acceptance?.status ?? "unknown",
-			evidenceRefs: ["acceptance", "packages[].sha256", "consumerProofs"],
+			evidenceRefs: [
+				"acceptance",
+				"packages[].sha256",
+				"consumerProofs",
+				...(releaseBoundaryAudit ? ["releaseBoundaryAudit"] : []),
+			],
 		},
 		rollback: {
 			strategy: "retain previous handoff directory or pinned consumer vendor tarballs",
@@ -374,6 +414,14 @@ function buildDistributionEvidence({
 			pearRuntimeAdopted: false,
 			appOwnedContract: false,
 			productReady: false,
+			releaseBoundaryAudit: releaseBoundaryAudit
+				? {
+						command: releaseBoundaryAudit.command,
+						ok: releaseBoundaryAudit.ok,
+						selectionId: releaseBoundaryAudit.selectionId,
+						issueCount: releaseBoundaryAudit.issueCount,
+					}
+				: null,
 		},
 		issues,
 	};
@@ -486,6 +534,7 @@ export function buildHandoffManifest({
 	handoffDir = DEFAULT_HANDOFF_DIR,
 	prunedExtra = [],
 	releaseCheck,
+	releaseBoundaryAudit,
 } = {}) {
 	const check =
 		releaseCheck ??
@@ -493,9 +542,14 @@ export function buildHandoffManifest({
 			cwd,
 			selectionId: DEFAULT_SELECTION,
 		});
+	const boundaryAudit = buildHandoffBoundaryAudit({ cwd, releaseBoundaryAudit });
 
 	if (!check.ok) {
 		const plan = check.plan ?? { ok: false };
+		const issues = [
+			plan.reason ?? "release selection is not ready",
+			...releaseBoundaryAuditIssues(boundaryAudit),
+		];
 		return {
 			schemaVersion: HANDOFF_MANIFEST_SCHEMA_VERSION,
 			source: HANDOFF_MANIFEST_SOURCE,
@@ -510,18 +564,20 @@ export function buildHandoffManifest({
 				handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 			}),
 			consumerProofs: [],
+			releaseBoundaryAudit: boundaryAudit,
 			distributionEvidence: buildDistributionEvidence({
 				packages: [],
 				manifestOk: false,
 				handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 				acceptance: releasePlanAcceptance(plan),
+				releaseBoundaryAudit: boundaryAudit,
 				selectionId: plan.selection?.id ?? DEFAULT_SELECTION,
-				issues: [plan.reason ?? "release selection is not ready"],
+				issues,
 			}),
 			missing: [],
 			extra: [],
 			prunedExtra,
-			issues: [plan.reason ?? "release selection is not ready"],
+			issues,
 		};
 	}
 
@@ -591,6 +647,7 @@ export function buildHandoffManifest({
 					? `stale build output: ${entry.packageName} output ${entry.buildOutput.path} is older than ${entry.buildInput?.path ?? entry.packageDir}`
 					: `missing build output: ${entry.packageName} has publishable build output but no dist/pkg files`,
 			),
+		...releaseBoundaryAuditIssues(boundaryAudit),
 	];
 
 	return {
@@ -607,11 +664,13 @@ export function buildHandoffManifest({
 			handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 		}),
 		consumerProofs: buildConsumerProofs(packages),
+		releaseBoundaryAudit: boundaryAudit,
 		distributionEvidence: buildDistributionEvidence({
 			packages,
 			manifestOk: issues.length === 0,
 			handoffDir: maybeRelative(cwd, absoluteHandoffDir),
 			acceptance: releasePlanAcceptance(check.plan),
+			releaseBoundaryAudit: boundaryAudit,
 			selectionId: check.plan.selection?.id ?? DEFAULT_SELECTION,
 			issues,
 		}),
@@ -672,6 +731,23 @@ export function formatHandoffMarkdown(manifest) {
 			`- Current ref: \`${manifest.distributionEvidence.currentRef}\``,
 			`- Rollback: ${manifest.distributionEvidence.rollback.strategy}`,
 		);
+	}
+
+	if (manifest.releaseBoundaryAudit) {
+		lines.push(
+			"",
+			"Release boundary audit:",
+			"",
+			`- Command: \`${manifest.releaseBoundaryAudit.command}\``,
+			`- Status: \`${manifest.releaseBoundaryAudit.ok ? "ok" : "blocked"}\``,
+			`- Selection: \`${manifest.releaseBoundaryAudit.selectionId}\``,
+			`- Audited packages: ${manifest.releaseBoundaryAudit.auditedPackageCount}`,
+		);
+		if ((manifest.releaseBoundaryAudit.issues ?? []).length > 0) {
+			for (const issue of manifest.releaseBoundaryAudit.issues) {
+				lines.push(`- ${issue.code}: ${issue.message}`);
+			}
+		}
 	}
 
 	if ((manifest.prunedExtra ?? []).length > 0) {

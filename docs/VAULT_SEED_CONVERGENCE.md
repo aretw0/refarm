@@ -483,10 +483,15 @@ acceptance line before the tarball table, so a consumer handoff can verify
 readiness without reinterpreting the full release plan. The JSON manifest is
 versioned (`schemaVersion: 1`) and carries the current `packages[].sha256`,
 `consumerPull` per package, `consumerProofs`, `distributionEvidence`, and
-`prunedExtra` fields. Treat `manifest.json`, not hand-written prose, as the
-integrity source of truth. The official checkout should collect every `.tgz`
-named by `packages[].tarball` from the same handoff directory, then use
-`packages[].sha256` to verify the packet before pinning dependencies.
+`prunedExtra` fields. As of 2026-06-30, it also embeds
+`releaseBoundaryAudit`, the same machine-readable naming/package-boundary guard
+run by `pnpm run release:boundary:audit`; `distributionEvidence.update.evidenceRefs`
+points to that field when present, and a failing audit blocks `ok: true`. Treat
+`manifest.json`, not hand-written prose, as the integrity and boundary source of
+truth. The official checkout should
+collect every `.tgz` named by `packages[].tarball` from the same handoff
+directory, then use `packages[].sha256` to verify the packet before pinning
+dependencies.
 `consumerInstall.fileSpecs` gives ready-to-copy `file:./vendor/<tarball>` specs
 for direct dependencies, and `consumerInstall.pnpmOverrides` gives the matching
 unpublished transitive overrides. The flattened `consumerProofs` list is the

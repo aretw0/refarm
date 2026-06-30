@@ -150,6 +150,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.deepEqual(manifest.extra, []);
 	assert.deepEqual(manifest.prunedExtra, []);
 	assert.deepEqual(manifest.consumerProofs, []);
+	assert.equal(manifest.releaseBoundaryAudit, null);
 	assert.deepEqual(manifest.consumerInstall, {
 		packageManager: "pnpm",
 		vendorDir: "vendor",
@@ -186,6 +187,12 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.equal(manifest.distributionEvidence.rollback.requiresHumanApproval, true);
 	assert.equal(manifest.distributionEvidence.boundary.publicInstallContract, false);
 	assert.equal(manifest.distributionEvidence.boundary.p2pSubstrateAdopted, false);
+	assert.equal(manifest.distributionEvidence.boundary.releaseBoundaryAudit, null);
+	assert.deepEqual(manifest.distributionEvidence.update.evidenceRefs, [
+		"acceptance",
+		"packages[].sha256",
+		"consumerProofs",
+	]);
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].stale, false);
 	assert.equal(manifest.packages[0].buildOutputStale, false);
@@ -352,6 +359,47 @@ test("keeps blocked distribution evidence at zero verified copies", () => {
 	assert.deepEqual(manifest.distributionEvidence.issues, ["release selection is not ready"]);
 });
 
+test("blocks manifest when release boundary audit fails", () => {
+	const { root, handoffDir } = makeFixture();
+	writeFileSync(path.join(handoffDir, "refarm.dev-alpha-0.1.0.tgz"), "alpha");
+	writeFileSync(path.join(handoffDir, "refarm.dev-beta-0.2.0.tgz"), "beta");
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+		releaseBoundaryAudit: {
+			schemaVersion: 1,
+			command: "release-boundary-audit",
+			ok: false,
+			selectionId: "vault-seed-ready",
+			auditedPackageCount: 2,
+			auditedPackages: ["@refarm.dev/alpha", "@refarm.dev/beta"],
+			issueCount: 1,
+			issues: [
+				{
+					code: "README_OPENING_PRODUCT_SPECIFIC",
+					packageName: "@refarm.dev/alpha",
+					message: "README opening should describe reusable capability.",
+				},
+			],
+		},
+	});
+
+	assert.equal(manifest.ok, false);
+	assert.deepEqual(manifest.issues, [
+		"release boundary audit README_OPENING_PRODUCT_SPECIFIC: README opening should describe reusable capability.",
+	]);
+	assert.equal(manifest.distributionEvidence.state, "blocked");
+	assert.equal(manifest.distributionEvidence.boundary.releaseBoundaryAudit.ok, false);
+	assert.deepEqual(
+		manifest.distributionEvidence.update.evidenceRefs,
+		["acceptance", "packages[].sha256", "consumerProofs", "releaseBoundaryAudit"],
+	);
+	assert.match(formatHandoffMarkdown(manifest), /Release boundary audit:/);
+	assert.match(formatHandoffMarkdown(manifest), /README_OPENING_PRODUCT_SPECIFIC/);
+});
+
 test("keeps current vault-seed-ready selection tied to consumer-pull metadata", () => {
 	const root = process.cwd();
 	const handoffDir = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-empty-"));
@@ -368,6 +416,19 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
 	assert.equal(manifest.distributionEvidence.subject.packageCount, 9);
 	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 9);
+	assert.equal(manifest.releaseBoundaryAudit.ok, true);
+	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
+	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");
+	assert.equal(manifest.releaseBoundaryAudit.auditedPackageCount, manifest.packages.length);
+	assert.equal(manifest.distributionEvidence.boundary.releaseBoundaryAudit.ok, true);
+	assert.equal(
+		manifest.distributionEvidence.boundary.releaseBoundaryAudit.command,
+		"release-boundary-audit",
+	);
+	assert.deepEqual(
+		manifest.distributionEvidence.update.evidenceRefs,
+		["acceptance", "packages[].sha256", "consumerProofs", "releaseBoundaryAudit"],
+	);
 	assert.equal(Object.keys(manifest.consumerInstall.fileSpecs).length, manifest.packages.length);
 	assert.equal(Object.keys(manifest.consumerInstall.pnpmOverrides).length, manifest.packages.length);
 	assert.equal(manifest.consumerInstall.copyFiles.length, manifest.packages.length + 1);
@@ -383,6 +444,8 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		new Set(manifest.consumerProofs.map((proof) => proof.proofId)).size,
 		manifest.consumerProofs.length,
 	);
+	assert.match(formatHandoffMarkdown(manifest), /Release boundary audit:/);
+	assert.match(formatHandoffMarkdown(manifest), /release-boundary-audit/);
 	assert.deepEqual(
 		manifest.packages
 			.filter((entry) => entry.consumerPull === null)

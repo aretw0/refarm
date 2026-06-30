@@ -149,7 +149,9 @@ Before any publication or handoff:
 6. Audit exported SDK names: use product-neutral domain names for reusable
    primitives, and reserve `Refarm` prefixes for product identity surfaces.
    `pnpm run release:boundary:audit` emits the machine-readable release boundary
-   audit for the current `vault-seed-ready` handoff lane.
+   audit for the current `vault-seed-ready` handoff lane; the
+   `release:vault-seed:handoff` manifest embeds the same summary as
+   `releaseBoundaryAudit` and blocks the handoff when that audit fails.
 
 Current commands:
 
