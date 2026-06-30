@@ -53,3 +53,26 @@ the **skill runtime** that would invoke them does not.
   dogfooding gate. Tracked under the "Refarm as engine" milestone.
 - **`dgk-skills` stays in `vault-seed`** (canonical to DGK); it conforms to the future contract,
   it does not migrate.
+
+## Agents-lab Markdown Skill Import Manifest
+
+`pnpm run agents-lab:skills:manifest` emits a plan-only import manifest for the
+current `agents-lab` Markdown skill candidates:
+
+- `git-skills`;
+- `lab-skills/cultivate-primitive`;
+- `lab-skills/evaluate-extension`;
+- `lab-skills/provider-model-discovery`.
+
+The manifest does not install or vendor files. It requires convention review for
+each skill, keeps Pi TypeScript extension APIs out of scope, and preserves the
+deferred skill-runtime boundary above. This lets Refarm start aligning with
+`agents-lab` skill content without pretending the Refarm skill invocation surface
+exists yet.
+
+This is not an indefinite hold. The next work can start now: review the Markdown
+skill sources and record accepted content or required edits. A real skill adapter
+is unlocked when one reviewed skill maps to an existing Refarm engine/capability,
+a minimal invocation surface can execute a `SKILL.md`-derived plan without
+bypassing policy, and a dogfood smoke records the selected skill's engine calls
+and input/output envelope.
