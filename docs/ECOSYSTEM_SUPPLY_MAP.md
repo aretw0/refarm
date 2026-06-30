@@ -115,6 +115,9 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    Requirements-vault pressure follows `specs/features/2026-06-30-work-3-requirements-supply-activation.md`:
    `enrichment:v1`, authenticated web source capture, knowledge/content manifest, and cheap
    diagnostics are Refarm supply candidates; accessible-system discovery and private adapters are not.
+   `pnpm run requirements:supply:handoff` exposes the held candidate packet, planned local
+   `file:./vendor/*.tgz` specs, unpublished Refarm dependency overrides, consumer proofs, and
+   fallback paths without promoting those leaves into `vault-seed-ready`.
 7. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.

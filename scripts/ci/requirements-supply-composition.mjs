@@ -396,7 +396,7 @@ export async function buildRequirementsSupplyComposition({
 			"does not run browser automation",
 			"does not import private source selectors or login flows",
 			"does not persist consumer vocabulary into Refarm packages",
-			"does not add release-policy or vault-seed-ready metadata",
+			"does not select vault-seed-ready packages or generate handoff tarballs",
 		],
 		nextActions: [
 			"record downstream local handoff evidence before release-policy promotion",
