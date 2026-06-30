@@ -59,6 +59,8 @@ test("roadmap and taxonomy treat external skills as fixtures for native Refarm s
 	assert.match(readiness, /policy-checkable manifest/);
 	assert.match(readiness, /parallel plugin ecosystem/);
 	assert.match(readiness, /plugin-manifest skill surface/);
+	assert.match(readiness, /native:skills:surface-smoke/);
+	assert.match(readiness, /executesRuntime: false/);
 	assert.match(readiness, /Do not require packaging before authoring/);
 	assert.match(readiness, /User and project spaces may contain/);
 	assert.match(readiness, /peer\/device\s+replication/);
@@ -91,6 +93,7 @@ test("extensibility model keeps skills inside the package/plugin surface model",
 	assert.match(packagesReadme, /schema\/conformance helper for native/);
 	assert.match(packagesReadme, /not a second plugin system/);
 	assert.match(packagesReadme, /Packages and plugin manifests\s+remain the distribution\/trust boundary/);
+	assert.match(packagesReadme, /engine dogfood smoke/);
 
 	assert.match(skillReadme, /not a parallel plugin system/);
 	assert.match(skillReadme, /distribution unit remains the package\/plugin bundle/);

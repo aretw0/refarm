@@ -124,7 +124,7 @@ packages are ready:
 | `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded; handoff promotion waits for a selected consumer path that needs package consumption |
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
 | `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
-| `@refarm.dev/skill-contract-v1` | implemented; not selected | native `skill:v1` manifest/plan/request/surface helpers are checked, and plugin-manifest validates `pi/skill` package surfaces; publication waits for Refarm wrapper/adapter smoke that invokes one external skill without bypassing policy |
+| `@refarm.dev/skill-contract-v1` | implemented; not selected | native `skill:v1` manifest/plan/request/surface helpers are checked, plugin-manifest validates `pi/skill` package surfaces, and a plan-only Refarm git-workflow surface smoke exists; publication waits for an engine dogfood smoke that invokes one skill without bypassing policy |
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
