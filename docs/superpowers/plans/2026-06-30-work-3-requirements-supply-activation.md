@@ -86,7 +86,17 @@ requirements:supply:handoff` emits the machine-readable candidate handoff plan:
 candidate leaf packages, planned `file:./vendor/*.tgz` specs, local
 `pnpmOverrides` for unpublished Refarm dependencies, consumer proof metadata,
 and fallback behavior, but does not pack tarballs or write `.refarm/handoff`
-artifacts.
+artifacts unless `--pack` is explicit. The first consumable packet is the clean
+contract slice:
+
+```bash
+pnpm run requirements:supply:handoff -- --pack --clean-only
+```
+
+It writes `.refarm/handoff/requirements-supply/<YYYY-MM-DD>/manifest.json` plus
+`refarm.dev-enrichment-contract-v1-0.1.0.tgz` and
+`refarm.dev-records-contract-v1-0.1.0.tgz`. `source-web` remains the next packet
+because it must travel with `@refarm.dev/source-contract-v1`.
 
 ## Non-Goal
 
