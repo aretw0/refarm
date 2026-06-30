@@ -34,6 +34,16 @@ Sincronização distribuída (CRDT, OT, WebSocket, WebRTC, etc.)
 
 Gerenciamento de identidade (Nostr, DID, OAuth, passkeys, etc.)
 
+### `enrichment:v1`
+**Pacote**: `@refarm.dev/enrichment-contract-v1`
+**Provider**: `EnrichmentProvider`
+**Operações**: `describe`, `select`, `enrich`
+
+Enriquecimento determinístico de records/notas por providers externos. O
+provider retorna mudanças com proveniência e diagnósticos; consumidores decidem
+se e como persistir. O pacote está implementado e proof-gated, sem entrada em
+release-policy até existir prova downstream.
+
 ## Uso
 
 ### Para Consumidores (Kernel/Apps)

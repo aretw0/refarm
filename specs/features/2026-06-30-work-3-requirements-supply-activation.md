@@ -1,6 +1,6 @@
 # Spec: Work 3 Requirements Supply Activation
 
-**Status:** DRAFT - activation packet, no package implementation yet
+**Status:** DRAFT - activation packet, enrichment package slice implemented
 **Date:** 2026-06-30
 **Related:** `docs/ECOSYSTEM_SUPPLY_MAP.md`,
 `specs/features/2026-06-24-source-contract-v1.md`,
@@ -72,7 +72,10 @@ Private downstream proofs own:
 ## Activation Order
 
 1. Write package-level design for `enrichment:v1` first. It is the smallest new
-   contract and has no browser/runtime dependency.
+   contract and has no browser/runtime dependency. Initial package slice is
+   implemented in `@refarm.dev/enrichment-contract-v1` with a deterministic
+   fixture provider and conformance suite; release promotion remains gated by a
+   downstream proof.
 2. Extend the source-adapter activation packet for authenticated web capture.
    Do not change `source-contract-v1` until the package slice states whether the
    additive source kind belongs in `source:v1` or behind a web-specific package

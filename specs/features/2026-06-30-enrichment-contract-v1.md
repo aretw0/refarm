@@ -1,6 +1,6 @@
 # Spec: Enrichment Contract v1 (`enrichment:v1`)
 
-**Status:** DRAFT — ready for implementation (activation order step 1)
+**Status:** DRAFT — initial package slice implemented (activation order step 1)
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** [`specs/features/2026-06-30-work-3-requirements-supply-activation.md`](./2026-06-30-work-3-requirements-supply-activation.md),
@@ -129,6 +129,11 @@ shape.
   provenance; that missing-key and no-match inputs land in `skipped` with the right code; that
   `diagnostics` counts reconcile.
 - Telemetry: emit the standard `TelemetryEvent` per `enrich` call (capability, durationMs, ok).
+
+Current implementation note: `@refarm.dev/enrichment-contract-v1` now provides
+the versioned types, deterministic fixture provider, and conformance suite. It
+does not persist changes, perform network access, or enter release-policy
+selection before a named downstream proof exists.
 
 ## 3. Boundary
 
