@@ -7,12 +7,17 @@
 
 ## Task 1 - Enrichment Contract Slice
 
-- Draft `enrichment:v1` with provider identity, input selectors, dry-run/apply
+- [x] Draft `enrichment:v1` with provider identity, input selectors, dry-run/apply
   mode, deterministic result summaries, diagnostics, and provenance.
-- Add a sanitized reference fixture that enriches local records without network
+- [x] Add a sanitized reference fixture that enriches local records without network
   access.
-- Gate: no private registry, identifier vocabulary, or vault-specific tag prefix
+- [x] Gate: no private registry, identifier vocabulary, or vault-specific tag prefix
   in the contract.
+
+Implemented as `@refarm.dev/enrichment-contract-v1` with types, a deterministic
+fixture provider, conformance tests, and package-local lint/type/build checks.
+It remains proof-gated and is not in release policy until a downstream proof
+uses the package without moving private providers into Refarm.
 
 ## Task 2 - Authenticated Web Source Adapter Design
 

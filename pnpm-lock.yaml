@@ -569,6 +569,8 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/enrichment-contract-v1: {}
+
   packages/eslint-config:
     devDependencies:
       eslint:
