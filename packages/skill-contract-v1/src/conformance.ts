@@ -159,6 +159,50 @@ export async function runSkillContractV1Conformance(
 	total++;
 	if (manifest) {
 		try {
+			const planResult = await adapter.buildInvocationPlan(manifest);
+			if (!planResult.ok || !planResult.plan) {
+				failures.push(`valid manifest could not produce decision plan: ${formatIssues(planResult.issues)}`);
+			} else {
+				const requestResult = await adapter.buildInvocationRequest(
+					planResult.plan,
+					"Review the current git state and propose a safe workflow.",
+				);
+				if (!requestResult.ok || !requestResult.request) {
+					failures.push(`valid invocation plan could not produce decision request: ${formatIssues(requestResult.issues)}`);
+				} else {
+					const decisionResult = await adapter.buildInvocationDecision(requestResult.request, {
+						decision: "approved",
+						reason: "Conformance host approved required workflow capabilities.",
+						approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+					});
+					if (!decisionResult.ok || !decisionResult.decision) {
+						failures.push(`valid invocation request did not build host decision: ${formatIssues(decisionResult.issues)}`);
+					} else {
+						if (decisionResult.decision.schema !== "refarm.skill-invocation-decision.v1") {
+							failures.push("invocation decision schema must be refarm.skill-invocation-decision.v1");
+						}
+						if (decisionResult.decision.requiresRuntimeDispatch !== true) {
+							failures.push("approved invocation decision must require runtime dispatch");
+						}
+						if (decisionResult.decision.executed !== false) {
+							failures.push("invocation decision must remain pre-execution");
+						}
+						if (!decisionResult.decision.capabilityDecisions.some((item) =>
+							item.id === "refarm.git.write" && item.decision === "approved"
+						)) {
+							failures.push("invocation decision must preserve capability approvals");
+						}
+					}
+				}
+			}
+		} catch (error) {
+			failures.push(`buildInvocationDecision(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
+	if (manifest) {
+		try {
 			const result = await adapter.buildSurfaceDeclaration(manifest, {
 				assetPath: "skills/refarm-git-workflow/SKILL.md",
 			});

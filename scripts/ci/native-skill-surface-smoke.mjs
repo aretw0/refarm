@@ -8,6 +8,7 @@ import {
 } from "@refarm.dev/plugin-manifest";
 
 import {
+	buildSkillInvocationDecision,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
 	prepareSkillInvocationPlan,
@@ -131,6 +132,23 @@ export function buildNativeSkillSurfaceSmoke({
 		));
 	}
 
+	const decisionResult = requestResult?.request
+		? buildSkillInvocationDecision(requestResult.request, {
+			decision: "approved",
+			reason: "Smoke host approved the required Refarm workflow capabilities.",
+			approvedCapabilities: requestResult.request.capabilityRequests
+				.filter((item) => item.required)
+				.map((item) => item.id),
+		})
+		: null;
+	if (decisionResult && (!decisionResult.ok || !decisionResult.decision)) {
+		issues.push(issue(
+			"SKILL_INVOCATION_DECISION_NOT_READY",
+			"Expected invocation request to build a pre-runtime host policy decision.",
+			decisionResult.issues,
+		));
+	}
+
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		command: "native-skill-surface-smoke",
@@ -169,16 +187,27 @@ export function buildNativeSkillSurfaceSmoke({
 				requiresHostPolicyApproval: requestResult.request.requiresHostPolicyApproval,
 			}
 			: null,
+		decision: decisionResult?.decision
+			? {
+				schema: decisionResult.decision.schema,
+				decision: decisionResult.decision.decision,
+				reason: decisionResult.decision.reason,
+				capabilityDecisions: decisionResult.decision.capabilityDecisions,
+				engineBindings: decisionResult.decision.engineBindings,
+				requiresRuntimeDispatch: decisionResult.decision.requiresRuntimeDispatch,
+				executed: decisionResult.decision.executed,
+			}
+			: null,
 		boundaries: [
 			"This smoke does not execute runtime-agent, pi-agent, shell, git, or file tools.",
 			"The skill remains a package-declared surface, not a standalone skill installation.",
-			"Host policy approval is still required before any future dispatch.",
+			"Host policy approval is recorded as a pre-runtime decision, not executed here.",
 			"Engine dogfood remains pending until a host records real engine calls.",
 		],
 		nextActions: issues.length === 0
 			? [
 				"Select the first host-owned invocation boundary for runtime-agent or a Refarm plugin.",
-				"Record the policy approval and engine-call evidence before claiming executable skill support.",
+				"Attach the recorded policy decision to engine-call evidence before claiming executable skill support.",
 			]
 			: [
 				"Fix the contract, surface, or request issues before any runtime invocation planning.",

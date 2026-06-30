@@ -20,6 +20,8 @@ content:
   the skill;
 - build a host-policy-checkable invocation request from a plan and markdown
   input without calling a runtime;
+- build a host policy decision from a request, approving or denying the
+  requested capabilities while keeping the artifact pre-runtime and unexecuted;
 - build a plugin-manifest-compatible skill surface declaration
   (`layer: "pi", kind: "skill"`) from a validated manifest and package asset
   path;
@@ -42,6 +44,7 @@ contract only after that boundary accepts the surface.
 
 ```ts
 import {
+	buildSkillInvocationDecision,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
 	prepareSkillInvocationPlan,
@@ -77,6 +80,17 @@ const request = buildSkillInvocationRequest(result.plan, "Review this working tr
 if (!request.ok) {
 	throw new Error(request.issues.map((issue) => issue.message).join("; "));
 }
+
+const decision = buildSkillInvocationDecision(request.request, {
+	decision: "approved",
+	reason: "Operator approved the required workflow capabilities.",
+	approvedCapabilities: result.plan.capabilityRequests
+		.filter((item) => item.required)
+		.map((item) => item.id),
+});
+if (!decision.ok) {
+	throw new Error(decision.issues.map((issue) => issue.message).join("; "));
+}
 ```
 
 `requiredCapabilities` is mandatory in frontmatter. A `SKILL.md` without it
@@ -91,6 +105,9 @@ Engine bindings are declarations only. This package does not select or call an
 engine implementation.
 Invocation requests are still pre-runtime artifacts; hosts must approve policy
 before dispatch.
+Invocation decisions are also pre-runtime artifacts. An approved decision may
+set `requiresRuntimeDispatch: true`, but it must still carry `executed: false`
+until a host-owned dispatcher records actual engine-call evidence.
 Skill surface declarations require a relative package asset path; local
 `file:`/`fixture:` sources can be reviewed and parsed before packaging, but they
 do not become package manifest assets by accident.

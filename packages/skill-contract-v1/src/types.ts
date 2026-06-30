@@ -2,9 +2,11 @@ export const SKILL_CAPABILITY = "skill:v1" as const;
 export const SKILL_MANIFEST_SCHEMA = "refarm.skill-manifest.v1" as const;
 export const SKILL_INVOCATION_PLAN_SCHEMA = "refarm.skill-invocation-plan.v1" as const;
 export const SKILL_INVOCATION_REQUEST_SCHEMA = "refarm.skill-invocation-request.v1" as const;
+export const SKILL_INVOCATION_DECISION_SCHEMA = "refarm.skill-invocation-decision.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";
+export type SkillInvocationPolicyDecision = "approved" | "denied";
 
 export interface SkillContractV1ConformanceResult {
 	readonly pass: boolean;
@@ -106,6 +108,30 @@ export interface SkillInvocationRequestV1 {
 	readonly requiresHostPolicyApproval: true;
 }
 
+export interface SkillInvocationCapabilityDecision {
+	readonly id: string;
+	readonly required: boolean;
+	readonly decision: SkillInvocationPolicyDecision;
+	readonly reason?: string;
+}
+
+export interface SkillInvocationDecisionOptions {
+	readonly decision: SkillInvocationPolicyDecision;
+	readonly reason: string;
+	readonly approvedCapabilities?: readonly string[];
+}
+
+export interface SkillInvocationDecisionV1 {
+	readonly schema: typeof SKILL_INVOCATION_DECISION_SCHEMA;
+	readonly request: SkillInvocationRequestV1;
+	readonly decision: SkillInvocationPolicyDecision;
+	readonly reason: string;
+	readonly capabilityDecisions: readonly SkillInvocationCapabilityDecision[];
+	readonly engineBindings: SkillEngineBindingEnvelope;
+	readonly requiresRuntimeDispatch: boolean;
+	readonly executed: false;
+}
+
 export interface SkillSurfaceDeclarationOptions {
 	readonly assetPath: string;
 	readonly id?: string;
@@ -141,6 +167,10 @@ export interface SkillInvocationPlanBuildResult extends SkillManifestValidationR
 
 export interface SkillInvocationRequestBuildResult extends SkillManifestValidationResult {
 	readonly request: SkillInvocationRequestV1 | null;
+}
+
+export interface SkillInvocationDecisionBuildResult extends SkillManifestValidationResult {
+	readonly decision: SkillInvocationDecisionV1 | null;
 }
 
 export interface SkillSurfaceDeclarationBuildResult extends SkillManifestValidationResult {
@@ -180,6 +210,10 @@ export interface SkillContractV1Adapter {
 		plan: SkillInvocationPlanV1,
 		input: string,
 	): SkillInvocationRequestBuildResult | Promise<SkillInvocationRequestBuildResult>;
+	buildInvocationDecision(
+		request: SkillInvocationRequestV1,
+		options: SkillInvocationDecisionOptions,
+	): SkillInvocationDecisionBuildResult | Promise<SkillInvocationDecisionBuildResult>;
 	buildSurfaceDeclaration(
 		manifest: SkillManifestV1,
 		options: SkillSurfaceDeclarationOptions,

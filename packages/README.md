@@ -46,6 +46,7 @@ needs `source:v1` through `dispatch-surface` with an executable proof.
 Refarm skill surfaces. It parses `SKILL.md`-style content into
 `SkillManifestV1`, records source hashes, requires explicit capabilities, and
 defaults to plan-only, declared-capability tool access. It also builds
+host-policy-checkable invocation plans, requests, pre-runtime decisions, and
 `pi/skill` surface declarations for package manifest handoff from a validated
 manifest plus a relative package asset path.
 
