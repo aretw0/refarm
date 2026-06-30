@@ -76,3 +76,20 @@ is unlocked when one reviewed skill maps to an existing Refarm engine/capability
 a minimal invocation surface can execute a `SKILL.md`-derived plan without
 bypassing policy, and a dogfood smoke records the selected skill's engine calls
 and input/output envelope.
+
+`pnpm run agents-lab:skills:review` is the first source-review checkpoint. It
+reads the local `agents-lab` checkout (or `AGENTS_LAB_SOURCE_DIR`) and records
+file paths, SHA-256 hashes, frontmatter, and installation decisions without
+copying files:
+
+| Candidate | Source reviewed | Current decision |
+|---|---|---|
+| `git-skills` | `packages/git-skills/skills/git-workflow/SKILL.md` | Accepted only after Refarm convention review. This is the first likely skill text for a future invocation smoke. |
+| `lab-skills/cultivate-primitive` | `packages/lab-skills/skills/cultivate-primitive/SKILL.md` | Requires Refarm edits before installation: replace Pi package/runtime wording with Refarm package, WIT, policy, and docs boundaries. |
+| `lab-skills/evaluate-extension` | `packages/lab-skills/skills/evaluate-extension/SKILL.md` | Requires Refarm edits before installation: generalize Pi extension scoring into Refarm package/plugin/skill placement review. |
+| `lab-skills/provider-model-discovery` | `packages/lab-skills/skills/provider-model-discovery/SKILL.md` | Requires Refarm edits before installation: preserve report-only guardrails, but move settings/routes/tests to Refarm runtime, Silo, and budget handoff terms. |
+
+That makes the skills track active without coupling Refarm to the `agents-lab`
+product runtime. Source review is allowed now; installation, vendoring, or
+runtime execution still waits for convention review plus the dogfood invocation
+gate.
