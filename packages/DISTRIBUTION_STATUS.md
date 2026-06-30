@@ -33,6 +33,7 @@ Validation:
 
 ```bash
 pnpm run release:readiness
+pnpm run release:boundary:audit
 ```
 
 ### `vault-seed-ready` (consumer-pulled candidate lane)
@@ -147,6 +148,8 @@ Before any publication or handoff:
 5. Prefer codemods or manifest-driven generation for mechanical consumer moves.
 6. Audit exported SDK names: use product-neutral domain names for reusable
    primitives, and reserve `Refarm` prefixes for product identity surfaces.
+   `pnpm run release:boundary:audit` emits the machine-readable release boundary
+   audit for the current `vault-seed-ready` handoff lane.
 
 Current commands:
 
@@ -155,6 +158,7 @@ refarm release preflight --selection default --json
 refarm release preflight --selection vault-seed-ready --json
 pnpm run release:readiness
 pnpm run release:readiness:test
+pnpm run release:boundary:audit
 pnpm run release:vault-seed:check
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json

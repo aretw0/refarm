@@ -71,6 +71,12 @@ const RELEASE_READINESS_STEPS = [
 			"Public SDK and release surfaces must keep product-specific naming behind explicit boundaries.",
 	},
 	{
+		id: "release-boundary-audit",
+		script: "release:boundary:audit",
+		reason:
+			"Release handoff packages must expose consumer-neutral names, selected leaves, and proof-gated holds as machine-readable audit output.",
+	},
+	{
 		id: "reference-driver",
 		script: "reference-driver:smoke",
 		reason:
