@@ -30,6 +30,24 @@ export interface SkillPolicyEnvelope {
 	readonly toolAccess: SkillToolAccess;
 }
 
+export type SkillIoFormat = "text/markdown";
+
+export interface SkillInputEnvelope {
+	readonly format: SkillIoFormat;
+	readonly required: boolean;
+	readonly description?: string;
+}
+
+export interface SkillOutputEnvelope {
+	readonly format: SkillIoFormat;
+	readonly description?: string;
+}
+
+export interface SkillIoEnvelope {
+	readonly input: SkillInputEnvelope;
+	readonly output: SkillOutputEnvelope;
+}
+
 export interface SkillManifestV1 {
 	readonly schema: typeof SKILL_MANIFEST_SCHEMA;
 	readonly id: string;
@@ -38,6 +56,7 @@ export interface SkillManifestV1 {
 	readonly source: SkillSourceRef;
 	readonly capabilities: SkillCapabilityEnvelope;
 	readonly policy: SkillPolicyEnvelope;
+	readonly io: SkillIoEnvelope;
 	readonly instructions: string;
 	readonly frontmatter: Readonly<Record<string, string | readonly string[]>>;
 }
@@ -58,6 +77,7 @@ export interface SkillInvocationPlanV1 {
 	readonly skill: SkillInvocationPlanSkillRef;
 	readonly policy: SkillPolicyEnvelope;
 	readonly capabilityRequests: readonly SkillInvocationPlanCapability[];
+	readonly io: SkillIoEnvelope;
 	readonly instructions: string;
 	readonly requiresHostPolicyApproval: true;
 }

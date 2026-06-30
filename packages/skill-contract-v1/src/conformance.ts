@@ -13,6 +13,9 @@ requiredCapabilities:
   - refarm.git.write
 optionalCapabilities:
   - refarm.github.pr
+input: Markdown task context for the host to inspect before planning git workflow steps.
+inputRequired: true
+output: Markdown plan describing the proposed git workflow steps.
 ---
 
 # Refarm Git Workflow
@@ -68,6 +71,9 @@ export async function runSkillContractV1Conformance(
 		if (manifest.policy.toolAccess !== "declared-capabilities-only") {
 			failures.push("manifest must default to declared capability tool access");
 		}
+		if (manifest.io.input.format !== "text/markdown" || manifest.io.output.format !== "text/markdown") {
+			failures.push("manifest must expose markdown input/output envelopes");
+		}
 	}
 
 	total++;
@@ -104,6 +110,9 @@ export async function runSkillContractV1Conformance(
 					item.id === "refarm.operator-loop" && item.required === true
 				)) {
 					failures.push("invocation plan must preserve required capability requests");
+				}
+				if (result.plan.io.input.required !== true) {
+					failures.push("invocation plan must preserve input requirements");
 				}
 			}
 		} catch (error) {
