@@ -1,9 +1,9 @@
 # Gardening Skills Taxonomy (Roadmap Item 6 — Discovery)
 
 > Status: taxonomy ledger (2026-06-25). Maps `vault-seed`'s `dgk-skills` to Refarm engines and to
-> `agents-lab` skills, to locate the "gardening skills" superset. The skill **contract/runtime** is
-> deferred (Refarm runs no skills yet — building it now would violate the dogfooding gate). This is
-> discovery only. Feeds `docs/CONVERGENCE_ROADMAP.md` item 6.
+> `agents-lab` skills, to locate the "gardening skills" superset. The skill **contract** now exists
+> as `@refarm.dev/skill-contract-v1`; runtime execution remains deferred. Refarm runs no skills yet.
+> Feeds `docs/CONVERGENCE_ROADMAP.md` item 6.
 
 ## Where skills live today
 
@@ -13,7 +13,8 @@
 - **`agents-lab`**: `git-skills` (incl. `git-checkout-cache` = the librarian), `lab-skills`
   (agentic ops), `pi-skills` (Pi authoring), `web-skills` (`source-research`, `web-browser`). The
   Pi proving ground.
-- **`refarm`**: **no executable skill surface yet.** It has *engines* — `sower` (scaffold/import), `thresher`
+- **`refarm`**: **no executable skill surface yet.** It has a native contract package that parses
+  `SKILL.md` into a policy-checkable manifest/invocation plan, plus *engines* — `sower` (scaffold/import), `thresher`
   (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
   (`context-provider-v1`, the in-progress `source:v1`). The skill invocation path is the future
   "Refarm as engine" milestone.
@@ -22,7 +23,7 @@
 
 The convergence is **not** "move `dgk-skills` into Refarm." `dgk` vault-skills are thin **domain
 wrappers**; in the converged world they call Refarm **engines** instead of reimplementing logic.
-The taxonomy below is the mapping for when the skill contract lands (deferred).
+The taxonomy below is the mapping for when the skill host lands.
 
 ## Taxonomy — `dgk` vault-skill → Refarm engine/capability → `agents-lab` kin
 
@@ -43,15 +44,17 @@ Skills for **tending a sovereign knowledge farm**, spanning: scaffold (`sower`),
 `agents-lab` provides the **agentic-ops subset**; Refarm provides the **engines** the skills call.
 
 Some engines already exist (`context-provider-v1`, `sower`, `thresher`; `source:v1` in progress);
-the **skill runtime** that would invoke them does not.
+the **skill host/runtime** that would invoke them does not.
 
 ## Native Refarm Skill Surface
 
-The work is not only adopting existing skills. Refarm needs a native skill
-surface that can parse `SKILL.md`-style content into a `SkillManifestV1`-style
-contract, require explicit capabilities, pass policy, and invoke Refarm engines
+The work is not only adopting existing skills. Refarm has started the native skill
+surface with `@refarm.dev/skill-contract-v1`: it parses `SKILL.md`-style
+content into `SkillManifestV1`, requires explicit capabilities, and builds a
+host-policy-checkable invocation plan without executing tools. The remaining
+runtime work is to pass that plan through policy and invoke Refarm engines
 through `runtime-agent`, `pi-agent`, or another Refarm plugin host. The durable
-owner should be a package/plugin manifest surface, not `apps/refarm`.
+owner should remain a package/plugin manifest surface, not `apps/refarm`.
 
 This must not become a second plugin system. Packages remain the distribution
 unit, plugins remain the executable/capability providers, and skills are
@@ -61,22 +64,22 @@ manifest decides which host can see each surface.
 
 Activation sequence:
 
-1. create the contract package for skill metadata, capability declarations,
-   source hash, and I/O envelope, scoped as a schema helper for plugin-declared
-   skill surfaces;
-2. add a minimal adapter that maps one reviewed skill into a policy-checkable
-   invocation plan;
+1. **done:** create the contract package for skill metadata, capability
+   declarations, source hash, and policy-checkable invocation plan, scoped as a
+   schema helper for plugin-declared skill surfaces;
+2. add a minimal adapter that maps one reviewed external skill into the
+   policy-checkable invocation plan;
 3. represent that skill as a manifest-declared surface such as
    `layer: "pi", kind: "skill"` with `assets` pointing to the `SKILL.md`;
 4. run the first dogfood smoke through `runtime-agent` or a Refarm plugin
    without bypassing plugin-manifest/Barn/Scarecrow boundaries;
 5. only then install, vendor, or publish skill wrappers.
 
-## Deferred Until Native Contract Exists
+## Deferred Until Native Host Exists
 
 - **External skill adapters** (`SKILL.md` → Refarm manifest/runtime): the
   `VAULT_SEED_CONVERGENCE.md` "skill compatibility" promotion candidate. Deferred until Refarm has
-  its own skill contract and invocation surface — otherwise it is supply-ahead-of-consumption,
+  its own manifest surface and invocation host — otherwise it is supply-ahead-of-consumption,
   against the dogfooding gate. Tracked under the "Refarm as engine" milestone.
 - **`dgk-skills` stays in `vault-seed`** (canonical to DGK); it conforms to the future contract,
   it does not migrate.

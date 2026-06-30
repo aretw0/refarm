@@ -16,7 +16,7 @@ Not everything is planned to execution depth yet. The safe state is:
 | 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring, first-public Silo bulk storage helpers, protection envelope, and light-by-default storage closure | official storage adoption by `vault-seed` remains item 8a |
 | 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
 | 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
-| 6 native skills | activation-gated | taxonomy; native activation spec+plan | native skill contract + plugin-manifest skill surface + engine dogfood gate not present |
+| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1` and builds a host-policy-checkable invocation plan without executing skills | plugin-manifest skill surface + engine dogfood gate not present |
 | 7 librarian completion | proof-gated | source:v1 base contract plus held source package profiles | waits for a dispatch proof; live-tree reads use `@refarm.dev/source-local` but still need selected dogfood/downstream proof before handoff promotion |
 | 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete, with Silo storage helpers, protection envelope, and storage/identity closure split folded back from the `vault-seed` proof; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
 | 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
@@ -164,7 +164,7 @@ Decision:
 
 The taxonomy is enough for strategy, not implementation. The missing prerequisite is a native
 Refarm skill surface: contract package, capability envelope, plugin-manifest declaration, policy
-boundary, and invocation surface. Until that exists, creating a `dgk-skills` or `agents-lab`
+boundary, and invocation host. Until that exists, creating a `dgk-skills` or `agents-lab`
 adapter would be supply ahead of consumption.
 
 Do not model skills as a parallel plugin ecosystem. A package can distribute
@@ -181,11 +181,21 @@ promotion step for sharing, release, tarball handoff, or peer/device
 replication; it is not the entry requirement for a user to use their own local
 skill or extension.
 
+Current contract closure:
+
+- `@refarm.dev/skill-contract-v1` owns the schema/conformance helper;
+- `parseSkillMarkdown` maps `SKILL.md` frontmatter and instructions into
+  `SkillManifestV1`;
+- `buildSkillInvocationPlan` turns a valid manifest into a
+  host-policy-checkable plan that preserves source hash, requested
+  capabilities, policy, and instructions while requiring host policy approval;
+- the package still does not install, authorize, or execute skills.
+
 Activation trigger:
 
 - Refarm has a `skill-contract-v1`-style owner outside `apps/refarm`;
 - Refarm can load a local or external `SKILL.md` source fixture into a
-  policy-checkable manifest without treating unpublished source as installed;
+  policy-checkable manifest/invocation plan without treating unpublished source as installed;
 - the selected package/plugin manifest exposes that fixture as a skill surface,
   for example `layer: "pi", kind: "skill"`, or the plan records the exact
   promotion step from user/project space to bundle when sharing is required;

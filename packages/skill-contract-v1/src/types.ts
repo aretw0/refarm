@@ -1,5 +1,6 @@
 export const SKILL_CAPABILITY = "skill:v1" as const;
 export const SKILL_MANIFEST_SCHEMA = "refarm.skill-manifest.v1" as const;
+export const SKILL_INVOCATION_PLAN_SCHEMA = "refarm.skill-invocation-plan.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";
@@ -41,6 +42,26 @@ export interface SkillManifestV1 {
 	readonly frontmatter: Readonly<Record<string, string | readonly string[]>>;
 }
 
+export interface SkillInvocationPlanCapability {
+	readonly id: string;
+	readonly required: boolean;
+}
+
+export interface SkillInvocationPlanSkillRef {
+	readonly id: string;
+	readonly name: string;
+	readonly source: SkillSourceRef;
+}
+
+export interface SkillInvocationPlanV1 {
+	readonly schema: typeof SKILL_INVOCATION_PLAN_SCHEMA;
+	readonly skill: SkillInvocationPlanSkillRef;
+	readonly policy: SkillPolicyEnvelope;
+	readonly capabilityRequests: readonly SkillInvocationPlanCapability[];
+	readonly instructions: string;
+	readonly requiresHostPolicyApproval: true;
+}
+
 export interface SkillManifestIssue {
 	readonly code: string;
 	readonly path: string;
@@ -50,6 +71,10 @@ export interface SkillManifestIssue {
 export interface SkillManifestValidationResult {
 	readonly ok: boolean;
 	readonly issues: readonly SkillManifestIssue[];
+}
+
+export interface SkillInvocationPlanBuildResult extends SkillManifestValidationResult {
+	readonly plan: SkillInvocationPlanV1 | null;
 }
 
 export interface SkillManifestParseOptions {
@@ -68,4 +93,7 @@ export interface SkillContractV1Adapter {
 	validateManifest(
 		manifest: unknown,
 	): SkillManifestValidationResult | Promise<SkillManifestValidationResult>;
+	buildInvocationPlan(
+		manifest: SkillManifestV1,
+	): SkillInvocationPlanBuildResult | Promise<SkillInvocationPlanBuildResult>;
 }
